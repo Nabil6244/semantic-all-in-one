@@ -1,0 +1,40 @@
+# Virtualenvs
+.venv/
+.venv-audio/
+.venv_gui/
+.venv-build/
+venv/
+
+# Flow engine sidecar (Node deps + downloaded Chromium — installed locally, not committed)
+flow-engine/node_modules/
+
+# Local secrets / per-machine settings (Pexels key, etc.) — never commit
+settings.json
+.videogen/
+
+# PyInstaller
+build/
+dist/
+*.egg-info/
+
+# Bundled ffmpeg + node (download locally / in CI — do not commit)
+bin/ffmpeg
+bin/ffmpeg.exe
+bin/ffprobe
+bin/ffprobe.exe
+bin/node
+bin/node.exe
+
+# Project media / script (local per video — do not commit)
+script.csv
+voiceover.mp3
+Images/
+# (Images/.asset_manifest.json and .stock_used_assets.json are covered by Images/ above)
+
+# Runtime leftovers
+._render_clips/
+concat_list.txt
+timings.csv
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,6 @@
+# Coqui TTS requires Python >=3.9,<3.12 — use .venv-audio (Python 3.11), not .venv (3.13)
+TTS==0.22.0
+transformers>=4.33,<4.46
+pydub
+soundfile
+torch

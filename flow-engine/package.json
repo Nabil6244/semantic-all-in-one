@@ -1,0 +1,19 @@
+{
+  "name": "video-generator-flow-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless Flow generation engine extracted from Semantic Automator's desktop app (lib/flow-api.js, batch-runner.js, orchestrator.js, accounts.js) — no Electron, no Firebase/licensing. Driven over the same local WebSocket protocol by providers/flow/client.py.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-browser": "npx playwright install chromium"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "ws": "^8.18.0"
+  }
+}
