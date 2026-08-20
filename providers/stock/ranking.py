@@ -54,9 +54,17 @@ def rank_candidates(
     def score(c: "Candidate") -> float:
         s = _relevance_score(c, query) * 3.0
         # Resolution: reward, capped so an 8K image doesn't dominate a fine 1080p match.
-        s += min((c.width * c.height) / (1920 * 1080), 2.0)
+        pixels = c.width * c.height
+        hd = 1920 * 1080
+        if pixels <= hd:
+            s += pixels / hd
+        else:
+            # Huge 4K+ stock videos stall downloads; prefer 1080p-class files.
+            s += max(0.4, 1.0 - min((pixels - hd) / hd, 0.8))
         if c.media_type.value == "video" and c.duration and c.duration >= 2:
             s += 0.5  # mild bonus for a usable (not near-zero-length) clip
+        if c.media_type.value == "video" and c.width >= 3840:
+            s -= 1.2
         if c.asset_id in used_asset_ids:
             s -= 5.0  # strong repeat-penalty: heavily discourage reusing the same asset
         return s

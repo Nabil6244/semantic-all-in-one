@@ -1,0 +1,8 @@
+# Isolated Qwen3-TTS environment only.
+# Do NOT install this into .venv-build (GUI / Visual Director / YouTube).
+#
+#   conda create -p .venv-qwen python=3.12 -y
+#   .venv-qwen/bin/python -m pip install -r requirements-qwen-tts.txt
+#
+# Official package: https://github.com/QwenLM/Qwen3-TTS
+qwen-tts==0.1.1

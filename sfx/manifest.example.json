@@ -1,0 +1,15 @@
+{
+  "sounds": [
+    {
+      "src": "whoosh/whoosh_soft.wav",
+      "id": "whoosh_01",
+      "category": "whoosh",
+      "tags": ["soft", "sweep", "transition"],
+      "intensity": "low",
+      "source": "sonniss_gdc_2026",
+      "license": "Sonniss GDC 2026",
+      "commercial_use": true,
+      "attribution_required": false
+    }
+  ]
+}

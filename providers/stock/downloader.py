@@ -29,9 +29,15 @@ def _extension_for(candidate: "Candidate", content_type: str) -> str:
     return suffix if suffix in _OK_IMAGE_EXTS else ".jpg"
 
 
-def download_candidate(candidate: "Candidate", images_dir: Path, scene_number: str, log=print) -> Path:
+def download_candidate(
+    candidate: "Candidate",
+    images_dir: Path,
+    scene_number: str,
+    log=print,
+    should_stop=None,
+) -> Path:
     n = int(str(scene_number).strip())
-    with requests.get(candidate.url, stream=True, timeout=TIMEOUT) as resp:
+    with requests.get(candidate.url, stream=True, timeout=(15, 60)) as resp:
         resp.raise_for_status()
         ext = _extension_for(candidate, resp.headers.get("Content-Type", ""))
         target = Path(images_dir) / f"{n:03d}{ext}"
@@ -39,6 +45,9 @@ def download_candidate(candidate: "Candidate", images_dir: Path, scene_number: s
         tmp_target = target.with_suffix(target.suffix + ".part")
         with open(tmp_target, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1 << 16):
+                if should_stop and should_stop():
+                    tmp_target.unlink(missing_ok=True)
+                    raise IOError("download cancelled")
                 if not chunk:
                     continue
                 written += len(chunk)

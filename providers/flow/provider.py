@@ -64,9 +64,28 @@ class FlowProvider(AssetProvider):
         # section. Only the keys relevant to this instance's media_kind matter;
         # the engine ignores unrelated ones.
         self.flow_settings = flow_settings or {}
+        self.should_stop_scene = None
+
+    def _scene_stopped(self, scene_number: str) -> bool:
+        cb = getattr(self, "should_stop_scene", None)
+        return bool(cb and cb(scene_number))
+
+    def _batch_should_stop(self, should_stop: Optional[Callable[[], bool]], scenes: List[SceneRow]) -> bool:
+        if should_stop is not None and should_stop():
+            return True
+        if not scenes:
+            return False
+        # Stop the engine as soon as any scene in this batch is cancelled so
+        # per-scene Stop works during multi-prompt Flow runs.
+        return any(self._scene_stopped(s.scene_number) for s in scenes)
 
     def resolve(self, scene: SceneRow, images_dir: Path, log: LogFn = print) -> AssetResult:
-        return self.resolve_batch([scene], images_dir, log=log)[scene.scene_number]
+        return self.resolve_batch(
+            [scene],
+            images_dir,
+            log=log,
+            should_stop=lambda: self._scene_stopped(scene.scene_number),
+        )[scene.scene_number]
 
     def regenerate(
         self, scene: SceneRow, images_dir: Path, exclude: Optional[dict] = None, log: LogFn = print
@@ -148,7 +167,7 @@ class FlowProvider(AssetProvider):
             deadline = time.monotonic() + timeout_seconds
             poll_seconds = 1.0
             while not done_event.is_set():
-                if should_stop is not None and should_stop():
+                if self._batch_should_stop(should_stop, scenes):
                     log("[FLOW] Cancelling — sending STOP to the engine...")
                     client.stop()
                     cancelled = True
@@ -170,11 +189,33 @@ class FlowProvider(AssetProvider):
 
             results: Dict[str, AssetResult] = {}
             for idx, scene in enumerate(scenes):
-                if idx not in progress and cancelled:
+                if self._scene_stopped(scene.scene_number):
                     results[scene.scene_number] = AssetResult(
                         scene.scene_number, None, None, self.source,
                         SceneStatus.CANCELLED, error="Cancelled.",
                     )
+                    continue
+                if idx not in progress and cancelled:
+                    # `cancelled` alone doesn't say WHY the batch stopped — that
+                    # could be this whole batch's own should_stop() (e.g. a
+                    # "Cancel All" run-level abort: every unstarted scene here
+                    # is genuinely cancelled, not just interrupted) or only a
+                    # sibling scene's should_stop_scene (this scene wasn't
+                    # itself told to stop, it just got caught in the STOP sent
+                    # for that sibling). Re-checking should_stop() here — cheap,
+                    # idempotent — disambiguates the two instead of always
+                    # reporting the sibling-interruption case.
+                    if should_stop is not None and should_stop():
+                        results[scene.scene_number] = AssetResult(
+                            scene.scene_number, None, None, self.source,
+                            SceneStatus.CANCELLED, error="Cancelled.",
+                        )
+                    else:
+                        results[scene.scene_number] = AssetResult(
+                            scene.scene_number, None, None, self.source,
+                            SceneStatus.FAILED,
+                            error="Interrupted when another scene in this batch was stopped. Use Retry.",
+                        )
                     continue
                 results[scene.scene_number] = self._resolve_one_result(
                     idx, scene, images_dir, downloads_root, progress.get(idx), log

@@ -1,0 +1,155 @@
+{
+  "topic": "Social jet lag — modern schedules vs the body clock",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "narration": "Every morning, millions of people wake up to an alarm they never wanted to hear.",
+      "visual_goal": "Hook: the day starts as an interruption, not a choice.",
+      "visual_description": "A dark bedroom. A phone face-up on the nightstand screaming 6:27 AM. A hand hovers, then slaps snooze. Sheets still wrapped around someone who is not ready.",
+      "asset_type": "stock_video",
+      "provider_preference": "stock_video",
+      "search_queries": [
+        "close-up smartphone alarm ringing dark bedroom hand hitting snooze",
+        "person silencing phone alarm under duvet early morning"
+      ],
+      "timestamp_needed": false,
+      "duration": 2.5,
+      "importance": "high",
+      "fallbacks": ["stock_image", "flow_image"],
+      "visual_treatment": "hard cut-in, slight push",
+      "transition": "cut"
+    },
+    {
+      "scene_id": 2,
+      "narration": "They drag themselves out of bed, check their phones, rush through breakfast, and head to work. But the strange part is that their bodies may still be operating on yesterday's schedule.",
+      "visual_goal": "Lived morning as a body out of phase with daylight — not a breakfast montage.",
+      "visual_description": "An exhausted commuter on a packed morning train, forehead on the glass, city daylight outside, eyes still half-asleep. The world is already at work; the body is not.",
+      "asset_type": "stock_video",
+      "provider_preference": "stock_video",
+      "search_queries": [
+        "exhausted commuter staring out train window early morning",
+        "tired office worker walking into lobby at dawn carrying coffee"
+      ],
+      "timestamp_needed": false,
+      "duration": 4.0,
+      "importance": "medium",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "slow pan across the window",
+      "transition": "cut"
+    },
+    {
+      "scene_id": 3,
+      "narration": "This is called social jet lag.",
+      "visual_goal": "Name the concept with a picture you cannot film in an office.",
+      "visual_description": "A sleeping figure seen from above. Two analog clocks float over the body, one set to sun, one set to moon, their hands several hours apart. The gap between the hands is the subject.",
+      "asset_type": "image",
+      "provider_preference": "flow_image",
+      "search_queries": [],
+      "timestamp_needed": false,
+      "duration": 2.8,
+      "importance": "high",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "static, then a slow drift toward the offset hands",
+      "transition": "dissolve"
+    },
+    {
+      "scene_id": 4,
+      "narration": "Your brain has its own biological clock, designed to coordinate sleep, hormones, body temperature, and alertness. But modern life forces that clock to follow a completely different schedule.",
+      "visual_goal": "Make the interior clock visible, then show the calendar overpowering it.",
+      "visual_description": "A translucent human silhouette. Soft internal glows mark sleep, hormones, temperature, alertness in a slow rhythm. A rigid weekly calendar and fluorescent office grid slide over the body and pin the rhythm off-beat.",
+      "asset_type": "image",
+      "provider_preference": "flow_image",
+      "search_queries": [],
+      "timestamp_needed": false,
+      "duration": 3.0,
+      "importance": "high",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "gentle internal pulse, then overlay",
+      "transition": "dissolve"
+    },
+    {
+      "scene_id": 5,
+      "narration": "During the week, you might wake up at 7 AM because you have to work. On weekends, you naturally sleep until 10 or 11.",
+      "visual_goal": "Contrast the alarm-world we already saw with the body's preferred weekend.",
+      "visual_description": "Late-morning bedroom, curtains leaking sun across someone still fully asleep. No alarm. A clock on the wall reads 10:47. This is the same human as the 6:27 hook, on a different schedule.",
+      "asset_type": "stock_video",
+      "provider_preference": "stock_video",
+      "search_queries": [
+        "person sleeping late morning sunlight across bed weekend",
+        "peaceful bedroom late morning dust in sunbeams someone asleep"
+      ],
+      "timestamp_needed": false,
+      "duration": 4.0,
+      "importance": "medium",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "slow drift with the sunbeam",
+      "transition": "cut"
+    },
+    {
+      "scene_id": 6,
+      "narration": "That three or four hour difference may sound harmless, but biologically, it is similar to traveling across several time zones every week.",
+      "visual_goal": "Jet-lag metaphor without fake airplane B-roll.",
+      "visual_description": "A simple world map at dusk/dawn terminator. The same small human figure appears on the map three or four time zones apart, each with a different sky. No airports. The distance is the weekly shift.",
+      "asset_type": "image",
+      "provider_preference": "flow_image",
+      "search_queries": [],
+      "timestamp_needed": false,
+      "duration": 3.0,
+      "importance": "high",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "hold, then a small shift of the terminator",
+      "transition": "dissolve"
+    },
+    {
+      "scene_id": 7,
+      "narration": "And your phone makes the problem even worse. Late-night scrolling exposes your brain to light, stimulation, notifications, and endless novelty precisely when your body is trying to prepare for sleep.",
+      "visual_goal": "The phone as night-time stimulus, not another morning alarm.",
+      "visual_description": "A dark bedroom. A face lit only by a phone. Thumb scrolling. Notification banners stacking. The rest of the room is trying to be night.",
+      "asset_type": "stock_video",
+      "provider_preference": "stock_video",
+      "search_queries": [
+        "person scrolling smartphone in bed face lit by blue light at night",
+        "close-up phone notifications in dark bedroom insomnia"
+      ],
+      "timestamp_needed": false,
+      "duration": 4.5,
+      "importance": "high",
+      "fallbacks": ["flow_image", "stock_image"],
+      "visual_treatment": "tight on the face, then the screen",
+      "transition": "cut"
+    },
+    {
+      "scene_id": 8,
+      "narration": "The result is a strange modern cycle: exhaustion during the day, stimulation at night, and a biological clock that never quite knows what time it is.",
+      "visual_goal": "Show the loop, not another tired commuter.",
+      "visual_description": "A circular day/night diagram around a body clock whose hands spin, hesitate, and fail to settle. One half is washed-out office daylight; the other is phone-glow night. The clock face is blank where the numbers should be.",
+      "asset_type": "image",
+      "provider_preference": "flow_image",
+      "search_queries": [],
+      "timestamp_needed": false,
+      "duration": 3.0,
+      "importance": "high",
+      "fallbacks": ["stock_image"],
+      "visual_treatment": "slow rotation that never completes a clean circle",
+      "transition": "dissolve"
+    },
+    {
+      "scene_id": 9,
+      "narration": "So the problem may not be that you are lazy. Your brain may simply be fighting a schedule it was never designed to follow.",
+      "visual_goal": "Close on resistance, not sloth. Dignity, not a lecture.",
+      "visual_description": "Dawn. Someone sits on the edge of the bed in work clothes they have not fully put on, staring at the floor, not reaching for the phone. The alarm is already off. They are trying.",
+      "asset_type": "stock_video",
+      "provider_preference": "stock_video",
+      "search_queries": [
+        "person sitting on edge of bed at dawn staring at floor",
+        "adult perched on bedside in morning light not getting up"
+      ],
+      "timestamp_needed": false,
+      "duration": 3.5,
+      "importance": "high",
+      "fallbacks": ["flow_image"],
+      "visual_treatment": "hold on the face, no zoom gimmick",
+      "transition": "fade"
+    }
+  ]
+}

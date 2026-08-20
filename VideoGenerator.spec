@@ -33,7 +33,7 @@ binaries: list = []
 hiddenimports: list = []
 
 for pkg in ("customtkinter", "faster_whisper", "ctranslate2", "tokenizers", "onnxruntime", "PIL",
-            "requests", "websockets"):
+            "requests", "websockets", "yt_dlp"):
     try:
         pkg_datas, pkg_binaries, pkg_hidden = collect_all(pkg)
         datas += pkg_datas
@@ -82,6 +82,15 @@ if FLOW_ENGINE_DIR.is_dir():
 else:
     print(f"WARNING: {FLOW_ENGINE_DIR} not found — Flow/AI generation will not be available.")
 
+YT_ACQ_DIR = ROOT / "providers" / "youtube" / "acquisition"
+if YT_ACQ_DIR.is_dir():
+    for f in YT_ACQ_DIR.rglob("*"):
+        if f.is_file():
+            rel_dir = f.parent.relative_to(ROOT)
+            datas.append((str(f), str(rel_dir)))
+else:
+    print(f"WARNING: {YT_ACQ_DIR} not found — YouTube browser capture will not be available.")
+
 # App logo (UI) + platform icons
 logo_png = ROOT / "assets" / "logo.png"
 if logo_png.is_file():
@@ -126,6 +135,19 @@ a = Analysis(
         "providers.flow.client",
         "providers.flow.engine_manager",
         "providers.flow.provider",
+        "providers.youtube",
+        "providers.youtube.base",
+        "providers.youtube.matching",
+        "providers.youtube.ranking",
+        "providers.youtube.strategies",
+        "providers.youtube.ytdlp_backend",
+        "providers.youtube.acquisition",
+        "providers.youtube.acquisition.browser_client",
+        "visual_director",
+        "visual_director.director",
+        "visual_director.llm",
+        "visual_director.schema",
+        "yt_dlp",
         "requests",
         "websockets",
     ],

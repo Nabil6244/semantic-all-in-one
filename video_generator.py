@@ -446,12 +446,12 @@ def align_rows(rows, whisper_words):
 # ---------- step 0: flatten Images/ subfolders ----------
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
-VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
+VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 
 # Search order for find_image_for_scene: images first, then video clips, so a
 # scene with both an image and a clip on disk deterministically prefers the image.
-_SCENE_SEARCH_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".m4v", ".webm", ".mkv")
+_SCENE_SEARCH_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi")
 
 
 def is_video_file(path) -> bool:
@@ -744,6 +744,39 @@ def render_caption_overlay(
     return out_path
 
 
+def render_smart_text_overlay(
+    text: str,
+    out_path: Path,
+    width: int,
+    height: int,
+    *,
+    intensity: float = 0.65,
+    effect: str = "highlight",
+    local_start: float = 0.0,
+    local_end: float | None = None,
+    fx: dict | None = None,
+) -> Path | None:
+    """Transparent full-frame PNG via typography theme (Pillow — no drawtext needed).
+
+    Never falls back to the old Arial caption renderer — that produced the
+    "subtitle" look users report as broken typography.
+    """
+    from typography import render_style_overlay
+
+    t1 = float(local_end) if local_end is not None else float(local_start) + 0.35
+    payload = {
+        "text": text,
+        "effect": effect,
+        "intensity": intensity,
+        "local_start": float(local_start),
+        "local_end": t1,
+    }
+    if isinstance(fx, dict):
+        # Preserve scene metadata (composition hints, etc.) from Smart Editing.
+        payload = {**fx, **payload}
+    return render_style_overlay(payload, out_path, width, height)
+
+
 def _zoompan_filter(width: int, height: int, fps: int, frames: int,
                     zoom_in: bool, zoom_amount: float) -> str:
     """Ken Burns zoompan. Upscale first so zoom stays sharp."""
@@ -784,6 +817,35 @@ def _video_fit_filter(width: int, height: int, fps: int) -> str:
     )
 
 
+def _escape_overlay_enable(t0: float, t1: float) -> str:
+    """enable='between(t,t0,t1)' with commas escaped for filter graphs."""
+    return f"between(t\\,{t0:.3f}\\,{t1:.3f})"
+
+
+def _overlay_xy(t0: float | None, animation: str | None) -> str:
+    """Static or subtle slide-in overlay position (no bounce)."""
+    if t0 is None:
+        return "0:0"
+    anim = str(animation or "")
+    if anim in ("slide_fade", "reveal"):
+        # 14px settle upward over ~120ms
+        y = (
+            f"if(lt(t\\,{t0:.3f}+0.120)\\,"
+            f"14*(1-(t-{t0:.3f})/0.120)\\,"
+            f"0)"
+        )
+        return f"0:{y}"
+    if anim == "slide_in":
+        # 18px settle from the left over ~120ms
+        x = (
+            f"if(lt(t\\,{t0:.3f}+0.120)\\,"
+            f"-18*(1-(t-{t0:.3f})/0.120)\\,"
+            f"0)"
+        )
+        return f"{x}:0"
+    return "0:0"
+
+
 def _render_scene_clip(
     img_path: Path,
     out_path: Path,
@@ -795,10 +857,17 @@ def _render_scene_clip(
     zoom_in: bool,
     zoom_amount: float,
     caption_overlay: Path | None = None,
+    text_effect_filters: str = "",
+    timed_overlays: list | None = None,
 ):
+    """
+    timed_overlays: list of (png_path, local_start, local_end[, animation])
+    for Pillow text when ffmpeg has no drawtext filter.
+    """
     frames = max(int(round(duration * fps)), 1)
     # Use exact frame count so concat length matches audio timeline
     clip_dur = frames / fps
+    timed_overlays = list(timed_overlays or [])
 
     if is_video_file(img_path):
         # -stream_loop -1 loops the clip if it's shorter than the scene, and is a
@@ -812,18 +881,55 @@ def _render_scene_clip(
         base_vf = _static_filter(width, height)
         input_args = ["-loop", "1", "-i", str(img_path)]
 
+    # Collect extra image inputs: static caption first, then timed smart-text PNGs
+    extra_inputs: list[str] = []
+    # (input_idx, t0, t1, animation)
+    layers: list[tuple[int, float | None, float | None, str | None]] = []
+    next_idx = 1
     if caption_overlay is not None:
-        # Fit the source, then overlay static captions so text does not Ken-Burns
-        filter_complex = (
-            f"[0:v]{base_vf}[base];"
-            f"[1:v]format=rgba,scale={width}:{height}[cap];"
-            f"[base][cap]overlay=0:0:format=auto,format=yuv420p"
-        )
+        extra_inputs += ["-loop", "1", "-i", str(caption_overlay)]
+        layers.append((next_idx, None, None, None))
+        next_idx += 1
+    for item in timed_overlays:
+        png, t0, t1 = item[0], item[1], item[2]
+        anim = item[3] if len(item) > 3 else None
+        extra_inputs += ["-loop", "1", "-i", str(png)]
+        layers.append((next_idx, float(t0), float(t1), anim))
+        next_idx += 1
+
+    if layers or text_effect_filters:
+        parts = [f"[0:v]{base_vf}[v0]"]
+        cur = "v0"
+        for layer_i, (in_idx, t0, t1, anim) in enumerate(layers):
+            lab_in = f"ov{layer_i}"
+            lab_out = f"v{layer_i + 1}"
+            parts.append(f"[{in_idx}:v]format=rgba,scale={width}:{height}[{lab_in}]")
+            if t0 is None:
+                enable = ""
+            else:
+                enable = f":enable='{_escape_overlay_enable(t0, t1)}'"
+            xy = _overlay_xy(t0, anim)
+            parts.append(
+                f"[{cur}][{lab_in}]overlay={xy}:format=auto{enable}[{lab_out}]"
+            )
+            cur = lab_out
+        if text_effect_filters:
+            parts.append(f"[{cur}]{text_effect_filters},format=yuv420p[vout]")
+        else:
+            parts.append(f"[{cur}]format=yuv420p[vout]")
+        filter_complex = ";".join(parts)
+        try:
+            from typography.debug import log_ffmpeg_filter
+
+            log_ffmpeg_filter(filter_complex)
+        except Exception:
+            pass
         cmd = [
             "ffmpeg", "-y",
             *input_args,
-            "-loop", "1", "-i", str(caption_overlay),
+            *extra_inputs,
             "-filter_complex", filter_complex,
+            "-map", "[vout]",
             "-t", f"{clip_dur:.6f}",
             "-r", str(fps),
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
@@ -846,8 +952,17 @@ def _render_scene_clip(
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(result.stderr[-3000:])
-        sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_path.name}")
+        err = (result.stderr or result.stdout or "").strip()
+        print(err[-3000:])
+        hint = ""
+        if "drawtext" in err.lower() and "no such filter" in err.lower():
+            hint = (
+                "\nHint: this ffmpeg build has no drawtext filter "
+                "(needs libfreetype). Smart Text should use Pillow overlays; "
+                "if you still see this, turn off Smart Text Effects or install "
+                "ffmpeg with --enable-libfreetype."
+            )
+        sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_path.name}{hint}")
 
 
 def render_video(
@@ -863,6 +978,7 @@ def render_video(
     bg_audio: str | None = None,
     bg_volume: float = 0.15,
     captions: bool = False,
+    scene_text_effects: list | None = None,
 ):
     print("[3/4] Locating image files...")
     missing = missing_images_for_scenes(aligned_rows, images_dir)
@@ -877,6 +993,7 @@ def render_video(
 
     durations = _scene_durations(aligned_rows, audio_end)
     width, height = (int(x) for x in resolution.split("x"))
+    per_scene_fx = scene_text_effects or [[] for _ in aligned_rows]
 
     if bg_audio is not None and not Path(bg_audio).is_file():
         sys.exit(f"ERROR: background audio not found: {bg_audio}")
@@ -900,9 +1017,40 @@ def render_video(
         print("[3/4] Captions ON — rendering text overlays per scene...")
 
     n = len(image_paths)
+    smart_fx = any(per_scene_fx)
     print(f"[3/4] Rendering {n} scene clips"
           f"{' with Ken Burns zoom' if zoom else ''}"
-          f"{' + captions' if captions else ''}...")
+          f"{' + captions' if captions else ''}"
+          f"{' + smart text' if smart_fx else ''}...")
+
+    # GUI runs pipeline in-process — reload typography once per render so edits apply.
+    if smart_fx:
+        try:
+            import importlib
+
+            import typography
+            import typography.debug as typography_debug
+            import typography.placement as typography_placement
+            import typography.render as typography_render
+            import typography.styles as typography_styles
+            import typography.theme as typography_theme
+            import typography.variation as typography_variation
+
+            importlib.reload(typography_theme)
+            importlib.reload(typography_styles)
+            importlib.reload(typography_placement)
+            importlib.reload(typography_variation)
+            importlib.reload(typography_debug)
+            importlib.reload(typography_render)
+            importlib.reload(typography)
+            typography_variation.reset_variation_history()
+            print(
+                "[3/4] Smart text via Pillow typography overlays "
+                f"(module={typography_render.__file__})."
+            )
+        except Exception as exc:
+            print(f"[3/4] Typography reload warning: {exc}")
+
     clip_files = []
     for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
         out_clip = clips_dir / f"scene_{i:04d}.mp4"
@@ -919,6 +1067,78 @@ def render_video(
                 height,
             )
 
+        fx_filters = ""
+        timed_overlays: list = []
+        if per_scene_fx[i]:
+            # Always burn modern typography via Pillow full-frame overlays.
+            # System ffmpeg often lacks drawtext; even when present, drawtext
+            # cannot reproduce theme fonts / plates / placement. Never fall
+            # back to the old Arial caption renderer.
+            try:
+                from typography import render_style_overlay, typography_params_for_effect
+                from typography.debug import log_typography_event, typography_debug_enabled
+
+                smart_dir = Path("smart_text_overlays")
+                smart_dir.mkdir(exist_ok=True)
+                for j, fx in enumerate(per_scene_fx[i]):
+                    raw = str(fx.get("text") or "").strip()
+                    if not raw:
+                        continue
+                    fx_payload = dict(fx)
+                    fx_payload["scene_duration"] = float(dur)
+                    params = typography_params_for_effect(fx_payload, width, height)
+                    display = str(params.get("text") or "")
+                    if not display:
+                        if typography_debug_enabled():
+                            log_typography_event(
+                                raw_text=raw,
+                                display_text="",
+                                style_id=str(params.get("style_id") or ""),
+                                font=params.get("font_path"),
+                                fontsize=int(params.get("fontsize") or 0),
+                                position=str(params.get("placement") or ""),
+                                effect=str(fx.get("effect") or ""),
+                                filter_or_overlay="SKIPPED (empty display / weak filler)",
+                            )
+                        continue
+                    png_path = smart_dir / f"scene_{i:04d}_{j:02d}.png"
+                    png = render_style_overlay(
+                        fx_payload,
+                        png_path,
+                        width,
+                        height,
+                        params=params,
+                        record_history=False,
+                    )
+                    if png is None:
+                        continue
+                    t0 = float(fx.get("local_start") or 0.0)
+                    t1 = float(fx.get("local_end") or t0 + 0.3)
+                    if t1 <= t0:
+                        t1 = t0 + 0.12
+                    anim = str(params.get("animation") or "")
+                    overlay_desc = (
+                        f"pillow_overlay file={png.name} "
+                        f"enable=between(t\\,{t0:.3f}\\,{t1:.3f}) "
+                        f"xy=0:0 (full-frame baked placement={params.get('placement')})"
+                    )
+                    log_typography_event(
+                        raw_text=raw,
+                        display_text=display,
+                        style_id=str(params.get("style_id") or ""),
+                        font=params.get("font_path"),
+                        fontsize=int(params.get("fontsize") or 0),
+                        position=str(params.get("placement") or ""),
+                        effect=str(fx.get("effect") or ""),
+                        filter_or_overlay=overlay_desc,
+                    )
+                    timed_overlays.append((png, t0, t1, anim))
+            except Exception as exc:
+                # Do not silently substitute old Arial text — surface the failure.
+                print(f"[3/4] Smart typography failed for scene clip {i + 1}: {exc}")
+                fx_filters = ""
+                timed_overlays = []
+
         _render_scene_clip(
             img_path=img,
             out_path=out_clip,
@@ -930,6 +1150,8 @@ def render_video(
             zoom_in=zoom_in,
             zoom_amount=zoom_amount,
             caption_overlay=overlay,
+            text_effect_filters=fx_filters,
+            timed_overlays=timed_overlays,
         )
         clip_files.append(out_clip)
 
@@ -983,6 +1205,9 @@ def resolve_scene_assets(
     pexels_api_key: str | None = None,
     flow_engine_manager=None,
     flow_settings: dict | None = None,
+    youtube_max_results: int = 5,
+    youtube_clip_duration: float = 3.5,
+    youtube_transcript_matching: bool = True,
     log=print,
 ) -> None:
     """
@@ -1010,6 +1235,7 @@ def resolve_scene_assets(
     needs_flow_image = any(s.wants_flow_image for s in scene_rows)
     needs_flow_video = any(s.wants_flow_video for s in scene_rows)
     needs_stock = any(s.wants_stock for s in scene_rows)
+    needs_youtube = any(s.wants_youtube for s in scene_rows)
 
     stock_provider = None
     if needs_stock:
@@ -1042,11 +1268,27 @@ def resolve_scene_assets(
                 flow_engine_manager, media_kind="video", flow_settings=flow_settings
             )
 
+    youtube_provider = None
+    if needs_youtube:
+        try:
+            from providers.youtube.base import YouTubeProvider
+            from providers.youtube.ytdlp_backend import YtDlpBackend
+
+            youtube_provider = YouTubeProvider(
+                YtDlpBackend(),
+                max_results=youtube_max_results,
+                clip_duration=youtube_clip_duration,
+                transcript_matching=youtube_transcript_matching,
+            )
+        except RuntimeError as exc:
+            sys.exit(f"ERROR: this CSV has youtube_video scene(s): {exc}")
+
     manager = AssetManager(
         images_dir,
         stock_provider=stock_provider,
         flow_image_provider=flow_image_provider,
         flow_video_provider=flow_video_provider,
+        youtube_provider=youtube_provider,
         log=log,
     )
     try:
@@ -1084,6 +1326,12 @@ def main():
                         help="Pexels API key for 'stock' scenes (falls back to PEXELS_API_KEY env var)")
     parser.add_argument("--flow-engine-port", type=int, default=8787,
                         help="Port for the flow-engine sidecar, used only if the CSV has 'prompt' scenes")
+    parser.add_argument("--youtube-max-results", type=int, default=5,
+                        help="Search results to consider per youtube_video scene (default 5)")
+    parser.add_argument("--youtube-clip-duration", type=float, default=3.5,
+                        help="Target clip length in seconds for youtube_video scenes (default 3.5)")
+    parser.add_argument("--youtube-no-transcript-matching", action="store_true",
+                        help="Disable transcript matching for youtube_video scenes (uses the fallback timestamp strategy)")
     args = parser.parse_args()
 
     with open(args.csv, newline="", encoding="utf-8-sig") as f:
@@ -1112,6 +1360,9 @@ def main():
         Path(args.images_dir),
         pexels_api_key=args.pexels_api_key or os.environ.get("PEXELS_API_KEY"),
         flow_engine_manager=flow_engine_manager,
+        youtube_max_results=args.youtube_max_results,
+        youtube_clip_duration=args.youtube_clip_duration,
+        youtube_transcript_matching=not args.youtube_no_transcript_matching,
     )
 
     validate_prerequisites(

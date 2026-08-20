@@ -1,0 +1,895 @@
+{
+  "version": 1,
+  "library_root": "~/.videogen/sfx",
+  "preferred_sources": [
+    "sonniss_gdc",
+    "mixkit",
+    "youtube_audio_library",
+    "pixabay"
+  ],
+  "sfx": [
+    {
+      "id": "whoosh_01",
+      "file": "whoosh/whoosh_01.wav",
+      "category": "whoosh",
+      "tags": [
+        "short",
+        "fast",
+        "transition"
+      ],
+      "intensity": "low",
+      "duration": 0.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_02",
+      "file": "whoosh/whoosh_02.wav",
+      "category": "whoosh",
+      "tags": [
+        "soft",
+        "sweep",
+        "movement"
+      ],
+      "intensity": "medium",
+      "duration": 0.55,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_03",
+      "file": "whoosh/whoosh_03.wav",
+      "category": "whoosh",
+      "tags": [
+        "deep",
+        "rising",
+        "cinematic"
+      ],
+      "intensity": "high",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_04",
+      "file": "whoosh/whoosh_04.wav",
+      "category": "whoosh",
+      "tags": [
+        "falling",
+        "movement"
+      ],
+      "intensity": "medium",
+      "duration": 0.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_05",
+      "file": "whoosh/whoosh_05.wav",
+      "category": "whoosh",
+      "tags": [
+        "fast",
+        "sweep"
+      ],
+      "intensity": "low",
+      "duration": 0.55,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_06",
+      "file": "whoosh/whoosh_06.wav",
+      "category": "whoosh",
+      "tags": [
+        "soft",
+        "transition"
+      ],
+      "intensity": "high",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_07",
+      "file": "whoosh/whoosh_07.wav",
+      "category": "whoosh",
+      "tags": [
+        "deep",
+        "movement"
+      ],
+      "intensity": "medium",
+      "duration": 0.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_08",
+      "file": "whoosh/whoosh_08.wav",
+      "category": "whoosh",
+      "tags": [
+        "rising",
+        "cinematic"
+      ],
+      "intensity": "low",
+      "duration": 0.55,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_09",
+      "file": "whoosh/whoosh_09.wav",
+      "category": "whoosh",
+      "tags": [
+        "short",
+        "movement"
+      ],
+      "intensity": "high",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "whoosh_10",
+      "file": "whoosh/whoosh_10.wav",
+      "category": "whoosh",
+      "tags": [
+        "fast",
+        "transition",
+        "sweep"
+      ],
+      "intensity": "medium",
+      "duration": 0.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_01",
+      "file": "impact/impact_01.wav",
+      "category": "impact",
+      "tags": [
+        "soft",
+        "emphasis"
+      ],
+      "intensity": "low",
+      "duration": 0.4,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_02",
+      "file": "impact/impact_02.wav",
+      "category": "impact",
+      "tags": [
+        "medium",
+        "punch"
+      ],
+      "intensity": "medium",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_03",
+      "file": "impact/impact_03.wav",
+      "category": "impact",
+      "tags": [
+        "deep",
+        "heavy",
+        "punch"
+      ],
+      "intensity": "high",
+      "duration": 0.35,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_04",
+      "file": "impact/impact_04.wav",
+      "category": "impact",
+      "tags": [
+        "cinematic",
+        "hit"
+      ],
+      "intensity": "medium",
+      "duration": 0.4,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_05",
+      "file": "impact/impact_05.wav",
+      "category": "impact",
+      "tags": [
+        "punch",
+        "emphasis"
+      ],
+      "intensity": "low",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_06",
+      "file": "impact/impact_06.wav",
+      "category": "impact",
+      "tags": [
+        "deep",
+        "cinematic"
+      ],
+      "intensity": "high",
+      "duration": 0.35,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_07",
+      "file": "impact/impact_07.wav",
+      "category": "impact",
+      "tags": [
+        "medium",
+        "heavy"
+      ],
+      "intensity": "medium",
+      "duration": 0.4,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "impact_08",
+      "file": "impact/impact_08.wav",
+      "category": "impact",
+      "tags": [
+        "soft",
+        "punch"
+      ],
+      "intensity": "low",
+      "duration": 0.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_01",
+      "file": "transition/transition_01.wav",
+      "category": "transition",
+      "tags": [
+        "soft",
+        "sweep"
+      ],
+      "intensity": "low",
+      "duration": 0.43,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_02",
+      "file": "transition/transition_02.wav",
+      "category": "transition",
+      "tags": [
+        "fast",
+        "movement"
+      ],
+      "intensity": "medium",
+      "duration": 0.48,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_03",
+      "file": "transition/transition_03.wav",
+      "category": "transition",
+      "tags": [
+        "cinematic",
+        "rise"
+      ],
+      "intensity": "high",
+      "duration": 0.38,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_04",
+      "file": "transition/transition_04.wav",
+      "category": "transition",
+      "tags": [
+        "reverse",
+        "movement"
+      ],
+      "intensity": "medium",
+      "duration": 0.43,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_05",
+      "file": "transition/transition_05.wav",
+      "category": "transition",
+      "tags": [
+        "drop",
+        "sweep"
+      ],
+      "intensity": "low",
+      "duration": 0.48,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_06",
+      "file": "transition/transition_06.wav",
+      "category": "transition",
+      "tags": [
+        "soft",
+        "transition"
+      ],
+      "intensity": "high",
+      "duration": 0.38,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_07",
+      "file": "transition/transition_07.wav",
+      "category": "transition",
+      "tags": [
+        "fast",
+        "sweep"
+      ],
+      "intensity": "medium",
+      "duration": 0.43,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "transition_08",
+      "file": "transition/transition_08.wav",
+      "category": "transition",
+      "tags": [
+        "cinematic",
+        "movement"
+      ],
+      "intensity": "low",
+      "duration": 0.48,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_pop_01",
+      "file": "text/text_pop_01.wav",
+      "category": "text",
+      "tags": [
+        "text_pop",
+        "emphasis"
+      ],
+      "intensity": "low",
+      "duration": 0.37,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_reveal_01",
+      "file": "text/text_reveal_01.wav",
+      "category": "text",
+      "tags": [
+        "text_reveal",
+        "reveal",
+        "appear"
+      ],
+      "intensity": "medium",
+      "duration": 0.42,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_swipe_01",
+      "file": "text/text_swipe_01.wav",
+      "category": "text",
+      "tags": [
+        "text_swipe",
+        "movement"
+      ],
+      "intensity": "high",
+      "duration": 0.32,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_hit_01",
+      "file": "text/text_hit_01.wav",
+      "category": "text",
+      "tags": [
+        "text_hit",
+        "text_emphasis",
+        "punch"
+      ],
+      "intensity": "medium",
+      "duration": 0.37,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_type_01",
+      "file": "text/text_type_01.wav",
+      "category": "text",
+      "tags": [
+        "text_type",
+        "digital"
+      ],
+      "intensity": "low",
+      "duration": 0.42,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "text_appear_01",
+      "file": "text/text_appear_01.wav",
+      "category": "text",
+      "tags": [
+        "text_appear",
+        "reveal"
+      ],
+      "intensity": "high",
+      "duration": 0.32,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_click_01",
+      "file": "ui/ui_click_01.wav",
+      "category": "ui",
+      "tags": [
+        "click",
+        "tick",
+        "select"
+      ],
+      "intensity": "low",
+      "duration": 0.23,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_pop_01",
+      "file": "ui/ui_pop_01.wav",
+      "category": "ui",
+      "tags": [
+        "pop",
+        "confirm",
+        "digital"
+      ],
+      "intensity": "medium",
+      "duration": 0.28,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_ping_01",
+      "file": "ui/ui_ping_01.wav",
+      "category": "ui",
+      "tags": [
+        "ping",
+        "beep",
+        "blip"
+      ],
+      "intensity": "high",
+      "duration": 0.18,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_confirm_01",
+      "file": "ui/ui_confirm_01.wav",
+      "category": "ui",
+      "tags": [
+        "confirm",
+        "select"
+      ],
+      "intensity": "medium",
+      "duration": 0.23,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_tick_01",
+      "file": "ui/ui_tick_01.wav",
+      "category": "ui",
+      "tags": [
+        "tick",
+        "digital"
+      ],
+      "intensity": "low",
+      "duration": 0.28,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ui_beep_01",
+      "file": "ui/ui_beep_01.wav",
+      "category": "ui",
+      "tags": [
+        "beep",
+        "interface"
+      ],
+      "intensity": "high",
+      "duration": 0.18,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "riser_01",
+      "file": "riser/riser_01.wav",
+      "category": "riser",
+      "tags": [
+        "short",
+        "tension"
+      ],
+      "intensity": "low",
+      "duration": 0.9,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "riser_02",
+      "file": "riser/riser_02.wav",
+      "category": "riser",
+      "tags": [
+        "long",
+        "cinematic",
+        "dark"
+      ],
+      "intensity": "medium",
+      "duration": 0.95,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "riser_03",
+      "file": "riser/riser_03.wav",
+      "category": "riser",
+      "tags": [
+        "medium",
+        "tension"
+      ],
+      "intensity": "high",
+      "duration": 0.85,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "riser_04",
+      "file": "riser/riser_04.wav",
+      "category": "riser",
+      "tags": [
+        "cinematic",
+        "dark"
+      ],
+      "intensity": "medium",
+      "duration": 0.9,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "riser_05",
+      "file": "riser/riser_05.wav",
+      "category": "riser",
+      "tags": [
+        "short",
+        "cinematic"
+      ],
+      "intensity": "low",
+      "duration": 0.95,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "cinematic_hit_01",
+      "file": "cinematic/cinematic_hit_01.wav",
+      "category": "cinematic",
+      "tags": [
+        "hit",
+        "emphasis",
+        "boom"
+      ],
+      "intensity": "low",
+      "duration": 0.67,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "cinematic_swell_01",
+      "file": "cinematic/cinematic_swell_01.wav",
+      "category": "cinematic",
+      "tags": [
+        "swell",
+        "reveal",
+        "pulse"
+      ],
+      "intensity": "medium",
+      "duration": 0.72,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "cinematic_boom_01",
+      "file": "cinematic/cinematic_boom_01.wav",
+      "category": "cinematic",
+      "tags": [
+        "boom",
+        "emphasis"
+      ],
+      "intensity": "high",
+      "duration": 0.62,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "cinematic_pulse_01",
+      "file": "cinematic/cinematic_pulse_01.wav",
+      "category": "cinematic",
+      "tags": [
+        "pulse",
+        "reveal"
+      ],
+      "intensity": "medium",
+      "duration": 0.67,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "cinematic_reveal_01",
+      "file": "cinematic/cinematic_reveal_01.wav",
+      "category": "cinematic",
+      "tags": [
+        "hit",
+        "cinematic"
+      ],
+      "intensity": "low",
+      "duration": 0.72,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "tech_click_01",
+      "file": "technology/tech_click_01.wav",
+      "category": "technology",
+      "tags": [
+        "mechanical_click",
+        "computer_interface"
+      ],
+      "intensity": "low",
+      "duration": 0.33,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "tech_process_01",
+      "file": "technology/tech_process_01.wav",
+      "category": "technology",
+      "tags": [
+        "electronic_processing",
+        "digital"
+      ],
+      "intensity": "medium",
+      "duration": 0.38,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "tech_machine_start_01",
+      "file": "technology/tech_machine_start_01.wav",
+      "category": "technology",
+      "tags": [
+        "machine_start",
+        "mechanical"
+      ],
+      "intensity": "high",
+      "duration": 0.28,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "tech_machine_stop_01",
+      "file": "technology/tech_machine_stop_01.wav",
+      "category": "technology",
+      "tags": [
+        "machine_stop",
+        "mechanical"
+      ],
+      "intensity": "medium",
+      "duration": 0.33,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "tech_activation_01",
+      "file": "technology/tech_activation_01.wav",
+      "category": "technology",
+      "tags": [
+        "electronic_activation",
+        "digital"
+      ],
+      "intensity": "low",
+      "duration": 0.38,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ambience_room_01",
+      "file": "ambience/ambience_room_01.wav",
+      "category": "ambience",
+      "tags": [
+        "room",
+        "office"
+      ],
+      "intensity": "low",
+      "duration": 2.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ambience_city_01",
+      "file": "ambience/ambience_city_01.wav",
+      "category": "ambience",
+      "tags": [
+        "city",
+        "traffic"
+      ],
+      "intensity": "medium",
+      "duration": 2.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ambience_crowd_01",
+      "file": "ambience/ambience_crowd_01.wav",
+      "category": "ambience",
+      "tags": [
+        "crowd",
+        "room"
+      ],
+      "intensity": "high",
+      "duration": 2.4,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ambience_wind_01",
+      "file": "ambience/ambience_wind_01.wav",
+      "category": "ambience",
+      "tags": [
+        "wind",
+        "nature"
+      ],
+      "intensity": "medium",
+      "duration": 2.45,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    },
+    {
+      "id": "ambience_technology_01",
+      "file": "ambience/ambience_technology_01.wav",
+      "category": "ambience",
+      "tags": [
+        "technology",
+        "office"
+      ],
+      "intensity": "low",
+      "duration": 2.5,
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution_required": false
+    }
+  ]
+}

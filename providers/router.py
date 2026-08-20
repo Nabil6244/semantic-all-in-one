@@ -30,6 +30,8 @@ class SceneAssetRouter:
             return AssetSource.FLOW_IMAGE
         if scene.wants_stock:
             return scene.stock_source
+        if scene.wants_youtube:
+            return AssetSource.YOUTUBE_VIDEO
         return None
 
     @staticmethod

@@ -24,6 +24,8 @@ class AssetSource(str, enum.Enum):
     STOCK_VIDEO = "stock_video"
     FLOW_IMAGE = "flow_image"
     FLOW_VIDEO = "flow_video"
+    YOUTUBE_VIDEO = "youtube_video"
+    MANUAL = "manual"  # user-supplied local file for a failed scene
 
 
 _STOCK_SOURCES = (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
@@ -43,6 +45,10 @@ class SceneStatus(str, enum.Enum):
     READY = "ready"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    NEEDS_ACTION = "needs_action"
+    RETRYING = "retrying"
+    TIMEOUT = "timeout"
+    SKIPPED = "skipped"
 
 
 class AssetError(Exception):
@@ -63,11 +69,16 @@ class SceneRow:
     is present:
 
     - New:    scene_number, script_segment, asset_type, prompt
-              asset_type in {image, video, stock_image, stock_video, stock, local}.
+              asset_type in {image, video, flow_image, flow_video, stock_image,
+              stock_video, youtube_video, stock, local}.
+              `flow_video`/`flow_image` are aliases for `video`/`image`.
               For a stock_* (or legacy "stock") asset_type, the single `prompt`
               column doubles as the stock search query (normalized into `.stock`
               below so the rest of the code only ever deals with
-              `.prompt`/`.stock`, unchanged from the legacy shape).
+              `.prompt`/`.stock`, unchanged from the legacy shape). For
+              youtube_video, `prompt` stays put — it's the YouTube search query
+              and is also used, together with `.script_segment`, as the text
+              matched against each candidate video's transcript.
     - Legacy: scene_number, script_segment, prompt, stock
               prompt implies AI image generation (the only kind the legacy
               format ever supported); stock implies a Pexels search across any
@@ -81,12 +92,23 @@ class SceneRow:
     asset_type: str = ""
     prompt: str = ""
     stock: str = ""
+    # Optional Visual Director extras — unused by manual CSV. YouTube scenes may
+    # carry several search queries plus declared provider fallbacks.
+    search_queries: list = dataclasses.field(default_factory=list)
+    fallbacks: list = dataclasses.field(default_factory=list)
+    visual_description: str = ""
 
     @classmethod
     def from_csv_row(cls, row: dict) -> "SceneRow":
         asset_type = str(row.get("asset_type", "") or "").strip().lower()
         prompt = str(row.get("prompt", "") or "").strip()
         stock = str(row.get("stock", "") or "").strip()
+        search_queries: list = []
+
+        if asset_type in ("flow_video", "video"):
+            asset_type = "video"
+        elif asset_type in ("flow_image", "image"):
+            asset_type = "image"
 
         if asset_type in ("stock", "stock_image", "stock_video"):
             # New format: one `prompt` column doubles as the stock query.
@@ -95,6 +117,9 @@ class SceneRow:
         elif asset_type == "local":
             prompt = ""
             stock = ""
+        elif asset_type == "youtube_video" and "||" in prompt:
+            search_queries = [p.strip() for p in prompt.split("||") if p.strip()]
+            prompt = search_queries[0] if search_queries else prompt
 
         return cls(
             scene_number=str(row.get("scene_number", "")).strip(),
@@ -102,6 +127,7 @@ class SceneRow:
             asset_type=asset_type,
             prompt=prompt,
             stock=stock,
+            search_queries=search_queries,
         )
 
     @property
@@ -127,6 +153,73 @@ class SceneRow:
         if self.asset_type:
             return self.asset_type in ("stock", "stock_image", "stock_video") and bool(self.stock)
         return bool(self.stock) and not self.prompt
+
+    @property
+    def wants_youtube(self) -> bool:
+        """asset_type=youtube_video — `prompt` doubles as the YouTube search
+        query here (never moved into `.stock`, unlike stock_*), since it also
+        feeds transcript matching alongside `.script_segment`."""
+        return self.asset_type == "youtube_video" and bool(self.prompt)
+
+    def as_fallback(self, provider: str) -> "SceneRow":
+        """Same scene, switched to a declared Visual Director fallback provider."""
+        key = (provider or "").strip().lower().replace(" ", "_").replace("-", "_")
+        asset_map = {
+            "youtube": "youtube_video",
+            "youtube_video": "youtube_video",
+            "stock_video": "stock_video",
+            "stock": "stock_video",
+            "pexels": "stock_video",
+            "stock_image": "stock_image",
+            "flow_image": "image",
+            "image": "image",
+            "flow": "image",
+            "flow_video": "video",
+            "video": "video",
+            "local": "local",
+        }
+        asset_type = asset_map.get(key, key)
+        query = (self.stock or self.prompt or "").strip()
+        description = (self.visual_description or self.prompt or "").strip()
+        if asset_type == "youtube_video":
+            # Stock/flow rows often keep the search text in `.stock` with empty `.prompt`.
+            yt_prompt = (self.prompt or self.stock or "").strip()
+            if not yt_prompt:
+                yt_prompt = (self.script_segment or "").strip()[:160]
+            queries = [str(q).strip() for q in (self.search_queries or []) if str(q).strip()]
+            if yt_prompt and yt_prompt not in queries:
+                queries = [yt_prompt] + queries
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type="youtube_video",
+                prompt=yt_prompt,
+                search_queries=queries,
+                visual_description=self.visual_description,
+                fallbacks=list(self.fallbacks or []),
+            )
+        if asset_type in ("stock_video", "stock_image", "stock"):
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type=asset_type,
+                stock=query,
+                visual_description=self.visual_description,
+            )
+        if asset_type in ("image", "video"):
+            prompt = (description or query or self.script_segment).strip()
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type=asset_type,
+                prompt=prompt,
+                visual_description=self.visual_description,
+            )
+        return SceneRow(
+            scene_number=self.scene_number,
+            script_segment=self.script_segment,
+            asset_type="local",
+        )
 
     @property
     def stock_media_type(self) -> str:
@@ -196,6 +289,8 @@ def sniff_media_kind(path: Path) -> Optional[str]:
         return "image"
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return "image"
+    if head[:4] == b"RIFF" and head[8:12] == b"AVI ":
+        return "video"
     # MP4/MOV/M4V family: an "ftyp" box, usually at offset 4 but scan a little
     # further since some muxers prepend a free/uuid box first.
     if b"ftyp" in head[:32]:

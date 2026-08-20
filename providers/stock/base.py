@@ -70,6 +70,11 @@ class StockProvider(AssetProvider):
             raise ValueError("StockProvider needs at least one backend (e.g. PexelsBackend)")
         self.backends = backends
         self.cache = cache or StockCache()
+        self.should_stop_scene = None
+
+    def _scene_stopped(self, scene_number: str) -> bool:
+        cb = getattr(self, "should_stop_scene", None)
+        return bool(cb and cb(scene_number))
 
     def _search_all(self, query: str, media_type: str, log: LogFn) -> List[Candidate]:
         candidates: List[Candidate] = []
@@ -92,6 +97,8 @@ class StockProvider(AssetProvider):
         media_type = scene.stock_media_type  # "image" | "video" | "all" — see SceneRow
         queries = build_queries(scene.stock)
         for i, query in enumerate(queries):
+            if self._scene_stopped(scene.scene_number):
+                return None
             suffix = " (broadened)" if i else ""
             log(f"[STOCK] Scene {scene.scene_number} -> searching {media_type} \"{query}\"{suffix}")
             candidates = [c for c in self._search_all(query, media_type, log) if c.asset_id not in exclude_ids]
@@ -140,7 +147,13 @@ class StockProvider(AssetProvider):
         source = scene.stock_source
         log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id}")
         try:
-            path = download_candidate(candidate, images_dir, scene.scene_number, log=log)
+            path = download_candidate(
+                candidate,
+                images_dir,
+                scene.scene_number,
+                log=log,
+                should_stop=lambda: self._scene_stopped(scene.scene_number),
+            )
         except Exception as exc:
             return AssetResult(
                 scene.scene_number, None, None, source, SceneStatus.FAILED,

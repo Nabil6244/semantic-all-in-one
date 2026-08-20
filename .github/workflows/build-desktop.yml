@@ -40,6 +40,11 @@ jobs:
           cd flow-engine
           npm install --omit=dev
 
+      - name: Install YouTube browser-acquisition dependencies
+        run: |
+          cd providers/youtube/acquisition
+          npm install --omit=dev
+
       - name: Bundle portable Node.js runtime (macOS arm64)
         # This is the Node binary that SHIPS inside the app and runs flow-engine at
         # runtime on the end user's machine — a plain official download, standalone
@@ -108,6 +113,11 @@ jobs:
       - name: Install flow-engine dependencies
         run: |
           cd flow-engine
+          npm install --omit=dev
+
+      - name: Install YouTube browser-acquisition dependencies
+        run: |
+          cd providers/youtube/acquisition
           npm install --omit=dev
 
       - name: Bundle portable Node.js runtime (Windows x64)

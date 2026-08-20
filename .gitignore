@@ -3,10 +3,14 @@
 .venv-audio/
 .venv_gui/
 .venv-build/
+.venv-qwen/
 venv/
 
 # Flow engine sidecar (Node deps + downloaded Chromium — installed locally, not committed)
 flow-engine/node_modules/
+
+# YouTube browser acquisition (playwright-core — installed locally / in CI)
+providers/youtube/acquisition/node_modules/
 
 # Local secrets / per-machine settings (Pexels key, etc.) — never commit
 settings.json
@@ -28,6 +32,8 @@ bin/node.exe
 # Project media / script (local per video — do not commit)
 script.csv
 voiceover.mp3
+voiceover_qwen.wav
+_pluto_script_from_plan.txt
 Images/
 # (Images/.asset_manifest.json and .stock_used_assets.json are covered by Images/ above)
 
