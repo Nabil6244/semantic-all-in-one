@@ -18,7 +18,7 @@ from installer.platform import UnsupportedPlatformError, detect_platform
 class InstallerApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Video Generator Setup")
+        self.title("Semantic YT Studio Setup")
         self.geometry("520x220")
         self.resizable(False, False)
         ctk.set_appearance_mode("System")
@@ -112,7 +112,7 @@ class InstallerApp(ctk.CTk):
         try:
             from tkinter import messagebox
 
-            messagebox.showerror("Video Generator Setup", message)
+            messagebox.showerror("Semantic YT Studio Setup", message)
         except Exception:
             pass
 

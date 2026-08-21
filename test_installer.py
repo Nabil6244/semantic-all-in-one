@@ -1,4 +1,4 @@
-"""Unit tests for the online installer (mocked; no multi-GB downloads)."""
+"""Unit tests for the optional online installer stub (mocked; no multi-GB downloads)."""
 
 from __future__ import annotations
 
@@ -49,22 +49,32 @@ class TestPlatformDetect(unittest.TestCase):
                 self.assertIsNone(try_detect_platform())
 
 
-class TestEmptyManifest(unittest.TestCase):
-    def test_bundled_manifest_loads_and_is_unpublished(self):
+class TestBundledManifest(unittest.TestCase):
+    def test_bundled_manifest_loads_and_is_published(self):
         data = load_manifest()
         self.assertEqual(data.get("schema_version"), 1)
         for pid in ("win-amd64", "darwin-arm64"):
             spec = platform_spec(data, pid)
-            self.assertFalse(is_published(spec))
-            with self.assertRaises(ManifestError) as ctx:
-                require_published(spec)
-            self.assertIn("not published", str(ctx.exception).lower())
-            self.assertEqual(str(ctx.exception), RELEASE_NOT_PUBLISHED)
+            self.assertTrue(is_published(spec), pid)
+            require_published(spec)
+
+    def test_empty_urls_are_unpublished(self):
+        spec = PlatformSpec(
+            platform_id="win-amd64",
+            app=[],
+            runtime=[FileSpec("", "", "r.zip", 0)],
+            model=ModelSpec(source="huggingface", repo_id="x", revision="main", files=[]),
+        )
+        self.assertFalse(is_published(spec))
+        with self.assertRaises(ManifestError) as ctx:
+            require_published(spec)
+        self.assertIn("not published", str(ctx.exception).lower())
+        self.assertEqual(str(ctx.exception), RELEASE_NOT_PUBLISHED)
 
     def test_published_when_urls_and_model_files_filled(self):
         spec = PlatformSpec(
             platform_id="win-amd64",
-            app=[FileSpec("https://example/a.zip", "abc", "a.zip", 10)],
+            app=[],
             runtime=[FileSpec("https://example/r.zip", "def", "r.zip", 20)],
             model=ModelSpec(
                 source="huggingface",

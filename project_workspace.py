@@ -30,8 +30,8 @@ def default_projects_root() -> Path:
     """Reuse the user's Downloads tree when it exists; never a second unrelated disk root."""
     downloads = Path.home() / "Downloads"
     if downloads.is_dir():
-        return downloads / "VideoGenerator"
-    return Path.home() / "VideoGenerator"
+        return downloads / "Semantic YT Studio"
+    return Path.home() / "Semantic YT Studio"
 
 
 def sanitize_title(title: Optional[str], max_len: int = TITLE_MAX_LEN) -> str:

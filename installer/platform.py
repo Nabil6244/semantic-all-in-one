@@ -11,7 +11,7 @@ SUPPORTED = frozenset({"win-amd64", "darwin-arm64"})
 
 
 class UnsupportedPlatformError(Exception):
-    """Raised when this machine cannot run the online installer."""
+    """Raised when this machine cannot run the optional online installer stub."""
 
 
 def detect_platform() -> str:
@@ -23,20 +23,20 @@ def detect_platform() -> str:
         if machine in ("amd64", "x86_64", "x64"):
             return "win-amd64"
         raise UnsupportedPlatformError(
-            f"Windows {machine} is not supported. Video Generator requires a 64-bit (x64) PC."
+            f"Windows {machine} is not supported. Semantic YT Studio requires a 64-bit (x64) PC."
         )
 
     if system == "darwin":
         if machine in ("arm64", "aarch64"):
             return "darwin-arm64"
         raise UnsupportedPlatformError(
-            "Intel Macs are not supported. Video Generator requires an Apple Silicon Mac "
+            "Intel Macs are not supported. Semantic YT Studio requires an Apple Silicon Mac "
             "(M1, M2, M3, or newer)."
         )
 
     raise UnsupportedPlatformError(
         f"Unsupported operating system ({system}). "
-        "Video Generator supports Windows x64 and macOS Apple Silicon only."
+        "Semantic YT Studio supports Windows x64 and macOS Apple Silicon only."
     )
 
 

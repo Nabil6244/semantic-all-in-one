@@ -1,4 +1,4 @@
-"""Load and validate the install manifest bundled with the stub installer."""
+"""Load and validate the install manifest bundled with the optional stub installer."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any, Optional
 RELEASE_NOT_PUBLISHED = (
     "This release is not published yet.\n\n"
     "The install manifest still has empty download URLs. "
-    "Wait for a published Video Generator release, then run the installer again."
+    "Wait for a published Semantic YT Studio release, then run the installer again."
 )
 
 
@@ -111,12 +111,15 @@ def platform_spec(data: dict[str, Any], platform_id: str) -> PlatformSpec:
 
 
 def is_published(spec: PlatformSpec) -> bool:
-    """True when app/runtime URLs and model file list are filled in."""
-    if not spec.app or not spec.runtime:
-        return False
-    if any(not f.url or not f.sha256 for f in spec.app):
+    """True when Qwen runtime URLs and model file list are filled in.
+
+    App archives are optional (team installs via DMG / Setup.exe from CI).
+    """
+    if not spec.runtime:
         return False
     if any(not f.url or not f.sha256 for f in spec.runtime):
+        return False
+    if spec.app and any(not f.url or not f.sha256 for f in spec.app):
         return False
     if not spec.model.files:
         return False

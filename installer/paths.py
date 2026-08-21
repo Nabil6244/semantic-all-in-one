@@ -8,9 +8,10 @@ from pathlib import Path
 
 
 MODEL_DIR_NAME = "Qwen3-TTS-12Hz-1.7B-Base"
-APP_BUNDLE_NAME = "SemanticAllInOne.app"
-WIN_APP_DIR_NAME = "VideoGenerator"
-WIN_EXE_NAME = "SemanticAllInOne.exe"
+APP_DISPLAY_NAME = "Semantic YT Studio"
+APP_BUNDLE_NAME = "Semantic YT Studio.app"
+WIN_APP_DIR_NAME = "Semantic YT Studio"
+WIN_EXE_NAME = "Semantic YT Studio.exe"
 
 
 def videogen_home() -> Path:
@@ -46,23 +47,41 @@ def provisioned_python(platform_id: str) -> Path | None:
             root / "python.exe",
             root / "Scripts" / "python.exe",
             root / "python" / "python.exe",
+            root / "bin" / "python.exe",
         ]
+        names = ("python.exe",)
     else:
         candidates = [
             root / "bin" / "python",
             root / "bin" / "python3",
+            root / "bin" / "python3.12",
+            root / "python" / "bin" / "python",
+            root / "python" / "bin" / "python3",
+            root / "python" / "bin" / "python3.12",
         ]
+        names = ("python", "python3", "python3.12")
     for path in candidates:
-        if path.is_file():
+        if _usable_python(path):
             return path
     if not root.is_dir():
         return None
-    names = ("python.exe",) if platform_id == "win-amd64" else ("python", "python3")
     for name in names:
         for found in root.rglob(name):
-            if found.is_file() and found.name in names:
+            if _usable_python(found) and found.name in names:
                 return found
     return None
+
+
+def _usable_python(path: Path) -> bool:
+    """True for a real python binary (not a broken symlink)."""
+    try:
+        if not path.is_file():
+            return False
+        if path.is_symlink() and not path.resolve().exists():
+            return False
+        return True
+    except OSError:
+        return False
 
 
 def windows_start_menu_dir() -> Path:

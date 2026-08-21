@@ -1,14 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec for Video Generator (onedir, windowed).
+PyInstaller spec for Semantic YT Studio (onedir, windowed).
 
 Build:
   # Put ffmpeg in bin/ first (see bin/README.md), then:
   pyinstaller VideoGenerator.spec
 
 Outputs:
-  Mac:    dist/VideoGenerator.app  (then scripts/make_dmg.sh)
-  Windows: dist/VideoGenerator/VideoGenerator.exe
+  Mac:    dist/Semantic YT Studio.app  (then scripts/make_dmg.sh)
+  Windows: dist/Semantic YT Studio/Semantic YT Studio.exe
+
+Icons are generated from assets/logo.png → AppIcon.ico / AppIcon.icns.
 """
 
 from __future__ import annotations
@@ -161,12 +163,14 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+APP_NAME = "Semantic YT Studio"
+
 exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name="SemanticAllInOne",
+    name=APP_NAME,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -187,18 +191,18 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="SemanticAllInOne",
+    name=APP_NAME,
 )
 
 if sys.platform == "darwin":
     app = BUNDLE(
         coll,
-        name="SemanticAllInOne.app",
+        name=f"{APP_NAME}.app",
         icon=icon_path,
-        bundle_identifier="com.semanticallinone.app",
+        bundle_identifier="com.semantictystudio.app",
         info_plist={
-            "CFBundleDisplayName": "Semantic All-In-One",
-            "CFBundleName": "Semantic All-In-One",
+            "CFBundleDisplayName": APP_NAME,
+            "CFBundleName": APP_NAME,
             "NSHighResolutionCapable": True,
         },
     )

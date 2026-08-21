@@ -2,14 +2,7 @@
   "schema_version": 1,
   "platforms": {
     "win-amd64": {
-      "app": [
-        {
-          "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/SemanticAllInOne-Windows.zip",
-          "sha256": "f823a86f99885bf354660326437454a05aac9c17998897b43b88a79cd467ad26",
-          "filename": "SemanticAllInOne-Windows.zip",
-          "size": 201303350
-        }
-      ],
+      "app": [],
       "runtime": [
         {
           "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/qwen-runtime-win-amd64.zip",
@@ -104,14 +97,7 @@
       }
     },
     "darwin-arm64": {
-      "app": [
-        {
-          "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/SemanticAllInOne-macOS.zip",
-          "sha256": "82ea7f3b6b68038441496e524be8cf534f2bb0d0685b6803cc9476f0844d02a3",
-          "filename": "SemanticAllInOne-macOS.zip",
-          "size": 151536661
-        }
-      ],
+      "app": [],
       "runtime": [
         {
           "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/qwen-runtime-darwin-arm64.zip",

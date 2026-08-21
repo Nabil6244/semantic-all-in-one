@@ -16,7 +16,7 @@ def _show_error(message: str) -> None:
 
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror("Video Generator Setup", message)
+        messagebox.showerror("Semantic YT Studio Setup", message)
         root.destroy()
     except Exception:
         pass

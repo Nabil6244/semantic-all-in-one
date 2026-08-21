@@ -1,20 +1,16 @@
 name: Publish Install Payloads
 
-# Attach app + runtime archives to a GitHub Release and print sha256 values
-# for pasting into tts/install_manifest.json. Model files stay on Hugging Face
-# (use scripts/fill_model_manifest.py).
+# Attach Qwen runtime archives to a GitHub Release and print sha256 values
+# for tts/install_manifest.json. Model files stay on Hugging Face
+# (use scripts/fill_model_manifest.py). Team app installers (DMG / Setup.exe)
+# come from Build Desktop Apps artifacts — not this Release.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. install-v1.0.0)"
+        description: "Release tag (e.g. install-v1)"
         required: true
-        type: string
-      app_windows_artifact:
-        description: "Optional: workflow run id that produced SemanticAllInOne-Windows (leave empty to skip auto-download)"
-        required: false
-        default: ""
         type: string
   push:
     tags:
@@ -25,7 +21,7 @@ permissions:
 
 jobs:
   publish:
-    name: Attach payloads to Release
+    name: Attach Qwen runtimes to Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,53 +36,32 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download latest desktop / runtime artifacts (manual placement OK)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p release-assets
-          echo "Place or download these into release-assets/ before upload:"
-          echo "  SemanticAllInOne-Windows.zip"
-          echo "  SemanticAllInOne-macOS.zip   (zip of .app for the online installer)"
-          echo "  qwen-runtime-win-amd64.zip"
-          echo "  qwen-runtime-darwin-arm64.tar.gz"
-          echo ""
-          echo "Tip: download from Actions artifacts:"
-          echo "  gh run download <run-id> -n SemanticAllInOne-Windows -D release-assets"
-          echo "  gh run download <run-id> -n qwen-runtime-win-amd64 -D release-assets"
-          ls -lah release-assets || true
-
-      - name: Fetch artifacts via gh (best-effort)
+      - name: Fetch Qwen runtime artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
-          # Latest successful Build Desktop Apps artifacts
-          RUN_DESKTOP=$(gh run list -w "Build Desktop Apps" --limit 1 --json databaseId,conclusion -q '.[] | select(.conclusion=="success") | .databaseId' | head -1)
           RUN_RUNTIME=$(gh run list -w "Build Qwen Runtime" --limit 1 --json databaseId,conclusion -q '.[] | select(.conclusion=="success") | .databaseId' | head -1)
           set -e
           mkdir -p release-assets
-          if [ -n "${RUN_DESKTOP}" ]; then
-            gh run download "$RUN_DESKTOP" -n SemanticAllInOne-Windows -D release-assets || true
-            gh run download "$RUN_DESKTOP" -n SemanticAllInOne-macOS-zip -D release-assets || true
-            gh run download "$RUN_DESKTOP" -n SemanticAllInOne-macOS -D release-assets || true
-          fi
+          echo "Expected assets:"
+          echo "  qwen-runtime-win-amd64.zip"
+          echo "  qwen-runtime-darwin-arm64.zip"
           if [ -n "${RUN_RUNTIME}" ]; then
             gh run download "$RUN_RUNTIME" -n qwen-runtime-win-amd64 -D release-assets || true
             gh run download "$RUN_RUNTIME" -n qwen-runtime-darwin-arm64 -D release-assets || true
           fi
-          ls -lah release-assets
+          ls -lah release-assets || true
 
       - name: Compute sha256 list
         run: |
-          echo "## SHA-256 for install_manifest.json" > sha256-summary.md
+          echo "## SHA-256 for install_manifest.json (Qwen runtime only)" > sha256-summary.md
           echo "" >> sha256-summary.md
           found=0
           for f in release-assets/*; do
             [ -f "$f" ] || continue
             case "$f" in
               *.sha256) continue ;;
-              *.dmg) continue ;;  # installer consumes zip of .app
             esac
             found=1
             sum=$(sha256sum "$f" | awk '{print $1}')
@@ -95,7 +70,7 @@ jobs:
             echo "${sum}  ${base}"
           done
           if [ "$found" -eq 0 ]; then
-            echo "No payload files found in release-assets/ — create an empty release notes stub only." >> sha256-summary.md
+            echo "No runtime files found — upload qwen-runtime-*.zip manually or re-run Build Qwen Runtime." >> sha256-summary.md
           fi
           cat sha256-summary.md
 
@@ -106,7 +81,8 @@ jobs:
           TAG="${{ steps.tag.outputs.tag }}"
           NOTES="$(cat sha256-summary.md)
 
-          After uploading, paste the hashes into \`tts/install_manifest.json\` app/runtime entries.
+          Team installers: download **Semantic-YT-Studio.dmg** and **Semantic-YT-Studio-Setup.exe** from Build Desktop Apps artifacts (not this Release).
+          Paste runtime hashes into \`tts/install_manifest.json\`.
           Fill model.files with: \`python scripts/fill_model_manifest.py --write\`
           "
           if gh release view "$TAG" >/dev/null 2>&1; then

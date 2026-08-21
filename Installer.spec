@@ -1,15 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec for the tiny online installer stub.
+PyInstaller spec for the optional Semantic YT Studio online installer stub.
 
-Bundles installer/ + tts/install_manifest.json only (no Torch, no Qwen, no app payload).
+Not the primary team deliverable — that is the full app (VideoGenerator.spec →
+DMG / Windows zip). This stub remains for optional tooling: it bundles
+installer/ + tts/install_manifest.json only (no Torch, no Qwen, no app payload).
 
 Build:
   pyinstaller Installer.spec
 
 Outputs:
-  Windows: dist/VideoGenerator-Setup.exe  (onefile)
-  macOS:   dist/VideoGenerator-Installer.app  (then scripts/make_installer_dmg.sh)
+  Windows: dist/Semantic YT Studio Setup.exe  (onefile)
+  macOS:   dist/Semantic YT Studio Setup.app  (then scripts/make_installer_dmg.sh)
+
+Icons from assets/logo.png → AppIcon.ico / AppIcon.icns.
 """
 
 from __future__ import annotations
@@ -93,15 +97,16 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+SETUP_NAME = "Semantic YT Studio Setup"
+
 if sys.platform == "win32":
-    # onefile stub named toward VideoGenerator-Setup.exe
     exe = EXE(
         pyz,
         a.scripts,
         a.binaries,
         a.datas,
         [],
-        name="VideoGenerator-Setup",
+        name=SETUP_NAME,
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -122,7 +127,7 @@ else:
         a.scripts,
         [],
         exclude_binaries=True,
-        name="VideoGenerator-Installer",
+        name=SETUP_NAME,
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -142,16 +147,16 @@ else:
         strip=False,
         upx=False,
         upx_exclude=[],
-        name="VideoGenerator-Installer",
+        name=SETUP_NAME,
     )
     app = BUNDLE(
         coll,
-        name="VideoGenerator-Installer.app",
+        name=f"{SETUP_NAME}.app",
         icon=icon_path,
-        bundle_identifier="com.semanticallinone.installer",
+        bundle_identifier="com.semantictystudio.setup",
         info_plist={
-            "CFBundleDisplayName": "Video Generator Setup",
-            "CFBundleName": "Video Generator Setup",
+            "CFBundleDisplayName": SETUP_NAME,
+            "CFBundleName": SETUP_NAME,
             "NSHighResolutionCapable": True,
         },
     )

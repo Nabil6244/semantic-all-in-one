@@ -106,7 +106,7 @@ def qwen_runtime_status() -> tuple[bool, str]:
         if getattr(sys, "frozen", False):
             return False, (
                 "Could not start the Qwen3-TTS runtime.\n\n"
-                "Re-run the Video Generator installer."
+                "Click Download in Voice Cloning to reinstall the voice engine."
             )
         return False, (
             "Could not start the Qwen3-TTS Python environment: "

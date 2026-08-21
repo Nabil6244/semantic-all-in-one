@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Local-only dry-run for the macOS online installer stub.
+Local-only dry-run for the optional macOS online installer stub
+(not the primary team deliverable).
 
 Does NOT invent GitHub Release URLs. Serves tiny fake archives from localhost,
 patches the *built* .app bundled manifest (with backup), then you can click
 through the progress UI.
 
 WARNING: A successful dry-run extracts to real destinations:
-  - /Applications/SemanticAllInOne.app  (fake stub .app)
+  - /Applications/Semantic YT Studio.app  (fake stub .app)
   - ~/.videogen/runtime/qwen/darwin-arm64/
   - ~/.videogen/qwen3-tts/Qwen3-TTS-12Hz-1.7B-Base/
 
@@ -16,7 +17,7 @@ Production repo file tts/install_manifest.json is left unchanged.
 Usage:
   python3 scripts/local_installer_dryrun.py          # prepare + serve
   # in another terminal / after launch:
-  open dist/VideoGenerator-Installer.app
+  open dist/Semantic YT Studio Setup.app
 
   python3 scripts/local_installer_dryrun.py --restore # restore bundled manifest
 """
@@ -35,7 +36,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = ROOT / "dist" / "VideoGenerator-Installer.app"
+APP = ROOT / "dist" / "Semantic YT Studio Setup.app"
 BUNDLED = APP / "Contents" / "Resources" / "tts" / "install_manifest.json"
 BACKUP = BUNDLED.with_suffix(".json.bak-dryrun")
 PORT = 8765
@@ -55,12 +56,12 @@ def _make_fixtures(out: Path) -> dict:
     out.mkdir(parents=True, exist_ok=True)
 
     # Fake macOS .app zip
-    app_zip = out / "SemanticAllInOne-macOS.zip"
+    app_zip = out / "Semantic-YT-Studio-macOS.zip"
     with tempfile.TemporaryDirectory() as tmp:
-        bundle = Path(tmp) / "SemanticAllInOne.app" / "Contents" / "MacOS"
+        bundle = Path(tmp) / "Semantic YT Studio.app" / "Contents" / "MacOS"
         bundle.mkdir(parents=True)
-        exe = bundle / "SemanticAllInOne"
-        exe.write_text("#!/bin/sh\necho dry-run SemanticAllInOne\n", encoding="utf-8")
+        exe = bundle / "Semantic YT Studio"
+        exe.write_text("#!/bin/sh\necho dry-run Semantic YT Studio\n", encoding="utf-8")
         exe.chmod(0o755)
         (bundle.parent / "Info.plist").write_text(
             '<?xml version="1.0"?><plist version="1.0"><dict>'
@@ -137,7 +138,7 @@ def _write_manifest(fixtures: dict) -> dict:
             },
             # Keep win key present but unpublished so we don't accidentally claim Windows is ready.
             "win-amd64": {
-                "app": [{"url": "", "sha256": "", "filename": "SemanticAllInOne-Windows.zip", "size": 0}],
+                "app": [{"url": "", "sha256": "", "filename": "Semantic-YT-Studio-Windows.zip", "size": 0}],
                 "runtime": [{"url": "", "sha256": "", "filename": "qwen-runtime-win-amd64.zip", "size": 0}],
                 "model": {
                     "source": "huggingface",
@@ -189,7 +190,7 @@ def serve(serve_dir: Path) -> None:
         print("When done: Ctrl+C, then:")
         print("  python3 scripts/local_installer_dryrun.py --restore")
         print(
-            "\nNote: dry-run writes to /Applications/SemanticAllInOne.app and ~/.videogen/ …"
+            "\nNote: dry-run writes to /Applications/Semantic YT Studio.app and ~/.videogen/ …"
         )
         try:
             httpd.serve_forever()

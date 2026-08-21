@@ -21,21 +21,18 @@ PACKAGE_MISSING_DEV = (
 
 PACKAGE_MISSING_FROZEN = (
     "The Qwen3-TTS runtime is not installed.\n\n"
-    "Re-run the Video Generator installer to download and install "
-    "the required voice engine and model (~6GB)."
+    "Click Download in Voice Cloning to install the voice engine and model (~6GB)."
 )
 
 MODEL_MISSING_DEV = (
     "Qwen 1.7B Base model is not installed.\n\n"
-    "Install the voice-cloning model to:\n"
-    "  ~/.videogen/qwen3-tts/Qwen3-TTS-12Hz-1.7B-Base\n\n"
-    "  huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base "
-    "--local-dir ~/.videogen/qwen3-tts/Qwen3-TTS-12Hz-1.7B-Base"
+    "Click Download in Voice Cloning, or install the voice-cloning model to:\n"
+    "  ~/.videogen/qwen3-tts/Qwen3-TTS-12Hz-1.7B-Base"
 )
 
 MODEL_MISSING_FROZEN = (
     "The Qwen 1.7B Base voice-cloning model is not installed.\n\n"
-    "Re-run the Video Generator installer to download the required model (~4.5GB)."
+    "Click Download in Voice Cloning to download the required model (~4.5GB)."
 )
 
 

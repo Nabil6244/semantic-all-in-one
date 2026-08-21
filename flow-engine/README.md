@@ -29,14 +29,20 @@ instead of reimplementing it. It runs as a plain background Node process
 protocol — see `GENERATE`/`STATE`/`BATCH_PROGRESS`/`BATCH_DONE` in
 `server.js`.
 
-**Setup:**
+**Setup (development):**
 
 ```bash
 cd flow-engine
 npm install
-npm run install-browser   # downloads Playwright's Chromium once
+npm run install-browser   # optional in CI/dev; packaged app downloads Chromium on first Flow use
 npm start                 # http://127.0.0.1:8787
 ```
+
+**Packaged app:** `node_modules` (including Playwright) ship inside the app; Chromium
+itself is **not** bundled. On first Flow/AI use the Python host runs
+`node node_modules/playwright/cli.js install chromium` via the bundled Node
+binary (`providers/playwright_chromium.py`) into the user Playwright cache.
+System Google Chrome is preferred when present (`lib/accounts.js`).
 
 **Provenance / updating:** if `semantic-automator-main/desktop/lib/*` gets a
 bug fix upstream, port it here manually — this is a deliberate one-time

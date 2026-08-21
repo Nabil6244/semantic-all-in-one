@@ -228,7 +228,7 @@ def _create_windows_shortcut(app_dest: Path) -> None:
     try:
         start_menu = windows_start_menu_dir()
         start_menu.mkdir(parents=True, exist_ok=True)
-        link = start_menu / "Semantic All-In-One.lnk"
+        link = start_menu / "Semantic YT Studio.lnk"
         # Minimal .lnk via PowerShell (no extra deps)
         ps = (
             f"$ws = New-Object -ComObject WScript.Shell; "

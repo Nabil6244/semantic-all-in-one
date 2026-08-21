@@ -58,6 +58,7 @@ from tts.client import get_shared_client, qwen_runtime_status, shutdown_shared_c
 from tts.errors import TTSError
 from tts.model_cache import MODEL_DIR_NAME, candidate_model_dirs, model_is_installed
 from tts.narration import VOICE_NARRATION_PLACEHOLDER, collect_narration
+from tts.qwen_provision import friendly_provision_error, provision_qwen
 from tts.voice_library import (
     VoiceProfile,
     create_voice_profile,
@@ -482,7 +483,7 @@ class _QueueWriter:
 class VideoGeneratorApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Semantic All-In-One")
+        self.title("Semantic YT Studio")
         self.geometry("1240x780")
         self.minsize(960, 620)
         self._qa_ui_dirty = False
@@ -564,7 +565,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         ctk.CTkLabel(
             brand,
-            text="Semantic All-In-One",
+            text="Semantic YT Studio",
             font=ctk.CTkFont(size=17, weight="bold"),
             text_color=_TEXT,
             fg_color="transparent",
@@ -836,8 +837,38 @@ class VideoGeneratorApp(ctk.CTk):
         tts_status_row.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             tts_status_row, textvariable=self.tts_status_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=200, justify="left",
+            text_color=_MUTED, wraplength=180, justify="left",
         ).grid(row=0, column=0, sticky="w")
+        self._tts_download_btn = ctk.CTkButton(
+            tts_status_row,
+            text="Download",
+            width=88,
+            height=26,
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HOV,
+            text_color=_ACCENT_DARK,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=4,
+            command=self._on_download_qwen,
+        )
+        self._tts_download_btn.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self._tts_download_cancel_btn = ctk.CTkButton(
+            tts_status_row,
+            text="✕",
+            width=32,
+            height=26,
+            fg_color="transparent",
+            border_width=1,
+            border_color=_BORDER,
+            text_color=_MUTED,
+            hover_color=_BORDER,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            corner_radius=4,
+            command=self._on_cancel_qwen_download,
+        )
+        # Only visible while a Qwen download is in progress.
+        self._tts_download_cancel_btn.grid(row=0, column=2, sticky="e", padx=(6, 0))
+        self._tts_download_cancel_btn.grid_remove()
         self._tts_model_folder_btn = ctk.CTkButton(
             tts_status_row,
             text="Open Folder",
@@ -852,7 +883,9 @@ class VideoGeneratorApp(ctk.CTk):
             corner_radius=4,
             command=self._open_qwen_model_folder,
         )
-        self._tts_model_folder_btn.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self._tts_model_folder_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
+        self._qwen_download_active = False
+        self._qwen_download_cancel = False
 
         lib_head = ctk.CTkFrame(tts, fg_color="transparent")
         lib_head.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 0))
@@ -935,11 +968,12 @@ class VideoGeneratorApp(ctk.CTk):
             "1.0",
             "Enter the exact words spoken in the reference recording.",
         )
-        ctk.CTkButton(
+        self.tts_create_btn = ctk.CTkButton(
             tts, text="+ Create Voice", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
             text_color=_ACCENT_DARK, font=ctk.CTkFont(size=12, weight="bold"),
             command=self._create_voice_profile,
-        ).grid(row=11, column=0, sticky="ew", padx=12, pady=(8, 0))
+        )
+        self.tts_create_btn.grid(row=11, column=0, sticky="ew", padx=12, pady=(8, 0))
 
         ctk.CTkLabel(
             tts, text="Narration Script", font=ctk.CTkFont(size=11, weight="bold"),
@@ -1669,8 +1703,125 @@ class VideoGeneratorApp(ctk.CTk):
             self._workspace.set_voice_id(profile.id)
 
     def _refresh_tts_status(self) -> None:
+        if getattr(self, "_qwen_download_active", False):
+            return
         ok, message = qwen_runtime_status()
         self.tts_status_var.set(message.split("\n", 1)[0] if message else "")
+        self._apply_qwen_ready_ui(ok)
+
+    def _apply_qwen_ready_ui(self, ready: bool) -> None:
+        downloading = getattr(self, "_qwen_download_active", False)
+        dl = getattr(self, "_tts_download_btn", None)
+        cancel_btn = getattr(self, "_tts_download_cancel_btn", None)
+        if dl is not None:
+            if ready and not downloading:
+                dl.grid_remove()
+            else:
+                dl.grid()
+                if downloading:
+                    dl.configure(state="disabled", text="Downloading…")
+                else:
+                    dl.configure(state="normal", text="Download")
+        if cancel_btn is not None:
+            if downloading:
+                cancel_btn.grid()
+                cancel_btn.configure(state="normal", text="✕")
+            else:
+                cancel_btn.grid_remove()
+        voice_state = "disabled" if (downloading or not ready) else "normal"
+        if getattr(self, "tts_create_btn", None) is not None:
+            self.tts_create_btn.configure(state=voice_state)
+        if getattr(self, "tts_btn", None) is not None and not getattr(self, "_tts_job_active", False):
+            self.tts_btn.configure(state=voice_state)
+        if getattr(self, "top_voice_btn", None) is not None and not getattr(self, "_tts_job_active", False):
+            self.top_voice_btn.configure(state=voice_state)
+
+    def _on_cancel_qwen_download(self) -> None:
+        if not getattr(self, "_qwen_download_active", False):
+            return
+        self._qwen_download_cancel = True
+        cancel_btn = getattr(self, "_tts_download_cancel_btn", None)
+        if cancel_btn is not None:
+            cancel_btn.configure(state="disabled", text="…")
+        self.tts_status_var.set("Cancelling Qwen download…")
+        self.status_var.set("Cancelling Qwen download…")
+        self._append_log("[TTS] Cancel requested for Qwen download\n")
+
+    def _on_download_qwen(self) -> None:
+        if getattr(self, "_qwen_download_active", False):
+            return
+        if getattr(self, "_tts_job_active", False):
+            messagebox.showinfo(
+                "Voice busy",
+                "Finish the current voice job before downloading Qwen.",
+            )
+            return
+        self._qwen_download_active = True
+        self._qwen_download_cancel = False
+        self._apply_qwen_ready_ui(ready=False)
+        self.tts_status_var.set("Downloading Qwen…")
+        self.status_var.set("Downloading Qwen voice engine…")
+        self._append_log("\n[TTS] Starting Qwen download (runtime + model)…\n")
+        self._set_tts_progress(0.02, "Downloading Qwen…")
+
+        def work() -> None:
+            try:
+                def on_status(msg: str) -> None:
+                    self._ui_queue.put(("qwen_dl_status", msg))
+
+                def on_progress(frac: float) -> None:
+                    self._ui_queue.put(("qwen_dl_progress", float(frac)))
+
+                provision_qwen(
+                    status=on_status,
+                    progress=on_progress,
+                    should_stop=lambda: bool(getattr(self, "_qwen_download_cancel", False)),
+                )
+                self._ui_queue.put(("qwen_dl_done", None))
+            except Exception as exc:
+                self._ui_queue.put(("qwen_dl_error", friendly_provision_error(exc)))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_qwen_download_status(self, message: str) -> None:
+        short = (message or "").split("\n", 1)[0]
+        self.tts_status_var.set(short)
+        self.status_var.set(short)
+        self._append_log(f"[TTS] {short}\n")
+
+    def _on_qwen_download_progress(self, frac: float) -> None:
+        pct = max(0, min(100, int(round(float(frac) * 100))))
+        self._set_tts_progress(float(frac), f"Downloading Qwen… {pct}%")
+        self.tts_status_var.set(f"Downloading Qwen… {pct}%")
+
+    def _on_qwen_download_done(self) -> None:
+        self._qwen_download_active = False
+        self._qwen_download_cancel = False
+        self._set_tts_progress(1.0, "Qwen ready")
+        self._append_log("[TTS] ✓ Qwen download complete\n")
+        self.status_var.set("Qwen voice engine ready")
+        self._refresh_tts_status()
+        messagebox.showinfo(
+            "Qwen ready",
+            "Voice cloning is ready.\n\nYou can Create Voice and Generate Narration.",
+        )
+
+    def _on_qwen_download_error(self, message: str) -> None:
+        self._qwen_download_active = False
+        self._qwen_download_cancel = False
+        self._set_tts_progress(0.0, "")
+        cancelled = "cancel" in (message or "").lower()
+        if cancelled:
+            self._append_log(f"[TTS] {message}\n")
+            self.status_var.set("Qwen download cancelled")
+        else:
+            self._append_log(f"[TTS] Qwen download failed: {message}\n")
+            self.status_var.set("Qwen download failed")
+        self._refresh_tts_status()
+        if cancelled:
+            messagebox.showinfo("Qwen download", message or "Qwen download cancelled.")
+        else:
+            messagebox.showerror("Qwen download", message)
 
     def _qwen_model_folder(self) -> Path:
         """Preferred local install folder for the 1.7B Base clone model."""
@@ -1806,6 +1957,9 @@ class VideoGeneratorApp(ctk.CTk):
             self._tts_progress_total = 0
             self._set_tts_progress(0.0, "")
         self._refresh_voice_playback_buttons()
+        # Re-apply Download gating (Create / Generate disabled until Qwen is ready).
+        if not getattr(self, "_qwen_download_active", False):
+            self._refresh_tts_status()
 
     def _create_voice_profile(self) -> None:
         name = self.tts_create_name_var.get().strip()
@@ -2716,6 +2870,8 @@ class VideoGeneratorApp(ctk.CTk):
             )
         if getattr(self, "top_voice_btn", None) is not None:
             self.top_voice_btn.configure(state=state)
+        if getattr(self, "tts_create_btn", None) is not None and busy:
+            self.tts_create_btn.configure(state="disabled")
         if busy:
             self._tts_progress_t0 = time.monotonic()
             self._tts_progress_done = 0
@@ -2738,6 +2894,8 @@ class VideoGeneratorApp(ctk.CTk):
                 self._set_tts_progress(0.0, "")
         if not busy:
             self._refresh_voice_playback_buttons()
+            if not getattr(self, "_qwen_download_active", False):
+                self._refresh_tts_status()
 
     def _set_tts_progress(self, fraction: float, label: str = "") -> None:
         bar = getattr(self, "tts_progress", None)
@@ -4742,7 +4900,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self._workspace is None:
             return None, (
                 "Create a New Project first.\n\n"
-                "Each video is stored in its own folder under Downloads/VideoGenerator."
+                "Each video is stored in its own folder under Downloads/Semantic YT Studio."
             )
         if ensure_ffmpeg_on_path() is None:
             return None, (
@@ -5166,6 +5324,14 @@ class VideoGeneratorApp(ctk.CTk):
                             self._on_finished(success=False, message=payload)
                         elif kind == "cancelled":
                             self._on_finished(success=False, message=payload, cancelled=True)
+                        elif kind == "qwen_dl_status":
+                            self._on_qwen_download_status(payload)
+                        elif kind == "qwen_dl_progress":
+                            self._on_qwen_download_progress(payload)
+                        elif kind == "qwen_dl_done":
+                            self._on_qwen_download_done()
+                        elif kind == "qwen_dl_error":
+                            self._on_qwen_download_error(payload)
                         elif kind == "assets_partial":
                             self._on_assets_partial(payload)
                         elif kind == "assets_complete":

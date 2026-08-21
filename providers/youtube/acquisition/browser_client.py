@@ -38,36 +38,67 @@ def _find_node() -> Optional[str]:
     bundled = _PROJECT_ROOT / "bin" / name
     if bundled.is_file():
         return str(bundled)
+    # Packaged (frozen) builds: same roots as FlowEngineManager.
+    try:
+        from providers.flow.engine_manager import _find_node_binary
+
+        found = _find_node_binary()
+        if found:
+            return found
+    except Exception:
+        pass
     return shutil.which("node")
 
 
+def _system_chrome_available() -> bool:
+    from providers.playwright_chromium import system_chrome_available
+
+    return system_chrome_available()
+
+
 def _chrome_available() -> bool:
-    env = os.environ.get("YOUTUBE_CHROME_PATH")
-    if env and Path(env).is_file():
+    """System Chrome/Chromium or Playwright's downloaded Chromium."""
+    if _system_chrome_available():
         return True
-    mac = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    if mac.is_file():
-        return True
-    for name in ("google-chrome", "chromium", "chromium-browser", "chrome"):
-        if shutil.which(name):
-            return True
-    cache_candidates = [
-        Path.home() / "Library" / "Caches" / "ms-playwright",
-        Path.home() / ".cache" / "ms-playwright",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
-    ]
-    return any(p.is_dir() and any(p.iterdir()) for p in cache_candidates if str(p) != "." and p.is_dir())
+    from providers.playwright_chromium import is_playwright_chromium_installed
+
+    return is_playwright_chromium_installed()
 
 
 def browser_available() -> bool:
-    """Cheap, no-network check: worker can be started on this machine."""
+    """Cheap, no-network check: worker can be started on this machine.
+
+    Returns True when Node + playwright-core are present and either a system
+    Chrome exists, Playwright Chromium is already cached, or we can download
+    Chromium via the bundled flow-engine Playwright CLI (same path Flow uses).
+    """
     if not _find_node():
         return False
     if not _WORKER.is_file():
         return False
     if not (_DIR / "node_modules" / "playwright-core").is_dir():
         return False
-    return _chrome_available()
+    if _chrome_available():
+        return True
+    from providers.flow.engine_manager import _find_flow_engine_dir
+    from providers.playwright_chromium import can_install_playwright_chromium
+
+    return can_install_playwright_chromium(_find_flow_engine_dir(), _find_node())
+
+
+def _ensure_playwright_chromium_for_youtube() -> None:
+    """If neither system Chrome nor cached Chromium exists, download once."""
+    from providers.flow.engine_manager import _find_flow_engine_dir, _find_node_binary
+    from providers.playwright_chromium import ensure_playwright_chromium
+
+    node = _find_node_binary() or _find_node()
+    if not node:
+        raise RuntimeError("node is not available")
+    ensure_playwright_chromium(
+        engine_dir=_find_flow_engine_dir(),
+        node_bin=node,
+        log=_emit,
+    )
 
 
 class BrowserPlaybackClient:
@@ -110,6 +141,7 @@ class BrowserPlaybackClient:
             return
         if not self.node_bin:
             raise RuntimeError("node is not available")
+        _ensure_playwright_chromium_for_youtube()
         env = os.environ.copy()
         proc = self._popen_factory(
             [self.node_bin, str(self.worker_script)],

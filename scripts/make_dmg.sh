@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Turn dist/SemanticAllInOne.app into a distributable .dmg
+# Turn dist/Semantic YT Studio.app into a distributable .dmg
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP="dist/SemanticAllInOne.app"
-DMG="dist/SemanticAllInOne.dmg"
+APP="dist/Semantic YT Studio.app"
+DMG="dist/Semantic-YT-Studio.dmg"
 STAGE="dist/dmg_stage"
 
 if [[ ! -d "$APP" ]]; then
@@ -20,7 +20,7 @@ cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 
 hdiutil create \
-  -volname "Semantic All-In-One" \
+  -volname "Semantic YT Studio" \
   -srcfolder "$STAGE" \
   -ov \
   -format UDZO \

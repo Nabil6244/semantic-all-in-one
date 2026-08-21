@@ -1,26 +1,26 @@
-# Video Generator — User Guide
+# Semantic YT Studio — User Guide
 
-Video Generator turns a **script + voiceover** into a finished video (`final.mp4`) automatically. Each scene's picture can come from a file you provide, from stock photo/video search, or from AI image generation — you choose per scene in a simple spreadsheet. No coding, no terminal.
+Semantic YT Studio turns a **script + voiceover** into a finished video (`final.mp4`) automatically. Each scene's picture can come from a file you provide, from stock photo/video search, or from AI image generation — you choose per scene in a simple spreadsheet. No coding, no terminal.
 
 ---
 
 ## 1. Installing the application
 
-Use the **online installer** (small download). On first run it downloads and installs everything needed to make videos — the app, the Qwen voice runtime (~1.5GB), and the Qwen model (~4.5GB) — behind **one progress bar**. Plan for **~6GB+ free disk** and a working internet connection.
+Install the **full Semantic YT Studio app**. Qwen voice is **not** included — download it once later from inside the app when you need voice features.
 
 **Windows (x64):**
-1. Run `VideoGenerator-Setup.exe`.
-2. Wait until the progress bar finishes (app + voice engine + model).
-3. Launch **Semantic All-In-One** from the Start Menu.
+1. Run `Semantic-YT-Studio-Setup.exe`.
+2. Open **Semantic YT Studio**.
+3. For voice: use in-app **Download** once (~several GB; needs internet).
 
 **Mac (Apple Silicon only — M1/M2/M3/…):**
-1. Open `VideoGenerator-Installer.dmg` and run **Video Generator Setup**.
-2. Wait until the progress bar finishes.
-3. Open **Semantic All-In-One** from Applications (first launch: right-click → Open if macOS warns about an unidentified developer).
+1. Open `Semantic-YT-Studio.dmg` and drag **Semantic YT Studio** to Applications.
+2. Launch it (first time: right-click → Open if macOS warns about an unidentified developer).
+3. For voice: use in-app **Download** once.
 
-Intel Macs are not supported. You do **not** install Python, pip, conda, Torch, or FFmpeg yourself — the installer provisions those pieces.
+Intel Macs are not supported. You do **not** install Python, pip, conda, Torch, Node, or FFmpeg yourself.
 
-If the installer says the release is not published yet, wait for a published build and try again. If the voice engine is missing later, re-run the same installer.
+**AI / Flow note:** On first use of Flow (Settings → AI / Flow Accounts, or Generate with AI scenes), the app downloads Playwright Chromium once into your user cache if Google Chrome is not already installed. That needs a working internet connection the first time only.
 
 ---
 
@@ -80,7 +80,7 @@ Requires a Pexels API key — see §6.
 ## 6. Adding your Pexels API key
 
 1. Get a free key at [pexels.com/api](https://www.pexels.com/api/) (sign up, copy your API key).
-2. In Video Generator, click **Settings** (top right).
+2. In Semantic YT Studio, click **Settings** (top right).
 3. Under **Stock Providers**, paste your key and click **Save Key**.
 
 The key is stored only on your computer. You only need to do this once, and only if you plan to use Stock scenes.
@@ -159,6 +159,7 @@ Click **Cancel** while a run is in progress. Scenes still being generated or dow
 | A Flow scene fails repeatedly | That account may need signing in again — check its status dot in Settings; red means there's a problem to look at |
 | Video/audio feel out of sync | Make sure `script_segment` text matches what's actually said in the voiceover |
 | App won't open (Mac) | Right-click the app → Open, then confirm — only needed the first time |
+| First Flow/AI use is slow or mentions Chromium | The app is downloading Playwright Chromium once; needs internet. Or install Google Chrome and retry |
 | Generation seems slow | AI scenes generate one browser session per account; more signed-in accounts run more scenes in parallel |
 
 Still stuck? Note the exact message shown and the scene number it mentions, and send it to whoever set up the app for you.

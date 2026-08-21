@@ -1,4 +1,9 @@
-"""Online installer: downloads app, Qwen runtime, and Qwen model behind one progress bar."""
+"""Optional online installer stub (not the primary team deliverable).
+
+Downloads app / Qwen runtime / model behind one progress bar when used.
+Team shipping uses the full app DMG / Windows zip instead; Qwen is downloaded
+in-app. This package remains for optional tooling.
+"""
 
 __all__ = ["__version__"]
 

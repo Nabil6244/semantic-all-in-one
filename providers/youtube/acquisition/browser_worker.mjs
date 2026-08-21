@@ -327,11 +327,24 @@ async function launchBrowser() {
   };
   if (executable) {
     opts.executablePath = executable;
-  } else {
-    opts.channel = process.env.YOUTUBE_CHROME_CHANNEL || "chrome";
+    browser = await chromium.launch(opts);
+    log("chrome launched (YOUTUBE_CHROME_PATH)");
+    return;
   }
-  browser = await chromium.launch(opts);
-  log("chrome launched");
+  const channel = process.env.YOUTUBE_CHROME_CHANNEL || "chrome";
+  try {
+    browser = await chromium.launch({ ...opts, channel });
+    log(`chrome launched (channel=${channel})`);
+  } catch (e) {
+    // No system Chrome — use Playwright Chromium (downloaded once by the app).
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes("channel") || msg.includes("Executable doesn't exist") || msg.includes("browserType.launch")) {
+      browser = await chromium.launch(opts);
+      log("playwright chromium launched (no system chrome)");
+    } else {
+      throw e;
+    }
+  }
 }
 
 async function handleJob(job) {

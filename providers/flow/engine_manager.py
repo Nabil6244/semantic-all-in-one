@@ -16,6 +16,11 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
+from providers.playwright_chromium import (
+    ensure_playwright_chromium,
+    is_playwright_chromium_installed,
+)
+
 from .client import FlowClient, FlowClientError
 
 DEFAULT_PORT = 8787
@@ -93,21 +98,36 @@ class FlowEngineManager:
         return (self.engine_dir / "node_modules" / "ws").is_dir()
 
     def is_browser_installed(self) -> bool:
-        """Best-effort check for Playwright's downloaded Chromium. Not exhaustive
-        (Playwright's cache layout can vary by OS/version) — a real check happens
-        implicitly the first time the engine tries to launch a browser; this is
-        just enough to give an early, clearer error than a raw Node stack trace."""
-        cache_candidates = [
-            Path.home() / "Library" / "Caches" / "ms-playwright",  # macOS
-            Path.home() / ".cache" / "ms-playwright",  # Linux
-            Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",  # Windows
-        ]
-        return any(p.is_dir() and any(p.iterdir()) for p in cache_candidates if p.is_dir())
+        """True when Playwright Chromium is in the user cache (shared with YouTube)."""
+        return is_playwright_chromium_installed()
+
+    def ensure_browser(self) -> None:
+        """Ensure a browser exists for Flow (Chrome or Playwright Chromium).
+
+        Packaged apps call this automatically before starting the Flow engine so
+        users never need `npm run install-browser`. Skips download when system
+        Chrome is present or Chromium is already cached.
+        """
+        node_bin = _find_node_binary()
+        if node_bin is None:
+            raise FlowEngineError(
+                "Node.js was not found (bundled or on PATH). Cannot download "
+                "Playwright Chromium for Flow/AI."
+            )
+        try:
+            ensure_playwright_chromium(
+                engine_dir=self.engine_dir,
+                node_bin=node_bin,
+                log=self.log,
+            )
+        except RuntimeError as exc:
+            raise FlowEngineError(str(exc)) from exc
 
     def setup_instructions(self) -> str:
         # Packaged builds bundle node_modules already (see flow-engine/README.md and
         # VideoGenerator.spec) — this only fires for a dev checkout that hasn't run
-        # `npm install` yet.
+        # `npm install` yet. Chromium itself is fetched on first Flow use via
+        # ensure_browser() (same as `npm run install-browser`).
         return (
             f"Flow engine dependencies not installed. Run in a terminal:\n"
             f"  cd \"{self.engine_dir}\"\n"
@@ -143,6 +163,12 @@ class FlowEngineManager:
                 raise FlowEngineError(f"flow-engine directory not found at {self.engine_dir}")
             if not self.is_installed():
                 raise FlowEngineError(self.setup_instructions())
+
+            # Chromium is not bundled in the DMG/zip (size); download once into the
+            # user Playwright cache before the engine can open Flow browsers.
+            # Prefer system Chrome when present (flow-engine/lib/accounts.js), but
+            # Chromium must exist as the fallback on fresh machines without Chrome.
+            self.ensure_browser()
 
             # Reuse an already-running engine on this port if one answers (e.g. a
             # prior app instance that wasn't cleanly stopped, or the engine started

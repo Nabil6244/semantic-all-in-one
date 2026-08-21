@@ -1,8 +1,8 @@
 name: Build Qwen Runtime
 
-# Portable Qwen3-TTS Python env for the online installer (no model weights).
-# Approach: official CPython embeddable / standalone build + pip install from
-# requirements-qwen-tts.txt, then pack as zip / tar.gz with sha256.
+# Relocatable Qwen3-TTS Python env for in-app Download (no model weights).
+# Uses python-build-standalone (NOT `python -m venv`, which creates broken
+# symlinks to the CI machine's framework Python).
 
 on:
   workflow_dispatch:
@@ -10,6 +10,10 @@ on:
     paths:
       - "requirements-qwen-tts.txt"
       - ".github/workflows/build-qwen-runtime.yml"
+
+env:
+  PBS_TAG: "20251209"
+  PBS_PY: "3.12.12"
 
 jobs:
   runtime-windows-x64:
@@ -19,25 +23,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Create portable venv and install qwen-tts
+      - name: Download standalone CPython
         shell: pwsh
         run: |
-          $out = "qwen-runtime-win-amd64"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          python -m venv "$out"
-          & "$out\Scripts\python.exe" -m pip install --upgrade pip
-          & "$out\Scripts\python.exe" -m pip install -r requirements-qwen-tts.txt
-          # Smoke: package importable (do not load model weights)
-          & "$out\Scripts\python.exe" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+          $url = "https://github.com/astral-sh/python-build-standalone/releases/download/$env:PBS_TAG/cpython-$env:PBS_PY+$env:PBS_TAG-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
+          Invoke-WebRequest -Uri $url -OutFile pbs.tgz
+          New-Item -ItemType Directory -Force -Path qwen-runtime-win-amd64 | Out-Null
+          tar -xzf pbs.tgz -C qwen-runtime-win-amd64
+          # install_only layout: python/python.exe
+          $py = Get-ChildItem -Path qwen-runtime-win-amd64 -Recurse -Filter python.exe |
+            Where-Object { $_.FullName -match '\\python\\python\.exe$' -or $_.Directory.Name -eq 'python' } |
+            Select-Object -First 1
+          if (-not $py) {
+            $py = Get-ChildItem -Path qwen-runtime-win-amd64 -Recurse -Filter python.exe | Select-Object -First 1
+          }
+          if (-not $py) { throw "python.exe not found in standalone archive" }
+          Write-Host "Using $($py.FullName)"
+          & $py.FullName -m pip install --upgrade pip
+          & $py.FullName -m pip install -r requirements-qwen-tts.txt
+          & $py.FullName -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
 
-      - name: Pack archive
+      - name: Pack flat zip
         shell: pwsh
         run: |
+          # Zip contents of the runtime folder (not the folder wrapper) so extract is flat.
           Compress-Archive -Path "qwen-runtime-win-amd64\*" -DestinationPath "qwen-runtime-win-amd64.zip" -Force
           $hash = (Get-FileHash -Algorithm SHA256 "qwen-runtime-win-amd64.zip").Hash.ToLower()
           Set-Content -Path "qwen-runtime-win-amd64.sha256" -Value "$hash  qwen-runtime-win-amd64.zip"
@@ -61,31 +70,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Create portable venv and install qwen-tts
+      - name: Download standalone CPython
         run: |
-          OUT=qwen-runtime-darwin-arm64
-          python -m venv "$OUT"
-          "$OUT/bin/python" -m pip install --upgrade pip
-          "$OUT/bin/python" -m pip install -r requirements-qwen-tts.txt
-          "$OUT/bin/python" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+          set -euo pipefail
+          URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_TAG}/cpython-${PBS_PY}+${PBS_TAG}-aarch64-apple-darwin-install_only_stripped.tar.gz"
+          curl -sL "$URL" -o pbs.tgz
+          mkdir -p qwen-runtime-darwin-arm64
+          tar -xzf pbs.tgz -C qwen-runtime-darwin-arm64
+          # install_only layout: python/bin/python3
+          PY=$(find qwen-runtime-darwin-arm64 -type f \( -name python3 -o -name python \) | head -1)
+          if [ -z "$PY" ]; then
+            PY=$(find qwen-runtime-darwin-arm64 -type f -name 'python3.*' | head -1)
+          fi
+          if [ -z "$PY" ] || [ ! -x "$PY" ]; then
+            echo "python binary not found"; find qwen-runtime-darwin-arm64 -maxdepth 3 -type f | head -40
+            exit 1
+          fi
+          chmod +x "$PY"
+          echo "Using $PY"
+          "$PY" -m pip install --upgrade pip
+          "$PY" -m pip install -r requirements-qwen-tts.txt
+          "$PY" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
 
-      - name: Pack archive
+      - name: Pack flat zip
         run: |
-          tar -czf qwen-runtime-darwin-arm64.tar.gz -C qwen-runtime-darwin-arm64 .
-          shasum -a 256 qwen-runtime-darwin-arm64.tar.gz | tee qwen-runtime-darwin-arm64.sha256
-          ls -lh qwen-runtime-darwin-arm64.tar.gz
+          set -euo pipefail
+          # Flat zip of runtime contents (not a nested tar.gz wrapper).
+          (
+            cd qwen-runtime-darwin-arm64
+            zip -ry ../qwen-runtime-darwin-arm64.zip .
+          )
+          shasum -a 256 qwen-runtime-darwin-arm64.zip | tee qwen-runtime-darwin-arm64.sha256
+          ls -lh qwen-runtime-darwin-arm64.zip
+          # Sanity: zip must contain a real python binary path
+          unzip -l qwen-runtime-darwin-arm64.zip | grep -E 'python(3(\.[0-9]+)?)?$' | head -5
 
       - name: Upload macOS runtime
         uses: actions/upload-artifact@v4
         with:
           name: qwen-runtime-darwin-arm64
           path: |
-            qwen-runtime-darwin-arm64.tar.gz
+            qwen-runtime-darwin-arm64.zip
             qwen-runtime-darwin-arm64.sha256
           if-no-files-found: error
           retention-days: 14

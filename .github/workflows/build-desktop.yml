@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-macos:
-    name: macOS (.app + .dmg)
+    name: macOS (.dmg)
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -46,10 +46,7 @@ jobs:
           npm install --omit=dev
 
       - name: Bundle portable Node.js runtime (macOS arm64)
-        # This is the Node binary that SHIPS inside the app and runs flow-engine at
-        # runtime on the end user's machine — a plain official download, standalone
-        # (no Homebrew/shared-lib dependency), separate from the setup-node above
-        # which only exists to run `npm install` during this CI build.
+        # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.
         run: |
           NODE_VERSION="v24.19.0"
           curl -sL -o node.tar.gz "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-arm64.tar.gz"
@@ -66,45 +63,16 @@ jobs:
           chmod +x scripts/make_dmg.sh
           ./scripts/make_dmg.sh
 
-      - name: Zip macOS .app for online installer
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/SemanticAllInOne.app dist/SemanticAllInOne-macOS.zip
-
-      - name: Build online installer stub
-        run: pyinstaller Installer.spec
-
-      - name: Create installer DMG
-        run: |
-          chmod +x scripts/make_installer_dmg.sh
-          ./scripts/make_installer_dmg.sh
-
-      - name: Upload macOS artifacts
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: SemanticAllInOne-macOS
-          path: |
-            dist/SemanticAllInOne.dmg
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload macOS app zip (install payload)
-        uses: actions/upload-artifact@v4
-        with:
-          name: SemanticAllInOne-macOS-zip
-          path: dist/SemanticAllInOne-macOS.zip
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload macOS online installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: VideoGenerator-Installer-macOS
-          path: dist/VideoGenerator-Installer.dmg
+          name: Semantic-YT-Studio.dmg
+          path: dist/Semantic-YT-Studio.dmg
           if-no-files-found: error
           retention-days: 14
 
   build-windows:
-    name: Windows (.exe onedir)
+    name: Windows (Setup.exe)
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -149,9 +117,6 @@ jobs:
           npm install --omit=dev
 
       - name: Bundle portable Node.js runtime (Windows x64)
-        # Ships inside the app and runs flow-engine at runtime on the end user's
-        # machine — separate from the setup-node above, which only runs `npm install`
-        # during this CI build.
         shell: pwsh
         run: |
           $nodeVersion = "v24.19.0"
@@ -164,27 +129,28 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec
 
-      - name: Zip Windows onedir
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Setup.exe
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist\SemanticAllInOne\*" -DestinationPath "dist\SemanticAllInOne-Windows.zip" -Force
+          $iscc = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found after installing Inno Setup" }
+          & $iscc "scripts\windows_setup.iss"
+          if (-not (Test-Path "dist\Semantic-YT-Studio-Setup.exe")) {
+            throw "Setup.exe was not produced"
+          }
 
-      - name: Build online installer stub
-        run: pyinstaller Installer.spec
-
-      - name: Upload Windows artifact
+      - name: Upload Windows Setup.exe
         uses: actions/upload-artifact@v4
         with:
-          name: SemanticAllInOne-Windows
-          path: dist/SemanticAllInOne-Windows.zip
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload Windows online installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: VideoGenerator-Setup-Windows
-          path: dist/VideoGenerator-Setup.exe
+          name: Semantic-YT-Studio-Setup.exe
+          path: dist/Semantic-YT-Studio-Setup.exe
           if-no-files-found: error
           retention-days: 14
 
@@ -193,28 +159,16 @@ jobs:
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS artifact
+      - name: Download macOS DMG
         uses: actions/download-artifact@v4
         with:
-          name: SemanticAllInOne-macOS
+          name: Semantic-YT-Studio.dmg
           path: artifacts
 
-      - name: Download Windows artifact
+      - name: Download Windows Setup.exe
         uses: actions/download-artifact@v4
         with:
-          name: SemanticAllInOne-Windows
-          path: artifacts
-
-      - name: Download Windows installer
-        uses: actions/download-artifact@v4
-        with:
-          name: VideoGenerator-Setup-Windows
-          path: artifacts
-
-      - name: Download macOS installer
-        uses: actions/download-artifact@v4
-        with:
-          name: VideoGenerator-Installer-macOS
+          name: Semantic-YT-Studio-Setup.exe
           path: artifacts
 
       - name: Install rclone
@@ -232,10 +186,6 @@ jobs:
             exit 1
           fi
 
-          # Personal Google accounts have no Shared Drives, and service accounts
-          # have no storage quota of their own — so we authenticate as the
-          # personal account via OAuth (token generated locally with
-          # `rclone authorize "drive"`) instead of a service account.
           export RCLONE_CONFIG_GDRIVE_TYPE=drive
           export RCLONE_CONFIG_GDRIVE_SCOPE=drive
           export RCLONE_CONFIG_GDRIVE_TOKEN="${GDRIVE_TOKEN}"
