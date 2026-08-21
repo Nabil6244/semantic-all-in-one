@@ -1,0 +1,91 @@
+name: Build Qwen Runtime
+
+# Portable Qwen3-TTS Python env for the online installer (no model weights).
+# Approach: official CPython embeddable / standalone build + pip install from
+# requirements-qwen-tts.txt, then pack as zip / tar.gz with sha256.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "requirements-qwen-tts.txt"
+      - ".github/workflows/build-qwen-runtime.yml"
+
+jobs:
+  runtime-windows-x64:
+    name: Runtime Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create portable venv and install qwen-tts
+        shell: pwsh
+        run: |
+          $out = "qwen-runtime-win-amd64"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          python -m venv "$out"
+          & "$out\Scripts\python.exe" -m pip install --upgrade pip
+          & "$out\Scripts\python.exe" -m pip install -r requirements-qwen-tts.txt
+          # Smoke: package importable (do not load model weights)
+          & "$out\Scripts\python.exe" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+
+      - name: Pack archive
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "qwen-runtime-win-amd64\*" -DestinationPath "qwen-runtime-win-amd64.zip" -Force
+          $hash = (Get-FileHash -Algorithm SHA256 "qwen-runtime-win-amd64.zip").Hash.ToLower()
+          Set-Content -Path "qwen-runtime-win-amd64.sha256" -Value "$hash  qwen-runtime-win-amd64.zip"
+          Get-Content "qwen-runtime-win-amd64.sha256"
+          Get-Item "qwen-runtime-win-amd64.zip" | Format-List Name, Length
+
+      - name: Upload Windows runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-runtime-win-amd64
+          path: |
+            qwen-runtime-win-amd64.zip
+            qwen-runtime-win-amd64.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  runtime-macos-arm64:
+    name: Runtime macOS arm64
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create portable venv and install qwen-tts
+        run: |
+          OUT=qwen-runtime-darwin-arm64
+          python -m venv "$OUT"
+          "$OUT/bin/python" -m pip install --upgrade pip
+          "$OUT/bin/python" -m pip install -r requirements-qwen-tts.txt
+          "$OUT/bin/python" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+
+      - name: Pack archive
+        run: |
+          tar -czf qwen-runtime-darwin-arm64.tar.gz -C qwen-runtime-darwin-arm64 .
+          shasum -a 256 qwen-runtime-darwin-arm64.tar.gz | tee qwen-runtime-darwin-arm64.sha256
+          ls -lh qwen-runtime-darwin-arm64.tar.gz
+
+      - name: Upload macOS runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-runtime-darwin-arm64
+          path: |
+            qwen-runtime-darwin-arm64.tar.gz
+            qwen-runtime-darwin-arm64.sha256
+          if-no-files-found: error
+          retention-days: 14

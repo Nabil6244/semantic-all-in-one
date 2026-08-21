@@ -66,6 +66,18 @@ jobs:
           chmod +x scripts/make_dmg.sh
           ./scripts/make_dmg.sh
 
+      - name: Zip macOS .app for online installer
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/SemanticAllInOne.app dist/SemanticAllInOne-macOS.zip
+
+      - name: Build online installer stub
+        run: pyinstaller Installer.spec
+
+      - name: Create installer DMG
+        run: |
+          chmod +x scripts/make_installer_dmg.sh
+          ./scripts/make_installer_dmg.sh
+
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -74,6 +86,22 @@ jobs:
             dist/SemanticAllInOne.dmg
           if-no-files-found: error
           retention-days: 1
+
+      - name: Upload macOS app zip (install payload)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SemanticAllInOne-macOS-zip
+          path: dist/SemanticAllInOne-macOS.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload macOS online installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoGenerator-Installer-macOS
+          path: dist/VideoGenerator-Installer.dmg
+          if-no-files-found: error
+          retention-days: 14
 
   build-windows:
     name: Windows (.exe onedir)
@@ -141,13 +169,24 @@ jobs:
         run: |
           Compress-Archive -Path "dist\SemanticAllInOne\*" -DestinationPath "dist\SemanticAllInOne-Windows.zip" -Force
 
+      - name: Build online installer stub
+        run: pyinstaller Installer.spec
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: SemanticAllInOne-Windows
           path: dist/SemanticAllInOne-Windows.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
+
+      - name: Upload Windows online installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoGenerator-Setup-Windows
+          path: dist/VideoGenerator-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
 
   upload-to-drive:
     name: Upload to Google Drive
@@ -164,6 +203,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: SemanticAllInOne-Windows
+          path: artifacts
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: VideoGenerator-Setup-Windows
+          path: artifacts
+
+      - name: Download macOS installer
+        uses: actions/download-artifact@v4
+        with:
+          name: VideoGenerator-Installer-macOS
           path: artifacts
 
       - name: Install rclone

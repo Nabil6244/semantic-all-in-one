@@ -6,17 +6,21 @@ Video Generator turns a **script + voiceover** into a finished video (`final.mp4
 
 ## 1. Installing the application
 
-**Mac:**
-1. Open `VideoGenerator.dmg`.
-2. Drag **Video Generator** into your **Applications** folder.
-3. Open it from Applications (first launch: right-click → Open, then confirm — this is normal for apps not from the App Store).
+Use the **online installer** (small download). On first run it downloads and installs everything needed to make videos — the app, the Qwen voice runtime (~1.5GB), and the Qwen model (~4.5GB) — behind **one progress bar**. Plan for **~6GB+ free disk** and a working internet connection.
 
-**Windows:**
+**Windows (x64):**
 1. Run `VideoGenerator-Setup.exe`.
-2. Follow the installer prompts.
-3. Launch **Video Generator** from the Start Menu.
+2. Wait until the progress bar finishes (app + voice engine + model).
+3. Launch **Semantic All-In-One** from the Start Menu.
 
-Nothing else to install. FFmpeg and the AI generation engine are already inside the app.
+**Mac (Apple Silicon only — M1/M2/M3/…):**
+1. Open `VideoGenerator-Installer.dmg` and run **Video Generator Setup**.
+2. Wait until the progress bar finishes.
+3. Open **Semantic All-In-One** from Applications (first launch: right-click → Open if macOS warns about an unidentified developer).
+
+Intel Macs are not supported. You do **not** install Python, pip, conda, Torch, or FFmpeg yourself — the installer provisions those pieces.
+
+If the installer says the release is not published yet, wait for a published build and try again. If the voice engine is missing later, re-run the same installer.
 
 ---
 

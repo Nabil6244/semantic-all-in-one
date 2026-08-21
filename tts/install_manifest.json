@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "platforms": {
+    "win-amd64": {
+      "app": [
+        {
+          "url": "",
+          "sha256": "",
+          "filename": "SemanticAllInOne-Windows.zip",
+          "size": 0
+        }
+      ],
+      "runtime": [
+        {
+          "url": "",
+          "sha256": "",
+          "filename": "qwen-runtime-win-amd64.zip",
+          "size": 0
+        }
+      ],
+      "model": {
+        "source": "huggingface",
+        "repo_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "main",
+        "files": []
+      }
+    },
+    "darwin-arm64": {
+      "app": [
+        {
+          "url": "",
+          "sha256": "",
+          "filename": "SemanticAllInOne-macOS.zip",
+          "size": 0
+        }
+      ],
+      "runtime": [
+        {
+          "url": "",
+          "sha256": "",
+          "filename": "qwen-runtime-darwin-arm64.tar.gz",
+          "size": 0
+        }
+      ],
+      "model": {
+        "source": "huggingface",
+        "repo_id": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        "revision": "main",
+        "files": []
+      }
+    }
+  }
+}

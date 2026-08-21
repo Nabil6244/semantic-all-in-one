@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import queue
 import subprocess
 import sys
@@ -13,12 +14,56 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from tts.base import CLONE_MODEL_ID, DEFAULT_LANGUAGE, TTSResult
-from tts.errors import PACKAGE_MISSING, TTSError, map_exception
+from tts.errors import (
+    TTSError,
+    model_missing_message,
+    package_missing_message,
+)
 from tts.model_cache import model_is_installed
 
 LogFn = Callable[[str], None]
 _ROOT = Path(__file__).resolve().parent.parent
 _WORKER = Path(__file__).resolve().parent / "worker.py"
+
+
+def _runtime_platform_id() -> Optional[str]:
+    system = sys.platform
+    machine = platform.machine().lower()
+    if system == "win32" and machine in ("amd64", "x86_64", "x64"):
+        return "win-amd64"
+    if system == "darwin" and machine in ("arm64", "aarch64"):
+        return "darwin-arm64"
+    return None
+
+
+def _provisioned_qwen_python() -> Optional[Path]:
+    pid = _runtime_platform_id()
+    if not pid:
+        return None
+    root = Path.home() / ".videogen" / "runtime" / "qwen" / pid
+    if pid == "win-amd64":
+        candidates = [
+            root / "python.exe",
+            root / "Scripts" / "python.exe",
+            root / "python" / "python.exe",
+        ]
+        names = ("python.exe",)
+    else:
+        candidates = [
+            root / "bin" / "python",
+            root / "bin" / "python3",
+        ]
+        names = ("python", "python3")
+    for path in candidates:
+        if path.is_file():
+            return path
+    if not root.is_dir():
+        return None
+    for name in names:
+        for found in root.rglob(name):
+            if found.is_file() and found.name in names:
+                return found
+    return None
 
 
 def find_qwen_python() -> Optional[Path]:
@@ -27,6 +72,9 @@ def find_qwen_python() -> Optional[Path]:
         p = Path(env).expanduser()
         if p.is_file():
             return p
+    provisioned = _provisioned_qwen_python()
+    if provisioned is not None:
+        return provisioned
     local = _ROOT / ".venv-qwen" / "bin" / "python"
     if local.is_file():
         return local
@@ -40,7 +88,7 @@ def qwen_runtime_status() -> tuple[bool, str]:
     """Fast readiness check — do not fully import qwen_tts (Torch cold-start is slow)."""
     py = find_qwen_python()
     if py is None:
-        return False, PACKAGE_MISSING
+        return False, package_missing_message()
     # find_spec confirms the package is installed without loading Torch / qwen_tts.
     probe = (
         "import importlib.util, sys\n"
@@ -55,6 +103,11 @@ def qwen_runtime_status() -> tuple[bool, str]:
             timeout=30,
         )
     except subprocess.TimeoutExpired:
+        if getattr(sys, "frozen", False):
+            return False, (
+                "Could not start the Qwen3-TTS runtime.\n\n"
+                "Re-run the Video Generator installer."
+            )
         return False, (
             "Could not start the Qwen3-TTS Python environment: "
             "timed out while checking the package.\n\n"
@@ -63,14 +116,10 @@ def qwen_runtime_status() -> tuple[bool, str]:
     except Exception as exc:
         return False, f"Could not start the Qwen3-TTS Python environment: {exc}"
     if proc.returncode != 0:
-        return False, PACKAGE_MISSING
+        return False, package_missing_message()
     if model_is_installed(CLONE_MODEL_ID):
         return True, "✓ Qwen 1.7B Voice Cloning Ready"
-    return False, (
-        "⚠ Qwen 1.7B Voice Cloning Model Missing\n\n"
-        "  huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base "
-        "--local-dir ~/.videogen/qwen3-tts/Qwen3-TTS-12Hz-1.7B-Base"
-    )
+    return False, model_missing_message()
 
 
 class QwenTTSClient:
@@ -100,7 +149,7 @@ class QwenTTSClient:
         if self.alive:
             return
         if self.python_bin is None or not Path(self.python_bin).is_file():
-            raise TTSError(PACKAGE_MISSING, "package_missing")
+            raise TTSError(package_missing_message(), "package_missing")
         env = os.environ.copy()
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
         env.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -140,7 +189,10 @@ class QwenTTSClient:
             if msg.get("type") == "ready":
                 return
             if msg.get("type") == "error":
-                raise TTSError(msg.get("message") or PACKAGE_MISSING, msg.get("code") or "process_crash")
+                raise TTSError(
+                    msg.get("message") or package_missing_message(),
+                    msg.get("code") or "process_crash",
+                )
         raise TTSError(
             "Qwen3-TTS worker timed out while starting.",
             "timeout",

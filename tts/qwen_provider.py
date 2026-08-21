@@ -12,12 +12,12 @@ from tts.base import CLONE_MODEL_ID, DEFAULT_LANGUAGE, PROFILE_FORMAT_VERSION, T
 from tts.device import detect_device, torch_load_kwargs
 from tts.errors import (
     CLONE_MODEL_LOAD_FAILED,
-    CLONE_MODEL_MISSING,
-    PACKAGE_MISSING,
     REFERENCE_TEXT_REQUIRED,
     TTSError,
     VOICE_PROFILE_NEEDS_REBUILD,
     map_exception,
+    model_missing_message,
+    package_missing_message,
 )
 from tts.model_cache import find_local_model
 from tts.narration import split_narration_chunks, validate_text
@@ -131,12 +131,12 @@ class Qwen3TTSProvider:
             import torch  # noqa: F401
             from qwen_tts import Qwen3TTSModel
         except ImportError as exc:
-            raise TTSError(PACKAGE_MISSING, "package_missing") from exc
+            raise TTSError(package_missing_message(), "package_missing") from exc
 
         try:
             model_path = find_local_model(CLONE_MODEL_ID)
         except TTSError as exc:
-            raise TTSError(CLONE_MODEL_MISSING, "VOICE_CLONE_MODEL_UNAVAILABLE") from exc
+            raise TTSError(model_missing_message(), "VOICE_CLONE_MODEL_UNAVAILABLE") from exc
 
         info = detect_device()
         self._device = info.name

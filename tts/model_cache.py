@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from tts.base import CLONE_MODEL_ID
-from tts.errors import MODEL_MISSING, TTSError
+from tts.errors import TTSError, model_missing_message
 
 MODEL_DIR_NAME = "Qwen3-TTS-12Hz-1.7B-Base"
 DEFAULT_MODEL_ID = CLONE_MODEL_ID
@@ -75,12 +75,11 @@ def candidate_model_dirs(repo_id: str = CLONE_MODEL_ID) -> list[Path]:
 
 
 def find_local_model(repo_id: str = CLONE_MODEL_ID) -> Path:
-    missing = MODEL_MISSING
     code = "VOICE_CLONE_MODEL_UNAVAILABLE"
     for path in candidate_model_dirs(repo_id):
         if _dir_looks_like_model(path):
             return path
-    raise TTSError(missing, code)
+    raise TTSError(model_missing_message(), code)
 
 
 def model_is_installed(repo_id: str = CLONE_MODEL_ID) -> bool:
