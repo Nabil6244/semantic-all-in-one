@@ -70,11 +70,13 @@ def build_files(
             "sha256": "",
             "size": size,
         }
-        # Prefer LFS sha if present (oid sha256:...)
+        # Prefer LFS sha if present (oid is often raw hex; sometimes "sha256:...")
         lfs = entry.get("lfs") or {}
-        oid = str(lfs.get("oid") or "")
+        oid = str(lfs.get("oid") or "").strip()
         if oid.startswith("sha256:"):
             item["sha256"] = oid.split(":", 1)[1].lower()
+        elif len(oid) == 64 and all(c in "0123456789abcdef" for c in oid.lower()):
+            item["sha256"] = oid.lower()
         elif compute_hash:
             resolve = f"https://huggingface.co/{repo_id}/resolve/{revision}/{path}"
             print(f"hashing {path} …", file=sys.stderr)
