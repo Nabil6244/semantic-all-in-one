@@ -4482,6 +4482,13 @@ class VideoGeneratorApp(ctk.CTk):
         }
 
         def render_accounts(accounts):
+            # The FlowClient STATE subscription below outlives this window (it's
+            # only torn down on <Destroy>, and a message can already be in
+            # flight via self.after() when the user closes Settings) — without
+            # this guard, redrawing into a destroyed CTkToplevel's widgets
+            # raises "bad window path name".
+            if not win.winfo_exists():
+                return
             self._known_flow_accounts = accounts
             render_profiles()
             for c in accounts_list.winfo_children():
@@ -4530,6 +4537,20 @@ class VideoGeneratorApp(ctk.CTk):
                         command=lambda aid=a["id"]: connect_and(lambda c: c.login(aid)),
                     ).pack(side="right", padx=4)
 
+        _state_unsubscribers: list = []
+
+        def _on_settings_closed(event):
+            if event.widget is not win:
+                return  # <Destroy> also fires for every child widget; only act once
+            for unsub in _state_unsubscribers:
+                try:
+                    unsub()
+                except Exception:
+                    pass
+            _state_unsubscribers.clear()
+
+        win.bind("<Destroy>", _on_settings_closed)
+
         def connect_and(fn):
             def worker():
                 try:
@@ -4541,7 +4562,7 @@ class VideoGeneratorApp(ctk.CTk):
                             accounts = msg.get("accounts", [])
                             self.after(0, lambda: (status_var.set("Connected"), render_accounts(accounts)))
 
-                    client.subscribe(on_state)
+                    _state_unsubscribers.append(client.subscribe(on_state))
                     state = client.get_state()
                     self.after(0, lambda: (status_var.set("Connected"), render_accounts(state.get("accounts", []))))
                 except Exception as exc:
@@ -4617,6 +4638,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._save_video_profiles(self._get_video_profiles())
 
         def render_profiles():
+            if not win.winfo_exists():
+                return
             for c in profiles_list.winfo_children():
                 c.destroy()
             profiles = self._get_video_profiles()
