@@ -30,18 +30,12 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile pbs.tgz
           New-Item -ItemType Directory -Force -Path qwen-runtime-win-amd64 | Out-Null
           tar -xzf pbs.tgz -C qwen-runtime-win-amd64
-          # install_only layout: python/python.exe
-          $py = Get-ChildItem -Path qwen-runtime-win-amd64 -Recurse -Filter python.exe |
-            Where-Object { $_.FullName -match '\\python\\python\.exe$' -or $_.Directory.Name -eq 'python' } |
-            Select-Object -First 1
-          if (-not $py) {
-            $py = Get-ChildItem -Path qwen-runtime-win-amd64 -Recurse -Filter python.exe | Select-Object -First 1
-          }
-          if (-not $py) { throw "python.exe not found in standalone archive" }
-          Write-Host "Using $($py.FullName)"
-          & $py.FullName -m pip install --upgrade pip
-          & $py.FullName -m pip install -r requirements-qwen-tts.txt
-          & $py.FullName -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+          $py = "qwen-runtime-win-amd64\python\python.exe"
+          if (-not (Test-Path $py)) { throw "Missing $py" }
+          Write-Host "Using $py"
+          & $py -m pip install --upgrade pip
+          & $py -m pip install -r requirements-qwen-tts.txt
+          & $py -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
 
       - name: Pack flat zip
         shell: pwsh
@@ -74,20 +68,17 @@ jobs:
         run: |
           set -euo pipefail
           URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_TAG}/cpython-${PBS_PY}+${PBS_TAG}-aarch64-apple-darwin-install_only_stripped.tar.gz"
-          curl -sL "$URL" -o pbs.tgz
+          curl -fL "$URL" -o pbs.tgz
           mkdir -p qwen-runtime-darwin-arm64
           tar -xzf pbs.tgz -C qwen-runtime-darwin-arm64
-          # install_only layout: python/bin/python3
-          PY=$(find qwen-runtime-darwin-arm64 -type f \( -name python3 -o -name python \) | head -1)
-          if [ -z "$PY" ]; then
-            PY=$(find qwen-runtime-darwin-arm64 -type f -name 'python3.*' | head -1)
-          fi
-          if [ -z "$PY" ] || [ ! -x "$PY" ]; then
-            echo "python binary not found"; find qwen-runtime-darwin-arm64 -maxdepth 3 -type f | head -40
+          # install_only layout: python/bin/python3 (symlink to real binary)
+          PY="qwen-runtime-darwin-arm64/python/bin/python3"
+          if [ ! -e "$PY" ]; then
+            echo "Missing $PY"; find qwen-runtime-darwin-arm64 -maxdepth 4 | head -60
             exit 1
           fi
-          chmod +x "$PY"
-          echo "Using $PY"
+          chmod +x "$PY" || true
+          echo "Using $PY -> $(readlink "$PY" 2>/dev/null || true)"
           "$PY" -m pip install --upgrade pip
           "$PY" -m pip install -r requirements-qwen-tts.txt
           "$PY" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
