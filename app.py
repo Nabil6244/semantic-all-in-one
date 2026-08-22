@@ -1043,7 +1043,7 @@ class VideoGeneratorApp(ctk.CTk):
         self.tts_btn = ctk.CTkButton(
             tts, text="Generate Narration", height=34, fg_color=_ACCENT,
             hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
-            font=ctk.CTkFont(size=13, weight="bold"), command=self._on_generate_narration,
+            font=ctk.CTkFont(size=13, weight="bold"), command=self._on_tts_primary_click,
         )
         self.tts_btn.grid(row=16, column=0, sticky="ew", padx=12, pady=(10, 4))
 
@@ -1108,6 +1108,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._voice_play_paused_at = 0.0
         self._voice_play_path: Path | None = None
         self._tts_job_active = False
+        self._tts_cancel_requested = False
 
         self.voice_play_progress = ctk.CTkProgressBar(
             tts,
@@ -1998,24 +1999,26 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo(
                 "Voice busy",
                 "A voice job is already running.\n\n"
-                "Wait for it to finish (check Activity), then try again.",
+                "Click Stop to cancel it, then try again.",
             )
             return False
         self._tts_job_active = True
+        self._tts_cancel_requested = False
         self._set_tts_busy(True, label=label)
         return True
 
     def _end_tts_job(self, label: str = "Generate Narration") -> None:
         self._tts_job_active = False
+        self._tts_cancel_requested = False
         self._set_tts_busy(False, label=label)
 
     def _force_tts_idle(self, status_label: str = "") -> None:
         """Idempotent UI reset — safe to call from log completion or done handlers."""
         self._tts_job_active = False
-        if getattr(self, "tts_btn", None) is not None:
-            self.tts_btn.configure(state="normal", text="Generate Narration")
+        self._tts_cancel_requested = False
+        self._restore_tts_generate_btn()
         if getattr(self, "top_voice_btn", None) is not None:
-            self.top_voice_btn.configure(state="normal")
+            self.top_voice_btn.configure(state="normal", text="Voice", command=self._on_tts_primary_click)
         self._tts_progress_t0 = None
         self._tts_progress_phase = status_label or ""
         if status_label:
@@ -2028,6 +2031,58 @@ class VideoGeneratorApp(ctk.CTk):
         # Re-apply Download gating (Create / Generate disabled until Qwen is ready).
         if not getattr(self, "_qwen_download_active", False):
             self._refresh_tts_status()
+
+    def _restore_tts_generate_btn(self) -> None:
+        btn = getattr(self, "tts_btn", None)
+        if btn is None:
+            return
+        btn.configure(
+            state="normal",
+            text="Generate Narration",
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HOV,
+            text_color=_ACCENT_DARK,
+            border_width=0,
+            command=self._on_tts_primary_click,
+        )
+
+    def _on_tts_primary_click(self) -> None:
+        if getattr(self, "_tts_job_active", False):
+            self._on_stop_tts_job()
+            return
+        self._on_generate_narration()
+
+    def _on_stop_tts_job(self) -> None:
+        if not getattr(self, "_tts_job_active", False):
+            return
+        if getattr(self, "_tts_cancel_requested", False):
+            return
+        self._tts_cancel_requested = True
+        btn = getattr(self, "tts_btn", None)
+        if btn is not None:
+            btn.configure(state="disabled", text="Stopping…")
+        top = getattr(self, "top_voice_btn", None)
+        if top is not None:
+            top.configure(state="disabled", text="…")
+        self.status_var.set("Stopping voice job…")
+        self._append_log("[TTS] Stop requested — shutting down worker\n")
+
+        def kill() -> None:
+            try:
+                shutdown_shared_client()
+            except Exception:
+                pass
+            self.after(0, self._tts_stop_finished)
+
+        threading.Thread(target=kill, daemon=True).start()
+
+    def _tts_stop_finished(self) -> None:
+        # Failure handler may have already cleared the job after the worker died.
+        if getattr(self, "_tts_job_active", False):
+            self._force_tts_idle("")
+            self.status_var.set("Voice job stopped")
+            self._append_log("[TTS] Stopped\n")
+            messagebox.showinfo("Voice", "Voice generation was stopped.")
 
     def _create_voice_profile(self) -> None:
         name = self.tts_create_name_var.get().strip()
@@ -2091,7 +2146,7 @@ class VideoGeneratorApp(ctk.CTk):
         threading.Thread(target=work, daemon=True).start()
 
     def _voice_created(self, voice_id: str) -> None:
-        # Clear Generating… before the dialog so the CTA never looks stuck.
+        # Clear busy/Stop state before the dialog so the CTA never looks stuck.
         self._end_tts_job()
         self.status_var.set("Voice saved")
         self._refresh_voice_library_ui()
@@ -2102,10 +2157,13 @@ class VideoGeneratorApp(ctk.CTk):
         messagebox.showinfo("Create Voice", "✓ Voice saved and ready to use.")
 
     def _voice_create_failed(self, message: str) -> None:
+        cancelled = bool(getattr(self, "_tts_cancel_requested", False))
         self._end_tts_job()
-        self.status_var.set("Ready")
+        self.status_var.set("Voice job stopped" if cancelled else "Ready")
         self._refresh_voice_library_ui()
         self._append_log(f"[TTS] {message}\n")
+        if cancelled:
+            return
         messagebox.showerror("Create Voice", message)
 
     def _require_ready_voice(self, action: str) -> VoiceProfile | None:
@@ -2302,7 +2360,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._set_generate_btn(state="normal", text="Render Video")
 
     def _set_generate_btn(self, *, state: str, text: str) -> None:
-        """Restore accent styling whenever the primary CTA leaves Generating…"""
+        """Restore accent styling whenever the primary CTA leaves Stop / busy."""
         if state == "normal":
             self.generate_btn.configure(
                 state=state,
@@ -2310,6 +2368,7 @@ class VideoGeneratorApp(ctk.CTk):
                 fg_color=_ACCENT,
                 hover_color=_ACCENT_HOV,
                 text_color=_ACCENT_DARK,
+                border_width=0,
             )
         else:
             self.generate_btn.configure(
@@ -2317,6 +2376,7 @@ class VideoGeneratorApp(ctk.CTk):
                 text=text,
                 fg_color=_BORDER,
                 text_color=_MUTED,
+                border_width=0,
             )
 
     def _apply_defaults(self) -> None:
@@ -2611,6 +2671,7 @@ class VideoGeneratorApp(ctk.CTk):
             if not current or not path_is_inside(Path(current), ws.root) or not Path(current).is_file():
                 self.audio_var.set(str(ws.audio_path))
             self._refresh_voiceover_active_label()
+            self._bind_voice_player_to(None)
         self.output_var.set(str(ws.next_final_path()))
         if ws.script_path.is_file() and self._script_mode_is_ai():
             text = ws.script_path.read_text(encoding="utf-8")
@@ -2844,8 +2905,51 @@ class VideoGeneratorApp(ctk.CTk):
             except OSError:
                 pass
         self._refresh_voiceover_active_label()
-        self._refresh_voice_playback_buttons()
+        # Always re-point the Voice panel player — otherwise Play keeps a stale
+        # path/duration from a previous longer voiceover.
+        self._bind_voice_player_to(p)
         self._sync_primary_cta()
+
+    def _bind_voice_player_to(self, path: Path | str | None) -> None:
+        """Stop playback and lock the panel player to this file (or clear it)."""
+        # Tear down any in-flight afplay/ffplay without wiping the path we set next.
+        proc = self._voice_play_proc
+        self._voice_play_proc = None
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=1.5)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+
+        self._voice_play_t0 = None
+        self._voice_play_paused = False
+        self._voice_play_paused_at = 0.0
+
+        if path is None:
+            self._voice_play_path = None
+            self._voice_play_duration = 0.0
+            self._set_voice_play_progress(0.0, "0:00 / 0:00")
+            self._refresh_voice_playback_buttons()
+            return
+
+        p = Path(path)
+        if not p.is_file():
+            self._voice_play_path = None
+            self._voice_play_duration = 0.0
+            self._set_voice_play_progress(0.0, "0:00 / 0:00")
+            self._refresh_voice_playback_buttons()
+            return
+
+        duration = self._audio_duration_seconds(p)
+        self._voice_play_path = p
+        self._voice_play_duration = duration
+        clock = self._format_play_clock(duration) if duration > 0 else "0:00"
+        self._set_voice_play_progress(0.0, f"0:00 / {clock}")
+        self._refresh_voice_playback_buttons()
 
     def _confirm_voiceover_switch(self, new_path: Path, *, source: str) -> bool:
         current = self.audio_var.get().strip()
@@ -2929,15 +3033,40 @@ class VideoGeneratorApp(ctk.CTk):
         return SOURCE_DIR / "voiceover_qwen.wav"
 
     def _set_tts_busy(self, busy: bool, label: str = "Generate Narration") -> None:
-        # Always restore the main narration CTA label — create/replace use other buttons.
-        state = "disabled" if busy else "normal"
+        # While busy the narration CTA becomes Stop (not a disabled "Generating…").
         if getattr(self, "tts_btn", None) is not None:
-            self.tts_btn.configure(
-                state=state,
-                text="Generating…" if busy else "Generate Narration",
-            )
+            if busy:
+                self.tts_btn.configure(
+                    state="normal",
+                    text="Stop",
+                    fg_color="transparent",
+                    hover_color=_DANGER_BG,
+                    text_color=_DANGER,
+                    border_width=1,
+                    border_color=_DANGER,
+                    command=self._on_stop_tts_job,
+                )
+            else:
+                self._restore_tts_generate_btn()
         if getattr(self, "top_voice_btn", None) is not None:
-            self.top_voice_btn.configure(state=state)
+            if busy:
+                self.top_voice_btn.configure(
+                    state="normal",
+                    text="Stop",
+                    text_color=_DANGER,
+                    border_color=_DANGER,
+                    hover_color=_DANGER_BG,
+                    command=self._on_stop_tts_job,
+                )
+            else:
+                self.top_voice_btn.configure(
+                    state="normal",
+                    text="Voice",
+                    text_color=_TEXT,
+                    border_color=_BORDER,
+                    hover_color=_CARD_HOVER,
+                    command=self._on_tts_primary_click,
+                )
         if getattr(self, "tts_create_btn", None) is not None and busy:
             self.tts_create_btn.configure(state="disabled")
         if busy:
@@ -3228,7 +3357,26 @@ class VideoGeneratorApp(ctk.CTk):
         if playing:
             self._pause_voice_playback()
             return
-        path = self._voice_play_path or self._current_voiceover_path()
+
+        active = self._current_voiceover_path()
+        play_path = self._voice_play_path
+        # Prefer the active video voiceover over a stale Play path (e.g. an older
+        # 27‑minute import). Preview clips keep their own path until overwritten.
+        if active is not None:
+            if play_path is None or not play_path.is_file():
+                play_path = active
+                self._voice_play_paused_at = 0.0
+            else:
+                try:
+                    same = play_path.resolve() == active.resolve()
+                except OSError:
+                    same = False
+                is_preview = play_path.name.lower() == "voiceover_qwen_preview.wav"
+                if not same and not is_preview:
+                    play_path = active
+                    self._voice_play_paused_at = 0.0
+
+        path = play_path or active
         if path is None:
             messagebox.showinfo(
                 "Play Voice",
@@ -3443,8 +3591,14 @@ class VideoGeneratorApp(ctk.CTk):
     def _narration_done(self, result) -> None:
         self._end_tts_job()
         self._set_active_voiceover(result.path, source="tts")
-        secs = int(round(result.duration_seconds))
-        mm, ss = divmod(secs, 60)
+        # Prefer the measured duration from generation when ffprobe/wave disagree.
+        secs = max(0.0, float(getattr(result, "duration_seconds", 0) or 0))
+        if secs <= 0:
+            secs = self._audio_duration_seconds(Path(result.path))
+        self._voice_play_duration = secs
+        clock = self._format_play_clock(secs)
+        self._set_voice_play_progress(0.0, f"0:00 / {clock}")
+        mm, ss = divmod(int(round(secs)), 60)
         hh, mm = divmod(mm, 60)
         self.status_var.set(f"Narration ready — {hh:02d}:{mm:02d}:{ss:02d}")
         self._append_log(
@@ -3457,10 +3611,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_tts_status()
 
     def _narration_failed(self, message: str) -> None:
+        cancelled = bool(getattr(self, "_tts_cancel_requested", False))
         self._end_tts_job()
-        self.status_var.set("Ready")
+        self.status_var.set("Voice job stopped" if cancelled else "Ready")
         self._refresh_tts_status()
         self._append_log(f"[TTS] {message}\n")
+        if cancelled:
+            return
         messagebox.showerror("Qwen3-TTS", message)
 
     def _browse_bg(self) -> None:
@@ -5195,6 +5352,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_generate(self) -> None:
         if self._running:
+            self._on_cancel()
             return
 
         config, err = self._validate()
@@ -5209,13 +5367,15 @@ class VideoGeneratorApp(ctk.CTk):
 
         self._running = True
         self.generate_btn.configure(
-            state="disabled",
-            text="Generating…",
-            fg_color=_BORDER,
-            text_color=_MUTED,
+            state="normal",
+            text="Stop",
+            fg_color="transparent",
+            hover_color=_DANGER_BG,
+            text_color=_DANGER,
+            border_width=1,
+            border_color=_DANGER,
         )
-        self.cancel_btn.grid(row=0, column=1, sticky="e", padx=(8, 0))
-        self.cancel_btn.configure(state="normal", text="Cancel")
+        self.cancel_btn.grid_forget()
         self.progress.set(0)
         self.status_var.set("Generating assets…" if mode == "assets" else "Rendering…")
         self.stage_var.set("GENERATING")
@@ -5240,13 +5400,13 @@ class VideoGeneratorApp(ctk.CTk):
         rendering are not interruptible — see the pre-existing pipeline, unchanged."""
         if not self._running:
             return
-        self.cancel_btn.configure(state="disabled", text="Cancelling…")
+        self.generate_btn.configure(state="disabled", text="Stopping…")
         if self._asset_manager is not None:
             self._asset_manager.request_cancel()
-            self._append_log("\n[ASSET] Cancel requested — finishing in-flight work, skipping the rest…\n")
+            self._append_log("\n[ASSET] Stop requested — finishing in-flight work, skipping the rest…\n")
         else:
             self._append_log(
-                "\n[ASSET] Cancel requested, but nothing cancellable is running yet "
+                "\n[ASSET] Stop requested, but nothing cancellable is running yet "
                 "(Whisper/render can't be interrupted).\n"
             )
 
