@@ -180,6 +180,14 @@ class FlowEngineManager:
                 probe.connect(timeout=1.5)
                 self._client = probe
                 self.log(f"[FLOW] Reusing an already-running engine on port {self.port}.")
+                # App relaunch often leaves `running: true` with no live batch —
+                # clear it so the first GENERATE does not fail every scene.
+                try:
+                    if probe.get_state().get("running"):
+                        self.log("[FLOW] Clearing stuck running flag on reused engine...")
+                        probe.reset_generate()
+                except Exception:
+                    pass
                 return probe
             except FlowClientError:
                 pass

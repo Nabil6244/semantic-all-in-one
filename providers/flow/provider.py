@@ -38,6 +38,13 @@ from .client import FlowClientError
 from .engine_manager import FlowEngineError, FlowEngineManager
 
 GENERATE_TIMEOUT_SECONDS = 20 * 60  # long multi-account batches with retries can take a while
+_IDLE_POLL_SECONDS = 0.45
+_SOFT_STOP_AFTER_SECONDS = 2.0
+_FORCE_RESET_AFTER_SECONDS = 6.0
+_IDLE_WAIT_TIMEOUT = 180.0
+# One GENERATE at a time — Retry used to fire several Flow jobs and fail extras
+# with "A Flow batch is already running".
+_ENGINE_GENERATE_LOCK = threading.Lock()
 
 _SOURCE_BY_KIND = {"image": AssetSource.FLOW_IMAGE, "video": AssetSource.FLOW_VIDEO}
 _EXT_BY_KIND = {"image": "png", "video": "mp4"}
@@ -109,9 +116,81 @@ class FlowProvider(AssetProvider):
         except FlowEngineError as exc:
             return {s.scene_number: self._fail(s, str(exc)) for s in scenes}
 
-        if client.get_state().get("running"):
-            error = "A Flow batch is already running in the engine — try again shortly."
+        lock_wait = _IDLE_WAIT_TIMEOUT + 30.0
+        if not _ENGINE_GENERATE_LOCK.acquire(timeout=lock_wait):
+            error = "Timed out waiting for another Flow job in this app — try Retry again."
             return {s.scene_number: self._fail(s, error) for s in scenes}
+        try:
+            return self._resolve_batch_locked(client, scenes, images_dir, log, should_stop)
+        finally:
+            _ENGINE_GENERATE_LOCK.release()
+
+    def _wait_for_engine_idle(
+        self,
+        client,
+        log: LogFn,
+        should_stop: Optional[Callable[[], bool]],
+    ) -> Optional[str]:
+        """Return an error message, or None if the engine is idle and ready to GENERATE.
+
+        A leftover Node sidecar (app relaunch without killing Flow) often stays
+        `running: true` forever because STOP only sets stopAll. Soft-stop first,
+        then FORCE_RESET so Retry can proceed instead of failing every scene.
+        """
+        t0 = time.monotonic()
+        soft_stopped = False
+        force_reset = False
+        while True:
+            try:
+                busy = bool(client.get_state().get("running"))
+            except Exception:
+                busy = False
+            if not busy:
+                return None
+            if should_stop is not None and should_stop():
+                return "Cancelled."
+            waited = time.monotonic() - t0
+            if waited >= _SOFT_STOP_AFTER_SECONDS and not soft_stopped:
+                log("[FLOW] Previous Flow batch still marked running — sending STOP...")
+                try:
+                    client.stop()
+                except Exception:
+                    pass
+                soft_stopped = True
+            if waited >= _FORCE_RESET_AFTER_SECONDS and not force_reset:
+                log("[FLOW] Engine still busy after STOP — force-clearing stuck running flag...")
+                try:
+                    if hasattr(client, "force_stop"):
+                        client.force_stop()
+                    if hasattr(client, "reset_generate"):
+                        client.reset_generate()
+                except Exception:
+                    pass
+                force_reset = True
+            if waited >= _IDLE_WAIT_TIMEOUT:
+                # Last resort: one more reset, then proceed anyway — Node now queues
+                # GENERATE, so a stale flag should not wipe the whole Retry batch.
+                log("[FLOW] Engine idle wait timed out — resetting and continuing...")
+                try:
+                    if hasattr(client, "reset_generate"):
+                        client.reset_generate()
+                except Exception:
+                    pass
+                return None
+            log("[FLOW] Waiting for the previous Flow batch to finish...")
+            time.sleep(_IDLE_POLL_SECONDS)
+
+    def _resolve_batch_locked(
+        self,
+        client,
+        scenes: List[SceneRow],
+        images_dir: Path,
+        log: LogFn,
+        should_stop: Optional[Callable[[], bool]],
+    ) -> Dict[str, AssetResult]:
+        idle_error = self._wait_for_engine_idle(client, log, should_stop)
+        if idle_error:
+            return {s.scene_number: self._fail(s, idle_error) for s in scenes}
 
         run_dir = self._new_run_dir(images_dir)
         batch_started_at = time.time()
@@ -254,9 +333,17 @@ class FlowProvider(AssetProvider):
         """Per-project, per-batch folder so leftover Flow_Images/001.png cannot leak in."""
         stamp = time.strftime("%Y%m%d-%H%M%S")
         run_id = f"{self.media_kind}_{stamp}_{uuid.uuid4().hex[:8]}"
-        run_dir = Path(images_dir).resolve().parent / "flow" / "runs" / run_id
-        run_dir.mkdir(parents=True, exist_ok=True)
-        return run_dir
+        images = Path(images_dir).resolve()
+        # Normal layout: <project>/assets → <project>/flow/runs/<id>
+        run_dir = images.parent / "flow" / "runs" / run_id
+        try:
+            run_dir.mkdir(parents=True, exist_ok=True)
+            return run_dir
+        except OSError:
+            # Tests / odd paths (e.g. /tmp) — keep the run folder next to the assets.
+            run_dir = images / ".flow_runs" / run_id
+            run_dir.mkdir(parents=True, exist_ok=True)
+            return run_dir
 
     def _resolve_one_result(
         self,

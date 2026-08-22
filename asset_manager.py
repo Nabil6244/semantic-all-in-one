@@ -653,6 +653,28 @@ class AssetManager:
         self._finalize(scene, result)
         return result
 
+    def retry_flow_batch(self, scenes: List[SceneRow]) -> Dict[str, AssetResult]:
+        """One GENERATE for many Flow retries — avoids N parallel 'already running' races."""
+        if not scenes:
+            return {}
+        by_source: Dict[AssetSource, List[SceneRow]] = {}
+        for scene in scenes:
+            self._cancelled_scenes.discard(scene_key(scene.scene_number))
+            if self._was_skipped(scene):
+                self._clear_skip(scene)
+            source = self.classify(scene)
+            if source not in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                source = AssetSource.FLOW_IMAGE
+            by_source.setdefault(source, []).append(scene)
+
+        out: Dict[str, AssetResult] = {}
+        for source, group in by_source.items():
+            provider = self._provider_for(source)
+            results: Dict[str, AssetResult] = {}
+            self._resolve_flow_batch(source, provider, group, results)
+            out.update(results)
+        return out
+
     def _was_skipped(self, scene: SceneRow) -> bool:
         key = scene_key(scene.scene_number)
         if key in self.recovery.skipped:

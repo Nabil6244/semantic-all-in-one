@@ -22,6 +22,7 @@ import {
   deleteAccount,
   generate,
   stopGenerate,
+  resetGenerateState,
   shutdown,
 } from "./lib/orchestrator.js";
 import { defaults } from "./config.js";
@@ -120,7 +121,9 @@ export async function startServer(port = DEFAULT_PORT) {
             accountIds: msg.accountIds || null,
           }).catch((e) => pushState({ generateError: e.message }));
         } else if (t === "STOP") {
-          stopGenerate();
+          stopGenerate({ force: !!msg.force });
+        } else if (t === "RESET_GENERATE") {
+          resetGenerateState();
         }
       } catch (e) {
         send(ws, { type: "ERROR", message: e.message });

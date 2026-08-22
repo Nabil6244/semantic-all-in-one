@@ -1512,6 +1512,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._scene_started: dict[str, float] = {}
         self._retry_queue: list[SceneRow] = []
         self._retry_pumping = False
+        self._flow_retry_batch_busy = False
         self._qa = SceneQAState()
         self._hydrated_skipped: set[str] = set()
         self._recovery_queue: list[tuple[str, SceneRow]] = []
@@ -3791,18 +3792,30 @@ class VideoGeneratorApp(ctk.CTk):
         self._bulk_recovery("retry", selected_only=False)
 
     def _pump_retry_queue(self) -> None:
+        # Prefer one batched Flow GENERATE for pending Flow retries (avoids N
+        # parallel jobs all hitting a busy engine).
+        self._try_start_flow_retry_batch()
         max_inflight = 4
         while self._recovery_queue and len(self._busy_scenes) < max_inflight:
-            action, scene = self._recovery_queue.pop(0)
+            action, scene = self._recovery_queue[0]
             key = _scene_key(scene.scene_number)
             if key in self._busy_scenes:
+                self._recovery_queue.pop(0)
                 continue
             result = self._asset_results.get(key)
             if result is not None and getattr(result, "ok", False) and action != "skip":
+                self._recovery_queue.pop(0)
                 self._recovery_done += 1
                 continue
+            # Flow retries belong in the batch starter — wait if a batch is active.
+            if action == "retry" and self._scene_is_flow(scene):
+                if getattr(self, "_flow_retry_batch_busy", False):
+                    break
+                if self._try_start_flow_retry_batch():
+                    continue
+                # Fallback: single-scene Flow retry if batching could not start.
+            self._recovery_queue.pop(0)
             self._scene_action(action, scene)
-        snap = self._qa_snapshot()
         if self._recovery_total:
             in_flight = len(self._busy_scenes)
             done = max(0, self._recovery_total - len(self._recovery_queue) - in_flight)
@@ -3826,6 +3839,81 @@ class VideoGeneratorApp(ctk.CTk):
             self._recovery_total = 0
         self._retry_pumping = False
         self._refresh_qa_ui()
+
+    def _scene_is_flow(self, scene: SceneRow) -> bool:
+        from providers.router import SceneAssetRouter
+
+        source = SceneAssetRouter.classify(scene)
+        return source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO)
+
+    def _try_start_flow_retry_batch(self) -> bool:
+        """Drain queued Flow retries into one engine GENERATE. Returns True if started."""
+        if getattr(self, "_flow_retry_batch_busy", False):
+            return False
+        if not self._require_workspace("retry or change a scene"):
+            return False
+        flow_items: list[tuple[str, SceneRow]] = []
+        rest: list[tuple[str, SceneRow]] = []
+        for action, scene in self._recovery_queue:
+            if action == "retry" and self._scene_is_flow(scene):
+                key = _scene_key(scene.scene_number)
+                if key in self._busy_scenes:
+                    continue
+                result = self._asset_results.get(key)
+                if result is not None and getattr(result, "ok", False):
+                    continue
+                flow_items.append((action, scene))
+            else:
+                rest.append((action, scene))
+        if len(flow_items) < 1:
+            return False
+        # Keep non-Flow work on the queue; take all Flow retries in one batch.
+        self._recovery_queue = rest
+        scenes = [s for _, s in flow_items]
+        images_dir = self._workspace.assets_dir
+        tokens: dict[str, int] = {}
+        for scene in scenes:
+            key = _scene_key(scene.scene_number)
+            tokens[key] = self._qa.begin_job(key, "retrying")
+            self._busy_scenes.add(key)
+            self._set_scene_status(scene.scene_number, "retrying")
+        self._flow_retry_batch_busy = True
+        self._paint_qa_chrome()
+        self._append_log(f"[QA] Flow batch retry — {len(scenes)} scene(s) in one GENERATE\n")
+
+        def worker() -> None:
+            old_out, old_err = sys.stdout, sys.stderr
+            writer = _QueueWriter(self._ui_queue)
+            sys.stdout = writer
+            sys.stderr = writer
+            results: dict = {}
+            try:
+                mgr = self._ensure_asset_manager(images_dir)
+                results = mgr.retry_flow_batch(scenes)
+            except Exception as exc:
+                for scene in scenes:
+                    results[_scene_key(scene.scene_number)] = AssetResult(
+                        scene.scene_number, None, None,
+                        AssetSource.FLOW_IMAGE, SceneStatus.NEEDS_ACTION, error=str(exc),
+                    )
+            finally:
+                writer.flush()
+                sys.stdout = old_out
+                sys.stderr = old_err
+                self._ui_queue.put(("flow_retry_batch_done", None))
+                for scene in scenes:
+                    key = _scene_key(scene.scene_number)
+                    result = results.get(scene.scene_number) or results.get(key)
+                    if result is None:
+                        result = AssetResult(
+                            scene.scene_number, None, None,
+                            AssetSource.FLOW_IMAGE, SceneStatus.NEEDS_ACTION,
+                            error="Flow batch returned no result for this scene.",
+                        )
+                    self._ui_queue.put(("scene_result", (scene.scene_number, tokens.get(key, 0), result)))
+
+        threading.Thread(target=worker, daemon=True).start()
+        return True
 
     def _render_scene_rows(self) -> None:
         signature = tuple(_scene_key(s.scene_number) for s in self._scene_rows)
@@ -5796,6 +5884,10 @@ class VideoGeneratorApp(ctk.CTk):
                                     messagebox.showerror("Could not add local clip", err)
                             self._refresh_qa_ui()
                             self._maybe_resume_pending_source_change(key)
+                        elif kind == "flow_retry_batch_done":
+                            self._flow_retry_batch_busy = False
+                            if self._retry_pumping:
+                                self.after(50, self._pump_retry_queue)
                         elif kind == "scene_done":
                             key = _scene_key(payload)
                             self._busy_scenes.discard(key)

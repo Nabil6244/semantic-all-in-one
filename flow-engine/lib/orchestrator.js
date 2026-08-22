@@ -25,6 +25,8 @@ const listeners = new Set();
 
 let stopAll = false;
 let running = false;
+/** Serialize GENERATE so concurrent Retry / asset jobs never race the running flag. */
+let generateChain = Promise.resolve();
 const accountProgress = new Map();
 
 function broadcast(msg) {
@@ -243,8 +245,31 @@ function splitPrompts(prompts, n) {
   return slices;
 }
 
-export async function generate({ prompts, settings, accountIds }) {
-  if (running) throw new Error("A batch is already running");
+/**
+ * Queue GENERATE calls. A leftover Node process after app relaunch used to keep
+ * `running === true` forever (STOP only sets stopAll); Retry then threw
+ * "A batch is already running" for every scene. Soft-stop nudges an active
+ * batch; force-reset clears a stuck flag so the next job can start.
+ */
+export function generate(opts) {
+  const run = generateChain.then(() => runGenerate(opts));
+  // Keep the chain alive after failures so later jobs still run.
+  generateChain = run.catch(() => {});
+  return run;
+}
+
+async function runGenerate({ prompts, settings, accountIds }) {
+  // Wait for a live batch; if the flag is stuck with no work, force-clear it.
+  const waitDeadline = Date.now() + 15_000;
+  while (running) {
+    stopAll = true;
+    if (Date.now() >= waitDeadline) {
+      running = false;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
   const all = listAccounts();
   const selected = (accountIds?.length
     ? all.filter((a) => accountIds.includes(a.id))
@@ -256,10 +281,12 @@ export async function generate({ prompts, settings, accountIds }) {
       generateError:
         "No signed-in accounts. Add accounts and complete Sign in first.",
     });
+    broadcast({ type: "GENERATE_DONE" });
     return;
   }
   if (!prompts?.length) {
     pushState({ generateError: "Paste at least one prompt." });
+    broadcast({ type: "GENERATE_DONE" });
     return;
   }
 
@@ -369,9 +396,20 @@ export async function generate({ prompts, settings, accountIds }) {
   }
 }
 
-export function stopGenerate() {
+export function stopGenerate({ force = false } = {}) {
   stopAll = true;
+  if (force) {
+    // Stuck leftover after app kill: no live generate() finally will clear this.
+    running = false;
+  }
   pushState();
+}
+
+/** Clear a stuck `running` flag left by a previous app session. */
+export function resetGenerateState() {
+  stopAll = true;
+  running = false;
+  pushState({ generateError: null });
 }
 
 export async function shutdown() {

@@ -478,11 +478,61 @@ class TestCancellation(AssetPipelineTestCase):
         fp = FlowProvider(FakeEngineManager(client))
         scenes = [SceneRow(scene_number="1", script_segment="a", prompt="x")]
         results = fp.resolve_batch(
-            scenes, Path("/tmp"), log=lambda *_: None, should_stop=lambda: True
+            scenes, self.images, log=lambda *_: None, should_stop=lambda: True
         )
 
         client.stop.assert_called_once()
         self.assertEqual(results["1"].status, SceneStatus.CANCELLED)
+
+    def test_stale_running_engine_is_stopped_not_failed(self):
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+            def ensure_running(self):
+                return self.client
+
+        client = MagicMock()
+        calls = {"n": 0}
+
+        def get_state():
+            calls["n"] += 1
+            return {"running": calls["n"] == 1}
+
+        client.get_state.side_effect = get_state
+        client.get_info.return_value = {"downloadsRoot": "/tmp/doesnotmatter"}
+
+        def fake_subscribe(fn):
+            def generate(*_a, **_k):
+                fn({"type": "GENERATE_DONE"})
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_stale = flow_mod._SOFT_STOP_AFTER_SECONDS
+        orig_force = flow_mod._FORCE_RESET_AFTER_SECONDS
+        orig_poll = flow_mod._IDLE_POLL_SECONDS
+        flow_mod._SOFT_STOP_AFTER_SECONDS = 0.0
+        flow_mod._FORCE_RESET_AFTER_SECONDS = 0.05
+        flow_mod._IDLE_POLL_SECONDS = 0.01
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [SceneRow(scene_number="1", script_segment="a", prompt="x")]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod._SOFT_STOP_AFTER_SECONDS = orig_stale
+            flow_mod._FORCE_RESET_AFTER_SECONDS = orig_force
+            flow_mod._IDLE_POLL_SECONDS = orig_poll
+
+        client.stop.assert_called()
+        client.generate.assert_called()
+        self.assertNotIn("already running", (results["1"].error or "").lower())
+        self.assertNotIn("try again shortly", (results["1"].error or "").lower())
 
 
 class TestAssetTypeCsvFormat(AssetPipelineTestCase):

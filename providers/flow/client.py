@@ -179,6 +179,13 @@ class FlowClient:
     def stop(self) -> None:
         self.send({"type": "STOP"})
 
+    def force_stop(self) -> None:
+        """Soft-stop plus clear a stuck running flag (leftover Node after app kill)."""
+        self.send({"type": "STOP", "force": True})
+
+    def reset_generate(self) -> None:
+        self.send({"type": "RESET_GENERATE"})
+
     def generate(
         self,
         prompts: List[str],
