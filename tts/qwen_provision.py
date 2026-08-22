@@ -199,6 +199,13 @@ def provision_qwen(
                 extract_archive(archive, rt_dest, clear_dest=True)
         except ExtractError as exc:
             raise ProvisionError(str(exc)) from exc
+        from installer.runtime_fixup import repair_extracted_runtime
+
+        repair_extracted_runtime(rt_dest)
+        try:
+            (rt_dest / ".videogen-runtime-ok").write_text("ok\n", encoding="utf-8")
+        except OSError:
+            pass
         if provisioned_python(plan.platform_id) is None:
             raise ProvisionError(
                 "Qwen runtime was downloaded but a working Python was not found after "

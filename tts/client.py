@@ -40,30 +40,12 @@ def _provisioned_qwen_python() -> Optional[Path]:
     pid = _runtime_platform_id()
     if not pid:
         return None
-    root = Path.home() / ".videogen" / "runtime" / "qwen" / pid
-    if pid == "win-amd64":
-        candidates = [
-            root / "python.exe",
-            root / "Scripts" / "python.exe",
-            root / "python" / "python.exe",
-        ]
-        names = ("python.exe",)
-    else:
-        candidates = [
-            root / "bin" / "python",
-            root / "bin" / "python3",
-        ]
-        names = ("python", "python3")
-    for path in candidates:
-        if path.is_file():
-            return path
-    if not root.is_dir():
+    try:
+        from installer.paths import provisioned_python
+
+        return provisioned_python(pid)
+    except Exception:
         return None
-    for name in names:
-        for found in root.rglob(name):
-            if found.is_file() and found.name in names:
-                return found
-    return None
 
 
 def find_qwen_python() -> Optional[Path]:
@@ -76,7 +58,7 @@ def find_qwen_python() -> Optional[Path]:
     if provisioned is not None:
         return provisioned
     local = _ROOT / ".venv-qwen" / "bin" / "python"
-    if local.is_file():
+    if local.is_file() and os.access(local, os.X_OK):
         return local
     win = _ROOT / ".venv-qwen" / "Scripts" / "python.exe"
     if win.is_file():

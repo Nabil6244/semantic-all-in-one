@@ -96,6 +96,30 @@ def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+APP_DISPLAY_NAME = "Semantic YT Studio"
+
+
+def _configure_macos_dock_name(name: str = APP_DISPLAY_NAME) -> None:
+    """Dock hover name when running `python app.py` (not a .app bundle).
+
+    Packaged builds already set CFBundleName in Info.plist via VideoGenerator.spec.
+    Requires pyobjc-framework-Cocoa in the env (see requirements-build.txt).
+    """
+    if sys.platform != "darwin" or _is_frozen():
+        return
+    try:
+        from Foundation import NSBundle  # type: ignore
+    except ImportError:
+        return
+    try:
+        info = NSBundle.mainBundle().infoDictionary()
+        if info is not None:
+            info["CFBundleName"] = name
+            info["CFBundleDisplayName"] = name
+    except Exception:
+        pass
+
+
 # Dev: project folder. Packaged: PyInstaller extract dir (read-only — don't save here).
 SOURCE_DIR = Path(__file__).resolve().parent
 APP_DIR = SOURCE_DIR
@@ -536,7 +560,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._set_window_icon()
 
         # Top bar + 2 columns (script | production)
-        self.grid_columnconfigure(0, minsize=320, weight=0)
+        self.grid_columnconfigure(0, minsize=360, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
@@ -779,10 +803,11 @@ class VideoGeneratorApp(ctk.CTk):
             ai_head, text="Gemini 3.6 Flash visual director", font=ctk.CTkFont(size=11), text_color=_MUTED,
         ).grid(row=1, column=1, sticky="w")
         self._gemini_status_var = ctk.StringVar(value="")
-        ctk.CTkLabel(
+        self._gemini_status_label = ctk.CTkLabel(
             self._ai_block, textvariable=self._gemini_status_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=300, justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=12)
+            text_color=_MUTED, wraplength=280, justify="left",
+        )
+        self._gemini_status_label.grid(row=1, column=0, sticky="ew", padx=12)
         self.script_box = ctk.CTkTextbox(
             self._ai_block, height=150, fg_color=_BG, border_color=_BORDER, border_width=1,
             text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="word",
@@ -832,18 +857,26 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
         ).grid(row=1, column=0, sticky="w", padx=12, pady=(2, 0))
 
-        tts_status_row = ctk.CTkFrame(tts, fg_color="transparent")
-        tts_status_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(2, 0))
-        tts_status_row.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            tts_status_row, textvariable=self.tts_status_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=180, justify="left",
-        ).grid(row=0, column=0, sticky="w")
+        # Status text — wraplength tracks panel width (avoids cut-off in the left column).
+        self._tts_status_label = ctk.CTkLabel(
+            tts,
+            textvariable=self.tts_status_var,
+            font=ctk.CTkFont(size=11),
+            text_color=_MUTED,
+            wraplength=280,
+            justify="left",
+            anchor="w",
+        )
+        self._tts_status_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 0))
+        # Idle: Download button. Active: progress bar + ✕ (no Open Folder here).
+        tts_status_actions = ctk.CTkFrame(tts, fg_color="transparent")
+        tts_status_actions.grid(row=3, column=0, sticky="ew", padx=12, pady=(6, 0))
+        tts_status_actions.grid_columnconfigure(0, weight=1)
         self._tts_download_btn = ctk.CTkButton(
-            tts_status_row,
+            tts_status_actions,
             text="Download",
             width=88,
-            height=26,
+            height=28,
             fg_color=_ACCENT,
             hover_color=_ACCENT_HOV,
             text_color=_ACCENT_DARK,
@@ -851,44 +884,41 @@ class VideoGeneratorApp(ctk.CTk):
             corner_radius=4,
             command=self._on_download_qwen,
         )
-        self._tts_download_btn.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self._tts_download_btn.grid(row=0, column=0, sticky="w")
+
+        self._tts_dl_row = ctk.CTkFrame(tts_status_actions, fg_color="transparent")
+        self._tts_dl_row.grid(row=1, column=0, sticky="ew")
+        self._tts_dl_row.grid_columnconfigure(0, weight=1)
+        self._tts_dl_progress = ctk.CTkProgressBar(
+            self._tts_dl_row,
+            height=10,
+            progress_color=_ACCENT,
+            fg_color=_BORDER,
+            corner_radius=4,
+        )
+        self._tts_dl_progress.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self._tts_dl_progress.set(0)
         self._tts_download_cancel_btn = ctk.CTkButton(
-            tts_status_row,
+            self._tts_dl_row,
             text="✕",
             width=32,
-            height=26,
+            height=28,
             fg_color="transparent",
             border_width=1,
             border_color=_BORDER,
             text_color=_MUTED,
             hover_color=_BORDER,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             corner_radius=4,
             command=self._on_cancel_qwen_download,
         )
-        # Only visible while a Qwen download is in progress.
-        self._tts_download_cancel_btn.grid(row=0, column=2, sticky="e", padx=(6, 0))
-        self._tts_download_cancel_btn.grid_remove()
-        self._tts_model_folder_btn = ctk.CTkButton(
-            tts_status_row,
-            text="Open Folder",
-            width=96,
-            height=26,
-            fg_color="transparent",
-            border_width=1,
-            border_color=_BORDER,
-            text_color=_ACCENT,
-            hover_color=_BORDER,
-            font=ctk.CTkFont(size=11),
-            corner_radius=4,
-            command=self._open_qwen_model_folder,
-        )
-        self._tts_model_folder_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
+        self._tts_download_cancel_btn.grid(row=0, column=1, sticky="e")
+        self._tts_dl_row.grid_remove()
         self._qwen_download_active = False
         self._qwen_download_cancel = False
 
         lib_head = ctk.CTkFrame(tts, fg_color="transparent")
-        lib_head.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 0))
+        lib_head.grid(row=4, column=0, sticky="ew", padx=12, pady=(10, 0))
         lib_head.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
             lib_head, text="Voice Library", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
@@ -908,44 +938,61 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_voice_selected,
         )
         self._tts_voice_menu.grid(row=0, column=1, sticky="e")
-        ctk.CTkLabel(
+        self._tts_voice_detail_label = ctk.CTkLabel(
             tts, textvariable=self.tts_voice_detail_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=280, justify="left",
-        ).grid(row=4, column=0, sticky="w", padx=12, pady=(4, 0))
+            text_color=_MUTED, wraplength=280, justify="left", anchor="w",
+        )
+        self._tts_voice_detail_label.grid(row=5, column=0, sticky="ew", padx=12, pady=(4, 0))
 
         voice_actions = ctk.CTkFrame(tts, fg_color="transparent")
-        voice_actions.grid(row=5, column=0, sticky="ew", padx=12, pady=(4, 0))
+        voice_actions.grid(row=6, column=0, sticky="ew", padx=12, pady=(6, 0))
+        voice_actions.grid_columnconfigure(1, weight=1)
         ctk.CTkButton(
-            voice_actions, text="Preview", width=72, height=28, fg_color="transparent",
-            border_width=1, border_color=_BORDER, text_color=_TEXT, hover_color=_CARD_HOVER,
+            voice_actions,
+            text="Test Voice",
+            width=100,
+            height=28,
+            fg_color="transparent",
+            border_width=1,
+            border_color=_BORDER,
+            text_color=_TEXT,
+            hover_color=_CARD_HOVER,
             command=self._on_preview_voice,
-        ).pack(side="left", padx=(0, 4))
+        ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(
-            voice_actions, text="Default", width=72, height=28, fg_color="transparent",
-            border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_ACCENT_SEL,
-            command=self._set_default_voice,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            voice_actions, text="Replace", width=72, height=28, fg_color="transparent",
-            border_width=1, border_color=_BORDER, text_color=_TEXT, hover_color=_CARD_HOVER,
-            command=self._replace_selected_voice,
-        ).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(
-            voice_actions, text="Delete", width=72, height=28, fg_color="transparent",
-            border_width=1, border_color=_DANGER, text_color=_DANGER, hover_color=_DANGER_BG,
+            voice_actions,
+            text="Delete",
+            width=78,
+            height=28,
+            fg_color="transparent",
+            border_width=1,
+            border_color=_DANGER,
+            text_color=_DANGER,
+            hover_color=_DANGER_BG,
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._delete_selected_voice,
-        ).pack(side="left")
+        ).grid(row=0, column=2, sticky="e")
+        self._tts_test_hint = ctk.CTkLabel(
+            tts,
+            text="Test Voice plays a short sample with the selected voice.",
+            font=ctk.CTkFont(size=10),
+            text_color=_MUTED,
+            wraplength=280,
+            justify="left",
+            anchor="w",
+        )
+        self._tts_test_hint.grid(row=7, column=0, sticky="ew", padx=12, pady=(4, 0))
 
         ctk.CTkLabel(
             tts, text="Create New Voice", font=ctk.CTkFont(size=11, weight="bold"),
             text_color=_MUTED, anchor="w",
-        ).grid(row=6, column=0, sticky="w", padx=12, pady=(10, 0))
+        ).grid(row=8, column=0, sticky="w", padx=12, pady=(10, 0))
         ctk.CTkEntry(
             tts, textvariable=self.tts_create_name_var, placeholder_text="Voice name (e.g. Nabil)",
             height=28, border_color=_BORDER, fg_color=_BG,
-        ).grid(row=7, column=0, sticky="ew", padx=12, pady=(4, 0))
+        ).grid(row=9, column=0, sticky="ew", padx=12, pady=(4, 0))
         create_ref_row = ctk.CTkFrame(tts, fg_color="transparent")
-        create_ref_row.grid(row=8, column=0, sticky="ew", padx=12, pady=(4, 0))
+        create_ref_row.grid(row=10, column=0, sticky="ew", padx=12, pady=(4, 0))
         create_ref_row.grid_columnconfigure(0, weight=1)
         ctk.CTkEntry(
             create_ref_row, textvariable=self.tts_create_ref_var, placeholder_text="Reference audio path",
@@ -958,12 +1005,12 @@ class VideoGeneratorApp(ctk.CTk):
         ).grid(row=0, column=1, padx=(8, 0))
         ctk.CTkLabel(
             tts, text="Reference Transcript", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
-        ).grid(row=9, column=0, sticky="w", padx=12, pady=(6, 0))
+        ).grid(row=11, column=0, sticky="w", padx=12, pady=(6, 0))
         self.tts_create_transcript_box = ctk.CTkTextbox(
             tts, height=72, fg_color=_BG, border_color=_BORDER, border_width=1,
             text_color=_TEXT, font=ctk.CTkFont(size=11), wrap="word",
         )
-        self.tts_create_transcript_box.grid(row=10, column=0, sticky="ew", padx=12, pady=(4, 0))
+        self.tts_create_transcript_box.grid(row=12, column=0, sticky="ew", padx=12, pady=(4, 0))
         self.tts_create_transcript_box.insert(
             "1.0",
             "Enter the exact words spoken in the reference recording.",
@@ -973,17 +1020,17 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_ACCENT_DARK, font=ctk.CTkFont(size=12, weight="bold"),
             command=self._create_voice_profile,
         )
-        self.tts_create_btn.grid(row=11, column=0, sticky="ew", padx=12, pady=(8, 0))
+        self.tts_create_btn.grid(row=13, column=0, sticky="ew", padx=12, pady=(8, 0))
 
         ctk.CTkLabel(
             tts, text="Narration Script", font=ctk.CTkFont(size=11, weight="bold"),
             text_color=_MUTED, anchor="w",
-        ).grid(row=12, column=0, sticky="w", padx=12, pady=(12, 0))
+        ).grid(row=14, column=0, sticky="w", padx=12, pady=(12, 0))
         self.tts_narration_box = ctk.CTkTextbox(
             tts, height=110, fg_color=_BG, border_color=_BORDER, border_width=1,
             text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="word",
         )
-        self.tts_narration_box.grid(row=13, column=0, sticky="ew", padx=12, pady=(4, 0))
+        self.tts_narration_box.grid(row=15, column=0, sticky="ew", padx=12, pady=(4, 0))
         self.tts_narration_box.insert("1.0", VOICE_NARRATION_PLACEHOLDER)
         # Large pastes into CTk/Tk text with undo enabled can freeze the UI.
         try:
@@ -998,7 +1045,7 @@ class VideoGeneratorApp(ctk.CTk):
             hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
             font=ctk.CTkFont(size=13, weight="bold"), command=self._on_generate_narration,
         )
-        self.tts_btn.grid(row=14, column=0, sticky="ew", padx=12, pady=(10, 4))
+        self.tts_btn.grid(row=16, column=0, sticky="ew", padx=12, pady=(10, 4))
 
         self.tts_progress = ctk.CTkProgressBar(
             tts,
@@ -1007,7 +1054,7 @@ class VideoGeneratorApp(ctk.CTk):
             fg_color=_BORDER,
             corner_radius=4,
         )
-        self.tts_progress.grid(row=15, column=0, sticky="ew", padx=12, pady=(0, 2))
+        self.tts_progress.grid(row=17, column=0, sticky="ew", padx=12, pady=(0, 2))
         self.tts_progress.set(0)
         self.tts_progress_var = ctk.StringVar(value="")
         self.tts_progress_label = ctk.CTkLabel(
@@ -1017,18 +1064,18 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_MUTED,
             anchor="w",
         )
-        self.tts_progress_label.grid(row=16, column=0, sticky="ew", padx=12, pady=(0, 4))
+        self.tts_progress_label.grid(row=18, column=0, sticky="ew", padx=12, pady=(0, 4))
         self._tts_progress_t0: float | None = None
         self._tts_progress_done = 0
         self._tts_progress_total = 0
         self._tts_progress_phase = ""
 
         voice_play_row = ctk.CTkFrame(tts, fg_color="transparent")
-        voice_play_row.grid(row=17, column=0, sticky="ew", padx=12, pady=(0, 4))
+        voice_play_row.grid(row=19, column=0, sticky="ew", padx=12, pady=(0, 4))
         voice_play_row.grid_columnconfigure((0, 1), weight=1)
         self._play_voice_btn = ctk.CTkButton(
             voice_play_row,
-            text="▶  Play Voice",
+            text="▶  Play",
             height=30,
             fg_color="transparent",
             border_width=1,
@@ -1036,13 +1083,13 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_ACCENT,
             hover_color=_BORDER,
             font=ctk.CTkFont(size=12),
-            command=self._play_generated_voice,
+            command=self._toggle_voice_playback,
             state="disabled",
         )
         self._play_voice_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         self._stop_voice_btn = ctk.CTkButton(
             voice_play_row,
-            text="■  Stop Voice",
+            text="■  Stop",
             height=30,
             fg_color="transparent",
             border_width=1,
@@ -1057,6 +1104,9 @@ class VideoGeneratorApp(ctk.CTk):
         self._voice_play_proc: subprocess.Popen | None = None
         self._voice_play_t0: float | None = None
         self._voice_play_duration = 0.0
+        self._voice_play_paused = False
+        self._voice_play_paused_at = 0.0
+        self._voice_play_path: Path | None = None
         self._tts_job_active = False
 
         self.voice_play_progress = ctk.CTkProgressBar(
@@ -1066,7 +1116,7 @@ class VideoGeneratorApp(ctk.CTk):
             fg_color=_BORDER,
             corner_radius=4,
         )
-        self.voice_play_progress.grid(row=18, column=0, sticky="ew", padx=12, pady=(0, 2))
+        self.voice_play_progress.grid(row=20, column=0, sticky="ew", padx=12, pady=(0, 2))
         self.voice_play_progress.set(0)
         self.voice_play_progress_var = ctk.StringVar(value="")
         self.voice_play_progress_label = ctk.CTkLabel(
@@ -1076,27 +1126,30 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_MUTED,
             anchor="w",
         )
-        self.voice_play_progress_label.grid(row=19, column=0, sticky="ew", padx=12, pady=(0, 4))
+        self.voice_play_progress_label.grid(row=21, column=0, sticky="ew", padx=12, pady=(0, 4))
 
-        ctk.CTkLabel(
+        self._tts_privacy_label = ctk.CTkLabel(
             tts, text="Local voice cloning — audio stays on this computer.",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, justify="left",
-        ).grid(row=20, column=0, sticky="w", padx=12, pady=(0, 10))
+            font=ctk.CTkFont(size=11), text_color=_MUTED, justify="left", anchor="w",
+            wraplength=280,
+        )
+        self._tts_privacy_label.grid(row=22, column=0, sticky="ew", padx=12, pady=(0, 10))
         self._init_voice_library()
         self._refresh_tts_status()
         self._refresh_voice_playback_buttons()
 
         self._path_row(3, "Voiceover Audio (USED FOR VIDEO)", self.audio_var, self._browse_audio)
         self.voiceover_active_var = ctk.StringVar(value="Video has no voiceover yet.")
-        ctk.CTkLabel(
+        self._voiceover_active_label = ctk.CTkLabel(
             scroll,
             textvariable=self.voiceover_active_var,
             font=ctk.CTkFont(size=11),
             text_color=_ACCENT,
-            wraplength=300,
+            wraplength=280,
             justify="left",
             anchor="w",
-        ).grid(row=4, column=0, sticky="ew", padx=28, pady=(2, 0))
+        )
+        self._voiceover_active_label.grid(row=4, column=0, sticky="ew", padx=28, pady=(2, 0))
         self._path_row(5, "Background Music (optional)", self.bg_var, self._browse_bg, clearable=True)
         self._path_row(6, "Final video (this project)", self.output_var, self._browse_output)
         # Output path is project-managed — keep the widget for binding, hide it.
@@ -1545,6 +1598,7 @@ class VideoGeneratorApp(ctk.CTk):
                 except Exception:
                     pass
 
+
     def _path_row(
         self,
         row: int,
@@ -1706,28 +1760,46 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "_qwen_download_active", False):
             return
         ok, message = qwen_runtime_status()
-        self.tts_status_var.set(message.split("\n", 1)[0] if message else "")
+        if ok:
+            self.tts_status_var.set("Qwen voice engine ready.")
+        else:
+            # Prefer a short UI hint; full conda install text is for developers.
+            lowered = (message or "").lower()
+            if "permission denied" in lowered:
+                self.tts_status_var.set(
+                    "Voice engine needs a repair. Click Download to fix permissions."
+                )
+            elif "model" in lowered and "not installed" in lowered:
+                self.tts_status_var.set(
+                    "Voice model not downloaded yet. Click Download (one-time, needs internet)."
+                )
+            else:
+                self.tts_status_var.set(
+                    "Qwen voice engine not installed. Click Download (one-time, needs internet)."
+                )
         self._apply_qwen_ready_ui(ok)
 
     def _apply_qwen_ready_ui(self, ready: bool) -> None:
         downloading = getattr(self, "_qwen_download_active", False)
         dl = getattr(self, "_tts_download_btn", None)
+        dl_row = getattr(self, "_tts_dl_row", None)
         cancel_btn = getattr(self, "_tts_download_cancel_btn", None)
-        if dl is not None:
-            if ready and not downloading:
+        if downloading:
+            if dl is not None:
                 dl.grid_remove()
-            else:
-                dl.grid()
-                if downloading:
-                    dl.configure(state="disabled", text="Downloading…")
-                else:
-                    dl.configure(state="normal", text="Download")
-        if cancel_btn is not None:
-            if downloading:
-                cancel_btn.grid()
+            if dl_row is not None:
+                dl_row.grid()
+            if cancel_btn is not None:
                 cancel_btn.configure(state="normal", text="✕")
-            else:
-                cancel_btn.grid_remove()
+        else:
+            if dl_row is not None:
+                dl_row.grid_remove()
+            if dl is not None:
+                if ready:
+                    dl.grid_remove()
+                else:
+                    dl.grid()
+                    dl.configure(state="normal", text="Download")
         voice_state = "disabled" if (downloading or not ready) else "normal"
         if getattr(self, "tts_create_btn", None) is not None:
             self.tts_create_btn.configure(state=voice_state)
@@ -1735,6 +1807,15 @@ class VideoGeneratorApp(ctk.CTk):
             self.tts_btn.configure(state=voice_state)
         if getattr(self, "top_voice_btn", None) is not None and not getattr(self, "_tts_job_active", False):
             self.top_voice_btn.configure(state=voice_state)
+
+    def _set_qwen_dl_progress(self, fraction: float) -> None:
+        bar = getattr(self, "_tts_dl_progress", None)
+        if bar is None:
+            return
+        try:
+            bar.set(max(0.0, min(1.0, float(fraction))))
+        except Exception:
+            pass
 
     def _on_cancel_qwen_download(self) -> None:
         if not getattr(self, "_qwen_download_active", False):
@@ -1758,11 +1839,11 @@ class VideoGeneratorApp(ctk.CTk):
             return
         self._qwen_download_active = True
         self._qwen_download_cancel = False
+        self._set_qwen_dl_progress(0.02)
         self._apply_qwen_ready_ui(ready=False)
         self.tts_status_var.set("Downloading Qwen…")
         self.status_var.set("Downloading Qwen voice engine…")
         self._append_log("\n[TTS] Starting Qwen download (runtime + model)…\n")
-        self._set_tts_progress(0.02, "Downloading Qwen…")
 
         def work() -> None:
             try:
@@ -1791,13 +1872,13 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_qwen_download_progress(self, frac: float) -> None:
         pct = max(0, min(100, int(round(float(frac) * 100))))
-        self._set_tts_progress(float(frac), f"Downloading Qwen… {pct}%")
+        self._set_qwen_dl_progress(float(frac))
         self.tts_status_var.set(f"Downloading Qwen… {pct}%")
 
     def _on_qwen_download_done(self) -> None:
         self._qwen_download_active = False
         self._qwen_download_cancel = False
-        self._set_tts_progress(1.0, "Qwen ready")
+        self._set_qwen_dl_progress(1.0)
         self._append_log("[TTS] ✓ Qwen download complete\n")
         self.status_var.set("Qwen voice engine ready")
         self._refresh_tts_status()
@@ -1809,7 +1890,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_qwen_download_error(self, message: str) -> None:
         self._qwen_download_active = False
         self._qwen_download_cancel = False
-        self._set_tts_progress(0.0, "")
+        self._set_qwen_dl_progress(0.0)
         cancelled = "cancel" in (message or "").lower()
         if cancelled:
             self._append_log(f"[TTS] {message}\n")
@@ -3087,22 +3168,29 @@ class VideoGeneratorApp(ctk.CTk):
     def _reset_voice_play_progress(self) -> None:
         self._voice_play_t0 = None
         self._voice_play_duration = 0.0
-        self._set_voice_play_progress(0.0, "")
+        self._voice_play_paused = False
+        self._voice_play_paused_at = 0.0
+        self._set_voice_play_progress(0.0, "0:00 / 0:00")
 
     def _refresh_voice_playback_buttons(self) -> None:
         play_btn = getattr(self, "_play_voice_btn", None)
         stop_btn = getattr(self, "_stop_voice_btn", None)
         if play_btn is None or stop_btn is None:
             return
-        has_audio = self._current_voiceover_path() is not None
+        has_audio = self._current_voiceover_path() is not None or self._voice_play_path is not None
         playing = (
             self._voice_play_proc is not None
             and self._voice_play_proc.poll() is None
         )
-        play_btn.configure(state="normal" if has_audio and not playing else "disabled")
-        stop_btn.configure(state="normal" if playing else "disabled")
+        paused = bool(getattr(self, "_voice_play_paused", False))
+        play_btn.configure(
+            state="normal" if has_audio else "disabled",
+            text="⏸  Pause" if playing else "▶  Play",
+        )
+        stop_btn.configure(state="normal" if (playing or paused or has_audio) else "disabled")
 
     def _stop_voice_playback(self) -> None:
+        """Stop playback and reset the timestamp to 0:00."""
         proc = self._voice_play_proc
         self._voice_play_proc = None
         if proc is not None and proc.poll() is None:
@@ -3117,22 +3205,98 @@ class VideoGeneratorApp(ctk.CTk):
         self._reset_voice_play_progress()
         self._refresh_voice_playback_buttons()
 
-    def _start_voice_playback(self, path: Path) -> bool:
+    def _pause_voice_playback(self) -> None:
+        proc = self._voice_play_proc
+        elapsed = 0.0
+        t0 = self._voice_play_t0
+        if t0 is not None:
+            elapsed = max(0.0, time.monotonic() - t0)
+        self._voice_play_proc = None
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=1.5)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        self._voice_play_paused = True
+        self._voice_play_paused_at = elapsed
+        self._voice_play_t0 = None
+        total = float(self._voice_play_duration or 0.0)
+        if total > 0:
+            frac = min(0.999, elapsed / total)
+            self._set_voice_play_progress(
+                frac,
+                f"{self._format_play_clock(min(elapsed, total))} / {self._format_play_clock(total)}",
+            )
+        self._refresh_voice_playback_buttons()
+
+    def _toggle_voice_playback(self) -> None:
+        playing = (
+            self._voice_play_proc is not None
+            and self._voice_play_proc.poll() is None
+        )
+        if playing:
+            self._pause_voice_playback()
+            return
+        path = self._voice_play_path or self._current_voiceover_path()
+        if path is None:
+            messagebox.showinfo(
+                "Play Voice",
+                "Generate narration first, then you can play it here.",
+            )
+            self._refresh_voice_playback_buttons()
+            return
+        start_at = float(getattr(self, "_voice_play_paused_at", 0.0) or 0.0)
+        if self._start_voice_playback(Path(path), start_at=start_at):
+            self.status_var.set(f"Playing {Path(path).name}…")
+            self._append_log(f"[TTS] Playing narration: {Path(path).name}\n")
+
+    def _start_voice_playback(self, path: Path, *, start_at: float = 0.0) -> bool:
         path = Path(path)
         if not path.is_file():
             messagebox.showwarning("Play Voice", f"Audio not found:\n{path}")
             return False
-        player = shutil.which("afplay") or shutil.which("ffplay")
+        player = shutil.which("ffplay") or shutil.which("afplay")
         if not player:
             messagebox.showerror(
                 "Play Voice",
                 "No audio player found (afplay / ffplay).",
             )
             return False
-        self._stop_voice_playback()
-        cmd = [player, str(path)]
-        if Path(player).name.startswith("ffplay"):
-            cmd = [player, "-nodisp", "-autoexit", "-loglevel", "quiet", str(path)]
+        # Stop any active process without wiping the pause/seek state we want.
+        proc = self._voice_play_proc
+        self._voice_play_proc = None
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=1.0)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+
+        start_at = max(0.0, float(start_at or 0.0))
+        player_name = Path(player).name
+        if player_name.startswith("ffplay"):
+            cmd = [
+                player,
+                "-nodisp",
+                "-autoexit",
+                "-loglevel",
+                "quiet",
+                "-ss",
+                f"{start_at:.3f}",
+                str(path),
+            ]
+        else:
+            # afplay cannot seek; resume from pause restarts from the beginning.
+            cmd = [player, str(path)]
+            start_at = 0.0
+
         try:
             self._voice_play_proc = subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -3142,11 +3306,18 @@ class VideoGeneratorApp(ctk.CTk):
             self._voice_play_proc = None
             self._refresh_voice_playback_buttons()
             return False
+
+        self._voice_play_path = path
+        self._voice_play_paused = False
+        self._voice_play_paused_at = 0.0
         self._voice_play_duration = self._audio_duration_seconds(path)
-        self._voice_play_t0 = time.monotonic()
+        self._voice_play_t0 = time.monotonic() - start_at
         total = self._voice_play_duration
         if total > 0:
-            self._set_voice_play_progress(0.0, f"0:00 / {self._format_play_clock(total)}")
+            self._set_voice_play_progress(
+                min(0.999, start_at / total) if total else 0.0,
+                f"{self._format_play_clock(start_at)} / {self._format_play_clock(total)}",
+            )
         else:
             self._set_voice_play_progress(0.02, "Playing…")
         self._refresh_voice_playback_buttons()
@@ -3169,7 +3340,6 @@ class VideoGeneratorApp(ctk.CTk):
                         f"{self._format_play_clock(min(elapsed, total))} / {self._format_play_clock(total)}",
                     )
                 else:
-                    # Soft pulse when duration is unknown.
                     cycle = elapsed % 1.8
                     pulse = 0.12 + (cycle / 1.8) * 0.5
                     self._set_voice_play_progress(pulse, f"Playing…  {self._format_play_clock(elapsed)}")
@@ -3185,17 +3355,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_voice_playback_buttons()
 
     def _play_generated_voice(self) -> None:
-        path = self._current_voiceover_path()
-        if path is None:
-            messagebox.showinfo(
-                "Play Voice",
-                "Generate narration first, then you can play it here.",
-            )
-            self._refresh_voice_playback_buttons()
-            return
-        if self._start_voice_playback(path):
-            self.status_var.set(f"Playing {path.name}…")
-            self._append_log(f"[TTS] Playing narration: {path.name}\n")
+        self._toggle_voice_playback()
 
     def _on_preview_voice(self) -> None:
         if not self._require_workspace("preview a voice"):
@@ -5661,6 +5821,7 @@ class VideoGeneratorApp(ctk.CTk):
 
 
 def main() -> None:
+    _configure_macos_dock_name()
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()
     app.mainloop()

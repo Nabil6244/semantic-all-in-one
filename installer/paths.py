@@ -41,7 +41,18 @@ def download_cache_dir() -> Path:
 
 def provisioned_python(platform_id: str) -> Path | None:
     """Return the expected python binary path if it already exists."""
+    from installer.runtime_fixup import ensure_python_executable, repair_extracted_runtime
+
     root = runtime_root(platform_id)
+    if root.is_dir():
+        # Repair once per install (zip symlink stubs). Never scan 50k files on every UI refresh.
+        marker = root / ".videogen-runtime-ok"
+        if not marker.is_file():
+            repair_extracted_runtime(root)
+            try:
+                marker.write_text("ok\n", encoding="utf-8")
+            except OSError:
+                pass
     if platform_id == "win-amd64":
         candidates = [
             root / "python.exe",
@@ -51,38 +62,35 @@ def provisioned_python(platform_id: str) -> Path | None:
         ]
         names = ("python.exe",)
     else:
+        # Prefer the real binary over zip-stub names like bin/python → "python3.12"
         candidates = [
-            root / "bin" / "python",
-            root / "bin" / "python3",
             root / "bin" / "python3.12",
-            root / "python" / "bin" / "python",
-            root / "python" / "bin" / "python3",
+            root / "bin" / "python3",
+            root / "bin" / "python",
             root / "python" / "bin" / "python3.12",
+            root / "python" / "bin" / "python3",
+            root / "python" / "bin" / "python",
         ]
-        names = ("python", "python3", "python3.12")
+        names = ("python3.12", "python3", "python")
     for path in candidates:
-        if _usable_python(path):
+        if ensure_python_executable(path):
             return path
     if not root.is_dir():
         return None
+    # Shallow fallback only (avoid walking site-packages)
     for name in names:
-        for found in root.rglob(name):
-            if _usable_python(found) and found.name in names:
+        for sub in ("bin", "Scripts", "python/bin", "python/Scripts"):
+            found = root.joinpath(*sub.split("/")) / name
+            if found.name in names and ensure_python_executable(found):
                 return found
     return None
 
 
 def _usable_python(path: Path) -> bool:
-    """True for a real python binary (not a broken symlink)."""
-    try:
-        if not path.is_file():
-            return False
-        if path.is_symlink() and not path.resolve().exists():
-            return False
-        return True
-    except OSError:
-        return False
+    """True for a real runnable python binary (not a broken symlink / zip stub)."""
+    from installer.runtime_fixup import ensure_python_executable
 
+    return ensure_python_executable(path)
 
 def windows_start_menu_dir() -> Path:
     programs = os.environ.get("APPDATA")

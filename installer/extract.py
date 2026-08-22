@@ -78,8 +78,19 @@ def extract_archive(archive: Path, dest: Path, *, clear_dest: bool = True) -> Pa
                 else:
                     target.unlink()
             shutil.move(str(child), str(target))
+        _repair_if_runtime_tree(dest)
         return dest
 
+
+def _repair_if_runtime_tree(dest: Path) -> None:
+    """After extract, fix zip symlink stubs / +x for Qwen python runtimes."""
+    try:
+        from installer.runtime_fixup import repair_extracted_runtime
+    except ImportError:
+        return
+    # Heuristic: looks like a python runtime tree
+    if (dest / "bin").is_dir() or (dest / "python").is_dir() or (dest / "Scripts").is_dir():
+        repair_extracted_runtime(dest)
 
 def _is_archive_file(path: Path) -> bool:
     name = path.name.lower()

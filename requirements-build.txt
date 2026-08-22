@@ -1,2 +1,4 @@
 -r requirements.txt
 pyinstaller>=6.3.0
+# macOS only: Dock shows "Semantic YT Studio" when launching via `python app.py`
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
