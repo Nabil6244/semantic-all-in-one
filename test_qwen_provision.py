@@ -219,11 +219,26 @@ class TestProvisionQwen(unittest.TestCase):
                                             "tts.qwen_provision.estimate_totals",
                                             side_effect=lambda plan, session=None: plan.sizes,
                                         ):
-                                            provision_qwen(
-                                                manifest_path=manifest,
-                                                platform_id="darwin-arm64",
-                                                progress=progress_vals.append,
-                                            )
+                                            with patch(
+                                                "tts.qwen_provision.qwen_tts_importable",
+                                                return_value=True,
+                                            ):
+                                                with patch(
+                                                    "tts.qwen_provision.model_files_match_manifest",
+                                                    return_value=True,
+                                                ):
+                                                    with patch(
+                                                        "tts.qwen_provision.is_qwen_locally_ready",
+                                                        side_effect=[False, True],
+                                                    ):
+                                                        with patch(
+                                                            "tts.qwen_provision.mark_qwen_install_complete",
+                                                        ):
+                                                            provision_qwen(
+                                                                manifest_path=manifest,
+                                                                platform_id="darwin-arm64",
+                                                                progress=progress_vals.append,
+                                                            )
 
             self.assertTrue(
                 (runtime_dest / "bin" / "python3").is_file()
@@ -233,6 +248,98 @@ class TestProvisionQwen(unittest.TestCase):
             self.assertTrue(progress_vals)
             self.assertAlmostEqual(progress_vals[-1], 1.0)
 
+    def test_provision_fails_when_qwen_tts_not_importable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            cache = home / ".videogen" / "installer-cache"
+            model_dest = home / ".videogen" / "qwen3-tts" / "Qwen3-TTS-12Hz-1.7B-Base"
+            runtime_dest = home / ".videogen" / "runtime" / "qwen" / "darwin-arm64"
+            config_bytes = b'{"ok": true}\n'
+            config_sha = _sha(config_bytes)
+            zip_path = Path(tmp) / "runtime.zip"
+            with tempfile.TemporaryDirectory() as ztmp:
+                root = Path(ztmp) / "payload"
+                bin_dir = root / "bin"
+                bin_dir.mkdir(parents=True)
+                py = bin_dir / "python3"
+                py.write_bytes(b"#!/bin/sh\necho ok\n")
+                py.chmod(0o755)
+                _write_zip(
+                    zip_path,
+                    {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()},
+                )
+            runtime_archive_bytes = zip_path.read_bytes()
+            runtime_sha = _sha(runtime_archive_bytes)
+            manifest = Path(tmp) / "m.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "platforms": {
+                            "darwin-arm64": {
+                                "app": [],
+                                "runtime": [
+                                    {
+                                        "url": "https://example.test/runtime.zip",
+                                        "sha256": runtime_sha,
+                                        "filename": "runtime.zip",
+                                        "size": len(runtime_archive_bytes),
+                                    }
+                                ],
+                                "model": {
+                                    "source": "huggingface",
+                                    "repo_id": "local/test",
+                                    "revision": "main",
+                                    "files": [
+                                        {
+                                            "path": "config.json",
+                                            "filename": "config.json",
+                                            "url": "https://example.test/config.json",
+                                            "sha256": config_sha,
+                                            "size": len(config_bytes),
+                                        }
+                                    ],
+                                },
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def fake_download(url, dest, **kwargs):
+                dest = Path(dest)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if str(url).endswith("runtime.zip"):
+                    dest.write_bytes(runtime_archive_bytes)
+                else:
+                    dest.write_bytes(config_bytes)
+                return dest
+
+            with patch("tts.qwen_provision.is_qwen_locally_ready", return_value=False):
+                with patch("tts.qwen_provision.download_cache_dir", return_value=cache):
+                    with patch("tts.qwen_provision.model_root", return_value=model_dest):
+                        with patch("tts.qwen_provision.runtime_root", return_value=runtime_dest):
+                            with patch("tts.qwen_provision.download_file", side_effect=fake_download):
+                                with patch("tts.qwen_provision.model_is_installed", return_value=True):
+                                    with patch(
+                                        "tts.qwen_provision.provisioned_python",
+                                        return_value=runtime_dest / "bin" / "python3",
+                                    ):
+                                        with patch(
+                                            "tts.qwen_provision.estimate_totals",
+                                            side_effect=lambda plan, session=None: plan.sizes,
+                                        ):
+                                            with patch(
+                                                "tts.qwen_provision.qwen_tts_importable",
+                                                return_value=False,
+                                            ):
+                                                with self.assertRaises(ProvisionError) as ctx:
+                                                    provision_qwen(
+                                                        manifest_path=manifest,
+                                                        platform_id="darwin-arm64",
+                                                    )
+            self.assertIn("qwen_tts", str(ctx.exception).lower())
 
     def test_cancel_raises(self):
         with tempfile.TemporaryDirectory() as tmp:

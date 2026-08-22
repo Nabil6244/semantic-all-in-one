@@ -553,6 +553,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._apply_defaults()
         self._poll_queue()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.bind("<FocusIn>", self._on_app_focus_in, add="+")
 
     # ---------- UI ----------
 
@@ -1766,12 +1767,20 @@ class VideoGeneratorApp(ctk.CTk):
         if self._workspace is not None:
             self._workspace.set_voice_id(profile.id)
 
+    def _on_app_focus_in(self, _event=None) -> None:
+        # Re-check ~/.videogen after user deletes folders or finishes Download elsewhere.
+        if getattr(self, "_qwen_download_active", False) or getattr(self, "_tts_job_active", False):
+            return
+        self.after(150, self._refresh_tts_status)
+
     def _refresh_tts_status(self) -> None:
         if getattr(self, "_qwen_download_active", False):
             return
         # Always re-check files on launch / focus — ready only at 100% model+runtime.
         ok, message = qwen_install_status_message()
         self.tts_status_var.set(message)
+        if not getattr(self, "_tts_job_active", False):
+            self.status_var.set("Qwen voice engine ready" if ok else message.split("\n", 1)[0])
         self._apply_qwen_ready_ui(ok)
 
     def _apply_qwen_ready_ui(self, ready: bool) -> None:
@@ -1874,13 +1883,17 @@ class VideoGeneratorApp(ctk.CTk):
         self._qwen_download_active = False
         self._qwen_download_cancel = False
         self._set_qwen_dl_progress(1.0)
-        self._append_log("[TTS] ✓ Qwen download complete\n")
-        self.status_var.set("Qwen voice engine ready")
         self._refresh_tts_status()
-        messagebox.showinfo(
-            "Qwen ready",
-            "Voice cloning is ready.\n\nYou can Create Voice and Generate Narration.",
-        )
+        ok, message = qwen_install_status_message()
+        if ok:
+            self._append_log("[TTS] ✓ Qwen download complete — voice engine ready\n")
+            messagebox.showinfo(
+                "Qwen ready",
+                "Voice cloning is ready.\n\nYou can Create Voice and Generate Narration.",
+            )
+        else:
+            self._append_log(f"[TTS] Qwen download finished but not ready: {message}\n")
+            messagebox.showerror("Qwen install incomplete", message)
 
     def _on_qwen_download_error(self, message: str) -> None:
         self._qwen_download_active = False

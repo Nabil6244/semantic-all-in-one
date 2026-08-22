@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import csv
+import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -332,9 +334,22 @@ class TestClientPythonDiscovery(unittest.TestCase):
         fake_py = Path("/tmp/fake-python")
         with patch("tts.client.find_qwen_python", return_value=fake_py):
             with patch("tts.client.qwen_tts_importable", return_value=False):
-                ok, message = qwen_runtime_status()
+                with patch.object(sys, "frozen", True, create=True):
+                    ok, message = qwen_runtime_status()
         self.assertFalse(ok)
         self.assertIn("download", message.lower())
+
+    def test_frozen_ignores_qwen_tts_python_env(self):
+        from pathlib import Path
+
+        from tts.client import find_qwen_python
+
+        provisioned = Path("/tmp/provisioned-python")
+        env_python = Path("/tmp/env-python")
+        with patch.object(sys, "frozen", True, create=True):
+            with patch("tts.client._provisioned_qwen_python", return_value=provisioned):
+                with patch.dict(os.environ, {"QWEN_TTS_PYTHON": str(env_python)}, clear=False):
+                    self.assertEqual(find_qwen_python(), provisioned)
 
 
 if __name__ == "__main__":

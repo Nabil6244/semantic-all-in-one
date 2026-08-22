@@ -75,12 +75,15 @@ def _provisioned_qwen_python() -> Optional[Path]:
 
 
 def find_qwen_python() -> Optional[Path]:
+    """Return the Qwen worker Python. Packaged builds use ~/.videogen runtime only."""
+    provisioned = _provisioned_qwen_python()
+    if getattr(sys, "frozen", False):
+        return provisioned
     env = os.environ.get("QWEN_TTS_PYTHON", "").strip()
     if env:
         p = Path(env).expanduser()
         if p.is_file():
             return p
-    provisioned = _provisioned_qwen_python()
     if provisioned is not None:
         return provisioned
     local = _ROOT / ".venv-qwen" / "bin" / "python"
@@ -92,6 +95,15 @@ def find_qwen_python() -> Optional[Path]:
     return None
 
 
+def qwen_probe_timeout() -> float:
+    """Windows + antivirus can make the first python -c probe slow after reboot."""
+    if sys.platform == "win32":
+        return 90.0
+    if getattr(sys, "frozen", False):
+        return 60.0
+    return 30.0
+
+
 _QWEN_TTS_PROBE = (
     "import importlib.util, sys\n"
     "spec = importlib.util.find_spec('qwen_tts')\n"
@@ -99,17 +111,22 @@ _QWEN_TTS_PROBE = (
 )
 
 
-def qwen_tts_importable(python_bin: Path | str, *, timeout: float = 30.0) -> bool:
+def qwen_tts_importable(
+    python_bin: Path | str,
+    *,
+    timeout: float | None = None,
+) -> bool:
     """True when the isolated runtime can import qwen_tts (cheap find_spec probe)."""
     py = Path(python_bin)
     if not py.is_file():
         return False
+    probe_timeout = qwen_probe_timeout() if timeout is None else timeout
     try:
         proc = subprocess.run(
             [str(py), "-c", _QWEN_TTS_PROBE],
             capture_output=True,
             text=True,
-            timeout=timeout,
+            timeout=probe_timeout,
         )
     except (subprocess.TimeoutExpired, OSError):
         return False

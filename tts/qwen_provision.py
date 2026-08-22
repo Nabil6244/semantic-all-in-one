@@ -273,7 +273,8 @@ def provision_qwen(
             (rt_dest / ".videogen-runtime-ok").write_text("ok\n", encoding="utf-8")
         except OSError:
             pass
-        if provisioned_python(plan.platform_id) is None:
+        py = provisioned_python(plan.platform_id)
+        if py is None:
             raise ProvisionError(
                 "Qwen runtime was downloaded but a working Python was not found after "
                 "extraction.\n\n"
@@ -281,12 +282,26 @@ def provision_qwen(
                 "Rebuild via the Build Qwen Runtime workflow and re-upload the flat "
                 "qwen-runtime-*.zip to the GitHub Release, then click Download again."
             )
+        if not qwen_tts_importable(py):
+            clear_qwen_install_complete()
+            raise ProvisionError(
+                "Qwen runtime was installed but the qwen_tts package could not be loaded.\n\n"
+                "Try again with real-time antivirus scanning disabled for "
+                f"{videogen_home()}, or delete the runtime folder and click Download again."
+            )
 
     if need_model and not model_files_match_manifest(model_root()):
         clear_qwen_install_complete()
         raise ProvisionError(
             f"Qwen model files are incomplete under {model_root()}.\n\n"
             "Click Download again to finish installing the ~3.8GB Base weights."
+        )
+
+    if not is_qwen_locally_ready(plan.platform_id):
+        clear_qwen_install_complete()
+        raise ProvisionError(
+            "Qwen download finished but the voice engine is still not ready.\n\n"
+            "Delete the runtime folder under ~/.videogen/runtime/qwen/ and click Download again."
         )
 
     mark_qwen_install_complete(plan.platform_id)
