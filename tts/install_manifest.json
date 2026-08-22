@@ -6,9 +6,9 @@
       "runtime": [
         {
           "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/qwen-runtime-win-amd64.zip",
-          "sha256": "67e95db75646543cf79b9df52710c6abbf6f2f43a267cdb62f6ab7298540df94",
+          "sha256": "b977b933747bcc2d8f2f8aac249fe32b5a2569d6f6ab70cd804f5b9d51929c73",
           "filename": "qwen-runtime-win-amd64.zip",
-          "size": 446161173
+          "size": 475809055
         }
       ],
       "model": {
@@ -101,9 +101,9 @@
       "runtime": [
         {
           "url": "https://github.com/Nabil6244/semantic-all-in-one/releases/download/install-v1/qwen-runtime-darwin-arm64.zip",
-          "sha256": "ae7ae8ecf32108b1e3bf4b8dd29fcadf6e40c6245ecbdd500213695a1aa06a77",
+          "sha256": "1570e3eb5be50442fe27644fa289c736784f9fbbb4a1f600a65f78e84a7942d0",
           "filename": "qwen-runtime-darwin-arm64.zip",
-          "size": 394433991
+          "size": 445573123
         }
       ],
       "model": {
