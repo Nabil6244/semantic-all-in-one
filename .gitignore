@@ -42,3 +42,7 @@ timings.csv
 __pycache__/
 *.pyc
 .DS_Store
+
+# Temp venv renames from local download tests
+.venv-qwen.bak-*
+*.bak-download-test/
