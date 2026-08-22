@@ -13,7 +13,9 @@ ProgressFn = Callable[[int, Optional[int]], None]  # bytes_done_this_file, total
 ShouldStopFn = Callable[[], bool]
 
 CHUNK = 1 << 16
-TIMEOUT = (30, 120)
+# (connect timeout, read timeout) — large HF weights need a long read window
+TIMEOUT = (30, 300)
+MAX_RETRIES = 8
 
 
 class DownloadError(Exception):
@@ -79,6 +81,7 @@ def download_file(
     """
     Download url to dest using dest.with_suffix(dest.suffix + '.part') for resume.
     On success, verifies SHA-256 when expected_sha256 is set, then renames into place.
+    Retries on transient network timeouts (keeps .part progress).
     """
     if not url:
         raise DownloadError("Empty download URL")
@@ -96,6 +99,43 @@ def download_file(
         except DownloadError:
             dest.unlink(missing_ok=True)
 
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        if should_stop and should_stop():
+            raise DownloadCancelled("download cancelled")
+        try:
+            return _download_once(
+                url,
+                dest,
+                part,
+                expected_sha256=expected_sha256,
+                expected_size=expected_size,
+                progress=progress,
+                should_stop=should_stop,
+                session=session,
+            )
+        except DownloadCancelled:
+            raise
+        except (DownloadError, requests.RequestException, OSError, TimeoutError) as exc:
+            last_error = exc
+            if attempt >= MAX_RETRIES:
+                break
+            # Brief backoff; Range resume continues from .part on the next try.
+            time.sleep(min(30, 2 * attempt))
+    raise DownloadError(f"Download failed after {MAX_RETRIES} attempts: {last_error}") from last_error
+
+
+def _download_once(
+    url: str,
+    dest: Path,
+    part: Path,
+    *,
+    expected_sha256: str,
+    expected_size: int,
+    progress: Optional[ProgressFn],
+    should_stop: Optional[ShouldStopFn],
+    session: Optional[requests.Session],
+) -> Path:
     resume_from = part.stat().st_size if part.is_file() else 0
     headers = {}
     if resume_from > 0:

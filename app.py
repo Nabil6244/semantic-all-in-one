@@ -58,7 +58,7 @@ from tts.client import get_shared_client, qwen_runtime_status, shutdown_shared_c
 from tts.errors import TTSError
 from tts.model_cache import MODEL_DIR_NAME, candidate_model_dirs, model_is_installed
 from tts.narration import VOICE_NARRATION_PLACEHOLDER, collect_narration
-from tts.qwen_provision import friendly_provision_error, provision_qwen
+from tts.qwen_provision import friendly_provision_error, provision_qwen, qwen_install_status_message
 from tts.voice_library import (
     VoiceProfile,
     create_voice_profile,
@@ -1137,6 +1137,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._init_voice_library()
         self._refresh_tts_status()
         self._refresh_voice_playback_buttons()
+        # Re-validate Qwen completeness after the window is up (partial downloads, etc.).
+        self.after(250, self._refresh_tts_status)
 
         self._path_row(3, "Voiceover Audio (USED FOR VIDEO)", self.audio_var, self._browse_audio)
         self.voiceover_active_var = ctk.StringVar(value="Video has no voiceover yet.")
@@ -1759,24 +1761,9 @@ class VideoGeneratorApp(ctk.CTk):
     def _refresh_tts_status(self) -> None:
         if getattr(self, "_qwen_download_active", False):
             return
-        ok, message = qwen_runtime_status()
-        if ok:
-            self.tts_status_var.set("Qwen voice engine ready.")
-        else:
-            # Prefer a short UI hint; full conda install text is for developers.
-            lowered = (message or "").lower()
-            if "permission denied" in lowered:
-                self.tts_status_var.set(
-                    "Voice engine needs a repair. Click Download to fix permissions."
-                )
-            elif "model" in lowered and "not installed" in lowered:
-                self.tts_status_var.set(
-                    "Voice model not downloaded yet. Click Download (one-time, needs internet)."
-                )
-            else:
-                self.tts_status_var.set(
-                    "Qwen voice engine not installed. Click Download (one-time, needs internet)."
-                )
+        # Always re-check files on launch / focus — ready only at 100% model+runtime.
+        ok, message = qwen_install_status_message()
+        self.tts_status_var.set(message)
         self._apply_qwen_ready_ui(ok)
 
     def _apply_qwen_ready_ui(self, ready: bool) -> None:

@@ -18,15 +18,17 @@ from installer.manifest import (
     platform_spec,
     resolve_model_downloads,
 )
-from installer.paths import download_cache_dir, model_root, provisioned_python, runtime_root
+from installer.paths import download_cache_dir, model_root, provisioned_python, runtime_root, videogen_home
 from installer.pipeline import aggregate_progress, estimate_totals
 from installer.platform import UnsupportedPlatformError, detect_platform
 from tts.base import CLONE_MODEL_ID
-from tts.model_cache import model_is_installed
+from tts.model_cache import model_download_progress_hint, model_files_match_manifest, model_is_installed
 
 StatusFn = Callable[[str], None]
 ProgressFn = Callable[[float], None]  # 0.0 .. 1.0
 ShouldStopFn = Callable[[], bool]
+
+READY_MARKER_NAME = "qwen-install-complete"
 
 
 class ProvisionError(Exception):
@@ -35,6 +37,69 @@ class ProvisionError(Exception):
 
 class ProvisionCancelled(ProvisionError):
     """User cancelled mid-provision."""
+
+
+def qwen_ready_marker_path() -> Path:
+    return videogen_home() / READY_MARKER_NAME
+
+
+def mark_qwen_install_complete(platform_id: str) -> None:
+    """Persist ready state only after a verified 100% install."""
+    path = qwen_ready_marker_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f"platform={platform_id}\ncomplete=1\n",
+        encoding="utf-8",
+    )
+
+
+def clear_qwen_install_complete() -> None:
+    try:
+        qwen_ready_marker_path().unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def is_qwen_locally_ready(platform_id: Optional[str] = None) -> bool:
+    """
+    True only when runtime Python works AND every manifest model file matches size.
+    Re-checked on every call (launch / Download UI). Marker is updated to match.
+    """
+    try:
+        pid = platform_id or detect_platform()
+    except UnsupportedPlatformError:
+        clear_qwen_install_complete()
+        return False
+    ready = provisioned_python(pid) is not None and model_files_match_manifest(model_root())
+    if ready:
+        try:
+            mark_qwen_install_complete(pid)
+        except OSError:
+            pass
+    else:
+        clear_qwen_install_complete()
+    return ready
+
+
+def qwen_install_status_message(platform_id: Optional[str] = None) -> tuple[bool, str]:
+    """(ready, short UI status). Always re-validates files — never trusts marker alone."""
+    try:
+        pid = platform_id or detect_platform()
+    except UnsupportedPlatformError as exc:
+        return False, str(exc)
+
+    if is_qwen_locally_ready(pid):
+        return True, "Qwen voice engine ready."
+
+    if provisioned_python(pid) is None:
+        return False, "Qwen voice engine not installed. Click Download (one-time, needs internet)."
+
+    hint = model_download_progress_hint(model_root())
+    if hint:
+        return False, hint
+    if not model_is_installed(CLONE_MODEL_ID):
+        return False, "Qwen model not fully downloaded. Click Download to finish."
+    return False, "Qwen install incomplete. Click Download to finish."
 
 
 @dataclass
@@ -64,17 +129,6 @@ def require_runtime_and_model(spec: PlatformSpec) -> None:
             "Qwen download is not available yet.\n\n"
             "The install manifest is missing runtime or model download entries."
         )
-
-
-def is_qwen_locally_ready(platform_id: Optional[str] = None) -> bool:
-    """True when provisioned Python exists and the clone model is present."""
-    try:
-        pid = platform_id or detect_platform()
-    except UnsupportedPlatformError:
-        return False
-    if provisioned_python(pid) is None:
-        return False
-    return model_is_installed(CLONE_MODEL_ID)
 
 
 def build_qwen_plan(
@@ -215,11 +269,14 @@ def provision_qwen(
                 "qwen-runtime-*.zip to the GitHub Release, then click Download again."
             )
 
-    if need_model and not model_is_installed(CLONE_MODEL_ID):
-        m_dest = model_root()
-        if not (m_dest / "config.json").is_file():
-            raise ProvisionError(f"Qwen model files are incomplete under {m_dest}.")
+    if need_model and not model_files_match_manifest(model_root()):
+        clear_qwen_install_complete()
+        raise ProvisionError(
+            f"Qwen model files are incomplete under {model_root()}.\n\n"
+            "Click Download again to finish installing the ~3.8GB Base weights."
+        )
 
+    mark_qwen_install_complete(plan.platform_id)
     _status("Qwen download complete.")
     _progress(1.0)
     return plan

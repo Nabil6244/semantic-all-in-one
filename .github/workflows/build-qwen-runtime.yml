@@ -21,7 +21,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download standalone CPython
         shell: pwsh
@@ -48,7 +48,7 @@ jobs:
           Get-Item "qwen-runtime-win-amd64.zip" | Format-List Name, Length
 
       - name: Upload Windows runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: qwen-runtime-win-amd64
           path: |
@@ -62,7 +62,7 @@ jobs:
     runs-on: macos-14
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download standalone CPython
         run: |
@@ -97,7 +97,7 @@ jobs:
           unzip -l qwen-runtime-darwin-arm64.zip | grep -E 'python(3(\.[0-9]+)?)?$' | head -5
 
       - name: Upload macOS runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: qwen-runtime-darwin-arm64
           path: |

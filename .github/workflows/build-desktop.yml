@@ -10,10 +10,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -25,13 +25,15 @@ jobs:
       - name: Fetch ffmpeg (macOS)
         run: |
           mkdir -p bin
+          # Runner images may ship untrusted taps (e.g. aws/tap) that warn on brew.
+          brew untap aws/tap 2>/dev/null || true
           brew install ffmpeg
           cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg
           chmod +x bin/ffmpeg
           ./bin/ffmpeg -version | head -1
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "24"
 
@@ -64,7 +66,7 @@ jobs:
           ./scripts/make_dmg.sh
 
       - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Semantic-YT-Studio.dmg
           path: dist/Semantic-YT-Studio.dmg
@@ -76,10 +78,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -102,7 +104,7 @@ jobs:
           & "bin\ffmpeg.exe" -version | Select-Object -First 1
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "24"
 
@@ -147,7 +149,7 @@ jobs:
           }
 
       - name: Upload Windows Setup.exe
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Semantic-YT-Studio-Setup.exe
           path: dist/Semantic-YT-Studio-Setup.exe
