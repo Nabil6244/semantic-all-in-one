@@ -122,6 +122,19 @@ logo_png = ROOT / "assets" / "logo.png"
 if logo_png.is_file():
     datas += [(str(logo_png), "assets")]
 
+# Bundled SFX library (62 wavs) — copied to ~/.videogen/sfx on first launch if empty.
+BUNDLED_SFX_DIR = ROOT / "assets" / "bundled-sfx"
+if BUNDLED_SFX_DIR.is_dir() and (BUNDLED_SFX_DIR / "catalog.json").is_file():
+    for f in BUNDLED_SFX_DIR.rglob("*"):
+        if f.is_file():
+            rel_dir = f.parent.relative_to(ROOT)
+            datas.append((str(f), str(rel_dir)))
+else:
+    print(
+        f"WARNING: {BUNDLED_SFX_DIR} missing or incomplete — "
+        "packaged app will not auto-install sound effects."
+    )
+
 if sys.platform == "win32":
     icon_file = ROOT / "assets" / "AppIcon.ico"
 else:

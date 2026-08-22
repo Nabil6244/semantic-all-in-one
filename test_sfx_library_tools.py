@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import unittest.mock
 import wave
 from pathlib import Path
 
 from sfx.audio_probe import is_supported_audio, probe_audio
 from sfx.catalog_io import load_catalog, normalize_entry, save_catalog
 from sfx.importer import ImportOptions, import_manifest, import_sound_specs, init_library
+from sfx.seed import ensure_sfx_library
 from sfx.starter_catalog import STARTER_TARGETS, build_starter_catalog
 from sfx.validator import validate_library
 
@@ -289,6 +291,58 @@ class TestValidate(unittest.TestCase):
             self.assertIn("impact_01", ids)
             self.assertNotIn("riser_03", ids)
             self.assertTrue(any("riser_03" in line for line in result.skipped))
+
+
+class TestSfxSeed(unittest.TestCase):
+    def test_ensure_sfx_library_copies_bundled_wavs_when_empty(self) -> None:
+        from sfx.seed import bundled_sfx_source, ensure_sfx_library
+
+        src = bundled_sfx_source()
+        if src is None:
+            self.skipTest("bundled SFX library not present in repo")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "sfx"
+            dest.mkdir()
+            with unittest.mock.patch("sfx.seed.sfx_library_root", return_value=dest):
+                root = ensure_sfx_library()
+            self.assertEqual(root, dest)
+            catalog = load_catalog(dest)
+            self.assertGreater(len(catalog["sfx"]), 0)
+            first = catalog["sfx"][0]
+            self.assertTrue((dest / first["file"]).is_file())
+
+    def test_ensure_sfx_library_skips_when_populated(self) -> None:
+        from sfx import seed
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "sfx"
+            init_library(dest, from_template=False, overwrite_catalog=True)
+            wav = dest / "whoosh" / "existing.wav"
+            _write_wav(wav)
+            save_catalog(
+                {
+                    "version": 1,
+                    "library_root": str(dest),
+                    "sfx": [
+                        normalize_entry(
+                            {
+                                "id": "whoosh_existing",
+                                "file": "whoosh/existing.wav",
+                                "category": "whoosh",
+                                "tags": ["soft"],
+                                "intensity": "low",
+                                "duration": 0.2,
+                            }
+                        )
+                    ],
+                },
+                dest,
+            )
+            with unittest.mock.patch.object(seed, "sfx_library_root", return_value=dest):
+                with unittest.mock.patch.object(seed, "bundled_sfx_source") as mock_src:
+                    ensure_sfx_library()
+            mock_src.assert_not_called()
 
 
 if __name__ == "__main__":

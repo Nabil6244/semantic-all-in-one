@@ -6174,6 +6174,12 @@ class VideoGeneratorApp(ctk.CTk):
 def main() -> None:
     _configure_macos_dock_name()
     ensure_ffmpeg_on_path()
+    try:
+        from sfx.seed import ensure_sfx_library
+
+        ensure_sfx_library()
+    except Exception:
+        pass
     app = VideoGeneratorApp()
     app.mainloop()
 
