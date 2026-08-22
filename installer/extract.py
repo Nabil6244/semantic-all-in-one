@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -11,6 +12,41 @@ from pathlib import Path
 
 class ExtractError(Exception):
     """Archive extraction failure."""
+
+
+def _normalize_member_name(name: str) -> str:
+    return name.replace("\\", "/").lstrip("./")
+
+
+def should_skip_archive_member(name: str) -> bool:
+    """
+    Skip archive members that break Windows MAX_PATH and are unused at runtime.
+
+    PyTorch ships deeply nested third_party trees under *.dist-info/licenses/
+    (kineto → dynolog → prometheus-cpp → googletest, …). Extracting them into
+    %TEMP%\\videogen-extract-* hits WinError 206 on default Windows installs.
+    Those files are license copies only — never imported by qwen_tts / torch.
+    """
+    n = _normalize_member_name(name).lower()
+    return ".dist-info/licenses/" in n or n.endswith(".dist-info/licenses")
+
+
+def _extract_zip(archive: Path, staging: Path) -> None:
+    with zipfile.ZipFile(archive, "r") as zf:
+        for info in zf.infolist():
+            if should_skip_archive_member(info.filename):
+                continue
+            zf.extract(info, staging)
+
+
+def _extract_tar(archive: Path, staging: Path) -> None:
+    with tarfile.open(archive, "r:*") as tf:
+        members = [m for m in tf.getmembers() if not should_skip_archive_member(m.name)]
+        # filter="data" blocks path traversal (Python 3.12+)
+        if sys.version_info >= (3, 12):
+            tf.extractall(staging, members=members, filter="data")
+        else:
+            tf.extractall(staging, members=members)
 
 
 def extract_archive(archive: Path, dest: Path, *, clear_dest: bool = True) -> Path:
@@ -139,19 +175,15 @@ def _extract_into(archive: Path, staging: Path) -> None:
     name = archive.name.lower()
     try:
         if name.endswith(".zip"):
-            with zipfile.ZipFile(archive, "r") as zf:
-                zf.extractall(staging)
+            _extract_zip(archive, staging)
         elif name.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar")):
-            with tarfile.open(archive, "r:*") as tf:
-                tf.extractall(staging)
+            _extract_tar(archive, staging)
         else:
             # Try zip then tar
             try:
-                with zipfile.ZipFile(archive, "r") as zf:
-                    zf.extractall(staging)
+                _extract_zip(archive, staging)
             except zipfile.BadZipFile:
-                with tarfile.open(archive, "r:*") as tf:
-                    tf.extractall(staging)
+                _extract_tar(archive, staging)
     except (zipfile.BadZipFile, tarfile.TarError, OSError) as exc:
         raise ExtractError(f"Failed to extract {archive.name}: {exc}") from exc
 

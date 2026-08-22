@@ -36,6 +36,12 @@ jobs:
           & $py -m pip install --upgrade pip
           & $py -m pip install -r requirements-qwen-tts.txt
           & $py -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+          # Drop nested license trees (WinError 206 on extract); unused at runtime.
+          Get-ChildItem -Path "qwen-runtime-win-amd64\python\Lib\site-packages" -Directory -Filter "*.dist-info" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              $lic = Join-Path $_.FullName "licenses"
+              if (Test-Path $lic) { Remove-Item $lic -Recurse -Force }
+            }
 
       - name: Pack flat zip
         shell: pwsh
@@ -82,6 +88,8 @@ jobs:
           "$PY" -m pip install --upgrade pip
           "$PY" -m pip install -r requirements-qwen-tts.txt
           "$PY" -c "import qwen_tts; print('qwen_tts ok', qwen_tts.__file__)"
+          # Same hygiene as Windows: strip unused nested license trees.
+          find qwen-runtime-darwin-arm64 -type d -path '*.dist-info/licenses' -prune -exec rm -rf {} +
 
       - name: Pack flat zip
         run: |

@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from installer.download import DownloadError, sha256_file, verify_sha256
+from installer.extract import extract_archive, should_skip_archive_member
 from installer.manifest import (
     RELEASE_NOT_PUBLISHED,
     ManifestError,
@@ -221,6 +222,65 @@ class TestDownloadResume(unittest.TestCase):
             self.assertTrue(out.is_file())
             self.assertEqual(out.read_bytes(), b"hello")
             self.assertFalse(part.is_file())
+
+
+class TestSkipDistInfoLicenses(unittest.TestCase):
+    def test_skip_predicate(self):
+        deep = (
+            "python/Lib/site-packages/torch-2.13.0.dist-info/licenses/third_party/"
+            "kineto/libkineto/third_party/dynolog/third_party/prometheus-cpp/"
+            "3rdparty/googletest/googlemock/scripts/generator/gmock_gen.py"
+        )
+        self.assertTrue(should_skip_archive_member(deep))
+        self.assertTrue(
+            should_skip_archive_member(
+                r"python\Lib\site-packages\torch-2.13.0.dist-info\licenses\NOTICE"
+            )
+        )
+        self.assertFalse(
+            should_skip_archive_member("python/Lib/site-packages/torch/__init__.py")
+        )
+        self.assertFalse(
+            should_skip_archive_member(
+                "python/Lib/site-packages/torch-2.13.0.dist-info/METADATA"
+            )
+        )
+
+    def test_extract_skips_license_trees_keeps_runtime_files(self):
+        import zipfile
+
+        deep = (
+            "python/Lib/site-packages/torch-2.13.0.dist-info/licenses/third_party/"
+            "kineto/libkineto/third_party/dynolog/third_party/prometheus-cpp/"
+            "3rdparty/googletest/googlemock/scripts/generator/gmock_gen.py"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "runtime.zip"
+            dest = root / "out"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("python/python.exe", b"MZ")
+                zf.writestr(
+                    "python/Lib/site-packages/torch-2.13.0.dist-info/METADATA",
+                    b"Name: torch\n",
+                )
+                zf.writestr(deep, b"# unused license junk\n")
+
+            extract_archive(archive, dest, clear_dest=True)
+            # Single top-level "python/" is unwrapped into dest.
+            self.assertTrue((dest / "python.exe").is_file())
+            self.assertTrue(
+                (
+                    dest
+                    / "Lib"
+                    / "site-packages"
+                    / "torch-2.13.0.dist-info"
+                    / "METADATA"
+                ).is_file()
+            )
+            self.assertFalse(
+                any("licenses" in p.parts for p in dest.rglob("*") if p.is_file())
+            )
 
 
 if __name__ == "__main__":
