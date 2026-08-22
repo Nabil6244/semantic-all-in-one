@@ -20,7 +20,7 @@ from tts.errors import (
     package_missing_message,
 )
 from tts.model_cache import find_local_model
-from tts.narration import split_narration_chunks, validate_text
+from tts.narration import narration_chunk_chars_for_device, split_narration_chunks, validate_text
 from tts.reference import convert_reference_to_wav, validate_reference
 
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
@@ -274,8 +274,13 @@ class Qwen3TTSProvider:
 
         self._emit("[TTS] Generating narration...")
         t0 = time.perf_counter()
-        chunks = split_narration_chunks(spoken)
+        chunk_chars = narration_chunk_chars_for_device(self._device)
+        chunks = split_narration_chunks(spoken, max_chars=chunk_chars)
         n_chunks = max(1, len(chunks))
+        self._emit(
+            f"[TTS] Chunk size {chunk_chars} chars on {self._device or 'unknown'} "
+            f"→ {n_chunks} part(s)"
+        )
         self._emit(f"[TTS] Progress 0% (0/{n_chunks})")
         try:
             import numpy as np

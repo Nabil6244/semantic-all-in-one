@@ -13,8 +13,14 @@ SCRIPT_PLACEHOLDER = "Paste your narration script here..."
 VOICE_NARRATION_PLACEHOLDER = (
     "Paste the full narration script here to generate with your cloned voice…"
 )
-# Soft cap per Qwen generate call — long single prompts often stall on MPS.
+# Soft caps per Qwen generate call. Tiny chunks (320) were needed when MPS
+# stalled on long prompts; larger Mac/CUDA chunks cut wall time a lot by
+# reducing sequential part count (e.g. 46 → ~12). Override with
+# QWEN_TTS_CHUNK_CHARS.
 NARRATION_CHUNK_CHARS = 320
+NARRATION_CHUNK_CHARS_MPS = 1100
+NARRATION_CHUNK_CHARS_CUDA = 1600
+NARRATION_CHUNK_CHARS_CPU = 320
 _VISUAL_COLUMNS = frozenset(
     {
         "prompt",
@@ -113,6 +119,26 @@ def collect_narration(
         "(or AI Script / CSV), then generate narration.",
         "invalid_text",
     )
+
+
+def narration_chunk_chars_for_device(device: str | None = None) -> int:
+    """Pick a per-device chunk size (env override wins)."""
+    import os
+
+    raw = (os.environ.get("QWEN_TTS_CHUNK_CHARS") or "").strip()
+    if raw:
+        try:
+            return max(120, int(raw))
+        except ValueError:
+            pass
+    name = (device or "").strip().lower()
+    if name == "cuda":
+        return NARRATION_CHUNK_CHARS_CUDA
+    if name == "mps":
+        return NARRATION_CHUNK_CHARS_MPS
+    if name == "cpu":
+        return NARRATION_CHUNK_CHARS_CPU
+    return NARRATION_CHUNK_CHARS
 
 
 def split_narration_chunks(
