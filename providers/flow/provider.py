@@ -20,6 +20,7 @@ from __future__ import annotations
 import shutil
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -112,14 +113,14 @@ class FlowProvider(AssetProvider):
             error = "A Flow batch is already running in the engine — try again shortly."
             return {s.scene_number: self._fail(s, error) for s in scenes}
 
-        downloads_root = client.get_info().get("downloadsRoot") or self._await_downloads_root(client)
-        if not downloads_root:
-            error = "Flow engine did not report a downloads folder — cannot locate generated files."
-            return {s.scene_number: self._fail(s, error) for s in scenes}
+        run_dir = self._new_run_dir(images_dir)
+        batch_started_at = time.time()
+        engine_root = client.get_info().get("downloadsRoot") or self._await_downloads_root(client)
 
         prompts = [s.prompt for s in scenes]
         kind_label = self.media_kind.upper()
         log(f"[FLOW] Sending {len(prompts)} {kind_label} prompt(s) to the Flow engine...")
+        log(f"[FLOW] Run folder: {run_dir}")
 
         progress: Dict[int, dict] = {}
         done_event = threading.Event()
@@ -142,6 +143,12 @@ class FlowProvider(AssetProvider):
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} failed: {msg.get('message')}")
                     else:
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} generated")
+            elif mtype == "PROMPT_RESULT" and msg.get("path"):
+                idx = msg.get("index")
+                if idx is not None and 0 <= idx < len(scenes):
+                    prev = progress.get(idx) or {}
+                    prev.update(msg)
+                    progress[idx] = prev
             elif mtype == "GENERATE_DONE":
                 done_event.set()
             elif mtype == "STATE" and msg.get("generateError") and not msg.get("running"):
@@ -157,7 +164,12 @@ class FlowProvider(AssetProvider):
         unsubscribe = client.subscribe(on_message)
         cancelled = False
         try:
-            settings = {"imageCount": 1, "mediaKind": self.media_kind, **self.flow_settings}
+            settings = {
+                "imageCount": 1,
+                "mediaKind": self.media_kind,
+                **self.flow_settings,
+                "outputDir": str(run_dir),
+            }
             client.generate(prompts, settings=settings, account_ids=self.account_ids)
 
             # Video generation genuinely takes much longer (Veo renders + polls to
@@ -218,7 +230,14 @@ class FlowProvider(AssetProvider):
                         )
                     continue
                 results[scene.scene_number] = self._resolve_one_result(
-                    idx, scene, images_dir, downloads_root, progress.get(idx), log
+                    idx,
+                    scene,
+                    images_dir,
+                    str(run_dir),
+                    progress.get(idx),
+                    log,
+                    engine_root=engine_root,
+                    batch_started_at=batch_started_at,
                 )
             return results
         finally:
@@ -231,15 +250,38 @@ class FlowProvider(AssetProvider):
         except FlowClientError:
             return None
 
+    def _new_run_dir(self, images_dir: Path) -> Path:
+        """Per-project, per-batch folder so leftover Flow_Images/001.png cannot leak in."""
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        run_id = f"{self.media_kind}_{stamp}_{uuid.uuid4().hex[:8]}"
+        run_dir = Path(images_dir).resolve().parent / "flow" / "runs" / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir
+
     def _resolve_one_result(
-        self, idx: int, scene: SceneRow, images_dir: Path, downloads_root: str, progress_msg: Optional[dict], log: LogFn
+        self,
+        idx: int,
+        scene: SceneRow,
+        images_dir: Path,
+        downloads_root: str,
+        progress_msg: Optional[dict],
+        log: LogFn,
+        *,
+        engine_root: Optional[str] = None,
+        batch_started_at: Optional[float] = None,
     ) -> AssetResult:
-        found = self._find_generated_file(downloads_root, idx)
+        found = self._find_generated_file(
+            downloads_root,
+            idx,
+            progress_msg=progress_msg,
+            engine_root=engine_root,
+            batch_started_at=batch_started_at,
+        )
         if found is None:
             error = (
                 progress_msg.get("message")
                 if progress_msg and progress_msg.get("status") == "failed"
-                else "No output file found after generation (check the Flow engine log)."
+                else "Flow did not write a file for this scene in this run (not using leftover clips)."
             )
             return self._fail(scene, error)
 
@@ -266,20 +308,65 @@ class FlowProvider(AssetProvider):
             metadata={"prompt": scene.prompt, "provider": "flow", "media_kind": self.media_kind},
         )
 
-    def _find_generated_file(self, downloads_root: str, global_index: int) -> Optional[Path]:
-        """batch-runner.js names files `{pad(abs+1)}.<ext>` (ext depends on
-        mediaKind — see batch-runner.js) inside a per-account subfolder of
-        downloadsRoot; the padded number is globally unique across the whole
-        batch regardless of which account produced it (splitPrompts assigns
-        contiguous, non-overlapping absolute indices), so we don't need to
-        replicate the account-slicing algorithm to find the right file."""
-        ext = _EXT_BY_KIND[self.media_kind]
-        name = f"{global_index + 1:03d}.{ext}"
-        root = Path(downloads_root)
+    @staticmethod
+    def _file_is_from_this_batch(path: Path, batch_started_at: Optional[float]) -> bool:
+        if batch_started_at is None:
+            return True
+        try:
+            return path.stat().st_mtime >= (batch_started_at - 5.0)
+        except OSError:
+            return False
+
+    @classmethod
+    def _newest_named_under(cls, root: Path, name: str, batch_started_at: Optional[float]) -> Optional[Path]:
         if not root.is_dir():
             return None
-        matches = sorted(root.glob(f"*/{name}"), key=lambda p: p.stat().st_mtime, reverse=True)
-        return matches[0] if matches else None
+        matches = [
+            p
+            for p in root.glob(f"*/{name}")
+            if p.is_file() and cls._file_is_from_this_batch(p, batch_started_at)
+        ]
+        if not matches:
+            return None
+        return max(matches, key=lambda p: p.stat().st_mtime)
+
+    def _find_generated_file(
+        self,
+        downloads_root: str,
+        global_index: int,
+        *,
+        progress_msg: Optional[dict] = None,
+        engine_root: Optional[str] = None,
+        batch_started_at: Optional[float] = None,
+    ) -> Optional[Path]:
+        """Prefer the exact path this batch just saved. Never accept a leftover
+        `001.png` from a previous project's shared Flow_Images dump."""
+        ext = _EXT_BY_KIND[self.media_kind]
+        name = f"{global_index + 1:03d}.{ext}"
+
+        raw = ""
+        if progress_msg:
+            raw = str(progress_msg.get("path") or progress_msg.get("file") or "").strip()
+        if raw:
+            reported = Path(raw)
+            if reported.is_file() and self._file_is_from_this_batch(reported, batch_started_at):
+                return reported
+
+        run_hit = self._newest_named_under(Path(downloads_root), name, batch_started_at)
+        if run_hit is not None:
+            return run_hit
+
+        # Older engines ignore outputDir and still write to ~/Downloads/Flow_Images.
+        # Only accept a file whose mtime is from *this* batch.
+        if engine_root:
+            engine_path = Path(engine_root)
+            try:
+                same_run = engine_path.resolve() == Path(downloads_root).resolve()
+            except OSError:
+                same_run = False
+            if not same_run:
+                return self._newest_named_under(engine_path, name, batch_started_at)
+        return None
 
     @staticmethod
     def _place_in_images_dir(src: Path, images_dir: Path, scene_number: str) -> Path:

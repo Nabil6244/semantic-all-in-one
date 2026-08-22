@@ -581,6 +581,8 @@ class TestFlowMediaKindRouting(AssetPipelineTestCase):
         self.assertEqual(sent_kwargs["settings"]["mediaKind"], "video")
         self.assertNotEqual(sent_kwargs["settings"]["mediaKind"], "image")
         self.assertEqual(sent_kwargs["account_ids"], ["acct-A", "acct-B"])
+        self.assertIn("outputDir", sent_kwargs["settings"])
+        self.assertTrue(sent_kwargs["settings"]["outputDir"])
 
     def test_image_mislabeled_as_video_is_rejected_not_accepted(self):
         from providers.base import sniff_media_kind
@@ -605,6 +607,123 @@ class TestFlowMediaKindRouting(AssetPipelineTestCase):
         self.assertFalse(result.ok)
         self.assertIn("image", result.error.lower())
         self.assertFalse((self.images / "001.mp4").is_file(), "a mismatched file must never be accepted as this scene's asset")
+
+
+def _png_bytes() -> bytes:
+    return b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+
+class TestFlowRunIsolation(AssetPipelineTestCase):
+    """A leftover Flow_Images/001.png from another project must never become this scene."""
+
+    def _image_provider(self):
+        from providers.flow.provider import FlowProvider
+
+        class DummyEngineManager:
+            def ensure_running(self_):
+                raise AssertionError("not reached in this test")
+
+        return FlowProvider(DummyEngineManager(), media_kind="image")
+
+    def test_leftover_global_001_is_not_used(self):
+        import os
+        import time
+
+        fp = self._image_provider()
+        old_root = self.tmp / "Flow_Images"
+        (old_root / "acct").mkdir(parents=True)
+        leftover = old_root / "acct" / "001.png"
+        leftover.write_bytes(_png_bytes())
+        age = time.time() - 86400
+        os.utime(leftover, (age, age))
+
+        project = self.tmp / "new_project"
+        run_dir = project / "flow" / "runs" / "run-new"
+        assets = project / "assets"
+        run_dir.mkdir(parents=True)
+        assets.mkdir(parents=True)
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="new prompt")
+        result = fp._resolve_one_result(
+            0,
+            scene,
+            assets,
+            str(run_dir),
+            None,
+            log=lambda *_: None,
+            engine_root=str(old_root),
+            batch_started_at=time.time(),
+        )
+        self.assertFalse(result.ok)
+        self.assertIn("leftover", result.error.lower())
+        self.assertFalse((assets / "001.png").is_file())
+
+    def test_this_run_file_is_used_not_leftover(self):
+        import os
+        import time
+
+        fp = self._image_provider()
+        old_root = self.tmp / "Flow_Images"
+        (old_root / "acct").mkdir(parents=True)
+        leftover = old_root / "acct" / "001.png"
+        leftover.write_bytes(_png_bytes() + b"OLD")
+        age = time.time() - 86400
+        os.utime(leftover, (age, age))
+
+        project = self.tmp / "new_project"
+        run_dir = project / "flow" / "runs" / "run-new"
+        assets = project / "assets"
+        (run_dir / "acct").mkdir(parents=True)
+        assets.mkdir(parents=True)
+        fresh = run_dir / "acct" / "001.png"
+        fresh.write_bytes(_png_bytes() + b"NEW")
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="new prompt")
+        result = fp._resolve_one_result(
+            0,
+            scene,
+            assets,
+            str(run_dir),
+            None,
+            log=lambda *_: None,
+            engine_root=str(old_root),
+            batch_started_at=time.time() - 1,
+        )
+        self.assertTrue(result.ok, result.error)
+        self.assertTrue((assets / "001.png").is_file())
+        self.assertTrue((assets / "001.png").read_bytes().endswith(b"NEW"))
+
+    def test_progress_path_wins_over_leftover(self):
+        import os
+        import time
+
+        fp = self._image_provider()
+        old_root = self.tmp / "Flow_Images"
+        (old_root / "acct").mkdir(parents=True)
+        leftover = old_root / "acct" / "001.png"
+        leftover.write_bytes(_png_bytes() + b"OLD")
+        age = time.time() - 86400
+        os.utime(leftover, (age, age))
+
+        project = self.tmp / "new_project"
+        run_dir = project / "flow" / "runs" / "run-new"
+        assets = project / "assets"
+        run_dir.mkdir(parents=True)
+        assets.mkdir(parents=True)
+        saved = run_dir / "acct-b" / "001.png"
+        saved.parent.mkdir(parents=True)
+        saved.write_bytes(_png_bytes() + b"PATH")
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="p")
+        result = fp._resolve_one_result(
+            0,
+            scene,
+            assets,
+            str(run_dir),
+            {"status": "done", "path": str(saved)},
+            log=lambda *_: None,
+            engine_root=str(old_root),
+            batch_started_at=time.time() - 1,
+        )
+        self.assertTrue(result.ok, result.error)
+        self.assertTrue((assets / "001.png").read_bytes().endswith(b"PATH"))
 
 
 def _mp4_bytes() -> bytes:

@@ -32,13 +32,15 @@ export function profileDir(accountId) {
   return path.join(PROFILES_DIR, accountId);
 }
 
-export function accountDownloadDir(labelOrIndex) {
+export function accountDownloadDir(labelOrIndex, root = DOWNLOADS_ROOT) {
   const safe = String(labelOrIndex || "account")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "account";
-  const dir = path.join(DOWNLOADS_ROOT, safe);
+  const base = root || DOWNLOADS_ROOT;
+  fs.mkdirSync(base, { recursive: true });
+  const dir = path.join(base, safe);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

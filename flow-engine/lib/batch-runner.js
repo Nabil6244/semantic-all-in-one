@@ -61,7 +61,8 @@ export async function runBatchSlice({
   onProgress,
 }) {
   const emit = (type, payload) => onProgress?.({ type, ...payload });
-  const outDir = accountDownloadDir(folderLabel);
+  const downloadsRoot = settings.outputDir || undefined;
+  const outDir = accountDownloadDir(folderLabel, downloadsRoot);
   const settingsLocal = { ...settings };
   let completed = 0;
   let failed = 0;
@@ -110,6 +111,7 @@ export async function runBatchSlice({
     while (!done && !shouldStop?.()) {
       try {
         const mediaIds = [];
+        let savedPath = null;
         for (let slot = 0; slot < count; slot++) {
           if (shouldStop?.()) break;
           if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
@@ -126,6 +128,7 @@ export async function runBatchSlice({
                 : `${pad(abs + 1)}.${ext}`;
             const dest = path.join(outDir, name);
             await downloadMedia(page, mediaId, dest);
+            savedPath = dest;
             emit("status", { message: `Saved ${name}` });
           }
         }
@@ -139,6 +142,7 @@ export async function runBatchSlice({
           prompt,
           status: "done",
           mediaIds,
+          path: savedPath,
         });
         emit("BATCH_PROGRESS", {
           index: abs,
@@ -147,6 +151,7 @@ export async function runBatchSlice({
           message: `[${i + 1}/${prompts.length}] Done — ${mediaIds.length} image(s)`,
           completed,
           failed,
+          path: savedPath,
         });
 
         if (
