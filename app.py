@@ -876,8 +876,8 @@ class VideoGeneratorApp(ctk.CTk):
         tts_status_actions.grid_columnconfigure(0, weight=1)
         self._tts_download_btn = ctk.CTkButton(
             tts_status_actions,
-            text="Download",
-            width=88,
+            text="Download Qwen",
+            width=120,
             height=28,
             fg_color=_ACCENT,
             hover_color=_ACCENT_HOV,
@@ -918,6 +918,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._tts_dl_row.grid_remove()
         self._qwen_download_active = False
         self._qwen_download_cancel = False
+        tts.bind("<Map>", lambda _e: self.after(50, self._refresh_tts_status), add="+")
 
         lib_head = ctk.CTkFrame(tts, fg_color="transparent")
         lib_head.grid(row=4, column=0, sticky="ew", padx=12, pady=(10, 0))
@@ -1799,11 +1800,26 @@ class VideoGeneratorApp(ctk.CTk):
             if dl_row is not None:
                 dl_row.grid_remove()
             if dl is not None:
+                dl.grid(row=0, column=0, sticky="w")
                 if ready:
-                    dl.grid_remove()
+                    dl.configure(
+                        state="normal",
+                        text="Reinstall",
+                        fg_color="transparent",
+                        hover_color=_CARD_HOVER,
+                        border_width=1,
+                        border_color=_BORDER,
+                        text_color=_TEXT,
+                    )
                 else:
-                    dl.grid()
-                    dl.configure(state="normal", text="Download")
+                    dl.configure(
+                        state="normal",
+                        text="Download Qwen",
+                        fg_color=_ACCENT,
+                        hover_color=_ACCENT_HOV,
+                        border_width=0,
+                        text_color=_ACCENT_DARK,
+                    )
         voice_state = "disabled" if (downloading or not ready) else "normal"
         if getattr(self, "tts_create_btn", None) is not None:
             self.tts_create_btn.configure(state=voice_state)
@@ -2183,6 +2199,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _voice_create_failed(self, message: str) -> None:
         cancelled = bool(getattr(self, "_tts_cancel_requested", False))
         self._end_tts_job()
+        self._refresh_tts_status()
         self.status_var.set("Voice job stopped" if cancelled else "Ready")
         self._refresh_voice_library_ui()
         self._append_log(f"[TTS] {message}\n")

@@ -420,20 +420,16 @@ class TestResolveModelUrls(unittest.TestCase):
 
 
 class TestIsLocallyReady(unittest.TestCase):
-    def test_false_without_python(self):
+    def test_false_when_runtime_not_ready(self):
         with patch("tts.qwen_provision.detect_platform", return_value="darwin-arm64"):
-            with patch("tts.qwen_provision.provisioned_python", return_value=None):
+            with patch("tts.client.qwen_runtime_status", return_value=(False, "missing")):
                 self.assertFalse(is_qwen_locally_ready())
 
-    def test_false_when_qwen_tts_missing(self):
-        from pathlib import Path
-
-        fake_py = Path("/tmp/fake-python")
-        with patch("tts.qwen_provision.detect_platform", return_value="win-amd64"):
-            with patch("tts.qwen_provision.provisioned_python", return_value=fake_py):
-                with patch("tts.qwen_provision.qwen_tts_importable", return_value=False):
-                    with patch("tts.qwen_provision.model_files_match_manifest", return_value=True):
-                        self.assertFalse(is_qwen_locally_ready())
+    def test_true_when_runtime_ready(self):
+        with patch("tts.qwen_provision.detect_platform", return_value="darwin-arm64"):
+            with patch("tts.client.qwen_runtime_status", return_value=(True, "ok")):
+                with patch("tts.qwen_provision.mark_qwen_install_complete"):
+                    self.assertTrue(is_qwen_locally_ready())
 
 
 if __name__ == "__main__":

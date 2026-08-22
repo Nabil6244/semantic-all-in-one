@@ -63,55 +63,53 @@ def clear_qwen_install_complete() -> None:
 
 def is_qwen_locally_ready(platform_id: Optional[str] = None) -> bool:
     """
-    True only when runtime Python works, qwen_tts is importable, AND every manifest
-    model file matches size. Re-checked on every call (launch / Download UI).
+    True only when runtime + qwen_tts + model pass the same gate as Create Voice.
+    Re-checked on every call (launch / Download UI).
     """
     try:
         pid = platform_id or detect_platform()
     except UnsupportedPlatformError:
         clear_qwen_install_complete()
         return False
-    py = provisioned_python(pid)
-    ready = (
-        py is not None
-        and qwen_tts_importable(py)
-        and model_files_match_manifest(model_root())
-    )
-    if ready:
+    from tts.client import qwen_runtime_status
+
+    ok, _ = qwen_runtime_status()
+    if ok:
         try:
             mark_qwen_install_complete(pid)
         except OSError:
             pass
     else:
         clear_qwen_install_complete()
-    return ready
+    return ok
 
 
 def qwen_install_status_message(platform_id: Optional[str] = None) -> tuple[bool, str]:
-    """(ready, short UI status). Always re-validates files — never trusts marker alone."""
+    """(ready, short UI status). Uses the same checks as Create Voice."""
     try:
         pid = platform_id or detect_platform()
     except UnsupportedPlatformError as exc:
         return False, str(exc)
 
-    if is_qwen_locally_ready(pid):
+    from tts.client import qwen_runtime_status
+
+    ok, _detail = qwen_runtime_status()
+    if ok:
         return True, "Qwen voice engine ready."
 
     py = provisioned_python(pid)
     if py is None:
-        return False, "Qwen voice engine not installed. Click Download (one-time, needs internet)."
+        return False, "Qwen not installed — click Download Qwen below."
 
     if not qwen_tts_importable(py):
-        return False, (
-            "Qwen runtime is incomplete. Click Download to reinstall the voice engine."
-        )
+        return False, "Qwen runtime broken or incomplete — click Download Qwen below."
 
     hint = model_download_progress_hint(model_root())
     if hint:
         return False, hint
     if not model_is_installed(CLONE_MODEL_ID):
-        return False, "Qwen model not fully downloaded. Click Download to finish."
-    return False, "Qwen install incomplete. Click Download to finish."
+        return False, "Qwen model not fully downloaded — click Download Qwen below."
+    return False, "Qwen install incomplete — click Download Qwen below."
 
 
 @dataclass
