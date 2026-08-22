@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 
@@ -20,8 +21,8 @@ PACKAGE_MISSING_DEV = (
 )
 
 PACKAGE_MISSING_FROZEN = (
-    "The Qwen3-TTS runtime is not installed.\n\n"
-    "Click Download in Voice Cloning to install the voice engine and model (~6GB)."
+    "The Qwen3-TTS runtime is not installed or is incomplete.\n\n"
+    "Click Download in Voice Cloning to install or reinstall the voice engine (~450MB)."
 )
 
 MODEL_MISSING_DEV = (
@@ -40,12 +41,19 @@ def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _is_packaged_app() -> bool:
+    """True for PyInstaller builds and their Qwen worker subprocesses."""
+    if _is_frozen():
+        return True
+    return os.environ.get("VIDEOGEN_PACKAGED") == "1"
+
+
 def package_missing_message() -> str:
-    return PACKAGE_MISSING_FROZEN if _is_frozen() else PACKAGE_MISSING_DEV
+    return PACKAGE_MISSING_FROZEN if _is_packaged_app() else PACKAGE_MISSING_DEV
 
 
 def model_missing_message() -> str:
-    return MODEL_MISSING_FROZEN if _is_frozen() else MODEL_MISSING_DEV
+    return MODEL_MISSING_FROZEN if _is_packaged_app() else MODEL_MISSING_DEV
 
 
 # Back-compat aliases (resolve at import for non-frozen / tests).

@@ -178,6 +178,13 @@ class TestErrorMapping(unittest.TestCase):
         self.assertEqual(mapped.code, "package_missing")
         self.assertIn("isolated env", mapped.message.lower())
 
+    def test_package_import_packaged_worker(self):
+        with patch.dict("os.environ", {"VIDEOGEN_PACKAGED": "1"}, clear=False):
+            mapped = map_exception(ImportError("No module named 'qwen_tts'"))
+        self.assertEqual(mapped.code, "package_missing")
+        self.assertIn("download", mapped.message.lower())
+        self.assertNotIn("conda", mapped.message.lower())
+
     def test_passthrough_tts_error(self):
         err = TTSError("already mapped", "invalid_text")
         self.assertIs(map_exception(err), err)
@@ -315,7 +322,19 @@ class TestClientPythonDiscovery(unittest.TestCase):
         with patch("tts.client.find_qwen_python", return_value=None):
             ok, message = qwen_runtime_status()
         self.assertFalse(ok)
-        self.assertIn("qwen-tts", message.lower())
+        self.assertIn("qwen", message.lower())
+
+    def test_status_without_qwen_tts_package(self):
+        from pathlib import Path
+
+        from tts.client import qwen_runtime_status
+
+        fake_py = Path("/tmp/fake-python")
+        with patch("tts.client.find_qwen_python", return_value=fake_py):
+            with patch("tts.client.qwen_tts_importable", return_value=False):
+                ok, message = qwen_runtime_status()
+        self.assertFalse(ok)
+        self.assertIn("download", message.lower())
 
 
 if __name__ == "__main__":

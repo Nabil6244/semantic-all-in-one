@@ -22,6 +22,7 @@ from installer.paths import download_cache_dir, model_root, provisioned_python, 
 from installer.pipeline import aggregate_progress, estimate_totals
 from installer.platform import UnsupportedPlatformError, detect_platform
 from tts.base import CLONE_MODEL_ID
+from tts.client import qwen_tts_importable
 from tts.model_cache import model_download_progress_hint, model_files_match_manifest, model_is_installed
 
 StatusFn = Callable[[str], None]
@@ -62,15 +63,20 @@ def clear_qwen_install_complete() -> None:
 
 def is_qwen_locally_ready(platform_id: Optional[str] = None) -> bool:
     """
-    True only when runtime Python works AND every manifest model file matches size.
-    Re-checked on every call (launch / Download UI). Marker is updated to match.
+    True only when runtime Python works, qwen_tts is importable, AND every manifest
+    model file matches size. Re-checked on every call (launch / Download UI).
     """
     try:
         pid = platform_id or detect_platform()
     except UnsupportedPlatformError:
         clear_qwen_install_complete()
         return False
-    ready = provisioned_python(pid) is not None and model_files_match_manifest(model_root())
+    py = provisioned_python(pid)
+    ready = (
+        py is not None
+        and qwen_tts_importable(py)
+        and model_files_match_manifest(model_root())
+    )
     if ready:
         try:
             mark_qwen_install_complete(pid)
@@ -91,8 +97,14 @@ def qwen_install_status_message(platform_id: Optional[str] = None) -> tuple[bool
     if is_qwen_locally_ready(pid):
         return True, "Qwen voice engine ready."
 
-    if provisioned_python(pid) is None:
+    py = provisioned_python(pid)
+    if py is None:
         return False, "Qwen voice engine not installed. Click Download (one-time, needs internet)."
+
+    if not qwen_tts_importable(py):
+        return False, (
+            "Qwen runtime is incomplete. Click Download to reinstall the voice engine."
+        )
 
     hint = model_download_progress_hint(model_root())
     if hint:
@@ -190,7 +202,8 @@ def provision_qwen(
     cache.mkdir(parents=True, exist_ok=True)
 
     runtime_archives: list[Path] = []
-    need_runtime = force or provisioned_python(plan.platform_id) is None
+    py = provisioned_python(plan.platform_id)
+    need_runtime = force or py is None or not qwen_tts_importable(py)
     need_model = force or not model_is_installed(CLONE_MODEL_ID)
 
     for index, (phase, fspec) in enumerate(plan.downloads):

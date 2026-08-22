@@ -92,39 +92,38 @@ def find_qwen_python() -> Optional[Path]:
     return None
 
 
+_QWEN_TTS_PROBE = (
+    "import importlib.util, sys\n"
+    "spec = importlib.util.find_spec('qwen_tts')\n"
+    "sys.exit(0 if spec is not None else 1)\n"
+)
+
+
+def qwen_tts_importable(python_bin: Path | str, *, timeout: float = 30.0) -> bool:
+    """True when the isolated runtime can import qwen_tts (cheap find_spec probe)."""
+    py = Path(python_bin)
+    if not py.is_file():
+        return False
+    try:
+        proc = subprocess.run(
+            [str(py), "-c", _QWEN_TTS_PROBE],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    return proc.returncode == 0
+
+
 def qwen_runtime_status() -> tuple[bool, str]:
     """Fast readiness check — do not fully import qwen_tts (Torch cold-start is slow)."""
     py = find_qwen_python()
     if py is None:
         return False, package_missing_message()
-    # find_spec confirms the package is installed without loading Torch / qwen_tts.
-    probe = (
-        "import importlib.util, sys\n"
-        "spec = importlib.util.find_spec('qwen_tts')\n"
-        "sys.exit(0 if spec is not None else 1)\n"
-    )
-    try:
-        proc = subprocess.run(
-            [str(py), "-c", probe],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except subprocess.TimeoutExpired:
-        if getattr(sys, "frozen", False):
-            return False, (
-                "Could not start the Qwen3-TTS runtime.\n\n"
-                "Click Download in Voice Cloning to reinstall the voice engine."
-            )
-        return False, (
-            "Could not start the Qwen3-TTS Python environment: "
-            "timed out while checking the package.\n\n"
-            "Try again, or recreate .venv-qwen."
-        )
-    except Exception as exc:
-        return False, f"Could not start the Qwen3-TTS Python environment: {exc}"
-    if proc.returncode != 0:
+    if not qwen_tts_importable(py):
         return False, package_missing_message()
+    # find_spec confirms the package is installed without loading Torch / qwen_tts.
     if model_is_installed(CLONE_MODEL_ID):
         return True, "✓ Qwen 1.7B Voice Cloning Ready"
     return False, model_missing_message()
@@ -169,6 +168,8 @@ class QwenTTSClient:
         env = os.environ.copy()
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
         env.setdefault("TOKENIZERS_PARALLELISM", "false")
+        if getattr(sys, "frozen", False):
+            env["VIDEOGEN_PACKAGED"] = "1"
         # Let the isolated runtime import bundled tts/ + installer/ from the app.
         env["PYTHONPATH"] = os.pathsep.join(
             p for p in (str(root), env.get("PYTHONPATH", "")) if p

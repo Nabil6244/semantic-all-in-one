@@ -318,6 +318,16 @@ class TestIsLocallyReady(unittest.TestCase):
             with patch("tts.qwen_provision.provisioned_python", return_value=None):
                 self.assertFalse(is_qwen_locally_ready())
 
+    def test_false_when_qwen_tts_missing(self):
+        from pathlib import Path
+
+        fake_py = Path("/tmp/fake-python")
+        with patch("tts.qwen_provision.detect_platform", return_value="win-amd64"):
+            with patch("tts.qwen_provision.provisioned_python", return_value=fake_py):
+                with patch("tts.qwen_provision.qwen_tts_importable", return_value=False):
+                    with patch("tts.qwen_provision.model_files_match_manifest", return_value=True):
+                        self.assertFalse(is_qwen_locally_ready())
+
 
 if __name__ == "__main__":
     unittest.main()

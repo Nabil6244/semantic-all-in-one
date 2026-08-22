@@ -2116,6 +2116,10 @@ class VideoGeneratorApp(ctk.CTk):
                 "Continue anyway?",
             ):
                 return
+        ok, status_msg = qwen_runtime_status()
+        if not ok:
+            messagebox.showerror("Create Voice", status_msg)
+            return
         if not self._begin_tts_job("+ Create Voice"):
             return
         self.status_var.set(f"Creating voice profile for {name}…")
