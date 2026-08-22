@@ -1,9 +1,7 @@
-# Virtualenvs
+# Virtualenvs (dev / build / qwen / installer / backups)
 .venv/
-.venv-audio/
-.venv_gui/
-.venv-build/
-.venv-qwen/
+.venv-*/
+.venv_*/
 venv/
 
 # Flow engine sidecar (Node deps + downloaded Chromium — installed locally, not committed)
