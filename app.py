@@ -661,6 +661,7 @@ class VideoGeneratorApp(ctk.CTk):
         self.prod_processing_var = ctk.StringVar(value="")
         self.prod_queued_var = ctk.StringVar(value="")
         self.prod_needs_var = ctk.StringVar(value="")
+        self.prod_mix_var = ctk.StringVar(value="")
         self.hint_var = ctk.StringVar(value="Create a project, then paste a script or import a CSV.")
 
         topbar = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
@@ -1330,6 +1331,11 @@ class VideoGeneratorApp(ctk.CTk):
             stats_row, textvariable=self.prod_needs_var,
             font=ctk.CTkFont(size=11, weight="bold"), text_color=_WARNING, anchor="w",
         ).pack(side="left")
+        ctk.CTkLabel(
+            prod_panel, textvariable=self.prod_mix_var,
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
+            wraplength=720, justify="left",
+        ).pack(fill="x", padx=10, pady=(0, 8))
 
         qa_health_row = ctk.CTkFrame(scenes_wrap, fg_color="transparent")
         qa_health_row.pack(fill="x", padx=12, pady=(0, 0))
@@ -4464,12 +4470,14 @@ class VideoGeneratorApp(ctk.CTk):
             self.prod_processing_var.set("")
             self.prod_queued_var.set("")
             self.prod_needs_var.set("")
+            self.prod_mix_var.set("")
             self.prod_error_var.set("")
             return
         self.prod_ready_var.set(f"{snap.ready} / {snap.total} READY")
         self.prod_processing_var.set(f"{snap.processing} PROCESSING" if snap.processing else "")
         self.prod_queued_var.set(f"{snap.waiting} QUEUED" if snap.waiting else "")
         self.prod_needs_var.set(f"{snap.needs_action} NEEDS ACTION" if snap.needs_action else "")
+        self.prod_mix_var.set(self._scene_source_mix_label())
         self.prod_error_var.set(
             f"⚠ {snap.needs_action} scene(s) need attention" if snap.needs_action else ""
         )
@@ -4478,6 +4486,48 @@ class VideoGeneratorApp(ctk.CTk):
             if self._running:
                 self.status_var.set(snap.header)
                 self.scenes_summary_var.set(snap.header)
+
+    def _scene_source_mix_label(self) -> str:
+        """Plan mix under VIDEO GENERATION — AI Image/Video, Stock, YouTube, Local."""
+        from collections import Counter
+
+        from providers.router import SceneAssetRouter
+
+        counts: Counter[str] = Counter()
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            result = self._asset_results.get(key)
+            source = getattr(result, "source", None) if result is not None else None
+            if source is None:
+                source = SceneAssetRouter.classify(scene)
+            if source == AssetSource.FLOW_IMAGE:
+                counts["AI Image"] += 1
+            elif source == AssetSource.FLOW_VIDEO:
+                counts["AI Video"] += 1
+            elif source == AssetSource.STOCK_VIDEO:
+                counts["Stock Video"] += 1
+            elif source == AssetSource.STOCK_IMAGE:
+                counts["Stock Image"] += 1
+            elif source == AssetSource.STOCK:
+                counts["Stock"] += 1
+            elif source == AssetSource.YOUTUBE_VIDEO:
+                counts["YouTube"] += 1
+            elif source in (AssetSource.MANUAL, AssetSource.LOCAL) or source is None:
+                counts["Local"] += 1
+            else:
+                counts["Other"] += 1
+        order = (
+            "AI Image",
+            "AI Video",
+            "Stock Video",
+            "Stock Image",
+            "Stock",
+            "YouTube",
+            "Local",
+            "Other",
+        )
+        parts = [f"{name} {counts[name]}" for name in order if counts.get(name)]
+        return " · ".join(parts)
 
     def _paint_qa_chrome(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
@@ -5200,7 +5250,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     # ---------- validation ----------
 
-    def _validate(self) -> tuple[dict | None, str | None]:
+    def _validate(self, *, require_audio: bool = True) -> tuple[dict | None, str | None]:
         if self._workspace is None:
             return None, (
                 "Create a New Project first.\n\n"
@@ -5216,7 +5266,8 @@ class VideoGeneratorApp(ctk.CTk):
             )
 
         csv_path = Path(self.csv_var.get().strip())
-        audio_path = Path(self.audio_var.get().strip())
+        audio_raw = self.audio_var.get().strip()
+        audio_path = Path(audio_raw) if audio_raw else self._workspace.audio_path
         images_dir = Path(self.images_var.get().strip())
         self._workspace.ensure_dirs()
         self.images_var.set(str(self._workspace.assets_dir))
@@ -5230,7 +5281,7 @@ class VideoGeneratorApp(ctk.CTk):
             if self._script_mode_is_ai():
                 return None, (
                     "Analyze Script first so Gemini can create a visual plan.\n\n"
-                    "Then review the scene table and click Generate Video."
+                    "Then review the scene table and click Generate Assets."
                 )
             return None, "Please choose a script CSV file."
         if not csv_path.is_file():
@@ -5239,26 +5290,47 @@ class VideoGeneratorApp(ctk.CTk):
             csv_path = self._workspace.copy_csv_in(csv_path)
             self.csv_var.set(str(csv_path))
 
-        if not self.audio_var.get().strip():
-            return None, "Please choose a voiceover audio file."
-        if not audio_path.is_file():
-            return None, f"Voiceover audio not found:\n{audio_path}"
-        if not path_is_inside(audio_path, self._workspace.root):
-            dest = self._workspace.audio_dir / audio_path.name
-            self._workspace.ensure_dirs()
-            if dest.resolve() != audio_path.resolve():
-                shutil.copy2(audio_path, dest)
-            audio_path = dest
-            self._set_active_voiceover(audio_path, source="imported")
+        if require_audio:
+            if not audio_raw:
+                return None, (
+                    "Generate Narration (or import a voiceover) before Render Video.\n\n"
+                    "You can Generate Assets while narration is still running."
+                )
+            if not audio_path.is_file():
+                return None, (
+                    f"Voiceover audio not found:\n{audio_path}\n\n"
+                    "Wait for Generate Narration to finish, or import an audio file.\n"
+                    "Generate Assets does not need voiceover yet."
+                )
+            if not path_is_inside(audio_path, self._workspace.root):
+                dest = self._workspace.audio_dir / audio_path.name
+                self._workspace.ensure_dirs()
+                if dest.resolve() != audio_path.resolve():
+                    shutil.copy2(audio_path, dest)
+                audio_path = dest
+                self._set_active_voiceover(audio_path, source="imported")
+            else:
+                # Keep the locked active voiceover in sync with what we render.
+                src = self._workspace.active_voiceover_source() or self._voiceover_source_label(audio_path)
+                src_key = "tts" if src == "cloned TTS" else "imported"
+                try:
+                    self._workspace.set_active_voiceover(audio_path, source=src_key)
+                except OSError:
+                    pass
+                self._refresh_voiceover_active_label()
         else:
-            # Keep the locked active voiceover in sync with what we render.
-            src = self._workspace.active_voiceover_source() or self._voiceover_source_label(audio_path)
-            src_key = "tts" if src == "cloned TTS" else "imported"
-            try:
-                self._workspace.set_active_voiceover(audio_path, source=src_key)
-            except OSError:
-                pass
-            self._refresh_voiceover_active_label()
+            # Assets-only: keep a project-owned destination path even if TTS is
+            # still writing narration.wav — Whisper is not used in this mode.
+            if not audio_raw:
+                audio_path = self._workspace.audio_path
+                self.audio_var.set(str(audio_path))
+            elif audio_path.is_file() and not path_is_inside(audio_path, self._workspace.root):
+                dest = self._workspace.audio_dir / audio_path.name
+                self._workspace.ensure_dirs()
+                if dest.resolve() != audio_path.resolve():
+                    shutil.copy2(audio_path, dest)
+                audio_path = dest
+                self._set_active_voiceover(audio_path, source="imported")
 
         # Images/ is internal/automatic (see _sync_images_dir) — just make sure it
         # exists rather than asking the user to pick it.
@@ -5355,16 +5427,25 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_cancel()
             return
 
-        config, err = self._validate()
-        if err:
-            messagebox.showerror("Cannot start", err)
-            return
-
         snap = self._qa_snapshot() if self._scene_rows else None
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
         # Match the CTA: Generate Assets stops after visuals; Render Video continues.
         mode = "render" if (snap is not None and snap.allow_render and audio_ok) else "assets"
 
+        if mode == "render" and getattr(self, "_tts_job_active", False):
+            messagebox.showinfo(
+                "Narration still running",
+                "Wait for Generate Narration to finish (or Stop it) before Render Video.\n\n"
+                "You can Generate Assets while narration is running.",
+            )
+            return
+
+        config, err = self._validate(require_audio=(mode == "render"))
+        if err:
+            messagebox.showerror("Cannot start", err)
+            return
+
+        tts_parallel = bool(getattr(self, "_tts_job_active", False)) and mode == "assets"
         self._running = True
         self.generate_btn.configure(
             state="normal",
@@ -5377,11 +5458,26 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self.cancel_btn.grid_forget()
         self.progress.set(0)
-        self.status_var.set("Generating assets…" if mode == "assets" else "Rendering…")
+        if mode == "assets":
+            self.status_var.set(
+                "Generating assets… (narration still running)"
+                if tts_parallel
+                else "Generating assets…"
+            )
+        else:
+            self.status_var.set("Rendering…")
         self.stage_var.set("GENERATING")
-        self._clear_log()
+        # Keep Activity history if TTS is mid-flight so progress lines stay visible.
+        if not tts_parallel:
+            self._clear_log()
         self._append_log(
-            "Starting asset generation…\n" if mode == "assets" else "Starting render pipeline…\n"
+            (
+                "Starting asset generation while narration continues…\n"
+                if tts_parallel
+                else "Starting asset generation…\n"
+            )
+            if mode == "assets"
+            else "Starting render pipeline…\n"
         )
         # Hide stale preview from a previous run
         self._preview_panel.grid_forget()
@@ -5955,15 +6051,31 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.configure(state="disabled")
 
     def _on_close(self) -> None:
+        busy_bits = []
         if self._running:
+            busy_bits.append("asset generation / render")
+        if getattr(self, "_tts_job_active", False):
+            busy_bits.append("voice narration")
+        if busy_bits:
             if not messagebox.askyesno(
                 "Quit?",
-                "A video is still generating. Quit anyway?\n\n"
-                "(The background job will be interrupted.)",
+                "Still running: " + ", ".join(busy_bits) + ".\n\n"
+                "Quit anyway? In-flight work will be interrupted.",
             ):
                 return
-        self._stop_voice_playback()
-        shutdown_shared_client()
+        try:
+            if self._running and self._asset_manager is not None:
+                self._asset_manager.request_cancel()
+        except Exception:
+            pass
+        try:
+            self._stop_voice_playback()
+        except Exception:
+            pass
+        try:
+            shutdown_shared_client()
+        except Exception:
+            pass
         self.destroy()
 
 
