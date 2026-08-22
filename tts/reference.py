@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,16 +39,70 @@ class ReferenceInfo:
     suffix: str
 
 
+def _bundled_bin_candidates() -> list[Path]:
+    """Same search order as app.ensure_ffmpeg_on_path — packaged app has bin/ here."""
+    names = ("ffmpeg.exe", "ffmpeg") if sys.platform == "win32" else ("ffmpeg",)
+    roots: list[Path] = []
+    if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            roots.append(Path(sys._MEIPASS))  # type: ignore[attr-defined]
+        exe_dir = Path(sys.executable).resolve().parent
+        roots.extend([exe_dir, exe_dir / "_internal"])
+    roots.append(Path(__file__).resolve().parent.parent)
+    out: list[Path] = []
+    for root in roots:
+        for name in names:
+            parent = (root / "bin" / name).parent
+            if parent.is_dir() and parent not in out:
+                out.append(parent)
+    return out
+
+
+def _ensure_media_tools_on_path() -> None:
+    for bin_dir in _bundled_bin_candidates():
+        path_env = os.environ.get("PATH", "")
+        parts = path_env.split(os.pathsep) if path_env else []
+        s = str(bin_dir)
+        if s not in parts:
+            os.environ["PATH"] = s + (os.pathsep + path_env if path_env else "")
+
+
+def _ffprobe_binary() -> str | None:
+    _ensure_media_tools_on_path()
+    for name in ("ffprobe", "ffprobe.exe"):
+        for bin_dir in _bundled_bin_candidates():
+            candidate = bin_dir / name
+            if candidate.is_file():
+                return str(candidate)
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+def _ffmpeg_binary() -> str | None:
+    _ensure_media_tools_on_path()
+    for name in ("ffmpeg", "ffmpeg.exe"):
+        for bin_dir in _bundled_bin_candidates():
+            candidate = bin_dir / name
+            if candidate.is_file():
+                return str(candidate)
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
 def _ffprobe_duration(path: Path) -> tuple[float, int, int]:
-    probe = shutil.which("ffprobe") or shutil.which("ffmpeg")
-    if not probe:
+    ffprobe = _ffprobe_binary()
+    if not ffprobe:
         raise TTSError(
             "Could not read the reference audio. ffmpeg/ffprobe is required "
             "to inspect MP3/M4A/FLAC files.",
             "REFERENCE_AUDIO_INVALID",
         )
     cmd = [
-        "ffprobe" if "ffprobe" in probe or probe.endswith("ffprobe") else probe,
+        ffprobe,
         "-v",
         "error",
         "-show_entries",
@@ -55,10 +111,6 @@ def _ffprobe_duration(path: Path) -> tuple[float, int, int]:
         "default=noprint_wrappers=1",
         str(path),
     ]
-    # Prefer real ffprobe when ffmpeg was found instead.
-    ffprobe = shutil.which("ffprobe")
-    if ffprobe:
-        cmd[0] = ffprobe
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -66,6 +118,11 @@ def _ffprobe_duration(path: Path) -> tuple[float, int, int]:
             "Could not read the reference audio file.",
             "REFERENCE_AUDIO_INVALID",
         ) from exc
+    if proc.returncode != 0:
+        raise TTSError(
+            "Reference audio is invalid or contains no playable audio.",
+            "REFERENCE_AUDIO_INVALID",
+        )
     duration = 0.0
     sr = 0
     ch = 1
@@ -170,7 +227,7 @@ def convert_reference_to_wav(src: Path, dest: Path) -> Path:
         if src.resolve() != dest.resolve():
             shutil.copy2(src, dest)
         return dest
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = _ffmpeg_binary()
     if ffmpeg is None:
         raise TTSError(
             "ffmpeg is required to convert this reference audio to WAV.",

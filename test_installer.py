@@ -187,5 +187,41 @@ class TestManifestTempFile(unittest.TestCase):
             self.assertEqual(data["schema_version"], 1)
 
 
+class TestDownloadResume(unittest.TestCase):
+    def test_http_416_clears_stale_part_and_retries_fresh(self) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from installer.download import download_file
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "runtime.zip"
+            part = dest.with_name(dest.name + ".part")
+            part.write_bytes(b"x" * 100)
+
+            body416 = MagicMock()
+            body416.status_code = 416
+            body416.__enter__ = lambda s: s
+            body416.__exit__ = lambda *a: None
+
+            body200 = MagicMock()
+            body200.status_code = 200
+            body200.headers = {"Content-Length": "5"}
+            body200.iter_content = lambda **k: [b"hello"]
+            body200.__enter__ = lambda s: s
+            body200.__exit__ = lambda *a: None
+
+            sess = MagicMock()
+            sess.get.side_effect = [body416, body200]
+
+            out = download_file(
+                "https://example.com/file.zip",
+                dest,
+                session=sess,
+            )
+            self.assertTrue(out.is_file())
+            self.assertEqual(out.read_bytes(), b"hello")
+            self.assertFalse(part.is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

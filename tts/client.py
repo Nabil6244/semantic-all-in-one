@@ -22,8 +22,34 @@ from tts.errors import (
 from tts.model_cache import model_is_installed
 
 LogFn = Callable[[str], None]
-_ROOT = Path(__file__).resolve().parent.parent
-_WORKER = Path(__file__).resolve().parent / "worker.py"
+
+
+def _app_root() -> Path:
+    """Project root in dev; PyInstaller extract dir when frozen."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    return Path(__file__).resolve().parent.parent
+
+
+def _worker_script() -> Path:
+    """worker.py must exist on disk for the provisioned Qwen Python subprocess."""
+    bundled = _app_root() / "tts" / "worker.py"
+    if bundled.is_file():
+        return bundled
+    return Path(__file__).resolve().parent / "worker.py"
+
+
+def _default_ready_timeout() -> float:
+    """Windows CPU + first Torch import often exceeds 30s in packaged builds."""
+    if sys.platform == "win32":
+        return 180.0
+    if getattr(sys, "frozen", False):
+        return 90.0
+    return 30.0
+
+
+_ROOT = _app_root()
+_WORKER = _worker_script()
 
 
 def _runtime_platform_id() -> Optional[str]:
@@ -109,12 +135,12 @@ class QwenTTSClient:
         self,
         python_bin: Optional[Path] = None,
         log: LogFn = print,
-        ready_timeout: float = 30.0,
+        ready_timeout: Optional[float] = None,
         job_timeout: float = 1200.0,
     ):
         self.python_bin = Path(python_bin) if python_bin else find_qwen_python()
         self._log = log
-        self.ready_timeout = ready_timeout
+        self.ready_timeout = ready_timeout if ready_timeout is not None else _default_ready_timeout()
         self.job_timeout = job_timeout
         self._proc: Optional[subprocess.Popen] = None
         self._stdout_q: "queue.Queue[Optional[str]]" = queue.Queue()
@@ -132,16 +158,28 @@ class QwenTTSClient:
             return
         if self.python_bin is None or not Path(self.python_bin).is_file():
             raise TTSError(package_missing_message(), "package_missing")
+        worker = _worker_script()
+        if not worker.is_file():
+            raise TTSError(
+                f"Qwen3-TTS worker script not found at {worker}.\n\n"
+                "Reinstall the app — the packaged build is missing tts/worker.py.",
+                "process_crash",
+            )
+        root = _app_root()
         env = os.environ.copy()
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
         env.setdefault("TOKENIZERS_PARALLELISM", "false")
+        # Let the isolated runtime import bundled tts/ + installer/ from the app.
+        env["PYTHONPATH"] = os.pathsep.join(
+            p for p in (str(root), env.get("PYTHONPATH", "")) if p
+        )
         try:
             proc = subprocess.Popen(
-                [str(self.python_bin), str(_WORKER)],
+                [str(self.python_bin), str(worker)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=str(_ROOT),
+                cwd=str(root),
                 env=env,
             )
         except OSError as exc:
@@ -176,7 +214,9 @@ class QwenTTSClient:
                     msg.get("code") or "process_crash",
                 )
         raise TTSError(
-            "Qwen3-TTS worker timed out while starting.",
+            "Qwen3-TTS worker timed out while starting.\n\n"
+            "On Windows the first load can take a few minutes (CPU + antivirus scan). "
+            "Close other apps and try again, or exclude ~/.videogen from real-time scanning.",
             "timeout",
         )
 

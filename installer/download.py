@@ -135,6 +135,7 @@ def _download_once(
     progress: Optional[ProgressFn],
     should_stop: Optional[ShouldStopFn],
     session: Optional[requests.Session],
+    retried_416: bool = False,
 ) -> Path:
     resume_from = part.stat().st_size if part.is_file() else 0
     headers = {}
@@ -144,6 +145,20 @@ def _download_once(
     sess = session or requests.Session()
     try:
         with sess.get(url, stream=True, timeout=TIMEOUT, headers=headers) as resp:
+            if resp.status_code == 416 and resume_from > 0 and not retried_416:
+                # Stale .part from interrupted download — GitHub rejects resume past EOF.
+                part.unlink(missing_ok=True)
+                return _download_once(
+                    url,
+                    dest,
+                    part,
+                    expected_sha256=expected_sha256,
+                    expected_size=expected_size,
+                    progress=progress,
+                    should_stop=should_stop,
+                    session=sess,
+                    retried_416=True,
+                )
             if resume_from and resp.status_code == 200:
                 # Server ignored Range — restart
                 part.unlink(missing_ok=True)

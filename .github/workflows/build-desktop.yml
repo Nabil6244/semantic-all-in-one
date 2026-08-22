@@ -102,6 +102,9 @@ jobs:
           if (-not $exe) { throw "ffmpeg.exe not found in download" }
           Copy-Item $exe.FullName -Destination "bin\ffmpeg.exe"
           & "bin\ffmpeg.exe" -version | Select-Object -First 1
+          $probe = Get-ChildItem -Path ffmpeg_dl -Recurse -Filter ffprobe.exe | Select-Object -First 1
+          if (-not $probe) { throw "ffprobe.exe not found in download" }
+          Copy-Item $probe.FullName -Destination "bin\ffprobe.exe"
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5

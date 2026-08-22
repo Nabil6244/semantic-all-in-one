@@ -5,7 +5,7 @@ Place platform binaries here before a local PyInstaller build:
 | Platform | Files to put here |
 |----------|------------------|
 | macOS    | `bin/ffmpeg`, `bin/node` (no extension, both executable) |
-| Windows  | `bin/ffmpeg.exe`, `bin/node.exe` |
+| Windows  | `bin/ffmpeg.exe`, `bin/ffprobe.exe`, `bin/node.exe` |
 
 Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns).
 
@@ -13,7 +13,7 @@ Both are optional individually: without `ffmpeg` the app can't render at all (bu
 
 - **ffmpeg — macOS:** download a static build, or copy from Homebrew:
   `cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg && chmod +x bin/ffmpeg`
-- **ffmpeg — Windows:** from a release zip (e.g. Gyan "essentials"), copy `bin/ffmpeg.exe` here.
+- **ffmpeg — Windows:** from a release zip (e.g. Gyan "essentials"), copy `bin/ffmpeg.exe` **and** `bin/ffprobe.exe` here (same zip).
 - **node — any platform:** download the **official** Node.js binary release from nodejs.org (NOT Homebrew's — Homebrew's `node` is dynamically linked against Homebrew's own OpenSSL/ICU and will not run on a machine without Homebrew; the official nodejs.org tarball only links against OS-provided system libraries and runs standalone). Extract the archive and copy just `bin/node` (macOS/Linux) or `node.exe` (Windows) — no other files needed, since `flow-engine/node_modules/` (committed separately, see `flow-engine/README.md`) is what actually runs.
 
 ```bash

@@ -11,11 +11,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from tts.base import DEFAULT_LANGUAGE, TTSResult
-from tts.errors import TTSError, map_exception
-from tts.qwen_provider import Qwen3TTSProvider
-
-_provider: Qwen3TTSProvider | None = None
+_provider = None
 
 
 def _log(message: str) -> None:
@@ -28,14 +24,16 @@ def _send(payload: dict) -> None:
     sys.stdout.flush()
 
 
-def _get_provider() -> Qwen3TTSProvider:
+def _get_provider():
     global _provider
     if _provider is None:
+        from tts.qwen_provider import Qwen3TTSProvider
+
         _provider = Qwen3TTSProvider(log=_log)
     return _provider
 
 
-def _result_payload(result: TTSResult) -> dict:
+def _result_payload(result) -> dict:
     return {
         "type": "result",
         "path": str(result.path),
@@ -53,6 +51,9 @@ def _result_payload(result: TTSResult) -> dict:
 
 
 def _handle(msg: dict) -> dict:
+    from tts.base import DEFAULT_LANGUAGE
+    from tts.errors import TTSError, map_exception
+
     op = msg.get("op")
     if op == "ping":
         return {"type": "pong"}
@@ -86,7 +87,10 @@ def _handle(msg: dict) -> dict:
 
 
 def main() -> None:
+    # Signal ready before heavy imports (Torch loads on first real job).
     _send({"type": "ready"})
+    from tts.errors import TTSError, map_exception
+
     for raw in sys.stdin:
         line = raw.strip()
         if not line:

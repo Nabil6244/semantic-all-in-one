@@ -61,7 +61,31 @@ if not ffmpeg_src.is_file():
 
 binaries += [(str(ffmpeg_src), "bin")]
 
-# Bundle the portable Node runtime (bin/node[.exe]) if present — enables Flow/AI
+# ffprobe probes MP3/M4A reference clips for voice clone (Windows has no system ffprobe).
+if sys.platform == "win32":
+    ffprobe_src = BIN / "ffprobe.exe"
+    if ffprobe_src.is_file():
+        binaries += [(str(ffprobe_src), "bin")]
+    else:
+        print(
+            "WARNING: bin/ffprobe.exe not found — MP3/M4A reference audio may fail on Windows. "
+            "Copy ffprobe.exe from the same ffmpeg essentials zip as ffmpeg.exe."
+        )
+
+# Qwen in-app Download + isolated worker subprocess need these on disk (not only in PYZ).
+manifest = ROOT / "tts" / "install_manifest.json"
+if not manifest.is_file():
+    raise SystemExit(f"Missing {manifest}")
+datas += [(str(manifest), "tts")]
+
+for pkg_dir in ("tts", "installer"):
+    pkg_path = ROOT / pkg_dir
+    if not pkg_path.is_dir():
+        continue
+    for f in pkg_path.rglob("*.py"):
+        rel_dir = f.parent.relative_to(ROOT)
+        datas.append((str(f), str(rel_dir)))
+
 # generation with zero Node.js install required. Optional: Stock and Manual scenes
 # work fine without it, so we only warn (not fail the build) if it's missing.
 node_src = BIN / ("node.exe" if sys.platform == "win32" else "node")
