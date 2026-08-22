@@ -22,7 +22,7 @@ from installer.paths import download_cache_dir, model_root, provisioned_python, 
 from installer.pipeline import aggregate_progress, estimate_totals
 from installer.platform import UnsupportedPlatformError, detect_platform
 from tts.base import CLONE_MODEL_ID
-from tts.client import qwen_tts_importable
+from tts.client import qwen_runtime_loadable, qwen_tts_importable
 from tts.model_cache import model_download_progress_hint, model_files_match_manifest, model_is_installed
 
 StatusFn = Callable[[str], None]
@@ -202,6 +202,8 @@ def provision_qwen(
     runtime_archives: list[Path] = []
     py = provisioned_python(plan.platform_id)
     need_runtime = force or py is None or not qwen_tts_importable(py)
+    if py is not None and not need_runtime and not qwen_runtime_loadable(py):
+        need_runtime = True
     need_model = force or not model_is_installed(CLONE_MODEL_ID)
 
     for index, (phase, fspec) in enumerate(plan.downloads):
@@ -286,6 +288,18 @@ def provision_qwen(
                 "Qwen runtime was installed but the qwen_tts package could not be loaded.\n\n"
                 "Try again with real-time antivirus scanning disabled for "
                 f"{videogen_home()}, or delete the runtime folder and click Download again."
+            )
+        if not qwen_runtime_loadable(py):
+            clear_qwen_install_complete()
+            try:
+                (rt_dest / ".videogen-runtime-ok").unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise ProvisionError(
+                "Qwen runtime was installed but PyTorch/qwen_tts failed to load — "
+                "the install is corrupted on disk.\n\n"
+                "Add a Windows Security exclusion for "
+                f"{videogen_home()}, delete the runtime folder, and click Reinstall."
             )
 
     if need_model and not model_files_match_manifest(model_root()):

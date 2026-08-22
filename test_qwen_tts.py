@@ -187,6 +187,17 @@ class TestErrorMapping(unittest.TestCase):
         self.assertIn("download", mapped.message.lower())
         self.assertNotIn("conda", mapped.message.lower())
 
+    def test_runtime_corrupted_winerror(self):
+        mapped = map_exception(
+            OSError(
+                "[WinError 1392] The file or directory is corrupted and unreadable: "
+                "'C:\\\\Users\\\\Asus\\\\.videogen\\\\runtime\\\\qwen\\\\win-amd64\\\\Lib\\\\site-packages\\\\torch\\\\_higher_order_ops'"
+            )
+        )
+        self.assertEqual(mapped.code, "runtime_corrupted")
+        self.assertIn("corrupted", mapped.message.lower())
+        self.assertIn(".videogen", mapped.message.lower())
+
     def test_passthrough_tts_error(self):
         err = TTSError("already mapped", "invalid_text")
         self.assertIs(map_exception(err), err)

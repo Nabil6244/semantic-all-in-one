@@ -22,7 +22,22 @@ PACKAGE_MISSING_DEV = (
 
 PACKAGE_MISSING_FROZEN = (
     "The Qwen3-TTS runtime is not installed or is incomplete.\n\n"
-    "Click Download in Voice Cloning to install or reinstall the voice engine (~450MB)."
+    "Click Download Qwen in Voice Cloning to install or reinstall the voice engine (~450MB)."
+)
+
+RUNTIME_CORRUPTED_FROZEN = (
+    "The Qwen voice runtime on disk is corrupted (Windows often does this when "
+    "antivirus scans files during install).\n\n"
+    "1. In Windows Security, add an exclusion for:\n"
+    "   %USERPROFILE%\\.videogen\n"
+    "2. Delete this folder:\n"
+    "   %USERPROFILE%\\.videogen\\runtime\\qwen\\win-amd64\n"
+    "3. In the app, click Reinstall (or Download Qwen) and wait until it finishes."
+)
+
+RUNTIME_CORRUPTED_DEV = (
+    "The Qwen voice runtime on disk is corrupted.\n\n"
+    "Delete ~/.videogen/runtime/qwen/ and reinstall the runtime."
 )
 
 MODEL_MISSING_DEV = (
@@ -54,6 +69,10 @@ def package_missing_message() -> str:
 
 def model_missing_message() -> str:
     return MODEL_MISSING_FROZEN if _is_packaged_app() else MODEL_MISSING_DEV
+
+
+def runtime_corrupted_message() -> str:
+    return RUNTIME_CORRUPTED_FROZEN if _is_packaged_app() else RUNTIME_CORRUPTED_DEV
 
 
 # Back-compat aliases (resolve at import for non-frozen / tests).
@@ -103,6 +122,12 @@ def map_exception(exc: BaseException) -> TTSError:
 
     if isinstance(exc, ImportError) or "qwen_tts" in lowered or "no module named 'qwen" in lowered:
         return TTSError(package_missing_message(), "package_missing")
+    if (
+        "corrupted and unreadable" in lowered
+        or "winerror 1392" in lowered
+        or (name == "OSError" and "1392" in text)
+    ):
+        return TTSError(runtime_corrupted_message(), "runtime_corrupted")
     if "local_files_only" in lowered or "not found" in lowered and "qwen3-tts" in lowered:
         return TTSError(model_missing_message(), "model_missing")
     if "is not installed" in lowered and "model" in lowered:

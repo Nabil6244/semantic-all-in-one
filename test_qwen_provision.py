@@ -224,21 +224,25 @@ class TestProvisionQwen(unittest.TestCase):
                                                 return_value=True,
                                             ):
                                                 with patch(
-                                                    "tts.qwen_provision.model_files_match_manifest",
+                                                    "tts.qwen_provision.qwen_runtime_loadable",
                                                     return_value=True,
                                                 ):
                                                     with patch(
-                                                        "tts.qwen_provision.is_qwen_locally_ready",
-                                                        side_effect=[False, True],
+                                                        "tts.qwen_provision.model_files_match_manifest",
+                                                        return_value=True,
                                                     ):
                                                         with patch(
-                                                            "tts.qwen_provision.mark_qwen_install_complete",
+                                                            "tts.qwen_provision.is_qwen_locally_ready",
+                                                            side_effect=[False, True],
                                                         ):
-                                                            provision_qwen(
-                                                                manifest_path=manifest,
-                                                                platform_id="darwin-arm64",
-                                                                progress=progress_vals.append,
-                                                            )
+                                                            with patch(
+                                                                "tts.qwen_provision.mark_qwen_install_complete",
+                                                            ):
+                                                                provision_qwen(
+                                                                    manifest_path=manifest,
+                                                                    platform_id="darwin-arm64",
+                                                                    progress=progress_vals.append,
+                                                                )
 
             self.assertTrue(
                 (runtime_dest / "bin" / "python3").is_file()

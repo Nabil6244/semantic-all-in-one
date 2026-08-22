@@ -58,7 +58,12 @@ from tts.client import get_shared_client, qwen_runtime_status, shutdown_shared_c
 from tts.errors import TTSError
 from tts.model_cache import MODEL_DIR_NAME, candidate_model_dirs, model_is_installed
 from tts.narration import VOICE_NARRATION_PLACEHOLDER, collect_narration
-from tts.qwen_provision import friendly_provision_error, provision_qwen, qwen_install_status_message
+from tts.qwen_provision import (
+    clear_qwen_install_complete,
+    friendly_provision_error,
+    provision_qwen,
+    qwen_install_status_message,
+)
 from tts.voice_library import (
     VoiceProfile,
     create_voice_profile,
@@ -918,6 +923,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._tts_dl_row.grid_remove()
         self._qwen_download_active = False
         self._qwen_download_cancel = False
+        self._qwen_deep_check_active = False
         tts.bind("<Map>", lambda _e: self.after(50, self._refresh_tts_status), add="+")
 
         lib_head = ctk.CTkFrame(tts, fg_color="transparent")
@@ -1143,6 +1149,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_voice_playback_buttons()
         # Re-validate Qwen completeness after the window is up (partial downloads, etc.).
         self.after(250, self._refresh_tts_status)
+        self.after(800, self._schedule_qwen_deep_check)
 
         self._path_row(3, "Voiceover Audio (USED FOR VIDEO)", self.audio_var, self._browse_audio)
         self.voiceover_active_var = ctk.StringVar(value="Video has no voiceover yet.")
@@ -1768,6 +1775,33 @@ class VideoGeneratorApp(ctk.CTk):
         if self._workspace is not None:
             self._workspace.set_voice_id(profile.id)
 
+    def _schedule_qwen_deep_check(self) -> None:
+        """Background import of qwen_tts — catches corrupt Torch installs (WinError 1392)."""
+        if getattr(self, "_qwen_download_active", False) or getattr(self, "_qwen_deep_check_active", False):
+            return
+
+        def work() -> None:
+            try:
+                ok, message = qwen_runtime_status(deep=True)
+                self._ui_queue.put(("qwen_deep_check", (ok, message)))
+            except Exception as exc:
+                self._ui_queue.put(("qwen_deep_check", (False, str(exc))))
+            finally:
+                self._ui_queue.put(("qwen_deep_check_end", None))
+
+        self._qwen_deep_check_active = True
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_qwen_deep_check(self, payload) -> None:
+        ok, message = payload if isinstance(payload, tuple) else (False, str(payload or ""))
+        if not ok:
+            try:
+                clear_qwen_install_complete()
+            except Exception:
+                pass
+            self._append_log(f"[TTS] Voice runtime check failed: {message}\n")
+        self._refresh_tts_status()
+
     def _on_app_focus_in(self, _event=None) -> None:
         # Re-check ~/.videogen after user deletes folders or finishes Download elsewhere.
         if getattr(self, "_qwen_download_active", False) or getattr(self, "_tts_job_active", False):
@@ -1907,6 +1941,7 @@ class VideoGeneratorApp(ctk.CTk):
                 "Qwen ready",
                 "Voice cloning is ready.\n\nYou can Create Voice and Generate Narration.",
             )
+            self._schedule_qwen_deep_check()
         else:
             self._append_log(f"[TTS] Qwen download finished but not ready: {message}\n")
             messagebox.showerror("Qwen install incomplete", message)
@@ -2199,6 +2234,12 @@ class VideoGeneratorApp(ctk.CTk):
     def _voice_create_failed(self, message: str) -> None:
         cancelled = bool(getattr(self, "_tts_cancel_requested", False))
         self._end_tts_job()
+        lowered = (message or "").lower()
+        if "corrupted" in lowered or "winerror 1392" in lowered or "1392" in lowered:
+            try:
+                clear_qwen_install_complete()
+            except Exception:
+                pass
         self._refresh_tts_status()
         self.status_var.set("Voice job stopped" if cancelled else "Ready")
         self._refresh_voice_library_ui()
@@ -5857,6 +5898,10 @@ class VideoGeneratorApp(ctk.CTk):
                             self._on_qwen_download_done()
                         elif kind == "qwen_dl_error":
                             self._on_qwen_download_error(payload)
+                        elif kind == "qwen_deep_check":
+                            self._on_qwen_deep_check(payload)
+                        elif kind == "qwen_deep_check_end":
+                            self._qwen_deep_check_active = False
                         elif kind == "assets_partial":
                             self._on_assets_partial(payload)
                         elif kind == "assets_complete":

@@ -110,6 +110,17 @@ _QWEN_TTS_PROBE = (
     "sys.exit(0 if spec is not None else 1)\n"
 )
 
+_QWEN_RUNTIME_LOAD_PROBE = "import qwen_tts\n"
+
+
+def qwen_runtime_load_timeout() -> float:
+    """Full qwen_tts import loads Torch — slow on first Windows run."""
+    if sys.platform == "win32":
+        return 180.0
+    if getattr(sys, "frozen", False):
+        return 120.0
+    return 90.0
+
 
 def qwen_tts_importable(
     python_bin: Path | str,
@@ -133,13 +144,43 @@ def qwen_tts_importable(
     return proc.returncode == 0
 
 
-def qwen_runtime_status() -> tuple[bool, str]:
-    """Fast readiness check — do not fully import qwen_tts (Torch cold-start is slow)."""
+def qwen_runtime_loadable(
+    python_bin: Path | str,
+    *,
+    timeout: float | None = None,
+) -> bool:
+    """True when qwen_tts imports cleanly (catches corrupt Torch trees on Windows)."""
+    py = Path(python_bin)
+    if not py.is_file():
+        return False
+    load_timeout = qwen_runtime_load_timeout() if timeout is None else timeout
+    try:
+        proc = subprocess.run(
+            [str(py), "-c", _QWEN_RUNTIME_LOAD_PROBE],
+            capture_output=True,
+            text=True,
+            timeout=load_timeout,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "").lower()
+        if "corrupted and unreadable" in err or "winerror 1392" in err:
+            return False
+    return proc.returncode == 0
+
+
+def qwen_runtime_status(*, deep: bool = False) -> tuple[bool, str]:
+    """Readiness check. Use deep=True to import qwen_tts (slow; catches corrupt Torch)."""
+    from tts.errors import runtime_corrupted_message
+
     py = find_qwen_python()
     if py is None:
         return False, package_missing_message()
     if not qwen_tts_importable(py):
         return False, package_missing_message()
+    if deep and not qwen_runtime_loadable(py):
+        return False, runtime_corrupted_message()
     # find_spec confirms the package is installed without loading Torch / qwen_tts.
     if model_is_installed(CLONE_MODEL_ID):
         return True, "✓ Qwen 1.7B Voice Cloning Ready"
