@@ -52,6 +52,7 @@ from providers.router import SceneAssetRouter
 from scene_recovery import SceneRecoveryTracker, summarize_assets
 from scene_qa import SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
 from manual_clip import FILE_DIALOG_TYPES, ManualClipError, validate_local_media
+from project_picker import ProjectPickerDialog, project_dicts_from_workspaces
 from project_workspace import (
     asset_belongs_to_project,
     create_project,
@@ -538,12 +539,17 @@ class _QueueWriter:
             self._buf = ""
 
 
+_STEPPER_STEPS = ("Script", "Scenes", "Assets", "Voice", "Render")
+_STEPPER_DONE = "#2F8F6E"  # muted success
+_PASTE_SCRIPT_MODES = frozenset({"Paste script", "Paste script", "AI Script"})
+
+
 class VideoGeneratorApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Semantic YT Studio")
-        self.geometry("1240x780")
-        self.minsize(960, 620)
+        self.geometry("1280x820")
+        self.minsize(900, 600)
         self._qa_ui_dirty = False
         self._qa_ui_scheduled = False
         self._qa_persist_at = 0.0
@@ -552,6 +558,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._log_backlog: list[str] = []
         self._scene_row_signature: tuple = ()
         self._selected_scene_key: str | None = None
+        self._cta_action = "picker"
+        self._stepper_index = 0
+        self._stepper_compact = False
+        self._chip_ellipsis = False
+        self._project_chip_full = "No project"
+        self._project_picker = None
+        self._optional_open = False
 
         # Dark cinematic theme — premium production workspace
         ctk.set_appearance_mode("Dark")
@@ -593,79 +606,29 @@ class VideoGeneratorApp(ctk.CTk):
         # Seed bundled SFX after first paint so startup isn't blocked on copy I/O.
         # ensure_sfx_library is idempotent; also re-checked before smart-editing mix.
         self.after_idle(self._ensure_sfx_ready)
+        self.after_idle(self._open_project_picker)
     # ---------- UI ----------
 
     def _build_ui(self) -> None:
         self._set_window_icon()
-
-        # Top bar + 2 columns (script | production)
-        self.grid_columnconfigure(0, minsize=360, weight=0)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1, minsize=200)
+        self.grid_columnconfigure(1, weight=2, minsize=320)
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
+        self._init_ui_vars()
+        self._build_topbar()
+        self._build_left_sections()
+        self._build_scenes_workspace()
 
-        # ── Left panel ───────────────────────────────────────────────────
-        left = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
-        left.grid(row=1, column=0, sticky="nsew")
-        left.grid_columnconfigure(0, weight=1)
-        left.grid_rowconfigure(1, weight=1)
-        self._left_panel = left
-
-        # Brand header
-        brand = ctk.CTkFrame(left, fg_color="transparent")
-        brand.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 6))
-        brand.grid_columnconfigure(1, weight=1)
-
-        logo_path = _logo_path()
-        self._logo_ctk = None
-        if logo_path is not None:
-            self._logo_ctk, _ = _logo_ctk_image(48)
-            if self._logo_ctk is not None:
-                ctk.CTkLabel(
-                    brand, image=self._logo_ctk, text="",
-                    fg_color="transparent",
-                ).grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 12))
-
-        ctk.CTkLabel(
-            brand,
-            text="Semantic YT Studio",
-            font=ctk.CTkFont(size=17, weight="bold"),
-            text_color=_TEXT,
-            fg_color="transparent",
-        ).grid(row=0, column=1, sticky="w")
-        ctk.CTkLabel(
-            brand,
-            text="AI Video Production",
-            font=ctk.CTkFont(size=11),
-            text_color=_MUTED,
-            fg_color="transparent",
-        ).grid(row=1, column=1, sticky="w")
-
-        # Thin divider
-        ctk.CTkFrame(left, fg_color=_BORDER, height=1, corner_radius=0).grid(
-            row=1, column=0, sticky="ew", padx=0, pady=0
-        )
-
-        # Scrollable inputs area
-        scroll = ctk.CTkScrollableFrame(
-            left,
-            fg_color="transparent",
-            scrollbar_button_color=_BORDER,
-            scrollbar_button_hover_color=_ACCENT,
-        )
-        scroll.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
-        scroll.grid_columnconfigure(0, weight=1)
-        self._scroll = scroll
-
-        # ── Variables ────────────────────────────────────────────────────
-        self.csv_var     = ctk.StringVar()
-        self.audio_var   = ctk.StringVar()
-        self.images_var  = ctk.StringVar()
-        self.bg_var      = ctk.StringVar()
-        self.output_var  = ctk.StringVar()
-        self.model_var   = ctk.StringVar(value="small")
+    def _init_ui_vars(self) -> None:
+        self.csv_var = ctk.StringVar()
+        self.audio_var = ctk.StringVar()
+        self.images_var = ctk.StringVar()
+        self.bg_var = ctk.StringVar()
+        self.output_var = ctk.StringVar()
+        self.model_var = ctk.StringVar(value="small")
         self.captions_var = ctk.BooleanVar(value=False)
-        self.zoom_var    = ctk.BooleanVar(value=True)
+        self.zoom_var = ctk.BooleanVar(value=True)
         self.smart_text_effects_var = ctk.BooleanVar(
             value=bool(self._settings.get("smart_text_effects", DEFAULT_SETTINGS["text_effects"]))
         )
@@ -692,8 +655,9 @@ class VideoGeneratorApp(ctk.CTk):
             value=self._settings.get("youtube_transcript_matching", True)
         )
         self.current_project_title_var = ctk.StringVar(value="No project")
-        self.current_project_meta_var = ctk.StringVar(value="Click New Project to start a video")
+        self.current_project_meta_var = ctk.StringVar(value="Choose a project to start")
         self.project_menu_var = ctk.StringVar(value="(none)")
+        self._project_chip_var = ctk.StringVar(value="No project")
         self._project_labels: dict[str, str] = {}
         self.stage_var = ctk.StringVar(value="SCRIPT")
         self.prod_ready_var = ctk.StringVar(value="")
@@ -701,108 +665,142 @@ class VideoGeneratorApp(ctk.CTk):
         self.prod_queued_var = ctk.StringVar(value="")
         self.prod_needs_var = ctk.StringVar(value="")
         self.prod_mix_var = ctk.StringVar(value="")
-        self.hint_var = ctk.StringVar(value="Create a project, then paste a script or import a CSV.")
-
-        topbar = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
-        topbar.grid(row=0, column=0, columnspan=2, sticky="ew")
-        topbar.grid_columnconfigure(3, weight=1)
-        ctk.CTkFrame(topbar, fg_color=_BORDER, height=1, corner_radius=0).grid(
-            row=2, column=0, columnspan=8, sticky="ew"
-        )
-        ctk.CTkLabel(
-            topbar, text="PROJECT", font=ctk.CTkFont(size=9, weight="bold"),
-            text_color=_MUTED,
-        ).grid(row=0, column=0, sticky="w", padx=(16, 6), pady=(8, 0))
-        self._project_menu = ctk.CTkOptionMenu(
-            topbar,
-            variable=self.project_menu_var,
-            values=["＋ New Project", "Open Project…", "(none)"],
-            command=self._on_project_menu,
-            width=240,
-            height=28,
-            fg_color=_CARD,
-            button_color=_BORDER,
-            button_hover_color=_ACCENT,
-            text_color=_TEXT,
-            dropdown_fg_color=_CARD,
-            dropdown_text_color=_TEXT,
-            dropdown_hover_color=_BORDER,
-        )
-        self._project_menu.grid(row=1, column=0, sticky="w", padx=(16, 8), pady=(0, 8))
-        ctk.CTkLabel(
-            topbar, textvariable=self.current_project_title_var,
-            font=ctk.CTkFont(size=13, weight="bold"), text_color=_TEXT,
-        ).grid(row=0, column=1, sticky="w", padx=(8, 16), pady=(8, 0))
-        ctk.CTkLabel(
-            topbar, textvariable=self.current_project_meta_var,
-            font=ctk.CTkFont(size=11), text_color=_MUTED,
-        ).grid(row=1, column=1, sticky="w", padx=(8, 16), pady=(0, 8))
-        ctk.CTkLabel(
-            topbar, textvariable=self.stage_var,
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=_ACCENT,
-        ).grid(row=0, column=2, sticky="w", padx=8, pady=(8, 0))
+        self.hint_var = ctk.StringVar(value="Choose a project to get started.")
         self.status_var = ctk.StringVar(value="Ready")
-        ctk.CTkLabel(
-            topbar, textvariable=self.status_var, font=ctk.CTkFont(size=11), text_color=_MUTED,
-        ).grid(row=1, column=2, sticky="w", padx=8, pady=(0, 8))
-        ctk.CTkLabel(
-            topbar, textvariable=self.prod_ready_var,
-            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT,
-        ).grid(row=0, column=3, sticky="w", padx=8, pady=(8, 0))
         self.qa_counter_var = ctk.StringVar(value="")
-        self.issues_toggle_btn = ctk.CTkButton(
-            topbar, textvariable=self.qa_counter_var, width=150, height=28,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_DANGER, hover_color=_DANGER_BG, font=ctk.CTkFont(size=11, weight="bold"),
-            command=self._toggle_issues,
-        )
-        self.issues_toggle_btn.grid(row=0, column=4, rowspan=2, padx=6, pady=8)
-        self.top_analyze_btn = ctk.CTkButton(
-            topbar, text="Analyze", width=88, height=28,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._on_analyze_script,
-        )
-        self.top_analyze_btn.grid(row=0, column=5, rowspan=2, padx=4, pady=8)
-        ctk.CTkButton(
-            topbar, text="Settings", width=80, height=28,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._open_settings,
-        ).grid(row=0, column=7, rowspan=2, padx=(4, 16), pady=8)
-        self.progress = ctk.CTkProgressBar(
-            topbar, height=5, progress_color=_ACCENT, fg_color=_BORDER, corner_radius=3,
-        )
-        self.progress.grid(row=3, column=0, columnspan=8, sticky="ew", padx=16, pady=(0, 4))
-        self.progress.set(0)
         self.prod_error_var = ctk.StringVar(value="")
-        ctk.CTkLabel(
-            topbar, textvariable=self.prod_error_var,
-            font=ctk.CTkFont(size=10), text_color=_WARNING, anchor="w",
-        ).grid(row=4, column=0, columnspan=8, sticky="w", padx=16, pady=(0, 6))
-
-        # Flow Image Settings — exactly the options flow-engine/config.js supports
-        # (see FLOW_IMAGE_MODELS etc. above). Video settings live per-Video-Profile
-        # instead (see _get_video_profiles) since video needs its own account pool.
+        self.scenes_summary_var = ctk.StringVar(value="")
+        self.qa_health_var = ctk.StringVar(value="")
+        self.error_pos_var = ctk.StringVar(value="0 / 0")
+        self.scene_search_var = ctk.StringVar(value="")
+        self.qa_bulk_progress_var = ctk.StringVar(value="")
+        self.issues_header_var = ctk.StringVar(value="No issues")
+        self.details_text_var = ctk.StringVar(value="")
+        self.voiceover_active_var = ctk.StringVar(value="No voiceover yet — needed to render")
+        self.voice_play_progress_var = ctk.StringVar(value="")
         flow_saved = self._settings.get("flow_settings", {})
         self.flow_image_model_var = ctk.StringVar(value=flow_saved.get("model", FLOW_IMAGE_MODELS[1][0]))
         self.flow_image_aspect_var = ctk.StringVar(
             value=flow_saved.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0])
         )
-        # Live-updated whenever the Flow engine reports its account list, so the
-        # Video Profile editor can show real account names to assign, not just IDs.
         self._known_flow_accounts: list[dict] = []
+        self._logo_ctk = None
+        logo_path = _logo_path()
+        if logo_path is not None:
+            self._logo_ctk, _ = _logo_ctk_image(32)
+
+    def _build_topbar(self) -> None:
+        topbar = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
+        topbar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        topbar.grid_columnconfigure(1, weight=1)
+        self._topbar = topbar
+
+        left_zone = ctk.CTkFrame(topbar, fg_color="transparent")
+        left_zone.grid(row=0, column=0, sticky="w", padx=(12, 8), pady=8)
+        if self._logo_ctk is not None:
+            ctk.CTkLabel(
+                left_zone, image=self._logo_ctk, text="", fg_color="transparent",
+            ).pack(side="left", padx=(0, 8))
+        chip = ctk.CTkFrame(
+            left_zone, fg_color=_CARD, corner_radius=8, border_width=1, border_color=_BORDER,
+        )
+        chip.pack(side="left", padx=(0, 6))
+        self._project_chip_label = ctk.CTkLabel(
+            chip, textvariable=self._project_chip_var,
+            font=ctk.CTkFont(size=13, weight="bold"), text_color=_TEXT,
+        )
+        self._project_chip_label.pack(side="left", padx=10, pady=6)
+        self._switch_btn = ctk.CTkButton(
+            left_zone, text="Switch", width=72, height=30,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=12),
+            command=self._open_project_picker,
+        )
+        self._switch_btn.pack(side="left")
+
+        mid = ctk.CTkFrame(topbar, fg_color="transparent")
+        mid.grid(row=0, column=1, sticky="ew", padx=8)
+        mid.grid_columnconfigure(0, weight=1)
+        self._stepper_full = ctk.CTkFrame(mid, fg_color="transparent")
+        self._stepper_full.grid(row=0, column=0)
+        self._stepper_labels: list[ctk.CTkLabel] = []
+        for i, name in enumerate(_STEPPER_STEPS):
+            if i:
+                ctk.CTkLabel(
+                    self._stepper_full, text="→", font=ctk.CTkFont(size=11),
+                    text_color=_BORDER,
+                ).pack(side="left", padx=4)
+            lbl = ctk.CTkLabel(
+                self._stepper_full, text=name,
+                font=ctk.CTkFont(size=12, weight="bold"), text_color=_MUTED,
+            )
+            lbl.pack(side="left")
+            self._stepper_labels.append(lbl)
+        self._stepper_compact_label = ctk.CTkLabel(
+            mid, text="Step 1 of 5 · Script",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_ACCENT,
+        )
+        self._stepper_compact_label.grid(row=0, column=0)
+        self._stepper_compact_label.grid_remove()
+
+        right_zone = ctk.CTkFrame(topbar, fg_color="transparent")
+        right_zone.grid(row=0, column=2, sticky="e", padx=(8, 12), pady=8)
+        self.issues_toggle_btn = ctk.CTkButton(
+            right_zone, textvariable=self.qa_counter_var, width=88, height=30,
+            fg_color="transparent", border_width=1, border_color=_DANGER,
+            text_color=_DANGER, hover_color=_DANGER_BG, font=ctk.CTkFont(size=11, weight="bold"),
+            command=self._toggle_issues,
+        )
+        self.issues_toggle_btn.pack(side="left", padx=(0, 6))
+        self.issues_toggle_btn.pack_forget()
+        self._settings_btn = ctk.CTkButton(
+            right_zone, text="⚙", width=36, height=30,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=16),
+            command=self._open_settings,
+        )
+        self._settings_btn.pack(side="left")
+
+        # Compatibility no-ops: option menu and top Analyze were removed.
+        self._project_menu = None
+        self.top_analyze_btn = None
+
+        self.progress = ctk.CTkProgressBar(
+            topbar, height=4, progress_color=_ACCENT, fg_color=_BORDER, corner_radius=2,
+        )
+        self.progress.grid(row=1, column=0, columnspan=3, sticky="ew")
+        self.progress.set(0)
+
+        topbar.bind("<Configure>", self._on_topbar_configure, add="+")
+        self._refresh_stepper()
+
+    def _build_left_sections(self) -> None:
+        left = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
+        left.grid(row=1, column=0, sticky="nsew")
+        left.grid_columnconfigure(0, weight=1)
+        left.grid_rowconfigure(0, weight=1)
+        self._left_panel = left
+
+        scroll = ctk.CTkScrollableFrame(
+            left,
+            fg_color="transparent",
+            scrollbar_button_color=_BORDER,
+            scrollbar_button_hover_color=_ACCENT,
+        )
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        scroll.grid_columnconfigure(0, weight=1)
+        self._scroll = scroll
 
         mode_wrap = ctk.CTkFrame(scroll, fg_color="transparent")
-        mode_wrap.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 0))
+        mode_wrap.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 0))
+        mode_wrap.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            mode_wrap, text="SCRIPT", font=ctk.CTkFont(size=9, weight="bold"),
-            text_color=_MUTED, anchor="w",
-        ).pack(anchor="w")
+            mode_wrap, text="Script", font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w")
         self._mode_seg = ctk.CTkSegmentedButton(
             mode_wrap,
-            values=["Manual CSV", "AI Script"],
-            command=self._on_script_mode,
+            values=["Paste script", "Import CSV"],
             fg_color=_BORDER,
             selected_color=_ACCENT,
             selected_hover_color=_ACCENT_HOV,
@@ -811,44 +809,55 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_TEXT,
             font=ctk.CTkFont(size=12, weight="bold"),
         )
-        self._mode_seg.pack(fill="x", pady=(6, 0))
-        self._mode_seg.set("Manual CSV")
+        self._mode_seg.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self._mode_seg.set("Paste script")
 
         self._csv_block = ctk.CTkFrame(scroll, fg_color="transparent")
-        self._csv_block.grid(row=1, column=0, sticky="ew", padx=16)
+        self._csv_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
         self._csv_block.grid_columnconfigure(0, weight=1)
-        self._path_row(0, "Script CSV", self.csv_var, self._browse_csv, parent=self._csv_block)
+        self._path_row(
+            0, "", self.csv_var, self._browse_csv, parent=self._csv_block,
+            placeholder_text="Choose a visual-plan CSV…",
+        )
+        self._csv_block.grid_remove()
 
         self._ai_block = ctk.CTkFrame(
             scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
         )
         self._ai_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
         self._ai_block.grid_columnconfigure(0, weight=1)
-        ai_head = ctk.CTkFrame(self._ai_block, fg_color="transparent")
-        ai_head.grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 4))
-        ai_head.grid_columnconfigure(1, weight=1)
-        if getattr(self, "_logo_ctk", None) is not None:
-            ctk.CTkLabel(ai_head, image=self._logo_ctk, text="").grid(row=0, column=0, rowspan=2, padx=(0, 10))
-        ctk.CTkLabel(
-            ai_head, text="AI Script", font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT,
-        ).grid(row=0, column=1, sticky="w")
-        ctk.CTkLabel(
-            ai_head, text="Gemini 3.6 Flash visual director", font=ctk.CTkFont(size=11), text_color=_MUTED,
-        ).grid(row=1, column=1, sticky="w")
         self._gemini_status_var = ctk.StringVar(value="")
         self._gemini_status_label = ctk.CTkLabel(
             self._ai_block, textvariable=self._gemini_status_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=280, justify="left",
+            text_color=_MUTED, wraplength=200, justify="left", anchor="w",
         )
-        self._gemini_status_label.grid(row=1, column=0, sticky="ew", padx=12)
+        self._gemini_status_label.grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 0))
+        self._bind_responsive_wrap(self._gemini_status_label, pad=24)
+
+        script_host = ctk.CTkFrame(self._ai_block, fg_color="transparent")
+        script_host.grid(row=1, column=0, sticky="ew", padx=12, pady=(6, 8))
+        script_host.grid_columnconfigure(0, weight=1)
         self.script_box = ctk.CTkTextbox(
-            self._ai_block, height=150, fg_color=_BG, border_color=_BORDER, border_width=1,
+            script_host, height=150, fg_color=_BG, border_color=_BORDER, border_width=1,
             text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="word",
         )
-        self.script_box.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 8))
-        self.script_box.insert("1.0", "Paste your narration script here...")
+        self.script_box.grid(row=0, column=0, sticky="ew")
+        self._script_watermark = ctk.CTkLabel(
+            script_host,
+            text="Paste your narration script here…",
+            font=ctk.CTkFont(size=12),
+            text_color=_MUTED,
+            anchor="nw",
+            justify="left",
+        )
+        self._script_watermark.place(in_=self.script_box, x=10, y=8)
+        self.script_box.bind("<KeyRelease>", lambda _e: self._sync_script_watermark())
+        self.script_box.bind("<ButtonRelease-1>", lambda _e: self._sync_script_watermark())
+        self.script_box.bind("<FocusIn>", lambda _e: self._sync_script_watermark())
+        self.script_box.bind("<FocusOut>", lambda _e: self._sync_script_watermark())
+
         ai_btns = ctk.CTkFrame(self._ai_block, fg_color="transparent")
-        ai_btns.grid(row=3, column=0, sticky="ew", padx=12, pady=(0, 12))
+        ai_btns.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
         ai_btns.grid_columnconfigure(0, weight=1)
         self.analyze_btn = ctk.CTkButton(
             ai_btns, text="Analyze Script", height=34, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
@@ -856,33 +865,34 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_analyze_script,
         )
         self.analyze_btn.grid(row=0, column=0, sticky="ew")
-        ctk.CTkButton(
-            ai_btns, text="Export CSV", width=100, height=34, fg_color="transparent",
-            border_width=1, border_color=_BORDER, text_color=_TEXT, hover_color=_CARD_HOVER,
+        self._export_csv_btn = ctk.CTkButton(
+            ai_btns, text="Export CSV", width=88, height=28, fg_color="transparent",
+            border_width=0, text_color=_ACCENT, hover_color=_CARD_HOVER,
+            font=ctk.CTkFont(size=12, underline=True),
             command=self._export_ai_csv,
-        ).grid(row=0, column=1, padx=(8, 0))
-        self._ai_block.grid_remove()
+        )
+        self._export_csv_btn.grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self._export_csv_btn.grid_remove()
         self._refresh_gemini_status()
-
 
         voice_panel = ctk.CTkFrame(
             scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
         )
         voice_panel.grid(row=2, column=0, sticky="ew", padx=16, pady=(10, 0))
         voice_panel.grid_columnconfigure(0, weight=1)
+        self._voice_panel = voice_panel
         ctk.CTkLabel(
-            voice_panel, text="VOICEOVER",
-            font=ctk.CTkFont(size=9, weight="bold"), text_color=_MUTED, anchor="w",
+            voice_panel, text="Voiceover",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
         ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
-        ctk.CTkLabel(
-            voice_panel,
-            text="Import your narration audio — used for the final video.",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=280, justify="left", anchor="w",
-        ).grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 0))
+        self._path_row(
+            1, "", self.audio_var, self._browse_audio, parent=voice_panel,
+            placeholder_text="Choose narration audio (MP3, WAV, M4A)…",
+        )
 
         voice_play_row = ctk.CTkFrame(voice_panel, fg_color="transparent")
-        voice_play_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(10, 4))
-        voice_play_row.grid_columnconfigure((0, 1), weight=1)
+        voice_play_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 4))
+        voice_play_row.grid_columnconfigure(0, weight=1)
         self._play_voice_btn = ctk.CTkButton(
             voice_play_row,
             text="▶  Play",
@@ -896,21 +906,8 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._toggle_voice_playback,
             state="disabled",
         )
-        self._play_voice_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
-        self._stop_voice_btn = ctk.CTkButton(
-            voice_play_row,
-            text="■  Stop",
-            height=30,
-            fg_color="transparent",
-            border_width=1,
-            border_color=_BORDER,
-            text_color=_TEXT,
-            hover_color=_CARD_HOVER,
-            font=ctk.CTkFont(size=12),
-            command=self._stop_voice_playback,
-            state="disabled",
-        )
-        self._stop_voice_btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        self._play_voice_btn.grid(row=0, column=0, sticky="w")
+        self._stop_voice_btn = None
         self._voice_play_proc: subprocess.Popen | None = None
         self._voice_play_t0: float | None = None
         self._voice_play_duration = 0.0
@@ -927,7 +924,7 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self.voice_play_progress.grid(row=3, column=0, sticky="ew", padx=12, pady=(0, 2))
         self.voice_play_progress.set(0)
-        self.voice_play_progress_var = ctk.StringVar(value="")
+        self.voice_play_progress.grid_remove()
         self.voice_play_progress_label = ctk.CTkLabel(
             voice_panel,
             textvariable=self.voice_play_progress_var,
@@ -935,41 +932,46 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_MUTED,
             anchor="w",
         )
-        self.voice_play_progress_label.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 10))
-        self._refresh_voice_playback_buttons()
-
-
-        self._path_row(3, "Voiceover Audio (USED FOR VIDEO)", self.audio_var, self._browse_audio)
-        self.voiceover_active_var = ctk.StringVar(value="Video has no voiceover yet.")
+        self.voice_play_progress_label.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 4))
+        self.voice_play_progress_label.grid_remove()
         self._voiceover_active_label = ctk.CTkLabel(
-            scroll,
+            voice_panel,
             textvariable=self.voiceover_active_var,
             font=ctk.CTkFont(size=11),
-            text_color=_ACCENT,
-            wraplength=280,
+            text_color=_MUTED,
+            wraplength=200,
             justify="left",
             anchor="w",
         )
-        self._voiceover_active_label.grid(row=4, column=0, sticky="ew", padx=28, pady=(2, 0))
-        self._path_row(5, "Background Music (optional)", self.bg_var, self._browse_bg, clearable=True)
-        self._path_row(6, "Final video (this project)", self.output_var, self._browse_output)
-        # Output path is project-managed — keep the widget for binding, hide it.
-        try:
-            self._scroll.grid_slaves(row=6, column=0)[0].grid_remove()
-        except (IndexError, Exception):
-            pass
+        self._voiceover_active_label.grid(row=5, column=0, sticky="ew", padx=12, pady=(0, 10))
+        self._bind_responsive_wrap(self._voiceover_active_label, pad=24)
+        self._refresh_voice_playback_buttons()
 
-        # Options row (Whisper / captions live in Settings — hidden on the main screen)
+        self._optional_toggle = ctk.CTkButton(
+            scroll, text="Optional +", height=28, width=100, anchor="w",
+            fg_color="transparent", hover_color=_CARD_HOVER,
+            text_color=_MUTED, font=ctk.CTkFont(size=12),
+            command=self._toggle_optional_section,
+        )
+        self._optional_toggle.grid(row=3, column=0, sticky="w", padx=16, pady=(8, 0))
+        self._optional_block = ctk.CTkFrame(scroll, fg_color="transparent")
+        self._optional_block.grid(row=4, column=0, sticky="ew", padx=16)
+        self._optional_block.grid_columnconfigure(0, weight=1)
+        self._path_row(
+            0, "Background music", self.bg_var, self._browse_bg,
+            clearable=True, parent=self._optional_block,
+            placeholder_text="Optional background track…",
+        )
+        self._optional_block.grid_remove()
+
         opts = ctk.CTkFrame(scroll, fg_color="transparent")
         opts.grid(row=7, column=0, sticky="ew", padx=16, pady=(12, 4))
         opts.grid_columnconfigure(1, weight=1)
-
         ctk.CTkLabel(
             opts, text="Whisper Model",
             font=ctk.CTkFont(size=11),
             text_color=_MUTED,
         ).grid(row=0, column=0, sticky="w")
-
         ctk.CTkOptionMenu(
             opts,
             variable=self.model_var,
@@ -983,7 +985,6 @@ class VideoGeneratorApp(ctk.CTk):
             dropdown_text_color=_TEXT,
             dropdown_hover_color=_BORDER,
         ).grid(row=0, column=1, sticky="w", padx=(10, 0))
-
         ctk.CTkSwitch(
             opts,
             text="Ken Burns Zoom",
@@ -996,7 +997,6 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_COPPER,
             font=ctk.CTkFont(size=12),
         ).grid(row=0, column=2, sticky="e", padx=(14, 0))
-
         ctk.CTkSwitch(
             opts,
             text="Captions",
@@ -1011,35 +1011,37 @@ class VideoGeneratorApp(ctk.CTk):
         ).grid(row=0, column=3, sticky="e", padx=(14, 0))
         opts.grid_remove()
 
-        # Bottom bar: one primary action
         bottom = ctk.CTkFrame(left, fg_color=_PANEL, corner_radius=0)
-        bottom.grid(row=2, column=0, sticky="ew")
+        bottom.grid(row=1, column=0, sticky="ew")
         bottom.grid_columnconfigure(0, weight=1)
-
         ctk.CTkFrame(bottom, fg_color=_BORDER, height=1, corner_radius=0).grid(
             row=0, column=0, sticky="ew"
         )
-        ctk.CTkLabel(
+        self._hint_label = ctk.CTkLabel(
             bottom, textvariable=self.hint_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=280, justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=16, pady=(8, 0))
+            text_color=_MUTED, wraplength=200, justify="left", anchor="w",
+        )
+        self._hint_label.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
+        self._bind_responsive_wrap(self._hint_label, pad=32)
 
         cta_row = ctk.CTkFrame(bottom, fg_color="transparent")
         cta_row.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 12))
         cta_row.grid_columnconfigure(0, weight=1)
+        self._cta_row = cta_row
 
         self.generate_btn = ctk.CTkButton(
             cta_row,
-            text="Generate Assets",
+            text="Choose project",
             height=40,
             fg_color=_ACCENT,
             hover_color=_ACCENT_HOV,
             text_color=_ACCENT_DARK,
             font=ctk.CTkFont(size=14, weight="bold"),
             corner_radius=6,
-            command=self._on_generate,
+            command=self._on_primary_cta,
         )
         self.generate_btn.grid(row=0, column=0, sticky="ew")
+        self._mode_seg.configure(command=self._on_script_mode)
 
         self.cancel_btn = ctk.CTkButton(
             cta_row,
@@ -1056,7 +1058,7 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_cancel,
         )
 
-        # ── Right panel (scenes) ────────────────────────────────────────
+    def _build_scenes_workspace(self) -> None:
         right = ctk.CTkFrame(self, fg_color=_PANEL_ALT, corner_radius=0)
         right.grid(row=1, column=1, sticky="nsew")
         right.grid_columnconfigure(0, weight=1)
@@ -1064,174 +1066,144 @@ class VideoGeneratorApp(ctk.CTk):
         self._right_panel = right
 
         act_header = ctk.CTkFrame(right, fg_color="transparent")
-        act_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(10, 0))
+        act_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 0))
         act_header.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
-            act_header, text="ASSETS  ·  REVIEW",
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+            act_header, text="Scenes",
+            font=ctk.CTkFont(size=16, weight="bold"), text_color=_TEXT,
         ).grid(row=0, column=0, sticky="w")
-        self.scenes_summary_var = ctk.StringVar(value="No visual plan yet")
-        ctk.CTkLabel(
+        self._scenes_counts_label = ctk.CTkLabel(
             act_header, textvariable=self.scenes_summary_var,
-            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT,
-        ).grid(row=0, column=1, sticky="w", padx=10)
+            font=ctk.CTkFont(size=12), text_color=_MUTED,
+        )
+        self._scenes_counts_label.grid(row=0, column=1, sticky="w", padx=10)
+        self._error_nav = ctk.CTkFrame(act_header, fg_color="transparent")
+        self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 6))
         self.goto_error_btn = ctk.CTkButton(
-            act_header, text="Go to Error", width=100, height=26,
+            self._error_nav, text="Go to Error", width=100, height=26,
             fg_color=_WARNING, hover_color="#D97706", text_color="#0B0D10",
             font=ctk.CTkFont(size=11, weight="bold"), corner_radius=4,
             command=self._go_to_error,
         )
-        self.goto_error_btn.grid(row=0, column=2, sticky="e", padx=(0, 6))
-        self.cleanup_assets_btn = ctk.CTkButton(
-            act_header, text="Cleanup", width=150, height=26,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=11),
-            command=self._on_cleanup_downloaded_assets,
-            state="disabled",
-        )
-        self.cleanup_assets_btn.grid(row=0, column=3, sticky="e", padx=(0, 6))
-        self.log_toggle_btn = ctk.CTkButton(
-            act_header, text="Activity ▸", width=90, height=26,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=11),
-            command=self._toggle_activity_log,
-        )
-        self.log_toggle_btn.grid(row=0, column=4, sticky="e")
-
-        # ── Scenes ────────────────────────────────────────────────────────
-        scenes_wrap = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
-        scenes_wrap.grid(row=1, column=0, sticky="nsew", padx=16, pady=(8, 0))
-        scenes_wrap.grid_columnconfigure(0, weight=1)
-        scenes_wrap.grid_rowconfigure(4, weight=1)
-
-        prod_panel = ctk.CTkFrame(scenes_wrap, fg_color=_PANEL, corner_radius=6, border_width=1, border_color=_BORDER)
-        prod_panel.pack(fill="x", padx=12, pady=(10, 6))
-        ctk.CTkLabel(
-            prod_panel, text="VIDEO GENERATION", font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=_MUTED, anchor="w",
-        ).pack(fill="x", padx=10, pady=(8, 2))
-        stats_row = ctk.CTkFrame(prod_panel, fg_color="transparent")
-        stats_row.pack(fill="x", padx=10, pady=(0, 8))
-        ctk.CTkLabel(
-            stats_row, textvariable=self.prod_ready_var,
-            font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w",
-        ).pack(side="left", padx=(0, 12))
-        ctk.CTkLabel(
-            stats_row, textvariable=self.prod_processing_var,
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=_PROCESSING, anchor="w",
-        ).pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(
-            stats_row, textvariable=self.prod_queued_var,
-            font=ctk.CTkFont(size=11), text_color=_QUEUED, anchor="w",
-        ).pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(
-            stats_row, textvariable=self.prod_needs_var,
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=_WARNING, anchor="w",
-        ).pack(side="left")
-        ctk.CTkLabel(
-            prod_panel, textvariable=self.prod_mix_var,
-            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
-            wraplength=720, justify="left",
-        ).pack(fill="x", padx=10, pady=(0, 8))
-
-        qa_health_row = ctk.CTkFrame(scenes_wrap, fg_color="transparent")
-        qa_health_row.pack(fill="x", padx=12, pady=(0, 0))
-        self.qa_health_var = ctk.StringVar(value="")
-        ctk.CTkLabel(
-            qa_health_row, textvariable=self.qa_health_var,
-            font=ctk.CTkFont(size=12), text_color=_MUTED, anchor="w",
-        ).pack(side="left")
+        self.goto_error_btn.pack(side="left", padx=(0, 6))
         self.prev_error_btn = ctk.CTkButton(
-            qa_health_row, text="←", width=32, height=24,
+            self._error_nav, text="←", width=32, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
             corner_radius=4, command=self._prev_error,
         )
-        self.prev_error_btn.pack(side="right")
-        self.error_pos_var = ctk.StringVar(value="0 / 0")
+        self.prev_error_btn.pack(side="left")
         ctk.CTkLabel(
-            qa_health_row, textvariable=self.error_pos_var, font=ctk.CTkFont(size=11), text_color=_MUTED, width=48,
-        ).pack(side="right", padx=4)
+            self._error_nav, textvariable=self.error_pos_var, font=ctk.CTkFont(size=11),
+            text_color=_MUTED, width=48,
+        ).pack(side="left", padx=4)
         self.next_error_btn = ctk.CTkButton(
-            qa_health_row, text="→", width=32, height=24,
+            self._error_nav, text="→", width=32, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=10),
             corner_radius=4, command=self._next_error,
         )
-        self.next_error_btn.pack(side="right")
+        self.next_error_btn.pack(side="left")
+        self._error_nav.grid_remove()
 
-        qa_filter = ctk.CTkFrame(scenes_wrap, fg_color="transparent")
-        qa_filter.pack(fill="x", padx=12, pady=(4, 4))
-        self.scene_search_var = ctk.StringVar(value="")
-        self.scene_search_entry = ctk.CTkEntry(
-            qa_filter, textvariable=self.scene_search_var, placeholder_text="Search # / narration / status",
-            height=26, border_color=_BORDER, fg_color=_BG,
+        self._overflow_btn = ctk.CTkButton(
+            act_header, text="⋯", width=34, height=26,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=16),
+            command=self._open_workspace_overflow,
         )
-        self.scene_search_entry.pack(side="left", fill="x", expand=True)
-        self.scene_search_var.trace_add("write", lambda *_: self._apply_scene_filter())
+        self._overflow_btn.grid(row=0, column=3, sticky="e")
 
-        self.qa_bulk_progress_var = ctk.StringVar(value="")
+        # Hidden compatibility widgets (state still updated by existing helpers).
+        self.cleanup_assets_btn = ctk.CTkButton(
+            right, text="Cleanup", width=1, height=1,
+            command=self._on_cleanup_downloaded_assets, state="disabled",
+        )
+        self.log_toggle_btn = ctk.CTkButton(
+            right, text="Activity ▸", width=1, height=1,
+            command=self._toggle_activity_log,
+        )
+
+        scenes_wrap = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
+        scenes_wrap.grid(row=1, column=0, sticky="nsew", padx=16, pady=(8, 0))
+        scenes_wrap.grid_columnconfigure(0, weight=1)
+        scenes_wrap.grid_rowconfigure(2, weight=1)
+        self._scenes_wrap = scenes_wrap
+
+        # Compatibility: filter API still exists but search UI was removed.
+        self.scene_search_entry = None
+        self.scene_search_var.set("")
+
         ctk.CTkLabel(
             scenes_wrap, textvariable=self.qa_bulk_progress_var,
             font=ctk.CTkFont(size=11), text_color=_COPPER, anchor="w",
-        ).pack(fill="x", padx=12)
+        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 0))
+
+        self._scenes_empty_label = ctk.CTkLabel(
+            scenes_wrap,
+            text="Paste a script and analyze it, or import a visual-plan CSV, to see scenes here.",
+            text_color=_MUTED, font=ctk.CTkFont(size=13), justify="left", anchor="w",
+            wraplength=200,
+        )
+        self._scenes_empty_label.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 4))
+        self._bind_responsive_wrap(self._scenes_empty_label, pad=32)
 
         self._scenes_list = ctk.CTkScrollableFrame(
-            scenes_wrap, fg_color="transparent", height=280,
+            scenes_wrap, fg_color="transparent",
             scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
         )
-        self._scenes_list.pack(fill="both", expand=True, padx=8, pady=(0, 4))
+        self._scenes_list.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 4))
         self._scenes_list.grid_columnconfigure(0, weight=1)
 
         details_col = ctk.CTkFrame(scenes_wrap, fg_color=_BG, corner_radius=4, border_width=1, border_color=_BORDER)
-        details_col.pack(fill="x", padx=8, pady=(0, 8))
+        self._details_panel = details_col
         ctk.CTkLabel(
-            details_col, text="SELECTED SCENE", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED, anchor="w",
+            details_col, text="Selected scene", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=_MUTED, anchor="w",
         ).pack(fill="x", padx=8, pady=(6, 0))
-        self.details_text_var = ctk.StringVar(value="Select a scene to inspect status and recover.")
-        ctk.CTkLabel(
+        self._details_text_label = ctk.CTkLabel(
             details_col, textvariable=self.details_text_var, font=ctk.CTkFont(size=11),
-            text_color=_TEXT, anchor="nw", justify="left", wraplength=520,
-        ).pack(fill="both", expand=True, padx=8, pady=(2, 4))
+            text_color=_TEXT, anchor="nw", justify="left", wraplength=200,
+        )
+        self._details_text_label.pack(fill="both", expand=True, padx=8, pady=(2, 4))
+        self._bind_responsive_wrap(self._details_text_label, pad=24)
         details_actions = ctk.CTkFrame(details_col, fg_color="transparent")
         details_actions.pack(fill="x", padx=8, pady=(0, 6))
-        self.details_retry_btn = ctk.CTkButton(
-            details_actions, text="Retry", width=70, height=24,
-            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("retry"),
-        )
-        self.details_retry_btn.pack(side="left", padx=(0, 4))
-        self.details_alt_btn = ctk.CTkButton(
-            details_actions, text="Alternative", width=96, height=24,
-            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("alternative"),
-        )
-        self.details_alt_btn.pack(side="left", padx=(0, 4))
-        self.details_local_btn = ctk.CTkButton(
-            details_actions, text="Add local clip", width=110, height=24,
-            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("local_clip"),
-        )
-        self.details_local_btn.pack(side="left", padx=(0, 4))
-        self.details_skip_btn = ctk.CTkButton(
-            details_actions, text="Skip", width=64, height=24,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_DANGER, font=ctk.CTkFont(size=11, weight="bold"),
-            command=lambda: self._details_action("skip"),
-        )
-        self.details_skip_btn.pack(side="left")
+        self._details_actions = details_actions
         self.details_source_btn = ctk.CTkButton(
-            details_actions, text="Change Source", width=110, height=24,
+            details_actions, text="Change source", width=118, height=26,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_ACCENT, font=ctk.CTkFont(size=11),
             command=lambda: self._change_source_for_focused(),
         )
-        self.details_source_btn.pack(side="left", padx=(8, 0))
+        self.details_local_btn = ctk.CTkButton(
+            details_actions, text="Add local clip", width=118, height=26,
+            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("local_clip"),
+        )
+        self.details_retry_btn = ctk.CTkButton(
+            details_actions, text="Retry", width=70, height=26,
+            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("retry"),
+        )
+        self.details_alt_btn = ctk.CTkButton(
+            details_actions, text="Alternative", width=96, height=26,
+            font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("alternative"),
+        )
+        self.details_skip_btn = ctk.CTkButton(
+            details_actions, text="Skip", width=64, height=26,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_DANGER, font=ctk.CTkFont(size=11, weight="bold"),
+            command=lambda: self._details_action("skip"),
+        )
         self.details_stop_btn = ctk.CTkButton(
-            details_actions, text="Stop", width=64, height=24,
+            details_actions, text="Stop", width=64, height=26,
             fg_color="transparent", border_width=1, border_color=_DANGER,
             text_color=_DANGER, font=ctk.CTkFont(size=11, weight="bold"),
             command=lambda: self._details_action("cancel"),
         )
-        self.details_stop_btn.pack(side="left", padx=(8, 0))
         self.details_stop_btn.configure(state="disabled")
+        details_actions.bind("<Configure>", self._on_inspector_configure, add="+")
+        self._layout_inspector_actions()
+
         self._issues_drawer = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
         qa_bulk = ctk.CTkFrame(self._issues_drawer, fg_color="transparent")
         qa_bulk.pack(fill="x", padx=10, pady=(8, 4))
@@ -1289,7 +1261,6 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_MUTED, font=ctk.CTkFont(size=11),
             command=self._clear_failed_selection,
         ).pack(side="left")
-        self.issues_header_var = ctk.StringVar(value="No issues")
         ctk.CTkLabel(
             self._issues_drawer, textvariable=self.issues_header_var,
             font=ctk.CTkFont(size=11), text_color=_DANGER, anchor="w",
@@ -1299,7 +1270,6 @@ class VideoGeneratorApp(ctk.CTk):
             scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
         )
         self._issues_list.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-        # Hidden until the user opens Issues from the status bar.
 
         self._scene_row_widgets: dict[str, dict] = {}
         self._scene_rows: list[SceneRow] = []
@@ -1317,7 +1287,6 @@ class VideoGeneratorApp(ctk.CTk):
         self._recovery_done = 0
         self.retry_all_btn = self.retry_failed_btn
 
-        # Log textbox — takes remaining height until preview appears
         self.log_box = ctk.CTkTextbox(
             right,
             wrap="word",
@@ -1331,11 +1300,8 @@ class VideoGeneratorApp(ctk.CTk):
             scrollbar_button_hover_color=_ACCENT,
         )
         self.log_box.configure(state="disabled")
-        # Collapsed by default — Activity toggle reveals it.
 
-        # ── Preview panel (hidden until generation succeeds) ──────────────
         self._preview_panel = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6)
-        # Not gridded yet — revealed by _show_preview()
 
         prev_header = ctk.CTkFrame(self._preview_panel, fg_color="transparent")
         prev_header.pack(fill="x", padx=12, pady=(10, 4))
@@ -1379,7 +1345,6 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self._open_folder_btn.pack(side="right", padx=(0, 6))
 
-        # Thumbnail label — filled by _show_preview()
         self._thumb_label = ctk.CTkLabel(
             self._preview_panel,
             text="",
@@ -1387,7 +1352,255 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self._thumb_label.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        self._last_output: str | None = None  # track for "Open" / "Open Folder"
+        self._last_output: str | None = None
+
+    def _bind_responsive_wrap(self, widget, pad: int = 24) -> None:
+        def _on_configure(event, w=widget, p=pad):
+            if event.widget is not w:
+                return
+            wrap = max(80, int(event.width) - int(p))
+            try:
+                current = int(w.cget("wraplength") or 0)
+            except Exception:
+                current = 0
+            if current != wrap:
+                try:
+                    w.configure(wraplength=wrap)
+                except Exception:
+                    pass
+
+        widget.bind("<Configure>", _on_configure, add="+")
+
+    def _set_stepper_compact(self, compact: bool) -> None:
+        compact = bool(compact)
+        if compact == self._stepper_compact:
+            return
+        self._stepper_compact = compact
+        self._refresh_stepper()
+
+    def _refresh_stepper(self) -> None:
+        idx = max(0, min(len(_STEPPER_STEPS) - 1, int(self._stepper_index)))
+        name = _STEPPER_STEPS[idx]
+        if self._stepper_compact:
+            self._stepper_full.grid_remove()
+            self._stepper_compact_label.configure(text=f"Step {idx + 1} of 5 · {name}")
+            self._stepper_compact_label.grid()
+            return
+        self._stepper_compact_label.grid_remove()
+        self._stepper_full.grid()
+        for i, lbl in enumerate(self._stepper_labels):
+            if i < idx:
+                color = _STEPPER_DONE
+                weight = "normal"
+            elif i == idx:
+                color = _ACCENT
+                weight = "bold"
+            else:
+                color = _MUTED
+                weight = "normal"
+            lbl.configure(text_color=color, font=ctk.CTkFont(size=12, weight=weight))
+
+    def _on_topbar_configure(self, event) -> None:
+        if event.widget is not getattr(self, "_topbar", None):
+            return
+        width = int(event.width)
+        self._set_stepper_compact(width < 1080)
+        ellipsis = width < 900
+        if ellipsis != self._chip_ellipsis:
+            self._chip_ellipsis = ellipsis
+            self._apply_chip_text()
+
+    def _apply_chip_text(self) -> None:
+        text = self._project_chip_full or "No project"
+        if self._chip_ellipsis and len(text) > 22:
+            text = text[:20].rstrip() + "…"
+        self._project_chip_var.set(text)
+
+    def _sync_script_watermark(self) -> None:
+        mark = getattr(self, "_script_watermark", None)
+        box = getattr(self, "script_box", None)
+        if mark is None or box is None:
+            return
+        text = box.get("1.0", "end").strip()
+        if text:
+            mark.place_forget()
+        else:
+            mark.place(in_=box, x=10, y=8)
+        if not self._running:
+            self._sync_primary_cta()
+
+    def _sync_export_csv_link(self) -> None:
+        btn = getattr(self, "_export_csv_btn", None)
+        if btn is None:
+            return
+        if self._visual_plan is not None:
+            btn.grid()
+        else:
+            btn.grid_remove()
+
+    def _toggle_optional_section(self) -> None:
+        self._optional_open = not self._optional_open
+        if self._optional_open:
+            self._optional_block.grid()
+            self._optional_toggle.configure(text="Optional −")
+        else:
+            self._optional_block.grid_remove()
+            self._optional_toggle.configure(text="Optional +")
+
+    def _open_workspace_overflow(self) -> None:
+        import tkinter as tk
+
+        menu = tk.Menu(
+            self, tearoff=0, bg=_CARD, fg=_TEXT, activebackground=_CARD_HOVER,
+            activeforeground=_TEXT, bd=0,
+        )
+        cleanup = getattr(self, "cleanup_assets_btn", None)
+        cleanup_label = "Cleanup"
+        cleanup_state = "disabled"
+        if cleanup is not None:
+            try:
+                cleanup_label = str(cleanup.cget("text") or "Cleanup")
+                cleanup_state = str(cleanup.cget("state") or "disabled")
+            except Exception:
+                pass
+        has_plan = bool(self._scene_rows) or bool(self.csv_var.get().strip())
+        menu.add_command(
+            label="Clear plan…",
+            command=self._clear_visual_plan,
+            state=tk.NORMAL if has_plan and not self._running else tk.DISABLED,
+        )
+        menu.add_separator()
+        menu.add_command(
+            label=cleanup_label,
+            command=self._on_cleanup_downloaded_assets,
+            state=tk.NORMAL if cleanup_state == "normal" else tk.DISABLED,
+        )
+        activity = "Hide activity" if self._log_visible else "Activity"
+        menu.add_command(label=activity, command=self._toggle_activity_log)
+        try:
+            menu.tk_popup(self._overflow_btn.winfo_rootx(), self._overflow_btn.winfo_rooty() + 28)
+        finally:
+            menu.grab_release()
+
+    def _on_inspector_configure(self, event) -> None:
+        if event.widget is not getattr(self, "_details_actions", None):
+            return
+        self._layout_inspector_actions(int(event.width))
+
+    def _layout_inspector_actions(self, width: int | None = None) -> None:
+        frame = getattr(self, "_details_actions", None)
+        if frame is None:
+            return
+        buttons = [
+            self.details_source_btn,
+            self.details_local_btn,
+            self.details_retry_btn,
+            self.details_alt_btn,
+            self.details_skip_btn,
+            self.details_stop_btn,
+        ]
+        use = [b for b in buttons if getattr(b, "_inspector_show", True)]
+        if not use:
+            use = buttons[:2]
+        if width is None:
+            try:
+                width = int(frame.winfo_width())
+            except Exception:
+                width = 600
+        cols = 2 if width < 520 else 4
+        for b in buttons:
+            b.grid_forget()
+        col = 0
+        row = 0
+        for b in use:
+            b.grid(row=row, column=col, sticky="w", padx=(0, 6), pady=3)
+            col += 1
+            if col >= cols:
+                col = 0
+                row += 1
+
+    def _set_inspector_button(self, btn, *, show: bool, state: str = "normal") -> None:
+        btn._inspector_show = show
+        if show:
+            btn.configure(state=state)
+        else:
+            btn.configure(state="disabled")
+        self._layout_inspector_actions()
+
+    def _script_has_text(self) -> bool:
+        box = getattr(self, "script_box", None)
+        if box is None:
+            return False
+        return bool(box.get("1.0", "end").strip())
+
+    def _on_primary_cta(self) -> None:
+        action = getattr(self, "_cta_action", "generate")
+        if action == "picker":
+            self._open_project_picker()
+        elif action == "analyze":
+            self._on_analyze_script()
+        elif action == "import_csv":
+            self._browse_csv()
+        elif action == "import_audio":
+            self._browse_audio()
+        elif action == "cancel":
+            self._on_cancel()
+        else:
+            self._on_generate()
+
+    def _open_project_picker(self) -> None:
+        existing = getattr(self, "_project_picker", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    existing.lift()
+                    existing.focus_force()
+                    return
+            except Exception:
+                pass
+
+        last_id = (self._settings.get("active_project_id") or "").strip()
+        workspaces = list_projects(self._projects_root_path())
+        projects = project_dicts_from_workspaces(workspaces, last_id=last_id)
+        self._project_picker = ProjectPickerDialog(
+            self,
+            projects=projects,
+            on_create=self._picker_on_create,
+            on_select=self._picker_on_select,
+            on_open_folder=self._picker_on_open_folder,
+            on_settings=self._open_settings,
+            on_dismiss=self._picker_on_dismiss,
+        )
+
+    def _picker_on_create(self, title: str) -> None:
+        ws = create_project(title or "", projects_root=self._projects_root_path())
+        self._activate_workspace(ws, persist=True, clear_session=True)
+
+    def _picker_on_select(self, project_id: str) -> None:
+        ws = find_project(self._projects_root_path(), project_id)
+        if ws is None:
+            messagebox.showerror("Open Project", "That project could not be found.")
+            self.after_idle(self._open_project_picker)
+            return
+        self._activate_workspace(ws, persist=True, clear_session=True)
+
+    def _picker_on_open_folder(self) -> None:
+        self._on_open_project()
+        if self._workspace is None:
+            return
+        win = getattr(self, "_project_picker", None)
+        if win is not None:
+            try:
+                if win.winfo_exists():
+                    win.destroy()
+            except Exception:
+                pass
+            self._project_picker = None
+
+    def _picker_on_dismiss(self) -> None:
+        self._project_picker = None
+        if self._workspace is None:
+            self._sync_primary_cta()
 
     def _set_window_icon(self) -> None:
         """Taskbar / dock / window icon from assets (best-effort)."""
@@ -1405,7 +1618,6 @@ class VideoGeneratorApp(ctk.CTk):
                 except Exception:
                     pass
 
-
     def _path_row(
         self,
         row: int,
@@ -1414,34 +1626,49 @@ class VideoGeneratorApp(ctk.CTk):
         browse_cmd,
         clearable: bool = False,
         parent=None,
+        placeholder_text: str = "",
     ) -> None:
         """Styled input card inside the scrollable left panel."""
         host = parent if parent is not None else self._scroll
         pad_x = 0 if parent is not None else 16
-        card = ctk.CTkFrame(host, fg_color=_CARD, corner_radius=6)
-        card.grid(row=row, column=0, sticky="ew", padx=pad_x, pady=(10, 0))
+        card = ctk.CTkFrame(host, fg_color=_CARD if parent is None or label else "transparent", corner_radius=6)
+        card.grid(row=row, column=0, sticky="ew", padx=pad_x, pady=(8 if label else 4, 0))
         card.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(
-            card,
-            text=label.upper(),
-            font=ctk.CTkFont(size=9, weight="bold"),
-            text_color=_MUTED,
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=12, pady=(8, 2), columnspan=3)
+        if label:
+            ctk.CTkLabel(
+                card,
+                text=label,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=_MUTED,
+                anchor="w",
+            ).grid(row=0, column=0, sticky="w", padx=12, pady=(8, 2), columnspan=3)
+
+        display = ctk.StringVar()
+
+        def _sync_display(*_):
+            raw = var.get().strip()
+            name = Path(raw).name if raw else ""
+            if display.get() != name:
+                display.set(name)
+
+        var.trace_add("write", lambda *_: _sync_display())
+        _sync_display()
 
         entry = ctk.CTkEntry(
             card,
-            textvariable=var,
+            textvariable=display,
             height=34,
             fg_color=_BG,
             border_color=_BORDER,
             border_width=1,
             text_color=_TEXT,
+            placeholder_text=placeholder_text,
             placeholder_text_color=_MUTED,
             corner_radius=4,
         )
-        entry.grid(row=1, column=0, sticky="ew", padx=(10, 6), pady=(0, 10))
+        entry_row = 1 if label else 0
+        entry.grid(row=entry_row, column=0, sticky="ew", padx=(10, 6), pady=(0, 10))
 
         ctk.CTkButton(
             card,
@@ -1456,7 +1683,7 @@ class VideoGeneratorApp(ctk.CTk):
             corner_radius=4,
             font=ctk.CTkFont(size=12),
             command=browse_cmd,
-        ).grid(row=1, column=1, sticky="e", padx=(0, 4 if clearable else 10), pady=(0, 10))
+        ).grid(row=entry_row, column=1, sticky="e", padx=(0, 4 if clearable else 10), pady=(0, 10))
 
         if clearable:
             ctk.CTkButton(
@@ -1472,7 +1699,7 @@ class VideoGeneratorApp(ctk.CTk):
                 corner_radius=4,
                 font=ctk.CTkFont(size=13),
                 command=lambda: var.set(""),
-            ).grid(row=1, column=2, sticky="e", padx=(0, 10), pady=(0, 10))
+            ).grid(row=entry_row, column=2, sticky="e", padx=(0, 10), pady=(0, 10))
 
     def _open_folder_path(self, folder: Path) -> None:
         folder = Path(folder)
@@ -1494,6 +1721,11 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showerror("Cannot open folder", str(exc))
 
     def _toggle_issues(self) -> None:
+        snap = self._qa_snapshot() if self._scene_rows else None
+        if snap is None or not snap.needs_action:
+            self._issues_visible = False
+            self._issues_drawer.grid_remove()
+            return
         self._issues_visible = not self._issues_visible
         if self._issues_visible:
             self._issues_drawer.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 0))
@@ -1528,77 +1760,91 @@ class VideoGeneratorApp(ctk.CTk):
     def _sync_primary_cta(self, snap=None) -> None:
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
-        has_csv = bool(self.csv_var.get().strip()) and Path(self.csv_var.get().strip()).is_file()
+        has_plan = bool(self.csv_var.get().strip()) and Path(self.csv_var.get().strip()).is_file()
+        paste_mode = self._script_mode_is_ai()
         if self._running:
+            self._cta_action = "cancel"
             self.stage_var.set("GENERATING")
-            self.hint_var.set("Work is in progress. You can cancel asset generation.")
+            self.hint_var.set("Work is in progress. You can stop asset generation.")
+            self._stepper_index = 4 if (snap is not None and snap.allow_render and audio_ok) else 2
+            self._refresh_stepper()
+            self.generate_btn.configure(
+                state="normal",
+                text="Stop",
+                fg_color="transparent",
+                hover_color=_DANGER_BG,
+                text_color=_DANGER,
+                border_width=1,
+                border_color=_DANGER,
+            )
             return
         if self._workspace is None:
+            self._cta_action = "picker"
             self.stage_var.set("SCRIPT")
-            self.hint_var.set("Create a project, then paste a script or import a CSV.")
-            self._set_generate_btn(state="disabled", text="New Project first")
+            self.hint_var.set("Choose a project to get started.")
+            self._stepper_index = 0
+            self._refresh_stepper()
+            self._set_generate_btn(state="normal", text="Choose project")
             return
-        if not has_csv:
+        if not has_plan or snap is None or snap.total == 0:
             self.stage_var.set("PLAN")
-            self.hint_var.set("Paste your script and click Analyze, or import a CSV.")
-            self._set_generate_btn(state="disabled", text="Analyze or import CSV")
+            self._stepper_index = 0
+            if paste_mode:
+                self._cta_action = "analyze"
+                self.hint_var.set("Paste your script, then analyze it into scenes.")
+                self._set_generate_btn(state="normal", text="Analyze Script")
+            else:
+                self._cta_action = "import_csv"
+                self.hint_var.set("Import a visual-plan CSV to load scenes.")
+                self._set_generate_btn(state="normal", text="Import CSV")
+            self._refresh_stepper()
             return
-        if snap is None or snap.total == 0:
-            self.stage_var.set("PLAN")
-            self.hint_var.set("No visual plan yet. Paste your script and click Analyze Script.")
-            self._set_generate_btn(state="disabled", text="Analyze Script")
-            return
-        if snap.needs_action:
-            self.stage_var.set("REVIEW")
-            self.hint_var.set("Fix scenes that need attention, then generate remaining assets.")
-            self._set_generate_btn(state="normal", text="Generate Assets")
-            return
-        if not snap.allow_render:
-            self.stage_var.set("GENERATE")
-            self.hint_var.set("Generate visuals for every scene.")
+        if snap.needs_action or not snap.allow_render:
+            self._cta_action = "generate"
+            self.stage_var.set("REVIEW" if snap.needs_action else "GENERATE")
+            self.hint_var.set(
+                "Fix scenes that need attention, then generate remaining assets."
+                if snap.needs_action
+                else "Generate visuals for every scene."
+            )
+            untouched = snap.ready == 0 and not snap.processing and not snap.needs_action
+            self._stepper_index = 1 if untouched else 2
+            self._refresh_stepper()
             self._set_generate_btn(state="normal", text="Generate Assets")
             return
         if not audio_ok:
+            self._cta_action = "import_audio"
             self.stage_var.set("VOICE")
             self.hint_var.set("Scenes are ready. Import a voiceover audio file next.")
-            self._set_generate_btn(state="disabled", text="Import voiceover first")
+            self._stepper_index = 3
+            self._refresh_stepper()
+            self._set_generate_btn(state="normal", text="Import Voiceover")
             return
+        self._cta_action = "generate"
         self.stage_var.set("EXPORT")
         self.hint_var.set("Everything is ready. Render the final video.")
+        self._stepper_index = 4
+        self._refresh_stepper()
         self._set_generate_btn(state="normal", text="Render Video")
 
     def _set_generate_btn(self, *, state: str, text: str) -> None:
         """Restore accent styling whenever the primary CTA leaves Stop / busy."""
-        if state == "normal":
-            self.generate_btn.configure(
-                state=state,
-                text=text,
-                fg_color=_ACCENT,
-                hover_color=_ACCENT_HOV,
-                text_color=_ACCENT_DARK,
-                border_width=0,
-            )
-        else:
-            self.generate_btn.configure(
-                state=state,
-                text=text,
-                fg_color=_BORDER,
-                text_color=_MUTED,
-                border_width=0,
-            )
+        self.generate_btn.configure(
+            state=state,
+            text=text,
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HOV,
+            text_color=_ACCENT_DARK,
+            border_width=0,
+        )
 
     def _apply_defaults(self) -> None:
-        if DEFAULTS["bg_audio"].is_file():
-            self.bg_var.set(str(DEFAULTS["bg_audio"]))
-        last_id = (self._settings.get("active_project_id") or "").strip()
-        ws = find_project(self._projects_root, last_id) if last_id else None
-        if ws is not None:
-            self._activate_workspace(ws, persist=False, refresh_menu=True)
-        else:
-            self._refresh_project_menu()
-            self._update_project_indicator()
-            self._sync_images_dir()
-            self._refresh_scene_preview()
+        # Fresh session: never auto-activate the last project or prefill bg music.
+        self._refresh_project_menu()
+        self._update_project_indicator()
+        self._sync_images_dir()
+        self._refresh_scene_preview()
+        self._sync_primary_cta()
 
     def _sync_images_dir(self) -> None:
         """Assets live in the active project workspace. Legacy CSVs (no project)
@@ -1626,11 +1872,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self._workspace is not None:
             self._workspace.ensure_dirs()
             return True
-        messagebox.showinfo(
-            "No project",
-            f"Create a New Project before you {action}.\n\n"
-            "Each video gets its own folder; retries stay in that folder.",
-        )
+        self._open_project_picker()
         return False
 
     def _on_new_project(self) -> None:
@@ -1687,6 +1929,15 @@ class VideoGeneratorApp(ctk.CTk):
             self._qa = SceneQAState()
             self._visual_plan = None
             self._manual_csv_backup = ""
+            self.csv_var.set("")
+            self.audio_var.set("")
+            self.bg_var.set("")
+            try:
+                self.script_box.delete("1.0", "end")
+                self._sync_script_watermark()
+            except Exception:
+                pass
+            self._sync_export_csv_link()
         if persist:
             self._settings["active_project_id"] = ws.project_id
             self._settings["projects_root"] = str(self._projects_root_path())
@@ -1869,16 +2120,17 @@ class VideoGeneratorApp(ctk.CTk):
         if ws.csv_path.is_file():
             self.csv_var.set(str(ws.csv_path))
         elif not self.csv_var.get().strip() or not path_is_inside(Path(self.csv_var.get()), ws.root):
-            self.csv_var.set(str(ws.csv_path))
+            self.csv_var.set("")
         found = ws.find_voiceover_audio()
         if found is not None:
             # Old projects may have active_voiceover_source "tts" — treat as imported.
             self._set_active_voiceover(found, source="imported")
         else:
-            # Keep a project-owned destination even before a voiceover is imported.
             current = self.audio_var.get().strip()
-            if not current or not path_is_inside(Path(current), ws.root) or not Path(current).is_file():
-                self.audio_var.set(str(ws.audio_path))
+            if current and (not path_is_inside(Path(current), ws.root) or not Path(current).is_file()):
+                self.audio_var.set("")
+            elif not current:
+                self.audio_var.set("")
             self._refresh_voiceover_active_label()
             self._bind_voice_player_to(None)
         self.output_var.set(str(ws.next_final_path()))
@@ -1886,31 +2138,35 @@ class VideoGeneratorApp(ctk.CTk):
             text = ws.script_path.read_text(encoding="utf-8")
             self.script_box.delete("1.0", "end")
             self.script_box.insert("1.0", text)
+            self._sync_script_watermark()
+        self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
 
     def _refresh_project_menu(self) -> None:
+        """Keep label map in sync. Never show a project name with no workspace."""
         projects = list_projects(self._projects_root_path())
         self._project_labels = {}
-        labels = []
         for p in projects:
             label = f"#{p.display_seq()}  {p.title}"
             self._project_labels[label] = p.project_id
-            labels.append(label)
-        special = ["＋ New Project", "Open Project…"]
         self._project_menu_lock = True
         try:
-            values = special + (labels or ["(none)"])
-            self._project_menu.configure(values=values)
-            if self._workspace is not None:
-                current = None
-                for lab, pid in self._project_labels.items():
-                    if pid == self._workspace.project_id:
-                        current = lab
-                        break
-                self.project_menu_var.set(current or values[0])
+            if self._workspace is None:
+                self.project_menu_var.set("(none)")
             else:
-                self.project_menu_var.set("(none)" if not labels else labels[-1])
+                current = next(
+                    (lab for lab, pid in self._project_labels.items()
+                     if pid == self._workspace.project_id),
+                    "(none)",
+                )
+                self.project_menu_var.set(current)
+            menu = getattr(self, "_project_menu", None)
+            if menu is not None:
+                values = ["(none)"] if self._workspace is None else (
+                    [self.project_menu_var.get()] if self.project_menu_var.get() != "(none)" else ["(none)"]
+                )
+                menu.configure(values=values)
         finally:
             self._project_menu_lock = False
 
@@ -1918,18 +2174,15 @@ class VideoGeneratorApp(ctk.CTk):
         ws = self._workspace
         if ws is None:
             self.current_project_title_var.set("No project")
-            self.current_project_meta_var.set("Click New Project to start a video")
+            self.current_project_meta_var.set("Choose a project to start")
+            self._project_chip_full = "No project"
+            self._apply_chip_text()
             return
-        extra = ""
-        snap = getattr(self, "_qa", None)
-        if snap is not None and self._scene_rows:
-            try:
-                q = self._qa_snapshot()
-                extra = f"  ·  {q.header}"
-            except Exception:
-                extra = ""
+        chip = f"#{ws.display_seq()}  {ws.title}"
         self.current_project_title_var.set(ws.title)
         self.current_project_meta_var.set(f"#{ws.display_seq()}  ·  {ws.project_id}")
+        self._project_chip_full = chip
+        self._apply_chip_text()
 
     def _mirror_result_into_workspace(self, result) -> None:
         ws = self._workspace
@@ -1960,7 +2213,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._refresh_scene_preview()
 
     def _script_mode_is_ai(self) -> bool:
-        return getattr(self, "_mode_seg", None) is not None and self._mode_seg.get() == "AI Script"
+        mode = getattr(self, "_mode_seg", None)
+        if mode is None:
+            return True
+        return mode.get() in _PASTE_SCRIPT_MODES
 
     def _refresh_gemini_status(self) -> None:
         from visual_director.llm import gemini_configured
@@ -1977,7 +2233,10 @@ class VideoGeneratorApp(ctk.CTk):
             self.analyze_btn.configure(state="disabled")
 
     def _on_script_mode(self, value: str) -> None:
-        if value == "AI Script":
+        if getattr(self, "_csv_block", None) is None or getattr(self, "_ai_block", None) is None:
+            return
+        paste = value in _PASTE_SCRIPT_MODES
+        if paste:
             if not self._manual_csv_backup:
                 self._manual_csv_backup = self.csv_var.get()
             self._csv_block.grid_remove()
@@ -1987,17 +2246,19 @@ class VideoGeneratorApp(ctk.CTk):
                 self._render_scene_rows()
         else:
             self._ai_block.grid_remove()
-            self._csv_block.grid(row=1, column=0, sticky="ew", padx=16)
+            self._csv_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
             if self._manual_csv_backup:
                 self.csv_var.set(self._manual_csv_backup)
             self._visual_plan = None
+            self._sync_export_csv_link()
             self._refresh_scene_preview()
+        self._sync_primary_cta()
 
     def _on_analyze_script(self) -> None:
         if not self._require_workspace("analyze a script"):
             return
         script = self.script_box.get("1.0", "end").strip()
-        if not script or script == "Paste your narration script here...":
+        if not script:
             messagebox.showerror("AI Script", "Paste your complete narration script first.")
             return
         from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
@@ -2038,7 +2299,7 @@ class VideoGeneratorApp(ctk.CTk):
             csv_path = Path(self.images_var.get()).resolve().parent / "ai_visual_plan.csv"
         else:
             script = self.script_box.get("1.0", "end").strip()
-            if script and script != "Paste your narration script here...":
+            if script:
                 self._workspace.save_script(script)
             self._workspace.save_visual_plan_json(plan.to_dict())
             csv_path = self._workspace.csv_path
@@ -2053,6 +2314,8 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "top_analyze_btn", None) is not None:
             self.top_analyze_btn.configure(state="normal")
         self.status_var.set("Review scenes, then generate assets")
+        self._sync_export_csv_link()
+        self._sync_primary_cta()
         self._append_log("\n[AI] Visual plan ready — review scenes, then Generate Video.\n")
         self._append_log(plan.format_preview() + "\n")
 
@@ -2088,10 +2351,9 @@ class VideoGeneratorApp(ctk.CTk):
         raw = self.audio_var.get().strip()
         path = Path(raw) if raw else None
         if path is None or not path.is_file():
-            var.set("Video has no voiceover yet.")
+            var.set("No voiceover yet — needed to render")
             return
-        src = self._voiceover_source_label(path)
-        var.set(f"Video will use: {path.name}  ·  {src}")
+        var.set(f"Using {path.name}")
 
     def _set_active_voiceover(self, path: Path | str, *, source: str) -> None:
         """Bind the single audio file the video pipeline will use."""
@@ -2267,8 +2529,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _refresh_voice_playback_buttons(self) -> None:
         play_btn = getattr(self, "_play_voice_btn", None)
-        stop_btn = getattr(self, "_stop_voice_btn", None)
-        if play_btn is None or stop_btn is None:
+        if play_btn is None:
             return
         has_audio = self._current_voiceover_path() is not None or self._voice_play_path is not None
         playing = (
@@ -2280,7 +2541,24 @@ class VideoGeneratorApp(ctk.CTk):
             state="normal" if has_audio else "disabled",
             text="⏸  Pause" if playing else "▶  Play",
         )
-        stop_btn.configure(state="normal" if (playing or paused or has_audio) else "disabled")
+        stop_btn = getattr(self, "_stop_voice_btn", None)
+        if stop_btn is not None:
+            stop_btn.configure(state="normal" if (playing or paused or has_audio) else "disabled")
+        self._sync_voice_progress_visibility(playing or paused)
+
+    def _sync_voice_progress_visibility(self, visible: bool) -> None:
+        bar = getattr(self, "voice_play_progress", None)
+        label = getattr(self, "voice_play_progress_label", None)
+        if bar is None:
+            return
+        if visible:
+            bar.grid()
+            if label is not None:
+                label.grid()
+        else:
+            bar.grid_remove()
+            if label is not None:
+                label.grid_remove()
 
     def _stop_voice_playback(self) -> None:
         """Stop playback and reset the timestamp to 0:00."""
@@ -2782,26 +3060,46 @@ class VideoGeneratorApp(ctk.CTk):
         # re-entry cannot treat a partial widget set as complete.
         self._scene_row_signature = ()
 
+        empty = getattr(self, "_scenes_empty_label", None)
+        if empty is not None:
+            if not self._scene_rows:
+                empty.grid()
+            else:
+                empty.grid_remove()
+
         if not self._scene_rows:
-            ctk.CTkLabel(
-                self._scenes_list,
-                text="No visual plan yet\nPaste your script and click Analyze Script, or import a CSV.",
-                text_color=_MUTED, font=ctk.CTkFont(size=13), justify="left",
-            ).grid(row=0, column=0, sticky="w", padx=12, pady=16)
-            self.scenes_summary_var.set("No visual plan yet")
+            self.scenes_summary_var.set("")
             self._refresh_qa_ui(immediate=True)
             return
 
+        # Same column geometry as _decorate_scene_row so the select-all
+        # checkbox lines up with per-row checkboxes.
         header = ctk.CTkFrame(self._scenes_list, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=4, pady=(0, 4))
-        header.grid_columnconfigure(2, weight=1)
-        for col, text, width in (
-            (0, "", 22), (1, "#", 32), (2, "Status", 118), (3, "Source", 72), (4, "Dur", 36), (5, "Actions", 170),
-        ):
-            ctk.CTkLabel(
-                header, text=text, width=width or 1, anchor="w",
-                font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-            ).grid(row=0, column=col, sticky="w", padx=4)
+        header.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
+        header.grid_columnconfigure(4, weight=1)
+        self._scene_header_check_var = ctk.BooleanVar(value=False)
+        self._scene_header_check = ctk.CTkCheckBox(
+            header, text="", width=18, checkbox_width=14, checkbox_height=14,
+            variable=self._scene_header_check_var,
+            command=self._on_header_select_all,
+        )
+        self._scene_header_check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
+        ctk.CTkLabel(
+            header, text="#", width=32, anchor="w",
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
+        ).grid(row=0, column=1, sticky="w", padx=(2, 4))
+        ctk.CTkLabel(
+            header, text="Status", width=118, anchor="w",
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
+        ).grid(row=0, column=2, sticky="w", padx=2)
+        ctk.CTkLabel(
+            header, text="Source", width=72, anchor="w",
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
+        ).grid(row=0, column=3, sticky="w", padx=2)
+        ctk.CTkLabel(
+            header, text="Time", width=36, anchor="e",
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
+        ).grid(row=0, column=4, sticky="e", padx=(0, 4))
 
         total = len(self._scene_rows)
         if total <= self._SCENE_ROW_SYNC_LIMIT:
@@ -2835,7 +3133,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._scenes_list, fg_color=default_fg, corner_radius=4, height=32,
         )
         row.grid(row=i + 1, column=0, sticky="ew", pady=0)
-        row.grid_columnconfigure(5, weight=1)
+        row.grid_columnconfigure(4, weight=1)
 
         key = _scene_key(scene.scene_number)
         check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
@@ -2875,30 +3173,6 @@ class VideoGeneratorApp(ctk.CTk):
         )
         dur_label.grid(row=0, column=4, sticky="e", padx=(0, 4))
 
-        actions = ctk.CTkFrame(row, fg_color="transparent")
-        actions.grid(row=0, column=5, sticky="e", padx=(4, 6), pady=2)
-        retry_btn = ctk.CTkButton(
-            actions, text="Retry", width=48, height=22,
-            font=ctk.CTkFont(size=10, weight="bold"),
-            command=lambda s=scene: self._scene_action("retry", s),
-        )
-        retry_btn.pack(side="left", padx=(0, 3))
-        source_btn = ctk.CTkButton(
-            actions, text="Source", width=54, height=22,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_ACCENT, font=ctk.CTkFont(size=10),
-            command=lambda s=scene: self._change_source_dialog(s),
-        )
-        source_btn.pack(side="left", padx=(0, 3))
-        stop_btn = ctk.CTkButton(
-            actions, text="Stop", width=44, height=22,
-            fg_color="transparent", border_width=1, border_color=_DANGER,
-            text_color=_DANGER, font=ctk.CTkFont(size=10, weight="bold"),
-            command=lambda s=scene: self._cancel_one_scene(s),
-        )
-        stop_btn.pack(side="left")
-        stop_btn.configure(state="disabled")
-
         preview_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1))
         elapsed_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=10), text_color=_MUTED, width=1)
         error_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1), text_color=_WARNING)
@@ -2907,7 +3181,7 @@ class VideoGeneratorApp(ctk.CTk):
             "elapsed_label": elapsed_label,
             "error_label": error_label,
             "badge": badge,
-            "buttons": {"retry": retry_btn, "source": source_btn, "cancel": stop_btn},
+            "buttons": {},
             "scene": scene,
             "row": row,
             "default_fg": default_fg,
@@ -3451,7 +3725,6 @@ class VideoGeneratorApp(ctk.CTk):
             self.progress.set(snap.progress)
             if self._running:
                 self.status_var.set(snap.header)
-                self.scenes_summary_var.set(snap.header)
 
     def _scene_source_mix_label(self) -> str:
         """Plan mix under VIDEO GENERATION — AI Image/Video, Stock, YouTube, Local."""
@@ -3497,22 +3770,37 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _paint_qa_chrome(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
-        self.scenes_summary_var.set(snap.header)
+        if snap.total:
+            parts = [f"{snap.total} scene{'s' if snap.total != 1 else ''}", f"{snap.ready} ready"]
+            if snap.needs_action:
+                parts.append(f"{snap.needs_action} need attention")
+            elif snap.processing:
+                parts.append(f"{snap.processing} processing")
+            self.scenes_summary_var.set(" · ".join(parts))
+        else:
+            self.scenes_summary_var.set("")
         self.qa_health_var.set(snap.health_label)
-        self.qa_counter_var.set(
-            f"⚠ {snap.needs_action} NEED ATTENTION" if snap.needs_action else "Issues"
-        )
-        self.issues_toggle_btn.configure(
-            text_color=_DANGER if snap.needs_action else _MUTED,
-            border_color=_DANGER if snap.needs_action else _BORDER,
-        )
-        color = _DANGER if snap.needs_action else (_COPPER if snap.processing else "#16A34A")
-        # counter label color isn't a StringVar — update via children is brittle; text is enough
+        n = snap.needs_action
+        if n:
+            self.qa_counter_var.set(f"Issues {n}")
+            self.issues_toggle_btn.configure(text_color=_DANGER, border_color=_DANGER)
+            self.issues_toggle_btn.pack(side="left", padx=(0, 6), before=self._settings_btn)
+            nav = getattr(self, "_error_nav", None)
+            if nav is not None:
+                nav.grid()
+        else:
+            self.qa_counter_var.set("")
+            self.issues_toggle_btn.pack_forget()
+            self._issues_visible = False
+            self._issues_drawer.grid_remove()
+            nav = getattr(self, "_error_nav", None)
+            if nav is not None:
+                nav.grid_remove()
         self.goto_error_btn.configure(
-            text=snap.go_to_error_label,
-            state="normal" if snap.needs_action else "disabled",
+            text="Go to Error" if n else snap.go_to_error_label,
+            state="normal" if n else "disabled",
         )
-        nav_state = "normal" if snap.needs_action else "disabled"
+        nav_state = "normal" if n else "disabled"
         self.prev_error_btn.configure(state=nav_state)
         self.next_error_btn.configure(state=nav_state)
         self.error_pos_var.set(self._qa.error_position(snap.unresolved_keys))
@@ -3535,6 +3823,7 @@ class VideoGeneratorApp(ctk.CTk):
                 if widgets.get("check_var") is not None:
                     widgets["check_var"].set(key in self._qa.selected_failed)
             self._sync_row_action_buttons(key)
+        self._sync_header_select_all(snap)
 
     def _rebuild_issues(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
@@ -3561,19 +3850,14 @@ class VideoGeneratorApp(ctk.CTk):
         snap = snap or self._qa_snapshot()
         key = self._qa.focused_key
         scene = next((s for s in self._scene_rows if _scene_key(s.scene_number) == key), None) if key else None
-        detail_btns = (
-            self.details_retry_btn,
-            self.details_alt_btn,
-            self.details_local_btn,
-            self.details_skip_btn,
-            self.details_source_btn,
-            self.details_stop_btn,
-        )
+        panel = getattr(self, "_details_panel", None)
         if scene is None:
-            self.details_text_var.set("Select a scene, or press GO TO ERROR.")
-            for btn in detail_btns:
-                btn.configure(state="disabled")
+            self.details_text_var.set("")
+            if panel is not None:
+                panel.grid_remove()
             return
+        if panel is not None:
+            panel.grid(row=3, column=0, sticky="ew", padx=8, pady=(0, 8))
         status = snap.statuses.get(key, self._row_status_from_result(scene))
         tracker = self._asset_manager.recovery if self._asset_manager is not None else None
         info = self._qa.details(scene, self._asset_results.get(key), status, tracker)
@@ -3594,12 +3878,28 @@ class VideoGeneratorApp(ctk.CTk):
         self.details_text_var.set("\n".join(lines))
         actions = set(info["actions"])
         busy = key in self._busy_scenes or key in self._qa.busy
-        self.details_retry_btn.configure(state="normal" if "retry" in actions and not busy else "disabled")
-        self.details_alt_btn.configure(state="normal" if "alternative" in actions and not busy else "disabled")
-        self.details_local_btn.configure(state="normal" if "local_clip" in actions and not busy else "disabled")
-        self.details_skip_btn.configure(state="normal" if "skip" in actions and not busy else "disabled")
-        self.details_source_btn.configure(state="normal")
-        self.details_stop_btn.configure(state="normal" if busy or "cancel" in actions else "disabled")
+        failed = status in ("needs_action", "failed", "timeout")
+        self._set_inspector_button(self.details_source_btn, show=True, state="normal")
+        self._set_inspector_button(
+            self.details_local_btn, show=True,
+            state="normal" if "local_clip" in actions and not busy else "disabled",
+        )
+        self._set_inspector_button(
+            self.details_retry_btn, show=failed,
+            state="normal" if "retry" in actions and not busy else "disabled",
+        )
+        self._set_inspector_button(
+            self.details_alt_btn, show=failed,
+            state="normal" if "alternative" in actions and not busy else "disabled",
+        )
+        self._set_inspector_button(
+            self.details_skip_btn, show=failed,
+            state="normal" if "skip" in actions and not busy else "disabled",
+        )
+        self._set_inspector_button(
+            self.details_stop_btn, show=busy,
+            state="normal" if busy or "cancel" in actions else "disabled",
+        )
 
     def _focus_scene(self, key: str, scroll: bool = True) -> None:
         self._qa.focused_key = key
@@ -3669,6 +3969,43 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_failed_check(self, key: str, var) -> None:
         self._on_scene_check(key, var)
+
+    def _visible_scene_keys(self, snap=None) -> list:
+        """Keys for scene rows currently shown after the search filter."""
+        snap = snap or self._qa_snapshot()
+        keys = []
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            if key not in self._scene_row_widgets:
+                continue
+            if self._qa.scene_matches(
+                scene, snap.statuses.get(key, ""), self._asset_results.get(key),
+            ):
+                keys.append(key)
+        return keys
+
+    def _sync_header_select_all(self, snap=None) -> None:
+        var = getattr(self, "_scene_header_check_var", None)
+        if var is None:
+            return
+        visible = self._visible_scene_keys(snap)
+        if not visible:
+            var.set(False)
+            return
+        var.set(all(k in self._qa.selected_failed for k in visible))
+
+    def _on_header_select_all(self) -> None:
+        visible = self._visible_scene_keys()
+        if getattr(self, "_scene_header_check_var", None) is not None and self._scene_header_check_var.get():
+            self._qa.selected_failed.update(visible)
+        else:
+            for key in visible:
+                self._qa.selected_failed.discard(key)
+        for key, widgets in self._scene_row_widgets.items():
+            if widgets.get("check_var") is not None:
+                widgets["check_var"].set(key in self._qa.selected_failed)
+        self._paint_qa_chrome()
+
     def _select_all_failed(self) -> None:
         self._qa.select_all_failed(self._qa_snapshot().unresolved_keys)
         for key, widgets in self._scene_row_widgets.items():
@@ -3684,18 +4021,56 @@ class VideoGeneratorApp(ctk.CTk):
         self._paint_qa_chrome()
 
     def _apply_scene_filter(self) -> None:
-        self._qa.filter_query = self.scene_search_var.get()
-        snap = self._qa_snapshot()
-        for scene in self._scene_rows:
-            key = _scene_key(scene.scene_number)
-            widgets = self._scene_row_widgets.get(key)
-            if not widgets or widgets.get("row") is None:
-                continue
-            show = self._qa.scene_matches(scene, snap.statuses.get(key, ""), self._asset_results.get(key))
-            if show:
-                widgets["row"].grid()
-            else:
-                widgets["row"].grid_remove()
+        """Search UI removed — keep all rows visible and sync select-all."""
+        self._qa.filter_query = ""
+        for widgets in self._scene_row_widgets.values():
+            row = widgets.get("row")
+            if row is not None:
+                row.grid()
+        self._sync_header_select_all()
+
+    def _clear_visual_plan(self) -> None:
+        """Undo an import/analyze: clear the scene queue so the user can start over."""
+        if self._running:
+            messagebox.showinfo(
+                "Clear plan",
+                "Wait for generation to finish before clearing the plan.",
+            )
+            return
+        if not self._scene_rows and not self.csv_var.get().strip() and self._visual_plan is None:
+            messagebox.showinfo("Clear plan", "There is no scene plan to clear.")
+            return
+        if not messagebox.askyesno(
+            "Clear plan",
+            "Remove the current scene list so you can paste or import again?\n\n"
+            "Your project folder and any downloaded assets are kept. "
+            "Past narration text (if any) stays in the script box.",
+        ):
+            return
+        self._visual_plan = None
+        self._manual_csv_backup = ""
+        self.csv_var.set("")
+        self._scene_rows = []
+        self._asset_results.clear()
+        self._busy_scenes.clear()
+        self._pending_source_after_cancel.clear()
+        self._hydrated_skipped.clear()
+        self._qa = SceneQAState()
+        self._qa.filter_query = ""
+        self._selected_scene_key = None
+        ws = self._workspace
+        if ws is not None:
+            for path in (ws.csv_path, ws.visual_plan_json_path):
+                try:
+                    if path.is_file():
+                        path.unlink()
+                except OSError:
+                    pass
+        self._sync_export_csv_link()
+        self._render_scene_rows()
+        self._refresh_assets_cta()
+        self._sync_primary_cta()
+        self._append_log("Cleared visual plan — paste a script or import a CSV to continue.\n")
 
     def _bulk_recovery(self, action: str, selected_only: bool) -> None:
         snap = self._qa_snapshot()

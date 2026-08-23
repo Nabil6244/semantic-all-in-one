@@ -31,16 +31,17 @@ Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (art
 
 ## 2. Typical workflow
 
-The main button follows your progress. While a job runs it becomes **Stop** (not “Generating…”).
+Every launch is a **fresh session** — the last project is not opened automatically. A **Choose a project** modal appears first. You cannot work until you pick one.
 
-1. **＋ New Project** — creates a folder under Downloads for this video.  
-2. Choose **Manual CSV** or **AI Script**.  
-3. Build a visual plan (import CSV, or paste narration → **Analyze Script**).  
-4. **Generate Assets** — resolve AI / stock / YouTube / local media per scene.  
-5. **Voiceover** — browse/select your narration audio (Play/Stop preview in the panel).  
-6. **Render Video** — Whisper alignment + FFmpeg export to the project’s `final/` folder.
+The main button always does the next action: **Analyze Script** / **Import CSV** / **Generate Assets** / **Import Voiceover** / **Render Video**. While a job runs it becomes **Stop**.
 
-Stage labels in the top bar: `SCRIPT` → `PLAN` → `GENERATE` / `REVIEW` → `VOICE` → `EXPORT`.
+1. **Choose a project** — create new, pick an existing project (`#001 Title`), or **Open folder**. Last-used may be labeled but is not loaded until you select it.  
+2. **Paste script** (default, recommended) or **Import CSV**. Paste narration → **Analyze Script**, or import a visual-plan CSV.  
+3. **Generate Assets** — resolve AI / stock / YouTube / local media per scene.  
+4. **Voiceover** — import your narration audio (one **Play** toggle to preview).  
+5. **Render Video** — Whisper alignment + FFmpeg export to the project’s `final/` folder.
+
+Top bar: project chip (`#001 Title`) + **Switch** (reopens the picker), and a 5-step stepper: **Script → Scenes → Assets → Voice → Render**. Narrow windows show `Step N of 5 · Name`. The left column scrolls; the desktop window is resize-safe.
 
 ---
 
@@ -60,22 +61,26 @@ Downloads/Semantic YT Studio/
     project.json
 ```
 
-Use the project menu to switch, open another folder, or start a new project. Closing the app keeps everything on disk.
+On launch, **Choose a project** lists existing folders as `#001 Title`. Create new, pick one, or **Open folder**. Closing the dialog does not select a ghost project — click **Choose project** to open the picker again.
+
+The top-bar chip shows the current project. **Switch** reopens the picker. Closing the app keeps everything on disk; the next launch still starts fresh and does not auto-open the last project.
 
 ---
 
 ## 4. Script modes
 
-### AI Script (recommended)
+### Paste script (recommended)
+
+Default mode. Fields use placeholders inside the inputs (not ALL-CAPS labels over empty boxes).
 
 1. Settings → paste a **Gemini** API key (Gemini 3.6 Flash visual director).  
 2. Paste your full narration.  
-3. Click **Analyze Script** — Gemini writes a visual plan CSV (`asset_type` + `prompt` per scene).  
+3. Click **Analyze Script** in this section — Gemini writes a visual plan CSV (`asset_type` + `prompt` per scene). There is no separate Analyze button in the top bar.  
 4. Optionally **Export CSV**.
 
-### Manual CSV
+### Import CSV
 
-Point **Script CSV** at a spreadsheet (see §5). Older 2- or 4-column scripts still work.
+Choose a visual-plan spreadsheet (see §5). Older 2- or 4-column scripts still work.
 
 ---
 
@@ -151,10 +156,12 @@ Each signed-in Google account is independent. More accounts → more AI scenes i
 
 Import the audio the final video will use:
 
-1. Under **Voiceover Audio (USED FOR VIDEO)**, browse for an MP3/WAV/M4A (or similar) file.  
+1. In the **Voiceover** section, choose an MP3/WAV/M4A (or similar) file. The field uses a placeholder until a file is set.  
 2. The file is copied into the project `audio/` folder when a project is open.  
-3. Use **Play** / **Stop** in the Voiceover panel to preview the selected file.  
-4. When scenes are ready and a voiceover is set, the CTA becomes **Render Video**.
+3. Use the **Play** toggle to preview the selected file.  
+4. When scenes are ready and no audio is set, the main button is **Import Voiceover**. After audio is set, it becomes **Render Video**.
+
+**Background music** is optional and collapsed — expand it only if you want a bed under the voiceover.
 
 Older project folders may still contain `narration.wav` or `voiceover_qwen*` files — those are discovered like any other audio; there is no built-in TTS / voice-clone engine.
 
@@ -165,9 +172,9 @@ SFX and other app data still use `~/.videogen/` where applicable (unrelated to v
 ## 8. Generate Assets & Render
 
 1. Review the **Scenes** table (source tags: AI Image/Video, Stock, YouTube, Manual, Local).  
-2. Click **Generate Assets**. The CTA becomes **Stop** — cancels remaining scene work (in-flight Flow/stock may finish shortly; completed scenes are kept).  
-3. Fix failures with **GO TO ERROR**, retry, alternatives, or **Change Source** on a row.  
-4. When every scene is ready and audio exists, the CTA becomes **Render Video**.  
+2. Click **Generate Assets**. The main button becomes **Stop** — cancels remaining scene work (in-flight Flow/stock may finish shortly; completed scenes are kept).  
+3. Select a scene to open the inspector — recovery actions (retry, alternatives, **Change Source**) appear there. **Go to Error** / **Issues** show only when there are failures. **Cleanup** and **Activity** live in an overflow menu.  
+4. When every scene is ready and audio exists, the main button is **Render Video**. If audio is still missing, it is **Import Voiceover**.  
 5. Preview opens when export finishes; files land in the project `final/` folder.
 
 **Stop / cancel** applies to asset resolution. Whisper transcription and FFmpeg render are not interruptible once started.
@@ -195,9 +202,10 @@ Images and videos can be mixed.
 
 | Problem | What to do |
 |---|---|
-| CTA says “New Project first” | Create or open a project |
-| “Analyze or import CSV” | Paste script + Analyze, or choose a CSV |
-| “Import voiceover first” | Browse an audio file under Voiceover Audio |
+| App opened with no project / last video missing | Every launch is fresh. Use **Choose a project** — last-used may be labeled but is not opened automatically |
+| Closed the project picker | Click **Choose project** (nothing is selected until you pick one) |
+| Main button is **Analyze Script** or **Import CSV** | Paste narration and Analyze, or switch to **Import CSV** and pick a file |
+| Main button is **Import Voiceover** | Choose an audio file in the Voiceover section |
 | “No prompt / stock / local file” | Fill `asset_type` + `prompt`, or drop `001.png`-style files |
 | “No Pexels API key” | Settings → Stock |
 | “No signed-in accounts” | Settings → AI / Flow Accounts → Sign in |
