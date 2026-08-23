@@ -107,7 +107,8 @@ class ProjectWorkspace:
 
         Priority:
         1. Explicit active_voiceover from project.json (what the UI last selected)
-        2. Most recently modified audio in audio/ (includes cloned TTS + imports)
+        2. Most recently modified audio in audio/ (includes legacy narration.wav /
+           voiceover_qwen* files discovered as normal audio)
         """
         active = self.get_active_voiceover()
         if active is not None:
@@ -143,7 +144,12 @@ class ProjectWorkspace:
         return None
 
     def set_active_voiceover(self, path: Path | str | None, *, source: str = "") -> None:
-        """Persist which audio file the video pipeline should use."""
+        """Persist which audio file the video pipeline should use.
+
+        Obsolete source values such as ``tts`` / ``cloned`` are not written;
+        they are normalized to ``imported`` so new projects never persist TTS tags.
+        Existing project.json fields are left alone until the next write.
+        """
         self.ensure_dirs()
         data = self.read_meta()
         data.update(self.to_dict())
@@ -159,11 +165,15 @@ class ProjectWorkspace:
                 stored = str(p)
             data["active_voiceover"] = stored
             src = (source or "").strip().lower()
+            # Never persist obsolete TTS source tags on new writes.
+            if src in ("tts", "cloned"):
+                src = "imported"
             if src:
                 data["active_voiceover_source"] = src
             else:
                 data.pop("active_voiceover_source", None)
-        self.meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        # Leave obsolete voice_id untouched if present (ignore, don't migrate).
+        self._write_meta(data)
 
     def active_voiceover_source(self) -> str:
         return str(self.read_meta().get("active_voiceover_source") or "").strip().lower()
@@ -222,31 +232,52 @@ class ProjectWorkspace:
         }
 
     def save_meta(self) -> None:
-        self.ensure_dirs()
-        self.meta_path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+        self._write_meta(self.to_dict())
 
     def read_meta(self) -> Dict[str, Any]:
-        if not self.meta_path.is_file():
+        path = self.meta_path
+        if not path.is_file():
+            _META_CACHE.pop(str(path), None)
             return {}
         try:
-            data = json.loads(self.meta_path.read_text(encoding="utf-8"))
+            mtime = path.stat().st_mtime
+        except OSError:
+            return {}
+        key = str(path)
+        cached = _META_CACHE.get(key)
+        if cached is not None and cached[0] == mtime:
+            return dict(cached[1])
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return {}
-        return data if isinstance(data, dict) else {}
+        if not isinstance(data, dict):
+            return {}
+        _META_CACHE[key] = (mtime, dict(data))
+        return data
+
+    def _write_meta(self, data: Dict[str, Any]) -> None:
+        self.ensure_dirs()
+        self.meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        try:
+            mtime = self.meta_path.stat().st_mtime
+        except OSError:
+            _META_CACHE.pop(str(self.meta_path), None)
+        else:
+            _META_CACHE[str(self.meta_path)] = (mtime, dict(data))
+        # Folder listing cache may include this project's mtime.
+        try:
+            _LIST_PROJECTS_CACHE.pop(str(self.root.parent.resolve()), None)
+        except OSError:
+            pass
 
     def voice_id(self) -> str:
+        """Obsolete TTS field. Readable for old projects; always ignored by the app."""
         return str(self.read_meta().get("voice_id") or "").strip()
 
     def set_voice_id(self, voice_id: str) -> None:
-        self.ensure_dirs()
-        data = self.read_meta()
-        data.update(self.to_dict())
-        vid = (voice_id or "").strip()
-        if vid:
-            data["voice_id"] = vid
-        else:
-            data.pop("voice_id", None)
-        self.meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        """No-op: new projects never write voice_id. Leaves existing values untouched."""
+        return
 
     def smart_editing_settings(self) -> dict:
         from smart_editing import DEFAULT_SETTINGS
@@ -259,7 +290,6 @@ class ProjectWorkspace:
         return merged
 
     def set_smart_editing_settings(self, settings: dict) -> None:
-        self.ensure_dirs()
         data = self.read_meta()
         data.update(self.to_dict())
         data["smart_editing"] = {
@@ -267,7 +297,7 @@ class ProjectWorkspace:
             for k in ("text_effects", "sound_effects", "intensity", "mode")
             if k in settings
         }
-        self.meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        self._write_meta(data)
 
     def save_script(self, text: str) -> Path:
         self.ensure_dirs()
@@ -445,6 +475,11 @@ def list_projects(projects_root: Path) -> List[ProjectWorkspace]:
     root = Path(projects_root)
     if not root.is_dir():
         return []
+    fingerprint = _list_projects_fingerprint(root)
+    cached = _LIST_PROJECTS_CACHE.get(str(root.resolve()) if root.exists() else str(root))
+    if cached is not None and cached[0] == fingerprint:
+        return list(cached[1])
+
     found: List[ProjectWorkspace] = []
     for child in sorted(root.iterdir()):
         if not child.is_dir():
@@ -453,7 +488,35 @@ def list_projects(projects_root: Path) -> List[ProjectWorkspace]:
         if ws is not None:
             found.append(ws)
     found.sort(key=lambda w: (w.seq, w.project_id))
+    try:
+        cache_key = str(root.resolve())
+    except OSError:
+        cache_key = str(root)
+    _LIST_PROJECTS_CACHE[cache_key] = (fingerprint, list(found))
     return found
+
+
+def _list_projects_fingerprint(root: Path) -> tuple:
+    """Invalidate when project folders or their project.json mtimes change."""
+    entries: list[tuple[str, float]] = []
+    try:
+        for child in root.iterdir():
+            if not child.is_dir():
+                continue
+            meta = child / META_NAME
+            if not meta.is_file():
+                continue
+            try:
+                entries.append((child.name, meta.stat().st_mtime))
+            except OSError:
+                entries.append((child.name, 0.0))
+    except OSError:
+        return ()
+    return tuple(sorted(entries))
+
+
+_LIST_PROJECTS_CACHE: Dict[str, tuple] = {}
+_META_CACHE: Dict[str, tuple] = {}
 
 
 def asset_belongs_to_project(path: Optional[Path], workspace: ProjectWorkspace) -> bool:

@@ -4,15 +4,15 @@ Place platform binaries here before a local PyInstaller build:
 
 | Platform | Files to put here |
 |----------|------------------|
-| macOS    | `bin/ffmpeg`, `bin/node` (no extension, both executable) |
+| macOS    | `bin/ffmpeg`, `bin/ffprobe`, `bin/node` (no extension, all executable) |
 | Windows  | `bin/ffmpeg.exe`, `bin/ffprobe.exe`, `bin/node.exe` |
 
-Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns).
+Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns). `ffprobe` / `ffprobe.exe` is used for audio/video duration and metadata probing (voiceover preview, render prep, SFX import, etc.) and is bundled when present.
 
 ## Where to get them
 
 - **ffmpeg — macOS:** download a static build, or copy from Homebrew:
-  `cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg && chmod +x bin/ffmpeg`
+  `cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg && cp "$(brew --prefix ffmpeg)/bin/ffprobe" bin/ffprobe && chmod +x bin/ffmpeg bin/ffprobe`
 - **ffmpeg — Windows:** from a release zip (BtbN win64-gpl or Gyan "essentials"), copy `bin/ffmpeg.exe` **and** `bin/ffprobe.exe` here (same zip). CI uses BtbN first (GitHub Releases); Gyan is only a fallback.
 - **node — any platform:** download the **official** Node.js binary release from nodejs.org (NOT Homebrew's — Homebrew's `node` is dynamically linked against Homebrew's own OpenSSL/ICU and will not run on a machine without Homebrew; the official nodejs.org tarball only links against OS-provided system libraries and runs standalone). Extract the archive and copy just `bin/node` (macOS/Linux) or `node.exe` (Windows) — no other files needed, since `flow-engine/node_modules/` (committed separately, see `flow-engine/README.md`) is what actually runs.
 

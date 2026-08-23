@@ -1,4 +1,4 @@
-# Virtualenvs (dev / build / qwen / installer / backups)
+# Virtualenvs (dev / build / backups)
 .venv/
 .venv-*/
 .venv_*/
@@ -30,7 +30,6 @@ bin/node.exe
 # Project media / script (local per video — do not commit)
 script.csv
 voiceover.mp3
-voiceover_qwen.wav
 _pluto_script_from_plan.txt
 Images/
 # (Images/.asset_manifest.json and .stock_used_assets.json are covered by Images/ above)
@@ -43,6 +42,5 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# Temp venv renames from local download tests
-.venv-qwen.bak-*
+# Temp renames from local download tests
 *.bak-download-test/

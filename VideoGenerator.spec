@@ -61,30 +61,17 @@ if not ffmpeg_src.is_file():
 
 binaries += [(str(ffmpeg_src), "bin")]
 
-# ffprobe probes MP3/M4A reference clips for voice clone (Windows has no system ffprobe).
-if sys.platform == "win32":
-    ffprobe_src = BIN / "ffprobe.exe"
-    if ffprobe_src.is_file():
-        binaries += [(str(ffprobe_src), "bin")]
-    else:
-        print(
-            "WARNING: bin/ffprobe.exe not found — MP3/M4A reference audio may fail on Windows. "
-            "Copy ffprobe.exe from the same ffmpeg essentials zip as ffmpeg.exe."
-        )
-
-# Qwen in-app Download + isolated worker subprocess need these on disk (not only in PYZ).
-manifest = ROOT / "tts" / "install_manifest.json"
-if not manifest.is_file():
-    raise SystemExit(f"Missing {manifest}")
-datas += [(str(manifest), "tts")]
-
-for pkg_dir in ("tts", "installer"):
-    pkg_path = ROOT / pkg_dir
-    if not pkg_path.is_dir():
-        continue
-    for f in pkg_path.rglob("*.py"):
-        rel_dir = f.parent.relative_to(ROOT)
-        datas.append((str(f), str(rel_dir)))
+# ffprobe probes audio/video metadata (required on Windows; also ship on mac/Linux
+# when present so packaged builds never depend on a system ffprobe).
+ffprobe_name = "ffprobe.exe" if sys.platform == "win32" else "ffprobe"
+ffprobe_src = BIN / ffprobe_name
+if ffprobe_src.is_file():
+    binaries += [(str(ffprobe_src), "bin")]
+else:
+    print(
+        f"WARNING: {ffprobe_src} not found — audio/video probing may fail in packaged builds. "
+        "Copy ffprobe from the same ffmpeg build as ffmpeg."
+    )
 
 # generation with zero Node.js install required. Optional: Stock and Manual scenes
 # work fine without it, so we only warn (not fail the build) if it's missing.
@@ -99,10 +86,39 @@ else:
 # Bundle flow-engine/ (server.js, lib/*.js, config.js, package.json, and its
 # pre-installed node_modules) as plain data files — Node/PyInstaller runs it
 # with the bundled `node` binary above, no npm install needed at runtime.
+# Skip docs / Vite trace UI / agent skills — unused at runtime (~few MB).
+_SKIP_NODE_MODULE_PARTS = (
+    "/README",
+    "/CHANGELOG",
+    "/LICENSE",
+    "/NOTICE",
+    "/ThirdPartyNotices",
+    "/lib/vite/",
+    "/lib/tools/skills/",
+    "/.github/",
+    "/docs/",
+)
+
+
+def _should_bundle_data_file(path: Path, root: Path) -> bool:
+    rel = path.relative_to(root).as_posix()
+    if "/node_modules/" not in f"/{rel}":
+        return True
+    lowered = f"/{rel}"
+    if any(part in lowered for part in _SKIP_NODE_MODULE_PARTS):
+        return False
+    # Drop markdown / typescript declaration bloat inside node_modules.
+    if path.suffix.lower() in {".md", ".map", ".ts"} and "/node_modules/" in lowered:
+        # Keep .d.ts out; keep package.json / js / mjs / cjs.
+        if path.name.endswith(".d.ts") or path.suffix.lower() in {".md", ".map"}:
+            return False
+    return True
+
+
 FLOW_ENGINE_DIR = ROOT / "flow-engine"
 if FLOW_ENGINE_DIR.is_dir():
     for f in FLOW_ENGINE_DIR.rglob("*"):
-        if f.is_file():
+        if f.is_file() and _should_bundle_data_file(f, ROOT):
             rel_dir = f.parent.relative_to(ROOT)
             datas.append((str(f), str(rel_dir)))
 else:

@@ -534,13 +534,45 @@ def arrange_images(images_dir: Path):
 
 # ---------- step 3: locate image files ----------
 
+def build_scene_media_index(images_dir: Path) -> dict:
+    """One directory scan → stem → preferred media path (image before video)."""
+    images_dir = Path(images_dir)
+    by_stem: dict[str, dict[str, Path]] = {}
+    try:
+        for p in images_dir.iterdir():
+            if not p.is_file() or p.name.startswith("."):
+                continue
+            ext = p.suffix.lower()
+            if ext not in MEDIA_EXTS:
+                continue
+            by_stem.setdefault(p.stem, {})[ext] = p
+    except OSError:
+        return {}
+    out: dict[str, Path] = {}
+    for stem, by_ext in by_stem.items():
+        for ext in _SCENE_SEARCH_EXTS:
+            if ext in by_ext:
+                out[stem] = by_ext[ext]
+                break
+    return out
+
+
 def find_image_for_scene(images_dir: Path, scene_number: str, ext_cache: dict = None):
-    """Handles zero-padded (001) or plain (1) numbering; matches an image or a video clip."""
-    del ext_cache  # kept for call-site compatibility; unused
+    """Handles zero-padded (001) or plain (1) numbering; matches an image or a video clip.
+
+    Pass ``ext_cache`` from :func:`build_scene_media_index` to avoid repeated
+    ``Path.exists`` probes when resolving many scenes.
+    """
     n = int(str(scene_number).strip())
     candidates = [
         f"{n}", f"{n:02d}", f"{n:03d}", f"{n:04d}",
     ]
+    if ext_cache is not None:
+        for c in candidates:
+            hit = ext_cache.get(c)
+            if hit is not None:
+                return hit
+        return None
 
     for c in candidates:
         for e in _SCENE_SEARCH_EXTS:
@@ -552,10 +584,11 @@ def find_image_for_scene(images_dir: Path, scene_number: str, ext_cache: dict = 
 
 def missing_images_for_scenes(rows, images_dir: Path):
     """Return scene_number strings that have no matching image file."""
+    index = build_scene_media_index(images_dir)
     missing = []
     for row in rows:
         scene = str(row["scene_number"]).strip()
-        if find_image_for_scene(images_dir, scene) is None:
+        if find_image_for_scene(images_dir, scene, ext_cache=index) is None:
             missing.append(scene)
     return missing
 

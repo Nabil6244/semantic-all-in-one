@@ -52,32 +52,6 @@ from providers.router import SceneAssetRouter
 from scene_recovery import SceneRecoveryTracker, summarize_assets
 from scene_qa import SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
 from manual_clip import FILE_DIALOG_TYPES, ManualClipError, validate_local_media
-from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
-from tts.base import CLONE_MODEL_ID, PREVIEW_TEXT, VOICE_MODE_LABEL_CLONE
-from tts.client import get_shared_client, qwen_runtime_status, shutdown_shared_client
-from tts.errors import TTSError
-from tts.model_cache import MODEL_DIR_NAME, candidate_model_dirs, model_is_installed
-from tts.narration import VOICE_NARRATION_PLACEHOLDER, collect_narration
-from tts.qwen_provision import (
-    clear_qwen_install_complete,
-    friendly_provision_error,
-    provision_qwen,
-    qwen_install_status_message,
-)
-from tts.voice_library import (
-    VoiceProfile,
-    create_voice_profile,
-    delete_voice,
-    get_default_voice,
-    get_voice,
-    list_voices,
-    mark_voice_needs_rebuild,
-    mark_voice_ready,
-    migrate_legacy_reference,
-    refresh_profile_status,
-    replace_voice_reference,
-    set_default_voice,
-)
 from project_workspace import (
     asset_belongs_to_project,
     create_project,
@@ -164,21 +138,43 @@ def load_settings() -> dict:
     import json
 
     path = _settings_path()
-    if path.is_file():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+    if not path.is_file():
+        _SETTINGS_CACHE.clear()
+        return {}
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    cached = _SETTINGS_CACHE.get("data")
+    if cached is not None and _SETTINGS_CACHE.get("mtime") == mtime:
+        return dict(cached)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    _SETTINGS_CACHE["mtime"] = mtime
+    _SETTINGS_CACHE["data"] = dict(data)
+    return data
 
 
 def save_settings(data: dict) -> None:
     import json
 
     try:
-        _settings_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
+        path = _settings_path()
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        try:
+            _SETTINGS_CACHE["mtime"] = path.stat().st_mtime
+            _SETTINGS_CACHE["data"] = dict(data)
+        except OSError:
+            _SETTINGS_CACHE.clear()
     except OSError:
         pass
+
+
+_SETTINGS_CACHE: dict = {}
 
 
 # Mirrors flow-engine/config.js exactly (models/aspectRatios/videoModels/
@@ -245,22 +241,38 @@ def _bundle_root() -> Path:
     return SOURCE_DIR
 
 
+_LOGO_PATH_CACHE: Path | None | bool = False  # False = unset; None = missing
+_LOGO_CTK_CACHE: dict[tuple[int, bool], tuple] = {}
+_LOGO_ICON_CACHE: dict[int, object] = {}
+
+
 def _logo_path() -> Path | None:
     """Return path to assets/logo.png if present (dev or bundled)."""
+    global _LOGO_PATH_CACHE
+    if _LOGO_PATH_CACHE is not False:
+        return _LOGO_PATH_CACHE  # type: ignore[return-value]
     candidates = [
         _bundle_root() / "assets" / "logo.png",
         SOURCE_DIR / "assets" / "logo.png",
     ]
     for p in candidates:
         if p.is_file():
+            _LOGO_PATH_CACHE = p
             return p
+    _LOGO_PATH_CACHE = None
     return None
 
 
 def _logo_ctk_image(diameter: int, *, circular: bool = True):
     """Load branding asset; UI uses a centered circular crop (no stretch)."""
+    size = max(1, int(diameter))
+    cache_key = (size, bool(circular))
+    hit = _LOGO_CTK_CACHE.get(cache_key)
+    if hit is not None:
+        return hit
     logo_path = _logo_path()
     if logo_path is None:
+        _LOGO_CTK_CACHE[cache_key] = (None, None)
         return None, None
     try:
         from PIL import Image, ImageDraw
@@ -268,8 +280,8 @@ def _logo_ctk_image(diameter: int, *, circular: bool = True):
         img = Image.open(logo_path).convert("RGBA")
         w, h = img.size
         if h <= 0 or w <= 0:
+            _LOGO_CTK_CACHE[cache_key] = (None, None)
             return None, None
-        size = max(1, int(diameter))
         if circular:
             side = min(w, h)
             left = (w - side) // 2
@@ -286,15 +298,22 @@ def _logo_ctk_image(diameter: int, *, circular: bool = True):
             disp_w = max(1, int(w * scale))
             img = img.resize((disp_w, size), Image.Resampling.LANCZOS)
         ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size if circular else img.size[1]))
-        return ctk_img, img
+        result = (ctk_img, img)
+        _LOGO_CTK_CACHE[cache_key] = result
+        return result
     except Exception:
+        _LOGO_CTK_CACHE[cache_key] = (None, None)
         return None, None
 
 
 def _logo_icon_photo(size: int = 64):
     """Window/dock icon — same centered circular crop as the header."""
+    size = max(1, int(size))
+    if size in _LOGO_ICON_CACHE:
+        return _LOGO_ICON_CACHE[size]
     logo_path = _logo_path()
     if logo_path is None:
+        _LOGO_ICON_CACHE[size] = None
         return None
     try:
         from PIL import Image, ImageDraw, ImageTk
@@ -302,6 +321,7 @@ def _logo_icon_photo(size: int = 64):
         img = Image.open(logo_path).convert("RGBA")
         w, h = img.size
         if h <= 0 or w <= 0:
+            _LOGO_ICON_CACHE[size] = None
             return None
         side = min(w, h)
         left = (w - side) // 2
@@ -312,8 +332,11 @@ def _logo_icon_photo(size: int = 64):
         ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
         out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         out.paste(img, mask=mask)
-        return ImageTk.PhotoImage(out)
+        photo = ImageTk.PhotoImage(out)
+        _LOGO_ICON_CACHE[size] = photo
+        return photo
     except Exception:
+        _LOGO_ICON_CACHE[size] = None
         return None
 
 
@@ -350,6 +373,12 @@ def ensure_ffmpeg_on_path() -> Path | None:
         mode = found.stat().st_mode
         if not (mode & 0o111):
             found.chmod(mode | 0o111)
+        # Sibling ffprobe from the same bundle (packaged mac/Linux).
+        probe = found.parent / ("ffprobe.exe" if sys.platform == "win32" else "ffprobe")
+        if probe.is_file():
+            pmode = probe.stat().st_mode
+            if not (pmode & 0o111):
+                probe.chmod(pmode | 0o111)
 
     bin_dir = str(found.parent)
     path_env = os.environ.get("PATH", "")
@@ -554,12 +583,16 @@ class VideoGeneratorApp(ctk.CTk):
         self._left_panel: ctk.CTkFrame | None = None
         self._right_panel: ctk.CTkFrame | None = None
 
+        self._scene_render_gen = 0
+        self._sfx_ready = False
+
         self._build_ui()
         self._apply_defaults()
         self._poll_queue()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
-        self.bind("<FocusIn>", self._on_app_focus_in, add="+")
-
+        # Seed bundled SFX after first paint so startup isn't blocked on copy I/O.
+        # ensure_sfx_library is idempotent; also re-checked before smart-editing mix.
+        self.after_idle(self._ensure_sfx_ready)
     # ---------- UI ----------
 
     def _build_ui(self) -> None:
@@ -731,13 +764,6 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_analyze_script,
         )
         self.top_analyze_btn.grid(row=0, column=5, rowspan=2, padx=4, pady=8)
-        self.top_voice_btn = ctk.CTkButton(
-            topbar, text="Voice", width=72, height=28,
-            fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._on_generate_narration,
-        )
-        self.top_voice_btn.grid(row=0, column=6, rowspan=2, padx=4, pady=8)
         ctk.CTkButton(
             topbar, text="Settings", width=80, height=28,
             fg_color="transparent", border_width=1, border_color=_BORDER,
@@ -838,249 +864,24 @@ class VideoGeneratorApp(ctk.CTk):
         self._ai_block.grid_remove()
         self._refresh_gemini_status()
 
-        self.tts_status_var = ctk.StringVar(value="")
-        self.tts_selected_voice_var = ctk.StringVar(value="(none)")
-        self.tts_voice_detail_var = ctk.StringVar(value="Create or select a saved voice.")
-        self.tts_create_name_var = ctk.StringVar(value="")
-        self.tts_create_ref_var = ctk.StringVar(value="")
-        self._tts_voice_profiles: dict[str, VoiceProfile] = {}
-        self._tts_create_ref_path: Path | None = None
-        self._settings.setdefault(
-            "qwen_selected_voice_id",
-            self._settings.get("qwen_selected_voice_id") or "",
-        )
 
-        tts = ctk.CTkFrame(
+        voice_panel = ctk.CTkFrame(
             scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
         )
-        tts.grid(row=2, column=0, sticky="ew", padx=16, pady=(10, 0))
-        tts.grid_columnconfigure(0, weight=1)
+        voice_panel.grid(row=2, column=0, sticky="ew", padx=16, pady=(10, 0))
+        voice_panel.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            tts, text="VOICE",
+            voice_panel, text="VOICEOVER",
             font=ctk.CTkFont(size=9, weight="bold"), text_color=_MUTED, anchor="w",
         ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
         ctk.CTkLabel(
-            tts, text=VOICE_MODE_LABEL_CLONE,
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
-        ).grid(row=1, column=0, sticky="w", padx=12, pady=(2, 0))
+            voice_panel,
+            text="Import your narration audio — used for the final video.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=280, justify="left", anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 0))
 
-        # Status text — wraplength tracks panel width (avoids cut-off in the left column).
-        self._tts_status_label = ctk.CTkLabel(
-            tts,
-            textvariable=self.tts_status_var,
-            font=ctk.CTkFont(size=11),
-            text_color=_MUTED,
-            wraplength=280,
-            justify="left",
-            anchor="w",
-        )
-        self._tts_status_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 0))
-        # Idle: Download button. Active: progress bar + ✕ (no Open Folder here).
-        tts_status_actions = ctk.CTkFrame(tts, fg_color="transparent")
-        tts_status_actions.grid(row=3, column=0, sticky="ew", padx=12, pady=(6, 0))
-        tts_status_actions.grid_columnconfigure(0, weight=1)
-        self._tts_download_btn = ctk.CTkButton(
-            tts_status_actions,
-            text="Download Qwen",
-            width=120,
-            height=28,
-            fg_color=_ACCENT,
-            hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            corner_radius=4,
-            command=self._on_download_qwen,
-        )
-        self._tts_download_btn.grid(row=0, column=0, sticky="w")
-
-        self._tts_dl_row = ctk.CTkFrame(tts_status_actions, fg_color="transparent")
-        self._tts_dl_row.grid(row=1, column=0, sticky="ew")
-        self._tts_dl_row.grid_columnconfigure(0, weight=1)
-        self._tts_dl_progress = ctk.CTkProgressBar(
-            self._tts_dl_row,
-            height=10,
-            progress_color=_ACCENT,
-            fg_color=_BORDER,
-            corner_radius=4,
-        )
-        self._tts_dl_progress.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        self._tts_dl_progress.set(0)
-        self._tts_download_cancel_btn = ctk.CTkButton(
-            self._tts_dl_row,
-            text="✕",
-            width=32,
-            height=28,
-            fg_color="transparent",
-            border_width=1,
-            border_color=_BORDER,
-            text_color=_MUTED,
-            hover_color=_BORDER,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            corner_radius=4,
-            command=self._on_cancel_qwen_download,
-        )
-        self._tts_download_cancel_btn.grid(row=0, column=1, sticky="e")
-        self._tts_dl_row.grid_remove()
-        self._qwen_download_active = False
-        self._qwen_download_cancel = False
-        self._qwen_deep_check_active = False
-        tts.bind("<Map>", lambda _e: self.after(50, self._refresh_tts_status), add="+")
-
-        lib_head = ctk.CTkFrame(tts, fg_color="transparent")
-        lib_head.grid(row=4, column=0, sticky="ew", padx=12, pady=(10, 0))
-        lib_head.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(
-            lib_head, text="Voice Library", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=0, sticky="w")
-        self._tts_voice_menu = ctk.CTkOptionMenu(
-            lib_head,
-            variable=self.tts_selected_voice_var,
-            values=["(none)"],
-            width=180,
-            height=28,
-            fg_color=_BG,
-            button_color=_BORDER,
-            button_hover_color=_ACCENT,
-            text_color=_TEXT,
-            dropdown_fg_color=_CARD,
-            dropdown_text_color=_TEXT,
-            command=self._on_voice_selected,
-        )
-        self._tts_voice_menu.grid(row=0, column=1, sticky="e")
-        self._tts_voice_detail_label = ctk.CTkLabel(
-            tts, textvariable=self.tts_voice_detail_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, wraplength=280, justify="left", anchor="w",
-        )
-        self._tts_voice_detail_label.grid(row=5, column=0, sticky="ew", padx=12, pady=(4, 0))
-
-        voice_actions = ctk.CTkFrame(tts, fg_color="transparent")
-        voice_actions.grid(row=6, column=0, sticky="ew", padx=12, pady=(6, 0))
-        voice_actions.grid_columnconfigure(1, weight=1)
-        ctk.CTkButton(
-            voice_actions,
-            text="Test Voice",
-            width=100,
-            height=28,
-            fg_color="transparent",
-            border_width=1,
-            border_color=_BORDER,
-            text_color=_TEXT,
-            hover_color=_CARD_HOVER,
-            command=self._on_preview_voice,
-        ).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(
-            voice_actions,
-            text="Delete",
-            width=78,
-            height=28,
-            fg_color="transparent",
-            border_width=1,
-            border_color=_DANGER,
-            text_color=_DANGER,
-            hover_color=_DANGER_BG,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._delete_selected_voice,
-        ).grid(row=0, column=2, sticky="e")
-        self._tts_test_hint = ctk.CTkLabel(
-            tts,
-            text="Test Voice plays a short sample with the selected voice.",
-            font=ctk.CTkFont(size=10),
-            text_color=_MUTED,
-            wraplength=280,
-            justify="left",
-            anchor="w",
-        )
-        self._tts_test_hint.grid(row=7, column=0, sticky="ew", padx=12, pady=(4, 0))
-
-        ctk.CTkLabel(
-            tts, text="Create New Voice", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=_MUTED, anchor="w",
-        ).grid(row=8, column=0, sticky="w", padx=12, pady=(10, 0))
-        ctk.CTkEntry(
-            tts, textvariable=self.tts_create_name_var, placeholder_text="Voice name (e.g. Nabil)",
-            height=28, border_color=_BORDER, fg_color=_BG,
-        ).grid(row=9, column=0, sticky="ew", padx=12, pady=(4, 0))
-        create_ref_row = ctk.CTkFrame(tts, fg_color="transparent")
-        create_ref_row.grid(row=10, column=0, sticky="ew", padx=12, pady=(4, 0))
-        create_ref_row.grid_columnconfigure(0, weight=1)
-        ctk.CTkEntry(
-            create_ref_row, textvariable=self.tts_create_ref_var, placeholder_text="Reference audio path",
-            height=28, border_color=_BORDER, fg_color=_BG,
-        ).grid(row=0, column=0, sticky="ew")
-        ctk.CTkButton(
-            create_ref_row, text="Browse", width=72, height=28, fg_color="transparent",
-            border_width=1, border_color=_BORDER, text_color=_TEXT, hover_color=_CARD_HOVER,
-            command=self._browse_create_reference_audio,
-        ).grid(row=0, column=1, padx=(8, 0))
-        ctk.CTkLabel(
-            tts, text="Reference Transcript", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
-        ).grid(row=11, column=0, sticky="w", padx=12, pady=(6, 0))
-        self.tts_create_transcript_box = ctk.CTkTextbox(
-            tts, height=72, fg_color=_BG, border_color=_BORDER, border_width=1,
-            text_color=_TEXT, font=ctk.CTkFont(size=11), wrap="word",
-        )
-        self.tts_create_transcript_box.grid(row=12, column=0, sticky="ew", padx=12, pady=(4, 0))
-        self.tts_create_transcript_box.insert(
-            "1.0",
-            "Enter the exact words spoken in the reference recording.",
-        )
-        self.tts_create_btn = ctk.CTkButton(
-            tts, text="+ Create Voice", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK, font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._create_voice_profile,
-        )
-        self.tts_create_btn.grid(row=13, column=0, sticky="ew", padx=12, pady=(8, 0))
-
-        ctk.CTkLabel(
-            tts, text="Narration Script", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=_MUTED, anchor="w",
-        ).grid(row=14, column=0, sticky="w", padx=12, pady=(12, 0))
-        self.tts_narration_box = ctk.CTkTextbox(
-            tts, height=110, fg_color=_BG, border_color=_BORDER, border_width=1,
-            text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="word",
-        )
-        self.tts_narration_box.grid(row=15, column=0, sticky="ew", padx=12, pady=(4, 0))
-        self.tts_narration_box.insert("1.0", VOICE_NARRATION_PLACEHOLDER)
-        # Large pastes into CTk/Tk text with undo enabled can freeze the UI.
-        try:
-            self.tts_narration_box._textbox.configure(undo=False)  # type: ignore[attr-defined]
-        except Exception:
-            pass
-        self.tts_narration_box.bind("<FocusIn>", self._tts_narration_focus_in)
-        self.tts_narration_box.bind("<<Paste>>", self._tts_narration_paste)
-
-        self.tts_btn = ctk.CTkButton(
-            tts, text="Generate Narration", height=34, fg_color=_ACCENT,
-            hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
-            font=ctk.CTkFont(size=13, weight="bold"), command=self._on_tts_primary_click,
-        )
-        self.tts_btn.grid(row=16, column=0, sticky="ew", padx=12, pady=(10, 4))
-
-        self.tts_progress = ctk.CTkProgressBar(
-            tts,
-            height=8,
-            progress_color=_ACCENT,
-            fg_color=_BORDER,
-            corner_radius=4,
-        )
-        self.tts_progress.grid(row=17, column=0, sticky="ew", padx=12, pady=(0, 2))
-        self.tts_progress.set(0)
-        self.tts_progress_var = ctk.StringVar(value="")
-        self.tts_progress_label = ctk.CTkLabel(
-            tts,
-            textvariable=self.tts_progress_var,
-            font=ctk.CTkFont(size=11),
-            text_color=_MUTED,
-            anchor="w",
-        )
-        self.tts_progress_label.grid(row=18, column=0, sticky="ew", padx=12, pady=(0, 4))
-        self._tts_progress_t0: float | None = None
-        self._tts_progress_done = 0
-        self._tts_progress_total = 0
-        self._tts_progress_phase = ""
-
-        voice_play_row = ctk.CTkFrame(tts, fg_color="transparent")
-        voice_play_row.grid(row=19, column=0, sticky="ew", padx=12, pady=(0, 4))
+        voice_play_row = ctk.CTkFrame(voice_panel, fg_color="transparent")
+        voice_play_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(10, 4))
         voice_play_row.grid_columnconfigure((0, 1), weight=1)
         self._play_voice_btn = ctk.CTkButton(
             voice_play_row,
@@ -1116,40 +917,27 @@ class VideoGeneratorApp(ctk.CTk):
         self._voice_play_paused = False
         self._voice_play_paused_at = 0.0
         self._voice_play_path: Path | None = None
-        self._tts_job_active = False
-        self._tts_cancel_requested = False
 
         self.voice_play_progress = ctk.CTkProgressBar(
-            tts,
+            voice_panel,
             height=8,
             progress_color=_ACCENT,
             fg_color=_BORDER,
             corner_radius=4,
         )
-        self.voice_play_progress.grid(row=20, column=0, sticky="ew", padx=12, pady=(0, 2))
+        self.voice_play_progress.grid(row=3, column=0, sticky="ew", padx=12, pady=(0, 2))
         self.voice_play_progress.set(0)
         self.voice_play_progress_var = ctk.StringVar(value="")
         self.voice_play_progress_label = ctk.CTkLabel(
-            tts,
+            voice_panel,
             textvariable=self.voice_play_progress_var,
             font=ctk.CTkFont(size=11),
             text_color=_MUTED,
             anchor="w",
         )
-        self.voice_play_progress_label.grid(row=21, column=0, sticky="ew", padx=12, pady=(0, 4))
-
-        self._tts_privacy_label = ctk.CTkLabel(
-            tts, text="Local voice cloning — audio stays on this computer.",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, justify="left", anchor="w",
-            wraplength=280,
-        )
-        self._tts_privacy_label.grid(row=22, column=0, sticky="ew", padx=12, pady=(0, 10))
-        self._init_voice_library()
-        self._refresh_tts_status()
+        self.voice_play_progress_label.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 10))
         self._refresh_voice_playback_buttons()
-        # Re-validate Qwen completeness after the window is up (partial downloads, etc.).
-        self.after(250, self._refresh_tts_status)
-        self.after(800, self._schedule_qwen_deep_check)
+
 
         self._path_row(3, "Voiceover Audio (USED FOR VIDEO)", self.audio_var, self._browse_audio)
         self.voiceover_active_var = ctk.StringVar(value="Video has no voiceover yet.")
@@ -1686,291 +1474,6 @@ class VideoGeneratorApp(ctk.CTk):
                 command=lambda: var.set(""),
             ).grid(row=1, column=2, sticky="e", padx=(0, 10), pady=(0, 10))
 
-    def _toggle_tts_advanced(self) -> None:
-        return
-
-    def _init_voice_library(self) -> None:
-        legacy = self._settings.get("qwen_ref_audio") or ""
-        if legacy and not list_voices():
-            migrate_legacy_reference(legacy)
-        self._refresh_voice_library_ui()
-        preferred = (self._settings.get("qwen_selected_voice_id") or "").strip()
-        if not preferred and self._workspace is not None:
-            preferred = self._workspace.voice_id()
-        if not preferred:
-            default = get_default_voice()
-            preferred = default.id if default else ""
-        if preferred:
-            self._select_voice_by_id(preferred, persist=False)
-
-    def _voice_menu_label(self, profile: VoiceProfile) -> str:
-        parts = [profile.name]
-        if profile.is_default:
-            parts.append("DEFAULT")
-        if profile.status == "ready":
-            parts.append("READY")
-        elif profile.status == "building":
-            parts.append("BUILDING")
-        else:
-            parts.append("NEEDS REBUILD")
-        return " · ".join(parts)
-
-    def _refresh_voice_library_ui(self) -> None:
-        profiles = list_voices()
-        self._tts_voice_profiles = {self._voice_menu_label(p): p for p in profiles}
-        labels = list(self._tts_voice_profiles.keys()) or ["(none)"]
-        current = self.tts_selected_voice_var.get()
-        self._tts_voice_menu.configure(values=labels)
-        if current in labels:
-            self.tts_selected_voice_var.set(current)
-        elif profiles:
-            default = next((p for p in profiles if p.is_default), profiles[0])
-            self._select_voice_by_id(default.id, persist=False)
-        else:
-            self.tts_selected_voice_var.set("(none)")
-            self.tts_voice_detail_var.set("Create or select a saved voice.")
-        profile = self._selected_voice_profile()
-        if profile is not None:
-            self.tts_voice_detail_var.set(self._format_voice_detail(profile))
-
-    def _selected_voice_profile(self) -> VoiceProfile | None:
-        label = (self.tts_selected_voice_var.get() or "").strip()
-        if label == "(none)":
-            return None
-        return self._tts_voice_profiles.get(label)
-
-    def _select_voice_by_id(self, voice_id: str, *, persist: bool = True) -> None:
-        profile = get_voice(voice_id)
-        if profile is None:
-            return
-        label = self._voice_menu_label(profile)
-        self._tts_voice_profiles[label] = profile
-        self.tts_selected_voice_var.set(label)
-        self.tts_voice_detail_var.set(self._format_voice_detail(profile))
-        if persist:
-            self._settings["qwen_selected_voice_id"] = profile.id
-            save_settings(self._settings)
-            if self._workspace is not None:
-                self._workspace.set_voice_id(profile.id)
-
-    def _format_voice_detail(self, profile: VoiceProfile) -> str:
-        model_label = "Qwen 1.7B"
-        if profile.status == "ready":
-            status = "✓ VOICE READY"
-        elif profile.status == "building":
-            status = "Building voice profile…"
-        else:
-            status = "⚠ VOICE PROFILE NEEDS REBUILD"
-        default = " · DEFAULT" if profile.is_default else ""
-        return f"{profile.name}{default}\n{status} · {model_label}"
-
-    def _on_voice_selected(self, _label: str) -> None:
-        profile = self._selected_voice_profile()
-        if profile is None:
-            self.tts_voice_detail_var.set("Create or select a saved voice.")
-            return
-        self.tts_voice_detail_var.set(self._format_voice_detail(profile))
-        self._settings["qwen_selected_voice_id"] = profile.id
-        save_settings(self._settings)
-        if self._workspace is not None:
-            self._workspace.set_voice_id(profile.id)
-
-    def _schedule_qwen_deep_check(self) -> None:
-        """Background import of qwen_tts — catches corrupt Torch installs (WinError 1392)."""
-        if getattr(self, "_qwen_download_active", False) or getattr(self, "_qwen_deep_check_active", False):
-            return
-
-        def work() -> None:
-            try:
-                ok, message = qwen_runtime_status(deep=True)
-                self._ui_queue.put(("qwen_deep_check", (ok, message)))
-            except Exception as exc:
-                self._ui_queue.put(("qwen_deep_check", (False, str(exc))))
-            finally:
-                self._ui_queue.put(("qwen_deep_check_end", None))
-
-        self._qwen_deep_check_active = True
-        threading.Thread(target=work, daemon=True).start()
-
-    def _on_qwen_deep_check(self, payload) -> None:
-        ok, message = payload if isinstance(payload, tuple) else (False, str(payload or ""))
-        if not ok:
-            try:
-                clear_qwen_install_complete()
-            except Exception:
-                pass
-            self._append_log(f"[TTS] Voice runtime check failed: {message}\n")
-        self._refresh_tts_status()
-
-    def _on_app_focus_in(self, _event=None) -> None:
-        # Re-check ~/.videogen after user deletes folders or finishes Download elsewhere.
-        if getattr(self, "_qwen_download_active", False) or getattr(self, "_tts_job_active", False):
-            return
-        self.after(150, self._refresh_tts_status)
-
-    def _refresh_tts_status(self) -> None:
-        if getattr(self, "_qwen_download_active", False):
-            return
-        # Always re-check files on launch / focus — ready only at 100% model+runtime.
-        ok, message = qwen_install_status_message()
-        self.tts_status_var.set(message)
-        if not getattr(self, "_tts_job_active", False):
-            self.status_var.set("Qwen voice engine ready" if ok else message.split("\n", 1)[0])
-        self._apply_qwen_ready_ui(ok)
-
-    def _apply_qwen_ready_ui(self, ready: bool) -> None:
-        downloading = getattr(self, "_qwen_download_active", False)
-        dl = getattr(self, "_tts_download_btn", None)
-        dl_row = getattr(self, "_tts_dl_row", None)
-        cancel_btn = getattr(self, "_tts_download_cancel_btn", None)
-        if downloading:
-            if dl is not None:
-                dl.grid_remove()
-            if dl_row is not None:
-                dl_row.grid()
-            if cancel_btn is not None:
-                cancel_btn.configure(state="normal", text="✕")
-        else:
-            if dl_row is not None:
-                dl_row.grid_remove()
-            if dl is not None:
-                dl.grid(row=0, column=0, sticky="w")
-                if ready:
-                    dl.configure(
-                        state="normal",
-                        text="Reinstall",
-                        fg_color="transparent",
-                        hover_color=_CARD_HOVER,
-                        border_width=1,
-                        border_color=_BORDER,
-                        text_color=_TEXT,
-                    )
-                else:
-                    dl.configure(
-                        state="normal",
-                        text="Download Qwen",
-                        fg_color=_ACCENT,
-                        hover_color=_ACCENT_HOV,
-                        border_width=0,
-                        text_color=_ACCENT_DARK,
-                    )
-        voice_state = "disabled" if (downloading or not ready) else "normal"
-        if getattr(self, "tts_create_btn", None) is not None:
-            self.tts_create_btn.configure(state=voice_state)
-        if getattr(self, "tts_btn", None) is not None and not getattr(self, "_tts_job_active", False):
-            self.tts_btn.configure(state=voice_state)
-        if getattr(self, "top_voice_btn", None) is not None and not getattr(self, "_tts_job_active", False):
-            self.top_voice_btn.configure(state=voice_state)
-
-    def _set_qwen_dl_progress(self, fraction: float) -> None:
-        bar = getattr(self, "_tts_dl_progress", None)
-        if bar is None:
-            return
-        try:
-            bar.set(max(0.0, min(1.0, float(fraction))))
-        except Exception:
-            pass
-
-    def _on_cancel_qwen_download(self) -> None:
-        if not getattr(self, "_qwen_download_active", False):
-            return
-        self._qwen_download_cancel = True
-        cancel_btn = getattr(self, "_tts_download_cancel_btn", None)
-        if cancel_btn is not None:
-            cancel_btn.configure(state="disabled", text="…")
-        self.tts_status_var.set("Cancelling Qwen download…")
-        self.status_var.set("Cancelling Qwen download…")
-        self._append_log("[TTS] Cancel requested for Qwen download\n")
-
-    def _on_download_qwen(self) -> None:
-        if getattr(self, "_qwen_download_active", False):
-            return
-        if getattr(self, "_tts_job_active", False):
-            messagebox.showinfo(
-                "Voice busy",
-                "Finish the current voice job before downloading Qwen.",
-            )
-            return
-        self._qwen_download_active = True
-        self._qwen_download_cancel = False
-        self._set_qwen_dl_progress(0.02)
-        self._apply_qwen_ready_ui(ready=False)
-        self.tts_status_var.set("Downloading Qwen…")
-        self.status_var.set("Downloading Qwen voice engine…")
-        self._append_log("\n[TTS] Starting Qwen download (runtime + model)…\n")
-
-        def work() -> None:
-            try:
-                def on_status(msg: str) -> None:
-                    self._ui_queue.put(("qwen_dl_status", msg))
-
-                def on_progress(frac: float) -> None:
-                    self._ui_queue.put(("qwen_dl_progress", float(frac)))
-
-                provision_qwen(
-                    status=on_status,
-                    progress=on_progress,
-                    should_stop=lambda: bool(getattr(self, "_qwen_download_cancel", False)),
-                )
-                self._ui_queue.put(("qwen_dl_done", None))
-            except Exception as exc:
-                self._ui_queue.put(("qwen_dl_error", friendly_provision_error(exc)))
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _on_qwen_download_status(self, message: str) -> None:
-        short = (message or "").split("\n", 1)[0]
-        self.tts_status_var.set(short)
-        self.status_var.set(short)
-        self._append_log(f"[TTS] {short}\n")
-
-    def _on_qwen_download_progress(self, frac: float) -> None:
-        pct = max(0, min(100, int(round(float(frac) * 100))))
-        self._set_qwen_dl_progress(float(frac))
-        self.tts_status_var.set(f"Downloading Qwen… {pct}%")
-
-    def _on_qwen_download_done(self) -> None:
-        self._qwen_download_active = False
-        self._qwen_download_cancel = False
-        self._set_qwen_dl_progress(1.0)
-        self._refresh_tts_status()
-        ok, message = qwen_install_status_message()
-        if ok:
-            self._append_log("[TTS] ✓ Qwen download complete — voice engine ready\n")
-            messagebox.showinfo(
-                "Qwen ready",
-                "Voice cloning is ready.\n\nYou can Create Voice and Generate Narration.",
-            )
-            self._schedule_qwen_deep_check()
-        else:
-            self._append_log(f"[TTS] Qwen download finished but not ready: {message}\n")
-            messagebox.showerror("Qwen install incomplete", message)
-
-    def _on_qwen_download_error(self, message: str) -> None:
-        self._qwen_download_active = False
-        self._qwen_download_cancel = False
-        self._set_qwen_dl_progress(0.0)
-        cancelled = "cancel" in (message or "").lower()
-        if cancelled:
-            self._append_log(f"[TTS] {message}\n")
-            self.status_var.set("Qwen download cancelled")
-        else:
-            self._append_log(f"[TTS] Qwen download failed: {message}\n")
-            self.status_var.set("Qwen download failed")
-        self._refresh_tts_status()
-        if cancelled:
-            messagebox.showinfo("Qwen download", message or "Qwen download cancelled.")
-        else:
-            messagebox.showerror("Qwen download", message)
-
-    def _qwen_model_folder(self) -> Path:
-        """Preferred local install folder for the 1.7B Base clone model."""
-        preferred = Path.home() / ".videogen" / "qwen3-tts" / MODEL_DIR_NAME
-        for path in candidate_model_dirs(CLONE_MODEL_ID):
-            if path.is_dir():
-                return path
-        return preferred
-
     def _open_folder_path(self, folder: Path) -> None:
         folder = Path(folder)
         try:
@@ -1989,383 +1492,6 @@ class VideoGeneratorApp(ctk.CTk):
                 subprocess.Popen(["xdg-open", str(folder)])
         except Exception as exc:
             messagebox.showerror("Cannot open folder", str(exc))
-
-    def _open_qwen_model_folder(self) -> None:
-        """Reveal the Qwen voice-clone model directory in the system file browser."""
-        self._open_folder_path(self._qwen_model_folder())
-
-    def _browse_create_reference_audio(self) -> None:
-        path = filedialog.askopenfilename(
-            title="Select reference voice recording",
-            filetypes=[
-                ("Audio", "*.wav *.mp3 *.m4a *.flac"),
-                ("WAV", "*.wav"),
-                ("MP3", "*.mp3"),
-                ("M4A", "*.m4a"),
-                ("FLAC", "*.flac"),
-                ("All files", "*.*"),
-            ],
-            initialdir=str(_browse_start_dir()),
-        )
-        if path:
-            self._tts_create_ref_path = Path(path)
-            self.tts_create_ref_var.set(path)
-
-    def _create_transcript_text(self) -> str:
-        raw = self.tts_create_transcript_box.get("1.0", "end").strip()
-        placeholder = "Enter the exact words spoken in the reference recording."
-        if raw == placeholder:
-            return ""
-        return raw
-
-    def _tts_narration_text(self) -> str:
-        box = getattr(self, "tts_narration_box", None)
-        if box is None:
-            return ""
-        raw = box.get("1.0", "end").strip()
-        if not raw or raw == VOICE_NARRATION_PLACEHOLDER:
-            return ""
-        return raw
-
-    def _set_tts_narration_text(self, text: str) -> None:
-        box = getattr(self, "tts_narration_box", None)
-        if box is None:
-            return
-        box.delete("1.0", "end")
-        box.insert("1.0", (text or "").strip() or VOICE_NARRATION_PLACEHOLDER)
-
-    def _tts_narration_focus_in(self, _event=None) -> None:
-        box = getattr(self, "tts_narration_box", None)
-        if box is None:
-            return
-        if box.get("1.0", "end").strip() == VOICE_NARRATION_PLACEHOLDER:
-            box.delete("1.0", "end")
-
-    def _tts_narration_paste(self, _event=None):
-        """Paste via clipboard on idle so large scripts don't freeze the UI thread."""
-        box = getattr(self, "tts_narration_box", None)
-        if box is None:
-            return "break"
-        try:
-            clip = self.clipboard_get()
-        except Exception:
-            return "break"
-        if not clip:
-            return "break"
-
-        def _apply():
-            try:
-                current = box.get("1.0", "end").strip()
-                if current == VOICE_NARRATION_PLACEHOLDER:
-                    box.delete("1.0", "end")
-                box.insert("insert", clip)
-            except Exception:
-                pass
-
-        self.after(0, _apply)
-        return "break"
-
-    def _begin_tts_job(self, label: str = "Generate Narration") -> bool:
-        if getattr(self, "_tts_job_active", False):
-            messagebox.showinfo(
-                "Voice busy",
-                "A voice job is already running.\n\n"
-                "Click Stop to cancel it, then try again.",
-            )
-            return False
-        self._tts_job_active = True
-        self._tts_cancel_requested = False
-        self._set_tts_busy(True, label=label)
-        return True
-
-    def _end_tts_job(self, label: str = "Generate Narration") -> None:
-        self._tts_job_active = False
-        self._tts_cancel_requested = False
-        self._set_tts_busy(False, label=label)
-
-    def _force_tts_idle(self, status_label: str = "") -> None:
-        """Idempotent UI reset — safe to call from log completion or done handlers."""
-        self._tts_job_active = False
-        self._tts_cancel_requested = False
-        self._restore_tts_generate_btn()
-        if getattr(self, "top_voice_btn", None) is not None:
-            self.top_voice_btn.configure(state="normal", text="Voice", command=self._on_tts_primary_click)
-        self._tts_progress_t0 = None
-        self._tts_progress_phase = status_label or ""
-        if status_label:
-            self._set_tts_progress(1.0, status_label)
-        else:
-            self._tts_progress_done = 0
-            self._tts_progress_total = 0
-            self._set_tts_progress(0.0, "")
-        self._refresh_voice_playback_buttons()
-        # Re-apply Download gating (Create / Generate disabled until Qwen is ready).
-        if not getattr(self, "_qwen_download_active", False):
-            self._refresh_tts_status()
-
-    def _restore_tts_generate_btn(self) -> None:
-        btn = getattr(self, "tts_btn", None)
-        if btn is None:
-            return
-        btn.configure(
-            state="normal",
-            text="Generate Narration",
-            fg_color=_ACCENT,
-            hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK,
-            border_width=0,
-            command=self._on_tts_primary_click,
-        )
-
-    def _on_tts_primary_click(self) -> None:
-        if getattr(self, "_tts_job_active", False):
-            self._on_stop_tts_job()
-            return
-        self._on_generate_narration()
-
-    def _on_stop_tts_job(self) -> None:
-        if not getattr(self, "_tts_job_active", False):
-            return
-        if getattr(self, "_tts_cancel_requested", False):
-            return
-        self._tts_cancel_requested = True
-        btn = getattr(self, "tts_btn", None)
-        if btn is not None:
-            btn.configure(state="disabled", text="Stopping…")
-        top = getattr(self, "top_voice_btn", None)
-        if top is not None:
-            top.configure(state="disabled", text="…")
-        self.status_var.set("Stopping voice job…")
-        self._append_log("[TTS] Stop requested — shutting down worker\n")
-
-        def kill() -> None:
-            try:
-                shutdown_shared_client()
-            except Exception:
-                pass
-            self.after(0, self._tts_stop_finished)
-
-        threading.Thread(target=kill, daemon=True).start()
-
-    def _tts_stop_finished(self) -> None:
-        # Failure handler may have already cleared the job after the worker died.
-        if getattr(self, "_tts_job_active", False):
-            self._force_tts_idle("")
-            self.status_var.set("Voice job stopped")
-            self._append_log("[TTS] Stopped\n")
-            messagebox.showinfo("Voice", "Voice generation was stopped.")
-
-    def _create_voice_profile(self) -> None:
-        name = self.tts_create_name_var.get().strip()
-        ref_raw = (self.tts_create_ref_var.get() or "").strip()
-        ref_path = self._tts_create_ref_path or (Path(ref_raw) if ref_raw else None)
-        transcript = self._create_transcript_text()
-        if ref_path is None or not ref_path.is_file():
-            messagebox.showerror("Create Voice", "Select a reference audio recording first.")
-            return
-        if not transcript:
-            messagebox.showerror(
-                "Create Voice",
-                "Reference transcript is required.\n\n"
-                "Enter only the exact words spoken in the short reference recording "
-                "(not the full narration script).",
-            )
-            return
-        if len(transcript) > 600:
-            if not messagebox.askyesno(
-                "Long reference transcript",
-                "The reference transcript looks like a full script.\n\n"
-                "For Create Voice, paste only the words spoken in the reference audio.\n"
-                "Paste the full narration under Narration Script, then Generate Narration.\n\n"
-                "Continue anyway?",
-            ):
-                return
-        ok, status_msg = qwen_runtime_status()
-        if not ok:
-            messagebox.showerror("Create Voice", status_msg)
-            return
-        if not self._begin_tts_job("+ Create Voice"):
-            return
-        self.status_var.set(f"Creating voice profile for {name}…")
-        self._append_log(f"\n[TTS] Creating voice profile: {name}\n")
-
-        def work():
-            profile = None
-            try:
-                profile = create_voice_profile(name, ref_path, transcript)
-                client = get_shared_client(log=lambda line: self._ui_queue.put(("log", line + "\n")))
-                client.build_voice_prompt(
-                    profile.reference_path,
-                    profile.reference_text,
-                    profile.prompt_path,
-                )
-                mark_voice_ready(profile.id)
-                self._tts_ui("tts_voice_created", profile.id)
-            except TTSError as exc:
-                if profile is not None:
-                    try:
-                        mark_voice_needs_rebuild(profile.id)
-                    except Exception:
-                        pass
-                self._tts_ui("tts_voice_failed", exc.message)
-            except Exception as exc:
-                if profile is not None:
-                    try:
-                        mark_voice_needs_rebuild(profile.id)
-                    except Exception:
-                        pass
-                self._tts_ui("tts_voice_failed", str(exc))
-            finally:
-                self._tts_ui("tts_job_end", None)
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _voice_created(self, voice_id: str) -> None:
-        # Clear busy/Stop state before the dialog so the CTA never looks stuck.
-        self._end_tts_job()
-        self.status_var.set("Voice saved")
-        self._refresh_voice_library_ui()
-        self._select_voice_by_id(voice_id)
-        self.tts_create_name_var.set("")
-        self.tts_create_ref_var.set("")
-        self._tts_create_ref_path = None
-        messagebox.showinfo("Create Voice", "✓ Voice saved and ready to use.")
-
-    def _voice_create_failed(self, message: str) -> None:
-        cancelled = bool(getattr(self, "_tts_cancel_requested", False))
-        self._end_tts_job()
-        lowered = (message or "").lower()
-        if "corrupted" in lowered or "winerror 1392" in lowered or "1392" in lowered:
-            try:
-                clear_qwen_install_complete()
-            except Exception:
-                pass
-        self._refresh_tts_status()
-        self.status_var.set("Voice job stopped" if cancelled else "Ready")
-        self._refresh_voice_library_ui()
-        self._append_log(f"[TTS] {message}\n")
-        if cancelled:
-            return
-        messagebox.showerror("Create Voice", message)
-
-    def _require_ready_voice(self, action: str) -> VoiceProfile | None:
-        profile = self._selected_voice_profile()
-        if profile is None:
-            messagebox.showerror("Voice", f"Select a saved voice before you {action}.")
-            return None
-        profile = refresh_profile_status(profile)
-        if profile.status == "needs_rebuild":
-            messagebox.showerror(
-                "Voice",
-                "This voice profile needs to be rebuilt.\n\n"
-                "Use Replace to provide reference audio and transcript again.",
-            )
-            return None
-        if profile.status == "building":
-            messagebox.showinfo("Voice", "This voice profile is still being created.")
-            return None
-        if not profile.prompt_path.is_file():
-            messagebox.showerror(
-                "Voice",
-                "Saved voice profile could not be loaded.\n\n"
-                "Rebuild the voice or choose another saved voice.",
-            )
-            return None
-        return profile
-
-    def _set_default_voice(self) -> None:
-        profile = self._selected_voice_profile()
-        if profile is None:
-            messagebox.showinfo("Default Voice", "Select a voice from your library first.")
-            return
-        try:
-            set_default_voice(profile.id)
-        except TTSError as exc:
-            messagebox.showerror("Default Voice", exc.message)
-            return
-        self._refresh_voice_library_ui()
-        self._select_voice_by_id(profile.id, persist=True)
-
-    def _replace_selected_voice(self) -> None:
-        profile = self._selected_voice_profile()
-        if profile is None:
-            messagebox.showinfo("Replace Voice", "Select a voice to replace first.")
-            return
-        path = filedialog.askopenfilename(
-            title=f"Replace reference for {profile.name}",
-            filetypes=[
-                ("Audio", "*.wav *.mp3 *.m4a *.flac"),
-                ("All files", "*.*"),
-            ],
-            initialdir=str(_browse_start_dir()),
-        )
-        if not path:
-            return
-        dialog = ctk.CTkInputDialog(
-            text="Enter the exact words spoken in the new reference recording:",
-            title=f"Replace {profile.name}",
-        )
-        transcript = (dialog.get_input() or "").strip()
-        if not transcript:
-            messagebox.showerror("Replace Voice", "Reference transcript is required.")
-            return
-        try:
-            updated = replace_voice_reference(profile.id, path, transcript)
-        except TTSError as exc:
-            messagebox.showerror("Replace Voice", exc.message)
-            return
-        if not self._begin_tts_job("Replace"):
-            return
-        self.status_var.set(f"Rebuilding voice profile for {updated.name}…")
-
-        def work():
-            try:
-                client = get_shared_client(log=lambda line: self._ui_queue.put(("log", line + "\n")))
-                client.build_voice_prompt(
-                    updated.reference_path,
-                    updated.reference_text,
-                    updated.prompt_path,
-                )
-                mark_voice_ready(updated.id)
-                self._tts_ui("tts_voice_replaced", updated.id)
-            except TTSError as exc:
-                mark_voice_needs_rebuild(updated.id)
-                self._tts_ui("tts_voice_failed", exc.message)
-            except Exception as exc:
-                mark_voice_needs_rebuild(updated.id)
-                self._tts_ui("tts_voice_failed", str(exc))
-            finally:
-                self._tts_ui("tts_job_end", None)
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _voice_replaced(self, voice_id: str) -> None:
-        self._end_tts_job()
-        self.status_var.set("Voice updated")
-        self._refresh_voice_library_ui()
-        self._select_voice_by_id(voice_id)
-        messagebox.showinfo("Replace Voice", "✓ Voice profile updated.")
-
-    def _delete_selected_voice(self) -> None:
-        profile = self._selected_voice_profile()
-        if profile is None:
-            messagebox.showinfo("Delete Voice", "Select a voice to delete first.")
-            return
-        if not messagebox.askyesno(
-            "Delete Voice",
-            f"Delete saved voice '{profile.name}'?\n\n"
-            "This removes the profile and reference audio. The Qwen model is not deleted.",
-        ):
-            return
-        try:
-            delete_voice(profile.id)
-        except TTSError as exc:
-            messagebox.showerror("Delete Voice", exc.message)
-            return
-        if self._settings.get("qwen_selected_voice_id") == profile.id:
-            self._settings["qwen_selected_voice_id"] = ""
-            save_settings(self._settings)
-        self._refresh_voice_library_ui()
 
     def _toggle_issues(self) -> None:
         self._issues_visible = not self._issues_visible
@@ -2434,8 +1560,8 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if not audio_ok:
             self.stage_var.set("VOICE")
-            self.hint_var.set("Scenes are ready. Generate narration next.")
-            self._set_generate_btn(state="disabled", text="Generate Narration first")
+            self.hint_var.set("Scenes are ready. Import a voiceover audio file next.")
+            self._set_generate_btn(state="disabled", text="Import voiceover first")
             return
         self.stage_var.set("EXPORT")
         self.hint_var.set("Everything is ready. Render the final video.")
@@ -2570,15 +1696,21 @@ class VideoGeneratorApp(ctk.CTk):
             self._refresh_project_menu()
         self._update_project_indicator()
         self._refresh_scene_preview()
-        self._refresh_cleanup_button()
-        vid = ws.voice_id()
-        if vid and get_voice(vid) is not None:
-            self._select_voice_by_id(vid, persist=False)
+        # Non-critical FS scan — don't block project switch / first paint.
+        self._refresh_cleanup_button(defer=True)
         self._load_smart_editing_settings_from_project(ws)
 
-    def _refresh_cleanup_button(self) -> None:
+    def _refresh_cleanup_button(self, *, defer: bool = False) -> None:
+        """Update Cleanup button label from a downloaded-assets scan.
+
+        ``defer=True`` schedules the scan after idle (safe for project switch /
+        post-run housekeeping). Explicit user actions keep the default sync path.
+        """
         btn = getattr(self, "cleanup_assets_btn", None)
         if btn is None:
+            return
+        if defer:
+            self.after_idle(lambda: self._refresh_cleanup_button(defer=False))
             return
         if self._workspace is None:
             btn.configure(text="Cleanup", state="disabled")
@@ -2602,7 +1734,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_cleanup_downloaded_assets(self) -> None:
         if not self._require_workspace("delete downloaded assets"):
             return
-        if self._running or getattr(self, "_tts_job_active", False):
+        if self._running:
             messagebox.showinfo(
                 "Cleanup",
                 "Wait for generation to finish before deleting downloaded assets.",
@@ -2740,15 +1872,10 @@ class VideoGeneratorApp(ctk.CTk):
             self.csv_var.set(str(ws.csv_path))
         found = ws.find_voiceover_audio()
         if found is not None:
-            src = ws.active_voiceover_source() or (
-                "tts"
-                if found.name.lower() in ("narration.wav", "narration.mp3")
-                or found.name.lower().startswith("voiceover_qwen")
-                else "imported"
-            )
-            self._set_active_voiceover(found, source=src)
+            # Old projects may have active_voiceover_source "tts" — treat as imported.
+            self._set_active_voiceover(found, source="imported")
         else:
-            # Keep a project-owned destination even before TTS / manual upload.
+            # Keep a project-owned destination even before a voiceover is imported.
             current = self.audio_var.get().strip()
             if not current or not path_is_inside(Path(current), ws.root) or not Path(current).is_file():
                 self.audio_var.set(str(ws.audio_path))
@@ -2759,13 +1886,6 @@ class VideoGeneratorApp(ctk.CTk):
             text = ws.script_path.read_text(encoding="utf-8")
             self.script_box.delete("1.0", "end")
             self.script_box.insert("1.0", text)
-            if not self._tts_narration_text():
-                self._set_tts_narration_text(text)
-        elif ws.script_path.is_file() and not self._tts_narration_text():
-            try:
-                self._set_tts_narration_text(ws.script_path.read_text(encoding="utf-8"))
-            except OSError:
-                pass
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
 
@@ -2843,6 +1963,8 @@ class VideoGeneratorApp(ctk.CTk):
         return getattr(self, "_mode_seg", None) is not None and self._mode_seg.get() == "AI Script"
 
     def _refresh_gemini_status(self) -> None:
+        from visual_director.llm import gemini_configured
+
         settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
         if gemini_configured(settings):
             self._gemini_status_var.set("Gemini 3.6 Flash is configured.")
@@ -2878,6 +2000,8 @@ class VideoGeneratorApp(ctk.CTk):
         if not script or script == "Paste your narration script here...":
             messagebox.showerror("AI Script", "Paste your complete narration script first.")
             return
+        from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
+
         settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
         if not gemini_configured(settings):
             messagebox.showerror("AI Script", MISSING_GEMINI_KEY)
@@ -2953,16 +2077,8 @@ class VideoGeneratorApp(ctk.CTk):
             p = Path(raw) if raw else None
         if p is None or not p.is_file():
             return "none"
-        name = p.name.lower()
-        meta_src = ""
-        if self._workspace is not None:
-            meta_src = self._workspace.active_voiceover_source()
-        if meta_src in ("tts", "cloned"):
-            return "cloned TTS"
-        if meta_src in ("imported", "file", "manual"):
-            return "imported file"
-        if name in ("narration.wav", "narration.mp3") or name.startswith("voiceover_qwen"):
-            return "cloned TTS"
+        # Legacy active_voiceover_source "tts" / narration.wav / voiceover_qwen* are
+        # treated as normal imported audio (no special Qwen handling).
         return "imported file"
 
     def _refresh_voiceover_active_label(self) -> None:
@@ -3046,15 +2162,13 @@ class VideoGeneratorApp(ctk.CTk):
         if not cur.is_file():
             return True
         old_src = self._voiceover_source_label(cur)
-        new_src = "cloned TTS" if source in ("tts", "cloned") else "imported file"
         return bool(
             messagebox.askyesno(
                 "Switch voiceover?",
                 "Only ONE voiceover is used for the video.\n\n"
                 f"Currently active:\n  {cur.name}  ({old_src})\n\n"
-                f"Replace with:\n  {new_path.name}  ({new_src})?\n\n"
-                "The cloned Voice Library profile is only used to generate audio — "
-                "the file shown in Voiceover Audio is what gets rendered.",
+                f"Replace with:\n  {new_path.name}  (imported file)?\n\n"
+                "The file shown in Voiceover Audio is what gets rendered.",
             )
         )
 
@@ -3085,232 +2199,13 @@ class VideoGeneratorApp(ctk.CTk):
         self.status_var.set(f"Voiceover set: {dest.name} (imported file)")
         self._append_log(f"[AUDIO] Video will use imported voiceover: {dest.name}\n")
 
-    def _narration_source_text(self) -> str:
-        # Prefer the Voice-section narration box so users can paste there directly.
-        voice_script = self._tts_narration_text()
-        if voice_script:
-            return collect_narration(script_text=voice_script)
-
-        script = ""
-        if self._script_mode_is_ai():
-            script = self.script_box.get("1.0", "end").strip()
-        csv_raw = self.csv_var.get().strip()
-        csv_path = Path(csv_raw) if csv_raw else None
-        return collect_narration(
-            script_text=script,
-            csv_path=csv_path if csv_path and csv_path.is_file() else None,
-            visual_plan=self._visual_plan,
-        )
-
-    def _narration_output_path(self) -> Path:
-        if self._workspace is not None:
-            self._workspace.ensure_dirs()
-            return self._workspace.audio_path
-        csv_raw = self.csv_var.get().strip()
-        if csv_raw:
-            return Path(csv_raw).resolve().parent / "voiceover_qwen.wav"
-        out = self.output_var.get().strip()
-        if out:
-            return Path(out).resolve().parent / "voiceover_qwen.wav"
-        return SOURCE_DIR / "voiceover_qwen.wav"
-
-    def _set_tts_busy(self, busy: bool, label: str = "Generate Narration") -> None:
-        # While busy the narration CTA becomes Stop (not a disabled "Generating…").
-        if getattr(self, "tts_btn", None) is not None:
-            if busy:
-                self.tts_btn.configure(
-                    state="normal",
-                    text="Stop",
-                    fg_color="transparent",
-                    hover_color=_DANGER_BG,
-                    text_color=_DANGER,
-                    border_width=1,
-                    border_color=_DANGER,
-                    command=self._on_stop_tts_job,
-                )
-            else:
-                self._restore_tts_generate_btn()
-        if getattr(self, "top_voice_btn", None) is not None:
-            if busy:
-                self.top_voice_btn.configure(
-                    state="normal",
-                    text="Stop",
-                    text_color=_DANGER,
-                    border_color=_DANGER,
-                    hover_color=_DANGER_BG,
-                    command=self._on_stop_tts_job,
-                )
-            else:
-                self.top_voice_btn.configure(
-                    state="normal",
-                    text="Voice",
-                    text_color=_TEXT,
-                    border_color=_BORDER,
-                    hover_color=_CARD_HOVER,
-                    command=self._on_tts_primary_click,
-                )
-        if getattr(self, "tts_create_btn", None) is not None and busy:
-            self.tts_create_btn.configure(state="disabled")
-        if busy:
-            self._tts_progress_t0 = time.monotonic()
-            self._tts_progress_done = 0
-            self._tts_progress_total = 0
-            self._tts_progress_phase = "Starting…"
-            self._set_tts_progress(0.02, "Starting…")
-            self.after(400, self._tick_tts_progress)
-        else:
-            self._tts_progress_t0 = None
-            self._tts_progress_done = 0
-            self._tts_progress_total = 0
-            # Keep a brief "Done" if we just finished; otherwise clear.
-            done_label = ""
-            if getattr(self, "tts_progress_var", None) is not None:
-                done_label = self.tts_progress_var.get() or ""
-            if done_label.startswith("Done"):
-                self.after(1200, lambda: self._set_tts_progress(0.0, ""))
-            else:
-                self._tts_progress_phase = ""
-                self._set_tts_progress(0.0, "")
-        if not busy:
-            self._refresh_voice_playback_buttons()
-            if not getattr(self, "_qwen_download_active", False):
-                self._refresh_tts_status()
-
-    def _set_tts_progress(self, fraction: float, label: str = "") -> None:
-        bar = getattr(self, "tts_progress", None)
-        var = getattr(self, "tts_progress_var", None)
-        if bar is not None:
-            bar.set(max(0.0, min(1.0, float(fraction))))
-        if var is not None:
-            var.set(label or "")
-
-    @staticmethod
-    def _format_eta_seconds(seconds: float) -> str:
-        seconds = max(0, int(round(seconds)))
-        if seconds < 60:
-            return f"~{seconds}s left"
-        mins, secs = divmod(seconds, 60)
-        if mins < 60:
-            return f"~{mins}m {secs:02d}s left"
-        hours, mins = divmod(mins, 60)
-        return f"~{hours}h {mins:02d}m left"
-
-    def _tts_progress_label_text(self) -> str:
-        phase = self._tts_progress_phase or "Working…"
-        done = int(self._tts_progress_done or 0)
-        total = int(self._tts_progress_total or 0)
-        parts = phase
-        if total > 0:
-            parts = f"{phase}  ·  {done}/{total}"
-        t0 = self._tts_progress_t0
-        if t0 is None:
-            return parts
-        elapsed = max(0.0, time.monotonic() - t0)
-        frac = 0.0
-        if total > 0:
-            # Mid-chunk estimate: count in-progress chunk as half done.
-            frac = min(0.99, (done + (0.35 if done < total else 0.0)) / float(total))
-        elif "load" in phase.lower():
-            frac = 0.08
-        if frac >= 0.08 and elapsed >= 2.0:
-            remaining = elapsed * (1.0 - frac) / frac
-            parts = f"{parts}  ·  {self._format_eta_seconds(remaining)}"
-        elif elapsed >= 1.0:
-            parts = f"{parts}  ·  {int(elapsed)}s elapsed"
-        return parts
-
-    def _tick_tts_progress(self) -> None:
-        if not getattr(self, "_tts_job_active", False):
-            return
-        total = int(self._tts_progress_total or 0)
-        done = int(self._tts_progress_done or 0)
-        if total > 0:
-            frac = min(0.97, (done + 0.35) / float(total)) if done < total else 1.0
-        elif "load" in (self._tts_progress_phase or "").lower():
-            # Soft indeterminate while the model loads.
-            t0 = self._tts_progress_t0 or time.monotonic()
-            pulse = 0.05 + 0.12 * (0.5 + 0.5 * ((time.monotonic() - t0) % 2.4) / 2.4)
-            frac = pulse
-        else:
-            t0 = self._tts_progress_t0 or time.monotonic()
-            frac = min(0.2, 0.03 + (time.monotonic() - t0) * 0.01)
-        self._set_tts_progress(frac, self._tts_progress_label_text())
-        self.after(400, self._tick_tts_progress)
-
-    def _apply_tts_log_progress(self, line: str) -> None:
-        """Update the Voice panel progress bar from TTS worker log lines."""
-        stripped = (line or "").strip()
-        if not stripped.startswith("[TTS]"):
-            return
-        if "Generated audio" in stripped or stripped.startswith("[TTS] Saved:"):
-            self._tts_progress_done = self._tts_progress_total or 1
-            self._tts_progress_total = self._tts_progress_total or 1
-            self._tts_progress_phase = "Done"
-            self._set_tts_progress(1.0, "Done")
-            # Don't leave the CTA stuck on Generating if the done event is delayed.
-            if getattr(self, "_tts_job_active", False):
-                self._force_tts_idle("Done")
-            return
-        m_prog = re.search(r"\[TTS\]\s*Progress\s+(\d+)%\s*\((\d+)/(\d+)\)", stripped)
-        if m_prog:
-            pct = int(m_prog.group(1))
-            done = int(m_prog.group(2))
-            total = int(m_prog.group(3))
-            self._tts_progress_done = done
-            self._tts_progress_total = total
-            self._tts_progress_phase = "Generating"
-            self._set_tts_progress(pct / 100.0, self._tts_progress_label_text())
-            if pct >= 100 and getattr(self, "_tts_job_active", False):
-                self._force_tts_idle("Done")
-            return
-        m_part = re.search(r"\[TTS\]\s*Generating part\s+(\d+)\s*/\s*(\d+)", stripped)
-        if m_part:
-            idx = int(m_part.group(1))
-            total = int(m_part.group(2))
-            self._tts_progress_done = max(0, idx - 1)
-            self._tts_progress_total = total
-            self._tts_progress_phase = f"Part {idx}/{total}"
-            frac = min(0.97, max(0.05, (idx - 0.65) / float(total)))
-            self._set_tts_progress(frac, self._tts_progress_label_text())
-            return
-        if "Generating narration" in stripped:
-            self._tts_progress_phase = "Generating"
-            if self._tts_progress_total <= 0:
-                self._set_tts_progress(0.08, self._tts_progress_label_text())
-            return
-        if "Loading" in stripped:
-            self._tts_progress_phase = "Loading model"
-            self._set_tts_progress(0.06, self._tts_progress_label_text())
-            return
-        if "Model ready" in stripped:
-            self._tts_progress_phase = "Model ready"
-            self._set_tts_progress(
-                max(0.1, self.tts_progress.get() if self.tts_progress else 0.1),
-                self._tts_progress_label_text(),
-            )
-            return
-        if "Creating reusable voice" in stripped or "Creating voice" in stripped:
-            self._tts_progress_phase = "Creating voice"
-            self._set_tts_progress(0.25, self._tts_progress_label_text())
-            return
-        if "Voice profile saved" in stripped:
-            self._tts_progress_phase = "Saving voice"
-            self._set_tts_progress(0.9, self._tts_progress_label_text())
-            return
-
-    def _tts_ui(self, kind: str, payload=None) -> None:
-        """Marshal TTS lifecycle events onto the main UI queue (thread-safe)."""
-        self._ui_queue.put((kind, payload))
-
     def _current_voiceover_path(self) -> Path | None:
-        """Prefer the bound voiceover path, then the project narration output."""
-        for raw in (self.audio_var.get().strip(), str(self._narration_output_path())):
-            if not raw:
-                continue
-            path = Path(raw)
-            if path.is_file():
-                return path
-        return None
+        """Return the bound voiceover path if the file exists."""
+        raw = self.audio_var.get().strip()
+        if not raw:
+            return None
+        path = Path(raw)
+        return path if path.is_file() else None
 
     def _audio_duration_seconds(self, path: Path) -> float:
         path = Path(path)
@@ -3453,8 +2348,7 @@ class VideoGeneratorApp(ctk.CTk):
                     same = play_path.resolve() == active.resolve()
                 except OSError:
                     same = False
-                is_preview = play_path.name.lower() == "voiceover_qwen_preview.wav"
-                if not same and not is_preview:
+                if not same:
                     play_path = active
                     self._voice_play_paused_at = 0.0
 
@@ -3462,14 +2356,14 @@ class VideoGeneratorApp(ctk.CTk):
         if path is None:
             messagebox.showinfo(
                 "Play Voice",
-                "Generate narration first, then you can play it here.",
+                "Import a voiceover audio file first, then you can play it here.",
             )
             self._refresh_voice_playback_buttons()
             return
         start_at = float(getattr(self, "_voice_play_paused_at", 0.0) or 0.0)
         if self._start_voice_playback(Path(path), start_at=start_at):
             self.status_var.set(f"Playing {Path(path).name}…")
-            self._append_log(f"[TTS] Playing narration: {Path(path).name}\n")
+            self._append_log(f"[AUDIO] Playing voiceover: {Path(path).name}\n")
 
     def _start_voice_playback(self, path: Path, *, start_at: float = 0.0) -> bool:
         path = Path(path)
@@ -3571,137 +2465,6 @@ class VideoGeneratorApp(ctk.CTk):
             self._reset_voice_play_progress()
         self._refresh_voice_playback_buttons()
 
-    def _play_generated_voice(self) -> None:
-        self._toggle_voice_playback()
-
-    def _on_preview_voice(self) -> None:
-        if not self._require_workspace("preview a voice"):
-            return
-        profile = self._require_ready_voice("preview")
-        if profile is None:
-            return
-        if not self._begin_tts_job("Generate Narration"):
-            return
-        dest = self._narration_output_path().parent / "voiceover_qwen_preview.wav"
-        self.status_var.set(f"Previewing {profile.name}…")
-        self._append_log(f"\n[TTS] Previewing saved voice: {profile.name}\n")
-
-        def work():
-            try:
-                client = get_shared_client(log=lambda line: self._ui_queue.put(("log", line + "\n")))
-                result = client.generate_clone(
-                    text=PREVIEW_TEXT,
-                    output_path=dest,
-                    voice_prompt_path=profile.prompt_path,
-                )
-                self._tts_ui("tts_preview_done", result)
-            except TTSError as exc:
-                self._tts_ui("tts_failed", exc.message)
-            except Exception as exc:
-                self._tts_ui("tts_failed", str(exc))
-            finally:
-                self._tts_ui("tts_job_end", None)
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _preview_done(self, result) -> None:
-        self._end_tts_job()
-        self.status_var.set("Voice preview ready")
-        self._append_log(f"[TTS] Preview saved: {result.path}\n")
-        self._refresh_tts_status()
-        if self._start_voice_playback(Path(result.path)):
-            self.status_var.set("Playing voice preview…")
-
-    def _on_generate_narration(self) -> None:
-        if not self._require_workspace("generate narration"):
-            return
-        profile = self._require_ready_voice("generate narration")
-        if profile is None:
-            return
-        ok, status_msg = qwen_runtime_status()
-        if not ok or not model_is_installed(CLONE_MODEL_ID):
-            messagebox.showerror("Qwen3-TTS", status_msg)
-            return
-        try:
-            spoken = self._narration_source_text()
-        except TTSError as exc:
-            messagebox.showerror("Narration", exc.message)
-            return
-        if self._workspace is not None and spoken:
-            try:
-                self._workspace.save_script(spoken)
-            except OSError:
-                pass
-        dest = self._narration_output_path()
-        if dest.is_file() or (
-            self.audio_var.get().strip()
-            and Path(self.audio_var.get().strip()).is_file()
-        ):
-            if not self._confirm_voiceover_switch(dest, source="tts"):
-                return
-        self._settings["qwen_selected_voice_id"] = profile.id
-        save_settings(self._settings)
-        if self._workspace is not None:
-            self._workspace.set_voice_id(profile.id)
-
-        if not self._begin_tts_job("Generate Narration"):
-            return
-        self.status_var.set(f"Generating narration with {profile.name}…")
-        self._append_log(
-            f"\n[TTS] Starting narration with saved voice: {profile.name}\n"
-            f"[TTS] Script length: {len(spoken)} chars\n"
-        )
-
-        def work():
-            try:
-                client = get_shared_client(log=lambda line: self._ui_queue.put(("log", line + "\n")))
-                result = client.generate_clone(
-                    text=spoken,
-                    output_path=dest,
-                    voice_prompt_path=profile.prompt_path,
-                )
-                self._tts_ui("tts_narration_done", result)
-            except TTSError as exc:
-                self._tts_ui("tts_failed", exc.message)
-            except Exception as exc:
-                self._tts_ui("tts_failed", str(exc))
-            finally:
-                self._tts_ui("tts_job_end", None)
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _narration_done(self, result) -> None:
-        self._end_tts_job()
-        self._set_active_voiceover(result.path, source="tts")
-        # Prefer the measured duration from generation when ffprobe/wave disagree.
-        secs = max(0.0, float(getattr(result, "duration_seconds", 0) or 0))
-        if secs <= 0:
-            secs = self._audio_duration_seconds(Path(result.path))
-        self._voice_play_duration = secs
-        clock = self._format_play_clock(secs)
-        self._set_voice_play_progress(0.0, f"0:00 / {clock}")
-        mm, ss = divmod(int(round(secs)), 60)
-        hh, mm = divmod(mm, 60)
-        self.status_var.set(f"Narration ready — {hh:02d}:{mm:02d}:{ss:02d}")
-        self._append_log(
-            f"[TTS] ✓ Narration generated\n"
-            f"[TTS] Duration: {hh:02d}:{mm:02d}:{ss:02d}\n"
-            f"[TTS] File: {Path(result.path).name}\n"
-            f"[AUDIO] Video will use cloned TTS voiceover: {Path(result.path).name}\n"
-            f"[TTS] Local generation complete ({result.device}, {result.model})\n"
-        )
-        self._refresh_tts_status()
-
-    def _narration_failed(self, message: str) -> None:
-        cancelled = bool(getattr(self, "_tts_cancel_requested", False))
-        self._end_tts_job()
-        self.status_var.set("Voice job stopped" if cancelled else "Ready")
-        self._refresh_tts_status()
-        self._append_log(f"[TTS] {message}\n")
-        if cancelled:
-            return
-        messagebox.showerror("Qwen3-TTS", message)
-
     def _browse_bg(self) -> None:
         path = filedialog.askopenfilename(
             title="Select background music (optional)",
@@ -3774,6 +2537,7 @@ class VideoGeneratorApp(ctk.CTk):
         for key in qa_data.get("skipped") or []:
             self._hydrated_skipped.add(_scene_key(key))
         restored: dict[str, AssetResult] = {}
+        media_index = vg.build_scene_media_index(images_dir) if images_dir.is_dir() else {}
         for scene in self._scene_rows:
             key = _scene_key(scene.scene_number)
             rec = manifest.get(scene.scene_number) or {}
@@ -3817,7 +2581,9 @@ class VideoGeneratorApp(ctk.CTk):
                         error=err,
                     )
             elif SceneAssetRouter.classify(scene) is None:
-                existing = vg.find_image_for_scene(images_dir, scene.scene_number)
+                existing = vg.find_image_for_scene(
+                    images_dir, scene.scene_number, ext_cache=media_index
+                )
                 if existing is not None:
                     media = MediaType.VIDEO if vg.is_video_file(existing) else MediaType.IMAGE
                     restored[key] = AssetResult(
@@ -3990,16 +2756,31 @@ class VideoGeneratorApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
         return True
 
+    # Batches keep the event loop responsive for large visual plans without
+    # changing row widgets / QA behavior once construction finishes.
+    _SCENE_ROW_SYNC_LIMIT = 24
+    _SCENE_ROW_BATCH = 20
+
     def _render_scene_rows(self) -> None:
         signature = tuple(_scene_key(s.scene_number) for s in self._scene_rows)
-        if signature and signature == self._scene_row_signature and self._scene_row_widgets:
+        if (
+            signature
+            and signature == self._scene_row_signature
+            and self._scene_row_widgets
+            and len(self._scene_row_widgets) == len(self._scene_rows)
+        ):
             self._refresh_qa_ui(immediate=True)
             return
+
+        self._scene_render_gen += 1
+        gen = self._scene_render_gen
 
         for child in self._scenes_list.winfo_children():
             child.destroy()
         self._scene_row_widgets = {}
-        self._scene_row_signature = signature
+        # Signature applied only when the full table is built so a mid-batch
+        # re-entry cannot treat a partial widget set as complete.
+        self._scene_row_signature = ()
 
         if not self._scene_rows:
             ctk.CTkLabel(
@@ -4022,102 +2803,128 @@ class VideoGeneratorApp(ctk.CTk):
                 font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
             ).grid(row=0, column=col, sticky="w", padx=4)
 
-        from collections import defaultdict
-        counts: dict[str, int] = defaultdict(int)
-        for i, scene in enumerate(self._scene_rows):
-            source = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
-            counts[source.value] += 1
-            badge_text, badge_fg, badge_bg = SOURCE_BADGE[source]
-            default_fg = _ROW_ALT if i % 2 else "transparent"
-            row = ctk.CTkFrame(
-                self._scenes_list, fg_color=default_fg, corner_radius=4, height=32,
-            )
-            row.grid(row=i + 1, column=0, sticky="ew", pady=0)
-            row.grid_columnconfigure(5, weight=1)
+        total = len(self._scene_rows)
+        if total <= self._SCENE_ROW_SYNC_LIMIT:
+            for i, scene in enumerate(self._scene_rows):
+                self._decorate_scene_row(i, scene)
+            self._scene_row_signature = signature
+            self._refresh_qa_ui(immediate=True)
+            return
 
-            key = _scene_key(scene.scene_number)
-            check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
-            check = ctk.CTkCheckBox(
-                row, text="", width=18, checkbox_width=14, checkbox_height=14,
-                variable=check_var,
-                command=lambda k=key, v=check_var: self._on_scene_check(k, v),
-            )
-            check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
+        def _batch(start: int) -> None:
+            if gen != self._scene_render_gen:
+                return
+            end = min(start + self._SCENE_ROW_BATCH, total)
+            for i in range(start, end):
+                self._decorate_scene_row(i, self._scene_rows[i])
+            if end < total:
+                self.after(1, lambda: _batch(end))
+            else:
+                self._scene_row_signature = signature
+                self._refresh_qa_ui(immediate=True)
 
-            ctk.CTkLabel(
-                row, text=f"{scene.scene_number}", width=32,
-                font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(2, 4))
+        # First batch after idle so the shell (header + empty list) can paint first.
+        self.after_idle(lambda: _batch(0))
 
-            status_label = ctk.CTkLabel(
-                row, text="◌ QUEUED", font=ctk.CTkFont(size=11, weight="bold"),
-                text_color=_QUEUED, width=118, anchor="w",
-            )
-            status_label.grid(row=0, column=2, sticky="w", padx=2)
+    def _decorate_scene_row(self, i: int, scene: SceneRow) -> None:
+        """Build one scene-table row widget (shared by sync + deferred paths)."""
+        source = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
+        badge_text, badge_fg, badge_bg = SOURCE_BADGE[source]
+        default_fg = _ROW_ALT if i % 2 else "transparent"
+        row = ctk.CTkFrame(
+            self._scenes_list, fg_color=default_fg, corner_radius=4, height=32,
+        )
+        row.grid(row=i + 1, column=0, sticky="ew", pady=0)
+        row.grid_columnconfigure(5, weight=1)
 
-            badge = ctk.CTkLabel(
-                row, text=badge_text, font=ctk.CTkFont(size=10),
-                text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=72, anchor="w",
-            )
-            badge.grid(row=0, column=3, sticky="w", padx=2)
-            dur = ""
-            if self._visual_plan is not None:
-                planned = next(
-                    (s for s in self._visual_plan.scenes if str(s.scene_id) == str(scene.scene_number)),
-                    None,
-                )
-                if planned:
-                    dur = f"{planned.duration:.1f}s"
-            dur_label = ctk.CTkLabel(
-                row, text=dur or "—", font=ctk.CTkFont(size=11), text_color=_MUTED, width=36, anchor="e",
-            )
-            dur_label.grid(row=0, column=4, sticky="e", padx=(0, 4))
+        key = _scene_key(scene.scene_number)
+        check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
+        check = ctk.CTkCheckBox(
+            row, text="", width=18, checkbox_width=14, checkbox_height=14,
+            variable=check_var,
+            command=lambda k=key, v=check_var: self._on_scene_check(k, v),
+        )
+        check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
 
-            actions = ctk.CTkFrame(row, fg_color="transparent")
-            actions.grid(row=0, column=5, sticky="e", padx=(4, 6), pady=2)
-            retry_btn = ctk.CTkButton(
-                actions, text="Retry", width=48, height=22,
-                font=ctk.CTkFont(size=10, weight="bold"),
-                command=lambda s=scene: self._scene_action("retry", s),
-            )
-            retry_btn.pack(side="left", padx=(0, 3))
-            source_btn = ctk.CTkButton(
-                actions, text="Source", width=54, height=22,
-                fg_color="transparent", border_width=1, border_color=_BORDER,
-                text_color=_ACCENT, font=ctk.CTkFont(size=10),
-                command=lambda s=scene: self._change_source_dialog(s),
-            )
-            source_btn.pack(side="left", padx=(0, 3))
-            stop_btn = ctk.CTkButton(
-                actions, text="Stop", width=44, height=22,
-                fg_color="transparent", border_width=1, border_color=_DANGER,
-                text_color=_DANGER, font=ctk.CTkFont(size=10, weight="bold"),
-                command=lambda s=scene: self._cancel_one_scene(s),
-            )
-            stop_btn.pack(side="left")
-            stop_btn.configure(state="disabled")
+        ctk.CTkLabel(
+            row, text=f"{scene.scene_number}", width=32,
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=1, sticky="w", padx=(2, 4))
 
-            preview_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1))
-            elapsed_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=10), text_color=_MUTED, width=1)
-            error_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1), text_color=_WARNING)
-            self._scene_row_widgets[key] = {
-                "status_label": status_label,
-                "elapsed_label": elapsed_label,
-                "error_label": error_label,
-                "badge": badge,
-                "buttons": {"retry": retry_btn, "source": source_btn, "cancel": stop_btn},
-                "scene": scene,
-                "row": row,
-                "default_fg": default_fg,
-                "check_var": check_var,
-                "check": check,
-            }
-            row.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
-            preview_label.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
-            for widget in (status_label, badge, dur_label):
-                widget.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
+        status_label = ctk.CTkLabel(
+            row, text="◌ QUEUED", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=_QUEUED, width=118, anchor="w",
+        )
+        status_label.grid(row=0, column=2, sticky="w", padx=2)
 
-        self._refresh_qa_ui(immediate=True)
+        badge = ctk.CTkLabel(
+            row, text=badge_text, font=ctk.CTkFont(size=10),
+            text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=72, anchor="w",
+        )
+        badge.grid(row=0, column=3, sticky="w", padx=2)
+        dur = ""
+        if self._visual_plan is not None:
+            planned = next(
+                (s for s in self._visual_plan.scenes if str(s.scene_id) == str(scene.scene_number)),
+                None,
+            )
+            if planned:
+                dur = f"{planned.duration:.1f}s"
+        dur_label = ctk.CTkLabel(
+            row, text=dur or "—", font=ctk.CTkFont(size=11), text_color=_MUTED, width=36, anchor="e",
+        )
+        dur_label.grid(row=0, column=4, sticky="e", padx=(0, 4))
+
+        actions = ctk.CTkFrame(row, fg_color="transparent")
+        actions.grid(row=0, column=5, sticky="e", padx=(4, 6), pady=2)
+        retry_btn = ctk.CTkButton(
+            actions, text="Retry", width=48, height=22,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            command=lambda s=scene: self._scene_action("retry", s),
+        )
+        retry_btn.pack(side="left", padx=(0, 3))
+        source_btn = ctk.CTkButton(
+            actions, text="Source", width=54, height=22,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_ACCENT, font=ctk.CTkFont(size=10),
+            command=lambda s=scene: self._change_source_dialog(s),
+        )
+        source_btn.pack(side="left", padx=(0, 3))
+        stop_btn = ctk.CTkButton(
+            actions, text="Stop", width=44, height=22,
+            fg_color="transparent", border_width=1, border_color=_DANGER,
+            text_color=_DANGER, font=ctk.CTkFont(size=10, weight="bold"),
+            command=lambda s=scene: self._cancel_one_scene(s),
+        )
+        stop_btn.pack(side="left")
+        stop_btn.configure(state="disabled")
+
+        preview_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1))
+        elapsed_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=10), text_color=_MUTED, width=1)
+        error_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1), text_color=_WARNING)
+        self._scene_row_widgets[key] = {
+            "status_label": status_label,
+            "elapsed_label": elapsed_label,
+            "error_label": error_label,
+            "badge": badge,
+            "buttons": {"retry": retry_btn, "source": source_btn, "cancel": stop_btn},
+            "scene": scene,
+            "row": row,
+            "default_fg": default_fg,
+            "check_var": check_var,
+            "check": check,
+        }
+        row.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
+        preview_label.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
+        for widget in (status_label, badge, dur_label):
+            widget.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
+
+        # Apply known status immediately so deferred batches aren't stuck on QUEUED.
+        if key in self._busy_scenes:
+            busy = self._qa.busy.get(key) or "generating"
+            self._set_scene_status(scene.scene_number, busy)
+        elif key in self._asset_results or key in self._hydrated_skipped:
+            self._set_scene_status(scene.scene_number, self._row_status_from_result(scene))
 
     def _sync_row_action_buttons(self, key: str) -> None:
         widgets = self._scene_row_widgets.get(key)
@@ -4200,10 +3007,6 @@ class VideoGeneratorApp(ctk.CTk):
             f"[SCENE {scene_number}] TIMEOUT — waiting for the in-flight job to stop, "
             "then Retry will work again\n"
         )
-
-    def _maybe_update_scene_status(self, line: str) -> None:
-        """Activity Log is history only — never update current QA/scene state from it."""
-        return
 
     def _get_flow_engine_manager(self):
         """Thread-safe lazy singleton — see _flow_engine_manager_lock's comment."""
@@ -5074,11 +3877,6 @@ class VideoGeneratorApp(ctk.CTk):
             command=lambda _v: self._persist_smart_editing_settings(),
         ).pack(side="left", padx=(8, 0))
 
-        ctk.CTkLabel(
-            body, text="TTS style, speed, and clone options are also on the Voice card (Voice options).",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
-        ).pack(anchor="w", padx=20, pady=(0, 12))
-
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
 
         # ── Flow Settings — Image + Video (exact options flow-engine supports) ──
@@ -5456,13 +4254,13 @@ class VideoGeneratorApp(ctk.CTk):
         if require_audio:
             if not audio_raw:
                 return None, (
-                    "Generate Narration (or import a voiceover) before Render Video.\n\n"
-                    "You can Generate Assets while narration is still running."
+                    "Import a voiceover audio file before Render Video.\n\n"
+                    "You can Generate Assets before adding voiceover."
                 )
             if not audio_path.is_file():
                 return None, (
                     f"Voiceover audio not found:\n{audio_path}\n\n"
-                    "Wait for Generate Narration to finish, or import an audio file.\n"
+                    "Choose an audio file under Voiceover Audio.\n"
                     "Generate Assets does not need voiceover yet."
                 )
             if not path_is_inside(audio_path, self._workspace.root):
@@ -5474,16 +4272,14 @@ class VideoGeneratorApp(ctk.CTk):
                 self._set_active_voiceover(audio_path, source="imported")
             else:
                 # Keep the locked active voiceover in sync with what we render.
-                src = self._workspace.active_voiceover_source() or self._voiceover_source_label(audio_path)
-                src_key = "tts" if src == "cloned TTS" else "imported"
                 try:
-                    self._workspace.set_active_voiceover(audio_path, source=src_key)
+                    self._workspace.set_active_voiceover(audio_path, source="imported")
                 except OSError:
                     pass
                 self._refresh_voiceover_active_label()
         else:
-            # Assets-only: keep a project-owned destination path even if TTS is
-            # still writing narration.wav — Whisper is not used in this mode.
+            # Assets-only: keep a project-owned destination path.
+            # Whisper is not used in this mode.
             if not audio_raw:
                 audio_path = self._workspace.audio_path
                 self.audio_var.set(str(audio_path))
@@ -5595,20 +4391,11 @@ class VideoGeneratorApp(ctk.CTk):
         # Match the CTA: Generate Assets stops after visuals; Render Video continues.
         mode = "render" if (snap is not None and snap.allow_render and audio_ok) else "assets"
 
-        if mode == "render" and getattr(self, "_tts_job_active", False):
-            messagebox.showinfo(
-                "Narration still running",
-                "Wait for Generate Narration to finish (or Stop it) before Render Video.\n\n"
-                "You can Generate Assets while narration is running.",
-            )
-            return
-
         config, err = self._validate(require_audio=(mode == "render"))
         if err:
             messagebox.showerror("Cannot start", err)
             return
 
-        tts_parallel = bool(getattr(self, "_tts_job_active", False)) and mode == "assets"
         self._running = True
         self.generate_btn.configure(
             state="normal",
@@ -5622,23 +4409,13 @@ class VideoGeneratorApp(ctk.CTk):
         self.cancel_btn.grid_forget()
         self.progress.set(0)
         if mode == "assets":
-            self.status_var.set(
-                "Generating assets… (narration still running)"
-                if tts_parallel
-                else "Generating assets…"
-            )
+            self.status_var.set("Generating assets…")
         else:
             self.status_var.set("Rendering…")
         self.stage_var.set("GENERATING")
-        # Keep Activity history if TTS is mid-flight so progress lines stay visible.
-        if not tts_parallel:
-            self._clear_log()
+        self._clear_log()
         self._append_log(
-            (
-                "Starting asset generation while narration continues…\n"
-                if tts_parallel
-                else "Starting asset generation…\n"
-            )
+            "Starting asset generation…\n"
             if mode == "assets"
             else "Starting render pipeline…\n"
         )
@@ -5819,8 +4596,10 @@ class VideoGeneratorApp(ctk.CTk):
                     print(f"[SMART] {len(plan.text_effects)} text effect(s) planned.")
                 if smart_cfg.sound_effects and plan.sfx_events:
                     mixed = work_dir / "narration_with_sfx.wav"
+                    from sfx.seed import ensure_sfx_library
                     from smart_editing import sfx_library_root
 
+                    ensure_sfx_library()
                     mix_sfx_with_narration(
                         config["audio_path"],
                         plan.sfx_events,
@@ -5890,18 +4669,6 @@ class VideoGeneratorApp(ctk.CTk):
                             self._on_finished(success=False, message=payload)
                         elif kind == "cancelled":
                             self._on_finished(success=False, message=payload, cancelled=True)
-                        elif kind == "qwen_dl_status":
-                            self._on_qwen_download_status(payload)
-                        elif kind == "qwen_dl_progress":
-                            self._on_qwen_download_progress(payload)
-                        elif kind == "qwen_dl_done":
-                            self._on_qwen_download_done()
-                        elif kind == "qwen_dl_error":
-                            self._on_qwen_download_error(payload)
-                        elif kind == "qwen_deep_check":
-                            self._on_qwen_deep_check(payload)
-                        elif kind == "qwen_deep_check_end":
-                            self._qwen_deep_check_active = False
                         elif kind == "assets_partial":
                             self._on_assets_partial(payload)
                         elif kind == "assets_complete":
@@ -5987,37 +4754,16 @@ class VideoGeneratorApp(ctk.CTk):
                             self._busy_scenes.discard(_scene_key(scene_number))
                             self._append_log(f"[SCENE {scene_number}] {error}\n")
                             self._refresh_qa_ui()
-                        elif kind == "tts_narration_done":
-                            self._narration_done(payload)
-                        elif kind == "tts_preview_done":
-                            self._preview_done(payload)
-                        elif kind == "tts_failed":
-                            self._narration_failed(str(payload or "Voice generation failed."))
-                        elif kind == "tts_voice_created":
-                            self._voice_created(str(payload))
-                        elif kind == "tts_voice_replaced":
-                            self._voice_replaced(str(payload))
-                        elif kind == "tts_voice_failed":
-                            self._voice_create_failed(str(payload or "Voice profile failed."))
-                        elif kind == "tts_job_end":
-                            # Safety net if a done/fail handler never ran or threw earlier.
-                            if getattr(self, "_tts_job_active", False):
-                                self._end_tts_job()
             except queue.Empty:
                 pass
             if logs:
                 self._append_log("".join(logs))
         except Exception:
-            # Never let a handler crash stop the poll loop — TTS done events would stall.
+            # Never let a handler crash stop the poll loop.
             try:
                 self._append_log(f"[UI] Queue handler error:\n{traceback.format_exc()}\n")
             except Exception:
                 pass
-            if getattr(self, "_tts_job_active", False):
-                try:
-                    self._end_tts_job()
-                except Exception:
-                    pass
         finally:
             self.after(80, self._poll_queue)
 
@@ -6036,7 +4782,7 @@ class VideoGeneratorApp(ctk.CTk):
             f"\n⚠ {snap.header}. Use GO TO ERROR, RETRY FAILED, or USE ALTERNATIVES. "
             "Successful assets were kept. History log is not current status.\n"
         )
-        self._refresh_cleanup_button()
+        self._refresh_cleanup_button(defer=True)
         messagebox.showinfo(
             "Scenes need attention",
             f"{snap.header}\n{snap.health_label}\n\n"
@@ -6052,9 +4798,9 @@ class VideoGeneratorApp(ctk.CTk):
         self.status_var.set(f"Assets ready — {ready}/{total}")
         self._append_log(
             f"\n✓ Assets ready ({ready}/{total}). "
-            "Generate narration if needed, then click Render Video.\n"
+            "Import a voiceover if needed, then click Render Video.\n"
         )
-        self._refresh_cleanup_button()
+        self._refresh_cleanup_button(defer=True)
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():
@@ -6064,21 +4810,6 @@ class VideoGeneratorApp(ctk.CTk):
                 break
         if "Done. Output:" in line:
             self.progress.set(1.0)
-        # Keep the Voice CTA status + local progress bar in sync while TTS streams logs.
-        stripped = (line or "").strip()
-        if stripped.startswith("[TTS]"):
-            self._apply_tts_log_progress(stripped)
-            if (
-                stripped.startswith("[TTS] Generating part")
-                or stripped.startswith("[TTS] Generating narration")
-                or stripped.startswith("[TTS] Progress")
-                or stripped.startswith("[TTS] Generated audio")
-                or stripped.startswith("[TTS] Duration:")
-                or stripped.startswith("[TTS] Model ready")
-                or stripped.startswith("[TTS] Loading")
-                or "Creating reusable voice" in stripped
-            ):
-                self.status_var.set(stripped)
 
     def _on_finished(self, success: bool, message: str, cancelled: bool = False) -> None:
         self._end_generate_run()
@@ -6094,12 +4825,12 @@ class VideoGeneratorApp(ctk.CTk):
             self.status_var.set("Cancelled")
             self._append_log(f"\n○ Cancelled: {message}\n")
             messagebox.showinfo("Cancelled", message)
-            self._refresh_cleanup_button()
+            self._refresh_cleanup_button(defer=True)
         else:
             self.status_var.set("Failed")
             self._append_log(f"\n✗ Error: {message}\n")
             messagebox.showerror("Generation failed", message)
-            self._refresh_cleanup_button()
+            self._refresh_cleanup_button(defer=True)
         self._refresh_qa_ui(immediate=True)
 
     def _show_preview(self, video_path: str) -> None:
@@ -6221,12 +4952,22 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 
+    def _ensure_sfx_ready(self) -> None:
+        """Copy bundled SFX into ~/.videogen/sfx when empty. Safe to call repeatedly."""
+        if self._sfx_ready:
+            return
+        try:
+            from sfx.seed import ensure_sfx_library
+
+            ensure_sfx_library()
+            self._sfx_ready = True
+        except Exception:
+            pass
+
     def _on_close(self) -> None:
         busy_bits = []
         if self._running:
             busy_bits.append("asset generation / render")
-        if getattr(self, "_tts_job_active", False):
-            busy_bits.append("voice narration")
         if busy_bits:
             if not messagebox.askyesno(
                 "Quit?",
@@ -6243,8 +4984,17 @@ class VideoGeneratorApp(ctk.CTk):
             self._stop_voice_playback()
         except Exception:
             pass
+        # Lifecycle only — do not change Flow API / concurrency / GENERATE lock.
         try:
-            shutdown_shared_client()
+            mgr = self._flow_engine_manager
+            if mgr is not None:
+                mgr.stop()
+        except Exception:
+            pass
+        try:
+            from providers.youtube.acquisition import shutdown_client
+
+            shutdown_client()
         except Exception:
             pass
         self.destroy()
@@ -6253,12 +5003,6 @@ class VideoGeneratorApp(ctk.CTk):
 def main() -> None:
     _configure_macos_dock_name()
     ensure_ffmpeg_on_path()
-    try:
-        from sfx.seed import ensure_sfx_library
-
-        ensure_sfx_library()
-    except Exception:
-        pass
     app = VideoGeneratorApp()
     app.mainloop()
 

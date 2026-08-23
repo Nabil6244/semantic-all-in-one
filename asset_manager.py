@@ -73,7 +73,10 @@ class AssetManifest:
         return self._data.get(_key(scene_number))
 
     def set(self, scene_number: str, record: dict) -> None:
-        self._data[_key(scene_number)] = record
+        key = _key(scene_number)
+        if self._data.get(key) == record:
+            return
+        self._data[key] = record
         self.save()
 
     def all(self) -> Dict[str, dict]:

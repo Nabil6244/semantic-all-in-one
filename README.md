@@ -1,6 +1,6 @@
 # Semantic YT Studio
 
-**Semantic YT Studio** turns a narration script into a finished video (`final.mp4`). Each scene’s picture or clip can come from AI (Google Flow), stock (Pexels), YouTube, or a file you provide. Voiceover can be your own recording or a cloned voice via **Qwen3-TTS** (downloaded once in-app).
+**Semantic YT Studio** turns a narration script into a finished video (`final.mp4`). Each scene’s picture or clip can come from AI (Google Flow), stock (Pexels), YouTube, or a file you provide. Voiceover is **your own audio file** (MP3/WAV/M4A/…) — import it in the app.
 
 | | |
 |---|---|
@@ -8,12 +8,10 @@
 | **Windows** | `Semantic-YT-Studio-Setup.exe` (x64) |
 | **macOS** | `Semantic-YT-Studio.dmg` (Apple Silicon only — M1/M2/M3/…) |
 | **Projects** | `~/Downloads/Semantic YT Studio/` (or `~/Semantic YT Studio/` if Downloads is missing) |
-| **Voice engine** | Not in the installer — in-app **Download** once into `~/.videogen/` |
-| **Voice model** | [Qwen/Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) |
 
-Intel Macs are not supported. You do **not** install Python, pip, Torch, Node, or FFmpeg yourself.
+Intel Macs are not supported. You do **not** install Python, pip, Node, or FFmpeg yourself.
 
-Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (artifacts retained ~14 days). Qwen portable runtimes ship on Release tag `install-v1` (not inside the DMG/Setup).
+Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (artifacts retained ~14 days).
 
 ---
 
@@ -21,13 +19,11 @@ Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (art
 
 **Windows (x64)**  
 1. Run `Semantic-YT-Studio-Setup.exe`.  
-2. Open **Semantic YT Studio**.  
-3. For voice: use in-app **Download** once (~several GB; needs internet).
+2. Open **Semantic YT Studio**.
 
 **Mac (Apple Silicon)**  
 1. Open `Semantic-YT-Studio.dmg` and drag **Semantic YT Studio** to Applications.  
-2. First launch: right-click → **Open** if macOS warns about an unidentified developer.  
-3. For voice: use in-app **Download** once.
+2. First launch: right-click → **Open** if macOS warns about an unidentified developer.
 
 **AI / Flow note:** On first Flow use (Settings → AI / Flow Accounts, or Generate with AI scenes), the app may download Playwright Chromium once into your user cache if Google Chrome is not installed. That needs internet the first time only.
 
@@ -41,7 +37,7 @@ The main button follows your progress. While a job runs it becomes **Stop** (not
 2. Choose **Manual CSV** or **AI Script**.  
 3. Build a visual plan (import CSV, or paste narration → **Analyze Script**).  
 4. **Generate Assets** — resolve AI / stock / YouTube / local media per scene.  
-5. **Voice** — Download Qwen if needed → **+ Create Voice** → **Generate Narration** (or browse an existing voiceover).  
+5. **Voiceover** — browse/select your narration audio (Play/Stop preview in the panel).  
 6. **Render Video** — Whisper alignment + FFmpeg export to the project’s `final/` folder.
 
 Stage labels in the top bar: `SCRIPT` → `PLAN` → `GENERATE` / `REVIEW` → `VOICE` → `EXPORT`.
@@ -57,7 +53,7 @@ Downloads/Semantic YT Studio/
   001_My_Video_Title/
     script/          narration.txt
     csv/             visual_plan.csv
-    audio/           narration.wav (after Generate Narration)
+    audio/           your voiceover (e.g. narration.wav, voiceover.mp3)
     assets/          local files you drop in (001.png, …)
     flow/ stock/ youtube/ …
     final/           final.mp4, final_1.mp4, …
@@ -151,17 +147,18 @@ Each signed-in Google account is independent. More accounts → more AI scenes i
 
 ---
 
-## 7. Voice (Qwen)
+## 7. Voiceover
 
-1. Click **Download** in the Voice panel (progress bar + ✕ to cancel). Completes only at **100%** when every model file matches the install manifest.  
-2. **+ Create Voice** — name, reference audio, transcript of *only* what is spoken in that clip.  
-3. Select the voice → **Test Voice** (play/pause + stop).  
-4. Paste full narration (or use the project script) → **Generate Narration**.  
-5. While generating, the button shows **Stop** — cancels the voice worker.
+Import the audio the final video will use:
 
-You can still browse any MP3/WAV/M4A as the video’s voiceover instead of Qwen.
+1. Under **Voiceover Audio (USED FOR VIDEO)**, browse for an MP3/WAV/M4A (or similar) file.  
+2. The file is copied into the project `audio/` folder when a project is open.  
+3. Use **Play** / **Stop** in the Voiceover panel to preview the selected file.  
+4. When scenes are ready and a voiceover is set, the CTA becomes **Render Video**.
 
-Runtime + model live under `~/.videogen/` (portable Python runtime + `qwen3-tts/…`). Re-open the app anytime; if something is incomplete, **Download** appears again with progress when a partial file exists.
+Older project folders may still contain `narration.wav` or `voiceover_qwen*` files — those are discovered like any other audio; there is no built-in TTS / voice-clone engine.
+
+SFX and other app data still use `~/.videogen/` where applicable (unrelated to voiceover).
 
 ---
 
@@ -200,11 +197,10 @@ Images and videos can be mixed.
 |---|---|
 | CTA says “New Project first” | Create or open a project |
 | “Analyze or import CSV” | Paste script + Analyze, or choose a CSV |
-| “Generate Narration first” | Create/select voice and generate narration, or browse an audio file |
+| “Import voiceover first” | Browse an audio file under Voiceover Audio |
 | “No prompt / stock / local file” | Fill `asset_type` + `prompt`, or drop `001.png`-style files |
 | “No Pexels API key” | Settings → Stock |
 | “No signed-in accounts” | Settings → AI / Flow Accounts → Sign in |
-| Qwen still shows Download | Wait for 100%; incomplete/corrupt files are re-downloaded |
 | Video/audio out of sync | Make `script_segment` match what is actually said |
 | App won’t open (Mac) | Right-click → Open (first launch only) |
 | First Flow use is slow | Chromium download once; or install Google Chrome |
@@ -219,7 +215,5 @@ Still stuck? Note the exact message and scene number.
 | Workflow | Produces |
 |---|---|
 | **Build Desktop Apps** | `Semantic-YT-Studio.dmg`, `Semantic-YT-Studio-Setup.exe` |
-| **Build Qwen Runtime** | `qwen-runtime-darwin-arm64.zip`, `qwen-runtime-win-amd64.zip` |
-| **Publish Install Payloads** | Attaches runtime zips to Release `install-v*` and prints SHA-256 for `tts/install_manifest.json` |
 
-Model file hashes: `python scripts/fill_model_manifest.py --write`. Team installers are **Build Desktop** artifacts, not the `install-v1` Release assets.
+Team installers are **Build Desktop** artifacts from that workflow.

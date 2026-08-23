@@ -235,14 +235,32 @@ class TestAssetIsolation(unittest.TestCase):
         self.assertEqual(dest, a.youtube_dir / "scene_004.mp4")
         self.assertTrue(dest.is_file())
 
-    def test_project_voice_id_persists(self):
-        ws = create_project("Voice Project", projects_root=self.proj_root)
-        self.assertEqual(ws.voice_id(), "")
-        ws.set_voice_id("nabil")
-        self.assertEqual(ws.voice_id(), "nabil")
+    def test_obsolete_voice_id_ignored_on_load(self):
+        """Old project.json may contain voice_id / active_voiceover_source tts — must not crash."""
+        ws = create_project("Legacy Voice", projects_root=self.proj_root)
+        meta = ws.read_meta()
+        meta.update(ws.to_dict())
+        meta["voice_id"] = "legacy-qwen-voice"
+        meta["active_voiceover_source"] = "tts"
+        audio = ws.audio_dir / "narration.wav"
+        audio.write_bytes(b"RIFF")
+        meta["active_voiceover"] = "audio/narration.wav"
+        ws.meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
         reloaded = load_project(ws.root)
         assert reloaded is not None
-        self.assertEqual(reloaded.voice_id(), "nabil")
+        # Readable but obsolete — app must ignore; set_voice_id must not persist.
+        self.assertEqual(reloaded.voice_id(), "legacy-qwen-voice")
+        reloaded.set_voice_id("should-not-write")
+        self.assertEqual(reloaded.voice_id(), "legacy-qwen-voice")
+        self.assertEqual(reloaded.active_voiceover_source(), "tts")
+        found = reloaded.find_voiceover_audio()
+        assert found is not None
+        self.assertEqual(found.name, "narration.wav")
+        # Writing active voiceover normalizes source; leaves obsolete voice_id alone.
+        reloaded.set_active_voiceover(found, source="tts")
+        self.assertEqual(reloaded.active_voiceover_source(), "imported")
+        self.assertEqual(reloaded.voice_id(), "legacy-qwen-voice")
 
 
 if __name__ == "__main__":
