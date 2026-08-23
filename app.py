@@ -1075,8 +1075,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._scenes_counts_label = ctk.CTkLabel(
             act_header, textvariable=self.scenes_summary_var,
             font=ctk.CTkFont(size=12), text_color=_MUTED,
+            wraplength=420, justify="left", anchor="w",
         )
-        self._scenes_counts_label.grid(row=0, column=1, sticky="w", padx=10)
+        self._scenes_counts_label.grid(row=0, column=1, sticky="ew", padx=10)
+        self._bind_responsive_wrap(self._scenes_counts_label, pad=16)
         self._error_nav = ctk.CTkFrame(act_header, fg_color="transparent")
         self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 6))
         self.goto_error_btn = ctk.CTkButton(
@@ -3727,7 +3729,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self.status_var.set(snap.header)
 
     def _scene_source_mix_label(self) -> str:
-        """Plan mix under VIDEO GENERATION — AI Image/Video, Stock, YouTube, Local."""
+        """Counts by planned/resolved source: Flow image/video, Stock, YouTube, Local."""
         from collections import Counter
 
         from providers.router import SceneAssetRouter
@@ -3743,11 +3745,11 @@ class VideoGeneratorApp(ctk.CTk):
                 counts["AI Image"] += 1
             elif source == AssetSource.FLOW_VIDEO:
                 counts["AI Video"] += 1
-            elif source == AssetSource.STOCK_VIDEO:
-                counts["Stock Video"] += 1
-            elif source == AssetSource.STOCK_IMAGE:
-                counts["Stock Image"] += 1
-            elif source == AssetSource.STOCK:
+            elif source in (
+                AssetSource.STOCK,
+                AssetSource.STOCK_IMAGE,
+                AssetSource.STOCK_VIDEO,
+            ):
                 counts["Stock"] += 1
             elif source == AssetSource.YOUTUBE_VIDEO:
                 counts["YouTube"] += 1
@@ -3755,18 +3757,8 @@ class VideoGeneratorApp(ctk.CTk):
                 counts["Local"] += 1
             else:
                 counts["Other"] += 1
-        order = (
-            "AI Image",
-            "AI Video",
-            "Stock Video",
-            "Stock Image",
-            "Stock",
-            "YouTube",
-            "Local",
-            "Other",
-        )
-        parts = [f"{name} {counts[name]}" for name in order if counts.get(name)]
-        return " · ".join(parts)
+        order = ("AI Image", "AI Video", "Stock", "YouTube", "Local", "Other")
+        return " · ".join(f"{name} {counts[name]}" for name in order if counts.get(name))
 
     def _paint_qa_chrome(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
@@ -3776,6 +3768,9 @@ class VideoGeneratorApp(ctk.CTk):
                 parts.append(f"{snap.needs_action} need attention")
             elif snap.processing:
                 parts.append(f"{snap.processing} processing")
+            mix = self._scene_source_mix_label()
+            if mix:
+                parts.append(mix)
             self.scenes_summary_var.set(" · ".join(parts))
         else:
             self.scenes_summary_var.set("")
