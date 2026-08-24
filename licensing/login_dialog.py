@@ -40,8 +40,9 @@ class LoginDialog(ctk.CTkToplevel):
         self._closed = False
 
         self.title("Sign in")
-        self.geometry("420x360")
-        self.minsize(380, 320)
+        # Tall enough for title + fields + full-height Sign in on Retina / scaled Macs.
+        self.geometry("440x440")
+        self.minsize(400, 420)
         self.configure(fg_color=_BG)
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self._cancel)
@@ -57,15 +58,40 @@ class LoginDialog(ctk.CTkToplevel):
 
         frame = ctk.CTkFrame(self, fg_color=_CARD, corner_radius=12, border_width=1, border_color=_BORDER)
         frame.pack(fill="both", expand=True, padx=24, pady=24)
+        frame.grid_columnconfigure(0, weight=1)
+        frame.grid_rowconfigure(1, weight=1)
+
+        # Footer first in visual priority: always keep Sign in at full height
+        # (packing it last used to crush the button when the window was short).
+        footer = ctk.CTkFrame(frame, fg_color="transparent")
+        footer.grid(row=2, column=0, sticky="ew", padx=20, pady=(8, 20))
+
+        self._btn = ctk.CTkButton(
+            footer,
+            text="Sign in",
+            height=44,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=_ACCENT,
+            hover_color=_ACCENT_HOV,
+            text_color=_ACCENT_DARK,
+            command=self._submit,
+        )
+        self._btn.pack(fill="x", ipady=4)
+
+        body = ctk.CTkFrame(frame, fg_color="transparent")
+        body.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        # Spacer row absorbs leftover height so fields don't squash the button.
+        spacer = ctk.CTkFrame(frame, fg_color="transparent", height=1)
+        spacer.grid(row=1, column=0, sticky="nsew")
 
         ctk.CTkLabel(
-            frame,
+            body,
             text="Semantic YT Studio",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=_TEXT,
         ).pack(anchor="w", padx=20, pady=(20, 4))
         ctk.CTkLabel(
-            frame,
+            body,
             text="Sign in with the account you were given.",
             font=ctk.CTkFont(size=12),
             text_color=_MUTED,
@@ -73,53 +99,43 @@ class LoginDialog(ctk.CTkToplevel):
 
         self._status = ctk.StringVar(value=message or "")
         self._status_label = ctk.CTkLabel(
-            frame,
+            body,
             textvariable=self._status,
             font=ctk.CTkFont(size=12),
             text_color=_DANGER,
-            wraplength=340,
+            wraplength=360,
             justify="left",
+            height=24,
         )
         self._status_label.pack(anchor="w", padx=20, pady=(0, 8))
 
-        ctk.CTkLabel(frame, text="Email", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(
+        ctk.CTkLabel(body, text="Email", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(
             anchor="w", padx=20
         )
         self._email = ctk.CTkEntry(
-            frame,
-            height=36,
+            body,
+            height=40,
             placeholder_text="you@example.com",
             fg_color=_BG,
             border_color=_BORDER,
             text_color=_TEXT,
         )
-        self._email.pack(fill="x", padx=20, pady=(4, 10))
+        self._email.pack(fill="x", padx=20, pady=(4, 12))
 
-        ctk.CTkLabel(frame, text="Password", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(
+        ctk.CTkLabel(body, text="Password", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(
             anchor="w", padx=20
         )
         self._password = ctk.CTkEntry(
-            frame,
-            height=36,
+            body,
+            height=40,
             show="•",
             placeholder_text="Password",
             fg_color=_BG,
             border_color=_BORDER,
             text_color=_TEXT,
         )
-        self._password.pack(fill="x", padx=20, pady=(4, 16))
+        self._password.pack(fill="x", padx=20, pady=(4, 8))
         self._password.bind("<Return>", lambda _e: self._submit())
-
-        self._btn = ctk.CTkButton(
-            frame,
-            text="Sign in",
-            height=36,
-            fg_color=_ACCENT,
-            hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK,
-            command=self._submit,
-        )
-        self._btn.pack(fill="x", padx=20, pady=(0, 20))
 
         self.after(50, self._email.focus_set)
         try:

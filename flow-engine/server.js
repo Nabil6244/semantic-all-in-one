@@ -161,11 +161,29 @@ export async function startServer(port = DEFAULT_PORT) {
   };
 }
 
+/**
+ * Detect `node server.js` so the HTTP/WS server starts.
+ *
+ * Packaged Mac apps often fail a naive path equality check:
+ * - `/var/...` vs `/private/var/...` (macOS realpath)
+ * - relative `server.js` vs absolute import.meta.url
+ * Without a match, this file loads and Node exits 0 immediately — Settings then
+ * shows "flow engine process exited immediately (code 0)" and Add Account fails.
+ */
 const isDirectRun = (() => {
   try {
+    const invokedRaw = process.argv[1];
+    if (!invokedRaw) return false;
     const self = path.resolve(fileURLToPath(import.meta.url));
-    const invoked = process.argv[1] && path.resolve(process.argv[1]);
-    return invoked === self;
+    const invoked = path.resolve(invokedRaw);
+    if (invoked === self) return true;
+    try {
+      if (fs.realpathSync(invoked) === fs.realpathSync(self)) return true;
+    } catch {
+      /* ignore */
+    }
+    // Last resort: Python always launches this file as `node …/server.js`.
+    return path.basename(invoked) === "server.js";
   } catch {
     return false;
   }
@@ -179,4 +197,9 @@ if (isDirectRun) {
   };
   process.on("SIGINT", exit);
   process.on("SIGTERM", exit);
+} else {
+  console.error(
+    "[flow-engine] Not starting server — argv[1] did not look like server.js:",
+    process.argv[1],
+  );
 }

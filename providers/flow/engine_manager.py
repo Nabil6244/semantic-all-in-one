@@ -193,12 +193,18 @@ class FlowEngineManager:
             except FlowClientError:
                 pass
 
+            server_js = (self.engine_dir / "server.js").resolve()
+            if not server_js.is_file():
+                raise FlowEngineError(f"flow-engine server.js not found at {server_js}")
+
             self.log(f"[FLOW] Starting Flow engine ({self.engine_dir})...")
             env = dict(os.environ)
             env["SA_PORT"] = str(self.port)
+            # Pass absolute server.js path so packaged Mac path checks always match
+            # (relative argv + /var vs /private/var used to skip startServer → exit 0).
             # CREATE_NO_WINDOW on Windows — otherwise node.exe flashes a black CMD box.
             self._proc = hidden_subprocess.popen(
-                [node_bin, "server.js"],
+                [node_bin, str(server_js)],
                 cwd=str(self.engine_dir),
                 env=env,
                 stdout=subprocess.PIPE,
