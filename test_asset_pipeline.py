@@ -507,7 +507,7 @@ class TestCancellation(AssetPipelineTestCase):
 
         done_png = run_root / "batch" / "001.png"
         done_png.parent.mkdir(parents=True, exist_ok=True)
-        done_png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        done_png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 96)
 
         def fake_subscribe(fn):
             def generate(*_a, **_k):
@@ -876,6 +876,21 @@ class FakeYouTubeBackend:
         return dest
 
 
+class TestYouTubeQueryExpand(unittest.TestCase):
+    def test_cinematic_prompt_gets_short_variants(self):
+        from providers.youtube.query import expand_youtube_query
+
+        q = (
+            "Real archival footage from the mid-1940s post-war American grocery store, "
+            "period-accurate black and white or sepia toned footage."
+        )
+        variants = expand_youtube_query(q)
+        self.assertGreaterEqual(len(variants), 3)
+        blob = " | ".join(variants).lower()
+        self.assertIn("grocery", blob)
+        self.assertTrue(any("grocery store" in v.lower() and len(v.split()) <= 6 for v in variants))
+
+
 class TestYouTubeAssetType(AssetPipelineTestCase):
     def test_csv_youtube_video_routes_correctly(self):
         scene = SceneRow(
@@ -1131,10 +1146,13 @@ class TestYouTubeProviderIntegration(AssetPipelineTestCase):
         )
         result = mgr.resolve_scene(scene)
         self.assertTrue(result.ok, result.error)
-        self.assertEqual(backend.search_calls, [
+        self.assertEqual(
+            backend.search_calls[0],
             "falcon 9 rocket standing on launchpad night floodlights static view",
-            "Falcon 9 rocket launch night",
-        ])
+        )
+        self.assertIn("Falcon 9 rocket launch night", backend.search_calls)
+        # Declared broader queries must not run once an earlier query/variant hits.
+        self.assertNotIn("SpaceX Falcon 9 launch", backend.search_calls)
         self.assertEqual(result.metadata["video_id"], "ok-2")
         self.assertNotEqual((result.metadata or {}).get("youtube_phase"), "search")
 
@@ -1161,10 +1179,14 @@ class TestYouTubeProviderIntegration(AssetPipelineTestCase):
         result = provider.resolve(scene, self.images, log=logs.append)
         self.assertFalse(result.ok)
         self.assertEqual((result.metadata or {}).get("youtube_phase"), "search")
-        self.assertEqual(backend.search_calls, [
-            "Falcon 9 rocket launch night",
-            "SpaceX Falcon 9 launch",
-        ])
+        # Exact declared queries appear; zero-hit broadening may add shorter variants.
+        self.assertEqual(backend.search_calls[0], "Falcon 9 rocket launch night")
+        self.assertIn("SpaceX Falcon 9 launch", backend.search_calls)
+        # Case-only duplicates of the first query must not be re-tried as a new root.
+        self.assertEqual(
+            sum(1 for q in backend.search_calls if q.lower() == "falcon 9 rocket launch night"),
+            1,
+        )
 
     def test_all_youtube_queries_fail_uses_declared_fallback(self):
         from providers.youtube.base import YouTubeProvider
@@ -1187,11 +1209,9 @@ class TestYouTubeProviderIntegration(AssetPipelineTestCase):
         result = mgr.resolve_scene(scene)
         self.assertTrue(result.ok, result.error)
         self.assertEqual(result.source, AssetSource.FLOW_VIDEO)
-        self.assertEqual(backend.search_calls, [
-            "Falcon 9 rocket launch night",
-            "SpaceX Falcon 9 launch",
-            "rocket launch night",
-        ])
+        self.assertEqual(backend.search_calls[0], "Falcon 9 rocket launch night")
+        self.assertIn("SpaceX Falcon 9 launch", backend.search_calls)
+        self.assertIn("rocket launch night", backend.search_calls)
         self.assertEqual(flow.calls, ["4"])
         self.assertTrue((self.images / "004.mp4").is_file())
 

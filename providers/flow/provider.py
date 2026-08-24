@@ -18,6 +18,7 @@ mixed into one GENERATE call.
 from __future__ import annotations
 
 import shutil
+import sys
 import threading
 import time
 import uuid
@@ -215,7 +216,11 @@ class FlowProvider(AssetProvider):
                     return
                 scene = scenes[idx]
                 if status == "running":
-                    log(f"[FLOW] {worker} -> Scene {scene.scene_number} generating {self.media_kind}...")
+                    msg = (msg.get("message") or "")
+                    if "ownload" in msg:
+                        log(f"[FLOW] {worker} -> Scene {scene.scene_number} downloading...")
+                    else:
+                        log(f"[FLOW] {worker} -> Scene {scene.scene_number} generating {self.media_kind}...")
                 elif status in ("done", "failed"):
                     progress[idx] = msg
                     if status == "failed":
@@ -250,7 +255,9 @@ class FlowProvider(AssetProvider):
                 "imageCount": 1,
                 "mediaKind": self.media_kind,
                 **self.flow_settings,
-                "outputDir": str(run_dir),
+                # Absolute path — relative paths break once the Node sidecar's
+                # cwd differs (common in the Windows packaged .exe layout).
+                "outputDir": str(run_dir.resolve()),
             }
             client.generate(prompts, settings=settings, account_ids=self.account_ids)
 
@@ -469,23 +476,55 @@ class FlowProvider(AssetProvider):
         )
 
     @staticmethod
-    def _file_is_from_this_batch(path: Path, batch_started_at: Optional[float]) -> bool:
-        if batch_started_at is None:
-            return True
+    def _usable_media_file(path: Path) -> bool:
         try:
-            return path.stat().st_mtime >= (batch_started_at - 5.0)
+            return path.is_file() and path.stat().st_size > 64
         except OSError:
             return False
 
     @classmethod
-    def _newest_named_under(cls, root: Path, name: str, batch_started_at: Optional[float]) -> Optional[Path]:
+    def _wait_usable_media_file(cls, path: Path, *, attempts: int = 1) -> bool:
+        """Windows Defender / AV often locks a just-written file for a moment —
+        Node already saved it, but Python's first is_file()/size check fails."""
+        if attempts < 1:
+            attempts = 1
+        for i in range(attempts):
+            if cls._usable_media_file(path):
+                return True
+            if i + 1 < attempts:
+                time.sleep(0.35)
+        return False
+
+    @staticmethod
+    def _file_is_from_this_batch(path: Path, batch_started_at: Optional[float]) -> bool:
+        if batch_started_at is None:
+            return True
+        # Windows FAT/exFAT and some AV rewrite mtimes; keep a wide skew so a
+        # real download from this run is not treated as a leftover.
+        skew = 120.0 if sys.platform == "win32" else 5.0
+        try:
+            return path.stat().st_mtime >= (batch_started_at - skew)
+        except OSError:
+            return False
+
+    @classmethod
+    def _newest_named_under(
+        cls,
+        root: Path,
+        name: str,
+        batch_started_at: Optional[float],
+        *,
+        require_batch_mtime: bool = True,
+    ) -> Optional[Path]:
         if not root.is_dir():
             return None
-        matches = [
-            p
-            for p in root.glob(f"*/{name}")
-            if p.is_file() and cls._file_is_from_this_batch(p, batch_started_at)
-        ]
+        matches = []
+        for p in root.glob(f"*/{name}"):
+            if not cls._usable_media_file(p):
+                continue
+            if require_batch_mtime and not cls._file_is_from_this_batch(p, batch_started_at):
+                continue
+            matches.append(p)
         if not matches:
             return None
         return max(matches, key=lambda p: p.stat().st_mtime)
@@ -503,42 +542,51 @@ class FlowProvider(AssetProvider):
         `001.png` from a previous project's shared Flow_Images dump."""
         ext = _EXT_BY_KIND[self.media_kind]
         name = f"{global_index + 1:03d}.{ext}"
+        # Per-batch run folders are unique — mtime gating is only needed when
+        # falling back to the shared ~/Downloads/Flow_Images dump.
+        win_retries = 6 if sys.platform == "win32" else 1
 
         raw = ""
         if progress_msg:
             raw = str(progress_msg.get("path") or progress_msg.get("file") or "").strip()
         if raw:
+            # Node on Windows may emit mixed separators; Path handles both, but
+            # normalize anyway so exists() checks are consistent.
             reported = Path(raw)
-            # Trust the engine's exact path when the file exists. Do not reject on
-            # mtime — Windows FS timestamp granularity / AV scanners have caused
-            # real downloads to be ignored and marked Needs Attention.
-            if reported.is_file() and reported.stat().st_size > 64:
+            if self._wait_usable_media_file(reported, attempts=win_retries):
                 return reported
-            # Also try resolving relative / mixed-slash paths from Node on Windows.
             try:
                 alt = Path(downloads_root) / reported.name
-                if alt.is_file() and alt.stat().st_size > 64:
+                if self._wait_usable_media_file(alt, attempts=win_retries):
                     return alt
+                # Account subfolder: <run>/<account-label>/001.png
+                nested = self._newest_named_under(
+                    Path(downloads_root), reported.name, batch_started_at,
+                    require_batch_mtime=False,
+                )
+                if nested is not None:
+                    return nested
             except OSError:
                 pass
 
-        run_hit = self._newest_named_under(Path(downloads_root), name, batch_started_at)
+        run_hit = self._newest_named_under(
+            Path(downloads_root), name, batch_started_at, require_batch_mtime=False,
+        )
         if run_hit is not None:
             return run_hit
 
-        # Wider search: any matching name under the run folder (account subdirs).
+        # Wider search under this run folder only (safe — folder is unique).
         try:
             root = Path(downloads_root)
             if root.is_dir():
                 for p in root.rglob(name):
-                    if p.is_file() and p.stat().st_size > 64:
-                        if self._file_is_from_this_batch(p, batch_started_at):
-                            return p
+                    if self._usable_media_file(p):
+                        return p
         except OSError:
             pass
 
         # Older engines ignore outputDir and still write to ~/Downloads/Flow_Images.
-        # Only accept a file whose mtime is from *this* batch.
+        # That folder is shared across projects — keep a batch mtime gate there.
         if engine_root:
             engine_path = Path(engine_root)
             try:
@@ -546,7 +594,9 @@ class FlowProvider(AssetProvider):
             except OSError:
                 same_run = False
             if not same_run:
-                return self._newest_named_under(engine_path, name, batch_started_at)
+                return self._newest_named_under(
+                    engine_path, name, batch_started_at, require_batch_mtime=True,
+                )
         return None
 
     @staticmethod

@@ -326,16 +326,27 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
       }
     }
   }
-  if (!mediaId && data?.media) {
+  // Always harvest fifeUrl from media[], even when mediaId came from workflows —
+  // previously we `break`s as soon as an id was found and never read the URL,
+  // so downloads fell back to the flaky redirect-only path.
+  if (data?.media) {
     for (const m of data.media) {
       const id = m?.name || m?.mediaId;
-      if (id) {
-        mediaId = id;
-        break;
-      }
-      const url = m?.image?.generatedImage?.fifeUrl;
-      if (url) fifeUrl = url;
+      if (id && !mediaId) mediaId = id;
+      const url =
+        m?.image?.generatedImage?.fifeUrl ||
+        m?.image?.fifeUrl ||
+        m?.fifeUrl ||
+        m?.url ||
+        null;
+      if (url && !fifeUrl) fifeUrl = url;
     }
+  }
+  if (!fifeUrl && data && typeof data === "object") {
+    // Last-resort deep scan — Google's response shape drifts.
+    const blob = JSON.stringify(data);
+    const m = blob.match(/https:\/\/[^"\\]*fife[^"\\]*/i) || blob.match(/"fifeUrl"\s*:\s*"([^"]+)"/i);
+    if (m) fifeUrl = (m[1] || m[0]).replace(/\\u003d/g, "=").replace(/\\+/g, "");
   }
   if (!mediaId) throw new Error("No mediaId in generation response");
   return { mediaId, fifeUrl };
@@ -484,8 +495,8 @@ function _looksLikeMedia(buf) {
 /**
  * Download media into destPath. Tries direct URL (fifeUrl) first, then the
  * labs.google redirect-by-id, then an in-page authenticated fetch.
- * Throws if nothing yields real image/video bytes (so the scene fails loudly
- * instead of looking "done" with a missing file).
+ * Retries briefly — Flow often returns a mediaId before the CDN object is ready,
+ * which previously looked like "generated in browser but never downloaded".
  */
 export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
   const { mkdirSync, writeFileSync } = await import("node:fs");
@@ -496,87 +507,119 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
     try {
       const body = await getter();
       if (!body || body.length < 64) {
-        return { ok: false, error: `${label}: empty body` };
+        return { ok: false, error: `${label}: empty body`, retryable: true };
       }
       if (!_looksLikeMedia(body)) {
         const head = Buffer.from(body).slice(0, 80).toString("utf8").replace(/\s+/g, " ");
-        return { ok: false, error: `${label}: not media bytes (${head.slice(0, 60)})` };
+        const retryable =
+          /not ready|pending|404|403|429|empty|json|html|<!doctype/i.test(head) ||
+          head.trim().startsWith("{") ||
+          head.trim().startsWith("<");
+        return {
+          ok: false,
+          error: `${label}: not media bytes (${head.slice(0, 60)})`,
+          retryable,
+        };
       }
       writeFileSync(destPath, Buffer.from(body));
       return { ok: true };
     } catch (e) {
-      return { ok: false, error: `${label}: ${e.message || e}` };
+      const msg = String(e.message || e);
+      const retryable = /HTTP 404|HTTP 403|HTTP 429|timeout|ECONN|not ready/i.test(msg);
+      return { ok: false, error: `${label}: ${msg}`, retryable };
     }
   };
 
-  const errors = [];
+  const attemptOnce = async () => {
+    const errors = [];
+    let anyRetryable = false;
 
-  if (directUrl) {
-    const r = await tryWrite("directUrl", async () => {
-      const resp = await page.context().request.get(directUrl, {
+    if (directUrl) {
+      const r = await tryWrite("directUrl", async () => {
+        const resp = await page.context().request.get(directUrl, {
+          maxRedirects: 10,
+          timeout: timing.apiRequestTimeoutMs,
+        });
+        if (!resp.ok()) throw new Error(`HTTP ${resp.status()}`);
+        return await resp.body();
+      });
+      if (r.ok) return { ok: true };
+      errors.push(r.error);
+      anyRetryable = anyRetryable || !!r.retryable;
+    }
+
+    const redirectUrl = `https://labs.google${api.mediaRedirectPath}?name=${encodeURIComponent(mediaId)}`;
+    const r2 = await tryWrite("redirect", async () => {
+      const resp = await page.context().request.get(redirectUrl, {
         maxRedirects: 10,
         timeout: timing.apiRequestTimeoutMs,
       });
       if (!resp.ok()) throw new Error(`HTTP ${resp.status()}`);
-      return await resp.body();
+      const body = await resp.body();
+      const asText = Buffer.from(body).slice(0, 200).toString("utf8").trim();
+      if (asText.startsWith("{") || asText.startsWith("[")) {
+        let parsed;
+        try {
+          parsed = JSON.parse(Buffer.from(body).toString("utf8"));
+        } catch {
+          return body;
+        }
+        const nested =
+          parsed?.result?.data?.json?.url ||
+          parsed?.result?.data?.url ||
+          parsed?.url ||
+          parsed?.downloadUrl ||
+          null;
+        if (typeof nested === "string" && nested.startsWith("http")) {
+          const resp2 = await page.context().request.get(nested, {
+            maxRedirects: 10,
+            timeout: timing.apiRequestTimeoutMs,
+          });
+          if (!resp2.ok()) throw new Error(`nested HTTP ${resp2.status()}`);
+          return await resp2.body();
+        }
+      }
+      return body;
     });
-    if (r.ok) return;
-    errors.push(r.error);
+    if (r2.ok) return { ok: true };
+    errors.push(r2.error);
+    anyRetryable = anyRetryable || !!r2.retryable;
+
+    const r3 = await tryWrite("pageFetch", async () => {
+      const buf = await page.evaluate(async ({ redirectPath, id }) => {
+        const r = await fetch(`${redirectPath}?name=${encodeURIComponent(id)}`, {
+          credentials: "include",
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const ab = await r.arrayBuffer();
+        return Array.from(new Uint8Array(ab));
+      }, { redirectPath: api.mediaRedirectPath, id: mediaId });
+      return Buffer.from(buf);
+    });
+    if (r3.ok) return { ok: true };
+    errors.push(r3.error);
+    anyRetryable = anyRetryable || !!r3.retryable;
+
+    return {
+      ok: false,
+      retryable: anyRetryable,
+      error: errors.join(" | "),
+    };
+  };
+
+  // CDN / redirect often lags a few seconds behind "mediaId ready".
+  const delays = [0, 1500, 3000, 5000, 8000];
+  let lastError = "";
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i] > 0) await sleep(delays[i]);
+    const result = await attemptOnce();
+    if (result.ok) return;
+    lastError = result.error || "unknown download error";
+    if (!result.retryable) break;
   }
 
-  const redirectUrl = `https://labs.google${api.mediaRedirectPath}?name=${encodeURIComponent(mediaId)}`;
-  const r2 = await tryWrite("redirect", async () => {
-    const resp = await page.context().request.get(redirectUrl, {
-      maxRedirects: 10,
-      timeout: timing.apiRequestTimeoutMs,
-    });
-    if (!resp.ok()) throw new Error(`HTTP ${resp.status()}`);
-    const body = await resp.body();
-    // Some responses are JSON wrapping a URL — follow once.
-    const asText = Buffer.from(body).slice(0, 200).toString("utf8").trim();
-    if (asText.startsWith("{") || asText.startsWith("[")) {
-      let parsed;
-      try {
-        parsed = JSON.parse(Buffer.from(body).toString("utf8"));
-      } catch {
-        return body;
-      }
-      const nested =
-        parsed?.result?.data?.json?.url ||
-        parsed?.result?.data?.url ||
-        parsed?.url ||
-        parsed?.downloadUrl ||
-        null;
-      if (typeof nested === "string" && nested.startsWith("http")) {
-        const resp2 = await page.context().request.get(nested, {
-          maxRedirects: 10,
-          timeout: timing.apiRequestTimeoutMs,
-        });
-        if (!resp2.ok()) throw new Error(`nested HTTP ${resp2.status()}`);
-        return await resp2.body();
-      }
-    }
-    return body;
-  });
-  if (r2.ok) return;
-  errors.push(r2.error);
-
-  const r3 = await tryWrite("pageFetch", async () => {
-    const buf = await page.evaluate(async ({ redirectPath, id }) => {
-      const r = await fetch(`${redirectPath}?name=${encodeURIComponent(id)}`, {
-        credentials: "include",
-      });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const ab = await r.arrayBuffer();
-      return Array.from(new Uint8Array(ab));
-    }, { redirectPath: api.mediaRedirectPath, id: mediaId });
-    return Buffer.from(buf);
-  });
-  if (r3.ok) return;
-  errors.push(r3.error);
-
   throw new Error(
-    `Flow generated media but download failed for ${mediaId}: ${errors.join(" | ")}`,
+    `Flow generated media but download failed for ${mediaId}: ${lastError}`,
   );
 }
 

@@ -220,7 +220,7 @@ def _classify_scene_status(tail: str) -> str | None:
         return "ready"
     if "searching" in t:
         return "searching"
-    if "selected" in t:
+    if "selected" in t or "downloading" in t:
         return "downloading"
     if t.startswith("generated") or "generating" in t:
         return "generating"
@@ -499,7 +499,7 @@ def _status_display(status: str) -> tuple[str, str]:
         "failed": ("⚠ NEEDS ACTION", _WARNING),
         "timeout": ("⚠ NEEDS ACTION", _WARNING),
         "skipped": ("— SKIPPED", _SKIPPED),
-        "cancelled": ("— SKIPPED", _SKIPPED),
+        "cancelled": ("⊘ CANCELLED", _SKIPPED),
     }
     if status in mapping:
         return mapping[status]

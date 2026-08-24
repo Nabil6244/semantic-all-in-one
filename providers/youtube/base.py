@@ -28,6 +28,7 @@ from ..base import (
 )
 from .matching import best_transcript_match
 from .ranking import rank_candidates
+from .query import expand_youtube_query
 
 DEFAULT_CLIP_DURATION = 3.5
 DEFAULT_LEAD_IN = 1.0
@@ -188,40 +189,47 @@ class YouTubeProvider(AssetProvider):
         total = len(queries)
         sn = scene.scene_number
         for index, query in enumerate(queries, start=1):
-            key = query.lower()
-            if key in attempted:
-                continue
-            attempted.add(key)
-            log(f"[YOUTUBE] Scene {sn} -> searching query {index}/{total}:")
-            log(f"\"{query}\"")
-            if self._scene_stopped(scene):
-                log(f"[YOUTUBE] Scene {sn} -> cancelled")
-                return []
-            started = time.perf_counter()
-            try:
-                candidates = self.backend.search(query, max_results=self.max_results)
-            except Exception as exc:
+            # Try the declared query first; if ytsearch returns nothing, broaden
+            # cinematic paragraphs into shorter variants (stock already does this).
+            variants = expand_youtube_query(query)
+            if not variants:
+                variants = [query]
+            for v_i, variant in enumerate(variants):
+                key = variant.lower()
+                if key in attempted:
+                    continue
+                attempted.add(key)
+                label = f"query {index}/{total}" + (f" variant {v_i + 1}" if v_i else "")
+                log(f"[YOUTUBE] Scene {sn} -> searching {label}:")
+                log(f"\"{variant}\"")
+                if self._scene_stopped(scene):
+                    log(f"[YOUTUBE] Scene {sn} -> cancelled")
+                    return []
+                started = time.perf_counter()
+                try:
+                    candidates = self.backend.search(variant, max_results=self.max_results)
+                except Exception as exc:
+                    elapsed = time.perf_counter() - started
+                    log(f"[YOUTUBE] Scene {sn} -> search failed ({elapsed:.1f}s): {exc}")
+                    continue
                 elapsed = time.perf_counter() - started
-                log(f"[YOUTUBE] Scene {sn} -> search failed ({elapsed:.1f}s): {exc}")
-                continue
-            elapsed = time.perf_counter() - started
-            hits = list(candidates or [])
-            if not hits:
-                log(f"[YOUTUBE] Scene {sn} -> 0 results ({elapsed:.1f}s)")
-                continue
-            log(f"[YOUTUBE] Scene {sn} -> {len(hits)} results ({elapsed:.1f}s)")
-            hits = [c for c in hits if c.video_id not in exclude_ids]
-            rights_filtered = [c for c in hits if self._rights_ok(c)]
-            if self.require_creative_commons and not rights_filtered and hits:
-                log(
-                    f"[YOUTUBE] Scene {sn} -> {len(hits)} result(s) found "
-                    f"but none are Creative Commons-licensed (policy requires it)."
-                )
-            ranked = rank_candidates(rights_filtered, query=query)
-            if ranked:
-                log(f"[YOUTUBE] Scene {sn} -> candidates found")
-                return ranked
-            log(f"[YOUTUBE] Scene {sn} -> 0 usable candidates after ranking")
+                hits = list(candidates or [])
+                if not hits:
+                    log(f"[YOUTUBE] Scene {sn} -> 0 results ({elapsed:.1f}s)")
+                    continue
+                log(f"[YOUTUBE] Scene {sn} -> {len(hits)} results ({elapsed:.1f}s)")
+                hits = [c for c in hits if c.video_id not in exclude_ids]
+                rights_filtered = [c for c in hits if self._rights_ok(c)]
+                if self.require_creative_commons and not rights_filtered and hits:
+                    log(
+                        f"[YOUTUBE] Scene {sn} -> {len(hits)} result(s) found "
+                        f"but none are Creative Commons-licensed (policy requires it)."
+                    )
+                ranked = rank_candidates(rights_filtered, query=variant)
+                if ranked:
+                    log(f"[YOUTUBE] Scene {sn} -> candidates found")
+                    return ranked
+                log(f"[YOUTUBE] Scene {sn} -> 0 usable candidates after ranking")
         log(f"[YOUTUBE] Scene {sn} -> all {total} search queries exhausted")
         return []
 

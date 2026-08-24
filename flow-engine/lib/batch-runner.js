@@ -129,8 +129,16 @@ export async function runBatchSlice({
                 ? `${pad(abs + 1)}-${slot + 1}.${ext}`
                 : `${pad(abs + 1)}.${ext}`;
             const dest = path.join(outDir, name);
+            emit("BATCH_PROGRESS", {
+              index: abs,
+              total: totalAbsolute,
+              status: "running",
+              message: `Downloading ${name}…`,
+            });
             await downloadMedia(page, mediaId, dest, directUrl);
-            savedPath = dest;
+            // Absolute path so Windows Python can resolve the file without
+            // depending on cwd / mixed separators from the Node sidecar.
+            savedPath = path.resolve(dest);
             emit("status", { message: `Saved ${name}` });
           }
         }
