@@ -20,6 +20,7 @@ from providers.playwright_chromium import (
     ensure_playwright_chromium,
     is_playwright_chromium_installed,
 )
+from providers import hidden_subprocess
 
 from .client import FlowClient, FlowClientError
 
@@ -195,7 +196,8 @@ class FlowEngineManager:
             self.log(f"[FLOW] Starting Flow engine ({self.engine_dir})...")
             env = dict(os.environ)
             env["SA_PORT"] = str(self.port)
-            self._proc = subprocess.Popen(
+            # CREATE_NO_WINDOW on Windows — otherwise node.exe flashes a black CMD box.
+            self._proc = hidden_subprocess.popen(
                 [node_bin, "server.js"],
                 cwd=str(self.engine_dir),
                 env=env,

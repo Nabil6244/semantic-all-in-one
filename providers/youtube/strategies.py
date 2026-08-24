@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
 
 from ..base import LogFn, sniff_media_kind
+from providers import hidden_subprocess
 
 if TYPE_CHECKING:
     from .base import VideoCandidate
@@ -271,7 +272,7 @@ def validate_clip(path: Path, expected_duration: float, log: LogFn = print) -> O
         return f"output content is a {kind}, not a video"
 
     try:
-        probe = subprocess.run(
+        probe = hidden_subprocess.run(
             ["ffmpeg", "-i", str(path), "-f", "null", "-"],
             capture_output=True, text=True, timeout=_FFMPEG_PROBE_TIMEOUT,
         )

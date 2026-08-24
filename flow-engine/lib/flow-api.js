@@ -401,7 +401,15 @@ export async function pollVideoStatus(page, mediaId, projectId) {
       status === "MEDIA_GENERATION_STATUS_COMPLETE" ||
       status === "MEDIA_GENERATION_STATUS_SUCCESSFUL"
     ) {
-      return mediaId;
+      // Prefer a direct download URL when Google returns one — redirect-by-id
+      // often fails while the clip is already visible in Flow.
+      const fifeUrl =
+        m?.video?.generatedVideo?.fifeUrl ||
+        m?.video?.fifeUrl ||
+        m?.image?.generatedImage?.fifeUrl ||
+        m?.fifeUrl ||
+        null;
+      return { mediaId, fifeUrl };
     }
     if (status === "MEDIA_GENERATION_STATUS_FAILED") {
       const ms = m.mediaMetadata.mediaStatus;
@@ -457,33 +465,119 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const mediaId = gen?.media?.[0]?.name || null;
   if (!mediaId) throw new Error("Video generation did not start — no media returned");
 
-  const finalId = await pollVideoStatus(page, mediaId, projectId);
-  return { mediaId: finalId };
+  return await pollVideoStatus(page, mediaId, projectId);
+}
+
+function _looksLikeMedia(buf) {
+  if (!buf || buf.length < 32) return false;
+  const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+  // PNG / JPEG / GIF / WEBP(RIFF) / MP4(ftyp) / WebM
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return true;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return true;
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return true;
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return true;
+  if (b.includes(Buffer.from("ftyp"))) return true;
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return true;
+  return false;
 }
 
 /**
- * Download media via Flow redirect into a local file path.
+ * Download media into destPath. Tries direct URL (fifeUrl) first, then the
+ * labs.google redirect-by-id, then an in-page authenticated fetch.
+ * Throws if nothing yields real image/video bytes (so the scene fails loudly
+ * instead of looking "done" with a missing file).
  */
-export async function downloadMedia(page, mediaId, destPath) {
-  const redirectUrl = `https://labs.google${api.mediaRedirectPath}?name=${mediaId}`;
-  const resp = await page.context().request.get(redirectUrl, {
-    maxRedirects: 10,
-    timeout: timing.apiRequestTimeoutMs,
+export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const pathMod = await import("node:path");
+  mkdirSync(pathMod.dirname(destPath), { recursive: true });
+
+  const tryWrite = async (label, getter) => {
+    try {
+      const body = await getter();
+      if (!body || body.length < 64) {
+        return { ok: false, error: `${label}: empty body` };
+      }
+      if (!_looksLikeMedia(body)) {
+        const head = Buffer.from(body).slice(0, 80).toString("utf8").replace(/\s+/g, " ");
+        return { ok: false, error: `${label}: not media bytes (${head.slice(0, 60)})` };
+      }
+      writeFileSync(destPath, Buffer.from(body));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: `${label}: ${e.message || e}` };
+    }
+  };
+
+  const errors = [];
+
+  if (directUrl) {
+    const r = await tryWrite("directUrl", async () => {
+      const resp = await page.context().request.get(directUrl, {
+        maxRedirects: 10,
+        timeout: timing.apiRequestTimeoutMs,
+      });
+      if (!resp.ok()) throw new Error(`HTTP ${resp.status()}`);
+      return await resp.body();
+    });
+    if (r.ok) return;
+    errors.push(r.error);
+  }
+
+  const redirectUrl = `https://labs.google${api.mediaRedirectPath}?name=${encodeURIComponent(mediaId)}`;
+  const r2 = await tryWrite("redirect", async () => {
+    const resp = await page.context().request.get(redirectUrl, {
+      maxRedirects: 10,
+      timeout: timing.apiRequestTimeoutMs,
+    });
+    if (!resp.ok()) throw new Error(`HTTP ${resp.status()}`);
+    const body = await resp.body();
+    // Some responses are JSON wrapping a URL — follow once.
+    const asText = Buffer.from(body).slice(0, 200).toString("utf8").trim();
+    if (asText.startsWith("{") || asText.startsWith("[")) {
+      let parsed;
+      try {
+        parsed = JSON.parse(Buffer.from(body).toString("utf8"));
+      } catch {
+        return body;
+      }
+      const nested =
+        parsed?.result?.data?.json?.url ||
+        parsed?.result?.data?.url ||
+        parsed?.url ||
+        parsed?.downloadUrl ||
+        null;
+      if (typeof nested === "string" && nested.startsWith("http")) {
+        const resp2 = await page.context().request.get(nested, {
+          maxRedirects: 10,
+          timeout: timing.apiRequestTimeoutMs,
+        });
+        if (!resp2.ok()) throw new Error(`nested HTTP ${resp2.status()}`);
+        return await resp2.body();
+      }
+    }
+    return body;
   });
-  if (!resp.ok()) {
-    // Fallback: try in-page blob fetch
-    const buf = await page.evaluate(async (path) => {
-      const r = await fetch(path, { credentials: "include" });
+  if (r2.ok) return;
+  errors.push(r2.error);
+
+  const r3 = await tryWrite("pageFetch", async () => {
+    const buf = await page.evaluate(async ({ redirectPath, id }) => {
+      const r = await fetch(`${redirectPath}?name=${encodeURIComponent(id)}`, {
+        credentials: "include",
+      });
       if (!r.ok) throw new Error("HTTP " + r.status);
       const ab = await r.arrayBuffer();
       return Array.from(new Uint8Array(ab));
-    }, api.mediaRedirectPath + "?name=" + mediaId);
-    const { writeFileSync } = await import("node:fs");
-    writeFileSync(destPath, Buffer.from(buf));
-    return;
-  }
-  const { writeFileSync } = await import("node:fs");
-  writeFileSync(destPath, await resp.body());
+    }, { redirectPath: api.mediaRedirectPath, id: mediaId });
+    return Buffer.from(buf);
+  });
+  if (r3.ok) return;
+  errors.push(r3.error);
+
+  throw new Error(
+    `Flow generated media but download failed for ${mediaId}: ${errors.join(" | ")}`,
+  );
 }
 
 export async function checkAuthStatus(page) {

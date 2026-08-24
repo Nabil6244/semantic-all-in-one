@@ -27,7 +27,13 @@ function log(msg) {
 
 function run(cmd, args) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    // windowsHide: true — without it, every ffmpeg convert flashes a black CMD
+    // box on Windows during YouTube browser capture.
+    const child = spawn(cmd, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      shell: false,
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (d) => {

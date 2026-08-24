@@ -17,6 +17,8 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
+from providers import hidden_subprocess
+
 LogFn = Callable[[str], None]
 
 _ENSURE_LOCK = threading.Lock()
@@ -124,7 +126,7 @@ def ensure_playwright_chromium(
             "(one-time; may take a few minutes)…"
         )
         try:
-            proc = subprocess.run(
+            proc = hidden_subprocess.run(
                 [node_bin, str(cli), "install", "chromium"],
                 cwd=str(engine_dir),
                 capture_output=True,

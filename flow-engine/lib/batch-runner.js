@@ -115,10 +115,12 @@ export async function runBatchSlice({
         for (let slot = 0; slot < count; slot++) {
           if (shouldStop?.()) break;
           if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
-          const { mediaId } =
+          const generated =
             mediaKind === "video"
               ? await generateOneVideo(page, projectId, prompt, settingsLocal, abs * 10 + slot)
               : await generateOneImage(page, projectId, prompt, settingsLocal, abs * 10 + slot);
+          const mediaId = generated.mediaId;
+          const directUrl = generated.fifeUrl || null;
           mediaIds.push(mediaId);
 
           if (settingsLocal.autoDownload !== false) {
@@ -127,7 +129,7 @@ export async function runBatchSlice({
                 ? `${pad(abs + 1)}-${slot + 1}.${ext}`
                 : `${pad(abs + 1)}.${ext}`;
             const dest = path.join(outDir, name);
-            await downloadMedia(page, mediaId, dest);
+            await downloadMedia(page, mediaId, dest, directUrl);
             savedPath = dest;
             emit("status", { message: `Saved ${name}` });
           }

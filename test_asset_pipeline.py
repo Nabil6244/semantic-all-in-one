@@ -484,6 +484,69 @@ class TestCancellation(AssetPipelineTestCase):
         client.stop.assert_called_once()
         self.assertEqual(results["1"].status, SceneStatus.CANCELLED)
 
+    def test_flow_timeout_keeps_finished_scenes_and_resets_engine(self):
+        """On GENERATE timeout, keep scenes that already finished and stop/reset
+        the engine so Retry is not blocked by a stuck running flag."""
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        run_root = self.images.parent / "flow_run"
+        run_root.mkdir(parents=True, exist_ok=True)
+        client.get_info.return_value = {"downloadsRoot": str(run_root)}
+
+        done_png = run_root / "batch" / "001.png"
+        done_png.parent.mkdir(parents=True, exist_ok=True)
+        done_png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+
+        def fake_subscribe(fn):
+            def generate(*_a, **_k):
+                fn({
+                    "type": "BATCH_PROGRESS",
+                    "index": 0,
+                    "status": "done",
+                    "path": str(done_png),
+                })
+                fn({
+                    "type": "PROMPT_RESULT",
+                    "index": 0,
+                    "path": str(done_png),
+                    "status": "done",
+                })
+                # Never send GENERATE_DONE — force the timeout path.
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_timeout = flow_mod.GENERATE_TIMEOUT_SECONDS
+        flow_mod.GENERATE_TIMEOUT_SECONDS = 0.05
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [
+                SceneRow(scene_number="1", script_segment="a", prompt="done"),
+                SceneRow(scene_number="2", script_segment="b", prompt="pending"),
+            ]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod.GENERATE_TIMEOUT_SECONDS = orig_timeout
+
+        client.stop.assert_called()
+        client.reset_generate.assert_called()
+        self.assertEqual(results["1"].status, SceneStatus.READY)
+        self.assertEqual(results["2"].status, SceneStatus.FAILED)
+        self.assertIn("Timed out", results["2"].error or "")
+
     def test_stale_running_engine_is_stopped_not_failed(self):
         from unittest.mock import MagicMock
 

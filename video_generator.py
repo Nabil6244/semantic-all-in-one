@@ -38,6 +38,10 @@ import sys
 import textwrap
 from pathlib import Path
 
+from providers import hidden_subprocess
+
+hidden_subprocess.install()
+
 
 # ---------- text normalization ----------
 
@@ -983,7 +987,7 @@ def _render_scene_clip(
             str(out_path),
         ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         err = (result.stderr or result.stdout or "").strip()
         print(err[-3000:])
@@ -1220,7 +1224,7 @@ def render_video(
         output_path,
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(result.stderr[-3000:])
         sys.exit("ERROR: ffmpeg final mux failed — see log above.")

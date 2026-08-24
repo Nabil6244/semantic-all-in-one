@@ -222,11 +222,14 @@ class FlowProvider(AssetProvider):
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} failed: {msg.get('message')}")
                     else:
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} generated")
-            elif mtype == "PROMPT_RESULT" and msg.get("path"):
+            elif mtype == "PROMPT_RESULT":
                 idx = msg.get("index")
                 if idx is not None and 0 <= idx < len(scenes):
                     prev = progress.get(idx) or {}
                     prev.update(msg)
+                    # Normalize engine "error" into the message field the resolver reads.
+                    if prev.get("status") == "failed" and not prev.get("message") and prev.get("error"):
+                        prev["message"] = prev["error"]
                     progress[idx] = prev
             elif mtype == "GENERATE_DONE":
                 done_event.set()
@@ -257,6 +260,7 @@ class FlowProvider(AssetProvider):
             timeout_seconds = GENERATE_TIMEOUT_SECONDS * (3 if self.media_kind == "video" else 1)
             deadline = time.monotonic() + timeout_seconds
             poll_seconds = 1.0
+            timed_out = False
             while not done_event.is_set():
                 if self._batch_should_stop(should_stop, scenes):
                     log("[FLOW] Cancelling — sending STOP to the engine...")
@@ -266,12 +270,75 @@ class FlowProvider(AssetProvider):
                     break
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    error = "Timed out waiting for the Flow engine to finish generating."
-                    return {s.scene_number: self._fail(s, error) for s in scenes}
+                    timed_out = True
+                    log(
+                        "[FLOW] Timed out waiting for the Flow engine — "
+                        "stopping it and keeping any scenes that already finished."
+                    )
+                    try:
+                        client.stop()
+                    except Exception:
+                        pass
+                    try:
+                        if hasattr(client, "reset_generate"):
+                            client.reset_generate()
+                    except Exception:
+                        pass
+                    done_event.wait(timeout=5)
+                    break
                 done_event.wait(timeout=min(poll_seconds, remaining))
+
+            if timed_out:
+                # Keep finished scenes; only mark unfinished ones as timed out.
+                # Previously every scene in the batch was failed, so Retry kept
+                # redoing work that had already succeeded and the engine stayed busy.
+                results: Dict[str, AssetResult] = {}
+                timeout_error = (
+                    "Timed out waiting for the Flow engine to finish generating. "
+                    "Finished scenes were kept — use Retry on the rest."
+                )
+                for idx, scene in enumerate(scenes):
+                    if self._scene_stopped(scene.scene_number):
+                        results[scene.scene_number] = AssetResult(
+                            scene.scene_number, None, None, self.source,
+                            SceneStatus.CANCELLED, error="Cancelled.",
+                        )
+                        continue
+                    msg = progress.get(idx)
+                    if msg and (
+                        msg.get("status") == "done"
+                        or msg.get("path")
+                        or msg.get("file")
+                    ):
+                        results[scene.scene_number] = self._resolve_one_result(
+                            idx,
+                            scene,
+                            images_dir,
+                            str(run_dir),
+                            msg,
+                            log,
+                            engine_root=engine_root,
+                            batch_started_at=batch_started_at,
+                        )
+                    elif msg and msg.get("status") == "failed":
+                        results[scene.scene_number] = self._fail(
+                            scene, msg.get("message") or timeout_error
+                        )
+                    else:
+                        results[scene.scene_number] = self._fail(scene, timeout_error)
+                return results
 
             if not done_event.is_set() and not cancelled:
                 error = "Timed out waiting for the Flow engine to finish generating."
+                try:
+                    client.stop()
+                except Exception:
+                    pass
+                try:
+                    if hasattr(client, "reset_generate"):
+                        client.reset_generate()
+                except Exception:
+                    pass
                 return {s.scene_number: self._fail(s, error) for s in scenes}
 
             if terminal_error and not progress:
@@ -365,11 +432,17 @@ class FlowProvider(AssetProvider):
             batch_started_at=batch_started_at,
         )
         if found is None:
-            error = (
-                progress_msg.get("message")
-                if progress_msg and progress_msg.get("status") == "failed"
-                else "Flow did not write a file for this scene in this run (not using leftover clips)."
-            )
+            if progress_msg and progress_msg.get("status") == "failed":
+                error = (
+                    progress_msg.get("message")
+                    or progress_msg.get("error")
+                    or "Flow generation failed."
+                )
+            else:
+                error = (
+                    "Flow generated this scene but the file was not downloaded "
+                    "(not using leftover clips). Retry this scene."
+                )
             return self._fail(scene, error)
 
         # Hard content check — don't trust the filename's extension alone. If the
@@ -436,12 +509,33 @@ class FlowProvider(AssetProvider):
             raw = str(progress_msg.get("path") or progress_msg.get("file") or "").strip()
         if raw:
             reported = Path(raw)
-            if reported.is_file() and self._file_is_from_this_batch(reported, batch_started_at):
+            # Trust the engine's exact path when the file exists. Do not reject on
+            # mtime — Windows FS timestamp granularity / AV scanners have caused
+            # real downloads to be ignored and marked Needs Attention.
+            if reported.is_file() and reported.stat().st_size > 64:
                 return reported
+            # Also try resolving relative / mixed-slash paths from Node on Windows.
+            try:
+                alt = Path(downloads_root) / reported.name
+                if alt.is_file() and alt.stat().st_size > 64:
+                    return alt
+            except OSError:
+                pass
 
         run_hit = self._newest_named_under(Path(downloads_root), name, batch_started_at)
         if run_hit is not None:
             return run_hit
+
+        # Wider search: any matching name under the run folder (account subdirs).
+        try:
+            root = Path(downloads_root)
+            if root.is_dir():
+                for p in root.rglob(name):
+                    if p.is_file() and p.stat().st_size > 64:
+                        if self._file_is_from_this_batch(p, batch_started_at):
+                            return p
+        except OSError:
+            pass
 
         # Older engines ignore outputDir and still write to ~/Downloads/Flow_Images.
         # Only accept a file whose mtime is from *this* batch.
@@ -459,6 +553,11 @@ class FlowProvider(AssetProvider):
     def _place_in_images_dir(src: Path, images_dir: Path, scene_number: str) -> Path:
         n = int(str(scene_number).strip())
         target = Path(images_dir) / f"{n:03d}{src.suffix.lower()}"
+        try:
+            if src.resolve() == target.resolve():
+                return target
+        except OSError:
+            pass
         shutil.copy2(src, target)
         return target
 

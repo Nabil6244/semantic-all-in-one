@@ -8,6 +8,8 @@ import wave
 from dataclasses import dataclass
 from pathlib import Path
 
+from providers import hidden_subprocess
+
 SUPPORTED_SUFFIXES = {".wav", ".mp3", ".ogg", ".flac", ".m4a"}
 
 
@@ -60,7 +62,7 @@ def probe_audio(path: Path | str) -> AudioInfo:
         str(path),
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
+        proc = hidden_subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(f"Could not probe audio file: {path}") from exc
     if proc.returncode != 0:
@@ -114,7 +116,7 @@ def convert_to_wav(src: Path, dest: Path) -> Path:
         "48000",
         str(dest),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0 or not dest.is_file():
         raise RuntimeError(f"ffmpeg failed converting {src} to WAV.")
     return dest

@@ -143,14 +143,27 @@ class BrowserPlaybackClient:
             raise RuntimeError("node is not available")
         _ensure_playwright_chromium_for_youtube()
         env = os.environ.copy()
-        proc = self._popen_factory(
-            [self.node_bin, str(self.worker_script)],
+        popen_kwargs = dict(
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=str(self.worker_script.parent),
             env=env,
         )
+        # Default factory is subprocess.Popen — hide the Windows console. Tests
+        # that inject a custom factory keep their own signature.
+        if self._popen_factory is subprocess.Popen:
+            from providers import hidden_subprocess
+
+            proc = hidden_subprocess.popen(
+                [self.node_bin, str(self.worker_script)],
+                **popen_kwargs,
+            )
+        else:
+            proc = self._popen_factory(
+                [self.node_bin, str(self.worker_script)],
+                **popen_kwargs,
+            )
         self._proc = proc
         self._stdout_q = queue.Queue()
         self._stderr_thread = threading.Thread(target=self._forward_stderr, daemon=True)

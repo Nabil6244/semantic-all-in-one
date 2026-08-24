@@ -43,6 +43,12 @@ from io import StringIO
 from pathlib import Path
 from tkinter import filedialog, messagebox
 
+# Windows: hide black CMD flashes from ffmpeg / node / yt-dlp (must run before
+# those libraries spawn children). No-op on macOS/Linux.
+from providers import hidden_subprocess as _hidden_subprocess
+
+_hidden_subprocess.install()
+
 import customtkinter as ctk
 
 import video_generator as vg
@@ -578,6 +584,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._settings = load_settings()
         self._workspace = None
         self._project_menu_lock = False
+        self._log_disk_buf: list[str] = []
+        self._log_disk_scheduled = False
+        # Windows CustomTkinter freezes if we process hundreds of scene events
+        # (each forcing a full QA rebuild) in one poll tick.
+        self._UI_QUEUE_BATCH = 48
+        self._QA_UI_IDLE_MS = 50
+        self._QA_UI_RUNNING_MS = 200
         raw_root = (self._settings.get("projects_root") or "").strip()
         self._projects_root = Path(raw_root) if raw_root else default_projects_root()
 
@@ -2186,7 +2199,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._project_chip_full = chip
         self._apply_chip_text()
 
-    def _mirror_result_into_workspace(self, result) -> None:
+    def _mirror_result_into_workspace(self, result, *, sync_state: bool = True) -> None:
         ws = self._workspace
         if ws is None or result is None or not getattr(result, "ok", False):
             return
@@ -2196,7 +2209,27 @@ class VideoGeneratorApp(ctk.CTk):
         source = getattr(result, "source", None)
         name = getattr(source, "value", None) or str(source or "")
         ws.mirror_provider_asset(name, getattr(result, "scene_number", ""), Path(path))
-        ws.sync_state_copies()
+        if sync_state:
+            ws.sync_state_copies()
+
+    def _flush_log_disk(self) -> None:
+        self._log_disk_scheduled = False
+        if not self._log_disk_buf or self._workspace is None:
+            self._log_disk_buf.clear()
+            return
+        chunk = "".join(self._log_disk_buf)
+        self._log_disk_buf.clear()
+        try:
+            self._workspace.append_log(chunk)
+        except Exception:
+            pass
+
+    def _schedule_log_disk_flush(self) -> None:
+        if self._log_disk_scheduled:
+            return
+        self._log_disk_scheduled = True
+        # Batch disk writes — open/append/close per line freezes Windows during Generate.
+        self.after(400, self._flush_log_disk)
 
     # ---------- browse helpers ----------
 
@@ -2487,7 +2520,9 @@ class VideoGeneratorApp(ctk.CTk):
         if not ffprobe:
             return 0.0
         try:
-            out = subprocess.check_output(
+            from providers import hidden_subprocess
+
+            out = hidden_subprocess.check_output(
                 [
                     ffprobe,
                     "-v",
@@ -2689,7 +2724,9 @@ class VideoGeneratorApp(ctk.CTk):
             start_at = 0.0
 
         try:
-            self._voice_play_proc = subprocess.Popen(
+            from providers import hidden_subprocess
+
+            self._voice_play_proc = hidden_subprocess.popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
         except OSError as exc:
@@ -3031,7 +3068,16 @@ class VideoGeneratorApp(ctk.CTk):
                             AssetSource.FLOW_IMAGE, SceneStatus.NEEDS_ACTION,
                             error="Flow batch returned no result for this scene.",
                         )
+                    try:
+                        self._mirror_result_into_workspace(result, sync_state=False)
+                    except Exception:
+                        pass
                     self._ui_queue.put(("scene_result", (scene.scene_number, tokens.get(key, 0), result)))
+                try:
+                    if self._workspace is not None:
+                        self._workspace.sync_state_copies()
+                except Exception:
+                    pass
 
         threading.Thread(target=worker, daemon=True).start()
         return True
@@ -3664,6 +3710,10 @@ class VideoGeneratorApp(ctk.CTk):
             writer.flush()
             sys.stdout = old_out
             sys.stderr = old_err
+            try:
+                self._mirror_result_into_workspace(result)
+            except Exception:
+                pass
             self._ui_queue.put(("scene_result", (scene_row.scene_number, token, result)))
 
     def _refresh_assets_cta(self) -> None:
@@ -3689,7 +3739,8 @@ class VideoGeneratorApp(ctk.CTk):
         if self._qa_ui_scheduled:
             return
         self._qa_ui_scheduled = True
-        self.after(50, self._flush_qa_ui)
+        delay = self._QA_UI_RUNNING_MS if self._running else self._QA_UI_IDLE_MS
+        self.after(delay, self._flush_qa_ui)
 
     def _flush_qa_ui(self) -> None:
         self._qa_ui_scheduled = False
@@ -3701,7 +3752,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._qa.clear_focus_if_resolved(snap.unresolved_keys)
         self._sync_scene_statuses_from_results()
         self._paint_qa_chrome(snap)
-        if self._issues_visible:
+        # Rebuilding hundreds of issue cards mid-run freezes Windows — defer until idle.
+        if self._issues_visible and not self._running:
             self._rebuild_issues(snap)
         self._update_details_panel(snap)
         self._persist_qa()
@@ -4254,10 +4306,11 @@ class VideoGeneratorApp(ctk.CTk):
             body, text="FLOW SETTINGS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(16, 8))
 
-        def _option_row(parent, label_text, var, options):
+        def _option_row(parent, label_text, var, options, on_change=None):
             """options: list[(value, label)]. The OptionMenu shows/edits labels;
             `var` (the real backing StringVar, e.g. holding "NARWHAL") is updated
-            via `command` whenever the user picks a different label."""
+            via `command` whenever the user picks a different label. Optional
+            `on_change` runs after the value is set (used to auto-persist)."""
             row = ctk.CTkFrame(parent, fg_color="transparent")
             row.pack(fill="x", pady=3)
             ctk.CTkLabel(
@@ -4267,8 +4320,10 @@ class VideoGeneratorApp(ctk.CTk):
             current_label = next((lbl for val, lbl in options if val == var.get()), labels[0])
             display = ctk.StringVar(value=current_label)
 
-            def on_choice(chosen, o=options, v=var):
+            def on_choice(chosen, o=options, v=var, cb=on_change):
                 v.set(next((val for val, lbl in o if lbl == chosen), o[0][0]))
+                if cb is not None:
+                    cb()
 
             ctk.CTkOptionMenu(
                 row, variable=display, values=labels, command=on_choice,
@@ -4281,18 +4336,29 @@ class VideoGeneratorApp(ctk.CTk):
         ctk.CTkLabel(
             image_card, text="Image", font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT,
         ).pack(anchor="w", padx=12, pady=(10, 2))
-        _option_row(image_card, "Model", self.flow_image_model_var, FLOW_IMAGE_MODELS)
-        _option_row(image_card, "Dimension", self.flow_image_aspect_var, FLOW_IMAGE_ASPECT_RATIOS)
-        ctk.CTkFrame(image_card, fg_color="transparent", height=6).pack()
 
-        def save_flow_settings():
+        def persist_image_flow_settings(silent=True):
             self._settings["flow_settings"] = self._current_image_flow_settings()
             save_settings(self._settings)
-            messagebox.showinfo("Saved", "Flow image settings saved. They apply to newly generated scenes.")
+            if not silent:
+                messagebox.showinfo(
+                    "Saved",
+                    "Flow image settings saved. They apply to newly generated scenes.",
+                )
 
-        ctk.CTkButton(
-            body, text="Save Image Settings", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK, command=save_flow_settings,
+        _option_row(
+            image_card, "Model", self.flow_image_model_var, FLOW_IMAGE_MODELS,
+            on_change=persist_image_flow_settings,
+        )
+        _option_row(
+            image_card, "Dimension", self.flow_image_aspect_var, FLOW_IMAGE_ASPECT_RATIOS,
+            on_change=persist_image_flow_settings,
+        )
+        ctk.CTkFrame(image_card, fg_color="transparent", height=6).pack()
+        ctk.CTkLabel(
+            body,
+            text="Image model & dimension save automatically when you change them.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(0, 16))
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
@@ -4324,6 +4390,11 @@ class VideoGeneratorApp(ctk.CTk):
             "login": "#D97706", "checking": "#D97706", "error": "#DC2626",
         }
 
+        # Rebuild video-profile cards only when the set of account IDs changes —
+        # every Flow STATE ping used to destroy Model/Duration dropdowns and
+        # snap Fast↔Lite back to the last saved value mid-edit.
+        _profiles_account_ids: list | None = [None]
+
         def render_accounts(accounts):
             # The FlowClient STATE subscription below outlives this window (it's
             # only torn down on <Destroy>, and a message can already be in
@@ -4333,7 +4404,10 @@ class VideoGeneratorApp(ctk.CTk):
             if not win.winfo_exists():
                 return
             self._known_flow_accounts = accounts
-            render_profiles()
+            account_ids = tuple(a.get("id") for a in accounts)
+            if account_ids != _profiles_account_ids[0]:
+                _profiles_account_ids[0] = account_ids
+                render_profiles()
             for c in accounts_list.winfo_children():
                 c.destroy()
             if not accounts:
@@ -4381,6 +4455,7 @@ class VideoGeneratorApp(ctk.CTk):
                     ).pack(side="right", padx=4)
 
         _state_unsubscribers: list = []
+        _state_subscribed = [False]
 
         def _on_settings_closed(event):
             if event.widget is not win:
@@ -4391,6 +4466,7 @@ class VideoGeneratorApp(ctk.CTk):
                 except Exception:
                     pass
             _state_unsubscribers.clear()
+            _state_subscribed[0] = False
 
         win.bind("<Destroy>", _on_settings_closed)
 
@@ -4400,14 +4476,32 @@ class VideoGeneratorApp(ctk.CTk):
                     client = self._get_flow_engine_manager().ensure_running()
                     fn(client)
 
-                    def on_state(msg, _client=client):
-                        if msg.get("type") == "STATE":
-                            accounts = msg.get("accounts", [])
-                            self.after(0, lambda: (status_var.set("Connected"), render_accounts(accounts)))
+                    # One STATE subscription per Settings window. Adding another on
+                    # every Sign in / Add Account used to redraw the panel N times
+                    # per engine ping (and wipe unsaved model picks).
+                    if not _state_subscribed[0]:
+                        def on_state(msg):
+                            if msg.get("type") == "STATE":
+                                accounts = msg.get("accounts", [])
+                                self.after(
+                                    0,
+                                    lambda a=accounts: (
+                                        status_var.set("Connected"),
+                                        render_accounts(a),
+                                    ),
+                                )
 
-                    _state_unsubscribers.append(client.subscribe(on_state))
+                        _state_unsubscribers.append(client.subscribe(on_state))
+                        _state_subscribed[0] = True
+
                     state = client.get_state()
-                    self.after(0, lambda: (status_var.set("Connected"), render_accounts(state.get("accounts", []))))
+                    self.after(
+                        0,
+                        lambda: (
+                            status_var.set("Connected"),
+                            render_accounts(state.get("accounts", [])),
+                        ),
+                    )
                 except Exception as exc:
                     # Capture the message as a plain string now — `exc` itself is
                     # auto-deleted by Python when this except block exits, so the
@@ -4462,15 +4556,19 @@ class VideoGeneratorApp(ctk.CTk):
             self._save_video_profiles(profs)
             render_profiles()
 
-        def save_profile(pid, name_var, model_var, aspect_var, duration_var):
+        def save_profile(pid, name_var, model_var, aspect_var, duration_var, *, silent=False):
             for p in self._get_video_profiles():
                 if p["id"] == pid:
                     p["name"] = name_var.get().strip() or p["name"]
                     p["model"] = model_var.get()
                     p["aspectRatio"] = aspect_var.get()
-                    p["duration"] = int(duration_var.get())
+                    try:
+                        p["duration"] = int(duration_var.get())
+                    except (TypeError, ValueError):
+                        p["duration"] = int(p.get("duration", 8))
             self._save_video_profiles(self._get_video_profiles())
-            messagebox.showinfo("Saved", "Video profile saved.")
+            if not silent:
+                messagebox.showinfo("Saved", "Video profile saved.")
 
         def toggle_account(pid, aid, var):
             for p in self._get_video_profiles():
@@ -4521,9 +4619,19 @@ class VideoGeneratorApp(ctk.CTk):
                 model_var = ctk.StringVar(value=profile.get("model", FLOW_VIDEO_MODELS[1][0]))
                 aspect_var = ctk.StringVar(value=profile.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0]))
                 duration_var = ctk.StringVar(value=str(profile.get("duration", 8)))
-                _option_row(card, "Model", model_var, FLOW_VIDEO_MODELS)
-                _option_row(card, "Dimension", aspect_var, FLOW_IMAGE_ASPECT_RATIOS)
-                _option_row(card, "Duration", duration_var, [(str(v), lbl) for v, lbl in FLOW_VIDEO_DURATIONS])
+
+                def _autosave_profile(
+                    pid=profile["id"], nv=name_var, mv=model_var, av=aspect_var, dv=duration_var,
+                ):
+                    save_profile(pid, nv, mv, av, dv, silent=True)
+
+                _option_row(card, "Model", model_var, FLOW_VIDEO_MODELS, on_change=_autosave_profile)
+                _option_row(card, "Dimension", aspect_var, FLOW_IMAGE_ASPECT_RATIOS, on_change=_autosave_profile)
+                _option_row(
+                    card, "Duration", duration_var,
+                    [(str(v), lbl) for v, lbl in FLOW_VIDEO_DURATIONS],
+                    on_change=_autosave_profile,
+                )
 
                 ctk.CTkLabel(
                     card, text="Accounts", font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT,
@@ -4544,6 +4652,11 @@ class VideoGeneratorApp(ctk.CTk):
                             fg_color=_ACCENT, hover_color=_ACCENT_HOV, border_color=_BORDER,
                         ).pack(anchor="w", padx=12, pady=1)
 
+                ctk.CTkLabel(
+                    card,
+                    text="Model / dimension / duration save when changed. Use Save Profile for the name.",
+                    font=ctk.CTkFont(size=10), text_color=_MUTED,
+                ).pack(anchor="w", padx=12, pady=(6, 0))
                 ctk.CTkButton(
                     card, text="Save Profile", height=28, font=ctk.CTkFont(size=11),
                     fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
@@ -4870,6 +4983,10 @@ class VideoGeneratorApp(ctk.CTk):
                 from providers.base import AssetError
                 from providers.router import SceneAssetRouter
 
+                # Do NOT enqueue scene_busy for every row up front — that floods the
+                # UI thread (especially Windows) and looks like a system hang. Rows
+                # flip to busy only when work actually starts via on_scene_start.
+                pending_count = 0
                 for scene in scene_rows:
                     key = _scene_key(scene.scene_number)
                     existing = self._asset_results.get(key)
@@ -4878,7 +4995,10 @@ class VideoGeneratorApp(ctk.CTk):
                     source = SceneAssetRouter.classify(scene)
                     if source is None:
                         continue
-                    self._ui_queue.put(("scene_busy", (scene.scene_number, "queued")))
+                    pending_count += 1
+                if pending_count:
+                    print(f"[ASSET] {pending_count} scene(s) to resolve…")
+                    self._ui_queue.put(("assets_status", None))
 
                 def _on_scene_start(scene: SceneRow, source: AssetSource) -> None:
                     self._ui_queue.put(
@@ -4886,6 +5006,11 @@ class VideoGeneratorApp(ctk.CTk):
                     )
 
                 def _on_scene_complete(scene: SceneRow, result: AssetResult) -> None:
+                    # File copies on the worker — never on the Tk UI thread.
+                    try:
+                        self._mirror_result_into_workspace(result, sync_state=False)
+                    except Exception:
+                        pass
                     self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
                 try:
@@ -4896,10 +5021,14 @@ class VideoGeneratorApp(ctk.CTk):
                     )
                 except AssetError as exc:
                     raise RuntimeError(exc.reason) from exc
+                try:
+                    if self._workspace is not None:
+                        self._workspace.sync_state_copies()
+                except Exception:
+                    pass
                 for number, result in summary.results.items():
                     key = _scene_key(number)
                     self._asset_results[key] = result
-                    self._mirror_result_into_workspace(result)
                     if result.ok:
                         print(f"[ASSET] Scene {number} SUCCESS")
                     elif getattr(result.status, "value", "") == "skipped":
@@ -5022,10 +5151,13 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _poll_queue(self) -> None:
         logs: list[str] = []
+        processed = 0
+        batch_limit = self._UI_QUEUE_BATCH
         try:
             try:
-                while True:
+                while processed < batch_limit:
                     kind, payload = self._ui_queue.get_nowait()
+                    processed += 1
                     if kind == "log":
                         logs.append(payload)
                         self._maybe_update_progress(payload)
@@ -5044,14 +5176,15 @@ class VideoGeneratorApp(ctk.CTk):
                         elif kind == "assets_complete":
                             self._on_assets_complete(payload)
                         elif kind == "assets_status":
-                            self._refresh_qa_ui(immediate=True)
+                            self._refresh_qa_ui()
                         elif kind == "scene_busy":
                             scene_number, status = payload
                             key = _scene_key(scene_number)
                             self._busy_scenes.add(key)
                             self._qa.busy[key] = status
                             self._set_scene_status(scene_number, status)
-                            self._refresh_qa_ui(immediate=True)
+                            # Deferred — immediate flush per scene freezes Windows on large projects.
+                            self._refresh_qa_ui()
                         elif kind == "scene_asset":
                             scene_number, result = payload
                             key = _scene_key(scene_number)
@@ -5059,7 +5192,7 @@ class VideoGeneratorApp(ctk.CTk):
                             self._qa.busy.pop(key, None)
                             if result is not None:
                                 self._asset_results[key] = result
-                                self._mirror_result_into_workspace(result)
+                                # Mirror already done on the worker thread when possible.
                                 if getattr(result, "status", None) == SceneStatus.SKIPPED:
                                     self._hydrated_skipped.add(key)
                                 elif getattr(result, "ok", False):
@@ -5071,7 +5204,7 @@ class VideoGeneratorApp(ctk.CTk):
                             )
                             if scene is not None:
                                 self._set_scene_status(scene.scene_number, self._row_status_from_result(scene))
-                            self._refresh_qa_ui(immediate=True)
+                            self._refresh_qa_ui()
                             self._maybe_resume_pending_source_change(key)
                         elif kind == "scene_result":
                             scene_number, token, result = payload
@@ -5081,7 +5214,6 @@ class VideoGeneratorApp(ctk.CTk):
                             self._busy_scenes.discard(key)
                             if result is not None:
                                 self._asset_results[key] = result
-                                self._mirror_result_into_workspace(result)
                                 if getattr(result, "status", None) == SceneStatus.SKIPPED:
                                     self._hydrated_skipped.add(key)
                                 elif getattr(result, "ok", False):
@@ -5135,12 +5267,19 @@ class VideoGeneratorApp(ctk.CTk):
             except Exception:
                 pass
         finally:
-            self.after(80, self._poll_queue)
+            # Drain faster while the worker is flooding the queue (generation start).
+            delay = 40 if processed >= batch_limit else 80
+            self.after(delay, self._poll_queue)
 
     def _end_generate_run(self) -> None:
         self._running = False
         self.cancel_btn.grid_forget()
-        self._refresh_qa_ui(immediate=True)
+        self._flush_log_disk()
+        # Force issues drawer rebuild now that the run is idle.
+        self._qa_ui_dirty = True
+        self._flush_qa_ui()
+        if self._issues_visible:
+            self._rebuild_issues()
         self._sync_primary_cta()
 
     def _on_assets_partial(self, payload: dict) -> None:
@@ -5210,7 +5349,9 @@ class VideoGeneratorApp(ctk.CTk):
         thumb = Path(_tmp.mktemp(suffix=".jpg"))
         ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
         try:
-            result = subprocess.run(
+            from providers import hidden_subprocess
+
+            result = hidden_subprocess.run(
                 [
                     ffmpeg, "-y",
                     "-ss", "1",           # seek to 1 s for a more interesting frame
@@ -5305,13 +5446,19 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _clear_log(self) -> None:
         self._log_backlog.clear()
+        self._log_disk_buf.clear()
+        self._log_disk_scheduled = False
         self.log_box.configure(state="normal")
         self.log_box.delete("1.0", "end")
         self.log_box.configure(state="disabled")
 
     def _append_log(self, text: str) -> None:
         if self._workspace is not None:
-            self._workspace.append_log(text)
+            self._log_disk_buf.append(text)
+            if len(self._log_disk_buf) >= 40:
+                self._flush_log_disk()
+            else:
+                self._schedule_log_disk_flush()
         if not self._log_visible:
             self._log_backlog.append(text)
             if len(self._log_backlog) > 400:
@@ -5346,6 +5493,10 @@ class VideoGeneratorApp(ctk.CTk):
             ):
                 return
         try:
+            self._flush_log_disk()
+        except Exception:
+            pass
+        try:
             if self._running and self._asset_manager is not None:
                 self._asset_manager.request_cancel()
         except Exception:
@@ -5371,6 +5522,8 @@ class VideoGeneratorApp(ctk.CTk):
 
 
 def main() -> None:
+    # Re-assert Windows console hiding (frozen builds / late imports of yt-dlp).
+    _hidden_subprocess.install()
     _configure_macos_dock_name()
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()

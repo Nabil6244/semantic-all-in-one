@@ -190,6 +190,8 @@ a = Analysis(
         "providers.flow.client",
         "providers.flow.engine_manager",
         "providers.flow.provider",
+        "providers.hidden_subprocess",
+        "providers.playwright_chromium",
         "providers.youtube",
         "providers.youtube.base",
         "providers.youtube.matching",

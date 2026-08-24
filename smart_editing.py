@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 # Reuse alignment tokenization from the existing renderer pipeline.
 from video_generator import is_distinctive, split_words, words_match
+from providers import hidden_subprocess
 
 TEXT_EFFECT_PRESETS = (
     "fade",
@@ -676,7 +677,7 @@ def ffmpeg_supports_drawtext() -> bool:
         _DRAWTEXT_AVAILABLE = False
         return False
     try:
-        proc = subprocess.run(
+        proc = hidden_subprocess.run(
             [ffmpeg, "-hide_banner", "-filters"],
             capture_output=True,
             text=True,
@@ -753,7 +754,7 @@ def mix_sfx_with_narration(
         f"volume=0.92[aout]"
     )
     cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", "[aout]", str(output_path)])
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0 or not output_path.is_file():
         shutil.copy2(narration_path, output_path)
     return output_path

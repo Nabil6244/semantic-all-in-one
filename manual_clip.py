@@ -14,6 +14,7 @@ from typing import Optional
 
 import video_generator as vg
 from providers.base import MediaType, sniff_media_kind
+from providers import hidden_subprocess
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"}
@@ -73,7 +74,7 @@ def _probe_media(path: Path) -> dict:
         str(path),
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        proc = hidden_subprocess.run(cmd, capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired):
         return {}
     out = {}
