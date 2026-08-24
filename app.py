@@ -604,6 +604,7 @@ class VideoGeneratorApp(ctk.CTk):
         # locking helps) — confirmed via a real concurrent-thread reproduction that
         # crashed the Flow engine with EADDRINUSE. See report.
         self._flow_engine_manager_lock = threading.Lock()
+        self._auth_session = None  # licensing.AuthSession when signed in
 
         # Parent containers reused by helpers
         self._left_panel: ctk.CTkFrame | None = None
@@ -619,7 +620,7 @@ class VideoGeneratorApp(ctk.CTk):
         # Seed bundled SFX after first paint so startup isn't blocked on copy I/O.
         # ensure_sfx_library is idempotent; also re-checked before smart-editing mix.
         self.after_idle(self._ensure_sfx_ready)
-        self.after_idle(self._open_project_picker)
+        self.after_idle(self._ensure_licensed_then_picker)
     # ---------- UI ----------
 
     def _build_ui(self) -> None:
@@ -1562,6 +1563,160 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_cancel()
         else:
             self._on_generate()
+
+    # ---------- friend login gate ----------
+
+    def _auth_required(self) -> bool:
+        """Enforce login when Supabase is configured, or always in packaged builds."""
+        from licensing.config import is_configured
+
+        if is_configured():
+            return True
+        # Packaged builds without embedded secrets still show a login wall
+        # (misconfigured) rather than silently opening the app.
+        return _is_frozen()
+
+    def _ensure_licensed_then_picker(self) -> None:
+        if not self._auth_required():
+            self._open_project_picker()
+            return
+
+        def open_picker():
+            self._open_project_picker()
+
+        def show_login(message: str = ""):
+            self._show_login_dialog(message=message, then=open_picker)
+
+        # Try restore session off the UI thread (network).
+        def work():
+            from licensing.auth_client import AuthError, get_auth_client
+            from licensing.config import is_configured
+
+            if not is_configured():
+                self.after(0, lambda: show_login("App is not configured for login."))
+                return
+            try:
+                session = get_auth_client().verify_stored_session()
+                self.after(0, lambda: self._on_auth_ok(session, then=open_picker))
+            except AuthError as exc:
+                if exc.code == "unsigned":
+                    self.after(0, lambda: show_login(""))
+                else:
+                    msg = exc.message
+                    self.after(0, lambda m=msg: show_login(m))
+            except Exception as exc:
+                msg = str(exc) or "Sign in required"
+                self.after(0, lambda m=msg: show_login(m))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_auth_ok(self, session, *, then=None) -> None:
+        self._auth_session = session
+        if then:
+            then()
+
+    def _show_login_dialog(self, *, message: str = "", then=None) -> None:
+        from licensing.login_dialog import LoginDialog
+        from licensing.auth_client import get_auth_client
+
+        existing = getattr(self, "_login_dialog", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    existing.lift()
+                    existing.focus_force()
+                    return
+            except Exception:
+                pass
+
+        def on_success(session):
+            self._login_dialog = None
+            self._on_auth_ok(session, then=then)
+
+        def on_cancel():
+            self._login_dialog = None
+            self.destroy()
+
+        self._login_dialog = LoginDialog(
+            self,
+            auth_client=get_auth_client(),
+            on_success=on_success,
+            on_cancel=on_cancel,
+            message=message,
+        )
+
+    def _revalidate_license(self) -> tuple[bool, str]:
+        """Refresh + active check. Returns (ok, error_message)."""
+        if not self._auth_required():
+            return True, ""
+        from licensing.auth_client import AuthError, get_auth_client
+        from licensing.config import is_configured
+
+        if not is_configured():
+            return False, "App is not configured for login."
+        try:
+            session = get_auth_client().verify_stored_session()
+            self._auth_session = session
+            return True, ""
+        except AuthError as exc:
+            return False, exc.message
+        except Exception as exc:
+            return False, str(exc) or "Access check failed"
+
+    def _force_logout(self, reason: str = "") -> None:
+        from licensing import session_store
+
+        session_store.clear_session()
+        self._auth_session = None
+        if self._running and self._asset_manager is not None:
+            try:
+                self._asset_manager.request_cancel()
+            except Exception:
+                pass
+        self._running = False
+        try:
+            self._set_generate_btn(state="disabled", text="Generate Assets")
+        except Exception:
+            pass
+        msg = (
+            reason
+            if reason in (
+                "Account disabled",
+                "Access revoked — contact the owner.",
+                "Access revoked or password changed",
+            )
+            else "Your access was removed or your password changed. Sign in again."
+        )
+        messagebox.showwarning("Access revoked", msg)
+
+        def after_login():
+            if self._workspace is None:
+                self._open_project_picker()
+
+        self._show_login_dialog(message="", then=after_login)
+
+    def _sign_out(self) -> None:
+        from licensing import session_store
+
+        session_store.clear_session()
+        self._auth_session = None
+        messagebox.showinfo("Signed out", "You have been signed out.")
+        self._show_login_dialog(message="", then=lambda: self._open_project_picker())
+
+    def _auth_identity_label(self) -> str:
+        session = self._auth_session
+        if session is None:
+            from licensing import session_store
+
+            stored = session_store.load_session()
+            if not stored:
+                return "Not signed in"
+            name = (stored.get("display_name") or "").strip()
+            email = (stored.get("email") or "").strip()
+            return name or email or "Signed in"
+        name = (session.display_name or "").strip()
+        email = (session.email or "").strip()
+        return name or email or "Signed in"
 
     def _open_project_picker(self) -> None:
         existing = getattr(self, "_project_picker", None)
@@ -4191,6 +4346,30 @@ class VideoGeneratorApp(ctk.CTk):
         )
         body.pack(fill="both", expand=True)
 
+        if self._auth_required():
+            ctk.CTkLabel(
+                body, text="ACCOUNT", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+            ).pack(anchor="w", padx=20, pady=(20, 4))
+            ctk.CTkLabel(
+                body,
+                text=self._auth_identity_label(),
+                font=ctk.CTkFont(size=13),
+                text_color=_TEXT,
+            ).pack(anchor="w", padx=20, pady=(0, 8))
+
+            def do_sign_out():
+                try:
+                    win.destroy()
+                except Exception:
+                    pass
+                self._sign_out()
+
+            ctk.CTkButton(
+                body, text="Sign out", height=32, fg_color="transparent",
+                hover_color=_DANGER_BG, text_color=_DANGER, border_width=1, border_color=_DANGER,
+                command=do_sign_out,
+            ).pack(anchor="w", padx=20, pady=(0, 16))
+
         ctk.CTkLabel(
             body, text="STOCK PROVIDERS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(20, 4))
@@ -4867,6 +5046,13 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_generate(self) -> None:
         if self._running:
             self._on_cancel()
+            return
+
+        # Revoke / password-change must bite before Generate Assets or Render,
+        # even if the app has been open since before access was removed.
+        ok, err = self._revalidate_license()
+        if not ok:
+            self._force_logout(err or "Access revoked or password changed")
             return
 
         snap = self._qa_snapshot() if self._scene_rows else None

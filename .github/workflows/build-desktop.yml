@@ -57,6 +57,12 @@ jobs:
           chmod +x bin/node
           ./bin/node --version
 
+      - name: Embed Supabase credentials
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python scripts/embed_supabase.py
+
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec
 
@@ -146,6 +152,12 @@ jobs:
           Expand-Archive -Path node.zip -DestinationPath node_dl -Force
           Copy-Item "node_dl\node-$nodeVersion-win-x64\node.exe" -Destination "bin\node.exe"
           & "bin\node.exe" --version
+
+      - name: Embed Supabase credentials
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python scripts/embed_supabase.py
 
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec

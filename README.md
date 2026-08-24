@@ -15,6 +15,114 @@ Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (art
 
 ---
 
+## Friend login (maintainers)
+
+The desktop app requires a **Supabase email/password** you create for each friend. Friends do not self-register.
+
+### Supabase setup (once)
+
+1. Create a Supabase project.
+2. SQL:
+
+```sql
+create table public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  display_name text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+create policy "Users can read own profile"
+  on public.profiles for select
+  to authenticated
+  using (auth.uid() = id);
+
+-- One user, many devices (each login upserts this machine).
+create table public.devices (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  device_id text not null,
+  hostname text,
+  os_name text,
+  os_version text,
+  arch text,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (user_id, device_id)
+);
+
+alter table public.devices enable row level security;
+
+create policy "Users can insert own devices"
+  on public.devices for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own devices"
+  on public.devices for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can read own devices"
+  on public.devices for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create index devices_user_id_idx on public.devices (user_id);
+
+grant select, insert, update on public.devices to authenticated;
+```
+
+Optional: trigger to insert a `profiles` row when you add a user in the Dashboard (or insert the row manually and set `active = true`).
+
+3. Add GitHub Actions secrets on the repo:
+   - `SUPABASE_URL` — project URL (e.g. `https://xxxx.supabase.co`)
+   - `SUPABASE_ANON_KEY` — anon/public key  
+
+   The build embeds these via `scripts/embed_supabase.py` (public by design; protect with RLS + `active`).
+
+4. Local/dev: export the same vars, or leave unset to skip the login wall when running from source.
+
+### Admin workflow
+
+| Goal | Action |
+|---|---|
+| Add friend | Authentication → Add user (email + password); ensure `profiles` row with `active = true` |
+| Remove access | Set `profiles.active = false` (and/or Ban user) |
+| Change password | Authentication → user → update password |
+| See devices per login | Table Editor → `devices` (or SQL below) |
+
+Count machines for one account:
+
+```sql
+select p.display_name, u.email, count(d.id) as devices
+from auth.users u
+join public.profiles p on p.id = u.id
+left join public.devices d on d.user_id = u.id
+group by p.display_name, u.email
+order by devices desc;
+
+-- detail for one friend
+select hostname, os_name, os_version, last_seen_at, device_id
+from public.devices
+where user_id = '<user-uuid>'
+order by last_seen_at desc;
+```
+
+Same computer updates `last_seen_at`; a new computer adds a row.
+
+### When access is re-checked
+
+- **Every app launch** (refresh session + `profiles.active`)
+- **Before Generate Assets / Render Video**
+
+No background heartbeat. If you revoke someone while the app is open, they are blocked on the next Generate/Render (or next launch).
+
+---
+
 ## 1. Install
 
 **Windows (x64)**  
@@ -31,7 +139,7 @@ Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (art
 
 ## 2. Typical workflow
 
-Every launch is a **fresh session** — the last project is not opened automatically. A **Choose a project** modal appears first. You cannot work until you pick one.
+Every launch asks you to **sign in** (friend account), then shows **Choose a project**. The last project is not opened automatically. You cannot work until you pick one.
 
 The main button always does the next action: **Analyze Script** / **Import CSV** / **Generate Assets** / **Import Voiceover** / **Render Video**. While a job runs it becomes **Stop**.
 
@@ -225,3 +333,5 @@ Still stuck? Note the exact message and scene number.
 | **Build Desktop Apps** | `Semantic-YT-Studio.dmg`, `Semantic-YT-Studio-Setup.exe` |
 
 Team installers are **Build Desktop** artifacts from that workflow.
+
+Before release builds, set repo secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (see **Friend login** above).

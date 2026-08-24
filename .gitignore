@@ -12,6 +12,8 @@ providers/youtube/acquisition/node_modules/
 
 # Local secrets / per-machine settings (Pexels key, etc.) — never commit
 settings.json
+auth_session.json
+device_id.json
 .videogen/
 
 # PyInstaller
