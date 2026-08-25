@@ -101,7 +101,7 @@ export async function runBatchSlice({
       index: abs,
       total: totalAbsolute,
       status: "running",
-      message: `[${i + 1}/${prompts.length}] "${prompt.slice(0, 50)}…"`,
+      message: `Working ${i + 1}/${prompts.length} (saved ${completed}) · "${prompt.slice(0, 40)}…"`,
     });
 
     let done = false;
@@ -158,7 +158,7 @@ export async function runBatchSlice({
           index: abs,
           total: totalAbsolute,
           status: "done",
-          message: `[${i + 1}/${prompts.length}] Done — ${mediaIds.length} image(s)`,
+          message: `Saved ${completed}/${prompts.length} on this account`,
           completed,
           failed,
           path: savedPath,

@@ -434,7 +434,37 @@ class AssetManager:
         if on_scene_start:
             for scene in scenes:
                 on_scene_start(scene, source)
+
+        early_reported: Dict[str, AssetResult] = {}
+
+        def _on_scene_ready(scene: SceneRow, result: AssetResult) -> None:
+            """Flip the UI off PROCESSING as soon as a Flow file lands mid-batch."""
+            if scene.scene_number in early_reported:
+                return
+            if self.is_scene_cancelled(scene.scene_number):
+                if result.ok and result.path:
+                    result.path.unlink(missing_ok=True)
+                result = self._cancelled_result(scene, source)
+            else:
+                self._record_failed_approach(scene, source, result)
+                self._finalize(scene, result)
+            early_reported[scene.scene_number] = result
+            results[scene.scene_number] = result
+            if on_scene_complete:
+                on_scene_complete(scene, result)
+
         try:
+            batch_results = provider.resolve_batch(
+                scenes,
+                self.images_dir,
+                log=self.log,
+                should_stop=lambda: self.is_cancelled or any(
+                    self.is_scene_cancelled(s.scene_number) for s in scenes
+                ),
+                on_scene_ready=_on_scene_ready,
+            )
+        except TypeError:
+            # Older provider stubs in tests may not accept on_scene_ready.
             batch_results = provider.resolve_batch(
                 scenes,
                 self.images_dir,
@@ -447,6 +477,11 @@ class AssetManager:
             batch_results = {}
             self.log(f"[FLOW] batch failed: {exc}")
         for scene in scenes:
+            if scene.scene_number in early_reported:
+                # Already finalized + UI-notified while the batch was still running.
+                final = batch_results.get(scene.scene_number) or early_reported[scene.scene_number]
+                results[scene.scene_number] = final
+                continue
             result = batch_results.get(scene.scene_number) or AssetResult(
                 scene_number=scene.scene_number, path=None, media_type=None,
                 source=source, status=SceneStatus.FAILED,

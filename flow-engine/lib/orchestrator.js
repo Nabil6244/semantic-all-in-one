@@ -276,17 +276,19 @@ async function runGenerate({ prompts, settings, accountIds }) {
     : all
   ).filter((a) => a.authenticated);
 
+  const donePayload = { type: "GENERATE_DONE", outputDir: settings?.outputDir || null };
+
   if (!selected.length) {
     pushState({
       generateError:
         "No signed-in accounts. Add accounts and complete Sign in first.",
     });
-    broadcast({ type: "GENERATE_DONE" });
+    broadcast(donePayload);
     return;
   }
   if (!prompts?.length) {
     pushState({ generateError: "Paste at least one prompt." });
-    broadcast({ type: "GENERATE_DONE" });
+    broadcast(donePayload);
     return;
   }
 
@@ -296,6 +298,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
 
   const slices = splitPrompts(prompts, selected.length);
   const total = prompts.length;
+  let caught = null;
 
   try {
     // Prepare all accounts in parallel (open + create project)
@@ -388,11 +391,21 @@ async function runGenerate({ prompts, settings, accountIds }) {
       }),
     );
   } catch (e) {
-    pushState({ generateError: e.message });
+    caught = e;
   } finally {
     running = false;
-    pushState();
-    broadcast({ type: "GENERATE_DONE" });
+    let anyWork = 0;
+    for (const p of accountProgress.values()) {
+      anyWork += (Number(p.completed) || 0) + (Number(p.failed) || 0);
+    }
+    const extra = {};
+    if (caught) {
+      extra.generateError = caught.message;
+    } else if (anyWork === 0 && prompts?.length) {
+      extra.generateError = "Batch ended before any prompt ran.";
+    }
+    pushState(extra);
+    broadcast(donePayload);
   }
 }
 

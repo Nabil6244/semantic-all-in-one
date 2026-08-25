@@ -597,6 +597,240 @@ class TestCancellation(AssetPipelineTestCase):
         self.assertNotIn("already running", (results["1"].error or "").lower())
         self.assertNotIn("try again shortly", (results["1"].error or "").lower())
 
+    def test_flow_places_into_assets_as_each_scene_finishes(self):
+        """assets/ must fill during the batch, not only after GENERATE_DONE."""
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 96
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+        mid_batch_asset = {"path": None}
+        ready_calls = []
+
+        def fake_subscribe(fn):
+            def generate(*_a, **kwargs):
+                out = Path(kwargs["settings"]["outputDir"])
+                path = out / "001.png"
+                path.write_bytes(png)
+                fn({
+                    "type": "BATCH_PROGRESS",
+                    "index": 0,
+                    "status": "done",
+                    "path": str(path),
+                })
+                # Still generating the rest of the batch — asset must already exist.
+                mid_batch_asset["path"] = self.images / "001.png"
+                self.assertTrue(
+                    mid_batch_asset["path"].is_file(),
+                    "file must land in assets/ before GENERATE_DONE",
+                )
+                self.assertEqual(len(ready_calls), 1)
+                fn({"type": "GENERATE_DONE", "outputDir": str(out)})
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_settle = flow_mod._BATCH_SETTLE_SECONDS
+        flow_mod._BATCH_SETTLE_SECONDS = 0.0
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [SceneRow(scene_number="1", script_segment="a", prompt="x")]
+            results = fp.resolve_batch(
+                scenes,
+                self.images,
+                log=lambda *_: None,
+                on_scene_ready=lambda s, r: ready_calls.append((s.scene_number, r.status)),
+            )
+        finally:
+            flow_mod._BATCH_SETTLE_SECONDS = orig_settle
+
+        self.assertEqual(results["1"].status, SceneStatus.READY)
+        self.assertTrue((self.images / "001.png").is_file())
+        self.assertEqual(ready_calls, [("1", SceneStatus.READY)])
+
+    def test_flow_timeout_picks_up_files_without_progress(self):
+        """Timeout must still copy files already on disk, even with no DONE event."""
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 96
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+
+        def fake_subscribe(fn):
+            def generate(*_a, **kwargs):
+                out = Path(kwargs["settings"]["outputDir"])
+                (out / "001.png").write_bytes(png)
+                (out / "002.png").write_bytes(png)
+                fn({
+                    "type": "BATCH_PROGRESS",
+                    "index": 0,
+                    "status": "done",
+                    "path": str(out / "001.png"),
+                })
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_timeout = flow_mod.GENERATE_TIMEOUT_SECONDS
+        orig_settle = flow_mod._BATCH_SETTLE_SECONDS
+        flow_mod.GENERATE_TIMEOUT_SECONDS = 0.05
+        flow_mod._BATCH_SETTLE_SECONDS = 0.0
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [
+                SceneRow(scene_number="1", script_segment="a", prompt="done"),
+                SceneRow(scene_number="2", script_segment="b", prompt="silent"),
+            ]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod.GENERATE_TIMEOUT_SECONDS = orig_timeout
+            flow_mod._BATCH_SETTLE_SECONDS = orig_settle
+
+        self.assertEqual(results["1"].status, SceneStatus.READY)
+        self.assertEqual(results["2"].status, SceneStatus.READY)
+
+    def test_flow_empty_abort_retries_once_for_large_batch(self):
+        """Leftover stopAll / stale GENERATE_DONE: retry GENERATE once when a
+        large batch finishes instantly with zero files."""
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 96
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+        calls = {"n": 0}
+
+        def fake_subscribe(fn):
+            def generate(*_a, **kwargs):
+                calls["n"] += 1
+                out = Path(kwargs["settings"]["outputDir"])
+                if calls["n"] == 1:
+                    fn({"type": "GENERATE_DONE"})
+                    return
+                for i in range(4):
+                    path = out / f"{i + 1:03d}.png"
+                    path.write_bytes(png)
+                    fn({
+                        "type": "BATCH_PROGRESS",
+                        "index": i,
+                        "status": "done",
+                        "path": str(path),
+                    })
+                fn({"type": "GENERATE_DONE", "outputDir": str(out)})
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_settle = flow_mod._BATCH_SETTLE_SECONDS
+        flow_mod._BATCH_SETTLE_SECONDS = 0.0
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [
+                SceneRow(scene_number=str(i), script_segment="a", prompt="x")
+                for i in range(1, 5)
+            ]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod._BATCH_SETTLE_SECONDS = orig_settle
+
+        self.assertEqual(calls["n"], 2)
+        for i in range(1, 5):
+            self.assertEqual(results[str(i)].status, SceneStatus.READY)
+
+    def test_flow_empty_done_does_not_retry_small_batch(self):
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+        calls = {"n": 0}
+
+        def fake_subscribe(fn):
+            def generate(*_a, **_k):
+                calls["n"] += 1
+                fn({"type": "GENERATE_DONE"})
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_settle = flow_mod._BATCH_SETTLE_SECONDS
+        flow_mod._BATCH_SETTLE_SECONDS = 0.0
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [SceneRow(scene_number="1", script_segment="a", prompt="x")]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod._BATCH_SETTLE_SECONDS = orig_settle
+
+        self.assertEqual(calls["n"], 1)
+        self.assertEqual(results["1"].status, SceneStatus.FAILED)
+        self.assertIn("not downloaded", (results["1"].error or "").lower())
+
+    def test_flow_generate_timeout_scales_with_batch_size(self):
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        fp = FlowProvider(MagicMock())
+        self.assertGreaterEqual(fp._generate_timeout_seconds(164), 164 * 25)
+        self.assertGreaterEqual(
+            max(flow_mod._IDLE_WAIT_TIMEOUT + 30.0, fp._generate_timeout_seconds(164) + 30.0),
+            fp._generate_timeout_seconds(164) + 30.0,
+        )
+        orig = flow_mod.GENERATE_TIMEOUT_SECONDS
+        flow_mod.GENERATE_TIMEOUT_SECONDS = 0.05
+        try:
+            self.assertAlmostEqual(fp._generate_timeout_seconds(10), 0.05)
+        finally:
+            flow_mod.GENERATE_TIMEOUT_SECONDS = orig
+
 
 class TestAssetTypeCsvFormat(AssetPipelineTestCase):
     """New CSV format: scene_number,script_segment,asset_type,prompt."""
@@ -675,6 +909,19 @@ class TestFlowMediaKindRouting(AssetPipelineTestCase):
         client = MagicMock()
         client.get_state.return_value = {"running": False}
         client.get_info.return_value = {"downloadsRoot": "/tmp/doesnotmatter"}
+        captured = {}
+
+        def fake_subscribe(fn):
+            captured["fn"] = fn
+            return lambda: None
+
+        def fake_stop():
+            fn = captured.get("fn")
+            if fn:
+                fn({"type": "GENERATE_DONE"})
+
+        client.subscribe.side_effect = fake_subscribe
+        client.stop.side_effect = fake_stop
 
         class FakeEngineManager:
             def ensure_running(self_):
@@ -706,7 +953,7 @@ class TestFlowMediaKindRouting(AssetPipelineTestCase):
         fake_dir = self.images / "acct1"
         fake_dir.mkdir()
         bad_file = fake_dir / "001.mp4"
-        bad_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+        bad_file.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 96)
 
         self.assertEqual(sniff_media_kind(bad_file), "image")
 
@@ -723,7 +970,7 @@ class TestFlowMediaKindRouting(AssetPipelineTestCase):
 
 
 def _png_bytes() -> bytes:
-    return b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+    return b"\x89PNG\r\n\x1a\n" + b"\x00" * 96
 
 
 class TestFlowRunIsolation(AssetPipelineTestCase):

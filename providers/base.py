@@ -330,12 +330,15 @@ class AssetProvider:
         images_dir: Path,
         log: LogFn = print,
         should_stop: Optional[Callable[[], bool]] = None,
+        on_scene_ready: Optional[Callable] = None,
     ) -> dict:
         """Resolve several scenes at once. Default just loops resolve() one at a time,
         checking `should_stop()` between scenes so a cancellation request doesn't wait
         for every remaining scene to finish; FlowProvider overrides this to issue a
         single multi-account GENERATE call so the Node engine's concurrency/session
-        slicing is actually used, instead of one round-trip per scene."""
+        slicing is actually used, instead of one round-trip per scene.
+        `on_scene_ready` is optional — FlowProvider calls it as each scene's file
+        lands so the UI can leave PROCESSING before the whole batch ends."""
         results = {}
         for s in scenes:
             if should_stop is not None and should_stop():
@@ -345,4 +348,6 @@ class AssetProvider:
                 )
                 continue
             results[s.scene_number] = self.resolve(s, images_dir, log=log)
+            if on_scene_ready is not None:
+                on_scene_ready(s, results[s.scene_number])
         return results
