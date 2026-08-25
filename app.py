@@ -643,6 +643,10 @@ class VideoGeneratorApp(ctk.CTk):
         self.model_var = ctk.StringVar(value="small")
         self.captions_var = ctk.BooleanVar(value=False)
         self.zoom_var = ctk.BooleanVar(value=True)
+        _perf = str(self._settings.get("performance_mode") or "auto").strip().lower()
+        if _perf not in ("auto", "gpu", "cpu"):
+            _perf = "auto"
+        self.performance_mode_var = ctk.StringVar(value=_perf)
         self.smart_text_effects_var = ctk.BooleanVar(
             value=bool(self._settings.get("smart_text_effects", DEFAULT_SETTINGS["text_effects"]))
         )
@@ -4437,6 +4441,49 @@ class VideoGeneratorApp(ctk.CTk):
             width=130, fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
             text_color=_TEXT, dropdown_fg_color=_CARD, dropdown_text_color=_TEXT,
         ).pack(side="left", padx=10)
+
+        perf_row = ctk.CTkFrame(body, fg_color="transparent")
+        perf_row.pack(fill="x", padx=20, pady=(8, 4))
+        ctk.CTkLabel(perf_row, text="Performance", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
+        perf_labels = {"auto": "Auto (GPU if available)", "gpu": "Prefer GPU", "cpu": "CPU only"}
+        perf_display = ctk.StringVar(value=perf_labels.get(self.performance_mode_var.get(), perf_labels["auto"]))
+
+        def _on_perf_change(choice: str):
+            inv = {v: k for k, v in perf_labels.items()}
+            mode = inv.get(choice, "auto")
+            self.performance_mode_var.set(mode)
+            self._settings["performance_mode"] = mode
+            save_settings(self._settings)
+            try:
+                from hardware.accel import clear_caps_cache
+
+                clear_caps_cache()
+            except Exception:
+                pass
+
+        ctk.CTkOptionMenu(
+            perf_row,
+            variable=perf_display,
+            values=list(perf_labels.values()),
+            width=200,
+            fg_color=_BG,
+            button_color=_BORDER,
+            button_hover_color=_ACCENT,
+            text_color=_TEXT,
+            dropdown_fg_color=_CARD,
+            dropdown_text_color=_TEXT,
+            command=_on_perf_change,
+        ).pack(side="left", padx=10)
+        ctk.CTkLabel(
+            body,
+            text="Auto uses NVIDIA/AMD/Intel/Apple hardware when drivers work; "
+                 "otherwise the existing CPU path. Never requires a GPU.",
+            font=ctk.CTkFont(size=11),
+            text_color=_MUTED,
+            wraplength=410,
+            justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 6))
+
         ctk.CTkSwitch(
             body, text="Ken Burns zoom", variable=self.zoom_var,
             onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
@@ -5038,6 +5085,7 @@ class VideoGeneratorApp(ctk.CTk):
             "model": self.model_var.get().strip() or "small",
             "captions": bool(self.captions_var.get()),
             "zoom": bool(self.zoom_var.get()),
+            "performance_mode": (self.performance_mode_var.get() or "auto").strip().lower(),
             "smart_editing": self._smart_editing_settings(),
         }, None
 
@@ -5253,7 +5301,11 @@ class VideoGeneratorApp(ctk.CTk):
                     whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
                     print("[SMART] Reusing cached word alignment.")
             if whisper_words is None:
-                whisper_words = vg.transcribe_audio(str(config["audio_path"]), config["model"])
+                whisper_words = vg.transcribe_audio(
+                    str(config["audio_path"]),
+                    config["model"],
+                    performance_mode=config.get("performance_mode"),
+                )
             aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
             scene_text_fx = None
@@ -5308,6 +5360,7 @@ class VideoGeneratorApp(ctk.CTk):
                 bg_volume=0.15,
                 captions=config["captions"],
                 scene_text_effects=scene_text_fx,
+                performance_mode=config.get("performance_mode"),
             )
             self._ui_queue.put(("done", str(config["output_path"])))
         except SystemExit as exc:
