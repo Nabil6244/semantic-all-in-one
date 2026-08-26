@@ -772,7 +772,61 @@ class TestCancellation(AssetPipelineTestCase):
         for i in range(1, 5):
             self.assertEqual(results[str(i)].status, SceneStatus.READY)
 
-    def test_flow_empty_done_does_not_retry_small_batch(self):
+    def test_flow_empty_abort_retries_single_scene(self):
+        """1-scene Flow video used to skip ghost retry (min=4) and fail as
+        'not downloaded' — now empty GENERATE_DONE retries once."""
+        from unittest.mock import MagicMock
+
+        from providers.flow import provider as flow_mod
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+
+            def ensure_running(self):
+                return self.client
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 96
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+        calls = {"n": 0}
+
+        def fake_subscribe(fn):
+            def generate(*_a, **kwargs):
+                calls["n"] += 1
+                out = Path(kwargs["settings"]["outputDir"])
+                if calls["n"] == 1:
+                    fn({"type": "GENERATE_DONE"})
+                    return
+                path = out / "001.png"
+                path.write_bytes(png)
+                fn({
+                    "type": "BATCH_PROGRESS",
+                    "index": 0,
+                    "status": "done",
+                    "path": str(path),
+                })
+                fn({"type": "GENERATE_DONE", "outputDir": str(out)})
+            client.generate.side_effect = generate
+            return lambda: None
+
+        client.subscribe.side_effect = fake_subscribe
+
+        orig_settle = flow_mod._BATCH_SETTLE_SECONDS
+        flow_mod._BATCH_SETTLE_SECONDS = 0.0
+        try:
+            fp = FlowProvider(FakeEngineManager(client))
+            scenes = [SceneRow(scene_number="1", script_segment="a", prompt="x")]
+            results = fp.resolve_batch(scenes, self.images, log=lambda *_: None)
+        finally:
+            flow_mod._BATCH_SETTLE_SECONDS = orig_settle
+
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(results["1"].status, SceneStatus.READY)
+
+    def test_flow_empty_abort_still_fails_clearly_after_retry(self):
         from unittest.mock import MagicMock
 
         from providers.flow import provider as flow_mod
@@ -808,10 +862,13 @@ class TestCancellation(AssetPipelineTestCase):
         finally:
             flow_mod._BATCH_SETTLE_SECONDS = orig_settle
 
-        self.assertEqual(calls["n"], 1)
+        self.assertEqual(calls["n"], 2)
         self.assertEqual(results["1"].status, SceneStatus.FAILED)
-        self.assertIn("not downloaded", (results["1"].error or "").lower())
-
+        err = (results["1"].error or "").lower()
+        self.assertTrue(
+            "aborted" in err or "without running" in err or "missing" in err,
+            results["1"].error,
+        )
     def test_flow_generate_timeout_scales_with_batch_size(self):
         from unittest.mock import MagicMock
 

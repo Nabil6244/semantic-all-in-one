@@ -23,6 +23,7 @@ import {
   generate,
   stopGenerate,
   resetGenerateState,
+  closeBrowsers,
   shutdown,
 } from "./lib/orchestrator.js";
 import { defaults } from "./config.js";
@@ -124,6 +125,8 @@ export async function startServer(port = DEFAULT_PORT) {
           stopGenerate({ force: !!msg.force });
         } else if (t === "RESET_GENERATE") {
           resetGenerateState();
+        } else if (t === "CLOSE_BROWSERS") {
+          await closeBrowsers();
         }
       } catch (e) {
         send(ws, { type: "ERROR", message: e.message });

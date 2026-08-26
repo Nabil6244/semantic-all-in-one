@@ -294,16 +294,31 @@ async function runGenerate({ prompts, settings, accountIds }) {
 
   stopAll = false;
   running = true;
+
+  // One Chrome per prompt needed — never open every signed-in account for a
+  // single Flow video (that was flooding the dock with idle browsers).
+  const workerCount = Math.min(selected.length, Math.max(1, prompts.length));
+  const workers = selected.slice(0, workerCount);
+  for (const a of selected) {
+    const used = workers.some((w) => w.id === a.id);
+    accountProgress.set(a.id, {
+      status: "idle",
+      message: used ? "Starting…" : "Not needed for this batch",
+      completed: 0,
+      failed: 0,
+      total: 0,
+    });
+  }
   pushState({ generateError: null });
 
-  const slices = splitPrompts(prompts, selected.length);
+  const slices = splitPrompts(prompts, workers.length);
   const total = prompts.length;
   let caught = null;
 
   try {
-    // Prepare all accounts in parallel (open + create project)
+    // Prepare only accounts that will receive prompts
     await Promise.all(
-      selected.map((a, i) =>
+      workers.map((a) =>
         prepareAccount(a.id, a.label).catch((e) => {
           accountProgress.set(a.id, {
             status: "error",
@@ -317,7 +332,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
 
     // Run slices in parallel
     await Promise.all(
-      selected.map(async (a, i) => {
+      workers.map(async (a, i) => {
         const slice = slices[i];
         if (!slice.prompts.length) {
           accountProgress.set(a.id, {
@@ -423,6 +438,12 @@ export function resetGenerateState() {
   stopAll = true;
   running = false;
   pushState({ generateError: null });
+}
+
+export async function closeBrowsers() {
+  stopAll = true;
+  await closeAllBrowsers();
+  pushState();
 }
 
 export async function shutdown() {

@@ -380,6 +380,37 @@ export async function syncFlowVideoDuration(page, seconds) {
     .catch(() => null);
 }
 
+function harvestFifeUrl(data, mediaEntry = null) {
+  /** Pull a direct CDN URL from Google's drifting response shapes. */
+  const fromEntry = (m) =>
+    m?.video?.generatedVideo?.fifeUrl ||
+    m?.video?.fifeUrl ||
+    m?.video?.uri ||
+    m?.video?.url ||
+    m?.image?.generatedImage?.fifeUrl ||
+    m?.image?.fifeUrl ||
+    m?.fifeUrl ||
+    m?.url ||
+    m?.downloadUrl ||
+    null;
+  let fifeUrl = fromEntry(mediaEntry);
+  if (!fifeUrl && data?.media && Array.isArray(data.media)) {
+    for (const m of data.media) {
+      fifeUrl = fromEntry(m);
+      if (fifeUrl) break;
+    }
+  }
+  if (!fifeUrl && data && typeof data === "object") {
+    const blob = JSON.stringify(data);
+    const m =
+      blob.match(/https:\/\/[^"\\]*fife[^"\\]*/i) ||
+      blob.match(/"fifeUrl"\s*:\s*"([^"]+)"/i) ||
+      blob.match(/"downloadUrl"\s*:\s*"(https:[^"]+)"/i);
+    if (m) fifeUrl = (m[1] || m[0]).replace(/\\u003d/g, "=").replace(/\\+/g, "");
+  }
+  return fifeUrl || null;
+}
+
 /**
  * Poll one async video job by mediaId until it finishes — ported verbatim
  * from background.js's pollVideo. Matches Flow's status response shape:
@@ -388,6 +419,7 @@ export async function syncFlowVideoDuration(page, seconds) {
 export async function pollVideoStatus(page, mediaId, projectId) {
   const maxTries = Math.max(1, Math.ceil(timing.videoPollTimeoutMs / timing.videoPollIntervalMs));
   let errStreak = 0;
+  let lastFife = null;
   for (let i = 0; i < maxTries; i++) {
     await sleep(timing.videoPollIntervalMs);
     let data;
@@ -407,6 +439,8 @@ export async function pollVideoStatus(page, mediaId, projectId) {
     errStreak = 0;
     const m = data?.media?.[0];
     const status = m?.mediaMetadata?.mediaStatus?.mediaGenerationStatus;
+    const harvested = harvestFifeUrl(data, m);
+    if (harvested) lastFife = harvested;
     if (
       status === "MEDIA_GENERATION_STATUS_COMPLETED" ||
       status === "MEDIA_GENERATION_STATUS_COMPLETE" ||
@@ -414,13 +448,7 @@ export async function pollVideoStatus(page, mediaId, projectId) {
     ) {
       // Prefer a direct download URL when Google returns one — redirect-by-id
       // often fails while the clip is already visible in Flow.
-      const fifeUrl =
-        m?.video?.generatedVideo?.fifeUrl ||
-        m?.video?.fifeUrl ||
-        m?.image?.generatedImage?.fifeUrl ||
-        m?.fifeUrl ||
-        null;
-      return { mediaId, fifeUrl };
+      return { mediaId, fifeUrl: harvested || lastFife || null };
     }
     if (status === "MEDIA_GENERATION_STATUS_FAILED") {
       const ms = m.mediaMetadata.mediaStatus;
@@ -476,7 +504,24 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const mediaId = gen?.media?.[0]?.name || null;
   if (!mediaId) throw new Error("Video generation did not start — no media returned");
 
-  return await pollVideoStatus(page, mediaId, projectId);
+  let result = await pollVideoStatus(page, mediaId, projectId);
+  // CDN URL often appears a beat after COMPLETE — one extra harvest helps download.
+  if (!result.fifeUrl) {
+    await sleep(2000);
+    try {
+      const data = await apiPost(
+        page,
+        api.batchCheckAsyncVideoGenerationStatus,
+        { media: [{ name: mediaId, projectId }] },
+        api.videoRecaptchaAction,
+      );
+      const url = harvestFifeUrl(data, data?.media?.[0]);
+      if (url) result = { mediaId, fifeUrl: url };
+    } catch {
+      /* keep poll result */
+    }
+  }
+  return result;
 }
 
 function _looksLikeMedia(buf) {
@@ -607,8 +652,8 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
     };
   };
 
-  // CDN / redirect often lags a few seconds behind "mediaId ready".
-  const delays = [0, 1500, 3000, 5000, 8000];
+  // CDN / redirect often lags behind "mediaId ready" — especially for video.
+  const delays = [0, 1500, 3000, 5000, 8000, 12000, 20000];
   let lastError = "";
   for (let i = 0; i < delays.length; i++) {
     if (delays[i] > 0) await sleep(delays[i]);

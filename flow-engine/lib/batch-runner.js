@@ -139,11 +139,26 @@ export async function runBatchSlice({
             // Absolute path so Windows Python can resolve the file without
             // depending on cwd / mixed separators from the Node sidecar.
             savedPath = path.resolve(dest);
+            const { statSync } = await import("node:fs");
+            let st;
+            try {
+              st = statSync(savedPath);
+            } catch {
+              st = null;
+            }
+            if (!st || !st.isFile() || st.size < 64) {
+              throw new Error(
+                `Download finished but file missing or empty on disk: ${savedPath}`,
+              );
+            }
             emit("status", { message: `Saved ${name}` });
           }
         }
 
         if (!mediaIds.length) throw new Error(`All ${mediaKind} requests failed`);
+        if (settingsLocal.autoDownload !== false && !savedPath) {
+          throw new Error(`Flow ${mediaKind} finished without a saved file path`);
+        }
 
         completed++;
         done = true;

@@ -186,6 +186,10 @@ class FlowClient:
     def reset_generate(self) -> None:
         self.send({"type": "RESET_GENERATE"})
 
+    def close_browsers(self) -> None:
+        """Close all Flow Chrome windows without stopping the engine process."""
+        self.send({"type": "CLOSE_BROWSERS"})
+
     def generate(
         self,
         prompts: List[str],

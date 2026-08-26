@@ -42,7 +42,9 @@ GENERATE_TIMEOUT_SECONDS = 20 * 60  # floor; large batches scale up (see _genera
 _SECONDS_PER_IMAGE = 25.0
 _SECONDS_PER_VIDEO = 90.0
 _ABORT_RETRY_MAX_ELAPSED = 90.0
-_ABORT_RETRY_MIN_SCENES = 4
+# Retry empty GENERATE_DONE even for a single Flow video — 1-scene jobs were
+# failing with "not downloaded" when leftover stopAll aborted before any work.
+_ABORT_RETRY_MIN_SCENES = 1
 _BATCH_SETTLE_SECONDS = 0.35
 _IDLE_POLL_SECONDS = 0.45
 _SOFT_STOP_AFTER_SECONDS = 2.0
@@ -494,6 +496,30 @@ class FlowProvider(AssetProvider):
                 return False
         return self._count_run_media(run_dir) == 0
 
+    @staticmethod
+    def _missing_download_error(progress_msg: Optional[dict]) -> str:
+        """Prefer a specific reason over the old generic 'not downloaded' line."""
+        if progress_msg and progress_msg.get("status") == "failed":
+            return (
+                progress_msg.get("message")
+                or progress_msg.get("error")
+                or "Flow generation failed."
+            )
+        if not progress_msg:
+            return (
+                "Flow finished without running or downloading this scene "
+                "(engine aborted early). Retry this scene."
+            )
+        if progress_msg.get("status") == "done" or progress_msg.get("path") or progress_msg.get("file"):
+            return (
+                "Flow reported this scene done but the file is missing on disk. "
+                "Retry this scene."
+            )
+        return (
+            "Flow did not download this scene "
+            "(not using leftover clips). Retry this scene."
+        )
+
     def _collect_batch_results(
         self,
         scenes: List[SceneRow],
@@ -592,18 +618,7 @@ class FlowProvider(AssetProvider):
             batch_started_at=batch_started_at,
         )
         if found is None:
-            if progress_msg and progress_msg.get("status") == "failed":
-                error = (
-                    progress_msg.get("message")
-                    or progress_msg.get("error")
-                    or "Flow generation failed."
-                )
-            else:
-                error = (
-                    "Flow generated this scene but the file was not downloaded "
-                    "(not using leftover clips). Retry this scene."
-                )
-            return self._fail(scene, error)
+            return self._fail(scene, self._missing_download_error(progress_msg))
 
         # Hard content check — don't trust the filename's extension alone. If the
         # engine ever downloads the wrong media kind (e.g. a routing bug sends an
