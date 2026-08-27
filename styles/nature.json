@@ -1,0 +1,160 @@
+{
+  "id": "nature_wildlife_documentary",
+  "version": 3,
+  "name": "Nature / Wildlife Documentary",
+  "identity": {
+    "description": "Wildlife behavior, habitats, and environmental context with cinematic patience.",
+    "tone": "observational, immersive, respectful",
+    "best_for": [
+      "wildlife",
+      "nature",
+      "ecosystems",
+      "conservation",
+      "forests"
+    ]
+  },
+  "visual": {
+    "treatment": "wildlife",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "BBC-style wildlife documentary — animals in natural habitat, wide establishing habitats",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "zoo cage",
+      "pet",
+      "urban street"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "cinematic_potential": 0.35,
+      "emotional_intensity": 0.2,
+      "scientific_density": 0.15,
+      "visualization_need": 0.15,
+      "educational_density": 0.15
+    },
+    "preview_visual": "Nature",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "wildlife",
+    "influences": [
+      "wildlife"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "establishing": 0.85,
+      "location": 0.8,
+      "process": 0.6,
+      "scale": 0.55,
+      "atmosphere": 0.75,
+      "object": 0.5
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "pexels",
+      "pixabay",
+      "youtube",
+      "openverse",
+      "flow"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "wildlife",
+      "habitat",
+      "predator prey",
+      "forest",
+      "migration",
+      "aerial nature"
+    ],
+    "avoid_terms": [
+      "zoo cage",
+      "pet",
+      "urban street"
+    ],
+    "evidence_bias": "medium",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": false,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Wildlife behavior, habitats, and environmental context with cinematic patience.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "medium"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.4,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

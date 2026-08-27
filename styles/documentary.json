@@ -1,16 +1,27 @@
 {
   "id": "premium_documentary",
-  "version": 2,
+  "version": 3,
   "name": "Premium Documentary",
   "identity": {
     "description": "Every shot intentionally composed — cinematic factual storytelling with deliberate camera and emotional builds.",
     "tone": "sophisticated, cinematic, deliberate",
-    "best_for": ["premium docs", "nature", "investigative", "longform factual", "climate"]
+    "best_for": [
+      "premium docs",
+      "nature",
+      "investigative",
+      "longform factual",
+      "climate"
+    ]
   },
   "visual": {
     "treatment": "cinematic documentary",
     "camera": {
-      "preferred": ["push_in", "subtle_drift", "hold", "pull_out"],
+      "preferred": [
+        "push_in",
+        "subtle_drift",
+        "hold",
+        "pull_out"
+      ],
       "intensity": 0.62
     },
     "motion_rules": {
@@ -35,8 +46,15 @@
   },
   "transitions": {
     "default": "dissolve",
-    "preferred": ["dissolve", "soft", "fade", "cut"],
-    "avoid": ["flash"]
+    "preferred": [
+      "dissolve",
+      "soft",
+      "fade",
+      "cut"
+    ],
+    "avoid": [
+      "flash"
+    ]
   },
   "audio": {
     "ambience_intensity": 0.5,
@@ -50,7 +68,12 @@
     "prefer_visual_change": true
   },
   "assets": {
-    "preferred": ["stock_video", "youtube_video", "image", "video"],
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "image",
+      "video"
+    ],
     "avoid_repetition": true
   },
   "captions": {
@@ -90,5 +113,64 @@
       "stronger_music_duck",
       "controlled_camera_motion"
     ]
+  },
+  "visual_roles": {
+    "weights": {
+      "establishing": 0.9,
+      "location": 0.85,
+      "person": 0.8,
+      "atmosphere": 0.75,
+      "event": 0.6,
+      "comparison": 0.55,
+      "reaction": 0.5
+    },
+    "avoid": [
+      "data",
+      "document"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "pexels",
+      "pixabay",
+      "youtube",
+      "flow",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "cinematic",
+      "establishing shot",
+      "atmospheric",
+      "environmental",
+      "human subject"
+    ],
+    "avoid_terms": [
+      "rapid montage",
+      "generic stock",
+      "low quality"
+    ],
+    "evidence_bias": "medium",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": false,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.45,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.5
+  },
+  "storytelling": {
+    "narrative": "Cinematic human/environment storytelling with visual continuity",
+    "hook_strategy": "Strong establishing shot with restrained drama",
+    "evidence_priority": "medium"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.9,
+    "evidence_weight": 0.4,
+    "atmosphere_weight": 0.85,
+    "process_weight": 0.25
   }
 }

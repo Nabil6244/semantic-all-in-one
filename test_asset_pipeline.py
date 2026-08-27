@@ -136,6 +136,32 @@ class TestRouting(AssetPipelineTestCase):
         with self.assertRaises(AssetError):
             mgr.resolve_all(rows)
 
+    def test_documentary_asset_types_route_correctly(self):
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="1", script_segment="a", asset_type="archive_video", prompt="apollo launch")
+            ),
+            AssetSource.ARCHIVE_VIDEO,
+        )
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="2", script_segment="b", asset_type="nasa_video", prompt="pluto flyby")
+            ),
+            AssetSource.NASA_VIDEO,
+        )
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="3", script_segment="c", asset_type="commons_video", prompt="moon landing")
+            ),
+            AssetSource.STOCK_VIDEO,
+        )
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="4", script_segment="d", asset_type="commons_image", prompt="solar system")
+            ),
+            AssetSource.STOCK_IMAGE,
+        )
+
 
 class TestStockAndFlowResolution(AssetPipelineTestCase):
     def test_stock_scene_resolves_and_downloads(self):
@@ -989,6 +1015,147 @@ class TestAssetTypeCsvFormat(AssetPipelineTestCase):
         self.assertEqual(summary.results["1"].source, AssetSource.FLOW_IMAGE)
         self.assertEqual(summary.results["2"].source, AssetSource.FLOW_VIDEO)
         self.assertTrue((self.images / "002.mp4").is_file())
+
+
+class TestDocumentaryProviders(AssetPipelineTestCase):
+    def test_expanded_media_queries_shortens_director_prompts(self):
+        from providers.media_clip.queries import expanded_media_queries
+
+        scene = SceneRow(
+            scene_number="4",
+            script_segment="Pluto",
+            asset_type="nasa_video",
+            prompt="new horizons pluto encounter animation",
+        )
+        expanded = expanded_media_queries(scene)
+        self.assertIn("new horizons pluto encounter animation", expanded)
+        self.assertIn("new horizons pluto", expanded)
+
+    def test_nasa_backend_reads_nasa_id_from_search_data(self):
+        from providers.nasa.api_backend import NasaMediaBackend
+
+        class FakeResp:
+            status_code = 200
+
+            def __init__(self, payload):
+                self._payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._payload
+
+        backend = NasaMediaBackend()
+        backend._session = type("S", (), {})()
+        search_payload = {
+            "collection": {
+                "items": [
+                    {
+                        "data": [{"nasa_id": "NH001", "title": "Pluto Flyby"}],
+                        "links": [{"href": "https://images.nasa.gov/details/NH001"}],
+                    }
+                ]
+            }
+        }
+        asset_payload = {
+            "collection": {
+                "items": [
+                    {"href": "http://images-assets.nasa.gov/video/NH001/NH001~orig.mp4"},
+                ]
+            }
+        }
+
+        def fake_get(url, params=None, timeout=None):
+            if "search" in url:
+                return FakeResp(search_payload)
+            return FakeResp(asset_payload)
+
+        backend._session.get = fake_get
+        hits = backend.search("pluto")
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0].nasa_id, "NH001")
+        self.assertIn(".mp4", hits[0].download_url)
+
+    def test_nasa_provider_tries_broader_query_after_zero_hits(self):
+        from unittest.mock import patch
+
+        from providers.nasa.api_backend import NasaCandidate
+        from providers.nasa.provider import NasaProvider
+
+        tried = []
+
+        class FakeNasaBackend:
+            def search(self, query, max_results=None):
+                tried.append(query)
+                if query == "new horizons pluto":
+                    return [
+                        NasaCandidate(
+                            nasa_id="NH001",
+                            title="New Horizons Pluto Flyby",
+                            download_url="https://example.invalid/pluto.mp4",
+                            duration=60.0,
+                        )
+                    ]
+                return []
+
+            def resolve_nasa_id(self, nasa_id):
+                return None
+
+        provider = NasaProvider(backend=FakeNasaBackend(), clip_duration=3.0)
+        scene = SceneRow(
+            scene_number="4",
+            script_segment="Pluto",
+            asset_type="nasa_video",
+            prompt="new horizons pluto encounter animation",
+        )
+        target = self.images / "004.mp4"
+        with patch("providers.nasa.provider.download_clip", return_value=target):
+            target.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+            result = provider.resolve(scene, self.images, log=lambda *_: None)
+        self.assertTrue(result.ok)
+        self.assertIn("new horizons pluto", tried)
+
+    def test_archive_provider_with_fake_backend(self):
+        from providers.archive.provider import ArchiveProvider
+
+        class FakeArchiveBackend:
+            def search(self, query, max_results=None):
+                from providers.archive.ia_backend import ArchiveCandidate
+                return [
+                    ArchiveCandidate(
+                        identifier="apollo11",
+                        title="Apollo 11 Launch",
+                        description="Saturn V liftoff",
+                        download_url="https://example.invalid/apollo.mp4",
+                        duration=120.0,
+                        source_url="https://archive.org/details/apollo11",
+                    )
+                ]
+
+            def resolve_identifier(self, identifier):
+                return self.search(identifier)[0]
+
+        provider = ArchiveProvider(backend=FakeArchiveBackend(), clip_duration=3.0)
+        provider.resolve = lambda scene, images_dir, log=print: AssetResult(
+            scene.scene_number,
+            images_dir / "001.mp4",
+            MediaType.VIDEO,
+            AssetSource.ARCHIVE_VIDEO,
+            SceneStatus.READY,
+            metadata={"provider_asset_id": "apollo11"},
+        )
+        scene = SceneRow(
+            scene_number="1",
+            script_segment="Apollo launches",
+            asset_type="archive_video",
+            prompt="apollo 11 launch",
+        )
+        mgr = AssetManager(self.images, archive_provider=provider, log=lambda *_: None)
+        (self.images / "001.mp4").write_bytes(b"fake")
+        result = mgr.resolve_scene(scene)
+        self.assertTrue(result.ok)
+        self.assertEqual(result.source, AssetSource.ARCHIVE_VIDEO)
 
 
 class TestFlowMediaKindRouting(AssetPipelineTestCase):

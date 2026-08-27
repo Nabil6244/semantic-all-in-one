@@ -292,15 +292,27 @@ class FlowProvider(AssetProvider):
                     else:
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} generated")
                         _try_place_early(idx, scene, msg)
+                elif status == "waiting":
+                    body = (msg.get("message") or "")
+                    if "rotat" in body.lower() or "rate" in body.lower() or "quota" in body.lower():
+                        log(f"[FLOW] {worker} -> Scene {scene.scene_number}: {body}")
             elif mtype == "PROMPT_RESULT":
                 idx = msg.get("index")
                 if idx is not None and 0 <= idx < len(scenes):
                     prev = progress.get(idx) or {}
+                    # Don't let an intermediate rate_limited wipe a later done/failed.
+                    if prev.get("status") in ("done", "failed") and msg.get("status") == "rate_limited":
+                        return
                     prev.update(msg)
                     # Normalize engine "error" into the message field the resolver reads.
-                    if prev.get("status") == "failed" and not prev.get("message") and prev.get("error"):
+                    if prev.get("status") in ("failed", "rate_limited") and not prev.get("message") and prev.get("error"):
                         prev["message"] = prev["error"]
                     progress[idx] = prev
+                    if msg.get("status") == "rate_limited":
+                        log(
+                            f"[FLOW] Scene {scenes[idx].scene_number}: rate limited — "
+                            f"rotating account…"
+                        )
                     _try_place_early(idx, scenes[idx], prev)
             elif mtype == "GENERATE_DONE":
                 # Ignore a leftover batch's DONE (previous STOP/reset) so we
@@ -568,6 +580,14 @@ class FlowProvider(AssetProvider):
                 results[scene.scene_number] = self._fail(
                     scene,
                     msg.get("message") or msg.get("error") or "Flow generation failed.",
+                )
+                continue
+            if msg and msg.get("status") == "rate_limited":
+                results[scene.scene_number] = self._fail(
+                    scene,
+                    msg.get("message")
+                    or msg.get("error")
+                    or "Rate limit / quota persists on all signed-in accounts — skipping",
                 )
                 continue
             if idx not in progress and cancelled:

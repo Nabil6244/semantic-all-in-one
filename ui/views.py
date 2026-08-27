@@ -242,7 +242,71 @@ class BrandStyleView(_BaseView):
             form, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
             justify="left", anchor="w",
         )
-        self._hint.grid(row=4, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
+        self._hint.grid(row=4, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 6))
+
+        ctk.CTkLabel(form, text="Visual Preset", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=5, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        from visual_allocation.models import ALLOCATION_PRESET_LABELS
+
+        self._alloc_preset_var = ctk.StringVar(value="Custom")
+        self._alloc_preset_menu = ctk.CTkOptionMenu(
+            form,
+            variable=self._alloc_preset_var,
+            values=list(ALLOCATION_PRESET_LABELS),
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
+            command=lambda _v: self._on_allocation_preset_changed(),
+        )
+        self._alloc_preset_menu.grid(row=5, column=1, sticky="ew", padx=T.PAD, pady=4)
+
+        ctk.CTkLabel(form, text="Visual Strategy", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=6, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._visual_strategy_var = ctk.StringVar(value="Automatic")
+        self._visual_strategy_menu = ctk.CTkOptionMenu(
+            form,
+            variable=self._visual_strategy_var,
+            values=["Automatic", "Video Heavy", "Balanced", "Image Heavy"],
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
+            command=lambda _v: self._on_allocation_changed(),
+        )
+        self._visual_strategy_menu.grid(row=6, column=1, sticky="ew", padx=T.PAD, pady=4)
+
+        ctk.CTkLabel(form, text="AI Video Budget", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=7, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._ai_budget_var = ctk.StringVar(value="Normal")
+        self._ai_budget_menu = ctk.CTkOptionMenu(
+            form,
+            variable=self._ai_budget_var,
+            values=["Conservative", "Normal", "High", "Custom"],
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
+            command=lambda _v: self._on_allocation_changed(),
+        )
+        self._ai_budget_menu.grid(row=7, column=1, sticky="ew", padx=T.PAD, pady=4)
+
+        ctk.CTkLabel(form, text="Visual Coverage", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=8, column=0, sticky="w", padx=T.PAD, pady=(4, 4)
+        )
+        self._coverage_mode_var = ctk.StringVar(value="Automatic")
+        self._coverage_mode_menu = ctk.CTkOptionMenu(
+            form,
+            variable=self._coverage_mode_var,
+            values=["Automatic", "Minimize Repetition", "Cinematic Coverage", "Maximum Motion"],
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
+            command=lambda _v: self._on_allocation_changed(),
+        )
+        self._coverage_mode_menu.grid(row=8, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
+
+        self._alloc_preview = ctk.CTkLabel(
+            form,
+            text="Estimated mix: paste a script to preview scene allocation.",
+            font=ctk.CTkFont(size=11),
+            text_color=T.MUTED,
+            justify="left",
+            anchor="w",
+        )
+        self._alloc_preview.grid(row=9, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
 
         self._preview = Card(self._body)
         self._preview.grid(row=1, column=0, sticky="ew", pady=8)
@@ -374,9 +438,35 @@ class BrandStyleView(_BaseView):
             elif self._label_by_style_id:
                 self._style_var.set(next(iter(self._label_by_style_id.values())))
 
+            from visual_allocation.settings import load_allocation_settings
+
+            alloc = load_allocation_settings(ws)
+            rev_strat = {
+                "automatic": "Automatic",
+                "video_heavy": "Video Heavy",
+                "balanced": "Balanced",
+                "image_heavy": "Image Heavy",
+            }
+            rev_budget = {
+                "conservative": "Conservative",
+                "normal": "Normal",
+                "high": "High",
+                "custom": "Custom",
+            }
+            rev_cov = {
+                "automatic": "Automatic",
+                "minimize_repetition": "Minimize Repetition",
+                "cinematic_coverage": "Cinematic Coverage",
+                "maximum_motion": "Maximum Motion",
+            }
+            self._visual_strategy_var.set(rev_strat.get(alloc.visual_strategy, "Automatic"))
+            self._ai_budget_var.set(rev_budget.get(alloc.ai_video_budget, "Normal"))
+            self._coverage_mode_var.set(rev_cov.get(alloc.coverage_mode, "Automatic"))
+
             self._update_style_menu_state(mode)
             self._update_hint(mode)
             self._refresh_preview_and_auto(mode=mode, persist_auto=mode == "auto")
+            self._refresh_allocation_preview()
         finally:
             self._syncing = False
 
@@ -534,6 +624,107 @@ class BrandStyleView(_BaseView):
         self._update_hint(mode)
         self._refresh_preview_and_auto(mode=mode, persist_auto=mode == "auto")
 
+    def _on_allocation_changed(self) -> None:
+        if self._syncing:
+            return
+        if getattr(self, "_alloc_preset_var", None) is not None:
+            self._alloc_preset_var.set("Custom")
+        self._save_allocation_from_ui()
+        self._refresh_allocation_preview()
+
+    def _on_allocation_preset_changed(self) -> None:
+        if self._syncing:
+            return
+        from visual_allocation.models import allocation_preset_settings
+
+        preset = allocation_preset_settings(self._alloc_preset_var.get())
+        if preset is None:
+            self._refresh_allocation_preview()
+            return
+        rev_strat = {
+            "automatic": "Automatic",
+            "video_heavy": "Video Heavy",
+            "balanced": "Balanced",
+            "image_heavy": "Image Heavy",
+        }
+        rev_budget = {
+            "conservative": "Conservative",
+            "normal": "Normal",
+            "high": "High",
+            "custom": "Custom",
+        }
+        rev_cov = {
+            "automatic": "Automatic",
+            "minimize_repetition": "Minimize Repetition",
+            "cinematic_coverage": "Cinematic Coverage",
+            "maximum_motion": "Maximum Motion",
+        }
+        self._visual_strategy_var.set(rev_strat.get(preset.visual_strategy, "Automatic"))
+        self._ai_budget_var.set(rev_budget.get(preset.ai_video_budget, "Normal"))
+        self._coverage_mode_var.set(rev_cov.get(preset.coverage_mode, "Automatic"))
+        self._save_allocation_from_ui()
+        self._refresh_allocation_preview()
+
+    def _refresh_allocation_preview(self) -> None:
+        preview = getattr(self, "_alloc_preview", None)
+        if preview is None:
+            return
+        try:
+            from visual_allocation import estimate_allocation_mix
+            from visual_director.director import script_word_count
+
+            script = ""
+            if hasattr(self.app, "script_box"):
+                script = self.app.script_box.get("1.0", "end").strip()
+            words = script_word_count(script)
+            style_id = ""
+            sid = self._id_by_style_label.get(self._style_var.get())
+            if sid:
+                style_id = sid
+            mix = estimate_allocation_mix(
+                words,
+                self._allocation_settings_from_ui(),
+                style_id=style_id,
+            )
+            preview.configure(text=f"Estimated mix: {mix}")
+        except Exception:
+            preview.configure(text="Estimated mix: unavailable")
+
+    def _allocation_settings_from_ui(self):
+        from visual_allocation.models import AllocationSettings
+
+        strat_map = {
+            "Automatic": "automatic",
+            "Video Heavy": "video_heavy",
+            "Balanced": "balanced",
+            "Image Heavy": "image_heavy",
+        }
+        budget_map = {
+            "Conservative": "conservative",
+            "Normal": "normal",
+            "High": "high",
+            "Custom": "custom",
+        }
+        cov_map = {
+            "Automatic": "automatic",
+            "Minimize Repetition": "minimize_repetition",
+            "Cinematic Coverage": "cinematic_coverage",
+            "Maximum Motion": "maximum_motion",
+        }
+        return AllocationSettings(
+            visual_strategy=strat_map.get(self._visual_strategy_var.get(), "automatic"),
+            ai_video_budget=budget_map.get(self._ai_budget_var.get(), "normal"),
+            coverage_mode=cov_map.get(self._coverage_mode_var.get(), "automatic"),
+        )
+
+    def _save_allocation_from_ui(self) -> None:
+        ws = self.app._workspace
+        if ws is None:
+            return
+        from visual_allocation.settings import save_allocation_settings
+
+        save_allocation_settings(ws, self._allocation_settings_from_ui())
+
     def _on_selection_changed(self) -> None:
         if self._syncing:
             return
@@ -557,6 +748,7 @@ class BrandStyleView(_BaseView):
             style_id = None
             brand_id = None
         ws.set_video_style_settings(mode=mode, style_id=style_id, brand_kit_id=brand_id)
+        self._save_allocation_from_ui()
         try:
             self.app._refresh_cache_status()
         except Exception:

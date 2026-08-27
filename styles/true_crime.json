@@ -1,0 +1,158 @@
+{
+  "id": "true_crime_documentary",
+  "version": 3,
+  "name": "True Crime / Investigation",
+  "identity": {
+    "description": "Evidence, investigation, and tension without sensational stock filler.",
+    "tone": "tense, investigative, restrained",
+    "best_for": [
+      "crime",
+      "investigation",
+      "forensics",
+      "cold case",
+      "detective"
+    ]
+  },
+  "visual": {
+    "treatment": "investigation",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "investigative documentary — evidence boards, archival news, locations, documents",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "cartoon detective",
+      "comedy",
+      "generic handshake"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "evidence_density": 0.35,
+      "cinematic_potential": 0.25,
+      "emotional_intensity": 0.2,
+      "historical_density": 0.12,
+      "hook_intensity": 0.08
+    },
+    "preview_visual": "True Crime",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "investigation",
+    "influences": [
+      "investigation"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "document": 0.85,
+      "event": 0.8,
+      "location": 0.75,
+      "archival_evidence": 0.9,
+      "person": 0.65,
+      "atmosphere": 0.55
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "archive",
+      "youtube",
+      "pexels",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "crime scene",
+      "evidence",
+      "police archive",
+      "court document",
+      "investigation"
+    ],
+    "avoid_terms": [
+      "cartoon detective",
+      "comedy",
+      "generic handshake"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Evidence, investigation, and tension without sensational stock filler.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.7,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

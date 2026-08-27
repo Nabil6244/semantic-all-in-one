@@ -1,0 +1,157 @@
+{
+  "id": "technology_documentary",
+  "version": 3,
+  "name": "Technology Documentary",
+  "identity": {
+    "description": "Devices, infrastructure, and innovation explained through process visuals.",
+    "tone": "modern, clear, forward-looking",
+    "best_for": [
+      "technology",
+      "computers",
+      "engineering",
+      "innovation",
+      "silicon"
+    ]
+  },
+  "visual": {
+    "treatment": "technology",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "technology documentary — chips, data centers, robotics, clean modern labs",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "1990s computer unless period",
+      "generic typing"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "scientific_density": 0.3,
+      "explainer_density": 0.25,
+      "visualization_need": 0.2,
+      "cinematic_potential": 0.15,
+      "educational_density": 0.1
+    },
+    "preview_visual": "Technology Documentary",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "technology",
+    "influences": [
+      "technology"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "process": 0.85,
+      "object": 0.8,
+      "mechanism": 0.75,
+      "comparison": 0.7,
+      "data": 0.65,
+      "establishing": 0.5
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "pexels",
+      "pixabay",
+      "youtube",
+      "flow",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "circuit board",
+      "server room",
+      "factory",
+      "robotics",
+      "semiconductor"
+    ],
+    "avoid_terms": [
+      "1990s computer unless period",
+      "generic typing"
+    ],
+    "evidence_bias": "medium",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": false,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Devices, infrastructure, and innovation explained through process visuals.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "medium"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.4,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

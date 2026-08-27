@@ -41,11 +41,84 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Close newsletter / promo modals that block Flow UI but leave cookies intact. */
+export async function dismissBlockingOverlays(page) {
+  try {
+    await page.keyboard.press("Escape");
+    await sleep(250);
+  } catch {
+    /* ignore */
+  }
+  try {
+    return await safeEvaluate(page, () => {
+      const labels = [
+        "close",
+        "dismiss",
+        "no thanks",
+        "not now",
+        "maybe later",
+        "skip",
+        "got it",
+        "×",
+      ];
+      let clicked = 0;
+      for (const btn of document.querySelectorAll(
+        'button, [role="button"], [aria-label*="lose" i]',
+      )) {
+        const t = (
+          btn.textContent ||
+          btn.getAttribute("aria-label") ||
+          ""
+        ).toLowerCase();
+        if (labels.some((l) => t.includes(l))) {
+          try {
+            btn.click();
+            clicked++;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      return clicked;
+    });
+  } catch {
+    return 0;
+  }
+}
+
+function isContextDestroyedError(err) {
+  const m = String(err?.message || err);
+  return (
+    m.includes("Execution context was destroyed") ||
+    m.includes("context was destroyed") ||
+    m.includes("most likely because of a navigation") ||
+    m.includes("Target closed") ||
+    m.includes("Target page, context or browser has been closed")
+  );
+}
+
+/** Retry page.evaluate when Flow's SPA navigates mid-call (common on video start). */
+async function safeEvaluate(page, fn, arg, { retries = 4, settleMs = 700 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await page.waitForLoadState("domcontentloaded", { timeout: 20000 }).catch(() => {});
+      if (attempt > 0) await sleep(settleMs * attempt);
+      if (arg === undefined) return await page.evaluate(fn);
+      return await page.evaluate(fn, arg);
+    } catch (err) {
+      lastErr = err;
+      if (!isContextDestroyedError(err) || attempt >= retries) throw err;
+    }
+  }
+  throw lastErr;
+}
+
 export async function waitForFlowReady(page, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const ready = await page.evaluate(() => {
+      const ready = await safeEvaluate(page, () => {
         const hasProject = !!window.location.href.match(/project\/([a-f0-9-]+)/);
         const hasRecaptcha =
           typeof grecaptcha !== "undefined" && !!grecaptcha?.enterprise;
@@ -61,7 +134,7 @@ export async function waitForFlowReady(page, timeoutMs = 45000) {
 }
 
 export async function getSessionToken(page) {
-  return page.evaluate(async () => {
+  return safeEvaluate(page, async () => {
     try {
       const r = await fetch("/fx/api/auth/session", { credentials: "include" });
       if (!r.ok) return null;
@@ -74,14 +147,14 @@ export async function getSessionToken(page) {
 }
 
 export async function getProjectId(page) {
-  return page.evaluate(() => {
+  return safeEvaluate(page, () => {
     const m = window.location.href.match(/project\/([a-f0-9-]+)/);
     return m ? m[1] : null;
   });
 }
 
 export async function tryGetAccountEmail(page) {
-  return page.evaluate(() => {
+  return safeEvaluate(page, () => {
     const t = document.body?.innerText || "";
     const m = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     return m ? m[0] : null;
@@ -99,7 +172,8 @@ export async function createFlowProject(page) {
     })
     .replace(",", "");
 
-  const result = await page.evaluate(
+  const result = await safeEvaluate(
+    page,
     async ({ createPath, toolName, projectTitle }) => {
       try {
         const p = await fetch(createPath, {
@@ -182,7 +256,8 @@ export async function apiPost(page, url, bodyObj, recaptchaAction) {
   const siteKey = secrets.recaptchaSiteKey;
   const timeoutMs = timing.apiRequestTimeoutMs;
 
-  const out = await page.evaluate(
+  const out = await safeEvaluate(
+    page,
     async ({ url, bodyObj, siteKey, recaptchaAction, timeoutMs }) => {
       const tokenRes = await fetch("/fx/api/auth/session", {
         credentials: "include",
@@ -471,9 +546,9 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const seed =
     settings.seedMode === "fixed" && settings.seedValue != null ? settings.seedValue : randomSeed();
 
-  if (duration !== videoDurations.default) {
-    await syncFlowVideoDuration(page, duration);
-  }
+  // Never click Flow's duration tabs before the API call — that SPA navigation
+  // destroys Playwright's execution context in the first second of video jobs.
+  await waitForFlowReady(page);
 
   const body = {
     mediaGenerationContext: { batchId: uuid() },
@@ -492,7 +567,7 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         aspectRatio: aspect,
         seed,
         metadata: {},
-        ...(duration !== videoDurations.default ? { videoLengthSeconds: duration } : {}),
+        videoLengthSeconds: duration,
         textInput: { structuredPrompt: { parts: [{ text: prompt }] } },
         videoModelKey: modelKey,
       },
@@ -631,7 +706,7 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
     anyRetryable = anyRetryable || !!r2.retryable;
 
     const r3 = await tryWrite("pageFetch", async () => {
-      const buf = await page.evaluate(async ({ redirectPath, id }) => {
+      const buf = await safeEvaluate(page, async ({ redirectPath, id }) => {
         const r = await fetch(`${redirectPath}?name=${encodeURIComponent(id)}`, {
           credentials: "include",
         });
@@ -676,7 +751,13 @@ export async function checkAuthStatus(page) {
         timeout: 45000,
       });
     }
-    const token = await getSessionToken(page);
+    await dismissBlockingOverlays(page);
+    let token = await getSessionToken(page);
+    if (!token) {
+      await dismissBlockingOverlays(page);
+      await sleep(600);
+      token = await getSessionToken(page);
+    }
     const email = token ? await tryGetAccountEmail(page) : null;
     return {
       authenticated: !!token,

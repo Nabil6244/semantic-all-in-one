@@ -37,6 +37,13 @@ SceneCompleteCallback = Callable[[SceneRow, AssetResult], None]
 
 MANIFEST_NAME = ".asset_manifest.json"
 
+# Primary documentary sources that should honor declared fallbacks on failure.
+_FALLBACK_ELIGIBLE_SOURCES = frozenset({
+    AssetSource.YOUTUBE_VIDEO,
+    AssetSource.ARCHIVE_VIDEO,
+    AssetSource.NASA_VIDEO,
+})
+
 
 def _key(scene_number: str) -> str:
     """Normalize scene numbers for manifest keys ('1' and '001' are the same scene)."""
@@ -112,7 +119,11 @@ class AssetManager:
         flow_image_provider=None,
         flow_video_provider=None,
         youtube_provider=None,
+        archive_provider=None,
+        nasa_provider=None,
         log: LogFn = print,
+        resolved_style=None,
+        coverage_by_scene: Optional[dict] = None,
     ):
         self.images_dir = Path(images_dir)
         self.images_dir.mkdir(parents=True, exist_ok=True)
@@ -121,20 +132,31 @@ class AssetManager:
         self.flow_image_provider = flow_image_provider
         self.flow_video_provider = flow_video_provider
         self.youtube_provider = youtube_provider
+        self.archive_provider = archive_provider
+        self.nasa_provider = nasa_provider
+        self.resolved_style = resolved_style
+        self.coverage_by_scene = dict(coverage_by_scene or {})
+        from style_engine.visual_selection import SelectionHistory
+
+        self.selection_history = SelectionHistory()
         self.manifest = AssetManifest(self.images_dir)
         self.log = log
         self._manifest_lock = threading.Lock()
         self._cancel_event = threading.Event()
         self._cancelled_scenes: set[str] = set()
         self.recovery = SceneRecoveryTracker()
-        if self.stock_provider is not None:
-            self.stock_provider.should_stop_scene = self.is_scene_cancelled
-        if self.youtube_provider is not None:
-            self.youtube_provider.should_stop_scene = self.is_scene_cancelled
-        if self.flow_image_provider is not None:
-            self.flow_image_provider.should_stop_scene = self.is_scene_cancelled
-        if self.flow_video_provider is not None:
-            self.flow_video_provider.should_stop_scene = self.is_scene_cancelled
+        for provider in (
+            self.stock_provider,
+            self.youtube_provider,
+            self.archive_provider,
+            self.nasa_provider,
+            self.flow_image_provider,
+            self.flow_video_provider,
+        ):
+            if provider is not None:
+                provider.should_stop_scene = self.is_scene_cancelled
+                provider.resolved_style = resolved_style
+                provider.selection_history = self.selection_history
 
     # ---------- cancellation ----------
 
@@ -152,6 +174,8 @@ class AssetManager:
         for provider in (
             self.youtube_provider,
             self.stock_provider,
+            self.archive_provider,
+            self.nasa_provider,
             self.flow_image_provider,
             self.flow_video_provider,
         ):
@@ -181,6 +205,10 @@ class AssetManager:
             AssetSource.FLOW_IMAGE: self.flow_image_provider,
             AssetSource.FLOW_VIDEO: self.flow_video_provider,
             AssetSource.YOUTUBE_VIDEO: self.youtube_provider,
+            AssetSource.ARCHIVE_VIDEO: self.archive_provider,
+            AssetSource.NASA_VIDEO: self.nasa_provider,
+            AssetSource.COMMONS_VIDEO: self.stock_provider,
+            AssetSource.COMMONS_IMAGE: self.stock_provider,
         }[source]
 
     def classify(self, scene: SceneRow) -> AssetSource:
@@ -242,6 +270,11 @@ class AssetManager:
         ):
             return None
         if (
+            source in (AssetSource.ARCHIVE_VIDEO, AssetSource.NASA_VIDEO)
+            and self._norm_text(record.get("prompt")) != self._norm_text(scene.prompt)
+        ):
+            return None
+        if (
             source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
             and self._norm_text(record.get("stock_query")) != self._norm_text(scene.stock)
         ):
@@ -263,6 +296,10 @@ class AssetManager:
         }
         # Provider-specific extras (provider_asset_id, author, source_url, ...)
         record.update(result.metadata or {})
+        key = scene_key(scene.scene_number)
+        cov = self.coverage_by_scene.get(key) or self.coverage_by_scene.get(str(scene.scene_number))
+        if cov:
+            record["coverage_plan"] = cov
         return record
 
     def _remove_stale_file(self, scene_number: str, keep: Path) -> None:
@@ -276,6 +313,17 @@ class AssetManager:
     def _finalize(self, scene: SceneRow, result: AssetResult) -> None:
         if result.ok and result.source != AssetSource.LOCAL:
             self._remove_stale_file(scene.scene_number, keep=result.path)
+            meta = result.metadata or {}
+            provider = str(meta.get("provider") or result.source.value or "")
+            asset_id = str(meta.get("provider_asset_id") or meta.get("asset_id") or "")
+            title = str(meta.get("title") or meta.get("alt") or "")
+            desc = str(meta.get("description") or meta.get("tags") or "")
+            self.selection_history.record(
+                provider=provider,
+                asset_id=asset_id,
+                title=title,
+                description=desc,
+            )
         elif result.status == SceneStatus.SKIPPED:
             self.log(f"[ASSET] Scene {scene.scene_number} -> SKIPPED")
         elif result.status == SceneStatus.CANCELLED:
@@ -322,6 +370,20 @@ class AssetManager:
         self._finalize(scene, result)
         return result
 
+    def _apply_coverage_context(self, scene: SceneRow, provider) -> None:
+        if provider is None:
+            return
+        key = scene_key(scene.scene_number)
+        cov = self.coverage_by_scene.get(key) or self.coverage_by_scene.get(str(scene.scene_number))
+        if not cov:
+            provider.required_duration = None
+            return
+        dur = cov.get("narration_duration")
+        try:
+            provider.required_duration = float(dur) if dur else None
+        except (TypeError, ValueError):
+            provider.required_duration = None
+
     def _resolve_one(self, scene: SceneRow, source: AssetSource, *, try_declared_fallbacks: bool = True) -> AssetResult:
         if self.is_scene_cancelled(scene.scene_number):
             return self._cancelled_result(scene, source)
@@ -330,8 +392,17 @@ class AssetManager:
             return self._store_failure(
                 scene, source, f"{source.value} provider is not configured for this run."
             )
-        if self.youtube_provider is not None:
-            self.youtube_provider.should_stop_scene = self.is_scene_cancelled
+        self._apply_coverage_context(scene, provider)
+        for p in (
+            self.youtube_provider,
+            self.archive_provider,
+            self.nasa_provider,
+            self.stock_provider,
+            self.flow_image_provider,
+            self.flow_video_provider,
+        ):
+            if p is not None:
+                p.should_stop_scene = self.is_scene_cancelled
         self.log(f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()}")
         try:
             result = provider.resolve(scene, self.images_dir, log=self.log)
@@ -352,7 +423,7 @@ class AssetManager:
         if (
             result.ok
             or not try_declared_fallbacks
-            or source != AssetSource.YOUTUBE_VIDEO
+            or source not in _FALLBACK_ELIGIBLE_SOURCES
             or not getattr(scene, "fallbacks", None)
         ):
             self._record_failed_approach(scene, source, result)
@@ -362,7 +433,10 @@ class AssetManager:
         for name in scene.fallbacks:
             if self.is_scene_cancelled(scene.scene_number):
                 return self._cancelled_result(scene, source)
-            self.log(f"[YOUTUBE] Scene {scene.scene_number} -> using declared fallback: {name}")
+            self.log(
+                f"[ASSET] Scene {scene.scene_number} -> {source.value} failed; "
+                f"trying declared fallback: {name}"
+            )
             fallback_scene = scene.as_fallback(str(name))
             fallback_source = self.classify(fallback_scene)
             fallback_result = self._resolve_one(
@@ -503,6 +577,152 @@ class AssetManager:
             if on_scene_complete:
                 on_scene_complete(scene, result)
 
+        # Flow video rate/quota survivors → one automatic Flow image attempt.
+        if source == AssetSource.FLOW_VIDEO and not self.is_cancelled:
+            self._fallback_flow_video_to_image(
+                scenes,
+                results,
+                on_scene_start=on_scene_start,
+                on_scene_complete=on_scene_complete,
+            )
+
+    @staticmethod
+    def _is_flow_rate_or_quota_error(result: AssetResult) -> bool:
+        if result is None or result.ok:
+            return False
+        if result.status in (SceneStatus.CANCELLED, SceneStatus.SKIPPED):
+            return False
+        err = (result.error or "").lower()
+        needles = (
+            "rate limit",
+            "rate_limited",
+            "quota",
+            "resource_exhausted",
+            "all signed-in accounts",
+            "account rotation",
+            "persists on all",
+            "persists — skipping",
+            "persists - skipping",
+        )
+        return any(n in err for n in needles)
+
+    def _fallback_flow_video_to_image(
+        self,
+        video_scenes: List[SceneRow],
+        results: Dict[str, AssetResult],
+        *,
+        on_scene_start: Optional[SceneStartCallback] = None,
+        on_scene_complete: Optional[SceneCompleteCallback] = None,
+    ) -> None:
+        """After Flow video fails on rate/quota (even after account rotation), try Flow image once."""
+        if self.flow_image_provider is None:
+            return
+        by_number = {str(s.scene_number): s for s in video_scenes}
+        to_retry: List[SceneRow] = []
+        for number, result in list(results.items()):
+            if not self._is_flow_rate_or_quota_error(result):
+                continue
+            if getattr(result, "source", None) not in (AssetSource.FLOW_VIDEO,):
+                continue
+            key = scene_key(number)
+            used = self.recovery.failed_providers.get(key) or set()
+            if "flow_image" in used or "image" in used:
+                continue
+            original = by_number.get(str(number))
+            if original is None:
+                continue
+            prompt = (original.prompt or original.visual_description or "").strip()
+            if not prompt:
+                continue
+            to_retry.append(
+                SceneRow(
+                    scene_number=original.scene_number,
+                    script_segment=original.script_segment,
+                    asset_type="image",
+                    prompt=prompt,
+                    visual_description=original.visual_description or prompt,
+                    fallbacks=list(original.fallbacks or []),
+                )
+            )
+
+        if not to_retry:
+            return
+
+        self.log(
+            f"[FLOW] {len(to_retry)} video scene(s) still rate/quota-limited — "
+            f"falling back to Flow image"
+        )
+        for scene in to_retry:
+            self._cancelled_scenes.discard(scene_key(scene.scene_number))
+            if on_scene_start:
+                on_scene_start(scene, AssetSource.FLOW_IMAGE)
+
+        early_reported: Dict[str, AssetResult] = {}
+
+        def _on_ready(scene: SceneRow, result: AssetResult) -> None:
+            if scene.scene_number in early_reported:
+                return
+            if self.is_scene_cancelled(scene.scene_number):
+                if result.ok and result.path:
+                    result.path.unlink(missing_ok=True)
+                result = self._cancelled_result(scene, AssetSource.FLOW_IMAGE)
+            else:
+                self._record_failed_approach(scene, AssetSource.FLOW_IMAGE, result)
+                self._finalize(scene, result)
+            early_reported[scene.scene_number] = result
+            results[scene.scene_number] = result
+            if on_scene_complete:
+                on_scene_complete(scene, result)
+
+        try:
+            batch_results = self.flow_image_provider.resolve_batch(
+                to_retry,
+                self.images_dir,
+                log=self.log,
+                should_stop=lambda: self.is_cancelled or any(
+                    self.is_scene_cancelled(s.scene_number) for s in to_retry
+                ),
+                on_scene_ready=_on_ready,
+            )
+        except TypeError:
+            batch_results = self.flow_image_provider.resolve_batch(
+                to_retry,
+                self.images_dir,
+                log=self.log,
+                should_stop=lambda: self.is_cancelled or any(
+                    self.is_scene_cancelled(s.scene_number) for s in to_retry
+                ),
+            )
+        except Exception as exc:
+            batch_results = {}
+            self.log(f"[FLOW] image fallback batch failed: {exc}")
+
+        for scene in to_retry:
+            if scene.scene_number in early_reported:
+                continue
+            result = batch_results.get(scene.scene_number) or AssetResult(
+                scene_number=scene.scene_number,
+                path=None,
+                media_type=None,
+                source=AssetSource.FLOW_IMAGE,
+                status=SceneStatus.FAILED,
+                error="Flow image fallback returned no result.",
+            )
+            if self.is_scene_cancelled(scene.scene_number):
+                if result.ok and result.path:
+                    result.path.unlink(missing_ok=True)
+                result = self._cancelled_result(scene, AssetSource.FLOW_IMAGE)
+            else:
+                if result.ok:
+                    self.log(
+                        f"[FLOW] Scene {scene.scene_number} recovered via Flow image fallback"
+                    )
+                self._record_failed_approach(scene, AssetSource.FLOW_IMAGE, result)
+                self._finalize(scene, result)
+            results[scene.scene_number] = result
+            if on_scene_complete:
+                on_scene_complete(scene, result)
+
     def _resolve_sequential(
         self,
         scenes: List[SceneRow],
@@ -602,6 +822,8 @@ class AssetManager:
             AssetSource.STOCK: [], AssetSource.STOCK_IMAGE: [], AssetSource.STOCK_VIDEO: [],
             AssetSource.FLOW_IMAGE: [], AssetSource.FLOW_VIDEO: [],
             AssetSource.YOUTUBE_VIDEO: [],
+            AssetSource.ARCHIVE_VIDEO: [], AssetSource.NASA_VIDEO: [],
+            AssetSource.COMMONS_VIDEO: [], AssetSource.COMMONS_IMAGE: [],
         }
 
         for scene in rows:
@@ -637,10 +859,24 @@ class AssetManager:
         parallel_items.extend(
             (AssetSource.YOUTUBE_VIDEO, scene) for scene in pending[AssetSource.YOUTUBE_VIDEO]
         )
+        for clip_source in (
+            AssetSource.ARCHIVE_VIDEO,
+            AssetSource.NASA_VIDEO,
+            AssetSource.COMMONS_VIDEO,
+        ):
+            parallel_items.extend((clip_source, scene) for scene in pending[clip_source])
         self._resolve_parallel(
             parallel_items,
             results,
             max_workers=parallel_limit,
+            on_scene_start=on_scene_start,
+            on_scene_complete=on_scene_complete,
+        )
+
+        self._resolve_sequential(
+            pending[AssetSource.COMMONS_IMAGE],
+            AssetSource.COMMONS_IMAGE,
+            results,
             on_scene_start=on_scene_start,
             on_scene_complete=on_scene_complete,
         )

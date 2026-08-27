@@ -1,0 +1,154 @@
+{
+  "id": "biography_documentary",
+  "version": 3,
+  "name": "Biography / Human Story",
+  "identity": {
+    "description": "Portrait-led human stories with period context and emotional restraint.",
+    "tone": "intimate, empathetic, narrative",
+    "best_for": [
+      "biography",
+      "profiles",
+      "memoir",
+      "human interest"
+    ]
+  },
+  "visual": {
+    "treatment": "biography",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "biographical documentary — portraits, period locations, personal artifacts",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "random crowd",
+      "unrelated landscape"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "emotional_intensity": 0.3,
+      "historical_density": 0.25,
+      "cinematic_potential": 0.25,
+      "evidence_density": 0.12,
+      "archival_visual_need": 0.08
+    },
+    "preview_visual": "Biography",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "biography",
+    "influences": [
+      "biography"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "person": 0.9,
+      "character": 0.85,
+      "archival_evidence": 0.75,
+      "location": 0.7,
+      "reaction": 0.65,
+      "atmosphere": 0.6
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "archive",
+      "youtube",
+      "openverse",
+      "pexels"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "portrait",
+      "archival photograph",
+      "home town",
+      "period footage"
+    ],
+    "avoid_terms": [
+      "random crowd",
+      "unrelated landscape"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Portrait-led human stories with period context and emotional restraint.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.7,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

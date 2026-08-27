@@ -95,7 +95,19 @@ class StockProvider(AssetProvider):
     def _pick(self, scene: SceneRow, log: LogFn, exclude_ids: Optional[Set[str]] = None) -> Optional[Candidate]:
         exclude_ids = exclude_ids or set()
         media_type = scene.stock_media_type  # "image" | "video" | "all" — see SceneRow
-        queries = build_queries(scene.stock)
+        resolved = getattr(self, "resolved_style", None)
+        history = getattr(self, "selection_history", None)
+        ctx = None
+        if resolved is not None or history is not None:
+            from style_engine.visual_selection import build_selection_context
+
+            ctx = build_selection_context(scene, resolved, history)
+        if ctx and not ctx.manual_authority:
+            from style_engine.visual_selection import smart_media_queries
+
+            queries = smart_media_queries(scene, resolved, manual=False)
+        else:
+            queries = build_queries(scene.stock)
         for i, query in enumerate(queries):
             if self._scene_stopped(scene.scene_number):
                 return None
@@ -109,7 +121,16 @@ class StockProvider(AssetProvider):
             filtered = filter_candidates(candidates)
             if not filtered:
                 continue
-            ranked = rank_candidates(filtered, query, self.cache.used_asset_ids())
+            ranked = rank_candidates(
+                filtered,
+                query,
+                self.cache.used_asset_ids(),
+                scene=scene,
+                provider_use_counts=self.cache.provider_use_counts(),
+                selection_context=ctx,
+                required_duration=getattr(self, "required_duration", None),
+                log=log,
+            )
             if ranked:
                 return ranked[0]
         return None
@@ -145,7 +166,7 @@ class StockProvider(AssetProvider):
 
     def _download(self, scene: SceneRow, candidate: Candidate, images_dir: Path, log: LogFn) -> AssetResult:
         source = scene.stock_source
-        log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id}")
+        log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id} ({candidate.width}x{candidate.height})")
         try:
             path = download_candidate(
                 candidate,
@@ -172,7 +193,7 @@ class StockProvider(AssetProvider):
                 return AssetResult(
                     scene.scene_number, None, None, source, SceneStatus.FAILED,
                     error=(
-                        f"Pexels returned a {actual} for a stock_{expected} scene "
+                        f"Stock provider returned a {actual} for a stock_{expected} scene "
                         f"(expected {expected.upper()}, got {actual.upper()}) — not using it."
                     ),
                 )

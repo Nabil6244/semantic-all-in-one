@@ -32,6 +32,14 @@ class SceneAssetRouter:
             return scene.stock_source
         if scene.wants_youtube:
             return AssetSource.YOUTUBE_VIDEO
+        if scene.wants_archive:
+            return AssetSource.ARCHIVE_VIDEO
+        if scene.wants_nasa:
+            return AssetSource.NASA_VIDEO
+        if scene.wants_commons_video:
+            return AssetSource.STOCK_VIDEO
+        if scene.wants_commons_image:
+            return AssetSource.STOCK_IMAGE
         return None
 
     @staticmethod

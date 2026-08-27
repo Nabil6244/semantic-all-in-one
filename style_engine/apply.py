@@ -355,6 +355,22 @@ def style_prompt_adornment(resolved: Optional[ResolvedStyle]) -> str:
         parts.append(f"Composition: {ai.composition}.")
     if ai.avoid:
         parts.append("Avoid: " + ", ".join(ai.avoid) + ".")
+    sg = resolved.style.search_guidance
+    if sg.prefer_terms:
+        parts.append("Prefer visual subjects: " + ", ".join(sg.prefer_terms[:8]) + ".")
+    if sg.avoid_terms:
+        parts.append("Avoid visual subjects: " + ", ".join(sg.avoid_terms[:8]) + ".")
+    vr = resolved.style.visual_roles
+    if vr.weights:
+        top_roles = sorted(vr.weights.items(), key=lambda kv: kv[1], reverse=True)[:4]
+        parts.append(
+            "Visual roles to prioritize: "
+            + ", ".join(r.replace("_", " ") for r, _ in top_roles)
+            + "."
+        )
+    story = resolved.style.storytelling
+    if story.hook_strategy:
+        parts.append(f"Hook strategy: {story.hook_strategy}.")
     if resolved.brand_kit and resolved.brand_kit.ai_prompt_additions:
         parts.append(str(resolved.brand_kit.ai_prompt_additions).strip())
     return " ".join(p for p in parts if p).strip()

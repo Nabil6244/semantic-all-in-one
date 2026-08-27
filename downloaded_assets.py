@@ -23,6 +23,10 @@ PIPELINE_SOURCES = frozenset(
         "flow_image",
         "flow_video",
         "youtube_video",
+        "archive_video",
+        "nasa_video",
+        "commons_video",
+        "commons_image",
     }
 )
 PROTECTED_SOURCES = frozenset({"local", "manual"})

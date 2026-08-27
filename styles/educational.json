@@ -1,0 +1,155 @@
+{
+  "id": "educational_explainer",
+  "version": 3,
+  "name": "Educational Explainer",
+  "identity": {
+    "description": "Clear teaching visuals — diagrams, demos, and step-by-step process.",
+    "tone": "friendly, clear, pedagogical",
+    "best_for": [
+      "education",
+      "tutorial",
+      "classroom",
+      "how-it-works"
+    ]
+  },
+  "visual": {
+    "treatment": "explainer",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "educational explainer — diagrams, demonstrations, clear labeled visuals",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "dramatic cinematic only",
+      "unrelated broll"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "educational_density": 0.4,
+      "explainer_density": 0.3,
+      "visualization_need": 0.2,
+      "abstract_concept_density": 0.1
+    },
+    "preview_visual": "Educational Explainer",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "explainer",
+    "influences": [
+      "explainer"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "process": 0.95,
+      "comparison": 0.85,
+      "object": 0.8,
+      "data": 0.75,
+      "mechanism": 0.8,
+      "abstract": 0.6
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "pexels",
+      "pixabay",
+      "youtube",
+      "flow",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "diagram",
+      "whiteboard",
+      "demonstration",
+      "step by step",
+      "classroom"
+    ],
+    "avoid_terms": [
+      "dramatic cinematic only",
+      "unrelated broll"
+    ],
+    "evidence_bias": "medium",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": false,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Clear teaching visuals — diagrams, demos, and step-by-step process.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "medium"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.4,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

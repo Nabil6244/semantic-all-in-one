@@ -78,7 +78,7 @@ class TestStyleJsonRoundTrip(unittest.TestCase):
         clear_loader_caches()
         choices = style_choices()
         ids = {sid for sid, _ in choices}
-        self.assertGreaterEqual(len(ids), 4)
+        self.assertGreaterEqual(len(ids), 18)
         for sid in (
             "history_documentary",
             "premium_documentary",

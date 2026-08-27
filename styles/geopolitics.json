@@ -1,0 +1,156 @@
+{
+  "id": "geopolitics_documentary",
+  "version": 3,
+  "name": "Geopolitics / World Affairs",
+  "identity": {
+    "description": "Maps, borders, leaders, and event footage for global affairs.",
+    "tone": "analytical, authoritative, current",
+    "best_for": [
+      "geopolitics",
+      "diplomacy",
+      "conflict",
+      "international relations"
+    ]
+  },
+  "visual": {
+    "treatment": "geopolitics",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "geopolitical documentary — maps, news archive, diplomatic settings, conflict zones",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "tourist postcard",
+      "unrelated nature"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "historical_density": 0.25,
+      "evidence_density": 0.25,
+      "chronology_density": 0.2,
+      "cinematic_potential": 0.15,
+      "educational_density": 0.15
+    },
+    "preview_visual": "Geopolitics",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "geopolitics",
+    "influences": [
+      "geopolitics"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "map": 0.9,
+      "event": 0.85,
+      "location": 0.8,
+      "document": 0.75,
+      "person": 0.7,
+      "timeline": 0.65
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "archive",
+      "youtube",
+      "openverse",
+      "pexels"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "map",
+      "border",
+      "summit",
+      "protest",
+      "military parade",
+      "flag"
+    ],
+    "avoid_terms": [
+      "tourist postcard",
+      "unrelated nature"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Maps, borders, leaders, and event footage for global affairs.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.7,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

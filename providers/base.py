@@ -25,6 +25,10 @@ class AssetSource(str, enum.Enum):
     FLOW_IMAGE = "flow_image"
     FLOW_VIDEO = "flow_video"
     YOUTUBE_VIDEO = "youtube_video"
+    ARCHIVE_VIDEO = "archive_video"
+    NASA_VIDEO = "nasa_video"
+    COMMONS_VIDEO = "commons_video"
+    COMMONS_IMAGE = "commons_image"
     MANUAL = "manual"  # user-supplied local file for a failed scene
 
 
@@ -70,7 +74,8 @@ class SceneRow:
 
     - New:    scene_number, script_segment, asset_type, prompt
               asset_type in {image, video, flow_image, flow_video, stock_image,
-              stock_video, youtube_video, stock, local}.
+              stock_video, youtube_video, archive_video, nasa_video, commons_video,
+              commons_image, stock, local}.
               `flow_video`/`flow_image` are aliases for `video`/`image`.
               For a stock_* (or legacy "stock") asset_type, the single `prompt`
               column doubles as the stock search query (normalized into `.stock`
@@ -120,6 +125,11 @@ class SceneRow:
         elif asset_type == "youtube_video" and "||" in prompt:
             search_queries = [p.strip() for p in prompt.split("||") if p.strip()]
             prompt = search_queries[0] if search_queries else prompt
+        elif asset_type in (
+            "archive_video", "nasa_video", "commons_video", "commons_image",
+        ) and "||" in prompt:
+            search_queries = [p.strip() for p in prompt.split("||") if p.strip()]
+            prompt = search_queries[0] if search_queries else prompt
 
         return cls(
             scene_number=str(row.get("scene_number", "")).strip(),
@@ -161,15 +171,48 @@ class SceneRow:
         feeds transcript matching alongside `.script_segment`."""
         return self.asset_type == "youtube_video" and bool(self.prompt)
 
+    @property
+    def wants_archive(self) -> bool:
+        return self.asset_type == "archive_video" and bool(self.prompt)
+
+    @property
+    def wants_nasa(self) -> bool:
+        return self.asset_type == "nasa_video" and bool(self.prompt)
+
+    @property
+    def wants_commons_video(self) -> bool:
+        return self.asset_type == "commons_video" and bool(self.prompt)
+
+    @property
+    def wants_commons_image(self) -> bool:
+        return self.asset_type == "commons_image" and bool(self.prompt or self.stock)
+
+    @property
+    def wants_documentary_clip(self) -> bool:
+        """Any search-based archival clip provider (Archive, NASA)."""
+        return self.wants_archive or self.wants_nasa
+
     def as_fallback(self, provider: str) -> "SceneRow":
         """Same scene, switched to a declared Visual Director fallback provider."""
         key = (provider or "").strip().lower().replace(" ", "_").replace("-", "_")
         asset_map = {
             "youtube": "youtube_video",
             "youtube_video": "youtube_video",
+            "archive": "archive_video",
+            "archive_video": "archive_video",
+            "internet_archive": "archive_video",
+            "nasa": "nasa_video",
+            "nasa_video": "nasa_video",
+            "commons": "stock_video",
+            "commons_video": "stock_video",
+            "wikimedia": "stock_video",
+            "commons_image": "stock_image",
+            "wikimedia_image": "stock_image",
             "stock_video": "stock_video",
             "stock": "stock_video",
             "pexels": "stock_video",
+            "pixabay": "stock_video",
+            "openverse": "stock_image",
             "stock_image": "stock_image",
             "flow_image": "image",
             "image": "image",
@@ -194,6 +237,22 @@ class SceneRow:
                 script_segment=self.script_segment,
                 asset_type="youtube_video",
                 prompt=yt_prompt,
+                search_queries=queries,
+                visual_description=self.visual_description,
+                fallbacks=list(self.fallbacks or []),
+            )
+        if asset_type in ("archive_video", "nasa_video"):
+            clip_prompt = (self.prompt or self.stock or "").strip()
+            if not clip_prompt:
+                clip_prompt = (self.script_segment or "").strip()[:160]
+            queries = [str(q).strip() for q in (self.search_queries or []) if str(q).strip()]
+            if clip_prompt and clip_prompt not in queries:
+                queries = [clip_prompt] + queries
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type=asset_type,
+                prompt=clip_prompt,
                 search_queries=queries,
                 visual_description=self.visual_description,
                 fallbacks=list(self.fallbacks or []),

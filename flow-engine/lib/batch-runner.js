@@ -77,6 +77,8 @@ export async function runBatchSlice({
   const quotaRetries = timing.quotaRetrySeconds || [60, 120];
   const sessRetries = timing.sessionRetrySeconds || [5, 15, 30];
   const refreshEvery = settingsLocal.refreshFrequency ?? 5;
+  /** Prompts that need another account after this account hit rate/quota limits. */
+  const reassign = [];
 
   for (let i = 0; i < prompts.length && !stopBatch; i++) {
     if (shouldStop?.()) {
@@ -231,14 +233,21 @@ export async function runBatchSlice({
             await waitThenRefresh(rateRetries[rateAttempt++], "Rate limited — retrying in");
             continue;
           }
-          failed++;
+          // Hand off to another signed-in account instead of failing the scene.
           done = true;
-          emit("PROMPT_RESULT", { index: abs, prompt, status: "failed", error: err.message });
+          reassign.push({ index: abs, prompt, reason: "rate_limit" });
+          emit("PROMPT_RESULT", {
+            index: abs,
+            prompt,
+            status: "rate_limited",
+            error: err.message,
+            reassign: true,
+          });
           emit("BATCH_PROGRESS", {
             index: abs,
             total: totalAbsolute,
-            status: "failed",
-            message: "Rate limit persists — skipping",
+            status: "waiting",
+            message: "Rate limit persists — rotating account…",
             completed,
             failed,
           });
@@ -262,15 +271,29 @@ export async function runBatchSlice({
             });
             continue;
           }
-          failed++;
+          // This account is done for the batch — reassign current + remaining prompts.
           done = true;
           stopBatch = true;
-          emit("PROMPT_RESULT", { index: abs, prompt, status: "failed", error: err.message });
+          reassign.push({ index: abs, prompt, reason: "quota" });
+          for (let j = i + 1; j < prompts.length; j++) {
+            reassign.push({
+              index: promptIndices[j],
+              prompt: prompts[j],
+              reason: "quota",
+            });
+          }
+          emit("PROMPT_RESULT", {
+            index: abs,
+            prompt,
+            status: "rate_limited",
+            error: err.message,
+            reassign: true,
+          });
           emit("BATCH_PROGRESS", {
             index: abs,
             total: totalAbsolute,
-            status: "failed",
-            message: "Quota exhausted — stopping this account",
+            status: "waiting",
+            message: "Quota exhausted — rotating to another account…",
             completed,
             failed,
           });
@@ -322,6 +345,7 @@ export async function runBatchSlice({
     total: totalAbsolute,
     sliceTotal: prompts.length,
     folder: outDir,
+    reassign,
   });
-  return { completed, failed, folder: outDir };
+  return { completed, failed, folder: outDir, reassign };
 }

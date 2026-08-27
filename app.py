@@ -468,9 +468,34 @@ SOURCE_BADGE = {
     AssetSource.STOCK_IMAGE: ("Stock", _MUTED, "transparent"),
     AssetSource.STOCK_VIDEO: ("Stock", _MUTED, "transparent"),
     AssetSource.YOUTUBE_VIDEO: ("YouTube", _MUTED, "transparent"),
+    AssetSource.ARCHIVE_VIDEO: ("Archive", _MUTED, "transparent"),
+    AssetSource.NASA_VIDEO: ("NASA", _MUTED, "transparent"),
+    AssetSource.COMMONS_VIDEO: ("Stock", _MUTED, "transparent"),
+    AssetSource.COMMONS_IMAGE: ("Stock", _MUTED, "transparent"),
     AssetSource.MANUAL: ("Manual", _MUTED, "transparent"),
-    AssetSource.LOCAL: ("Local", _MUTED, "transparent"),
+    AssetSource.LOCAL: ("Manual", _MUTED, "transparent"),
 }
+
+_UNASSIGNED_BADGE = ("Unassigned", _WARNING, "transparent")
+
+
+def scene_source_badge(scene) -> tuple[str, str, str]:
+    """Badge label for a scene row; unroutable AI rows are Unassigned, not Manual."""
+    from providers.router import SceneAssetRouter
+
+    source = SceneAssetRouter.classify(scene)
+    if source is not None:
+        return SOURCE_BADGE.get(
+            source,
+            (
+                str(getattr(source, "value", source)).replace("_", " ").title(),
+                _MUTED,
+                "transparent",
+            ),
+        )
+    if (getattr(scene, "asset_type", None) or "").strip().lower() == "local":
+        return SOURCE_BADGE[AssetSource.LOCAL]
+    return _UNASSIGNED_BADGE
 
 STATUS_COLOR = {
     "waiting": _QUEUED,
@@ -598,6 +623,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._worker: threading.Thread | None = None
         self._running = False
         self._last_output: str | None = None
+        self._prev_image = None
         self._settings = load_settings()
         self._workspace = None
         self._project_menu_lock = False
@@ -691,8 +717,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._shell.center.grid_rowconfigure(0, weight=1)
         for key, view in (
             ("project", self._view_project),
-            ("script", self._view_script),
             ("brand_style", self._view_brand_style),
+            ("script", self._view_script),
             ("visual_plan", self._view_visual),
             ("assets", self._view_assets),
             ("audio", self._view_audio),
@@ -815,7 +841,64 @@ class VideoGeneratorApp(ctk.CTk):
         for s in plan.get("scenes") or []:
             if str(s.get("scene_number")) == key:
                 return s
+            try:
+                if int(str(s.get("scene_number"))) == int(str(scene_number)):
+                    return s
+            except (TypeError, ValueError):
+                continue
         return {}
+
+    @staticmethod
+    def _format_scene_timecode(seconds: float) -> str:
+        s = max(0.0, float(seconds or 0.0))
+        m = int(s // 60)
+        rem = s - m * 60
+        return f"{m}:{rem:04.1f}"
+
+    def _scene_time_label(self, scene_number) -> str:
+        """Timeline window for this scene (from editorial plan after align/render)."""
+        ed = self._editorial_scene_lookup(scene_number)
+        try:
+            start = float(ed.get("start"))
+            end = float(ed.get("end"))
+        except (TypeError, ValueError):
+            return "—"
+        if end <= 0 and start <= 0:
+            return "—"
+        if end < start:
+            end = start
+        return f"{self._format_scene_timecode(start)}–{self._format_scene_timecode(end)}"
+
+    def _scene_asset_path(self, scene_number) -> Path | None:
+        key = _scene_key(scene_number)
+        result = self._asset_results.get(key)
+        path = getattr(result, "path", None) if result is not None else None
+        if path is not None and Path(path).is_file():
+            return Path(path)
+        images = self.images_var.get().strip()
+        if not images:
+            return None
+        found = vg.find_image_for_scene(Path(images), scene_number)
+        return found if found is not None and found.is_file() else None
+
+    def _open_scene_asset(self, scene_number) -> None:
+        path = self._scene_asset_path(scene_number)
+        if path is None:
+            messagebox.showinfo(
+                "Open clip",
+                f"No media file found for scene {scene_number} yet.",
+            )
+            return
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
+            elif sys.platform == "win32":
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+            self.status_var.set(f"Opened scene {scene_number}: {path.name}")
+        except Exception as exc:
+            messagebox.showerror("Open clip", str(exc))
 
     def _init_ui_vars(self) -> None:
         self.csv_var = ctk.StringVar()
@@ -879,6 +962,7 @@ class VideoGeneratorApp(ctk.CTk):
             value=str(self._settings.get("smart_mode", DEFAULT_SETTINGS["mode"]))
         )
         self.pexels_key_var = ctk.StringVar(value=self._settings.get("pexels_api_key", ""))
+        self.pixabay_key_var = ctk.StringVar(value=self._settings.get("pixabay_api_key", ""))
         self.gemini_key_var = ctk.StringVar(value=self._settings.get("gemini_api_key", ""))
         self._visual_plan = None
         self._manual_csv_backup = ""
@@ -1447,6 +1531,13 @@ class VideoGeneratorApp(ctk.CTk):
             details_actions, text="Local clip", width=90, height=28,
             font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("local_clip"),
         )
+        self.details_open_btn = ctk.CTkButton(
+            details_actions, text="Open", width=70, height=28,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_SUCCESS, font=ctk.CTkFont(size=11, weight="bold"),
+            command=lambda: self._details_action("open"),
+        )
+        self.details_open_btn._inspector_show = False
         self.details_retry_btn = ctk.CTkButton(
             details_actions, text="Retry", width=70, height=28,
             font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("retry"),
@@ -1778,6 +1869,7 @@ class VideoGeneratorApp(ctk.CTk):
         buttons = [
             self.details_source_btn,
             self.details_local_btn,
+            self.details_open_btn,
             self.details_retry_btn,
             self.details_alt_btn,
             self.details_skip_btn,
@@ -2281,16 +2373,121 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _close_flow_instances(self) -> None:
         """Close all Flow Chrome windows (leftover from generate / sign-in)."""
+        self.status_var.set("Closing Flow browsers…")
+        self._append_log("[FLOW] Close instances requested…\n")
+
         def worker():
+            parts: list[str] = []
             try:
-                client = self._get_flow_engine_manager().ensure_running()
-                client.close_browsers()
-                self.after(0, lambda: self._append_log("[FLOW] Closed Chrome instances\n"))
+                mgr = self._get_flow_engine_manager()
+                closed_via_engine = False
+                has_client = getattr(mgr, "_client", None) is not None
+                proc_alive = (
+                    getattr(mgr, "_proc", None) is not None
+                    and mgr._proc.poll() is None  # type: ignore[union-attr]
+                )
+                if has_client or proc_alive:
+                    client = mgr.ensure_running()
+                    client.close_browsers()
+                    time.sleep(0.35)
+                    closed_n = None
+                    try:
+                        st = client.get_state() or {}
+                        if "browsersClosed" in st:
+                            closed_n = int(st.get("browsersClosed") or 0)
+                    except Exception:
+                        closed_n = None
+                    if closed_n is not None:
+                        parts.append(f"engine closed {closed_n} browser(s)")
+                    else:
+                        parts.append("engine browsers closed")
+                    closed_via_engine = True
+                else:
+                    # Engine may still be running from a prior session — probe briefly.
+                    try:
+                        from providers.flow.client import FlowClient, FlowClientError
+
+                        probe = FlowClient(mgr.url, log=lambda *_: None)
+                        probe.connect(timeout=1.2)
+                        probe.close_browsers()
+                        time.sleep(0.3)
+                        probe.close()
+                        parts.append("engine browsers closed")
+                        closed_via_engine = True
+                    except Exception:
+                        parts.append("Flow engine was not running")
+                killed = self._kill_orphan_flow_browsers()
+                if killed:
+                    parts.append(f"stopped {killed} leftover Chrome/Chromium process(es)")
+                elif closed_via_engine:
+                    parts.append("no leftover profile processes")
+                summary = "; ".join(parts) if parts else "done"
+                self.after(
+                    0,
+                    lambda s=summary: (
+                        self.status_var.set("Flow browsers closed"),
+                        self._append_log(f"[FLOW] Close instances: {s}\n"),
+                    ),
+                )
             except Exception as exc:
                 msg = str(exc)
-                self.after(0, lambda m=msg: messagebox.showerror("Close instances", m))
+                # Still try orphans if engine path failed.
+                try:
+                    killed = self._kill_orphan_flow_browsers()
+                    if killed:
+                        msg = f"{msg} (also stopped {killed} leftover process(es))"
+                except Exception:
+                    pass
+                self.after(
+                    0,
+                    lambda m=msg: (
+                        self.status_var.set("Close instances failed"),
+                        messagebox.showerror("Close instances", m),
+                    ),
+                )
 
         threading.Thread(target=worker, daemon=True).start()
+
+    @staticmethod
+    def _kill_orphan_flow_browsers() -> int:
+        """SIGTERM Chrome/Chromium processes using Flow profile user-data-dirs.
+
+        Only targets processes whose command line references
+        ~/.semantic-automator-desktop/profiles — never the user's normal Chrome.
+        """
+        marker = "semantic-automator-desktop"
+        killed = 0
+        try:
+            if sys.platform == "win32":
+                ps = (
+                    "Get-CimInstance Win32_Process -Filter \"name='chrome.exe' OR name='chromium.exe'\" "
+                    f"| Where-Object {{ $_.CommandLine -and ($_.CommandLine -like '*{marker}*profiles*') }} "
+                    "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; 1 }"
+                )
+                out = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps],
+                    capture_output=True, text=True, timeout=15,
+                )
+                return sum(1 for line in (out.stdout or "").splitlines() if line.strip() == "1")
+            out = subprocess.check_output(["ps", "-ax", "-o", "pid=,command="], text=True, timeout=10)
+        except Exception:
+            return 0
+        for line in out.splitlines():
+            low = line.lower()
+            if marker not in low or "profiles" not in low:
+                continue
+            if not any(x in low for x in ("chrome", "chromium", "google chrome")):
+                continue
+            try:
+                pid = int(line.strip().split(None, 1)[0])
+            except (ValueError, IndexError):
+                continue
+            try:
+                os.kill(pid, 15)  # SIGTERM
+                killed += 1
+            except OSError:
+                continue
+        return killed
 
     def _sync_primary_cta(self, snap=None) -> None:
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
@@ -2466,6 +2663,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._qa = SceneQAState()
             self._visual_plan = None
             self._manual_csv_backup = ""
+            self._reset_project_session_ui()
             self.csv_var.set("")
             self.audio_var.set("")
             self.bg_var.set("")
@@ -2480,6 +2678,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._settings["projects_root"] = str(self._projects_root_path())
             save_settings(self._settings)
         self._bind_workspace_paths()
+        self._resolve_project_style(persist=False)
         if refresh_menu:
             self._refresh_project_menu()
         self._update_project_indicator()
@@ -2671,6 +2870,42 @@ class VideoGeneratorApp(ctk.CTk):
         _set_intensity(self.smart_ambience_intensity_var, "scene_ambience_intensity")
         mode = str(data.get("mode") or "smart").title()
         self.smart_mode_var.set("Automatic" if mode.lower().startswith("auto") else "Smart")
+
+    def _clear_render_preview(self) -> None:
+        """Drop final-render thumbnail/path so project switches don't show stale media."""
+        self._last_output = None
+        self._prev_image = None
+        panel = getattr(self, "_preview_panel", None)
+        thumb = getattr(self, "_thumb_label", None)
+        if thumb is not None:
+            try:
+                thumb.configure(image=None, text="")
+            except Exception:
+                pass
+        if panel is not None:
+            try:
+                panel.grid_forget()
+            except Exception:
+                pass
+
+    def _reset_project_session_ui(self) -> None:
+        """Clear in-memory UI tied to the previous project (preview, log, scene chrome)."""
+        self._clear_render_preview()
+        self._clear_log()
+        self._resolved_style = None
+        self._style_prompt_adornment = ""
+        self._scene_rows = []
+        self._scene_row_signature = ()
+        self._scene_row_widgets = {}
+        self._editorial_plan_cache = None
+        self._editorial_plan_mtime = 0.0
+        if hasattr(self, "details_title_var"):
+            self.details_title_var.set("Selected scene")
+        if hasattr(self, "details_text_var"):
+            self.details_text_var.set(
+                "Select a scene in Visual Plan to inspect assets and editorial cues."
+            )
+        self.scenes_summary_var.set("")
 
     def _bind_workspace_paths(self) -> None:
         ws = self._workspace
@@ -2872,18 +3107,67 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "top_analyze_btn", None) is not None:
             self.top_analyze_btn.configure(state="disabled")
         self.status_var.set("Analyzing script…")
+        self._append_log("\n[AI] Analyzing script with Gemini…\n")
+        self.progress.set(0.02)
+
+        def on_progress(message: str, fraction: float | None = None) -> None:
+            def ui_update() -> None:
+                self._append_log(f"[AI] {message}\n")
+                self.status_var.set(message[:80])
+                if fraction is not None:
+                    self.progress.set(max(0.02, min(0.92, float(fraction))))
+
+            self.after(0, ui_update)
 
         def work():
             try:
                 from visual_director import VisualDirector
+                from visual_director.director import gemini_plan_settings, script_word_count
                 from style_engine import style_prompt_adornment
+                from visual_allocation import (
+                    apply_allocation_to_plan,
+                    build_plan_validation_report,
+                    load_allocation_settings,
+                )
+
+                words = script_word_count(script)
+                opts = gemini_plan_settings(words)
+                self.after(
+                    0,
+                    lambda: self._append_log(
+                        f"[AI] Script ~{words} words — Gemini thinking={opts['thinking_level']}, "
+                        f"timeout={int(opts['timeout'])}s\n"
+                    ),
+                )
 
                 resolved = self._resolve_project_style(script=script, persist=True)
                 guidance = style_prompt_adornment(resolved)
                 plan = VisualDirector(settings=settings).plan(
-                    script, style_guidance=guidance
+                    script, style_guidance=guidance, on_progress=on_progress
                 )
-                self.after(0, lambda: self._apply_ai_plan(plan))
+                self.after(
+                    0,
+                    lambda: self._append_log("[ALLOC] Running visual allocation…\n"),
+                )
+                alloc_settings = load_allocation_settings(self._workspace)
+                bundle = apply_allocation_to_plan(plan, alloc_settings, resolved)
+                plan.set_allocation(bundle.to_dict())
+                report = build_plan_validation_report(plan, bundle)
+                self.after(0, lambda r=report: self._append_log(f"\n{r}\n"))
+                self.after(
+                    0,
+                    lambda: self._append_log(
+                        f"[ALLOC] Visual allocation — {bundle.ai_assigned}/{bundle.ai_budget_limit} "
+                        f"Flow scenes ({bundle.ai_opportunities} opportunities)\n"
+                    ),
+                )
+                self.after(
+                    0,
+                    lambda: self._append_log(
+                        f"[AI] Plan ready — {len(plan.scenes)} scene(s).\n"
+                    ),
+                )
+                self.after(0, lambda p=plan: self._apply_ai_plan(p))
             except Exception as exc:
                 msg = str(exc)
                 self.after(0, lambda m=msg: self._analyze_failed(m))
@@ -2895,6 +3179,7 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "top_analyze_btn", None) is not None:
             self.top_analyze_btn.configure(state="normal")
         self.status_var.set("Ready")
+        self.progress.set(0)
         self._refresh_gemini_status()
         messagebox.showerror("AI Script", message)
 
@@ -2920,6 +3205,7 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "top_analyze_btn", None) is not None:
             self.top_analyze_btn.configure(state="normal")
         self.status_var.set("Review scenes, then generate assets")
+        self.progress.set(1.0)
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._append_log("\n[AI] Visual plan ready — review scenes, then Generate Video.\n")
@@ -3864,7 +4150,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _build_scene_list_header(self) -> None:
         header = ctk.CTkFrame(self._scenes_list, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
-        header.grid_columnconfigure(5, weight=1)
+        header.grid_columnconfigure(3, weight=1)
         self._scene_header = header
         self._scene_header_check_var = ctk.BooleanVar(value=False)
         self._scene_header_check = ctk.CTkCheckBox(
@@ -3875,13 +4161,15 @@ class VideoGeneratorApp(ctk.CTk):
         self._scene_header_check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
         cols = (
             ("#", 28),
-            ("Narration", 120),
-            ("Visual", 110),
+            ("Time", 72),
+            ("Narration", 110),
+            ("Visual", 100),
             ("Src", 56),
             ("Cam", 52),
             ("Tr", 40),
             ("Amb", 48),
             ("Status", 90),
+            ("", 44),
         )
         for i, (title, width) in enumerate(cols):
             ctk.CTkLabel(
@@ -3942,14 +4230,13 @@ class VideoGeneratorApp(ctk.CTk):
         """Build one denser scene-table row (shared by sync / batch / window paths)."""
         from ui.scene_list import truncate as _trunc
 
-        source = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
-        badge_text, badge_fg, badge_bg = SOURCE_BADGE[source]
+        badge_text, badge_fg, badge_bg = scene_source_badge(scene)
         default_fg = _ROW_ALT if i % 2 else "transparent"
         row = ctk.CTkFrame(
             self._scenes_list, fg_color=default_fg, corner_radius=4, height=28,
         )
         row.grid(row=(grid_row if grid_row is not None else i + 1), column=0, sticky="ew", pady=0)
-        row.grid_columnconfigure(2, weight=1)
+        row.grid_columnconfigure(3, weight=1)
 
         key = _scene_key(scene.scene_number)
         check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
@@ -3965,24 +4252,30 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
         ).grid(row=0, column=1, sticky="w", padx=2)
 
+        time_label = ctk.CTkLabel(
+            row, text=self._scene_time_label(scene.scene_number), width=72, anchor="w",
+            font=ctk.CTkFont(size=9), text_color=_MUTED,
+        )
+        time_label.grid(row=0, column=2, sticky="w", padx=2)
+
         narr_label = ctk.CTkLabel(
-            row, text=_trunc(scene.script_segment, 42), width=120, anchor="w",
+            row, text=_trunc(scene.script_segment, 36), width=110, anchor="w",
             font=ctk.CTkFont(size=10), text_color=_TEXT,
         )
-        narr_label.grid(row=0, column=2, sticky="ew", padx=2)
+        narr_label.grid(row=0, column=3, sticky="ew", padx=2)
 
         visual = scene.prompt or scene.stock or scene.visual_description or ""
         vis_label = ctk.CTkLabel(
-            row, text=_trunc(visual, 36), width=110, anchor="w",
+            row, text=_trunc(visual, 32), width=100, anchor="w",
             font=ctk.CTkFont(size=10), text_color=_MUTED,
         )
-        vis_label.grid(row=0, column=3, sticky="w", padx=2)
+        vis_label.grid(row=0, column=4, sticky="w", padx=2)
 
         badge = ctk.CTkLabel(
             row, text=badge_text, font=ctk.CTkFont(size=9),
             text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=56, anchor="w",
         )
-        badge.grid(row=0, column=4, sticky="w", padx=2)
+        badge.grid(row=0, column=5, sticky="w", padx=2)
 
         ed = self._editorial_scene_lookup(scene.scene_number)
         cam = (ed.get("camera_style") or "—")[:10]
@@ -3992,22 +4285,31 @@ class VideoGeneratorApp(ctk.CTk):
         cam_label = ctk.CTkLabel(
             row, text=cam, width=52, anchor="w", font=ctk.CTkFont(size=9), text_color=_MUTED,
         )
-        cam_label.grid(row=0, column=5, sticky="w", padx=2)
+        cam_label.grid(row=0, column=6, sticky="w", padx=2)
         tr_label = ctk.CTkLabel(
             row, text=tr, width=40, anchor="w", font=ctk.CTkFont(size=9), text_color=_MUTED,
         )
-        tr_label.grid(row=0, column=6, sticky="w", padx=2)
+        tr_label.grid(row=0, column=7, sticky="w", padx=2)
         amb_label = ctk.CTkLabel(
             row, text=f"{amb}{sfx_mark}", width=48, anchor="w",
             font=ctk.CTkFont(size=9), text_color=_MUTED,
         )
-        amb_label.grid(row=0, column=7, sticky="w", padx=2)
+        amb_label.grid(row=0, column=8, sticky="w", padx=2)
 
         status_label = ctk.CTkLabel(
             row, text="◌ QUEUED", font=ctk.CTkFont(size=10, weight="bold"),
             text_color=_QUEUED, width=90, anchor="w",
         )
-        status_label.grid(row=0, column=8, sticky="w", padx=2)
+        status_label.grid(row=0, column=9, sticky="w", padx=2)
+
+        open_btn = ctk.CTkButton(
+            row, text="Open", width=44, height=20,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_SUCCESS, font=ctk.CTkFont(size=9),
+            command=lambda n=scene.scene_number: self._open_scene_asset(n),
+        )
+        open_btn.grid(row=0, column=10, sticky="e", padx=(0, 2))
+        open_btn.grid_remove()
 
         source_btn = ctk.CTkButton(
             row, text="Src", width=40, height=20,
@@ -4015,17 +4317,18 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_ACCENT, font=ctk.CTkFont(size=9),
             command=lambda s=scene: self._change_source_dialog(s),
         )
-        source_btn.grid(row=0, column=9, sticky="e", padx=(0, 4))
+        source_btn.grid(row=0, column=11, sticky="e", padx=(0, 4))
 
         preview_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1))
         elapsed_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=10), text_color=_MUTED, width=1)
         error_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1), text_color=_WARNING)
         self._scene_row_widgets[key] = {
             "status_label": status_label,
+            "time_label": time_label,
             "elapsed_label": elapsed_label,
             "error_label": error_label,
             "badge": badge,
-            "buttons": {"source": source_btn},
+            "buttons": {"source": source_btn, "open": open_btn},
             "scene": scene,
             "row": row,
             "default_fg": default_fg,
@@ -4035,7 +4338,7 @@ class VideoGeneratorApp(ctk.CTk):
         }
         row.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
         preview_label.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
-        for widget in (status_label, badge, narr_label, vis_label, cam_label, tr_label, amb_label):
+        for widget in (status_label, time_label, badge, narr_label, vis_label, cam_label, tr_label, amb_label):
             widget.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
 
         if key in self._busy_scenes:
@@ -4055,8 +4358,20 @@ class VideoGeneratorApp(ctk.CTk):
         cancel = buttons.get("cancel")
         if cancel is not None:
             cancel.configure(state="normal" if busy else "disabled")
+        open_btn = buttons.get("open")
+        if open_btn is not None:
+            scene = widgets.get("scene")
+            path_ok = False
+            if scene is not None and not busy:
+                status = self._row_status_from_result(scene)
+                path_ok = status in ("ready", "success") and self._scene_asset_path(scene.scene_number) is not None
+            if path_ok:
+                open_btn.grid()
+                open_btn.configure(state="normal")
+            else:
+                open_btn.grid_remove()
         for name, btn in buttons.items():
-            if name == "cancel":
+            if name in ("cancel", "open"):
                 continue
             # Source stays available anytime — busy scenes cancel-then-switch.
             if name == "source":
@@ -4070,6 +4385,9 @@ class VideoGeneratorApp(ctk.CTk):
             return
         label, color = _status_display(status)
         widgets["status_label"].configure(text=label, text_color=color)
+        time_lbl = widgets.get("time_label")
+        if time_lbl is not None:
+            time_lbl.configure(text=self._scene_time_label(scene_number))
         key = _scene_key(scene_number)
         self._sync_row_action_buttons(key)
         if status in ("generating", "searching", "retrying", "extracting", "using_alternative", "adding_local"):
@@ -4197,6 +4515,28 @@ class VideoGeneratorApp(ctk.CTk):
         ids = self._default_video_profile().get("account_ids") or []
         return ids or None
 
+    def _coverage_map_from_workspace(self) -> dict:
+        ws = self._workspace
+        if ws is None:
+            return {}
+        try:
+            import json
+
+            raw = json.loads(ws.visual_plan_json_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        alloc = raw.get("allocation") if isinstance(raw, dict) else None
+        if not isinstance(alloc, dict):
+            return {}
+        out = {}
+        for p in alloc.get("coverage_plans") or []:
+            if not isinstance(p, dict):
+                continue
+            sid = str(p.get("scene_id", ""))
+            key = _scene_key(sid)
+            out[key] = p
+        return out
+
     def _build_asset_manager(self, images_dir: Path, scene_rows: list[SceneRow]) -> AssetManager:
         """Shared by the main pipeline and Regenerate — builds providers needed for
         planned scenes plus Change Source targets (YouTube/Stock/Flow video)."""
@@ -4209,15 +4549,20 @@ class VideoGeneratorApp(ctk.CTk):
 
         stock_provider = None
         if needs_stock:
-            key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
-            if key:
-                from providers.stock.pexels import build_pexels_provider
+            pexels_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+            pixabay_key = self.pixabay_key_var.get().strip() or os.environ.get("PIXABAY_API_KEY", "")
+            from providers.stock.factory import build_stock_provider
 
-                stock_provider = build_pexels_provider(images_dir, key)
-            elif any(s.wants_stock for s in scene_rows):
+            stock_provider = build_stock_provider(
+                images_dir,
+                pexels_api_key=pexels_key,
+                pixabay_api_key=pixabay_key,
+                include_openverse=True,
+            )
+            if stock_provider is None and any(s.wants_stock for s in scene_rows):
                 raise RuntimeError(
-                    "This project has Stock scenes but no Pexels API key is set. "
-                    "Add one in Settings."
+                    "This project has Stock scenes but no stock API key is set "
+                    "(Pexels and/or Pixabay). Add one in Settings."
                 )
 
         flow_image_provider = None
@@ -4265,13 +4610,32 @@ class VideoGeneratorApp(ctk.CTk):
                 raise RuntimeError(f"This project has youtube_video scenes: {exc}") from exc
             print(f"[ASSET] YouTube provider unavailable for Change Source: {exc}")
 
+        clip_duration = max(1.0, min(10.0, clip_duration))
+        archive_provider = None
+        nasa_provider = None
+        try:
+            from providers.archive.provider import ArchiveProvider
+            from providers.nasa.provider import NasaProvider
+
+            archive_provider = ArchiveProvider(clip_duration=clip_duration)
+            nasa_provider = NasaProvider(clip_duration=clip_duration)
+        except Exception as exc:
+            needs_doc = any(s.wants_archive or s.wants_nasa for s in scene_rows)
+            if needs_doc:
+                raise RuntimeError(f"Documentary media providers failed to load: {exc}") from exc
+            print(f"[ASSET] Archive/NASA providers unavailable: {exc}")
+
         return AssetManager(
             images_dir,
             stock_provider=stock_provider,
             flow_image_provider=flow_image_provider,
             flow_video_provider=flow_video_provider,
             youtube_provider=youtube_provider,
+            archive_provider=archive_provider,
+            nasa_provider=nasa_provider,
             log=print,
+            resolved_style=getattr(self, "_resolved_style", None),
+            coverage_by_scene=self._coverage_map_from_workspace(),
         )
 
     def _regenerate_scene(self, scene_row: SceneRow) -> None:
@@ -4283,7 +4647,12 @@ class VideoGeneratorApp(ctk.CTk):
         need_rebuild = mgr is None or Path(mgr.images_dir) != images_dir
         if not need_rebuild and mgr is not None:
             # Rebuild once if Change Source targets were missing from an older run.
-            if mgr.youtube_provider is None or mgr.flow_video_provider is None:
+            if (
+                mgr.youtube_provider is None
+                or mgr.flow_video_provider is None
+                or mgr.archive_provider is None
+                or mgr.nasa_provider is None
+            ):
                 need_rebuild = True
         if need_rebuild:
             self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
@@ -4408,8 +4777,7 @@ class VideoGeneratorApp(ctk.CTk):
             widgets["scene"] = updated
             badge = widgets.get("badge")
             if badge is not None:
-                source = SceneAssetRouter.classify(updated) or AssetSource.LOCAL
-                text, fg, bg = SOURCE_BADGE.get(source, ("Local", _MUTED, "transparent"))
+                text, fg, bg = scene_source_badge(updated)
                 badge.configure(text=text, text_color=fg, fg_color=bg)
         return updated
 
@@ -4424,36 +4792,49 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _change_source_dialog(self, scene_row: SceneRow) -> None:
         scene_row = self._scene_by_number(scene_row)
-        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image"]
+        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
         if self._asset_manager is not None:
             options = self._asset_manager.recovery.change_source_options(scene_row) or options
+        if "local" not in options:
+            options = list(options) + ["local"]
         busy = _scene_key(scene_row.scene_number) in self._busy_scenes
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — Scene {scene_row.scene_number}")
-        win.geometry("280x280")
+        win.geometry("300x340")
         win.transient(self)
         title = "Choose a source for this scene only"
         if busy:
             title = "Scene is busy — it will Stop, then switch source"
         ctk.CTkLabel(win, text=title).pack(pady=(12, 8))
+
+        def pick(name: str) -> None:
+            win.destroy()
+            if name == "local":
+                self._add_local_clip(scene_row)
+            else:
+                self._scene_action_with_source(scene_row, name)
+
         for name in options:
+            label = "Local file…" if name == "local" else name.replace("_", " ").title()
             ctk.CTkButton(
-                win, text=name.replace("_", " ").title(), height=28,
-                command=lambda n=name: (win.destroy(), self._scene_action_with_source(scene_row, n)),
+                win, text=label, height=28,
+                command=lambda n=name: pick(n),
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
 
     def _change_source_dialog_bulk(self, scenes: list) -> None:
         if not scenes:
             return
-        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image"]
+        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
         if self._asset_manager is not None:
             opts = self._asset_manager.recovery.change_source_options(scenes[0])
             if opts:
-                options = opts
+                options = list(opts)
+        if "local" not in options:
+            options = list(options) + ["local"]
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — {len(scenes)} scenes")
-        win.geometry("300x300")
+        win.geometry("320x360")
         win.transient(self)
         ctk.CTkLabel(
             win, text=f"Apply one source to {len(scenes)} selected scenes",
@@ -4461,6 +4842,9 @@ class VideoGeneratorApp(ctk.CTk):
 
         def apply(name: str) -> None:
             win.destroy()
+            if name == "local":
+                self._add_local_clip_bulk(scenes)
+                return
             if name in ("flow_image", "flow_video") and len(scenes) >= 2:
                 self._start_flow_batch(scenes, provider_name=name)
             else:
@@ -4468,8 +4852,9 @@ class VideoGeneratorApp(ctk.CTk):
                     self._scene_action_with_source(scene, name)
 
         for name in options:
+            label = "Local file…" if name == "local" else name.replace("_", " ").title()
             ctk.CTkButton(
-                win, text=name.replace("_", " ").title(), height=28,
+                win, text=label, height=28,
                 command=lambda n=name: apply(n),
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
@@ -4634,11 +5019,13 @@ class VideoGeneratorApp(ctk.CTk):
                 counts["Stock"] += 1
             elif source == AssetSource.YOUTUBE_VIDEO:
                 counts["YouTube"] += 1
-            elif source in (AssetSource.MANUAL, AssetSource.LOCAL) or source is None:
-                counts["Local"] += 1
+            elif source in (AssetSource.MANUAL, AssetSource.LOCAL):
+                counts["Manual"] += 1
+            elif source is None:
+                counts["Unassigned"] += 1
             else:
                 counts["Other"] += 1
-        order = ("AI Image", "AI Video", "Stock", "YouTube", "Local", "Other")
+        order = ("AI Image", "AI Video", "Stock", "YouTube", "Manual", "Unassigned", "Other")
         return " · ".join(f"{name} {counts[name]}" for name in order if counts.get(name))
 
     def _paint_qa_chrome(self, snap=None) -> None:
@@ -4738,6 +5125,8 @@ class VideoGeneratorApp(ctk.CTk):
         if not selected:
             self.details_title_var.set("Selected scene")
             self.details_text_var.set("Select a scene in Visual Plan to inspect assets and editorial cues.")
+            if getattr(self, "details_open_btn", None) is not None:
+                self._set_inspector_button(self.details_open_btn, show=False)
             return
 
         if len(selected) > 1:
@@ -4753,7 +5142,7 @@ class VideoGeneratorApp(ctk.CTk):
                 if key in self._busy_scenes or key in self._qa.busy:
                     busy_n += 1
                 src = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
-                label = SOURCE_BADGE[src][0]
+                label = SOURCE_BADGE.get(src, ("Local", _MUTED, "transparent"))[0]
                 by_source[label] = by_source.get(label, 0) + 1
             lines = [
                 f"Scenes    {', '.join(str(s.scene_number) for s in selected)}",
@@ -4769,6 +5158,7 @@ class VideoGeneratorApp(ctk.CTk):
             any_busy = busy_n > 0
             self._set_inspector_button(self.details_source_btn, show=True, state="normal")
             self._set_inspector_button(self.details_local_btn, show=True, state="normal")
+            self._set_inspector_button(self.details_open_btn, show=False)
             self._set_inspector_button(
                 self.details_retry_btn, show=True,
                 state="normal" if any_failed and not any_busy else "disabled",
@@ -4798,6 +5188,9 @@ class VideoGeneratorApp(ctk.CTk):
             f"Status    {info['status']}",
             f"Provider  {info['provider']}",
         ]
+        time_txt = self._scene_time_label(scene.scene_number)
+        if time_txt and time_txt != "—":
+            lines.append(f"Time      {time_txt}")
         if info["search"]:
             lines.append(f"Search    {info['search']}")
         if info["error"]:
@@ -4833,10 +5226,15 @@ class VideoGeneratorApp(ctk.CTk):
         actions = set(info["actions"])
         busy = key in self._busy_scenes or key in self._qa.busy
         failed = status in ("needs_action", "failed", "timeout")
+        can_open = status in ("ready", "success") and self._scene_asset_path(scene.scene_number) is not None
         self._set_inspector_button(self.details_source_btn, show=True, state="normal")
         self._set_inspector_button(
             self.details_local_btn, show=True,
-            state="normal" if "local_clip" in actions and not busy else "disabled",
+            state="normal" if not busy else "disabled",
+        )
+        self._set_inspector_button(
+            self.details_open_btn, show=can_open,
+            state="normal" if can_open and not busy else "disabled",
         )
         self._set_inspector_button(
             self.details_retry_btn, show=failed,
@@ -4914,6 +5312,9 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if action == "change_source":
             self._change_source_for_focused()
+            return
+        if action == "open":
+            self._open_scene_asset(scenes[0].scene_number)
             return
         if len(scenes) > 1:
             if action in ("retry", "alternative", "skip"):
@@ -5201,7 +5602,7 @@ class VideoGeneratorApp(ctk.CTk):
             body, text="STOCK PROVIDERS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(20, 4))
         ctk.CTkLabel(
-            body, text="Pexels — used for scenes with a 'stock' keyword and no prompt.",
+            body, text="Pexels — primary stock source for stock_image / stock_video scenes.",
             font=ctk.CTkFont(size=12), text_color=_TEXT,
         ).pack(anchor="w", padx=20)
         ctk.CTkEntry(
@@ -5212,18 +5613,41 @@ class VideoGeneratorApp(ctk.CTk):
         pexels_status_var = ctk.StringVar(
             value="Configured" if self.pexels_key_var.get().strip() else "Not configured"
         )
-        ctk.CTkLabel(body, textvariable=pexels_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED).pack(
+        ctk.CTkLabel(body, textvariable=pexels_status_var, font=ctk.CTkFont(size=12), text_color=_MUTED).pack(
             anchor="w", padx=20
         )
 
+        ctk.CTkLabel(
+            body, text="Pixabay — secondary stock source (used when Pexels misses).",
+            font=ctk.CTkFont(size=12), text_color=_TEXT,
+        ).pack(anchor="w", padx=20, pady=(12, 0))
+        ctk.CTkEntry(
+            body, textvariable=self.pixabay_key_var, show="•", height=34,
+            placeholder_text="Pixabay API key", fg_color=_BG, border_color=_BORDER, text_color=_TEXT,
+        ).pack(fill="x", padx=20, pady=(8, 4))
+
+        pixabay_status_var = ctk.StringVar(
+            value="Configured" if self.pixabay_key_var.get().strip() else "Not configured"
+        )
+        ctk.CTkLabel(body, textvariable=pixabay_status_var, font=ctk.CTkFont(size=12), text_color=_MUTED).pack(
+            anchor="w", padx=20
+        )
+        ctk.CTkLabel(
+            body,
+            text="Openverse (no key) is also searched for stock images when stock providers run.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(4, 0))
+
         def save_key():
             self._settings["pexels_api_key"] = self.pexels_key_var.get().strip()
+            self._settings["pixabay_api_key"] = self.pixabay_key_var.get().strip()
             save_settings(self._settings)
             pexels_status_var.set("Configured" if self.pexels_key_var.get().strip() else "Not configured")
-            messagebox.showinfo("Saved", "Pexels API key saved.")
+            pixabay_status_var.set("Configured" if self.pixabay_key_var.get().strip() else "Not configured")
+            messagebox.showinfo("Saved", "Stock API keys saved.")
 
         ctk.CTkButton(
-            body, text="Save Key", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+            body, text="Save Stock Keys", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
             text_color=_ACCENT_DARK, command=save_key,
         ).pack(anchor="w", padx=20, pady=(0, 12))
 

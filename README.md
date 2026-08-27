@@ -144,10 +144,11 @@ Every launch asks you to **sign in** (friend account), then shows **Choose a pro
 The main button always does the next action: **Analyze Script** / **Import CSV** / **Generate Assets** / **Import Voiceover** / **Render Video**. While a job runs it becomes **Stop**.
 
 1. **Choose a project** — create new, pick an existing project (`#001 Title`), or **Open folder**. Last-used may be labeled but is not loaded until you select it.  
-2. **Paste script** (default, recommended) or **Import CSV**. Paste narration → **Analyze Script**, or import a visual-plan CSV.  
-3. **Generate Assets** — resolve AI / stock / YouTube / local media per scene.  
-4. **Voiceover** — import your narration audio (one **Play** toggle to preview).  
-5. **Render Video** — Whisper alignment + FFmpeg export to the project’s `final/` folder.
+2. **Brand & Style** — optional channel identity, video style, visual strategy, and AI budget (Legacy mode skips this).  
+3. **Paste script** (recommended) or **Import CSV**. Paste narration → **Analyze Script**, or import a visual-plan CSV.  
+4. **Generate Assets** — resolve AI / stock / YouTube / local media per scene.  
+5. **Voiceover** — import your narration audio (one **Play** toggle to preview).  
+6. **Render Video** — Whisper alignment + FFmpeg export to the project’s `final/` folder.
 
 Top bar: project chip (`#001 Title`) + **Switch** (reopens the picker), and a 5-step stepper: **Script → Scenes → Assets → Voice → Render**. Narrow windows show `Step N of 5 · Name`. The left column scrolls; the desktop window is resize-safe.
 
@@ -183,7 +184,7 @@ Default mode. Fields use placeholders inside the inputs (not ALL-CAPS labels ove
 
 1. Settings → paste a **Gemini** API key (Gemini 3.6 Flash visual director).  
 2. Paste your full narration.  
-3. Click **Analyze Script** in this section — Gemini writes a visual plan CSV (`asset_type` + `prompt` per scene). There is no separate Analyze button in the top bar.  
+3. Click **Analyze Script** in this section — Gemini writes a visual plan CSV (`asset_type` + `prompt` per scene). The director can choose **stock**, **YouTube**, **Internet Archive**, **NASA**, **Flow**, or **local** per beat. There is no separate Analyze button in the top bar.  
 4. Optionally **Export CSV**.
 
 ### Import CSV
@@ -211,8 +212,10 @@ Choose a visual-plan spreadsheet (see §5). Older 2- or 4-column scripts still w
 |---|---|
 | `image` / `flow_image` | Google Flow AI still |
 | `video` / `flow_video` | Google Flow AI video |
-| `stock` / `stock_image` / `stock_video` | Pexels (`prompt` = search keywords) |
+| `stock` / `stock_image` / `stock_video` | Pexels + Pixabay + Openverse (`prompt` = search keywords) |
 | `youtube_video` | YouTube clip (`prompt` = search query; `\|\|` separates alternatives) |
+| `archive_video` | Internet Archive (`prompt` = search; `identifier:ITEM_ID` for a known item) |
+| `nasa_video` | NASA media library (`prompt` = search; `nasa:ASSET_ID` for a known item) |
 | `local` | File in the project **assets** folder named for the scene (`001.png`, `002.mp4`, …) |
 
 Example:
@@ -245,6 +248,8 @@ scene_number,script_segment,prompt,stock
 | Feature | Where | Notes |
 |---|---|---|
 | **Pexels** | Settings → Stock | Free key from [pexels.com/api](https://www.pexels.com/api/) |
+| **Pixabay** | Settings → Stock | Free key from [pixabay.com/api/docs](https://pixabay.com/api/docs/) |
+| **Openverse / Archive / NASA** | — | No API key; needs `ffmpeg` on PATH for video clips |
 | **Gemini** | Settings | Required for **Analyze Script** |
 | **Google Flow** | Settings → AI / Flow Accounts | Sign in once per Google account in a real Chrome window. Password is never stored by the app. |
 | **Whisper / captions** | Settings | Transcription model and burn-in captions |

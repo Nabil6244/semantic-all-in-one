@@ -146,7 +146,14 @@ class GeminiLLM:
         self.base_url = (base_url or os.environ.get("GEMINI_BASE_URL") or DEFAULT_GEMINI_BASE).rstrip("/")
         self.timeout = timeout
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(
+        self,
+        system: str,
+        user: str,
+        *,
+        thinking_level: str = "medium",
+        max_output_tokens: int = 65536,
+    ) -> str:
         if not self.api_key:
             raise LLMError(MISSING_GEMINI_KEY)
         url = f"{self.base_url}/v1beta/models/{self.model}:generateContent"
@@ -158,9 +165,9 @@ class GeminiLLM:
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "maxOutputTokens": 65536,
+                "maxOutputTokens": max(1024, int(max_output_tokens)),
                 "thinkingConfig": {
-                    "thinkingLevel": "medium",
+                    "thinkingLevel": thinking_level,
                 },
             },
         }

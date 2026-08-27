@@ -35,6 +35,17 @@ PROVIDER_LABELS = {
     "youtube_video": "YouTube Video",
     "youtube": "YouTube Video",
     AssetSource.YOUTUBE_VIDEO: "YouTube Video",
+    "archive_video": "Internet Archive",
+    "archive": "Internet Archive",
+    AssetSource.ARCHIVE_VIDEO: "Internet Archive",
+    "nasa_video": "NASA Media",
+    "nasa": "NASA Media",
+    AssetSource.NASA_VIDEO: "NASA Media",
+    "commons_video": "Stock Video",
+    "commons": "Stock Video",
+    AssetSource.COMMONS_VIDEO: "Stock Video",
+    "commons_image": "Stock Image",
+    AssetSource.COMMONS_IMAGE: "Stock Image",
     "stock_video": "Stock Video",
     "stock": "Stock Video",
     AssetSource.STOCK_VIDEO: "Stock Video",
@@ -403,9 +414,9 @@ class SceneQAState:
         elif status in UNRESOLVED:
             actions = ["retry", "alternative", "local_clip", "skip", "change_source"]
         elif status in READY:
-            actions = ["retry", "alternative", "change_source"]
+            actions = ["retry", "alternative", "local_clip", "change_source", "open"]
         else:
-            actions = ["retry", "alternative", "change_source"]
+            actions = ["retry", "alternative", "local_clip", "change_source"]
         return {
             "title": f"Scene {scene.scene_number}",
             "status": STATUS_LABELS.get(status, status.replace("_", " ").upper()),

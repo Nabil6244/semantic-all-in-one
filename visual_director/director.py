@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable, Optional
+
 from .llm import GeminiLLM, LLMError, LLMProvider
 from .schema import MIN_SCENES, VisualPlan, VisualPlanError, parse_visual_plan
+
+PlanProgressCallback = Callable[[str, Optional[float]], None]
 
 # Planning estimate only — not an exact runtime and not a scene-count formula.
 NARRATION_WPM_LOW = 130
@@ -13,6 +18,27 @@ NARRATION_WPM_ESTIMATE = 145
 # (documentary rhythm is ~2–5s; provider clips max out at 3–6s).
 SEVERE_HOLD_SECONDS = 8.0
 MIN_COVERAGE_RATIO = 0.55
+
+
+def max_implied_speech_per_scene(word_count: int) -> float:
+    """How much average narration one scene may cover before we reject the plan.
+
+    Short scripts keep the strict 8s documentary rhythm. Very long scripts cannot
+    realistically emit 400+ JSON scenes in one Gemini call, so the cap relaxes
+    slightly when scene count is already dense (see plan_segmentation_issue).
+    """
+    if word_count >= 4500:
+        return 12.0
+    if word_count >= 2500:
+        return 10.5
+    if word_count >= 1200:
+        return 9.0
+    return SEVERE_HOLD_SECONDS
+
+
+def plan_max_attempts(word_count: int) -> int:
+    """Gemini revision passes — long scripts often need an extra split attempt."""
+    return 3 if word_count >= 2500 else 2
 
 SYSTEM_PROMPT = """You are the Visual Director for a narrated documentary.
 
@@ -86,35 +112,58 @@ Semantic, not literal. Show the meaning in a watchable shot.
   meet a schedule their body is resisting.
 
 MEDIA RULES (evaluate the visual — do NOT use a fixed Stock→YouTube→Flow ladder):
-- stock_video is the DEFAULT for ordinary real-world B-roll stock can film:
+- stock_video is the DEFAULT for ordinary modern real-world B-roll stock can film:
   people, cities, commuting, driving, sleeping, phones, nature, airplanes,
-  ordinary daily activities. Prefer HD stock when it is sufficient.
-- youtube ONLY when authentic footage has documentary value: a real rocket
-  launch, a historical event, a real scientific demonstration, a specific
-  real-world event stock cannot reproduce. Never pick YouTube because a
-  video exists. HARD MAX 3.0s.
-- flow_video is first-class when generated motion helps: scientific
-  visualization, biological processes, conceptual explanation, impossible
-  camera moves, cinematic transitions, time/space metaphors, tech+nature,
-  shots stock cannot provide. HARD MAX 6.0s.
+  ordinary daily activities. Pexels/Pixabay/Openverse cover this. Prefer HD
+  stock when it is sufficient. HARD MAX 6.0s.
+- archive_video (Internet Archive) for HISTORICAL / PUBLIC-DOMAIN documentary
+  footage: pre-2000s newsreels, old government film, classic space-program
+  archival clips, historical events where rights-clear authentic footage exists
+  on archive.org. Prefer archive over YouTube when the beat is clearly
+  historical and archive likely has better rights/metadata. HARD MAX 3.0s.
+- nasa_video (NASA media library) for US space/science footage: rocket
+  launches, mission control, planets, satellites, ISS, rovers, official NASA
+  animations/real telemetry visuals. Use for space/science beats BEFORE generic
+  YouTube or stock when NASA likely has the authentic clip. HARD MAX 3.0s.
+- youtube ONLY when RECENT authentic footage has documentary value that archive
+  and NASA cannot supply: a recent rocket launch, a contemporary news event,
+  a real scientific demo uploaded recently, a specific modern real-world event.
+  Never pick YouTube for pre-1980 history if archive can serve the beat.
+  Never pick YouTube because a video exists. HARD MAX 3.0s.
+- flow_video when generated motion helps: scientific visualization, biological
+  processes, conceptual explanation, impossible camera moves, cinematic
+  transitions, time/space metaphors, tech+nature, shots stock/archives cannot
+  provide. HARD MAX 6.0s.
 - flow_image for conceptual/static visualizations when motion is unnecessary.
   HARD MAX 3.0s.
 - stock_image when motion adds nothing or video is unavailable. HARD MAX 3.0s.
 - local only if the user said a file already exists.
+- NEVER use local in an analyzed plan — local is for manual CSV / user-dropped files only.
+  If unsure, use stock_video or stock_image with search_queries.
+
+SOURCE PRIORITY CHEAT-SHEET (pick the strongest fit per beat, not a ladder):
+- Modern everyday life → stock_video
+- US space / NASA missions / planets / rockets (official) → nasa_video
+- Historical newsreel / old film / public-domain archive → archive_video
+- Famous historical photo / map / diagram / encyclopedic still → stock_image
+- Recent authentic event not in archives → youtube_video
+- Abstract concept / impossible shot → flow_video or flow_image
 
 QUALITY: every scene needs minimum_quality, normally "1080p".
-YouTube/stock: prefer 1080p+. Flow: cinematic, sharp, well-lit.
+Stock/archive/NASA/YouTube: prefer 1080p+ when available. Flow: cinematic.
 
 SEARCH QUERIES:
 - stock_video / stock_image: 6–12 words: subject + action + setting + time of day.
-- youtube_video: 3–8 searchable words. Multiple queries REQUIRED, progressively
-  broader (specific → slightly broader → semantic → still-relevant generic).
-  Example for a night Falcon 9:
-    ["Falcon 9 rocket launch night", "SpaceX Falcon 9 launch",
-     "Falcon 9 night launch", "rocket launch night"]
-  Forbidden: cinematic fluff ("standing on launchpad", "floodlights",
-  "static view", "cinematic", "close-up tracking shot") and tiny rewrites of
-  the same sentence. Do not invent irrelevant queries to pad the list.
+- archive_video / nasa_video / youtube_video: 3–8 searchable words.
+  Multiple queries REQUIRED (at least 2), progressively broader:
+  specific event/person/mission → slightly broader → semantic synonym.
+  Examples:
+    Apollo 11 launch (archive): ["apollo 11 launch 1969", "saturn v liftoff moon mission"]
+    Pluto flyby (nasa): ["new horizons pluto flyby", "pluto encounter nasa"]
+    Moon landing (stock_image): ["apollo 11 moon landing", "neil armstrong lunar surface"]
+    Recent Falcon 9 (youtube): ["Falcon 9 rocket launch night", "SpaceX Falcon 9 launch"]
+  Forbidden: cinematic fluff, narration copied verbatim, tiny rewrites of the same
+  sentence, or irrelevant queries to pad the list.
 - Forbidden generic: "tired person", "people walking", "busy city", "man thinking",
   "person using phone", or the narration copied verbatim.
 - Flow: put the generation prompt in visual_description; leave search_queries empty.
@@ -122,11 +171,13 @@ SEARCH QUERIES:
 If phones or beds appear more than once, each shot must differ (alarm-as-clock
 vs blue-light scrolling vs phone face-down; dawn vs weekend vs night).
 
-timestamp_needed is true ONLY for YouTube scenes that need a specific moment.
+timestamp_needed is true ONLY for youtube_video scenes that need a specific moment.
+Archive/NASA do not use timestamp_needed — pick search queries instead.
 You do not extract transcripts.
 
 DURATION HARD LIMITS (a plan is INVALID if any scene exceeds its cap):
-- youtube / youtube_video: preferred 2.0–3.0s, HARD MAX 3.0s
+- youtube / youtube_video / archive / archive_video / nasa / nasa_video:
+  preferred 2.0–3.0s, HARD MAX 3.0s
 - flow_video: preferred 3.0–5.0s, HARD MAX 6.0s
 - stock_video: preferred 2.5–5.0s, HARD MAX 6.0s
 - flow_image: preferred 2.0–3.0s, HARD MAX 3.0s
@@ -139,12 +190,20 @@ past its cap. Split into another beat. Every scene duration >= 1.5s.
 Fallbacks must match THIS scene's visual (not one chain for every scene):
 stock_video → stock_image → flow_image;
 flow_image → stock_image (or stock_video if a real approximation exists);
-flow_video → stock_video → flow_image.
-youtube: pick fallbacks that still serve the beat if authentic footage cannot
-be found. Example for a launch: flow_video, stock_video, flow_image. For a
-real historical event where generated footage would mislead, prefer
-stock_video then flow_image — not a fake recreation. Always declare at least
-one fallback for youtube. Never let a single failed YouTube query kill the scene.
+flow_video → stock_video → flow_image;
+archive_video → youtube → stock_video → flow_image;
+nasa_video → archive → youtube → flow_video;
+youtube → archive → stock_video → flow_image (prefer archive for historical
+beats if YouTube fails; prefer stock/flow for modern lifestyle beats).
+Always declare at least one fallback for archive, nasa, and youtube.
+Never let a single failed search query kill the scene.
+
+VISUAL ALLOCATION (application-side — you do NOT micromanage counts):
+Describe WHAT visual is needed (visual_goal, visual_description, provider_preference
+as a HINT). The application automatically decides image vs video mix, AI-video
+budget, and coverage — do NOT specify exact counts of Flow/stock/image scenes.
+Focus on semantic visual requirements per beat; the Visual Allocation Engine
+assigns asset types after your plan is parsed.
 
 Return ONE JSON object, no prose:
 {
@@ -155,14 +214,14 @@ Return ONE JSON object, no prose:
       "narration": "exact words this scene covers (may be more than one sentence)",
       "visual_goal": "what the shot must communicate",
       "visual_description": "concrete visible content",
-      "asset_type": "youtube_video | stock_video | stock_image | image | video | local",
-      "provider_preference": "youtube | stock_video | stock_image | flow_image | flow_video | local",
-      "search_queries": ["Falcon 9 rocket launch night", "SpaceX Falcon 9 launch", "rocket launch night"],
+      "asset_type": "youtube_video | archive_video | nasa_video | stock_video | stock_image | image | video",
+      "provider_preference": "youtube | archive | nasa | stock_video | stock_image | flow_image | flow_video",
+      "search_queries": ["apollo 11 launch 1969", "saturn v moon mission liftoff"],
       "timestamp_needed": false,
       "timestamp_hint": "",
       "duration": 2.5,
       "importance": "high | medium | low",
-      "fallbacks": ["flow_video", "stock_video", "flow_image"],
+      "fallbacks": ["youtube", "stock_video", "flow_image"],
       "visual_treatment": "subtle push-in",
       "transition": "cut",
       "minimum_quality": "1080p"
@@ -174,7 +233,8 @@ Return as many scene objects as the narration requires. The example above is
 the shape of ONE scene, not the length of the film.
 
 asset_type must match provider_preference:
-youtube→youtube_video, stock_video→stock_video, stock_image→stock_image,
+youtube→youtube_video, archive→archive_video, nasa→nasa_video,
+stock_video→stock_video, stock_image→stock_image,
 flow_image→image, flow_video→video, local→local.
 transition: cut, dissolve, fade, or match_cut.
 """
@@ -222,7 +282,10 @@ def plan_segmentation_issue(script: str, plan: VisualPlan) -> str | None:
     # Short pieces are allowed to stay compact.
     if estimated >= 120 and n > 0:
         implied = estimated / n
-        if implied > SEVERE_HOLD_SECONDS:
+        hold_cap = max_implied_speech_per_scene(words)
+        # Dense plans (many scenes for the word count) are acceptable even near the cap.
+        dense_enough = n >= max(MIN_SCENES, int(words / 26))
+        if implied > hold_cap and not (dense_enough and implied <= hold_cap + 2.5):
             minutes = estimated / 60.0
             return (
                 f"Plan is under-segmented: about {words:,} words "
@@ -279,14 +342,69 @@ def _revision_user_message(script: str, previous: VisualPlan, issue: str) -> str
     )
 
 
+def gemini_plan_settings(word_count: int) -> dict:
+    """Tune Gemini latency vs coverage from script size (Analyze Script)."""
+    if word_count < 120:
+        return {"thinking_level": "low", "max_output_tokens": 8192, "timeout": 90.0}
+    if word_count < 400:
+        return {"thinking_level": "low", "max_output_tokens": 16384, "timeout": 120.0}
+    if word_count < 1200:
+        return {"thinking_level": "low", "max_output_tokens": 32768, "timeout": 180.0}
+    return {"thinking_level": "medium", "max_output_tokens": 65536, "timeout": 300.0}
+
+
 class VisualDirector:
     def __init__(self, llm: LLMProvider | None = None, settings=None):
         self.llm = llm or GeminiLLM(settings=settings, timeout=300.0)
+        self.settings = settings
 
-    def plan(self, script: str, *, style_guidance: str = "") -> VisualPlan:
-        text = (script or "").strip()
-        if not text:
-            raise ValueError("script is empty")
+    def _emit_progress(
+        self,
+        on_progress: PlanProgressCallback | None,
+        message: str,
+        fraction: float | None = None,
+    ) -> None:
+        if on_progress is not None:
+            on_progress(message, fraction)
+
+    def _llm_for_words(self, words: int) -> tuple[LLMProvider, dict]:
+        gemini_opts = gemini_plan_settings(words)
+        llm = self.llm
+        if isinstance(llm, GeminiLLM):
+            llm = GeminiLLM(
+                api_key=llm.api_key,
+                model=llm.model,
+                base_url=llm.base_url,
+                timeout=gemini_opts["timeout"],
+                settings=self.settings,
+            )
+        return llm, gemini_opts
+
+    def _complete_plan(
+        self,
+        llm: LLMProvider,
+        user: str,
+        *,
+        gemini_opts: dict,
+    ) -> VisualPlan:
+        if isinstance(llm, GeminiLLM):
+            raw = llm.complete(
+                SYSTEM_PROMPT,
+                user,
+                thinking_level=gemini_opts["thinking_level"],
+                max_output_tokens=gemini_opts["max_output_tokens"],
+            )
+        else:
+            raw = llm.complete(SYSTEM_PROMPT, user)
+        return parse_visual_plan(raw)
+
+    def _plan_single(
+        self,
+        text: str,
+        *,
+        style_guidance: str = "",
+        on_progress: PlanProgressCallback | None = None,
+    ) -> VisualPlan:
         user = _plan_user_message(text)
         tip = (style_guidance or "").strip()
         if tip:
@@ -295,16 +413,135 @@ class VisualDirector:
                 f"{tip}\n\n"
                 + user
             )
+        words = script_word_count(text)
+        llm, gemini_opts = self._llm_for_words(words)
         last_issue = ""
-        for attempt in range(2):
+        max_attempts = plan_max_attempts(words)
+        for attempt in range(max_attempts):
+            self._emit_progress(
+                on_progress,
+                f"Gemini planning — attempt {attempt + 1}/{max_attempts}…",
+                0.15 + (attempt / max(max_attempts, 1)) * 0.55,
+            )
             try:
-                raw = self.llm.complete(SYSTEM_PROMPT, user)
+                plan = self._complete_plan(llm, user, gemini_opts=gemini_opts)
             except LLMError:
                 raise
-            plan = parse_visual_plan(raw)
             issue = plan_segmentation_issue(text, plan)
             if issue is None:
+                self._emit_progress(
+                    on_progress,
+                    f"Plan accepted — {len(plan.scenes)} scene(s).",
+                    0.75,
+                )
                 return plan
             last_issue = issue
+            self._emit_progress(
+                on_progress,
+                f"Revision needed: {issue[:120]}…",
+                0.2 + (attempt / max(max_attempts, 1)) * 0.5,
+            )
             user = _revision_user_message(text, plan, issue)
         raise VisualPlanError(last_issue)
+
+    def _plan_chunked(
+        self,
+        text: str,
+        *,
+        style_guidance: str = "",
+        on_progress: PlanProgressCallback | None = None,
+    ) -> VisualPlan:
+        from .chunking import (
+            chunk_plan_user_message,
+            merge_chunk_plans,
+            split_script_into_chunks,
+        )
+
+        words = script_word_count(text)
+        chunks = split_script_into_chunks(text)
+        total = len(chunks)
+        self._emit_progress(
+            on_progress,
+            f"Long script ({words:,} words) — planning {total} sections in parallel…",
+            0.05,
+        )
+        tip = (style_guidance or "").strip()
+        style_prefix = ""
+        if tip:
+            style_prefix = (
+                "PRODUCTION STYLE GUIDANCE (follow without changing scene coverage rules):\n"
+                f"{tip}\n\n"
+            )
+
+        def plan_one(index: int, chunk: str) -> VisualPlan:
+            chunk_words = script_word_count(chunk)
+            llm, gemini_opts = self._llm_for_words(chunk_words)
+            user = style_prefix + chunk_plan_user_message(
+                chunk,
+                section_index=index,
+                section_total=total,
+                full_word_count=words,
+            )
+            return self._complete_plan(llm, user, gemini_opts=gemini_opts)
+
+        plans: list[VisualPlan | None] = [None] * total
+        done = 0
+        workers = min(4, total)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(plan_one, i, chunk): i
+                for i, chunk in enumerate(chunks)
+            }
+            for fut in as_completed(futures):
+                index = futures[fut]
+                plans[index] = fut.result()
+                done += 1
+                scene_so_far = sum(len(p.scenes) for p in plans if p is not None)
+                self._emit_progress(
+                    on_progress,
+                    f"Section {done}/{total} complete — {scene_so_far} scenes so far…",
+                    0.1 + (done / total) * 0.55,
+                )
+
+        merged = merge_chunk_plans([p for p in plans if p is not None])
+        self._emit_progress(
+            on_progress,
+            f"Merged {len(merged.scenes)} scenes — validating full script…",
+            0.7,
+        )
+        issue = plan_segmentation_issue(text, merged)
+        if issue is None:
+            return merged
+
+        self._emit_progress(
+            on_progress,
+            "Merged plan needs refinement — running full-script revision…",
+            0.72,
+        )
+        return self._plan_single(text, style_guidance=style_guidance, on_progress=on_progress)
+
+    def plan(
+        self,
+        script: str,
+        *,
+        style_guidance: str = "",
+        on_progress: PlanProgressCallback | None = None,
+    ) -> VisualPlan:
+        text = (script or "").strip()
+        if not text:
+            raise ValueError("script is empty")
+        from .chunking import should_chunk_plan
+
+        words = script_word_count(text)
+        self._emit_progress(
+            on_progress,
+            f"Starting analyze (~{words:,} words)…",
+            0.02,
+        )
+        if should_chunk_plan(text):
+            return self._plan_chunked(
+                text, style_guidance=style_guidance, on_progress=on_progress
+            )
+        return self._plan_single(
+            text, style_guidance=style_guidance, on_progress=on_progress
+        )

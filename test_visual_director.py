@@ -195,11 +195,30 @@ class TestVisualPlanParsing(unittest.TestCase):
         plan = parse_visual_plan(flow_video)
         self.assertEqual(plan.scenes[0].duration, 6.0)
 
+        for provider in ("archive", "nasa"):
+            doc = json.loads(json.dumps(VALID_PLAN))
+            doc["scenes"][3]["provider_preference"] = provider
+            doc["scenes"][3].pop("asset_type", None)
+            doc["scenes"][3]["duration"] = 3.5
+            plan = parse_visual_plan(doc)
+            self.assertEqual(plan.scenes[3].duration, 3.0, msg=provider)
+
         ok = json.loads(json.dumps(VALID_PLAN))
         ok["scenes"][2]["duration"] = 3.0
         ok["scenes"][3]["duration"] = 3.0
         ok["scenes"][0]["duration"] = 6.0
         parse_visual_plan(ok)
+
+    def test_local_provider_remapped_to_stock(self):
+        payload = json.loads(json.dumps(VALID_PLAN))
+        payload["scenes"] = payload["scenes"][:2]
+        payload["scenes"][0]["asset_type"] = "local"
+        payload["scenes"][0]["provider_preference"] = "local"
+        payload["scenes"][0]["search_queries"] = []
+        plan = parse_visual_plan(payload)
+        self.assertEqual(plan.scenes[0].asset_type, "stock_video")
+        self.assertEqual(plan.scenes[0].provider_preference, "stock_video")
+        self.assertTrue(plan.scenes[0].search_queries)
 
     def test_scene_ordering_renumbers_gaps(self):
         payload = json.loads(json.dumps(VALID_PLAN))
@@ -233,7 +252,56 @@ class TestVisualPlanParsing(unittest.TestCase):
         ]
         with self.assertRaises(VisualPlanError) as ctx:
             parse_visual_plan(payload)
-        self.assertIn("at least 2 search_queries", str(ctx.exception))
+        msg = str(ctx.exception).lower()
+        self.assertTrue("distinct" in msg or "at least 2" in msg, msg)
+
+    def test_archive_and_nasa_providers_parse_and_route(self):
+        payload = {
+            "topic": "Apollo and Pluto",
+            "scenes": [
+                {
+                    "scene_id": 1,
+                    "narration": "Apollo 11 lifted off in July 1969.",
+                    "visual_goal": "Show the historic Saturn V launch.",
+                    "visual_description": "Saturn V rocket clearing the tower with flame and smoke.",
+                    "provider_preference": "archive",
+                    "search_queries": [
+                        "apollo 11 launch 1969",
+                        "saturn v liftoff moon mission",
+                    ],
+                    "duration": 3.0,
+                    "importance": "high",
+                    "fallbacks": ["youtube", "flow_video"],
+                    "visual_treatment": "static",
+                    "transition": "cut",
+                },
+                {
+                    "scene_id": 2,
+                    "narration": "New Horizons revealed Pluto's heart-shaped region.",
+                    "visual_goal": "Show NASA flyby imagery.",
+                    "visual_description": "Pluto's pale heart-shaped Tombaugh Regio from space.",
+                    "provider_preference": "nasa",
+                    "search_queries": [
+                        "new horizons pluto flyby",
+                        "pluto heart tombaugh regio nasa",
+                    ],
+                    "duration": 2.5,
+                    "importance": "high",
+                    "fallbacks": ["archive", "flow_video"],
+                    "visual_treatment": "static",
+                    "transition": "cut",
+                },
+            ],
+        }
+        plan = parse_visual_plan(payload)
+        self.assertEqual(plan.scenes[0].asset_type, "archive_video")
+        self.assertEqual(plan.scenes[1].asset_type, "nasa_video")
+        rows = plan.to_scene_rows()
+        self.assertEqual(SceneAssetRouter.classify(rows[0]), AssetSource.ARCHIVE_VIDEO)
+        self.assertEqual(SceneAssetRouter.classify(rows[1]), AssetSource.NASA_VIDEO)
+        csv_rows = plan.to_csv_dicts()
+        self.assertIn(" || ", csv_rows[0]["prompt"])
+        self.assertEqual(csv_rows[0]["asset_type"], "archive_video")
 
     def test_duration_caps_still_apply_to_youtube(self):
         payload = json.loads(json.dumps(VALID_PLAN))
@@ -567,6 +635,40 @@ class TestCoveragePlanning(unittest.TestCase):
         self.assertEqual(len(plan.scenes), n_ok)
         self.assertIsNone(plan_segmentation_issue(script, plan))
 
+    def test_five_k_word_dense_plan_accepted(self):
+        """~5k words / ~190 scenes must not fail the strict 8s hold rule."""
+        from visual_director.director import (
+            estimate_narration_seconds,
+            plan_segmentation_issue,
+            script_word_count,
+        )
+        from visual_director.schema import parse_visual_plan
+
+        chunk = (
+            "The old house stood on the hill overlooking the valley where fog "
+            "gathered every morning before the sun broke through the trees. "
+        )
+        script = chunk * 210
+        words = script_word_count(script)
+        self.assertGreaterEqual(words, 4300)
+
+        est = estimate_narration_seconds(words)
+        n_scenes = 192
+        # Split script into n_scenes narration slices so coverage passes.
+        tokens = script.split()
+        per = max(1, len(tokens) // n_scenes)
+        scenes = []
+        for i in range(n_scenes):
+            start = i * per
+            end = (i + 1) * per if i < n_scenes - 1 else len(tokens)
+            narr = " ".join(tokens[start:end]) or chunk.strip()
+            scenes.append(_stock_scene(i + 1, narr))
+        plan = parse_visual_plan({"topic": "House documentary", "scenes": scenes})
+        implied = est / len(plan.scenes)
+        self.assertGreater(implied, 8.0)
+        self.assertLess(implied, 12.0)
+        self.assertIsNone(plan_segmentation_issue(script, plan))
+
     def test_compressed_plan_is_not_silently_accepted(self):
         chunk = "Pluto is a frozen world with a buried ocean and a blue haze. "
         script = chunk * 400
@@ -587,7 +689,9 @@ class TestCoveragePlanning(unittest.TestCase):
     def test_duration_hard_caps_unchanged_in_prompt(self):
         self.assertIn("HARD MAX 3.0s", SYSTEM_PROMPT)
         self.assertIn("HARD MAX 6.0s", SYSTEM_PROMPT)
-        self.assertIn("flow_video is first-class", SYSTEM_PROMPT)
+        self.assertIn("archive_video", SYSTEM_PROMPT)
+        self.assertIn("nasa_video", SYSTEM_PROMPT)
+        self.assertNotIn("commons_image", SYSTEM_PROMPT)
 
 
 if __name__ == "__main__":

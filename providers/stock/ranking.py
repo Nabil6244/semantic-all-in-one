@@ -5,28 +5,39 @@ existing renderer already loops/trims video to fit whatever duration it gets."""
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Iterable, List, Set
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set
+
+from providers.media_quality.scoring import (
+    effective_dimensions,
+    passes_quality_floor,
+    selection_score,
+)
 
 if TYPE_CHECKING:
+    from ..base import SceneRow
     from .base import Candidate
-
-MIN_WIDTH = 1000
-MIN_HEIGHT = 600
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
 
 def filter_candidates(candidates: Iterable["Candidate"]) -> List["Candidate"]:
-    """Landscape only (matches this app's current default 1920x1080 output) and a
-    minimum resolution floor so we never pick something that'll look soft after
-    the renderer's cover-crop to full frame."""
+    """Landscape + metadata quality floor (preview/derivative URLs rejected)."""
     out = []
     for c in candidates:
         if c.orientation != "landscape":
             continue
-        if c.width < MIN_WIDTH or c.height < MIN_HEIGHT:
-            continue
-        out.append(c)
+        ew, eh = effective_dimensions(c.width, c.height, c.url, c.provider)
+        ok, _ = passes_quality_floor(
+            width=ew,
+            height=eh,
+            download_url=c.url,
+            provider=c.provider,
+            media_type=c.media_type.value,
+            duration=c.duration,
+            is_archival=False,
+        )
+        if ok:
+            out.append(c)
     return out
 
 
@@ -35,12 +46,14 @@ def _tokens(text: str) -> Set[str]:
 
 
 def _relevance_score(candidate: "Candidate", query: str) -> float:
+    """Legacy helper — kept for tests that import it directly."""
     query_tokens = _tokens(query)
     if not query_tokens:
         return 0.0
     haystack = (
         _tokens(candidate.source_url)
         | _tokens(candidate.extra.get("alt", ""))
+        | _tokens(candidate.extra.get("tags", ""))
         | _tokens(candidate.author)
     )
     if not haystack:
@@ -48,25 +61,113 @@ def _relevance_score(candidate: "Candidate", query: str) -> float:
     return len(query_tokens & haystack) / len(query_tokens)
 
 
-def rank_candidates(
-    candidates: List["Candidate"], query: str, used_asset_ids: Set[str]
-) -> List["Candidate"]:
-    def score(c: "Candidate") -> float:
-        s = _relevance_score(c, query) * 3.0
-        # Resolution: reward, capped so an 8K image doesn't dominate a fine 1080p match.
-        pixels = c.width * c.height
-        hd = 1920 * 1080
-        if pixels <= hd:
-            s += pixels / hd
-        else:
-            # Huge 4K+ stock videos stall downloads; prefer 1080p-class files.
-            s += max(0.4, 1.0 - min((pixels - hd) / hd, 0.8))
-        if c.media_type.value == "video" and c.duration and c.duration >= 2:
-            s += 0.5  # mild bonus for a usable (not near-zero-length) clip
-        if c.media_type.value == "video" and c.width >= 3840:
-            s -= 1.2
-        if c.asset_id in used_asset_ids:
-            s -= 5.0  # strong repeat-penalty: heavily discourage reusing the same asset
-        return s
+def _candidate_dedupe_key(candidate: "Candidate") -> str:
+    raw = (candidate.url or candidate.source_url or "").lower().strip()
+    if raw:
+        return raw.split("?")[0].rstrip("/")
+    title = (
+        candidate.extra.get("alt", "")
+        or candidate.extra.get("tags", "")
+        or ""
+    ).lower().strip()
+    if len(title) >= 8:
+        return f"title:{title[:96]}"
+    return f"{candidate.provider}:{candidate.asset_id}"
 
-    return sorted(candidates, key=score, reverse=True)
+
+def dedupe_candidates(candidates: List["Candidate"]) -> List["Candidate"]:
+    """Drop cross-provider duplicates (same URL or near-identical title)."""
+    seen: set[str] = set()
+    out: List["Candidate"] = []
+    for c in candidates:
+        key = _candidate_dedupe_key(c)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
+def rank_candidates(
+    candidates: List["Candidate"],
+    query: str,
+    used_asset_ids: Set[str],
+    *,
+    scene: Optional["SceneRow"] = None,
+    provider_use_counts: Optional[dict[str, int]] = None,
+    selection_context=None,
+    required_duration: Optional[float] = None,
+    log=None,
+) -> List["Candidate"]:
+    candidates = dedupe_candidates(candidates)
+    scored: List[tuple[float, Candidate, object]] = []
+    script = getattr(scene, "script_segment", "") or ""
+    visual = getattr(scene, "visual_description", "") or ""
+    style_id = ""
+    if selection_context is not None:
+        style_id = getattr(selection_context, "style_id", "") or ""
+
+    for c in candidates:
+        ew, eh = effective_dimensions(c.width, c.height, c.url, c.provider)
+        if selection_context is not None:
+            from style_engine.visual_selection import smart_selection_score
+
+            breakdown = smart_selection_score(
+                query=query,
+                script_segment=script,
+                visual_description=visual,
+                title=c.extra.get("alt", "") or c.extra.get("tags", ""),
+                description=c.extra.get("tags", "") or c.extra.get("alt", ""),
+                extra_text=c.source_url,
+                width=ew,
+                height=eh,
+                download_url=c.url,
+                provider=c.provider,
+                media_type=c.media_type.value,
+                duration=c.duration,
+                used_asset_ids=used_asset_ids,
+                asset_id=c.asset_id,
+                provider_use_counts=provider_use_counts,
+                is_archival=False,
+                context=selection_context,
+                required_duration=required_duration,
+            )
+        else:
+            breakdown = selection_score(
+                query=query,
+                script_segment=script,
+                visual_description=visual,
+                title=c.extra.get("alt", "") or c.extra.get("tags", ""),
+                description=c.extra.get("tags", "") or c.extra.get("alt", ""),
+                extra_text=c.source_url,
+                width=ew,
+                height=eh,
+                download_url=c.url,
+                provider=c.provider,
+                media_type=c.media_type.value,
+                duration=c.duration,
+                used_asset_ids=used_asset_ids,
+                asset_id=c.asset_id,
+                provider_use_counts=provider_use_counts,
+                is_archival=False,
+                style_id=style_id,
+            )
+        if breakdown.reject_reason:
+            if log:
+                log(
+                    f"[STOCK] rejected {c.provider}/{c.asset_id}: {breakdown.reject_reason}"
+                )
+            continue
+        scored.append((breakdown.total, c, breakdown))
+
+    scored.sort(key=lambda row: row[0], reverse=True)
+    if log and scored:
+        best = scored[0]
+        b = best[2]
+        c = best[1]
+        log(
+            f"[STOCK] ranked top {c.provider} {c.width}x{c.height} "
+            f"Q={b.quality:.2f} R={b.relevance:.2f} role={b.visual_role_score:.2f} "
+            f"style={b.style_fit_score:.2f} score={b.total:.2f}"
+        )
+    return [c for _, c, _ in scored]

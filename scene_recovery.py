@@ -20,9 +20,12 @@ PLACEHOLDER_PNG = bytes.fromhex(
 CHANGE_SOURCE_ORDER = (
     "stock_video",
     "youtube",
+    "archive",
+    "nasa",
     "flow_video",
     "flow_image",
     "stock_image",
+    "local",
 )
 
 

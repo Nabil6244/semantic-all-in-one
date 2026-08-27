@@ -25,6 +25,19 @@ from .schema import (
 )
 from .typography_map import typography_theme_for_resolved
 
+from .visual_profile import SceneVisualProfile, build_scene_visual_profile
+from .visual_roles import EVIDENCE_LEVELS, VISUAL_ROLES
+from .visual_selection import (
+    SelectionContext,
+    SelectionHistory,
+    build_selection_context,
+    expand_search_strategies,
+    scene_has_manual_authority,
+    smart_media_queries,
+    smart_selection_score,
+    visual_role_score,
+)
+
 __all__ = [
     "BRAND_KIT_VERSION",
     "VIDEO_STYLE_VERSION",
@@ -48,4 +61,16 @@ __all__ = [
     "style_choices",
     "brand_choices",
     "save_user_brand_kit",
+    "SceneVisualProfile",
+    "build_scene_visual_profile",
+    "VISUAL_ROLES",
+    "EVIDENCE_LEVELS",
+    "SelectionContext",
+    "SelectionHistory",
+    "build_selection_context",
+    "expand_search_strategies",
+    "scene_has_manual_authority",
+    "smart_media_queries",
+    "smart_selection_score",
+    "visual_role_score",
 ]

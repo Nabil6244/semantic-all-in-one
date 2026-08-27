@@ -1,0 +1,157 @@
+{
+  "id": "ancient_history_documentary",
+  "version": 3,
+  "name": "Ancient History / Archaeology",
+  "identity": {
+    "description": "Ruins, artifacts, maps, and excavation evidence for ancient civilizations.",
+    "tone": "scholarly, wonder, grounded",
+    "best_for": [
+      "ancient history",
+      "archaeology",
+      "civilizations",
+      "ruins",
+      "artifacts"
+    ]
+  },
+  "visual": {
+    "treatment": "ancient",
+    "camera": {
+      "preferred": [
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
+      "intensity": 0.4
+    },
+    "motion_rules": {},
+    "variety": {
+      "min_unique_keys": 0.6,
+      "avoid_repetition": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "normal",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.3
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": [
+      "cut",
+      "dissolve"
+    ],
+    "avoid": [
+      "flash"
+    ]
+  },
+  "audio": {
+    "ambience_intensity": 0.55,
+    "sfx_intensity": 0.4,
+    "music_intensity": 0.5,
+    "music_duck_db": -10
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.7,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "stock_image"
+    ],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "archaeological documentary — ruins, artifacts, excavation sites, ancient maps",
+    "realism": 0.8,
+    "composition": "subject-forward documentary framing",
+    "avoid": [
+      "fantasy castle",
+      "modern city"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "historical_density": 0.4,
+      "evidence_density": 0.25,
+      "archival_visual_need": 0.2,
+      "visualization_need": 0.1,
+      "cinematic_potential": 0.05
+    },
+    "preview_visual": "Ancient History",
+    "preview_camera": "Documentary",
+    "preview_pacing": "Purpose-driven",
+    "preview_audio": "Balanced",
+    "variety_family": "ancient",
+    "influences": [
+      "ancient"
+    ]
+  },
+  "visual_roles": {
+    "weights": {
+      "archival_evidence": 0.9,
+      "location": 0.85,
+      "object": 0.8,
+      "map": 0.75,
+      "document": 0.7,
+      "scale": 0.6
+    },
+    "avoid": [
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "openverse",
+      "archive",
+      "youtube",
+      "pexels"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "ruins",
+      "excavation",
+      "artifact",
+      "ancient map",
+      "temple",
+      "inscription"
+    ],
+    "avoid_terms": [
+      "fantasy castle",
+      "modern city"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.35,
+    "provider_repetition_penalty": 0.25,
+    "concept_repetition_penalty": 0.4
+  },
+  "storytelling": {
+    "narrative": "Ruins, artifacts, maps, and excavation evidence for ancient civilizations.",
+    "hook_strategy": "Lead with the most specific visual evidence available",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.5,
+    "evidence_weight": 0.7,
+    "atmosphere_weight": 0.45,
+    "process_weight": 0.5
+  }
+}

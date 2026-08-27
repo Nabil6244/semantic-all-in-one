@@ -13,6 +13,7 @@ import {
 } from "./accounts.js";
 import {
   checkAuthStatus,
+  dismissBlockingOverlays,
   openOrCreateProject,
   waitForFlowReady,
 } from "./flow-api.js";
@@ -203,7 +204,13 @@ async function prepareAccount(accountId, label) {
 
   const { page } = await openAccountBrowser(accountId, { headed: true });
   await gotoFlow(page);
-  const st = await checkAuthStatus(page);
+  await dismissBlockingOverlays(page);
+  let st = await checkAuthStatus(page);
+  if (!st.authenticated) {
+    await dismissBlockingOverlays(page);
+    await new Promise((r) => setTimeout(r, 800));
+    st = await checkAuthStatus(page);
+  }
   if (!st.authenticated) {
     throw new Error(`Account "${label}" is not signed in`);
   }
@@ -308,7 +315,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
     const used = workers.some((w) => w.id === a.id);
     accountProgress.set(a.id, {
       status: "idle",
-      message: used ? "Starting…" : "Not needed for this batch",
+      message: used ? "Starting…" : "Standby (rate-limit rotation)",
       completed: 0,
       failed: 0,
       total: 0,
@@ -316,30 +323,50 @@ async function runGenerate({ prompts, settings, accountIds }) {
   }
   pushState({ generateError: null });
 
-  const slices = splitPrompts(prompts, workers.length);
+  /** @type {Map<number, Set<string>>} */
+  const triedByIndex = new Map();
+  /** Accounts that hit hard quota and should not receive more work this run. */
+  const exhaustedAccounts = new Set();
   const total = prompts.length;
   let caught = null;
 
-  try {
-    // Prepare only accounts that will receive prompts
-    await Promise.all(
-      workers.map((a) =>
-        prepareAccount(a.id, a.label).catch((e) => {
-          accountProgress.set(a.id, {
-            status: "error",
-            message: e.message,
-          });
-          pushState();
-          throw e;
-        }),
-      ),
+  const markTried = (index, accountId) => {
+    if (!triedByIndex.has(index)) triedByIndex.set(index, new Set());
+    triedByIndex.get(index).add(accountId);
+  };
+
+  const remainingAccountsFor = (index) =>
+    selected.filter(
+      (a) => !exhaustedAccounts.has(a.id) && !(triedByIndex.get(index) || new Set()).has(a.id),
     );
 
-    // Run slices in parallel
+  async function ensurePrepared(account) {
+    const { getPage } = await import("./accounts.js");
+    let page = getPage(account.id);
+    if (!page || page.isClosed()) {
+      await prepareAccount(account.id, account.label);
+      page = getPage(account.id);
+    } else {
+      // Reused Chrome window — ensure we're on a live project, not mid-navigation.
+      await openOrCreateProject(page);
+      await waitForFlowReady(page);
+    }
+    if (!page) throw new Error("Browser closed for " + account.label);
+    return page;
+  }
+
+  /**
+   * Run prompt slices on the given accounts in parallel.
+   * Returns items that need another account (rate limit / quota handoff).
+   */
+  async function runPass(passWorkers, slices) {
+    /** @type {{ index: number, prompt: string, reason?: string, fromAccountId: string }[]} */
+    const reassign = [];
+
     await Promise.all(
-      workers.map(async (a, i) => {
+      passWorkers.map(async (a, i) => {
         const slice = slices[i];
-        if (!slice.prompts.length) {
+        if (!slice?.prompts?.length) {
           accountProgress.set(a.id, {
             status: "idle",
             message: "No prompts assigned",
@@ -351,9 +378,25 @@ async function runGenerate({ prompts, settings, accountIds }) {
           return;
         }
 
-        const { getPage } = await import("./accounts.js");
-        const page = getPage(a.id);
-        if (!page) throw new Error("Browser closed for " + a.label);
+        for (const idx of slice.indices) markTried(idx, a.id);
+
+        let page;
+        try {
+          page = await ensurePrepared(a);
+        } catch (e) {
+          accountProgress.set(a.id, { status: "error", message: e.message });
+          pushState();
+          for (let j = 0; j < slice.prompts.length; j++) {
+            reassign.push({
+              index: slice.indices[j],
+              prompt: slice.prompts[j],
+              reason: "prepare_failed",
+              fromAccountId: a.id,
+            });
+          }
+          exhaustedAccounts.add(a.id);
+          return;
+        }
 
         accountProgress.set(a.id, {
           status: "running",
@@ -364,7 +407,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
         });
         pushState();
 
-        await runBatchSlice({
+        const result = await runBatchSlice({
           page,
           prompts: slice.prompts,
           promptIndices: slice.indices,
@@ -399,6 +442,13 @@ async function runGenerate({ prompts, settings, accountIds }) {
                 total: slice.prompts.length,
                 folder: evt.folder,
               });
+            } else if (evt.type === "PROMPT_RESULT") {
+              broadcast({
+                type: "PROMPT_RESULT",
+                accountId: a.id,
+                label: a.label,
+                ...evt,
+              });
             } else if (evt.type === "status") {
               accountProgress.set(a.id, {
                 ...cur,
@@ -408,20 +458,143 @@ async function runGenerate({ prompts, settings, accountIds }) {
             pushState();
           },
         });
+
+        for (const item of result?.reassign || []) {
+          if (item.reason === "quota") exhaustedAccounts.add(a.id);
+          reassign.push({ ...item, fromAccountId: a.id });
+        }
       }),
     );
+
+    return reassign;
+  }
+
+  function emitFinalFail(index, prompt, message) {
+    broadcast({
+      type: "PROMPT_RESULT",
+      index,
+      prompt,
+      status: "failed",
+      error: message,
+      message,
+    });
+    broadcast({
+      type: "BATCH_PROGRESS",
+      index,
+      total,
+      status: "failed",
+      message,
+    });
+  }
+
+  try {
+    // First pass — initial workers
+    await Promise.all(
+      workers.map((a) =>
+        ensurePrepared(a).catch((e) => {
+          accountProgress.set(a.id, { status: "error", message: e.message });
+          pushState();
+          throw e;
+        }),
+      ),
+    );
+
+    let pending = await runPass(workers, splitPrompts(prompts, workers.length));
+    let passesRun = 1;
+
+    // Rotate: reassign rate-limited / quota-handed prompts to other accounts.
+    let rotateRound = 0;
+    while (pending.length && !stopAll && rotateRound < selected.length + 1) {
+      rotateRound++;
+      /** @type {Map<string, { prompts: string[], indices: number[] }>} */
+      const byAccount = new Map();
+      /** @type {{ index: number, prompt: string }[]} */
+      const noAccountLeft = [];
+
+      for (const item of pending) {
+        const candidates = remainingAccountsFor(item.index);
+        if (!candidates.length) {
+          noAccountLeft.push(item);
+          continue;
+        }
+        // Prefer an account that is not currently exhausted; pick round-robin by load.
+        candidates.sort((a, b) => {
+          const la = (byAccount.get(a.id)?.prompts.length || 0);
+          const lb = (byAccount.get(b.id)?.prompts.length || 0);
+          return la - lb;
+        });
+        const pick = candidates[0];
+        if (!byAccount.has(pick.id)) {
+          byAccount.set(pick.id, { prompts: [], indices: [] });
+        }
+        const bucket = byAccount.get(pick.id);
+        bucket.prompts.push(item.prompt);
+        bucket.indices.push(item.index);
+      }
+
+      for (const item of noAccountLeft) {
+        emitFinalFail(
+          item.index,
+          item.prompt,
+          "Rate limit / quota persists on all signed-in accounts — skipping",
+        );
+      }
+
+      if (!byAccount.size) break;
+
+      const passWorkers = [];
+      const slices = [];
+      for (const a of selected) {
+        const bucket = byAccount.get(a.id);
+        if (!bucket?.prompts?.length) continue;
+        passWorkers.push(a);
+        slices.push(bucket);
+        accountProgress.set(a.id, {
+          status: "running",
+          message: `Rotating ${bucket.prompts.length} prompt(s)…`,
+          completed: 0,
+          failed: 0,
+          total: bucket.prompts.length,
+        });
+      }
+      pushState();
+      broadcast({
+        type: "status",
+        message: `Rate-limit rotation round ${rotateRound}: ${passWorkers.length} account(s), ${
+          [...byAccount.values()].reduce((n, b) => n + b.prompts.length, 0)
+        } prompt(s)`,
+      });
+
+      pending = await runPass(passWorkers, slices);
+      passesRun += 1;
+    }
+
+    // Anything still pending after rotation budget → fail.
+    for (const item of pending) {
+      emitFinalFail(
+        item.index,
+        item.prompt,
+        "Rate limit / quota persists after account rotation — skipping",
+      );
+    }
+
+    // Stash so finally knows we actually attempted work.
+    accountProgress.set("__passes_run__", { completed: passesRun, failed: 0, total: passesRun });
   } catch (e) {
     caught = e;
   } finally {
     running = false;
+    const passesMeta = accountProgress.get("__passes_run__");
+    accountProgress.delete("__passes_run__");
     let anyWork = 0;
-    for (const p of accountProgress.values()) {
+    for (const [id, p] of accountProgress.entries()) {
+      if (id.startsWith("__")) continue;
       anyWork += (Number(p.completed) || 0) + (Number(p.failed) || 0);
     }
     const extra = {};
     if (caught) {
       extra.generateError = caught.message;
-    } else if (anyWork === 0 && prompts?.length) {
+    } else if (anyWork === 0 && prompts?.length && !(passesMeta && passesMeta.completed > 0)) {
       extra.generateError = "Batch ended before any prompt ran.";
     }
     pushState(extra);
@@ -446,9 +619,11 @@ export function resetGenerateState() {
 }
 
 export async function closeBrowsers() {
+  const before = contexts.size;
   stopAll = true;
   await closeAllBrowsers();
-  pushState();
+  pushState({ browsersClosed: before });
+  return before;
 }
 
 export async function shutdown() {

@@ -1,16 +1,26 @@
 {
   "id": "ai_narration",
-  "version": 2,
+  "version": 3,
   "name": "AI Narration",
   "identity": {
     "description": "Faceless narrated YouTube — visuals actively explain the narration with purposeful turnover.",
     "tone": "urgent, illustrative, explainer",
-    "best_for": ["faceless youtube", "explainers", "listicles", "motivational narration"]
+    "best_for": [
+      "faceless youtube",
+      "explainers",
+      "listicles",
+      "motivational narration"
+    ]
   },
   "visual": {
     "treatment": "illustrative narration",
     "camera": {
-      "preferred": ["push_in", "pull_out", "subtle_drift", "static"],
+      "preferred": [
+        "push_in",
+        "pull_out",
+        "subtle_drift",
+        "static"
+      ],
       "intensity": 0.78
     },
     "motion_rules": {
@@ -35,7 +45,12 @@
   },
   "transitions": {
     "default": "cut",
-    "preferred": ["cut", "flash", "dissolve", "soft"],
+    "preferred": [
+      "cut",
+      "flash",
+      "dissolve",
+      "soft"
+    ],
     "avoid": []
   },
   "audio": {
@@ -50,7 +65,12 @@
     "prefer_visual_change": true
   },
   "assets": {
-    "preferred": ["image", "video", "stock_video", "stock_image"],
+    "preferred": [
+      "image",
+      "video",
+      "stock_video",
+      "stock_image"
+    ],
     "avoid_repetition": true
   },
   "captions": {
@@ -89,5 +109,64 @@
       "beat_driven_turnover",
       "stronger_purposeful_sfx"
     ]
+  },
+  "visual_roles": {
+    "weights": {
+      "process": 0.9,
+      "comparison": 0.85,
+      "object": 0.8,
+      "mechanism": 0.75,
+      "data": 0.7,
+      "abstract": 0.65,
+      "establishing": 0.5
+    },
+    "avoid": [
+      "archival_evidence"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "pexels",
+      "pixabay",
+      "flow",
+      "youtube",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "diagram",
+      "demonstration",
+      "comparison",
+      "process",
+      "explainer",
+      "object close-up"
+    ],
+    "avoid_terms": [
+      "archival",
+      "historical document",
+      "slow broll only"
+    ],
+    "evidence_bias": "low",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": false,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.3,
+    "provider_repetition_penalty": 0.2,
+    "concept_repetition_penalty": 0.35
+  },
+  "storytelling": {
+    "narrative": "Fast coherent explanatory visuals with strong early hook",
+    "hook_strategy": "Visual surprise in first 8 seconds",
+    "evidence_priority": "low"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.35,
+    "evidence_weight": 0.3,
+    "atmosphere_weight": 0.25,
+    "process_weight": 0.9
   }
 }

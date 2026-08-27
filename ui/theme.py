@@ -44,8 +44,8 @@ RADIUS = 4  # restrained, not pill-like
 
 # Project is chosen from the topbar chip / Switch — not a sidebar destination.
 NAV_ITEMS = (
-    ("script", "Script"),
     ("brand_style", "Brand & Style"),
+    ("script", "Script"),
     ("visual_plan", "Visual Plan"),
     ("assets", "Assets"),
     ("audio", "Audio"),

@@ -1,16 +1,27 @@
 {
   "id": "history_documentary",
-  "version": 2,
+  "version": 3,
   "name": "History Documentary",
   "identity": {
     "description": "Archival, evidence-driven historical storytelling with restrained motion and chronological clarity.",
     "tone": "authoritative, measured, archival",
-    "best_for": ["history", "archaeology", "biographies", "wars", "ancient civilizations"]
+    "best_for": [
+      "history",
+      "archaeology",
+      "biographies",
+      "wars",
+      "ancient civilizations"
+    ]
   },
   "visual": {
     "treatment": "archival documentary",
     "camera": {
-      "preferred": ["static", "hold", "subtle_drift", "push_in"],
+      "preferred": [
+        "static",
+        "hold",
+        "subtle_drift",
+        "push_in"
+      ],
       "intensity": 0.28
     },
     "motion_rules": {
@@ -35,8 +46,14 @@
   },
   "transitions": {
     "default": "cut",
-    "preferred": ["cut", "dissolve", "fade"],
-    "avoid": ["flash"]
+    "preferred": [
+      "cut",
+      "dissolve",
+      "fade"
+    ],
+    "avoid": [
+      "flash"
+    ]
   },
   "audio": {
     "ambience_intensity": 0.58,
@@ -50,7 +67,12 @@
     "prefer_visual_change": true
   },
   "assets": {
-    "preferred": ["stock_image", "stock_video", "youtube_video", "image"],
+    "preferred": [
+      "stock_image",
+      "stock_video",
+      "youtube_video",
+      "image"
+    ],
     "avoid_repetition": true
   },
   "captions": {
@@ -92,5 +114,67 @@
       "chronological_clarity",
       "restrained_camera"
     ]
+  },
+  "visual_roles": {
+    "weights": {
+      "archival_evidence": 0.95,
+      "document": 0.9,
+      "event": 0.85,
+      "map": 0.8,
+      "timeline": 0.75,
+      "character": 0.7,
+      "location": 0.65,
+      "atmosphere": 0.35
+    },
+    "avoid": [
+      "abstract",
+      "generic stock"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "archive",
+      "youtube",
+      "openverse",
+      "pexels",
+      "pixabay"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "archival footage",
+      "historical photograph",
+      "period document",
+      "newspaper",
+      "map",
+      "timeline"
+    ],
+    "avoid_terms": [
+      "modern office",
+      "generic businessman",
+      "smartphone",
+      "neon"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.4,
+    "provider_repetition_penalty": 0.2,
+    "concept_repetition_penalty": 0.45
+  },
+  "storytelling": {
+    "narrative": "Evidence-led chronology with archival authenticity",
+    "hook_strategy": "Open with a specific historical image or document",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.55,
+    "evidence_weight": 0.9,
+    "atmosphere_weight": 0.25,
+    "process_weight": 0.3
   }
 }

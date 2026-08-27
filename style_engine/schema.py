@@ -6,6 +6,7 @@ import dataclasses
 from typing import Any, Dict, List, Optional
 
 VIDEO_STYLE_VERSION = 1
+VIDEO_STYLE_VERSION_3 = 3
 BRAND_KIT_VERSION = 1
 
 STYLE_MODES = frozenset({"auto", "manual", "custom"})
@@ -100,6 +101,54 @@ class StyleIntelligence:
 
 
 @dataclasses.dataclass
+class StyleVisualRoleWeights:
+    """Role preference weights for smart visual selection (0–1)."""
+
+    weights: Dict[str, float] = dataclasses.field(default_factory=dict)
+    avoid: List[str] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass
+class StyleSourcePreferences:
+    """Ordered source ranking preferences — not mandatory assignments."""
+
+    ranked: List[str] = dataclasses.field(default_factory=list)
+    avoid: List[str] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass
+class StyleSearchGuidance:
+    prefer_terms: List[str] = dataclasses.field(default_factory=list)
+    avoid_terms: List[str] = dataclasses.field(default_factory=list)
+    evidence_bias: str = "medium"  # low | medium | high
+    query_expansion: bool = True
+
+
+@dataclasses.dataclass
+class StyleSelectionRules:
+    prefer_evidence_when_factual: bool = True
+    avoid_generic_when_specific: bool = True
+    repetition_penalty: float = 0.35
+    provider_repetition_penalty: float = 0.25
+    concept_repetition_penalty: float = 0.4
+
+
+@dataclasses.dataclass
+class StyleStorytelling:
+    narrative: str = ""
+    hook_strategy: str = ""
+    evidence_priority: str = "medium"
+
+
+@dataclasses.dataclass
+class StyleShotSelection:
+    establishing_weight: float = 0.5
+    evidence_weight: float = 0.5
+    atmosphere_weight: float = 0.3
+    process_weight: float = 0.4
+
+
+@dataclasses.dataclass
 class VideoStyle:
     id: str
     version: int = VIDEO_STYLE_VERSION
@@ -116,6 +165,13 @@ class VideoStyle:
         default_factory=StyleAIVisualPrompt
     )
     intelligence: StyleIntelligence = dataclasses.field(default_factory=StyleIntelligence)
+    # Style Intelligence 3.0 — optional; older JSON files omit these safely.
+    visual_roles: StyleVisualRoleWeights = dataclasses.field(default_factory=StyleVisualRoleWeights)
+    source_preferences: StyleSourcePreferences = dataclasses.field(default_factory=StyleSourcePreferences)
+    search_guidance: StyleSearchGuidance = dataclasses.field(default_factory=StyleSearchGuidance)
+    selection_rules: StyleSelectionRules = dataclasses.field(default_factory=StyleSelectionRules)
+    storytelling: StyleStorytelling = dataclasses.field(default_factory=StyleStorytelling)
+    shot_selection: StyleShotSelection = dataclasses.field(default_factory=StyleShotSelection)
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -138,6 +194,12 @@ class VideoStyle:
         captions = data.get("captions") if isinstance(data.get("captions"), dict) else {}
         ai = data.get("ai_visual_prompt") if isinstance(data.get("ai_visual_prompt"), dict) else {}
         intel = data.get("intelligence") if isinstance(data.get("intelligence"), dict) else {}
+        vroles = data.get("visual_roles") if isinstance(data.get("visual_roles"), dict) else {}
+        sprefs = data.get("source_preferences") if isinstance(data.get("source_preferences"), dict) else {}
+        sguide = data.get("search_guidance") if isinstance(data.get("search_guidance"), dict) else {}
+        srules = data.get("selection_rules") if isinstance(data.get("selection_rules"), dict) else {}
+        story = data.get("storytelling") if isinstance(data.get("storytelling"), dict) else {}
+        shots = data.get("shot_selection") if isinstance(data.get("shot_selection"), dict) else {}
         return cls(
             id=sid,
             version=int(data.get("version") or VIDEO_STYLE_VERSION),
@@ -234,6 +296,65 @@ class VideoStyle:
                 preview_audio=str(intel.get("preview_audio") or ""),
                 variety_family=str(intel.get("variety_family") or ""),
                 influences=list(intel.get("influences") or []),
+            ),
+            visual_roles=StyleVisualRoleWeights(
+                weights={
+                    str(k): float(v)
+                    for k, v in (
+                        dict(vroles.get("weights") or {}).items()
+                        if isinstance(vroles.get("weights"), dict)
+                        else {
+                            str(k): float(v)
+                            for k, v in vroles.items()
+                            if k not in ("avoid", "weights") and isinstance(v, (int, float))
+                        }
+                    )
+                },
+                avoid=list(vroles.get("avoid") or []),
+            ),
+            source_preferences=StyleSourcePreferences(
+                ranked=list(sprefs.get("ranked") or sprefs.get("preferred") or []),
+                avoid=list(sprefs.get("avoid") or []),
+            ),
+            search_guidance=StyleSearchGuidance(
+                prefer_terms=list(sguide.get("prefer_terms") or []),
+                avoid_terms=list(sguide.get("avoid_terms") or []),
+                evidence_bias=str(sguide.get("evidence_bias") or "medium"),
+                query_expansion=bool(sguide.get("query_expansion") if sguide.get("query_expansion") is not None else True),
+            ),
+            selection_rules=StyleSelectionRules(
+                prefer_evidence_when_factual=bool(
+                    srules.get("prefer_evidence_when_factual")
+                    if srules.get("prefer_evidence_when_factual") is not None
+                    else True
+                ),
+                avoid_generic_when_specific=bool(
+                    srules.get("avoid_generic_when_specific")
+                    if srules.get("avoid_generic_when_specific") is not None
+                    else True
+                ),
+                repetition_penalty=float(srules.get("repetition_penalty") if srules.get("repetition_penalty") is not None else 0.35),
+                provider_repetition_penalty=float(
+                    srules.get("provider_repetition_penalty")
+                    if srules.get("provider_repetition_penalty") is not None
+                    else 0.25
+                ),
+                concept_repetition_penalty=float(
+                    srules.get("concept_repetition_penalty")
+                    if srules.get("concept_repetition_penalty") is not None
+                    else 0.4
+                ),
+            ),
+            storytelling=StyleStorytelling(
+                narrative=str(story.get("narrative") or story.get("storytelling") or ""),
+                hook_strategy=str(story.get("hook_strategy") or ""),
+                evidence_priority=str(story.get("evidence_priority") or "medium"),
+            ),
+            shot_selection=StyleShotSelection(
+                establishing_weight=float(shots.get("establishing_weight") if shots.get("establishing_weight") is not None else 0.5),
+                evidence_weight=float(shots.get("evidence_weight") if shots.get("evidence_weight") is not None else 0.5),
+                atmosphere_weight=float(shots.get("atmosphere_weight") if shots.get("atmosphere_weight") is not None else 0.3),
+                process_weight=float(shots.get("process_weight") if shots.get("process_weight") is not None else 0.4),
             ),
         )
 

@@ -30,6 +30,7 @@ Optional:
 
 import argparse
 import csv
+import json
 import os
 import re
 import shutil
@@ -633,6 +634,26 @@ def find_image_for_scene(images_dir: Path, scene_number: str, ext_cache: dict = 
     return None
 
 
+def manifest_coverage_flags(images_dir: Path) -> dict[str, dict]:
+    """Per-scene coverage metadata from asset manifest (avoid_blind_loop, strategy)."""
+    path = Path(images_dir) / ".asset_manifest.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out: dict[str, dict] = {}
+    for key, rec in data.items():
+        if not isinstance(rec, dict):
+            continue
+        cov = rec.get("coverage_plan")
+        if isinstance(cov, dict):
+            out[str(key).lstrip("0") or key] = cov
+            out[str(key)] = cov
+    return out
+
+
 def missing_images_for_scenes(rows, images_dir: Path):
     """Return scene_number strings that have no matching image file."""
     index = build_scene_media_index(images_dir)
@@ -1117,6 +1138,7 @@ def _render_scene_clip(
     fade_out: float = 0.0,
     fade_color: str = "black",
     camera_style: str | None = None,
+    avoid_blind_loop: bool = False,
 ):
     """
     timed_overlays: list of (png_path, local_start, local_end[, animation])
@@ -1130,10 +1152,20 @@ def _render_scene_clip(
     fade_suffix = _fade_vf_suffix(clip_dur, fade_in, fade_out, fade_color)
 
     if is_video_file(img_path):
-        # -stream_loop -1 loops the clip if it's shorter than the scene, and is a
-        # no-op (truncated by -t below) if it's longer — one code path for both.
         base_vf = _video_fit_filter(width, height, fps)
-        input_args = ["-stream_loop", "-1", "-i", str(img_path)]
+        if avoid_blind_loop:
+            try:
+                from providers.media_clip.ffmpeg_clip import probe_duration
+
+                src_dur = probe_duration(img_path) or 0.0
+            except Exception:
+                src_dur = 0.0
+            pad = max(0.0, clip_dur - src_dur) if src_dur > 0 else clip_dur * 0.35
+            if pad > 0.08:
+                base_vf = f"{base_vf},tpad=stop_mode=clone:stop_duration={pad:.3f}"
+            input_args = ["-i", str(img_path)]
+        else:
+            input_args = ["-stream_loop", "-1", "-i", str(img_path)]
     elif zoom:
         base_vf = _zoompan_filter(
             width,
@@ -1323,6 +1355,7 @@ def render_video(
             print(f"[3/4] Typography reload warning: {exc}")
 
     clip_files = []
+    coverage_flags = manifest_coverage_flags(images_dir)
     for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
         out_clip = clips_dir / f"scene_{i:04d}.mp4"
         sn = str(row.get("scene_number") or "")
@@ -1434,6 +1467,10 @@ def render_video(
             if style_out:
                 _, fade_out, _ = transition_fade_params(style_out, dur)
 
+        sn_key = str(row.get("scene_number") or "")
+        cov = coverage_flags.get(sn_key) or coverage_flags.get(str(int(sn_key)) if sn_key.isdigit() else sn_key)
+        avoid_loop = bool(cov and cov.get("avoid_blind_loop"))
+
         _render_scene_clip(
             img_path=img,
             out_path=out_clip,
@@ -1452,6 +1489,7 @@ def render_video(
             fade_in=fade_in,
             fade_out=fade_out,
             fade_color=fade_color,
+            avoid_blind_loop=avoid_loop,
         )
         clip_files.append(out_clip)
 

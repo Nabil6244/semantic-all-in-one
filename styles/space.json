@@ -1,16 +1,28 @@
 {
   "id": "space_documentary",
-  "version": 2,
+  "version": 3,
   "name": "Space Documentary",
   "identity": {
     "description": "Scale + awe + scientific explanation — cinematic astronomy with useful visualization, not empty pretty space.",
     "tone": "awe-inspiring, scientific, vast",
-    "best_for": ["space", "astronomy", "physics", "cosmology", "planets", "orbital science"]
+    "best_for": [
+      "space",
+      "astronomy",
+      "physics",
+      "cosmology",
+      "planets",
+      "orbital science"
+    ]
   },
   "visual": {
     "treatment": "cinematic astronomy",
     "camera": {
-      "preferred": ["pull_out", "subtle_drift", "hold", "push_in"],
+      "preferred": [
+        "pull_out",
+        "subtle_drift",
+        "hold",
+        "push_in"
+      ],
       "intensity": 0.42
     },
     "motion_rules": {
@@ -35,8 +47,14 @@
   },
   "transitions": {
     "default": "dissolve",
-    "preferred": ["dissolve", "fade", "soft"],
-    "avoid": ["flash"]
+    "preferred": [
+      "dissolve",
+      "fade",
+      "soft"
+    ],
+    "avoid": [
+      "flash"
+    ]
   },
   "audio": {
     "ambience_intensity": 0.72,
@@ -50,7 +68,12 @@
     "prefer_visual_change": true
   },
   "assets": {
-    "preferred": ["stock_video", "youtube_video", "image", "video"],
+    "preferred": [
+      "stock_video",
+      "youtube_video",
+      "image",
+      "video"
+    ],
     "avoid_repetition": true
   },
   "captions": {
@@ -90,5 +113,67 @@
       "slow_establishing_shots",
       "restrained_sfx"
     ]
+  },
+  "visual_roles": {
+    "weights": {
+      "scientific_visualization": 0.95,
+      "scale": 0.9,
+      "event": 0.8,
+      "object": 0.75,
+      "location": 0.7,
+      "comparison": 0.85,
+      "atmosphere": 0.65
+    },
+    "avoid": [
+      "document",
+      "person"
+    ]
+  },
+  "source_preferences": {
+    "ranked": [
+      "nasa",
+      "youtube",
+      "pexels",
+      "flow",
+      "pixabay",
+      "openverse"
+    ],
+    "avoid": []
+  },
+  "search_guidance": {
+    "prefer_terms": [
+      "NASA mission",
+      "spacecraft",
+      "planet",
+      "telescope",
+      "scale comparison",
+      "orbital"
+    ],
+    "avoid_terms": [
+      "cartoon",
+      "alien",
+      "cityscape",
+      "kitchen"
+    ],
+    "evidence_bias": "high",
+    "query_expansion": true
+  },
+  "selection_rules": {
+    "prefer_evidence_when_factual": true,
+    "avoid_generic_when_specific": true,
+    "repetition_penalty": 0.4,
+    "provider_repetition_penalty": 0.2,
+    "concept_repetition_penalty": 0.45
+  },
+  "storytelling": {
+    "narrative": "Scale, awe, and mission-accurate space imagery",
+    "hook_strategy": "Open with cosmic scale or mission footage",
+    "evidence_priority": "high"
+  },
+  "shot_selection": {
+    "establishing_weight": 0.85,
+    "evidence_weight": 0.75,
+    "atmosphere_weight": 0.7,
+    "process_weight": 0.55
   }
 }

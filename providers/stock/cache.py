@@ -55,3 +55,12 @@ class StockCache:
     def record_used(self, asset_id: str) -> None:
         self._used_ids.add(str(asset_id))
         self._save_used_ids()
+
+    def provider_use_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for asset_id in self._used_ids:
+            provider = str(asset_id).split(":", 1)[0]
+            if provider.isdigit():
+                provider = "pexels"
+            counts[provider] = counts.get(provider, 0) + 1
+        return counts
