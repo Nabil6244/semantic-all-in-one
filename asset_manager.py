@@ -778,6 +778,38 @@ class AssetManager:
         fallback = scene.as_fallback(provider_name)
         return self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
 
+    def change_source_flow_batch(
+        self, scenes: List[SceneRow], provider_name: str,
+    ) -> Dict[str, AssetResult]:
+        """Switch many scenes to Flow and resolve in one GENERATE (multi-account)."""
+        if not scenes:
+            return {}
+        self.log(
+            f"[ASSET] Change source -> {provider_name} for {len(scenes)} scene(s) "
+            f"(batched Flow)"
+        )
+        updated: List[SceneRow] = []
+        for scene in scenes:
+            key = scene_key(scene.scene_number)
+            self._cancelled_scenes.discard(key)
+            self._clear_skip(scene)
+            updated.append(scene.as_fallback(provider_name))
+
+        by_source: Dict[AssetSource, List[SceneRow]] = {}
+        for scene in updated:
+            source = self.classify(scene)
+            if source not in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                continue
+            by_source.setdefault(source, []).append(scene)
+
+        out: Dict[str, AssetResult] = {}
+        for source, group in by_source.items():
+            provider = self._provider_for(source)
+            results: Dict[str, AssetResult] = {}
+            self._resolve_flow_batch(source, provider, group, results)
+            out.update(results)
+        return out
+
     def skip_scene(self, scene: SceneRow) -> AssetResult:
         """Keep narration; write a placeholder still so later scenes are untouched."""
         key = scene_key(scene.scene_number)

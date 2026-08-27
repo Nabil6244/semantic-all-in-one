@@ -294,7 +294,18 @@ class ProjectWorkspace:
         data.update(self.to_dict())
         data["smart_editing"] = {
             k: settings.get(k)
-            for k in ("text_effects", "sound_effects", "intensity", "mode")
+            for k in (
+                "text_effects",
+                "sound_effects",
+                "visual_transitions",
+                "scene_ambience",
+                "intensity",
+                "text_effects_intensity",
+                "sound_effects_intensity",
+                "visual_transitions_intensity",
+                "scene_ambience_intensity",
+                "mode",
+            )
             if k in settings
         }
         self._write_meta(data)

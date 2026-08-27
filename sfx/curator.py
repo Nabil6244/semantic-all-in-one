@@ -10,6 +10,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from sfx.ambience_profiles import (
+    AMBIENCE_PROFILE_TARGETS,
+    AMBIENCE_SHORTLIST_CAP,
+    ambience_tags_for_text,
+    infer_ambience_profile,
+)
 from sfx.audio_probe import is_supported_audio, probe_audio
 from sfx.sonniss_license import SONNISS_METADATA
 from sfx.starter_catalog import CATEGORY_TAG_POOLS, SPECIAL_IDS
@@ -332,32 +338,67 @@ CATEGORY_RULES: Dict[str, dict] = {
             r"\batmosphere\b",
             r"\broom\s*tone\b",
             r"\bcity\b",
+            r"\burban\b",
             r"\bstreet\b",
             r"\boffice\b",
             r"\bforest\b",
             r"\brain\b",
+            r"\bstorm\b",
+            r"\bthunder\b",
             r"\bwind\b",
             r"\bnature\b",
             r"\benvironment\b",
             r"\bcrowd\b",
             r"\btraffic\b",
+            r"\bhighway\b",
             r"\broom\b",
+            r"\bocean\b",
+            r"\bwave\b",
+            r"\bshore\b",
+            r"\briver\b",
+            r"\btrain\b",
+            r"\bsubway\b",
+            r"\bmetro\b",
+            r"\bairport\b",
+            r"\bstation\b",
+            r"\bfireplace\b",
+            r"\bcampfire\b",
+            r"\bfire\s*crackl",
+            r"\bmeadow\b",
+            r"\blibrary\b",
+            r"\bhallway\b",
+            r"\bserver\b",
+            r"\blab\b",
+            r"\bdata\s*center\b",
+            r"\bdrone\b",
             r"\bambsubn\b",
             r"\bambdsgn\b",
             r"\bhaunting\s*ambience",
             r"\beast\s*coast\b",
             r"\bextreme\s*winds\b",
             r"\bghostly\b",
-            r"\bfire\s*crackl",
             r"\baerojet\b",
+            r"\bdowntown\b",
+            r"\bnight\b",
+            r"\bindoor\b",
         ),
-        "exclude": (r"\bweapon", r"\bdialogue\b", r"\bbanging\b", r"\brespirator\b", r"\bbreathing\b"),
+        "exclude": (
+            r"\bweapon",
+            r"\bdialogue\b",
+            r"\bbanging\b",
+            r"\brespirator\b",
+            r"\bbreathing\b",
+            r"\bfireworks\b",
+            r"\bconstruction\b",
+            r"\bjackhammer\b",
+            r"\bmachinery\b",
+        ),
         "duration": (1.0, 30.0),
         "hard_max": 200.0,
         "ideal": 4.0,
-        "shortlist": 8,
-        "min_target": 5,
-        "report_shortlist": 12,
+        "shortlist": AMBIENCE_SHORTLIST_CAP,
+        "min_target": 45,
+        "report_shortlist": 20,
     },
 }
 
@@ -543,7 +584,13 @@ def classify_candidate(
     if duration > 30 and re.search(r"\b(bang|banging|punch|sitting|broom|respirator|breathing)\b", text, re.I):
         if category != "ambience":
             return None
-        if not re.search(r"\b(wind|rain|forest|city|ambience|atmosphere|room)\b", text, re.I):
+        if not re.search(
+            r"\b(wind|rain|forest|city|ambience|atmosphere|room|traffic|ocean|train|fire|"
+            r"crowd|street|urban|indoor|wave|storm|thunder|highway|subway|airport|drone|"
+            r"water|shore|meadow|office|lab|server|environment|campfire|fireplace)\b",
+            text,
+            re.I,
+        ):
             return None
     dur_score = _duration_score(
         duration,
@@ -576,13 +623,22 @@ def classify_candidate(
         score += 10.0
     if category == "technology" and re.search(r"\b(digital|sci[\s\-]?fi|electronic|glitch|computer|electric)\b", text, re.I):
         score += 8.0
+    amb_tags: List[str] = []
+    if category == "ambience":
+        if re.search(r"\b(room\s*tone|ambience|atmosphere|environment)\b", text, re.I):
+            score += 12.0
+        if re.search(r"\b(loop|bed|background|subtle|distant|quiet|gentle|soft)\b", text, re.I):
+            score += 6.0
+        if re.search(r"\b(music|melody|score|orchestr|piano|guitar)\b", text, re.I):
+            score -= 50.0
+        amb_tags = ambience_tags_for_text(text, infer_ambience_profile(text))
     intensity = _guess_intensity(category, text, duration)
     return Candidate(
         path=path,
         category=category,
         score=score,
         duration=duration,
-        tags=[],
+        tags=amb_tags,
         intensity=intensity,
         reasons=include_hits[:4],
     )
@@ -646,6 +702,46 @@ def _dedupe_variations(candidates: Sequence[Candidate]) -> List[Candidate]:
     return sorted(seen.values(), key=lambda c: c.score, reverse=True)
 
 
+def shortlist_ambience_by_profile(candidates: Sequence[Candidate]) -> List[Candidate]:
+    """Pick diverse documentary ambience beds across editorial profiles."""
+    deduped = _dedupe_variations(candidates)
+    by_profile: Dict[str, List[Candidate]] = {p: [] for p in AMBIENCE_PROFILE_TARGETS}
+    for cand in deduped:
+        key = _path_key(cand.path)
+        profile = infer_ambience_profile(key)
+        if not cand.tags:
+            cand.tags = ambience_tags_for_text(key, profile)
+        by_profile.setdefault(profile, []).append(cand)
+    for pool in by_profile.values():
+        pool.sort(key=lambda c: c.score, reverse=True)
+
+    picks: List[Candidate] = []
+    used: set[str] = set()
+    for profile, target in AMBIENCE_PROFILE_TARGETS.items():
+        count = 0
+        for cand in by_profile.get(profile, []):
+            if count >= target:
+                break
+            key = str(cand.path.resolve())
+            if key in used:
+                continue
+            picks.append(cand)
+            used.add(key)
+            count += 1
+
+    remaining = sorted(
+        [c for c in deduped if str(c.path.resolve()) not in used],
+        key=lambda c: c.score,
+        reverse=True,
+    )
+    for cand in remaining:
+        if len(picks) >= AMBIENCE_SHORTLIST_CAP:
+            break
+        picks.append(cand)
+        used.add(str(cand.path.resolve()))
+    return picks
+
+
 def shortlist_candidates(by_category: Dict[str, List[Candidate]]) -> Dict[str, List[Candidate]]:
     """Assign each file to its highest-scoring category; never duplicate a physical file."""
     by_file: Dict[str, List[Candidate]] = {}
@@ -684,6 +780,7 @@ def shortlist_candidates(by_category: Dict[str, List[Candidate]]) -> Dict[str, L
             continue
         shortlisted[cand.category].append(cand)
         used_files.add(key)
+    shortlisted["ambience"] = shortlist_ambience_by_profile(by_category.get("ambience", []))
     return shortlisted
 
 
@@ -700,7 +797,13 @@ def stage_curated_library(
         ids = _catalog_ids(category, len(picks))
         for index, cand in enumerate(picks):
             entry_id = ids[index]
-            cand.tags = _tags_for_slot(category, index, _path_key(cand.path))
+            path_key = _path_key(cand.path)
+            if category == "ambience":
+                cand.tags = cand.tags or ambience_tags_for_text(path_key, infer_ambience_profile(path_key))
+                tags = cand.tags
+            else:
+                tags = _tags_for_slot(category, index, path_key)
+            cand.tags = tags
             dest = curated_root / category / f"{entry_id}{cand.path.suffix.lower()}"
             sidecar = curated_root / category / f"{entry_id}.json"
             meta = {

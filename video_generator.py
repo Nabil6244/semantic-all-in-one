@@ -906,6 +906,51 @@ def _escape_overlay_enable(t0: float, t1: float) -> str:
     return f"between(t\\,{t0:.3f}\\,{t1:.3f})"
 
 
+# Rotate visual scene joins so edits are not all hard cuts or the same fade.
+_VISUAL_TRANSITION_CYCLE = ("fade", "dissolve", "cut", "flash", "soft", "fade")
+
+
+def scene_visual_transition_style(index: int, total: int) -> str:
+    """Pick a transition style for the boundary *into* this scene clip."""
+    if total <= 1:
+        return "fade"
+    if index == 0:
+        return "fade"
+    return _VISUAL_TRANSITION_CYCLE[index % len(_VISUAL_TRANSITION_CYCLE)]
+
+
+def transition_fade_params(style: str, duration: float) -> tuple[float, float, str]:
+    """Return (fade_in_sec, fade_out_sec, color) for a clip. Duration-preserving (no overlap)."""
+    d = max(float(duration), 0.4)
+    max_fade = min(0.42, d * 0.20)
+    style = (style or "fade").lower()
+    if style == "cut":
+        return 0.0, 0.0, "black"
+    if style == "dissolve":
+        return min(0.38, max_fade), min(0.38, max_fade), "black"
+    if style == "flash":
+        return min(0.10, max_fade), min(0.18, max_fade), "white"
+    if style == "soft":
+        return min(0.32, max_fade), min(0.22, max_fade), "black"
+    # fade (default)
+    return min(0.26, max_fade), min(0.26, max_fade), "black"
+
+
+def _fade_vf_suffix(clip_dur: float, fade_in: float, fade_out: float, color: str = "black") -> str:
+    """ffmpeg fade filters; empty string when both fades are zero."""
+    parts: list[str] = []
+    fi = max(0.0, float(fade_in))
+    fo = max(0.0, float(fade_out))
+    color = (color or "black").lower()
+    if fi > 0.01:
+        parts.append(f"fade=t=in:st=0:d={fi:.3f}:color={color}")
+    if fo > 0.01 and clip_dur > fo + 0.05:
+        st = max(0.0, clip_dur - fo)
+        # Outgoing fades always go to black so the next clip can open cleanly.
+        parts.append(f"fade=t=out:st={st:.3f}:d={fo:.3f}:color=black")
+    return ",".join(parts)
+
+
 def _overlay_xy(t0: float | None, animation: str | None) -> str:
     """Static or subtle slide-in overlay position (no bounce)."""
     if t0 is None:
@@ -1007,6 +1052,9 @@ def _render_scene_clip(
     text_effect_filters: str = "",
     timed_overlays: list | None = None,
     performance_mode: str | None = None,
+    fade_in: float = 0.0,
+    fade_out: float = 0.0,
+    fade_color: str = "black",
 ):
     """
     timed_overlays: list of (png_path, local_start, local_end[, animation])
@@ -1017,6 +1065,7 @@ def _render_scene_clip(
     clip_dur = frames / fps
     timed_overlays = list(timed_overlays or [])
     encode_args = _encode_argv(performance_mode)
+    fade_suffix = _fade_vf_suffix(clip_dur, fade_in, fade_out, fade_color)
 
     if is_video_file(img_path):
         # -stream_loop -1 loops the clip if it's shorter than the scene, and is a
@@ -1046,7 +1095,7 @@ def _render_scene_clip(
         layers.append((next_idx, float(t0), float(t1), anim))
         next_idx += 1
 
-    if layers or text_effect_filters:
+    if layers or text_effect_filters or fade_suffix:
         parts = [f"[0:v]{base_vf}[v0]"]
         cur = "v0"
         for layer_i, (in_idx, t0, t1, anim) in enumerate(layers):
@@ -1062,10 +1111,13 @@ def _render_scene_clip(
                 f"[{cur}][{lab_in}]overlay={xy}:format=auto{enable}[{lab_out}]"
             )
             cur = lab_out
+        tail_bits = []
         if text_effect_filters:
-            parts.append(f"[{cur}]{text_effect_filters},format=yuv420p[vout]")
-        else:
-            parts.append(f"[{cur}]format=yuv420p[vout]")
+            tail_bits.append(text_effect_filters)
+        if fade_suffix:
+            tail_bits.append(fade_suffix)
+        tail_bits.append("format=yuv420p")
+        parts.append(f"[{cur}]{','.join(tail_bits)}[vout]")
         filter_complex = ";".join(parts)
         try:
             from typography.debug import log_ffmpeg_filter
@@ -1117,6 +1169,8 @@ def render_video(
     captions: bool = False,
     scene_text_effects: list | None = None,
     performance_mode: str | None = None,
+    visual_transitions: bool = True,
+    transition_by_scene: dict | None = None,
 ):
     try:
         from hardware.accel import format_accel_report, get_capabilities
@@ -1166,7 +1220,8 @@ def render_video(
     print(f"[3/4] Rendering {n} scene clips"
           f"{' with Ken Burns zoom' if zoom else ''}"
           f"{' + captions' if captions else ''}"
-          f"{' + smart text' if smart_fx else ''}...")
+          f"{' + smart text' if smart_fx else ''}"
+          f"{' + visual transitions' if visual_transitions else ''}...")
 
     # GUI runs pipeline in-process — reload typography once per render so edits apply.
     if smart_fx:
@@ -1284,6 +1339,24 @@ def render_video(
                 fx_filters = ""
                 timed_overlays = []
 
+        fade_in = fade_out = 0.0
+        fade_color = "black"
+        if visual_transitions:
+            style_map = transition_by_scene or {}
+            # Only AI/heuristic-selected scenes get a visual transition; others hard-cut.
+            sn = str(row.get("scene_number") or "")
+            style_in = style_map.get(sn) if style_map else None
+            next_sn = (
+                str(aligned_rows[i + 1].get("scene_number") or "")
+                if i + 1 < n
+                else ""
+            )
+            style_out = style_map.get(next_sn) if style_map and next_sn else None
+            if style_in:
+                fade_in, _, fade_color = transition_fade_params(style_in, dur)
+            if style_out:
+                _, fade_out, _ = transition_fade_params(style_out, dur)
+
         _render_scene_clip(
             img_path=img,
             out_path=out_clip,
@@ -1298,6 +1371,9 @@ def render_video(
             text_effect_filters=fx_filters,
             timed_overlays=timed_overlays,
             performance_mode=performance_mode,
+            fade_in=fade_in,
+            fade_out=fade_out,
+            fade_color=fade_color,
         )
         clip_files.append(out_clip)
 

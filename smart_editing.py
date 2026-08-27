@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import wave
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 # Reuse alignment tokenization from the existing renderer pipeline.
-from video_generator import is_distinctive, split_words, words_match
+from video_generator import _scene_display_timeline, is_distinctive, split_words, words_match
 from providers import hidden_subprocess
+from sfx.ambience_profiles import smart_editing_profile_tags
+from sfx.audio_probe import probe_audio
 
 TEXT_EFFECT_PRESETS = (
     "fade",
@@ -29,7 +32,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 3
+SMART_EDITING_VERSION = 12
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -46,39 +49,130 @@ SFX_CATEGORIES = (
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "text_effects": True,
     "sound_effects": True,
+    "visual_transitions": True,
+    "scene_ambience": True,
     "intensity": "medium",
+    "text_effects_intensity": "medium",
+    "sound_effects_intensity": "medium",
+    "visual_transitions_intensity": "medium",
+    "scene_ambience_intensity": "medium",
     "mode": "smart",
 }
+
+# Ambience profiles → catalog tag hints (SfxRequest category is always "ambience").
+_AMBIENCE_PROFILES: Dict[str, Tuple[str, ...]] = {
+    **smart_editing_profile_tags(),
+    "none": (),
+}
+
+# Rotate transition SFX so scene changes do not all share one mode/preset.
+_TRANSITION_SFX_VARIANTS: Tuple[Tuple[str, Tuple[str, ...], float], ...] = (
+    ("transition", ("soft", "transition", "movement"), 0.85),
+    ("whoosh", ("sweep", "movement", "fast"), 0.70),
+    ("transition", ("fast", "sweep", "transition"), 0.75),
+    ("whoosh", ("soft", "movement"), 0.65),
+    ("riser", ("rising", "tension"), 0.90),
+    ("cinematic", ("sweep", "transition"), 0.80),
+    ("whoosh", ("whoosh", "short", "fast"), 0.55),
+    ("impact", ("soft", "hit"), 0.35),
+)
+
+# Mid-scene accents when Text Effects are off (still under narration).
+_BEAT_SFX_VARIANTS: Tuple[Tuple[str, Tuple[str, ...], float], ...] = (
+    ("whoosh", ("soft", "movement"), 0.55),
+    ("ui", ("click", "select"), 0.30),
+    ("impact", ("soft", "emphasis"), 0.35),
+    ("whoosh", ("sweep", "movement"), 0.60),
+    ("cinematic", ("hit", "emphasis"), 0.45),
+)
+
+
+def _normalize_intensity(value: Any, fallback: str = "medium") -> str:
+    level = str(value or "").strip().lower()
+    if level in INTENSITY_LEVELS:
+        return level
+    fb = str(fallback or "medium").strip().lower()
+    return fb if fb in INTENSITY_LEVELS else "medium"
 
 
 @dataclass
 class SmartEditingSettings:
     text_effects: bool = True
     sound_effects: bool = True
+    visual_transitions: bool = True
+    scene_ambience: bool = True
+    # Legacy global intensity — used when a per-feature value is unset.
     intensity: str = "medium"
+    text_effects_intensity: Optional[str] = None
+    sound_effects_intensity: Optional[str] = None
+    visual_transitions_intensity: Optional[str] = None
+    scene_ambience_intensity: Optional[str] = None
     mode: str = "smart"
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "SmartEditingSettings":
         raw = data or {}
-        intensity = str(raw.get("intensity") or "medium").lower()
+        intensity = _normalize_intensity(raw.get("intensity"), "medium")
         mode = str(raw.get("mode") or "smart").lower()
-        if intensity not in INTENSITY_LEVELS:
-            intensity = "medium"
         if mode not in MODES:
             mode = "smart"
         return cls(
             text_effects=bool(raw.get("text_effects", True)),
             sound_effects=bool(raw.get("sound_effects", True)),
+            visual_transitions=bool(raw.get("visual_transitions", True)),
+            scene_ambience=bool(raw.get("scene_ambience", True)),
             intensity=intensity,
+            text_effects_intensity=_normalize_intensity(
+                raw.get("text_effects_intensity"), intensity,
+            ),
+            sound_effects_intensity=_normalize_intensity(
+                raw.get("sound_effects_intensity"), intensity,
+            ),
+            visual_transitions_intensity=_normalize_intensity(
+                raw.get("visual_transitions_intensity"), intensity,
+            ),
+            scene_ambience_intensity=_normalize_intensity(
+                raw.get("scene_ambience_intensity"), intensity,
+            ),
             mode=mode,
         )
 
     def enabled(self) -> bool:
-        return self.text_effects or self.sound_effects
+        return (
+            self.text_effects
+            or self.sound_effects
+            or self.visual_transitions
+            or self.scene_ambience
+        )
+
+    def text_intensity(self) -> str:
+        return _normalize_intensity(self.text_effects_intensity, self.intensity)
+
+    def sfx_intensity(self) -> str:
+        return _normalize_intensity(self.sound_effects_intensity, self.intensity)
+
+    def transitions_intensity(self) -> str:
+        return _normalize_intensity(self.visual_transitions_intensity, self.intensity)
+
+    def ambience_intensity(self) -> str:
+        return _normalize_intensity(self.scene_ambience_intensity, self.intensity)
+
+    def to_settings_dict(self) -> Dict[str, Any]:
+        return {
+            "text_effects": self.text_effects,
+            "sound_effects": self.sound_effects,
+            "visual_transitions": self.visual_transitions,
+            "scene_ambience": self.scene_ambience,
+            "intensity": _normalize_intensity(self.intensity),
+            "text_effects_intensity": self.text_intensity(),
+            "sound_effects_intensity": self.sfx_intensity(),
+            "visual_transitions_intensity": self.transitions_intensity(),
+            "scene_ambience_intensity": self.ambience_intensity(),
+            "mode": self.mode if self.mode in MODES else "smart",
+        }
 
     def fingerprint(self) -> str:
-        payload = json.dumps(asdict(self), sort_keys=True)
+        payload = json.dumps(self.to_settings_dict(), sort_keys=True)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
@@ -87,12 +181,18 @@ class SmartEditingPlan:
     text_effects: List[dict] = field(default_factory=list)
     sfx_events: List[dict] = field(default_factory=list)
     whisper_words: List[list] = field(default_factory=list)
+    # Boundaries INTO these scenes get a visual/SFX transition (AI or heuristic).
+    scene_transitions: List[dict] = field(default_factory=list)
+    # Continuous low beds under each scene (AI/heuristic profile → ambience catalog).
+    scene_ambience: List[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
             "text_effects": self.text_effects,
             "sfx_events": self.sfx_events,
             "whisper_words": self.whisper_words,
+            "scene_transitions": self.scene_transitions,
+            "scene_ambience": self.scene_ambience,
         }
 
     @classmethod
@@ -101,7 +201,28 @@ class SmartEditingPlan:
             text_effects=list(data.get("text_effects") or []),
             sfx_events=list(data.get("sfx_events") or []),
             whisper_words=list(data.get("whisper_words") or []),
+            scene_transitions=list(data.get("scene_transitions") or []),
+            scene_ambience=list(data.get("scene_ambience") or []),
         )
+
+    def transition_style_map(self) -> Dict[str, str]:
+        out: Dict[str, str] = {}
+        for item in self.scene_transitions:
+            key = str(item.get("scene_number") or "").strip()
+            style = str(item.get("style") or "fade").strip().lower()
+            if key:
+                out[key] = style
+        return out
+
+    def transition_sfx_scenes(self) -> set:
+        out = set()
+        for item in self.scene_transitions:
+            if item.get("sfx", True) is False:
+                continue
+            key = str(item.get("scene_number") or "").strip()
+            if key:
+                out.add(key)
+        return out
 
 
 def _repo_root() -> Path:
@@ -240,13 +361,19 @@ class SfxCatalog:
                 entries.append(entry)
         return cls(lib_root, entries)
 
-    def match(self, request: SfxRequest) -> Optional[SfxEntry]:
+    def match(
+        self,
+        request: SfxRequest,
+        *,
+        avoid_ids: Optional[Sequence[str]] = None,
+    ) -> Optional[SfxEntry]:
         pool = list(self._by_category.get(request.category.lower(), []))
         if not pool:
             return None
         req_tags = {t.lower() for t in request.tags if t}
         req_intensity = (request.intensity or "medium").lower()
         max_duration = request.max_duration
+        avoided = {str(x) for x in (avoid_ids or []) if x}
 
         def score(entry: SfxEntry) -> Tuple[int, int, int, float]:
             if max_duration is not None and entry.duration > max_duration + 0.05:
@@ -259,10 +386,29 @@ class SfxCatalog:
             return (tag_hits, -intensity_delta, -duration_penalty, entry.duration)
 
         ranked = sorted(pool, key=score, reverse=True)
-        best = ranked[0]
-        if score(best)[0] <= -998:
-            return None
-        return best
+        fallback: Optional[SfxEntry] = None
+        for entry in ranked:
+            if score(entry)[0] <= -998:
+                continue
+            if fallback is None:
+                fallback = entry
+            if entry.id in avoided:
+                continue
+            return entry
+        return fallback
+
+    def match_any(
+        self,
+        requests: Sequence[SfxRequest],
+        *,
+        avoid_ids: Optional[Sequence[str]] = None,
+    ) -> Optional[Tuple[SfxEntry, SfxRequest]]:
+        """Try each request in order until a catalog hit is found."""
+        for request in requests:
+            entry = self.match(request, avoid_ids=avoid_ids)
+            if entry is not None:
+                return entry, request
+        return None
 
     def __len__(self) -> int:
         return len(self.entries)
@@ -421,7 +567,7 @@ def plan_text_effects(
         return []
     effects: List[dict] = []
     aligned_by_scene = {str(r["scene_number"]): r for r in aligned_rows}
-    scale = _intensity_scale(settings.intensity)
+    scale = _intensity_scale(settings.text_intensity())
     auto_idx = 0
     for row in rows:
         scene = str(row.get("scene_number", ""))
@@ -431,7 +577,7 @@ def plan_text_effects(
         scene_start = float(aligned["start_time"])
         scene_end = float(aligned["end_time"])
         duration = max(0.0, scene_end - scene_start)
-        budget = _max_text_effects(duration, settings.intensity)
+        budget = _max_text_effects(duration, settings.text_intensity())
         if budget <= 0:
             continue
         phrases = _find_emphasis_phrases(str(row.get("script_segment") or ""))
@@ -461,7 +607,7 @@ def plan_text_effects(
 
 def _sfx_request_for_text_effect(effect: str, settings: SmartEditingSettings) -> SfxRequest:
     effect = str(effect or "").lower()
-    intensity = settings.intensity
+    intensity = settings.sfx_intensity()
     mapping = {
         "punch": SfxRequest("text_emphasis", "impact", ("punch", "emphasis"), intensity, 0.55),
         "impact": SfxRequest("text_emphasis", "cinematic", ("hit", "emphasis"), intensity, 0.65),
@@ -478,20 +624,46 @@ def _sfx_request_for_text_effect(effect: str, settings: SmartEditingSettings) ->
     )
 
 
-def _sfx_request_for_transition(settings: SmartEditingSettings) -> SfxRequest:
-    tag = {"low": "soft", "medium": "fast", "high": "cinematic"}.get(settings.intensity, "fast")
+def _sfx_request_for_transition(settings: SmartEditingSettings, index: int = 0) -> SfxRequest:
+    category, tags, max_dur = _TRANSITION_SFX_VARIANTS[index % len(_TRANSITION_SFX_VARIANTS)]
     return SfxRequest(
         "scene_transition",
-        "transition",
-        (tag, "movement", "sweep"),
-        settings.intensity,
-        0.75,
+        category,
+        tags,
+        settings.sfx_intensity(),
+        max_dur,
     )
 
 
-def _pick_sfx_entry(catalog: SfxCatalog, request: SfxRequest) -> Optional[SfxEntry]:
+def _transition_sfx_fallback_chain(settings: SmartEditingSettings, index: int) -> List[SfxRequest]:
+    """Primary variant plus a couple of fallbacks so sparse catalogs still hit."""
+    primary = _sfx_request_for_transition(settings, index)
+    intensity = settings.sfx_intensity()
+    fallbacks = [
+        SfxRequest("scene_transition", "transition", ("soft", "movement"), intensity, 0.9),
+        SfxRequest("scene_transition", "whoosh", ("sweep", "movement"), intensity, 0.75),
+        SfxRequest("scene_transition", "whoosh", (), intensity, 0.8),
+    ]
+    out = [primary]
+    for req in fallbacks:
+        if (req.category, req.tags) != (primary.category, primary.tags):
+            out.append(req)
+    return out
+
+
+def _beat_sfx_request(settings: SmartEditingSettings, index: int) -> SfxRequest:
+    category, tags, max_dur = _BEAT_SFX_VARIANTS[index % len(_BEAT_SFX_VARIANTS)]
+    return SfxRequest("scene_beat", category, tags, settings.sfx_intensity(), max_dur)
+
+
+def _pick_sfx_entry(
+    catalog: SfxCatalog,
+    request: SfxRequest,
+    *,
+    avoid_ids: Optional[Sequence[str]] = None,
+) -> Optional[SfxEntry]:
     try:
-        return catalog.match(request)
+        return catalog.match(request, avoid_ids=avoid_ids)
     except Exception:
         return None
 
@@ -520,11 +692,653 @@ def _entry_to_event(
     }
 
 
+_TRANSITION_STYLES = ("fade", "dissolve", "flash", "soft", "cut")
+_TRANSITION_CUE_RE = re.compile(
+    r"\b(meanwhile|however|but then|suddenly|instead|later|next|"
+    r"far beyond|on the other hand|section|chapter|years later|"
+    r"back (?:in|to)|now\b|then\b)\b",
+    re.I,
+)
+
+
+def _transition_budget(n_boundaries: int, intensity: str) -> int:
+    if n_boundaries <= 0:
+        return 0
+    frac = {"low": 0.18, "medium": 0.32, "high": 0.48}.get(intensity, 0.32)
+    return max(1, min(n_boundaries, int(round(n_boundaries * frac))))
+
+
+def _beat_budget(n_scenes: int, intensity: str, *, text_effects_on: bool) -> int:
+    if n_scenes <= 0:
+        return 0
+    frac = {"low": 0.10, "medium": 0.18, "high": 0.28}.get(intensity, 0.18)
+    if text_effects_on:
+        frac *= 0.45
+    return max(0, min(n_scenes, int(round(n_scenes * frac))))
+
+
+def _token_set(text: str) -> set:
+    return {t for t in split_words(text or "") if is_distinctive(t)}
+
+
+def _jaccard(a: set, b: set) -> float:
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
+
+
+def _heuristic_scene_transitions(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+) -> List[dict]:
+    """Editorial fallback when Gemini is unavailable — sparse, not every scene."""
+    if len(aligned_rows) < 2:
+        return []
+    by_num = {str(r.get("scene_number")): r for r in rows}
+    scored: List[Tuple[float, int, str]] = []
+    for i in range(1, len(aligned_rows)):
+        cur = aligned_rows[i]
+        prev = aligned_rows[i - 1]
+        sn = str(cur.get("scene_number") or "")
+        cur_row = by_num.get(sn) or {}
+        prev_sn = str(prev.get("scene_number") or "")
+        prev_row = by_num.get(prev_sn) or {}
+        cur_text = str(cur_row.get("script_segment") or cur.get("script_segment") or "")
+        prev_text = str(prev_row.get("script_segment") or prev.get("script_segment") or "")
+        overlap = _jaccard(_token_set(prev_text), _token_set(cur_text))
+        score = (1.0 - overlap) * 3.0
+        if _TRANSITION_CUE_RE.search(cur_text):
+            score += 2.0
+        cur_dur = max(0.1, float(cur["end_time"]) - float(cur["start_time"]))
+        prev_dur = max(0.1, float(prev["end_time"]) - float(prev["start_time"]))
+        if abs(cur_dur - prev_dur) / max(cur_dur, prev_dur) > 0.55:
+            score += 0.6
+        # Prefer not clustering at the very start
+        if i == 1:
+            score *= 0.75
+        scored.append((score, i, sn))
+
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    budget = _transition_budget(len(aligned_rows) - 1, settings.transitions_intensity())
+    picked_idx: List[int] = []
+    picked: List[dict] = []
+    styles = ("dissolve", "fade", "soft", "flash", "fade")
+    for score, i, sn in scored:
+        if len(picked) >= budget:
+            break
+        if score < 0.85 and len(picked) >= max(1, budget // 2):
+            continue
+        if any(abs(i - j) == 1 for j in picked_idx):
+            continue
+        style = styles[len(picked) % len(styles)]
+        picked_idx.append(i)
+        picked.append({"scene_number": sn, "style": style, "sfx": True, "source": "heuristic"})
+    return picked
+
+
+def _extract_json_object(text: str) -> dict:
+    raw = (text or "").strip()
+    if not raw:
+        return {}
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if not match:
+        return {}
+    try:
+        data = json.loads(match.group(0))
+        return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def _parse_ai_transitions(
+    payload: dict,
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+) -> List[dict]:
+    items = payload.get("transitions")
+    if not isinstance(items, list):
+        return []
+    valid_scenes = {str(r.get("scene_number")) for r in aligned_rows}
+    # First scene usually shouldn't open with a "scene change" transition.
+    if aligned_rows:
+        valid_scenes.discard(str(aligned_rows[0].get("scene_number")))
+    budget = _transition_budget(max(0, len(aligned_rows) - 1), settings.transitions_intensity())
+    out: List[dict] = []
+    seen = set()
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        sn = str(raw.get("into_scene") or raw.get("scene_number") or "").strip()
+        if not sn or sn not in valid_scenes or sn in seen:
+            continue
+        style = str(raw.get("style") or "fade").strip().lower().replace(" ", "_")
+        if style not in _TRANSITION_STYLES:
+            style = "fade"
+        if style == "cut" and raw.get("sfx", True):
+            # Hard cut with optional soft whoosh still allowed via sfx flag.
+            pass
+        out.append(
+            {
+                "scene_number": sn,
+                "style": style,
+                "sfx": bool(raw.get("sfx", True)),
+                "source": "ai",
+            }
+        )
+        seen.add(sn)
+        if len(out) >= budget + 2:  # slight slack; trim below
+            break
+    # Prefer spaced selections if AI packed adjacent scenes.
+    spaced: List[dict] = []
+    idx_by_sn = {str(r.get("scene_number")): i for i, r in enumerate(aligned_rows)}
+    used_i: List[int] = []
+    for item in out:
+        i = idx_by_sn.get(item["scene_number"], -1)
+        if i < 0:
+            continue
+        if any(abs(i - j) == 1 for j in used_i) and len(spaced) >= max(1, budget // 2):
+            continue
+        spaced.append(item)
+        used_i.append(i)
+        if len(spaced) >= budget:
+            break
+    return spaced
+
+
+_TRANSITION_SYSTEM = """You are an editor choosing where a narrated documentary needs a
+scene transition (visual fade/dissolve/flash + optional whoosh SFX).
+
+Rules:
+- Most scene changes should be HARD CUTS with NO transition sound.
+- Only mark a transition when the story clearly shifts: new location, new idea,
+  section break, time jump, contrast, or emotional beat.
+- Target about 15–30% of scene boundaries (fewer for calm narration).
+- Never mark every scene. Prefer spaced-out moments, not adjacent scenes.
+- Styles: fade, dissolve, soft, flash, cut (cut = visual hard cut; sfx may still be true for a soft whoosh).
+
+Return ONLY JSON:
+{"transitions":[{"into_scene":"<scene_number>","style":"dissolve","sfx":true}]}
+into_scene = the scene being entered (not the previous one).
+"""
+
+
+def _ai_scene_transitions(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+    gemini_settings: Optional[Mapping[str, Any]] = None,
+) -> Optional[List[dict]]:
+    try:
+        from visual_director.llm import GeminiLLM, LLMError, gemini_configured
+    except Exception:
+        return None
+    if not gemini_configured(gemini_settings):
+        return None
+    lines = []
+    by_num = {str(r.get("scene_number")): r for r in rows}
+    for i, aligned in enumerate(aligned_rows):
+        sn = str(aligned.get("scene_number") or "")
+        row = by_num.get(sn) or {}
+        text = str(row.get("script_segment") or aligned.get("script_segment") or "").strip()
+        if len(text) > 160:
+            text = text[:157] + "…"
+        dur = max(0.0, float(aligned["end_time"]) - float(aligned["start_time"]))
+        lines.append(f"{i + 1}. scene {sn} ({dur:.1f}s): {text}")
+    budget = _transition_budget(max(0, len(aligned_rows) - 1), settings.transitions_intensity())
+    user = (
+        f"Intensity={settings.transitions_intensity()}. Pick up to {budget} transitions.\n"
+        f"Scenes:\n" + "\n".join(lines)
+    )
+    try:
+        llm = GeminiLLM(settings=gemini_settings, timeout=90.0)
+        # Lighter thinking for a small editorial JSON pick.
+        raw = llm.complete(_TRANSITION_SYSTEM, user)
+        parsed = _parse_ai_transitions(_extract_json_object(raw), aligned_rows, settings)
+        if not parsed and budget > 0:
+            print("[SMART] Transition AI returned no usable picks; using heuristic.")
+            return None
+        return parsed
+    except Exception as exc:
+        print(f"[SMART] Transition AI unavailable ({exc}); using heuristic picks.")
+        return None
+
+
+def plan_scene_transitions(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+    *,
+    gemini_settings: Optional[Mapping[str, Any]] = None,
+) -> List[dict]:
+    """Choose sparse scene boundaries for visual + SFX transitions (AI preferred)."""
+    if not (settings.sound_effects or settings.visual_transitions):
+        return []
+    if len(aligned_rows) < 2:
+        return []
+    ai = _ai_scene_transitions(rows, aligned_rows, settings, gemini_settings)
+    if ai is not None:
+        print(f"[SMART] AI selected {len(ai)} scene transition(s).")
+        return ai
+    picks = _heuristic_scene_transitions(rows, aligned_rows, settings)
+    print(f"[SMART] Heuristic selected {len(picks)} scene transition(s).")
+    return picks
+
+
+_AMBIENCE_SYSTEM = """You pick a subtle background ambience profile for EACH scene in a narrated documentary.
+
+Profiles (pick exactly one per scene):
+- room: indoor, quiet room tone, hallway, library, house
+- city: urban streets, downtown, distant city life
+- crowd: people, public spaces, busy markets (not music)
+- nature: forest, wind, meadow, wildlife, outdoor wilderness
+- rain: gentle/heavy rain, storm, thunder, rain on window
+- traffic: highway, distant road traffic, intersections
+- water: ocean, shoreline, river, calm water environments
+- fire: fireplace, campfire, subtle crackle
+- transport: train station, subway, airport, public transit
+- technology: office, lab, server room, subtle electronic hum
+- atmospheric: dark, tense, mysterious environmental beds (no melody)
+- none: only for very abstract or silent beats — use sparingly
+
+Beds stay quiet under narration. Return ONLY JSON:
+{"scenes":[{"scene_number":"1","profile":"city"},{"scene_number":"2","profile":"technology"}]}
+"""
+
+
+def _normalize_ambience_profile(raw: str) -> str:
+    key = str(raw or "room").strip().lower().replace(" ", "_")
+    if key in _AMBIENCE_PROFILES:
+        return key
+    aliases = {
+        "urban": "city",
+        "office": "room",
+        "indoor": "room",
+        "outdoor": "nature",
+        "wind": "nature",
+        "forest": "nature",
+        "space": "nature",
+        "tech": "technology",
+        "sci": "technology",
+        "silent": "none",
+        "storm": "rain",
+        "weather": "rain",
+        "thunder": "rain",
+        "ocean": "water",
+        "beach": "water",
+        "river": "water",
+        "shore": "water",
+        "highway": "traffic",
+        "road": "traffic",
+        "freeway": "traffic",
+        "train": "transport",
+        "subway": "transport",
+        "metro": "transport",
+        "airport": "transport",
+        "station": "transport",
+        "fireplace": "fire",
+        "campfire": "fire",
+        "dark": "atmospheric",
+        "tension": "atmospheric",
+        "mysterious": "atmospheric",
+        "drone": "atmospheric",
+    }
+    return aliases.get(key, "room")
+
+
+def _heuristic_ambience_profile(text: str, prompt: str = "") -> str:
+    blob = f"{text} {prompt}".lower()
+    if re.search(r"\b(rain|storm|thunder|drizzle|downpour|lightning)\b", blob):
+        return "rain"
+    if re.search(r"\b(fireplace|campfire|fire crackl|embers|bonfire)\b", blob):
+        return "fire"
+    if re.search(r"\b(ocean|shoreline|shore|waves|river|underwater|stream|beach)\b", blob):
+        return "water"
+    if re.search(r"\b(train|subway|metro|airport|platform|departure|transit)\b", blob):
+        return "transport"
+    if re.search(r"\b(highway|freeway|intersection|motorway|road traffic)\b", blob):
+        return "traffic"
+    if re.search(r"\b(dark|myster|tension|ominous|haunting|sinister|eerie)\b", blob):
+        return "atmospheric"
+    if re.search(r"\b(rocket|space|launch|engine|machine|digital|computer|lab|satellite|orbit|server|data center)\b", blob):
+        return "technology"
+    if re.search(r"\b(city|street|urban|skyline|downtown|commut)\b", blob) and not re.search(r"\btraffic\b", blob):
+        return "city"
+    if re.search(r"\b(traffic|cars rush|vehicles|highway)\b", blob):
+        return "traffic"
+    if re.search(r"\b(crowd|people|audience|stadium|protest|market|busy)\b", blob):
+        return "crowd"
+    if re.search(r"\b(wind|forest|mountain|nature|outdoor|wild|meadow|wildlife|bird)\b", blob):
+        return "nature"
+    if re.search(r"\b(bedroom|office|room|indoor|home|quiet|hallway|library)\b", blob):
+        return "room"
+    return "room"
+
+
+def _scene_context(row: dict, aligned: dict) -> Tuple[str, str]:
+    text = str(row.get("script_segment") or aligned.get("script_segment") or "")
+    prompt = str(row.get("prompt") or row.get("stock") or "")
+    return text, prompt
+
+
+def _parse_ai_ambience(payload: dict, aligned_rows: Sequence[dict]) -> List[dict]:
+    items = payload.get("scenes")
+    if not isinstance(items, list):
+        return []
+    valid = {str(r.get("scene_number")) for r in aligned_rows}
+    out: List[dict] = []
+    seen = set()
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        sn = str(raw.get("scene_number") or "").strip()
+        if not sn or sn not in valid or sn in seen:
+            continue
+        profile = _normalize_ambience_profile(str(raw.get("profile") or "room"))
+        out.append({"scene_number": sn, "profile": profile, "source": "ai"})
+        seen.add(sn)
+    return out
+
+
+def _ai_scene_ambience(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    gemini_settings: Optional[Mapping[str, Any]] = None,
+) -> Optional[List[dict]]:
+    try:
+        from visual_director.llm import GeminiLLM, gemini_configured
+    except Exception:
+        return None
+    if not gemini_configured(gemini_settings):
+        return None
+    by_num = {str(r.get("scene_number")): r for r in rows}
+    lines = []
+    for aligned in aligned_rows:
+        sn = str(aligned.get("scene_number") or "")
+        row = by_num.get(sn) or {}
+        text, prompt = _scene_context(row, aligned)
+        if len(text) > 120:
+            text = text[:117] + "…"
+        hint = f" | visual: {prompt[:80]}" if prompt else ""
+        lines.append(f"scene {sn}: {text}{hint}")
+    user = "Pick one ambience profile per scene.\n" + "\n".join(lines)
+    try:
+        llm = GeminiLLM(settings=gemini_settings, timeout=90.0)
+        raw = llm.complete(_AMBIENCE_SYSTEM, user)
+        parsed = _parse_ai_ambience(_extract_json_object(raw), aligned_rows)
+        if len(parsed) < max(1, len(aligned_rows) // 2):
+            print("[SMART] Ambience AI returned too few scenes; using heuristic.")
+            return None
+        return parsed
+    except Exception as exc:
+        print(f"[SMART] Ambience AI unavailable ({exc}); using heuristic profiles.")
+        return None
+
+
+def _heuristic_scene_ambience(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+) -> List[dict]:
+    by_num = {str(r.get("scene_number")): r for r in rows}
+    out: List[dict] = []
+    for aligned in aligned_rows:
+        sn = str(aligned.get("scene_number") or "")
+        row = by_num.get(sn) or {}
+        text, prompt = _scene_context(row, aligned)
+        profile = _heuristic_ambience_profile(text, prompt)
+        out.append({"scene_number": sn, "profile": profile, "source": "heuristic"})
+    return out
+
+
+def _ambience_volume(settings: SmartEditingSettings) -> float:
+    return {"low": 0.22, "medium": 0.30, "high": 0.38}.get(settings.ambience_intensity(), 0.30)
+
+
+def _display_window_by_scene(
+    aligned_rows: Sequence[dict],
+    audio_end: float,
+) -> Dict[str, Tuple[float, float]]:
+    """Map scene_number → (start, end) using the same windows as rendered clips."""
+    windows = _scene_display_timeline(list(aligned_rows), float(audio_end))
+    out: Dict[str, Tuple[float, float]] = {}
+    for i, row in enumerate(aligned_rows):
+        sn = str(row.get("scene_number") or "")
+        if sn and i < len(windows):
+            out[sn] = windows[i]
+    return out
+
+
+def _smooth_ambience_profiles(profiles: Sequence[dict], *, min_run: int = 3) -> List[dict]:
+    """Absorb very short profile runs so beds can merge into continuous segments."""
+    if len(profiles) < min_run:
+        return [dict(p) for p in profiles]
+    raw = [dict(p) for p in profiles]
+    n = len(raw)
+    i = 0
+    while i < n:
+        prof = str(raw[i].get("profile") or "room")
+        j = i + 1
+        while j < n and str(raw[j].get("profile") or "room") == prof:
+            j += 1
+        run_len = j - i
+        if run_len < min_run and i > 0:
+            prev = str(raw[i - 1].get("profile") or "room")
+            nxt = str(raw[j].get("profile") or "room") if j < n else prev
+            if prev == nxt:
+                for k in range(i, j):
+                    raw[k]["profile"] = prev
+        i = j
+    return raw
+
+
+def _merge_ambience_beds(beds: Sequence[dict]) -> List[dict]:
+    """Return one bed per visual scene — never span multiple scene boundaries.
+
+    Same profile/file may still be selected for adjacent scenes, but each bed
+    keeps its own start/end so ambience ends/starts with the visual cut.
+    """
+    return [dict(b) for b in beds]
+
+
+_PROFILE_BOUNDARY_GAP_S = 0.05
+_PROFILE_BOUNDARY_FADE_OUT_S = 0.10
+
+
+def _annotate_ambience_boundary_fades(beds: List[dict]) -> None:
+    """Set abutting-bed fades so scene cuts stay tight without silence gaps.
+
+    - Different profile: short fade-out on outgoing, hard fade-in on incoming.
+    - Same profile: hard abut (no fade-out/fade-in pair) so the bed sounds continuous
+      while remaining logically one segment per visual scene.
+    """
+    if len(beds) < 2:
+        return
+    ordered = sorted(beds, key=lambda b: float(b.get("start") or 0.0))
+    for i in range(len(ordered) - 1):
+        cur = ordered[i]
+        nxt = ordered[i + 1]
+        gap = float(nxt["start"]) - float(cur["end"])
+        if abs(gap) > _PROFILE_BOUNDARY_GAP_S:
+            continue
+        if cur.get("profile") == nxt.get("profile"):
+            cur["fade_out"] = 0.0
+            nxt["fade_in"] = 0.0
+            continue
+        dur = float(cur.get("duration") or 0.5)
+        cur["fade_out"] = min(_PROFILE_BOUNDARY_FADE_OUT_S, max(0.04, dur / 12.0))
+        nxt["fade_in"] = 0.0
+
+
+def _pick_ambience_entry(
+    catalog: SfxCatalog,
+    profile: str,
+    settings: SmartEditingSettings,
+    *,
+    scene_number: str,
+    avoid_ids: Sequence[str],
+) -> Optional[SfxEntry]:
+    tags = _AMBIENCE_PROFILES.get(profile, ("room",))
+    request = SfxRequest("scene_ambience", "ambience", tags, settings.ambience_intensity(), 30.0)
+    pool = list(catalog._by_category.get("ambience", []))
+    if not pool:
+        return None
+    req_tags = {t.lower() for t in tags if t}
+    req_intensity = (settings.ambience_intensity() or "medium").lower()
+    avoided = {str(x) for x in avoid_ids if x}
+
+    def score(entry: SfxEntry) -> Tuple[int, int, float]:
+        if not entry.resolved_path(catalog.root).is_file():
+            return (-998, 0, entry.duration)
+        tag_hits = len(req_tags.intersection(set(entry.tags))) if req_tags else 0
+        intensity_delta = abs(_intensity_rank(entry.intensity) - _intensity_rank(req_intensity))
+        return (tag_hits, -intensity_delta, entry.duration)
+
+    ranked = sorted(pool, key=score, reverse=True)
+    top_score = score(ranked[0])[0] if ranked else -999
+    candidates = [e for e in ranked if score(e)[0] == top_score and score(e)[0] > -998]
+    if not candidates:
+        return catalog.match(request, avoid_ids=avoid_ids)
+    try:
+        sn_num = int(re.sub(r"\D", "", scene_number) or "0")
+    except ValueError:
+        sn_num = hash(scene_number) % 997
+    start = (sn_num + len(avoid_ids)) % len(candidates)
+    for offset in range(len(candidates)):
+        entry = candidates[(start + offset) % len(candidates)]
+        if entry.id not in avoided:
+            return entry
+    return candidates[0]
+
+
+def _resolve_ambience_beds(
+    profiles: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+    catalog: SfxCatalog,
+    *,
+    display_windows: Optional[Mapping[str, Tuple[float, float]]] = None,
+) -> List[dict]:
+    aligned_by_sn = {str(r.get("scene_number")): r for r in aligned_rows}
+    windows = display_windows or {}
+    beds: List[dict] = []
+    recent_ids: List[str] = []
+    base_vol = _ambience_volume(settings)
+    for pick in profiles:
+        sn = str(pick.get("scene_number") or "")
+        aligned = aligned_by_sn.get(sn)
+        if aligned is None:
+            continue
+        profile = _normalize_ambience_profile(str(pick.get("profile") or "room"))
+        if profile == "none":
+            continue
+        if sn in windows:
+            start, end = windows[sn]
+        else:
+            start = float(aligned["start_time"])
+            end = float(aligned["end_time"])
+        duration = max(0.5, end - start)
+        tags = _AMBIENCE_PROFILES.get(profile, ("room",))
+        request = SfxRequest("scene_ambience", "ambience", tags, settings.ambience_intensity(), 30.0)
+        entry = _pick_ambience_entry(
+            catalog,
+            profile,
+            settings,
+            scene_number=sn,
+            avoid_ids=recent_ids,
+        )
+        if entry is None:
+            entry = _pick_sfx_entry(catalog, request, avoid_ids=recent_ids)
+        if entry is None:
+            entry = _pick_sfx_entry(
+                catalog,
+                SfxRequest("scene_ambience", "ambience", (), settings.ambience_intensity(), 30.0),
+                avoid_ids=recent_ids,
+            )
+        if entry is None:
+            continue
+        recent_ids.append(entry.id)
+        if len(recent_ids) > 12:
+            del recent_ids[0]
+        beds.append(
+            {
+                "type": "scene_ambience",
+                "scene_number": sn,
+                "profile": profile,
+                "start": round(start, 3),
+                "end": round(end, 3),
+                "duration": round(duration, 3),
+                "volume": round(base_vol, 3),
+                "file": entry.file,
+                "sfx_id": entry.id,
+                "source": pick.get("source") or "heuristic",
+            }
+        )
+    return beds
+
+
+def plan_scene_ambience(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+    catalog: Optional[SfxCatalog] = None,
+    *,
+    audio_end: Optional[float] = None,
+    gemini_settings: Optional[Mapping[str, Any]] = None,
+) -> List[dict]:
+    if not settings.scene_ambience or not aligned_rows:
+        return []
+    cat = catalog if catalog is not None else get_sfx_catalog()
+    if not cat.entries:
+        return []
+    end_time = float(audio_end if audio_end is not None else aligned_rows[-1].get("end_time") or 0.0)
+    display_windows = _display_window_by_scene(aligned_rows, end_time)
+    ai = _ai_scene_ambience(rows, aligned_rows, gemini_settings)
+    if ai is not None:
+        profiles = _smooth_ambience_profiles(ai)
+        print(f"[SMART] AI picked ambience for {len(profiles)} scene(s).")
+    else:
+        profiles = _smooth_ambience_profiles(_heuristic_scene_ambience(rows, aligned_rows))
+        print(f"[SMART] Heuristic ambience for {len(profiles)} scene(s).")
+    beds = _resolve_ambience_beds(
+        profiles, aligned_rows, settings, cat, display_windows=display_windows,
+    )
+    if len(beds) > 1:
+        merged = _merge_ambience_beds(beds)
+        if len(merged) < len(beds):
+            print(
+                f"[SMART] Merged {len(beds)} scene beds into {len(merged)} "
+                f"continuous ambience segment(s)."
+            )
+        beds = merged
+    beds = list(beds)
+    _annotate_ambience_boundary_fades(beds)
+    if beds:
+        mix = ", ".join(f"{b['scene_number']}={b['profile']}" for b in beds[:8])
+        if len(beds) > 8:
+            mix += f", +{len(beds) - 8} more"
+        print(f"[SMART] Scene ambience beds: {mix}")
+    return beds
+
+
 def plan_sfx_events(
     aligned_rows: Sequence[dict],
     text_effects: Sequence[dict],
     settings: SmartEditingSettings,
     catalog: Optional[SfxCatalog] = None,
+    *,
+    scene_transitions: Optional[Sequence[dict]] = None,
 ) -> List[dict]:
     if not settings.sound_effects:
         return []
@@ -532,15 +1346,20 @@ def plan_sfx_events(
     if not cat.entries:
         return []
     events: List[dict] = []
+    recent_ids: List[str] = []
     # Keep narration dominant, but previous medium≈0.14 was inaudible in real mixes.
-    base_vol = {"low": 0.28, "medium": 0.40, "high": 0.52}.get(settings.intensity, 0.40)
+    base_vol = {"low": 0.28, "medium": 0.40, "high": 0.52}.get(settings.sfx_intensity(), 0.40)
+
+    def _remember(entry: SfxEntry) -> None:
+        recent_ids.append(entry.id)
+        if len(recent_ids) > 4:
+            del recent_ids[0]
 
     for fx in text_effects:
         request = _sfx_request_for_text_effect(str(fx.get("effect") or ""), settings)
-        entry = _pick_sfx_entry(cat, request)
+        entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
         if entry is None:
             continue
-        # Visual intensity is already baked into which effects fire; use a mild weight only.
         fx_w = float(fx.get("intensity") or 0.65)
         vol = min(0.55, base_vol * (0.9 + 0.25 * fx_w))
         events.append(
@@ -552,29 +1371,96 @@ def plan_sfx_events(
                 scene_number=str(fx.get("scene_number") or ""),
             )
         )
+        _remember(entry)
 
-    transition_request = _sfx_request_for_transition(settings)
+    # Transition SFX only on AI/heuristic-selected scene boundaries.
+    sfx_scenes = {
+        str(item.get("scene_number") or "")
+        for item in (scene_transitions or [])
+        if item.get("sfx", True) is not False and item.get("scene_number")
+    }
     for i, row in enumerate(aligned_rows):
         if i == 0:
             continue
+        sn = str(row.get("scene_number") or "")
+        if sn not in sfx_scenes:
+            continue
         start = float(row["start_time"])
-        prev_end = float(aligned_rows[i - 1]["end_time"])
-        gap = start - prev_end
         duration = float(row["end_time"]) - start
-        if duration < 2.5 or gap < 0.05:
+        if duration < 0.8:
             continue
-        entry = _pick_sfx_entry(cat, transition_request)
-        if entry is None:
+        hit = cat.match_any(
+            _transition_sfx_fallback_chain(settings, i - 1),
+            avoid_ids=recent_ids,
+        )
+        if hit is None:
             continue
+        entry, request = hit
         events.append(
             _entry_to_event(
                 entry,
-                transition_request,
-                start=max(0.0, start - 0.05),
-                volume=round(min(0.55, base_vol * 0.9), 3),
-                scene_number=str(row.get("scene_number") or ""),
+                request,
+                start=max(0.0, start - 0.08),
+                volume=round(min(0.58, base_vol * 1.05), 3),
+                scene_number=sn,
             )
         )
+        _remember(entry)
+
+    # Mid-scene accents — especially when Text Effects are off (still sparse).
+    beat_budget = _beat_budget(
+        len(aligned_rows), settings.sfx_intensity(), text_effects_on=bool(text_effects),
+    )
+    if beat_budget > 0:
+        fx_times: Dict[str, List[float]] = {}
+        for fx in text_effects:
+            sn = str(fx.get("scene_number") or "")
+            fx_times.setdefault(sn, []).append(float(fx["start"]))
+        scored_beats: List[Tuple[float, int, str, float, float]] = []
+        for i, row in enumerate(aligned_rows):
+            sn = str(row.get("scene_number") or "")
+            start = float(row["start_time"])
+            end = float(row["end_time"])
+            dur = end - start
+            if dur < 2.0:
+                continue
+            text = str(row.get("script_segment") or "")
+            score = len(_token_set(text)) * 0.5
+            if _TRANSITION_CUE_RE.search(text):
+                score += 1.0
+            scored_beats.append((score, i, sn, start, dur))
+        scored_beats.sort(key=lambda t: (-t[0], t[1]))
+        picked_beat_idx: List[int] = []
+        for score, i, sn, start, dur in scored_beats:
+            if len(picked_beat_idx) >= beat_budget:
+                break
+            if score < 0.4 and len(picked_beat_idx) >= max(1, beat_budget // 3):
+                continue
+            if any(abs(i - j) <= 1 for j in picked_beat_idx):
+                continue
+            mid = start + dur * 0.48
+            if sn in sfx_scenes and mid - start < 0.45:
+                continue
+            if any(abs(mid - t) < 0.35 for t in fx_times.get(sn, [])):
+                continue
+            request = _beat_sfx_request(settings, len(picked_beat_idx))
+            entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
+            if entry is None:
+                continue
+            vol = min(0.42, base_vol * 0.72)
+            events.append(
+                _entry_to_event(
+                    entry,
+                    request,
+                    start=mid,
+                    volume=round(vol, 3),
+                    scene_number=sn,
+                )
+            )
+            _remember(entry)
+            picked_beat_idx.append(i)
+
+    events.sort(key=lambda e: float(e.get("start") or 0.0))
     return events
 
 
@@ -586,6 +1472,7 @@ def build_plan(
     *,
     state_dir: Optional[Path] = None,
     audio_path: Optional[Path | str] = None,
+    gemini_settings: Optional[Mapping[str, Any]] = None,
 ) -> SmartEditingPlan:
     if not settings.enabled():
         return SmartEditingPlan()
@@ -608,11 +1495,37 @@ def build_plan(
 
     whisper_list = [[w, s, e] for w, s, e in whisper_words]
     text_effects = plan_text_effects(rows, aligned_rows, whisper_words, settings)
-    sfx_events = plan_sfx_events(aligned_rows, text_effects, settings) if settings.sound_effects else []
+    scene_transitions = plan_scene_transitions(
+        rows, aligned_rows, settings, gemini_settings=gemini_settings,
+    )
+    audio_end = float(aligned_rows[-1].get("end_time") or 0.0) if aligned_rows else 0.0
+    scene_ambience = (
+        plan_scene_ambience(
+            rows,
+            aligned_rows,
+            settings,
+            audio_end=audio_end,
+            gemini_settings=gemini_settings,
+        )
+        if settings.scene_ambience
+        else []
+    )
+    sfx_events = (
+        plan_sfx_events(
+            aligned_rows,
+            text_effects,
+            settings,
+            scene_transitions=scene_transitions,
+        )
+        if settings.sound_effects
+        else []
+    )
     plan = SmartEditingPlan(
         text_effects=text_effects,
         sfx_events=sfx_events,
         whisper_words=whisper_list,
+        scene_transitions=scene_transitions,
+        scene_ambience=scene_ambience,
     )
 
     if state_dir is not None and audio_key:
@@ -713,50 +1626,452 @@ def _resolve_sfx_file(entry: dict, root: Optional[Path] = None) -> Optional[Path
     return None
 
 
+_MIX_CHUNK_SIZE = 24
+
+
+def _mix_debug_enabled() -> bool:
+    return os.environ.get("SMART_MIX_DEBUG", "").strip().lower() in ("1", "true", "yes")
+
+
+def _mix_keep_temp() -> bool:
+    return os.environ.get("SMART_MIX_KEEP_TEMP", "").strip().lower() in ("1", "true", "yes")
+
+
+def _boundary_debug_enabled() -> bool:
+    return os.environ.get("SMART_MIX_BOUNDARY_DEBUG", "").strip().lower() in ("1", "true", "yes")
+
+
+def _mix_debug(msg: str) -> None:
+    if _mix_debug_enabled():
+        print(f"[SMART][MIX-DEBUG] {msg}")
+
+
+def _probe_duration(path: Path) -> Optional[float]:
+    try:
+        return float(probe_audio(path).duration_seconds)
+    except (ValueError, RuntimeError, OSError):
+        return None
+
+
+def _dump_ambience_boundary_forensics(
+    beds_usable: Sequence[tuple[Path, dict, str]],
+    stem_path: Path,
+    out_dir: Path,
+    *,
+    max_boundaries: int = 3,
+) -> None:
+    """Write previous/next solo stems for the first profile-change + mid-merge boundaries."""
+    beds = [(p, ev) for p, ev, kind in beds_usable if kind == "ambience"]
+    if len(beds) < 2:
+        return
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ordered = sorted(beds, key=lambda x: float(x[1].get("start") or 0.0))
+    targets: List[tuple[str, float, tuple[Path, dict], tuple[Path, dict]]] = []
+    for i in range(len(ordered) - 1):
+        p_path, prev = ordered[i]
+        n_path, nxt = ordered[i + 1]
+        T = float(prev.get("end") or 0.0)
+        if abs(float(nxt.get("start") or 0.0) - T) > 0.05:
+            continue
+        if prev.get("profile") != nxt.get("profile"):
+            targets.append(("profile_change", T, (p_path, prev), (n_path, nxt)))
+        if len(targets) >= max_boundaries:
+            break
+    # Also dump the first long merged bed endpoint as a visual-cut forensic if present.
+    for path, bed in ordered:
+        sn = str(bed.get("scene_number") or "")
+        if "-" in sn and float(bed.get("duration") or 0.0) >= 20.0:
+            T = float(bed.get("end") or 0.0)
+            # Find next bed after this merged segment for contrast.
+            nxt = next((x for x in ordered if float(x[1].get("start") or 0.0) >= T - 0.01), None)
+            if nxt is not None and nxt[1] is not bed:
+                targets.append(("merged_end", T, (path, bed), nxt))
+            break
+    for idx, (kind, T, (p_path, prev), (n_path, nxt)) in enumerate(targets[:max_boundaries]):
+        sub = out_dir / f"boundary_{idx}_{kind}_T{T:.2f}"
+        sub.mkdir(parents=True, exist_ok=True)
+        local_prev = dict(prev)
+        local_prev["start"] = 0.0
+        local_next = dict(nxt)
+        local_next["start"] = 0.0
+        prev_local = sub / "previous_bed.wav"
+        next_local = sub / "next_bed.wav"
+        prev_delayed = sub / "previous_bed_delayed.wav"
+        next_delayed = sub / "next_bed_delayed.wav"
+        boundary_mix = sub / "boundary_mix.wav"
+        trim = T + float(nxt.get("duration") or 1.0) + 0.5
+        _ffmpeg_mix_ambience_chunk([(p_path, local_prev)], prev_local, trim_duration=float(prev.get("duration") or 1.0) + 0.5)
+        _ffmpeg_mix_ambience_chunk([(n_path, local_next)], next_local, trim_duration=float(nxt.get("duration") or 1.0) + 0.5)
+        _ffmpeg_mix_ambience_chunk([(p_path, prev)], prev_delayed, trim_duration=trim)
+        _ffmpeg_mix_ambience_chunk([(n_path, nxt)], next_delayed, trim_duration=trim)
+        _ffmpeg_mix_ambience_chunk([(p_path, prev), (n_path, nxt)], boundary_mix, trim_duration=trim)
+        meta = {
+            "kind": kind,
+            "T": T,
+            "previous": {k: prev.get(k) for k in ("scene_number", "profile", "start", "end", "duration", "volume", "file", "fade_in", "fade_out")},
+            "next": {k: nxt.get(k) for k in ("scene_number", "profile", "start", "end", "duration", "volume", "file", "fade_in", "fade_out")},
+            "durations_sec": {
+                "previous_bed": _probe_duration(prev_local),
+                "next_bed": _probe_duration(next_local),
+                "previous_bed_delayed": _probe_duration(prev_delayed),
+                "next_bed_delayed": _probe_duration(next_delayed),
+                "boundary_mix": _probe_duration(boundary_mix),
+                "ambience_stem": _probe_duration(stem_path) if stem_path.is_file() else None,
+            },
+        }
+        (sub / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        print(
+            f"[SMART][BOUNDARY-DEBUG] {kind} T={T:.3f}s "
+            f"{prev.get('scene_number')}={prev.get('profile')} → "
+            f"{nxt.get('scene_number')}={nxt.get('profile')} → {sub}"
+        )
+
+
+def _ffmpeg_mix_ambience_chunk(
+    layers: Sequence[tuple[Path, dict]],
+    output_path: Path,
+    *,
+    base_path: Optional[Path] = None,
+    trim_duration: Optional[float] = None,
+) -> bool:
+    """Build an ambience stem from delayed bed layers (optionally extending an existing stem)."""
+    if not layers:
+        if base_path is not None and base_path.is_file():
+            if trim_duration is not None:
+                cmd = [
+                    "ffmpeg", "-y", "-i", str(base_path),
+                    "-af", f"atrim=0:{trim_duration:.3f}",
+                    str(output_path),
+                ]
+                proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
+                return proc.returncode == 0 and output_path.is_file()
+            shutil.copy2(base_path, output_path)
+            return True
+        return False
+    cmd = ["ffmpeg", "-y"]
+    filter_parts: List[str] = []
+    mix_labels: List[str] = []
+    input_idx = 0
+    if base_path is not None:
+        cmd.extend(["-i", str(base_path)])
+        mix_labels.append("[0:a]")
+        input_idx = 1
+    for path, ev in layers:
+        cmd.extend(["-stream_loop", "-1", "-i", str(path)])
+        delay_ms = max(0, int(float(ev.get("start") or 0.0) * 1000))
+        dur = float(ev.get("duration") or 0.0)
+        if dur <= 0.0:
+            end = float(ev.get("end") or ev.get("start") or 0.0)
+            start = float(ev.get("start") or 0.0)
+            dur = max(0.5, end - start)
+        vol = min(0.42, float(ev.get("volume") or 0.30))
+        default_fade = min(0.35, max(0.08, dur / 5.0))
+        fade_in = float(ev["fade_in"]) if ev.get("fade_in") is not None else default_fade
+        fade_out = float(ev["fade_out"]) if ev.get("fade_out") is not None else default_fade
+        fade_parts: List[str] = []
+        if fade_in > 0.001:
+            fade_parts.append(f"afade=t=in:st=0:d={fade_in:.3f}")
+        if fade_out > 0.001:
+            fade_out_st = max(0.0, dur - fade_out)
+            fade_parts.append(f"afade=t=out:st={fade_out_st:.3f}:d={fade_out:.3f}")
+        fade_chain = (",".join(fade_parts) + ",") if fade_parts else ""
+        label = f"amb{input_idx}"
+        # Fade on the trimmed clip (local t=0..dur), then adelay to global start.
+        filter_parts.append(
+            f"[{input_idx}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
+            f"volume={vol:.4f},"
+            f"{fade_chain}"
+            f"adelay={delay_ms}|{delay_ms}[{label}]"
+        )
+        mix_labels.append(f"[{label}]")
+        input_idx += 1
+    n = len(mix_labels)
+    out_label = "aout"
+    if trim_duration is not None:
+        filter_parts.append(
+            f"{''.join(mix_labels)}amix=inputs={n}:duration=longest:dropout_transition=0:normalize=0[amixed];"
+            f"[amixed]atrim=0:{trim_duration:.3f}[{out_label}]"
+        )
+    else:
+        filter_parts.append(
+            f"{''.join(mix_labels)}amix=inputs={n}:duration=longest:dropout_transition=0:normalize=0[{out_label}]"
+        )
+    cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", f"[{out_label}]", str(output_path)])
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    ok = proc.returncode == 0 and output_path.is_file()
+    if _mix_debug_enabled():
+        beds = [float(ev.get("start") or 0.0) for _, ev in layers]
+        _mix_debug(
+            f"ambience chunk → {output_path.name}: ok={ok} layers={len(layers)} "
+            f"base={'yes' if base_path else 'no'} trim={trim_duration} "
+            f"start_range={min(beds, default=0):.1f}-{max(beds, default=0):.1f}s "
+            f"out_dur={_probe_duration(output_path)}"
+        )
+        if not ok and proc.stderr:
+            _mix_debug(f"ffmpeg stderr: {proc.stderr[-400:]}")
+    return ok
+
+
+def _mix_ambience_stem_chunked(
+    layers: Sequence[tuple[Path, dict, str]],
+    output_path: Path,
+    *,
+    temp_dir: Path,
+    total_duration: float,
+) -> tuple[int, bool]:
+    """Mix all ambience beds onto a dedicated stem (never re-processes narration)."""
+    amb_layers = [(p, ev) for p, ev, kind in layers if kind == "ambience"]
+    if not amb_layers:
+        return 0, False
+    current: Optional[Path] = None
+    mixed = 0
+    temps: List[Path] = []
+    for offset in range(0, len(amb_layers), _MIX_CHUNK_SIZE):
+        chunk = amb_layers[offset : offset + _MIX_CHUNK_SIZE]
+        is_last = offset + _MIX_CHUNK_SIZE >= len(amb_layers)
+        dest = output_path if is_last else temp_dir / f"amb_stem_{offset // _MIX_CHUNK_SIZE + 1}.wav"
+        if not is_last:
+            temps.append(dest)
+        trim = total_duration if is_last else None
+        if not _ffmpeg_mix_ambience_chunk(chunk, dest, base_path=current, trim_duration=trim):
+            for t in temps:
+                t.unlink(missing_ok=True)
+            return mixed, False
+        mixed += len(chunk)
+        if not is_last:
+            current = dest
+    for t in temps:
+        t.unlink(missing_ok=True)
+    return mixed, True
+
+
+def _ffmpeg_mix_narration_with_stem(
+    narration_path: Path,
+    stem_path: Path,
+    output_path: Path,
+) -> bool:
+    """Combine narration with a pre-built ambience stem (2-input mix, narration stays dominant)."""
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(narration_path),
+        "-i", str(stem_path),
+        "-filter_complex",
+        "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,volume=0.98[aout]",
+        "-map", "[aout]",
+        str(output_path),
+    ]
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    return proc.returncode == 0 and output_path.is_file()
+
+
+def _ffmpeg_mix_layers(
+    base_path: Path,
+    layers: Sequence[tuple[Path, dict, str]],
+    output_path: Path,
+) -> bool:
+    """Mix one narration/base track with a chunk of SFX or ambience layers."""
+    if not layers:
+        shutil.copy2(base_path, output_path)
+        return True
+    cmd = ["ffmpeg", "-y", "-i", str(base_path)]
+    filter_parts: List[str] = []
+    mix_inputs = ["[0:a]"]
+    input_idx = 1
+    for path, ev, kind in layers:
+        if kind == "ambience":
+            cmd.extend(["-stream_loop", "-1", "-i", str(path)])
+        else:
+            cmd.extend(["-i", str(path)])
+        delay_ms = max(0, int(float(ev.get("start") or 0.0) * 1000))
+        if kind == "ambience":
+            dur = float(ev.get("duration") or 0.0)
+            if dur <= 0.0:
+                end = float(ev.get("end") or ev.get("start") or 0.0)
+                start = float(ev.get("start") or 0.0)
+                dur = max(0.5, end - start)
+            vol = min(0.42, float(ev.get("volume") or 0.30))
+            fade = min(0.25, dur / 4.0)
+            fade_out_st = max(0.0, dur - fade)
+            label = f"x{input_idx}"
+            filter_parts.append(
+                f"[{input_idx}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
+                f"volume={vol:.4f},adelay={delay_ms}|{delay_ms},"
+                f"afade=t=in:st=0:d={fade:.3f},afade=t=out:st={fade_out_st:.3f}:d={fade:.3f}[{label}]"
+            )
+        else:
+            vol = min(0.55, float(ev.get("volume") or 0.32))
+            dur = float(ev.get("duration") or 0.4)
+            label = f"x{input_idx}"
+            filter_parts.append(
+                f"[{input_idx}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
+                f"volume={vol:.4f},adelay={delay_ms}|{delay_ms}[{label}]"
+            )
+        mix_inputs.append(f"[{label}]")
+        input_idx += 1
+    n = len(mix_inputs)
+    filter_parts.append(
+        f"{''.join(mix_inputs)}amix=inputs={n}:duration=first:dropout_transition=0:normalize=0,"
+        f"volume=0.95[aout]"
+    )
+    cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", "[aout]", str(output_path)])
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    return proc.returncode == 0 and output_path.is_file()
+
+
+def _mix_layers_chunked(
+    base_path: Path,
+    layers: Sequence[tuple[Path, dict, str]],
+    output_path: Path,
+    *,
+    temp_dir: Path,
+    prefix: str,
+) -> tuple[int, bool]:
+    if not layers:
+        shutil.copy2(base_path, output_path)
+        return 0, True
+    current = base_path
+    mixed = 0
+    chunk_count = 0
+    temps: List[Path] = []
+    for offset in range(0, len(layers), _MIX_CHUNK_SIZE):
+        chunk = layers[offset : offset + _MIX_CHUNK_SIZE]
+        chunk_count += 1
+        is_last = offset + _MIX_CHUNK_SIZE >= len(layers)
+        if is_last:
+            dest = output_path
+        else:
+            dest = temp_dir / f"{prefix}_{chunk_count}.wav"
+            temps.append(dest)
+        if not _ffmpeg_mix_layers(current, chunk, dest):
+            for t in temps:
+                t.unlink(missing_ok=True)
+            return mixed, False
+        mixed += len(chunk)
+        if not is_last:
+            current = dest
+    for t in temps:
+        t.unlink(missing_ok=True)
+    return mixed, True
+
+
 def mix_sfx_with_narration(
     narration_path: Path | str,
     sfx_events: Sequence[dict],
     output_path: Path | str,
     *,
     sfx_root: Optional[Path] = None,
+    ambience_beds: Optional[Sequence[dict]] = None,
+    stats: Optional[Dict[str, Any]] = None,
 ) -> Path:
     narration_path = Path(narration_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    usable: List[tuple[Path, dict]] = []
     root = Path(sfx_root or sfx_library_root())
+
+    usable: List[tuple[Path, dict, str]] = []
+    sfx_skipped = 0
     for ev in sfx_events:
         path = _resolve_sfx_file(ev, root)
         if path is not None:
-            usable.append((path, ev))
-    if not usable:
+            usable.append((path, ev, "sfx"))
+        else:
+            sfx_skipped += 1
+
+    beds_usable: List[tuple[Path, dict, str]] = []
+    amb_skipped = 0
+    for bed in ambience_beds or ():
+        path = _resolve_sfx_file(bed, root)
+        if path is not None:
+            beds_usable.append((path, bed, "ambience"))
+        else:
+            amb_skipped += 1
+
+    report: Dict[str, Any] = {
+        "sfx_planned": len(sfx_events),
+        "sfx_mixed": 0,
+        "sfx_skipped": sfx_skipped,
+        "ambience_planned": len(ambience_beds or ()),
+        "ambience_mixed": 0,
+        "ambience_skipped": amb_skipped,
+        "mix_chunks": 0,
+        "used_fallback": False,
+    }
+
+    if not usable and not beds_usable:
         shutil.copy2(narration_path, output_path)
+        if stats is not None:
+            stats.update(report)
         return output_path
 
-    cmd = ["ffmpeg", "-y", "-i", str(narration_path)]
-    filter_parts: List[str] = []
-    mix_inputs = ["[0:a]"]
-    for i, (path, ev) in enumerate(usable, start=1):
-        cmd.extend(["-i", str(path)])
-        delay_ms = max(0, int(float(ev.get("start") or 0.0) * 1000))
-        vol = min(0.55, float(ev.get("volume") or 0.32))
-        dur = float(ev.get("duration") or 0.4)
-        label = f"s{i}"
-        filter_parts.append(
-            f"[{i}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
-            f"volume={vol:.4f},adelay={delay_ms}|{delay_ms}[{label}]"
-        )
-        mix_inputs.append(f"[{label}]")
+    temp_dir = output_path.parent / ".smart_mix_tmp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    current = narration_path
+    ok = True
 
-    n = len(mix_inputs)
-    filter_parts.append(
-        f"{''.join(mix_inputs)}amix=inputs={n}:duration=first:dropout_transition=0:normalize=0,"
-        f"volume=0.92[aout]"
-    )
-    cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", "[aout]", str(output_path)])
-    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0 or not output_path.is_file():
+    if beds_usable:
+        if _mix_debug_enabled() and beds_usable:
+            starts = [float(b[1].get("start") or 0.0) for b in beds_usable]
+            _mix_debug(
+                f"ambience plan: {len(beds_usable)} beds, "
+                f"timeline {min(starts):.1f}s–{max(float(b[1].get('end') or 0.0) for b in beds_usable):.1f}s"
+            )
+        try:
+            narr_info = probe_audio(narration_path)
+            total_duration = float(narr_info.duration_seconds) + 0.25
+        except (ValueError, RuntimeError, OSError):
+            total_duration = max(
+                (float(b[1].get("end") or 0.0) for b in beds_usable),
+                default=60.0,
+            )
+        amb_stem = temp_dir / "ambience_stem.wav"
+        amb_out = temp_dir / "with_ambience.wav" if usable else output_path
+        mixed, ok = _mix_ambience_stem_chunked(
+            beds_usable, amb_stem, temp_dir=temp_dir, total_duration=total_duration,
+        )
+        report["ambience_mixed"] = mixed
+        report["mix_chunks"] += (len(beds_usable) + _MIX_CHUNK_SIZE - 1) // _MIX_CHUNK_SIZE
+        if ok and amb_stem.is_file() and _boundary_debug_enabled():
+            dbg = output_path.parent / "smart_mix_boundary_debug"
+            _dump_ambience_boundary_forensics(beds_usable, amb_stem, dbg)
+            if amb_stem.is_file():
+                shutil.copy2(amb_stem, dbg / "ambience_stem.wav")
+        if ok and amb_stem.is_file():
+            ok = _ffmpeg_mix_narration_with_stem(narration_path, amb_stem, amb_out)
+            _mix_debug(
+                f"narration+stem → {amb_out.name}: ok={ok} "
+                f"narr_dur={_probe_duration(narration_path)} stem_dur={_probe_duration(amb_stem)}"
+            )
+        if ok:
+            current = amb_out
+
+    if ok and usable:
+        mixed, sfx_ok = _mix_layers_chunked(
+            current, usable, output_path, temp_dir=temp_dir, prefix="sfx",
+        )
+        report["sfx_mixed"] = mixed
+        report["mix_chunks"] += (len(usable) + _MIX_CHUNK_SIZE - 1) // _MIX_CHUNK_SIZE
+        ok = sfx_ok
+    elif ok and not usable:
+        if current != output_path:
+            shutil.copy2(current, output_path)
+
+    if not ok or not output_path.is_file():
+        report["used_fallback"] = True
         shutil.copy2(narration_path, output_path)
+
+    if _mix_keep_temp():
+        keep_root = output_path.parent / "smart_mix_debug"
+        keep_root.mkdir(parents=True, exist_ok=True)
+        for name in ("ambience_stem.wav", "with_ambience.wav"):
+            src = temp_dir / name
+            if src.is_file():
+                shutil.copy2(src, keep_root / name)
+        shutil.copy2(output_path, keep_root / output_path.name)
+        print(f"[SMART][MIX-DEBUG] Kept mix artifacts under {keep_root}")
+    else:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    if stats is not None:
+        stats.update(report)
     return output_path
 
 
@@ -821,6 +2136,30 @@ def write_test_sfx_library(root: Path, entries: Optional[Sequence[dict]] = None)
                 "tags": ["pop", "click"],
                 "intensity": "low",
                 "duration": 0.2,
+                "source": "test",
+                "license": "test",
+                "commercial_use": True,
+                "attribution_required": False,
+            },
+            {
+                "id": "ambience_room_test",
+                "file": "ambience/ambience_room_test.wav",
+                "category": "ambience",
+                "tags": ["room", "office"],
+                "intensity": "medium",
+                "duration": 3.0,
+                "source": "test",
+                "license": "test",
+                "commercial_use": True,
+                "attribution_required": False,
+            },
+            {
+                "id": "ambience_city_test",
+                "file": "ambience/ambience_city_test.wav",
+                "category": "ambience",
+                "tags": ["city", "traffic"],
+                "intensity": "medium",
+                "duration": 3.0,
                 "source": "test",
                 "license": "test",
                 "commercial_use": True,

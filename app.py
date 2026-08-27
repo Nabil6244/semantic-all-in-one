@@ -653,9 +653,45 @@ class VideoGeneratorApp(ctk.CTk):
         self.smart_sfx_var = ctk.BooleanVar(
             value=bool(self._settings.get("smart_sound_effects", DEFAULT_SETTINGS["sound_effects"]))
         )
-        self.smart_intensity_var = ctk.StringVar(
-            value=str(self._settings.get("smart_intensity", DEFAULT_SETTINGS["intensity"]))
+        self.smart_visual_transitions_var = ctk.BooleanVar(
+            value=bool(
+                self._settings.get(
+                    "smart_visual_transitions",
+                    DEFAULT_SETTINGS.get("visual_transitions", True),
+                )
+            )
         )
+        self.smart_scene_ambience_var = ctk.BooleanVar(
+            value=bool(
+                self._settings.get(
+                    "smart_scene_ambience",
+                    DEFAULT_SETTINGS.get("scene_ambience", True),
+                )
+            )
+        )
+        def _smart_intensity_label(key: str, fallback_key: str = "intensity") -> str:
+            raw = str(
+                self._settings.get(key)
+                or self._settings.get(f"smart_{fallback_key}", DEFAULT_SETTINGS.get(fallback_key, "medium"))
+                or "medium"
+            ).strip().title()
+            return raw if raw in {"Low", "Medium", "High"} else "Medium"
+
+        legacy = _smart_intensity_label("smart_intensity", "intensity")
+        self.smart_text_intensity_var = ctk.StringVar(
+            value=_smart_intensity_label("smart_text_effects_intensity") if self._settings.get("smart_text_effects_intensity") else legacy
+        )
+        self.smart_sfx_intensity_var = ctk.StringVar(
+            value=_smart_intensity_label("smart_sound_effects_intensity") if self._settings.get("smart_sound_effects_intensity") else legacy
+        )
+        self.smart_transitions_intensity_var = ctk.StringVar(
+            value=_smart_intensity_label("smart_visual_transitions_intensity") if self._settings.get("smart_visual_transitions_intensity") else legacy
+        )
+        self.smart_ambience_intensity_var = ctk.StringVar(
+            value=_smart_intensity_label("smart_scene_ambience_intensity") if self._settings.get("smart_scene_ambience_intensity") else legacy
+        )
+        # Keep legacy var in sync for any leftover reads.
+        self.smart_intensity_var = self.smart_sfx_intensity_var
         self.smart_mode_var = ctk.StringVar(
             value=str(self._settings.get("smart_mode", DEFAULT_SETTINGS["mode"]))
         )
@@ -2282,29 +2318,37 @@ class VideoGeneratorApp(ctk.CTk):
             )
 
     def _smart_editing_settings(self) -> SmartEditingSettings:
-        intensity = (self.smart_intensity_var.get() or "Medium").strip().lower()
+        def _lvl(var) -> str:
+            return (var.get() or "Medium").strip().lower()
+
         mode_raw = (self.smart_mode_var.get() or "Smart").strip().lower()
         return SmartEditingSettings(
             text_effects=bool(self.smart_text_effects_var.get()),
             sound_effects=bool(self.smart_sfx_var.get()),
-            intensity=intensity,
+            visual_transitions=bool(self.smart_visual_transitions_var.get()),
+            scene_ambience=bool(self.smart_scene_ambience_var.get()),
+            intensity=_lvl(self.smart_sfx_intensity_var),
+            text_effects_intensity=_lvl(self.smart_text_intensity_var),
+            sound_effects_intensity=_lvl(self.smart_sfx_intensity_var),
+            visual_transitions_intensity=_lvl(self.smart_transitions_intensity_var),
+            scene_ambience_intensity=_lvl(self.smart_ambience_intensity_var),
             mode="automatic" if mode_raw.startswith("auto") else "smart",
         )
 
     def _smart_editing_settings_dict(self) -> dict:
-        s = self._smart_editing_settings()
-        return {
-            "text_effects": s.text_effects,
-            "sound_effects": s.sound_effects,
-            "intensity": s.intensity,
-            "mode": s.mode,
-        }
+        return self._smart_editing_settings().to_settings_dict()
 
     def _persist_smart_editing_settings(self) -> None:
         payload = self._smart_editing_settings_dict()
         self._settings["smart_text_effects"] = payload["text_effects"]
         self._settings["smart_sound_effects"] = payload["sound_effects"]
+        self._settings["smart_visual_transitions"] = payload["visual_transitions"]
+        self._settings["smart_scene_ambience"] = payload["scene_ambience"]
         self._settings["smart_intensity"] = payload["intensity"]
+        self._settings["smart_text_effects_intensity"] = payload["text_effects_intensity"]
+        self._settings["smart_sound_effects_intensity"] = payload["sound_effects_intensity"]
+        self._settings["smart_visual_transitions_intensity"] = payload["visual_transitions_intensity"]
+        self._settings["smart_scene_ambience_intensity"] = payload["scene_ambience_intensity"]
         self._settings["smart_mode"] = payload["mode"]
         save_settings(self._settings)
         if self._workspace is not None:
@@ -2314,8 +2358,20 @@ class VideoGeneratorApp(ctk.CTk):
         data = ws.smart_editing_settings()
         self.smart_text_effects_var.set(bool(data.get("text_effects", True)))
         self.smart_sfx_var.set(bool(data.get("sound_effects", True)))
-        intensity = str(data.get("intensity") or "medium").title()
-        self.smart_intensity_var.set(intensity if intensity in {"Low", "Medium", "High"} else "Medium")
+        self.smart_visual_transitions_var.set(bool(data.get("visual_transitions", True)))
+        self.smart_scene_ambience_var.set(bool(data.get("scene_ambience", True)))
+        legacy = str(data.get("intensity") or "medium").title()
+        if legacy not in {"Low", "Medium", "High"}:
+            legacy = "Medium"
+
+        def _set_intensity(var, key: str) -> None:
+            val = str(data.get(key) or legacy).title()
+            var.set(val if val in {"Low", "Medium", "High"} else legacy)
+
+        _set_intensity(self.smart_text_intensity_var, "text_effects_intensity")
+        _set_intensity(self.smart_sfx_intensity_var, "sound_effects_intensity")
+        _set_intensity(self.smart_transitions_intensity_var, "visual_transitions_intensity")
+        _set_intensity(self.smart_ambience_intensity_var, "scene_ambience_intensity")
         mode = str(data.get("mode") or "smart").title()
         self.smart_mode_var.set("Automatic" if mode.lower().startswith("auto") else "Smart")
 
@@ -3200,40 +3256,50 @@ class VideoGeneratorApp(ctk.CTk):
         source = SceneAssetRouter.classify(scene)
         return source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO)
 
-    def _try_start_flow_retry_batch(self) -> bool:
-        """Drain queued Flow retries into one engine GENERATE. Returns True if started."""
+    def _start_flow_batch(
+        self,
+        scenes: list,
+        *,
+        provider_name: str | None = None,
+    ) -> bool:
+        """Run one Flow GENERATE for many scenes (retry or bulk change source)."""
         if getattr(self, "_flow_retry_batch_busy", False):
             return False
         if not self._require_workspace("retry or change a scene"):
             return False
-        flow_items: list[tuple[str, SceneRow]] = []
-        rest: list[tuple[str, SceneRow]] = []
-        for action, scene in self._recovery_queue:
-            if action == "retry" and self._scene_is_flow(scene):
-                key = _scene_key(scene.scene_number)
-                if key in self._busy_scenes:
-                    continue
-                result = self._asset_results.get(key)
-                if result is not None and getattr(result, "ok", False):
-                    continue
-                flow_items.append((action, scene))
-            else:
-                rest.append((action, scene))
-        if len(flow_items) < 1:
-            return False
-        # Keep non-Flow work on the queue; take all Flow retries in one batch.
-        self._recovery_queue = rest
-        scenes = [s for _, s in flow_items]
-        images_dir = self._workspace.assets_dir
-        tokens: dict[str, int] = {}
+        ready: list = []
         for scene in scenes:
             key = _scene_key(scene.scene_number)
-            tokens[key] = self._qa.begin_job(key, "retrying")
+            if key in self._busy_scenes:
+                continue
+            ready.append(scene)
+        if not ready:
+            return False
+
+        if provider_name:
+            updated = [self._apply_scene_source_choice(s, provider_name) for s in ready]
+            log_line = (
+                f"[QA] Flow batch change source -> {provider_name} — "
+                f"{len(updated)} scene(s) in one GENERATE\n"
+            )
+            job_kind = "generating"
+        else:
+            updated = ready
+            log_line = f"[QA] Flow batch retry — {len(updated)} scene(s) in one GENERATE\n"
+            job_kind = "retrying"
+
+        if not self.images_var.get().strip():
+            self._sync_images_dir()
+        images_dir = self._workspace.assets_dir
+        tokens: dict[str, int] = {}
+        for scene in updated:
+            key = _scene_key(scene.scene_number)
+            tokens[key] = self._qa.begin_job(key, job_kind)
             self._busy_scenes.add(key)
-            self._set_scene_status(scene.scene_number, "retrying")
+            self._set_scene_status(scene.scene_number, job_kind)
         self._flow_retry_batch_busy = True
         self._paint_qa_chrome()
-        self._append_log(f"[QA] Flow batch retry — {len(scenes)} scene(s) in one GENERATE\n")
+        self._append_log(log_line)
 
         def worker() -> None:
             old_out, old_err = sys.stdout, sys.stderr
@@ -3243,9 +3309,12 @@ class VideoGeneratorApp(ctk.CTk):
             results: dict = {}
             try:
                 mgr = self._ensure_asset_manager(images_dir)
-                results = mgr.retry_flow_batch(scenes)
+                if provider_name:
+                    results = mgr.change_source_flow_batch(updated, provider_name)
+                else:
+                    results = mgr.retry_flow_batch(updated)
             except Exception as exc:
-                for scene in scenes:
+                for scene in updated:
                     results[_scene_key(scene.scene_number)] = AssetResult(
                         scene.scene_number, None, None,
                         AssetSource.FLOW_IMAGE, SceneStatus.NEEDS_ACTION, error=str(exc),
@@ -3255,7 +3324,7 @@ class VideoGeneratorApp(ctk.CTk):
                 sys.stdout = old_out
                 sys.stderr = old_err
                 self._ui_queue.put(("flow_retry_batch_done", None))
-                for scene in scenes:
+                for scene in updated:
                     key = _scene_key(scene.scene_number)
                     result = results.get(scene.scene_number) or results.get(key)
                     if result is None:
@@ -3277,6 +3346,31 @@ class VideoGeneratorApp(ctk.CTk):
 
         threading.Thread(target=worker, daemon=True).start()
         return True
+
+    def _try_start_flow_retry_batch(self) -> bool:
+        """Drain queued Flow retries into one engine GENERATE. Returns True if started."""
+        if getattr(self, "_flow_retry_batch_busy", False):
+            return False
+        if not self._require_workspace("retry or change a scene"):
+            return False
+        flow_items: list[tuple[str, SceneRow]] = []
+        rest: list[tuple[str, SceneRow]] = []
+        for action, scene in self._recovery_queue:
+            if action == "retry" and self._scene_is_flow(scene):
+                key = _scene_key(scene.scene_number)
+                if key in self._busy_scenes:
+                    continue
+                result = self._asset_results.get(key)
+                if result is not None and getattr(result, "ok", False):
+                    continue
+                flow_items.append((action, scene))
+            else:
+                rest.append((action, scene))
+        if len(flow_items) < 1:
+            return False
+        self._recovery_queue = rest
+        scenes = [s for _, s in flow_items]
+        return self._start_flow_batch(scenes, provider_name=None)
 
     # Batches keep the event loop responsive for large visual plans without
     # changing row widgets / QA behavior once construction finishes.
@@ -3873,8 +3967,11 @@ class VideoGeneratorApp(ctk.CTk):
 
         def apply(name: str) -> None:
             win.destroy()
-            for scene in scenes:
-                self._scene_action_with_source(scene, name)
+            if name in ("flow_image", "flow_video") and len(scenes) >= 2:
+                self._start_flow_batch(scenes, provider_name=name)
+            else:
+                for scene in scenes:
+                    self._scene_action_with_source(scene, name)
 
         for name in options:
             ctk.CTkButton(
@@ -4690,25 +4787,38 @@ class VideoGeneratorApp(ctk.CTk):
         ctk.CTkLabel(
             body, text="SMART EDITING", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(4, 4))
-        ctk.CTkSwitch(
-            body, text="Text Effects", variable=self.smart_text_effects_var,
-            onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
-            text_color=_TEXT, font=ctk.CTkFont(size=12), command=self._persist_smart_editing_settings,
-        ).pack(anchor="w", padx=20, pady=2)
-        ctk.CTkSwitch(
-            body, text="Sound Effects", variable=self.smart_sfx_var,
-            onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
-            text_color=_TEXT, font=ctk.CTkFont(size=12), command=self._persist_smart_editing_settings,
-        ).pack(anchor="w", padx=20, pady=2)
+
+        def _smart_feature_row(label: str, enabled_var, intensity_var) -> None:
+            row = ctk.CTkFrame(body, fg_color="transparent")
+            row.pack(fill="x", padx=20, pady=2)
+            ctk.CTkSwitch(
+                row, text=label, variable=enabled_var,
+                onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
+                text_color=_TEXT, font=ctk.CTkFont(size=12), command=self._persist_smart_editing_settings,
+            ).pack(side="left")
+            ctk.CTkOptionMenu(
+                row, variable=intensity_var, values=["Low", "Medium", "High"],
+                width=96, fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
+                text_color=_TEXT, dropdown_fg_color=_CARD, dropdown_text_color=_TEXT,
+                command=lambda _v: self._persist_smart_editing_settings(),
+            ).pack(side="right")
+
+        _smart_feature_row("Text Effects", self.smart_text_effects_var, self.smart_text_intensity_var)
+        _smart_feature_row("Sound Effects", self.smart_sfx_var, self.smart_sfx_intensity_var)
+        _smart_feature_row(
+            "Visual Transitions", self.smart_visual_transitions_var, self.smart_transitions_intensity_var,
+        )
+        _smart_feature_row(
+            "Scene Ambience", self.smart_scene_ambience_var, self.smart_ambience_intensity_var,
+        )
+        ctk.CTkLabel(
+            body,
+            text="Each feature has its own intensity (Low / Medium / High). "
+                 "SFX, transitions, and ambience are AI-picked when Gemini is configured.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 4))
         smart_row = ctk.CTkFrame(body, fg_color="transparent")
         smart_row.pack(fill="x", padx=20, pady=(4, 12))
-        ctk.CTkLabel(smart_row, text="Intensity", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
-        ctk.CTkOptionMenu(
-            smart_row, variable=self.smart_intensity_var, values=["Low", "Medium", "High"],
-            width=110, fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
-            text_color=_TEXT, dropdown_fg_color=_CARD, dropdown_text_color=_TEXT,
-            command=lambda _v: self._persist_smart_editing_settings(),
-        ).pack(side="left", padx=(8, 16))
         ctk.CTkLabel(smart_row, text="Mode", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
         ctk.CTkOptionMenu(
             smart_row, variable=self.smart_mode_var, values=["Smart", "Automatic"],
@@ -4787,8 +4897,8 @@ class VideoGeneratorApp(ctk.CTk):
         ctk.CTkLabel(
             body,
             text="Used for scenes with an AI prompt. Each account gets its own browser "
-                 "profile. Only as many Chrome windows open as there are AI prompts in "
-                 "the batch — sign in once; no passwords are stored by this app.",
+                 "profile. Chrome count matches prompts (1 for a single scene); batches "
+                 "of 15+ prompts split across all signed-in accounts.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20)
 
@@ -5401,7 +5511,11 @@ class VideoGeneratorApp(ctk.CTk):
             print(
                 f"Smart Editing: text={'ON' if smart_cfg.text_effects else 'OFF'} "
                 f"sfx={'ON' if smart_cfg.sound_effects else 'OFF'} "
-                f"({smart_cfg.intensity}/{smart_cfg.mode})"
+                f"transitions={'ON' if smart_cfg.visual_transitions else 'OFF'} "
+                f"ambience={'ON' if smart_cfg.scene_ambience else 'OFF'} "
+                f"(text={smart_cfg.text_intensity()}/sfx={smart_cfg.sfx_intensity()}/"
+                f"transitions={smart_cfg.transitions_intensity()}/"
+                f"ambience={smart_cfg.ambience_intensity()}, {smart_cfg.mode})"
             )
             print(f"Work:   {work_dir}")
             print("")
@@ -5508,6 +5622,7 @@ class VideoGeneratorApp(ctk.CTk):
 
             scene_text_fx = None
             render_audio = str(config["audio_path"])
+            transition_map = {}
             if smart_cfg.enabled():
                 plan = build_plan(
                     config["rows"],
@@ -5516,6 +5631,7 @@ class VideoGeneratorApp(ctk.CTk):
                     smart_cfg,
                     state_dir=state_dir,
                     audio_path=config["audio_path"],
+                    gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
                 )
                 if smart_cfg.text_effects and plan.text_effects:
                     display_timeline = vg._scene_display_timeline(aligned, audio_end)
@@ -5530,19 +5646,53 @@ class VideoGeneratorApp(ctk.CTk):
                         )
                     print(f"[SMART] {len(plan.text_effects)} text effect(s) planned.")
                 if smart_cfg.sound_effects and plan.sfx_events:
+                    print(f"[SMART] {len(plan.sfx_events)} SFX event(s) planned.")
+                if smart_cfg.scene_ambience and plan.scene_ambience:
+                    mix = ", ".join(
+                        f"{b['scene_number']}={b.get('profile', '?')}" for b in plan.scene_ambience[:8]
+                    )
+                    if len(plan.scene_ambience) > 8:
+                        mix += f", +{len(plan.scene_ambience) - 8} more"
+                    print(f"[SMART] {len(plan.scene_ambience)} scene ambience bed(s): {mix}")
+                needs_audio_mix = (
+                    (smart_cfg.sound_effects and plan.sfx_events)
+                    or (smart_cfg.scene_ambience and plan.scene_ambience)
+                )
+                if needs_audio_mix:
                     mixed = work_dir / "narration_with_sfx.wav"
                     from sfx.seed import ensure_sfx_library
                     from smart_editing import sfx_library_root
 
                     ensure_sfx_library()
+                    mix_stats: dict = {}
                     mix_sfx_with_narration(
                         config["audio_path"],
-                        plan.sfx_events,
+                        plan.sfx_events if smart_cfg.sound_effects else [],
                         mixed,
                         sfx_root=sfx_library_root(),
+                        ambience_beds=plan.scene_ambience if smart_cfg.scene_ambience else [],
+                        stats=mix_stats,
                     )
                     render_audio = str(mixed)
-                    print(f"[SMART] Mixed {len(plan.sfx_events)} SFX event(s) under narration.")
+                    if mix_stats.get("used_fallback"):
+                        print("[SMART] WARNING: audio mix failed — using plain narration.")
+                    sfx_m = mix_stats.get("sfx_mixed", 0)
+                    sfx_p = mix_stats.get("sfx_planned", 0)
+                    amb_m = mix_stats.get("ambience_mixed", 0)
+                    amb_p = mix_stats.get("ambience_planned", 0)
+                    chunks = mix_stats.get("mix_chunks", 0)
+                    print(
+                        f"[SMART] Mixed audio: {sfx_m}/{sfx_p} SFX, "
+                        f"{amb_m}/{amb_p} ambience beds"
+                        + (f" ({chunks} ffmpeg pass(es))" if chunks else "")
+                        + " under narration."
+                    )
+                transition_map = plan.transition_style_map() if plan.scene_transitions else {}
+                if transition_map:
+                    print(
+                        f"[SMART] Transitions on scenes: "
+                        + ", ".join(f"{k}={v}" for k, v in transition_map.items())
+                    )
 
             vg.render_video(
                 aligned,
@@ -5559,6 +5709,8 @@ class VideoGeneratorApp(ctk.CTk):
                 captions=config["captions"],
                 scene_text_effects=scene_text_fx,
                 performance_mode=config.get("performance_mode"),
+                visual_transitions=bool(smart_cfg.visual_transitions),
+                transition_by_scene=transition_map if smart_cfg.visual_transitions else None,
             )
             self._ui_queue.put(("done", str(config["output_path"])))
         except SystemExit as exc:
@@ -5579,7 +5731,11 @@ class VideoGeneratorApp(ctk.CTk):
                 os.chdir(old_cwd)
             except OSError:
                 pass
-            shutil.rmtree(work_dir, ignore_errors=True)
+            keep_work = os.environ.get("VIDEOGEN_KEEP_WORK", "").strip().lower() in ("1", "true", "yes")
+            if keep_work:
+                print(f"[DEBUG] Keeping render work dir: {work_dir}")
+            else:
+                shutil.rmtree(work_dir, ignore_errors=True)
             writer.flush()
             sys.stdout = old_out
             sys.stderr = old_err

@@ -297,7 +297,12 @@ async function runGenerate({ prompts, settings, accountIds }) {
 
   // One Chrome per prompt needed — never open every signed-in account for a
   // single Flow video (that was flooding the dock with idle browsers).
-  const workerCount = Math.min(selected.length, Math.max(1, prompts.length));
+  // Large batches (15+) fan out to every signed-in account for parallel work.
+  const PARALLEL_ACCOUNT_THRESHOLD = 15;
+  const workerCount =
+    prompts.length >= PARALLEL_ACCOUNT_THRESHOLD
+      ? selected.length
+      : Math.min(selected.length, Math.max(1, prompts.length));
   const workers = selected.slice(0, workerCount);
   for (const a of selected) {
     const used = workers.some((w) => w.id === a.id);
