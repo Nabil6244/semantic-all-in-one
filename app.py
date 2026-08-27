@@ -6651,16 +6651,32 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.configure(state="disabled")
 
     def _ensure_sfx_ready(self) -> None:
-        """Copy bundled SFX into ~/.videogen/sfx when empty. Safe to call repeatedly."""
+        """Copy bundled SFX + ambience into ~/.videogen/sfx when empty/incomplete."""
         if self._sfx_ready:
             return
         try:
-            from sfx.seed import ensure_sfx_library
+            from sfx.seed import bundled_sfx_inventory, count_resolvable_sfx, ensure_sfx_library
 
+            inv = bundled_sfx_inventory()
             ensure_sfx_library()
+            n = count_resolvable_sfx()
             self._sfx_ready = True
-        except Exception:
-            pass
+            if inv.get("ok"):
+                self._append_log(
+                    f"[SFX] Library ready: {n} sounds "
+                    f"(bundled {inv.get('wav_count')} wavs incl. ambience)\n"
+                )
+            elif n == 0:
+                self._append_log(
+                    "[SFX] Warning: no bundled SFX/ambience found — "
+                    "Smart Editing sounds will be silent.\n"
+                )
+            else:
+                self._append_log(f"[SFX] Library ready: {n} sounds\n")
+        except Exception as exc:
+            self._append_log(f"[SFX] Seed skipped ({exc})\n")
+            # Allow retry next time
+            self._sfx_ready = False
 
     def _on_close(self) -> None:
         busy_bits = []

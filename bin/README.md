@@ -9,6 +9,8 @@ Place platform binaries here before a local PyInstaller build:
 
 Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns). **`ffprobe` / `ffprobe.exe` is required for packaged builds** (audio/video duration probing, voiceover prep, SFX import, QA). Place it next to ffmpeg from the same release.
 
+**SFX / ambience:** `assets/bundled-sfx/` (catalog + wavs for whoosh, impact, ui, text, transition, riser, cinematic, technology, ambience) is **required** — PyInstaller fails the build if it is missing or incomplete. On first launch the app copies it into `~/.videogen/sfx`.
+
 ## Where to get them
 
 - **ffmpeg — macOS:** download a static build, or copy from Homebrew:

@@ -67,6 +67,18 @@ jobs:
           chmod +x bin/node
           ./bin/node --version
 
+      - name: Verify bundled SFX + ambience
+        run: |
+          python - <<'PY'
+          from sfx.seed import MIN_BUNDLED_WAVS, bundled_sfx_inventory
+          inv = bundled_sfx_inventory()
+          print(inv)
+          assert inv["ok"], inv
+          assert inv["wav_count"] >= MIN_BUNDLED_WAVS
+          assert inv["categories"].get("ambience", 0) > 0
+          print(f"OK: {inv['wav_count']} wavs across {inv['categories']}")
+          PY
+
       - name: Embed Supabase credentials
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -162,6 +174,10 @@ jobs:
           Expand-Archive -Path node.zip -DestinationPath node_dl -Force
           Copy-Item "node_dl\node-$nodeVersion-win-x64\node.exe" -Destination "bin\node.exe"
           & "bin\node.exe" --version
+
+      - name: Verify bundled SFX + ambience
+        run: |
+          python -c "from sfx.seed import MIN_BUNDLED_WAVS, bundled_sfx_inventory; inv = bundled_sfx_inventory(); print(inv); assert inv['ok'], inv; assert inv['wav_count'] >= MIN_BUNDLED_WAVS; assert inv['categories'].get('ambience', 0) > 0"
 
       - name: Embed Supabase credentials
         env:

@@ -157,18 +157,44 @@ if _FONTS_DIR.is_dir():
 else:
     print(f"WARNING: {_FONTS_DIR} missing — typography will fall back to system fonts.")
 
-# Bundled SFX library (62 wavs) — copied to ~/.videogen/sfx on first launch if empty.
+# Bundled SFX + ambience library — REQUIRED for packaged builds.
+# Categories: whoosh, impact, ui, text, transition, riser, cinematic,
+# technology, ambience. Seeded into ~/.videogen/sfx on first launch.
 BUNDLED_SFX_DIR = ROOT / "assets" / "bundled-sfx"
-if BUNDLED_SFX_DIR.is_dir() and (BUNDLED_SFX_DIR / "catalog.json").is_file():
-    for f in BUNDLED_SFX_DIR.rglob("*"):
-        if f.is_file():
-            rel_dir = f.parent.relative_to(ROOT)
-            datas.append((str(f), str(rel_dir)))
-else:
-    print(
-        f"WARNING: {BUNDLED_SFX_DIR} missing or incomplete — "
-        "packaged app will not auto-install sound effects."
+_REQUIRED_SFX_CATS = (
+    "whoosh",
+    "impact",
+    "ui",
+    "text",
+    "transition",
+    "riser",
+    "cinematic",
+    "technology",
+    "ambience",
+)
+if not BUNDLED_SFX_DIR.is_dir() or not (BUNDLED_SFX_DIR / "catalog.json").is_file():
+    raise SystemExit(
+        f"Missing {BUNDLED_SFX_DIR} (catalog.json + wavs). "
+        "SFX/ambience must ship with the app — see assets/bundled-sfx/."
     )
+_bundled_wavs = list(BUNDLED_SFX_DIR.rglob("*.wav"))
+if len(_bundled_wavs) < 40:
+    raise SystemExit(
+        f"Incomplete bundled SFX library: found {len(_bundled_wavs)} wavs under "
+        f"{BUNDLED_SFX_DIR} (need >= 40 including ambience)."
+    )
+_missing_cats = [c for c in _REQUIRED_SFX_CATS if not (BUNDLED_SFX_DIR / c).is_dir()]
+if _missing_cats:
+    raise SystemExit(
+        f"Bundled SFX missing category folders: {', '.join(_missing_cats)}"
+    )
+if not list((BUNDLED_SFX_DIR / "ambience").glob("*.wav")):
+    raise SystemExit(f"No ambience wavs in {BUNDLED_SFX_DIR / 'ambience'}")
+for f in BUNDLED_SFX_DIR.rglob("*"):
+    if f.is_file() and f.name != ".DS_Store":
+        rel_dir = f.parent.relative_to(ROOT)
+        datas.append((str(f), str(rel_dir)))
+print(f"Bundled SFX: {len(_bundled_wavs)} wavs + catalog.json")
 
 if sys.platform == "win32":
     icon_file = ROOT / "assets" / "AppIcon.ico"
@@ -259,6 +285,11 @@ a = Analysis(
         "typography.fonts",
         "typography.render",
         "smart_editing",
+        "sfx",
+        "sfx.seed",
+        "sfx.catalog_io",
+        "sfx.ambience_profiles",
+        "sfx.audio_probe",
     ],
     hookspath=[],
     hooksconfig={},

@@ -312,37 +312,67 @@ class TestSfxSeed(unittest.TestCase):
             first = catalog["sfx"][0]
             self.assertTrue((dest / first["file"]).is_file())
 
-    def test_ensure_sfx_library_skips_when_populated(self) -> None:
+    def test_ensure_sfx_library_repairs_partial_library(self) -> None:
+        """Missing ambience/other categories are filled from the bundle."""
         from sfx import seed
+        from sfx.seed import bundled_sfx_source, ensure_sfx_library
+
+        src = bundled_sfx_source()
+        if src is None:
+            self.skipTest("bundled SFX library not present in repo")
 
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "sfx"
-            init_library(dest, from_template=False, overwrite_catalog=True)
-            wav = dest / "whoosh" / "existing.wav"
-            _write_wav(wav)
-            save_catalog(
-                {
-                    "version": 1,
-                    "library_root": str(dest),
-                    "sfx": [
-                        normalize_entry(
-                            {
-                                "id": "whoosh_existing",
-                                "file": "whoosh/existing.wav",
-                                "category": "whoosh",
-                                "tags": ["soft"],
-                                "intensity": "low",
-                                "duration": 0.2,
-                            }
-                        )
-                    ],
-                },
-                dest,
-            )
+            dest.mkdir()
+            # Partial: only one whoosh file, no ambience, no catalog
+            whoosh = dest / "whoosh"
+            whoosh.mkdir()
+            _write_wav(whoosh / "existing.wav")
             with unittest.mock.patch.object(seed, "sfx_library_root", return_value=dest):
-                with unittest.mock.patch.object(seed, "bundled_sfx_source") as mock_src:
-                    ensure_sfx_library()
-            mock_src.assert_not_called()
+                ensure_sfx_library()
+            self.assertTrue((dest / "catalog.json").is_file())
+            self.assertGreater(len(list((dest / "ambience").glob("*.wav"))), 0)
+            self.assertTrue((dest / "impact").is_dir())
+            catalog = load_catalog(dest)
+            self.assertGreaterEqual(len(catalog["sfx"]), 40)
+
+    def test_bundled_sfx_inventory_ok(self) -> None:
+        from sfx.seed import MIN_BUNDLED_WAVS, bundled_sfx_inventory
+
+        inv = bundled_sfx_inventory()
+        if inv.get("path") is None:
+            self.skipTest("bundled SFX library not present in repo")
+        self.assertTrue(inv["ok"], inv)
+        self.assertGreaterEqual(inv["wav_count"], MIN_BUNDLED_WAVS)
+        self.assertGreater(inv["categories"].get("ambience", 0), 0)
+        for cat in ("whoosh", "impact", "transition", "cinematic"):
+            self.assertGreater(inv["categories"].get(cat, 0), 0, cat)
+
+    def test_ensure_sfx_library_skips_full_recopy_when_populated(self) -> None:
+        """A complete user library is not wiped; missing files can still be filled."""
+        from sfx import seed
+        from sfx.seed import bundled_sfx_source, count_resolvable_sfx, ensure_sfx_library
+
+        src = bundled_sfx_source()
+        if src is None:
+            self.skipTest("bundled SFX library not present in repo")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "sfx"
+            dest.mkdir()
+            with unittest.mock.patch.object(seed, "sfx_library_root", return_value=dest):
+                ensure_sfx_library()
+                n1 = count_resolvable_sfx(dest)
+                ensure_sfx_library()
+                n2 = count_resolvable_sfx(dest)
+            self.assertGreaterEqual(n1, 40)
+            self.assertEqual(n1, n2)
+            # User file is preserved if we add one with a unique name
+            custom = dest / "whoosh" / "user_custom_only.wav"
+            _write_wav(custom)
+            with unittest.mock.patch.object(seed, "sfx_library_root", return_value=dest):
+                ensure_sfx_library()
+            self.assertTrue(custom.is_file())
 
 
 if __name__ == "__main__":
