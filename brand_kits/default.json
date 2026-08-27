@@ -1,0 +1,26 @@
+{
+  "id": "default",
+  "version": 1,
+  "name": "Default",
+  "channel_name": "",
+  "logo_path": "",
+  "watermark": {
+    "enabled": false,
+    "position": "bottom_right",
+    "opacity": 0.35
+  },
+  "accent_color": "#4F6BF6",
+  "typography": {
+    "theme": "documentary_2026"
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "medium"
+  },
+  "intro": {},
+  "outro": {},
+  "preferred_visual_identity": "",
+  "default_style_id": "",
+  "ai_prompt_additions": "",
+  "overrides": {}
+}

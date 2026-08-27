@@ -122,9 +122,9 @@ def _attention_score(
     base = _IMPORTANCE_SCORE.get(importance, 0.55)
     if purpose == "hook":
         base = max(base, 0.78)
-    if purpose == "emotion":
+    if purpose in ("emotion", "reveal"):
         base = max(base, 0.72)
-    if purpose == "evidence":
+    if purpose in ("evidence", "scale", "comparison"):
         base = max(base, 0.65)
     if start < HOOK_WINDOW_S:
         hook_boost = 1.0 - (start / HOOK_WINDOW_S) * 0.35
@@ -163,8 +163,12 @@ def _pick_camera_style(
         candidate = "push_in" if index % 2 == 0 else "subtle_drift"
     elif purpose == "outro":
         candidate = "pull_out" if attention >= 0.5 else "hold"
-    elif purpose == "emotion":
+    elif purpose in ("emotion", "reflection"):
         candidate = "subtle_drift"
+    elif purpose == "scale":
+        candidate = "pull_out"
+    elif purpose == "reveal":
+        candidate = "push_in"
     elif attention >= 0.75:
         candidate = "push_in"
     elif attention <= 0.4:
@@ -243,6 +247,7 @@ def build_editorial_plan(
     visual_plan: Any = None,
     settings_key: str = "",
     audio_key: str = "",
+    resolved_style: Any = None,
 ) -> EditorialPlan:
     """Build plan using display timeline windows (matches render + ambience)."""
     windows = _scene_display_timeline(list(aligned_rows), float(audio_end))
@@ -350,6 +355,12 @@ def build_editorial_plan(
         audio_end=float(audio_end),
         scenes=scenes,
     )
+
+    # Brand Kit / Video Style soft bias (None → identical to legacy heuristics).
+    if resolved_style is not None:
+        from style_engine.apply import apply_resolved_style
+
+        apply_resolved_style(plan, resolved_style)
 
     # Directors enrich the plan (still no Gemini required — heuristics only).
     from .audio_director import enrich_scene_audio_fields

@@ -7,7 +7,7 @@ Place platform binaries here before a local PyInstaller build:
 | macOS    | `bin/ffmpeg`, `bin/ffprobe`, `bin/node` (no extension, all executable) |
 | Windows  | `bin/ffmpeg.exe`, `bin/ffprobe.exe`, `bin/node.exe` |
 
-Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns). `ffprobe` / `ffprobe.exe` is used for audio/video duration and metadata probing (voiceover preview, render prep, SFX import, etc.) and is bundled when present.
+Both are optional individually: without `ffmpeg` the app can't render at all (build fails, see `VideoGenerator.spec`); without `node` the app still works for Stock/Manual scenes, just not AI/Flow (build only warns). **`ffprobe` / `ffprobe.exe` is required for packaged builds** (audio/video duration probing, voiceover prep, SFX import, QA). Place it next to ffmpeg from the same release.
 
 ## Where to get them
 

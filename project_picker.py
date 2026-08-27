@@ -12,19 +12,21 @@ from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
+from ui import theme as _ui_theme
+
 __all__ = ["ProjectPickerDialog", "project_dicts_from_workspaces"]
 
-# Match app.py cinematic palette exactly.
-_BG = "#0B0D10"
-_PANEL = "#12151A"
-_CARD = "#181C24"
-_CARD_HOVER = "#1E2430"
-_BORDER = "#2A3140"
-_TEXT = "#E8EAED"
-_MUTED = "#8B95A8"
-_ACCENT = "#4F6BF6"
-_ACCENT_HOV = "#3D56E8"
-_ACCENT_DARK = "#FFFFFF"
+# Single source: ui.theme
+_BG = _ui_theme.BG
+_PANEL = _ui_theme.PANEL
+_CARD = _ui_theme.CARD
+_CARD_HOVER = _ui_theme.CARD_HOVER
+_BORDER = _ui_theme.BORDER
+_TEXT = _ui_theme.TEXT
+_MUTED = _ui_theme.MUTED
+_ACCENT = _ui_theme.ACCENT
+_ACCENT_HOV = _ui_theme.ACCENT_HOV
+_ACCENT_DARK = _ui_theme.ACCENT_DARK
 
 _EMPTY_HINT = "No projects yet — create one to start."
 _TITLE_PLACEHOLDER = "Video title (optional)"
@@ -219,7 +221,7 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             text_color=_TEXT,
             placeholder_text_color=_MUTED,
         )
-        self._title_entry.grid(row=1, column=0, sticky="ew", padx=(14, 8), pady=(0, 14))
+        self._title_entry.grid(row=1, column=0, sticky="ew", padx=(14, 8), pady=(0, 8))
         self._title_entry.bind("<Return>", lambda _e: self._handle_create())
 
         ctk.CTkButton(
@@ -232,7 +234,50 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             text_color=_ACCENT_DARK,
             font=ctk.CTkFont(size=13, weight="bold"),
             command=self._handle_create,
-        ).grid(row=1, column=1, padx=(0, 14), pady=(0, 14))
+        ).grid(row=1, column=1, padx=(0, 14), pady=(0, 8))
+
+        # Compact Brand / Style defaults (optional — Legacy keeps old projects identical).
+        opts = ctk.CTkFrame(card, fg_color="transparent")
+        opts.grid(row=2, column=0, columnspan=2, sticky="ew", padx=14, pady=(0, 12))
+        opts.grid_columnconfigure((1, 3), weight=1)
+        ctk.CTkLabel(opts, text="Brand", text_color=_MUTED, font=ctk.CTkFont(size=11)).grid(
+            row=0, column=0, sticky="w", padx=(0, 6)
+        )
+        self._create_brand_var = ctk.StringVar(value="None")
+        try:
+            from style_engine import brand_choices
+
+            brand_labels = ["None"] + [name for _sid, name in brand_choices()]
+            self._create_brand_ids = {"None": None}
+            self._create_brand_ids.update({name: sid for sid, name in brand_choices()})
+        except Exception:
+            brand_labels = ["None"]
+            self._create_brand_ids = {"None": None}
+        ctk.CTkOptionMenu(
+            opts, variable=self._create_brand_var, values=brand_labels, width=120,
+            fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
+            font=ctk.CTkFont(size=11),
+        ).grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        ctk.CTkLabel(opts, text="Style", text_color=_MUTED, font=ctk.CTkFont(size=11)).grid(
+            row=0, column=2, sticky="w", padx=(0, 6)
+        )
+        self._create_style_var = ctk.StringVar(value="Legacy")
+        try:
+            from style_engine import style_choices
+
+            style_labels = ["Legacy", "Auto"] + [name for _sid, name in style_choices()]
+            self._create_style_ids = {"Legacy": ("", None), "Auto": ("auto", None)}
+            self._create_style_ids.update(
+                {name: ("manual", sid) for sid, name in style_choices()}
+            )
+        except Exception:
+            style_labels = ["Legacy", "Auto"]
+            self._create_style_ids = {"Legacy": ("", None), "Auto": ("auto", None)}
+        ctk.CTkOptionMenu(
+            opts, variable=self._create_style_var, values=style_labels, width=160,
+            fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
+            font=ctk.CTkFont(size=11),
+        ).grid(row=0, column=3, sticky="ew")
 
     def _build_project_list(self, projects: list[dict]) -> None:
         wrap = ctk.CTkFrame(self, fg_color="transparent")
@@ -373,8 +418,24 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             return
         title = (self._title_entry.get() or "").strip()
         self._acted = True
+        brand_id = getattr(self, "_create_brand_ids", {}).get(self._create_brand_var.get())
+        mode, style_id = getattr(self, "_create_style_ids", {}).get(
+            self._create_style_var.get(), ("", None)
+        )
         try:
-            self._on_create(title)
+            self._on_create(
+                title,
+                brand_kit_id=brand_id,
+                style_mode=mode,
+                style_id=style_id,
+            )
+        except TypeError:
+            # Older callback signature — title only
+            try:
+                self._on_create(title)
+            except Exception:
+                self._acted = False
+                raise
         except Exception:
             self._acted = False
             raise

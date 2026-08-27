@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import wave
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -1762,6 +1763,85 @@ def _resolve_sfx_file(entry: dict, root: Optional[Path] = None) -> Optional[Path
 
 
 _MIX_CHUNK_SIZE = 24
+_MIX_CHUNK_SIZE_WIN = 8
+# Windows CreateProcess cmdline limit is ~32k; stay well under with filter script.
+_WIN_CMDLINE_SOFT_LIMIT = 7000
+
+
+def _mix_chunk_size() -> int:
+    if sys.platform == "win32":
+        return int(os.environ.get("SMART_MIX_CHUNK_SIZE", _MIX_CHUNK_SIZE_WIN))
+    return int(os.environ.get("SMART_MIX_CHUNK_SIZE", _MIX_CHUNK_SIZE))
+
+
+def _is_win_cmdline_error(exc: BaseException) -> bool:
+    if sys.platform != "win32":
+        return False
+    if isinstance(exc, OSError):
+        winerr = getattr(exc, "winerror", None)
+        if winerr in (206, 87):  # filename too long / parameter incorrect
+            return True
+        if "too long" in str(exc).lower():
+            return True
+    return False
+
+
+def _estimate_cmd_chars(cmd: Sequence[str]) -> int:
+    # Rough Windows CreateProcess length (argv joined with spaces + quotes)
+    total = 0
+    for part in cmd:
+        s = str(part)
+        total += len(s) + 3  # space + optional quotes
+    return total
+
+
+def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
+    """Run ffmpeg; on Windows prefer filter_complex_script to avoid WinError 206."""
+    cmd = list(cmd)
+    cwd = str(work_dir) if work_dir else None
+    script_path: Optional[Path] = None
+
+    def _with_filter_script(raw: List[str]) -> List[str]:
+        nonlocal script_path
+        if "-filter_complex" not in raw:
+            return raw
+        idx = raw.index("-filter_complex")
+        if idx + 1 >= len(raw):
+            return raw
+        graph = raw[idx + 1]
+        base = Path(work_dir) if work_dir else Path(raw[-1]).resolve().parent
+        base.mkdir(parents=True, exist_ok=True)
+        script_path = base / f"_fc_{os.getpid()}_{abs(hash(graph)) % 10_000_000}.txt"
+        script_path.write_text(graph, encoding="utf-8")
+        out = raw[:idx] + ["-filter_complex_script", str(script_path)] + raw[idx + 2 :]
+        return out
+
+    use_script = sys.platform == "win32" or _estimate_cmd_chars(cmd) > _WIN_CMDLINE_SOFT_LIMIT
+    attempt = _with_filter_script(cmd) if use_script else cmd
+    try:
+        proc = hidden_subprocess.run(attempt, capture_output=True, text=True, cwd=cwd)
+        ok = proc.returncode == 0
+        if not ok and _mix_debug_enabled():
+            _mix_debug(f"ffmpeg rc={proc.returncode} stderr={(proc.stderr or '')[-400:]}")
+        return ok
+    except OSError as exc:
+        if _is_win_cmdline_error(exc) and attempt is cmd and "-filter_complex" in cmd:
+            # Retry once with filter script
+            try:
+                attempt2 = _with_filter_script(cmd)
+                proc = hidden_subprocess.run(attempt2, capture_output=True, text=True, cwd=cwd)
+                return proc.returncode == 0
+            except OSError as exc2:
+                _mix_debug(f"ffmpeg OSError after script retry: {exc2}")
+                return False
+        _mix_debug(f"ffmpeg OSError: {exc}")
+        return False
+    finally:
+        if script_path is not None and not _mix_keep_temp():
+            try:
+                script_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _mix_debug_enabled() -> bool:
@@ -1932,8 +2012,8 @@ def _ffmpeg_mix_ambience_chunk(
             f"{''.join(mix_labels)}amix=inputs={n}:duration=longest:dropout_transition=0:normalize=0[{out_label}]"
         )
     cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", f"[{out_label}]", str(output_path)])
-    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
-    ok = proc.returncode == 0 and output_path.is_file()
+    work = Path(output_path).resolve().parent
+    ok = _run_ffmpeg_cmd(cmd, work_dir=work) and output_path.is_file()
     if _mix_debug_enabled():
         beds = [float(ev.get("start") or 0.0) for _, ev in layers]
         _mix_debug(
@@ -1942,8 +2022,6 @@ def _ffmpeg_mix_ambience_chunk(
             f"start_range={min(beds, default=0):.1f}-{max(beds, default=0):.1f}s "
             f"out_dur={_probe_duration(output_path)}"
         )
-        if not ok and proc.stderr:
-            _mix_debug(f"ffmpeg stderr: {proc.stderr[-400:]}")
     return ok
 
 
@@ -1961,10 +2039,11 @@ def _mix_ambience_stem_chunked(
     current: Optional[Path] = None
     mixed = 0
     temps: List[Path] = []
-    for offset in range(0, len(amb_layers), _MIX_CHUNK_SIZE):
-        chunk = amb_layers[offset : offset + _MIX_CHUNK_SIZE]
-        is_last = offset + _MIX_CHUNK_SIZE >= len(amb_layers)
-        dest = output_path if is_last else temp_dir / f"amb_stem_{offset // _MIX_CHUNK_SIZE + 1}.wav"
+    chunk_size = _mix_chunk_size()
+    for offset in range(0, len(amb_layers), chunk_size):
+        chunk = amb_layers[offset : offset + chunk_size]
+        is_last = offset + chunk_size >= len(amb_layers)
+        dest = output_path if is_last else temp_dir / f"amb_stem_{offset // chunk_size + 1}.wav"
         if not is_last:
             temps.append(dest)
         trim = total_duration if is_last else None
@@ -1995,8 +2074,7 @@ def _ffmpeg_mix_narration_with_stem(
         "-map", "[aout]",
         str(output_path),
     ]
-    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
-    return proc.returncode == 0 and output_path.is_file()
+    return _run_ffmpeg_cmd(cmd, work_dir=Path(output_path).resolve().parent) and output_path.is_file()
 
 
 def _ffmpeg_mix_layers(
@@ -2049,8 +2127,7 @@ def _ffmpeg_mix_layers(
         f"volume=0.95[aout]"
     )
     cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", "[aout]", str(output_path)])
-    proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
-    return proc.returncode == 0 and output_path.is_file()
+    return _run_ffmpeg_cmd(cmd, work_dir=Path(output_path).resolve().parent) and output_path.is_file()
 
 
 def _mix_layers_chunked(
@@ -2068,10 +2145,11 @@ def _mix_layers_chunked(
     mixed = 0
     chunk_count = 0
     temps: List[Path] = []
-    for offset in range(0, len(layers), _MIX_CHUNK_SIZE):
-        chunk = layers[offset : offset + _MIX_CHUNK_SIZE]
+    chunk_size = _mix_chunk_size()
+    for offset in range(0, len(layers), chunk_size):
+        chunk = layers[offset : offset + chunk_size]
         chunk_count += 1
-        is_last = offset + _MIX_CHUNK_SIZE >= len(layers)
+        is_last = offset + chunk_size >= len(layers)
         if is_last:
             dest = output_path
         else:
@@ -2164,7 +2242,7 @@ def mix_sfx_with_narration(
             beds_usable, amb_stem, temp_dir=temp_dir, total_duration=total_duration,
         )
         report["ambience_mixed"] = mixed
-        report["mix_chunks"] += (len(beds_usable) + _MIX_CHUNK_SIZE - 1) // _MIX_CHUNK_SIZE
+        report["mix_chunks"] += (len(beds_usable) + _mix_chunk_size() - 1) // _mix_chunk_size()
         if ok and amb_stem.is_file() and _boundary_debug_enabled():
             dbg = output_path.parent / "smart_mix_boundary_debug"
             _dump_ambience_boundary_forensics(beds_usable, amb_stem, dbg)
@@ -2184,7 +2262,7 @@ def mix_sfx_with_narration(
             current, usable, output_path, temp_dir=temp_dir, prefix="sfx",
         )
         report["sfx_mixed"] = mixed
-        report["mix_chunks"] += (len(usable) + _MIX_CHUNK_SIZE - 1) // _MIX_CHUNK_SIZE
+        report["mix_chunks"] += (len(usable) + _mix_chunk_size() - 1) // _mix_chunk_size()
         ok = sfx_ok
     elif ok and not usable:
         if current != output_path:

@@ -17,7 +17,15 @@ _PURPOSE_AMBIENCE_GAIN = {
     "evidence": 0.85,
     "explanation": 0.80,
     "emotion": 0.90,
+    "reveal": 0.88,
+    "comparison": 0.92,
+    "scale": 1.05,
+    "process": 0.85,
+    "timeline": 0.88,
+    "location": 0.95,
+    "character": 0.90,
     "transition": 0.70,
+    "reflection": 0.72,
     "outro": 0.75,
 }
 
@@ -28,7 +36,15 @@ _PURPOSE_SFX_WEIGHT = {
     "evidence": 0.35,
     "explanation": 0.30,
     "emotion": 0.40,
+    "reveal": 0.85,
+    "comparison": 0.45,
+    "scale": 0.30,
+    "process": 0.50,
+    "timeline": 0.35,
+    "location": 0.40,
+    "character": 0.40,
     "transition": 0.45,
+    "reflection": 0.20,
     "outro": 0.25,
 }
 
@@ -60,9 +76,9 @@ def enrich_scene_audio_fields(plan: EditorialPlan) -> EditorialPlan:
         # Strategic silence: short reflective / outro / low-attention explanation.
         if scene.allow_silence:
             pass
-        elif scene.purpose in ("outro", "emotion") and scene.attention_score <= 0.55:
+        elif scene.purpose in ("outro", "emotion", "reflection", "reveal") and scene.attention_score <= 0.55:
             scene.allow_silence = True
-        elif scene.purpose == "explanation" and scene.attention_score <= 0.4:
+        elif scene.purpose in ("explanation", "process") and scene.attention_score <= 0.4:
             scene.allow_silence = True
         elif scene.duration >= 4.5 and scene.attention_score <= 0.35:
             scene.allow_silence = True
@@ -94,7 +110,7 @@ def plan_sfx_moments_for_scene(scene: EditorialScene, *, index: int = 0) -> List
                 }
             )
     # Mid-scene accent for hook / high attention.
-    if scene.purpose == "hook" or scene.attention_score >= 0.78:
+    if scene.purpose in ("hook", "reveal") or scene.attention_score >= 0.78:
         mid = scene.start + scene.duration * 0.42
         moments.append(
             {

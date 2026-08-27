@@ -7,17 +7,19 @@ from typing import Callable, Optional
 
 import customtkinter as ctk
 
+from ui import theme as _ui_theme
+
 from .auth_client import AuthClient, AuthError, AuthSession
 
-_BG = "#0B0D10"
-_CARD = "#181C24"
-_BORDER = "#2A3140"
-_TEXT = "#E8EAED"
-_MUTED = "#8B95A8"
-_ACCENT = "#4F6BF6"
-_ACCENT_HOV = "#3D56E8"
-_ACCENT_DARK = "#FFFFFF"
-_DANGER = "#E85D5D"
+_BG = _ui_theme.BG
+_CARD = _ui_theme.CARD
+_BORDER = _ui_theme.BORDER
+_TEXT = _ui_theme.TEXT
+_MUTED = _ui_theme.MUTED
+_ACCENT = _ui_theme.ACCENT
+_ACCENT_HOV = _ui_theme.ACCENT_HOV
+_ACCENT_DARK = _ui_theme.ACCENT_DARK
+_DANGER = _ui_theme.DANGER
 
 
 class LoginDialog(ctk.CTkToplevel):

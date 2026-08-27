@@ -1,0 +1,94 @@
+{
+  "id": "space_documentary",
+  "version": 2,
+  "name": "Space Documentary",
+  "identity": {
+    "description": "Scale + awe + scientific explanation — cinematic astronomy with useful visualization, not empty pretty space.",
+    "tone": "awe-inspiring, scientific, vast",
+    "best_for": ["space", "astronomy", "physics", "cosmology", "planets", "orbital science"]
+  },
+  "visual": {
+    "treatment": "cinematic astronomy",
+    "camera": {
+      "preferred": ["pull_out", "subtle_drift", "hold", "push_in"],
+      "intensity": 0.42
+    },
+    "motion_rules": {
+      "slow_reveals": true,
+      "prefer_scale_pulls": true,
+      "long_holds_for_awe": true
+    },
+    "variety": {
+      "science_viz_ok": true,
+      "min_unique_keys": 0.65,
+      "avoid_repeated_planet_hero": true
+    }
+  },
+  "pacing": {
+    "default": "slow",
+    "hook": "normal",
+    "exposition": "slow",
+    "evidence": "normal",
+    "climax": "normal",
+    "reflection": "slow",
+    "transition_density": 0.26
+  },
+  "transitions": {
+    "default": "dissolve",
+    "preferred": ["dissolve", "fade", "soft"],
+    "avoid": ["flash"]
+  },
+  "audio": {
+    "ambience_intensity": 0.72,
+    "sfx_intensity": 0.24,
+    "music_intensity": 0.78,
+    "music_duck_db": -13
+  },
+  "hook": {
+    "window_seconds": 32,
+    "attention_target": 0.74,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": ["stock_video", "youtube_video", "image", "video"],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "minimal_caption",
+    "density": "low",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "scientifically useful visualization of the narrated concept — cosmic scale, planets, galaxies, spacecraft, orbital diagrams, comparative scale; not merely a beautiful space wallpaper",
+    "realism": 0.82,
+    "composition": "vast scale, dark cosmic backgrounds, gradual dramatic reveals, clear scientific subject",
+    "avoid": [
+      "cartoon rockets",
+      "comic aliens",
+      "daytime cityscapes",
+      "warm kitchen interiors",
+      "generic pretty nebula without concept"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "astronomy_density": 0.4,
+      "scientific_density": 0.22,
+      "abstract_concept_density": 0.12,
+      "visualization_need": 0.12,
+      "cinematic_potential": 0.1,
+      "emotional_intensity": 0.04
+    },
+    "preview_visual": "Cosmic scale • Science viz",
+    "preview_camera": "Slow drift • Pull-out",
+    "preview_pacing": "Awe holds → Explain",
+    "preview_audio": "Atmospheric • Deep cinematic",
+    "variety_family": "cosmic",
+    "influences": [
+      "scale_and_awe",
+      "scientific_visualization",
+      "slow_establishing_shots",
+      "restrained_sfx"
+    ]
+  }
+}

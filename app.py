@@ -89,6 +89,10 @@ from editorial import (
 )
 from editorial.persistence import load_cached_plan
 from visual_director import parse_visual_plan
+from ui.shell import AppShell
+from ui import views as ui_views
+from ui import theme as _ui_theme
+from ui import scene_list as _scene_list
 
 
 def _is_frozen() -> bool:
@@ -432,29 +436,29 @@ def _output_not_writable_reason(output_path: Path) -> str | None:
         )
     return None
 
-# ── Dark cinematic palette ─────────────────────────────────────────────────
-_BG          = "#0B0D10"   # near-black canvas
-_PANEL       = "#12151A"   # sidebar
-_PANEL_ALT   = "#0F1218"   # main workspace
-_CARD        = "#181C24"   # elevated panels
-_CARD_HOVER  = "#1E2430"   # hover / secondary buttons
-_ROW_ALT     = "#141820"   # alternating scene row
-_BORDER      = "#2A3140"   # low-contrast borders
-_TEXT        = "#E8EAED"   # primary text
-_MUTED       = "#8B95A8"   # secondary text
-_ACCENT      = "#4F6BF6"   # electric blue / indigo
-_ACCENT_HOV  = "#3D56E8"
-_ACCENT_DARK = "#FFFFFF"   # text on primary buttons
-_ACCENT_SEL  = "#1A2240"   # selected scene background
-_ACCENT_BORDER = "#3D5080" # selected scene border
-_SUCCESS     = "#34D399"   # ready
-_PROCESSING  = "#60A5FA"   # in progress
-_QUEUED      = "#64748B"   # queued / waiting
-_WARNING     = "#FBBF24"   # needs action
-_DANGER      = "#F87171"   # failed
-_DANGER_BG   = "#2A1A1A"   # failed row tint
-_SKIPPED     = "#6B7280"
-_COPPER      = _ACCENT
+# ── Dark cinematic palette (ui.theme) ──────────────────────────────────────
+_BG = _ui_theme.BG
+_PANEL = _ui_theme.PANEL
+_PANEL_ALT = _ui_theme.PANEL_ALT
+_CARD = _ui_theme.CARD
+_CARD_HOVER = _ui_theme.CARD_HOVER
+_ROW_ALT = _ui_theme.ROW_ALT
+_BORDER = _ui_theme.BORDER
+_TEXT = _ui_theme.TEXT
+_MUTED = _ui_theme.MUTED
+_ACCENT = _ui_theme.ACCENT
+_ACCENT_HOV = _ui_theme.ACCENT_HOV
+_ACCENT_DARK = _ui_theme.ACCENT_DARK
+_ACCENT_SEL = _ui_theme.ACCENT_SEL
+_ACCENT_BORDER = _ui_theme.ACCENT_BORDER
+_SUCCESS = _ui_theme.SUCCESS
+_PROCESSING = _ui_theme.PROCESSING
+_QUEUED = _ui_theme.QUEUED
+_WARNING = _ui_theme.WARNING
+_DANGER = _ui_theme.DANGER
+_DANGER_BG = _ui_theme.DANGER_BG
+_SKIPPED = _ui_theme.SKIPPED
+_COPPER = _ACCENT
 # ───────────────────────────────────────────────────────────────────────────
 
 SOURCE_BADGE = {
@@ -559,7 +563,7 @@ class _QueueWriter:
 
 
 _STEPPER_STEPS = ("Script", "Scenes", "Assets", "Voice", "Render")
-_STEPPER_DONE = "#2F8F6E"  # muted success
+_STEPPER_DONE = _ui_theme.STEPPER_DONE
 _PASTE_SCRIPT_MODES = frozenset({"Paste script", "Paste script", "AI Script"})
 
 
@@ -638,14 +642,153 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _build_ui(self) -> None:
         self._set_window_icon()
-        self.grid_columnconfigure(0, weight=1, minsize=200)
-        self.grid_columnconfigure(1, weight=2, minsize=320)
-        self.grid_rowconfigure(0, weight=0)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
         self._init_ui_vars()
-        self._build_topbar()
-        self._build_left_sections()
-        self._build_scenes_workspace()
+
+        self._shell = AppShell(
+            self,
+            on_nav=self._on_shell_nav,
+            on_switch_project=self._open_project_picker,
+            on_settings=self._open_settings,
+            on_close_instances=self._close_flow_instances,
+            on_primary_cta=self._on_primary_cta,
+            on_toggle_issues=self._toggle_issues,
+            project_chip_var=self._project_chip_var,
+            stage_var=self.stage_var,
+            hint_var=self.hint_var,
+            qa_counter_var=self.qa_counter_var,
+            status_line_var=self.status_line_var,
+            cache_var=self.cache_status_var,
+            logo_image=self._logo_ctk,
+        )
+        self._shell.grid(row=0, column=0, sticky="nsew")
+        self._topbar = self._shell.topbar
+        self.progress = self._shell.progress
+        self.generate_btn = self._shell.generate_btn
+        self.issues_toggle_btn = self._shell.issues_toggle_btn
+        self._project_chip_label = self._shell.project_chip_label
+        self._project_menu = None
+        self.top_analyze_btn = None
+        self._stepper_labels = []
+        self._stepper_full = ctk.CTkFrame(self, fg_color="transparent")
+        self._stepper_compact_label = ctk.CTkLabel(self, text="")
+        self._stepper_compact_label.grid_remove()
+
+        self._view_project = ui_views.ProjectView(self._shell.center, self)
+        self._view_script = ui_views.ScriptView(self._shell.center, self)
+        self._view_brand_style = ui_views.BrandStyleView(self._shell.center, self)
+        self._view_visual = ui_views.VisualPlanView(self._shell.center, self)
+        self._view_assets = ui_views.AssetsView(self._shell.center, self)
+        self._view_audio = ui_views.AudioView(self._shell.center, self)
+        self._view_music = ui_views.MusicView(self._shell.center, self)
+        self._view_editorial = ui_views.EditorialView(self._shell.center, self)
+        self._view_render = ui_views.RenderView(self._shell.center, self)
+        self._view_qa = ui_views.QAView(self._shell.center, self)
+        self._shell.center.grid_columnconfigure(0, weight=1)
+        self._shell.center.grid_rowconfigure(0, weight=1)
+        for key, view in (
+            ("project", self._view_project),
+            ("script", self._view_script),
+            ("brand_style", self._view_brand_style),
+            ("visual_plan", self._view_visual),
+            ("assets", self._view_assets),
+            ("audio", self._view_audio),
+            ("music", self._view_music),
+            ("editorial", self._view_editorial),
+            ("render", self._view_render),
+            ("qa", self._view_qa),
+        ):
+            self._shell.register_view(key, view)
+
+        self._build_left_sections(parent=self._view_script.content)
+        self._build_scenes_workspace(parent=self._view_visual.content)
+        # Details panel is created inside inspector_body by _build_scenes_workspace.
+        self._shell.navigate("script")
+        self._refresh_cache_status()
+        self._topbar.bind("<Configure>", self._on_topbar_configure, add="+")
+        self._scene_window_first = 0
+        self._scene_window_last = 0
+        self._scene_window_bound = False
+        self._scene_scroll_frac = 0.0
+        self._editorial_plan_cache: dict | None = None
+        self._editorial_plan_mtime = 0.0
+
+    def _on_shell_nav(self, key: str) -> None:
+        # Preserve Visual Plan scroll index across navigations.
+        prev = getattr(self, "_shell_prev_view", None)
+        if prev == "visual_plan" and key != "visual_plan":
+            self._remember_scene_scroll()
+        view = self._shell.views.get(key)
+        if view is not None and hasattr(view, "on_show"):
+            try:
+                view.on_show()
+            except Exception as exc:
+                self._append_log(f"[UI] View refresh skipped ({exc})\n")
+        if key == "visual_plan" and prev != "visual_plan":
+            self.after_idle(self._restore_scene_scroll)
+        self._shell_prev_view = key
+        self._refresh_cache_status()
+
+    def _refresh_cache_status(self) -> None:
+        ws = self._workspace
+        if ws is None:
+            self.cache_status_var.set("No project")
+            return
+        bits = []
+        if (ws.state_dir / "editorial_plan.json").is_file():
+            bits.append("Editorial")
+        if (ws.state_dir / "smart_editing.json").is_file():
+            bits.append("Smart")
+        if (ws.state_dir / "editorial_qa.json").is_file():
+            bits.append("QA")
+        self.cache_status_var.set("Cached: " + ", ".join(bits) if bits else "Cache empty")
+
+    def _mount_inspector_into_shell(self) -> None:
+        """No-op: details are parented to inspector_body at build time."""
+        return
+
+    def _ensure_details_in_inspector(self) -> None:
+        panel = getattr(self, "_details_panel", None)
+        if panel is None:
+            return
+        try:
+            panel.grid()
+        except Exception:
+            pass
+
+    def _load_editorial_plan_cached(self) -> dict:
+        """Read editorial_plan.json only when mtime changes (no rebuild)."""
+        ws = self._workspace
+        if ws is None:
+            self._editorial_plan_cache = None
+            return {}
+        path = ws.state_dir / "editorial_plan.json"
+        try:
+            mtime = path.stat().st_mtime if path.is_file() else 0.0
+        except OSError:
+            return self._editorial_plan_cache or {}
+        if self._editorial_plan_cache is not None and mtime == self._editorial_plan_mtime:
+            return self._editorial_plan_cache
+        data = {}
+        if mtime:
+            try:
+                import json
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                data = raw if isinstance(raw, dict) else {}
+            except (OSError, ValueError):
+                data = {}
+        self._editorial_plan_cache = data
+        self._editorial_plan_mtime = mtime
+        return data
+
+    def _editorial_scene_lookup(self, scene_number) -> dict:
+        plan = self._load_editorial_plan_cached()
+        key = str(scene_number)
+        for s in plan.get("scenes") or []:
+            if str(s.get("scene_number")) == key:
+                return s
+        return {}
 
     def _init_ui_vars(self) -> None:
         self.csv_var = ctk.StringVar()
@@ -734,6 +877,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.prod_mix_var = ctk.StringVar(value="")
         self.hint_var = ctk.StringVar(value="Choose a project to get started.")
         self.status_var = ctk.StringVar(value="Ready")
+        self.status_line_var = ctk.StringVar(value="")
+        self.cache_status_var = ctk.StringVar(value="Cache idle")
         self.qa_counter_var = ctk.StringVar(value="")
         self.prod_error_var = ctk.StringVar(value="")
         self.scenes_summary_var = ctk.StringVar(value="")
@@ -848,9 +993,10 @@ class VideoGeneratorApp(ctk.CTk):
         topbar.bind("<Configure>", self._on_topbar_configure, add="+")
         self._refresh_stepper()
 
-    def _build_left_sections(self) -> None:
-        left = ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
-        left.grid(row=1, column=0, sticky="nsew")
+    def _build_left_sections(self, parent=None) -> None:
+        left = parent if parent is not None else ctk.CTkFrame(self, fg_color=_PANEL, corner_radius=0)
+        if parent is None:
+            left.grid(row=1, column=0, sticky="nsew")
         left.grid_columnconfigure(0, weight=1)
         left.grid_rowconfigure(0, weight=1)
         self._left_panel = left
@@ -1088,6 +1234,7 @@ class VideoGeneratorApp(ctk.CTk):
         bottom = ctk.CTkFrame(left, fg_color=_PANEL, corner_radius=0)
         bottom.grid(row=1, column=0, sticky="ew")
         bottom.grid_columnconfigure(0, weight=1)
+        # Primary CTA lives in the shell topbar; keep cancel + hint locally for Script view.
         ctk.CTkFrame(bottom, fg_color=_BORDER, height=1, corner_radius=0).grid(
             row=0, column=0, sticky="ew"
         )
@@ -1102,79 +1249,85 @@ class VideoGeneratorApp(ctk.CTk):
         cta_row.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 12))
         cta_row.grid_columnconfigure(0, weight=1)
         self._cta_row = cta_row
-
-        self.generate_btn = ctk.CTkButton(
-            cta_row,
-            text="Choose project",
-            height=40,
-            fg_color=_ACCENT,
-            hover_color=_ACCENT_HOV,
-            text_color=_ACCENT_DARK,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            corner_radius=6,
-            command=self._on_primary_cta,
-        )
-        self.generate_btn.grid(row=0, column=0, sticky="ew")
+        # Reuse shell CTA if already created; otherwise create legacy button.
+        if getattr(self, "generate_btn", None) is None:
+            self.generate_btn = ctk.CTkButton(
+                cta_row,
+                text="Choose project",
+                height=40,
+                fg_color=_ACCENT,
+                hover_color=_ACCENT_HOV,
+                text_color=_ACCENT_DARK,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                corner_radius=6,
+                command=self._on_primary_cta,
+            )
+            self.generate_btn.grid(row=0, column=0, sticky="ew")
         self._mode_seg.configure(command=self._on_script_mode)
 
         self.cancel_btn = ctk.CTkButton(
             cta_row,
             text="Cancel",
             width=90,
-            height=40,
+            height=32,
             fg_color="transparent",
             border_width=1,
             border_color=_DANGER,
             text_color=_DANGER,
             hover_color=_DANGER_BG,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             corner_radius=6,
             command=self._on_cancel,
         )
+        # Cancel shown only while running via existing helpers; keep packed off by default.
 
-    def _build_scenes_workspace(self) -> None:
-        right = ctk.CTkFrame(self, fg_color=_PANEL_ALT, corner_radius=0)
-        right.grid(row=1, column=1, sticky="nsew")
+    def _build_scenes_workspace(self, parent=None) -> None:
+        right = parent if parent is not None else ctk.CTkFrame(self, fg_color=_PANEL_ALT, corner_radius=0)
+        if parent is None:
+            right.grid(row=1, column=1, sticky="nsew")
         right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(0, weight=0)
         right.grid_rowconfigure(1, weight=1)
         self._right_panel = right
 
-        act_header = ctk.CTkFrame(right, fg_color="transparent")
-        act_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(12, 0))
+        # Compact production toolbar — one line, no duplicate titles.
+        act_header = ctk.CTkFrame(right, fg_color="transparent", height=36)
+        act_header.grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
+        act_header.grid_propagate(False)
         act_header.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
-            act_header, text="Scenes",
-            font=ctk.CTkFont(size=16, weight="bold"), text_color=_TEXT,
+            act_header, text="Visual Plan",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT,
         ).grid(row=0, column=0, sticky="w")
         self._scenes_counts_label = ctk.CTkLabel(
             act_header, textvariable=self.scenes_summary_var,
-            font=ctk.CTkFont(size=12), text_color=_MUTED,
-            wraplength=420, justify="left", anchor="w",
+            font=ctk.CTkFont(size=11), text_color=_MUTED,
+            wraplength=520, justify="left", anchor="w",
         )
-        self._scenes_counts_label.grid(row=0, column=1, sticky="ew", padx=10)
+        self._scenes_counts_label.grid(row=0, column=1, sticky="ew", padx=(10, 6))
         self._bind_responsive_wrap(self._scenes_counts_label, pad=16)
         self._error_nav = ctk.CTkFrame(act_header, fg_color="transparent")
-        self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 6))
+        self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 4))
         self.goto_error_btn = ctk.CTkButton(
-            self._error_nav, text="Go to Error", width=100, height=26,
+            self._error_nav, text="Go to Error", width=96, height=24,
             fg_color=_WARNING, hover_color="#D97706", text_color="#0B0D10",
             font=ctk.CTkFont(size=11, weight="bold"), corner_radius=4,
             command=self._go_to_error,
         )
-        self.goto_error_btn.pack(side="left", padx=(0, 6))
+        self.goto_error_btn.pack(side="left", padx=(0, 4))
         self.prev_error_btn = ctk.CTkButton(
-            self._error_nav, text="←", width=32, height=24,
+            self._error_nav, text="←", width=28, height=22,
             fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
+            text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11),
             corner_radius=4, command=self._prev_error,
         )
         self.prev_error_btn.pack(side="left")
         ctk.CTkLabel(
             self._error_nav, textvariable=self.error_pos_var, font=ctk.CTkFont(size=11),
-            text_color=_MUTED, width=48,
-        ).pack(side="left", padx=4)
+            text_color=_MUTED, width=44,
+        ).pack(side="left", padx=2)
         self.next_error_btn = ctk.CTkButton(
-            self._error_nav, text="→", width=32, height=24,
+            self._error_nav, text="→", width=28, height=22,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=10),
             corner_radius=4, command=self._next_error,
@@ -1183,9 +1336,9 @@ class VideoGeneratorApp(ctk.CTk):
         self._error_nav.grid_remove()
 
         self._overflow_btn = ctk.CTkButton(
-            act_header, text="⋯", width=34, height=26,
+            act_header, text="⋯", width=30, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=16),
+            text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=14),
             command=self._open_workspace_overflow,
         )
         self._overflow_btn.grid(row=0, column=3, sticky="e")
@@ -1200,8 +1353,8 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._toggle_activity_log,
         )
 
-        scenes_wrap = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
-        scenes_wrap.grid(row=1, column=0, sticky="nsew", padx=16, pady=(8, 0))
+        scenes_wrap = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=4, border_width=1, border_color=_BORDER)
+        scenes_wrap.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 8))
         scenes_wrap.grid_columnconfigure(0, weight=1)
         scenes_wrap.grid_rowconfigure(2, weight=1)
         self._scenes_wrap = scenes_wrap
@@ -1210,29 +1363,39 @@ class VideoGeneratorApp(ctk.CTk):
         self.scene_search_entry = None
         self.scene_search_var.set("")
 
-        ctk.CTkLabel(
+        self._qa_bulk_progress_label = ctk.CTkLabel(
             scenes_wrap, textvariable=self.qa_bulk_progress_var,
             font=ctk.CTkFont(size=11), text_color=_COPPER, anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 0))
+        )
+        self._qa_bulk_progress_label.grid(row=0, column=0, sticky="ew", padx=8, pady=0)
+        self._qa_bulk_progress_label.grid_remove()
 
         self._scenes_empty_label = ctk.CTkLabel(
             scenes_wrap,
             text="Paste a script and analyze it, or import a visual-plan CSV, to see scenes here.",
-            text_color=_MUTED, font=ctk.CTkFont(size=13), justify="left", anchor="w",
+            text_color=_MUTED, font=ctk.CTkFont(size=12), justify="left", anchor="w",
             wraplength=200,
         )
-        self._scenes_empty_label.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 4))
-        self._bind_responsive_wrap(self._scenes_empty_label, pad=32)
+        self._scenes_empty_label.grid(row=1, column=0, sticky="ew", padx=12, pady=(6, 2))
+        self._bind_responsive_wrap(self._scenes_empty_label, pad=24)
 
         self._scenes_list = ctk.CTkScrollableFrame(
             scenes_wrap, fg_color="transparent",
             scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
         )
-        self._scenes_list.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 4))
+        self._scenes_list.grid(row=2, column=0, sticky="nsew", padx=4, pady=(0, 4))
         self._scenes_list.grid_columnconfigure(0, weight=1)
 
-        details_col = ctk.CTkFrame(scenes_wrap, fg_color=_BG, corner_radius=4, border_width=1, border_color=_BORDER)
+        # Details live in the shell inspector (cannot reparent into CTkScrollableFrame).
+        insp_parent = getattr(getattr(self, "_shell", None), "inspector_body", None)
+        details_col = ctk.CTkFrame(
+            insp_parent if insp_parent is not None else scenes_wrap,
+            fg_color="transparent", corner_radius=4, border_width=0,
+        )
         self._details_panel = details_col
+        if insp_parent is not None:
+            details_col.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+            insp_parent.grid_rowconfigure(0, weight=1)
         self.details_title_var = ctk.StringVar(value="Selected scene")
         ctk.CTkLabel(
             details_col, textvariable=self.details_title_var, font=ctk.CTkFont(size=11, weight="bold"),
@@ -1456,16 +1619,33 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_stepper()
 
     def _refresh_stepper(self) -> None:
+        # Shell uses ScriptView workflow strip; keep stubs out of the layout.
+        view = getattr(self, "_view_script", None)
+        if view is not None and hasattr(view, "on_show"):
+            try:
+                view.on_show()
+            except Exception:
+                pass
         idx = max(0, min(len(_STEPPER_STEPS) - 1, int(self._stepper_index)))
         name = _STEPPER_STEPS[idx]
-        if self._stepper_compact:
-            self._stepper_full.grid_remove()
-            self._stepper_compact_label.configure(text=f"Step {idx + 1} of 5 · {name}")
-            self._stepper_compact_label.grid()
+        compact_lbl = getattr(self, "_stepper_compact_label", None)
+        full = getattr(self, "_stepper_full", None)
+        labels = getattr(self, "_stepper_labels", None) or []
+        if not labels:
+            # Shell mode — stage label already shows phase; optional compact hint
             return
-        self._stepper_compact_label.grid_remove()
-        self._stepper_full.grid()
-        for i, lbl in enumerate(self._stepper_labels):
+        if self._stepper_compact:
+            if full is not None:
+                full.grid_remove()
+            if compact_lbl is not None:
+                compact_lbl.configure(text=f"Step {idx + 1} of 5 · {name}")
+                compact_lbl.grid()
+            return
+        if compact_lbl is not None:
+            compact_lbl.grid_remove()
+        if full is not None:
+            full.grid()
+        for i, lbl in enumerate(labels):
             if i < idx:
                 color = _STEPPER_DONE
                 weight = "normal"
@@ -1803,9 +1983,77 @@ class VideoGeneratorApp(ctk.CTk):
             on_dismiss=self._picker_on_dismiss,
         )
 
-    def _picker_on_create(self, title: str) -> None:
+    def _picker_on_create(
+        self,
+        title: str,
+        *,
+        brand_kit_id: str | None = None,
+        style_mode: str = "",
+        style_id: str | None = None,
+    ) -> None:
         ws = create_project(title or "", projects_root=self._projects_root_path())
+        # Optional brand/style — empty mode keeps legacy behavior.
+        try:
+            ws.set_video_style_settings(
+                mode=str(style_mode or "").strip().lower(),
+                style_id=style_id,
+                brand_kit_id=brand_kit_id if brand_kit_id and brand_kit_id != "none" else None,
+            )
+        except Exception:
+            pass
         self._activate_workspace(ws, persist=True, clear_session=True)
+
+    def _resolve_project_style(
+        self,
+        *,
+        script: str = "",
+        visual_plan=None,
+        rows=None,
+        persist: bool = False,
+    ):
+        """Resolve Brand/Style for this project. None = legacy (unchanged heuristics)."""
+        ws = self._workspace
+        if ws is None:
+            return None
+        try:
+            from style_engine import resolve_style, style_prompt_adornment
+
+            resolved = resolve_style(
+                script=script or (
+                    self.script_box.get("1.0", "end").strip() if hasattr(self, "script_box") else ""
+                ),
+                visual_plan=visual_plan if visual_plan is not None else self._visual_plan,
+                rows=rows if rows is not None else [
+                    {
+                        "scene_number": s.scene_number,
+                        "script_segment": s.script_segment,
+                        "asset_type": s.asset_type,
+                        "prompt": s.prompt or s.stock,
+                    }
+                    for s in (getattr(self, "_scene_rows", None) or [])
+                ],
+                project_meta=ws.read_meta(),
+                title=str((ws.read_meta() or {}).get("name") or ""),
+                state_dir=getattr(ws, "state_dir", None) or (ws.path / "state" if hasattr(ws, "path") else None),
+                gemini_settings=dict(getattr(self, "settings", None) or {}),
+            )
+            if persist and resolved is not None:
+                ws.set_style_resolution(resolved.to_resolution_meta())
+                # Keep AUTO detected id visible without forcing mode change
+                vs = ws.video_style_settings()
+                if vs.get("mode") == "auto" and not vs.get("style_id"):
+                    ws.set_video_style_settings(
+                        mode="auto",
+                        style_id=resolved.detected_style_id or resolved.style_id,
+                        brand_kit_id=vs.get("brand_kit_id"),
+                    )
+            # Stash for typography / prompt adornment in this session
+            self._resolved_style = resolved
+            self._style_prompt_adornment = style_prompt_adornment(resolved) if resolved else ""
+            return resolved
+        except Exception as exc:
+            self._append_log(f"[STYLE] Resolve skipped ({exc})\n")
+            return None
 
     def _picker_on_select(self, project_id: str) -> None:
         ws = find_project(self._projects_root_path(), project_id)
@@ -2176,6 +2424,8 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _activate_workspace(self, ws, persist: bool = True, clear_session: bool = False, refresh_menu: bool = True) -> None:
         self._workspace = ws
+        self._editorial_plan_cache = None
+        self._editorial_plan_mtime = 0.0
         ws.ensure_dirs()
         if clear_session:
             self._asset_manager = None
@@ -2207,6 +2457,10 @@ class VideoGeneratorApp(ctk.CTk):
         # Non-critical FS scan — don't block project switch / first paint.
         self._refresh_cleanup_button(defer=True)
         self._load_smart_editing_settings_from_project(ws)
+        try:
+            self._refresh_cache_status()
+        except Exception:
+            pass
 
     def _refresh_cleanup_button(self, *, defer: bool = False) -> None:
         """Update Cleanup button label from a downloaded-assets scan.
@@ -2590,8 +2844,13 @@ class VideoGeneratorApp(ctk.CTk):
         def work():
             try:
                 from visual_director import VisualDirector
+                from style_engine import style_prompt_adornment
 
-                plan = VisualDirector(settings=settings).plan(script)
+                resolved = self._resolve_project_style(script=script, persist=True)
+                guidance = style_prompt_adornment(resolved)
+                plan = VisualDirector(settings=settings).plan(
+                    script, style_guidance=guidance
+                )
                 self.after(0, lambda: self._apply_ai_plan(plan))
             except Exception as exc:
                 msg = str(exc)
@@ -3261,7 +3520,7 @@ class VideoGeneratorApp(ctk.CTk):
             in_flight = len(self._busy_scenes)
             done = max(0, self._recovery_total - len(self._recovery_queue) - in_flight)
             if self._recovery_queue or in_flight:
-                self.qa_bulk_progress_var.set(
+                self._set_qa_bulk_progress(
                     f"RECOVERING FAILED SCENES  {done} / {self._recovery_total}"
                 )
         if self._recovery_queue or (self._retry_pumping and self._busy_scenes and self._recovery_total):
@@ -3271,15 +3530,25 @@ class VideoGeneratorApp(ctk.CTk):
             snap = self._qa_snapshot()
             recovered = self._recovery_total - snap.needs_action
             if snap.needs_action:
-                self.qa_bulk_progress_var.set(
+                self._set_qa_bulk_progress(
                     f"{max(0, recovered)} / {self._recovery_total} recovered · "
                     f"{snap.needs_action} scene(s) still need attention"
                 )
             else:
-                self.qa_bulk_progress_var.set(f"{self._recovery_total} / {self._recovery_total} recovered")
+                self._set_qa_bulk_progress(f"{self._recovery_total} / {self._recovery_total} recovered")
             self._recovery_total = 0
         self._retry_pumping = False
         self._refresh_qa_ui()
+
+    def _set_qa_bulk_progress(self, text: str = "") -> None:
+        self.qa_bulk_progress_var.set(text or "")
+        lbl = getattr(self, "_qa_bulk_progress_label", None)
+        if lbl is None:
+            return
+        if text:
+            lbl.grid()
+        else:
+            lbl.grid_remove()
 
     def _scene_is_flow(self, scene: SceneRow) -> bool:
         from providers.router import SceneAssetRouter
@@ -3405,17 +3674,95 @@ class VideoGeneratorApp(ctk.CTk):
 
     # Batches keep the event loop responsive for large visual plans without
     # changing row widgets / QA behavior once construction finishes.
-    _SCENE_ROW_SYNC_LIMIT = 24
-    _SCENE_ROW_BATCH = 20
+    _SCENE_ROW_SYNC_LIMIT = _scene_list.SCENE_ROW_SYNC_LIMIT
+    _SCENE_ROW_BATCH = _scene_list.SCENE_ROW_BATCH
+
+    def _remember_scene_scroll(self) -> None:
+        canvas = getattr(getattr(self, "_scenes_list", None), "_parent_canvas", None)
+        if canvas is None:
+            return
+        try:
+            self._scene_scroll_frac = float(canvas.yview()[0])
+        except Exception:
+            pass
+
+    def _restore_scene_scroll(self) -> None:
+        canvas = getattr(getattr(self, "_scenes_list", None), "_parent_canvas", None)
+        if canvas is None:
+            return
+        try:
+            canvas.yview_moveto(float(getattr(self, "_scene_scroll_frac", 0.0) or 0.0))
+        except Exception:
+            pass
+        self._schedule_scene_window_refresh()
+
+    def _bind_scene_list_scroll(self) -> None:
+        if getattr(self, "_scene_window_bound", False):
+            return
+        canvas = getattr(getattr(self, "_scenes_list", None), "_parent_canvas", None)
+        if canvas is None:
+            return
+        self._scene_window_bound = True
+
+        def _on_scroll(*_args):
+            self._schedule_scene_window_refresh()
+
+        try:
+            canvas.bind("<Configure>", lambda _e: self._schedule_scene_window_refresh(), add="+")
+            # Mousewheel / trackpad often route through the canvas yview command.
+            prev = canvas.cget("yscrollcommand")
+            def _yscroll(*args):
+                if callable(prev):
+                    prev(*args)
+                elif prev:
+                    try:
+                        self.tk.call(prev, *args)
+                    except Exception:
+                        pass
+                self._schedule_scene_window_refresh()
+            canvas.configure(yscrollcommand=_yscroll)
+        except Exception:
+            pass
+
+    def _schedule_scene_window_refresh(self) -> None:
+        if getattr(self, "_scene_window_pending", False):
+            return
+        if not _scene_list.should_window(len(getattr(self, "_scene_rows", None) or [])):
+            return
+        self._scene_window_pending = True
+
+        def _run():
+            self._scene_window_pending = False
+            try:
+                self._refresh_scene_window()
+            except Exception:
+                pass
+
+        self.after(40, _run)
+
+    def _scene_viewport_metrics(self) -> tuple[float, float]:
+        canvas = getattr(getattr(self, "_scenes_list", None), "_parent_canvas", None)
+        if canvas is None:
+            return 0.0, 400.0
+        try:
+            top = float(canvas.canvasy(0))
+            h = float(max(canvas.winfo_height(), 1))
+            return top, h
+        except Exception:
+            return 0.0, 400.0
 
     def _render_scene_rows(self) -> None:
         signature = tuple(_scene_key(s.scene_number) for s in self._scene_rows)
+        total = len(self._scene_rows)
+        use_window = _scene_list.should_window(total)
         if (
             signature
             and signature == self._scene_row_signature
             and self._scene_row_widgets
-            and len(self._scene_row_widgets) == len(self._scene_rows)
+            and (use_window or len(self._scene_row_widgets) == total)
         ):
+            if use_window:
+                self._schedule_scene_window_refresh()
             self._refresh_qa_ui(immediate=True)
             return
 
@@ -3425,9 +3772,12 @@ class VideoGeneratorApp(ctk.CTk):
         for child in self._scenes_list.winfo_children():
             child.destroy()
         self._scene_row_widgets = {}
-        # Signature applied only when the full table is built so a mid-batch
-        # re-entry cannot treat a partial widget set as complete.
         self._scene_row_signature = ()
+        self._scene_window_first = 0
+        self._scene_window_last = 0
+        self._scene_spacer_top = None
+        self._scene_spacer_bottom = None
+        self._scene_header = None
 
         empty = getattr(self, "_scenes_empty_label", None)
         if empty is not None:
@@ -3441,11 +3791,46 @@ class VideoGeneratorApp(ctk.CTk):
             self._refresh_qa_ui(immediate=True)
             return
 
-        # Same column geometry as _decorate_scene_row so the select-all
-        # checkbox lines up with per-row checkboxes.
+        self._build_scene_list_header()
+        self._bind_scene_list_scroll()
+
+        if not use_window:
+            if total <= self._SCENE_ROW_SYNC_LIMIT:
+                for i, scene in enumerate(self._scene_rows):
+                    self._decorate_scene_row(i, scene)
+                self._scene_row_signature = signature
+                self._refresh_qa_ui(immediate=True)
+                return
+
+            def _batch(start: int) -> None:
+                if gen != self._scene_render_gen:
+                    return
+                end = min(start + self._SCENE_ROW_BATCH, total)
+                for i in range(start, end):
+                    self._decorate_scene_row(i, self._scene_rows[i])
+                if end < total:
+                    self.after(1, lambda: _batch(end))
+                else:
+                    self._scene_row_signature = signature
+                    self._refresh_qa_ui(immediate=True)
+
+            self.after_idle(lambda: _batch(0))
+            return
+
+        # Windowed path: spacers + visible slice only (no per-scroll disk I/O).
+        self._scene_spacer_top = ctk.CTkFrame(self._scenes_list, fg_color="transparent", height=1)
+        self._scene_spacer_top.grid(row=1, column=0, sticky="ew")
+        self._scene_spacer_bottom = ctk.CTkFrame(self._scenes_list, fg_color="transparent", height=1)
+        self._scene_spacer_bottom.grid(row=2, column=0, sticky="ew")
+        self._scene_row_signature = signature
+        self._refresh_scene_window(force=True)
+        self._refresh_qa_ui(immediate=True)
+
+    def _build_scene_list_header(self) -> None:
         header = ctk.CTkFrame(self._scenes_list, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
-        header.grid_columnconfigure(4, weight=1)
+        header.grid_columnconfigure(5, weight=1)
+        self._scene_header = header
         self._scene_header_check_var = ctk.BooleanVar(value=False)
         self._scene_header_check = ctk.CTkCheckBox(
             header, text="", width=18, checkbox_width=14, checkbox_height=14,
@@ -3453,60 +3838,83 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_header_select_all,
         )
         self._scene_header_check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
-        ctk.CTkLabel(
-            header, text="#", width=32, anchor="w",
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=1, sticky="w", padx=(2, 4))
-        ctk.CTkLabel(
-            header, text="Status", width=118, anchor="w",
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=2, sticky="w", padx=2)
-        ctk.CTkLabel(
-            header, text="Source", width=72, anchor="w",
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=3, sticky="w", padx=2)
-        ctk.CTkLabel(
-            header, text="Time", width=36, anchor="e",
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=4, sticky="e", padx=(0, 4))
-        ctk.CTkLabel(
-            header, text="", width=58, anchor="e",
-            font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
-        ).grid(row=0, column=5, sticky="e", padx=(0, 6))
+        cols = (
+            ("#", 28),
+            ("Narration", 120),
+            ("Visual", 110),
+            ("Src", 56),
+            ("Cam", 52),
+            ("Tr", 40),
+            ("Amb", 48),
+            ("Status", 90),
+        )
+        for i, (title, width) in enumerate(cols):
+            ctk.CTkLabel(
+                header, text=title, width=width, anchor="w",
+                font=ctk.CTkFont(size=10, weight="bold"), text_color=_MUTED,
+            ).grid(row=0, column=i + 1, sticky="w", padx=2)
 
+    def _refresh_scene_window(self, force: bool = False) -> None:
         total = len(self._scene_rows)
-        if total <= self._SCENE_ROW_SYNC_LIMIT:
-            for i, scene in enumerate(self._scene_rows):
-                self._decorate_scene_row(i, scene)
-            self._scene_row_signature = signature
-            self._refresh_qa_ui(immediate=True)
+        if not _scene_list.should_window(total):
             return
+        top, vh = self._scene_viewport_metrics()
+        first, last = _scene_list.window_bounds(
+            total=total, scroll_top_px=top, viewport_h=vh,
+        )
+        if (
+            not force
+            and first == getattr(self, "_scene_window_first", -1)
+            and last == getattr(self, "_scene_window_last", -1)
+            and self._scene_row_widgets
+        ):
+            return
+        # Destroy rows outside the new window
+        keep = {_scene_key(self._scene_rows[i].scene_number) for i in range(first, last)}
+        for key, widgets in list(self._scene_row_widgets.items()):
+            if key not in keep:
+                row = widgets.get("row")
+                if row is not None:
+                    try:
+                        row.destroy()
+                    except Exception:
+                        pass
+                self._scene_row_widgets.pop(key, None)
+        rh = _scene_list.SCENE_ROW_HEIGHT
+        top_sp = getattr(self, "_scene_spacer_top", None)
+        bot_sp = getattr(self, "_scene_spacer_bottom", None)
+        if top_sp is not None:
+            top_sp.configure(height=max(1, first * rh))
+            top_sp.grid(row=1, column=0, sticky="ew")
+        # Materialize missing rows in window (grid after spacer)
+        for i in range(first, last):
+            scene = self._scene_rows[i]
+            key = _scene_key(scene.scene_number)
+            if key in self._scene_row_widgets:
+                widgets = self._scene_row_widgets[key]
+                row = widgets.get("row")
+                if row is not None:
+                    row.grid(row=i - first + 2, column=0, sticky="ew", pady=0)
+                continue
+            self._decorate_scene_row(i, scene, grid_row=i - first + 2)
+        if bot_sp is not None:
+            bot_sp.configure(height=max(1, (total - last) * rh))
+            bot_sp.grid(row=last - first + 2, column=0, sticky="ew")
+        self._scene_window_first = first
+        self._scene_window_last = last
 
-        def _batch(start: int) -> None:
-            if gen != self._scene_render_gen:
-                return
-            end = min(start + self._SCENE_ROW_BATCH, total)
-            for i in range(start, end):
-                self._decorate_scene_row(i, self._scene_rows[i])
-            if end < total:
-                self.after(1, lambda: _batch(end))
-            else:
-                self._scene_row_signature = signature
-                self._refresh_qa_ui(immediate=True)
+    def _decorate_scene_row(self, i: int, scene: SceneRow, grid_row: int | None = None) -> None:
+        """Build one denser scene-table row (shared by sync / batch / window paths)."""
+        from ui.scene_list import truncate as _trunc
 
-        # First batch after idle so the shell (header + empty list) can paint first.
-        self.after_idle(lambda: _batch(0))
-
-    def _decorate_scene_row(self, i: int, scene: SceneRow) -> None:
-        """Build one scene-table row widget (shared by sync + deferred paths)."""
         source = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
         badge_text, badge_fg, badge_bg = SOURCE_BADGE[source]
         default_fg = _ROW_ALT if i % 2 else "transparent"
         row = ctk.CTkFrame(
-            self._scenes_list, fg_color=default_fg, corner_radius=4, height=32,
+            self._scenes_list, fg_color=default_fg, corner_radius=4, height=28,
         )
-        row.grid(row=i + 1, column=0, sticky="ew", pady=0)
-        row.grid_columnconfigure(4, weight=1)
+        row.grid(row=(grid_row if grid_row is not None else i + 1), column=0, sticky="ew", pady=0)
+        row.grid_columnconfigure(2, weight=1)
 
         key = _scene_key(scene.scene_number)
         check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
@@ -3515,44 +3923,64 @@ class VideoGeneratorApp(ctk.CTk):
             variable=check_var,
             command=lambda k=key, v=check_var: self._on_scene_check(k, v),
         )
-        check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
+        check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=1)
 
         ctk.CTkLabel(
-            row, text=f"{scene.scene_number}", width=32,
-            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
-        ).grid(row=0, column=1, sticky="w", padx=(2, 4))
+            row, text=f"{scene.scene_number}", width=28,
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=1, sticky="w", padx=2)
 
-        status_label = ctk.CTkLabel(
-            row, text="◌ QUEUED", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=_QUEUED, width=118, anchor="w",
+        narr_label = ctk.CTkLabel(
+            row, text=_trunc(scene.script_segment, 42), width=120, anchor="w",
+            font=ctk.CTkFont(size=10), text_color=_TEXT,
         )
-        status_label.grid(row=0, column=2, sticky="w", padx=2)
+        narr_label.grid(row=0, column=2, sticky="ew", padx=2)
+
+        visual = scene.prompt or scene.stock or scene.visual_description or ""
+        vis_label = ctk.CTkLabel(
+            row, text=_trunc(visual, 36), width=110, anchor="w",
+            font=ctk.CTkFont(size=10), text_color=_MUTED,
+        )
+        vis_label.grid(row=0, column=3, sticky="w", padx=2)
 
         badge = ctk.CTkLabel(
-            row, text=badge_text, font=ctk.CTkFont(size=10),
-            text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=72, anchor="w",
+            row, text=badge_text, font=ctk.CTkFont(size=9),
+            text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=56, anchor="w",
         )
-        badge.grid(row=0, column=3, sticky="w", padx=2)
-        dur = ""
-        if self._visual_plan is not None:
-            planned = next(
-                (s for s in self._visual_plan.scenes if str(s.scene_id) == str(scene.scene_number)),
-                None,
-            )
-            if planned:
-                dur = f"{planned.duration:.1f}s"
-        dur_label = ctk.CTkLabel(
-            row, text=dur or "—", font=ctk.CTkFont(size=11), text_color=_MUTED, width=36, anchor="e",
+        badge.grid(row=0, column=4, sticky="w", padx=2)
+
+        ed = self._editorial_scene_lookup(scene.scene_number)
+        cam = (ed.get("camera_style") or "—")[:10]
+        tr = (ed.get("transition_in") or "cut")[:6]
+        amb = (ed.get("ambience_profile") or "—")[:8]
+        sfx_mark = "·" if (ed.get("sfx_events") or ed.get("sfx")) else ""
+        cam_label = ctk.CTkLabel(
+            row, text=cam, width=52, anchor="w", font=ctk.CTkFont(size=9), text_color=_MUTED,
         )
-        dur_label.grid(row=0, column=4, sticky="e", padx=(0, 4))
+        cam_label.grid(row=0, column=5, sticky="w", padx=2)
+        tr_label = ctk.CTkLabel(
+            row, text=tr, width=40, anchor="w", font=ctk.CTkFont(size=9), text_color=_MUTED,
+        )
+        tr_label.grid(row=0, column=6, sticky="w", padx=2)
+        amb_label = ctk.CTkLabel(
+            row, text=f"{amb}{sfx_mark}", width=48, anchor="w",
+            font=ctk.CTkFont(size=9), text_color=_MUTED,
+        )
+        amb_label.grid(row=0, column=7, sticky="w", padx=2)
+
+        status_label = ctk.CTkLabel(
+            row, text="◌ QUEUED", font=ctk.CTkFont(size=10, weight="bold"),
+            text_color=_QUEUED, width=90, anchor="w",
+        )
+        status_label.grid(row=0, column=8, sticky="w", padx=2)
 
         source_btn = ctk.CTkButton(
-            row, text="Source", width=58, height=22,
+            row, text="Src", width=40, height=20,
             fg_color="transparent", border_width=1, border_color=_BORDER,
-            text_color=_ACCENT, font=ctk.CTkFont(size=10),
+            text_color=_ACCENT, font=ctk.CTkFont(size=9),
             command=lambda s=scene: self._change_source_dialog(s),
         )
-        source_btn.grid(row=0, column=5, sticky="e", padx=(0, 6))
+        source_btn.grid(row=0, column=9, sticky="e", padx=(0, 4))
 
         preview_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=1))
         elapsed_label = ctk.CTkLabel(row, text="", font=ctk.CTkFont(size=10), text_color=_MUTED, width=1)
@@ -3568,13 +3996,13 @@ class VideoGeneratorApp(ctk.CTk):
             "default_fg": default_fg,
             "check_var": check_var,
             "check": check,
+            "index": i,
         }
         row.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
         preview_label.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
-        for widget in (status_label, badge, dur_label):
+        for widget in (status_label, badge, narr_label, vis_label, cam_label, tr_label, amb_label):
             widget.bind("<Button-1>", lambda _e, k=key: self._focus_scene(k, scroll=False))
 
-        # Apply known status immediately so deferred batches aren't stuck on QUEUED.
         if key in self._busy_scenes:
             busy = self._qa.busy.get(key) or "generating"
             self._set_scene_status(scene.scene_number, busy)
@@ -4263,14 +4691,11 @@ class VideoGeneratorApp(ctk.CTk):
         snap = snap or self._qa_snapshot()
         selected = self._selected_scenes()
         panel = getattr(self, "_details_panel", None)
+        self._ensure_details_in_inspector()
         if not selected:
             self.details_title_var.set("Selected scene")
-            self.details_text_var.set("")
-            if panel is not None:
-                panel.grid_remove()
+            self.details_text_var.set("Select a scene in Visual Plan to inspect assets and editorial cues.")
             return
-        if panel is not None:
-            panel.grid(row=3, column=0, sticky="ew", padx=8, pady=(0, 8))
 
         if len(selected) > 1:
             self.details_title_var.set(f"{len(selected)} scenes selected")
@@ -4339,6 +4764,28 @@ class VideoGeneratorApp(ctk.CTk):
             lines.append(f"Duration  {info['duration']}")
         if info["fallback"]:
             lines.append(f"Fallback  {info['fallback']}")
+        narr = (scene.script_segment or "").strip()
+        if narr:
+            lines.append(f"Narration {narr[:160]}{'…' if len(narr) > 160 else ''}")
+        prompt = (scene.prompt or scene.stock or scene.visual_description or "").strip()
+        if prompt:
+            lines.append(f"Visual    {prompt[:160]}{'…' if len(prompt) > 160 else ''}")
+        ed = self._editorial_scene_lookup(scene.scene_number)
+        if ed:
+            lines.append("— Editorial —")
+            lines.append(f"Camera    {ed.get('camera_style') or '—'}")
+            lines.append(f"Transition {ed.get('transition_in') or 'cut'}")
+            lines.append(f"Ambience  {ed.get('ambience_profile') or '—'}")
+            if ed.get("sfx_events"):
+                lines.append(f"SFX       {len(ed.get('sfx_events') or [])} events")
+            elif ed.get("allow_silence"):
+                lines.append("SFX       (allow silence)")
+            att = ed.get("attention_score")
+            if att is not None:
+                lines.append(f"Attention {float(att):.2f}")
+            purpose = ed.get("purpose")
+            if purpose:
+                lines.append(f"Purpose   {purpose}")
         self.details_text_var.set("\n".join(lines))
         actions = set(info["actions"])
         busy = key in self._busy_scenes or key in self._qa.busy
@@ -4373,12 +4820,25 @@ class VideoGeneratorApp(ctk.CTk):
         self._update_details_panel()
 
     def _scroll_scene_into_view(self, key: str) -> None:
+        canvas = getattr(self._scenes_list, "_parent_canvas", None)
+        total = len(self._scene_rows)
+        idx = next(
+            (i for i, s in enumerate(self._scene_rows) if _scene_key(s.scene_number) == key),
+            None,
+        )
+        if idx is not None and _scene_list.should_window(total) and canvas is not None:
+            # Jump by index so off-window rows get materialized first.
+            frac = min(1.0, max(0.0, idx / max(total, 1)))
+            try:
+                canvas.yview_moveto(frac)
+            except Exception:
+                pass
+            self._refresh_scene_window(force=True)
         widgets = self._scene_row_widgets.get(key)
         if not widgets or widgets.get("row") is None:
             return
         row = widgets["row"]
         self._scenes_list.update_idletasks()
-        canvas = getattr(self._scenes_list, "_parent_canvas", None)
         if canvas is None:
             return
         inner_h = max(int(self._scenes_list.winfo_reqheight()), 1)
@@ -4632,7 +5092,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._recovery_total = len(self._recovery_queue)
         self._recovery_done = 0
         self._append_log(f"\n[QA] {action} {self._recovery_total} unresolved scene(s) — ready scenes untouched\n")
-        self.qa_bulk_progress_var.set(f"RECOVERING FAILED SCENES  0 / {self._recovery_total}")
+        self._set_qa_bulk_progress(f"RECOVERING FAILED SCENES  0 / {self._recovery_total}")
         if not self._retry_pumping:
             self._retry_pumping = True
             self._pump_retry_queue()
@@ -4814,49 +5274,11 @@ class VideoGeneratorApp(ctk.CTk):
             onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
             text_color=_TEXT, font=ctk.CTkFont(size=12),
         ).pack(anchor="w", padx=20, pady=(2, 8))
-
-        ctk.CTkLabel(
-            body, text="SMART EDITING", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
-        ).pack(anchor="w", padx=20, pady=(4, 4))
-
-        def _smart_feature_row(label: str, enabled_var, intensity_var) -> None:
-            row = ctk.CTkFrame(body, fg_color="transparent")
-            row.pack(fill="x", padx=20, pady=2)
-            ctk.CTkSwitch(
-                row, text=label, variable=enabled_var,
-                onvalue=True, offvalue=False, progress_color=_ACCENT, button_color=_TEXT,
-                text_color=_TEXT, font=ctk.CTkFont(size=12), command=self._persist_smart_editing_settings,
-            ).pack(side="left")
-            ctk.CTkOptionMenu(
-                row, variable=intensity_var, values=["Low", "Medium", "High"],
-                width=96, fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
-                text_color=_TEXT, dropdown_fg_color=_CARD, dropdown_text_color=_TEXT,
-                command=lambda _v: self._persist_smart_editing_settings(),
-            ).pack(side="right")
-
-        _smart_feature_row("Text Effects", self.smart_text_effects_var, self.smart_text_intensity_var)
-        _smart_feature_row("Sound Effects", self.smart_sfx_var, self.smart_sfx_intensity_var)
-        _smart_feature_row(
-            "Visual Transitions", self.smart_visual_transitions_var, self.smart_transitions_intensity_var,
-        )
-        _smart_feature_row(
-            "Scene Ambience", self.smart_scene_ambience_var, self.smart_ambience_intensity_var,
-        )
         ctk.CTkLabel(
             body,
-            text="Each feature has its own intensity (Low / Medium / High). "
-                 "SFX, transitions, and ambience are AI-picked when Gemini is configured.",
+            text="Smart Editing controls (Text / SFX / Transitions / Ambience) live on the Audio dashboard.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
-        ).pack(anchor="w", padx=20, pady=(0, 4))
-        smart_row = ctk.CTkFrame(body, fg_color="transparent")
-        smart_row.pack(fill="x", padx=20, pady=(4, 12))
-        ctk.CTkLabel(smart_row, text="Mode", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
-        ctk.CTkOptionMenu(
-            smart_row, variable=self.smart_mode_var, values=["Smart", "Automatic"],
-            width=110, fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
-            text_color=_TEXT, dropdown_fg_color=_CARD, dropdown_text_color=_TEXT,
-            command=lambda _v: self._persist_smart_editing_settings(),
-        ).pack(side="left", padx=(8, 0))
+        ).pack(anchor="w", padx=20, pady=(0, 12))
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
 
@@ -5652,9 +6074,17 @@ class VideoGeneratorApp(ctk.CTk):
             aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
             visual_plan = getattr(self, "_visual_plan", None)
+            resolved_style = self._resolve_project_style(
+                script=self.script_box.get("1.0", "end").strip() if hasattr(self, "script_box") else "",
+                visual_plan=visual_plan,
+                rows=config["rows"],
+                persist=True,
+            )
+            style_fp = resolved_style.fingerprint() if resolved_style is not None else None
             editorial_settings_key = editorial_cache_settings_key(
                 config["rows"],
                 visual_plan_dict=visual_plan.to_dict() if visual_plan is not None else None,
+                style_fingerprint=style_fp,
             )
             audio_key = _audio_fingerprint(config["audio_path"])
             editorial_plan = None
@@ -5672,12 +6102,23 @@ class VideoGeneratorApp(ctk.CTk):
                     visual_plan=visual_plan,
                     settings_key=editorial_settings_key,
                     audio_key=audio_key,
+                    resolved_style=resolved_style,
                 )
                 if state_dir is not None:
                     save_editorial_plan(state_dir, editorial_plan)
                     print(f"[EDITORIAL] Saved plan for {len(editorial_plan.scenes)} scene(s).")
             else:
                 print(f"[EDITORIAL] Reusing cached plan ({len(editorial_plan.scenes)} scenes).")
+
+            # Brand accent → typography theme for this render only.
+            try:
+                from typography.theme import get_theme, set_theme
+                from style_engine import typography_theme_for_resolved
+
+                self._pipeline_prev_theme = get_theme()
+                set_theme(typography_theme_for_resolved(resolved_style, base=self._pipeline_prev_theme))
+            except Exception:
+                self._pipeline_prev_theme = None
 
             # Pacing Director: single authoritative transition + camera energy map
             transition_map = authoritative_transition_map(editorial_plan)
@@ -5858,6 +6299,15 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             self._ui_queue.put(("error", traceback.format_exc()))
         finally:
+            try:
+                prev = getattr(self, "_pipeline_prev_theme", None)
+                if prev is not None:
+                    from typography.theme import set_theme
+
+                    set_theme(prev)
+                    self._pipeline_prev_theme = None
+            except Exception:
+                pass
             try:
                 os.chdir(old_cwd)
             except OSError:
@@ -6160,7 +6610,8 @@ class VideoGeneratorApp(ctk.CTk):
                     subprocess.Popen(["open", str(folder)])
             elif sys.platform == "win32":
                 if p.is_file():
-                    subprocess.Popen(["explorer", f"/select,{p}"])
+                    # Two-arg form: "/select," + path — survives spaces in the path.
+                    subprocess.Popen(["explorer", "/select,", str(p)])
                 else:
                     os.startfile(str(folder))  # type: ignore[attr-defined]
             else:
@@ -6177,6 +6628,12 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.configure(state="disabled")
 
     def _append_log(self, text: str) -> None:
+        line = (text or "").strip().split("\n")[-1].strip()
+        if line:
+            try:
+                self.status_line_var.set(line[:140])
+            except Exception:
+                pass
         if self._workspace is not None:
             self._log_disk_buf.append(text)
             if len(self._log_disk_buf) >= 40:

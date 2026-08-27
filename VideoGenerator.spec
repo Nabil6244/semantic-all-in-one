@@ -68,9 +68,9 @@ ffprobe_src = BIN / ffprobe_name
 if ffprobe_src.is_file():
     binaries += [(str(ffprobe_src), "bin")]
 else:
-    print(
-        f"WARNING: {ffprobe_src} not found — audio/video probing may fail in packaged builds. "
-        "Copy ffprobe from the same ffmpeg build as ffmpeg."
+    raise SystemExit(
+        f"Missing {ffprobe_src.name} — place it at {ffprobe_src} before building "
+        "(same release zip / brew prefix as ffmpeg).\nSee bin/README.md"
     )
 
 # generation with zero Node.js install required. Optional: Stock and Manual scenes
@@ -137,6 +137,25 @@ else:
 logo_png = ROOT / "assets" / "logo.png"
 if logo_png.is_file():
     datas += [(str(logo_png), "assets")]
+
+# Brand Kit + Video Style JSON (required for Brand & Style in packaged builds)
+for _data_dir_name in ("styles", "brand_kits"):
+    _data_dir = ROOT / _data_dir_name
+    if _data_dir.is_dir():
+        for f in _data_dir.glob("*.json"):
+            datas.append((str(f), _data_dir_name))
+    else:
+        print(f"WARNING: {_data_dir} missing — packaged Brand & Style menus may be empty.")
+
+# Bundled typography fonts
+_FONTS_DIR = ROOT / "assets" / "fonts"
+if _FONTS_DIR.is_dir():
+    for f in _FONTS_DIR.rglob("*"):
+        if f.is_file():
+            rel_dir = f.parent.relative_to(ROOT)
+            datas.append((str(f), str(rel_dir)))
+else:
+    print(f"WARNING: {_FONTS_DIR} missing — typography will fall back to system fonts.")
 
 # Bundled SFX library (62 wavs) — copied to ~/.videogen/sfx on first launch if empty.
 BUNDLED_SFX_DIR = ROOT / "assets" / "bundled-sfx"
@@ -215,6 +234,31 @@ a = Analysis(
         "licensing.login_dialog",
         "licensing.session_store",
         "project_picker",
+        "style_engine",
+        "style_engine.apply",
+        "style_engine.detect",
+        "style_engine.loader",
+        "style_engine.profile",
+        "style_engine.resolver",
+        "style_engine.schema",
+        "style_engine.typography_map",
+        "editorial",
+        "editorial.builder",
+        "editorial.schema",
+        "editorial.persistence",
+        "editorial.audio_director",
+        "editorial.music_director",
+        "editorial.pacing",
+        "editorial.qa",
+        "ui",
+        "ui.views",
+        "ui.theme",
+        "ui.shell",
+        "ui.widgets",
+        "typography",
+        "typography.fonts",
+        "typography.render",
+        "smart_editing",
     ],
     hookspath=[],
     hooksconfig={},

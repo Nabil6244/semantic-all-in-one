@@ -20,6 +20,7 @@ def cache_settings_key(
     rows: Sequence[dict],
     *,
     visual_plan_dict: Optional[dict] = None,
+    style_fingerprint: Optional[dict] = None,
 ) -> str:
     payload: dict[str, Any] = {
         "editorial_plan_version": EDITORIAL_PLAN_VERSION,
@@ -35,6 +36,14 @@ def cache_settings_key(
     }
     if visual_plan_dict:
         payload["visual_plan"] = visual_plan_dict
+    if style_fingerprint:
+        payload["style"] = {
+            "mode": style_fingerprint.get("mode"),
+            "style_id": style_fingerprint.get("style_id"),
+            "style_version": style_fingerprint.get("style_version"),
+            "brand_kit_id": style_fingerprint.get("brand_kit_id"),
+            "brand_version": style_fingerprint.get("brand_version"),
+        }
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 

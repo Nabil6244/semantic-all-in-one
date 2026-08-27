@@ -283,11 +283,18 @@ class VisualDirector:
     def __init__(self, llm: LLMProvider | None = None, settings=None):
         self.llm = llm or GeminiLLM(settings=settings, timeout=300.0)
 
-    def plan(self, script: str) -> VisualPlan:
+    def plan(self, script: str, *, style_guidance: str = "") -> VisualPlan:
         text = (script or "").strip()
         if not text:
             raise ValueError("script is empty")
         user = _plan_user_message(text)
+        tip = (style_guidance or "").strip()
+        if tip:
+            user = (
+                "PRODUCTION STYLE GUIDANCE (follow without changing scene coverage rules):\n"
+                f"{tip}\n\n"
+                + user
+            )
         last_issue = ""
         for attempt in range(2):
             try:

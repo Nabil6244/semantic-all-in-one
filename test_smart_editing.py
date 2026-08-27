@@ -953,5 +953,58 @@ class TestScriptAndCsvPaths(unittest.TestCase):
         )
 
 
+class TestWindowsMixHardening(unittest.TestCase):
+    def test_mix_chunk_size_windows_default(self) -> None:
+        from smart_editing import _mix_chunk_size
+        import os
+
+        with patch("smart_editing.sys.platform", "win32"):
+            os.environ.pop("SMART_MIX_CHUNK_SIZE", None)
+            self.assertEqual(_mix_chunk_size(), 8)
+        with patch("smart_editing.sys.platform", "darwin"):
+            os.environ.pop("SMART_MIX_CHUNK_SIZE", None)
+            self.assertEqual(_mix_chunk_size(), 24)
+
+    def test_win32_rewrites_to_filter_complex_script(self) -> None:
+        from smart_editing import _run_ffmpeg_cmd
+
+        captured: list = []
+
+        def fake_run(cmd, **kwargs):
+            captured.append(list(cmd))
+
+            class R:
+                returncode = 0
+                stderr = ""
+
+            return R()
+
+        with patch("smart_editing.sys.platform", "win32"):
+            with patch("smart_editing.hidden_subprocess.run", side_effect=fake_run):
+                with tempfile.TemporaryDirectory() as tmp:
+                    out = Path(tmp) / "out.wav"
+                    cmd = [
+                        "ffmpeg", "-y", "-i", "a.wav",
+                        "-filter_complex", "anull[aout]",
+                        "-map", "[aout]", str(out),
+                    ]
+                    self.assertTrue(_run_ffmpeg_cmd(cmd, work_dir=Path(tmp)))
+        self.assertEqual(len(captured), 1)
+        self.assertIn("-filter_complex_script", captured[0])
+        self.assertNotIn("-filter_complex", captured[0])
+
+    def test_is_win_cmdline_error(self) -> None:
+        from smart_editing import _is_win_cmdline_error
+
+        with patch("smart_editing.sys.platform", "win32"):
+            err = OSError(206, "The filename or extension is too long")
+            err.winerror = 206  # type: ignore[attr-defined]
+            self.assertTrue(_is_win_cmdline_error(err))
+        with patch("smart_editing.sys.platform", "darwin"):
+            err = OSError(206, "The filename or extension is too long")
+            err.winerror = 206  # type: ignore[attr-defined]
+            self.assertFalse(_is_win_cmdline_error(err))
+
+
 if __name__ == "__main__":
     unittest.main()

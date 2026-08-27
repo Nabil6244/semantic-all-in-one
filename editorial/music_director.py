@@ -254,7 +254,7 @@ def build_music_cues(
         # Scene music_role at this time
         scene = next((s for s in scenes if s.start <= t < s.end), None)
         role_gain = _ROLE_GAIN.get(getattr(scene, "music_role", "hold") or "hold", 1.0)
-        if scene and scene.purpose == "hook":
+        if scene and scene.purpose in ("hook", "reveal"):
             role_gain = max(role_gain, 1.15)
         if scene and scene.allow_silence:
             role_gain *= 0.7

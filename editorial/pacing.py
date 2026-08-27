@@ -24,7 +24,11 @@ def _score_boundary(prev: EditorialScene, cur: EditorialScene) -> float:
     score = abs(float(cur.attention_score) - float(prev.attention_score)) * 2.0
     if cur.purpose != prev.purpose:
         score += 1.4
-    if cur.purpose in ("hook", "emotion") or prev.purpose in ("hook", "emotion"):
+    if cur.purpose in ("hook", "emotion", "reveal") or prev.purpose in (
+        "hook",
+        "emotion",
+        "reveal",
+    ):
         score += 0.8
     if cur.pacing_bias == "fast" or prev.pacing_bias == "fast":
         score += 0.5
@@ -42,9 +46,9 @@ def _score_boundary(prev: EditorialScene, cur: EditorialScene) -> float:
 def _pick_style(scene: EditorialScene, pick_index: int) -> str:
     if scene.transition_in and scene.transition_in != "cut":
         return scene.transition_in
-    if scene.start < HOOK_WINDOW_S and scene.purpose == "hook":
+    if scene.start < HOOK_WINDOW_S and scene.purpose in ("hook", "reveal"):
         return "dissolve" if pick_index % 2 == 0 else "fade"
-    if scene.purpose == "emotion":
+    if scene.purpose in ("emotion", "reflection"):
         return "soft"
     if scene.attention_score >= 0.8:
         return "flash" if pick_index % 3 == 0 else "dissolve"
@@ -136,10 +140,14 @@ def apply_pacing_camera_energy(plan: EditorialPlan) -> EditorialPlan:
             continue
         if scene.start < HOOK_WINDOW_S:
             if scene.camera_style in ("static", "hold") and scene.attention_score >= 0.55:
-                scene.camera_style = "push_in" if scene.purpose == "hook" else "subtle_drift"
-        elif scene.purpose in ("explanation", "evidence") and scene.pacing_bias == "slow":
+                scene.camera_style = (
+                    "push_in" if scene.purpose in ("hook", "reveal") else "subtle_drift"
+                )
+        elif scene.purpose in ("explanation", "evidence", "timeline", "reflection") and scene.pacing_bias == "slow":
             if scene.camera_style == "push_in" and scene.attention_score < 0.7:
                 scene.camera_style = "hold"
+        elif scene.purpose == "scale" and scene.camera_style in ("static", "hold"):
+            scene.camera_style = "pull_out"
         elif scene.attention_score >= 0.85 and scene.camera_style == "static":
             scene.camera_style = "push_in"
     return plan

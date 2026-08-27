@@ -1,0 +1,93 @@
+{
+  "id": "ai_narration",
+  "version": 2,
+  "name": "AI Narration",
+  "identity": {
+    "description": "Faceless narrated YouTube — visuals actively explain the narration with purposeful turnover.",
+    "tone": "urgent, illustrative, explainer",
+    "best_for": ["faceless youtube", "explainers", "listicles", "motivational narration"]
+  },
+  "visual": {
+    "treatment": "illustrative narration",
+    "camera": {
+      "preferred": ["push_in", "pull_out", "subtle_drift", "static"],
+      "intensity": 0.78
+    },
+    "motion_rules": {
+      "max_static_streak": 2,
+      "prefer_turnover": true,
+      "narrative_beat_to_visual_beat": true
+    },
+    "variety": {
+      "high_visual_variety": true,
+      "min_unique_keys": 0.8,
+      "avoid_generic_stock_repeats": true
+    }
+  },
+  "pacing": {
+    "default": "fast",
+    "hook": "fast",
+    "exposition": "fast",
+    "evidence": "normal",
+    "climax": "fast",
+    "reflection": "normal",
+    "transition_density": 0.55
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": ["cut", "flash", "dissolve", "soft"],
+    "avoid": []
+  },
+  "audio": {
+    "ambience_intensity": 0.38,
+    "sfx_intensity": 0.74,
+    "music_intensity": 0.58,
+    "music_duck_db": -9
+  },
+  "hook": {
+    "window_seconds": 22,
+    "attention_target": 0.9,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": ["image", "video", "stock_video", "stock_image"],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "kinetic",
+    "density": "high",
+    "emphasis": "strong"
+  },
+  "ai_visual_prompt": {
+    "style": "explanatory visuals, diagrams, conceptual metaphors, process illustrations, before/after comparisons for narrated explainers",
+    "realism": 0.62,
+    "composition": "center-weighted subject, bold readable silhouettes, concept clarity over pretty empty frames",
+    "avoid": [
+      "static empty rooms",
+      "blurry b-roll",
+      "busy crowds without focus",
+      "decoration without explanation"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "explainer_density": 0.3,
+      "narration_led": 0.18,
+      "hook_intensity": 0.18,
+      "visualization_need": 0.16,
+      "abstract_concept_density": 0.1,
+      "educational_density": 0.08
+    },
+    "preview_visual": "Explanatory • Metaphor • Process",
+    "preview_camera": "Active • Purposeful",
+    "preview_pacing": "Beat-driven turnover",
+    "preview_audio": "Purposeful SFX • Controlled ambience",
+    "variety_family": "explainer",
+    "influences": [
+      "visual_explains_narration",
+      "hook_attention_weighting",
+      "beat_driven_turnover",
+      "stronger_purposeful_sfx"
+    ]
+  }
+}

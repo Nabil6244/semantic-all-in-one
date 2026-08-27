@@ -1,0 +1,94 @@
+{
+  "id": "premium_documentary",
+  "version": 2,
+  "name": "Premium Documentary",
+  "identity": {
+    "description": "Every shot intentionally composed — cinematic factual storytelling with deliberate camera and emotional builds.",
+    "tone": "sophisticated, cinematic, deliberate",
+    "best_for": ["premium docs", "nature", "investigative", "longform factual", "climate"]
+  },
+  "visual": {
+    "treatment": "cinematic documentary",
+    "camera": {
+      "preferred": ["push_in", "subtle_drift", "hold", "pull_out"],
+      "intensity": 0.62
+    },
+    "motion_rules": {
+      "deliberate_moves": true,
+      "avoid_static_runs": 3,
+      "avoid_mechanical_alternation": true
+    },
+    "variety": {
+      "high_visual_variety": true,
+      "min_unique_keys": 0.7,
+      "avoid_identical_compositions": true
+    }
+  },
+  "pacing": {
+    "default": "normal",
+    "hook": "fast",
+    "exposition": "normal",
+    "evidence": "normal",
+    "climax": "fast",
+    "reflection": "slow",
+    "transition_density": 0.38
+  },
+  "transitions": {
+    "default": "dissolve",
+    "preferred": ["dissolve", "soft", "fade", "cut"],
+    "avoid": ["flash"]
+  },
+  "audio": {
+    "ambience_intensity": 0.5,
+    "sfx_intensity": 0.36,
+    "music_intensity": 0.72,
+    "music_duck_db": -12
+  },
+  "hook": {
+    "window_seconds": 30,
+    "attention_target": 0.78,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": ["stock_video", "youtube_video", "image", "video"],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "premium_documentary",
+    "density": "medium",
+    "emphasis": "selective"
+  },
+  "ai_visual_prompt": {
+    "style": "cinematic documentary photography, rich lighting, environmental establishing shots, detail shots, controlled depth",
+    "realism": 0.84,
+    "composition": "intentionally composed; rule-of-thirds; layered depth; visual contrast; dramatic reveals",
+    "avoid": [
+      "stock-cliché handshakes",
+      "flat office lighting",
+      "busy text overlays in frame",
+      "slideshow feel"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "cinematic_potential": 0.32,
+      "emotional_intensity": 0.22,
+      "educational_density": 0.12,
+      "evidence_density": 0.1,
+      "visualization_need": 0.08,
+      "scientific_density": 0.08,
+      "historical_density": 0.08
+    },
+    "preview_visual": "Cinematic • Environment • Detail",
+    "preview_camera": "Push-in • Drift • Hold",
+    "preview_pacing": "Measured → Emotional peaks",
+    "preview_audio": "Sophisticated • Cinematic",
+    "variety_family": "cinematic",
+    "influences": [
+      "intentional_composition",
+      "dynamic_emotional_pacing",
+      "stronger_music_duck",
+      "controlled_camera_motion"
+    ]
+  }
+}

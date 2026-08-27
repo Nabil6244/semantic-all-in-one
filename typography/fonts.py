@@ -50,6 +50,10 @@ _SYSTEM_FALLBACKS: List[str] = [
 
 
 def _repo_root() -> Path:
+    import sys
+
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
 
 

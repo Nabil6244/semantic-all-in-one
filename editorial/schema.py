@@ -15,7 +15,15 @@ Purpose = Literal[
     "evidence",
     "explanation",
     "emotion",
+    "reveal",
+    "comparison",
+    "scale",
+    "process",
+    "timeline",
+    "location",
+    "character",
     "transition",
+    "reflection",
     "outro",
 ]
 PacingBias = Literal["slow", "normal", "fast"]
@@ -25,7 +33,23 @@ ALLOWED_CAMERA_STYLES = frozenset(
     {"push_in", "pull_out", "static", "hold", "subtle_drift"}
 )
 ALLOWED_PURPOSES = frozenset(
-    {"hook", "context", "evidence", "explanation", "emotion", "transition", "outro"}
+    {
+        "hook",
+        "context",
+        "evidence",
+        "explanation",
+        "emotion",
+        "reveal",
+        "comparison",
+        "scale",
+        "process",
+        "timeline",
+        "location",
+        "character",
+        "transition",
+        "reflection",
+        "outro",
+    }
 )
 ALLOWED_TRANSITIONS = frozenset({"cut", "dissolve", "fade", "soft", "flash", "match_cut"})
 
@@ -132,7 +156,7 @@ class EditorialPlan:
     music: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {
+        out = {
             "version": self.version,
             "audio_key": self.audio_key,
             "settings_key": self.settings_key,
@@ -142,6 +166,10 @@ class EditorialPlan:
             "film": {"hook_window_s": self.hook_window_s, "sections": list(self.film_sections)},
             "music": dict(self.music or {}),
         }
+        style = getattr(self, "style", None)
+        if isinstance(style, dict) and style:
+            out["style"] = dict(style)
+        return out
 
     @classmethod
     def from_dict(cls, data: dict) -> "EditorialPlan":
@@ -152,7 +180,7 @@ class EditorialPlan:
         film = data.get("film") if isinstance(data.get("film"), dict) else {}
         sections = list(film.get("sections") or data.get("film_sections") or [])
         music = data.get("music") if isinstance(data.get("music"), dict) else {}
-        return cls(
+        plan = cls(
             version=int(data.get("version") or EDITORIAL_PLAN_VERSION),
             audio_key=str(data.get("audio_key") or ""),
             settings_key=str(data.get("settings_key") or ""),
@@ -164,6 +192,10 @@ class EditorialPlan:
             film_sections=[s for s in sections if isinstance(s, dict)],
             music=dict(music),
         )
+        style = data.get("style")
+        if isinstance(style, dict) and style:
+            setattr(plan, "style", dict(style))
+        return plan
 
     def scene_by_number(self) -> Dict[str, EditorialScene]:
         return {str(s.scene_number): s for s in self.scenes}

@@ -314,6 +314,46 @@ class ProjectWorkspace:
         }
         self._write_meta(data)
 
+    def video_style_settings(self) -> dict:
+        """Return {mode, style_id, brand_kit_id}. Empty mode = legacy (no style)."""
+        data = self.read_meta().get("video_style")
+        if not isinstance(data, dict):
+            return {"mode": "", "style_id": None, "brand_kit_id": None}
+        return {
+            "mode": str(data.get("mode") or "").strip().lower(),
+            "style_id": data.get("style_id") or None,
+            "brand_kit_id": data.get("brand_kit_id") or None,
+        }
+
+    def set_video_style_settings(
+        self,
+        *,
+        mode: str = "",
+        style_id: str | None = None,
+        brand_kit_id: str | None = None,
+    ) -> None:
+        data = self.read_meta()
+        data.update(self.to_dict())
+        data["video_style"] = {
+            "mode": str(mode or "").strip().lower(),
+            "style_id": style_id or None,
+            "brand_kit_id": brand_kit_id or None,
+        }
+        self._write_meta(data)
+
+    def style_resolution(self) -> dict:
+        data = self.read_meta().get("style_resolution")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_style_resolution(self, resolution: dict | None) -> None:
+        data = self.read_meta()
+        data.update(self.to_dict())
+        if resolution:
+            data["style_resolution"] = dict(resolution)
+        else:
+            data.pop("style_resolution", None)
+        self._write_meta(data)
+
     def save_script(self, text: str) -> Path:
         self.ensure_dirs()
         self.script_path.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")

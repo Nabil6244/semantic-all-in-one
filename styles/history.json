@@ -1,0 +1,96 @@
+{
+  "id": "history_documentary",
+  "version": 2,
+  "name": "History Documentary",
+  "identity": {
+    "description": "Archival, evidence-driven historical storytelling with restrained motion and chronological clarity.",
+    "tone": "authoritative, measured, archival",
+    "best_for": ["history", "archaeology", "biographies", "wars", "ancient civilizations"]
+  },
+  "visual": {
+    "treatment": "archival documentary",
+    "camera": {
+      "preferred": ["static", "hold", "subtle_drift", "push_in"],
+      "intensity": 0.28
+    },
+    "motion_rules": {
+      "prefer_still_plates": true,
+      "max_push_ratio": 0.2,
+      "dramatic_push_on_evidence": true
+    },
+    "variety": {
+      "prefer_documents_maps": true,
+      "min_unique_keys": 0.55,
+      "avoid_repeated_archival_photo": true
+    }
+  },
+  "pacing": {
+    "default": "slow",
+    "hook": "normal",
+    "exposition": "slow",
+    "evidence": "normal",
+    "climax": "fast",
+    "reflection": "slow",
+    "transition_density": 0.18
+  },
+  "transitions": {
+    "default": "cut",
+    "preferred": ["cut", "dissolve", "fade"],
+    "avoid": ["flash"]
+  },
+  "audio": {
+    "ambience_intensity": 0.58,
+    "sfx_intensity": 0.28,
+    "music_intensity": 0.4,
+    "music_duck_db": -12
+  },
+  "hook": {
+    "window_seconds": 28,
+    "attention_target": 0.68,
+    "prefer_visual_change": true
+  },
+  "assets": {
+    "preferred": ["stock_image", "stock_video", "youtube_video", "image"],
+    "avoid_repetition": true
+  },
+  "captions": {
+    "style": "documentary",
+    "density": "low",
+    "emphasis": "subtle"
+  },
+  "ai_visual_prompt": {
+    "style": "period-accurate historical documentary stills, archival texture, maps, documents, artifacts, historically accurate recreations",
+    "realism": 0.9,
+    "composition": "evidence-forward framing; emphasize dates, places, people; documentary depth of field",
+    "avoid": [
+      "modern smartphones",
+      "neon cyberpunk",
+      "anachronistic fashion",
+      "anachronistic architecture",
+      "CGI fantasy",
+      "modern cars in period scenes"
+    ]
+  },
+  "intelligence": {
+    "weights": {
+      "historical_density": 0.35,
+      "evidence_density": 0.25,
+      "archival_visual_need": 0.2,
+      "chronology_density": 0.12,
+      "educational_density": 0.05,
+      "cinematic_potential": 0.03
+    },
+    "preview_visual": "Archival • Evidence • Maps",
+    "preview_camera": "Measured • Subtle",
+    "preview_pacing": "Measured → Dramatic reveals",
+    "preview_audio": "Atmospheric • Restrained",
+    "variety_family": "archival",
+    "influences": [
+      "archival_visual_preference",
+      "measured_pacing",
+      "evidence_scene_priority",
+      "chronological_clarity",
+      "restrained_camera"
+    ]
+  }
+}
