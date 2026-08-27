@@ -332,6 +332,44 @@ class TestCachingAndResume(AssetPipelineTestCase):
         self.assertTrue(summary2.ok)
         self.assertEqual(flow.calls, ["2"], "scenes 1 and 3 were already complete and must not be redone")
 
+    def test_resume_reuses_when_prompt_none_vs_empty(self):
+        """None vs '' prompt must not invalidate a complete cache hit."""
+        (self.images / "001.jpg").write_bytes(b"fake")
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+        mgr = self._manager(flow=flow)
+        mgr.manifest.set(
+            "1",
+            {
+                "status": "complete",
+                "source": AssetSource.FLOW_IMAGE.value,
+                "prompt": None,
+                "stock_query": None,
+                "local_path": str(self.images / "001.jpg"),
+            },
+        )
+        scene = SceneRow(scene_number="1", script_segment="a", prompt="")
+        summary = mgr.resolve_all([scene])
+        self.assertTrue(summary.ok)
+        self.assertEqual(flow.calls, [], "ready asset must not regenerate on prompt None/'' drift")
+
+    def test_resume_finds_file_when_manifest_path_stale(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+        scene = SceneRow(scene_number="1", script_segment="a", prompt="p")
+        mgr = self._manager(flow=flow)
+        self.assertTrue(mgr.resolve_all([scene]).ok)
+        rec = mgr.manifest.get("1")
+        self.assertIsNotNone(rec)
+        rec["local_path"] = str(self.images / "missing_gone.jpg")
+        mgr.manifest.set("1", rec)
+        self.assertTrue((self.images / "001.jpg").is_file())
+
+        flow.calls = []
+        mgr2 = self._manager(flow=flow)
+        mgr2.manifest.set("1", rec)
+        summary = mgr2.resolve_all([scene])
+        self.assertTrue(summary.ok)
+        self.assertEqual(flow.calls, [], "stale local_path must fall back to Images/ file")
+
 
 class TestMixedProject(AssetPipelineTestCase):
     def test_ten_plus_scene_mixed_project(self):

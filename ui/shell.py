@@ -111,12 +111,13 @@ class AppShell(ctk.CTkFrame):
         self.issues_toggle_btn.pack(side="left", padx=(0, 6))
         self.issues_toggle_btn.pack_forget()
 
-        ctk.CTkButton(
+        self.close_instances_btn = ctk.CTkButton(
             right, text="Close instances", width=118, height=28,
             fg_color="transparent", border_width=1, border_color=T.BORDER,
             text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=11),
             command=kw["on_close_instances"],
-        ).pack(side="left", padx=(0, 6))
+        )
+        self.close_instances_btn.pack(side="left", padx=(0, 6))
 
         self.generate_btn = ctk.CTkButton(
             right, text="Choose project", width=140, height=30,
@@ -126,12 +127,13 @@ class AppShell(ctk.CTkFrame):
         )
         self.generate_btn.pack(side="left", padx=(0, 6))
 
-        ctk.CTkButton(
+        self.settings_btn = ctk.CTkButton(
             right, text="⚙", width=34, height=30,
             fg_color="transparent", border_width=1, border_color=T.BORDER,
             text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=15),
             command=kw["on_settings"],
-        ).pack(side="left")
+        )
+        self.settings_btn.pack(side="left")
 
         self.progress = ctk.CTkProgressBar(
             top, height=3, progress_color=T.ACCENT, fg_color=T.BORDER, corner_radius=1,

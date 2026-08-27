@@ -193,10 +193,11 @@ class AssetManager:
 
     def _result_from_complete_record(self, scene: SceneRow, record: dict) -> Optional[AssetResult]:
         raw_path = record.get("local_path")
-        if not raw_path:
-            return None
-        path = Path(raw_path)
-        if not path.is_file():
+        path = Path(raw_path) if raw_path else None
+        if path is None or not path.is_file():
+            # Manifest path can go stale after moves/mirrors; fall back to Images/.
+            path = vg.find_image_for_scene(self.images_dir, scene.scene_number)
+        if path is None or not path.is_file():
             return None
         try:
             recorded_source = AssetSource(str(record.get("source") or "local"))
@@ -212,6 +213,10 @@ class AssetManager:
             metadata=record,
         )
 
+    @staticmethod
+    def _norm_text(value) -> str:
+        return ("" if value is None else str(value)).strip()
+
     def _cache_hit(self, scene: SceneRow, source: AssetSource) -> Optional[AssetResult]:
         """LOCAL is never cache-shortcut (it's a free lookup and must never be treated
         as something we could delete/replace); STOCK/FLOW are cached against the
@@ -225,20 +230,20 @@ class AssetManager:
         # recorded source no longer matches the CSV. Reuse it for final render
         # unless the CSV text itself changed (stock → a new Flow prompt).
         if record.get("source") != source.value:
-            new_text = (scene.prompt or scene.stock or "").strip()
-            old_prompt = str(record.get("prompt") or "").strip()
-            old_stock = str(record.get("stock_query") or "").strip()
+            new_text = self._norm_text(scene.prompt or scene.stock)
+            old_prompt = self._norm_text(record.get("prompt"))
+            old_stock = self._norm_text(record.get("stock_query"))
             if new_text and new_text not in (old_prompt, old_stock):
                 return None
             return self._result_from_complete_record(scene, record)
         if (
             source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO, AssetSource.YOUTUBE_VIDEO)
-            and record.get("prompt") != scene.prompt
+            and self._norm_text(record.get("prompt")) != self._norm_text(scene.prompt)
         ):
             return None
         if (
             source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
-            and record.get("stock_query") != scene.stock
+            and self._norm_text(record.get("stock_query")) != self._norm_text(scene.stock)
         ):
             return None
         return self._result_from_complete_record(scene, record)

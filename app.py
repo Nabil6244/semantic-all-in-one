@@ -667,6 +667,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.progress = self._shell.progress
         self.generate_btn = self._shell.generate_btn
         self.issues_toggle_btn = self._shell.issues_toggle_btn
+        self._settings_btn = self._shell.settings_btn
+        self._close_instances_btn = self._shell.close_instances_btn
         self._project_chip_label = self._shell.project_chip_label
         self._project_menu = None
         self.top_analyze_btn = None
@@ -729,6 +731,31 @@ class VideoGeneratorApp(ctk.CTk):
             self.after_idle(self._restore_scene_scroll)
         self._shell_prev_view = key
         self._refresh_cache_status()
+
+    def _goto_workflow_view(self, key: str) -> None:
+        """Move the shell sidebar to the next workflow stage after a task completes."""
+        shell = getattr(self, "_shell", None)
+        if shell is None:
+            return
+        try:
+            shell.navigate(key)
+        except Exception:
+            return
+
+    def _open_issues_drawer(self) -> None:
+        """Show Issues drawer when unresolved scenes exist (Need Attention / bulk retry)."""
+        snap = self._qa_snapshot() if self._scene_rows else None
+        if snap is None or not snap.needs_action:
+            return
+        drawer = getattr(self, "_issues_drawer", None)
+        if drawer is None:
+            return
+        self._issues_visible = True
+        try:
+            drawer.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 0))
+        except Exception:
+            return
+        self._rebuild_issues(snap)
 
     def _refresh_cache_status(self) -> None:
         ws = self._workspace
@@ -1411,31 +1438,31 @@ class VideoGeneratorApp(ctk.CTk):
         details_actions.pack(fill="x", padx=8, pady=(0, 6))
         self._details_actions = details_actions
         self.details_source_btn = ctk.CTkButton(
-            details_actions, text="Change source", width=118, height=26,
+            details_actions, text="Source", width=90, height=28,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_ACCENT, font=ctk.CTkFont(size=11),
             command=lambda: self._details_action("change_source"),
         )
         self.details_local_btn = ctk.CTkButton(
-            details_actions, text="Add local clip", width=118, height=26,
+            details_actions, text="Local clip", width=90, height=28,
             font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("local_clip"),
         )
         self.details_retry_btn = ctk.CTkButton(
-            details_actions, text="Retry", width=70, height=26,
+            details_actions, text="Retry", width=70, height=28,
             font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("retry"),
         )
         self.details_alt_btn = ctk.CTkButton(
-            details_actions, text="Alternative", width=96, height=26,
+            details_actions, text="Alt", width=70, height=28,
             font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._details_action("alternative"),
         )
         self.details_skip_btn = ctk.CTkButton(
-            details_actions, text="Skip", width=64, height=26,
+            details_actions, text="Skip", width=70, height=28,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_DANGER, font=ctk.CTkFont(size=11, weight="bold"),
             command=lambda: self._details_action("skip"),
         )
         self.details_stop_btn = ctk.CTkButton(
-            details_actions, text="Stop", width=64, height=26,
+            details_actions, text="Stop", width=70, height=28,
             fg_color="transparent", border_width=1, border_color=_DANGER,
             text_color=_DANGER, font=ctk.CTkFont(size=11, weight="bold"),
             command=lambda: self._details_action("cancel"),
@@ -1532,7 +1559,7 @@ class VideoGeneratorApp(ctk.CTk):
             wrap="word",
             font=ctk.CTkFont(family="Menlo", size=12),
             fg_color=_CARD,
-            text_color="#334155",
+            text_color=_TEXT,
             border_width=1,
             border_color=_BORDER,
             corner_radius=6,
@@ -1763,14 +1790,17 @@ class VideoGeneratorApp(ctk.CTk):
             try:
                 width = int(frame.winfo_width())
             except Exception:
-                width = 600
-        cols = 2 if width < 520 else 4
+                width = 240
+        # Narrow inspector (~260px): always 2 columns so labels stay readable.
+        cols = 2 if width < 420 else 3
         for b in buttons:
             b.grid_forget()
+        for i in range(cols):
+            frame.grid_columnconfigure(i, weight=1, uniform="insp")
         col = 0
         row = 0
         for b in use:
-            b.grid(row=row, column=col, sticky="w", padx=(0, 6), pady=3)
+            b.grid(row=row, column=col, sticky="ew", padx=(0, 4), pady=3)
             col += 1
             if col >= cols:
                 col = 0
@@ -2780,6 +2810,8 @@ class VideoGeneratorApp(ctk.CTk):
             self.csv_var.set(str(dest))
             self._sync_images_dir()
             self._refresh_scene_preview()
+            self._goto_workflow_view("visual_plan")
+            self._sync_primary_cta()
 
     def _script_mode_is_ai(self) -> bool:
         mode = getattr(self, "_mode_seg", None)
@@ -2892,6 +2924,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_primary_cta()
         self._append_log("\n[AI] Visual plan ready — review scenes, then Generate Video.\n")
         self._append_log(plan.format_preview() + "\n")
+        self._goto_workflow_view("visual_plan")
 
     def _export_ai_csv(self) -> None:
         if self._visual_plan is None:
@@ -3037,6 +3070,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._set_active_voiceover(dest, source="imported")
         self.status_var.set(f"Voiceover set: {dest.name} (imported file)")
         self._append_log(f"[AUDIO] Video will use imported voiceover: {dest.name}\n")
+        self._sync_primary_cta()
+        self._goto_workflow_view("music")
 
     def _current_voiceover_path(self) -> Path | None:
         """Return the bound voiceover path if the file exists."""
@@ -4625,7 +4660,15 @@ class VideoGeneratorApp(ctk.CTk):
         if n:
             self.qa_counter_var.set(f"Issues {n}")
             self.issues_toggle_btn.configure(text_color=_DANGER, border_color=_DANGER)
-            self.issues_toggle_btn.pack(side="left", padx=(0, 6), before=self._settings_btn)
+            # Pack Issues before Close instances (or settings) when shell topbar is active.
+            anchor = (
+                getattr(self, "_close_instances_btn", None)
+                or getattr(self, "_settings_btn", None)
+            )
+            pack_kw = {"side": "left", "padx": (0, 6)}
+            if anchor is not None:
+                pack_kw["before"] = anchor
+            self.issues_toggle_btn.pack(**pack_kw)
             nav = getattr(self, "_error_nav", None)
             if nav is not None:
                 nav.grid()
@@ -5979,25 +6022,55 @@ class VideoGeneratorApp(ctk.CTk):
             if any(s.wants_flow or s.wants_stock or s.wants_youtube for s in scene_rows):
                 print("[ASSET] Resolving scene assets (AI / stock / manual)...")
                 self._asset_manager = self._build_asset_manager(config["images_dir"], scene_rows)
+                from asset_manager import ResolveSummary
                 from providers.base import AssetError
                 from providers.router import SceneAssetRouter
 
                 # Do NOT enqueue scene_busy for every row up front — that floods the
                 # UI thread (especially Windows) and looks like a system hang. Rows
                 # flip to busy only when work actually starts via on_scene_start.
-                pending_count = 0
+                # Restart Generate: keep READY scenes with files on disk; only resolve
+                # missing / failed / cancelled scenes.
+                pre_resolved: dict = {}
+                rows_to_resolve: list[SceneRow] = []
                 for scene in scene_rows:
                     key = _scene_key(scene.scene_number)
                     existing = self._asset_results.get(key)
-                    if existing is not None and getattr(existing, "ok", False):
+                    path = getattr(existing, "path", None) if existing is not None else None
+                    if (
+                        existing is not None
+                        and getattr(existing, "ok", False)
+                        and path is not None
+                        and Path(path).is_file()
+                    ):
+                        pre_resolved[str(scene.scene_number)] = existing
+                        print(
+                            f"[ASSET] Scene {scene.scene_number} -> already ready "
+                            f"(reusing {Path(path).name})"
+                        )
                         continue
-                    source = SceneAssetRouter.classify(scene)
-                    if source is None:
+                    # Manifest/disk cache (covers app restart with empty in-memory results).
+                    source = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
+                    cached = self._asset_manager._cache_hit(scene, source)
+                    if cached is not None:
+                        pre_resolved[str(scene.scene_number)] = cached
+                        self._asset_results[key] = cached
+                        print(
+                            f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()} "
+                            f"(cached, reusing {cached.path.name})"
+                        )
                         continue
-                    pending_count += 1
+                    rows_to_resolve.append(scene)
+
+                pending_count = len(rows_to_resolve)
                 if pending_count:
-                    print(f"[ASSET] {pending_count} scene(s) to resolve…")
+                    print(
+                        f"[ASSET] {pending_count} scene(s) to resolve "
+                        f"({len(pre_resolved)} already ready, skipped)…"
+                    )
                     self._ui_queue.put(("assets_status", None))
+                elif pre_resolved:
+                    print(f"[ASSET] All {len(pre_resolved)} scene(s) already ready — nothing to resolve.")
 
                 def _on_scene_start(scene: SceneRow, source: AssetSource) -> None:
                     self._ui_queue.put(
@@ -6013,11 +6086,15 @@ class VideoGeneratorApp(ctk.CTk):
                     self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
                 try:
-                    summary = self._asset_manager.resolve_all(
-                        scene_rows,
-                        on_scene_start=_on_scene_start,
-                        on_scene_complete=_on_scene_complete,
-                    )
+                    if rows_to_resolve:
+                        summary = self._asset_manager.resolve_all(
+                            rows_to_resolve,
+                            on_scene_start=_on_scene_start,
+                            on_scene_complete=_on_scene_complete,
+                        )
+                    else:
+                        summary = ResolveSummary(results={}, warnings=[])
+                    summary.results.update(pre_resolved)
                 except AssetError as exc:
                     raise RuntimeError(exc.reason) from exc
                 try:
@@ -6466,10 +6543,12 @@ class VideoGeneratorApp(ctk.CTk):
             "Successful assets were kept. History log is not current status.\n"
         )
         self._refresh_cleanup_button(defer=True)
+        self._goto_workflow_view("visual_plan")
+        self._open_issues_drawer()
         messagebox.showinfo(
             "Scenes need attention",
             f"{snap.header}\n{snap.health_label}\n\n"
-            "Successful assets were kept. GO TO ERROR jumps to the first unresolved scene.",
+            "Successful assets were kept. Open Issues for Retry failed / Retry selected.",
         )
 
     def _on_assets_complete(self, payload: dict) -> None:
@@ -6484,6 +6563,7 @@ class VideoGeneratorApp(ctk.CTk):
             "Import a voiceover if needed, then click Render Video.\n"
         )
         self._refresh_cleanup_button(defer=True)
+        self._goto_workflow_view("audio")
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():
@@ -6502,6 +6582,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._append_log(f"\n✓ Finished: {message}\n")
             self._last_output = message
             self._show_preview(message)
+            self._goto_workflow_view("render")
             messagebox.showinfo("Done", f"Video saved to:\n{message}")
             self._offer_cleanup_after_render()
         elif cancelled:
