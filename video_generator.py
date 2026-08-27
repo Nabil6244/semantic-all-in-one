@@ -861,9 +861,21 @@ def render_smart_text_overlay(
     return render_style_overlay(payload, out_path, width, height)
 
 
-def _zoompan_filter(width: int, height: int, fps: int, frames: int,
-                    zoom_in: bool, zoom_amount: float) -> str:
+def _zoompan_filter(
+    width: int,
+    height: int,
+    fps: int,
+    frames: int,
+    zoom_in: bool,
+    zoom_amount: float,
+    *,
+    camera_style: str | None = None,
+) -> str:
     """Ken Burns zoompan. Upscale first so zoom stays sharp."""
+    style = (camera_style or "").strip().lower().replace(" ", "_")
+    if style == "subtle_drift":
+        return _subtle_drift_filter(width, height, fps, frames, zoom_amount=max(zoom_amount * 0.45, 0.03))
+
     max_z = 1.0 + max(zoom_amount, 0.0)
     # Spread zoom across frames; clamp so we never exceed max_z / go below 1.0
     step = (max_z - 1.0) / max(frames - 1, 1)
@@ -882,6 +894,55 @@ def _zoompan_filter(width: int, height: int, fps: int, frames: int,
         f"d={frames}:s={width}x{height}:fps={fps},"
         f"setsar=1,format=yuv420p"
     )
+
+
+def _subtle_drift_filter(
+    width: int,
+    height: int,
+    fps: int,
+    frames: int,
+    zoom_amount: float = 0.04,
+) -> str:
+    """Gentle push with slow horizontal drift — distinct from full Ken Burns."""
+    max_z = 1.0 + max(zoom_amount, 0.02)
+    step = (max_z - 1.0) / max(frames - 1, 1)
+    z_expr = f"min(1.0+on*{step:.8f},{max_z:.6f})"
+    drift = max(1, width // 180)
+    x_expr = f"iw/2-(iw/zoom/2)+on*{drift}"
+    sw, sh = width * 4, height * 4
+    return (
+        f"scale={sw}:{sh}:force_original_aspect_ratio=increase,"
+        f"crop={sw}:{sh},"
+        f"zoompan=z='{z_expr}':"
+        f"x='{x_expr}':y='ih/2-(ih/zoom/2)':"
+        f"d={frames}:s={width}x{height}:fps={fps},"
+        f"setsar=1,format=yuv420p"
+    )
+
+
+def _camera_motion(
+    camera_style: str | None,
+    *,
+    index: int,
+    zoom: bool,
+) -> tuple[bool, bool, str | None]:
+    """Return (use_zoom, zoom_in, style_token) for a scene clip."""
+    style = (camera_style or "").strip().lower().replace(" ", "_")
+    if not style:
+        if not zoom:
+            return False, False, None
+        return True, (index % 2 == 0), None
+    if style in ("static", "hold"):
+        return False, False, style
+    if style == "push_in":
+        return True, True, style
+    if style == "pull_out":
+        return True, False, style
+    if style == "subtle_drift":
+        return True, True, style
+    if not zoom:
+        return False, False, style
+    return True, (index % 2 == 0), style
 
 
 def _static_filter(width: int, height: int) -> str:
@@ -1055,6 +1116,7 @@ def _render_scene_clip(
     fade_in: float = 0.0,
     fade_out: float = 0.0,
     fade_color: str = "black",
+    camera_style: str | None = None,
 ):
     """
     timed_overlays: list of (png_path, local_start, local_end[, animation])
@@ -1073,7 +1135,15 @@ def _render_scene_clip(
         base_vf = _video_fit_filter(width, height, fps)
         input_args = ["-stream_loop", "-1", "-i", str(img_path)]
     elif zoom:
-        base_vf = _zoompan_filter(width, height, fps, frames, zoom_in, zoom_amount)
+        base_vf = _zoompan_filter(
+            width,
+            height,
+            fps,
+            frames,
+            zoom_in,
+            zoom_amount,
+            camera_style=camera_style,
+        )
         input_args = ["-loop", "1", "-i", str(img_path)]
     else:
         base_vf = _static_filter(width, height)
@@ -1171,6 +1241,7 @@ def render_video(
     performance_mode: str | None = None,
     visual_transitions: bool = True,
     transition_by_scene: dict | None = None,
+    camera_by_scene: dict | None = None,
 ):
     try:
         from hardware.accel import format_accel_report, get_capabilities
@@ -1254,7 +1325,13 @@ def render_video(
     clip_files = []
     for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
         out_clip = clips_dir / f"scene_{i:04d}.mp4"
-        zoom_in = (i % 2 == 0)
+        sn = str(row.get("scene_number") or "")
+        style_key = (camera_by_scene or {}).get(sn)
+        use_zoom, zoom_in, camera_style = _camera_motion(
+            style_key,
+            index=i,
+            zoom=zoom,
+        )
         if (i + 1) % 25 == 0 or i == 0 or i == n - 1:
             print(f"       clip {i + 1}/{n} ({dur:.2f}s)")
 
@@ -1364,13 +1441,14 @@ def render_video(
             width=width,
             height=height,
             fps=fps,
-            zoom=zoom,
+            zoom=use_zoom,
             zoom_in=zoom_in,
             zoom_amount=zoom_amount,
             caption_overlay=overlay,
             text_effect_filters=fx_filters,
             timed_overlays=timed_overlays,
             performance_mode=performance_mode,
+            camera_style=camera_style,
             fade_in=fade_in,
             fade_out=fade_out,
             fade_color=fade_color,

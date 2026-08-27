@@ -32,7 +32,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 12
+SMART_EDITING_VERSION = 13
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -916,24 +916,91 @@ def _ai_scene_transitions(
         return None
 
 
+def _editorial_transition_hints(editorial_plan: Any) -> List[dict]:
+    """Pull explicit transition_in choices from the Editorial Plan."""
+    scenes = getattr(editorial_plan, "scenes", None) or []
+    out: List[dict] = []
+    for scene in scenes:
+        sn = str(getattr(scene, "scene_number", "") or "")
+        style = getattr(scene, "transition_in", None)
+        if not sn or not style or str(style).lower() == "cut":
+            continue
+        out.append(
+            {
+                "scene_number": sn,
+                "style": str(style).lower(),
+                "sfx": True,
+                "source": "editorial",
+            }
+        )
+    return out
+
+
+def _merge_transition_picks(
+    editorial: Sequence[dict],
+    generated: Sequence[dict],
+    *,
+    budget: int,
+) -> List[dict]:
+    """Editorial hints win; fill remaining budget from AI/heuristic picks."""
+    out: List[dict] = []
+    seen: set[str] = set()
+    for item in editorial:
+        sn = str(item.get("scene_number") or "")
+        if sn and sn not in seen:
+            out.append(dict(item))
+            seen.add(sn)
+    for item in generated:
+        if len(out) >= budget + len(editorial):
+            break
+        sn = str(item.get("scene_number") or "")
+        if not sn or sn in seen:
+            continue
+        out.append(dict(item))
+        seen.add(sn)
+    return out
+
+
 def plan_scene_transitions(
     rows: Sequence[dict],
     aligned_rows: Sequence[dict],
     settings: SmartEditingSettings,
     *,
     gemini_settings: Optional[Mapping[str, Any]] = None,
+    editorial_plan: Any = None,
 ) -> List[dict]:
     """Choose sparse scene boundaries for visual + SFX transitions (AI preferred)."""
     if not (settings.sound_effects or settings.visual_transitions):
         return []
     if len(aligned_rows) < 2:
         return []
+    editorial = _editorial_transition_hints(editorial_plan) if editorial_plan else []
+    budget = _transition_budget(max(0, len(aligned_rows) - 1), settings.transitions_intensity())
+    # When EditorialPlan already finalized transitions, those are authoritative —
+    # do not independently inflate the set (Smart Editing becomes an adapter).
+    if editorial and getattr(editorial_plan, "scenes", None):
+        with_style = sum(
+            1
+            for s in editorial_plan.scenes
+            if getattr(s, "transition_in", None) and str(s.transition_in) != "cut"
+        )
+        if with_style >= max(1, budget // 2):
+            print(f"[SMART] Using {len(editorial)} authoritative editorial transition(s) for SFX.")
+            return editorial
     ai = _ai_scene_transitions(rows, aligned_rows, settings, gemini_settings)
     if ai is not None:
-        print(f"[SMART] AI selected {len(ai)} scene transition(s).")
-        return ai
-    picks = _heuristic_scene_transitions(rows, aligned_rows, settings)
-    print(f"[SMART] Heuristic selected {len(picks)} scene transition(s).")
+        picks = _merge_transition_picks(editorial, ai, budget=budget)
+        print(
+            f"[SMART] AI selected {len(ai)} scene transition(s)"
+            + (f"; {len(editorial)} editorial hint(s) merged." if editorial else ".")
+        )
+        return picks
+    heuristic = _heuristic_scene_transitions(rows, aligned_rows, settings)
+    picks = _merge_transition_picks(editorial, heuristic, budget=budget)
+    print(
+        f"[SMART] Heuristic selected {len(heuristic)} scene transition(s)"
+        + (f"; {len(editorial)} editorial hint(s) merged." if editorial else ".")
+    )
     return picks
 
 
@@ -1229,12 +1296,19 @@ def _resolve_ambience_beds(
     catalog: SfxCatalog,
     *,
     display_windows: Optional[Mapping[str, Tuple[float, float]]] = None,
+    editorial_plan: Any = None,
 ) -> List[dict]:
     aligned_by_sn = {str(r.get("scene_number")): r for r in aligned_rows}
     windows = display_windows or {}
     beds: List[dict] = []
     recent_ids: List[str] = []
     base_vol = _ambience_volume(settings)
+    intensity_map: Dict[str, float] = {}
+    if editorial_plan is not None and hasattr(editorial_plan, "ambience_intensity_map"):
+        try:
+            intensity_map = dict(editorial_plan.ambience_intensity_map())
+        except Exception:
+            intensity_map = {}
     for pick in profiles:
         sn = str(pick.get("scene_number") or "")
         aligned = aligned_by_sn.get(sn)
@@ -1271,6 +1345,9 @@ def _resolve_ambience_beds(
         recent_ids.append(entry.id)
         if len(recent_ids) > 12:
             del recent_ids[0]
+        vol = base_vol
+        if sn in intensity_map:
+            vol = min(0.42, max(0.05, base_vol * float(intensity_map[sn])))
         beds.append(
             {
                 "type": "scene_ambience",
@@ -1279,13 +1356,37 @@ def _resolve_ambience_beds(
                 "start": round(start, 3),
                 "end": round(end, 3),
                 "duration": round(duration, 3),
-                "volume": round(base_vol, 3),
+                "volume": round(vol, 3),
                 "file": entry.file,
                 "sfx_id": entry.id,
                 "source": pick.get("source") or "heuristic",
             }
         )
     return beds
+
+
+def _apply_editorial_ambience_hints(
+    profiles: List[dict],
+    editorial_plan: Any,
+) -> List[dict]:
+    profile_map = getattr(editorial_plan, "ambience_profile_map", None)
+    if not callable(profile_map):
+        return profiles
+    hints = profile_map()
+    if not hints:
+        return profiles
+    out = [dict(p) for p in profiles]
+    by_sn = {str(p.get("scene_number")): i for i, p in enumerate(out)}
+    for sn, profile in hints.items():
+        if not sn or not profile:
+            continue
+        normalized = _normalize_ambience_profile(str(profile))
+        if sn in by_sn:
+            out[by_sn[sn]]["profile"] = normalized
+            out[by_sn[sn]]["source"] = "editorial"
+        else:
+            out.append({"scene_number": sn, "profile": normalized, "source": "editorial"})
+    return out
 
 
 def plan_scene_ambience(
@@ -1296,6 +1397,7 @@ def plan_scene_ambience(
     *,
     audio_end: Optional[float] = None,
     gemini_settings: Optional[Mapping[str, Any]] = None,
+    editorial_plan: Any = None,
 ) -> List[dict]:
     if not settings.scene_ambience or not aligned_rows:
         return []
@@ -1311,8 +1413,15 @@ def plan_scene_ambience(
     else:
         profiles = _smooth_ambience_profiles(_heuristic_scene_ambience(rows, aligned_rows))
         print(f"[SMART] Heuristic ambience for {len(profiles)} scene(s).")
+    if editorial_plan is not None:
+        profiles = _apply_editorial_ambience_hints(profiles, editorial_plan)
     beds = _resolve_ambience_beds(
-        profiles, aligned_rows, settings, cat, display_windows=display_windows,
+        profiles,
+        aligned_rows,
+        settings,
+        cat,
+        display_windows=display_windows,
+        editorial_plan=editorial_plan,
     )
     if len(beds) > 1:
         merged = _merge_ambience_beds(beds)
@@ -1339,6 +1448,7 @@ def plan_sfx_events(
     catalog: Optional[SfxCatalog] = None,
     *,
     scene_transitions: Optional[Sequence[dict]] = None,
+    editorial_plan: Any = None,
 ) -> List[dict]:
     if not settings.sound_effects:
         return []
@@ -1428,6 +1538,17 @@ def plan_sfx_events(
             score = len(_token_set(text)) * 0.5
             if _TRANSITION_CUE_RE.search(text):
                 score += 1.0
+            # Editorial purpose boost/penalty
+            if editorial_plan is not None:
+                escene = editorial_plan.scene_by_number().get(sn)
+                if escene is not None:
+                    if escene.purpose == "hook":
+                        score += 1.2
+                    elif escene.purpose in ("evidence", "explanation"):
+                        score *= 0.45
+                    elif escene.allow_silence:
+                        score *= 0.15
+                    score += float(escene.attention_score or 0.5)
             scored_beats.append((score, i, sn, start, dur))
         scored_beats.sort(key=lambda t: (-t[0], t[1]))
         picked_beat_idx: List[int] = []
@@ -1461,6 +1582,13 @@ def plan_sfx_events(
             picked_beat_idx.append(i)
 
     events.sort(key=lambda e: float(e.get("start") or 0.0))
+    if editorial_plan is not None:
+        try:
+            from editorial.audio_director import filter_sfx_events
+
+            events = filter_sfx_events(events, editorial_plan, aligned_rows=aligned_rows)
+        except Exception as exc:
+            print(f"[SMART] Editorial SFX filter skipped ({exc})")
     return events
 
 
@@ -1473,6 +1601,7 @@ def build_plan(
     state_dir: Optional[Path] = None,
     audio_path: Optional[Path | str] = None,
     gemini_settings: Optional[Mapping[str, Any]] = None,
+    editorial_plan: Any = None,
 ) -> SmartEditingPlan:
     if not settings.enabled():
         return SmartEditingPlan()
@@ -1496,7 +1625,11 @@ def build_plan(
     whisper_list = [[w, s, e] for w, s, e in whisper_words]
     text_effects = plan_text_effects(rows, aligned_rows, whisper_words, settings)
     scene_transitions = plan_scene_transitions(
-        rows, aligned_rows, settings, gemini_settings=gemini_settings,
+        rows,
+        aligned_rows,
+        settings,
+        gemini_settings=gemini_settings,
+        editorial_plan=editorial_plan,
     )
     audio_end = float(aligned_rows[-1].get("end_time") or 0.0) if aligned_rows else 0.0
     scene_ambience = (
@@ -1506,6 +1639,7 @@ def build_plan(
             settings,
             audio_end=audio_end,
             gemini_settings=gemini_settings,
+            editorial_plan=editorial_plan,
         )
         if settings.scene_ambience
         else []
@@ -1516,6 +1650,7 @@ def build_plan(
             text_effects,
             settings,
             scene_transitions=scene_transitions,
+            editorial_plan=editorial_plan,
         )
         if settings.sound_effects
         else []

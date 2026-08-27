@@ -71,11 +71,24 @@ from project_workspace import (
 from smart_editing import (
     DEFAULT_SETTINGS,
     SmartEditingSettings,
+    _audio_fingerprint,
     build_plan,
     get_cached_whisper_words,
     mix_sfx_with_narration,
     scene_text_effects,
 )
+from editorial import (
+    authoritative_transition_map,
+    build_editorial_plan,
+    build_music_plan,
+    cache_settings_key as editorial_cache_settings_key,
+    render_ducked_music,
+    run_editorial_qa,
+    save_editorial_plan,
+    save_editorial_qa,
+)
+from editorial.persistence import load_cached_plan
+from visual_director import parse_visual_plan
 
 
 def _is_frozen() -> bool:
@@ -2406,6 +2419,24 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
+        self._rehydrate_visual_plan_from_workspace()
+
+    def _rehydrate_visual_plan_from_workspace(self) -> None:
+        """Restore rich VisualDirector fields from ai_visual_plan.json on project open."""
+        ws = self._workspace
+        if ws is None:
+            return
+        path = ws.visual_plan_json_path
+        if not path.is_file():
+            return
+        try:
+            import json
+
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self._visual_plan = parse_visual_plan(payload)
+            print(f"[VISUAL] Rehydrated AI visual plan ({len(self._visual_plan.scenes)} scenes).")
+        except Exception as exc:
+            print(f"[VISUAL] Could not rehydrate ai_visual_plan.json ({exc}).")
 
     def _refresh_project_menu(self) -> None:
         """Keep label map in sync. Never show a project name with no workspace."""
@@ -5620,11 +5651,83 @@ class VideoGeneratorApp(ctk.CTk):
                 )
             aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
+            visual_plan = getattr(self, "_visual_plan", None)
+            editorial_settings_key = editorial_cache_settings_key(
+                config["rows"],
+                visual_plan_dict=visual_plan.to_dict() if visual_plan is not None else None,
+            )
+            audio_key = _audio_fingerprint(config["audio_path"])
+            editorial_plan = None
+            if state_dir is not None:
+                editorial_plan = load_cached_plan(
+                    state_dir,
+                    audio_key=audio_key,
+                    settings_key=editorial_settings_key,
+                )
+            if editorial_plan is None:
+                editorial_plan = build_editorial_plan(
+                    config["rows"],
+                    aligned,
+                    audio_end,
+                    visual_plan=visual_plan,
+                    settings_key=editorial_settings_key,
+                    audio_key=audio_key,
+                )
+                if state_dir is not None:
+                    save_editorial_plan(state_dir, editorial_plan)
+                    print(f"[EDITORIAL] Saved plan for {len(editorial_plan.scenes)} scene(s).")
+            else:
+                print(f"[EDITORIAL] Reusing cached plan ({len(editorial_plan.scenes)} scenes).")
+
+            # Pacing Director: single authoritative transition + camera energy map
+            transition_map = authoritative_transition_map(editorial_plan)
+            camera_map = editorial_plan.camera_style_map()
+            if transition_map:
+                print(
+                    f"[EDITORIAL] Pacing transitions: "
+                    + ", ".join(f"{k}={v}" for k, v in list(transition_map.items())[:12])
+                    + (f" (+{len(transition_map) - 12} more)" if len(transition_map) > 12 else "")
+                )
+
+            # Music Director on manual track (optional)
+            bg_path = config.get("bg_path")
+            bg_volume = 0.15
+            music_cues_for_qa: list = []
+            if bg_path:
+                music_plan = build_music_plan(
+                    editorial_plan,
+                    music_path=bg_path,
+                    narration_path=config["audio_path"],
+                )
+                editorial_plan.music = music_plan.to_dict()
+                editorial_plan.film_sections = [s.to_dict() for s in music_plan.sections]
+                if state_dir is not None:
+                    save_editorial_plan(state_dir, editorial_plan)
+                if music_plan.enabled and music_plan.cues:
+                    ducked = work_dir / "music_ducked.wav"
+                    ok = render_ducked_music(
+                        bg_path,
+                        music_plan.cues,
+                        ducked,
+                        duration=float(audio_end),
+                    )
+                    if ok and ducked.is_file():
+                        bg_path = ducked
+                        bg_volume = 1.0  # envelope already applied
+                        music_cues_for_qa = [c.to_dict() for c in music_plan.cues]
+                        print(
+                            f"[EDITORIAL] Music ducked stem ({len(music_plan.cues)} cues, "
+                            f"{len(music_plan.sections)} sections)."
+                        )
+                    else:
+                        print("[EDITORIAL] Music ducking failed — using flat bed volume.")
+                        bg_volume = 0.15
+
             scene_text_fx = None
             render_audio = str(config["audio_path"])
-            transition_map = {}
+            smart_plan = None
             if smart_cfg.enabled():
-                plan = build_plan(
+                smart_plan = build_plan(
                     config["rows"],
                     aligned,
                     whisper_words,
@@ -5632,7 +5735,9 @@ class VideoGeneratorApp(ctk.CTk):
                     state_dir=state_dir,
                     audio_path=config["audio_path"],
                     gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                    editorial_plan=editorial_plan,
                 )
+                plan = smart_plan
                 if smart_cfg.text_effects and plan.text_effects:
                     display_timeline = vg._scene_display_timeline(aligned, audio_end)
                     scene_text_fx = []
@@ -5687,11 +5792,11 @@ class VideoGeneratorApp(ctk.CTk):
                         + (f" ({chunks} ffmpeg pass(es))" if chunks else "")
                         + " under narration."
                     )
-                transition_map = plan.transition_style_map() if plan.scene_transitions else {}
-                if transition_map:
+                # SFX may still use smart transition picks; visual map stays pacing-authoritative.
+                if plan.scene_transitions:
                     print(
-                        f"[SMART] Transitions on scenes: "
-                        + ", ".join(f"{k}={v}" for k, v in transition_map.items())
+                        f"[SMART] Transition SFX cues: {len(plan.scene_transitions)} "
+                        "(visual map owned by Editorial Pacing)."
                     )
 
             vg.render_video(
@@ -5704,14 +5809,40 @@ class VideoGeneratorApp(ctk.CTk):
                 fps=30,
                 zoom=config["zoom"],
                 zoom_amount=0.10,
-                bg_audio=str(config["bg_path"]) if config["bg_path"] else None,
-                bg_volume=0.15,
+                bg_audio=str(bg_path) if bg_path else None,
+                bg_volume=bg_volume,
                 captions=config["captions"],
                 scene_text_effects=scene_text_fx,
                 performance_mode=config.get("performance_mode"),
-                visual_transitions=bool(smart_cfg.visual_transitions),
-                transition_by_scene=transition_map if smart_cfg.visual_transitions else None,
+                visual_transitions=bool(transition_map),
+                transition_by_scene=transition_map if transition_map else None,
+                camera_by_scene=camera_map if camera_map else None,
             )
+
+            # Editorial QA (never blocks render)
+            if state_dir is not None:
+                try:
+                    ambience_beds = (
+                        smart_plan.scene_ambience
+                        if smart_plan is not None
+                        else []
+                    )
+                    qa = run_editorial_qa(
+                        editorial_plan,
+                        output_video=Path(config["output_path"]),
+                        narration_path=Path(config["audio_path"]),
+                        ambience_beds=ambience_beds,
+                        music_cues=music_cues_for_qa,
+                        images_dir=Path(config["images_dir"]),
+                        transition_map=transition_map,
+                    )
+                    save_editorial_qa(state_dir, qa)
+                    print(f"[EDITORIAL QA] {qa.verdict} — score {qa.score:.0f}/100")
+                    for issue in qa.issues[:6]:
+                        print(f"  [{issue.severity}] Scene {issue.scene_number} @ {issue.timestamp:.1f}s — {issue.message}")
+                except Exception as exc:
+                    print(f"[EDITORIAL QA] Skipped ({exc})")
+
             self._ui_queue.put(("done", str(config["output_path"])))
         except SystemExit as exc:
             # video_generator uses sys.exit("ERROR: ...") on failures

@@ -187,6 +187,10 @@ class ProjectWorkspace:
         return self.script_dir / PLAN_JSON_NAME
 
     @property
+    def editorial_plan_json_path(self) -> Path:
+        return self.state_dir / "editorial_plan.json"
+
+    @property
     def meta_path(self) -> Path:
         return self.root / META_NAME
 
