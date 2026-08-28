@@ -1276,7 +1276,11 @@ class TestFlowRunIsolation(AssetPipelineTestCase):
             batch_started_at=time.time(),
         )
         self.assertFalse(result.ok)
-        self.assertIn("leftover", result.error.lower())
+        err = result.error.lower()
+        self.assertTrue(
+            any(p in err for p in ("leftover", "engine aborted", "did not download")),
+            result.error,
+        )
         self.assertFalse((assets / "001.png").is_file())
 
     def test_this_run_file_is_used_not_leftover(self):

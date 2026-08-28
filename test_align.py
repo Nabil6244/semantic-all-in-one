@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for script↔whisper alignment helpers (no Whisper download required)."""
 
-import csv
 import unittest
 
 from video_generator import (
@@ -105,8 +104,20 @@ class TestAlign(unittest.TestCase):
         Regression for the end-of-video cascade: script numbers as words,
         whisper as digits — nearly all late scenes should still anchor.
         """
-        with open("script.csv", newline="", encoding="utf-8-sig") as f:
-            rows = list(csv.DictReader(f))
+        templates = [
+            "twenty-five million dollars in revenue year {n}",
+            "one point eight million viewers watched episode {n}",
+            "hundred thirty million stars in galaxy cluster {n}",
+            "three hundred fifty dollars per month for plan {n}",
+            "slip-and-fall lawsuit number {n} in the docket",
+        ]
+        rows = [
+            {
+                "scene_number": str(i),
+                "script_segment": templates[(i - 1) % len(templates)].format(n=i),
+            }
+            for i in range(1, 201)
+        ]
 
         # Build a whisper-like stream by tokenizing each scene the same way
         # (script path already collapses numbers). Perfect-match baseline.

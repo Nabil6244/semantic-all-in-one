@@ -220,6 +220,15 @@ class TestVisualPlanParsing(unittest.TestCase):
         self.assertEqual(plan.scenes[0].provider_preference, "stock_video")
         self.assertTrue(plan.scenes[0].search_queries)
 
+    def test_legacy_flow_provider_matches_video_asset_type(self):
+        payload = json.loads(json.dumps(VALID_PLAN))
+        payload["scenes"][0]["provider_preference"] = "flow"
+        payload["scenes"][0]["asset_type"] = "video"
+        payload["scenes"][0]["search_queries"] = []
+        plan = parse_visual_plan(payload)
+        self.assertEqual(plan.scenes[0].asset_type, "video")
+        self.assertEqual(plan.scenes[0].provider_preference, "flow_video")
+
     def test_scene_ordering_renumbers_gaps(self):
         payload = json.loads(json.dumps(VALID_PLAN))
         payload["scenes"] = payload["scenes"][:2]

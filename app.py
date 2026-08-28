@@ -1607,6 +1607,13 @@ class VideoGeneratorApp(ctk.CTk):
             corner_radius=4, command=lambda: self._bulk_recovery("skip", selected_only=True),
         )
         self.skip_selected_btn.pack(side="left")
+        self.fix_all_vqa_btn = ctk.CTkButton(
+            qa_bulk, text="Fix All Issues", width=110, height=24,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=4, command=self._on_fix_all_visual_issues,
+        )
+        self.fix_all_vqa_btn.pack(side="left", padx=(8, 4))
         ctk.CTkButton(
             qa_bulk, text="Select failed", width=100, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
@@ -4995,7 +5002,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self.status_var.set(snap.header)
 
     def _scene_source_mix_label(self) -> str:
-        """Counts by planned/resolved source: Flow image/video, Stock, YouTube, Local."""
+        """Counts by resolved source (post-generate when available), one label per provider."""
         from collections import Counter
 
         from providers.router import SceneAssetRouter
@@ -5007,26 +5014,50 @@ class VideoGeneratorApp(ctk.CTk):
             source = getattr(result, "source", None) if result is not None else None
             if source is None:
                 source = SceneAssetRouter.classify(scene)
-            if source == AssetSource.FLOW_IMAGE:
-                counts["AI Image"] += 1
-            elif source == AssetSource.FLOW_VIDEO:
-                counts["AI Video"] += 1
-            elif source in (
-                AssetSource.STOCK,
-                AssetSource.STOCK_IMAGE,
-                AssetSource.STOCK_VIDEO,
-            ):
-                counts["Stock"] += 1
-            elif source == AssetSource.YOUTUBE_VIDEO:
-                counts["YouTube"] += 1
-            elif source in (AssetSource.MANUAL, AssetSource.LOCAL):
-                counts["Manual"] += 1
-            elif source is None:
-                counts["Unassigned"] += 1
-            else:
-                counts["Other"] += 1
-        order = ("AI Image", "AI Video", "Stock", "YouTube", "Manual", "Unassigned", "Other")
-        return " · ".join(f"{name} {counts[name]}" for name in order if counts.get(name))
+            label = self._source_mix_bucket(source)
+            counts[label] += 1
+        order = (
+            "AI Image",
+            "AI Video",
+            "Stock",
+            "YouTube",
+            "Archive",
+            "NASA",
+            "Commons",
+            "Manual",
+            "Unassigned",
+        )
+        extras = [name for name in counts if name not in order]
+        return " · ".join(
+            f"{name} {counts[name]}"
+            for name in (*order, *sorted(extras))
+            if counts.get(name)
+        )
+
+    @staticmethod
+    def _source_mix_bucket(source: AssetSource | None) -> str:
+        if source is None:
+            return "Unassigned"
+        if source == AssetSource.FLOW_IMAGE:
+            return "AI Image"
+        if source == AssetSource.FLOW_VIDEO:
+            return "AI Video"
+        if source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO):
+            return "Stock"
+        if source == AssetSource.YOUTUBE_VIDEO:
+            return "YouTube"
+        if source == AssetSource.ARCHIVE_VIDEO:
+            return "Archive"
+        if source == AssetSource.NASA_VIDEO:
+            return "NASA"
+        if source in (AssetSource.COMMONS_VIDEO, AssetSource.COMMONS_IMAGE):
+            return "Commons"
+        if source in (AssetSource.MANUAL, AssetSource.LOCAL):
+            return "Manual"
+        badge = SOURCE_BADGE.get(source)
+        if badge:
+            return badge[0]
+        return str(getattr(source, "value", source)).replace("_", " ").title()
 
     def _paint_qa_chrome(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
@@ -5039,6 +5070,8 @@ class VideoGeneratorApp(ctk.CTk):
             mix = self._scene_source_mix_label()
             if mix:
                 parts.append(mix)
+            if getattr(snap, "visual_summary", ""):
+                parts.append(snap.visual_summary)
             self.scenes_summary_var.set(" · ".join(parts))
         else:
             self.scenes_summary_var.set("")
@@ -6341,6 +6374,14 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showerror("Cannot start", err)
             return
 
+        if mode == "render" and snap is not None and getattr(snap, "visual_fail", 0) > 0:
+            if not messagebox.askyesno(
+                "Visual QA",
+                f"{snap.visual_fail} scene(s) failed visual QA.\n"
+                f"{snap.visual_weak} weak.\n\nRender anyway?",
+            ):
+                return
+
         self._running = True
         self.generate_btn.configure(
             state="normal",
@@ -6987,7 +7028,89 @@ class VideoGeneratorApp(ctk.CTk):
             "Import a voiceover if needed, then click Render Video.\n"
         )
         self._refresh_cleanup_button(defer=True)
+        self._log_visual_qa_report()
         self._goto_workflow_view("audio")
+
+    def _log_visual_qa_report(self) -> None:
+        try:
+            from visual_qa import build_project_report
+
+            mgr = getattr(self, "_asset_manager", None)
+            report = build_project_report(
+                self._scene_rows,
+                self._asset_results,
+                images_dir=mgr.images_dir if mgr else None,
+                coverage_by_scene=getattr(mgr, "coverage_by_scene", None) if mgr else None,
+                selection_history=getattr(mgr, "selection_history", None) if mgr else None,
+                resolved=getattr(self, "_resolved_style", None),
+                settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+            )
+            self._append_log("\n" + "\n".join(report.summary_lines()) + "\n")
+            from scene_recovery import scene_key as _sk
+
+            self._visual_qa_results = {
+                _sk(str(qa.scene_number)): qa
+                for qa in report.results
+            }
+        except Exception as exc:
+            self._append_log(f"\n[VQA] Report skipped: {exc}\n")
+
+    def _on_fix_all_visual_issues(self) -> None:
+        if not self._scene_rows:
+            return
+        mgr = self._ensure_asset_manager(Path(self.images_var.get()))
+        try:
+            from scene_recovery import scene_key as _sk
+            from visual_qa import build_project_report, fix_all_issues
+
+            report = build_project_report(
+                self._scene_rows,
+                self._asset_results,
+                images_dir=mgr.images_dir,
+                coverage_by_scene=mgr.coverage_by_scene,
+                selection_history=mgr.selection_history,
+                resolved=getattr(self, "_resolved_style", None),
+            )
+            qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
+            allocation = None
+            if self._visual_plan and getattr(self._visual_plan, "allocation", None):
+                allocation = self._visual_plan.allocation
+            elif self._workspace is not None:
+                plan = self._workspace.read_visual_plan_json()
+                if isinstance(plan, dict):
+                    allocation = plan.get("allocation")
+
+            self.status_var.set("Fixing visual QA issues…")
+            self.fix_all_vqa_btn.configure(state="disabled")
+            fix_report = fix_all_issues(
+                mgr,
+                self._scene_rows,
+                qa_map,
+                self._asset_results,
+                allocation=allocation,
+                max_attempts=2,
+                log=lambda m: self._append_log(m + "\n"),
+            )
+            self._sync_scene_statuses_from_results()
+            self._refresh_qa_ui()
+            self._log_visual_qa_report()
+            self.status_var.set(
+                f"VQA fix — {fix_report.fixed} fixed, "
+                f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
+            )
+            messagebox.showinfo(
+                "Fix All Issues",
+                f"Targeted {fix_report.targeted} scene(s).\n"
+                f"Fixed: {fix_report.fixed}\n"
+                f"Still weak: {fix_report.still_weak}\n"
+                f"Still fail: {fix_report.still_fail}\n"
+                f"Flow regenerations: {fix_report.flow_regenerations}",
+            )
+        except Exception as exc:
+            messagebox.showerror("Fix All Issues", str(exc))
+        finally:
+            if getattr(self, "fix_all_vqa_btn", None) is not None:
+                self.fix_all_vqa_btn.configure(state="normal")
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():

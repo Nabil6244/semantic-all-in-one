@@ -331,8 +331,43 @@ class AssetManager:
         elif not result.ok:
             mark_needs_action(result)
             self.log(f"[ASSET] Scene {scene.scene_number} -> FAILED: {result.error}")
-        self._manifest_write(scene, self._record_from_result(scene, result))
+        record = self._record_from_result(scene, result)
+        if result.ok and result.path is not None:
+            self._run_visual_qa(scene, result, record)
+        self._manifest_write(scene, record)
         self.recovery.status[scene_key(scene.scene_number)] = result.status.value
+
+    def _run_visual_qa(self, scene: SceneRow, result: AssetResult, record: dict) -> None:
+        try:
+            from visual_qa import evaluate_scene_asset
+
+            qa = evaluate_scene_asset(
+                scene,
+                result,
+                images_dir=self.images_dir,
+                coverage_plan=record.get("coverage_plan"),
+                selection_history=self.selection_history,
+                resolved=getattr(self, "resolved_style", None),
+                settings=getattr(self, "settings", None),
+                enable_vision=True,
+            )
+            record["visual_qa"] = qa.to_dict()
+            refined = (result.metadata or {}).get("_refined_coverage_plan")
+            if refined:
+                record["coverage_plan"] = refined
+            if result.metadata is None:
+                result.metadata = {}
+            result.metadata.update({
+                "visual_qa": record["visual_qa"],
+                "coverage_plan": record.get("coverage_plan"),
+            })
+            if qa.status.value in ("WEAK", "FAIL"):
+                self.log(
+                    f"[VQA] Scene {scene.scene_number} -> {qa.status.value} "
+                    f"(score {qa.overall_score:.2f}) — {qa.recommended_action.value}"
+                )
+        except Exception as exc:
+            self.log(f"[VQA] Scene {scene.scene_number} QA skipped: {exc}")
 
     def _manifest_write(self, scene: SceneRow, record: dict) -> None:
         with self._manifest_lock:

@@ -146,6 +146,11 @@ class QASnapshot:
     allow_render: bool = False
     progress: float = 0.0
     go_to_error_label: str = "GO TO ERROR"
+    visual_pass: int = 0
+    visual_weak: int = 0
+    visual_fail: int = 0
+    visual_issues: List[QAIssue] = field(default_factory=list)
+    visual_summary: str = ""
 
     @property
     def resolved(self) -> int:
@@ -309,7 +314,56 @@ class SceneQAState:
             snap.go_to_error_label = f"GO TO ERROR {idx}/{len(unresolved)}"
         else:
             snap.go_to_error_label = "GO TO ERROR"
+        self._append_visual_qa(snap, scenes, results)
         return snap
+
+    def _append_visual_qa(
+        self,
+        snap: QASnapshot,
+        scenes: Sequence[SceneRow],
+        results: Dict[str, AssetResult],
+    ) -> None:
+        from visual_qa.models import VisualQAStatus
+
+        for scene in scenes:
+            key = scene_key(scene.scene_number)
+            result = results.get(key)
+            if result is None or not getattr(result, "ok", False):
+                continue
+            meta = getattr(result, "metadata", None) or {}
+            raw = meta.get("visual_qa")
+            if not isinstance(raw, dict):
+                continue
+            try:
+                status = VisualQAStatus(str(raw.get("status") or ""))
+            except ValueError:
+                continue
+            if status == VisualQAStatus.PASS:
+                snap.visual_pass += 1
+            elif status == VisualQAStatus.WEAK:
+                snap.visual_weak += 1
+                snap.visual_issues.append(QAIssue(
+                    key=key,
+                    scene_number=str(scene.scene_number),
+                    provider=provider_label(getattr(result, "source", None)),
+                    error=f"Visual QA: {raw.get('warnings', ['weak'])[0] if raw.get('warnings') else 'weak match'}",
+                    severity="warning",
+                ))
+            elif status == VisualQAStatus.FAIL:
+                snap.visual_fail += 1
+                reasons = raw.get("failure_reasons") or raw.get("warnings") or ["visual QA failed"]
+                snap.visual_issues.append(QAIssue(
+                    key=key,
+                    scene_number=str(scene.scene_number),
+                    provider=provider_label(getattr(result, "source", None)),
+                    error=f"Visual QA: {reasons[0]}",
+                    severity="warning",
+                ))
+        if snap.visual_pass or snap.visual_weak or snap.visual_fail:
+            total_v = snap.visual_pass + snap.visual_weak + snap.visual_fail
+            snap.visual_summary = (
+                f"VQA ✓{snap.visual_pass} ⚠{snap.visual_weak} ✕{snap.visual_fail} / {total_v}"
+            )
 
     def go_to_error(self, unresolved: Sequence[str]) -> Optional[str]:
         if not unresolved:

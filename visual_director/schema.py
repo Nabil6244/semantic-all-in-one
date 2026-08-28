@@ -468,6 +468,13 @@ def _parse_scene(raw: dict, index: int) -> VisualScene:
 
     provider = normalize_provider(str(raw.get("provider_preference")))
     declared = raw.get("asset_type")
+    # Legacy plans used provider_preference "flow" for both image and video scenes.
+    if provider == "flow":
+        if declared:
+            dt = provider_to_asset_type(str(declared))
+            provider = "flow_video" if dt == "video" else "flow_image"
+        else:
+            provider = "flow_image"
     if declared:
         declared_type = provider_to_asset_type(str(declared))
         preferred_type = provider_to_asset_type(provider)

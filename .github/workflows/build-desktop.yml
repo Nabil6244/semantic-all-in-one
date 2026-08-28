@@ -22,6 +22,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
 
+      - name: Run unit tests
+        run: python -m unittest discover -s . -p "test_*.py" -q
+
       - name: Fetch ffmpeg (macOS)
         run: |
           mkdir -p bin
@@ -117,6 +120,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -s . -p "test_*.py" -q
 
       - name: Fetch ffmpeg (Windows)
         shell: pwsh
