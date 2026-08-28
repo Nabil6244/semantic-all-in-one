@@ -22,9 +22,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
 
-      - name: Run unit tests
-        run: python -m unittest discover -s . -p "test_*.py" -q
-
       - name: Fetch ffmpeg (macOS)
         run: |
           mkdir -p bin
@@ -44,6 +41,11 @@ jobs:
           if otool -L bin/ffmpeg 2>/dev/null | grep -q '/opt/homebrew/'; then
             echo "::warning::bin/ffmpeg links Homebrew dylibs — end-user Macs without matching Homebrew may fail. Prefer a static ffmpeg for production releases."
           fi
+
+      - name: Run unit tests
+        env:
+          PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
+        run: python -m unittest discover -s . -p "test_*.py" -q
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
@@ -121,9 +123,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
 
-      - name: Run unit tests
-        run: python -m unittest discover -s . -p "test_*.py" -q
-
       - name: Fetch ffmpeg (Windows)
         shell: pwsh
         run: |
@@ -155,6 +154,12 @@ jobs:
           $probe = Get-ChildItem -Path ffmpeg_dl -Recurse -Filter ffprobe.exe | Select-Object -First 1
           if (-not $probe) { throw "ffprobe.exe not found in download" }
           Copy-Item $probe.FullName -Destination "bin\ffprobe.exe"
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD\bin;" + $env:PATH
+          python -m unittest discover -s . -p "test_*.py" -q
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
