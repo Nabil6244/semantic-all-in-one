@@ -285,17 +285,8 @@ class BrandStyleView(_BaseView):
         )
         self._ai_budget_menu.grid(row=7, column=1, sticky="ew", padx=T.PAD, pady=4)
 
-        ctk.CTkLabel(
-            form,
-            text="Controls Flow video usage and credits. Flow images are not counted against this budget.",
-            font=ctk.CTkFont(size=11),
-            text_color=T.MUTED,
-            justify="left",
-            anchor="w",
-        ).grid(row=8, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 4))
-
         ctk.CTkLabel(form, text="Visual Coverage", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
-            row=9, column=0, sticky="w", padx=T.PAD, pady=(4, 4)
+            row=8, column=0, sticky="w", padx=T.PAD, pady=(4, 4)
         )
         self._coverage_mode_var = ctk.StringVar(value="Automatic")
         self._coverage_mode_menu = ctk.CTkOptionMenu(
@@ -305,7 +296,7 @@ class BrandStyleView(_BaseView):
             fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_changed(),
         )
-        self._coverage_mode_menu.grid(row=9, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
+        self._coverage_mode_menu.grid(row=8, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
 
         self._alloc_preview = ctk.CTkLabel(
             form,
@@ -315,7 +306,7 @@ class BrandStyleView(_BaseView):
             justify="left",
             anchor="w",
         )
-        self._alloc_preview.grid(row=10, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
+        self._alloc_preview.grid(row=9, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
 
         self._preview = Card(self._body)
         self._preview.grid(row=1, column=0, sticky="ew", pady=8)
@@ -780,6 +771,401 @@ class BrandStyleView(_BaseView):
     def _switch_to_manual(self) -> None:
         self._mode_var.set("Manual")
         self._on_mode_changed()
+
+
+class ResearchView(_BaseView):
+    """Manual Research: independent of Generate Assets — the user runs this
+    whenever they want, and whatever it produces sits in project/research/
+    for AssetManager to pick up as an additional candidate source the next
+    time assets are generated. Topic is the only required input; script and
+    URL(s) are optional refinements on top of it (4 supported modes)."""
+
+    key = "research"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, app, **kwargs)
+        SectionHeader(
+            self, "Research", "Find real, property-specific media for a script about a specific listing",
+        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD_SM, 4))
+
+        form = Card(self._body)
+        form.grid(row=0, column=0, sticky="ew", pady=4)
+        form.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(form, text="Topic", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=0, column=0, sticky="w", padx=T.PAD, pady=(10, 4)
+        )
+        self._topic_var = ctk.StringVar(value="")
+        ctk.CTkEntry(
+            form, textvariable=self._topic_var, placeholder_text="e.g. Hunters Ridge, Clio Alabama",
+            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=0, column=1, sticky="ew", padx=T.PAD, pady=(10, 4))
+
+        ctk.CTkLabel(form, text="Script (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=1, column=0, sticky="nw", padx=T.PAD, pady=4
+        )
+        script_frame = ctk.CTkFrame(form, fg_color="transparent")
+        script_frame.grid(row=1, column=1, sticky="ew", padx=T.PAD, pady=4)
+        script_frame.grid_columnconfigure(0, weight=1)
+        self._script_box = ctk.CTkTextbox(
+            script_frame, height=70, fg_color=T.BG, border_width=1, border_color=T.BORDER, text_color=T.TEXT,
+        )
+        self._script_box.grid(row=0, column=0, sticky="ew")
+        self._script_path_label = ctk.CTkLabel(
+            script_frame, text="", font=ctk.CTkFont(size=10), text_color=T.MUTED, anchor="w",
+        )
+        self._script_path_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+        ctk.CTkButton(
+            script_frame, text="Load from file…", height=26, width=120,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), command=self._on_load_script_file,
+        ).grid(row=0, column=1, sticky="n", padx=(T.PAD_SM, 0))
+        self._script_path = ""
+
+        ctk.CTkLabel(form, text="URL(s) (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=2, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._urls_var = ctk.StringVar(value="")
+        ctk.CTkEntry(
+            form, textvariable=self._urls_var, placeholder_text="one or more listing URLs, comma-separated",
+            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
+
+        ctk.CTkLabel(form, text="Domain", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=3, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._domain_var = ctk.StringVar(value="Auto")
+        self._domain_labels = ("Auto", "Real Estate", "Products", "Travel", "Cars", "News", "Science", "General")
+        ctk.CTkOptionMenu(
+            form, variable=self._domain_var, values=list(self._domain_labels),
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
+        ).grid(row=3, column=1, sticky="ew", padx=T.PAD, pady=4)
+
+        ctk.CTkLabel(form, text="Max media / property", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=4, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._max_media_var = ctk.StringVar(value="20")
+        ctk.CTkEntry(
+            form, textvariable=self._max_media_var, width=80,
+            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=4, column=1, sticky="w", padx=T.PAD, pady=4)
+
+        button_row = ctk.CTkFrame(form, fg_color="transparent")
+        button_row.grid(row=5, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(8, 4))
+        self._start_btn = ctk.CTkButton(
+            button_row, text="Start Research", height=34, width=150,
+            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+            font=ctk.CTkFont(size=12, weight="bold"), command=self._on_start_research,
+        )
+        self._start_btn.pack(side="left")
+        self._status_pill = StatusPill(button_row, text="Idle", tone="muted")
+        self._status_pill.pack(side="left", padx=(T.PAD_SM, 0))
+
+        self._status_label = ctk.CTkLabel(
+            form, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
+            justify="left", anchor="w", wraplength=460,
+        )
+        self._status_label.grid(row=6, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 8))
+
+        # Result summary — populated after a run, hidden otherwise.
+        self._summary = Card(self._body)
+        self._summary.grid_columnconfigure(0, weight=1)
+        self._summary_rows: list[MetricRow] = []
+        for label in ("Property", "Confidence", "Sources found", "Usable media"):
+            row = MetricRow(self._summary, label, "—")
+            row.grid(sticky="ew", padx=T.PAD, pady=(T.PAD_SM, 0))
+            self._summary_rows.append(row)
+
+        # Folder/file actions — disabled whenever their target doesn't
+        # exist yet (no research run, or nothing downloaded).
+        folder_row = ctk.CTkFrame(self._summary, fg_color="transparent")
+        folder_row.grid(sticky="ew", padx=T.PAD, pady=(T.PAD_SM, T.PAD_SM))
+        self._open_research_btn = ctk.CTkButton(
+            folder_row, text="Open Research Folder", height=28, width=150,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), state="disabled",
+            command=lambda: self._open_path(self._research_folder_path()),
+        )
+        self._open_research_btn.pack(side="left")
+        self._open_media_folder_btn = ctk.CTkButton(
+            folder_row, text="Open Media Folder", height=28, width=140,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), state="disabled",
+            command=lambda: self._open_path(self._media_folder_path()),
+        )
+        self._open_media_folder_btn.pack(side="left", padx=(T.PAD_SM, 0))
+        self._open_media_btn = ctk.CTkButton(
+            folder_row, text="Open Media", height=28, width=110,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), state="disabled",
+            command=lambda: self._open_path(self._top_media_path),
+        )
+        self._open_media_btn.pack(side="left", padx=(T.PAD_SM, 0))
+        self._top_media_path: Optional[Path] = None
+
+        self._summary.grid_remove()
+
+        # Advanced: where the standalone research engine lives on this machine.
+        engine_card = Card(self._body)
+        engine_card.grid(row=2, column=0, sticky="ew", pady=(8, 4))
+        engine_card.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            engine_card, text="RESEARCH ENGINE (advanced)", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.MUTED,
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(10, 4))
+        ctk.CTkLabel(engine_card, text="Engine folder", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=1, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._engine_root_var = ctk.StringVar(value="")
+        ctk.CTkEntry(
+            engine_card, textvariable=self._engine_root_var, placeholder_text="/path/to/semantic-research-engine",
+            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=1, column=1, sticky="ew", padx=T.PAD, pady=4)
+        ctk.CTkLabel(engine_card, text="Python interpreter", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=2, column=0, sticky="w", padx=T.PAD, pady=4
+        )
+        self._engine_python_var = ctk.StringVar(value="")
+        ctk.CTkEntry(
+            engine_card, textvariable=self._engine_python_var,
+            placeholder_text="/path/to/semantic-research-engine/.venv/bin/python",
+            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
+        ctk.CTkButton(
+            engine_card, text="Save Engine Path", height=28, width=140,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), command=self._on_save_engine_path,
+        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(4, 10))
+
+        self._researching = False
+
+    # ---------- lifecycle ----------
+
+    def on_show(self) -> None:
+        from research.settings import load_engine_config, load_project_research_settings
+
+        root, python_path = load_engine_config(getattr(self.app, "_settings", {}) or {})
+        self._engine_root_var.set(root)
+        self._engine_python_var.set(python_path)
+
+        ws = self.app._workspace
+        if ws is None:
+            return
+        settings = load_project_research_settings(ws)
+        self._topic_var.set(settings.topic)
+        self._urls_var.set(", ".join(settings.urls))
+        self._max_media_var.set(str(settings.max_media_per_property))
+        label_by_domain = {
+            "auto": "Auto", "real_estate": "Real Estate", "products": "Products",
+            "travel": "Travel", "cars": "Cars", "news": "News", "science": "Science", "general": "General",
+        }
+        self._domain_var.set(label_by_domain.get(settings.domain, "Auto"))
+        if settings.script_path:
+            self._script_path = settings.script_path
+            self._script_path_label.configure(text=Path(settings.script_path).name)
+
+        # Reflect whatever's already on disk from a prior run (if this tab
+        # wasn't just used to complete a fresh one) so the folder actions
+        # are usable immediately on returning to the project.
+        if (ws.research_dir / "research.json").is_file():
+            self._summary.grid()
+        self._refresh_folder_buttons()
+
+    # ---------- folder / media actions ----------
+
+    def _research_folder_path(self) -> Optional[Path]:
+        ws = self.app._workspace
+        return ws.research_dir if ws is not None else None
+
+    def _media_folder_path(self) -> Optional[Path]:
+        research_dir = self._research_folder_path()
+        return (research_dir / "media") if research_dir is not None else None
+
+    @staticmethod
+    def _open_path(path: Optional[Path]) -> None:
+        """Reveal a file/folder in the OS file manager — same
+        platform-dispatch pattern already used elsewhere in this app
+        (see app.py's _open_scene_asset and similar)."""
+        if path is None or not path.exists():
+            return
+        import subprocess
+        import sys
+
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
+            elif sys.platform == "win32":
+                import os
+
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+        except Exception:  # noqa: BLE001 - opening a folder is never critical path
+            pass
+
+    def _refresh_folder_buttons(self, result: Optional[Any] = None) -> None:
+        """Enables each button only when its target actually exists.
+        `result` (a fresh ResearchResult, when called right after a run)
+        gives the precise top-ranked file; otherwise falls back to
+        whatever's already on disk (media/ is numbered 001, 002, ... in
+        rank order by the engine, so the lowest-numbered file already
+        existing is the same "top" file)."""
+        research_dir = self._research_folder_path()
+        media_dir = self._media_folder_path()
+
+        self._open_research_btn.configure(state=("normal" if research_dir and research_dir.is_dir() else "disabled"))
+        self._open_media_folder_btn.configure(state=("normal" if media_dir and media_dir.is_dir() else "disabled"))
+
+        self._top_media_path = None
+        if result is not None:
+            for m in result.media:
+                if m.local_path and Path(m.local_path).is_file():
+                    self._top_media_path = Path(m.local_path)
+                    break
+        elif media_dir is not None and media_dir.is_dir():
+            existing = sorted(p for p in media_dir.iterdir() if p.is_file())
+            self._top_media_path = existing[0] if existing else None
+
+        self._open_media_btn.configure(state=("normal" if self._top_media_path else "disabled"))
+
+    # ---------- helpers ----------
+
+    def _on_load_script_file(self) -> None:
+        from tkinter import filedialog
+
+        path = filedialog.askopenfilename(title="Select narration script", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        if not path:
+            return
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            self._status_label.configure(text=f"Could not read file: {exc}")
+            return
+        self._script_box.delete("1.0", "end")
+        self._script_box.insert("1.0", text)
+        self._script_path = path
+        self._script_path_label.configure(text=Path(path).name)
+
+    def _on_save_engine_path(self) -> None:
+        from research.settings import with_engine_config
+
+        current = getattr(self.app, "_settings", {}) or {}
+        updated = with_engine_config(current, self._engine_root_var.get().strip(), self._engine_python_var.get().strip())
+        self.app._settings = updated
+        self.app._persist_global_settings()
+        self._status_label.configure(text="Engine path saved.")
+
+    _DOMAIN_TOKENS = {
+        "Auto": "auto", "Real Estate": "real_estate", "Products": "products", "Travel": "travel",
+        "Cars": "cars", "News": "news", "Science": "science", "General": "general",
+    }
+
+    def _on_start_research(self) -> None:
+        if self._researching:
+            return
+        ws = self.app._workspace
+        if ws is None:
+            self._status_label.configure(text="Open or create a project first.")
+            return
+
+        topic = self._topic_var.get().strip()
+        if not topic:
+            self._status_label.configure(text="Topic is required (script/URL(s) are optional refinements on top of it).")
+            return
+
+        script_text = self._script_box.get("1.0", "end").strip()
+        urls = [u.strip() for u in self._urls_var.get().split(",") if u.strip()]
+        domain = self._DOMAIN_TOKENS.get(self._domain_var.get(), "auto")
+        try:
+            max_media = max(1, int(self._max_media_var.get().strip() or 20))
+        except ValueError:
+            max_media = 20
+
+        from research.settings import compute_script_fingerprint, load_engine_config, save_project_research_settings
+        from research.models import ResearchSettings
+
+        # Script-bound vs. property-bound (see research/settings.py): only a
+        # research run that actually includes a script gets a fingerprint —
+        # URL/topic-only runs stay valid regardless of a script written later.
+        script_fingerprint = compute_script_fingerprint(script_text) if script_text.strip() else None
+
+        save_project_research_settings(ws, ResearchSettings(
+            topic=topic, script_path=self._script_path, urls=urls, domain=domain, max_media_per_property=max_media,
+            script_fingerprint=script_fingerprint,
+        ))
+
+        engine_root, engine_python = load_engine_config(getattr(self.app, "_settings", {}) or {})
+
+        self._researching = True
+        self._start_btn.configure(state="disabled")
+        self._status_pill.set_tone("Running…", "run")
+        self._status_label.configure(text="Researching — this can take up to a few minutes.")
+        self._summary.grid_remove()
+
+        def worker():
+            from research.property_provider import PropertyResearchProvider
+
+            provider = PropertyResearchProvider(engine_root, engine_python)
+            result = provider.research(
+                topic, script=script_text or None, urls=urls, domain=domain,
+                max_media_per_property=max_media, output_dir=ws.research_dir,
+            )
+            self.after(0, lambda: self._on_research_complete(result))
+
+        import threading
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_research_complete(self, result) -> None:
+        self._researching = False
+        self._start_btn.configure(state="normal")
+
+        if not result.ok:
+            self._status_pill.set_tone("Failed", "fail")
+            self._status_label.configure(text=result.error or "Research failed.")
+            return
+
+        usable = [m for m in result.media if m.local_path]
+        downloaded = len(usable)
+        # Only shown when actually derivable from the manifest (download_note
+        # is the engine's own classification, e.g. "duplicate_reused") — no
+        # numbers are invented if that field is absent.
+        reused = sum(1 for m in usable if m.download_note == "duplicate_reused")
+        breakdown = f" · {reused} reused · {downloaded - reused} newly downloaded" if reused else ""
+
+        if downloaded == 0:
+            self._status_pill.set_tone("No media found", "warn")
+            self._status_label.configure(
+                text=result.error or "Research completed but found no usable media for this property."
+            )
+        elif result.property_ambiguous:
+            # Topic/script-only discovery found more than one plausible
+            # property close in confidence — never silently claim the one
+            # shown below is definitely the intended one.
+            self._status_pill.set_tone("Ambiguous", "warn")
+            self._status_label.configure(
+                text=f"{downloaded} usable media{breakdown}, but multiple similarly-plausible properties were "
+                     f"discovered — verify '{result.property.name or result.property.address or 'the property below'}' "
+                     "is the one you meant before using it, or supply the exact listing URL instead."
+            )
+        else:
+            self._status_pill.set_tone("Done", "ok")
+            self._status_label.configure(text=f"{downloaded} usable media{breakdown} for this property.")
+
+        prop = result.property
+        values = [
+            prop.name or prop.address or "—",
+            f"{prop.confidence:.0%}" if prop.confidence else "—",
+            str(len(result.sources)),
+            str(downloaded),
+        ]
+        for row, value in zip(self._summary_rows, values):
+            row.set_value(value)
+        self._summary.grid()
+        self._refresh_folder_buttons(result)
+
+        # Invalidate any already-built AssetManager so the next Generate
+        # Assets run picks up the freshly-downloaded research candidates.
+        self.app._asset_manager = None
 
 
 class VisualPlanView(ctk.CTkFrame):

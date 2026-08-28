@@ -21,7 +21,7 @@ def _plan_from_dict(raw: Optional[dict]) -> Optional[VisualCoveragePlan]:
             CoverageSegment(
                 start=float(item.get("start") or 0),
                 end=float(item.get("end") or 0),
-                asset_class=str(item.get("asset_class") or ""),
+                asset_type=str(item.get("asset_type") or ""),
                 visual_role=str(item.get("visual_role") or ""),
                 avoid_loop=bool(item.get("avoid_loop")),
                 semantic_query_hint=str(item.get("semantic_query_hint") or ""),
@@ -77,7 +77,7 @@ def score_duration_coverage(
                 {
                     "start": s.start,
                     "end": s.end,
-                    "asset_class": s.asset_class,
+                    "asset_type": s.asset_type,
                     "visual_role": s.visual_role,
                     "avoid_loop": s.avoid_loop,
                     "semantic_query_hint": s.semantic_query_hint,

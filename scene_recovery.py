@@ -25,6 +25,7 @@ CHANGE_SOURCE_ORDER = (
     "flow_video",
     "flow_image",
     "stock_image",
+    "research",
     "local",
 )
 

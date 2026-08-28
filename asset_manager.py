@@ -121,6 +121,7 @@ class AssetManager:
         youtube_provider=None,
         archive_provider=None,
         nasa_provider=None,
+        research_provider=None,
         log: LogFn = print,
         resolved_style=None,
         coverage_by_scene: Optional[dict] = None,
@@ -134,6 +135,7 @@ class AssetManager:
         self.youtube_provider = youtube_provider
         self.archive_provider = archive_provider
         self.nasa_provider = nasa_provider
+        self.research_provider = research_provider
         self.resolved_style = resolved_style
         self.coverage_by_scene = dict(coverage_by_scene or {})
         from style_engine.visual_selection import SelectionHistory
@@ -152,6 +154,7 @@ class AssetManager:
             self.nasa_provider,
             self.flow_image_provider,
             self.flow_video_provider,
+            self.research_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
@@ -178,6 +181,7 @@ class AssetManager:
             self.nasa_provider,
             self.flow_image_provider,
             self.flow_video_provider,
+            self.research_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
@@ -209,10 +213,25 @@ class AssetManager:
             AssetSource.NASA_VIDEO: self.nasa_provider,
             AssetSource.COMMONS_VIDEO: self.stock_provider,
             AssetSource.COMMONS_IMAGE: self.stock_provider,
+            AssetSource.RESEARCH: self.research_provider,
         }[source]
 
     def classify(self, scene: SceneRow) -> AssetSource:
-        return SceneAssetRouter.classify(scene) or AssetSource.LOCAL
+        source = SceneAssetRouter.classify(scene)
+        if source is not None:
+            # Manual CSV authority always wins — an explicit asset_type is
+            # never second-guessed or overridden by research.
+            return source
+        if (
+            self.research_provider is not None
+            and self.research_provider.has_unused_candidates()
+            and vg.find_image_for_scene(self.images_dir, scene.scene_number) is None
+        ):
+            # Only fills the gap when the CSV didn't request a specific
+            # provider AND no manually-placed local file already covers
+            # this scene (that intentional user action still wins).
+            return AssetSource.RESEARCH
+        return AssetSource.LOCAL
 
     def validate_rows(self, rows: List[SceneRow]) -> List[str]:
         return SceneAssetRouter.validate(rows, self.images_dir)

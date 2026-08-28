@@ -114,8 +114,7 @@ class TestAIBudget(unittest.TestCase):
         ]
         scored = [(item["scene"].scene_id, item["flow_score"]) for item in prelim]
         videos = select_flow_video_scenes(prelim, scored, video_limit)
-        selection = select_flow_image_scenes(prelim, video_selected=videos, soft_cap=image_cap)
-        images = selection.scene_ids
+        images = select_flow_image_scenes(prelim, video_selected=videos, soft_cap=image_cap)
         self.assertLessEqual(len(videos), video_limit)
         self.assertGreater(len(images), len(videos))
 
@@ -125,62 +124,6 @@ class TestAIBudget(unittest.TestCase):
         scored = [(1, 0.2), (2, 0.15)]
         chosen = select_flow_scenes(scored, limit)
         self.assertEqual(len(chosen), 0)
-
-
-class TestFlowImageSoftCapPressure(unittest.TestCase):
-    """The soft cap is a real progressive penalty, not a hard wall — a strong
-    enough opportunity can still be selected above it, and the bundle reports
-    how much pressure was applied."""
-
-    def _strong_candidates(self, n: int, *, fit_start: float = 0.95) -> list[dict]:
-        return [
-            {
-                "scene": _scene(i, f"Conceptual scene {i}", provider="flow", desc=f"abstract metaphor {i}"),
-                "need": "explanation",
-                "flow_score": fit_start - i * 0.001,
-                "prefer_video": False,
-                "role": "abstract",
-            }
-            for i in range(1, n + 1)
-        ]
-
-    def test_below_cap_reports_below_pressure(self):
-        prelim = self._strong_candidates(5)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=20)
-        self.assertLessEqual(len(selection.scene_ids), 5)
-        self.assertFalse(selection.exceeded_cap)
-
-    def test_strong_opportunities_can_exceed_soft_cap(self):
-        # 30 very strong candidates (fit close to 1.0), cap of only 10 — the
-        # old hard-`break`-at-cap behavior would return exactly 10; the real
-        # soft cap should let strong ones cross it.
-        prelim = self._strong_candidates(30)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=10)
-        self.assertGreater(len(selection.scene_ids), 10)
-        self.assertTrue(selection.exceeded_cap)
-        self.assertGreater(selection.peak_pressure_ratio, 1.0)
-
-    def test_weak_candidates_do_not_exceed_soft_cap(self):
-        # Same shape, but weak fits (flow_image_fit() adds fixed role/need
-        # bonuses on top of flow_score, so this starts low enough that the
-        # resulting fit stays under the past-cap thresholds) — the progressive
-        # penalty should stop admitting scenes once the cap is reached, unlike
-        # the strong case above.
-        prelim = self._strong_candidates(30, fit_start=0.05)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=10)
-        self.assertFalse(selection.exceeded_cap)
-        self.assertLess(len(selection.scene_ids), 30)
-
-    def test_bundle_reports_soft_cap_fields(self):
-        scenes = [
-            _scene(i, f"Conceptual metaphor scene {i}", provider="flow", desc=f"abstract diagram {i}")
-            for i in range(1, 21)
-        ]
-        plan = _plan(*scenes)
-        settings = AllocationSettings(visual_strategy="image_heavy", ai_video_budget="conservative")
-        bundle = allocate_visual_plan(plan, settings, None)
-        self.assertGreater(bundle.flow_image_soft_cap, 0)
-        self.assertIn(bundle.flow_image_soft_cap_pressure, ("below", "near", "exceeded"))
 
 
 class TestAllocationEngine(unittest.TestCase):

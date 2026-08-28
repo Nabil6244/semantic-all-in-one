@@ -46,6 +46,7 @@ RADIUS = 4  # restrained, not pill-like
 NAV_ITEMS = (
     ("brand_style", "Brand & Style"),
     ("script", "Script"),
+    ("research", "Research"),
     ("visual_plan", "Visual Plan"),
     ("assets", "Assets"),
     ("audio", "Audio"),

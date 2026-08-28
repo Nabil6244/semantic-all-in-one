@@ -30,6 +30,7 @@ class AssetSource(str, enum.Enum):
     COMMONS_VIDEO = "commons_video"
     COMMONS_IMAGE = "commons_image"
     MANUAL = "manual"  # user-supplied local file for a failed scene
+    RESEARCH = "research"  # property-scoped media from the standalone research engine
 
 
 _STOCK_SOURCES = (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
@@ -220,6 +221,7 @@ class SceneRow:
             "flow_video": "video",
             "video": "video",
             "local": "local",
+            "research": "research",
         }
         asset_type = asset_map.get(key, key)
         query = (self.stock or self.prompt or "").strip()

@@ -706,6 +706,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._view_project = ui_views.ProjectView(self._shell.center, self)
         self._view_script = ui_views.ScriptView(self._shell.center, self)
         self._view_brand_style = ui_views.BrandStyleView(self._shell.center, self)
+        self._view_research = ui_views.ResearchView(self._shell.center, self)
         self._view_visual = ui_views.VisualPlanView(self._shell.center, self)
         self._view_assets = ui_views.AssetsView(self._shell.center, self)
         self._view_audio = ui_views.AudioView(self._shell.center, self)
@@ -719,6 +720,7 @@ class VideoGeneratorApp(ctk.CTk):
             ("project", self._view_project),
             ("brand_style", self._view_brand_style),
             ("script", self._view_script),
+            ("research", self._view_research),
             ("visual_plan", self._view_visual),
             ("assets", self._view_assets),
             ("audio", self._view_audio),
@@ -3169,16 +3171,6 @@ class VideoGeneratorApp(ctk.CTk):
                         f"({bundle.ai_opportunities} opportunities)\n"
                     ),
                 )
-                if bundle.flow_image_soft_cap_pressure == "exceeded" and bundle.flow_image_soft_cap > 0:
-                    over = bundle.flow_image_assigned - bundle.flow_image_soft_cap
-                    self.after(
-                        0,
-                        lambda o=over: self._append_log(
-                            f"[ALLOC] Flow image soft cap exceeded because {o} high-value "
-                            f"opportunit{'y' if o == 1 else 'ies'} overcame soft penalty "
-                            f"(cap {bundle.flow_image_soft_cap}, assigned {bundle.flow_image_assigned})\n"
-                        ),
-                    )
                 self.after(
                     0,
                     lambda: self._append_log(
@@ -4555,6 +4547,54 @@ class VideoGeneratorApp(ctk.CTk):
             out[key] = p
         return out
 
+    def _persist_global_settings(self) -> None:
+        """Machine-level settings.json — same store as Pexels/Gemini keys.
+        Used by ResearchView to save the (optional) research engine path."""
+        save_settings(self._settings)
+
+    def _build_research_provider(self, ws) -> Optional["ResearchAssetProvider"]:
+        """Loads whatever research package already exists for this project
+        (written by a prior Manual Research run) as candidate media for the
+        asset pipeline. Never raises — a missing/unreadable/stale package
+        just means no research candidates this run, exactly as if the
+        feature were never used.
+
+        Staleness: a research run performed WITH a script is bound to that
+        exact script text (research_media.script_fingerprint) — if the
+        current narration no longer matches, the package is treated as
+        unavailable rather than silently offering media for a script it was
+        never run against. A run performed URL/topic-only (no script at the
+        time) has no fingerprint and is property-bound, not script-bound —
+        it stays valid even after a script is written later."""
+        if ws is None:
+            return None
+        try:
+            from providers.research_asset_provider import ResearchAssetProvider
+            from research.package_importer import load_research_result
+            from research.settings import is_research_stale, load_project_research_settings
+
+            research_json = ws.research_dir / "research.json"
+            if not research_json.is_file():
+                return None
+
+            settings = load_project_research_settings(ws)
+            if settings.script_fingerprint:
+                current_script = ""
+                if ws.script_path.is_file():
+                    current_script = ws.script_path.read_text(encoding="utf-8")
+                if is_research_stale(settings.script_fingerprint, current_script):
+                    print("[ASSET] Research package predates the current script — "
+                          "run Manual Research again to refresh it.")
+                    return None
+
+            result = load_research_result(ws.research_dir)
+            if not result.ok or not result.media:
+                return None
+            return ResearchAssetProvider(result.media)
+        except Exception as exc:  # noqa: BLE001 - research must never block asset generation
+            print(f"[ASSET] Research provider unavailable: {exc}")
+            return None
+
     def _build_asset_manager(self, images_dir: Path, scene_rows: list[SceneRow]) -> AssetManager:
         """Shared by the main pipeline and Regenerate — builds providers needed for
         planned scenes plus Change Source targets (YouTube/Stock/Flow video)."""
@@ -4651,6 +4691,7 @@ class VideoGeneratorApp(ctk.CTk):
             youtube_provider=youtube_provider,
             archive_provider=archive_provider,
             nasa_provider=nasa_provider,
+            research_provider=self._build_research_provider(self._workspace),
             log=print,
             resolved_style=getattr(self, "_resolved_style", None),
             coverage_by_scene=self._coverage_map_from_workspace(),
@@ -7070,72 +7111,58 @@ class VideoGeneratorApp(ctk.CTk):
         if not self._scene_rows:
             return
         mgr = self._ensure_asset_manager(Path(self.images_var.get()))
+        try:
+            from scene_recovery import scene_key as _sk
+            from visual_qa import build_project_report, fix_all_issues
 
-        self.status_var.set("Fixing visual QA issues…")
-        self.fix_all_vqa_btn.configure(state="disabled")
+            report = build_project_report(
+                self._scene_rows,
+                self._asset_results,
+                images_dir=mgr.images_dir,
+                coverage_by_scene=mgr.coverage_by_scene,
+                selection_history=mgr.selection_history,
+                resolved=getattr(self, "_resolved_style", None),
+            )
+            qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
+            allocation = None
+            if self._visual_plan and getattr(self._visual_plan, "allocation", None):
+                allocation = self._visual_plan.allocation
+            elif self._workspace is not None:
+                plan = self._workspace.read_visual_plan_json()
+                if isinstance(plan, dict):
+                    allocation = plan.get("allocation")
 
-        def work():
-            try:
-                from scene_recovery import scene_key as _sk
-                from visual_qa import build_project_report, fix_all_issues
-
-                report = build_project_report(
-                    self._scene_rows,
-                    self._asset_results,
-                    images_dir=mgr.images_dir,
-                    coverage_by_scene=mgr.coverage_by_scene,
-                    selection_history=mgr.selection_history,
-                    resolved=getattr(self, "_resolved_style", None),
-                )
-                qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
-                allocation = None
-                if self._visual_plan and getattr(self._visual_plan, "allocation", None):
-                    allocation = self._visual_plan.allocation
-                elif self._workspace is not None:
-                    plan = self._workspace.read_visual_plan_json()
-                    if isinstance(plan, dict):
-                        allocation = plan.get("allocation")
-
-                fix_report = fix_all_issues(
-                    mgr,
-                    self._scene_rows,
-                    qa_map,
-                    self._asset_results,
-                    allocation=allocation,
-                    max_attempts=2,
-                    log=lambda m: self._ui_queue.put(("log", m + "\n")),
-                )
-                self.after(0, lambda: self._on_fix_all_visual_issues_done(fix_report))
-            except Exception as exc:
-                msg = str(exc)
-                self.after(0, lambda m=msg: self._on_fix_all_visual_issues_failed(m))
-
-        threading.Thread(target=work, daemon=True).start()
-
-    def _on_fix_all_visual_issues_done(self, fix_report) -> None:
-        self._sync_scene_statuses_from_results()
-        self._refresh_qa_ui()
-        self._log_visual_qa_report()
-        self.status_var.set(
-            f"VQA fix — {fix_report.fixed} fixed, "
-            f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
-        )
-        if getattr(self, "fix_all_vqa_btn", None) is not None:
-            self.fix_all_vqa_btn.configure(state="normal")
-        messagebox.showinfo(
-            "Fix All Issues",
-            f"Targeted {fix_report.targeted} scene(s).\n"
-            f"Fixed: {fix_report.fixed}\n"
-            f"Still weak: {fix_report.still_weak}\n"
-            f"Still fail: {fix_report.still_fail}\n"
-            f"Flow regenerations: {fix_report.flow_regenerations}",
-        )
-
-    def _on_fix_all_visual_issues_failed(self, message: str) -> None:
-        self.status_var.set("Ready")
-        if getattr(self, "fix_all_vqa_btn", None) is not None:
-            self.fix_all_vqa_btn.configure(state="normal")
-        messagebox.showerror("Fix All Issues", message)
+            self.status_var.set("Fixing visual QA issues…")
+            self.fix_all_vqa_btn.configure(state="disabled")
+            fix_report = fix_all_issues(
+                mgr,
+                self._scene_rows,
+                qa_map,
+                self._asset_results,
+                allocation=allocation,
+                max_attempts=2,
+                log=lambda m: self._append_log(m + "\n"),
+            )
+            self._sync_scene_statuses_from_results()
+            self._refresh_qa_ui()
+            self._log_visual_qa_report()
+            self.status_var.set(
+                f"VQA fix — {fix_report.fixed} fixed, "
+                f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
+            )
+            messagebox.showinfo(
+                "Fix All Issues",
+                f"Targeted {fix_report.targeted} scene(s).\n"
+                f"Fixed: {fix_report.fixed}\n"
+                f"Still weak: {fix_report.still_weak}\n"
+                f"Still fail: {fix_report.still_fail}\n"
+                f"Flow regenerations: {fix_report.flow_regenerations}",
+            )
+        except Exception as exc:
+            messagebox.showerror("Fix All Issues", str(exc))
+        finally:
+            if getattr(self, "fix_all_vqa_btn", None) is not None:
+                self.fix_all_vqa_btn.configure(state="normal")
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():
