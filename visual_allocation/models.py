@@ -162,6 +162,8 @@ class AllocationBundle:
     ai_opportunities: int = 0
     ai_assigned: int = 0  # Flow video only (paid credits)
     flow_image_assigned: int = 0  # Free Flow stills
+    flow_image_soft_cap: int = 0  # Computed ceiling used for this allocation
+    flow_image_soft_cap_pressure: str = ""  # "below" | "near" | "exceeded"
     style_id: str = ""
 
     def to_dict(self) -> dict:
@@ -173,6 +175,8 @@ class AllocationBundle:
             "ai_opportunities": self.ai_opportunities,
             "ai_assigned": self.ai_assigned,
             "flow_image_assigned": self.flow_image_assigned,
+            "flow_image_soft_cap": self.flow_image_soft_cap,
+            "flow_image_soft_cap_pressure": self.flow_image_soft_cap_pressure,
             "decisions": [d.to_dict() for d in self.decisions],
             "coverage_plans": [p.to_dict() for p in self.coverage_plans],
         }
@@ -233,5 +237,9 @@ class AllocationBundle:
             ai_opportunities=int(data.get("ai_opportunities") or 0),
             ai_assigned=ai_assigned,
             flow_image_assigned=flow_image_assigned,
+            # Additive fields — absent on data saved before they existed;
+            # default to empty/zero rather than guessing at old semantics.
+            flow_image_soft_cap=int(data.get("flow_image_soft_cap") or 0),
+            flow_image_soft_cap_pressure=str(data.get("flow_image_soft_cap_pressure") or ""),
             style_id=str(data.get("style_id") or ""),
         )

@@ -3169,6 +3169,16 @@ class VideoGeneratorApp(ctk.CTk):
                         f"({bundle.ai_opportunities} opportunities)\n"
                     ),
                 )
+                if bundle.flow_image_soft_cap_pressure == "exceeded" and bundle.flow_image_soft_cap > 0:
+                    over = bundle.flow_image_assigned - bundle.flow_image_soft_cap
+                    self.after(
+                        0,
+                        lambda o=over: self._append_log(
+                            f"[ALLOC] Flow image soft cap exceeded because {o} high-value "
+                            f"opportunit{'y' if o == 1 else 'ies'} overcame soft penalty "
+                            f"(cap {bundle.flow_image_soft_cap}, assigned {bundle.flow_image_assigned})\n"
+                        ),
+                    )
                 self.after(
                     0,
                     lambda: self._append_log(
@@ -7060,58 +7070,72 @@ class VideoGeneratorApp(ctk.CTk):
         if not self._scene_rows:
             return
         mgr = self._ensure_asset_manager(Path(self.images_var.get()))
-        try:
-            from scene_recovery import scene_key as _sk
-            from visual_qa import build_project_report, fix_all_issues
 
-            report = build_project_report(
-                self._scene_rows,
-                self._asset_results,
-                images_dir=mgr.images_dir,
-                coverage_by_scene=mgr.coverage_by_scene,
-                selection_history=mgr.selection_history,
-                resolved=getattr(self, "_resolved_style", None),
-            )
-            qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
-            allocation = None
-            if self._visual_plan and getattr(self._visual_plan, "allocation", None):
-                allocation = self._visual_plan.allocation
-            elif self._workspace is not None:
-                plan = self._workspace.read_visual_plan_json()
-                if isinstance(plan, dict):
-                    allocation = plan.get("allocation")
+        self.status_var.set("Fixing visual QA issues…")
+        self.fix_all_vqa_btn.configure(state="disabled")
 
-            self.status_var.set("Fixing visual QA issues…")
-            self.fix_all_vqa_btn.configure(state="disabled")
-            fix_report = fix_all_issues(
-                mgr,
-                self._scene_rows,
-                qa_map,
-                self._asset_results,
-                allocation=allocation,
-                max_attempts=2,
-                log=lambda m: self._append_log(m + "\n"),
-            )
-            self._sync_scene_statuses_from_results()
-            self._refresh_qa_ui()
-            self._log_visual_qa_report()
-            self.status_var.set(
-                f"VQA fix — {fix_report.fixed} fixed, "
-                f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
-            )
-            messagebox.showinfo(
-                "Fix All Issues",
-                f"Targeted {fix_report.targeted} scene(s).\n"
-                f"Fixed: {fix_report.fixed}\n"
-                f"Still weak: {fix_report.still_weak}\n"
-                f"Still fail: {fix_report.still_fail}\n"
-                f"Flow regenerations: {fix_report.flow_regenerations}",
-            )
-        except Exception as exc:
-            messagebox.showerror("Fix All Issues", str(exc))
-        finally:
-            if getattr(self, "fix_all_vqa_btn", None) is not None:
-                self.fix_all_vqa_btn.configure(state="normal")
+        def work():
+            try:
+                from scene_recovery import scene_key as _sk
+                from visual_qa import build_project_report, fix_all_issues
+
+                report = build_project_report(
+                    self._scene_rows,
+                    self._asset_results,
+                    images_dir=mgr.images_dir,
+                    coverage_by_scene=mgr.coverage_by_scene,
+                    selection_history=mgr.selection_history,
+                    resolved=getattr(self, "_resolved_style", None),
+                )
+                qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
+                allocation = None
+                if self._visual_plan and getattr(self._visual_plan, "allocation", None):
+                    allocation = self._visual_plan.allocation
+                elif self._workspace is not None:
+                    plan = self._workspace.read_visual_plan_json()
+                    if isinstance(plan, dict):
+                        allocation = plan.get("allocation")
+
+                fix_report = fix_all_issues(
+                    mgr,
+                    self._scene_rows,
+                    qa_map,
+                    self._asset_results,
+                    allocation=allocation,
+                    max_attempts=2,
+                    log=lambda m: self._ui_queue.put(("log", m + "\n")),
+                )
+                self.after(0, lambda: self._on_fix_all_visual_issues_done(fix_report))
+            except Exception as exc:
+                msg = str(exc)
+                self.after(0, lambda m=msg: self._on_fix_all_visual_issues_failed(m))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_fix_all_visual_issues_done(self, fix_report) -> None:
+        self._sync_scene_statuses_from_results()
+        self._refresh_qa_ui()
+        self._log_visual_qa_report()
+        self.status_var.set(
+            f"VQA fix — {fix_report.fixed} fixed, "
+            f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
+        )
+        if getattr(self, "fix_all_vqa_btn", None) is not None:
+            self.fix_all_vqa_btn.configure(state="normal")
+        messagebox.showinfo(
+            "Fix All Issues",
+            f"Targeted {fix_report.targeted} scene(s).\n"
+            f"Fixed: {fix_report.fixed}\n"
+            f"Still weak: {fix_report.still_weak}\n"
+            f"Still fail: {fix_report.still_fail}\n"
+            f"Flow regenerations: {fix_report.flow_regenerations}",
+        )
+
+    def _on_fix_all_visual_issues_failed(self, message: str) -> None:
+        self.status_var.set("Ready")
+        if getattr(self, "fix_all_vqa_btn", None) is not None:
+            self.fix_all_vqa_btn.configure(state="normal")
+        messagebox.showerror("Fix All Issues", message)
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():

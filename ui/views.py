@@ -285,8 +285,17 @@ class BrandStyleView(_BaseView):
         )
         self._ai_budget_menu.grid(row=7, column=1, sticky="ew", padx=T.PAD, pady=4)
 
+        ctk.CTkLabel(
+            form,
+            text="Controls Flow video usage and credits. Flow images are not counted against this budget.",
+            font=ctk.CTkFont(size=11),
+            text_color=T.MUTED,
+            justify="left",
+            anchor="w",
+        ).grid(row=8, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 4))
+
         ctk.CTkLabel(form, text="Visual Coverage", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
-            row=8, column=0, sticky="w", padx=T.PAD, pady=(4, 4)
+            row=9, column=0, sticky="w", padx=T.PAD, pady=(4, 4)
         )
         self._coverage_mode_var = ctk.StringVar(value="Automatic")
         self._coverage_mode_menu = ctk.CTkOptionMenu(
@@ -296,7 +305,7 @@ class BrandStyleView(_BaseView):
             fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_changed(),
         )
-        self._coverage_mode_menu.grid(row=8, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
+        self._coverage_mode_menu.grid(row=9, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
 
         self._alloc_preview = ctk.CTkLabel(
             form,
@@ -306,7 +315,7 @@ class BrandStyleView(_BaseView):
             justify="left",
             anchor="w",
         )
-        self._alloc_preview.grid(row=9, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
+        self._alloc_preview.grid(row=10, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(0, 10))
 
         self._preview = Card(self._body)
         self._preview.grid(row=1, column=0, sticky="ew", pady=8)

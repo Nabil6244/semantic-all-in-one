@@ -183,11 +183,12 @@ def allocate_visual_plan(
         )
 
     flow_video_selected = select_flow_video_scenes(prelim, flow_scores, video_budget)
-    flow_image_selected = select_flow_image_scenes(
+    image_selection = select_flow_image_scenes(
         prelim,
         video_selected=flow_video_selected,
         soft_cap=image_soft_cap,
     )
+    flow_image_selected = image_selection.scene_ids
     opportunities = sum(1 for _, s in flow_scores if s >= 0.35)
 
     decisions: List[AllocationDecision] = []
@@ -201,10 +202,14 @@ def allocate_visual_plan(
         prefer_video = item["prefer_video"]
         sid = scene.scene_id
         is_flow_video = sid in flow_video_selected and item["flow_score"] >= 0.35
+        # Note: flow_image_selected is already the fully-filtered decision from
+        # select_flow_image_scenes() (which gates on flow_image_fit(), not the
+        # raw flow_score) — re-checking flow_score >= 0.35 here was checking the
+        # wrong metric and could silently drop scenes the selector legitimately
+        # chose (fit can clear its floor while the raw opportunity score doesn't).
         is_flow_image = (
             not is_flow_video
             and sid in flow_image_selected
-            and item["flow_score"] >= 0.35
             and need not in IMAGE_NEED_OVERRIDE
         )
         is_flow = is_flow_video or is_flow_image
@@ -253,6 +258,13 @@ def allocate_visual_plan(
         rhythm.record(visual_kind, need, is_flow)
         coverage_plans.append(plan_scene_coverage(scene, decision, settings, resolved))
 
+    if image_selection.exceeded_cap:
+        pressure = "exceeded"
+    elif image_selection.peak_pressure_ratio >= 0.85:
+        pressure = "near"
+    else:
+        pressure = "below"
+
     return AllocationBundle(
         settings=settings,
         decisions=decisions,
@@ -261,6 +273,8 @@ def allocate_visual_plan(
         ai_opportunities=opportunities,
         ai_assigned=flow_video_assigned,
         flow_image_assigned=flow_image_assigned,
+        flow_image_soft_cap=image_soft_cap,
+        flow_image_soft_cap_pressure=pressure,
         style_id=style_id,
     )
 
