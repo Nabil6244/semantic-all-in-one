@@ -244,12 +244,19 @@ class ProjectWorkspace:
             _META_CACHE.pop(str(path), None)
             return {}
         try:
-            mtime = path.stat().st_mtime
+            st = path.stat()
         except OSError:
             return {}
+        # (mtime, size): mtime alone can be too coarse to detect a write that
+        # lands in the same tick as a previous one (seen on CI — a file
+        # written directly, bypassing _write_meta(), right after an earlier
+        # save — same mtime, different content). Size changes almost always
+        # accompany a real content change, so pairing the two is enough to
+        # avoid serving stale cached meta without dropping the cache entirely.
         key = str(path)
+        stamp = (st.st_mtime, st.st_size)
         cached = _META_CACHE.get(key)
-        if cached is not None and cached[0] == mtime:
+        if cached is not None and cached[0] == stamp:
             return dict(cached[1])
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
@@ -257,18 +264,18 @@ class ProjectWorkspace:
             return {}
         if not isinstance(data, dict):
             return {}
-        _META_CACHE[key] = (mtime, dict(data))
+        _META_CACHE[key] = (stamp, dict(data))
         return data
 
     def _write_meta(self, data: Dict[str, Any]) -> None:
         self.ensure_dirs()
         self.meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         try:
-            mtime = self.meta_path.stat().st_mtime
+            st = self.meta_path.stat()
         except OSError:
             _META_CACHE.pop(str(self.meta_path), None)
         else:
-            _META_CACHE[str(self.meta_path)] = (mtime, dict(data))
+            _META_CACHE[str(self.meta_path)] = ((st.st_mtime, st.st_size), dict(data))
         # Folder listing cache may include this project's mtime.
         try:
             _LIST_PROJECTS_CACHE.pop(str(self.root.parent.resolve()), None)
