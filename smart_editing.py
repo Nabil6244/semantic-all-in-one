@@ -1795,9 +1795,40 @@ def _estimate_cmd_chars(cmd: Sequence[str]) -> int:
     return total
 
 
+def _ffmpeg_path_arg(path: Path | str) -> str:
+    """Windows ffmpeg is more reliable with forward-slash paths."""
+    p = Path(path)
+    try:
+        p = p.resolve()
+    except OSError:
+        pass
+    if sys.platform == "win32":
+        return p.as_posix()
+    return str(p)
+
+
+def _normalize_ffmpeg_cmd(cmd: List[str]) -> List[str]:
+    if sys.platform != "win32":
+        return list(cmd)
+    out: List[str] = []
+    i = 0
+    while i < len(cmd):
+        token = cmd[i]
+        if token in ("-i", "-filter_complex_script") and i + 1 < len(cmd):
+            out.extend([token, _ffmpeg_path_arg(cmd[i + 1])])
+            i += 2
+            continue
+        if i == len(cmd) - 1 and not token.startswith("-"):
+            out.append(_ffmpeg_path_arg(token))
+        else:
+            out.append(token)
+        i += 1
+    return out
+
+
 def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
     """Run ffmpeg; on Windows prefer filter_complex_script to avoid WinError 206."""
-    cmd = list(cmd)
+    cmd = _normalize_ffmpeg_cmd(cmd)
     cwd = str(work_dir) if work_dir else None
     script_path: Optional[Path] = None
 
@@ -1813,7 +1844,7 @@ def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
         base.mkdir(parents=True, exist_ok=True)
         script_path = base / f"_fc_{os.getpid()}_{abs(hash(graph)) % 10_000_000}.txt"
         script_path.write_text(graph, encoding="utf-8")
-        out = raw[:idx] + ["-filter_complex_script", str(script_path)] + raw[idx + 2 :]
+        out = raw[:idx] + ["-filter_complex_script", _ffmpeg_path_arg(script_path)] + raw[idx + 2 :]
         return out
 
     use_script = sys.platform == "win32" or _estimate_cmd_chars(cmd) > _WIN_CMDLINE_SOFT_LIMIT
@@ -1821,6 +1852,10 @@ def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
     try:
         proc = hidden_subprocess.run(attempt, capture_output=True, text=True, cwd=cwd)
         ok = proc.returncode == 0
+        if not ok and use_script and attempt is not cmd:
+            # Some Windows ffmpeg builds reject filter_complex_script paths — retry inline.
+            proc = hidden_subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+            ok = proc.returncode == 0
         if not ok and _mix_debug_enabled():
             _mix_debug(f"ffmpeg rc={proc.returncode} stderr={(proc.stderr or '')[-400:]}")
         return ok
