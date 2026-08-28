@@ -9,7 +9,11 @@ from pathlib import Path
 from providers.base import AssetResult, AssetSource, MediaType, SceneRow, SceneStatus
 from style_engine.visual_selection import scene_has_manual_authority
 from visual_qa.coverage import score_duration_coverage
-from visual_qa.fix_engine import FlowBudgetState, _flow_budget_from_allocation
+from visual_qa.fix_engine import (
+    FlowBudgetState,
+    _flow_budget_from_allocation,
+    _scene_uses_flow_video_credit,
+)
 from visual_qa.flow_qa import check_flow_temporal_quality
 from visual_qa.models import VisualQAStatus, scene_preserves_source_authority, status_from_score
 from visual_qa.repetition import score_repetition
@@ -142,6 +146,24 @@ class TestFlowBudget(unittest.TestCase):
         state = _flow_budget_from_allocation({"ai_budget_limit": 20, "ai_assigned": 5}, 100)
         self.assertEqual(state.limit, 20)
         self.assertGreaterEqual(state.reserve, 1)
+
+    def test_flow_image_regen_does_not_use_video_budget(self):
+        state = FlowBudgetState(limit=2, used=2, reserve=0)
+        image_scene = SceneRow(
+            scene_number="1",
+            script_segment="Concept diagram",
+            asset_type="image",
+            prompt="abstract diagram",
+        )
+        self.assertFalse(_scene_uses_flow_video_credit(image_scene))
+        self.assertFalse(state.can_regenerate_flow())
+        video_scene = SceneRow(
+            scene_number="2",
+            script_segment="Rocket launch",
+            asset_type="video",
+            prompt="rocket launch cinematic",
+        )
+        self.assertTrue(_scene_uses_flow_video_credit(video_scene))
 
 
 class TestFlowTemporal(unittest.TestCase):

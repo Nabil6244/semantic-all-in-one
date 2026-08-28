@@ -272,7 +272,7 @@ class BrandStyleView(_BaseView):
         )
         self._visual_strategy_menu.grid(row=6, column=1, sticky="ew", padx=T.PAD, pady=4)
 
-        ctk.CTkLabel(form, text="AI Video Budget", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+        ctk.CTkLabel(form, text="Flow Video Budget", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
             row=7, column=0, sticky="w", padx=T.PAD, pady=4
         )
         self._ai_budget_var = ctk.StringVar(value="Normal")
@@ -300,7 +300,7 @@ class BrandStyleView(_BaseView):
 
         self._alloc_preview = ctk.CTkLabel(
             form,
-            text="Estimated mix: paste a script to preview scene allocation.",
+            text="Estimated mix: paste a script to preview. Flow images are free (not counted against video budget).",
             font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
             justify="left",

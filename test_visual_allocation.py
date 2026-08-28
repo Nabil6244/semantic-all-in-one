@@ -15,7 +15,13 @@ from visual_allocation import (
     save_allocation_settings,
 )
 from providers.router import SceneAssetRouter
-from visual_allocation.budget import ai_budget_limit, select_flow_scenes
+from visual_allocation.budget import (
+    ai_budget_limit,
+    flow_image_soft_cap,
+    select_flow_image_scenes,
+    select_flow_scenes,
+    select_flow_video_scenes,
+)
 from visual_allocation.curve import curve_video_bias
 from visual_allocation.models import AllocationDecision
 from visual_allocation.coverage import plan_scene_coverage
@@ -69,12 +75,48 @@ class TestProgressiveCurve(unittest.TestCase):
 
 
 class TestAIBudget(unittest.TestCase):
-    def test_budget_never_exceeded(self):
+    def test_video_budget_never_exceeded(self):
         settings = AllocationSettings(ai_video_budget="normal")
         limit = ai_budget_limit(148, settings)
         scored = [(i, 0.9 - i * 0.001) for i in range(1, 149)]
-        chosen = select_flow_scenes(scored, limit)
+        prelim = [
+            {
+                "scene": _scene(i, f"Beat {i} conceptual visualization.", provider="flow"),
+                "need": "process",
+                "role": "abstract",
+                "prefer_video": True,
+                "flow_score": 0.9 - i * 0.001,
+            }
+            for i in range(1, 149)
+        ]
+        chosen = select_flow_video_scenes(prelim, scored, limit)
         self.assertLessEqual(len(chosen), limit)
+
+    def test_flow_image_can_exceed_video_budget(self):
+        settings = AllocationSettings(visual_strategy="image_heavy", ai_video_budget="conservative")
+        n = 40
+        video_limit = ai_budget_limit(n, settings)
+        image_cap = flow_image_soft_cap(n, settings)
+        prelim = [
+            {
+                "scene": _scene(
+                    i,
+                    f"Conceptual metaphor layer {i} for the explainer.",
+                    provider="flow",
+                    desc=f"abstract diagram metaphor {i}",
+                ),
+                "need": "explanation",
+                "role": "abstract",
+                "prefer_video": False,
+                "flow_score": 0.72 - i * 0.002,
+            }
+            for i in range(1, n + 1)
+        ]
+        scored = [(item["scene"].scene_id, item["flow_score"]) for item in prelim]
+        videos = select_flow_video_scenes(prelim, scored, video_limit)
+        images = select_flow_image_scenes(prelim, video_selected=videos, soft_cap=image_cap)
+        self.assertLessEqual(len(videos), video_limit)
+        self.assertGreater(len(images), len(videos))
 
     def test_unused_budget_allowed(self):
         settings = AllocationSettings(ai_video_budget="conservative")
@@ -232,18 +274,28 @@ class TestPromptBackfill(unittest.TestCase):
 
 
 class TestBalancedFlowVideo(unittest.TestCase):
-    def test_balanced_assigns_at_least_one_flow_video(self):
+    def test_balanced_assigns_flow_video_and_free_images(self):
         scenes = [
             _scene(
                 i,
-                f"Conceptual visualization of neural networks layer {i}.",
-                importance="high" if i == 3 else "medium",
+                f"Diagram explaining step {i} of the process with labels.",
+                importance="medium",
                 provider="flow",
                 asset_type="image",
-                desc=f"abstract neural network visualization {i}",
+                desc=f"labeled diagram explainer step {i}",
             )
-            for i in range(1, 12)
+            for i in range(1, 9)
         ]
+        scenes.extend(
+            _scene(
+                i,
+                f"Rocket launch with fire and smoke beat {i}.",
+                importance="high",
+                provider="flow",
+                desc=f"rocket launch cinematic {i}",
+            )
+            for i in range(9, 12)
+        )
         plan = _plan(*scenes)
         bundle = allocate_visual_plan(
             plan,
@@ -253,7 +305,48 @@ class TestBalancedFlowVideo(unittest.TestCase):
         flow = [d for d in bundle.decisions if d.flow_selected]
         self.assertTrue(flow, "expected some Flow assignments")
         videos = [d for d in flow if d.asset_type == "video"]
-        self.assertTrue(videos, "balanced mode should include Flow video, not only stills")
+        images = [d for d in flow if d.asset_type == "image"]
+        self.assertTrue(videos, "balanced mode should still assign paid Flow video")
+        self.assertTrue(images, "balanced mode should assign free Flow images")
+        self.assertLessEqual(bundle.ai_assigned, bundle.ai_budget_limit)
+        self.assertGreaterEqual(bundle.flow_image_assigned, len(images))
+
+
+class TestLegacyAllocationMigration(unittest.TestCase):
+    def test_v1_bundle_splits_video_and_image_counts(self):
+        from visual_allocation.models import AllocationBundle
+
+        raw = {
+            "allocation_version": 1,
+            "ai_budget_limit": 6,
+            "ai_assigned": 4,
+            "decisions": [
+                {
+                    "scene_id": 1,
+                    "visual_kind": "video",
+                    "asset_type": "video",
+                    "provider_preference": "flow_video",
+                    "flow_selected": True,
+                },
+                {
+                    "scene_id": 2,
+                    "visual_kind": "image",
+                    "asset_type": "image",
+                    "provider_preference": "flow_image",
+                    "flow_selected": True,
+                },
+                {
+                    "scene_id": 3,
+                    "visual_kind": "image",
+                    "asset_type": "image",
+                    "provider_preference": "flow_image",
+                    "flow_selected": True,
+                },
+            ],
+        }
+        bundle = AllocationBundle.from_dict(raw)
+        self.assertEqual(bundle.ai_assigned, 1)
+        self.assertEqual(bundle.flow_image_assigned, 2)
 
 
 class TestValidationReport(unittest.TestCase):

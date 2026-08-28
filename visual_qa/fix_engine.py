@@ -43,14 +43,38 @@ class FixAllReport:
     actions: Dict[str, str] = dataclasses.field(default_factory=dict)
 
 
+def _scene_uses_flow_video_credit(scene: SceneRow) -> bool:
+    """Only Flow video regenerations consume the paid credit budget."""
+    pref = (getattr(scene, "provider_preference", None) or "").lower()
+    at = (scene.asset_type or "").lower()
+    if pref == "flow_image" or at == "flow_image":
+        return False
+    if pref == "flow_video" or at in ("flow_video", "video"):
+        return True
+    if at == "image":
+        return False
+    return True
+
+
 def _flow_budget_from_allocation(allocation: Optional[dict], scene_count: int) -> FlowBudgetState:
     if not isinstance(allocation, dict):
         return FlowBudgetState()
     try:
-        limit = int(allocation.get("ai_budget_limit") or allocation.get("ai_assigned") or 0)
+        limit = int(allocation.get("ai_budget_limit") or 0)
         used = int(allocation.get("ai_assigned") or 0)
     except (TypeError, ValueError):
         limit = used = 0
+    version = int(allocation.get("allocation_version") or 1)
+    if version < 2 and allocation.get("decisions"):
+        vids = sum(
+            1
+            for d in allocation.get("decisions") or []
+            if isinstance(d, dict)
+            and d.get("flow_selected")
+            and str(d.get("asset_type") or "").lower() == "video"
+        )
+        if vids:
+            used = vids
     if limit <= 0 and scene_count > 0:
         from visual_allocation.budget import ai_budget_limit
         from visual_allocation.models import AllocationSettings
@@ -71,10 +95,12 @@ def _apply_fix_action(
     manual = scene_preserves_source_authority(scene)
 
     if action == RecommendedAction.REGENERATE_FLOW:
-        if not flow_budget.can_regenerate_flow():
-            log(f"[VQA] Scene {scene.scene_number}: Flow budget exhausted — alternative")
+        uses_credit = _scene_uses_flow_video_credit(scene)
+        if uses_credit and not flow_budget.can_regenerate_flow():
+            log(f"[VQA] Scene {scene.scene_number}: Flow video budget exhausted — alternative")
             return mgr.alternative_scene(scene)
-        flow_budget.used += 1
+        if uses_credit:
+            flow_budget.used += 1
         return mgr.regenerate_scene(scene)
 
     if action in (RecommendedAction.RETRY_SAME, RecommendedAction.RERANK):

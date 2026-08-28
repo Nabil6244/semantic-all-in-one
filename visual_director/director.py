@@ -18,6 +18,7 @@ NARRATION_WPM_ESTIMATE = 145
 # (documentary rhythm is ~2–5s; provider clips max out at 3–6s).
 SEVERE_HOLD_SECONDS = 8.0
 MIN_COVERAGE_RATIO = 0.55
+CHUNK_SECTION_MAX_ATTEMPTS = 3
 
 
 def max_implied_speech_per_scene(word_count: int) -> float:
@@ -342,6 +343,17 @@ def _revision_user_message(script: str, previous: VisualPlan, issue: str) -> str
     )
 
 
+def _json_revision_prefix(issue: str) -> str:
+    return (
+        "Your previous JSON response was rejected.\n"
+        f"Reason: {issue}\n"
+        "Return ONE JSON object with \"topic\" and \"scenes\" keys "
+        "(not a bare array, not prose outside JSON). "
+        "Each scene needs narration, visual_goal, visual_description, "
+        "provider_preference, and search_queries.\n\n"
+    )
+
+
 def gemini_plan_settings(word_count: int) -> dict:
     """Tune Gemini latency vs coverage from script size (Analyze Script)."""
     if word_count < 120:
@@ -417,6 +429,7 @@ class VisualDirector:
         llm, gemini_opts = self._llm_for_words(words)
         last_issue = ""
         max_attempts = plan_max_attempts(words)
+        base_user = user
         for attempt in range(max_attempts):
             self._emit_progress(
                 on_progress,
@@ -427,6 +440,17 @@ class VisualDirector:
                 plan = self._complete_plan(llm, user, gemini_opts=gemini_opts)
             except LLMError:
                 raise
+            except VisualPlanError as exc:
+                last_issue = str(exc)
+                if attempt + 1 >= max_attempts:
+                    raise
+                self._emit_progress(
+                    on_progress,
+                    f"JSON revision needed: {last_issue[:120]}…",
+                    0.2 + (attempt / max(max_attempts, 1)) * 0.5,
+                )
+                user = _json_revision_prefix(last_issue) + base_user
+                continue
             issue = plan_segmentation_issue(text, plan)
             if issue is None:
                 self._emit_progress(
@@ -476,13 +500,23 @@ class VisualDirector:
         def plan_one(index: int, chunk: str) -> VisualPlan:
             chunk_words = script_word_count(chunk)
             llm, gemini_opts = self._llm_for_words(chunk_words)
-            user = style_prefix + chunk_plan_user_message(
+            base_user = style_prefix + chunk_plan_user_message(
                 chunk,
                 section_index=index,
                 section_total=total,
                 full_word_count=words,
             )
-            return self._complete_plan(llm, user, gemini_opts=gemini_opts)
+            user = base_user
+            section_label = f"Section {index + 1}/{total}"
+            for attempt in range(CHUNK_SECTION_MAX_ATTEMPTS):
+                try:
+                    return self._complete_plan(llm, user, gemini_opts=gemini_opts)
+                except LLMError:
+                    raise
+                except VisualPlanError as exc:
+                    if attempt + 1 >= CHUNK_SECTION_MAX_ATTEMPTS:
+                        raise VisualPlanError(f"{section_label}: {exc}") from exc
+                    user = f"{section_label}: " + _json_revision_prefix(str(exc)) + base_user
 
         plans: list[VisualPlan | None] = [None] * total
         done = 0
@@ -499,7 +533,7 @@ class VisualDirector:
                 scene_so_far = sum(len(p.scenes) for p in plans if p is not None)
                 self._emit_progress(
                     on_progress,
-                    f"Section {done}/{total} complete — {scene_so_far} scenes so far…",
+                    f"Section {index + 1}/{total} complete — {scene_so_far} scenes so far…",
                     0.1 + (done / total) * 0.55,
                 )
 

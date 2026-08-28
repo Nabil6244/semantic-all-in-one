@@ -9,7 +9,13 @@ from style_engine.visual_profile import build_scene_visual_profile
 from providers.base import SceneRow
 from visual_director.schema import VisualPlan, VisualScene
 
-from .budget import ai_budget_limit, flow_opportunity_score, select_flow_scenes
+from .budget import (
+    ai_budget_limit,
+    flow_image_soft_cap,
+    flow_opportunity_score,
+    select_flow_image_scenes,
+    select_flow_video_scenes,
+)
 from .coverage import plan_scene_coverage
 from .curve import curve_video_bias, position_ratio
 from .models import (
@@ -48,29 +54,6 @@ IMAGE_NEED_OVERRIDE = frozenset({
 })
 
 IMPORTANCE_VIDEO_BOOST = {"high": 0.18, "medium": 0.08, "normal": 0.0, "low": -0.05}
-
-
-def _ensure_balanced_flow_video(
-    decisions: List[AllocationDecision],
-    settings: AllocationSettings,
-) -> None:
-    """Balanced/automatic modes should not assign Flow budget entirely as stills."""
-    strat = (settings.visual_strategy or "automatic").lower()
-    if strat not in ("balanced", "automatic"):
-        return
-    flow = [d for d in decisions if d.flow_selected]
-    if not flow:
-        return
-    videos = [d for d in flow if d.asset_type == "video"]
-    if videos:
-        return
-    min_videos = max(1, int(len(flow) * 0.35))
-    ranked = sorted(flow, key=lambda d: d.flow_opportunity_score, reverse=True)
-    for dec in ranked[:min_videos]:
-        dec.asset_type = "video"
-        dec.provider_preference = "flow_video"
-        dec.visual_kind = "video"
-        dec.reason = (dec.reason or "") + "; balanced flow video floor"
 
 
 def _style_video_bias(resolved: Optional[ResolvedStyle]) -> float:
@@ -153,10 +136,10 @@ def allocate_visual_plan(
     scenes = list(plan.scenes)
     total = len(scenes)
     style_id = resolved.style_id if resolved else ""
-    budget = ai_budget_limit(total, settings)
+    video_budget = ai_budget_limit(total, settings)
+    image_soft_cap = flow_image_soft_cap(total, settings)
     rhythm = RhythmState()
 
-    # Pass 1 — score flow opportunities
     flow_scores: List[Tuple[int, float]] = []
     prelim: List[dict] = []
     for i, scene in enumerate(scenes):
@@ -199,35 +182,45 @@ def allocate_visual_plan(
             }
         )
 
-    flow_selected = select_flow_scenes(flow_scores, budget)
+    flow_video_selected = select_flow_video_scenes(prelim, flow_scores, video_budget)
+    flow_image_selected = select_flow_image_scenes(
+        prelim,
+        video_selected=flow_video_selected,
+        soft_cap=image_soft_cap,
+    )
     opportunities = sum(1 for _, s in flow_scores if s >= 0.35)
 
     decisions: List[AllocationDecision] = []
     coverage_plans = []
-    flow_assigned = 0
+    flow_video_assigned = 0
+    flow_image_assigned = 0
 
     for item in prelim:
         scene: VisualScene = item["scene"]
         need = item["need"]
         prefer_video = item["prefer_video"]
         sid = scene.scene_id
-        is_flow = sid in flow_selected and item["flow_score"] >= 0.35 and need not in IMAGE_NEED_OVERRIDE
+        is_flow_video = sid in flow_video_selected and item["flow_score"] >= 0.35
+        is_flow_image = (
+            not is_flow_video
+            and sid in flow_image_selected
+            and item["flow_score"] >= 0.35
+            and need not in IMAGE_NEED_OVERRIDE
+        )
+        is_flow = is_flow_video or is_flow_image
 
-        if is_flow:
-            use_flow_video = prefer_video
-            strat = (settings.visual_strategy or "automatic").lower()
-            if not use_flow_video and strat in ("balanced", "automatic", "video_heavy"):
-                imp = (scene.importance or "normal").lower()
-                if (
-                    item["flow_score"] >= 0.45
-                    or need in VIDEO_NEED_OVERRIDE
-                    or imp == "high"
-                ):
-                    use_flow_video = True
-            asset_type = "video" if use_flow_video else "image"
-            flow_assigned += 1
+        if is_flow_video:
+            asset_type = "video"
+            flow_video_assigned += 1
             reason_parts = [
-                f"flow opportunity ({item['flow_score']:.2f})",
+                f"flow video ({item['flow_score']:.2f})",
+                f"need={need}",
+            ]
+        elif is_flow_image:
+            asset_type = "image"
+            flow_image_assigned += 1
+            reason_parts = [
+                f"flow image ({item['flow_score']:.2f})",
                 f"need={need}",
             ]
         elif prefer_video:
@@ -260,15 +253,14 @@ def allocate_visual_plan(
         rhythm.record(visual_kind, need, is_flow)
         coverage_plans.append(plan_scene_coverage(scene, decision, settings, resolved))
 
-    _ensure_balanced_flow_video(decisions, settings)
-
     return AllocationBundle(
         settings=settings,
         decisions=decisions,
         coverage_plans=coverage_plans,
-        ai_budget_limit=budget,
+        ai_budget_limit=video_budget,
         ai_opportunities=opportunities,
-        ai_assigned=flow_assigned,
+        ai_assigned=flow_video_assigned,
+        flow_image_assigned=flow_image_assigned,
         style_id=style_id,
     )
 

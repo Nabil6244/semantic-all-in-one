@@ -353,6 +353,16 @@ class VisualPlan:
         return "\n".join(blocks).rstrip() + "\n"
 
 
+def _try_load_json(raw: str) -> Any:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        fixed = re.sub(r",\s*([}\]])", r"\1", raw)
+        if fixed != raw:
+            return json.loads(fixed)
+        raise
+
+
 def extract_json_payload(text: str) -> Any:
     if text is None:
         raise VisualPlanError("empty AI response")
@@ -363,15 +373,59 @@ def extract_json_payload(text: str) -> Any:
     if fence:
         raw = fence.group(1).strip()
     try:
-        return json.loads(raw)
+        parsed = _try_load_json(raw)
     except json.JSONDecodeError:
-        start, end = raw.find("{"), raw.rfind("}")
-        if start >= 0 and end > start:
-            try:
-                return json.loads(raw[start : end + 1])
-            except json.JSONDecodeError as exc:
-                raise VisualPlanError(f"malformed AI response: {exc}") from exc
-        raise VisualPlanError("malformed AI response: not JSON")
+        for open_ch, close_ch in (("{", "}"), ("[", "]")):
+            start, end = raw.find(open_ch), raw.rfind(close_ch)
+            if start >= 0 and end > start:
+                try:
+                    parsed = _try_load_json(raw[start : end + 1])
+                    break
+                except json.JSONDecodeError:
+                    continue
+        else:
+            raise VisualPlanError("malformed AI response: not JSON")
+    if isinstance(parsed, str) and parsed.strip():
+        return extract_json_payload(parsed)
+    return parsed
+
+
+def _looks_like_scene(obj: Any) -> bool:
+    if not isinstance(obj, dict):
+        return False
+    return obj.get("scene_id") is not None or bool(str(obj.get("narration") or "").strip())
+
+
+def normalize_plan_payload(payload: Any) -> dict:
+    """Coerce common Gemini response shapes into {topic, scenes[]}."""
+    if isinstance(payload, list):
+        scenes = [item for item in payload if isinstance(item, dict) and _looks_like_scene(item)]
+        if not scenes:
+            raise VisualPlanError("AI response array has no scene objects")
+        topic = str(scenes[0].get("visual_goal") or scenes[0].get("narration") or "").strip()
+        return {"topic": topic, "scenes": scenes}
+    if isinstance(payload, dict):
+        scenes = payload.get("scenes")
+        if not isinstance(scenes, list) or not scenes:
+            for key in ("Scenes", "scene_list", "visual_scenes"):
+                alt = payload.get(key)
+                if isinstance(alt, list) and alt:
+                    payload = dict(payload)
+                    payload["scenes"] = alt
+                    scenes = alt
+                    break
+        if isinstance(scenes, list) and scenes:
+            return payload
+        if _looks_like_scene(payload):
+            return {
+                "topic": str(payload.get("visual_goal") or payload.get("narration") or "").strip(),
+                "scenes": [payload],
+            }
+        raise VisualPlanError("AI response missing scenes[]")
+    raise VisualPlanError(
+        "AI response must be a JSON object with topic and scenes[] "
+        f"(got {type(payload).__name__})"
+    )
 
 
 def _as_str_list(value: Any) -> List[str]:
@@ -694,8 +748,7 @@ def detect_repetition(scenes: Sequence[VisualScene]) -> List[str]:
 def parse_visual_plan(payload: Any) -> VisualPlan:
     if isinstance(payload, str):
         payload = extract_json_payload(payload)
-    if not isinstance(payload, dict):
-        raise VisualPlanError("AI response must be a JSON object")
+    payload = normalize_plan_payload(payload)
     scenes_raw = payload.get("scenes")
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise VisualPlanError("AI response missing scenes[]")

@@ -7,7 +7,7 @@ from typing import Optional
 from providers.router import SceneAssetRouter
 from visual_director.schema import VisualPlan
 
-from .budget import ai_budget_limit
+from .budget import ai_budget_limit, flow_image_soft_cap
 from .curve import curve_video_bias
 from .models import AllocationBundle, AllocationSettings
 
@@ -29,14 +29,15 @@ def estimate_allocation_mix(
     n = _estimate_scene_count(word_count)
     if n <= 0:
         return "Paste a script to preview visual mix."
-    flow_cap = ai_budget_limit(n, settings)
+    flow_video_cap = ai_budget_limit(n, settings)
+    flow_image_ceiling = flow_image_soft_cap(n, settings)
     strat = (settings.visual_strategy or "automatic").lower()
     mid_bias = curve_video_bias(0.5, strat)
     video_share = 0.55 if strat == "video_heavy" else 0.35 if strat == "balanced" else 0.22 if strat == "image_heavy" else mid_bias
     stock_video = max(0, int(n * video_share * 0.72))
     stock_image = max(0, int(n * (1.0 - video_share) * 0.55))
-    flow_video = max(0, int(flow_cap * (0.65 if strat != "image_heavy" else 0.25)))
-    flow_image = max(0, flow_cap - flow_video)
+    flow_video = max(0, int(flow_video_cap * 0.85))
+    flow_image = max(0, int(flow_image_ceiling * 0.55))
     doc = 0
     if style_id in (
         "history_documentary",
@@ -47,8 +48,8 @@ def estimate_allocation_mix(
         doc = max(2, int(n * 0.06))
     parts = [
         f"~{n} scenes",
-        f"Flow video ~{flow_video}",
-        f"Flow image ~{flow_image}",
+        f"Flow video ~{flow_video} (credits)",
+        f"Flow image up to ~{flow_image} (free)",
         f"Stock video ~{stock_video}",
         f"Stock image ~{stock_image}",
     ]
@@ -90,8 +91,9 @@ def build_plan_validation_report(
 
     if bundle is not None:
         lines.append(
-            f"Flow budget: {bundle.ai_assigned}/{bundle.ai_budget_limit} assigned "
-            f"({bundle.ai_opportunities} opportunities)"
+            f"Flow video (credits): {bundle.ai_assigned}/{bundle.ai_budget_limit} · "
+            f"Flow image (free): {bundle.flow_image_assigned} · "
+            f"{bundle.ai_opportunities} opportunities"
         )
 
     if plan.warnings:

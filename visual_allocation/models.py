@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Dict, List, Optional
 
-ALLOCATION_ENGINE_VERSION = 1
+ALLOCATION_ENGINE_VERSION = 2
 
 VISUAL_STRATEGIES = frozenset({"automatic", "video_heavy", "balanced", "image_heavy"})
 AI_BUDGET_MODES = frozenset({"conservative", "normal", "high", "custom"})
@@ -160,7 +160,8 @@ class AllocationBundle:
     coverage_plans: List[VisualCoveragePlan]
     ai_budget_limit: int = 0
     ai_opportunities: int = 0
-    ai_assigned: int = 0
+    ai_assigned: int = 0  # Flow video only (paid credits)
+    flow_image_assigned: int = 0  # Free Flow stills
     style_id: str = ""
 
     def to_dict(self) -> dict:
@@ -171,6 +172,7 @@ class AllocationBundle:
             "ai_budget_limit": self.ai_budget_limit,
             "ai_opportunities": self.ai_opportunities,
             "ai_assigned": self.ai_assigned,
+            "flow_image_assigned": self.flow_image_assigned,
             "decisions": [d.to_dict() for d in self.decisions],
             "coverage_plans": [p.to_dict() for p in self.coverage_plans],
         }
@@ -210,12 +212,26 @@ class AllocationBundle:
                     avoid_blind_loop=bool(p.get("avoid_blind_loop")),
                 )
             )
+        version = int(data.get("allocation_version") or 1)
+        ai_assigned = int(data.get("ai_assigned") or 0)
+        flow_image_assigned = int(data.get("flow_image_assigned") or 0)
+        if version < ALLOCATION_ENGINE_VERSION and decisions and flow_image_assigned <= 0:
+            imgs = sum(
+                1 for d in decisions if d.flow_selected and d.asset_type == "image"
+            )
+            vids = sum(
+                1 for d in decisions if d.flow_selected and d.asset_type == "video"
+            )
+            if imgs or vids:
+                flow_image_assigned = imgs
+                ai_assigned = vids
         return cls(
             settings=settings,
             decisions=decisions,
             coverage_plans=coverage,
             ai_budget_limit=int(data.get("ai_budget_limit") or 0),
             ai_opportunities=int(data.get("ai_opportunities") or 0),
-            ai_assigned=int(data.get("ai_assigned") or 0),
+            ai_assigned=ai_assigned,
+            flow_image_assigned=flow_image_assigned,
             style_id=str(data.get("style_id") or ""),
         )

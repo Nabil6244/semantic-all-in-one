@@ -14,7 +14,7 @@ from providers.router import SceneAssetRouter
 from test_asset_pipeline import FakeProvider
 from visual_director import SYSTEM_PROMPT, VisualDirector, parse_visual_plan
 from visual_director.llm import StaticLLM
-from visual_director.schema import VisualPlanError, assert_pipeline_compatible
+from visual_director.schema import MIN_SCENES, VisualPlanError, assert_pipeline_compatible
 
 EXAMPLE_SCRIPT = """Your brain was never designed for a nine-to-five.
 
@@ -132,6 +132,21 @@ class TestVisualPlanParsing(unittest.TestCase):
         wrapped = "Here you go:\n```json\n" + json.dumps(VALID_PLAN) + "\n```"
         plan = parse_visual_plan(wrapped)
         self.assertEqual(plan.topic, "Social jet lag and modern sleep")
+
+    def test_parse_root_scene_array(self):
+        """Gemini sometimes returns scenes[] without the wrapper object."""
+        plan = parse_visual_plan(list(VALID_PLAN["scenes"]))
+        self.assertEqual(len(plan.scenes), len(VALID_PLAN["scenes"]))
+        self.assertTrue(plan.topic)
+
+    def test_extract_json_array_brackets(self):
+        from visual_director.schema import extract_json_payload
+
+        raw = "Sure:\n" + json.dumps(VALID_PLAN["scenes"])
+        payload = extract_json_payload(raw)
+        self.assertIsInstance(payload, list)
+        plan = parse_visual_plan(payload)
+        self.assertGreaterEqual(len(plan.scenes), 2)
 
     def test_malformed_response(self):
         with self.assertRaises(VisualPlanError):
@@ -416,6 +431,20 @@ class TestVisualDirectorMocked(unittest.TestCase):
         self.assertIn("Type: youtube", preview)
         self.assertIn("stock_video → flow_image", preview)
 
+    def test_single_script_retries_invalid_json(self):
+        class FlakyOnceLLM:
+            def __init__(self):
+                self.calls = 0
+
+            def complete(self, system, user):
+                self.calls += 1
+                if self.calls == 1:
+                    return "not valid json"
+                return json.dumps(VALID_PLAN)
+
+        plan = VisualDirector(llm=FlakyOnceLLM()).plan(EXAMPLE_SCRIPT)
+        self.assertGreaterEqual(len(plan.scenes), MIN_SCENES)
+
     def test_empty_script_rejected(self):
         with self.assertRaises(ValueError):
             VisualDirector(llm=StaticLLM("{}")).plan("  ")
@@ -567,6 +596,56 @@ class TestGeminiProvider(unittest.TestCase):
             "gemini-3.6-flash",
         )
         self.assertEqual(quota, "Gemini API error: Resource exhausted")
+
+
+    def test_chunked_section_retries_invalid_json(self):
+        import threading
+        from unittest.mock import patch
+
+        from visual_director import VisualDirector
+
+        chunk = (
+            "Pluto is a frozen world with a buried ocean and a blue haze while "
+            "hydrothermal vents support unique deep sea ecosystems and worms. "
+        )
+        script = "\n\n".join([chunk * 350 for _ in range(4)])
+        self.assertGreater(len(script.split()), 2500)
+
+        valid = {
+            "topic": "Pluto documentary",
+            "scenes": [_stock_scene(1, chunk), _stock_scene(2, chunk * 2)],
+        }
+
+        class FlakyOnceLLM:
+            def __init__(self):
+                self._lock = threading.Lock()
+                self._bad_left = 1
+
+            def complete(self, system, user):
+                with self._lock:
+                    if self._bad_left > 0:
+                        self._bad_left -= 1
+                        return "not valid json"
+                return json.dumps(valid)
+
+        with patch("visual_director.director.plan_segmentation_issue", return_value=None):
+            plan = VisualDirector(llm=FlakyOnceLLM()).plan(script)
+        self.assertGreaterEqual(len(plan.scenes), 4)
+
+    def test_chunked_error_names_section(self):
+        from visual_director import VisualDirector
+
+        chunk = "word " * 700
+        script = "\n\n".join([chunk for _ in range(4)])
+
+        class AlwaysBadLLM:
+            def complete(self, system, user):
+                return "not json"
+
+        with self.assertRaises(VisualPlanError) as ctx:
+            VisualDirector(llm=AlwaysBadLLM()).plan(script)
+        self.assertIn("Section", str(ctx.exception))
+        self.assertIn("/4", str(ctx.exception))
 
 
 def _stock_scene(i: int, narration: str) -> dict:

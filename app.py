@@ -3165,7 +3165,8 @@ class VideoGeneratorApp(ctk.CTk):
                     0,
                     lambda: self._append_log(
                         f"[ALLOC] Visual allocation — {bundle.ai_assigned}/{bundle.ai_budget_limit} "
-                        f"Flow scenes ({bundle.ai_opportunities} opportunities)\n"
+                        f"Flow video (credits), {bundle.flow_image_assigned} Flow image (free) "
+                        f"({bundle.ai_opportunities} opportunities)\n"
                     ),
                 )
                 self.after(
