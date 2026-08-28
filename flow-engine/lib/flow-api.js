@@ -542,7 +542,6 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const aspect = videoAspectRatios.fromImage[settings.aspectRatio] || videoAspectRatios.default;
   const isPortrait = aspect === "VIDEO_ASPECT_RATIO_PORTRAIT";
   const modelKey = resolveVideoModelKey(settings.videoModel || settings.model, isPortrait);
-  const duration = Number(settings.videoDuration) || videoDurations.default;
   const seed =
     settings.seedMode === "fixed" && settings.seedValue != null ? settings.seedValue : randomSeed();
 
@@ -567,7 +566,10 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         aspectRatio: aspect,
         seed,
         metadata: {},
-        videoLengthSeconds: duration,
+        // videoLengthSeconds was added here recently but Google's Flow API now
+        // rejects it ("Unknown name videoLengthSeconds... Cannot find field") —
+        // it's not part of the working request shape, so it's removed rather
+        // than guessed at. Duration falls back to Flow's own default.
         textInput: { structuredPrompt: { parts: [{ text: prompt }] } },
         videoModelKey: modelKey,
       },
