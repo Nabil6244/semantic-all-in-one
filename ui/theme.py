@@ -54,6 +54,7 @@ NAV_ITEMS = (
     ("editorial", "Editorial"),
     ("render", "Render"),
     ("qa", "QA"),
+    ("about", "About & Ownership"),
 )
 
 WORKFLOW_STEPS = ("INPUT", "PLAN", "ASSETS", "AUDIO", "EDITORIAL", "RENDER", "QA")

@@ -714,6 +714,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._view_editorial = ui_views.EditorialView(self._shell.center, self)
         self._view_render = ui_views.RenderView(self._shell.center, self)
         self._view_qa = ui_views.QAView(self._shell.center, self)
+        self._view_about = ui_views.AboutOwnershipView(self._shell.center, self)
         self._shell.center.grid_columnconfigure(0, weight=1)
         self._shell.center.grid_rowconfigure(0, weight=1)
         for key, view in (
@@ -728,6 +729,7 @@ class VideoGeneratorApp(ctk.CTk):
             ("editorial", self._view_editorial),
             ("render", self._view_render),
             ("qa", self._view_qa),
+            ("about", self._view_about),
         ):
             self._shell.register_view(key, view)
 
@@ -2008,8 +2010,59 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_auth_ok(self, session, *, then=None) -> None:
         self._auth_session = session
-        if then:
-            then()
+        self._require_terms_ack(session, then=then)
+
+    def _require_terms_ack(self, session, *, then=None) -> None:
+        """Onboarding gate layered ON TOP of licensing — never a replacement.
+
+        Every successful auth path (fresh login, restored session, offline
+        fallback) converges on _on_auth_ok, so this is the single enforcement
+        point. A lookup that cannot be completed is NOT treated as
+        acknowledged: the screen is shown, and the Supabase write must succeed
+        before the workflow opens.
+        """
+        def proceed():
+            if then:
+                then()
+
+        if not getattr(session, "user_id", ""):
+            proceed()
+            return
+
+        def work():
+            from licensing import terms as _terms
+
+            try:
+                done = bool(_terms.has_acknowledged(session))
+            except Exception:
+                done = False  # could not confirm -> ask, never assume yes
+            self.after(
+                0,
+                lambda d=done: proceed() if d else self._show_terms_dialog(session, then=proceed),
+            )
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _show_terms_dialog(self, session, *, then=None) -> None:
+        from licensing.terms_dialog import TermsDialog
+
+        existing = self.__dict__.get("_terms_dialog")
+        if existing is not None and existing.winfo_exists():
+            return
+
+        def accepted():
+            self._terms_dialog = None
+            if then:
+                then()
+
+        def cancelled():
+            # Declining is not acceptance — close instead of opening the app.
+            self._terms_dialog = None
+            self.destroy()
+
+        self._terms_dialog = TermsDialog(
+            self, session=session, on_accept=accepted, on_cancel=cancelled,
+        )
 
     def _show_login_dialog(self, *, message: str = "", then=None) -> None:
         from licensing.login_dialog import LoginDialog

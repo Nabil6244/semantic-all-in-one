@@ -2089,3 +2089,97 @@ def _load_json(path: Path) -> dict:
     except (OSError, json.JSONDecodeError):
         pass
     return {}
+
+
+class AboutOwnershipView(_BaseView):
+    """Permanent About & Ownership reference page.
+
+    Renders the SAME content as the first-login acknowledgement (both read
+    licensing.terms), so the two can never drift apart. Read-only: the
+    acknowledgement itself is made once, at login.
+    """
+
+    key = "about"
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        from licensing import terms as _terms
+
+        SectionHeader(
+            self,
+            _terms.TITLE,
+            "Application, development ownership, and YouTube channel/project arrangements",
+        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
+
+        # Brand lockup at the top of the ownership page — this is the page that
+        # talks about the product and who built it, so it earns the wordmark.
+        from ui import branding as _branding
+
+        _wordmark = _branding.wordmark_image(44)
+        if _wordmark is not None:
+            _brand = Card(self._body)
+            _brand.grid(row=0, column=0, sticky="ew", pady=(0, T.PAD))
+            _brand.grid_columnconfigure(0, weight=1)
+            ctk.CTkLabel(_brand, image=_wordmark, text="", fg_color="transparent").grid(
+                row=0, column=0, sticky="w", padx=T.PAD, pady=T.PAD
+            )
+
+        body = self._body
+        row = 1 if _wordmark is not None else 0
+
+        account = Card(body)
+        account.grid(row=row, column=0, sticky="ew", pady=(0, T.PAD))
+        account.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            account, text="Account", text_color=T.TEXT, anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
+        self._account_row = MetricRow(account, "Signed in as", "—")
+        self._account_row.grid(row=1, column=0, sticky="ew", padx=T.PAD)
+        self._terms_row = MetricRow(account, "Terms version", _terms.CURRENT_TERMS_VERSION)
+        self._terms_row.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=(0, T.PAD))
+        row += 1
+
+        for heading, paragraphs in _terms.SECTIONS:
+            card = Card(body)
+            card.grid(row=row, column=0, sticky="ew", pady=(0, T.PAD))
+            card.grid_columnconfigure(0, weight=1)
+            ctk.CTkLabel(
+                card, text=heading, text_color=T.TEXT, anchor="w",
+                font=ctk.CTkFont(size=14, weight="bold"),
+            ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
+            for i, para in enumerate(paragraphs, start=1):
+                highlight = para == _terms.OWNERSHIP_HIGHLIGHT
+                ctk.CTkLabel(
+                    card, text=para,
+                    # Noticeable, deliberately not an alarm colour.
+                    text_color=T.TEXT if highlight else T.MUTED,
+                    font=ctk.CTkFont(size=12, weight="bold" if highlight else "normal"),
+                    anchor="w", justify="left", wraplength=720,
+                ).grid(row=i, column=0, sticky="w", padx=T.PAD,
+                       pady=(0, T.PAD if i == len(paragraphs) else 6))
+            row += 1
+
+        ack = Card(body)
+        ack.grid(row=row, column=0, sticky="ew", pady=(0, T.PAD))
+        ack.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            ack, text="User Acknowledgement", text_color=T.TEXT, anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
+        for i, point in enumerate(_terms.ACKNOWLEDGEMENT_POINTS, start=1):
+            ctk.CTkLabel(
+                ack, text=f"\u2022  {point}", text_color=T.MUTED, anchor="w",
+                justify="left", wraplength=710, font=ctk.CTkFont(size=12),
+            ).grid(row=i, column=0, sticky="w", padx=T.PAD, pady=(0, 5))
+        ctk.CTkLabel(
+            ack, text=_terms.LEGAL_NOTE, text_color=T.TEXT, anchor="w",
+            justify="left", wraplength=710, font=ctk.CTkFont(size=12, weight="bold"),
+        ).grid(row=len(_terms.ACKNOWLEDGEMENT_POINTS) + 1, column=0, sticky="w",
+               padx=T.PAD, pady=(T.PAD_SM, T.PAD))
+
+    def on_show(self) -> None:
+        """Display name only — never email, tokens or internal ids."""
+        session = getattr(self.app, "_auth_session", None)
+        name = (getattr(session, "display_name", "") or "").strip() if session else ""
+        self._account_row.set_value(name or "—")
