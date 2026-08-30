@@ -10,8 +10,21 @@ from typing import Any, Dict, Optional
 
 from smart_editing import SFX_CATEGORIES, SfxCatalog, sfx_library_root
 
-# Packaged builds must ship at least this many wavs (catalog currently has 62).
+# Packaged builds must ship at least this many audio assets (catalog currently
+# has 62). Name kept for compatibility with existing callers/tests; the count is
+# format-agnostic, so a library shipped as .opus satisfies it identically.
 MIN_BUNDLED_WAVS = 40
+MIN_BUNDLED_ASSETS = MIN_BUNDLED_WAVS
+
+
+def _audio_files(root: Path) -> list:
+    """Every bundled audio asset, whatever container it ships in."""
+    from sfx.audio_probe import SUPPORTED_SUFFIXES
+
+    return [
+        p for p in root.rglob("*")
+        if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES and not p.name.startswith("._")
+    ]
 
 
 def _repo_root() -> Path:
@@ -37,18 +50,24 @@ def bundled_sfx_inventory(src: Optional[Path] = None) -> Dict[str, Any]:
     """Describe the shipped library (used by build checks + diagnostics)."""
     root = src or bundled_sfx_source()
     if root is None:
-        return {"ok": False, "path": None, "wav_count": 0, "categories": {}, "error": "missing"}
-    wavs = list(root.rglob("*.wav"))
+        return {
+            "ok": False, "path": None, "wav_count": 0, "asset_count": 0,
+            "categories": {}, "error": "missing",
+        }
+    assets = _audio_files(root)
     cats: Dict[str, int] = {}
     for cat in SFX_CATEGORIES:
-        cats[cat] = len(list((root / cat).glob("*.wav"))) if (root / cat).is_dir() else 0
+        cats[cat] = len(_audio_files(root / cat)) if (root / cat).is_dir() else 0
     catalog_ok = (root / "catalog.json").is_file()
     ambience_ok = cats.get("ambience", 0) > 0
-    ok = catalog_ok and len(wavs) >= MIN_BUNDLED_WAVS and ambience_ok
+    ok = catalog_ok and len(assets) >= MIN_BUNDLED_ASSETS and ambience_ok
     return {
         "ok": ok,
         "path": str(root),
-        "wav_count": len(wavs),
+        # wav_count kept as an alias so existing callers/tests keep working;
+        # asset_count is the format-agnostic name.
+        "wav_count": len(assets),
+        "asset_count": len(assets),
         "categories": cats,
         "catalog": catalog_ok,
         "error": None if ok else "incomplete bundled-sfx",
@@ -63,7 +82,9 @@ def count_resolvable_sfx(root: Optional[Path] = None) -> int:
 
 
 def _copy_category_wavs(src: Path, dest: Path, *, force: bool = False) -> int:
-    """Copy every *.wav under known categories. Returns number of files written."""
+    """Copy every audio asset under known categories, in whatever format the
+    bundle ships. Returns number of files written. (Name retained: it is called
+    from ensure_sfx_library and referenced by existing tests.)"""
     written = 0
     for category in SFX_CATEGORIES:
         cat_src = src / category
@@ -71,10 +92,10 @@ def _copy_category_wavs(src: Path, dest: Path, *, force: bool = False) -> int:
             continue
         cat_dest = dest / category
         cat_dest.mkdir(parents=True, exist_ok=True)
-        for wav in cat_src.glob("*.wav"):
-            target = cat_dest / wav.name
+        for asset in _audio_files(cat_src):
+            target = cat_dest / asset.name
             if force or not target.is_file():
-                shutil.copy2(wav, target)
+                shutil.copy2(asset, target)
                 written += 1
     return written
 
