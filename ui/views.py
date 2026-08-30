@@ -822,14 +822,42 @@ class ResearchView(_BaseView):
         ).grid(row=0, column=1, sticky="n", padx=(T.PAD_SM, 0))
         self._script_path = ""
 
-        ctk.CTkLabel(form, text="URL(s) (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
-            row=2, column=0, sticky="w", padx=T.PAD, pady=4
+        ctk.CTkLabel(form, text="Listings (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=2, column=0, sticky="nw", padx=T.PAD, pady=4
         )
+        # Each listing is researched into its own directory and keeps its own
+        # facts/media/errors, so one failing listing never invalidates another.
+        # `_urls_var` is retained purely as the persistence/compat bridge for
+        # the existing load/save/read paths — the list below is the real model.
         self._urls_var = ctk.StringVar(value="")
-        ctk.CTkEntry(
-            form, textvariable=self._urls_var, placeholder_text="one or more listing URLs, comma-separated",
+        self._listing_urls: list = []
+        self._listing_status: dict = {}
+
+        listings = ctk.CTkFrame(form, fg_color="transparent")
+        listings.grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
+        listings.grid_columnconfigure(0, weight=1)
+
+        adder = ctk.CTkFrame(listings, fg_color="transparent")
+        adder.grid(row=0, column=0, sticky="ew")
+        adder.grid_columnconfigure(0, weight=1)
+        self._new_listing_var = ctk.StringVar(value="")
+        entry = ctk.CTkEntry(
+            adder, textvariable=self._new_listing_var,
+            placeholder_text="paste a listing URL, then Add (or press Enter)",
             fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
-        ).grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
+        )
+        entry.grid(row=0, column=0, sticky="ew")
+        entry.bind("<Return>", lambda _e: self._on_add_listing())
+        ctk.CTkButton(
+            adder, text="Add", width=56, height=26,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), command=self._on_add_listing,
+        ).grid(row=0, column=1, padx=(T.PAD_SM, 0))
+
+        self._listing_rows = ctk.CTkFrame(listings, fg_color="transparent")
+        self._listing_rows.grid(row=1, column=0, sticky="ew", pady=(T.PAD_SM, 0))
+        self._listing_rows.grid_columnconfigure(0, weight=1)
+        self._render_listing_rows()
 
         ctk.CTkLabel(form, text="Domain", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
             row=3, column=0, sticky="w", padx=T.PAD, pady=4
@@ -871,7 +899,10 @@ class ResearchView(_BaseView):
         self._summary = Card(self._body)
         self._summary.grid_columnconfigure(0, weight=1)
         self._summary_rows: list[MetricRow] = []
-        for label in ("Property", "Confidence", "Sources found", "Usable media"):
+        for label in (
+            "Property", "Research URL", "Confidence", "Sources found",
+            "Usable media", "Newly downloaded", "Reused", "Low-quality / rejected",
+        ):
             row = MetricRow(self._summary, label, "—")
             row.grid(sticky="ew", padx=T.PAD, pady=(T.PAD_SM, 0))
             self._summary_rows.append(row)
@@ -905,54 +936,142 @@ class ResearchView(_BaseView):
 
         self._summary.grid_remove()
 
-        # Advanced: where the standalone research engine lives on this machine.
-        engine_card = Card(self._body)
-        engine_card.grid(row=2, column=0, sticky="ew", pady=(8, 4))
-        engine_card.grid_columnconfigure(1, weight=1)
+        # Property Script — separate step, only usable once a property has
+        # been researched. Property Video only: this never touches the
+        # normal Script Analyzer/Script view.
+        self._property_script_card = Card(self._body)
+        self._property_script_card.grid(row=2, column=0, sticky="ew", pady=(8, 4))
+        self._property_script_card.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            engine_card, text="RESEARCH ENGINE (advanced)", font=ctk.CTkFont(size=11, weight="bold"),
+            self._property_script_card, text="PROPERTY SCRIPT", font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.MUTED,
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(10, 4))
-        ctk.CTkLabel(engine_card, text="Engine folder", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
-            row=1, column=0, sticky="w", padx=T.PAD, pady=4
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(10, 2))
+        ctk.CTkLabel(
+            self._property_script_card,
+            text="Narration is preserved exactly — never rewritten. Each sentence is "
+                 "classified and routed to researched property media, stock, or Flow.",
+            font=ctk.CTkFont(size=11), text_color=T.MUTED, wraplength=460, justify="left",
+        ).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(0, 6))
+        self._property_script_box = ctk.CTkTextbox(
+            self._property_script_card, height=140, fg_color=T.BG,
+            border_width=1, border_color=T.BORDER, text_color=T.TEXT,
+        )
+        self._property_script_box.grid(row=2, column=0, sticky="ew", padx=T.PAD)
+        analyze_row = ctk.CTkFrame(self._property_script_card, fg_color="transparent")
+        analyze_row.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(8, 10))
+        self._property_analyze_btn = ctk.CTkButton(
+            analyze_row, text="Analyze Property Script", height=32,
+            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+            font=ctk.CTkFont(size=12, weight="bold"), command=self._on_analyze_property_script,
+        )
+        self._property_analyze_btn.pack(side="left")
+        self._property_script_status = ctk.CTkLabel(
+            analyze_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
+        )
+        self._property_script_status.pack(side="left", padx=(T.PAD_SM, 0))
+
+        # Research engine: bundled and auto-configured by default (see
+        # research/settings.py::load_engine_config) — no path to set up.
+        # Collapsed behind "Advanced" since it's only ever needed to point at
+        # a different engine checkout during development.
+        engine_card = Card(self._body)
+        engine_card.grid(row=3, column=0, sticky="ew", pady=(8, 4))
+        engine_card.grid_columnconfigure(1, weight=1)
+
+        engine_header = ctk.CTkFrame(engine_card, fg_color="transparent")
+        engine_header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(10, 0))
+        engine_header.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            engine_header, text="RESEARCH ENGINE", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.MUTED,
+        ).grid(row=0, column=0, sticky="w")
+        self._engine_status_label = ctk.CTkLabel(
+            engine_header, text="", font=ctk.CTkFont(size=11), text_color=T.SUCCESS, anchor="w",
+        )
+        self._engine_status_label.grid(row=0, column=1, sticky="w", padx=(T.PAD_SM, 0))
+        self._engine_advanced_open = False
+        self._engine_advanced_toggle = ctk.CTkButton(
+            engine_header, text="Advanced +", height=22, width=90,
+            fg_color="transparent", hover_color=T.CARD_HOVER, text_color=T.MUTED,
+            font=ctk.CTkFont(size=11), command=self._toggle_engine_advanced,
+        )
+        self._engine_advanced_toggle.grid(row=0, column=2, sticky="e")
+
+        self._engine_advanced_block = ctk.CTkFrame(engine_card, fg_color="transparent")
+        self._engine_advanced_block.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            self._engine_advanced_block,
+            text="Override with a different engine checkout (development only) — "
+                 "leave both blank to use the bundled engine.",
+            font=ctk.CTkFont(size=11), text_color=T.MUTED, wraplength=460, justify="left",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(8, 6))
+        ctk.CTkLabel(self._engine_advanced_block, text="Engine folder", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=1, column=0, sticky="w", pady=4
         )
         self._engine_root_var = ctk.StringVar(value="")
         ctk.CTkEntry(
-            engine_card, textvariable=self._engine_root_var, placeholder_text="/path/to/semantic-research-engine",
+            self._engine_advanced_block, textvariable=self._engine_root_var,
+            placeholder_text="(bundled)",
             fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
-        ).grid(row=1, column=1, sticky="ew", padx=T.PAD, pady=4)
-        ctk.CTkLabel(engine_card, text="Python interpreter", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
-            row=2, column=0, sticky="w", padx=T.PAD, pady=4
+        ).grid(row=1, column=1, sticky="ew", pady=4)
+        ctk.CTkLabel(self._engine_advanced_block, text="Python interpreter", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
+            row=2, column=0, sticky="w", pady=4
         )
         self._engine_python_var = ctk.StringVar(value="")
         ctk.CTkEntry(
-            engine_card, textvariable=self._engine_python_var,
-            placeholder_text="/path/to/semantic-research-engine/.venv/bin/python",
+            self._engine_advanced_block, textvariable=self._engine_python_var,
+            placeholder_text="(bundled)",
             fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
-        ).grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
+        ).grid(row=2, column=1, sticky="ew", pady=4)
         ctk.CTkButton(
-            engine_card, text="Save Engine Path", height=28, width=140,
+            self._engine_advanced_block, text="Save Engine Path", height=28, width=140,
             fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
             font=ctk.CTkFont(size=11), command=self._on_save_engine_path,
-        ).grid(row=3, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(4, 10))
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 10))
+        self._engine_advanced_block.grid(row=1, column=0, columnspan=2, sticky="ew", padx=T.PAD)
+        self._engine_advanced_block.grid_remove()
 
         self._researching = False
+
+    def _toggle_engine_advanced(self) -> None:
+        self._engine_advanced_open = not self._engine_advanced_open
+        if self._engine_advanced_open:
+            self._engine_advanced_block.grid()
+            self._engine_advanced_toggle.configure(text="Advanced −")
+        else:
+            self._engine_advanced_block.grid_remove()
+            self._engine_advanced_toggle.configure(text="Advanced +")
 
     # ---------- lifecycle ----------
 
     def on_show(self) -> None:
         from research.settings import load_engine_config, load_project_research_settings
 
-        root, python_path = load_engine_config(getattr(self.app, "_settings", {}) or {})
-        self._engine_root_var.set(root)
-        self._engine_python_var.set(python_path)
+        global_settings = getattr(self.app, "_settings", {}) or {}
+        # The override fields show only what's explicitly saved (blank means
+        # "use the bundled engine") — load_engine_config's *effective* value
+        # (which fills in the bundled default) only drives the status line.
+        raw_root = str(global_settings.get("research_engine_root") or "")
+        raw_python = str(global_settings.get("research_engine_python") or "")
+        self._engine_root_var.set(raw_root)
+        self._engine_python_var.set(raw_python)
+
+        effective_root, _ = load_engine_config(global_settings)
+        if raw_root or raw_python:
+            self._engine_status_label.configure(text="Using custom engine path", text_color=T.MUTED)
+        elif effective_root:
+            self._engine_status_label.configure(text="Bundled — no setup needed", text_color=T.SUCCESS)
+        else:
+            self._engine_status_label.configure(
+                text="Not available in this build — set a path below", text_color=T.WARNING,
+            )
 
         ws = self.app._workspace
         if ws is None:
             return
         settings = load_project_research_settings(ws)
         self._topic_var.set(settings.topic)
-        self._urls_var.set(", ".join(settings.urls))
+        self._set_listing_urls(list(settings.urls))
         self._max_media_var.set(str(settings.max_media_per_property))
         label_by_domain = {
             "auto": "Auto", "real_estate": "Real Estate", "products": "Products",
@@ -1049,17 +1168,26 @@ class ResearchView(_BaseView):
         from research.settings import with_engine_config
 
         current = getattr(self.app, "_settings", {}) or {}
-        updated = with_engine_config(current, self._engine_root_var.get().strip(), self._engine_python_var.get().strip())
+        root = self._engine_root_var.get().strip()
+        python_path = self._engine_python_var.get().strip()
+        updated = with_engine_config(current, root, python_path)
         self.app._settings = updated
         self.app._persist_global_settings()
-        self._status_label.configure(text="Engine path saved.")
+        if root or python_path:
+            self._status_label.configure(text="Custom engine path saved.")
+            self._engine_status_label.configure(text="Using custom engine path", text_color=T.MUTED)
+        else:
+            self._status_label.configure(text="Engine path cleared — using the bundled engine again.")
+            self._engine_status_label.configure(text="Bundled — no setup needed", text_color=T.SUCCESS)
 
     _DOMAIN_TOKENS = {
         "Auto": "auto", "Real Estate": "real_estate", "Products": "products", "Travel": "travel",
         "Cars": "cars", "News": "news", "Science": "science", "General": "general",
     }
 
-    def _on_start_research(self) -> None:
+    def _on_start_research(self, only_urls=None) -> None:
+        """`only_urls` re-researches just those listings (per-row Re-research);
+        their directories are rebuilt and every other listing is left alone."""
         if self._researching:
             return
         ws = self.app._workspace
@@ -1074,6 +1202,8 @@ class ResearchView(_BaseView):
 
         script_text = self._script_box.get("1.0", "end").strip()
         urls = [u.strip() for u in self._urls_var.get().split(",") if u.strip()]
+        if only_urls:
+            urls = [u for u in only_urls if u]
         domain = self._DOMAIN_TOKENS.get(self._domain_var.get(), "auto")
         try:
             max_media = max(1, int(self._max_media_var.get().strip() or 20))
@@ -1102,22 +1232,227 @@ class ResearchView(_BaseView):
         self._summary.grid_remove()
 
         def worker():
+            from research.library import property_dir, property_id_for
             from research.property_provider import PropertyResearchProvider
 
             provider = PropertyResearchProvider(engine_root, engine_python)
+
+            # Each listing is researched INDEPENDENTLY into its own
+            # directory, so its facts/media/errors stay isolated and one
+            # listing's photos can never end up in another's scene. A single
+            # URL (or none) keeps the original single-property behavior.
+            if len(urls) > 1:
+                results = []
+                for url in urls:
+                    pid = property_id_for(url=url)
+                    out_dir = property_dir(ws.research_dir, pid)
+                    res = provider.research(
+                        topic, script=script_text or None, urls=[url], domain=domain,
+                        max_media_per_property=max_media, output_dir=out_dir,
+                    )
+                    res.property.property_id = pid
+                    res.property.source_url = url
+                    for media in res.media:
+                        media.property_id = pid
+                    results.append(res)
+                self.after(0, lambda rs=results: self._on_multi_research_complete(rs))
+                return
+
             result = provider.research(
                 topic, script=script_text or None, urls=urls, domain=domain,
                 max_media_per_property=max_media, output_dir=ws.research_dir,
             )
+            if urls:
+                result.property.source_url = urls[0]
             self.after(0, lambda: self._on_research_complete(result))
 
         import threading
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # ---------- multi-listing model ----------
+
+    def _set_listing_urls(self, urls) -> None:
+        """Single place that mutates the listing list, so the compat var,
+        the stored per-listing status and the rendered rows never drift."""
+        seen, clean = set(), []
+        for raw in urls or []:
+            u = str(raw).strip()
+            if u and u not in seen:
+                seen.add(u)
+                clean.append(u)
+        self._listing_urls = clean
+        self._listing_status = {
+            u: self._listing_status.get(u, ("pending", "muted")) for u in clean
+        }
+        # Existing read/save paths still go through _urls_var — keep it exact.
+        self._urls_var.set(", ".join(clean))
+        self._render_listing_rows()
+
+    def _on_add_listing(self) -> None:
+        url = self._new_listing_var.get().strip()
+        if not url:
+            return
+        if url in self._listing_urls:
+            self._new_listing_var.set("")
+            return
+        self._set_listing_urls(self._listing_urls + [url])
+        self._new_listing_var.set("")
+        self._persist_listing_urls()
+
+    def _on_remove_listing(self, url: str) -> None:
+        self._listing_status.pop(url, None)
+        self._set_listing_urls([u for u in self._listing_urls if u != url])
+        self._persist_listing_urls()
+
+    def _persist_listing_urls(self) -> None:
+        """Reuse the existing ResearchSettings.urls list — no schema change.
+        Every other field is round-tripped from the stored settings so editing
+        the listing list can never clobber topic/domain/max_media."""
+        ws = getattr(self.app, "_workspace", None)
+        if ws is None:
+            return
+        try:
+            import dataclasses
+
+            from research.settings import (
+                load_project_research_settings,
+                save_project_research_settings,
+            )
+
+            current = load_project_research_settings(ws)
+            save_project_research_settings(
+                ws, dataclasses.replace(current, urls=list(self._listing_urls)),
+            )
+        except Exception:
+            pass  # persistence is a convenience; never block editing the list
+
+    def _set_listing_status(self, url: str, text: str, tone: str = "muted") -> None:
+        self._listing_status[url] = (text, tone)
+        self._render_listing_rows()
+
+    def _render_listing_rows(self) -> None:
+        rows = self.__dict__.get("_listing_rows")
+        if rows is None:
+            return
+        for child in rows.winfo_children():
+            child.destroy()
+        if not self._listing_urls:
+            ctk.CTkLabel(
+                rows, text="No listings added — research runs on the topic/script alone.",
+                text_color=T.MUTED, font=ctk.CTkFont(size=11),
+            ).grid(row=0, column=0, sticky="w")
+            return
+        for i, url in enumerate(self._listing_urls):
+            text, tone = self._listing_status.get(url, ("pending", "muted"))
+            row = ctk.CTkFrame(rows, fg_color="transparent")
+            row.grid(row=i, column=0, sticky="ew", pady=1)
+            row.grid_columnconfigure(0, weight=1)
+            shown = url if len(url) <= 52 else url[:49] + "…"
+            ctk.CTkLabel(
+                row, text=shown, text_color=T.TEXT, font=ctk.CTkFont(size=11), anchor="w",
+            ).grid(row=0, column=0, sticky="w")
+            StatusPill(row, text=text, tone=tone).grid(row=0, column=1, padx=(T.PAD_SM, 0))
+            ctk.CTkButton(
+                row, text="Re-research", width=86, height=22,
+                fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+                font=ctk.CTkFont(size=10),
+                command=lambda u=url: self._on_reresearch_listing(u),
+            ).grid(row=0, column=2, padx=(T.PAD_SM, 0))
+            ctk.CTkButton(
+                row, text="Remove", width=64, height=22,
+                fg_color=T.BORDER, hover_color=T.DANGER, text_color=T.TEXT,
+                font=ctk.CTkFont(size=10),
+                command=lambda u=url: self._on_remove_listing(u),
+            ).grid(row=0, column=3, padx=(T.PAD_SM, 0))
+            self._listing_status.setdefault(url, (text, tone))
+
+    def _on_reresearch_listing(self, url: str) -> None:
+        """Rebuild ONLY this listing's directory; the others are untouched."""
+        if getattr(self, "_researching", False):
+            return
+        self._set_listing_status(url, "researching…", "run")
+        self._on_start_research(only_urls=[url])
+
+    def _on_multi_research_complete(self, results) -> None:
+        """Multi-listing summary. Each listing keeps its own status/errors —
+        one listing failing never invalidates the others."""
+        self._researching = False
+        self._start_btn.configure(state="normal")
+
+        ok_props = [r for r in results if r.ok and any(m.local_path for m in r.media)]
+        failed = [r for r in results if not r.ok]
+        total_media = sum(len([m for m in r.media if m.local_path]) for r in ok_props)
+
+        # Per-listing status, so a row shows its OWN outcome rather than the
+        # aggregate — one listing failing must stay visibly local to that row.
+        for r in results:
+            url = getattr(getattr(r, "property", None), "source_url", "") or ""
+            if not url:
+                continue
+            n = len([m for m in r.media if m.local_path])
+            if r.ok and n:
+                self._listing_status[url] = (f"researched · {n} photos", "ok")
+            elif r.ok:
+                self._listing_status[url] = ("no usable media", "warn")
+            else:
+                reason = (r.error or "failed").strip().splitlines()[0][:40]
+                self._listing_status[url] = (f"failed: {reason}", "fail")
+        self._render_listing_rows()
+
+        if not ok_props:
+            self._status_pill.set_tone("Failed", "fail")
+            first_error = next((r.error for r in results if r.error), None)
+            self._status_label.configure(
+                text=first_error or "No usable media found for any listing."
+            )
+            return
+
+        tone = "warn" if failed else "ok"
+        self._status_pill.set_tone(f"{len(ok_props)} listing(s)", tone)
+        detail = f" · {len(failed)} failed" if failed else ""
+        self._status_label.configure(
+            text=f"{len(ok_props)} listing(s) researched · {total_media} usable media{detail}. "
+                 "Each listing's media stays scoped to that listing."
+        )
+
+        names = ", ".join(
+            (r.property.name or r.property.address or r.property.property_id or "—") for r in ok_props
+        )
+        values = [
+            names,
+            f"{len(ok_props)} listing(s)",
+            "—",
+            str(sum(len(r.sources) for r in ok_props)),
+            str(total_media),
+            "—",
+            "—",
+            str(sum(r.rejected_media_count for r in ok_props)) or "—",
+        ]
+        for row, value in zip(self._summary_rows, values):
+            row.set_value(value)
+        self._summary.grid()
+        self._refresh_folder_buttons(ok_props[0])
+        self.app._asset_manager = None
+
     def _on_research_complete(self, result) -> None:
         self._researching = False
         self._start_btn.configure(state="normal")
+
+        # A per-row "Re-research" resolves through this single-listing path, so
+        # the row's status must be settled here too or it would sit on
+        # "researching…" forever.
+        url = getattr(getattr(result, "property", None), "source_url", "") or ""
+        if url and url in self._listing_status:
+            n = len([m for m in result.media if m.local_path])
+            if result.ok and n:
+                self._listing_status[url] = (f"researched · {n} photos", "ok")
+            elif result.ok:
+                self._listing_status[url] = ("no usable media", "warn")
+            else:
+                reason = (result.error or "failed").strip().splitlines()[0][:40]
+                self._listing_status[url] = (f"failed: {reason}", "fail")
+            self._render_listing_rows()
 
         if not result.ok:
             self._status_pill.set_tone("Failed", "fail")
@@ -1152,11 +1487,16 @@ class ResearchView(_BaseView):
             self._status_label.configure(text=f"{downloaded} usable media{breakdown} for this property.")
 
         prop = result.property
+        urls = [u.strip() for u in self._urls_var.get().split(",") if u.strip()]
         values = [
             prop.name or prop.address or "—",
+            urls[0] if urls else "— (topic/script-based discovery)",
             f"{prop.confidence:.0%}" if prop.confidence else "—",
             str(len(result.sources)),
             str(downloaded),
+            str(downloaded - reused),
+            str(reused),
+            str(result.rejected_media_count) if result.rejected_media_count else "—",
         ]
         for row, value in zip(self._summary_rows, values):
             row.set_value(value)
@@ -1166,6 +1506,79 @@ class ResearchView(_BaseView):
         # Invalidate any already-built AssetManager so the next Generate
         # Assets run picks up the freshly-downloaded research candidates.
         self.app._asset_manager = None
+
+    # ---------- Property Script ----------
+
+    def _on_analyze_property_script(self) -> None:
+        """Property Video workflow only — builds a Property Visual Plan from
+        the pasted narration + whatever property research already exists for
+        this project, then hands it to the exact same _apply_ai_plan() the
+        normal Script Analyzer uses (CSV write, scene preview, view switch)
+        so nothing downstream needs to know this came from a different
+        analyzer."""
+        ws = self.app._workspace
+        if ws is None:
+            self._property_script_status.configure(text="Open or create a project first.")
+            return
+        narration = self._property_script_box.get("1.0", "end").strip()
+        if not narration:
+            self._property_script_status.configure(text="Paste the property script first.")
+            return
+
+        from research.library import load_research_library
+        from research.property_script import analyze_property_script
+        from research.property_visual_plan import build_property_visual_plan
+
+        library = load_research_library(ws.research_dir)
+        if not library.properties:
+            self._property_script_status.configure(
+                text="No property research found yet — run Research Property above first."
+            )
+            return
+
+        primary = library.properties[0]
+        result = primary.result
+        summaries = [p.result.property for p in library.properties if p.result]
+
+        # Structured facts from the scraper (facts.json) feed the analyzer's
+        # existing `property_facts` channel, so classification uses real
+        # extracted listing facts rather than narration keyword heuristics.
+        beats = analyze_property_script(
+            narration, result,
+            property_facts=library.facts_dict_for(primary.property_id),
+            # Per-listing facts: without this every beat would be analyzed
+            # against the FIRST listing's acreage/features, so a second
+            # listing's beats would be classified using another property's
+            # facts.
+            facts_by_property={
+                p.property_id: library.facts_dict_for(p.property_id)
+                for p in library.properties if p.property_id
+            },
+            properties=summaries,
+            default_property_id=primary.property_id,
+        )
+        plan, property_scope = build_property_visual_plan(
+            beats, result, library=library,
+            topic=(result.property.name or result.property.address or ""),
+        )
+        # Property scope rides alongside the plan (never in the CSV).
+        self.app._pending_property_scope = property_scope
+
+        counts: dict = {}
+        for beat in beats:
+            counts[beat.category.value] = counts.get(beat.category.value, 0) + 1
+        self._property_script_status.configure(
+            text=(
+                f"{len(beats)} beats — property: {counts.get('property_specific', 0)}, "
+                f"factual: {counts.get('factual_property_context', 0)}, "
+                f"generic: {counts.get('generic_context', 0)}, "
+                f"cinematic: {counts.get('cinematic_atmospheric', 0)}"
+            )
+        )
+
+        self.app.script_box.delete("1.0", "end")
+        self.app.script_box.insert("1.0", narration)
+        self.app._apply_ai_plan(plan)
 
 
 class VisualPlanView(ctk.CTkFrame):
@@ -1271,6 +1684,26 @@ class AudioView(_BaseView):
         self._sfx = MetricRow(self._info, "SFX events")
         self._sfx.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=4)
 
+        # Narration was display-only here, so there was no way to swap the
+        # voiceover from the Audio view (Music already had "Change track").
+        # Reuses the existing app._browse_audio(), which copies the file into
+        # the project's audio/ folder and runs the usual voiceover-switch
+        # confirmation — no new audio handling logic.
+        audio_actions = ctk.CTkFrame(self._info, fg_color="transparent")
+        audio_actions.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(8, T.PAD))
+        ctk.CTkButton(
+            audio_actions, text="Choose audio…", height=28,
+            fg_color="transparent", border_width=1, border_color=T.BORDER,
+            text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
+            command=self._on_choose_audio,
+        ).pack(side="left")
+        ctk.CTkButton(
+            audio_actions, text="Open folder", height=28, width=110,
+            fg_color="transparent", border_width=1, border_color=T.BORDER,
+            text_color=T.MUTED, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
+            command=self._on_open_audio_folder,
+        ).pack(side="left", padx=(T.PAD_SM, 0))
+
         # Smart Editing lives on the Audio dashboard (not buried in Settings)
         smart = Card(self._body)
         smart.grid(row=2, column=0, sticky="ew", pady=4)
@@ -1318,6 +1751,33 @@ class AudioView(_BaseView):
             text_color=T.TEXT, dropdown_fg_color=T.CARD, dropdown_text_color=T.TEXT,
             command=lambda _v: app._persist_smart_editing_settings(),
         ).pack(side="left", padx=(8, 0))
+
+    def _on_choose_audio(self) -> None:
+        """Pick a different voiceover, then refresh this view so the
+        Narration row reflects the new file immediately."""
+        self.app._browse_audio()
+        self.on_show()
+
+    def _on_open_audio_folder(self) -> None:
+        ws = self.app._workspace
+        if ws is None:
+            return
+        import subprocess
+        import sys
+
+        folder = ws.audio_dir
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(folder)])
+            elif sys.platform == "win32":
+                import os
+
+                os.startfile(str(folder))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(folder)])
+        except Exception:  # noqa: BLE001 - opening a folder is never critical path
+            pass
 
     def on_show(self) -> None:
         audio = self.app.audio_var.get().strip()

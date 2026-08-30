@@ -104,6 +104,42 @@ class ResearchViewButtonStateTests(unittest.TestCase):
         uv.ResearchView._open_path(None)
         uv.ResearchView._open_path(self.tmp / "does" / "not" / "exist")
 
+    def test_engine_status_shows_bundled_by_default(self):
+        self.app._settings = {}
+        self.frame.on_show()
+        self.assertEqual(self.frame._engine_status_label.cget("text"), "Bundled — no setup needed")
+        self.assertEqual(self.frame._engine_root_var.get(), "")
+        self.assertEqual(self.frame._engine_python_var.get(), "")
+
+    def test_engine_status_shows_custom_when_overridden(self):
+        self.app._settings = {
+            "research_engine_root": "/custom/engine",
+            "research_engine_python": "/custom/python",
+        }
+        self.frame.on_show()
+        self.assertEqual(self.frame._engine_status_label.cget("text"), "Using custom engine path")
+        self.assertEqual(self.frame._engine_root_var.get(), "/custom/engine")
+
+    def test_advanced_section_starts_collapsed_and_toggles(self):
+        self.assertFalse(self.frame._engine_advanced_open)
+        self.assertEqual(str(self.frame._engine_advanced_block.winfo_manager()), "")
+        self.frame._toggle_engine_advanced()
+        self.assertTrue(self.frame._engine_advanced_open)
+        self.assertEqual(self.frame._engine_advanced_block.winfo_manager(), "grid")
+        self.frame._toggle_engine_advanced()
+        self.assertFalse(self.frame._engine_advanced_open)
+
+    def test_saving_a_blank_override_reverts_status_to_bundled(self):
+        self.app._settings = {
+            "research_engine_root": "/custom/engine",
+            "research_engine_python": "/custom/python",
+        }
+        self.frame.on_show()
+        self.frame._engine_root_var.set("")
+        self.frame._engine_python_var.set("")
+        self.frame._on_save_engine_path()
+        self.assertEqual(self.frame._engine_status_label.cget("text"), "Bundled — no setup needed")
+
 
 class ResearchViewSummaryBreakdownTests(unittest.TestCase):
     """The reused/newly-downloaded breakdown must only ever be derived from

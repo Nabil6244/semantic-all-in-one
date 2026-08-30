@@ -1973,14 +1973,38 @@ class VideoGeneratorApp(ctk.CTk):
             except AuthError as exc:
                 if exc.code == "unsigned":
                     self.after(0, lambda: show_login(""))
-                else:
+                elif exc.code in ("revoked", "disabled"):
+                    # Definitive server-side deny — always show the login wall.
                     msg = exc.message
                     self.after(0, lambda m=msg: show_login(m))
+                else:
+                    # "network" (timeout/offline/etc.) is not a deny — we simply
+                    # couldn't confirm anything against the server. Trust the
+                    # last stored session rather than forcing offline
+                    # Stock/Manual use behind a login wall.
+                    self._continue_offline_or_login(open_picker, show_login, exc.message)
             except Exception as exc:
-                msg = str(exc) or "Sign in required"
-                self.after(0, lambda m=msg: show_login(m))
+                self._continue_offline_or_login(open_picker, show_login, str(exc) or "Sign in required")
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _continue_offline_or_login(self, open_picker, show_login, message: str) -> None:
+        """Called when session verification couldn't be confirmed against the
+        server (network failure, timeout, or another non-deny error) — NOT a
+        definitive revoke/disable. A transient network failure must not
+        destroy a valid local session or force offline Stock/Manual use
+        behind a login wall, so fall back to the last stored session when one
+        exists; only show the login dialog when there is truly nothing to
+        trust."""
+        from licensing import session_store
+        from licensing.auth_client import AuthSession
+
+        stored = session_store.load_session()
+        if stored:
+            session = AuthSession.from_store(stored)
+            self.after(0, lambda: self._on_auth_ok(session, then=open_picker))
+        else:
+            self.after(0, lambda m=message: show_login(m))
 
     def _on_auth_ok(self, session, *, then=None) -> None:
         self._auth_session = session
@@ -2018,7 +2042,16 @@ class VideoGeneratorApp(ctk.CTk):
         )
 
     def _revalidate_license(self) -> tuple[bool, str]:
-        """Refresh + active check. Returns (ok, error_message)."""
+        """Refresh + active check. Returns (ok, error_message).
+
+        Only a definitive server-side deny (revoked refresh token, disabled
+        account) counts as "not ok" here. A network failure or any other
+        error that isn't a positive deny means the server couldn't be
+        reached to confirm anything either way — it must not be treated as a
+        revoke, or a transient wifi blip while clicking Generate would
+        force-logout an already-signed-in user and cancel in-flight work for
+        no real security reason.
+        """
         if not self._auth_required():
             return True, ""
         from licensing.auth_client import AuthError, get_auth_client
@@ -2031,9 +2064,13 @@ class VideoGeneratorApp(ctk.CTk):
             self._auth_session = session
             return True, ""
         except AuthError as exc:
-            return False, exc.message
-        except Exception as exc:
-            return False, str(exc) or "Access check failed"
+            if exc.code in ("revoked", "disabled"):
+                return False, exc.message
+            # Not a deny (network/unsigned/misconfigured/etc.) — keep trusting
+            # the session already held this run, if any.
+            return (True, "") if self._auth_session is not None else (False, exc.message)
+        except Exception:
+            return (True, "") if self._auth_session is not None else (False, "Access check failed")
 
     def _force_logout(self, reason: str = "") -> None:
         from licensing import session_store
@@ -3202,7 +3239,15 @@ class VideoGeneratorApp(ctk.CTk):
             script = self.script_box.get("1.0", "end").strip()
             if script:
                 self._workspace.save_script(script)
-            self._workspace.save_visual_plan_json(plan.to_dict())
+            plan_payload = plan.to_dict()
+            # Property Video only: scene_number -> property_id, stored beside
+            # the plan so research candidates stay scoped to their own
+            # listing. Absent (and inert) for the normal YouTube workflow.
+            pending_scope = getattr(self, "_pending_property_scope", None)
+            if pending_scope:
+                plan_payload["property_scope"] = dict(pending_scope)
+                self._pending_property_scope = None
+            self._workspace.save_visual_plan_json(plan_payload)
             csv_path = self._workspace.csv_path
             csv_path.parent.mkdir(parents=True, exist_ok=True)
         plan.write_csv(csv_path)
@@ -4587,13 +4632,51 @@ class VideoGeneratorApp(ctk.CTk):
                           "run Manual Research again to refresh it.")
                     return None
 
+            # Multi-listing: every researched property is loaded, each
+            # candidate still tagged with its own property_id, and the
+            # scene->property_id map decides which listing a given scene may
+            # draw from (hard filter inside the provider, before ranking).
+            from research.library import load_research_library
+
+            library = load_research_library(ws.research_dir)
+            if library.has_media():
+                return ResearchAssetProvider(
+                    library.all_media(),
+                    property_scope_by_scene=self._property_scope_from_workspace(),
+                )
+
             result = load_research_result(ws.research_dir)
             if not result.ok or not result.media:
                 return None
-            return ResearchAssetProvider(result.media)
+            return ResearchAssetProvider(
+                result.media,
+                property_scope_by_scene=self._property_scope_from_workspace(),
+            )
         except Exception as exc:  # noqa: BLE001 - research must never block asset generation
             print(f"[ASSET] Research provider unavailable: {exc}")
             return None
+
+    def _property_scope_from_workspace(self) -> dict:
+        """scene_number -> property_id, stored beside the plan in
+        ai_visual_plan.json (never in the CSV — that schema is unchanged).
+        Same sidecar pattern as _coverage_map_from_workspace()."""
+        # __dict__ (not getattr): this can run on an app instance built via
+        # __new__ in tests, where a missing attribute on a Tk widget recurses
+        # through Tk's own __getattr__ and raises RecursionError — which
+        # getattr's default does NOT swallow.
+        ws = self.__dict__.get("_workspace")
+        if ws is None:
+            return {}
+        try:
+            import json
+
+            if not getattr(ws, "visual_plan_json_path", None) or not ws.visual_plan_json_path.is_file():
+                return {}
+            raw = json.loads(ws.visual_plan_json_path.read_text(encoding="utf-8"))
+            scope = raw.get("property_scope") if isinstance(raw, dict) else None
+            return {str(k): str(v) for k, v in (scope or {}).items()}
+        except Exception:  # noqa: BLE001 - scope is an optimization, never fatal
+            return {}
 
     def _build_asset_manager(self, images_dir: Path, scene_rows: list[SceneRow]) -> AssetManager:
         """Shared by the main pipeline and Regenerate — builds providers needed for
@@ -4695,6 +4778,7 @@ class VideoGeneratorApp(ctk.CTk):
             log=print,
             resolved_style=getattr(self, "_resolved_style", None),
             coverage_by_scene=self._coverage_map_from_workspace(),
+            settings=self._settings,
         )
 
     def _regenerate_scene(self, scene_row: SceneRow) -> None:
@@ -6426,7 +6510,11 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showerror("Cannot start", err)
             return
 
-        if mode == "render" and snap is not None and getattr(snap, "visual_fail", 0) > 0:
+        # Only NON-Flow-image QA failures can stop a render. Flow stills are
+        # regenerated assets: their QA is advisory and still fully reported
+        # (visual_fail / visual_issues / the VQA summary all still count them),
+        # but they must never halt production behind a modal prompt.
+        if mode == "render" and snap is not None and getattr(snap, "visual_fail_blocking", 0) > 0:
             if not messagebox.askyesno(
                 "Visual QA",
                 f"{snap.visual_fail} scene(s) failed visual QA.\n"
@@ -7111,58 +7199,72 @@ class VideoGeneratorApp(ctk.CTk):
         if not self._scene_rows:
             return
         mgr = self._ensure_asset_manager(Path(self.images_var.get()))
-        try:
-            from scene_recovery import scene_key as _sk
-            from visual_qa import build_project_report, fix_all_issues
 
-            report = build_project_report(
-                self._scene_rows,
-                self._asset_results,
-                images_dir=mgr.images_dir,
-                coverage_by_scene=mgr.coverage_by_scene,
-                selection_history=mgr.selection_history,
-                resolved=getattr(self, "_resolved_style", None),
-            )
-            qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
-            allocation = None
-            if self._visual_plan and getattr(self._visual_plan, "allocation", None):
-                allocation = self._visual_plan.allocation
-            elif self._workspace is not None:
-                plan = self._workspace.read_visual_plan_json()
-                if isinstance(plan, dict):
-                    allocation = plan.get("allocation")
+        self.status_var.set("Fixing visual QA issues…")
+        self.fix_all_vqa_btn.configure(state="disabled")
 
-            self.status_var.set("Fixing visual QA issues…")
-            self.fix_all_vqa_btn.configure(state="disabled")
-            fix_report = fix_all_issues(
-                mgr,
-                self._scene_rows,
-                qa_map,
-                self._asset_results,
-                allocation=allocation,
-                max_attempts=2,
-                log=lambda m: self._append_log(m + "\n"),
-            )
-            self._sync_scene_statuses_from_results()
-            self._refresh_qa_ui()
-            self._log_visual_qa_report()
-            self.status_var.set(
-                f"VQA fix — {fix_report.fixed} fixed, "
-                f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
-            )
-            messagebox.showinfo(
-                "Fix All Issues",
-                f"Targeted {fix_report.targeted} scene(s).\n"
-                f"Fixed: {fix_report.fixed}\n"
-                f"Still weak: {fix_report.still_weak}\n"
-                f"Still fail: {fix_report.still_fail}\n"
-                f"Flow regenerations: {fix_report.flow_regenerations}",
-            )
-        except Exception as exc:
-            messagebox.showerror("Fix All Issues", str(exc))
-        finally:
-            if getattr(self, "fix_all_vqa_btn", None) is not None:
-                self.fix_all_vqa_btn.configure(state="normal")
+        def work():
+            try:
+                from scene_recovery import scene_key as _sk
+                from visual_qa import build_project_report, fix_all_issues
+
+                report = build_project_report(
+                    self._scene_rows,
+                    self._asset_results,
+                    images_dir=mgr.images_dir,
+                    coverage_by_scene=mgr.coverage_by_scene,
+                    selection_history=mgr.selection_history,
+                    resolved=getattr(self, "_resolved_style", None),
+                )
+                qa_map = {_sk(str(qa.scene_number)): qa for qa in report.results}
+                allocation = None
+                if self._visual_plan and getattr(self._visual_plan, "allocation", None):
+                    allocation = self._visual_plan.allocation
+                elif self._workspace is not None:
+                    plan = self._workspace.read_visual_plan_json()
+                    if isinstance(plan, dict):
+                        allocation = plan.get("allocation")
+
+                fix_report = fix_all_issues(
+                    mgr,
+                    self._scene_rows,
+                    qa_map,
+                    self._asset_results,
+                    allocation=allocation,
+                    max_attempts=2,
+                    log=lambda m: self._ui_queue.put(("log", m + "\n")),
+                )
+                self.after(0, lambda: self._on_fix_all_visual_issues_done(fix_report))
+            except Exception as exc:
+                msg = str(exc)
+                self.after(0, lambda m=msg: self._on_fix_all_visual_issues_failed(m))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_fix_all_visual_issues_done(self, fix_report) -> None:
+        self._sync_scene_statuses_from_results()
+        self._refresh_qa_ui()
+        self._log_visual_qa_report()
+        self.status_var.set(
+            f"VQA fix — {fix_report.fixed} fixed, "
+            f"{fix_report.still_weak} weak, {fix_report.still_fail} fail"
+        )
+        if getattr(self, "fix_all_vqa_btn", None) is not None:
+            self.fix_all_vqa_btn.configure(state="normal")
+        messagebox.showinfo(
+            "Fix All Issues",
+            f"Targeted {fix_report.targeted} scene(s).\n"
+            f"Fixed: {fix_report.fixed}\n"
+            f"Still weak: {fix_report.still_weak}\n"
+            f"Still fail: {fix_report.still_fail}\n"
+            f"Flow regenerations: {fix_report.flow_regenerations}",
+        )
+
+    def _on_fix_all_visual_issues_failed(self, message: str) -> None:
+        self.status_var.set("Ready")
+        if getattr(self, "fix_all_vqa_btn", None) is not None:
+            self.fix_all_vqa_btn.configure(state="normal")
+        messagebox.showerror("Fix All Issues", message)
 
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():
