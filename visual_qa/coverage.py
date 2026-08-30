@@ -41,12 +41,25 @@ def score_duration_coverage(
     narration_duration: float,
     asset_duration: Optional[float],
     coverage_plan: Optional[dict] = None,
+    *,
+    is_still_image: bool = False,
 ) -> tuple[float, list[str], Optional[dict]]:
-    """Score how well asset duration covers narration; refine coverage plan."""
+    """Score how well asset duration covers narration; refine coverage plan.
+
+    `is_still_image` marks assets that have no meaningful playback duration.
+    A still is held on screen for the whole narration beat by the renderer,
+    so it always covers it fully. ffprobe reports a single video frame for a
+    JPEG/PNG (measured: exactly 0.040000s), which this function would
+    otherwise read as a clip ~75x too short for the beat, producing a
+    "duration insufficient" failure and a "clip too short" warning on every
+    image. Video assets are unaffected — the branch below is untouched.
+    """
     warnings: list[str] = []
     narr = max(0.0, float(narration_duration or 0))
     asset = float(asset_duration) if asset_duration and asset_duration > 0 else 0.0
 
+    if is_still_image:
+        return 1.0, warnings, coverage_plan
     if narr <= 0:
         return 1.0, warnings, coverage_plan
     if asset <= 0:

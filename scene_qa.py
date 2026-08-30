@@ -128,6 +128,12 @@ class QAIssue:
     severity: str = "recoverable"
 
 
+def _is_flow_image_result(result) -> bool:
+    """Flow-generated still — its QA is advisory, never a render blocker."""
+    source = getattr(getattr(result, "source", None), "value", "")
+    return str(source).lower() in ("flow_image", "image")
+
+
 @dataclass
 class QASnapshot:
     total: int = 0
@@ -149,6 +155,13 @@ class QASnapshot:
     visual_pass: int = 0
     visual_weak: int = 0
     visual_fail: int = 0
+    # Subset of visual_fail that may stop an unattended render. Flow-generated
+    # images are excluded: they are still counted in visual_fail, still listed
+    # in visual_issues and still shown in the VQA summary — they simply do not
+    # halt production, because a regenerated still is advisory, the existing
+    # retry logic has already had its attempts, and stopping the run buys
+    # nothing a human could act on mid-render.
+    visual_fail_blocking: int = 0
     visual_issues: List[QAIssue] = field(default_factory=list)
     visual_summary: str = ""
 
@@ -351,6 +364,8 @@ class SceneQAState:
                 ))
             elif status == VisualQAStatus.FAIL:
                 snap.visual_fail += 1
+                if not _is_flow_image_result(result):
+                    snap.visual_fail_blocking += 1
                 reasons = raw.get("failure_reasons") or raw.get("warnings") or ["visual QA failed"]
                 snap.visual_issues.append(QAIssue(
                     key=key,

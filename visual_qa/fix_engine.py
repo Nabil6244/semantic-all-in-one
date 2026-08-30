@@ -150,7 +150,22 @@ def fix_scene_if_needed(
     for attempt in range(max_attempts):
         log(f"[VQA] Scene {scene.scene_number}: {action.value} (attempt {attempt + 1})")
         result = _apply_fix_action(mgr, scene, action, flow_budget=flow_budget, log=log)
-        results[key] = result
+        previous = results.get(key)
+        if result is not None and result.ok:
+            results[key] = result
+        elif previous is None or not previous.ok:
+            # Nothing usable to preserve — record the failure exactly as before.
+            results[key] = result
+        else:
+            # A QA-triggered repair FAILED on a scene that already had a working
+            # asset. Keep the working asset: overwriting it turned an advisory
+            # QA verdict into a hard NEEDS_ACTION and blocked the render
+            # (allow_final_render keys on result.ok), discarding a usable image
+            # because an optional improvement attempt did not land.
+            log(
+                f"[VQA] Scene {scene.scene_number}: {action.value} failed — "
+                f"keeping the existing asset"
+            )
         if not result.ok:
             break
         latest_qa = evaluate_scene_asset(

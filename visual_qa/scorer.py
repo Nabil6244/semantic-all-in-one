@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
-from providers.base import AssetResult, SceneRow
+from providers.base import AssetResult, MediaType, SceneRow
 from providers.media_quality.scoring import is_archival_provider
 from style_engine.schema import ResolvedStyle
 from style_engine.visual_selection import SelectionHistory
@@ -89,7 +89,14 @@ def evaluate_scene_asset(
             sem_warn.extend(vis_warn)
 
     narr_dur = narration_duration_from_coverage(coverage_plan, fallback=float(meta.get("duration") or 3.0))
-    dur_score, cov_warn, refined_cov = score_duration_coverage(narr_dur, tech.duration, coverage_plan)
+    # A still has no playback duration to compare against the beat — the
+    # renderer holds it for the whole narration. Video is scored as before.
+    dur_score, cov_warn, refined_cov = score_duration_coverage(
+        narr_dur,
+        tech.duration,
+        coverage_plan,
+        is_still_image=(result.media_type == MediaType.IMAGE),
+    )
 
     rep_score, rep_warn = score_repetition(
         asset_id,
