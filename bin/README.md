@@ -13,7 +13,13 @@ Both are optional individually: without `ffmpeg` the app can't render at all (bu
 
 ## Where to get them
 
-- **ffmpeg — macOS:** download a static build, or copy from Homebrew:
+- **ffmpeg — macOS:** use a **static arm64** build — do NOT copy from Homebrew.
+  Homebrew's `ffmpeg` links ~17 dylibs under `/opt/homebrew/` and will not run
+  on an end-user Mac. CI pins build `1787073674_9.0.1` from
+  `https://ffmpeg.martin-riedl.de/download/macos/arm64/<build>/` (ffmpeg.zip +
+  ffprobe.zip) and verifies SHA256 + `otool -L`. Verify any local copy with:
+  `otool -L bin/ffmpeg | grep /opt/homebrew` — it must print nothing.
+  (legacy, unsupported for release builds:)
   `cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg && cp "$(brew --prefix ffmpeg)/bin/ffprobe" bin/ffprobe && chmod +x bin/ffmpeg bin/ffprobe`
 - **ffmpeg — Windows:** from a release zip (BtbN win64-gpl or Gyan "essentials"), copy `bin/ffmpeg.exe` **and** `bin/ffprobe.exe` here (same zip). CI uses BtbN first (GitHub Releases); Gyan is only a fallback.
 - **node — any platform:** download the **official** Node.js binary release from nodejs.org (NOT Homebrew's — Homebrew's `node` is dynamically linked against Homebrew's own OpenSSL/ICU and will not run on a machine without Homebrew; the official nodejs.org tarball only links against OS-provided system libraries and runs standalone). Extract the archive and copy just `bin/node` (macOS/Linux) or `node.exe` (Windows) — no other files needed, since `flow-engine/node_modules/` (committed separately, see `flow-engine/README.md`) is what actually runs.

@@ -22,25 +22,49 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
 
-      - name: Fetch ffmpeg (macOS)
+      - name: Fetch ffmpeg (macOS, static arm64, pinned)
+        env:
+          # Pinned build id (timestamp_version) -> reproducible, and a moving
+          # upstream "latest" can never silently change the release artifact.
+          # Bump BUILD + both checksums together when intentionally upgrading.
+          FFMPEG_BUILD: "1787073674_9.0.1"
+          FFMPEG_SHA256: "393e4c395020a1cb7cbd77fbe00599ce69d1c6466fee0dbd59d13f86a81a1611"
+          FFPROBE_SHA256: "7abc49fb2bdf2204f018e76dc6e0a8ae7643313bae09a9fa43e7eb12442271bc"
         run: |
+          set -euo pipefail
           mkdir -p bin
-          # Runner images may ship untrusted taps (e.g. aws/tap) that warn on brew.
-          brew untap aws/tap 2>/dev/null || true
-          brew install ffmpeg
-          # Prefer a static-ish copy of both tools. Homebrew ffmpeg is dylib-linked;
-          # we still ship both binaries so packaged Mac builds can probe audio/video.
-          cp "$(brew --prefix ffmpeg)/bin/ffmpeg" bin/ffmpeg
-          cp "$(brew --prefix ffmpeg)/bin/ffprobe" bin/ffprobe
+          # NOT `brew install ffmpeg`: Homebrew's binary links ~17 dylibs under
+          # /opt/homebrew and cannot run on an end-user Mac without a matching
+          # Homebrew install. These builds are genuinely self-contained
+          # (System frameworks + /usr/lib only) and native arm64.
+          BASE="https://ffmpeg.martin-riedl.de/download/macos/arm64/${FFMPEG_BUILD}"
+          curl -fsSL --retry 3 --retry-delay 5 -o ffmpeg.zip  "${BASE}/ffmpeg.zip"
+          curl -fsSL --retry 3 --retry-delay 5 -o ffprobe.zip "${BASE}/ffprobe.zip"
+          unzip -o -q ffmpeg.zip  -d bin
+          unzip -o -q ffprobe.zip -d bin
           chmod +x bin/ffmpeg bin/ffprobe
+          rm -f ffmpeg.zip ffprobe.zip
+
+          # Integrity: the build uses the exact binaries that were audited, or
+          # it fails loudly rather than shipping something unverified.
+          echo "${FFMPEG_SHA256}  bin/ffmpeg"   | shasum -a 256 -c -
+          echo "${FFPROBE_SHA256}  bin/ffprobe" | shasum -a 256 -c -
+
+          # Hard gate: a non-system dependency means it will not run on a clean
+          # Mac. This is the check that the old Homebrew path only warned about.
+          for b in bin/ffmpeg bin/ffprobe; do
+            file "$b" | grep -q 'arm64' || { echo "::error::$b is not arm64"; exit 1; }
+            leaks=$(otool -L "$b" | tail -n +2 | awk '{print $1}' \
+                    | grep -vE '^/usr/lib/|^/System/' || true)
+            if [ -n "$leaks" ]; then
+              echo "::error::$b has non-system dependencies:"; echo "$leaks"; exit 1
+            fi
+            otool -L "$b" | grep -q VideoToolbox \
+              || { echo "::error::$b lacks VideoToolbox (GPU encode)"; exit 1; }
+          done
           ./bin/ffmpeg -version | head -1
           ./bin/ffprobe -version | head -1
-          # Fail the job early if ffprobe is missing (Windows CI already requires it).
           test -x bin/ffprobe
-          # Surface Homebrew linkage so maintainers know portable ffmpeg still needs work.
-          if otool -L bin/ffmpeg 2>/dev/null | grep -q '/opt/homebrew/'; then
-            echo "::warning::bin/ffmpeg links Homebrew dylibs — end-user Macs without matching Homebrew may fail. Prefer a static ffmpeg for production releases."
-          fi
 
       - name: Run unit tests
         env:
@@ -93,10 +117,79 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec
 
+      # ---- Code signing + notarization (Phase 1.3) ----
+      # Fully optional and additive: with no signing secrets configured in
+      # this repo, every step below is skipped and the build is identical to
+      # before (unsigned .app / .dmg). Once a paid Apple Developer account is
+      # available, add these repo secrets to turn it on — nothing else needs
+      # to change:
+      #   MACOS_CERTIFICATE            base64 of a Developer ID Application
+      #                                 .p12 export (`base64 -i cert.p12`)
+      #   MACOS_CERTIFICATE_PWD        password the .p12 was exported with
+      #   MACOS_CODESIGN_IDENTITY      e.g. "Developer ID Application: Name (TEAMID)"
+      #   MACOS_KEYCHAIN_PASSWORD      any password — protects the throwaway
+      #                                 CI keychain created below, not an
+      #                                 Apple credential
+      #   APPLE_ID                     Apple ID email for notarization
+      #   APPLE_APP_SPECIFIC_PASSWORD  app-specific password for that Apple ID
+      #   APPLE_TEAM_ID                Developer Team ID
+      # No secret value is ever written to source control by these steps —
+      # they exist only in GitHub's encrypted secret store for this repo.
+      - name: Check for macOS signing secrets
+        id: signing_check
+        run: |
+          if [ -n "${{ secrets.MACOS_CERTIFICATE }}" ] && \
+             [ -n "${{ secrets.MACOS_CERTIFICATE_PWD }}" ] && \
+             [ -n "${{ secrets.MACOS_CODESIGN_IDENTITY }}" ] && \
+             [ -n "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" ] && \
+             [ -n "${{ secrets.APPLE_ID }}" ] && \
+             [ -n "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" ] && \
+             [ -n "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::macOS signing secrets not configured — building an unsigned .dmg (unchanged from before Phase 1.3)."
+          fi
+
+      - name: Import signing certificate
+        if: steps.signing_check.outputs.enabled == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$MACOS_CERTIFICATE_PWD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$CERT_PATH"
+
+      - name: Code-sign the app bundle
+        if: steps.signing_check.outputs.enabled == 'true'
+        env:
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: ./scripts/codesign_macos_app.sh
+
       - name: Create DMG
         run: |
           chmod +x scripts/make_dmg.sh
           ./scripts/make_dmg.sh
+
+      - name: Notarize and staple DMG
+        if: steps.signing_check.outputs.enabled == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: ./scripts/notarize_macos_dmg.sh
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v5
