@@ -601,8 +601,8 @@ def classify_candidate(
     if dur_score <= -40.0:
         return None
     score = dur_score + len(include_hits) * 5.0
-    if path.suffix.lower() == ".wav":
-        score += 8.0
+    if path.suffix.lower() in (".wav", ".flac", ".aif", ".aiff"):
+        score += 8.0  # prefer lossless SOURCE material, not a specific extension
     if sample_rate >= 44100:
         score += 2.0
     if re.search(r"\b(loop|variation|var\d+|alt\d+)\b", text, re.I):

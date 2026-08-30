@@ -13,6 +13,13 @@ from style_engine.visual_selection import build_selection_context
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
+# Deterministic semantic value for a Flow-generated still whose subject no
+# pixel-aware check has confirmed. Deliberately NOT a pass-level score: an
+# unverified image must surface as WEAK, never as verified-good. Kept above
+# the 0.45 "semantic mismatch" line so it does not fabricate a failure or
+# trigger a retry that could not fix anything.
+UNVERIFIED_FLOW_SEMANTIC = 0.30
+
 _GENERIC = frozenset({
     "ocean", "waves", "water", "city", "people", "walking", "business",
     "office", "nature", "sky", "background", "abstract", "generic",
@@ -21,6 +28,38 @@ _GENERIC = frozenset({
 
 def _tokens(text: str) -> Set[str]:
     return set(_TOKEN.findall((text or "").lower()))
+
+
+# Real Flow stills measure 643KB-1.17MB, so the previous 900_000 cap silently
+# dropped 43% of them and let the model answer from text alone. Gemini accepts
+# far larger inline payloads; this bound still guards against sending an
+# unreasonable file (base64 inflates by ~33%).
+_MAX_VISION_IMAGE_BYTES = 4_000_000
+
+_VISION_MIME_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+
+
+def _vision_mime_type(path) -> str:
+    """Declare what the file actually is. Flow stills are .png, but every frame
+    used to be labelled image/jpeg. The original file is never modified."""
+    from pathlib import Path
+
+    return _VISION_MIME_TYPES.get(Path(str(path)).suffix.lower(), "image/jpeg")
+
+
+def is_flow_generated_image(result: AssetResult) -> bool:
+    """True only for a still image produced by Flow from our own prompt."""
+    source = getattr(result.source, "value", str(result.source or "")).lower()
+    if source not in ("flow_image", "image"):
+        return False
+    media = getattr(result.media_type, "value", str(result.media_type or "")).lower()
+    return media in ("image", "")
 
 
 def metadata_semantic_score(
@@ -35,6 +74,24 @@ def metadata_semantic_score(
     desc = str(meta.get("description") or meta.get("tags") or "")
     query = scene.prompt or scene.stock or ""
     visual = getattr(scene, "visual_description", "") or ""
+
+    # A Flow image has NO third-party metadata to test: Flow returns only the
+    # prompt we sent, and the CSV round-trip leaves no visual_description. So
+    # there are only two honest options at this tier, and lexical overlap is
+    # neither of them:
+    #   * comparing the prompt against the narration penalizes good prompts
+    #     (they translate the narration rather than repeat it) — measured
+    #     0.457 + "wrong subject" for a correct smartphone photo;
+    #   * comparing the prompt against itself returns 1.0 for every image —
+    #     measured, a Jupiter photo scored 0.981 against a "modern kitchen"
+    #     prompt, exactly as for the correct one.
+    # Neither looks at pixels. Only vision_semantic_score() can, so this tier
+    # reports UNVERIFIED and defers: when vision runs it overrides this value
+    # (scorer blends 0.4 metadata / 0.6 vision); when it cannot run the score
+    # stays low enough that the scene lands WEAK rather than claiming a
+    # verification that never happened.
+    if is_flow_generated_image(result):
+        return UNVERIFIED_FLOW_SEMANTIC, warnings
 
     rel = relevance_score(
         query=query or scene.script_segment,
@@ -75,6 +132,12 @@ def needs_vision_inspection(
 ) -> bool:
     """Level 3 gate — vision only when uncertain."""
     source = getattr(result.source, "value", str(result.source or "")).lower()
+    # A Flow still has no metadata tier that could ever confirm its subject
+    # (see metadata_semantic_score), so gating on `semantic` would be gating
+    # on a constant. Always offer it to vision; vision itself returns None
+    # when unavailable and the caller falls back to UNVERIFIED_FLOW_SEMANTIC.
+    if is_flow_generated_image(result):
+        return True
     if source in ("flow_video", "flow_image", "video", "image"):
         if semantic < 0.55 or technical < 0.6:
             return True
@@ -119,15 +182,20 @@ def vision_semantic_score(
                 )
             }
         ]
+        sent = 0
         for fp in frame_paths[:2]:
-            p = fp if hasattr(fp, "read_bytes") else None
             from pathlib import Path
 
             path = Path(fp)
-            if not path.is_file() or path.stat().st_size > 900_000:
+            if not path.is_file() or path.stat().st_size > _MAX_VISION_IMAGE_BYTES:
                 continue
             b64 = base64.b64encode(path.read_bytes()).decode("ascii")
-            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64}})
+            parts.append({"inline_data": {"mime_type": _vision_mime_type(path), "data": b64}})
+            sent += 1
+        if not sent:
+            # Never let the model answer from narration + prompt text alone —
+            # that is the prompt-vs-prompt tautology wearing a vision label.
+            return None, []
 
         body = {
             "contents": [{"role": "user", "parts": parts}],

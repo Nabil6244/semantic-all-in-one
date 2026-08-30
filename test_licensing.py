@@ -200,5 +200,167 @@ class TestAuthClient(unittest.TestCase):
         self.assertIsNone(session_store.load_session())
 
 
+class TestRevalidateLicenseResilience(unittest.TestCase):
+    """app.VideoGeneratorApp._revalidate_license / _continue_offline_or_login:
+    a network failure (or any non-deny error) must NOT be treated the same as
+    a definitive server-side revoke — see Release Readiness Audit, Phase 1.2.
+    Exercises the real methods directly on a bare (un-__init__'d) instance,
+    same pattern as test_research_staleness_and_ambiguity.py, so no real
+    Tk window is created."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        self._session_file = Path(self._tmpdir.name) / "auth_session.json"
+        self._path_patch = patch.object(session_store, "session_path", return_value=self._session_file)
+        self._path_patch.start()
+        self.addCleanup(self._path_patch.stop)
+
+    def _make_app_instance(self, *, auth_required=True, auth_session=None):
+        import app as app_module
+
+        instance = app_module.VideoGeneratorApp.__new__(app_module.VideoGeneratorApp)
+        instance._auth_required = lambda: auth_required
+        instance._auth_session = auth_session
+        return instance
+
+    def test_network_failure_keeps_an_already_verified_session(self):
+        instance = self._make_app_instance(
+            auth_session=AuthSession(access_token="at", refresh_token="rt", user_id="u1")
+        )
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(
+                    verify_stored_session=MagicMock(
+                        side_effect=AuthError("Could not reach login server: timeout", code="network")
+                    )
+                ),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_unexpected_exception_keeps_an_already_verified_session(self):
+        instance = self._make_app_instance(
+            auth_session=AuthSession(access_token="at", refresh_token="rt", user_id="u1")
+        )
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(
+                    verify_stored_session=MagicMock(side_effect=ValueError("bad json"))
+                ),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_revoked_still_denies_even_with_an_existing_session(self):
+        instance = self._make_app_instance(
+            auth_session=AuthSession(access_token="at", refresh_token="rt", user_id="u1")
+        )
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(
+                    verify_stored_session=MagicMock(
+                        side_effect=AuthError("Access revoked or password changed", code="revoked")
+                    )
+                ),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertFalse(ok)
+        self.assertEqual(err, "Access revoked or password changed")
+
+    def test_disabled_still_denies_even_with_an_existing_session(self):
+        instance = self._make_app_instance(
+            auth_session=AuthSession(access_token="at", refresh_token="rt", user_id="u1")
+        )
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(
+                    verify_stored_session=MagicMock(
+                        side_effect=AuthError("Account disabled", code="disabled")
+                    )
+                ),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertFalse(ok)
+        self.assertEqual(err, "Account disabled")
+
+    def test_network_failure_with_no_existing_session_still_denies(self):
+        instance = self._make_app_instance(auth_session=None)
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(
+                    verify_stored_session=MagicMock(
+                        side_effect=AuthError("Could not reach login server: timeout", code="network")
+                    )
+                ),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertFalse(ok)
+
+    def test_successful_verify_updates_the_held_session(self):
+        instance = self._make_app_instance(auth_session=None)
+        fresh = AuthSession(access_token="new-at", refresh_token="new-rt", user_id="u1")
+        with patch("licensing.config.is_configured", return_value=True):
+            with patch(
+                "licensing.auth_client.get_auth_client",
+                return_value=MagicMock(verify_stored_session=MagicMock(return_value=fresh)),
+            ):
+                ok, err = instance._revalidate_license()
+        self.assertTrue(ok)
+        self.assertIs(instance._auth_session, fresh)
+
+    def test_not_auth_required_short_circuits_without_any_network_call(self):
+        instance = self._make_app_instance(auth_required=False)
+        ok, err = instance._revalidate_license()
+        self.assertTrue(ok)
+        self.assertEqual(err, "")
+
+    def test_continue_offline_or_login_uses_stored_session_when_present(self):
+        instance = self._make_app_instance()
+        instance.after = lambda _ms, fn: fn()  # run "later" callbacks immediately
+        session_store.save_session({
+            "access_token": "at", "refresh_token": "rt", "user_id": "u1", "email": "a@b.com",
+        })
+
+        seen = {}
+
+        def fake_on_auth_ok(session, *, then=None):
+            seen["session"] = session
+            if then:
+                then()
+
+        instance._on_auth_ok = fake_on_auth_ok
+        picker_called = []
+        login_called = []
+        instance._continue_offline_or_login(
+            lambda: picker_called.append(True),
+            lambda m="": login_called.append(m),
+            "Could not reach login server: timeout",
+        )
+        self.assertEqual(seen["session"].refresh_token, "rt")
+        self.assertEqual(picker_called, [True])
+        self.assertEqual(login_called, [])
+
+    def test_continue_offline_or_login_shows_login_when_nothing_stored(self):
+        instance = self._make_app_instance()
+        instance.after = lambda _ms, fn: fn()
+        self.assertIsNone(session_store.load_session())
+
+        login_called = []
+        instance._continue_offline_or_login(
+            lambda: None,
+            lambda m="": login_called.append(m),
+            "Could not reach login server: timeout",
+        )
+        self.assertEqual(login_called, ["Could not reach login server: timeout"])
+
+
 if __name__ == "__main__":
     unittest.main()

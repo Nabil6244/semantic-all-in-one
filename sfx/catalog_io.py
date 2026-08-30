@@ -83,7 +83,11 @@ def normalize_entry(raw: dict, *, default_category: str = "") -> dict:
     entry_id = str(raw.get("id") or "").strip()
     file_path = str(raw.get("file") or "").strip()
     if not file_path and entry_id and category:
-        file_path = f"{category}/{entry_id}.wav"
+        # An entry without an explicit path falls back to the catalog's own
+        # declared container, NOT a hardcoded .wav — otherwise an opus/flac
+        # library would synthesise paths that do not exist on disk.
+        ext = str(raw.get("format") or "wav").strip().lstrip(".").lower() or "wav"
+        file_path = f"{category}/{entry_id}.{ext}"
     try:
         duration = round(float(raw.get("duration") or 0.0), 3)
     except (TypeError, ValueError):

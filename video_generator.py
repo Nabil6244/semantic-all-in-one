@@ -235,6 +235,7 @@ def transcribe_audio(audio_path: str, model_size: str, performance_mode: str | N
     from hardware.accel import (
         format_accel_report,
         get_capabilities,
+        record_whisper_backend,
         whisper_device_and_compute,
     )
 
@@ -255,6 +256,7 @@ def transcribe_audio(audio_path: str, model_size: str, performance_mode: str | N
                 num_workers=1,
             )
             backend_used = "CUDA"
+            record_whisper_backend("CUDA", compute_type)
             print(f"[1/4] Whisper backend: CUDA ({compute_type})")
         except Exception as exc:
             print(f"[1/4] CUDA Whisper failed ({exc}); falling back to CPU.")
@@ -269,6 +271,7 @@ def transcribe_audio(audio_path: str, model_size: str, performance_mode: str | N
             num_workers=1,
         )
         backend_used = "CPU"
+        record_whisper_backend("CPU", "int8")
         reason = "CUDA unavailable or failed" if device == "cuda" else "CPU mode / no GPU"
         print(f"[1/4] Whisper backend: CPU — {reason}")
 

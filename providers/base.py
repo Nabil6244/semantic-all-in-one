@@ -30,6 +30,7 @@ class AssetSource(str, enum.Enum):
     COMMONS_VIDEO = "commons_video"
     COMMONS_IMAGE = "commons_image"
     MANUAL = "manual"  # user-supplied local file for a failed scene
+    RESEARCH = "research"  # property-scoped media from the standalone research engine
 
 
 _STOCK_SOURCES = (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
@@ -188,6 +189,13 @@ class SceneRow:
         return self.asset_type == "commons_image" and bool(self.prompt or self.stock)
 
     @property
+    def wants_research(self) -> bool:
+        """Property Video workflow only (research/property_visual_plan.py) —
+        an explicit asset_type=research scene. No prompt required: research
+        candidates are already property-scoped, unlike stock's text query."""
+        return self.asset_type == "research"
+
+    @property
     def wants_documentary_clip(self) -> bool:
         """Any search-based archival clip provider (Archive, NASA)."""
         return self.wants_archive or self.wants_nasa
@@ -220,6 +228,7 @@ class SceneRow:
             "flow_video": "video",
             "video": "video",
             "local": "local",
+            "research": "research",
         }
         asset_type = asset_map.get(key, key)
         query = (self.stock or self.prompt or "").strip()

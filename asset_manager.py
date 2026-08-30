@@ -32,6 +32,14 @@ from providers.local_provider import LocalProvider
 from providers.router import SceneAssetRouter
 
 DEFAULT_PARALLEL_SCENES = max(1, min(8, int(os.environ.get("ASSET_PARALLEL_SCENES", "4"))))
+
+# Candidate-side relevance floor applied to stock searches in the Property
+# Video workflow (0.0 elsewhere). Deliberately modest: it rejects clips with
+# no meaningful overlap with the query at all, without second-guessing the
+# existing ranking for genuinely on-topic candidates.
+PROPERTY_VIDEO_MIN_STOCK_RELEVANCE = float(
+    os.environ.get("PROPERTY_VIDEO_MIN_STOCK_RELEVANCE", "0.2")
+)
 SceneStartCallback = Callable[[SceneRow, AssetSource], None]
 SceneCompleteCallback = Callable[[SceneRow, AssetResult], None]
 
@@ -42,6 +50,11 @@ _FALLBACK_ELIGIBLE_SOURCES = frozenset({
     AssetSource.YOUTUBE_VIDEO,
     AssetSource.ARCHIVE_VIDEO,
     AssetSource.NASA_VIDEO,
+    # Flow image is now the primary image source, so a genuine Flow failure
+    # must fall through to its declared stock_image fallback instead of
+    # dead-ending. FLOW_VIDEO is deliberately NOT here: paid video keeps its
+    # existing quota-aware Flow-image retry path untouched.
+    AssetSource.FLOW_IMAGE,
 })
 
 
@@ -121,9 +134,11 @@ class AssetManager:
         youtube_provider=None,
         archive_provider=None,
         nasa_provider=None,
+        research_provider=None,
         log: LogFn = print,
         resolved_style=None,
         coverage_by_scene: Optional[dict] = None,
+        settings: Optional[dict] = None,
     ):
         self.images_dir = Path(images_dir)
         self.images_dir.mkdir(parents=True, exist_ok=True)
@@ -134,8 +149,21 @@ class AssetManager:
         self.youtube_provider = youtube_provider
         self.archive_provider = archive_provider
         self.nasa_provider = nasa_provider
+        self.research_provider = research_provider
         self.resolved_style = resolved_style
+        # Read by _run_visual_qa() so Visual QA can resolve the Gemini key and
+        # run the vision tier. Previously nothing ever set this attribute, so
+        # vision_semantic_score() returned None before reading the key and the
+        # whole vision tier was unreachable regardless of configuration.
+        self.settings = dict(settings or {})
         self.coverage_by_scene = dict(coverage_by_scene or {})
+        # Property Video only: when a project has researched listings, stock
+        # scenes get a candidate-side relevance floor so a clip that merely
+        # came back from the search (but isn't about the query) is rejected
+        # rather than accepted as "best available". Left at 0.0 (off) for
+        # the normal YouTube workflow, whose ranking is unchanged.
+        if research_provider is not None and stock_provider is not None:
+            stock_provider.min_stock_relevance = PROPERTY_VIDEO_MIN_STOCK_RELEVANCE
         from style_engine.visual_selection import SelectionHistory
 
         self.selection_history = SelectionHistory()
@@ -152,6 +180,7 @@ class AssetManager:
             self.nasa_provider,
             self.flow_image_provider,
             self.flow_video_provider,
+            self.research_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
@@ -178,6 +207,7 @@ class AssetManager:
             self.nasa_provider,
             self.flow_image_provider,
             self.flow_video_provider,
+            self.research_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
@@ -188,6 +218,27 @@ class AssetManager:
     def reset_cancel(self) -> None:
         self._cancel_event.clear()
         self._cancelled_scenes.clear()
+
+    def _run_cancelled(self) -> bool:
+        """Run-level cancellation ONLY — did the user stop the whole run?
+
+        This is what a Flow batch's `should_stop` must mean. It used to be
+        `is_cancelled or any(scene cancelled in this batch)`, which made ONE
+        cancelled/stopped scene look like a whole-run abort: the provider
+        sends STOP for that scene, then re-checks should_stop() to decide why
+        the batch ended (provider.py, "_resolve_batch_locked" result loop).
+        With the batch-wide form that check always answered "the user
+        cancelled", so every scene still in flight was written off as
+        CANCELLED instead of the FAILED/"Interrupted ... Use Retry" the code
+        already had for exactly this case — one bad prompt cancelling hundreds
+        of unrelated scenes.
+
+        Per-scene stopping is unaffected: FlowProvider._batch_should_stop()
+        still ORs in its own per-scene `should_stop_scene` callback to decide
+        when to STOP the engine, and _resolve_flow_batch() still marks the
+        individually-cancelled scene CANCELLED on its own.
+        """
+        return self.is_cancelled
 
     @property
     def is_cancelled(self) -> bool:
@@ -209,10 +260,25 @@ class AssetManager:
             AssetSource.NASA_VIDEO: self.nasa_provider,
             AssetSource.COMMONS_VIDEO: self.stock_provider,
             AssetSource.COMMONS_IMAGE: self.stock_provider,
+            AssetSource.RESEARCH: self.research_provider,
         }[source]
 
     def classify(self, scene: SceneRow) -> AssetSource:
-        return SceneAssetRouter.classify(scene) or AssetSource.LOCAL
+        source = SceneAssetRouter.classify(scene)
+        if source is not None:
+            # Manual CSV authority always wins — an explicit asset_type is
+            # never second-guessed or overridden by research.
+            return source
+        if (
+            self.research_provider is not None
+            and self.research_provider.has_unused_candidates(scene.scene_number)
+            and vg.find_image_for_scene(self.images_dir, scene.scene_number) is None
+        ):
+            # Only fills the gap when the CSV didn't request a specific
+            # provider AND no manually-placed local file already covers
+            # this scene (that intentional user action still wins).
+            return AssetSource.RESEARCH
+        return AssetSource.LOCAL
 
     def validate_rows(self, rows: List[SceneRow]) -> List[str]:
         return SceneAssetRouter.validate(rows, self.images_dir)
@@ -348,7 +414,7 @@ class AssetManager:
                 coverage_plan=record.get("coverage_plan"),
                 selection_history=self.selection_history,
                 resolved=getattr(self, "resolved_style", None),
-                settings=getattr(self, "settings", None),
+                settings=self.settings,
                 enable_vision=True,
             )
             record["visual_qa"] = qa.to_dict()
@@ -572,9 +638,7 @@ class AssetManager:
                 scenes,
                 self.images_dir,
                 log=self.log,
-                should_stop=lambda: self.is_cancelled or any(
-                    self.is_scene_cancelled(s.scene_number) for s in scenes
-                ),
+                should_stop=self._run_cancelled,
                 on_scene_ready=_on_scene_ready,
             )
         except TypeError:
@@ -583,9 +647,7 @@ class AssetManager:
                 scenes,
                 self.images_dir,
                 log=self.log,
-                should_stop=lambda: self.is_cancelled or any(
-                    self.is_scene_cancelled(s.scene_number) for s in scenes
-                ),
+                should_stop=self._run_cancelled,
             )
         except Exception as exc:
             batch_results = {}
@@ -620,6 +682,64 @@ class AssetManager:
                 on_scene_start=on_scene_start,
                 on_scene_complete=on_scene_complete,
             )
+
+        # Flow image failures → declared stock_image fallback. The batch path
+        # never reaches _resolve_one(), so without this a Flow-image failure
+        # dead-ends at NEEDS_ACTION even though the scene declares a fallback.
+        # Guarded on FLOW_IMAGE so Flow VIDEO keeps its existing behaviour and
+        # never falls back to stock here.
+        if source == AssetSource.FLOW_IMAGE and not self.is_cancelled:
+            self._fallback_flow_image_to_stock(
+                scenes,
+                results,
+                on_scene_start=on_scene_start,
+                on_scene_complete=on_scene_complete,
+            )
+
+    def _fallback_flow_image_to_stock(
+        self,
+        image_scenes: List[SceneRow],
+        results: Dict[str, AssetResult],
+        *,
+        on_scene_start: Optional[SceneStartCallback] = None,
+        on_scene_complete: Optional[SceneCompleteCallback] = None,
+    ) -> None:
+        """Flow image is preferred and free, but when it genuinely fails the
+        scene falls back to stock_image rather than stopping at NEEDS_ACTION.
+
+        Mirrors the declared-fallback behaviour `_resolve_one()` already gives
+        the single-scene path, so both paths route Flow image -> stock image
+        identically. Successful Flow images are never touched."""
+        if self.stock_provider is None:
+            return
+        for scene in image_scenes:
+            key = scene.scene_number
+            result = results.get(key)
+            if result is None or result.ok:
+                continue
+            if result.status in (SceneStatus.CANCELLED, SceneStatus.SKIPPED):
+                continue
+            if self.is_cancelled or self.is_scene_cancelled(key):
+                continue
+            fallback = scene.as_fallback("stock_image")
+            fallback_source = self.classify(fallback)
+            if fallback_source is None:
+                continue
+            self.log(
+                f"[ASSET] Scene {key} -> flow_image failed; "
+                f"trying declared fallback: stock_image"
+            )
+            if on_scene_start:
+                on_scene_start(fallback, fallback_source)
+            fallback_result = self._resolve_one(
+                fallback, fallback_source, try_declared_fallbacks=False
+            )
+            if not fallback_result.ok:
+                # Keep the original Flow failure as the reported error.
+                continue
+            results[key] = fallback_result
+            if on_scene_complete:
+                on_scene_complete(fallback, fallback_result)
 
     @staticmethod
     def _is_flow_rate_or_quota_error(result: AssetResult) -> bool:
@@ -714,9 +834,7 @@ class AssetManager:
                 to_retry,
                 self.images_dir,
                 log=self.log,
-                should_stop=lambda: self.is_cancelled or any(
-                    self.is_scene_cancelled(s.scene_number) for s in to_retry
-                ),
+                should_stop=self._run_cancelled,
                 on_scene_ready=_on_ready,
             )
         except TypeError:
@@ -724,9 +842,7 @@ class AssetManager:
                 to_retry,
                 self.images_dir,
                 log=self.log,
-                should_stop=lambda: self.is_cancelled or any(
-                    self.is_scene_cancelled(s.scene_number) for s in to_retry
-                ),
+                should_stop=self._run_cancelled,
             )
         except Exception as exc:
             batch_results = {}
@@ -859,6 +975,7 @@ class AssetManager:
             AssetSource.YOUTUBE_VIDEO: [],
             AssetSource.ARCHIVE_VIDEO: [], AssetSource.NASA_VIDEO: [],
             AssetSource.COMMONS_VIDEO: [], AssetSource.COMMONS_IMAGE: [],
+            AssetSource.RESEARCH: [],
         }
 
         for scene in rows:
@@ -911,6 +1028,18 @@ class AssetManager:
         self._resolve_sequential(
             pending[AssetSource.COMMONS_IMAGE],
             AssetSource.COMMONS_IMAGE,
+            results,
+            on_scene_start=on_scene_start,
+            on_scene_complete=on_scene_complete,
+        )
+
+        # Sequential (not batched into parallel_items above): ResearchAssetProvider
+        # mutates a shared MediaCandidate.used flag across scenes competing for
+        # the same property's limited media pool — resolving in parallel would
+        # race two scenes onto the same "unused" candidate.
+        self._resolve_sequential(
+            pending[AssetSource.RESEARCH],
+            AssetSource.RESEARCH,
             results,
             on_scene_start=on_scene_start,
             on_scene_complete=on_scene_complete,

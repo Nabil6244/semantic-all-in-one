@@ -12,13 +12,33 @@ from .models import QA_ENGINE_VERSION, VisualQAResult
 CACHE_FILE = ".visual_qa_cache.json"
 
 
+def _file_identity(asset_path: Path) -> str:
+    """Cheap content identity: size + nanosecond mtime.
+
+    The cache key used to be the PATH alone, but a retry regenerates a
+    DIFFERENT image to the SAME path (001.png), so the re-evaluation after a
+    retry was served the previous image's verdict. Both stat fields change
+    when a file is rewritten, so a regenerated asset misses the cache and is
+    scored fresh. Returns "" when the file is unreadable, which simply falls
+    back to the old path-only behaviour rather than raising."""
+    try:
+        st = Path(asset_path).stat()
+    except OSError:
+        return ""
+    return f"{st.st_size}:{st.st_mtime_ns}"
+
+
 def _fingerprint(
     asset_path: str,
     scene_number: str,
     style_id: str = "",
     coverage_version: str = "",
+    file_identity: str = "",
 ) -> str:
-    raw = f"{QA_ENGINE_VERSION}|{asset_path}|{scene_number}|{style_id}|{coverage_version}"
+    raw = (
+        f"{QA_ENGINE_VERSION}|{asset_path}|{file_identity}"
+        f"|{scene_number}|{style_id}|{coverage_version}"
+    )
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
@@ -46,7 +66,10 @@ def get_cached(
     style_id: str = "",
 ) -> Optional[VisualQAResult]:
     cache = load_cache(images_dir)
-    fp = _fingerprint(str(asset_path.resolve()), scene_number, style_id)
+    fp = _fingerprint(
+        str(asset_path.resolve()), scene_number, style_id,
+        file_identity=_file_identity(asset_path),
+    )
     raw = cache.get(fp)
     if not isinstance(raw, dict):
         return None
@@ -62,7 +85,10 @@ def store_cached(
     style_id: str = "",
 ) -> None:
     cache = load_cache(images_dir)
-    fp = _fingerprint(str(Path(asset_path).resolve()), scene_number, style_id)
+    fp = _fingerprint(
+        str(Path(asset_path).resolve()), scene_number, style_id,
+        file_identity=_file_identity(Path(asset_path)),
+    )
     cache[fp] = result.to_dict()
     save_cache(images_dir, cache)
 

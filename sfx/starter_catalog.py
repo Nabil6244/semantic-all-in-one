@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+# Container for the WAV starter pack. Parameterised so the same builder can
+# emit a catalog for a library shipped in another format.
+STARTER_FORMAT = "wav"
+
 from typing import Dict, List, Tuple
 
 STARTER_TARGETS = {
@@ -172,7 +176,7 @@ def build_starter_catalog() -> dict:
             entries.append(
                 {
                     "id": entry_id,
-                    "file": f"{category}/{entry_id}.wav",
+                    "file": f"{category}/{entry_id}.{STARTER_FORMAT}",
                     "category": category,
                     "tags": tags_pool[i - 1],
                     "intensity": intensity,

@@ -9,7 +9,10 @@ from typing import Any, Dict, List, Optional
 from providers.base import SceneRow
 from style_engine.visual_selection import scene_has_manual_authority
 
-QA_ENGINE_VERSION = 1
+# 2: Flow-image semantic is no longer lexical-overlap based (vision-verified
+#    or explicitly UNVERIFIED), and the cache key now tracks file contents.
+#    Bumped so results cached under the old scoring are not reused.
+QA_ENGINE_VERSION = 2
 
 PASS_THRESHOLD = 0.80
 WEAK_THRESHOLD = 0.60

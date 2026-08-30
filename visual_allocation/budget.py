@@ -1,8 +1,8 @@
-"""AI video budget — score opportunities; Flow video is credit-capped, Flow image is soft-capped."""
+"""AI video budget — Flow VIDEO is credit-capped; Flow IMAGE is free and uncapped."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, NamedTuple, Tuple
+from typing import Any, Dict, List, Tuple
 
 from visual_director.schema import VisualScene
 
@@ -14,6 +14,12 @@ IMAGE_NEED_BLOCK = frozenset({
     "evidence",
     "timeline",
 })
+
+# Practical candidacy floor for free Flow stills. `flow_image_fit()` builds
+# from flow_score (typically 0.1-0.3) plus small bonuses, so the previous
+# 0.38 was effectively unreachable: on a real 148-scene project it passed
+# 1 of 131 eligible scenes, handing the other 130 to stock by default.
+FLOW_IMAGE_FIT_FLOOR = 0.24
 
 VIDEO_NEED_BOOST = frozenset({
     "action",
@@ -39,22 +45,29 @@ def ai_budget_limit(scene_count: int, settings: AllocationSettings) -> int:
 
 
 def flow_image_soft_cap(scene_count: int, settings: AllocationSettings) -> int:
-    """Upper ceiling for free Flow images — selection stays score-driven below this,
-    and strong candidates can still be picked above it (see select_flow_image_scenes).
-    Free Flow stills are preferred over stock images wherever they're a genuine fit,
-    so these baselines run well above the old stock-forward defaults."""
+    """Visual-variety reference point for Flow images — NOT a credit budget.
+
+    Flow images are free, so nothing here rations them: this value only
+    tells `select_flow_image_scenes()` roughly where an all-AI look starts,
+    and it can never force an otherwise-eligible scene to stock (crossing it
+    costs nothing but a framing-variation cue). Kept as a function, and
+    still strategy-aware, so `visual_strategy` continues to shape the mix.
+
+    Contrast with `ai_budget_limit()` above, which IS a hard credit cap and
+    is deliberately left untouched — Flow VIDEO still costs credits.
+    """
     n = max(0, int(scene_count))
     if n <= 0:
         return 0
     strat = (settings.visual_strategy or "automatic").lower()
     if strat == "image_heavy":
-        return max(4, int(n * 0.60))
+        return max(4, int(n * 0.85))
     if strat == "video_heavy":
-        return max(2, int(n * 0.20))
+        return max(2, int(n * 0.45))
     if strat == "balanced":
-        return max(3, int(n * 0.48))
+        return max(3, int(n * 0.70))
     # automatic
-    return max(3, int(n * 0.42))
+    return max(3, int(n * 0.65))
 
 
 def flow_opportunity_score(
@@ -86,14 +99,7 @@ def flow_opportunity_score(
     blob = f"{treatment} {goal} {desc}"
     if any(w in blob for w in ("cinematic", "impossible", "visualization", "metaphor", "conceptual")):
         score += 0.18
-    # "archival" alone is too broad — most Gemini-authored prompts say "real
-    # archival footage of X" as generic b-roll phrasing for ordinary cinematic
-    # subjects (volcanoes, rockets, cities), not because X is a genuine
-    # historical-evidence requirement. The more specific words below are real
-    # evidence signals (a document, a newspaper, a map, an actual photograph)
-    # and keep the "prefer authentic material" behavior for scenes that
-    # actually need it.
-    if any(w in blob for w in ("document", "newspaper", "map", "photograph")):
+    if any(w in blob for w in ("archival", "document", "newspaper", "map", "photograph")):
         score -= 0.25
 
     if position < 0.15:
@@ -166,73 +172,42 @@ def select_flow_video_scenes(
     return chosen
 
 
-class FlowImageSelection(NamedTuple):
-    scene_ids: set[int]
-    peak_pressure_ratio: float  # len(chosen) / soft_cap at the end of selection
-    exceeded_cap: bool          # True if any scene was kept past 100% of the cap
-
-
-# Progressive penalty as selection approaches/exceeds the soft cap: below the
-# cap, only the baseline fit floor applies; past it, the required fit rises
-# with distance past the cap, but there is no ratio at which selection simply
-# stops — a genuinely strong candidate can still cross even a 125%+ ratio.
-# (ratio_threshold, required_fit) — first matching threshold (by ratio >=) wins.
-_SOFT_CAP_CURVE: Tuple[Tuple[float, float], ...] = (
-    (1.25, 0.72),
-    (1.10, 0.62),
-    (1.00, 0.55),
-    (0.85, 0.50),
-    (0.70, 0.45),
-)
-
-
 def select_flow_image_scenes(
     prelim: List[Dict[str, Any]],
     *,
     video_selected: set[int],
-    soft_cap: int,
-) -> FlowImageSelection:
-    """Return free-Flow-image scene_ids — score-driven with a real soft ceiling.
+    soft_cap: int = 0,
+) -> set[int]:
+    """Return scene_ids for free Flow images — EVERY image-suitable scene.
 
-    Below the cap, any candidate clearing the baseline fit floor is taken.
-    Approaching and past the cap, the required fit rises progressively (see
-    _SOFT_CAP_CURVE) rather than hard-stopping at the cap — a strong enough
-    opportunity can still be selected above it, which is the whole point of
-    "soft": the cap shapes preference, it doesn't wall it off.
+    Flow images are free, so there is no budget to ration and nothing here
+    may push an eligible scene to stock. Stock image is a fallback for
+    scenes Flow cannot serve, not a competitor Flow has to out-score:
+
+        image-suitable scene -> Flow image
+        Flow unsuitable/unavailable/failed -> stock image
+
+    `soft_cap` is still accepted (and still computed by
+    `flow_image_soft_cap()` for the Brand & Style mix preview) but is
+    deliberately NOT applied as a limit: capping here is precisely what
+    inverted the priority before, silently sending eligible scenes to
+    stock once a quota filled.
+
+    The only exclusions are:
+      * the scene already won a paid Flow VIDEO slot, and
+      * `flow_image_fit()` is below FLOW_IMAGE_FIT_FLOOR — which includes
+        every IMAGE_NEED_BLOCK need (document/map/evidence/timeline),
+        scored 0.0, so factual/documentary scenes stay on real media.
     """
-    if soft_cap <= 0:
-        return FlowImageSelection(set(), 0.0, False)
-    candidates: List[Tuple[int, float]] = []
+    chosen: set[int] = set()
     for item in prelim:
-        scene = item["scene"]
-        sid = scene.scene_id
+        sid = item["scene"].scene_id
         if sid in video_selected:
             continue
-        fit = flow_image_fit(item)
-        # Baseline floor for candidacy — lower than the old default so Flow
-        # image is a genuine, frequently-taken option rather than a rare one;
-        # still excludes near-zero-relevance fits, and IMAGE_NEED_BLOCK /
-        # archival-keyword content is already penalized upstream in
-        # flow_opportunity_score()/flow_image_fit(), so this floor change
-        # doesn't override "prefer authentic material" signals, it just stops
-        # requiring an unusually strong score on top of them.
-        if fit < 0.24:
-            continue
-        candidates.append((sid, fit))
-    ordered = sorted(candidates, key=lambda row: row[1], reverse=True)
-    chosen: set[int] = set()
-    for sid, fit in ordered:
-        ratio = len(chosen) / soft_cap
-        required = 0.0
-        for threshold, req in _SOFT_CAP_CURVE:
-            if ratio >= threshold:
-                required = req
-                break
-        if fit < required:
+        if flow_image_fit(item) < FLOW_IMAGE_FIT_FLOOR:
             continue
         chosen.add(sid)
-    peak_ratio = len(chosen) / soft_cap
-    return FlowImageSelection(chosen, peak_ratio, peak_ratio > 1.0)
+    return chosen
 
 
 def select_flow_scenes(

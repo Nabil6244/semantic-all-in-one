@@ -46,6 +46,7 @@ RADIUS = 4  # restrained, not pill-like
 NAV_ITEMS = (
     ("brand_style", "Brand & Style"),
     ("script", "Script"),
+    ("research", "Research"),
     ("visual_plan", "Visual Plan"),
     ("assets", "Assets"),
     ("audio", "Audio"),
@@ -53,6 +54,7 @@ NAV_ITEMS = (
     ("editorial", "Editorial"),
     ("render", "Render"),
     ("qa", "QA"),
+    ("about", "About & Ownership"),
 )
 
 WORKFLOW_STEPS = ("INPUT", "PLAN", "ASSETS", "AUDIO", "EDITORIAL", "RENDER", "QA")

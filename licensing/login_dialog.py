@@ -86,12 +86,22 @@ class LoginDialog(ctk.CTkToplevel):
         spacer = ctk.CTkFrame(frame, fg_color="transparent", height=1)
         spacer.grid(row=1, column=0, sticky="nsew")
 
-        ctk.CTkLabel(
-            body,
-            text="Semantic YT Studio",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=_TEXT,
-        ).pack(anchor="w", padx=20, pady=(20, 4))
+        # Brand lockup when the asset is available; the text title is kept as a
+        # fallback so a missing/corrupt asset can never break sign-in.
+        from ui import branding as _branding
+
+        _wordmark = _branding.wordmark_image(34)
+        if _wordmark is not None:
+            ctk.CTkLabel(body, image=_wordmark, text="", fg_color="transparent").pack(
+                anchor="w", padx=20, pady=(20, 4)
+            )
+        else:
+            ctk.CTkLabel(
+                body,
+                text="Semantic YT Studio",
+                font=ctk.CTkFont(size=18, weight="bold"),
+                text_color=_TEXT,
+            ).pack(anchor="w", padx=20, pady=(20, 4))
         ctk.CTkLabel(
             body,
             text="Sign in with the account you were given.",

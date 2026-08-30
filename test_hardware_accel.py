@@ -78,8 +78,11 @@ class TestHardwareAccel(unittest.TestCase):
         accel.set_performance_mode_override("cpu")
         text = accel.format_accel_report(accel.get_capabilities(force_refresh=True))
         self.assertIn("Performance Mode: CPU", text)
-        self.assertIn("Video Encoder: libx264", text)
-        self.assertIn("Whisper: CPU", text)
+        # Video encoding and Whisper are reported as INDEPENDENT capabilities;
+        # neither line may imply the other's backend.
+        self.assertIn("Video Encoder: CPU (libx264)", text)
+        self.assertIn("Whisper:       CPU (int8)", text)
+        self.assertNotIn("GPU: available", text)
 
     def test_invalid_mode_defaults_auto(self):
         self.assertEqual(accel.get_performance_mode() in ("auto", "gpu", "cpu"), True)
@@ -121,3 +124,48 @@ class TestEncodeFallback(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestWhisperBackendTruthfulness(unittest.TestCase):
+    """The audited failure: probe predicts CUDA (driver present), the real model
+    load then fails on a missing CUDA runtime DLL, and the UI kept saying CUDA.
+    No cheap probe can prevent this — CTranslate2 resolves cuBLAS/cuDNN lazily
+    at model load and Encoder/Generator both need a model file — so the label
+    must follow the OBSERVED load outcome, which is DLL-agnostic."""
+
+    def setUp(self):
+        accel._verified_whisper_backend = None
+
+    def tearDown(self):
+        accel._verified_whisper_backend = None
+
+    def _caps_predicting_cuda(self):
+        class C:
+            performance_mode = "auto"; gpu_name = "NVIDIA (probe)"
+            cuda_available = True; using_gpu_whisper = True
+            whisper_compute_type = "float16"; preferred_encoder = "h264_nvenc"
+            nvenc_available = True; amf_available = False; qsv_available = False
+            videotoolbox_available = False; ffmpeg_path = "x"; notes = []
+        return C()
+
+    def test_unverified_prediction_is_not_reported_as_cuda(self):
+        label = accel.whisper_backend_label(self._caps_predicting_cuda())
+        self.assertIn("unverified", label)
+
+    def test_failed_cuda_load_reports_cpu_not_cuda(self):
+        caps = self._caps_predicting_cuda()
+        accel.record_whisper_backend("CPU", "int8")
+        label = accel.whisper_backend_label(caps)
+        self.assertNotIn("CUDA", label)
+        self.assertIn("CPU", label)
+
+    def test_successful_cuda_load_reports_cuda(self):
+        caps = self._caps_predicting_cuda()
+        accel.record_whisper_backend("CUDA", "float16")
+        self.assertEqual(accel.whisper_backend_label(caps), "CUDA (float16)")
+
+    def test_video_encoder_label_is_independent_of_whisper(self):
+        caps = self._caps_predicting_cuda()
+        accel.record_whisper_backend("CPU", "int8")
+        self.assertIn("NVENC", accel.video_encoder_label(caps))
+        self.assertNotIn("CUDA", accel.whisper_backend_label(caps))

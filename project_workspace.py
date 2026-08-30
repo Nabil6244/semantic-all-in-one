@@ -69,6 +69,7 @@ class ProjectWorkspace:
     flow_dir: Path = field(init=False)
     youtube_dir: Path = field(init=False)
     stock_dir: Path = field(init=False)
+    research_dir: Path = field(init=False)
     logs_dir: Path = field(init=False)
     state_dir: Path = field(init=False)
     final_dir: Path = field(init=False)
@@ -85,6 +86,7 @@ class ProjectWorkspace:
         self.flow_dir = self.root / "flow"
         self.youtube_dir = self.root / "youtube"
         self.stock_dir = self.root / "stock"
+        self.research_dir = self.root / "research"
         self.logs_dir = self.root / "logs"
         self.state_dir = self.root / "state"
         self.final_dir = self.root / "final"
@@ -218,6 +220,7 @@ class ProjectWorkspace:
             self.flow_dir,
             self.youtube_dir,
             self.stock_dir,
+            self.research_dir,
             self.logs_dir,
             self.state_dir,
             self.final_dir,

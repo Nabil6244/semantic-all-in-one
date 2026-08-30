@@ -21,7 +21,7 @@ def _plan_from_dict(raw: Optional[dict]) -> Optional[VisualCoveragePlan]:
             CoverageSegment(
                 start=float(item.get("start") or 0),
                 end=float(item.get("end") or 0),
-                asset_class=str(item.get("asset_class") or ""),
+                asset_type=str(item.get("asset_type") or ""),
                 visual_role=str(item.get("visual_role") or ""),
                 avoid_loop=bool(item.get("avoid_loop")),
                 semantic_query_hint=str(item.get("semantic_query_hint") or ""),
@@ -41,12 +41,25 @@ def score_duration_coverage(
     narration_duration: float,
     asset_duration: Optional[float],
     coverage_plan: Optional[dict] = None,
+    *,
+    is_still_image: bool = False,
 ) -> tuple[float, list[str], Optional[dict]]:
-    """Score how well asset duration covers narration; refine coverage plan."""
+    """Score how well asset duration covers narration; refine coverage plan.
+
+    `is_still_image` marks assets that have no meaningful playback duration.
+    A still is held on screen for the whole narration beat by the renderer,
+    so it always covers it fully. ffprobe reports a single video frame for a
+    JPEG/PNG (measured: exactly 0.040000s), which this function would
+    otherwise read as a clip ~75x too short for the beat, producing a
+    "duration insufficient" failure and a "clip too short" warning on every
+    image. Video assets are unaffected — the branch below is untouched.
+    """
     warnings: list[str] = []
     narr = max(0.0, float(narration_duration or 0))
     asset = float(asset_duration) if asset_duration and asset_duration > 0 else 0.0
 
+    if is_still_image:
+        return 1.0, warnings, coverage_plan
     if narr <= 0:
         return 1.0, warnings, coverage_plan
     if asset <= 0:
@@ -77,7 +90,7 @@ def score_duration_coverage(
                 {
                     "start": s.start,
                     "end": s.end,
-                    "asset_class": s.asset_class,
+                    "asset_type": s.asset_type,
                     "visual_role": s.visual_role,
                     "avoid_loop": s.avoid_loop,
                     "semantic_query_hint": s.semantic_query_hint,

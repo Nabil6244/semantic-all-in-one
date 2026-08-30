@@ -114,8 +114,7 @@ class TestAIBudget(unittest.TestCase):
         ]
         scored = [(item["scene"].scene_id, item["flow_score"]) for item in prelim]
         videos = select_flow_video_scenes(prelim, scored, video_limit)
-        selection = select_flow_image_scenes(prelim, video_selected=videos, soft_cap=image_cap)
-        images = selection.scene_ids
+        images = select_flow_image_scenes(prelim, video_selected=videos, soft_cap=image_cap)
         self.assertLessEqual(len(videos), video_limit)
         self.assertGreater(len(images), len(videos))
 
@@ -125,62 +124,6 @@ class TestAIBudget(unittest.TestCase):
         scored = [(1, 0.2), (2, 0.15)]
         chosen = select_flow_scenes(scored, limit)
         self.assertEqual(len(chosen), 0)
-
-
-class TestFlowImageSoftCapPressure(unittest.TestCase):
-    """The soft cap is a real progressive penalty, not a hard wall — a strong
-    enough opportunity can still be selected above it, and the bundle reports
-    how much pressure was applied."""
-
-    def _strong_candidates(self, n: int, *, fit_start: float = 0.95) -> list[dict]:
-        return [
-            {
-                "scene": _scene(i, f"Conceptual scene {i}", provider="flow", desc=f"abstract metaphor {i}"),
-                "need": "explanation",
-                "flow_score": fit_start - i * 0.001,
-                "prefer_video": False,
-                "role": "abstract",
-            }
-            for i in range(1, n + 1)
-        ]
-
-    def test_below_cap_reports_below_pressure(self):
-        prelim = self._strong_candidates(5)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=20)
-        self.assertLessEqual(len(selection.scene_ids), 5)
-        self.assertFalse(selection.exceeded_cap)
-
-    def test_strong_opportunities_can_exceed_soft_cap(self):
-        # 30 very strong candidates (fit close to 1.0), cap of only 10 — the
-        # old hard-`break`-at-cap behavior would return exactly 10; the real
-        # soft cap should let strong ones cross it.
-        prelim = self._strong_candidates(30)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=10)
-        self.assertGreater(len(selection.scene_ids), 10)
-        self.assertTrue(selection.exceeded_cap)
-        self.assertGreater(selection.peak_pressure_ratio, 1.0)
-
-    def test_weak_candidates_do_not_exceed_soft_cap(self):
-        # Same shape, but weak fits (flow_image_fit() adds fixed role/need
-        # bonuses on top of flow_score, so this starts low enough that the
-        # resulting fit stays under the past-cap thresholds) — the progressive
-        # penalty should stop admitting scenes once the cap is reached, unlike
-        # the strong case above.
-        prelim = self._strong_candidates(30, fit_start=0.05)
-        selection = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=10)
-        self.assertFalse(selection.exceeded_cap)
-        self.assertLess(len(selection.scene_ids), 30)
-
-    def test_bundle_reports_soft_cap_fields(self):
-        scenes = [
-            _scene(i, f"Conceptual metaphor scene {i}", provider="flow", desc=f"abstract diagram {i}")
-            for i in range(1, 21)
-        ]
-        plan = _plan(*scenes)
-        settings = AllocationSettings(visual_strategy="image_heavy", ai_video_budget="conservative")
-        bundle = allocate_visual_plan(plan, settings, None)
-        self.assertGreater(bundle.flow_image_soft_cap, 0)
-        self.assertIn(bundle.flow_image_soft_cap_pressure, ("below", "near", "exceeded"))
 
 
 class TestAllocationEngine(unittest.TestCase):
@@ -482,6 +425,194 @@ class TestSettingsPersistence(unittest.TestCase):
             self.assertEqual(loaded.visual_strategy, "video_heavy")
             self.assertEqual(loaded.ai_video_budget, "high")
 
+
+
+class TestFlowImagePriority(unittest.TestCase):
+    """Flow image is the PREFERRED image source and is free: no cap may push an
+    otherwise-eligible scene to stock. Stock image is a fallback only."""
+
+    def _item(self, sid, need, *, role="context", prefer_video=False, flow_score=0.2, desc=""):
+        return {
+            "scene": _scene(sid, f"Scene {sid} narration line here.", desc=desc or f"scene {sid}"),
+            "need": need,
+            "role": role,
+            "prefer_video": prefer_video,
+            "flow_score": flow_score,
+        }
+
+    # --- selection layer ------------------------------------------------
+    def test_normal_image_scene_selected_for_flow(self):
+        prelim = [self._item(1, "explanation")]
+        chosen = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=1)
+        self.assertIn(1, chosen, "an ordinary image-suitable scene must go to Flow image")
+
+    def test_no_credit_cap_can_force_stock(self):
+        """The old hard cap sent everything past the ceiling to stock. A free
+        resource must not be rationed: every eligible scene stays on Flow."""
+        prelim = [self._item(i, "explanation") for i in range(1, 61)]
+        for cap in (0, 1, 3, 5):
+            chosen = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=cap)
+            self.assertEqual(
+                len(chosen), 60,
+                f"soft_cap={cap} must not remove eligible scenes (got {len(chosen)})",
+            )
+
+    def test_practical_fit_floor_admits_ordinary_scenes(self):
+        """Regression for the 0.38 floor that passed 1 of 131 eligible scenes."""
+        prelim = [self._item(i, "context", flow_score=0.15) for i in range(1, 21)]
+        chosen = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=100)
+        self.assertEqual(len(chosen), 20)
+
+    def test_flow_video_scene_not_also_flow_image(self):
+        prelim = [self._item(1, "explanation")]
+        chosen = select_flow_image_scenes(prelim, video_selected={1}, soft_cap=10)
+        self.assertEqual(chosen, set())
+
+    def test_blocked_needs_never_selected_for_flow_image(self):
+        for need in ("document", "map", "evidence", "timeline"):
+            prelim = [self._item(1, need, flow_score=0.9)]
+            chosen = select_flow_image_scenes(prelim, video_selected=set(), soft_cap=10)
+            self.assertEqual(chosen, set(), f"need={need} must stay off Flow image")
+
+    # --- end-to-end allocation -----------------------------------------
+    def _plan(self, scenes):
+        return VisualPlan(topic="t", scenes=list(scenes))
+
+    def test_flow_image_preferred_over_stock_image(self):
+        resolved = resolve_style(mode="manual", style_id="premium_documentary")
+        settings = AllocationSettings(visual_strategy="image_heavy", ai_video_budget="conservative")
+        scenes = [
+            _scene(i, f"An explanation of the underlying idea, part {i}.",
+                   asset_type="stock_image", desc=f"conceptual diagram {i}")
+            for i in range(1, 41)
+        ]
+        bundle = allocate_visual_plan(self._plan(scenes), settings, resolved)
+        types = [d.asset_type for d in bundle.decisions]
+        flow_img = types.count("image")
+        stock_img = types.count("stock_image")
+        self.assertGreater(
+            flow_img, stock_img,
+            f"Flow image must win over stock image (flow={flow_img} stock={stock_img})",
+        )
+
+    def test_protected_documentary_scene_goes_to_stock_image(self):
+        """IMAGE_NEED_OVERRIDE / IMAGE_NEED_BLOCK protection is unchanged: a
+        factual/evidence scene must use real media, never a fabricated still."""
+        from visual_allocation.allocator import IMAGE_NEED_OVERRIDE
+        from visual_allocation.budget import IMAGE_NEED_BLOCK
+        self.assertEqual(set(IMAGE_NEED_OVERRIDE), {"document", "map", "evidence", "timeline"})
+        self.assertEqual(set(IMAGE_NEED_BLOCK), {"document", "map", "evidence", "timeline"})
+
+        resolved = resolve_style(mode="manual", style_id="premium_documentary")
+        settings = AllocationSettings(visual_strategy="image_heavy")
+        scenes = [
+            _scene(i,
+                   "The declassified document and the original map were entered into evidence.",
+                   asset_type="stock_image",
+                   desc="archival document scan newspaper map")
+            for i in range(1, 9)
+        ]
+        bundle = allocate_visual_plan(self._plan(scenes), settings, resolved)
+        for dec in bundle.decisions:
+            if dec.visual_need in IMAGE_NEED_OVERRIDE:
+                self.assertNotEqual(
+                    dec.asset_type, "image",
+                    f"protected need={dec.visual_need} must not be AI-generated",
+                )
+
+    # --- fallback -------------------------------------------------------
+    def test_flow_image_declares_stock_image_fallback(self):
+        """Flow unavailable/failed -> stock image."""
+        from visual_director.schema import parse_visual_plan
+        plan = parse_visual_plan({
+            "topic": "t",
+            "scenes": [{
+                "scene_id": i,
+                "narration": f"A conceptual beat {i}.",
+                "visual_goal": "show idea",
+                "visual_description": f"abstract conceptual illustration {i}",
+                "asset_type": "image",
+                "provider_preference": "flow_image",
+                "duration": 3.5,
+            } for i in (1, 2)],
+        })
+        for scene in plan.scenes:
+            self.assertEqual(scene.fallbacks, ["stock_image"])
+
+    def test_flow_image_is_fallback_eligible(self):
+        from asset_manager import _FALLBACK_ELIGIBLE_SOURCES
+        from providers.base import AssetSource
+        self.assertIn(AssetSource.FLOW_IMAGE, _FALLBACK_ELIGIBLE_SOURCES)
+        self.assertNotIn(AssetSource.FLOW_VIDEO, _FALLBACK_ELIGIBLE_SOURCES)
+
+
+class TestUnchangedBehaviour(unittest.TestCase):
+    """Everything outside Flow-image routing must be untouched."""
+
+    def test_flow_video_budget_unchanged(self):
+        for mode, n, expect in (
+            ("conservative", 100, 5), ("normal", 100, 12),
+            ("high", 100, 18), ("conservative", 10, 2), ("high", 10, 12),
+        ):
+            self.assertEqual(ai_budget_limit(n, AllocationSettings(ai_video_budget=mode)), expect)
+
+    def test_flow_video_selection_still_capped(self):
+        settings = AllocationSettings(ai_video_budget="conservative")
+        limit = ai_budget_limit(148, settings)
+        scored = [(i, 0.9) for i in range(1, 149)]
+        prelim = [
+            {"scene": _scene(i, f"Action scene {i}."), "need": "action",
+             "role": "abstract", "prefer_video": True, "flow_score": 0.9}
+            for i in range(1, 149)
+        ]
+        chosen = select_flow_video_scenes(prelim, scored, limit)
+        self.assertLessEqual(len(chosen), limit, "Flow VIDEO stays credit-capped")
+        self.assertEqual(len(chosen), limit)
+
+    def test_stock_video_routing_unchanged(self):
+        from visual_allocation.allocator import _documentary_asset_type
+        self.assertEqual(_documentary_asset_type("action", "context", "", True), "stock_video")
+        self.assertEqual(_documentary_asset_type("context", "context", "", True), "stock_video")
+        self.assertEqual(_documentary_asset_type("context", "context", "", False), "stock_image")
+        self.assertEqual(_documentary_asset_type("map", "map", "", True), "stock_image")
+
+    def test_youtube_and_doc_routing_unchanged(self):
+        from visual_allocation.allocator import ASSET_TO_PROVIDER
+        self.assertEqual(ASSET_TO_PROVIDER["youtube_video"], "youtube")
+        self.assertEqual(ASSET_TO_PROVIDER["image"], "flow_image")
+        self.assertEqual(ASSET_TO_PROVIDER["stock_image"], "stock_image")
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="1", script_segment="x",
+                         asset_type="youtube_video", prompt="q")
+            ).value,
+            "youtube_video",
+        )
+
+    def test_youtube_default_fallbacks_unchanged(self):
+        from visual_director.schema import parse_visual_plan
+        plan = parse_visual_plan({
+            "topic": "t",
+            "scenes": [{
+                "scene_id": i, "narration": f"n{i}", "visual_goal": "g",
+                "visual_description": "d", "asset_type": "youtube_video",
+                "provider_preference": "youtube",
+                "search_queries": [f"archival footage {i}", f"historic film reel {i}"],
+                "prompt": f"q{i}", "duration": 3.5,
+            } for i in (1, 2)],
+        })
+        for scene in plan.scenes:
+            self.assertEqual(scene.fallbacks, ["archive", "stock_video", "flow_image"])
+
+    def test_research_routing_unchanged(self):
+        from providers.base import AssetSource
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="1", script_segment="x",
+                         asset_type="research", prompt="q")
+            ),
+            AssetSource.RESEARCH,
+        )
 
 from pathlib import Path
 

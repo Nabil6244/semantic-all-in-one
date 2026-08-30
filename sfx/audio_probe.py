@@ -4,13 +4,38 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import wave
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from providers import hidden_subprocess
 
-SUPPORTED_SUFFIXES = {".wav", ".mp3", ".ogg", ".flac", ".m4a"}
+# Format-agnostic by design: the runtime resolves assets through the catalog,
+# so the extension is a container detail, never the semantic category. Adding a
+# format here is all that is needed for the bundled library to ship in it.
+SUPPORTED_SUFFIXES = {
+    ".wav", ".mp3", ".ogg", ".oga", ".opus", ".flac", ".m4a", ".aac", ".aif", ".aiff",
+}
+
+
+def _ffprobe_binary() -> Optional[str]:
+    """Bundled ffprobe first, then PATH.
+
+    shutil.which() alone fails in a packaged build on a machine with no system
+    ffmpeg, which is exactly the end-user case: the probe would raise and every
+    non-WAV asset would be unreadable even though ffprobe ships inside the app.
+    """
+    name = "ffprobe.exe" if sys.platform == "win32" else "ffprobe"
+    roots = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        roots.append(Path(sys._MEIPASS) / "bin" / name)
+    roots.append(Path(__file__).resolve().parent.parent / "bin" / name)
+    for candidate in roots:
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("ffprobe")
 
 
 @dataclass(frozen=True)
@@ -43,10 +68,10 @@ def probe_audio(path: Path | str) -> AudioInfo:
             if sr <= 0 or frames <= 0:
                 raise ValueError("WAV file contains no readable audio frames.")
             return AudioInfo(path, frames / float(sr), sr, ch, suffix)
-        except wave.Error as exc:
-            raise ValueError(f"Invalid WAV file: {path} ({exc})") from exc
+        except wave.Error:
+            pass  # fall through to ffprobe; some valid WAVs the stdlib rejects
 
-    ffprobe = shutil.which("ffprobe")
+    ffprobe = _ffprobe_binary()
     if ffprobe is None:
         raise RuntimeError(
             f"ffprobe is required to inspect {suffix} files. Install ffmpeg or provide WAV sources."

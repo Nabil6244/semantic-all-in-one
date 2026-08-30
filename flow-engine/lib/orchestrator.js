@@ -4,6 +4,8 @@ import {
   updateAccount,
   removeAccount,
   getAccount,
+  getVideoLoads,
+  addVideoLoad,
 } from "./store.js";
 import {
   openAccountBrowser,
@@ -231,7 +233,36 @@ async function prepareAccount(accountId, label) {
   return page;
 }
 
-function splitPrompts(prompts, n) {
+/**
+ * Order accounts so the LEAST cumulatively-loaded gets the biggest slice.
+ *
+ * splitPrompts() hands its `rem` extra prompts to the FIRST slices, and
+ * slices[i] belongs to workers[i]. Ordering workers by ascending cumulative
+ * VIDEO load therefore routes those extras to the accounts that have run the
+ * fewest video jobs so far — without touching splitPrompts or its <=1
+ * per-batch invariant, which still holds for any ordering.
+ *
+ * VIDEO only: IMAGE is free, so image batches keep their existing order.
+ * Ties break on the account's original position, so the result is
+ * deterministic rather than dependent on Map/sort instability.
+ */
+export function orderWorkersByVideoLoad(workers, isVideo, loadsOverride) {
+  if (!isVideo || workers.length < 2) return workers;
+  let loads = loadsOverride;
+  if (!loads) {
+    try {
+      loads = getVideoLoads();
+    } catch {
+      return workers;             // fairness is best-effort, never fatal
+    }
+  }
+  return workers
+    .map((a, i) => ({ a, i, load: loads.get(a.id) || 0 }))
+    .sort((x, y) => x.load - y.load || x.i - y.i)
+    .map((e) => e.a);
+}
+
+export function splitPrompts(prompts, n) {
   const slices = Array.from({ length: n }, () => ({
     prompts: [],
     indices: [],
@@ -310,7 +341,14 @@ async function runGenerate({ prompts, settings, accountIds }) {
     prompts.length >= PARALLEL_ACCOUNT_THRESHOLD
       ? selected.length
       : Math.min(selected.length, Math.max(1, prompts.length));
-  const workers = selected.slice(0, workerCount);
+  // Only VIDEO consumes Flow credits; IMAGE is free and keeps existing order.
+  const isVideoBatch = String(settings?.mediaKind || "").toLowerCase() === "video";
+  // Order BEFORE truncating: slicing first would pick the first `workerCount`
+  // accounts by list order, so a low-load account further down the list could
+  // never be reached whenever prompts.length < selected.length (the common
+  // retry case). For IMAGE the ordering is a no-op, so this stays exactly
+  // `selected.slice(0, workerCount)` as before.
+  const workers = orderWorkersByVideoLoad(selected, isVideoBatch).slice(0, workerCount);
   for (const a of selected) {
     const used = workers.some((w) => w.id === a.id);
     accountProgress.set(a.id, {
@@ -407,6 +445,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
         });
         pushState();
 
+        let sliceVideoJobs = 0;
         const result = await runBatchSlice({
           page,
           prompts: slice.prompts,
@@ -443,6 +482,13 @@ async function runGenerate({ prompts, settings, accountIds }) {
                 folder: evt.folder,
               });
             } else if (evt.type === "PROMPT_RESULT") {
+              // Count only jobs this account actually SPENT a credit on.
+              // A "rate_limited" result with reassign:true never ran here —
+              // it is handed to another account — so counting it would
+              // penalize an account for work it did not do.
+              if (isVideoBatch && !evt.reassign && evt.status !== "rate_limited") {
+                sliceVideoJobs += 1;
+              }
               broadcast({
                 type: "PROMPT_RESULT",
                 accountId: a.id,
@@ -458,6 +504,15 @@ async function runGenerate({ prompts, settings, accountIds }) {
             pushState();
           },
         });
+
+        // Flush this slice's consumed VIDEO jobs once, so a 50-clip slice is
+        // one small JSON write rather than 50. Best-effort: fairness must
+        // never break a batch that otherwise succeeded.
+        if (isVideoBatch && sliceVideoJobs > 0) {
+          try {
+            addVideoLoad(a.id, sliceVideoJobs);
+          } catch {}
+        }
 
         for (const item of result?.reassign || []) {
           if (item.reason === "quota") exhaustedAccounts.add(a.id);
@@ -508,6 +563,13 @@ async function runGenerate({ prompts, settings, accountIds }) {
       rotateRound++;
       /** @type {Map<string, { prompts: string[], indices: number[] }>} */
       const byAccount = new Map();
+      // Re-read once per round: earlier rounds/slices have since flushed.
+      let rotationLoads = new Map();
+      if (isVideoBatch) {
+        try {
+          rotationLoads = getVideoLoads();
+        } catch {}
+      }
       /** @type {{ index: number, prompt: string }[]} */
       const noAccountLeft = [];
 
@@ -518,10 +580,14 @@ async function runGenerate({ prompts, settings, accountIds }) {
           continue;
         }
         // Prefer an account that is not currently exhausted; pick round-robin by load.
+        // For VIDEO, ties break on CUMULATIVE load so rotation also moves work
+        // toward accounts that have spent the fewest credits so far.
         candidates.sort((a, b) => {
           const la = (byAccount.get(a.id)?.prompts.length || 0);
           const lb = (byAccount.get(b.id)?.prompts.length || 0);
-          return la - lb;
+          if (la !== lb) return la - lb;
+          if (!isVideoBatch) return 0;
+          return (rotationLoads.get(a.id) || 0) - (rotationLoads.get(b.id) || 0);
         });
         const pick = candidates[0];
         if (!byAccount.has(pick.id)) {
