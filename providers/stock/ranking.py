@@ -97,9 +97,36 @@ def rank_candidates(
     provider_use_counts: Optional[dict[str, int]] = None,
     selection_context=None,
     required_duration: Optional[float] = None,
+    min_relevance: float = 0.0,
     log=None,
 ) -> List["Candidate"]:
+    """`min_relevance` (0.0 = off, the default, so existing callers are
+    completely unaffected) gates candidates on *candidate-side* relevance
+    only — the overlap between the query and the candidate's own metadata
+    (title/tags/url/author), via the existing `_relevance_score` helper.
+
+    This is deliberately a different measurement from the main scorer's
+    `relevance`, which also folds in the scene's own script_segment /
+    visual_description. Because the query is generated from the narration,
+    that scene text overlaps the query for EVERY candidate equally, so a
+    completely unrelated clip still scores ~2.0/3.0 there — which is why an
+    irrelevant stock video can currently be accepted when nothing better is
+    returned. Gating on candidate-side overlap is what actually
+    distinguishes "this clip is about the query" from "this clip merely
+    came back from the search".
+    """
     candidates = dedupe_candidates(candidates)
+    if min_relevance > 0.0 and query:
+        kept = []
+        for c in candidates:
+            if _relevance_score(c, query) >= min_relevance:
+                kept.append(c)
+            elif log:
+                log(
+                    f"[STOCK] rejected {c.provider}/{c.asset_id}: "
+                    f"unrelated to query (candidate relevance below {min_relevance:.2f})"
+                )
+        candidates = kept
     scored: List[tuple[float, Candidate, object]] = []
     script = getattr(scene, "script_segment", "") or ""
     visual = getattr(scene, "visual_description", "") or ""

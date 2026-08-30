@@ -129,6 +129,11 @@ class StockProvider(AssetProvider):
                 provider_use_counts=self.cache.provider_use_counts(),
                 selection_context=ctx,
                 required_duration=getattr(self, "required_duration", None),
+                # Opt-in only (0.0 = off): set by the Property Video
+                # workflow, where an unrelated clip is worse than none.
+                # The normal YouTube workflow never sets this, so its
+                # behavior is byte-for-byte unchanged.
+                min_relevance=getattr(self, "min_stock_relevance", 0.0),
                 log=log,
             )
             if ranked:

@@ -189,6 +189,13 @@ class SceneRow:
         return self.asset_type == "commons_image" and bool(self.prompt or self.stock)
 
     @property
+    def wants_research(self) -> bool:
+        """Property Video workflow only (research/property_visual_plan.py) —
+        an explicit asset_type=research scene. No prompt required: research
+        candidates are already property-scoped, unlike stock's text query."""
+        return self.asset_type == "research"
+
+    @property
     def wants_documentary_clip(self) -> bool:
         """Any search-based archival clip provider (Archive, NASA)."""
         return self.wants_archive or self.wants_nasa
