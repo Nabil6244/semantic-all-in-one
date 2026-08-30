@@ -199,25 +199,49 @@ def _smoke_test_encoder(encoder: str, extra: Sequence[str]) -> Tuple[bool, str]:
 
 
 def _probe_cuda_whisper() -> Tuple[bool, str]:
-    """Return (available, note). Never raises."""
+    """Return (available, note) for the CTranslate2 CUDA BACKEND. Never raises.
+
+    `available` must mean "Whisper can actually run on CUDA", not "an NVIDIA
+    driver is installed". The old probe used get_cuda_device_count() alone,
+    which only needs the driver's nvcuda.dll — so on a machine missing the CUDA
+    math libraries it reported CUDA available, the UI showed CUDA, and
+    transcription then silently fell back to CPU at model load.
+
+    Three tiers, cheapest first; each is a strictly stronger claim:
+      0. a CUDA device exists at all (driver)
+      1. THIS CTranslate2 build has a CUDA backend with compute types
+      2. a real allocation on the device succeeds (touches the CUDA runtime)
+
+    Tier 2 still cannot prove cuBLAS/cuDNN load — those are resolved lazily at
+    model construction — so a CUDA claim here remains provisional until the
+    first successful CUDA Whisper load. The caller must not upgrade it.
+    """
     try:
         from ctranslate2 import get_cuda_device_count  # type: ignore
 
-        n = int(get_cuda_device_count())
-        if n > 0:
-            return True, f"ctranslate2 reports {n} CUDA device(s)"
-        return False, "ctranslate2 CUDA device count is 0"
-    except Exception:
-        pass
+        if int(get_cuda_device_count()) <= 0:
+            return False, "no CUDA device visible to ctranslate2"
+    except Exception as exc:
+        return False, f"CUDA probe failed: {exc}"
+
     try:
         from ctranslate2 import get_supported_compute_types  # type: ignore
 
         types = set(get_supported_compute_types("cuda") or [])
-        if types:
-            return True, f"ctranslate2 CUDA compute types: {sorted(types)[:6]}"
-        return False, "ctranslate2 has no CUDA compute types"
+        if not types:
+            return False, "ctranslate2 has no CUDA compute types"
     except Exception as exc:
-        return False, f"CUDA probe failed: {exc}"
+        return False, f"ctranslate2 CUDA backend unavailable: {exc}"
+
+    try:
+        import numpy as np  # ctranslate2 dependency — always present
+        from ctranslate2 import Device, StorageView  # type: ignore
+
+        StorageView.from_array(np.zeros((2, 2), dtype=np.float32)).to_device(Device.cuda)
+    except Exception as exc:
+        return False, f"CUDA runtime not usable: {str(exc)[:120]}"
+
+    return True, f"CUDA backend responded; compute types: {sorted(types)[:6]}"
 
 
 def _guess_gpu_label(encoders: set[str], cuda_ok: bool) -> Tuple[str, str, bool]:
@@ -366,20 +390,86 @@ def whisper_device_and_compute(
     return "cpu", "int8", "CPU"
 
 
+_ENCODER_LABELS = {
+    "h264_nvenc": "NVIDIA NVENC (GPU)",
+    "h264_amf": "AMD AMF (GPU)",
+    "h264_qsv": "Intel QuickSync (GPU)",
+    "h264_videotoolbox": "Apple VideoToolbox (GPU)",
+    "libx264": "CPU (libx264)",
+}
+
+
+# The ONLY place the real Whisper backend is known for certain. No cheap probe
+# can reach it: CTranslate2's cuBLAS/cuDNN are resolved lazily at model load,
+# and Encoder/Generator both require a model file, so nothing model-free forces
+# them to load (verified against ctranslate2 4.8.1). The probe is therefore a
+# PREDICTION; this records the OUTCOME so the UI never claims CUDA that the
+# model did not actually achieve.
+_verified_whisper_backend: Optional[Tuple[str, str]] = None
+
+
+def record_whisper_backend(backend: str, compute_type: str = "") -> None:
+    """Called by the transcription path after the model actually loaded."""
+    global _verified_whisper_backend
+    b = (backend or "").strip().upper()
+    if b in ("CUDA", "CPU"):
+        _verified_whisper_backend = (b, (compute_type or "").strip())
+
+
+def verified_whisper_backend() -> Optional[Tuple[str, str]]:
+    return _verified_whisper_backend
+
+
+def video_encoder_label(caps: Optional["HardwareCaps"] = None) -> str:
+    """What actually encodes video. Says nothing about Whisper."""
+    caps = caps or get_capabilities()
+    enc = caps.preferred_encoder or "libx264"
+    return _ENCODER_LABELS.get(enc, enc)
+
+
+def whisper_backend_label(caps: Optional["HardwareCaps"] = None) -> str:
+    """What actually transcribes. Says nothing about video encoding.
+
+    Only claims CUDA when the CUDA backend probe passed; otherwise it names CPU
+    explicitly rather than leaving the user to infer it from a GPU line.
+    """
+    # Observed truth beats prediction. Once a real model load has happened this
+    # is the ONLY thing reported, so a missing CUDA runtime can never surface
+    # as "Whisper: CUDA" regardless of which DLL was absent.
+    observed = verified_whisper_backend()
+    if observed is not None:
+        backend, ctype = observed
+        if backend == "CUDA":
+            return f"CUDA ({ctype})" if ctype else "CUDA"
+        return f"CPU ({ctype})" if ctype else "CPU (int8)"
+
+    caps = caps or get_capabilities()
+    if caps.using_gpu_whisper and caps.cuda_available:
+        # Not yet proven — say so rather than implying verified acceleration.
+        return f"CUDA expected ({caps.whisper_compute_type}) — unverified until first transcription"
+    return "CPU (int8)"
+
+
 def format_accel_report(caps: Optional[HardwareCaps] = None) -> str:
     caps = caps or get_capabilities()
     lines = [
         "Hardware Acceleration",
         "---------------------",
         f"Performance Mode: {caps.performance_mode.upper()}",
-        f"GPU: {caps.gpu_name or 'unavailable'}",
-        f"CUDA: {'available' if caps.cuda_available else 'unavailable'}",
-        f"NVENC: {'available' if caps.nvenc_available else 'unavailable'}",
-        f"AMF: {'available' if caps.amf_available else 'unavailable'}",
-        f"QSV: {'available' if caps.qsv_available else 'unavailable'}",
-        f"VideoToolbox: {'available' if caps.videotoolbox_available else 'unavailable'}",
-        f"Whisper: {'CUDA' if caps.using_gpu_whisper else 'CPU'}",
-        f"Video Encoder: {caps.preferred_encoder}",
+        # Two INDEPENDENT capabilities. Video encoding and Whisper use entirely
+        # different backends: a Mac has GPU video encode (VideoToolbox) with
+        # CPU Whisper, and a CUDA box can have GPU Whisper with CPU encoding.
+        # A single "GPU: available" line conflated them and let the app imply
+        # GPU transcription that was not happening.
+        f"Video Encoder: {video_encoder_label(caps)}",
+        f"Whisper:       {whisper_backend_label(caps)}",
+        "",
+        f"Detected GPU (video): {caps.gpu_name or 'none'}",
+        f"  CUDA backend (Whisper): {'available' if caps.cuda_available else 'unavailable'}",
+        f"  NVENC: {'available' if caps.nvenc_available else 'unavailable'}",
+        f"  AMF: {'available' if caps.amf_available else 'unavailable'}",
+        f"  QSV: {'available' if caps.qsv_available else 'unavailable'}",
+        f"  VideoToolbox: {'available' if caps.videotoolbox_available else 'unavailable'}",
         f"ffmpeg: {caps.ffmpeg_path}",
     ]
     if caps.notes:
