@@ -187,6 +187,8 @@ if not BUNDLED_SFX_DIR.is_dir() or not (BUNDLED_SFX_DIR / "catalog.json").is_fil
 # asset through catalog.json, so a WAV, FLAC or Opus library must all be able
 # to pass. Extension is a container detail and must never decide validity.
 import json as _json
+import re as _re
+from pathlib import PurePosixPath
 
 try:
     _sfx_catalog = _json.loads((BUNDLED_SFX_DIR / "catalog.json").read_text(encoding="utf-8"))
@@ -205,7 +207,18 @@ _sfx_files = set()
 _sfx_broken = []
 for _e in _sfx_entries:
     _rel = str(_e.get("file") or "")
-    if not _rel or Path(_rel).is_absolute() or ".." in Path(_rel).parts:
+    # Platform-independent: Path("/x").is_absolute() is False on Windows and
+    # Path("C:/x").is_absolute() is False on POSIX, so pathlib alone lets an
+    # absolute path through on one platform. Catalog paths are POSIX-relative.
+    _bad = (
+        not _rel
+        or _rel.startswith("/")
+        or _rel.startswith("\\\\")
+        or bool(_re.match(r"^[A-Za-z]:", _rel))
+        or "\\" in _rel
+        or ".." in PurePosixPath(_rel).parts
+    )
+    if _bad:
         _sfx_broken.append(f"{_e.get('id')}: bad path {_rel!r}")
         continue
     if not (BUNDLED_SFX_DIR / _rel).is_file():

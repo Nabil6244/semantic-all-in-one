@@ -221,3 +221,35 @@ class TestGeneratedLibraryIfPresent(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPlatformIndependentPathChecks(unittest.TestCase):
+    """Regression for a Windows CI failure.
+
+    validate_bundled_audio_library relied on pathlib for two things that are
+    OS-dependent, so it behaved differently on Windows than on macOS:
+
+      * Path("/etc/passwd").is_absolute() is False on Windows, so a
+        POSIX-absolute catalog path was ACCEPTED there.
+      * str(Path) yields "impact\\x.opus" on Windows while the catalog stores
+        "impact/x.opus", so the orphan check reported EVERY bundled file as an
+        orphan and the packaged build failed validation.
+
+    These assert the behaviour directly, so the bug is caught on any host.
+    """
+
+    def test_absolute_and_escaping_paths_rejected_on_every_platform(self):
+        for bad in ("/etc/passwd", "C:/Windows/x", "c:\\x", "../../secret",
+                    "\\\\server\\share", "impact\\a.opus", ""):
+            self.assertTrue(B._is_unsafe_relpath(bad), f"{bad!r} must be rejected")
+
+    def test_normal_posix_relative_path_accepted(self):
+        for good in ("impact/impact_001.opus", "ambience/ambience_001.wav", "a.wav"):
+            self.assertFalse(B._is_unsafe_relpath(good), f"{good!r} must be accepted")
+
+    def test_orphan_check_compares_in_posix_form(self):
+        """A correct library must report zero orphans regardless of host."""
+        import inspect
+        src = inspect.getsource(B.validate_bundled_audio_library)
+        self.assertIn("as_posix()", src)
+        self.assertNotIn("str(p.relative_to(root))", src)

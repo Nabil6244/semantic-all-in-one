@@ -27,7 +27,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 REPO = Path(__file__).resolve().parent.parent
@@ -415,6 +415,26 @@ def convert(a: Asset, dest_dir: Path, fmt: str, ffmpeg: str, index: int) -> Opti
 
 
 # ------------------------------------------------------------- 7. VALIDATE
+def _is_unsafe_relpath(rel: str) -> bool:
+    """True when a catalog path is not a safe, relative, POSIX path.
+
+    Must not depend on the host OS: Path("/etc/passwd").is_absolute() is False
+    on Windows, and Path("C:/x").is_absolute() is False on POSIX, so relying on
+    pathlib alone let an absolute path through on one platform and not the
+    other. Catalog paths are always written with forward slashes.
+    """
+    if not rel:
+        return True
+    if rel.startswith("/") or rel.startswith("\\\\"):        # POSIX-absolute / UNC
+        return True
+    if re.match(r"^[A-Za-z]:", rel):                       # Windows drive letter
+        return True
+    if "\\" in rel:                                        # backslash separators
+        return True
+    parts = PurePosixPath(rel).parts
+    return ".." in parts or Path(rel).is_absolute()
+
+
 def validate_bundled_audio_library(root: Path, ffprobe: Optional[str] = None,
                                    deep: bool = True) -> List[str]:
     """Hard gate. Returns a list of problems; empty means the library is sound.
@@ -438,7 +458,7 @@ def validate_bundled_audio_library(root: Path, ffprobe: Optional[str] = None,
         rel = e.get("file") or ""
         if not rel:
             problems.append(f"{e.get('id')}: empty file field"); continue
-        if Path(rel).is_absolute() or ".." in Path(rel).parts:
+        if _is_unsafe_relpath(rel):
             problems.append(f"{e.get('id')}: non-relative or escaping path {rel!r}")
             continue
         p = root / rel
@@ -447,7 +467,7 @@ def validate_bundled_audio_library(root: Path, ffprobe: Optional[str] = None,
             continue
         if rel in seen:
             problems.append(f"duplicate catalog file reference {rel}")
-        seen.add(rel)
+        seen.add(PurePosixPath(rel).as_posix())
         for src_key in ("source_path", "abs_path", "original_path"):
             if e.get(src_key):
                 problems.append(f"{e.get('id')}: leaks source path via {src_key}")
@@ -467,7 +487,10 @@ def validate_bundled_audio_library(root: Path, ffprobe: Optional[str] = None,
                 problems.append(f"{e.get('id')}: does not decode ({exc})")
 
     exts = {f"*.{v['ext']}" for v in FORMATS.values()}
-    on_disk = {str(p.relative_to(root)) for pat in exts for p in root.rglob(pat)}
+    # Compare in POSIX form: str(Path) yields "impact\\x.opus" on Windows while
+    # the catalog always stores "impact/x.opus", so a raw string diff reported
+    # EVERY bundled file as an orphan there.
+    on_disk = {p.relative_to(root).as_posix() for pat in exts for p in root.rglob(pat)}
     for orphan in sorted(on_disk - seen):
         problems.append(f"orphan audio file with no catalog entry: {orphan}")
     return problems
