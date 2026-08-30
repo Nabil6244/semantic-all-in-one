@@ -239,6 +239,18 @@ class VisualScene:
                 asset_type=asset_type,
                 prompt=description or query,
             )
+        if asset_type == "research":
+            # Property Video workflow only (see research/property_visual_plan.py)
+            # — research candidates are already property-scoped and don't need
+            # a text query the way stock/flow do; the description/goal is kept
+            # only as an optional hint for Smart Visual Selection's scoring.
+            return SceneRow(
+                scene_number=str(self.scene_id),
+                script_segment=narration,
+                asset_type="research",
+                prompt=description or self.visual_goal.strip(),
+                visual_description=description,
+            )
         hint = description or self.visual_goal.strip() or _trim_narration_query(narration)
         return SceneRow(
             scene_number=str(self.scene_id),
@@ -591,6 +603,13 @@ def _parse_scene(raw: dict, index: int) -> VisualScene:
         fallbacks = ["youtube", "stock_video", "flow_image"]
     if asset_type == "nasa_video" and not fallbacks:
         fallbacks = ["archive", "youtube", "flow_video"]
+    if asset_type == "image" and not fallbacks:
+        # Flow image is the preferred (and free) image source, so stock image
+        # is its fallback — used only when Flow genuinely fails or is not
+        # available. Declaring it here is what makes
+        # "Flow image -> stock image" an actual recovery path rather than a
+        # dead end; without it a Flow outage leaves the scene with nothing.
+        fallbacks = ["stock_image"]
 
     default_duration = PROVIDER_DEFAULT_DURATION.get(provider, 3.0)
     duration = _as_duration(

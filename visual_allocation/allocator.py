@@ -201,10 +201,16 @@ def allocate_visual_plan(
         prefer_video = item["prefer_video"]
         sid = scene.scene_id
         is_flow_video = sid in flow_video_selected and item["flow_score"] >= 0.35
+        # select_flow_image_scenes() is the single authority on Flow-image
+        # eligibility. The old `flow_score >= 0.35` re-check here second-
+        # guessed it with a DIFFERENT metric (raw opportunity score rather
+        # than flow_image_fit), silently dropping scenes the selector had
+        # already approved — measured: only 6 of 131 eligible scenes cleared
+        # it. IMAGE_NEED_OVERRIDE is retained: factual/documentary needs
+        # (document/map/evidence/timeline) must never be AI-fabricated.
         is_flow_image = (
             not is_flow_video
             and sid in flow_image_selected
-            and item["flow_score"] >= 0.35
             and need not in IMAGE_NEED_OVERRIDE
         )
         is_flow = is_flow_video or is_flow_image

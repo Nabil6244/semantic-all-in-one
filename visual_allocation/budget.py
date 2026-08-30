@@ -1,4 +1,4 @@
-"""AI video budget — score opportunities; Flow video is credit-capped, Flow image is soft-capped."""
+"""AI video budget — Flow VIDEO is credit-capped; Flow IMAGE is free and uncapped."""
 
 from __future__ import annotations
 
@@ -14,6 +14,12 @@ IMAGE_NEED_BLOCK = frozenset({
     "evidence",
     "timeline",
 })
+
+# Practical candidacy floor for free Flow stills. `flow_image_fit()` builds
+# from flow_score (typically 0.1-0.3) plus small bonuses, so the previous
+# 0.38 was effectively unreachable: on a real 148-scene project it passed
+# 1 of 131 eligible scenes, handing the other 130 to stock by default.
+FLOW_IMAGE_FIT_FLOOR = 0.24
 
 VIDEO_NEED_BOOST = frozenset({
     "action",
@@ -39,19 +45,29 @@ def ai_budget_limit(scene_count: int, settings: AllocationSettings) -> int:
 
 
 def flow_image_soft_cap(scene_count: int, settings: AllocationSettings) -> int:
-    """Upper ceiling for free Flow images — selection stays score-driven below this."""
+    """Visual-variety reference point for Flow images — NOT a credit budget.
+
+    Flow images are free, so nothing here rations them: this value only
+    tells `select_flow_image_scenes()` roughly where an all-AI look starts,
+    and it can never force an otherwise-eligible scene to stock (crossing it
+    costs nothing but a framing-variation cue). Kept as a function, and
+    still strategy-aware, so `visual_strategy` continues to shape the mix.
+
+    Contrast with `ai_budget_limit()` above, which IS a hard credit cap and
+    is deliberately left untouched — Flow VIDEO still costs credits.
+    """
     n = max(0, int(scene_count))
     if n <= 0:
         return 0
     strat = (settings.visual_strategy or "automatic").lower()
     if strat == "image_heavy":
-        return max(4, int(n * 0.45))
+        return max(4, int(n * 0.85))
     if strat == "video_heavy":
-        return max(2, int(n * 0.12))
+        return max(2, int(n * 0.45))
     if strat == "balanced":
-        return max(3, int(n * 0.28))
+        return max(3, int(n * 0.70))
     # automatic
-    return max(3, int(n * 0.22))
+    return max(3, int(n * 0.65))
 
 
 def flow_opportunity_score(
@@ -160,33 +176,36 @@ def select_flow_image_scenes(
     prelim: List[Dict[str, Any]],
     *,
     video_selected: set[int],
-    soft_cap: int,
+    soft_cap: int = 0,
 ) -> set[int]:
-    """Return scene_ids for free Flow images — score-driven with a soft ceiling."""
-    if soft_cap <= 0:
-        return set()
-    candidates: List[Tuple[int, float]] = []
+    """Return scene_ids for free Flow images — EVERY image-suitable scene.
+
+    Flow images are free, so there is no budget to ration and nothing here
+    may push an eligible scene to stock. Stock image is a fallback for
+    scenes Flow cannot serve, not a competitor Flow has to out-score:
+
+        image-suitable scene -> Flow image
+        Flow unsuitable/unavailable/failed -> stock image
+
+    `soft_cap` is still accepted (and still computed by
+    `flow_image_soft_cap()` for the Brand & Style mix preview) but is
+    deliberately NOT applied as a limit: capping here is precisely what
+    inverted the priority before, silently sending eligible scenes to
+    stock once a quota filled.
+
+    The only exclusions are:
+      * the scene already won a paid Flow VIDEO slot, and
+      * `flow_image_fit()` is below FLOW_IMAGE_FIT_FLOOR — which includes
+        every IMAGE_NEED_BLOCK need (document/map/evidence/timeline),
+        scored 0.0, so factual/documentary scenes stay on real media.
+    """
+    chosen: set[int] = set()
     for item in prelim:
-        scene = item["scene"]
-        sid = scene.scene_id
+        sid = item["scene"].scene_id
         if sid in video_selected:
             continue
-        fit = flow_image_fit(item)
-        if fit < 0.38:
+        if flow_image_fit(item) < FLOW_IMAGE_FIT_FLOOR:
             continue
-        candidates.append((sid, fit))
-    ordered = sorted(candidates, key=lambda row: row[1], reverse=True)
-    chosen: set[int] = set()
-    for sid, fit in ordered:
-        if len(chosen) >= soft_cap:
-            break
-        # Soft cap tightens as we approach the ceiling — emergent, not a fixed quota.
-        if soft_cap > 0:
-            ratio = len(chosen) / soft_cap
-            if ratio >= 0.85 and fit < 0.55:
-                continue
-            if ratio >= 0.7 and fit < 0.48:
-                continue
         chosen.add(sid)
     return chosen
 

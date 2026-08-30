@@ -2292,5 +2292,244 @@ class TestYtDlpSearchDoesNotProbe(unittest.TestCase):
         self.assertFalse(found[0].has_captions)
 
 
+class TestFlowImageStockFallback(AssetPipelineTestCase):
+    """Flow image is preferred and free; stock image is its fallback when Flow
+    genuinely fails. Both the single-scene path (_resolve_one declared
+    fallbacks) and the batched path (resolve_all / _resolve_flow_batch) must
+    behave identically — the batch path used to dead-end at NEEDS_ACTION."""
+
+    def _rows(self, n=3):
+        return [
+            SceneRow(scene_number=str(i), script_segment=f"scene {i}",
+                     asset_type="image", prompt=f"prompt {i}",
+                     fallbacks=["stock_image"])
+            for i in range(1, n + 1)
+        ]
+
+    def test_batch_flow_image_failure_falls_back_to_stock(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"2": "fail"})
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows())
+
+        self.assertTrue(summary.results["2"].ok, "failed Flow image must fall back, not dead-end")
+        self.assertEqual(summary.results["2"].source, AssetSource.STOCK_IMAGE)
+        self.assertIn("2", stock.calls)
+        self.assertNotEqual(summary.results["2"].status, SceneStatus.NEEDS_ACTION)
+
+    def test_successful_flow_images_are_untouched_by_fallback(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"2": "fail"})
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows())
+
+        for key in ("1", "3"):
+            self.assertEqual(summary.results[key].source, AssetSource.FLOW_IMAGE)
+            self.assertTrue(summary.results[key].ok)
+        self.assertEqual(sorted(stock.calls), ["2"], "stock must only be asked for the failed scene")
+
+    def test_all_flow_images_succeed_means_no_stock_calls(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows())
+        self.assertEqual(stock.calls, [])
+        for key in ("1", "2", "3"):
+            self.assertEqual(summary.results[key].source, AssetSource.FLOW_IMAGE)
+
+    def test_single_scene_flow_image_failure_falls_back_to_stock(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_image_provider=flow, log=lambda *_: None)
+        scene = self._rows(1)[0]
+        result = mgr._resolve_one(scene, AssetSource.FLOW_IMAGE)
+        self.assertTrue(result.ok)
+        self.assertEqual(result.source, AssetSource.STOCK_IMAGE)
+
+    def test_both_paths_agree(self):
+        """The whole point of the fix: batch and single-scene must not differ."""
+        flow_a = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+        stock_a = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        single = AssetManager(self.images, stock_provider=stock_a,
+                              flow_image_provider=flow_a, log=lambda *_: None
+                              )._resolve_one(self._rows(1)[0], AssetSource.FLOW_IMAGE)
+
+        images_b = self.tmp / "ImagesB"
+        images_b.mkdir()
+        flow_b = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+        stock_b = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        batch = AssetManager(images_b, stock_provider=stock_b,
+                             flow_image_provider=flow_b, log=lambda *_: None
+                             ).resolve_all(self._rows(1)).results["1"]
+
+        self.assertEqual(single.source, batch.source)
+        self.assertEqual(single.ok, batch.ok)
+
+    def test_flow_video_does_not_fall_back_to_stock_image(self):
+        """Flow VIDEO keeps its existing behaviour — no stock_image fallback."""
+        video = FakeProvider(AssetSource.FLOW_VIDEO, {"1": "fail"}, media_type=MediaType.VIDEO)
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
+        rows = [SceneRow(scene_number="1", script_segment="s", asset_type="video",
+                         prompt="p", fallbacks=["stock_image"])]
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_video_provider=video, log=lambda *_: None)
+        summary = mgr.resolve_all(rows)
+        self.assertFalse(summary.results["1"].ok)
+        self.assertEqual(stock.calls, [], "Flow video must not fall back to stock_image")
+
+    def test_no_stock_provider_leaves_flow_failure_untouched(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+        mgr = AssetManager(self.images, flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows(1))
+        self.assertFalse(summary.results["1"].ok)
+
+    def test_stock_failure_keeps_original_flow_error(self):
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+        stock = FakeProvider(AssetSource.STOCK_IMAGE, {"1": "fail"})
+        mgr = AssetManager(self.images, stock_provider=stock,
+                           flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows(1))
+        self.assertFalse(summary.results["1"].ok)
+        self.assertIn("scripted failure", (summary.results["1"].error or ""))
+
+    def test_stock_video_routing_unchanged(self):
+        stock = FakeProvider(AssetSource.STOCK_VIDEO, {}, media_type=MediaType.VIDEO)
+        rows = [SceneRow(scene_number="1", script_segment="s",
+                         asset_type="stock_video", stock="a wide shot")]
+        mgr = AssetManager(self.images, stock_provider=stock, log=lambda *_: None)
+        summary = mgr.resolve_all(rows)
+        self.assertTrue(summary.results["1"].ok)
+        self.assertEqual(summary.results["1"].source, AssetSource.STOCK_VIDEO)
+
+    def test_research_routing_unchanged(self):
+        self.assertEqual(
+            SceneAssetRouter.classify(
+                SceneRow(scene_number="1", script_segment="s",
+                         asset_type="research", prompt="q")
+            ),
+            AssetSource.RESEARCH,
+        )
+
+
+class TestOneSceneStopDoesNotCancelBatch(AssetPipelineTestCase):
+    """Regression: one Flow scene being stopped/failing must not mass-cancel
+    hundreds of unrelated scenes. Production log showed 254 of 369 scenes
+    written off as CANCELLED after a single rejected prompt."""
+
+    def test_should_stop_is_run_level_not_batch_wide(self):
+        """AssetManager._run_cancelled must answer 'did the USER stop the run',
+        not 'was any single scene stopped'. Feeding the batch-wide form into
+        the provider made every in-flight scene look user-cancelled."""
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+        mgr = self._manager(flow=flow)
+        mgr.request_cancel_scene("3")
+
+        self.assertTrue(mgr.is_scene_cancelled("3"))
+        self.assertFalse(
+            mgr._run_cancelled(),
+            "one cancelled scene must NOT read as a whole-run cancellation",
+        )
+
+        mgr.request_cancel()
+        self.assertTrue(mgr._run_cancelled(), "a real user cancel must still stop the batch")
+
+    def test_sibling_interruption_is_failed_not_cancelled(self):
+        """The provider already distinguishes 'user cancelled' from 'caught in
+        the STOP sent for a sibling scene'; it only reached the CANCELLED
+        branch because should_stop() was batch-wide."""
+        from unittest.mock import MagicMock
+
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+            def ensure_running(self):
+                return self.client
+
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+
+        captured = {}
+
+        def fake_subscribe(fn):
+            captured["fn"] = fn
+            return lambda: None
+
+        def fake_stop():
+            captured["fn"]({"type": "GENERATE_DONE"})
+
+        client.subscribe.side_effect = fake_subscribe
+        client.stop.side_effect = fake_stop
+
+        fp = FlowProvider(FakeEngineManager(client))
+        scenes = [
+            SceneRow(scene_number=str(i), script_segment=f"s{i}", prompt=f"p{i}")
+            for i in range(1, 5)
+        ]
+        # Scene 2 alone is stopped; the run itself was never cancelled.
+        fp.should_stop_scene = lambda n: str(n) == "2"
+        results = fp.resolve_batch(
+            scenes, self.images, log=lambda *_: None, should_stop=lambda: False
+        )
+
+        client.stop.assert_called_once()   # per-scene stop still reaches the engine
+        for number in ("1", "3", "4"):
+            self.assertNotEqual(
+                results[number].status, SceneStatus.CANCELLED,
+                f"scene {number} was never stopped — it must not be CANCELLED",
+            )
+            self.assertEqual(results[number].status, SceneStatus.FAILED)
+            self.assertIn("Retry", results[number].error or "")
+
+    def test_real_user_cancel_still_cancels_outstanding_scenes(self):
+        from unittest.mock import MagicMock
+
+        from providers.flow.provider import FlowProvider
+
+        class FakeEngineManager:
+            def __init__(self, client):
+                self.client = client
+            def ensure_running(self):
+                return self.client
+
+        client = MagicMock()
+        client.get_state.return_value = {"running": False}
+        client.get_info.return_value = {"downloadsRoot": str(self.images)}
+        captured = {}
+        client.subscribe.side_effect = lambda fn: (captured.__setitem__("fn", fn), lambda: None)[1]
+        client.stop.side_effect = lambda: captured["fn"]({"type": "GENERATE_DONE"})
+
+        fp = FlowProvider(FakeEngineManager(client))
+        scenes = [SceneRow(scene_number=str(i), script_segment=f"s{i}", prompt=f"p{i}")
+                  for i in range(1, 4)]
+        results = fp.resolve_batch(
+            scenes, self.images, log=lambda *_: None, should_stop=lambda: True
+        )
+        for number in ("1", "2", "3"):
+            self.assertEqual(results[number].status, SceneStatus.CANCELLED)
+
+    def test_retry_only_targets_unresolved_scenes(self):
+        """READY scenes must be left untouched by a retry pass."""
+        flow = FakeProvider(AssetSource.FLOW_IMAGE, {"2": "fail"})
+        rows = [SceneRow(scene_number=str(i), script_segment=f"s{i}",
+                         asset_type="image", prompt=f"p{i}") for i in range(1, 4)]
+        mgr = self._manager(flow=flow)
+        summary = mgr.resolve_all(rows)
+        self.assertTrue(summary.results["1"].ok)
+        self.assertFalse(summary.results["2"].ok)
+
+        flow.scripted = {}
+        flow.calls = []
+        unresolved = [r for r in rows if not summary.results[r.scene_number].ok]
+        mgr.retry_flow_batch(unresolved)
+        self.assertEqual(flow.calls, ["2"], "only the unresolved scene may be regenerated")
+
+
 if __name__ == "__main__":
     unittest.main()
