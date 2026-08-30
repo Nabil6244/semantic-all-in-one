@@ -25,6 +25,8 @@ ever set when a script was actually part of the research input.
 from __future__ import annotations
 
 import hashlib
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from research.models import ResearchSettings
@@ -81,13 +83,37 @@ def save_project_research_settings(ws: "ProjectWorkspace", settings: ResearchSet
     ws._write_meta(data)
 
 
+def _vendored_engine_root() -> str:
+    """research/engine/app/ — the engine's own package, vendored directly
+    into this repo (lightweight core deps only, see research/engine/README.md)
+    so the default case needs no user-configured path at all."""
+    vendored = Path(__file__).resolve().parent / "engine"
+    return str(vendored) if (vendored / "app").is_dir() else ""
+
+
 def load_engine_config(global_settings: Dict[str, Any]) -> Tuple[str, str]:
     """Returns (engine_root, engine_python) from the global settings dict
-    (app.load_settings())."""
-    return (
-        str(global_settings.get("research_engine_root") or ""),
-        str(global_settings.get("research_engine_python") or ""),
-    )
+    (app.load_settings()) — an explicit saved override always wins.
+
+    With nothing saved, defaults to the vendored engine run with this
+    process's own interpreter (sys.executable), so Manual Research works
+    with no configuration. That default is skipped for a frozen/packaged
+    build: a PyInstaller executable can't be invoked as `<exe> -m
+    some.module` the way a real `python` binary can, so a packaged build
+    still needs an explicit external engine configured here until a bundled
+    interpreter exists for this (separate, not-yet-done work) — leaving
+    both empty in that case makes PropertyResearchProvider.is_configured()
+    correctly report "not configured" instead of silently trying to run the
+    frozen app's own executable as if it were `python`.
+    """
+    root = str(global_settings.get("research_engine_root") or "")
+    python_path = str(global_settings.get("research_engine_python") or "")
+    if not getattr(sys, "frozen", False):
+        if not root:
+            root = _vendored_engine_root()
+        if not python_path:
+            python_path = sys.executable or ""
+    return root, python_path
 
 
 def with_engine_config(global_settings: Dict[str, Any], engine_root: str, engine_python: str) -> Dict[str, Any]:

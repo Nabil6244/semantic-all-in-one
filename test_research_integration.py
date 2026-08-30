@@ -371,6 +371,38 @@ class ResearchSettingsPersistenceTests(unittest.TestCase):
         self.assertEqual(root, "/path/to/engine")
         self.assertEqual(python_path, "/path/to/python")
 
+    def test_defaults_to_the_vendored_engine_and_own_interpreter_when_unset(self):
+        import sys
+        from research.settings import load_engine_config
+
+        root, python_path = load_engine_config({})
+        self.assertTrue(root.endswith(str(Path("research") / "engine")))
+        self.assertTrue(Path(root, "app").is_dir())
+        self.assertEqual(python_path, sys.executable)
+
+    def test_explicit_override_still_wins_over_the_vendored_default(self):
+        from research.settings import load_engine_config
+
+        root, python_path = load_engine_config({
+            "research_engine_root": "/custom/engine",
+            "research_engine_python": "/custom/python",
+        })
+        self.assertEqual(root, "/custom/engine")
+        self.assertEqual(python_path, "/custom/python")
+
+    def test_frozen_build_does_not_get_the_vendored_default(self):
+        """A packaged .exe/.app can't be invoked as `<exe> -m some.module`
+        the way a real `python` binary can, so the vendored-engine default
+        must not silently apply there (see load_engine_config docstring)."""
+        import sys
+
+        from research.settings import load_engine_config
+
+        with patch.object(sys, "frozen", True, create=True):
+            root, python_path = load_engine_config({})
+        self.assertEqual(root, "")
+        self.assertEqual(python_path, "")
+
 
 if __name__ == "__main__":
     unittest.main()
