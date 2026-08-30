@@ -66,6 +66,48 @@ CATEGORY_PATTERNS: Dict[str, str] = {
 }
 _CAT_RE = {k: re.compile(v, re.I) for k, v in CATEGORY_PATTERNS.items()}
 
+# ---------------------------------------------------------------- taxonomy
+# The RUNTIME enumerates a fixed set of category folders (smart_editing.
+# SFX_CATEGORIES) and seeds ~/.videogen/sfx by walking them, so the generated
+# library must lay its files out in exactly those folders. Emitting the finer
+# semantic taxonomy as folders instead left 73 of 110 catalog entries
+# unreachable after seeding.
+#
+# The fine category is NOT lost: it is preserved per entry as
+# `semantic_category`, and every matched keyword stays in `tags`, so a future
+# ranking pass keeps full granularity while today's runtime keeps working.
+RUNTIME_CATEGORIES = (
+    "whoosh", "impact", "ui", "text", "transition",
+    "riser", "cinematic", "technology", "ambience",
+)
+
+_SEMANTIC_TO_RUNTIME = {
+    # identity
+    "whoosh": "whoosh", "impact": "impact", "ui": "ui", "transition": "transition",
+    "riser": "riser", "cinematic": "cinematic", "technology": "technology",
+    # physical events read as impacts
+    "mechanical": "impact", "object": "impact", "vehicle": "impact",
+    # motion reads as whoosh
+    "movement": "whoosh",
+    # everything environmental is ambience when the signal says so (handled by
+    # audio_type below); anything left over is neutral cinematic texture
+    "nature": "cinematic", "rain": "cinematic", "wind": "cinematic",
+    "water": "cinematic", "ocean": "cinematic", "city": "cinematic",
+    "traffic": "cinematic", "room": "cinematic", "crowd": "cinematic",
+    "industrial": "technology", "machinery": "technology", "space": "cinematic",
+    "uncategorized": "cinematic",
+}
+
+# `text` has no source keyword, so it is defined by measurable shape: a short,
+# bright, percussive interface sound is what a text-reveal cue is.
+def _is_text_cue(a: "Asset") -> bool:
+    return (
+        a.duration < 1.5
+        and a.transient_character == "percussive"
+        and a.spectral_character.startswith("bright")
+    )
+
+
 # Quality gate. Tuned to exclude the measurably unusable WITHOUT discarding
 # merely-unusual material (a rare sound at healthy level survives).
 MIN_PEAK_DB = -40.0
@@ -142,8 +184,18 @@ class Asset:
         return "sfx"
 
     @property
-    def category(self) -> str:
+    def semantic_category(self) -> str:
+        """Fine-grained category from filename evidence — kept in the catalog."""
         return self.cats[0] if self.cats else ("cinematic" if self.audio_type == "ambience" else "uncategorized")
+
+    @property
+    def category(self) -> str:
+        """Folder the runtime will look in — one of RUNTIME_CATEGORIES."""
+        if self.audio_type == "ambience":
+            return "ambience"
+        if _is_text_cue(self):
+            return "text"
+        return _SEMANTIC_TO_RUNTIME.get(self.semantic_category, "cinematic")
 
     @property
     def subcategory(self) -> str:
@@ -256,7 +308,10 @@ def group_similar(assets: Sequence[Asset], threshold: float) -> int:
 # ---------------------------------------------------------- 5. COVERAGE
 def cells(a: Asset) -> Set[tuple]:
     out: Set[tuple] = set()
-    for c in (a.cats or [a.category]):
+    # Coverage is measured on the SEMANTIC category, not the runtime folder:
+    # mapping several semantic categories onto one folder must not collapse
+    # selection diversity (e.g. mechanical/object/vehicle all land in impact/).
+    for c in (a.cats or [a.semantic_category]):
         out |= {("cat", c), ("cat_dur", c, a.dur_band), ("cat_int", c, a.intensity)}
     out.add(("type_trans_spec", a.audio_type, a.transient_character, a.spectral_character))
     out.add(("type_dur_int", a.audio_type, a.dur_band, a.intensity))
@@ -340,7 +395,8 @@ def convert(a: Asset, dest_dir: Path, fmt: str, ffmpeg: str, index: int) -> Opti
         return None
     return {
         "id": aid, "file": rel, "format": spec["ext"], "codec": spec["codec"],
-        "category": cat, "subcategory": a.subcategory,
+        "category": cat, "semantic_category": a.semantic_category,
+        "subcategory": a.subcategory,
         "tags": sorted(set(a.cats)) or [a.audio_type],
         "audio_type": a.audio_type,
         "duration": round(a.duration, 3), "duration_band": a.dur_band,
@@ -469,6 +525,9 @@ def main() -> int:
             for p in out.rglob(pat):
                 p.unlink()
     out.mkdir(parents=True, exist_ok=True)
+    # The packaging gate requires every runtime category folder to exist.
+    for _c in RUNTIME_CATEGORIES:
+        (out / _c).mkdir(parents=True, exist_ok=True)
 
     entries, failed = [], []
     per_cat: Dict[str, int] = {}

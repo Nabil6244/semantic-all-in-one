@@ -10,7 +10,7 @@ Outputs:
   Mac:    dist/Semantic YT Studio.app  (then scripts/make_dmg.sh)
   Windows: dist/Semantic YT Studio/Semantic YT Studio.exe
 
-Icons are generated from assets/logo.png → AppIcon.ico / AppIcon.icns.
+Icons are generated from assets/logo.png (the square S mark) → AppIcon.ico / AppIcon.icns.
 """
 
 from __future__ import annotations
@@ -134,9 +134,15 @@ else:
     print(f"WARNING: {YT_ACQ_DIR} not found — YouTube browser capture will not be available.")
 
 # App logo (UI) + platform icons
-logo_png = ROOT / "assets" / "logo.png"
-if logo_png.is_file():
-    datas += [(str(logo_png), "assets")]
+# logo.png  = square "S" mark (topbar avatar + icon source)
+# logo_wordmark.png = full lockup (login dialog, About & Ownership)
+# Both must ship, or those surfaces silently fall back to plain text.
+for _brand_asset in ("logo.png", "logo_wordmark.png"):
+    _p = ROOT / "assets" / _brand_asset
+    if _p.is_file():
+        datas += [(str(_p), "assets")]
+    elif _brand_asset == "logo.png":
+        raise SystemExit(f"Missing brand asset: {_p}")
 
 # Brand Kit + Video Style JSON (required for Brand & Style in packaged builds)
 for _data_dir_name in ("styles", "brand_kits"):
@@ -177,24 +183,74 @@ if not BUNDLED_SFX_DIR.is_dir() or not (BUNDLED_SFX_DIR / "catalog.json").is_fil
         f"Missing {BUNDLED_SFX_DIR} (catalog.json + wavs). "
         "SFX/ambience must ship with the app — see assets/bundled-sfx/."
     )
-_bundled_wavs = list(BUNDLED_SFX_DIR.rglob("*.wav"))
-if len(_bundled_wavs) < 40:
+# The gate is CATALOG-driven, not extension-driven: the runtime resolves every
+# asset through catalog.json, so a WAV, FLAC or Opus library must all be able
+# to pass. Extension is a container detail and must never decide validity.
+import json as _json
+
+try:
+    _sfx_catalog = _json.loads((BUNDLED_SFX_DIR / "catalog.json").read_text(encoding="utf-8"))
+except Exception as _exc:
+    raise SystemExit(f"Bundled SFX catalog.json is unreadable: {_exc}")
+_sfx_entries = _sfx_catalog.get("sfx") or []
+if len(_sfx_entries) < 40:
     raise SystemExit(
-        f"Incomplete bundled SFX library: found {len(_bundled_wavs)} wavs under "
-        f"{BUNDLED_SFX_DIR} (need >= 40 including ambience)."
+        f"Incomplete bundled SFX library: catalog lists {len(_sfx_entries)} assets "
+        f"under {BUNDLED_SFX_DIR} (need >= 40 including ambience)."
     )
+
+# Every catalog entry must map to a real bundled file, or the app ships a
+# catalog that references audio it does not have.
+_sfx_files = set()
+_sfx_broken = []
+for _e in _sfx_entries:
+    _rel = str(_e.get("file") or "")
+    if not _rel or Path(_rel).is_absolute() or ".." in Path(_rel).parts:
+        _sfx_broken.append(f"{_e.get('id')}: bad path {_rel!r}")
+        continue
+    if not (BUNDLED_SFX_DIR / _rel).is_file():
+        _sfx_broken.append(f"{_e.get('id')}: missing {_rel}")
+    else:
+        _sfx_files.add(_rel)
+if _sfx_broken:
+    raise SystemExit(
+        f"Bundled SFX catalog does not match the files on disk "
+        f"({len(_sfx_broken)} problems): " + "; ".join(_sfx_broken[:5])
+    )
+
+# Both classes must actually ship. audio_type is the v2 signal; fall back to
+# the category folder so a v1 WAV library still validates.
+def _is_ambience(entry):
+    return (entry.get("audio_type") or "").lower() == "ambience" or \
+           (entry.get("category") or "").lower() == "ambience"
+_amb = [e for e in _sfx_entries if _is_ambience(e)]
+_sfx_only = [e for e in _sfx_entries if not _is_ambience(e)]
+if not _amb:
+    raise SystemExit(f"No ambience assets in {BUNDLED_SFX_DIR} — ambience must ship.")
+if not _sfx_only:
+    raise SystemExit(f"No SFX assets in {BUNDLED_SFX_DIR} — SFX must ship.")
+
 _missing_cats = [c for c in _REQUIRED_SFX_CATS if not (BUNDLED_SFX_DIR / c).is_dir()]
 if _missing_cats:
     raise SystemExit(
         f"Bundled SFX missing category folders: {', '.join(_missing_cats)}"
     )
-if not list((BUNDLED_SFX_DIR / "ambience").glob("*.wav")):
-    raise SystemExit(f"No ambience wavs in {BUNDLED_SFX_DIR / 'ambience'}")
+
+# The packaged app must never depend on a developer or source-library path.
+_leaks = [t for t in ("videogen-sfx-source", "/Users/", "/tmp/", "/opt/homebrew", "C:\\")
+          if t in _json.dumps(_sfx_entries)]
+if _leaks:
+    raise SystemExit(f"Bundled SFX catalog leaks source/developer paths: {_leaks}")
+
 for f in BUNDLED_SFX_DIR.rglob("*"):
     if f.is_file() and f.name != ".DS_Store":
         rel_dir = f.parent.relative_to(ROOT)
         datas.append((str(f), str(rel_dir)))
-print(f"Bundled SFX: {len(_bundled_wavs)} wavs + catalog.json")
+print(
+    f"Bundled SFX: {len(_sfx_entries)} assets "
+    f"({len(_sfx_only)} sfx + {len(_amb)} ambience), "
+    f"format={_sfx_catalog.get('format', 'wav')} + catalog.json"
+)
 
 if sys.platform == "win32":
     icon_file = ROOT / "assets" / "AppIcon.ico"

@@ -331,7 +331,15 @@ class TestSfxSeed(unittest.TestCase):
             with unittest.mock.patch.object(seed, "sfx_library_root", return_value=dest):
                 ensure_sfx_library()
             self.assertTrue((dest / "catalog.json").is_file())
-            self.assertGreater(len(list((dest / "ambience").glob("*.wav"))), 0)
+            # Format-agnostic: the bundle may ship .wav, .flac or .opus — the
+            # contract is that ambience is seeded, not which container it uses.
+            from sfx.audio_probe import SUPPORTED_SUFFIXES
+
+            seeded_ambience = [
+                p for p in (dest / "ambience").glob("*")
+                if p.suffix.lower() in SUPPORTED_SUFFIXES
+            ]
+            self.assertGreater(len(seeded_ambience), 0)
             self.assertTrue((dest / "impact").is_dir())
             catalog = load_catalog(dest)
             self.assertGreaterEqual(len(catalog["sfx"]), 40)
