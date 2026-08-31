@@ -57,8 +57,33 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "sound_effects_intensity": "medium",
     "visual_transitions_intensity": "medium",
     "scene_ambience_intensity": "medium",
+    # None = follow scene_ambience_intensity. A float is an explicit operator
+    # override of the ambience bed level (absolute, not a multiplier).
+    "scene_ambience_volume": None,
     "mode": "smart",
 }
+
+# Ambience bed level per intensity step, and the reference the runtime clamps
+# are calibrated against. An explicit operator volume rescales those clamps by
+# `volume / _AMBIENCE_REFERENCE_VOL`, so the level the operator picks is the
+# level that survives the per-scene envelope instead of being capped at 0.42.
+_AMBIENCE_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.22, "medium": 0.30, "high": 0.38}
+_AMBIENCE_REFERENCE_VOL = 0.30
+AMBIENCE_VOLUME_MIN = 0.0
+AMBIENCE_VOLUME_MAX = 1.0
+
+
+def normalize_ambience_volume(value: Any) -> Optional[float]:
+    """Coerce an operator ambience volume to [0.0, 1.0]; None means 'auto'."""
+    if value is None or value == "":
+        return None
+    try:
+        vol = float(value)
+    except (TypeError, ValueError):
+        return None
+    if vol != vol:  # NaN
+        return None
+    return round(max(AMBIENCE_VOLUME_MIN, min(AMBIENCE_VOLUME_MAX, vol)), 3)
 
 # Ambience profiles → catalog tag hints (SfxRequest category is always "ambience").
 _AMBIENCE_PROFILES: Dict[str, Tuple[str, ...]] = {
@@ -108,6 +133,8 @@ class SmartEditingSettings:
     sound_effects_intensity: Optional[str] = None
     visual_transitions_intensity: Optional[str] = None
     scene_ambience_intensity: Optional[str] = None
+    # Explicit ambience level override; None follows scene_ambience_intensity.
+    scene_ambience_volume: Optional[float] = None
     mode: str = "smart"
 
     @classmethod
@@ -135,6 +162,9 @@ class SmartEditingSettings:
             scene_ambience_intensity=_normalize_intensity(
                 raw.get("scene_ambience_intensity"), intensity,
             ),
+            scene_ambience_volume=normalize_ambience_volume(
+                raw.get("scene_ambience_volume"),
+            ),
             mode=mode,
         )
 
@@ -158,6 +188,18 @@ class SmartEditingSettings:
     def ambience_intensity(self) -> str:
         return _normalize_intensity(self.scene_ambience_intensity, self.intensity)
 
+    def ambience_volume(self) -> float:
+        """Ambience bed level: the operator override, else the intensity step."""
+        override = normalize_ambience_volume(self.scene_ambience_volume)
+        if override is not None:
+            return override
+        return _AMBIENCE_INTENSITY_VOLUME.get(
+            self.ambience_intensity(), _AMBIENCE_REFERENCE_VOL,
+        )
+
+    def ambience_volume_is_auto(self) -> bool:
+        return normalize_ambience_volume(self.scene_ambience_volume) is None
+
     def to_settings_dict(self) -> Dict[str, Any]:
         return {
             "text_effects": self.text_effects,
@@ -169,6 +211,7 @@ class SmartEditingSettings:
             "sound_effects_intensity": self.sfx_intensity(),
             "visual_transitions_intensity": self.transitions_intensity(),
             "scene_ambience_intensity": self.ambience_intensity(),
+            "scene_ambience_volume": normalize_ambience_volume(self.scene_ambience_volume),
             "mode": self.mode if self.mode in MODES else "smart",
         }
 
@@ -1171,7 +1214,22 @@ def _heuristic_scene_ambience(
 
 
 def _ambience_volume(settings: SmartEditingSettings) -> float:
-    return {"low": 0.22, "medium": 0.30, "high": 0.38}.get(settings.ambience_intensity(), 0.30)
+    return settings.ambience_volume()
+
+
+def ambience_volume_bounds(base_volume: float) -> Tuple[float, float]:
+    """Per-bed clamp window for a given operator base level.
+
+    The historical window was a fixed [0.05, 0.42], calibrated for the default
+    0.30 bed. Scaling it by the operator's chosen base keeps that behaviour
+    identical at 0.30 while letting a deliberately louder or quieter setting
+    actually reach the mix rather than being clipped back to the old ceiling.
+    """
+    base = max(0.0, float(base_volume or 0.0))
+    if base <= 0.0:
+        return (0.0, 0.0)
+    scale = base / _AMBIENCE_REFERENCE_VOL
+    return (round(0.05 * scale, 4), round(0.42 * scale, 4))
 
 
 def _display_window_by_scene(
@@ -1304,6 +1362,11 @@ def _resolve_ambience_beds(
     beds: List[dict] = []
     recent_ids: List[str] = []
     base_vol = _ambience_volume(settings)
+    if base_vol <= 0.0:
+        # Operator muted ambience with the volume control. Emitting silent beds
+        # would still cost an ffmpeg input per scene, so plan none at all.
+        return []
+    vol_lo, vol_hi = ambience_volume_bounds(base_vol)
     intensity_map: Dict[str, float] = {}
     if editorial_plan is not None and hasattr(editorial_plan, "ambience_intensity_map"):
         try:
@@ -1348,7 +1411,7 @@ def _resolve_ambience_beds(
             del recent_ids[0]
         vol = base_vol
         if sn in intensity_map:
-            vol = min(0.42, max(0.05, base_vol * float(intensity_map[sn])))
+            vol = min(vol_hi, max(vol_lo, base_vol * float(intensity_map[sn])))
         beds.append(
             {
                 "type": "scene_ambience",
@@ -1358,6 +1421,9 @@ def _resolve_ambience_beds(
                 "end": round(end, 3),
                 "duration": round(duration, 3),
                 "volume": round(vol, 3),
+                # Operator base level, so downstream stages clamp against what
+                # was actually asked for rather than a hardcoded default.
+                "base_volume": round(base_vol, 3),
                 "file": entry.file,
                 "sfx_id": entry.id,
                 "source": pick.get("source") or "heuristic",
