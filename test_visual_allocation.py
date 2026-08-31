@@ -539,10 +539,11 @@ class TestFlowImagePriority(unittest.TestCase):
         for scene in plan.scenes:
             self.assertEqual(scene.fallbacks, ["stock_image"])
 
-    def test_flow_image_is_fallback_eligible(self):
+    def test_flow_image_is_not_fallback_eligible(self):
+        """A failed Flow image must stop at NEEDS_ACTION, not auto-switch to stock."""
         from asset_manager import _FALLBACK_ELIGIBLE_SOURCES
         from providers.base import AssetSource
-        self.assertIn(AssetSource.FLOW_IMAGE, _FALLBACK_ELIGIBLE_SOURCES)
+        self.assertNotIn(AssetSource.FLOW_IMAGE, _FALLBACK_ELIGIBLE_SOURCES)
         self.assertNotIn(AssetSource.FLOW_VIDEO, _FALLBACK_ELIGIBLE_SOURCES)
 
 

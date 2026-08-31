@@ -347,7 +347,8 @@ class TestCachingAndResume(AssetPipelineTestCase):
         mgr = self._manager(flow=flow)
         summary = mgr.resolve_all(rows)
         self.assertFalse(summary.ok)
-        self.assertEqual(sorted(flow.calls), ["1", "2", "3"])
+        # scene 2 gets one automatic same-source retry before landing at NEEDS_ACTION
+        self.assertEqual(sorted(flow.calls), ["1", "2", "2", "3"])
 
         # "fix" the scripted failure (simulates the underlying issue being resolved)
         # and re-run with a FRESH manager pointed at the same manifest/images dir.
@@ -2292,11 +2293,31 @@ class TestYtDlpSearchDoesNotProbe(unittest.TestCase):
         self.assertFalse(found[0].has_captions)
 
 
+class FlakyProvider(FakeProvider):
+    """Fails a scene's first N calls, then succeeds — for testing retry-once."""
+
+    def __init__(self, source, fail_first, media_type=MediaType.IMAGE):
+        super().__init__(source, {}, media_type=media_type)
+        self.fail_first = dict(fail_first)  # scene_number -> failures remaining
+
+    def resolve(self, scene, images_dir, log=print):
+        remaining = self.fail_first.get(scene.scene_number, 0)
+        if remaining > 0:
+            self.fail_first[scene.scene_number] = remaining - 1
+            self.calls.append(scene.scene_number)
+            return AssetResult(
+                scene.scene_number, None, None, self.source, SceneStatus.FAILED,
+                error=f"scripted transient failure for scene {scene.scene_number}",
+            )
+        return super().resolve(scene, images_dir, log=log)
+
+
 class TestFlowImageStockFallback(AssetPipelineTestCase):
-    """Flow image is preferred and free; stock image is its fallback when Flow
-    genuinely fails. Both the single-scene path (_resolve_one declared
-    fallbacks) and the batched path (resolve_all / _resolve_flow_batch) must
-    behave identically — the batch path used to dead-end at NEEDS_ACTION."""
+    """A genuine Flow image failure must stop at NEEDS_ACTION with its source
+    left as flow_image — never silently switched to stock. The operator
+    reviews it and manually changes source via the UI if they want to. Both
+    the single-scene path (_resolve_one) and the batched path (resolve_all /
+    _resolve_flow_batch) must behave identically."""
 
     def _rows(self, n=3):
         return [
@@ -2306,19 +2327,45 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
             for i in range(1, n + 1)
         ]
 
-    def test_batch_flow_image_failure_falls_back_to_stock(self):
+    def test_batch_flow_image_recovers_on_single_retry(self):
+        flow = FlakyProvider(AssetSource.FLOW_IMAGE, {"2": 1})
+        mgr = AssetManager(self.images, flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows())
+
+        self.assertTrue(summary.results["2"].ok, "one retry must recover the scene")
+        self.assertEqual(summary.results["2"].source, AssetSource.FLOW_IMAGE)
+        self.assertEqual(flow.calls.count("2"), 2, "exactly one retry, no more")
+
+    def test_batch_flow_image_still_failing_after_retry_is_needs_action(self):
+        flow = FlakyProvider(AssetSource.FLOW_IMAGE, {"2": 99})
+        mgr = AssetManager(self.images, flow_image_provider=flow, log=lambda *_: None)
+        summary = mgr.resolve_all(self._rows())
+
+        self.assertFalse(summary.results["2"].ok)
+        self.assertEqual(summary.results["2"].status, SceneStatus.NEEDS_ACTION)
+        self.assertEqual(summary.results["2"].source, AssetSource.FLOW_IMAGE)
+        self.assertEqual(flow.calls.count("2"), 2, "exactly one retry, then give up")
+
+    def test_single_scene_flow_image_recovers_on_single_retry(self):
+        flow = FlakyProvider(AssetSource.FLOW_IMAGE, {"1": 1})
+        mgr = AssetManager(self.images, flow_image_provider=flow, log=lambda *_: None)
+        result = mgr._resolve_one(self._rows(1)[0], AssetSource.FLOW_IMAGE)
+        self.assertTrue(result.ok)
+        self.assertEqual(flow.calls.count("1"), 2)
+
+    def test_batch_flow_image_failure_needs_action_not_stock(self):
         flow = FakeProvider(AssetSource.FLOW_IMAGE, {"2": "fail"})
         stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
         mgr = AssetManager(self.images, stock_provider=stock,
                            flow_image_provider=flow, log=lambda *_: None)
         summary = mgr.resolve_all(self._rows())
 
-        self.assertTrue(summary.results["2"].ok, "failed Flow image must fall back, not dead-end")
-        self.assertEqual(summary.results["2"].source, AssetSource.STOCK_IMAGE)
-        self.assertIn("2", stock.calls)
-        self.assertNotEqual(summary.results["2"].status, SceneStatus.NEEDS_ACTION)
+        self.assertFalse(summary.results["2"].ok)
+        self.assertEqual(summary.results["2"].source, AssetSource.FLOW_IMAGE)
+        self.assertEqual(summary.results["2"].status, SceneStatus.NEEDS_ACTION)
+        self.assertEqual(stock.calls, [], "a Flow image failure must not auto-query stock")
 
-    def test_successful_flow_images_are_untouched_by_fallback(self):
+    def test_successful_flow_images_are_untouched(self):
         flow = FakeProvider(AssetSource.FLOW_IMAGE, {"2": "fail"})
         stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
         mgr = AssetManager(self.images, stock_provider=stock,
@@ -2328,7 +2375,7 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
         for key in ("1", "3"):
             self.assertEqual(summary.results[key].source, AssetSource.FLOW_IMAGE)
             self.assertTrue(summary.results[key].ok)
-        self.assertEqual(sorted(stock.calls), ["2"], "stock must only be asked for the failed scene")
+        self.assertEqual(stock.calls, [], "stock must never be queried automatically")
 
     def test_all_flow_images_succeed_means_no_stock_calls(self):
         flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
@@ -2340,18 +2387,20 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
         for key in ("1", "2", "3"):
             self.assertEqual(summary.results[key].source, AssetSource.FLOW_IMAGE)
 
-    def test_single_scene_flow_image_failure_falls_back_to_stock(self):
+    def test_single_scene_flow_image_failure_needs_action_not_stock(self):
         flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
         stock = FakeProvider(AssetSource.STOCK_IMAGE, {})
         mgr = AssetManager(self.images, stock_provider=stock,
                            flow_image_provider=flow, log=lambda *_: None)
         scene = self._rows(1)[0]
         result = mgr._resolve_one(scene, AssetSource.FLOW_IMAGE)
-        self.assertTrue(result.ok)
-        self.assertEqual(result.source, AssetSource.STOCK_IMAGE)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.source, AssetSource.FLOW_IMAGE)
+        self.assertEqual(result.status, SceneStatus.NEEDS_ACTION)
+        self.assertEqual(stock.calls, [])
 
     def test_both_paths_agree(self):
-        """The whole point of the fix: batch and single-scene must not differ."""
+        """Batch and single-scene must not differ in how they handle a Flow failure."""
         flow_a = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
         stock_a = FakeProvider(AssetSource.STOCK_IMAGE, {})
         single = AssetManager(self.images, stock_provider=stock_a,
@@ -2368,6 +2417,7 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
 
         self.assertEqual(single.source, batch.source)
         self.assertEqual(single.ok, batch.ok)
+        self.assertEqual(single.status, batch.status)
 
     def test_flow_video_does_not_fall_back_to_stock_image(self):
         """Flow VIDEO keeps its existing behaviour — no stock_image fallback."""
@@ -2387,7 +2437,7 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
         summary = mgr.resolve_all(self._rows(1))
         self.assertFalse(summary.results["1"].ok)
 
-    def test_stock_failure_keeps_original_flow_error(self):
+    def test_flow_failure_keeps_original_error_and_never_touches_stock(self):
         flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
         stock = FakeProvider(AssetSource.STOCK_IMAGE, {"1": "fail"})
         mgr = AssetManager(self.images, stock_provider=stock,
@@ -2395,6 +2445,7 @@ class TestFlowImageStockFallback(AssetPipelineTestCase):
         summary = mgr.resolve_all(self._rows(1))
         self.assertFalse(summary.results["1"].ok)
         self.assertIn("scripted failure", (summary.results["1"].error or ""))
+        self.assertEqual(stock.calls, [])
 
     def test_stock_video_routing_unchanged(self):
         stock = FakeProvider(AssetSource.STOCK_VIDEO, {}, media_type=MediaType.VIDEO)

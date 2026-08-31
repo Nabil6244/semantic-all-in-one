@@ -47,16 +47,19 @@ SceneCompleteCallback = Callable[[SceneRow, AssetResult], None]
 MANIFEST_NAME = ".asset_manifest.json"
 
 # Primary documentary sources that should honor declared fallbacks on failure.
+# Flow image/video are deliberately NOT here: a genuine Flow failure must stop
+# at NEEDS_ACTION rather than silently switching the scene to stock — the
+# operator decides whether to keep retrying Flow or manually change source.
 _FALLBACK_ELIGIBLE_SOURCES = frozenset({
     AssetSource.YOUTUBE_VIDEO,
     AssetSource.ARCHIVE_VIDEO,
     AssetSource.NASA_VIDEO,
-    # Flow image is now the primary image source, so a genuine Flow failure
-    # must fall through to its declared stock_image fallback instead of
-    # dead-ending. FLOW_VIDEO is deliberately NOT here: paid video keeps its
-    # existing quota-aware Flow-image retry path untouched.
-    AssetSource.FLOW_IMAGE,
 })
+
+# A Flow generation failure gets exactly one same-source retry (the scene is
+# "reloaded" and generated again) before it is left at NEEDS_ACTION for the
+# operator to review or manually change source.
+_FLOW_RETRY_SOURCES = frozenset({AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO})
 
 
 def _key(scene_number: str) -> str:
@@ -545,19 +548,32 @@ class AssetManager:
         ):
             if p is not None:
                 p.should_stop_scene = self.is_scene_cancelled
-        self.log(f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()}")
-        try:
-            result = provider.resolve(scene, self.images_dir, log=self.log)
-        except AssetError as exc:
-            result = AssetResult(
-                scene_number=scene.scene_number, path=None, media_type=None,
-                source=source, status=SceneStatus.FAILED, error=exc.reason,
-            )
-        except Exception as exc:  # a provider bug must not abort the whole run
-            result = AssetResult(
-                scene_number=scene.scene_number, path=None, media_type=None,
-                source=source, status=SceneStatus.FAILED, error=f"unexpected error: {exc}",
-            )
+        max_attempts = 2 if source in _FLOW_RETRY_SOURCES else 1
+        result: Optional[AssetResult] = None
+        for attempt in range(1, max_attempts + 1):
+            if self.is_scene_cancelled(scene.scene_number):
+                return self._cancelled_result(scene, source)
+            label = source.value.upper() + (" (retry)" if attempt > 1 else "")
+            self.log(f"[ASSET] Scene {scene.scene_number} -> {label}")
+            try:
+                result = provider.resolve(scene, self.images_dir, log=self.log)
+            except AssetError as exc:
+                result = AssetResult(
+                    scene_number=scene.scene_number, path=None, media_type=None,
+                    source=source, status=SceneStatus.FAILED, error=exc.reason,
+                )
+            except Exception as exc:  # a provider bug must not abort the whole run
+                result = AssetResult(
+                    scene_number=scene.scene_number, path=None, media_type=None,
+                    source=source, status=SceneStatus.FAILED, error=f"unexpected error: {exc}",
+                )
+            if result.ok:
+                break
+            if attempt < max_attempts:
+                self.log(
+                    f"[ASSET] Scene {scene.scene_number} -> {source.value} failed "
+                    f"(attempt {attempt}/{max_attempts}): {result.error}; retrying once"
+                )
         if self.is_scene_cancelled(scene.scene_number):
             if result.ok and result.path:
                 result.path.unlink(missing_ok=True)
@@ -724,63 +740,112 @@ class AssetManager:
                 on_scene_complete=on_scene_complete,
             )
 
-        # Flow image failures → declared stock_image fallback. The batch path
-        # never reaches _resolve_one(), so without this a Flow-image failure
-        # dead-ends at NEEDS_ACTION even though the scene declares a fallback.
-        # Guarded on FLOW_IMAGE so Flow VIDEO keeps its existing behaviour and
-        # never falls back to stock here.
-        if source == AssetSource.FLOW_IMAGE and not self.is_cancelled:
-            self._fallback_flow_image_to_stock(
-                scenes,
-                results,
+        # Whatever's still failing (a genuine Flow error, not a quota reroute
+        # that already moved the scene to a different source) gets exactly one
+        # same-source retry before it is left at NEEDS_ACTION.
+        if not self.is_cancelled:
+            self._retry_flow_batch_once(
+                source, provider, scenes, results,
                 on_scene_start=on_scene_start,
                 on_scene_complete=on_scene_complete,
             )
 
-    def _fallback_flow_image_to_stock(
+    def _retry_flow_batch_once(
         self,
-        image_scenes: List[SceneRow],
+        source: AssetSource,
+        provider,
+        scenes: List[SceneRow],
         results: Dict[str, AssetResult],
         *,
         on_scene_start: Optional[SceneStartCallback] = None,
         on_scene_complete: Optional[SceneCompleteCallback] = None,
     ) -> None:
-        """Flow image is preferred and free, but when it genuinely fails the
-        scene falls back to stock_image rather than stopping at NEEDS_ACTION.
-
-        Mirrors the declared-fallback behaviour `_resolve_one()` already gives
-        the single-scene path, so both paths route Flow image -> stock image
-        identically. Successful Flow images are never touched."""
-        if self.stock_provider is None:
-            return
-        for scene in image_scenes:
+        """Reload and regenerate, once, every scene that's still failing on its
+        original Flow source. If it fails again it stays at NEEDS_ACTION (the
+        failure was already finalized once by the caller) — never switched to
+        another source automatically."""
+        to_retry = []
+        for scene in scenes:
             key = scene.scene_number
             result = results.get(key)
             if result is None or result.ok:
                 continue
             if result.status in (SceneStatus.CANCELLED, SceneStatus.SKIPPED):
                 continue
+            if result.source != source:
+                continue  # already rerouted (e.g. video quota -> image); not our concern
             if self.is_cancelled or self.is_scene_cancelled(key):
                 continue
-            fallback = scene.as_fallback("stock_image")
-            fallback_source = self.classify(fallback)
-            if fallback_source is None:
-                continue
-            self.log(
-                f"[ASSET] Scene {key} -> flow_image failed; "
-                f"trying declared fallback: stock_image"
-            )
-            if on_scene_start:
-                on_scene_start(fallback, fallback_source)
-            fallback_result = self._resolve_one(
-                fallback, fallback_source, try_declared_fallbacks=False
-            )
-            if not fallback_result.ok:
-                # Keep the original Flow failure as the reported error.
-                continue
-            results[key] = fallback_result
+            to_retry.append(scene)
+        if not to_retry:
+            return
+
+        self.log(f"[ASSET] {len(to_retry)} {source.value} failure(s) -> retrying once")
+        if on_scene_start:
+            for scene in to_retry:
+                on_scene_start(scene, source)
+
+        early_reported: Dict[str, AssetResult] = {}
+
+        def _on_ready(scene: SceneRow, result: AssetResult) -> None:
+            if scene.scene_number in early_reported:
+                return
+            if self.is_scene_cancelled(scene.scene_number):
+                if result.ok and result.path:
+                    result.path.unlink(missing_ok=True)
+                result = self._cancelled_result(scene, source)
+            elif result.ok:
+                self._record_failed_approach(scene, source, result)
+                self._finalize(scene, result)
+            else:
+                return  # keep the original failure; already finalized by the caller
+            early_reported[scene.scene_number] = result
+            results[scene.scene_number] = result
             if on_scene_complete:
-                on_scene_complete(fallback, fallback_result)
+                on_scene_complete(scene, result)
+
+        try:
+            retry_results = provider.resolve_batch(
+                to_retry,
+                self.images_dir,
+                log=self.log,
+                should_stop=self._run_cancelled,
+                on_scene_ready=_on_ready,
+            )
+        except TypeError:
+            retry_results = provider.resolve_batch(
+                to_retry,
+                self.images_dir,
+                log=self.log,
+                should_stop=self._run_cancelled,
+            )
+        except Exception as exc:
+            retry_results = {}
+            self.log(f"[FLOW] retry batch failed: {exc}")
+
+        for scene in to_retry:
+            key = scene.scene_number
+            if key in early_reported:
+                continue
+            result = retry_results.get(key)
+            if result is None:
+                continue  # keep the original failure, already finalized
+            if self.is_scene_cancelled(key):
+                if result.ok and result.path:
+                    result.path.unlink(missing_ok=True)
+                result = self._cancelled_result(scene, source)
+                results[key] = result
+                if on_scene_complete:
+                    on_scene_complete(scene, result)
+                continue
+            if not result.ok:
+                continue  # retry failed too; original NEEDS_ACTION finalization stands
+            self.log(f"[ASSET] Scene {key} recovered on retry")
+            self._record_failed_approach(scene, source, result)
+            self._finalize(scene, result)
+            results[key] = result
+            if on_scene_complete:
+                on_scene_complete(scene, result)
 
     @staticmethod
     def _is_flow_rate_or_quota_error(result: AssetResult) -> bool:
