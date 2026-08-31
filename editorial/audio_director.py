@@ -50,6 +50,9 @@ _PURPOSE_SFX_WEIGHT = {
 
 _MAX_AMBIENCE_VOL = 0.42
 _MIN_AMBIENCE_VOL = 0.05
+# Base level the two bounds above were calibrated for; an operator volume
+# other than this rescales them (see _bed_volume_bounds).
+_AMBIENCE_REFERENCE_VOL = 0.30
 _SILENCE_DIP = 0.35  # multiply volume when allow_silence
 
 
@@ -140,6 +143,27 @@ def plan_sfx_moments_for_scene(scene: EditorialScene, *, index: int = 0) -> List
     return moments
 
 
+def _bed_volume_bounds(bed: dict) -> tuple:
+    """Clamp window for one bed, scaled to the operator's chosen base level.
+
+    `base_volume` is stamped on each bed by the ambience planner. Beds that
+    predate it (or come from another source) fall back to the historical fixed
+    [_MIN_AMBIENCE_VOL, _MAX_AMBIENCE_VOL] window, so behaviour is unchanged
+    unless the operator has actually moved the ambience volume control.
+    """
+    raw = bed.get("base_volume")
+    if raw is None:
+        return (_MIN_AMBIENCE_VOL, _MAX_AMBIENCE_VOL)
+    try:
+        base = float(raw)
+    except (TypeError, ValueError):
+        return (_MIN_AMBIENCE_VOL, _MAX_AMBIENCE_VOL)
+    if base <= 0.0:
+        return (0.0, 0.0)
+    scale = base / _AMBIENCE_REFERENCE_VOL
+    return (round(_MIN_AMBIENCE_VOL * scale, 4), round(_MAX_AMBIENCE_VOL * scale, 4))
+
+
 def apply_ambience_intensity_to_beds(
     beds: Sequence[dict],
     plan: EditorialPlan,
@@ -160,7 +184,8 @@ def apply_ambience_intensity_to_beds(
             vol = base * mult
         else:
             vol = base
-        b["volume"] = round(max(_MIN_AMBIENCE_VOL, min(_MAX_AMBIENCE_VOL, vol)), 3)
+        lo, hi = _bed_volume_bounds(b)
+        b["volume"] = round(max(lo, min(hi, vol)), 3)
         out.append(b)
     return out
 

@@ -5,6 +5,8 @@ import {
   downloadMedia,
   openOrCreateProject,
   waitForFlowReady,
+  AuthExpiredError,
+  EndpointRejectedError,
   QuotaError,
   RateLimitError,
   FatalError,
@@ -67,6 +69,9 @@ export async function runBatchSlice({
   let completed = 0;
   let failed = 0;
   let stopBatch = false;
+  // Set when the account's Google session is gone, so the orchestrator can
+  // mark it signed-out instead of scheduling it again next batch.
+  let authExpired = false;
 
   emit("status", { message: "Opening / creating Flow project…" });
   const projectId = await openOrCreateProject(page);
@@ -300,6 +305,57 @@ export async function runBatchSlice({
           break;
         }
 
+        if (err instanceof EndpointRejectedError) {
+          // Not the account's fault — rotating to another one would fail
+          // identically, so stop this batch and say what is actually wrong.
+          done = true;
+          stopBatch = true;
+          failed++;
+          emit("PROMPT_RESULT", { index: abs, prompt, status: "failed", error: err.message });
+          emit("BATCH_PROGRESS", {
+            index: abs,
+            total: totalAbsolute,
+            status: "failed",
+            message: err.message,
+            completed,
+            failed,
+          });
+          break;
+        }
+
+        if (err instanceof AuthExpiredError) {
+          // Signing out is per-account, not per-scene: hand this prompt and
+          // every remaining one to another signed-in account rather than
+          // failing them all against a dead session.
+          done = true;
+          stopBatch = true;
+          authExpired = true;
+          reassign.push({ index: abs, prompt, reason: "auth_expired" });
+          for (let j = i + 1; j < prompts.length; j++) {
+            reassign.push({
+              index: promptIndices[j],
+              prompt: prompts[j],
+              reason: "auth_expired",
+            });
+          }
+          emit("PROMPT_RESULT", {
+            index: abs,
+            prompt,
+            status: "rate_limited",
+            error: err.message,
+            reassign: true,
+          });
+          emit("BATCH_PROGRESS", {
+            index: abs,
+            total: totalAbsolute,
+            status: "waiting",
+            message: "Account signed out — rotating to another account…",
+            completed,
+            failed,
+          });
+          break;
+        }
+
         const recoverable =
           (err instanceof FatalError && err.recoverable) ||
           (!(err instanceof FatalError) &&
@@ -347,5 +403,5 @@ export async function runBatchSlice({
     folder: outDir,
     reassign,
   });
-  return { completed, failed, folder: outDir, reassign };
+  return { completed, failed, folder: outDir, reassign, authExpired };
 }

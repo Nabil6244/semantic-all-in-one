@@ -43,8 +43,8 @@ class LoginDialog(ctk.CTkToplevel):
 
         self.title("Sign in")
         # Tall enough for title + fields + full-height Sign in on Retina / scaled Macs.
-        self.geometry("440x440")
-        self.minsize(400, 420)
+        self.geometry("440x470")
+        self.minsize(400, 450)
         self.configure(fg_color=_BG)
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self._cancel)
@@ -146,8 +146,24 @@ class LoginDialog(ctk.CTkToplevel):
             border_color=_BORDER,
             text_color=_TEXT,
         )
-        self._password.pack(fill="x", padx=20, pady=(4, 8))
+        self._password.pack(fill="x", padx=20, pady=(4, 2))
         self._password.bind("<Return>", lambda _e: self._submit())
+
+        # Reset is completed in the browser via Supabase's recovery email —
+        # the app never sees or sets the new password.
+        self._forgot = ctk.CTkButton(
+            body,
+            text="Forgot password?",
+            height=22,
+            width=130,
+            fg_color="transparent",
+            hover_color=_CARD,
+            text_color=_MUTED,
+            font=ctk.CTkFont(size=11, underline=True),
+            anchor="e",
+            command=self._forgot_password,
+        )
+        self._forgot.pack(anchor="e", padx=20, pady=(0, 8))
 
         self.after(50, self._email.focus_set)
         try:
@@ -163,18 +179,88 @@ class LoginDialog(ctk.CTkToplevel):
             self._btn.configure(state=state, text="Signing in…" if busy else "Sign in")
             self._email.configure(state=state)
             self._password.configure(state=state)
+            self._forgot.configure(state=state)
         except Exception:
             pass
+
+    def _set_status(self, message: str, *, ok: bool = False) -> None:
+        self._status.set(message or "")
+        try:
+            self._status_label.configure(text_color=_MUTED if ok else _DANGER)
+        except Exception:
+            pass
+
+    def _forgot_password(self) -> None:
+        """Email a recovery link for whatever address is in the Email field."""
+        if self._busy or self._closed:
+            return
+        if not self._client.configured:
+            self._set_status("App is not configured for login.")
+            return
+        email = self._email.get().strip()
+        if not email or "@" not in email:
+            self._set_status("Enter your email address above, then tap Forgot password.")
+            try:
+                self._email.focus_set()
+            except Exception:
+                pass
+            return
+
+        self._set_status("")
+        self._set_busy(True)
+        try:
+            self._forgot.configure(text="Sending…")
+        except Exception:
+            pass
+
+        def work():
+            try:
+                self._client.request_password_reset(email)
+                self.after(0, self._finish_reset_ok)
+            except AuthError as exc:
+                msg = exc.message
+                self.after(0, lambda m=msg: self._finish_reset_err(m))
+            except Exception as exc:
+                msg = str(exc) or "Could not send the reset email."
+                self.after(0, lambda m=msg: self._finish_reset_err(m))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _finish_reset_ok(self) -> None:
+        if self._closed:
+            return
+        self._set_busy(False)
+        try:
+            self._forgot.configure(text="Forgot password?")
+        except Exception:
+            pass
+        # Deliberately neutral: confirming whether the address has an account
+        # would let anyone enumerate users from the sign-in window.
+        self._set_status(
+            "If that email has an account, a reset link is on its way. "
+            "Open it in your browser to set a new password.",
+            ok=True,
+        )
+
+    def _finish_reset_err(self, message: str) -> None:
+        if self._closed:
+            return
+        self._set_busy(False)
+        try:
+            self._forgot.configure(text="Forgot password?")
+        except Exception:
+            pass
+        self._set_status(message or "Could not send the reset email.")
 
     def _submit(self) -> None:
         if self._busy or self._closed:
             return
         if not self._client.configured:
-            self._status.set("App is not configured for login.")
+            self._set_status("App is not configured for login.")
             return
         email = self._email.get().strip()
         password = self._password.get()
-        self._status.set("")
+        self._set_status("")
         self._set_busy(True)
 
         def work():
@@ -211,7 +297,7 @@ class LoginDialog(ctk.CTkToplevel):
         if self._closed:
             return
         self._set_busy(False)
-        self._status.set(message or "Invalid login")
+        self._set_status(message or "Invalid login")
 
     def _cancel(self) -> None:
         if self._busy:

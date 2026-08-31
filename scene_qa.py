@@ -126,6 +126,11 @@ class QAIssue:
     provider: str
     error: str
     severity: str = "recoverable"
+    # True when QA scored the asset low but retrying cannot reliably improve
+    # it (a generated still re-runs the same prompt). The Issues panel offers
+    # Keep / Retry so the decision stays with the operator.
+    needs_decision: bool = False
+    score: float = 0.0
 
 
 def _is_flow_image_result(result) -> bool:
@@ -361,6 +366,8 @@ class SceneQAState:
                     provider=provider_label(getattr(result, "source", None)),
                     error=f"Visual QA: {raw.get('warnings', ['weak'])[0] if raw.get('warnings') else 'weak match'}",
                     severity="warning",
+                    needs_decision=_is_flow_image_result(result),
+                    score=float(raw.get("overall_score") or 0.0),
                 ))
             elif status == VisualQAStatus.FAIL:
                 snap.visual_fail += 1
@@ -373,6 +380,8 @@ class SceneQAState:
                     provider=provider_label(getattr(result, "source", None)),
                     error=f"Visual QA: {reasons[0]}",
                     severity="warning",
+                    needs_decision=_is_flow_image_result(result),
+                    score=float(raw.get("overall_score") or 0.0),
                 ))
         if snap.visual_pass or snap.visual_weak or snap.visual_fail:
             total_v = snap.visual_pass + snap.visual_weak + snap.visual_fail

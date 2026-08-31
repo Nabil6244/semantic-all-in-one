@@ -76,6 +76,13 @@ def _norm_purpose(raw: str) -> Purpose:
     return key if key in ALLOWED_PURPOSES else "context"
 
 
+def _opt_duration(raw: Any) -> Optional[float]:
+    """Durations stay None when absent — 0.0 would read as 'zero-length media'."""
+    from media_duration import coerce_duration
+
+    return coerce_duration(raw)
+
+
 def _norm_transition(raw: Optional[str]) -> Optional[str]:
     if raw is None:
         return None
@@ -110,6 +117,34 @@ class EditorialScene:
     transition_in: Optional[str] = None
     pacing_bias: PacingBias = "normal"
     music_role: MusicRole = "hold"
+    # --- Source media, distinct from `duration` above -----------------------
+    # `duration` is the REQUIRED scene length, derived from the voiceover, and
+    # remains authoritative. The two below describe the source clip only.
+    #   actual_asset_duration    measured from the delivered file
+    #   requested_asset_duration what the operator asked the generator for
+    # Flow does not honour the requested length, so these genuinely differ and
+    # must never be substituted for one another.
+    actual_asset_duration: Optional[float] = None
+    requested_asset_duration: Optional[float] = None
+
+    @property
+    def source_covers_scene(self) -> Optional[bool]:
+        """Is there enough source media for this scene? None if unknown.
+
+        Purely informational. A shortfall is surfaced for the editor to handle
+        with normal trimming/hold behaviour — it never justifies regenerating
+        a Flow clip, which would spend a credit for no guaranteed improvement.
+        """
+        if self.actual_asset_duration is None:
+            return None
+        return self.actual_asset_duration + 1e-6 >= self.duration
+
+    @property
+    def asset_duration_shortfall(self) -> Optional[float]:
+        """Seconds of source missing relative to the scene, else 0.0/None."""
+        if self.actual_asset_duration is None:
+            return None
+        return round(max(0.0, self.duration - self.actual_asset_duration), 3)
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -141,6 +176,8 @@ class EditorialScene:
             transition_in=_norm_transition(data.get("transition_in")),
             pacing_bias=str(data.get("pacing_bias") or "normal"),  # type: ignore[arg-type]
             music_role=str(data.get("music_role") or "hold"),  # type: ignore[arg-type]
+            actual_asset_duration=_opt_duration(data.get("actual_asset_duration")),
+            requested_asset_duration=_opt_duration(data.get("requested_asset_duration")),
         )
 
 

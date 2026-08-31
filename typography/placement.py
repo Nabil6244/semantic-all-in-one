@@ -50,6 +50,19 @@ _STYLE_DEFAULT: Dict[str, str] = {
 }
 
 
+# Where to move text when its natural home is occupied. Lower-third first
+# (documentary convention), then the top band, then the side columns.
+_RELOCATE_ORDER = (
+    "bottom_center",
+    "top_center",
+    "bottom_left",
+    "bottom_right",
+    "top_left",
+    "top_right",
+    "center",
+)
+
+
 def _aspect_kind(width: int, height: int) -> str:
     if width <= 0 or height <= 0:
         return "landscape"
@@ -165,8 +178,22 @@ def resolve_placement(
     avoid = composition.get("avoid") or ()
     if isinstance(avoid, str):
         avoid = (avoid,)
-    if placement in set(avoid):
-        placement = "bottom_center" if "bottom_center" not in set(avoid) else "top_center"
+    avoid_set = set(avoid)
+    if placement in avoid_set:
+        # The style's own choice collides with the picture. Relocate to the
+        # frame analyser's quietest cell when it offered one, else walk a
+        # documentary-sane priority order. Only reached on a real conflict —
+        # a placement that does not collide is never second-guessed.
+        fallback = str(composition.get("fallback") or "")
+        if fallback in _ANCHORS and fallback not in avoid_set:
+            placement = fallback
+        else:
+            for candidate in _RELOCATE_ORDER:
+                if candidate not in avoid_set:
+                    placement = candidate
+                    break
+            else:
+                placement = "bottom_center"
 
     if placement not in _ANCHORS:
         placement = "bottom_center"

@@ -1008,3 +1008,247 @@ class TestWindowsMixHardening(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAmbienceVolumeControl(unittest.TestCase):
+    """Operator-facing ambience level: explicit override, Auto, and mute."""
+
+    def _s(self, **kw):
+        from smart_editing import SmartEditingSettings
+        return SmartEditingSettings.from_dict(kw)
+
+    def test_auto_still_follows_intensity_step(self) -> None:
+        from smart_editing import _ambience_volume
+        for level, expected in (("low", 0.22), ("medium", 0.30), ("high", 0.38)):
+            s = self._s(scene_ambience_intensity=level)
+            self.assertIsNone(s.scene_ambience_volume)
+            self.assertTrue(s.ambience_volume_is_auto())
+            self.assertAlmostEqual(_ambience_volume(s), expected)
+
+    def test_explicit_volume_overrides_intensity(self) -> None:
+        from smart_editing import _ambience_volume
+        s = self._s(scene_ambience_intensity="low", scene_ambience_volume=0.65)
+        self.assertFalse(s.ambience_volume_is_auto())
+        self.assertAlmostEqual(_ambience_volume(s), 0.65)
+
+    def test_volume_is_clamped_and_bad_input_falls_back_to_auto(self) -> None:
+        self.assertAlmostEqual(self._s(scene_ambience_volume=4.0).ambience_volume(), 1.0)
+        self.assertAlmostEqual(self._s(scene_ambience_volume=-2.0).ambience_volume(), 0.0)
+        self.assertTrue(self._s(scene_ambience_volume="loud").ambience_volume_is_auto())
+        self.assertTrue(self._s(scene_ambience_volume=None).ambience_volume_is_auto())
+
+    def test_bounds_unchanged_at_the_default_level(self) -> None:
+        """The historical clamp window must survive untouched at 0.30."""
+        from smart_editing import ambience_volume_bounds
+        self.assertEqual(ambience_volume_bounds(0.30), (0.05, 0.42))
+
+    def test_louder_setting_raises_the_ceiling_instead_of_being_clipped(self) -> None:
+        from smart_editing import ambience_volume_bounds
+        lo, hi = ambience_volume_bounds(0.60)
+        self.assertGreater(hi, 0.42)
+        self.assertGreater(lo, 0.05)
+
+    def test_volume_survives_a_settings_roundtrip(self) -> None:
+        from smart_editing import SmartEditingSettings
+        s = self._s(scene_ambience_volume=0.65)
+        again = SmartEditingSettings.from_dict(s.to_settings_dict())
+        self.assertAlmostEqual(again.ambience_volume(), 0.65)
+        self.assertFalse(again.ambience_volume_is_auto())
+
+    def test_changing_volume_invalidates_the_plan_cache(self) -> None:
+        """Otherwise a volume change would reuse the previously planned beds."""
+        self.assertNotEqual(
+            self._s(scene_ambience_volume=0.65).fingerprint(),
+            self._s().fingerprint(),
+        )
+
+    def test_zero_volume_plans_no_beds_at_all(self) -> None:
+        from smart_editing import _resolve_ambience_beds
+        profiles = [{"scene_number": "1", "profile": "room"}]
+        rows = [{"scene_number": "1", "start_time": 0.0, "end_time": 5.0}]
+        beds = _resolve_ambience_beds(
+            profiles, rows, self._s(scene_ambience_volume=0.0), object(),
+        )
+        self.assertEqual(beds, [])
+
+
+class TestAmbienceBedClampScalesWithOperatorLevel(unittest.TestCase):
+    """The Audio Director must not clip a deliberately loud operator setting."""
+
+    def _bed(self, volume, base=None):
+        bed = {"scene_number": "1", "volume": volume}
+        if base is not None:
+            bed["base_volume"] = base
+        return bed
+
+    def _plan(self, intensity):
+        from editorial.schema import EditorialPlan, EditorialScene
+        scene = EditorialScene(scene_number="1", start=0.0, end=2.0, duration=2.0)
+        scene.ambience_intensity = intensity
+        scene.allow_silence = False
+        return EditorialPlan(scenes=[scene])
+
+    def test_legacy_beds_keep_the_fixed_window(self) -> None:
+        from editorial.audio_director import apply_ambience_intensity_to_beds
+        out = apply_ambience_intensity_to_beds(
+            [self._bed(0.30)], self._plan(3.0),
+        )
+        self.assertAlmostEqual(out[0]["volume"], 0.42)
+
+    def test_operator_base_scales_the_ceiling(self) -> None:
+        from editorial.audio_director import apply_ambience_intensity_to_beds
+        out = apply_ambience_intensity_to_beds(
+            [self._bed(0.60, base=0.60)], self._plan(3.0),
+        )
+        self.assertGreater(out[0]["volume"], 0.42)
+
+    def test_muted_base_stays_silent(self) -> None:
+        from editorial.audio_director import apply_ambience_intensity_to_beds
+        out = apply_ambience_intensity_to_beds(
+            [self._bed(0.0, base=0.0)], self._plan(3.0),
+        )
+        self.assertEqual(out[0]["volume"], 0.0)
+
+
+class TestIntensityLevelsAreMonotonic(unittest.TestCase):
+    """Low/Medium/High must actually move each feature, and only its own."""
+
+    SCENES = [
+        "The research vessel left harbour before sunrise carrying nineteen scientists.",
+        "Sonar mapping revealed a trench far deeper than any published chart suggested.",
+        "But then the instruments began returning readings nobody could explain at all.",
+        "Carbon dating placed the sediment layer at roughly forty thousand years old.",
+        "Meanwhile in Oslo a separate team was reaching the exact opposite conclusion.",
+        "Funding collapsed that winter and the entire project very nearly ended there.",
+        "Suddenly a private donor stepped forward with an unusual condition attached.",
+        "Robotic submersibles descended through crushing pressure into total darkness.",
+    ]
+
+    def _script(self):
+        rows, aligned, words = [], [], []
+        t = 0.0
+        for i, txt in enumerate(self.SCENES, 1):
+            rows.append({"scene_number": str(i), "script_segment": txt, "prompt": "p"})
+            aligned.append({"scene_number": str(i), "script_segment": txt,
+                            "start_time": t, "end_time": t + 7.0})
+            for w in txt.split():
+                words.append([w, t, t + 0.35]); t += 0.38
+            t = aligned[-1]["end_time"]
+        return rows, aligned, words
+
+    @staticmethod
+    def _catalog_available() -> bool:
+        """CI has no bundled SFX library, so nothing can be planned there.
+
+        These assertions are about the intensity CURVE, which only shows up
+        once real catalog entries exist. Without a catalog every volume is
+        0.0 and the comparison is vacuous — skip rather than assert nothing.
+        """
+        try:
+            from smart_editing import get_sfx_catalog
+            return bool(get_sfx_catalog().entries)
+        except Exception:
+            return False
+
+    def _plan(self, **kw):
+        from smart_editing import SmartEditingSettings, build_plan
+        rows, aligned, words = self._script()
+        return build_plan(rows, aligned, words, SmartEditingSettings.from_dict(kw))
+
+    def _levels(self, key, measure):
+        return [measure(self._plan(**{key: lvl})) for lvl in ("low", "medium", "high")]
+
+    def test_text_effect_count_rises_with_its_own_intensity(self) -> None:
+        lo, md, hi = self._levels("text_effects_intensity", lambda p: len(p.text_effects))
+        self.assertLess(lo, md)
+        self.assertLess(md, hi)
+
+    def test_transition_count_rises_with_its_own_intensity(self) -> None:
+        lo, md, hi = self._levels(
+            "visual_transitions_intensity", lambda p: len(p.scene_transitions),
+        )
+        self.assertLess(lo, md)
+        self.assertLess(md, hi)
+
+    def test_sfx_volume_rises_with_its_own_intensity(self) -> None:
+        if not self._catalog_available():
+            self.skipTest("no bundled SFX catalog in this environment")
+        from statistics import mean
+        def vol(p):
+            return mean([e["volume"] for e in p.sfx_events]) if p.sfx_events else 0.0
+        lo, md, hi = self._levels("sound_effects_intensity", vol)
+        self.assertLess(lo, md)
+        self.assertLess(md, hi)
+
+    def test_ambience_volume_rises_with_its_own_intensity(self) -> None:
+        if not self._catalog_available():
+            self.skipTest("no bundled SFX catalog in this environment")
+        from statistics import mean
+        def vol(p):
+            return mean([b["volume"] for b in p.scene_ambience]) if p.scene_ambience else 0.0
+        lo, md, hi = self._levels("scene_ambience_intensity", vol)
+        self.assertLess(lo, md)
+        self.assertLess(md, hi)
+
+    def test_the_volume_curves_are_monotonic_without_a_catalog(self) -> None:
+        """Catalog-free proof of the same contract, so CI still covers it.
+
+        The plan-level volume tests above need real SFX entries and skip where
+        none are bundled; these assert the underlying level tables directly.
+        """
+        from smart_editing import SmartEditingSettings, _ambience_volume, _sfx_base_volume
+        amb = [_ambience_volume(SmartEditingSettings.from_dict(
+            {"scene_ambience_intensity": lvl})) for lvl in ("low", "medium", "high")]
+        self.assertLess(amb[0], amb[1])
+        self.assertLess(amb[1], amb[2])
+        sfx = [_sfx_base_volume(SmartEditingSettings.from_dict(
+            {"sound_effects_intensity": lvl})) for lvl in ("low", "medium", "high")]
+        self.assertLess(sfx[0], sfx[1])
+        self.assertLess(sfx[1], sfx[2])
+
+    def test_each_intensity_moves_only_its_own_feature(self) -> None:
+        """Turning one dial must not quietly change the others."""
+        base = self._plan()
+        amb = self._plan(scene_ambience_intensity="high")
+        self.assertEqual(len(base.text_effects), len(amb.text_effects))
+        self.assertEqual(len(base.scene_transitions), len(amb.scene_transitions))
+        trans = self._plan(visual_transitions_intensity="high")
+        self.assertEqual(len(base.text_effects), len(trans.text_effects))
+        self.assertEqual(len(base.scene_ambience), len(trans.scene_ambience))
+
+    def test_transition_budget_is_actually_reachable(self) -> None:
+        """The heuristic must be able to spend its budget on real copy."""
+        from smart_editing import (SmartEditingSettings, plan_scene_transitions,
+                                   _transition_budget)
+        rows, aligned, _ = self._script()
+        n_boundaries = len(aligned) - 1
+        for lvl in ("low", "medium", "high"):
+            s = SmartEditingSettings.from_dict({"visual_transitions_intensity": lvl})
+            planned = len(plan_scene_transitions(rows, aligned, s))
+            self.assertEqual(planned, _transition_budget(n_boundaries, lvl), lvl)
+
+    def test_legacy_global_intensity_drives_every_feature(self) -> None:
+        from smart_editing import SmartEditingSettings
+        for lvl in ("low", "medium", "high"):
+            s = SmartEditingSettings.from_dict({"intensity": lvl})
+            self.assertEqual(s.text_intensity(), lvl)
+            self.assertEqual(s.sfx_intensity(), lvl)
+            self.assertEqual(s.transitions_intensity(), lvl)
+            self.assertEqual(s.ambience_intensity(), lvl)
+
+    def test_a_per_feature_level_overrides_the_global_one(self) -> None:
+        from smart_editing import SmartEditingSettings
+        s = SmartEditingSettings.from_dict(
+            {"intensity": "low", "sound_effects_intensity": "high"},
+        )
+        self.assertEqual(s.sfx_intensity(), "high")
+        self.assertEqual(s.text_intensity(), "low")
+
+    def test_unusable_levels_fall_back_to_medium(self) -> None:
+        from smart_editing import SmartEditingSettings
+        for bad in ("", None, "LOUD", "9", 3):
+            s = SmartEditingSettings.from_dict({"sound_effects_intensity": bad})
+            self.assertEqual(s.sfx_intensity(), "medium", repr(bad))
+        # ...but a valid level survives whitespace and casing from the UI.
+        s = SmartEditingSettings.from_dict({"sound_effects_intensity": "  HIGH  "})
+        self.assertEqual(s.sfx_intensity(), "high")

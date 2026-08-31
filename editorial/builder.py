@@ -239,6 +239,46 @@ def _row_context(row: Mapping[str, Any], aligned: Mapping[str, Any]) -> Tuple[st
     return text, prompt, asset_type
 
 
+def _source_durations(asset_results: Any) -> Dict[str, tuple]:
+    """Map scene number -> (actual source duration, requested duration).
+
+    Reads whatever the asset layer already recorded; it never probes and never
+    asks a provider for anything, so building a plan cannot generate media or
+    spend a credit. Anything unreadable is simply absent.
+    """
+    out: Dict[str, tuple] = {}
+    if not asset_results:
+        return out
+    from media_duration import REQUESTED_DURATION_KEY, cached_duration, coerce_duration
+
+    try:
+        items = list(
+            asset_results.items() if hasattr(asset_results, "items") else asset_results
+        )
+    except TypeError:
+        # Not a mapping and not iterable — nothing to read, and a bad caller
+        # must not prevent a plan from being built.
+        return out
+
+    for entry in items:
+        result = entry[1] if isinstance(entry, tuple) else entry
+        meta = getattr(result, "metadata", None)
+        if not isinstance(meta, dict):
+            continue
+        sn = str(getattr(result, "scene_number", "") or "").strip()
+        if not sn:
+            continue
+        actual = cached_duration(meta)
+        requested = coerce_duration(meta.get(REQUESTED_DURATION_KEY))
+        if actual is None and requested is None:
+            continue
+        out[sn] = (actual, requested)
+        # Scene numbers reach here as both "1" and "001" depending on caller.
+        out.setdefault(sn.lstrip("0") or sn, (actual, requested))
+        out.setdefault(sn.zfill(3), (actual, requested))
+    return out
+
+
 def build_editorial_plan(
     rows: Sequence[dict],
     aligned_rows: Sequence[dict],
@@ -248,9 +288,18 @@ def build_editorial_plan(
     settings_key: str = "",
     audio_key: str = "",
     resolved_style: Any = None,
+    asset_results: Any = None,
 ) -> EditorialPlan:
-    """Build plan using display timeline windows (matches render + ambience)."""
+    """Build plan using display timeline windows (matches render + ambience).
+
+    `asset_results` optionally carries the resolved assets so each scene can
+    also report the REAL length of its source clip. That is separate from the
+    scene's own duration, which stays voiceover-derived and authoritative;
+    the source length only tells the editor how much material it has to work
+    with. Omitting it leaves both fields None and the plan behaves as before.
+    """
     windows = _scene_display_timeline(list(aligned_rows), float(audio_end))
+    source_durations = _source_durations(asset_results)
     by_num = {str(r.get("scene_number")): r for r in rows}
     visual_by_id = _visual_scene_lookup(visual_plan)
     total = len(aligned_rows)
@@ -344,6 +393,8 @@ def build_editorial_plan(
                 transition_in=transition_in,
                 pacing_bias=pacing_bias,  # type: ignore[arg-type]
                 music_role=music_role,  # type: ignore[arg-type]
+                actual_asset_duration=source_durations.get(sn, (None, None))[0],
+                requested_asset_duration=source_durations.get(sn, (None, None))[1],
             )
         )
         prev_camera = camera

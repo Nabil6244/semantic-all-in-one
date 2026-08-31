@@ -987,8 +987,12 @@ def _video_fit_filter(width: int, height: int, fps: int) -> str:
 
 
 def _escape_overlay_enable(t0: float, t1: float) -> str:
-    """enable='between(t,t0,t1)' with commas escaped for filter graphs."""
-    return f"between(t\\,{t0:.3f}\\,{t1:.3f})"
+    """enable='between(t,t0,t1)' with commas escaped for filter graphs.
+
+    A hair of slack on each side so the alpha fades are not clipped by the
+    on/off window that used to be the only thing shaping the overlay.
+    """
+    return f"between(t\\,{max(0.0, t0 - 0.02):.3f}\\,{t1 + 0.02:.3f})"
 
 
 # Rotate visual scene joins so edits are not all hard cuts or the same fade.
@@ -1036,11 +1040,24 @@ def _fade_vf_suffix(clip_dur: float, fade_in: float, fade_out: float, color: str
     return ",".join(parts)
 
 
-def _overlay_xy(t0: float | None, animation: str | None) -> str:
-    """Static or subtle slide-in overlay position (no bounce)."""
+def _overlay_xy(
+    t0: float | None,
+    animation: str | None,
+    center: tuple[int, int] | None = None,
+) -> str:
+    """Static or subtle slide-in overlay position (no bounce).
+
+    For `scale_fade` the whole full-frame overlay is scaled, which would grow
+    it from the frame's top-left corner; the offset here pulls it back so the
+    type scales about its own centre instead.
+    """
     if t0 is None:
         return "0:0"
     anim = str(animation or "")
+    if anim == "scale_fade" and center is not None:
+        cx, cy = center
+        expr = _overlay_scale_expr(float(t0))
+        return f"{int(cx)}*(1-({expr})):{int(cy)}*(1-({expr}))"
     if anim in ("slide_fade", "reveal"):
         # 14px settle upward over ~120ms
         y = (
@@ -1058,6 +1075,58 @@ def _overlay_xy(t0: float | None, animation: str | None) -> str:
         )
         return f"{x}:0"
     return "0:0"
+
+
+# Overlay motion. Keep these short and controlled — documentary typography
+# settles, it does not bounce.
+_OV_FADE_IN = 0.14
+_OV_FADE_OUT = 0.12
+_OV_SCALE_FROM = 0.94
+_OV_SCALE_DUR = 0.18
+
+
+def _overlay_scale_expr(t0: float) -> str:
+    """s(t): ease from _OV_SCALE_FROM up to 1.0, then hold."""
+    grow = 1.0 - _OV_SCALE_FROM
+    return (
+        f"if(lt(t\\,{t0:.3f}+{_OV_SCALE_DUR})\\,"
+        f"{_OV_SCALE_FROM}+{grow:.4f}*(t-{t0:.3f})/{_OV_SCALE_DUR}\\,1)"
+    )
+
+
+def _overlay_motion_chain(
+    t0: float | None,
+    t1: float | None,
+    anim: str | None,
+    width: int,
+    height: int,
+) -> str:
+    """Filters applied to one overlay stream before it is composited.
+
+    Previously overlays were switched on and off with `enable=` alone, which
+    is a hard cut: text popped on and popped off, and the `scale_fade` /
+    `kinetic_punch` animations the style layer asked for never happened at
+    all (the alpha/scale machinery only ever fed the unused drawtext path).
+    """
+    chain = [f"format=rgba,scale={width}:{height}"]
+    if t0 is None or t1 is None:
+        return ",".join(chain)
+
+    # Scale punch is per-frame work at full resolution, so it is reserved for
+    # the hero animation rather than applied to every overlay in the scene.
+    if str(anim or "") == "scale_fade":
+        expr = _overlay_scale_expr(float(t0))
+        chain.append(
+            f"scale=w='{width}*({expr})':h='{height}*({expr})':eval=frame"
+        )
+
+    span = float(t1) - float(t0)
+    fi = min(_OV_FADE_IN, max(0.04, span * 0.35))
+    fo = min(_OV_FADE_OUT, max(0.04, span * 0.30))
+    fade_out_st = max(float(t0) + fi, float(t1) - fo)
+    chain.append(f"fade=t=in:st={float(t0):.3f}:d={fi:.3f}:alpha=1")
+    chain.append(f"fade=t=out:st={fade_out_st:.3f}:d={fo:.3f}:alpha=1")
+    return ",".join(chain)
 
 
 def _cpu_encode_argv() -> list[str]:
@@ -1186,32 +1255,36 @@ def _render_scene_clip(
 
     # Collect extra image inputs: static caption first, then timed smart-text PNGs
     extra_inputs: list[str] = []
-    # (input_idx, t0, t1, animation)
-    layers: list[tuple[int, float | None, float | None, str | None]] = []
+    # (input_idx, t0, t1, animation, text_center)
+    layers: list[tuple[int, float | None, float | None, str | None, tuple[int, int] | None]] = []
     next_idx = 1
     if caption_overlay is not None:
         extra_inputs += ["-loop", "1", "-i", str(caption_overlay)]
-        layers.append((next_idx, None, None, None))
+        layers.append((next_idx, None, None, None, None))
         next_idx += 1
     for item in timed_overlays:
         png, t0, t1 = item[0], item[1], item[2]
         anim = item[3] if len(item) > 3 else None
+        center = item[4] if len(item) > 4 else None
         extra_inputs += ["-loop", "1", "-i", str(png)]
-        layers.append((next_idx, float(t0), float(t1), anim))
+        layers.append((next_idx, float(t0), float(t1), anim, center))
         next_idx += 1
 
     if layers or text_effect_filters or fade_suffix:
         parts = [f"[0:v]{base_vf}[v0]"]
         cur = "v0"
-        for layer_i, (in_idx, t0, t1, anim) in enumerate(layers):
+        for layer_i, (in_idx, t0, t1, anim, center) in enumerate(layers):
             lab_in = f"ov{layer_i}"
             lab_out = f"v{layer_i + 1}"
-            parts.append(f"[{in_idx}:v]format=rgba,scale={width}:{height}[{lab_in}]")
+            motion = _overlay_motion_chain(t0, t1, anim, width, height)
+            parts.append(f"[{in_idx}:v]{motion}[{lab_in}]")
             if t0 is None:
                 enable = ""
             else:
+                # Keep the window: the fades shape the edges, `enable` still
+                # keeps the overlay out of the graph the rest of the time.
                 enable = f":enable='{_escape_overlay_enable(t0, t1)}'"
-            xy = _overlay_xy(t0, anim)
+            xy = _overlay_xy(t0, anim, center)
             parts.append(
                 f"[{cur}][{lab_in}]overlay={xy}:format=auto{enable}[{lab_out}]"
             )
@@ -1391,14 +1464,33 @@ def render_video(
                 from typography import render_style_overlay, typography_params_for_effect
                 from typography.debug import log_typography_event, typography_debug_enabled
 
+                from typography.composition import analyze_media, merge_composition
+
                 smart_dir = Path("smart_text_overlays")
                 smart_dir.mkdir(exist_ok=True)
+
+                # Look at the actual picture once per scene, so placement can
+                # keep type off the subject, off blown-out areas, and off any
+                # captions already burned into the source clip. Analysis is
+                # advisory: on any failure this is {} and placement behaves
+                # exactly as it did before.
+                scene_composition = analyze_media(
+                    img,
+                    at_time=min(float(dur) * 0.5, 2.0),
+                    ffmpeg="ffmpeg",
+                    is_video=is_video_file(img),
+                    scratch_dir=smart_dir,
+                )
+
                 for j, fx in enumerate(per_scene_fx[i]):
                     raw = str(fx.get("text") or "").strip()
                     if not raw:
                         continue
                     fx_payload = dict(fx)
                     fx_payload["scene_duration"] = float(dur)
+                    fx_payload["composition"] = merge_composition(
+                        fx.get("composition"), scene_composition,
+                    )
                     params = typography_params_for_effect(fx_payload, width, height)
                     display = str(params.get("text") or "")
                     if not display:
@@ -1415,6 +1507,7 @@ def render_video(
                             )
                         continue
                     png_path = smart_dir / f"scene_{i:04d}_{j:02d}.png"
+                    ov_metrics: dict = {}
                     png = render_style_overlay(
                         fx_payload,
                         png_path,
@@ -1422,6 +1515,7 @@ def render_video(
                         height,
                         params=params,
                         record_history=False,
+                        metrics=ov_metrics,
                     )
                     if png is None:
                         continue
@@ -1445,7 +1539,13 @@ def render_video(
                         effect=str(fx.get("effect") or ""),
                         filter_or_overlay=overlay_desc,
                     )
-                    timed_overlays.append((png, t0, t1, anim))
+                    center = None
+                    if ov_metrics:
+                        center = (
+                            int(ov_metrics.get("center_x") or 0),
+                            int(ov_metrics.get("center_y") or 0),
+                        )
+                    timed_overlays.append((png, t0, t1, anim, center))
             except Exception as exc:
                 # Do not silently substitute old Arial text — surface the failure.
                 print(f"[3/4] Smart typography failed for scene clip {i + 1}: {exc}")

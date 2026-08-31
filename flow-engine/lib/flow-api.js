@@ -29,6 +29,34 @@ export class RateLimitError extends Error {
     this.name = "RateLimitError";
   }
 }
+/**
+ * The Flow account's Google session is gone or expired — raised ONLY after
+ * re-checking the session, never from a bare 401.
+ *
+ * A 401 alone does not mean the account is signed out: Flow's IMAGE endpoint
+ * is project-scoped and current, while the VIDEO endpoint is the legacy
+ * global `/v1/video:*` one, and Google can reject the latter while the very
+ * same token still generates images fine. Treating that as "signed out"
+ * would mark a perfectly good account dead and stop scheduling it.
+ */
+export class AuthExpiredError extends Error {
+  constructor(m) {
+    super(m);
+    this.name = "AuthExpiredError";
+  }
+}
+
+/**
+ * Google rejected the request even though the account's session is still
+ * valid — i.e. the endpoint or its auth contract has moved, not the login.
+ */
+export class EndpointRejectedError extends Error {
+  constructor(m) {
+    super(m);
+    this.name = "EndpointRejectedError";
+  }
+}
+
 export class FatalError extends Error {
   constructor(m, recoverable = false) {
     super(m);
@@ -252,7 +280,51 @@ function randomSeed() {
 /**
  * POST to aisandbox with Bearer + reCAPTCHA token minted in-page.
  */
-export async function apiPost(page, url, bodyObj, recaptchaAction) {
+/**
+ * Pull `Unknown name "FIELD" at 'requests[0]'` out of a Google 400 body.
+ * Returns { field, path } or null.
+ */
+export function parseUnknownField(errText) {
+  if (!errText) return null;
+  const m = /Unknown name \\?"([^"\\]+)\\?" at '([^']*)'/.exec(String(errText));
+  if (!m) return null;
+  return { field: m[1], path: m[2] || "" };
+}
+
+/**
+ * Remove one unknown field from a request body, at the path Google named.
+ * Supports "" (top level) and "requests[N]" / "requests[N].sub.path".
+ */
+export function stripUnknownField(bodyObj, field, path) {
+  if (!bodyObj || !field) return false;
+  let target = bodyObj;
+  for (const seg of String(path || "").split(".").filter(Boolean)) {
+    const idx = /^([A-Za-z_$][\w$]*)\[(\d+)\]$/.exec(seg);
+    if (idx) {
+      const arr = target?.[idx[1]];
+      if (!Array.isArray(arr)) return false;
+      target = arr[Number(idx[2])];
+    } else {
+      target = target?.[seg];
+    }
+    if (!target || typeof target !== "object") return false;
+  }
+  if (!(field in target)) return false;
+  delete target[field];
+  return true;
+}
+
+// Backoff for 401s caused by a not-yet-warm Flow session.
+const AUTH_RETRY_DELAYS_MS = [2500, 5000, 9000];
+
+export async function apiPost(
+  page,
+  url,
+  bodyObj,
+  recaptchaAction,
+  _retriedFields,
+  _authAttempt,
+) {
   const siteKey = secrets.recaptchaSiteKey;
   const timeoutMs = timing.apiRequestTimeoutMs;
 
@@ -335,10 +407,73 @@ export async function apiPost(page, url, bodyObj, recaptchaAction) {
       }
       throw new RateLimitError("Rate limited by Google");
     }
+    if (
+      out.status === 401 ||
+      (out.errText || "").includes("UNAUTHENTICATED") ||
+      (out.errText || "").includes("invalid authentication credentials")
+    ) {
+      // A 401 here is usually a RACE, not a signed-out account. Flow's SPA
+      // needs a few seconds after navigation before /fx/api/auth/session
+      // hands out a token Google will accept, and video jobs fire in that
+      // first second (see generateOneVideo). Measured directly against all
+      // nine signed-in profiles: querying immediately returns a token that
+      // the API answers 401 to, while the same profile answers 200 once the
+      // page has settled. So back off and retry with a fresh token before
+      // concluding anything about the account.
+      const authAttempt = (_authAttempt || 0) + 1;
+      if (authAttempt <= AUTH_RETRY_DELAYS_MS.length) {
+        const waitMs = AUTH_RETRY_DELAYS_MS[authAttempt - 1];
+        console.warn(
+          `[FLOW] 401 from ${url.split("/").pop()} — session likely not warm yet; ` +
+            `retrying in ${waitMs}ms (attempt ${authAttempt}/${AUTH_RETRY_DELAYS_MS.length})`,
+        );
+        await sleep(waitMs);
+        await waitForFlowReady(page).catch(() => {});
+        return apiPost(page, url, bodyObj, recaptchaAction, _retriedFields, authAttempt);
+      }
+
+      // Retries exhausted — now it is worth deciding whose fault it is.
+      let stillSignedIn = false;
+      try {
+        stillSignedIn = !!(await getSessionToken(page));
+      } catch {
+        stillSignedIn = false;
+      }
+      if (stillSignedIn) {
+        throw new EndpointRejectedError(
+          `Google kept rejecting this request (401) after ${authAttempt - 1} retries ` +
+            `while the account is still signed in — endpoint ${url}`,
+        );
+      }
+      throw new AuthExpiredError(
+        "Flow account is signed out — open Accounts and sign in again",
+      );
+    }
     if (out.status === 403 || out.recoverable) {
       throw new FatalError(out.error + (out.errText ? ": " + out.errText : ""), true);
     }
     if (out.status === 400) {
+      // Google periodically drops or renames fields in this private API
+      // (e.g. `videoLengthSeconds` disappeared from batchAsyncGenerateVideoText,
+      // which failed every video job with INVALID_ARGUMENT). The request is
+      // rejected outright, so nothing was generated and retrying is safe.
+      // Strip exactly the field Google named and retry once per field, rather
+      // than pinning the payload to a shape Google may change again.
+      const unknown = parseUnknownField(out.errText);
+      const tried = _retriedFields || new Set();
+      if (unknown && !tried.has(unknown.field)) {
+        if (stripUnknownField(bodyObj, unknown.field, unknown.path)) {
+          tried.add(unknown.field);
+          console.warn(
+            `[FLOW] Google rejected unknown field "${unknown.field}" at ` +
+              `'${unknown.path}' — retrying without it. ` +
+              (unknown.field === "videoLengthSeconds"
+                ? "Clip length now falls back to Flow's own default."
+                : "That setting is not being sent."),
+          );
+          return apiPost(page, url, bodyObj, recaptchaAction, tried, _authAttempt);
+        }
+      }
       throw new Error("Rejected (400): " + (out.errText || out.error));
     }
     throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
