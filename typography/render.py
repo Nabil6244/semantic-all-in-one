@@ -145,6 +145,39 @@ def _prepare_text(raw_text: str, style_id: str, uppercase_flag: bool, max_chars:
     return text
 
 
+def _tracking_px(tracking_em: float, text: str, fontsize: int) -> float:
+    """Tracking in pixels, corrected for the casing actually being rendered.
+
+    Wide tracking on a lowercase sentence is the clearest "1990s titling"
+    signal there is, so positive tracking is allowed only for text that is
+    genuinely set in caps; everything else is capped at 0 or tighter.
+    """
+    em = float(tracking_em or 0.0)
+    letters = [c for c in (text or "") if c.isalpha()]
+    is_caps = bool(letters) and all(c.isupper() for c in letters)
+    if not is_caps:
+        em = min(em, 0.0)
+    elif em <= 0.0:
+        em = 0.02
+    return em * max(1, int(fontsize))
+
+
+def _accent_word(text: str) -> str:
+    """The one word an accent style should colour — never a filler token.
+
+    Prefers the last substantial word, which is where a documentary line
+    normally lands its emphasis ("Everything CHANGED").
+    """
+    words = (text or "").strip().split()
+    if len(words) < 2:
+        return ""
+    for word in reversed(words):
+        core = re.sub(r"[^a-zA-Z0-9']+", "", word).lower()
+        if len(core) >= 4 and core not in _WEAK_SINGLE_WORDS:
+            return word
+    return ""
+
+
 def _font_size(height: int, size_vh: float, intensity: float, theme: TypographyTheme) -> int:
     boost = 1.0 + max(0.0, min(1.0, intensity) - 0.5) * theme.intensity_size_boost * 2
     return max(20, int(round(height * size_vh * boost)))
@@ -259,7 +292,8 @@ def typography_params_for_effect(
         "local_start": t0,
         "local_end": t1,
         "fontsize": fontsize,
-        "letter_spacing": style.letter_spacing,
+        "letter_spacing": round(_tracking_px(style.tracking_em, text, fontsize), 2),
+        "accent_word": _accent_word(text) if accent_bar else "",
         "stroke_width": style.stroke_width,
         "animation": animation,
         "accent_bar": accent_bar,
@@ -417,8 +451,15 @@ def render_style_overlay(
     theme: Optional[TypographyTheme] = None,
     params: Optional[Dict[str, Any]] = None,
     record_history: bool = True,
+    metrics: Optional[Dict[str, Any]] = None,
 ) -> Optional[Path]:
-    """Render one styled transparent PNG for ffmpeg timed overlay (no drawtext needed)."""
+    """Render one styled transparent PNG for ffmpeg timed overlay (no drawtext needed).
+
+    `metrics`, when given, is filled with the laid-out text box
+    (x/y/w/h and its centre). The renderer is the only place that knows where
+    the glyphs actually landed, and a scale animation has to pivot on that
+    centre rather than the frame origin.
+    """
     theme = theme or get_theme()
     if params is None:
         params = typography_params_for_effect(
@@ -434,7 +475,7 @@ def render_style_overlay(
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     tracking = float(params["letter_spacing"])
-    stroke_w = max(1, int(params["stroke_width"]))
+    stroke_w = max(0, int(params["stroke_width"]))
     tw, th = _measure_tracking(draw, text, font, stroke_w, tracking)
     x, y = compute_xy(
         params["placement_info"],
@@ -445,63 +486,93 @@ def render_style_overlay(
         params["margin_x"],
     )
 
-    pad_x = max(18, int(params["fontsize"] * 0.36))
-    pad_y = max(10, int(params["fontsize"] * 0.24))
-    plate = [x - pad_x, y - pad_y, x + tw + pad_x, y + th + pad_y]
+    fontsize = int(params["fontsize"])
 
-    use_plate = bool(params["backplate"] or params["accent_bar"])
-    # Long lines always get a soft plate for readability.
-    if len(text) >= 24:
-        use_plate = True
-    if use_plate:
-        # Strong enough to read on dark cinematic footage.
-        plate_alpha = 175 if params["accent_bar"] else 140
+    # Readability scrim. The previous treatment was a hard rounded rectangle
+    # hugging the text — a burned-in-subtitle look, and it was forced on for
+    # any line of 24+ characters regardless of style. This is instead a wide,
+    # heavily blurred dark falloff: it lifts text off busy footage without
+    # ever showing an edge.
+    if bool(params["backplate"] or params["accent_bar"]):
+        scrim_alpha = 132
         if params["style_id"] == "minimal_caption":
-            plate_alpha = 120
-        if params["style_id"] == "proof_modern":
-            plate_alpha = 200
-        draw.rounded_rectangle(
-            plate,
-            radius=max(8, int(params["fontsize"] * 0.16)),
-            fill=(0, 0, 0, plate_alpha),
+            scrim_alpha = 112
+        elif params["style_id"] == "proof_modern":
+            scrim_alpha = 168
+        scrim = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        pad_x = int(tw * 0.20) + int(fontsize * 1.1)
+        pad_y = int(th * 0.85) + int(fontsize * 0.75)
+        ImageDraw.Draw(scrim).ellipse(
+            [x - pad_x, y - pad_y, x + tw + pad_x, y + th + pad_y],
+            fill=(0, 0, 0, scrim_alpha),
         )
-
-    if params["accent_bar"]:
-        ay = plate[3] - 5
-        accent = params["accent"]
-        thickness = 5 if params["style_id"] == "proof_modern" else 4
-        draw.rounded_rectangle(
-            [plate[0] + 10, ay, plate[2] - 10, ay + thickness],
-            radius=2,
-            fill=(accent[0], accent[1], accent[2], 255),
+        scrim = scrim.filter(
+            ImageFilter.GaussianBlur(radius=max(28, int(fontsize * 0.85)))
         )
+        img = Image.alpha_composite(img, scrim)
+        draw = ImageDraw.Draw(img)
 
+    # One soft drop shadow, scaled to the type size. Replaces the old
+    # shadow + black outline stack, which darkened glyph edges twice.
     shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    sdraw = ImageDraw.Draw(shadow)
     _draw_tracking_text(
-        sdraw,
-        (x + 2, y + 3),
+        ImageDraw.Draw(shadow),
+        (x, y + max(2, int(fontsize * 0.045))),
         text,
         font,
-        fill=(0, 0, 0, 130),
+        fill=(0, 0, 0, 185),
         stroke_width=0,
         stroke_fill=(0, 0, 0, 0),
         tracking=tracking,
     )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=1.1))
+    shadow = shadow.filter(
+        ImageFilter.GaussianBlur(radius=max(3.0, fontsize * 0.05))
+    )
     img = Image.alpha_composite(img, shadow)
     draw = ImageDraw.Draw(img)
 
-    _draw_tracking_text(
-        draw,
-        (x, y),
-        text,
-        font,
-        fill=params["fill"],
-        stroke_width=stroke_w,
-        stroke_fill=params["stroke"],
-        tracking=tracking,
-    )
+    # Accent styles colour a key word inside the line rather than drawing a
+    # rule under it. The old bar sat on the descenders and read as a link.
+    accent_word = str(params.get("accent_word") or "")
+    accent = params["accent"]
+    drawn = False
+    if accent_word and accent_word in text:
+        head, _, tail = text.partition(accent_word)
+        hw = _measure_tracking(draw, head, font, stroke_w, tracking)[0] if head else 0
+        aw = _measure_tracking(draw, accent_word, font, stroke_w, tracking)[0]
+        segments = [
+            (0, head, params["fill"]),
+            (hw, accent_word, (accent[0], accent[1], accent[2], 255)),
+            (hw + aw, tail, params["fill"]),
+        ]
+        for dx, seg, fill in segments:
+            if not seg:
+                continue
+            _draw_tracking_text(
+                draw, (x + dx, y), seg, font, fill=fill,
+                stroke_width=stroke_w, stroke_fill=params["stroke"], tracking=tracking,
+            )
+        drawn = True
+
+    if not drawn:
+        _draw_tracking_text(
+            draw,
+            (x, y),
+            text,
+            font,
+            fill=params["fill"],
+            stroke_width=stroke_w,
+            stroke_fill=params["stroke"],
+            tracking=tracking,
+        )
+
+    if metrics is not None:
+        metrics.update(
+            {
+                "x": int(x), "y": int(y), "w": int(tw), "h": int(th),
+                "center_x": int(x + tw / 2), "center_y": int(y + th / 2),
+            }
+        )
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

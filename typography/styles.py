@@ -43,15 +43,25 @@ class TypographyStyle:
     weight: str
     # Font size as fraction of frame height.
     size_vh: float
-    letter_spacing: float
+    # Tracking as a fraction of the font size (em), not pixels, so it stays
+    # proportional at any frame height. Positive tracking suits short caps;
+    # sentence-case copy wants 0 or slightly negative — spaced-out lowercase
+    # is the single clearest "old titling" tell.
+    tracking_em: float
     # Default placement hint (resolved further in placement.py).
     position: str
     # Motion: fade | scale_fade | slide_fade | reveal
     animation: str
+    # Outline width. 0 is the modern default: the soft scrim + drop shadow
+    # carry readability, and stacking an outline on top only muddies edges.
     stroke_width: int
     # When True, short emphasis may render UPPERCASE (never blind-force long sentences).
     uppercase: bool = False
+    # Accent treatment. Rendered as an accent-coloured key word inside the
+    # line (not a bar under it — that read as a hyperlink underline).
     accent_bar: bool = False
+    # Readability scrim: a wide, heavily blurred dark falloff. NOT the old
+    # hard rounded rectangle.
     backplate: bool = True
     max_chars_hard: int = 42
 
@@ -61,11 +71,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="kinetic_punch",
         font_family="Manrope",
         weight="ExtraBold",
-        size_vh=0.072,
-        letter_spacing=1.6,
+        size_vh=0.105,
+        tracking_em=0.045,
         position="center",
         animation="scale_fade",
-        stroke_width=4,
+        stroke_width=0,
         uppercase=True,
         accent_bar=False,
         backplate=False,
@@ -75,11 +85,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="keyword_highlight",
         font_family="Plus Jakarta Sans",
         weight="ExtraBold",
-        size_vh=0.072,
-        letter_spacing=1.0,
+        size_vh=0.078,
+        tracking_em=-0.005,
         position="bottom_center",
         animation="fade",
-        stroke_width=4,
+        stroke_width=0,
         uppercase=False,
         accent_bar=True,
         backplate=True,
@@ -89,11 +99,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="statement",
         font_family="Outfit",
         weight="Bold",
-        size_vh=0.054,
-        letter_spacing=0.4,
+        size_vh=0.06,
+        tracking_em=-0.008,
         position="center",
         animation="slide_fade",
-        stroke_width=3,
+        stroke_width=0,
         uppercase=False,
         accent_bar=False,
         backplate=True,
@@ -103,11 +113,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="question",
         font_family="Inter",
         weight="SemiBold",
-        size_vh=0.052,
-        letter_spacing=0.3,
+        size_vh=0.062,
+        tracking_em=-0.005,
         position="center",
         animation="fade",
-        stroke_width=3,
+        stroke_width=0,
         uppercase=False,
         accent_bar=False,
         backplate=True,
@@ -117,11 +127,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="minimal_caption",
         font_family="DM Sans",
         weight="Medium",
-        size_vh=0.038,
-        letter_spacing=0.2,
+        size_vh=0.044,
+        tracking_em=0.0,
         position="bottom_center",
         animation="fade",
-        stroke_width=2,
+        stroke_width=0,
         uppercase=False,
         accent_bar=False,
         backplate=True,
@@ -131,11 +141,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="fact_number",
         font_family="Space Grotesk",
         weight="Bold",
-        size_vh=0.088,
-        letter_spacing=1.8,
+        size_vh=0.15,
+        tracking_em=0.0,
         position="top_right",
         animation="scale_fade",
-        stroke_width=4,
+        stroke_width=0,
         uppercase=False,
         accent_bar=True,
         backplate=True,
@@ -145,11 +155,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="word_reveal",
         font_family="Inter",
         weight="Bold",
-        size_vh=0.056,
-        letter_spacing=0.6,
+        size_vh=0.07,
+        tracking_em=-0.005,
         position="bottom_center",
         animation="reveal",
-        stroke_width=3,
+        stroke_width=0,
         uppercase=False,
         accent_bar=False,
         backplate=True,
@@ -159,11 +169,11 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         id="quote",
         font_family="Outfit",
         weight="Bold",
-        size_vh=0.048,
-        letter_spacing=0.35,
+        size_vh=0.058,
+        tracking_em=-0.006,
         position="bottom_center",
         animation="slide_fade",
-        stroke_width=3,
+        stroke_width=0,
         uppercase=False,
         accent_bar=False,
         backplate=True,
@@ -175,10 +185,10 @@ TYPOGRAPHY_STYLES: Dict[str, TypographyStyle] = {
         font_family="Manrope",
         weight="ExtraBold",
         size_vh=0.11,
-        letter_spacing=2.0,
+        tracking_em=0.02,
         position="top_left",
         animation="scale_fade",
-        stroke_width=5,
+        stroke_width=0,
         uppercase=False,
         accent_bar=True,
         backplate=True,
