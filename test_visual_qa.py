@@ -423,11 +423,21 @@ class TestThresholdsAndRetryUnchanged(unittest.TestCase):
         )
         self.assertEqual(recommended_action_for(low, scene).value, "retry_same")
 
+        # A semantic mismatch on a GENERATED still is now an operator decision,
+        # not an auto-retry: regenerating uses the same prompt, so the verdict
+        # is likely identical. Technical defects above still retry.
         mismatch = VisualQAResult(
             scene_number="9", overall_score=0.50, status=VisualQAStatus.FAIL,
             failure_reasons=["semantic mismatch"],
         )
-        self.assertEqual(recommended_action_for(mismatch, scene).value, "retry_same")
+        self.assertEqual(recommended_action_for(mismatch, scene).value, "manual_review")
+
+        # A mismatch on a FOUND asset (stock) still auto-recovers, because
+        # searching again really can return something different.
+        stock_scene = SceneRow(
+            scene_number="9", script_segment="x", asset_type="stock_image", stock="q",
+        )
+        self.assertEqual(recommended_action_for(mismatch, stock_scene).value, "retry_same")
 
     def test_clean_result_recommends_no_retry(self):
         scene = SceneRow(
@@ -691,3 +701,273 @@ class TestFailedRepairKeepsWorkingAsset(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLowScoreIsAnOperatorDecision(unittest.TestCase):
+    """A low QA score on a GENERATED still must not auto-retry.
+
+    retry_same re-runs Flow with the identical prompt, so an image judged not
+    to match is likely judged the same way again — it burns a generation and
+    lands back on WEAK. The operator chooses Keep or Retry instead.
+    """
+
+    def _weak(self, reason="semantic mismatch"):
+        return VisualQAResult(scene_number="1", overall_score=0.70,
+                              status=VisualQAStatus.WEAK, failure_reasons=[reason])
+
+    def test_generated_still_goes_to_manual_review_not_retry(self):
+        for asset_type in ("image", "flow_image"):
+            scene = SceneRow(scene_number="1", script_segment="x",
+                             asset_type=asset_type, prompt="p")
+            action = recommended_action_for(self._weak(), scene)
+            self.assertEqual(action.value, "manual_review", asset_type)
+
+    def test_stock_asset_behaviour_is_unchanged(self):
+        scene = SceneRow(scene_number="1", script_segment="x",
+                         asset_type="stock_image", stock="q")
+        self.assertEqual(recommended_action_for(self._weak(), scene).value, "retry_same")
+
+    def test_manual_review_is_not_auto_actioned_by_fix_all(self):
+        """MANUAL_REVIEW short-circuits fix_scene_if_needed, so nothing runs."""
+        import inspect
+        from visual_qa import fix_engine
+
+        src = inspect.getsource(fix_engine.fix_scene_if_needed)
+        self.assertIn("RecommendedAction.MANUAL_REVIEW", src)
+        head = src.split("for attempt in range", 1)[0]
+        self.assertIn("MANUAL_REVIEW", head, "must return before the retry loop")
+
+    def test_genuine_defects_still_retry(self):
+        """This must not make QA toothless: a frozen/broken asset still retries."""
+        scene = SceneRow(scene_number="1", script_segment="x",
+                         asset_type="image", prompt="p")
+        frozen = VisualQAResult(scene_number="1", overall_score=0.40,
+                                status=VisualQAStatus.FAIL,
+                                warnings=["Flow: frozen or static frames detected"])
+        self.assertEqual(recommended_action_for(frozen, scene).value, "retry_same")
+
+
+class TestIssueCarriesDecisionFlag(unittest.TestCase):
+    def test_qa_issue_exposes_needs_decision_and_score(self):
+        from scene_qa import QAIssue
+
+        i = QAIssue(key="001", scene_number="1", provider="Flow Image",
+                    error="Visual QA: weak match", severity="warning",
+                    needs_decision=True, score=0.70)
+        self.assertTrue(i.needs_decision)
+        self.assertAlmostEqual(i.score, 0.70)
+
+    def test_defaults_keep_existing_callers_working(self):
+        from scene_qa import QAIssue
+
+        i = QAIssue(key="001", scene_number="1", provider="Stock", error="x")
+        self.assertFalse(i.needs_decision)
+        self.assertEqual(i.score, 0.0)
+
+
+class TestRepairAttemptsAreBoundedForLife(unittest.TestCase):
+    """`max_attempts` only bounded ONE call — repeated Fix All clicks kept
+    regenerating the same stubborn scene, spending Flow credits each time."""
+
+    def setUp(self):
+        import tempfile, subprocess
+        from pathlib import Path
+        self.tmp = Path(tempfile.mkdtemp())
+        subprocess.run(
+            ["bin/ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+             "-i", "color=c=navy:s=320x180", "-frames:v", "1", "-y", str(self.tmp / "f.png")],
+            check=True,
+        )
+
+    def _fixture(self, asset_type="stock_image"):
+        from providers.base import SceneRow, AssetResult, AssetSource, MediaType, SceneStatus
+        scene = SceneRow(scene_number="1", script_segment="x",
+                         asset_type=asset_type, stock="q", prompt="p")
+        res = AssetResult("1", self.tmp / "f.png", MediaType.IMAGE,
+                          AssetSource.STOCK_IMAGE, SceneStatus.READY, metadata={})
+        calls = []
+        outer = self
+
+        class Mgr:
+            images_dir = outer.tmp
+            selection_history = None
+            resolved_style = None
+            def classify(self, s):
+                return AssetSource.STOCK_IMAGE
+            def retry_scene(self, s):
+                calls.append("r"); return res
+            regenerate_scene = retry_scene
+            def alternative_scene(self, s):
+                calls.append("a"); return res
+
+        return scene, res, calls, Mgr()
+
+    def _failing_qa(self):
+        from visual_qa.models import VisualQAResult, VisualQAStatus
+        return VisualQAResult(scene_number="1", overall_score=0.40,
+                              status=VisualQAStatus.FAIL,
+                              failure_reasons=["semantic mismatch"])
+
+    def _click(self, mgr, scene, results):
+        from visual_qa.fix_engine import FlowBudgetState, fix_scene_if_needed
+        return fix_scene_if_needed(
+            mgr, scene, self._failing_qa(), results=results,
+            flow_budget=FlowBudgetState(), max_attempts=2, log=lambda m: None,
+        )
+
+    def test_repeated_fix_all_stops_regenerating(self) -> None:
+        from visual_qa.fix_engine import LIFETIME_REPAIR_ATTEMPTS
+        scene, res, calls, mgr = self._fixture()
+        results = {"001": res}
+        for _ in range(6):
+            self._click(mgr, scene, results)
+        self.assertEqual(len(calls), LIFETIME_REPAIR_ATTEMPTS)
+
+    def test_an_exhausted_scene_becomes_an_operator_decision(self) -> None:
+        scene, res, _calls, mgr = self._fixture()
+        results = {"001": res}
+        for _ in range(4):
+            _, qa = self._click(mgr, scene, results)
+        self.assertEqual(qa.recommended_action.value, "manual_review")
+
+    def test_the_working_asset_is_never_discarded(self) -> None:
+        scene, res, _calls, mgr = self._fixture()
+        results = {"001": res}
+        for _ in range(5):
+            self._click(mgr, scene, results)
+        self.assertIs(results["001"], res)
+
+    def test_the_count_persists_on_the_asset_between_clicks(self) -> None:
+        scene, res, _calls, mgr = self._fixture()
+        results = {"001": res}
+        self._click(mgr, scene, results)
+        self.assertGreater(res.metadata["visual_qa"]["repair_attempts"], 0)
+
+    def test_a_fresh_scene_still_gets_its_full_allowance(self) -> None:
+        """The cap must not leak between scenes."""
+        scene_a, res_a, calls, mgr = self._fixture()
+        results = {"001": res_a}
+        for _ in range(5):
+            self._click(mgr, scene_a, results)
+        spent_on_a = len(calls)
+        res_a.metadata.clear()  # simulate a different scene's untouched asset
+        results2 = {"001": res_a}
+        self._click(mgr, scene_a, results2)
+        self.assertGreater(len(calls), spent_on_a)
+
+    def test_a_corrupt_attempt_counter_does_not_block_repair(self) -> None:
+        """Bad metadata must fail open, not silently disable QA repair."""
+        from visual_qa.fix_engine import _repair_attempts
+        from providers.base import AssetResult, AssetSource, MediaType, SceneStatus
+        for bad in ("lots", None, {}, [], object()):
+            res = AssetResult("1", self.tmp / "f.png", MediaType.IMAGE,
+                              AssetSource.STOCK_IMAGE, SceneStatus.READY,
+                              metadata={"visual_qa": {"repair_attempts": bad}})
+            self.assertEqual(_repair_attempts(res), 0, repr(bad))
+
+    def test_manual_retry_never_routes_through_the_cap(self) -> None:
+        """An explicit operator Retry is authoritative and stays unlimited."""
+        import inspect
+        import app as _app
+        src = inspect.getsource(_app.VideoGeneratorApp._scene_action)
+        self.assertNotIn("fix_scene_if_needed", src)
+        self.assertNotIn("fix_all_issues", src)
+
+
+class TestFlowVideoCreditCeiling(unittest.TestCase):
+    """Paid Flow VIDEO credits must be bounded across the whole project."""
+
+    def setUp(self):
+        import tempfile, subprocess
+        from pathlib import Path
+        self.tmp = Path(tempfile.mkdtemp())
+        subprocess.run(
+            ["bin/ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+             "-i", "color=c=navy:s=320x180", "-frames:v", "1", "-y", str(self.tmp / "f.png")],
+            check=True,
+        )
+        self.flow_calls = []
+        self.stock_calls = []
+
+    def _res(self, i):
+        from providers.base import AssetResult, AssetSource, MediaType, SceneStatus
+        return AssetResult(str(i), self.tmp / "f.png", MediaType.IMAGE,
+                           AssetSource.FLOW_VIDEO, SceneStatus.READY, metadata={})
+
+    def _mgr(self):
+        from providers.base import AssetSource
+        outer = self
+        class Mgr:
+            images_dir = outer.tmp
+            selection_history = None
+            resolved_style = None
+            coverage_by_scene = {}
+            def classify(self, s):
+                return AssetSource.FLOW_VIDEO
+            def regenerate_scene(self, s):
+                outer.flow_calls.append(s.scene_number); return outer._res(s.scene_number)
+            def retry_scene(self, s):
+                outer.flow_calls.append(s.scene_number); return outer._res(s.scene_number)
+            def alternative_scene(self, s):
+                outer.stock_calls.append(s.scene_number); return outer._res(s.scene_number)
+        return Mgr()
+
+    def _run(self, alloc, clicks=1, asset_type="video"):
+        from providers.base import SceneRow
+        from visual_qa.models import VisualQAResult, VisualQAStatus
+        from visual_qa.fix_engine import fix_all_issues
+        scenes = [SceneRow(scene_number=str(i), script_segment="x",
+                           asset_type=asset_type, prompt="p") for i in (1, 2, 3)]
+        mgr, last = self._mgr(), None
+        for _ in range(clicks):
+            results = {f"{i:03d}": self._res(i) for i in (1, 2, 3)}
+            qa = {f"{i:03d}": VisualQAResult(
+                scene_number=str(i), overall_score=0.35, status=VisualQAStatus.FAIL,
+                failure_reasons=["flow: frozen or static frames detected"]) for i in (1, 2, 3)}
+            last = fix_all_issues(mgr, scenes, qa, results, allocation=alloc,
+                                  max_attempts=2, log=lambda m: None)
+        return last
+
+    def test_retry_same_on_a_flow_video_scene_is_charged(self) -> None:
+        """RETRY_SAME re-runs Flow and costs a credit — it used to be unguarded."""
+        alloc = {"ai_budget_limit": 5, "ai_assigned": 3, "allocation_version": 2}
+        report = self._run(alloc, clicks=1)
+        self.assertGreater(report.flow_credits_spent, 0)
+
+    def test_the_ceiling_is_cumulative_across_clicks(self) -> None:
+        alloc = {"ai_budget_limit": 6, "ai_assigned": 3, "allocation_version": 2}
+        self._run(alloc, clicks=6)
+        self.assertLessEqual(len(self.flow_calls), 3)
+
+    def test_spend_is_recorded_on_the_allocation_for_persistence(self) -> None:
+        from visual_qa.fix_engine import QA_FLOW_SPEND_KEY
+        alloc = {"ai_budget_limit": 6, "ai_assigned": 3, "allocation_version": 2}
+        self._run(alloc, clicks=2)
+        self.assertGreater(alloc[QA_FLOW_SPEND_KEY], 0)
+
+    def test_a_recorded_spend_shrinks_the_next_sessions_budget(self) -> None:
+        """Restarting the app must not hand out a fresh allowance."""
+        from visual_qa.fix_engine import _flow_budget_from_allocation, QA_FLOW_SPEND_KEY
+        alloc = {"ai_budget_limit": 6, "ai_assigned": 3, "allocation_version": 2}
+        fresh = _flow_budget_from_allocation(alloc, 3).remaining
+        alloc[QA_FLOW_SPEND_KEY] = 2
+        self.assertEqual(_flow_budget_from_allocation(alloc, 3).remaining, fresh - 2)
+
+    def test_exhausted_credits_fall_back_to_free_stock_not_failure(self) -> None:
+        alloc = {"ai_budget_limit": 3, "ai_assigned": 3, "allocation_version": 2}
+        self._run(alloc, clicks=1)
+        self.assertEqual(self.flow_calls, [])
+        self.assertGreater(len(self.stock_calls), 0)
+
+    def test_free_flow_images_are_never_charged(self) -> None:
+        """Only Flow VIDEO costs credits; images are free and must stay uncapped."""
+        alloc = {"ai_budget_limit": 3, "ai_assigned": 3, "allocation_version": 2}
+        report = self._run(alloc, clicks=1, asset_type="flow_image")
+        self.assertEqual(report.flow_credits_spent, 0)
+
+    def test_a_corrupt_stored_spend_does_not_break_the_budget(self) -> None:
+        from visual_qa.fix_engine import _flow_budget_from_allocation, QA_FLOW_SPEND_KEY
+        for bad in ("many", None, -5, [], {}):
+            alloc = {"ai_budget_limit": 6, "ai_assigned": 3,
+                     "allocation_version": 2, QA_FLOW_SPEND_KEY: bad}
+            self.assertGreaterEqual(_flow_budget_from_allocation(alloc, 3).remaining, 0)

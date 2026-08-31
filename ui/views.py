@@ -1713,35 +1713,77 @@ class AudioView(_BaseView):
             text_color=T.MUTED, anchor="w",
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(T.PAD, 6))
 
-        def _feature_row(row_i: int, label: str, enabled_var, intensity_var) -> None:
+        def _feature_row(row_i: int, label: str, enabled_var, intensity_var, on_intensity=None) -> None:
             ctk.CTkSwitch(
                 smart, text=label, variable=enabled_var,
                 onvalue=True, offvalue=False, progress_color=T.ACCENT, button_color=T.TEXT,
                 text_color=T.TEXT, font=ctk.CTkFont(size=12),
                 command=app._persist_smart_editing_settings,
             ).grid(row=row_i, column=0, sticky="w", padx=T.PAD, pady=2)
+
+            def _changed(_v, cb=on_intensity) -> None:
+                if cb is not None:
+                    cb()
+                app._persist_smart_editing_settings()
+
             ctk.CTkOptionMenu(
                 smart, variable=intensity_var, values=["Low", "Medium", "High"],
                 width=96, fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
                 text_color=T.TEXT, dropdown_fg_color=T.CARD, dropdown_text_color=T.TEXT,
-                command=lambda _v: app._persist_smart_editing_settings(),
+                command=_changed,
             ).grid(row=row_i, column=1, sticky="e", padx=T.PAD, pady=2)
 
         _feature_row(1, "Text Effects", app.smart_text_effects_var, app.smart_text_intensity_var)
         _feature_row(2, "Sound Effects", app.smart_sfx_var, app.smart_sfx_intensity_var)
         _feature_row(3, "Visual Transitions", app.smart_visual_transitions_var, app.smart_transitions_intensity_var)
-        _feature_row(4, "Scene Ambience", app.smart_scene_ambience_var, app.smart_ambience_intensity_var)
+        # Picking an ambience intensity step re-syncs the fine volume control
+        # back to Auto, so the dropdown never silently does nothing.
+        _feature_row(
+            4, "Scene Ambience", app.smart_scene_ambience_var,
+            app.smart_ambience_intensity_var,
+            on_intensity=self._on_ambience_volume_auto_silent,
+        )
+
+        # Fine ambience level. The intensity step above is the coarse control;
+        # this overrides it outright, and reads back as the real bed level.
+        amb_row = ctk.CTkFrame(smart, fg_color="transparent")
+        amb_row.grid(row=5, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(4, 2))
+        amb_row.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            amb_row, text="Ambience volume", font=ctk.CTkFont(size=12), text_color=T.TEXT,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+        self._amb_vol_value = ctk.CTkLabel(
+            amb_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
+            anchor="e", width=90,
+        )
+        self._amb_vol_value.grid(row=0, column=2, sticky="e")
+        self._amb_vol_slider = ctk.CTkSlider(
+            amb_row, from_=0.0, to=1.0, number_of_steps=100,
+            progress_color=T.ACCENT, button_color=T.TEXT, fg_color=T.BG,
+            command=self._on_ambience_volume,
+        )
+        self._amb_vol_slider.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        self._amb_vol_auto = ctk.CTkButton(
+            amb_row, text="Auto", height=24, width=58,
+            fg_color="transparent", border_width=1, border_color=T.BORDER,
+            text_color=T.MUTED, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=11),
+            command=self._on_ambience_volume_auto,
+        )
+        self._amb_vol_auto.grid(row=0, column=1, sticky="e", padx=(0, 8))
+        self._sync_ambience_volume()
 
         ctk.CTkLabel(
             smart,
             text="Each feature has its own intensity. SFX, transitions, and ambience "
-                 "are AI-picked when Gemini is configured.",
+                 "are AI-picked when Gemini is configured. Ambience volume sets the "
+                 "bed level directly — 0% mutes the beds entirely.",
             font=ctk.CTkFont(size=11), text_color=T.MUTED, justify="left", anchor="w",
             wraplength=520,
-        ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(6, 4))
+        ).grid(row=6, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(6, 4))
 
         mode_row = ctk.CTkFrame(smart, fg_color="transparent")
-        mode_row.grid(row=6, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(2, T.PAD))
+        mode_row.grid(row=7, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(2, T.PAD))
         ctk.CTkLabel(mode_row, text="Mode", font=ctk.CTkFont(size=12), text_color=T.TEXT).pack(
             side="left"
         )
@@ -1751,6 +1793,37 @@ class AudioView(_BaseView):
             text_color=T.TEXT, dropdown_fg_color=T.CARD, dropdown_text_color=T.TEXT,
             command=lambda _v: app._persist_smart_editing_settings(),
         ).pack(side="left", padx=(8, 0))
+
+    def _sync_ambience_volume(self) -> None:
+        """Push the current setting into the slider + readout."""
+        app = self.app
+        slider = getattr(self, "_amb_vol_slider", None)
+        if slider is None:
+            return
+        level = app.effective_ambience_volume()
+        is_auto = app.ambience_volume_override() is None
+        slider.set(level)
+        self._amb_vol_value.configure(
+            text=f"{level * 100:.0f}%" + (" · auto" if is_auto else ""),
+        )
+        self._amb_vol_auto.configure(
+            text_color=T.MUTED if is_auto else T.TEXT,
+            border_color=T.BORDER if is_auto else T.ACCENT,
+        )
+
+    def _on_ambience_volume(self, value: float) -> None:
+        self.app.smart_ambience_volume_var.set(round(float(value), 3))
+        self.app._persist_smart_editing_settings()
+        self._sync_ambience_volume()
+
+    def _on_ambience_volume_auto(self) -> None:
+        self.app.reset_ambience_volume_to_auto()
+        self._sync_ambience_volume()
+
+    def _on_ambience_volume_auto_silent(self) -> None:
+        """Drop the override without persisting — the caller persists after."""
+        self.app.smart_ambience_volume_var.set(-1.0)
+        self.after(0, self._sync_ambience_volume)
 
     def _on_choose_audio(self) -> None:
         """Pick a different voiceover, then refresh this view so the
@@ -1791,6 +1864,8 @@ class AudioView(_BaseView):
             sfx = len(plan.get("sfx_events") or [])
         self._amb.set_value(str(beds) if beds else "—")
         self._sfx.set_value(str(sfx) if sfx else "—")
+        # A project switch reloads the smart-editing settings, so re-read them.
+        self._sync_ambience_volume()
 
 
 class MusicView(_BaseView):

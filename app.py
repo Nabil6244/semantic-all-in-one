@@ -75,6 +75,7 @@ from smart_editing import (
     build_plan,
     get_cached_whisper_words,
     mix_sfx_with_narration,
+    normalize_ambience_volume,
     scene_text_effects,
 )
 from editorial import (
@@ -959,6 +960,14 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self.smart_ambience_intensity_var = ctk.StringVar(
             value=_smart_intensity_label("smart_scene_ambience_intensity") if self._settings.get("smart_scene_ambience_intensity") else legacy
+        )
+        # Ambience bed level. -1.0 is the sentinel for "auto" (follow the
+        # intensity step) because a Tk DoubleVar cannot hold None.
+        _amb_vol = normalize_ambience_volume(
+            self._settings.get("smart_scene_ambience_volume")
+        )
+        self.smart_ambience_volume_var = ctk.DoubleVar(
+            value=-1.0 if _amb_vol is None else _amb_vol
         )
         # Keep legacy var in sync for any leftover reads.
         self.smart_intensity_var = self.smart_sfx_intensity_var
@@ -2912,6 +2921,24 @@ class VideoGeneratorApp(ctk.CTk):
                 f"Removed {len(result.deleted)} downloaded asset file(s) ({freed}).",
             )
 
+    def ambience_volume_override(self) -> Optional[float]:
+        """Explicit ambience level, or None when the control is on Auto."""
+        try:
+            raw = float(self.smart_ambience_volume_var.get())
+        except Exception:
+            return None
+        if raw < 0:
+            return None
+        return normalize_ambience_volume(raw)
+
+    def effective_ambience_volume(self) -> float:
+        """The level ambience beds will actually be planned at."""
+        return self._smart_editing_settings().ambience_volume()
+
+    def reset_ambience_volume_to_auto(self) -> None:
+        self.smart_ambience_volume_var.set(-1.0)
+        self._persist_smart_editing_settings()
+
     def _smart_editing_settings(self) -> SmartEditingSettings:
         def _lvl(var) -> str:
             return (var.get() or "Medium").strip().lower()
@@ -2927,6 +2954,7 @@ class VideoGeneratorApp(ctk.CTk):
             sound_effects_intensity=_lvl(self.smart_sfx_intensity_var),
             visual_transitions_intensity=_lvl(self.smart_transitions_intensity_var),
             scene_ambience_intensity=_lvl(self.smart_ambience_intensity_var),
+            scene_ambience_volume=self.ambience_volume_override(),
             mode="automatic" if mode_raw.startswith("auto") else "smart",
         )
 
@@ -2944,6 +2972,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._settings["smart_sound_effects_intensity"] = payload["sound_effects_intensity"]
         self._settings["smart_visual_transitions_intensity"] = payload["visual_transitions_intensity"]
         self._settings["smart_scene_ambience_intensity"] = payload["scene_ambience_intensity"]
+        self._settings["smart_scene_ambience_volume"] = payload["scene_ambience_volume"]
         self._settings["smart_mode"] = payload["mode"]
         save_settings(self._settings)
         if self._workspace is not None:
@@ -2967,6 +2996,8 @@ class VideoGeneratorApp(ctk.CTk):
         _set_intensity(self.smart_sfx_intensity_var, "sound_effects_intensity")
         _set_intensity(self.smart_transitions_intensity_var, "visual_transitions_intensity")
         _set_intensity(self.smart_ambience_intensity_var, "scene_ambience_intensity")
+        amb_vol = normalize_ambience_volume(data.get("scene_ambience_volume"))
+        self.smart_ambience_volume_var.set(-1.0 if amb_vol is None else amb_vol)
         mode = str(data.get("mode") or "smart").title()
         self.smart_mode_var.set("Automatic" if mode.lower().startswith("auto") else "Smart")
 
@@ -5339,6 +5370,54 @@ class VideoGeneratorApp(ctk.CTk):
             )
             btn.pack(fill="x")
 
+            # A low QA score on a generated still is a judgement call, not a
+            # defect: regenerating uses the same prompt, so it may well come
+            # back scored the same. Offer the choice instead of acting.
+            if getattr(issue, "needs_decision", False):
+                row = ctk.CTkFrame(card, fg_color="transparent")
+                row.pack(fill="x", padx=(8, 0))
+                score = getattr(issue, "score", 0.0)
+                ctk.CTkLabel(
+                    row, text=f"Low score {score:.2f} — keep this asset or regenerate?",
+                    text_color=_MUTED, font=ctk.CTkFont(size=10), anchor="w",
+                ).pack(side="left")
+                ctk.CTkButton(
+                    row, text="Retry", width=58, height=22,
+                    fg_color=_BORDER, hover_color=_ACCENT, text_color=_TEXT,
+                    font=ctk.CTkFont(size=10),
+                    command=lambda k=issue.key: self._on_qa_decision(k, "retry"),
+                ).pack(side="right", padx=(6, 0))
+                ctk.CTkButton(
+                    row, text="Keep", width=58, height=22,
+                    fg_color=_BORDER, hover_color=_ACCENT, text_color=_TEXT,
+                    font=ctk.CTkFont(size=10),
+                    command=lambda k=issue.key: self._on_qa_decision(k, "keep"),
+                ).pack(side="right")
+
+    def _on_qa_decision(self, scene_key: str, decision: str) -> None:
+        """Operator's answer to a low QA score on a generated still.
+
+        Keep  -> accept the asset as-is and stop listing it as an issue.
+        Retry -> the existing per-scene retry path, unchanged.
+        """
+        row = next(
+            (r for r in (self._scene_rows or []) if _scene_key(r.scene_number) == scene_key),
+            None,
+        )
+        if row is None:
+            return
+        if decision == "retry":
+            self._scene_action("retry", row)
+            return
+        # Keep: mark the QA verdict as accepted by the operator so the scene
+        # stops appearing in Issues. The asset and its score are untouched.
+        result = (self._asset_results or {}).get(scene_key)
+        meta = getattr(result, "metadata", None)
+        if isinstance(meta, dict) and isinstance(meta.get("visual_qa"), dict):
+            meta["visual_qa"]["operator_accepted"] = True
+            meta["visual_qa"]["status"] = "PASS"
+        self._refresh_qa_ui()
+
     def _update_details_panel(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
         selected = self._selected_scenes()
@@ -7287,12 +7366,39 @@ class VideoGeneratorApp(ctk.CTk):
                     max_attempts=2,
                     log=lambda m: self._ui_queue.put(("log", m + "\n")),
                 )
+                self.after(0, lambda a=allocation: self._persist_qa_flow_spend(a))
                 self.after(0, lambda: self._on_fix_all_visual_issues_done(fix_report))
             except Exception as exc:
                 msg = str(exc)
                 self.after(0, lambda m=msg: self._on_fix_all_visual_issues_failed(m))
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _persist_qa_flow_spend(self, allocation) -> None:
+        """Write the cumulative QA Flow-video spend back to the saved plan.
+
+        Without this the paid ceiling would reset on the next app launch and
+        a stubborn project could keep buying fresh credits, one session at a
+        time. Best-effort: never let bookkeeping break the fix itself.
+        """
+        if not isinstance(allocation, dict) or self._workspace is None:
+            return
+        try:
+            plan = self._workspace.read_visual_plan_json()
+            if not isinstance(plan, dict):
+                return
+            stored = plan.get("allocation")
+            if not isinstance(stored, dict):
+                return
+            from visual_qa.fix_engine import QA_FLOW_SPEND_KEY
+
+            spend = allocation.get(QA_FLOW_SPEND_KEY)
+            if spend is None or stored.get(QA_FLOW_SPEND_KEY) == spend:
+                return
+            stored[QA_FLOW_SPEND_KEY] = spend
+            self._workspace.save_visual_plan_json(plan)
+        except Exception as exc:
+            self._append_log(f"[VQA] Could not record Flow credit spend: {exc}\n")
 
     def _on_fix_all_visual_issues_done(self, fix_report) -> None:
         self._sync_scene_statuses_from_results()
@@ -7310,7 +7416,8 @@ class VideoGeneratorApp(ctk.CTk):
             f"Fixed: {fix_report.fixed}\n"
             f"Still weak: {fix_report.still_weak}\n"
             f"Still fail: {fix_report.still_fail}\n"
-            f"Flow regenerations: {fix_report.flow_regenerations}",
+            f"Flow regenerations: {fix_report.flow_regenerations}\n"
+            f"Paid Flow video credits used: {getattr(fix_report, 'flow_credits_spent', 0)}",
         )
 
     def _on_fix_all_visual_issues_failed(self, message: str) -> None:

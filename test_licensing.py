@@ -364,3 +364,79 @@ class TestRevalidateLicenseResilience(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPasswordReset(unittest.TestCase):
+    """Recovery email request — must never leak whether an account exists."""
+
+    def setUp(self):
+        self.client = AuthClient(url="https://example.supabase.co", anon_key="anon-test")
+
+    def _resp(self, status):
+        r = MagicMock()
+        r.status_code = status
+        r.json.return_value = {}
+        return r
+
+    def test_posts_to_the_recover_endpoint_with_the_email(self):
+        with patch("licensing.auth_client.requests.post", return_value=self._resp(200)) as post:
+            self.client.request_password_reset("  Someone@Example.com  ")
+        url = post.call_args[0][0]
+        self.assertTrue(url.endswith("/auth/v1/recover"), url)
+        self.assertEqual(post.call_args.kwargs["json"], {"email": "Someone@Example.com"})
+
+    def test_no_redirect_url_is_sent(self):
+        """Reset happens in the browser against the project's Site URL."""
+        with patch("licensing.auth_client.requests.post", return_value=self._resp(200)) as post:
+            self.client.request_password_reset("a@b.co")
+        self.assertNotIn("redirect_to", post.call_args.kwargs["json"])
+
+    def test_unknown_address_is_indistinguishable_from_a_known_one(self):
+        """A 4xx must not become an error the UI could use to enumerate users."""
+        for status in (200, 400, 401, 404, 422):
+            with patch("licensing.auth_client.requests.post", return_value=self._resp(status)):
+                self.assertIsNone(self.client.request_password_reset("a@b.co"))
+
+    def test_rate_limiting_is_surfaced(self):
+        with patch("licensing.auth_client.requests.post", return_value=self._resp(429)):
+            with self.assertRaises(AuthError) as ctx:
+                self.client.request_password_reset("a@b.co")
+        self.assertEqual(ctx.exception.code, "rate_limited")
+
+    def test_server_failure_is_surfaced(self):
+        with patch("licensing.auth_client.requests.post", return_value=self._resp(503)):
+            with self.assertRaises(AuthError) as ctx:
+                self.client.request_password_reset("a@b.co")
+        self.assertEqual(ctx.exception.code, "server")
+
+    def test_network_failure_is_surfaced(self):
+        import requests as _requests
+        with patch("licensing.auth_client.requests.post",
+                   side_effect=_requests.RequestException("down")):
+            with self.assertRaises(AuthError) as ctx:
+                self.client.request_password_reset("a@b.co")
+        self.assertEqual(ctx.exception.code, "network")
+
+    def test_missing_address_never_reaches_the_network(self):
+        with patch("licensing.auth_client.requests.post") as post:
+            for bad in ("", "   ", "not-an-email"):
+                with self.assertRaises(AuthError) as ctx:
+                    self.client.request_password_reset(bad)
+                self.assertEqual(ctx.exception.code, "invalid")
+        post.assert_not_called()
+
+    def test_unconfigured_app_never_reaches_the_network(self):
+        client = AuthClient(url="", anon_key="")
+        with patch("licensing.auth_client.requests.post") as post:
+            with self.assertRaises(AuthError) as ctx:
+                client.request_password_reset("a@b.co")
+        self.assertEqual(ctx.exception.code, "misconfigured")
+        post.assert_not_called()
+
+    def test_no_password_or_token_is_ever_sent(self):
+        with patch("licensing.auth_client.requests.post", return_value=self._resp(200)) as post:
+            self.client.request_password_reset("a@b.co")
+        body = post.call_args.kwargs["json"]
+        self.assertEqual(set(body), {"email"})
+        headers = post.call_args.kwargs["headers"]
+        self.assertNotIn("Authorization", headers)
