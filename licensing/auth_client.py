@@ -117,6 +117,47 @@ class AuthClient:
         self._upsert_device(session)
         return session
 
+    def request_password_reset(self, email: str) -> None:
+        """Ask Supabase to email a recovery link. Never reveals whether the
+        address has an account.
+
+        Supabase's /recover endpoint deliberately answers 200 for unknown
+        addresses so callers cannot enumerate accounts, and this method keeps
+        that property: it returns None on success and raises only for problems
+        that are not about the address itself (not configured, unreachable,
+        rate limited). The caller must therefore show the same neutral message
+        either way.
+
+        No redirect URL is sent, so Supabase uses the project's configured
+        Site URL and the reset is completed in the browser — the desktop app
+        never handles the new password.
+        """
+        if not self.configured:
+            raise AuthError("App is not configured for login.", code="misconfigured")
+        email = (email or "").strip()
+        if not email or "@" not in email:
+            raise AuthError("Enter the email address for your account.", code="invalid")
+        try:
+            resp = requests.post(
+                f"{self.url}/auth/v1/recover",
+                headers=self._headers(),
+                json={"email": email},
+                timeout=_TIMEOUT,
+            )
+        except requests.RequestException as exc:
+            raise AuthError(f"Could not reach login server: {exc}", code="network") from exc
+
+        if resp.status_code == 429:
+            raise AuthError(
+                "Too many reset requests. Wait a few minutes and try again.",
+                code="rate_limited",
+            )
+        if resp.status_code >= 500:
+            raise AuthError("Login server is unavailable. Try again shortly.", code="server")
+        # 4xx other than 429 is treated as success on purpose: a malformed or
+        # unknown address must not be distinguishable from a valid one.
+        return None
+
     def refresh(self, refresh_token: str) -> AuthSession:
         if not self.configured:
             raise AuthError("App is not configured for login.", code="misconfigured")
