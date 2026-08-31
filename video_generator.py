@@ -229,71 +229,22 @@ def words_match(a: str, b: str) -> bool:
 
 # ---------- step 1: transcribe ----------
 
-def transcribe_audio(audio_path: str, model_size: str, performance_mode: str | None = None):
+def transcribe_audio(audio_path: str, model_size: str):
     from faster_whisper import WhisperModel
 
-    from hardware.accel import (
-        format_accel_report,
-        get_capabilities,
-        record_whisper_backend,
-        whisper_device_and_compute,
-    )
-
-    caps = get_capabilities(performance_mode)
-    print(format_accel_report(caps))
     print(f"[1/4] Loading whisper model '{model_size}' (first run downloads it)...")
 
-    device, compute_type, label = whisper_device_and_compute(performance_mode)
-    model = None
-    backend_used = "CPU"
-
-    if device == "cuda":
-        try:
-            model = WhisperModel(
-                model_size,
-                device="cuda",
-                compute_type=compute_type,
-                num_workers=1,
-            )
-            backend_used = "CUDA"
-            record_whisper_backend("CUDA", compute_type)
-            print(f"[1/4] Whisper backend: CUDA ({compute_type})")
-        except Exception as exc:
-            print(f"[1/4] CUDA Whisper failed ({exc}); falling back to CPU.")
-            model = None
-
-    if model is None:
-        model = WhisperModel(
-            model_size,
-            device="cpu",
-            compute_type="int8",
-            cpu_threads=max(1, min(4, (os.cpu_count() or 4))),
-            num_workers=1,
-        )
-        backend_used = "CPU"
-        record_whisper_backend("CPU", "int8")
-        reason = "CUDA unavailable or failed" if device == "cuda" else "CPU mode / no GPU"
-        print(f"[1/4] Whisper backend: CPU — {reason}")
+    model = WhisperModel(
+        model_size,
+        device="cpu",
+        compute_type="int8",
+        cpu_threads=max(1, min(4, (os.cpu_count() or 4))),
+        num_workers=1,
+    )
 
     print(f"[1/4] Transcribing {audio_path} (this can take a while for long audio)...")
-    try:
-        segments, _ = model.transcribe(audio_path, word_timestamps=True, vad_filter=True)
-        # Materialize generator while model is alive; if CUDA dies mid-run, retry CPU.
-        seg_list = list(segments)
-    except Exception as exc:
-        if backend_used != "CUDA":
-            raise
-        print(f"[1/4] CUDA transcription failed ({exc}); retrying on CPU.")
-        model = WhisperModel(
-            model_size,
-            device="cpu",
-            compute_type="int8",
-            cpu_threads=max(1, min(4, (os.cpu_count() or 4))),
-            num_workers=1,
-        )
-        backend_used = "CPU"
-        segments, _ = model.transcribe(audio_path, word_timestamps=True, vad_filter=True)
-        seg_list = list(segments)
+    segments, _ = model.transcribe(audio_path, word_timestamps=True, vad_filter=True)
+    seg_list = list(segments)
 
     words = []  # list of (normalized_word, start, end)
     for seg in seg_list:
@@ -311,7 +262,7 @@ def transcribe_audio(audio_path: str, model_size: str, performance_mode: str | N
     if not words:
         sys.exit("ERROR: whisper returned no words — check the audio file.")
 
-    print(f"[1/4] Got {len(words)} words from transcription (Whisper={backend_used}).")
+    print(f"[1/4] Got {len(words)} words from transcription.")
     return words
 
 
@@ -1133,53 +1084,12 @@ def _cpu_encode_argv() -> list[str]:
     return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
 
 
-def _encode_argv(performance_mode: str | None = None, *, force_cpu: bool = False) -> list[str]:
-    try:
-        from hardware.accel import video_encode_argv
-
-        return video_encode_argv(performance_mode, force_cpu=force_cpu)
-    except Exception as exc:
-        print(f"[PERF] Encoder selection failed ({exc}); using libx264.")
-        return _cpu_encode_argv()
-
-
 def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
-    """Run ffmpeg encode; if a GPU encoder fails, retry once with libx264."""
     result = hidden_subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode == 0:
         return
 
     err = (result.stderr or result.stdout or "").strip()
-    # Already CPU, or no -c:v to rewrite — surface the original error.
-    try:
-        c_idx = cmd.index("-c:v")
-        encoder = cmd[c_idx + 1] if c_idx + 1 < len(cmd) else "libx264"
-    except ValueError:
-        encoder = "libx264"
-
-    if encoder != "libx264":
-        print(
-            f"[PERF] GPU encoder '{encoder}' failed for {img_name}; "
-            f"falling back to libx264.\n  ({err[-400:]})"
-        )
-        cpu_cmd = list(cmd)
-        # Replace from -c:v through just before -pix_fmt (or -an) with CPU args.
-        try:
-            c_idx = cpu_cmd.index("-c:v")
-            # Drop encoder-specific flags until -pix_fmt
-            pix = cpu_cmd.index("-pix_fmt")
-            cpu_cmd = cpu_cmd[:c_idx] + _cpu_encode_argv() + cpu_cmd[pix:]
-        except ValueError:
-            cpu_cmd = list(cmd)
-            # Crude: swap codec name only
-            for i, part in enumerate(cpu_cmd):
-                if part == "-c:v" and i + 1 < len(cpu_cmd):
-                    cpu_cmd[i + 1] = "libx264"
-        result = hidden_subprocess.run(cpu_cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            return
-        err = (result.stderr or result.stdout or "").strip()
-
     print(err[-3000:])
     hint = ""
     if "drawtext" in err.lower() and "no such filter" in err.lower():
@@ -1205,7 +1115,6 @@ def _render_scene_clip(
     caption_overlay: Path | None = None,
     text_effect_filters: str = "",
     timed_overlays: list | None = None,
-    performance_mode: str | None = None,
     fade_in: float = 0.0,
     fade_out: float = 0.0,
     fade_color: str = "black",
@@ -1220,7 +1129,7 @@ def _render_scene_clip(
     # Use exact frame count so concat length matches audio timeline
     clip_dur = frames / fps
     timed_overlays = list(timed_overlays or [])
-    encode_args = _encode_argv(performance_mode)
+    encode_args = _cpu_encode_argv()
     fade_suffix = _fade_vf_suffix(clip_dur, fade_in, fade_out, fade_color)
 
     if is_video_file(img_path):
@@ -1346,18 +1255,10 @@ def render_video(
     bg_volume: float = 0.15,
     captions: bool = False,
     scene_text_effects: list | None = None,
-    performance_mode: str | None = None,
     visual_transitions: bool = True,
     transition_by_scene: dict | None = None,
     camera_by_scene: dict | None = None,
 ):
-    try:
-        from hardware.accel import format_accel_report, get_capabilities
-
-        print(format_accel_report(get_capabilities(performance_mode)))
-    except Exception as exc:
-        print(f"[PERF] Hardware probe skipped ({exc})")
-
     print("[3/4] Locating image files...")
     missing = missing_images_for_scenes(aligned_rows, images_dir)
     if missing:
@@ -1587,7 +1488,6 @@ def render_video(
             caption_overlay=overlay,
             text_effect_filters=fx_filters,
             timed_overlays=timed_overlays,
-            performance_mode=performance_mode,
             camera_style=camera_style,
             fade_in=fade_in,
             fade_out=fade_out,
