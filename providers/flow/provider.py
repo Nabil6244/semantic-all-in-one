@@ -117,6 +117,7 @@ class FlowProvider(AssetProvider):
         log: LogFn = print,
         should_stop: Optional[Callable[[], bool]] = None,
         on_scene_ready: Optional[Callable[[SceneRow, AssetResult], None]] = None,
+        on_scene_generating: Optional[Callable[[SceneRow], None]] = None,
     ) -> Dict[str, AssetResult]:
         if not scenes:
             return {}
@@ -139,6 +140,7 @@ class FlowProvider(AssetProvider):
                 should_stop,
                 abort_retried=False,
                 on_scene_ready=on_scene_ready,
+                on_scene_generating=on_scene_generating,
             )
         finally:
             _ENGINE_GENERATE_LOCK.release()
@@ -218,6 +220,7 @@ class FlowProvider(AssetProvider):
         should_stop: Optional[Callable[[], bool]],
         abort_retried: bool = False,
         on_scene_ready: Optional[Callable[[SceneRow, AssetResult], None]] = None,
+        on_scene_generating: Optional[Callable[[SceneRow], None]] = None,
     ) -> Dict[str, AssetResult]:
         idle_error = self._wait_for_engine_idle(client, log, should_stop)
         if idle_error:
@@ -237,6 +240,7 @@ class FlowProvider(AssetProvider):
         early_placed: Dict[int, AssetResult] = {}
         done_event = threading.Event()
         terminal_error: List[str] = []
+        generating_reported: set = set()
 
         def _try_place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
             """Copy into assets/ as soon as Node finishes a scene — otherwise the
@@ -285,6 +289,17 @@ class FlowProvider(AssetProvider):
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} downloading...")
                     else:
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} generating {self.media_kind}...")
+                        # This is the true FLOW_IN_FLIGHT boundary — the moment this
+                        # scene actually got a worker, not when the batch was queued.
+                        # A per-scene generation watchdog must start counting from
+                        # here, never from batch submission (see asset_manager.py /
+                        # app.py's _set_scene_status wiring).
+                        if idx not in generating_reported and on_scene_generating is not None:
+                            generating_reported.add(idx)
+                            try:
+                                on_scene_generating(scene)
+                            except Exception as exc:
+                                log(f"[FLOW] Scene {scene.scene_number} generating callback failed: {exc}")
                 elif status in ("done", "failed"):
                     progress[idx] = msg
                     if status == "failed":
@@ -417,6 +432,7 @@ class FlowProvider(AssetProvider):
                     should_stop,
                     abort_retried=True,
                     on_scene_ready=on_scene_ready,
+                    on_scene_generating=on_scene_generating,
                 )
 
             timeout_error = (

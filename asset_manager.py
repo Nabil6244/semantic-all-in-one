@@ -43,6 +43,10 @@ PROPERTY_VIDEO_MIN_STOCK_RELEVANCE = float(
 )
 SceneStartCallback = Callable[[SceneRow, AssetSource], None]
 SceneCompleteCallback = Callable[[SceneRow, AssetResult], None]
+# Fired when a scene actually begins Flow generation (a worker picked it up),
+# as opposed to on_scene_start which fires the moment the whole batch is
+# queued — the two can be far apart for a large batch with few accounts.
+SceneGeneratingCallback = Callable[[SceneRow], None]
 
 MANIFEST_NAME = ".asset_manifest.json"
 
@@ -643,6 +647,7 @@ class AssetManager:
         *,
         on_scene_start: Optional[SceneStartCallback] = None,
         on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
     ) -> None:
         """Shared by resolve_all() for both FLOW_IMAGE and FLOW_VIDEO — one batched
         GENERATE call per kind (never mixed), same cancel/error handling either way."""
@@ -697,9 +702,11 @@ class AssetManager:
                 log=self.log,
                 should_stop=self._run_cancelled,
                 on_scene_ready=_on_scene_ready,
+                on_scene_generating=on_scene_generating,
             )
         except TypeError:
-            # Older provider stubs in tests may not accept on_scene_ready.
+            # Older provider stubs in tests may not accept on_scene_ready /
+            # on_scene_generating.
             batch_results = provider.resolve_batch(
                 scenes,
                 self.images_dir,
@@ -738,6 +745,7 @@ class AssetManager:
                 results,
                 on_scene_start=on_scene_start,
                 on_scene_complete=on_scene_complete,
+                on_scene_generating=on_scene_generating,
             )
 
         # Whatever's still failing (a genuine Flow error, not a quota reroute
@@ -748,6 +756,7 @@ class AssetManager:
                 source, provider, scenes, results,
                 on_scene_start=on_scene_start,
                 on_scene_complete=on_scene_complete,
+                on_scene_generating=on_scene_generating,
             )
 
     def _retry_flow_batch_once(
@@ -759,6 +768,7 @@ class AssetManager:
         *,
         on_scene_start: Optional[SceneStartCallback] = None,
         on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
     ) -> None:
         """Reload and regenerate, once, every scene that's still failing on its
         original Flow source. If it fails again it stays at NEEDS_ACTION (the
@@ -811,6 +821,7 @@ class AssetManager:
                 log=self.log,
                 should_stop=self._run_cancelled,
                 on_scene_ready=_on_ready,
+                on_scene_generating=on_scene_generating,
             )
         except TypeError:
             retry_results = provider.resolve_batch(
@@ -874,6 +885,7 @@ class AssetManager:
         *,
         on_scene_start: Optional[SceneStartCallback] = None,
         on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
     ) -> None:
         """After Flow video fails on rate/quota (even after account rotation), try Flow image once."""
         if self.flow_image_provider is None:
@@ -942,6 +954,7 @@ class AssetManager:
                 log=self.log,
                 should_stop=self._run_cancelled,
                 on_scene_ready=_on_ready,
+                on_scene_generating=on_scene_generating,
             )
         except TypeError:
             batch_results = self.flow_image_provider.resolve_batch(
@@ -1064,6 +1077,7 @@ class AssetManager:
         *,
         on_scene_start: Optional[SceneStartCallback] = None,
         on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
         max_parallel: Optional[int] = None,
     ) -> ResolveSummary:
         errors = self.validate_rows(rows)
@@ -1166,6 +1180,7 @@ class AssetManager:
                 results,
                 on_scene_start=on_scene_start,
                 on_scene_complete=on_scene_complete,
+                on_scene_generating=on_scene_generating,
             )
 
         ok_count = sum(1 for r in results.values() if r.ok)
@@ -1202,10 +1217,24 @@ class AssetManager:
         self._finalize(scene, result)
         return result
 
-    def retry_flow_batch(self, scenes: List[SceneRow]) -> Dict[str, AssetResult]:
-        """One GENERATE for many Flow retries — avoids N parallel 'already running' races."""
+    def retry_flow_batch(
+        self,
+        scenes: List[SceneRow],
+        *,
+        on_scene_start: Optional[SceneStartCallback] = None,
+        on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
+    ) -> Dict[str, AssetResult]:
+        """One GENERATE for many Flow retries — avoids N parallel 'already running' races.
+
+        A manual Retry is a fresh attempt: a prior batch STOP (from a watchdog
+        timeout or an explicit Cancel) must not silently poison it. Without
+        this, self.is_cancelled staying True from an earlier stop made every
+        scene here come back CANCELLED with no Flow call at all — the retry
+        button looked like it worked but never actually ran anything."""
         if not scenes:
             return {}
+        self.reset_cancel()
         by_source: Dict[AssetSource, List[SceneRow]] = {}
         for scene in scenes:
             self._cancelled_scenes.discard(scene_key(scene.scene_number))
@@ -1220,7 +1249,12 @@ class AssetManager:
         for source, group in by_source.items():
             provider = self._provider_for(source)
             results: Dict[str, AssetResult] = {}
-            self._resolve_flow_batch(source, provider, group, results)
+            self._resolve_flow_batch(
+                source, provider, group, results,
+                on_scene_start=on_scene_start,
+                on_scene_complete=on_scene_complete,
+                on_scene_generating=on_scene_generating,
+            )
             out.update(results)
         return out
 
@@ -1290,11 +1324,21 @@ class AssetManager:
         return self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
 
     def change_source_flow_batch(
-        self, scenes: List[SceneRow], provider_name: str,
+        self,
+        scenes: List[SceneRow],
+        provider_name: str,
+        *,
+        on_scene_start: Optional[SceneStartCallback] = None,
+        on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
     ) -> Dict[str, AssetResult]:
-        """Switch many scenes to Flow and resolve in one GENERATE (multi-account)."""
+        """Switch many scenes to Flow and resolve in one GENERATE (multi-account).
+
+        See retry_flow_batch's docstring — same stale-cancellation hazard
+        applies here, so a fresh attempt clears it too."""
         if not scenes:
             return {}
+        self.reset_cancel()
         self.log(
             f"[ASSET] Change source -> {provider_name} for {len(scenes)} scene(s) "
             f"(batched Flow)"
@@ -1317,7 +1361,12 @@ class AssetManager:
         for source, group in by_source.items():
             provider = self._provider_for(source)
             results: Dict[str, AssetResult] = {}
-            self._resolve_flow_batch(source, provider, group, results)
+            self._resolve_flow_batch(
+                source, provider, group, results,
+                on_scene_start=on_scene_start,
+                on_scene_complete=on_scene_complete,
+                on_scene_generating=on_scene_generating,
+            )
             out.update(results)
         return out
 

@@ -4052,10 +4052,18 @@ class VideoGeneratorApp(ctk.CTk):
             key = _scene_key(scene.scene_number)
             tokens[key] = self._qa.begin_job(key, job_kind)
             self._busy_scenes.add(key)
-            self._set_scene_status(scene.scene_number, job_kind)
+            # QUEUED, not job_kind — this scene hasn't necessarily gotten a
+            # Flow worker yet (see _on_scene_generating below). Arming the
+            # 12-minute watchdog here, before the scene is actually in
+            # flight, is what let a big batch time out scenes that were
+            # simply still waiting their turn.
+            self._set_scene_status(scene.scene_number, "waiting")
         self._flow_retry_batch_busy = True
         self._paint_qa_chrome()
         self._append_log(log_line)
+
+        def _on_scene_generating(scene: SceneRow) -> None:
+            self._ui_queue.put(("scene_busy", (scene.scene_number, job_kind)))
 
         def worker() -> None:
             old_out, old_err = sys.stdout, sys.stderr
@@ -4066,9 +4074,11 @@ class VideoGeneratorApp(ctk.CTk):
             try:
                 mgr = self._ensure_asset_manager(images_dir)
                 if provider_name:
-                    results = mgr.change_source_flow_batch(updated, provider_name)
+                    results = mgr.change_source_flow_batch(
+                        updated, provider_name, on_scene_generating=_on_scene_generating,
+                    )
                 else:
-                    results = mgr.retry_flow_batch(updated)
+                    results = mgr.retry_flow_batch(updated, on_scene_generating=_on_scene_generating)
             except Exception as exc:
                 for scene in updated:
                     results[_scene_key(scene.scene_number)] = AssetResult(
@@ -5844,7 +5854,7 @@ class VideoGeneratorApp(ctk.CTk):
             tracker = self._asset_manager.recovery
         previews = preview_alternatives(scenes, tracker)
         counts = summarize_alternative_preview(previews)
-        lines = [f"{n} scenes selected"] + [f"{v} → {k}" for k, v in counts.items()]
+        lines = [f"{len(scenes)} scenes selected"] + [f"{v} → {k}" for k, v in counts.items()]
         return bool(messagebox.askokcancel(
             "Alternative Recovery",
             "\n".join(lines) + "\n\nAPPLY ALTERNATIVES uses each scene's existing fallback path.\nReady scenes are not touched.",
@@ -6763,9 +6773,23 @@ class VideoGeneratorApp(ctk.CTk):
                     print(f"[ASSET] All {len(pre_resolved)} scene(s) already ready — nothing to resolve.")
 
                 def _on_scene_start(scene: SceneRow, source: AssetSource) -> None:
-                    self._ui_queue.put(
-                        ("scene_busy", (scene.scene_number, _scene_busy_kind(source)))
-                    )
+                    # Flow batches report "start" the moment the WHOLE batch is
+                    # queued, not when this specific scene gets a worker — with
+                    # a handful of accounts and hundreds of scenes, a scene near
+                    # the back of the queue can wait well past the 12-minute
+                    # watchdog before it ever runs. Mark it QUEUED (no timer)
+                    # here; _on_scene_generating flips it to the real busy state
+                    # (and starts the watchdog) only once Flow confirms this
+                    # scene actually began generating.
+                    if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                        self._ui_queue.put(("scene_busy", (scene.scene_number, "waiting")))
+                    else:
+                        self._ui_queue.put(
+                            ("scene_busy", (scene.scene_number, _scene_busy_kind(source)))
+                        )
+
+                def _on_scene_generating(scene: SceneRow) -> None:
+                    self._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
 
                 def _on_scene_complete(scene: SceneRow, result: AssetResult) -> None:
                     # File copies on the worker — never on the Tk UI thread.
@@ -6781,6 +6805,7 @@ class VideoGeneratorApp(ctk.CTk):
                             rows_to_resolve,
                             on_scene_start=_on_scene_start,
                             on_scene_complete=_on_scene_complete,
+                            on_scene_generating=_on_scene_generating,
                         )
                     else:
                         summary = ResolveSummary(results={}, warnings=[])
