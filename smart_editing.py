@@ -1213,6 +1213,15 @@ def _heuristic_scene_ambience(
     return out
 
 
+# Mix level per SFX intensity step. Named so the curve can be asserted
+# without a bundled catalog (CI has none) and stays a single source of truth.
+_SFX_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.28, "medium": 0.40, "high": 0.52}
+
+
+def _sfx_base_volume(settings: SmartEditingSettings) -> float:
+    return _SFX_INTENSITY_VOLUME.get(settings.sfx_intensity(), 0.40)
+
+
 def _ambience_volume(settings: SmartEditingSettings) -> float:
     return settings.ambience_volume()
 
@@ -1525,7 +1534,7 @@ def plan_sfx_events(
     events: List[dict] = []
     recent_ids: List[str] = []
     # Keep narration dominant, but previous medium≈0.14 was inaudible in real mixes.
-    base_vol = {"low": 0.28, "medium": 0.40, "high": 0.52}.get(settings.sfx_intensity(), 0.40)
+    base_vol = _sfx_base_volume(settings)
 
     def _remember(entry: SfxEntry) -> None:
         recent_ids.append(entry.id)
