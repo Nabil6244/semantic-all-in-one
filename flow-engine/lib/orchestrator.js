@@ -505,6 +505,20 @@ async function runGenerate({ prompts, settings, accountIds }) {
           },
         });
 
+        if (result?.authExpired) {
+          // Leaving the account flagged authenticated meant every later batch
+          // picked it again and failed the same way, with a raw Google 401 as
+          // the only clue. Mark it signed out so the UI can say so and the
+          // scheduler stops choosing it.
+          updateAccount(a.id, { authenticated: false, lastChecked: Date.now() });
+          exhaustedAccounts.add(a.id);
+          accountProgress.set(a.id, {
+            status: "error",
+            message: "Signed out — click Sign in for this account",
+          });
+          pushState();
+        }
+
         // Flush this slice's consumed VIDEO jobs once, so a 50-clip slice is
         // one small JSON write rather than 50. Best-effort: fairness must
         // never break a batch that otherwise succeeded.
