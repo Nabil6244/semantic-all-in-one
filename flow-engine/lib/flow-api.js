@@ -466,10 +466,7 @@ export async function apiPost(
           tried.add(unknown.field);
           console.warn(
             `[FLOW] Google rejected unknown field "${unknown.field}" at ` +
-              `'${unknown.path}' — retrying without it. ` +
-              (unknown.field === "videoLengthSeconds"
-                ? "Clip length now falls back to Flow's own default."
-                : "That setting is not being sent."),
+              `'${unknown.path}' — retrying without it.`,
           );
           return apiPost(page, url, bodyObj, recaptchaAction, tried, _authAttempt);
         }
@@ -677,7 +674,6 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const aspect = videoAspectRatios.fromImage[settings.aspectRatio] || videoAspectRatios.default;
   const isPortrait = aspect === "VIDEO_ASPECT_RATIO_PORTRAIT";
   const modelKey = resolveVideoModelKey(settings.videoModel || settings.model, isPortrait);
-  const duration = Number(settings.videoDuration) || videoDurations.default;
   const seed =
     settings.seedMode === "fixed" && settings.seedValue != null ? settings.seedValue : randomSeed();
 
@@ -702,7 +698,11 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         aspectRatio: aspect,
         seed,
         metadata: {},
-        videoLengthSeconds: duration,
+        // Google removed videoLengthSeconds from this endpoint (every job
+        // rejected it, then succeeded once apiPost stripped it) — don't ask
+        // for a duration at all. Flow generates at its own default length;
+        // the renderer trims/loops every clip to the scene's real duration
+        // regardless, so nothing downstream depends on this field.
         textInput: { structuredPrompt: { parts: [{ text: prompt }] } },
         videoModelKey: modelKey,
       },
