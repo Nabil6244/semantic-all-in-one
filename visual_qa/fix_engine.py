@@ -24,6 +24,10 @@ class FlowBudgetState:
     limit: int = 0
     used: int = 0
     reserve: int = 0
+    # Credits spent by QA repairs specifically. Tracked apart from `used`
+    # (which starts at the allocation's own assignment) so the total can be
+    # written back and survive the next Fix All click.
+    qa_spent: int = 0
 
     @property
     def remaining(self) -> int:
@@ -31,6 +35,10 @@ class FlowBudgetState:
 
     def can_regenerate_flow(self) -> bool:
         return self.remaining > self.reserve
+
+    def spend(self) -> None:
+        self.used += 1
+        self.qa_spent += 1
 
 
 @dataclasses.dataclass
@@ -40,6 +48,8 @@ class FixAllReport:
     still_weak: int = 0
     still_fail: int = 0
     flow_regenerations: int = 0
+    # PAID Flow video credits this pass actually consumed.
+    flow_credits_spent: int = 0
     actions: Dict[str, str] = dataclasses.field(default_factory=dict)
 
 
@@ -56,6 +66,11 @@ def _scene_uses_flow_video_credit(scene: SceneRow) -> bool:
     return True
 
 
+# Key under which cumulative QA-driven Flow VIDEO spend is stored on the
+# allocation dict, so it persists with the visual plan.
+QA_FLOW_SPEND_KEY = "qa_flow_video_regenerations"
+
+
 def _flow_budget_from_allocation(allocation: Optional[dict], scene_count: int) -> FlowBudgetState:
     if not isinstance(allocation, dict):
         return FlowBudgetState()
@@ -64,6 +79,14 @@ def _flow_budget_from_allocation(allocation: Optional[dict], scene_count: int) -
         used = int(allocation.get("ai_assigned") or 0)
     except (TypeError, ValueError):
         limit = used = 0
+    # Credits already burned by earlier QA repairs. Without this the budget
+    # reset to the plan's original figure on every Fix All click, so each
+    # click handed out a fresh full allowance of PAID Flow video credits.
+    try:
+        prior_qa = max(0, int(allocation.get(QA_FLOW_SPEND_KEY) or 0))
+    except (TypeError, ValueError):
+        prior_qa = 0
+    used += prior_qa
     version = int(allocation.get("allocation_version") or 1)
     if version < 2 and allocation.get("decisions"):
         vids = sum(
@@ -94,13 +117,29 @@ def _apply_fix_action(
 ) -> AssetResult:
     manual = scene_preserves_source_authority(scene)
 
+    # Every action that re-runs Flow costs a PAID video credit, not just
+    # REGENERATE_FLOW. The budget used to guard that one action only — while
+    # RETRY_SAME went straight to mgr.retry_scene() and spent a credit with no
+    # check at all. And because scene_preserves_source_authority() is true for
+    # any scene with an asset_type set, RETRY_SAME is the branch nearly every
+    # real Flow video scene actually takes, so in practice the ceiling guarded
+    # almost nothing. `alternative_scene` is exempt: it moves the scene to
+    # stock, which is exactly the free fallback to use when credits run out.
+    spends_credit = _scene_uses_flow_video_credit(scene) and action in (
+        RecommendedAction.REGENERATE_FLOW,
+        RecommendedAction.RETRY_SAME,
+        RecommendedAction.RERANK,
+    )
+    if spends_credit and not flow_budget.can_regenerate_flow():
+        log(
+            f"[VQA] Scene {scene.scene_number}: Flow video credit budget exhausted "
+            f"({flow_budget.used}/{flow_budget.limit}) — using a stock alternative"
+        )
+        return mgr.alternative_scene(scene)
+    if spends_credit:
+        flow_budget.spend()
+
     if action == RecommendedAction.REGENERATE_FLOW:
-        uses_credit = _scene_uses_flow_video_credit(scene)
-        if uses_credit and not flow_budget.can_regenerate_flow():
-            log(f"[VQA] Scene {scene.scene_number}: Flow video budget exhausted — alternative")
-            return mgr.alternative_scene(scene)
-        if uses_credit:
-            flow_budget.used += 1
         return mgr.regenerate_scene(scene)
 
     if action in (RecommendedAction.RETRY_SAME, RecommendedAction.RERANK):
@@ -125,6 +164,40 @@ def _apply_fix_action(
     return mgr.retry_scene(scene)
 
 
+# Lifetime cap on AUTOMATIC repairs per scene, counted across every Fix All
+# invocation rather than reset on each click. `max_attempts` only ever bounded
+# a single call, so clicking Fix All repeatedly kept regenerating the same
+# stubborn scene — and for Flow video each of those spends a real credit.
+# Manual per-scene Retry deliberately does NOT go through here and stays
+# unlimited: an explicit operator action is authoritative.
+LIFETIME_REPAIR_ATTEMPTS = 3
+
+
+def _repair_attempts(result: Optional[AssetResult]) -> int:
+    meta = getattr(result, "metadata", None)
+    if not isinstance(meta, dict):
+        return 0
+    vqa = meta.get("visual_qa")
+    if not isinstance(vqa, dict):
+        return 0
+    try:
+        return int(vqa.get("repair_attempts") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _record_repair_attempt(result: Optional[AssetResult], count: int) -> None:
+    """Persist the attempt count on the asset so it survives the next click."""
+    meta = getattr(result, "metadata", None)
+    if not isinstance(meta, dict):
+        return
+    vqa = meta.get("visual_qa")
+    if not isinstance(vqa, dict):
+        vqa = {}
+        meta["visual_qa"] = vqa
+    vqa["repair_attempts"] = int(count)
+
+
 def fix_scene_if_needed(
     mgr: "AssetManager",
     scene: SceneRow,
@@ -146,8 +219,25 @@ def fix_scene_if_needed(
         return results.get(key), qa
 
     result = results.get(key)
+
+    # Stop automatically re-running a scene that has already had its chances.
+    # Hand it to the operator instead of burning more time (and Flow credits)
+    # on an approach that has not worked; the existing asset is untouched.
+    spent = _repair_attempts(result)
+    if spent >= LIFETIME_REPAIR_ATTEMPTS:
+        log(
+            f"[VQA] Scene {scene.scene_number}: {spent} automatic repair(s) already "
+            f"attempted — leaving it for manual review"
+        )
+        exhausted = dataclasses.replace(
+            qa, recommended_action=RecommendedAction.MANUAL_REVIEW
+        )
+        return result, exhausted
+
+    remaining = max(0, LIFETIME_REPAIR_ATTEMPTS - spent)
     latest_qa = qa
-    for attempt in range(max_attempts):
+    for attempt in range(min(max_attempts, remaining)):
+        spent += 1
         log(f"[VQA] Scene {scene.scene_number}: {action.value} (attempt {attempt + 1})")
         result = _apply_fix_action(mgr, scene, action, flow_budget=flow_budget, log=log)
         previous = results.get(key)
@@ -166,6 +256,7 @@ def fix_scene_if_needed(
                 f"[VQA] Scene {scene.scene_number}: {action.value} failed — "
                 f"keeping the existing asset"
             )
+        _record_repair_attempt(results.get(key), spent)
         if not result.ok:
             break
         latest_qa = evaluate_scene_asset(
@@ -217,5 +308,15 @@ def fix_all_issues(
             report.still_fail += 1
         if before != VisualQAStatus.PASS and after_qa.recommended_action == RecommendedAction.REGENERATE_FLOW:
             report.flow_regenerations += 1
+
+    # Persist this pass's paid spend onto the allocation so the ceiling is
+    # cumulative across clicks rather than per-click.
+    if isinstance(allocation, dict) and flow_budget.qa_spent:
+        try:
+            prior = max(0, int(allocation.get(QA_FLOW_SPEND_KEY) or 0))
+        except (TypeError, ValueError):
+            prior = 0
+        allocation[QA_FLOW_SPEND_KEY] = prior + flow_budget.qa_spent
+    report.flow_credits_spent = flow_budget.qa_spent
 
     return report
