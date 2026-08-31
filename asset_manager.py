@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import video_generator as vg
+from media_duration import annotate_actual_duration, cached_duration
 from providers.base import (
     AssetError,
     AssetResult,
@@ -376,7 +377,47 @@ class AssetManager:
         if existing and existing.resolve() != keep.resolve() and existing.is_file():
             existing.unlink()
 
+    def _annotate_actual_duration(self, result: AssetResult) -> None:
+        """Measure the delivered file so the editor works from reality.
+
+        Provider-agnostic on purpose: every provider's result passes through
+        _finalize(), so Flow, stock, YouTube and archive clips are all covered
+        by one mechanism rather than a Flow-specific side channel. Images are
+        untouched. Purely additive — a failed probe never changes the result's
+        status, and nothing here can trigger a regeneration.
+        """
+        if not result.ok or result.path is None:
+            return
+        if result.media_type != MediaType.VIDEO:
+            return
+        if result.metadata is None:
+            result.metadata = {}
+        requested = self._requested_video_duration()
+        try:
+            annotate_actual_duration(
+                result.metadata,
+                result.path,
+                is_video=True,
+                requested=requested,
+            )
+        except (OSError, ValueError):
+            # Duration is advisory metadata; a probe failure must never fail a
+            # scene. Deliberately narrow: a TypeError/AttributeError here would
+            # be a real defect and should surface rather than vanish.
+            pass
+
+    def _requested_video_duration(self):
+        """The operator's configured clip length — recorded, NOT assumed applied."""
+        settings = getattr(self, "settings", None)
+        if not isinstance(settings, dict):
+            return None
+        for key in ("flow_video_duration", "videoDuration", "video_duration"):
+            if key in settings:
+                return settings.get(key)
+        return None
+
     def _finalize(self, scene: SceneRow, result: AssetResult) -> None:
+        self._annotate_actual_duration(result)
         if result.ok and result.source != AssetSource.LOCAL:
             self._remove_stale_file(scene.scene_number, keep=result.path)
             meta = result.metadata or {}

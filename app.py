@@ -6917,6 +6917,10 @@ class VideoGeneratorApp(ctk.CTk):
                     settings_key=editorial_settings_key,
                     audio_key=audio_key,
                     resolved_style=resolved_style,
+                    # Resolved assets carry the measured length of the delivered
+                    # file, so the editor plans from the real source rather than
+                    # assuming the configured duration was honoured.
+                    asset_results=self._asset_results,
                 )
                 if state_dir is not None:
                     save_editorial_plan(state_dir, editorial_plan)
