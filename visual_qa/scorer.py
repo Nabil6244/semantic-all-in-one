@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
-from providers.base import AssetResult, MediaType, SceneRow
+from providers.base import AssetResult, AssetSource, MediaType, SceneRow
 from providers.media_quality.scoring import is_archival_provider
 from style_engine.schema import ResolvedStyle
 from style_engine.visual_selection import SelectionHistory
@@ -16,6 +16,7 @@ from .flow_qa import check_flow_temporal_quality
 from .frame_sampler import sample_frames
 from .models import (
     PASS_THRESHOLD,
+    RecommendedAction,
     VisualQAResult,
     VisualQAStatus,
     scene_preserves_source_authority,
@@ -47,8 +48,6 @@ def evaluate_scene_asset(
     style_id = style_id_from_resolved(resolved)
 
     if not result.ok or result.path is None:
-        from .models import RecommendedAction
-
         return VisualQAResult(
             scene_number=key,
             asset_id=asset_id,
@@ -152,6 +151,17 @@ def evaluate_scene_asset(
         vision_used=vision_used,
     )
     apply_recommended_action(qa, scene)
+
+    # Google Flow is a paid, credit-based generator: QA is advisory only for
+    # a Flow-sourced asset. Whatever the score/reason would normally
+    # recommend, downgrade it to a manual decision here — at the one place
+    # every caller (logs, UI, persisted plan) reads the verdict from — so
+    # nothing downstream can act on a QA score by calling Flow again.
+    if result.source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO) and qa.recommended_action not in (
+        RecommendedAction.NONE,
+        RecommendedAction.KEEP,
+    ):
+        qa.recommended_action = RecommendedAction.MANUAL_REVIEW
 
     if images_dir is not None:
         store_cached(images_dir, path, key, qa, style_id=style_id)

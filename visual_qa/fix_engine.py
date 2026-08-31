@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Callable, Dict, List, Optional, TYPE_CHECKING
 
-from providers.base import AssetResult, SceneRow, SceneStatus
+from providers.base import AssetResult, AssetSource, SceneRow, SceneStatus
 from scene_recovery import scene_key
 
 from .models import RecommendedAction, VisualQAResult, VisualQAStatus, scene_preserves_source_authority
@@ -213,6 +213,16 @@ def fix_scene_if_needed(
         return results.get(key) or AssetResult(
             scene.scene_number, None, None, mgr.classify(scene), SceneStatus.READY
         ), qa
+
+    # Google Flow is a paid, credit-based generator, not a QA-repairable
+    # asset: once a scene is configured for Flow, automatic repair must never
+    # call it again — no regenerate, no retry, no swap to another source —
+    # regardless of what the QA verdict recommends or whether an asset has
+    # been delivered yet. The operator decides via the existing manual
+    # Retry/Change Source controls; QA only ever gets to say "needs review".
+    if mgr.classify(scene) in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+        needs_review = dataclasses.replace(qa, recommended_action=RecommendedAction.MANUAL_REVIEW)
+        return results.get(key), needs_review
 
     action = recommended_action_for(qa, scene)
     if action in (RecommendedAction.NONE, RecommendedAction.KEEP, RecommendedAction.MANUAL_REVIEW):

@@ -167,6 +167,61 @@ class TestFlowBudget(unittest.TestCase):
         self.assertTrue(_scene_uses_flow_video_credit(video_scene))
 
 
+class TestFixEngineNeverCallsFlow(unittest.TestCase):
+    """Tripwire on the actual dispatch function, not just its outcome:
+    `_apply_fix_action` must never even be entered for a Flow-classified
+    scene — the guard in `fix_scene_if_needed` must return before it."""
+
+    def test_apply_fix_action_is_never_reached_for_a_flow_scene(self):
+        import visual_qa.fix_engine as fe
+
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")
+        good = AssetResult("1", Path("001.mp4"), MediaType.VIDEO, AssetSource.FLOW_VIDEO,
+                           SceneStatus.READY, metadata={})
+
+        class TripwireMgr:
+            images_dir = Path(".")
+            selection_history = None
+            resolved_style = None
+
+            def classify(self, s):
+                return AssetSource.FLOW_VIDEO
+
+            def regenerate_scene(self, s):
+                raise AssertionError("fix_engine must never call Flow generation")
+
+            def retry_scene(self, s):
+                raise AssertionError("fix_engine must never call Flow generation")
+
+            def alternative_scene(self, s):
+                raise AssertionError("fix_engine must never replace a Flow asset")
+
+            def change_source(self, s, provider):
+                raise AssertionError("fix_engine must never switch a Flow asset's source")
+
+        orig = fe._apply_fix_action
+        called = []
+
+        def spy(*args, **kwargs):
+            called.append(True)
+            return orig(*args, **kwargs)
+
+        fe._apply_fix_action = spy
+        try:
+            qa = VisualQAResult(scene_number="1", overall_score=0.1,
+                                status=VisualQAStatus.FAIL,
+                                failure_reasons=["semantic mismatch"])
+            results = {"1": good}
+            fe.fix_scene_if_needed(
+                TripwireMgr(), scene, qa, results=results,
+                flow_budget=FlowBudgetState(), max_attempts=2, log=lambda *_: None,
+            )
+        finally:
+            fe._apply_fix_action = orig
+        self.assertEqual(called, [], "_apply_fix_action must not be entered for a Flow scene")
+        self.assertIs(results["1"], good, "the Flow asset must be untouched")
+
+
 class TestFlowTemporal(unittest.TestCase):
     def test_identical_frames_fail(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -594,10 +649,40 @@ class TestFlowImageQADoesNotBlockWorkflow(unittest.TestCase):
         self.assertEqual(len(snap.visual_issues), 1, "failure must still be REPORTED")
         self.assertEqual(snap.visual_fail_blocking, 0, "but must not stop the workflow")
 
+    def test_flow_video_failure_does_not_block_render(self):
+        """Flow video gets the same advisory-only treatment as Flow image —
+        it's just as much a paid, credit-based Flow asset."""
+        from scene_qa import SceneQAState
+
+        scene = SceneRow(scene_number="1", script_segment="s", asset_type="video", prompt="p")
+        result = AssetResult("1", Path("001.mp4"), MediaType.VIDEO, AssetSource.FLOW_VIDEO,
+                             SceneStatus.READY,
+                             metadata={"visual_qa": {"status": "FAIL",
+                                                     "failure_reasons": ["semantic mismatch"]}})
+        snap = SceneQAState().snapshot([scene], {"001": result})
+        self.assertEqual(snap.visual_fail, 1, "failure must still be COUNTED")
+        self.assertEqual(len(snap.visual_issues), 1, "failure must still be REPORTED")
+        self.assertEqual(snap.visual_fail_blocking, 0, "but must not stop the workflow")
+        self.assertTrue(snap.visual_issues[0].needs_decision, "operator decides, QA doesn't")
+
     def test_non_flow_failure_still_blocks(self):
         snap = self._snapshot(AssetSource.STOCK_IMAGE)
         self.assertEqual(snap.visual_fail, 1)
         self.assertEqual(snap.visual_fail_blocking, 1)
+
+    def test_non_flow_video_failure_still_blocks(self):
+        """Stock/YouTube/archive video keeps its existing blocking behaviour —
+        this change is scoped to Flow, not to video assets in general."""
+        from scene_qa import SceneQAState
+
+        scene = SceneRow(scene_number="1", script_segment="s", asset_type="stock_video", prompt="p")
+        result = AssetResult("1", Path("001.mp4"), MediaType.VIDEO, AssetSource.STOCK_VIDEO,
+                             SceneStatus.READY,
+                             metadata={"visual_qa": {"status": "FAIL",
+                                                     "failure_reasons": ["semantic mismatch"]}})
+        snap = SceneQAState().snapshot([scene], {"001": result})
+        self.assertEqual(snap.visual_fail_blocking, 1)
+        self.assertFalse(snap.visual_issues[0].needs_decision)
 
     def test_render_permission_never_depends_on_vqa(self):
         from scene_recovery import allow_final_render
@@ -875,7 +960,11 @@ class TestRepairAttemptsAreBoundedForLife(unittest.TestCase):
 
 
 class TestFlowVideoCreditCeiling(unittest.TestCase):
-    """Paid Flow VIDEO credits must be bounded across the whole project."""
+    """Google Flow is a paid, credit-based generator: automatic QA repair
+    ("Fix All Issues") must have NO path to it at all, ever — not a bounded
+    ceiling, a hard zero. Every scenario below used to charge a real Flow
+    video credit; now none of them may call Flow, spend anything, or touch
+    the delivered asset, regardless of the allocation/budget passed in."""
 
     def setUp(self):
         import tempfile, subprocess
@@ -928,22 +1017,72 @@ class TestFlowVideoCreditCeiling(unittest.TestCase):
                                   max_attempts=2, log=lambda m: None)
         return last
 
-    def test_retry_same_on_a_flow_video_scene_is_charged(self) -> None:
-        """RETRY_SAME re-runs Flow and costs a credit — it used to be unguarded."""
-        alloc = {"ai_budget_limit": 5, "ai_assigned": 3, "allocation_version": 2}
+    def test_retry_same_never_calls_flow_regardless_of_budget(self) -> None:
+        """A generous budget must not tempt QA into calling Flow — the
+        answer is always MANUAL_REVIEW, never RETRY_SAME actually executing."""
+        alloc = {"ai_budget_limit": 999, "ai_assigned": 0, "allocation_version": 2}
         report = self._run(alloc, clicks=1)
-        self.assertGreater(report.flow_credits_spent, 0)
+        self.assertEqual(self.flow_calls, [])
+        self.assertEqual(self.stock_calls, [], "not even a switch away from Flow is allowed")
+        self.assertEqual(report.flow_credits_spent, 0)
+        self.assertEqual(report.flow_regenerations, 0)
 
-    def test_the_ceiling_is_cumulative_across_clicks(self) -> None:
+    def test_repeated_clicks_never_accumulate_flow_calls(self) -> None:
         alloc = {"ai_budget_limit": 6, "ai_assigned": 3, "allocation_version": 2}
         self._run(alloc, clicks=6)
-        self.assertLessEqual(len(self.flow_calls), 3)
+        self.assertEqual(self.flow_calls, [])
 
-    def test_spend_is_recorded_on_the_allocation_for_persistence(self) -> None:
+    def test_no_spend_is_ever_recorded_on_the_allocation(self) -> None:
         from visual_qa.fix_engine import QA_FLOW_SPEND_KEY
         alloc = {"ai_budget_limit": 6, "ai_assigned": 3, "allocation_version": 2}
         self._run(alloc, clicks=2)
-        self.assertGreater(alloc[QA_FLOW_SPEND_KEY], 0)
+        self.assertNotIn(QA_FLOW_SPEND_KEY, alloc)
+
+    def test_existing_flow_video_asset_is_preserved_unchanged(self) -> None:
+        """The whole point: the delivered Flow asset is ALWAYS kept, never
+        replaced or regenerated because Gemini/QA scored it poorly."""
+        from providers.base import SceneRow
+        from visual_qa.models import VisualQAResult, VisualQAStatus
+        from visual_qa.fix_engine import fix_all_issues
+
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")
+        original = self._res(1)
+        results = {"001": original}
+        qa = {"001": VisualQAResult(
+            scene_number="1", overall_score=0.2, status=VisualQAStatus.FAIL,
+            failure_reasons=["semantic mismatch"])}
+        fix_all_issues(self._mgr(), [scene], qa, results, allocation=None, log=lambda m: None)
+        self.assertIs(results["001"], original)
+        self.assertEqual(self.flow_calls, [])
+        self.assertEqual(self.stock_calls, [])
+
+    def test_recommended_action_becomes_manual_review_for_flow(self) -> None:
+        from providers.base import SceneRow
+        from visual_qa.models import RecommendedAction, VisualQAResult, VisualQAStatus
+        from visual_qa.fix_engine import fix_all_issues
+
+        scene = SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")
+        results = {"001": self._res(1)}
+        qa = {"001": VisualQAResult(
+            scene_number="1", overall_score=0.2, status=VisualQAStatus.FAIL,
+            failure_reasons=["semantic mismatch"])}
+        fix_all_issues(self._mgr(), [scene], qa, results, allocation=None, log=lambda m: None)
+        self.assertEqual(qa["001"].recommended_action, RecommendedAction.MANUAL_REVIEW)
+
+    def test_exhausted_credits_still_never_call_flow_or_stock(self) -> None:
+        """A tight budget used to fall back to a stock alternative — now
+        there is no fallback action at all, just 'needs review'."""
+        alloc = {"ai_budget_limit": 3, "ai_assigned": 3, "allocation_version": 2}
+        self._run(alloc, clicks=1)
+        self.assertEqual(self.flow_calls, [])
+        self.assertEqual(self.stock_calls, [])
+
+    def test_flow_images_are_also_never_touched(self) -> None:
+        """Flow image is free but still a Flow asset — same hard rule applies."""
+        alloc = {"ai_budget_limit": 3, "ai_assigned": 3, "allocation_version": 2}
+        report = self._run(alloc, clicks=1, asset_type="flow_image")
+        self.assertEqual(self.flow_calls, [])
+        self.assertEqual(report.flow_credits_spent, 0)
 
     def test_a_recorded_spend_shrinks_the_next_sessions_budget(self) -> None:
         """Restarting the app must not hand out a fresh allowance."""
@@ -952,12 +1091,6 @@ class TestFlowVideoCreditCeiling(unittest.TestCase):
         fresh = _flow_budget_from_allocation(alloc, 3).remaining
         alloc[QA_FLOW_SPEND_KEY] = 2
         self.assertEqual(_flow_budget_from_allocation(alloc, 3).remaining, fresh - 2)
-
-    def test_exhausted_credits_fall_back_to_free_stock_not_failure(self) -> None:
-        alloc = {"ai_budget_limit": 3, "ai_assigned": 3, "allocation_version": 2}
-        self._run(alloc, clicks=1)
-        self.assertEqual(self.flow_calls, [])
-        self.assertGreater(len(self.stock_calls), 0)
 
     def test_free_flow_images_are_never_charged(self) -> None:
         """Only Flow VIDEO costs credits; images are free and must stay uncapped."""

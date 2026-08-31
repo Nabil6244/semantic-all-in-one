@@ -126,17 +126,19 @@ class QAIssue:
     provider: str
     error: str
     severity: str = "recoverable"
-    # True when QA scored the asset low but retrying cannot reliably improve
-    # it (a generated still re-runs the same prompt). The Issues panel offers
-    # Keep / Retry so the decision stays with the operator.
+    # True for a Flow-generated asset (image or video): QA is advisory only
+    # for Flow, so retrying is never automatic. The Issues panel offers
+    # Keep / Retry so the decision — and any further Flow credit spend —
+    # stays with the operator.
     needs_decision: bool = False
     score: float = 0.0
 
 
-def _is_flow_image_result(result) -> bool:
-    """Flow-generated still — its QA is advisory, never a render blocker."""
+def _is_flow_result(result) -> bool:
+    """Flow-generated asset (image or video) — its QA is advisory, never a
+    render blocker and never a reason to touch the asset automatically."""
     source = getattr(getattr(result, "source", None), "value", "")
-    return str(source).lower() in ("flow_image", "image")
+    return str(source).lower() in ("flow_image", "flow_video", "image", "video")
 
 
 @dataclass
@@ -161,11 +163,12 @@ class QASnapshot:
     visual_weak: int = 0
     visual_fail: int = 0
     # Subset of visual_fail that may stop an unattended render. Flow-generated
-    # images are excluded: they are still counted in visual_fail, still listed
-    # in visual_issues and still shown in the VQA summary — they simply do not
-    # halt production, because a regenerated still is advisory, the existing
-    # retry logic has already had its attempts, and stopping the run buys
-    # nothing a human could act on mid-render.
+    # assets (image or video) are excluded: they are still counted in
+    # visual_fail, still listed in visual_issues and still shown in the VQA
+    # summary — they simply do not halt production. Flow is a paid,
+    # credit-based generator, so QA on it is advisory only: it never
+    # regenerates automatically, so stopping the run buys nothing a human
+    # could act on mid-render that they couldn't act on afterward.
     visual_fail_blocking: int = 0
     visual_issues: List[QAIssue] = field(default_factory=list)
     visual_summary: str = ""
@@ -366,12 +369,12 @@ class SceneQAState:
                     provider=provider_label(getattr(result, "source", None)),
                     error=f"Visual QA: {raw.get('warnings', ['weak'])[0] if raw.get('warnings') else 'weak match'}",
                     severity="warning",
-                    needs_decision=_is_flow_image_result(result),
+                    needs_decision=_is_flow_result(result),
                     score=float(raw.get("overall_score") or 0.0),
                 ))
             elif status == VisualQAStatus.FAIL:
                 snap.visual_fail += 1
-                if not _is_flow_image_result(result):
+                if not _is_flow_result(result):
                     snap.visual_fail_blocking += 1
                 reasons = raw.get("failure_reasons") or raw.get("warnings") or ["visual QA failed"]
                 snap.visual_issues.append(QAIssue(
@@ -380,7 +383,7 @@ class SceneQAState:
                     provider=provider_label(getattr(result, "source", None)),
                     error=f"Visual QA: {reasons[0]}",
                     severity="warning",
-                    needs_decision=_is_flow_image_result(result),
+                    needs_decision=_is_flow_result(result),
                     score=float(raw.get("overall_score") or 0.0),
                 ))
         if snap.visual_pass or snap.visual_weak or snap.visual_fail:
