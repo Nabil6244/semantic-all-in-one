@@ -564,6 +564,88 @@ class TestSceneAmbience(unittest.TestCase):
         self.assertEqual(_heuristic_ambience_profile("wind in the forest"), "nature")
         self.assertEqual(_heuristic_ambience_profile("heavy rain and thunder"), "rain")
 
+    def test_people_alone_does_not_trigger_crowd_ambience(self) -> None:
+        """The word 'people' is far too generic on its own — it appears in
+        almost any narration and used to misfire into crowd/stadium ambience
+        for completely ordinary scenes."""
+        from smart_editing import _heuristic_ambience_profile
+
+        self.assertNotEqual(_heuristic_ambience_profile("people"), "crowd")
+
+    def test_normal_narration_with_people_does_not_trigger_crowd(self) -> None:
+        from smart_editing import _heuristic_ambience_profile
+
+        cases = [
+            "many people believe the theory is true",
+            "millions of people lived here over the centuries",
+            "people discovered the ruins decades later",
+            "people were shocked by the announcement",
+        ]
+        for text in cases:
+            self.assertNotEqual(
+                _heuristic_ambience_profile(text), "crowd", f"false positive for: {text!r}"
+            )
+
+    def test_people_believe_does_not_trigger_crowd(self) -> None:
+        from smart_editing import _heuristic_ambience_profile
+
+        self.assertNotEqual(_heuristic_ambience_profile("people believe"), "crowd")
+
+    def test_actual_crowd_language_still_triggers_crowd_ambience(self) -> None:
+        from smart_editing import _heuristic_ambience_profile
+
+        cases = [
+            "a huge crowd gathered outside the venue",
+            "thousands of fans filled the stadium",
+            "the audience erupted into applause",
+            "protesters filled the streets",
+        ]
+        for text in cases:
+            self.assertEqual(
+                _heuristic_ambience_profile(text), "crowd", f"expected crowd for: {text!r}"
+            )
+
+    def test_audience_stadium_and_protest_still_work_standalone(self) -> None:
+        from smart_editing import _heuristic_ambience_profile
+
+        self.assertEqual(_heuristic_ambience_profile("the audience"), "crowd")
+        self.assertEqual(_heuristic_ambience_profile("the stadium"), "crowd")
+        self.assertEqual(_heuristic_ambience_profile("a protest"), "crowd")
+
+    def test_generic_population_words_do_not_independently_trigger_crowd(self) -> None:
+        """population/community/public/life are as generic as 'people' and
+        must not become new false-positive triggers either — they were never
+        added as crowd keywords, this just guards against a future regression."""
+        from smart_editing import _heuristic_ambience_profile
+
+        for word in ("population", "community", "public", "life"):
+            self.assertNotEqual(_heuristic_ambience_profile(word), "crowd", word)
+
+    def test_non_crowd_classifications_are_unchanged(self) -> None:
+        """Regression guard: the fix must not perturb any other profile's
+        classification."""
+        from smart_editing import _heuristic_ambience_profile
+
+        self.assertEqual(_heuristic_ambience_profile("cars rush through city traffic"), "traffic")
+        self.assertEqual(_heuristic_ambience_profile("rocket engines ignite"), "technology")
+        self.assertEqual(_heuristic_ambience_profile("wind in the forest"), "nature")
+        self.assertEqual(_heuristic_ambience_profile("heavy rain and thunder"), "rain")
+        self.assertEqual(_heuristic_ambience_profile("a quiet library hallway"), "room")
+        self.assertEqual(_heuristic_ambience_profile("ocean waves on the shore"), "water")
+        self.assertEqual(_heuristic_ambience_profile("a busy downtown street"), "city")
+
+    def test_gemini_ambience_path_is_untouched(self) -> None:
+        """Part 1 only changes the heuristic fallback — the AI path must
+        still short-circuit exactly as before when Gemini is not configured,
+        and must not consult the heuristic word list at all."""
+        from smart_editing import _ai_scene_ambience
+
+        aligned = [{"scene_number": "1", "script_segment": "many people believe this"}]
+        rows = [{"scene_number": "1", "script_segment": "many people believe this"}]
+        # No gemini_settings -> gemini_configured() is False -> None, same as
+        # before this change; the heuristic word-list edit cannot affect this.
+        self.assertIsNone(_ai_scene_ambience(rows, aligned, gemini_settings=None))
+
     def test_plan_scene_ambience_resolves_beds(self) -> None:
         from smart_editing import plan_scene_ambience, write_test_sfx_library
 

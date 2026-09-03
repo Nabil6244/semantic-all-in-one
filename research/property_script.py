@@ -112,6 +112,19 @@ class VisualIntent:
     fact_basis: str = ""
     """Which structured fact licensed this intent, when one did — empty
     when the intent came from the narration alone."""
+    visual_purpose: str = ""
+    """WHY this beat needs a visual — one of
+    research.property_visual_intelligence's PURPOSE_* constants. Empty when
+    not yet classified (every caller through analyze_property_script sets
+    this; direct build_visual_intent() callers are unaffected)."""
+    semantic_tags: List[str] = dataclasses.field(default_factory=list)
+    """Fine-grained room/feature tags (kitchen, garage, pool, ...) that
+    VisualScope's broader buckets don't distinguish. Additive, never
+    replaces `scope`."""
+    confidence: str = ""
+    """"high" / "medium" / "low" — how directly the chosen source can prove
+    this beat, not a property-identity confidence (that stays hard-gated
+    elsewhere and is never a matter of degree)."""
 
 
 @dataclasses.dataclass
@@ -717,15 +730,26 @@ def _location_for(property_summary: PropertySummary):
     )
 
 
-def _sources_for(category: BeatCategory, has_property_media: bool) -> tuple:
+def _sources_for(
+    category: BeatCategory,
+    has_property_media: bool,
+    *,
+    media_matches_beat: Optional[bool] = None,
+) -> tuple:
     """Source priority, per the Property Video spec.
 
     Concrete property facts prefer same-property Research media, then
-    relevant Stock. Generic context prefers Stock. Cinematic beats are left
-    to the existing Flow/Stock allocation engine rather than being forced
-    here."""
+    relevant Stock — but only when that media plausibly depicts THIS beat,
+    not merely because the listing has media at all. `media_matches_beat`
+    (research.property_visual_intelligence.property_media_matches_beat) is
+    the beat-level evidence gate; omitting it preserves the original
+    listing-has-any-media behavior for any other caller.
+
+    Generic context prefers Stock. Cinematic beats are left to the existing
+    Flow/Stock allocation engine rather than being forced here."""
     if category in (BeatCategory.PROPERTY_SPECIFIC, BeatCategory.FACTUAL_PROPERTY_CONTEXT):
-        if has_property_media:
+        matches = has_property_media if media_matches_beat is None else (has_property_media and media_matches_beat)
+        if matches:
             return SOURCE_RESEARCH, SOURCE_STOCK
         return SOURCE_STOCK, SOURCE_AUTO
     if category == BeatCategory.GENERIC_CONTEXT:
@@ -809,7 +833,47 @@ def analyze_property_script(
         # be this property.
         if intent.requires_authentic and not has_media:
             intent = dataclasses.replace(intent, research_media_unavailable=True)
-        preferred, fallback = _sources_for(category, has_media)
+
+        # Purpose/tag/confidence classification and the beat-level media
+        # match gate are deferred imports — property_visual_intelligence
+        # imports BeatCategory/VisualScope/PropertyBeat from this module at
+        # load time, so importing it back at module scope here would be
+        # circular. Same pattern already used for property_ontology below.
+        from research.property_visual_intelligence import (
+            CAMERA_LANGUAGE_BY_PURPOSE,
+            classify_visual_purpose,
+            property_media_matches_beat,
+            semantic_categories_for,
+        )
+
+        purpose = classify_visual_purpose(
+            PropertyBeat(narration=beat_text, category=category, reason=reason, intent=intent)
+        )
+        tags = semantic_categories_for(beat_text)
+        media_matches = property_media_matches_beat(research_result, current_property_id, intent.scope)
+        preferred, fallback = _sources_for(category, has_media, media_matches_beat=media_matches)
+
+        if preferred == SOURCE_RESEARCH:
+            confidence = "high" if media_matches else "medium"
+        elif purpose in (
+            "feature_proof", "room_proof", "specification_proof", "property_proof", "condition_proof",
+        ):
+            confidence = "medium"
+        else:
+            confidence = "low"
+
+        flow_prompt = intent.flow_prompt
+        camera_language = CAMERA_LANGUAGE_BY_PURPOSE.get(purpose, "")
+        if camera_language and flow_prompt and camera_language.lower() not in flow_prompt.lower():
+            flow_prompt = f"{flow_prompt}, {camera_language}"
+
+        intent = dataclasses.replace(
+            intent,
+            visual_purpose=purpose,
+            semantic_tags=tags,
+            confidence=confidence,
+            flow_prompt=flow_prompt,
+        )
 
         # Shot variety: the reference edit never holds the same framing for
         # consecutive beats. When two beats in a row want the same scope,

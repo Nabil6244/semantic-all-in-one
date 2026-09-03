@@ -1031,6 +1031,57 @@ class ResearchView(_BaseView):
         self._engine_advanced_block.grid(row=1, column=0, columnspan=2, sticky="ew", padx=T.PAD)
         self._engine_advanced_block.grid_remove()
 
+        # RealtyAPI key: Phase 1 storage only (see research/settings.py).
+        # Deliberately lives HERE, in the Research tab, not the global
+        # Settings (⚙) dialog where Pexels/Gemini keys live — RealtyAPI is
+        # property-research-specific, not a general-purpose provider, and
+        # nothing outside research/ code is meant to read it.
+        realty_card = Card(self._body)
+        realty_card.grid(row=4, column=0, sticky="ew", pady=(8, 4))
+        realty_card.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            realty_card, text="REALTYAPI", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.MUTED,
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(10, 2))
+        ctk.CTkLabel(
+            realty_card,
+            text="Property listing data API — used to fetch high-resolution property "
+                 "photos when Property Image Source below is set to RealtyAPI or Both.",
+            font=ctk.CTkFont(size=11), text_color=T.MUTED, wraplength=460, justify="left",
+        ).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(0, 6))
+        self._realtyapi_key_var = ctk.StringVar(value="")
+        ctk.CTkEntry(
+            realty_card, textvariable=self._realtyapi_key_var, show="•", height=34,
+            placeholder_text="RealtyAPI API key", fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+        ).grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=(0, 4))
+        self._realtyapi_status_label = ctk.CTkLabel(
+            realty_card, text="Not configured", font=ctk.CTkFont(size=12), text_color=T.MUTED,
+        )
+        self._realtyapi_status_label.grid(row=3, column=0, sticky="w", padx=T.PAD, pady=(0, 4))
+
+        # Property Image Source — controls ONLY property-image acquisition
+        # (see research/settings.py::load_property_image_source /
+        # research/engine/app/research/property_researcher.py). Default
+        # "Existing" makes zero RealtyAPI calls and is byte-for-byte the
+        # same acquisition pipeline as before this switch existed.
+        image_source_row = ctk.CTkFrame(realty_card, fg_color="transparent")
+        image_source_row.grid(row=4, column=0, sticky="ew", padx=T.PAD, pady=(4, 4))
+        ctk.CTkLabel(
+            image_source_row, text="Property Image Source", text_color=T.MUTED, font=ctk.CTkFont(size=12),
+        ).pack(side="left")
+        self._image_source_labels = ("Existing", "RealtyAPI", "Both")
+        self._image_source_var = ctk.StringVar(value="Existing")
+        ctk.CTkOptionMenu(
+            image_source_row, variable=self._image_source_var, values=list(self._image_source_labels),
+            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT, width=140,
+        ).pack(side="left", padx=(T.PAD_SM, 0))
+
+        ctk.CTkButton(
+            realty_card, text="Save RealtyAPI Settings", height=28, width=170,
+            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
+            font=ctk.CTkFont(size=11), command=self._on_save_realtyapi_key,
+        ).grid(row=5, column=0, sticky="w", padx=T.PAD, pady=(0, 10))
+
         self._researching = False
 
     def _toggle_engine_advanced(self) -> None:
@@ -1044,8 +1095,13 @@ class ResearchView(_BaseView):
 
     # ---------- lifecycle ----------
 
+    _IMAGE_SOURCE_TOKEN_TO_LABEL = {"existing": "Existing", "realtyapi": "RealtyAPI", "both": "Both"}
+    _IMAGE_SOURCE_LABEL_TO_TOKEN = {v: k for k, v in _IMAGE_SOURCE_TOKEN_TO_LABEL.items()}
+
     def on_show(self) -> None:
-        from research.settings import load_engine_config, load_project_research_settings
+        from research.settings import (
+            load_engine_config, load_project_research_settings, load_property_image_source,
+        )
 
         global_settings = getattr(self.app, "_settings", {}) or {}
         # The override fields show only what's explicitly saved (blank means
@@ -1055,6 +1111,17 @@ class ResearchView(_BaseView):
         raw_python = str(global_settings.get("research_engine_python") or "")
         self._engine_root_var.set(raw_root)
         self._engine_python_var.set(raw_python)
+
+        # RealtyAPI: only the explicitly-saved value is shown (never the
+        # REALTYAPI_API_KEY env-var fallback) — same convention as Pexels
+        # (self.pexels_key_var is seeded from settings only, not the env).
+        raw_realtyapi_key = str(global_settings.get("realtyapi_api_key") or "")
+        self._realtyapi_key_var.set(raw_realtyapi_key)
+        self._realtyapi_status_label.configure(
+            text="Configured" if raw_realtyapi_key.strip() else "Not configured"
+        )
+        image_source_token = load_property_image_source(global_settings)
+        self._image_source_var.set(self._IMAGE_SOURCE_TOKEN_TO_LABEL.get(image_source_token, "Existing"))
 
         effective_root, _ = load_engine_config(global_settings)
         if raw_root or raw_python:
@@ -1180,6 +1247,21 @@ class ResearchView(_BaseView):
             self._status_label.configure(text="Engine path cleared — using the bundled engine again.")
             self._engine_status_label.configure(text="Bundled — no setup needed", text_color=T.SUCCESS)
 
+    def _on_save_realtyapi_key(self) -> None:
+        from research.settings import with_property_image_source, with_realtyapi_key
+
+        current = getattr(self.app, "_settings", {}) or {}
+        key = self._realtyapi_key_var.get().strip()
+        image_source_token = self._IMAGE_SOURCE_LABEL_TO_TOKEN.get(self._image_source_var.get(), "existing")
+        updated = with_realtyapi_key(current, key)
+        updated = with_property_image_source(updated, image_source_token)
+        self.app._settings = updated
+        self.app._persist_global_settings()
+        self._realtyapi_status_label.configure(text="Configured" if key else "Not configured")
+        self._status_label.configure(
+            text="RealtyAPI settings saved." if key else "RealtyAPI settings saved (no key set)."
+        )
+
     _DOMAIN_TOKENS = {
         "Auto": "auto", "Real Estate": "real_estate", "Products": "products", "Travel": "travel",
         "Cars": "cars", "News": "news", "Science": "science", "General": "general",
@@ -1210,7 +1292,10 @@ class ResearchView(_BaseView):
         except ValueError:
             max_media = 20
 
-        from research.settings import compute_script_fingerprint, load_engine_config, save_project_research_settings
+        from research.settings import (
+            compute_script_fingerprint, load_engine_config, load_property_image_source,
+            load_realtyapi_key, save_project_research_settings,
+        )
         from research.models import ResearchSettings
 
         # Script-bound vs. property-bound (see research/settings.py): only a
@@ -1223,7 +1308,13 @@ class ResearchView(_BaseView):
             script_fingerprint=script_fingerprint,
         ))
 
-        engine_root, engine_python = load_engine_config(getattr(self.app, "_settings", {}) or {})
+        global_settings = getattr(self.app, "_settings", {}) or {}
+        engine_root, engine_python = load_engine_config(global_settings)
+        # Property Image Source switch (Phase 2) — read from the persisted
+        # setting, same as engine path above, not from a live/unsaved UI
+        # value, so "Start Research" always matches what was actually saved.
+        image_source = load_property_image_source(global_settings)
+        realtyapi_key = load_realtyapi_key(global_settings) if image_source in ("realtyapi", "both") else ""
 
         self._researching = True
         self._start_btn.configure(state="disabled")
@@ -1249,6 +1340,7 @@ class ResearchView(_BaseView):
                     res = provider.research(
                         topic, script=script_text or None, urls=[url], domain=domain,
                         max_media_per_property=max_media, output_dir=out_dir,
+                        image_source=image_source, realtyapi_key=realtyapi_key,
                     )
                     res.property.property_id = pid
                     res.property.source_url = url
@@ -1261,6 +1353,7 @@ class ResearchView(_BaseView):
             result = provider.research(
                 topic, script=script_text or None, urls=urls, domain=domain,
                 max_media_per_property=max_media, output_dir=ws.research_dir,
+                image_source=image_source, realtyapi_key=realtyapi_key,
             )
             if urls:
                 result.property.source_url = urls[0]

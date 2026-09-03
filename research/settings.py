@@ -1,10 +1,20 @@
-"""Research settings persistence — two different scopes, deliberately kept
+"""Research settings persistence — three different scopes, deliberately kept
 separate:
 
 - Engine path (interpreter + repo root): machine-level, lives in the
   existing global settings.json via app.load_settings()/save_settings() —
   the same place Pexels/Gemini API keys already live. It's "where is the
   tool installed on this machine," not a per-video choice.
+- RealtyAPI API key: same machine-level global settings.json store as
+  Pexels/Gemini (see load_realtyapi_key/with_realtyapi_key below), but
+  unlike Pexels this key is deliberately NOT exposed through any
+  general-purpose provider/config path — this module is the only supported
+  way to read it, and the only caller today is ui.views.ResearchView (the
+  Research / Analyze Script tab). A future RealtyAPI provider must import
+  load_realtyapi_key from here rather than reading global_settings directly,
+  so the property-research scoping stays enforced in one place. Phase 1
+  only: nothing in this module calls RealtyAPI or performs any network
+  request — this is configuration storage only.
 - Per-project last-used inputs (topic/script path/urls/domain/max media):
   project.json["research_media"], namespaced exactly like
   visual_allocation's settings block (see visual_allocation/settings.py).
@@ -122,4 +132,67 @@ def with_engine_config(global_settings: Dict[str, Any], engine_root: str, engine
     updated = dict(global_settings)
     updated["research_engine_root"] = engine_root
     updated["research_engine_python"] = engine_python
+    return updated
+
+
+# --- RealtyAPI key (Phase 1: storage only, see module docstring) -----------
+#
+# Mirrors the Pexels key exactly in HOW it's stored (same global
+# settings.json, same "explicit saved value, blank means unconfigured"
+# semantics, same PEXELS_API_KEY-style environment fallback) — see
+# app.py's pexels_key_var / save_key() for that pattern. It deliberately
+# does NOT mirror WHERE Pexels is read from: Pexels is a general-purpose
+# stock provider readable by any part of the app, RealtyAPI is not — this
+# module (research.settings) is its only access path. A future Phase 2
+# RealtyAPI provider must import load_realtyapi_key from here rather than
+# reading app._settings/global_settings directly.
+
+def load_realtyapi_key(global_settings: Dict[str, Any]) -> str:
+    """The user's saved RealtyAPI key, or REALTYAPI_API_KEY from the
+    environment when nothing is saved. Empty string when neither is set —
+    never raises, never guesses a key. No network request is made here."""
+    import os
+
+    saved = str(global_settings.get("realtyapi_api_key") or "").strip()
+    if saved:
+        return saved
+    return os.environ.get("REALTYAPI_API_KEY", "").strip()
+
+
+def with_realtyapi_key(global_settings: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    """Returns a copy of global_settings with the RealtyAPI key set — caller
+    is responsible for calling app.save_settings(...)/_persist_global_settings()
+    with the result, exactly as with_engine_config() already works."""
+    updated = dict(global_settings)
+    updated["realtyapi_api_key"] = (api_key or "").strip()
+    return updated
+
+
+# --- Property Image Source switch (Phase 2) --------------------------------
+#
+# Controls ONLY which pipeline supplies property IMAGE candidates. Same
+# storage convention as everything else above: global settings.json,
+# explicit-value-or-default semantics, no new settings system.
+
+PROPERTY_IMAGE_SOURCES = ("existing", "realtyapi", "both")
+DEFAULT_PROPERTY_IMAGE_SOURCE = "existing"
+
+
+def load_property_image_source(global_settings: Dict[str, Any]) -> str:
+    """The saved Property Image Source, defaulting to "existing" (today's
+    behavior, zero RealtyAPI calls) when unset or invalid."""
+    value = str(global_settings.get("property_image_source") or "").strip().lower()
+    return value if value in PROPERTY_IMAGE_SOURCES else DEFAULT_PROPERTY_IMAGE_SOURCE
+
+
+def with_property_image_source(global_settings: Dict[str, Any], value: str) -> Dict[str, Any]:
+    """Returns a copy of global_settings with the Property Image Source set
+    — caller persists it exactly as with_engine_config()/with_realtyapi_key()
+    already work. An invalid value is normalized to the default rather than
+    stored as-is or rejected."""
+    updated = dict(global_settings)
+    normalized = str(value or "").strip().lower()
+    updated["property_image_source"] = (
+        normalized if normalized in PROPERTY_IMAGE_SOURCES else DEFAULT_PROPERTY_IMAGE_SOURCE
+    )
     return updated

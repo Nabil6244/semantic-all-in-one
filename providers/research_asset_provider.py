@@ -149,15 +149,21 @@ class ResearchAssetProvider(AssetProvider):
         related = {
             "water": ("waterfront", "creek", "river", "pond", "lake", "dock"),
             "waterfront": ("water", "creek", "river", "pond", "lake", "dock"),
-            "structure": ("exterior", "cabin", "house", "home", "barn"),
+            # "structure" covers barn/shed/garage/silo/stable per the research
+            # engine's _ROLE_PATTERNS — the related terms must too, or a
+            # garage beat ties with every other outbuilding photo at rank 1.
+            "structure": ("exterior", "cabin", "house", "home", "barn", "garage",
+                          "shed", "outbuilding", "workshop", "carport", "stable"),
             "exterior": ("structure", "facade", "porch", "front"),
-            "interior": ("kitchen", "bedroom", "bathroom", "room", "inside"),
+            "interior": ("kitchen", "bedroom", "bathroom", "room", "inside", "basement", "fireplace"),
             "land": ("acre", "pasture", "field", "meadow", "clearing"),
             "approach": ("driveway", "drive", "gate", "entrance", "lane"),
             "construction_detail": ("log", "beam", "chinking", "detail", "close"),
             "boundary_map": ("boundary", "parcel", "acre", "survey", "map"),
             "aerial": ("aerial", "drone", "overhead", "above"),
-            "recreation": ("fishing", "trail", "kayak", "hunting", "pool"),
+            # "recreation" also covers pool/hot tub/golf per _ROLE_PATTERNS.
+            "recreation": ("fishing", "trail", "kayak", "hunting", "pool",
+                          "golf", "hot tub"),
         }
         for token in related.get(detail, ()):
             if token in wanted:

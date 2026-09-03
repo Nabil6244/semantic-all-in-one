@@ -114,6 +114,30 @@ def _tier_histogram(assets: List[MediaAsset]) -> dict:
     return hist
 
 
+def apply_image_source_mode(
+    all_media: List[MediaAsset], realtyapi_media: List[MediaAsset], image_source: str,
+) -> List[MediaAsset]:
+    """Applies the Property Image Source switch to the media list — pure and
+    synchronous, so it's unit-testable without PropertyResearcher.run()'s
+    full async orchestration.
+
+    "existing": realtyapi_media must be [] by construction (the caller never
+    fetches it in this mode) — returns all_media unchanged.
+    "realtyapi": existing scraped IMAGE candidates are dropped (video
+    candidates are untouched — RealtyAPI supplies stills only); RealtyAPI's
+    candidates take their place.
+    "both": additive only — nothing removed, RealtyAPI candidates appended.
+    Downstream (Zillow upgrade, probing, group_variants) decides the winner
+    per photo purely on measured pixels; no source-preference score here.
+    """
+    if image_source == "realtyapi":
+        result = [m for m in all_media if m.media_type != MediaType.IMAGE]
+    else:
+        result = list(all_media)
+    result.extend(realtyapi_media)
+    return result
+
+
 def _pseudo_page_from_text(text: str, url: str = "text://input") -> PageExtraction:
     """Wraps raw text (a script or topic string) in a minimal PageExtraction
     so the existing RealEstateAdapter fact-extraction (which only needs
@@ -143,6 +167,7 @@ class PropertyResearcher:
         probe_media: bool = False,
         probe_concurrency: int = 8,
         probe_client=None,
+        image_source: str = "existing",
     ):
         self.crawl_provider = crawl_provider or HttpxCrawlProvider()
         self.escalation_provider = escalation_provider
@@ -165,6 +190,16 @@ class PropertyResearcher:
         self.probe_client = probe_client
         self.probe_cache = ProbeCache()
         self.adapter = RealEstateAdapter()
+        # Property Image Source switch ("existing" | "realtyapi" | "both").
+        # Controls ONLY which image candidates enter all_media below — see
+        # the "Phase 3a2: RealtyAPI photo supplement" block in run(). Facts
+        # extraction, page crawling, and every other research signal are
+        # unaffected by this value. "existing" (the default) makes this
+        # class behave exactly as before this option existed: no RealtyAPI
+        # import, no RealtyAPI network call, all_media unchanged.
+        self.image_source = (image_source or "existing").strip().lower()
+        if self.image_source not in ("existing", "realtyapi", "both"):
+            self.image_source = "existing"
 
     async def _probe_media(self, assets: List[MediaAsset]) -> dict:
         """Measure real dimensions for image candidates and record them on
@@ -564,6 +599,34 @@ class PropertyResearcher:
         # Merging first (the previous order) meant the winner was chosen
         # from declared/guessed sizes — which is how the smallest srcset
         # entry ended up winning.
+        # --- Phase 3a2: RealtyAPI photo supplement ---
+        # "existing" (default): this block does not run at all — no import,
+        # no network call, all_media unchanged. Verified by
+        # test_realtyapi_property_image_source.py.
+        # "realtyapi": RealtyAPI becomes the image source — existing
+        # scraped IMAGE candidates are removed from all_media (video
+        # candidates are untouched; RealtyAPI supplies stills only), and
+        # RealtyAPI's photos take their place. Facts/other research above
+        # this point already ran normally and are untouched.
+        # "both": additive only — RealtyAPI candidates are appended
+        # alongside the existing scraped ones; nothing is removed. No
+        # source-preference score is added anywhere; Phase 3b2/3c below
+        # (Zillow upgrade, measurement, variant election) decide the
+        # winner per photo purely on measured pixels, exactly as today.
+        if self.image_source in ("realtyapi", "both"):
+            try:
+                from app.media.realtyapi_supplement import fetch_realtyapi_photos
+
+                realtyapi_media = await fetch_realtyapi_photos(
+                    listing_url=target_url or "",
+                    address=target_identity.canonical_address or "",
+                    http_client=self.probe_client,
+                )
+            except Exception:  # noqa: BLE001 - RealtyAPI is optional, never fatal
+                realtyapi_media = []
+
+            all_media = apply_image_source_mode(all_media, realtyapi_media, self.image_source)
+
         # --- Phase 3b2: Zillow derivative upgrade ---
         # Zillow often exposes only a small derivative (<hash>-p_c.jpg,
         # 316x234) while its CDN holds the same photo far larger. Recover the

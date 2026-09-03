@@ -8,6 +8,7 @@ Run: python -m pytest test_research_integration.py -v
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
 import unittest
@@ -402,6 +403,116 @@ class ResearchSettingsPersistenceTests(unittest.TestCase):
             root, python_path = load_engine_config({})
         self.assertEqual(root, "")
         self.assertEqual(python_path, "")
+
+
+class RealtyApiKeySettingsTests(unittest.TestCase):
+    """Phase 1: credential storage only, following the exact
+    load_engine_config/with_engine_config roundtrip pattern above. No test
+    here uses a real API key — only placeholders — and none of these
+    functions perform network I/O."""
+
+    _PLACEHOLDER = "test-realtyapi-key-placeholder-000"
+
+    def test_roundtrip_save_then_load(self):
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = with_realtyapi_key({}, self._PLACEHOLDER)
+        self.assertEqual(load_realtyapi_key(settings), self._PLACEHOLDER)
+
+    def test_empty_when_never_configured(self):
+        from research.settings import load_realtyapi_key
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("REALTYAPI_API_KEY", None)
+            self.assertEqual(load_realtyapi_key({}), "")
+
+    def test_updating_the_key_replaces_the_previous_value(self):
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = with_realtyapi_key({}, self._PLACEHOLDER)
+        settings = with_realtyapi_key(settings, "replacement-placeholder-111")
+        self.assertEqual(load_realtyapi_key(settings), "replacement-placeholder-111")
+
+    def test_survives_a_settings_reload_roundtrip(self):
+        """Simulates app restart: with_realtyapi_key's output is exactly what
+        gets json-dumped by app.save_settings(); reloading it (a fresh dict,
+        as app.load_settings() would produce) must still resolve the key."""
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        saved = with_realtyapi_key({}, self._PLACEHOLDER)
+        reloaded_from_disk = json.loads(json.dumps(saved))  # settings.json roundtrip
+        self.assertEqual(load_realtyapi_key(reloaded_from_disk), self._PLACEHOLDER)
+
+    def test_clearing_the_key_is_reported_as_unconfigured(self):
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = with_realtyapi_key({}, self._PLACEHOLDER)
+        settings = with_realtyapi_key(settings, "")
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("REALTYAPI_API_KEY", None)
+            self.assertEqual(load_realtyapi_key(settings), "")
+
+    def test_falls_back_to_environment_variable_when_unset(self):
+        from research.settings import load_realtyapi_key
+
+        with patch.dict(os.environ, {"REALTYAPI_API_KEY": "env-placeholder-222"}):
+            self.assertEqual(load_realtyapi_key({}), "env-placeholder-222")
+
+    def test_explicit_saved_key_wins_over_environment_variable(self):
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = with_realtyapi_key({}, self._PLACEHOLDER)
+        with patch.dict(os.environ, {"REALTYAPI_API_KEY": "env-placeholder-333"}):
+            self.assertEqual(load_realtyapi_key(settings), self._PLACEHOLDER)
+
+    def test_key_is_whitespace_stripped(self):
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = with_realtyapi_key({}, f"  {self._PLACEHOLDER}  ")
+        self.assertEqual(load_realtyapi_key(settings), self._PLACEHOLDER)
+
+    def test_with_realtyapi_key_does_not_mutate_the_input_dict(self):
+        from research.settings import with_realtyapi_key
+
+        original: dict = {"pexels_api_key": "unrelated-existing-value"}
+        with_realtyapi_key(original, self._PLACEHOLDER)
+        self.assertNotIn("realtyapi_api_key", original)
+        self.assertEqual(original, {"pexels_api_key": "unrelated-existing-value"})
+
+    def test_unrelated_pexels_and_engine_settings_are_preserved(self):
+        """Confirms the RealtyAPI key lives beside, not instead of, the
+        existing Pexels/engine settings — same shared settings.json."""
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        settings = {"pexels_api_key": "unrelated-existing-value", "research_engine_root": "/some/path"}
+        settings = with_realtyapi_key(settings, self._PLACEHOLDER)
+        self.assertEqual(settings["pexels_api_key"], "unrelated-existing-value")
+        self.assertEqual(settings["research_engine_root"], "/some/path")
+        self.assertEqual(load_realtyapi_key(settings), self._PLACEHOLDER)
+
+    def test_saving_or_loading_the_key_makes_no_network_connection(self):
+        """Phase 1 must not perform any RealtyAPI (or other) network request
+        — proven by making socket connections raise and confirming neither
+        function trips it."""
+        import socket
+
+        from research.settings import load_realtyapi_key, with_realtyapi_key
+
+        def _forbidden_connect(*_a, **_kw):
+            raise AssertionError("no network connection should be attempted in Phase 1")
+
+        with patch.object(socket.socket, "connect", _forbidden_connect):
+            settings = with_realtyapi_key({}, self._PLACEHOLDER)
+            self.assertEqual(load_realtyapi_key(settings), self._PLACEHOLDER)
+
+    def test_realtyapi_key_not_read_by_any_general_purpose_provider_factory(self):
+        """Scope check: stock/flow/youtube provider factories must not know
+        about realtyapi_api_key — only research.settings does."""
+        import inspect
+
+        import providers.stock.factory as stock_factory
+        source = inspect.getsource(stock_factory)
+        self.assertNotIn("realtyapi", source.lower())
 
 
 if __name__ == "__main__":

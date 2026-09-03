@@ -10,6 +10,7 @@ separate copy step is needed to "store research media in the project."
 """
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import List, Optional
@@ -38,7 +39,14 @@ class PropertyResearchProvider:
         domain: str = "auto",
         max_media_per_property: int = 20,
         output_dir: Optional[Path] = None,
+        image_source: str = "existing",
+        realtyapi_key: str = "",
     ) -> ResearchResult:
+        """`image_source`: "existing" | "realtyapi" | "both" — see
+        research/settings.py::load_property_image_source. `realtyapi_key`
+        is passed to the engine subprocess ONLY as the REALTYAPI_API_KEY
+        environment variable, never as a CLI argument, and only when
+        image_source actually needs it."""
         if not self.is_configured():
             return empty_result(error="Research engine path not configured (see Manual Research settings).")
         if not (topic or "").strip() and not (script or "").strip() and not (urls or []):
@@ -61,16 +69,26 @@ class PropertyResearchProvider:
             for url in (urls or []):
                 if url.strip():
                     cmd += ["--url", url.strip()]
+            image_source = (image_source or "existing").strip().lower()
+            if image_source not in ("existing", "realtyapi", "both"):
+                image_source = "existing"
             cmd += [
                 "--domain", (domain or "auto").strip() or "auto",
                 "--download",
                 "--max-media-per-property", str(max(1, int(max_media_per_property or 20))),
+                "--property-image-source", image_source,
                 "--output", str(output_dir),
             ]
 
+            env = None
+            if image_source in ("realtyapi", "both") and (realtyapi_key or "").strip():
+                env = os.environ.copy()
+                env["REALTYAPI_API_KEY"] = realtyapi_key.strip()
+
             try:
                 proc = hidden_subprocess.run(
-                    cmd, cwd=self.engine_root, capture_output=True, text=True, timeout=self.timeout_seconds,
+                    cmd, cwd=self.engine_root, capture_output=True, text=True,
+                    timeout=self.timeout_seconds, env=env,
                 )
             except Exception as exc:  # noqa: BLE001 - a failed research run must never raise into the caller
                 return empty_result(error=f"Research engine failed to run: {exc}")

@@ -1129,7 +1129,14 @@ def _heuristic_ambience_profile(text: str, prompt: str = "") -> str:
         return "city"
     if re.search(r"\b(traffic|cars rush|vehicles|highway)\b", blob):
         return "traffic"
-    if re.search(r"\b(crowd|people|audience|stadium|protest|market|busy)\b", blob):
+    # "people" was dropped as an independent trigger — it appears in almost
+    # any narration ("many people believe...", "people were shocked...") and
+    # turned ordinary scenes into crowd/stadium ambience. The remaining words
+    # only fire when the sentence is actually about a crowd/audience, not
+    # merely mentioning humans. `protest` is widened to also catch
+    # protesters/protesting/protests — the exact-noun-only version missed
+    # plainly crowd-shaped phrasing like "protesters filled the streets".
+    if re.search(r"\b(crowd|audience|stadium|protest(?:s|ers?|ing)?|market|busy)\b", blob):
         return "crowd"
     if re.search(r"\b(wind|forest|mountain|nature|outdoor|wild|meadow|wildlife|bird)\b", blob):
         return "nature"

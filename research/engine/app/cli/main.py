@@ -123,6 +123,7 @@ def cmd_research(args: argparse.Namespace) -> int:
                     max_media_per_property=args.max_media_per_property,
                     probe_media=not args.no_probe,
                     probe_concurrency=args.concurrency,
+                    image_source=args.property_image_source,
                 )
 
             if args.multi_property:
@@ -278,6 +279,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
                              help="V3 property-centric pipeline: cap on selected media for the target property "
                                   "(used instead of --max-images/--max-videos/--max-total-media when the "
                                   "resolved domain is real_estate).")
+    research_p.add_argument(
+        "--property-image-source", choices=["existing", "realtyapi", "both"], default="existing",
+        help="Property Video pipeline only. 'existing' (default): current scrape-based "
+             "acquisition, no RealtyAPI calls. 'realtyapi': RealtyAPI supplies the property "
+             "photos (facts/other research signals are unaffected). 'both': RealtyAPI photos "
+             "are added alongside the existing ones; the existing quality/variant pipeline "
+             "picks the winner per photo. Reads the key from the REALTYAPI_API_KEY "
+             "environment variable — never accepted as a CLI value.",
+    )
     research_p.add_argument("--no-property-pipeline", action="store_true",
                              help="Force the general V2 multi-source pipeline even if the domain resolves to "
                                   "real_estate (V3's property-identity gating is skipped).")
