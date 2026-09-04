@@ -77,7 +77,17 @@ export async function openAccountBrowser(accountId, opts = {}) {
 }
 
 export async function gotoFlow(page) {
-  if (!page.url().includes("/tools/flow")) {
+  // Flow moved off labs.google (where every URL had a "/tools/flow" path
+  // segment) onto flow.google.com (which never does) — the old check below
+  // was therefore ALWAYS true post-migration, forcing a fresh navigation to
+  // flowHome on every single call even when the page was already sitting on
+  // a perfectly good, already-open project. That's what caused the visible
+  // "refreshing" loop: gotoFlow() throwing away an open project every time
+  // prepareAccount() ran, which then had to fall through to creating a new
+  // one. Skip navigating away from any URL that's already on the current
+  // Flow domain — a project page included.
+  const url = page.url();
+  if (!url.includes("flow.google.com") && !url.includes("labs.google")) {
     await page.goto(urls.flowHome, {
       waitUntil: "domcontentloaded",
       timeout: 60000,

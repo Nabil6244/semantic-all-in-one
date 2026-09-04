@@ -284,8 +284,12 @@ export async function openOrCreateProject(page) {
   let projectId = await getProjectId(page);
   if (projectId) return projectId;
 
-  // Ensure we're on Flow home (not a dead URL)
-  if (!page.url().includes("/tools/flow")) {
+  // Ensure we're on Flow home (not a dead URL). Same domain-check fix as
+  // gotoFlow()/checkAuthStatus() — "/tools/flow" only ever existed on the
+  // old labs.google URLs; on flow.google.com this must accept the current
+  // domain too, or every call forces a needless re-navigation.
+  const currentUrl = page.url();
+  if (!currentUrl.includes("flow.google.com") && !currentUrl.includes("labs.google")) {
     await page.goto(urls.flowHome, { waitUntil: "domcontentloaded", timeout: 60000 });
     await sleep(1500);
   }
