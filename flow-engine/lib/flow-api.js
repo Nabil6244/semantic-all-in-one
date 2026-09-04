@@ -1161,7 +1161,21 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
 
   const startParsed = parseBatchExecuteResponse(out.text, "YhhmEf");
   const { workflowId } = extractVideoStartResult(startParsed);
-  if (!workflowId) throw new Error("Video generation did not start — no media returned");
+  if (!workflowId) {
+    // A 200 OK with no usable result can mean genuinely different things
+    // (a bad request, an application-level NOT_FOUND, Google's anti-abuse
+    // system) — all confirmed live to hit this exact branch, and all
+    // indistinguishable from a generic message. PUBLIC_ERROR_UNUSUAL_ACTIVITY
+    // specifically is worth naming: it means the request itself was fine
+    // and this needs no code change, just time — unlike the other cases.
+    if (out.text.includes("PUBLIC_ERROR_UNUSUAL_ACTIVITY")) {
+      throw new Error(
+        "Video generation blocked by Google (PUBLIC_ERROR_UNUSUAL_ACTIVITY) — " +
+          "this is an anti-abuse hold on this account/browser, not a request error. Wait and retry later.",
+      );
+    }
+    throw new Error("Video generation did not start — no media returned");
+  }
 
   await pollVideoStatus(page, workflowId, projectId);
 

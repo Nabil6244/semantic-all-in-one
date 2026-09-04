@@ -367,6 +367,39 @@ test("malformed YhhmEf response fails generation before any polling, not a crash
   );
 });
 
+test("PUBLIC_ERROR_UNUSUAL_ACTIVITY on YhhmEf is named explicitly, not folded into the generic 'no media returned' message", async () => {
+  // Real captured shape (gRPC code 7 / PERMISSION_DENIED with an
+  // ErrorInfo detail) — entry[2] is null here, not a JSON string, which is
+  // exactly why this must be checked against the raw response text rather
+  // than anything parseBatchExecuteResponse/extractVideoStartResult return.
+  const antiAbuseResponse =
+    ")]}'\n\n" +
+    chunkOf([
+      [
+        "wrb.fr",
+        "YhhmEf",
+        null,
+        null,
+        null,
+        [7, null, [["type.googleapis.com/google.rpc.ErrorInfo", ["PUBLIC_ERROR_UNUSUAL_ACTIVITY"]]]],
+        "generic",
+      ],
+    ]) +
+    chunkOf([["e", 4, null, null, 228]]);
+
+  const fetchImpl = async (url) => {
+    if (url.includes("rpcids=YhhmEf")) {
+      return { ok: true, status: 200, text: async () => antiAbuseResponse };
+    }
+    throw new Error("must not reach polling");
+  };
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+  await assert.rejects(
+    () => generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0),
+    /PUBLIC_ERROR_UNUSUAL_ACTIVITY/,
+  );
+});
+
 test("as29s failure after successful completion surfaces a clear error, not a silent loss", async () => {
   const fetchImpl = async (url) => {
     if (url.includes("rpcids=YhhmEf")) {
