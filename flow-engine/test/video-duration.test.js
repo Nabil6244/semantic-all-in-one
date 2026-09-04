@@ -6,18 +6,14 @@
  * real duration downstream (video_generator.py). That endpoint is gone;
  * generateOneVideo now calls the current YhhmEf/jwpduf/as29s lifecycle (see
  * flow-engine investigation notes), whose compact mode string (e.g.
- * "abra_t2v_4s_360p") DOES carry an explicit duration. The renderer-trims-
- * anyway reasoning still applies, so the app deliberately keeps requesting
- * the fixed, cheapest duration rather than the operator's setting — these
- * tests now check that against the new implementation's actual shape.
- *
- * These are static/source checks rather than a full page-mocked execution
- * of generateOneVideo() — Playwright's page.evaluate boundary makes a
- * functional mock heavy and fragile for what is fundamentally a "this
- * string/object literal must not contain this value" question. Matches the
- * existing convention in unknown-field.test.js (e.g. the AUTH_RETRY_DELAYS_MS
- * test), which verifies source shape rather than executing the browser-side
- * code.
+ * "abra_t2v_4s_360p") DOES carry an explicit duration/resolution, and
+ * buildVideoModeString() now genuinely reads settings.videoModel/
+ * videoDuration/videoResolution to build it — see video-generation.test.js
+ * for the functional assertions on exactly which settings produce which
+ * live-confirmed mode string. This file stays focused on static/source
+ * checks that are awkward to express as a functional test (a legacy field
+ * must never reappear, no client seed is sent) — matches the convention in
+ * unknown-field.test.js (e.g. the AUTH_RETRY_DELAYS_MS test).
  *
  * Run: node --test test/video-duration.test.js
  */
@@ -47,31 +43,17 @@ test("generateOneVideo no longer sends videoLengthSeconds", () => {
   assert.doesNotMatch(generateOneVideoSrc, /videoLengthSeconds\s*[:=]|\.videoLengthSeconds\b/);
 });
 
-test("generateOneVideo does not read the operator's requested duration at all", () => {
-  // The old `const duration = Number(settings.videoDuration) || videoDurations.default`
-  // computation is gone entirely, not just unused — nothing in this function
-  // should reference either source.
-  assert.doesNotMatch(generateOneVideoSrc, /settings\.videoDuration/);
-  assert.doesNotMatch(generateOneVideoSrc, /videoDurations\.default/);
-});
-
-test("generateOneVideo's compact mode string is the one confirmed-working literal, not a template", () => {
-  // Flow's current API (YhhmEf) DOES accept an explicit duration/resolution
-  // — unlike the old batchAsyncGenerateVideoText this replaces — but only
-  // "abra_t2v_4s_360p" has ever been confirmed live. A templated resolution
-  // that silently defaulted to an untested "720p" previously broke every
-  // video generation (HTTP 200 but an application-level NOT_FOUND). Until a
-  // wider set of combinations is live-verified the same way this project
-  // verified everything else, buildVideoModeString must return that one
-  // literal unconditionally, never a settings-derived template.
+test("buildVideoModeString reads the operator's model/duration/resolution settings", () => {
+  // Each read is backed by a real live capture (see the function's own
+  // comment in lib/flow-api.js) — this just confirms the wiring exists;
+  // video-generation.test.js checks the exact resulting strings.
   const buildFnSrc = src.slice(
     src.indexOf("function buildVideoModeString"),
-    src.indexOf("function buildVideoModeString") + 300,
+    src.indexOf("function buildVideoModeString") + 800,
   );
-  assert.match(buildFnSrc, /return\s+"abra_t2v_4s_360p"/, "must return the one confirmed-working literal");
-  assert.doesNotMatch(buildFnSrc, /settings\.videoDuration/);
-  assert.doesNotMatch(buildFnSrc, /settings\.videoResolution/);
-  assert.doesNotMatch(buildFnSrc, /settings\.videoModel/);
+  assert.match(buildFnSrc, /settings\.videoModel/);
+  assert.match(buildFnSrc, /settings\.videoDuration/);
+  assert.match(buildFnSrc, /settings\.videoResolution/);
 });
 
 test("generateOneVideo's YhhmEf request carries no top-level seed field", () => {

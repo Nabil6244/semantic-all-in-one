@@ -80,18 +80,29 @@ export const aspectRatios = {
   ],
 };
 
-// ─── Video models (Veo, text → video) — restored verbatim from
-// semantic-automator-main's root config.js ─────────────────────────────────
+// ─── Video models (text → video) ───────────────────────────────────────────
+// The veo_3_1_t2v_* values are restored verbatim from semantic-automator-
+// main's root config.js and are ALSO Flow's own current mode-string literal
+// for that model (live-confirmed for "veo_3_1_t2v_lite" — Flow's UI has no
+// duration/resolution picker for Veo models at all, so the mode string is
+// just the model key, unchanged). "abra" ("Omni 1.1 Flash" in Flow's current
+// UI) is the one model with a real duration/resolution picker — see
+// buildVideoModeString() in lib/flow-api.js for how those combine into its
+// mode string.
 // `value` is the LANDSCAPE `videoModelKey` base; resolveVideoModelKey() adds
-// the `_portrait` suffix automatically for portrait output.
+// the `_portrait` suffix automatically for portrait output (only used for
+// label/lookup purposes — see buildVideoModeString for why the video mode
+// string itself does not currently vary by aspect ratio).
 export const videoModels = {
   default: "veo_3_1_t2v_fast",
   labels: {
+    abra: "Omni 1.1 Flash",
     veo_3_1_t2v_lite: "Veo 3.1 Lite",
     veo_3_1_t2v_fast: "Veo 3.1 Fast",
     veo_3_1_t2v_quality: "Veo 3.1 Quality",
   },
   options: [
+    { value: "abra", label: "Omni 1.1 Flash" },
     { value: "veo_3_1_t2v_lite", label: "Veo 3.1 – Lite" },
     { value: "veo_3_1_t2v_fast", label: "Veo 3.1 – Fast" },
     { value: "veo_3_1_t2v_quality", label: "Veo 3.1 – Quality" },
@@ -107,6 +118,11 @@ export function resolveVideoModelKey(model, isPortrait) {
   return isPortrait ? `${base}_portrait` : base;
 }
 
+// Only meaningful for the "abra" (Omni) model — Veo models have no duration
+// picker in Flow's UI and always generate at a fixed length. Live-confirmed
+// for "abra" at 4s and 6s (both at 360p); 8s/10s follow the identical
+// "{n}s" substitution into the same otherwise-fixed template, not a guess
+// at a structurally different value the way the old 720p bug was.
 export const videoDurations = {
   default: 8,
   options: [
@@ -114,6 +130,20 @@ export const videoDurations = {
     { value: 6, label: "6s" },
     { value: 8, label: "8s" },
     { value: 10, label: "10s" },
+  ],
+};
+
+// Only meaningful for the "abra" (Omni) model — Veo models have no
+// resolution picker in Flow's UI. Live-confirmed: 720p is the unmarked
+// default (buildVideoModeString adds no suffix for it); 360p is the one
+// that gets an explicit "_360p" suffix. The old code had this backwards
+// (always appended an explicit "_720p"), which is what broke every video
+// generation — see buildVideoModeString's comment in lib/flow-api.js.
+export const videoResolutions = {
+  default: "720p",
+  options: [
+    { value: "360p", label: "360p" },
+    { value: "720p", label: "720p" },
   ],
 };
 
@@ -143,6 +173,7 @@ export const defaults = {
     aspectRatio: aspectRatios.default,
     videoModel: videoModels.default,
     videoDuration: videoDurations.default,
+    videoResolution: videoResolutions.default,
     mediaKind: "image",
     imageCount: 1,
     folder: "",

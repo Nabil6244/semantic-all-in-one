@@ -213,11 +213,15 @@ FLOW_IMAGE_ASPECT_RATIOS = [
     ("IMAGE_ASPECT_RATIO_PORTRAIT", "9:16"),
 ]
 FLOW_VIDEO_MODELS = [
+    ("abra", "Omni 1.1 Flash"),
     ("veo_3_1_t2v_lite", "Veo 3.1 – Lite"),
     ("veo_3_1_t2v_fast", "Veo 3.1 – Fast"),
     ("veo_3_1_t2v_quality", "Veo 3.1 – Quality"),
 ]
+# Duration/resolution only apply to "abra" (Omni) — Veo models have no
+# picker for either in Flow's own UI and always generate at a fixed length.
 FLOW_VIDEO_DURATIONS = [(4, "4s"), (6, "6s"), (8, "8s"), (10, "10s")]
+FLOW_VIDEO_RESOLUTIONS = [("720p", "720p"), ("360p", "360p")]
 
 _SCENE_LOG_RE = re.compile(r"Scene\s+(\d+)\b\s*(?:->)?\s*(.+)$")
 
@@ -4621,9 +4625,10 @@ class VideoGeneratorApp(ctk.CTk):
                 "id": "default",
                 "name": "Default",
                 "account_ids": [],
-                "model": FLOW_VIDEO_MODELS[1][0],
+                "model": FLOW_VIDEO_MODELS[2][0],
                 "aspectRatio": FLOW_IMAGE_ASPECT_RATIOS[0][0],
                 "duration": 8,
+                "resolution": FLOW_VIDEO_RESOLUTIONS[0][0],
             }]
             self._settings["video_profiles"] = profiles
         return profiles
@@ -4645,13 +4650,14 @@ class VideoGeneratorApp(ctk.CTk):
         save_settings(self._settings)
 
     def _video_flow_settings(self) -> dict:
-        """The default Video Profile's model/dimension/duration, for the GENERATE
-        call's `settings` payload."""
+        """The default Video Profile's model/dimension/duration/resolution, for
+        the GENERATE call's `settings` payload."""
         p = self._default_video_profile()
         return {
-            "videoModel": p.get("model", FLOW_VIDEO_MODELS[1][0]),
+            "videoModel": p.get("model", FLOW_VIDEO_MODELS[2][0]),
             "aspectRatio": p.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0]),
             "videoDuration": int(p.get("duration", 8)),
+            "videoResolution": p.get("resolution", FLOW_VIDEO_RESOLUTIONS[0][0]),
         }
 
     def _video_account_ids(self) -> list[str] | None:
@@ -6275,7 +6281,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._save_video_profiles(profs)
             render_profiles()
 
-        def save_profile(pid, name_var, model_var, aspect_var, duration_var, *, silent=False):
+        def save_profile(pid, name_var, model_var, aspect_var, duration_var, resolution_var, *, silent=False):
             for p in self._get_video_profiles():
                 if p["id"] == pid:
                     p["name"] = name_var.get().strip() or p["name"]
@@ -6285,6 +6291,7 @@ class VideoGeneratorApp(ctk.CTk):
                         p["duration"] = int(duration_var.get())
                     except (TypeError, ValueError):
                         p["duration"] = int(p.get("duration", 8))
+                    p["resolution"] = resolution_var.get()
             self._save_video_profiles(self._get_video_profiles())
             if not silent:
                 messagebox.showinfo("Saved", "Video profile saved.")
@@ -6335,14 +6342,15 @@ class VideoGeneratorApp(ctk.CTk):
                         command=lambda pid=profile["id"]: delete_profile(pid),
                     ).pack(side="right")
 
-                model_var = ctk.StringVar(value=profile.get("model", FLOW_VIDEO_MODELS[1][0]))
+                model_var = ctk.StringVar(value=profile.get("model", FLOW_VIDEO_MODELS[2][0]))
                 aspect_var = ctk.StringVar(value=profile.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0]))
                 duration_var = ctk.StringVar(value=str(profile.get("duration", 8)))
+                resolution_var = ctk.StringVar(value=profile.get("resolution", FLOW_VIDEO_RESOLUTIONS[0][0]))
 
                 def _autosave_profile(
-                    pid=profile["id"], nv=name_var, mv=model_var, av=aspect_var, dv=duration_var,
+                    pid=profile["id"], nv=name_var, mv=model_var, av=aspect_var, dv=duration_var, rv=resolution_var,
                 ):
-                    save_profile(pid, nv, mv, av, dv, silent=True)
+                    save_profile(pid, nv, mv, av, dv, rv, silent=True)
 
                 _option_row(card, "Model", model_var, FLOW_VIDEO_MODELS, on_change=_autosave_profile)
                 _option_row(card, "Dimension", aspect_var, FLOW_IMAGE_ASPECT_RATIOS, on_change=_autosave_profile)
@@ -6351,6 +6359,14 @@ class VideoGeneratorApp(ctk.CTk):
                     [(str(v), lbl) for v, lbl in FLOW_VIDEO_DURATIONS],
                     on_change=_autosave_profile,
                 )
+                _option_row(
+                    card, "Resolution", resolution_var, FLOW_VIDEO_RESOLUTIONS,
+                    on_change=_autosave_profile,
+                )
+                ctk.CTkLabel(
+                    card, text="Duration/resolution only apply to Omni 1.1 Flash — Veo models generate at a fixed length.",
+                    font=ctk.CTkFont(size=10), text_color=_MUTED,
+                ).pack(anchor="w", padx=12, pady=(0, 2))
 
                 ctk.CTkLabel(
                     card, text="Accounts", font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT,
@@ -6379,8 +6395,8 @@ class VideoGeneratorApp(ctk.CTk):
                 ctk.CTkButton(
                     card, text="Save Profile", height=28, font=ctk.CTkFont(size=11),
                     fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
-                    command=lambda pid=profile["id"], nv=name_var, mv=model_var, av=aspect_var, dv=duration_var: (
-                        save_profile(pid, nv, mv, av, dv)
+                    command=lambda pid=profile["id"], nv=name_var, mv=model_var, av=aspect_var, dv=duration_var, rv=resolution_var: (
+                        save_profile(pid, nv, mv, av, dv, rv)
                     ),
                 ).pack(anchor="w", padx=12, pady=(8, 10))
 
@@ -6392,9 +6408,10 @@ class VideoGeneratorApp(ctk.CTk):
                 "id": _uuid.uuid4().hex[:8],
                 "name": f"Profile {len(profs) + 1}",
                 "account_ids": [],
-                "model": FLOW_VIDEO_MODELS[1][0],
+                "model": FLOW_VIDEO_MODELS[2][0],
                 "aspectRatio": FLOW_IMAGE_ASPECT_RATIOS[0][0],
                 "duration": 8,
+                "resolution": FLOW_VIDEO_RESOLUTIONS[0][0],
             })
             self._save_video_profiles(profs)
             render_profiles()

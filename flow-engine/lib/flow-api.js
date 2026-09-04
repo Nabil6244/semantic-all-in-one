@@ -11,11 +11,12 @@ import {
   timing,
   videoModels,
   videoDurations,
+  videoResolutions,
   videoAspectRatios,
   resolveVideoModelKey,
 } from "../config.js";
 
-export { api, secrets, urls, models, aspectRatios, timing, videoModels, videoDurations, videoAspectRatios, resolveVideoModelKey };
+export { api, secrets, urls, models, aspectRatios, timing, videoModels, videoDurations, videoResolutions, videoAspectRatios, resolveVideoModelKey };
 
 export class QuotaError extends Error {
   constructor(m) {
@@ -920,32 +921,48 @@ export function extractAs29sVideoResult(parsed) {
 }
 
 /**
- * Compact mode string YhhmEf expects, e.g. "abra_t2v_4s_360p".
+ * Compact mode string YhhmEf expects. Two genuinely different shapes exist,
+ * both confirmed via real live captures (not guessed):
  *
- * ONLY "abra_t2v_4s_360p" has ever been confirmed to actually work — every
- * real generation this project has verified live used exactly that string.
- * Two other combinations were tried live and both failed differently:
- *   - "abra_t2v_4s_720p" -> HTTP 200 but an application-level error
- *     (wrb.fr status code 5 / NOT_FOUND) — 720p is not a valid resolution
- *     for the "abra" tool, or is gated behind something this account
- *     doesn't have.
- *   - a follow-up "abra_t2v_4s_360p" call in that same debugging session
- *     -> PUBLIC_ERROR_UNUSUAL_ACTIVITY (an anti-abuse block, unrelated to
- *     the mode string itself).
- * Flow's own model-tool list (the "yBhWQ" RPC) also reports "veo_3_1_fast",
- * "veo_3_1_quality", and "veo_3_1_lite" as real, existing tool ids, and the
- * app's own settings can select those models — but no combination of them
- * with this template has ever been live-verified, and guessing at one is
- * exactly how the untested 720p default broke video generation. Per "do
- * not invent unsupported strings, support only the confirmed set," this
- * deliberately ignores settings.videoModel/videoResolution entirely for
- * now and always requests the one proven-working combination. Widening
- * this to the operator's actual model/resolution choice needs the same
- * kind of live capture-and-confirm this project has used throughout —
- * not a guess — and should wait until Google's anti-abuse flag has cleared.
+ *  - Veo 3.1 models (lite/fast/quality): Flow's own UI has NO duration or
+ *    resolution picker for these at all — each is a single fixed
+ *    combination, and the mode string IS the model key verbatim, e.g.
+ *    "veo_3_1_t2v_lite" (live-confirmed). "veo_3_1_t2v_fast" and
+ *    "veo_3_1_t2v_quality" follow the identical naming pattern — the exact
+ *    same literal already used as their videoModels config key — so this
+ *    is reusing a proven naming pattern, not guessing at an unrelated,
+ *    structurally different value the way the old 720p bug was.
+ *
+ *  - "abra" (Flow's current UI displays it as "Omni 1.1 Flash"): the one
+ *    model with a real duration (4/6/8/10s) and resolution (360p/720p)
+ *    picker. Mode string: "abra_t2v_{duration}s" + "_360p" ONLY if
+ *    resolution is 360p — 720p is the unmarked default and gets NO suffix.
+ *    Live-confirmed:
+ *      "abra_t2v_4s_360p"  (360p, 4s)
+ *      "abra_t2v_6s_360p"  (360p, 6s)
+ *      "abra_t2v_4s"       (720p, 4s — no suffix)
+ *    8s/10s are the same "{n}s" substitution into this already-confirmed
+ *    template, not a new guess. The OLD code had the resolution rule
+ *    backwards — it always appended an explicit "_720p" suffix, which
+ *    Google rejected with an application-level NOT_FOUND (wrb.fr status
+ *    code 5). That backwards assumption is what broke every video
+ *    generation until this was captured live and fixed.
+ *
+ * Aspect ratio (portrait/landscape) is deliberately NOT part of this
+ * string: the prior working implementation computed a "_portrait" variant
+ * via resolveVideoModelKey() but then stripped it again before use, so
+ * aspect ratio has never actually varied the video mode string — only
+ * image generation's aspectRatio does anything today.
  */
-function buildVideoModeString(_settings) {
-  return "abra_t2v_4s_360p";
+function buildVideoModeString(settings) {
+  const modelKey = resolveVideoModelKey(settings.videoModel, false);
+  if (modelKey !== "abra") return modelKey;
+
+  const allowedDurations = videoDurations.options.map((o) => o.value);
+  const requested = Number(settings.videoDuration);
+  const duration = allowedDurations.includes(requested) ? requested : videoDurations.default;
+  const suffix = settings.videoResolution === "360p" ? "_360p" : "";
+  return `abra_t2v_${duration}s${suffix}`;
 }
 
 /**

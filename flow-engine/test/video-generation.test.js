@@ -186,7 +186,13 @@ function makeLifecycleFetch({ pollsUntilComplete = 2 } = {}) {
 test("generateOneVideo: full lifecycle — call sequence, request shape, and final {mediaId, fifeUrl}", async () => {
   const { fetchImpl, calls } = makeLifecycleFetch({ pollsUntilComplete: 2 });
   const page = fakePage({ wiz: fullWiz(), fetchImpl });
-  const result = await generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0);
+  const result = await generateOneVideo(
+    page,
+    PROJECT_ID,
+    PROMPT,
+    { videoModel: "abra", videoDuration: 4, videoResolution: "360p" },
+    0,
+  );
 
   // Final contract: same {mediaId, fifeUrl} shape batch-runner.js destructures.
   assert.equal(result.mediaId, MEDIA_ID);
@@ -232,24 +238,59 @@ test("generateOneVideo: full lifecycle — call sequence, request shape, and fin
   assert.match(finals[0].url, /rpcids=as29s/);
 });
 
-test("generateOneVideo: mode string is the fixed proven combination regardless of settings.videoDuration/videoModel/videoResolution", async () => {
+// Every case below is a real live-captured value (see buildVideoModeString's
+// own comment in lib/flow-api.js for the exact captures), not a guess —
+// including the two 8s/10s abra cases, which are the "{n}s" substitution
+// into an otherwise-already-confirmed template, not a new untested shape
+// the way the old 720p-suffix bug was.
+async function modeStringFor(settings) {
   const { fetchImpl, calls } = makeLifecycleFetch({ pollsUntilComplete: 1 });
   const page = fakePage({ wiz: fullWiz(), fetchImpl });
-  await generateOneVideo(
-    page,
-    PROJECT_ID,
-    PROMPT,
-    { videoDuration: 10, videoModel: "veo_3_1_t2v_lite", videoResolution: "720p" },
-    0,
-  );
+  await generateOneVideo(page, PROJECT_ID, PROMPT, settings, 0);
   const start = calls.find((c) => c.url.includes("rpcids=YhhmEf"));
   const args = JSON.parse(JSON.parse(decodeURIComponent(start.body.match(/^f\.req=([^&]+)/)[1]))[0][0][1]);
-  // Only "abra_t2v_4s_360p" has ever been live-confirmed to work — an
-  // untested "720p" default previously returned an application-level
-  // NOT_FOUND from Google's server, so buildVideoModeString deliberately
-  // ignores every operator-supplied setting and always requests this one
-  // proven combination.
-  assert.equal(args[0][0][1], "abra_t2v_4s_360p");
+  return args[0][0][1];
+}
+
+test("generateOneVideo: Veo models ignore duration/resolution settings entirely — Flow's UI has no picker for either", async () => {
+  assert.equal(
+    await modeStringFor({ videoModel: "veo_3_1_t2v_lite", videoDuration: 10, videoResolution: "360p" }),
+    "veo_3_1_t2v_lite",
+  );
+  assert.equal(await modeStringFor({ videoModel: "veo_3_1_t2v_fast" }), "veo_3_1_t2v_fast");
+  assert.equal(await modeStringFor({ videoModel: "veo_3_1_t2v_quality" }), "veo_3_1_t2v_quality");
+});
+
+test("generateOneVideo: abra (Omni) mode string honors duration and resolution settings", async () => {
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 4, videoResolution: "360p" }),
+    "abra_t2v_4s_360p",
+  );
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 6, videoResolution: "360p" }),
+    "abra_t2v_6s_360p",
+  );
+  // 720p is the unmarked default — no "_720p" suffix (this is the exact
+  // rule the old code got backwards).
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 4, videoResolution: "720p" }),
+    "abra_t2v_4s",
+  );
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 8, videoResolution: "720p" }),
+    "abra_t2v_8s",
+  );
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 10, videoResolution: "360p" }),
+    "abra_t2v_10s_360p",
+  );
+});
+
+test("generateOneVideo: an unrecognized videoDuration falls back to config's default rather than sending a bad value", async () => {
+  assert.equal(
+    await modeStringFor({ videoModel: "abra", videoDuration: 999, videoResolution: "360p" }),
+    "abra_t2v_8s_360p",
+  );
 });
 
 test("missing WIZ session state fails without a network call", async () => {
