@@ -920,43 +920,32 @@ export function extractAs29sVideoResult(parsed) {
 }
 
 /**
- * Flow's own model-tool list (the "yBhWQ" RPC, confirmed live) enumerates
- * "abra", "veo_3_1_fast", "veo_3_1_quality", "veo_3_1_lite" as real,
- * currently-available tool ids — these are not invented. Mapping the app's
- * existing model settings (already normalized by resolveVideoModelKey(),
- * unchanged) onto them reuses only strings Flow itself reported as valid.
- * Only the "abra" path (the default/no-match fallback here) has been
- * live-verified end-to-end with the compact mode-string template below;
- * the veo_3_1_* entries reuse the same confirmed template with real,
- * confirmed tool ids, but that combination itself has not been live-tested.
+ * Compact mode string YhhmEf expects, e.g. "abra_t2v_4s_360p".
+ *
+ * ONLY "abra_t2v_4s_360p" has ever been confirmed to actually work — every
+ * real generation this project has verified live used exactly that string.
+ * Two other combinations were tried live and both failed differently:
+ *   - "abra_t2v_4s_720p" -> HTTP 200 but an application-level error
+ *     (wrb.fr status code 5 / NOT_FOUND) — 720p is not a valid resolution
+ *     for the "abra" tool, or is gated behind something this account
+ *     doesn't have.
+ *   - a follow-up "abra_t2v_4s_360p" call in that same debugging session
+ *     -> PUBLIC_ERROR_UNUSUAL_ACTIVITY (an anti-abuse block, unrelated to
+ *     the mode string itself).
+ * Flow's own model-tool list (the "yBhWQ" RPC) also reports "veo_3_1_fast",
+ * "veo_3_1_quality", and "veo_3_1_lite" as real, existing tool ids, and the
+ * app's own settings can select those models — but no combination of them
+ * with this template has ever been live-verified, and guessing at one is
+ * exactly how the untested 720p default broke video generation. Per "do
+ * not invent unsupported strings, support only the confirmed set," this
+ * deliberately ignores settings.videoModel/videoResolution entirely for
+ * now and always requests the one proven-working combination. Widening
+ * this to the operator's actual model/resolution choice needs the same
+ * kind of live capture-and-confirm this project has used throughout —
+ * not a guess — and should wait until Google's anti-abuse flag has cleared.
  */
-const VIDEO_TOOL_BY_MODEL_KEY = {
-  veo_3_1_t2v_lite: "veo_3_1_lite",
-  veo_3_1_t2v_fast: "veo_3_1_fast",
-  veo_3_1_t2v_quality: "veo_3_1_quality",
-};
-
-/**
- * Compact mode string YhhmEf expects, e.g. "abra_t2v_4s_360p" — confirmed
- * live in exactly this shape. Duration is NOT sourced from
- * settings.videoDuration: Flow's old endpoint rejected an explicit duration
- * entirely (see the now-obsolete videoLengthSeconds handling this replaces),
- * and the renderer already trims/loops every clip to the scene's real
- * duration regardless — so this always requests the shortest, cheapest
- * duration Flow can generate rather than reading (or guessing at) the
- * operator's requested length. Resolution defaults to 720p (no existing
- * settings field for it) unless settings.videoResolution is explicitly "360p".
- */
-function buildVideoModeString(settings) {
-  const aspect = videoAspectRatios.fromImage[settings.aspectRatio] || videoAspectRatios.default;
-  const isPortrait = aspect === "VIDEO_ASPECT_RATIO_PORTRAIT";
-  const modelKey = resolveVideoModelKey(settings.videoModel || settings.model, isPortrait).replace(
-    /_portrait$/,
-    "",
-  );
-  const tool = VIDEO_TOOL_BY_MODEL_KEY[modelKey] || "abra";
-  const resolution = settings.videoResolution === "360p" ? "360p" : "720p";
-  return `${tool}_t2v_4s_${resolution}`;
+function buildVideoModeString(_settings) {
+  return "abra_t2v_4s_360p";
 }
 
 /**

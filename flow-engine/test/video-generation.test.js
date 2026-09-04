@@ -215,11 +215,10 @@ test("generateOneVideo: full lifecycle — call sequence, request shape, and fin
   const startArgs = JSON.parse(JSON.parse(decodeURIComponent(start.body.match(/^f\.req=([^&]+)/)[1]))[0][0][1]);
   const request = startArgs[0][0]; // [[request], context, [uuidC, 2]]
   assert.deepEqual(request[0], [null, null, [[[PROMPT]]]]);
-  // No settings.videoModel given -> resolveVideoModelKey()'s own default
-  // (config.js's videoModels.default = "veo_3_1_t2v_fast") applies, which
-  // maps to tool id "veo_3_1_fast" — "abra" is only the fallback for a
-  // model key this file doesn't recognize.
-  assert.match(request[1], /^(abra|veo_3_1_fast|veo_3_1_quality|veo_3_1_lite)_t2v_4s_(360p|720p)$/);
+  // The one confirmed-working mode string — see buildVideoModeString's own
+  // comment for what was tried live and failed (untested 720p: application-
+  // level NOT_FOUND; a same-session 360p retry: anti-abuse block).
+  assert.equal(request[1], "abra_t2v_4s_360p");
   assert.deepEqual(startArgs[1].slice(0, 6), [null, 22, null, null, null, PROJECT_ID]);
 
   // jwpduf: only the workflowId, no captcha/context.
@@ -233,18 +232,24 @@ test("generateOneVideo: full lifecycle — call sequence, request shape, and fin
   assert.match(finals[0].url, /rpcids=as29s/);
 });
 
-test("generateOneVideo: fixed 4s duration regardless of settings.videoDuration, and a recognized videoModel maps to its real tool id", async () => {
+test("generateOneVideo: mode string is the fixed proven combination regardless of settings.videoDuration/videoModel/videoResolution", async () => {
   const { fetchImpl, calls } = makeLifecycleFetch({ pollsUntilComplete: 1 });
   const page = fakePage({ wiz: fullWiz(), fetchImpl });
-  await generateOneVideo(page, PROJECT_ID, PROMPT, { videoDuration: 10, videoModel: "veo_3_1_t2v_lite" }, 0);
+  await generateOneVideo(
+    page,
+    PROJECT_ID,
+    PROMPT,
+    { videoDuration: 10, videoModel: "veo_3_1_t2v_lite", videoResolution: "720p" },
+    0,
+  );
   const start = calls.find((c) => c.url.includes("rpcids=YhhmEf"));
   const args = JSON.parse(JSON.parse(decodeURIComponent(start.body.match(/^f\.req=([^&]+)/)[1]))[0][0][1]);
-  // "4s" (never "10s") and "veo_3_1_lite" (not the raw settings key) —
-  // resolveVideoModelKey() already normalizes any *unrecognized* key to
-  // config.js's own default before this file's tool-id table ever sees it,
-  // so "abra" (the table's fallback) is unreachable through settings.videoModel
-  // in practice — this exercises the one path that's actually reachable.
-  assert.equal(args[0][0][1], "veo_3_1_lite_t2v_4s_720p");
+  // Only "abra_t2v_4s_360p" has ever been live-confirmed to work — an
+  // untested "720p" default previously returned an application-level
+  // NOT_FOUND from Google's server, so buildVideoModeString deliberately
+  // ignores every operator-supplied setting and always requests this one
+  // proven combination.
+  assert.equal(args[0][0][1], "abra_t2v_4s_360p");
 });
 
 test("missing WIZ session state fails without a network call", async () => {

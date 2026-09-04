@@ -55,19 +55,23 @@ test("generateOneVideo does not read the operator's requested duration at all", 
   assert.doesNotMatch(generateOneVideoSrc, /videoDurations\.default/);
 });
 
-test("generateOneVideo's compact mode string always requests the fixed, cheapest duration", () => {
-  // Flow's current API (YhhmEf) DOES accept an explicit duration — unlike
-  // the old batchAsyncGenerateVideoText this replaces — but the app still
-  // must never forward the operator's requested length: it's always the
-  // shortest/cheapest option, same "renderer trims/loops the clip anyway"
-  // reasoning as before, just now expressed as a fixed literal in the mode
-  // string template rather than an omitted request field.
+test("generateOneVideo's compact mode string is the one confirmed-working literal, not a template", () => {
+  // Flow's current API (YhhmEf) DOES accept an explicit duration/resolution
+  // — unlike the old batchAsyncGenerateVideoText this replaces — but only
+  // "abra_t2v_4s_360p" has ever been confirmed live. A templated resolution
+  // that silently defaulted to an untested "720p" previously broke every
+  // video generation (HTTP 200 but an application-level NOT_FOUND). Until a
+  // wider set of combinations is live-verified the same way this project
+  // verified everything else, buildVideoModeString must return that one
+  // literal unconditionally, never a settings-derived template.
   const buildFnSrc = src.slice(
     src.indexOf("function buildVideoModeString"),
-    src.indexOf("function buildVideoModeString") + 900,
+    src.indexOf("function buildVideoModeString") + 300,
   );
-  assert.match(buildFnSrc, /_t2v_4s_\$\{resolution\}/, "must template a fixed 4s duration");
+  assert.match(buildFnSrc, /return\s+"abra_t2v_4s_360p"/, "must return the one confirmed-working literal");
   assert.doesNotMatch(buildFnSrc, /settings\.videoDuration/);
+  assert.doesNotMatch(buildFnSrc, /settings\.videoResolution/);
+  assert.doesNotMatch(buildFnSrc, /settings\.videoModel/);
 });
 
 test("generateOneVideo's YhhmEf request carries no top-level seed field", () => {
