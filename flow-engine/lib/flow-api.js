@@ -230,6 +230,18 @@ export async function tryGetAccountEmail(page) {
   }).catch(() => null);
 }
 
+/**
+ * Create a new Flow project via the current "jHPbke" batchexecute RPC —
+ * confirmed live (see flow-engine investigation notes): clicking "+ New
+ * project" on flow.google.com's home page sends exactly
+ *   f.req=[[["jHPbke","[\"projects/*\",[null,[\"<title>\"]],[null,22]]",null,"generic"]]]
+ * (source-path=/, same bl/f.sid/at sourced from window.WIZ_global_data as
+ * every other RPC in this file — no reCAPTCHA token, unlike ogiZ0b/YhhmEf)
+ * and gets back `["<new-project-id>", ["<title>"]]`. Replaces the old
+ * api.createProjectPath REST call (/fx/api/trpc/project.createProject),
+ * which no longer exists on flow.google.com and was failing every project
+ * creation with HTTP 400/401.
+ */
 export async function createFlowProject(page) {
   const title = new Date()
     .toLocaleString("en-GB", {
@@ -241,43 +253,61 @@ export async function createFlowProject(page) {
     })
     .replace(",", "");
 
-  const result = await safeEvaluate(
+  const out = await safeEvaluate(
     page,
-    async ({ createPath, toolName, projectTitle }) => {
+    async ({ title, timeoutMs }) => {
+      const wiz = window.WIZ_global_data || {};
+      const at = wiz.SNlM0e;
+      const bl = wiz.cfb2h;
+      const fsid = wiz.FdrFJe;
+      if (!at || !bl || !fsid) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      }
+
+      const reqId = 100000 + Math.floor(Math.random() * 900000);
+      const url =
+        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+        "?rpcids=jHPbke&source-path=%2F" +
+        "&bl=" + encodeURIComponent(bl) +
+        "&f.sid=" + encodeURIComponent(fsid) +
+        "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+      const args = ["projects/*", [null, [title]], [null, 22]];
+      const bodyStr =
+        "f.req=" + encodeURIComponent(JSON.stringify([[["jHPbke", JSON.stringify(args), null, "generic"]]])) +
+        "&at=" + encodeURIComponent(at);
+
+      const ac = new AbortController();
+      const tm = setTimeout(() => ac.abort(), timeoutMs);
       try {
-        const p = await fetch(createPath, {
+        const resp = await fetch(url, {
           method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyStr,
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: { projectTitle, toolName },
-          }),
+          signal: ac.signal,
         });
-        if (!p.ok) return { error: "HTTP " + p.status };
-        const d = await p.json();
-        const id =
-          d?.result?.data?.json?.result?.projectId ||
-          d?.result?.data?.json?.projectId ||
-          null;
-        return id ? { projectId: id } : { error: "No projectId in response" };
+        clearTimeout(tm);
+        const text = await resp.text();
+        if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+        return { success: true, text };
       } catch (e) {
-        return { error: e.message };
+        clearTimeout(tm);
+        return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
       }
     },
-    {
-      createPath: api.createProjectPath,
-      toolName: api.toolName,
-      projectTitle: title,
-    },
+    { title, timeoutMs: timing.apiRequestTimeoutMs },
   );
 
-  if (!result?.projectId) {
-    throw new FatalError(
-      "Could not create Flow project: " + (result?.error || "unknown"),
-      true,
-    );
+  if (!out || out.error) {
+    throw new FatalError("Could not create Flow project: " + (out?.error || "no response"), true);
   }
-  return result.projectId;
+
+  const parsed = parseBatchExecuteResponse(out.text, "jHPbke");
+  const projectId = Array.isArray(parsed) && typeof parsed[0] === "string" ? parsed[0] : null;
+  if (!projectId) {
+    throw new FatalError("Could not create Flow project: no projectId in response", true);
+  }
+  return projectId;
 }
 
 export async function openOrCreateProject(page) {
@@ -562,27 +592,27 @@ function buildBatchExecuteRequest(rpcid, args, atToken) {
 export function parseBatchExecuteResponse(text, rpcid) {
   let body = String(text || "");
   if (body.startsWith(")]}'")) body = body.slice(4);
-  body = body.replace(/^\s+/, "");
 
-  // Length-prefixed chunks: a line holding a byte length, then that many
-  // bytes of JSON, repeated. Malformed/truncated input just yields no chunks
-  // rather than throwing — callers treat "not found" as a generation failure.
-  const chunks = [];
-  let rest = body;
-  while (rest.length) {
-    const nl = rest.indexOf("\n");
-    if (nl === -1) break;
-    const len = parseInt(rest.slice(0, nl).trim(), 10);
-    if (!Number.isFinite(len) || len <= 0) break;
-    const start = nl + 1;
-    chunks.push(rest.slice(start, start + len));
-    rest = rest.slice(start + len).replace(/^\n/, "");
-  }
-
-  for (const chunk of chunks) {
+  // Length-prefixed chunks: a line holding a declared byte length, then that
+  // many bytes of JSON. NOT sliced by that declared length — verified live
+  // against a real captured response that the declared count is 2 bytes
+  // larger than what a JS string's .length actually measures after
+  // fetch()/page.evaluate() has already decoded the body (almost certainly
+  // a \r\n vs \n line-ending difference between Google's byte count and the
+  // normalized string Playwright hands back). Every chunk's JSON is emitted
+  // on its own single line in every response observed, so splitting on "\n"
+  // and skipping bare-integer length-marker lines is both simpler and
+  // actually correct against live data, where the byte-slicing approach
+  // this replaces was not. Malformed/truncated input just yields nothing
+  // parseable rather than throwing — callers treat "not found" as a
+  // generation failure.
+  const lines = body.split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || /^\d+$/.test(line)) continue; // blank or a length-marker line
     let arr;
     try {
-      arr = JSON.parse(chunk);
+      arr = JSON.parse(line);
     } catch {
       continue;
     }
