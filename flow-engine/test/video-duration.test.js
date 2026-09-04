@@ -1,18 +1,23 @@
 /**
- * Flow no longer accepts videoLengthSeconds on batchAsyncGenerateVideoText —
- * Google rejected every video job that sent it (400 INVALID_ARGUMENT), and
- * the app used to strip-and-retry around that on every single video job
- * (see the now-removed field-specific branch this replaces). The correct
- * fix is to never send a requested duration at all: Flow generates at its
- * own default length, and the renderer trims/loops the delivered clip to
- * the scene's real duration downstream (video_generator.py).
+ * History: Flow's old batchAsyncGenerateVideoText endpoint rejected every
+ * job that sent videoLengthSeconds (400 INVALID_ARGUMENT), so the app never
+ * sent a requested duration at all — Flow generated at its own default
+ * length, and the renderer trimmed/looped the delivered clip to the scene's
+ * real duration downstream (video_generator.py). That endpoint is gone;
+ * generateOneVideo now calls the current YhhmEf/jwpduf/as29s lifecycle (see
+ * flow-engine investigation notes), whose compact mode string (e.g.
+ * "abra_t2v_4s_360p") DOES carry an explicit duration. The renderer-trims-
+ * anyway reasoning still applies, so the app deliberately keeps requesting
+ * the fixed, cheapest duration rather than the operator's setting — these
+ * tests now check that against the new implementation's actual shape.
  *
  * These are static/source checks rather than a full page-mocked execution
  * of generateOneVideo() — Playwright's page.evaluate boundary makes a
  * functional mock heavy and fragile for what is fundamentally a "this
- * object literal must not contain this key" question. Matches the existing
- * convention in unknown-field.test.js (e.g. the AUTH_RETRY_DELAYS_MS test),
- * which verifies source shape rather than executing the browser-side code.
+ * string/object literal must not contain this value" question. Matches the
+ * existing convention in unknown-field.test.js (e.g. the AUTH_RETRY_DELAYS_MS
+ * test), which verifies source shape rather than executing the browser-side
+ * code.
  *
  * Run: node --test test/video-duration.test.js
  */
@@ -50,36 +55,30 @@ test("generateOneVideo does not read the operator's requested duration at all", 
   assert.doesNotMatch(generateOneVideoSrc, /videoDurations\.default/);
 });
 
-test("generateOneVideo's video request carries no duration field of any name", () => {
-  const reqMatch = /requests:\s*\[\s*\{([\s\S]*?)\},\s*\],/.exec(generateOneVideoSrc);
-  assert.ok(reqMatch, "could not find the requests[0] object literal");
-  const requestBody = reqMatch[1]
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//"))
-    .join("\n");
-  // Top-level keys only: `key: value,` or shorthand `key,` — both terminate
-  // the key name with `:` or `,` at the start of a (non-comment) line.
-  const keys = [...requestBody.matchAll(/^\s*([A-Za-z_$][\w$]*)\s*[:,]/gm)].map((m) => m[1]);
-
-  assert.deepEqual(
-    keys.sort(),
-    ["aspectRatio", "metadata", "seed", "textInput", "videoModelKey"].sort(),
-    "the video request must carry exactly these fields — no duration field, replacement or otherwise",
+test("generateOneVideo's compact mode string always requests the fixed, cheapest duration", () => {
+  // Flow's current API (YhhmEf) DOES accept an explicit duration — unlike
+  // the old batchAsyncGenerateVideoText this replaces — but the app still
+  // must never forward the operator's requested length: it's always the
+  // shortest/cheapest option, same "renderer trims/loops the clip anyway"
+  // reasoning as before, just now expressed as a fixed literal in the mode
+  // string template rather than an omitted request field.
+  const buildFnSrc = src.slice(
+    src.indexOf("function buildVideoModeString"),
+    src.indexOf("function buildVideoModeString") + 900,
   );
+  assert.match(buildFnSrc, /_t2v_4s_\$\{resolution\}/, "must template a fixed 4s duration");
+  assert.doesNotMatch(buildFnSrc, /settings\.videoDuration/);
+});
 
-  // Belt-and-braces: no plausible duration-field alias snuck in under another name.
-  for (const alias of [
-    "duration",
-    "videoLength",
-    "lengthSeconds",
-    "clipDuration",
-    "durationSeconds",
-    "videoDurationSeconds",
-    "targetDuration",
-  ]) {
+test("generateOneVideo's YhhmEf request carries no top-level seed field", () => {
+  // The live YhhmEf request (confirmed) carries no client-supplied seed —
+  // unlike ogiZ0b's image request, which still does (untouched, see
+  // generateOneImage). Belt-and-braces: no plausible seed-field alias
+  // should appear inside generateOneVideo's own request-building code.
+  for (const alias of ["seed", "randomSeed()"]) {
     assert.ok(
-      !keys.includes(alias),
-      `found a duration-like field "${alias}" — Flow must not be told a duration`,
+      !generateOneVideoSrc.includes(alias),
+      `found "${alias}" in generateOneVideo — Flow's current video RPC takes no client seed`,
     );
   }
 });

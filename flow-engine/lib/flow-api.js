@@ -162,26 +162,26 @@ export async function waitForFlowReady(page, timeoutMs = 45000) {
 }
 
 export async function getSessionToken(page) {
-  return safeEvaluate(page, async () => {
+  // Flow moved off labs.google onto flow.google.com, and the old
+  // `/fx/api/auth/session` REST route no longer exists there at all (it now
+  // 200s with the app's HTML shell, not JSON — confirmed live). The new app
+  // is built on Google's internal Wiz framework, which never had a session
+  // REST endpoint to begin with: it embeds the signed-in session's token
+  // directly in the page as `window.WIZ_global_data.SNlM0e` when the page
+  // loads. Reading that in-page value (no fetch, no new network request) is
+  // the direct replacement for the old response body this function used to
+  // return — everything downstream (waitForSessionToken's polling,
+  // openOrCreateProject's `if (!token)` check) is unchanged.
+  return safeEvaluate(page, () => {
     try {
-      const r = await fetch("/fx/api/auth/session", { credentials: "include" });
-      if (!r.ok) return null;
-      // Read as TEXT first. While Flow's SPA is still redirecting, this route
-      // serves an HTML interstitial, and calling r.json() on it throws
-      // `Unexpected token '<', "<!doctype "...` — which surfaced to the user
-      // as a hard failure instead of "not ready yet".
-      const body = (await r.text() || "").trim();
-      // Only the leading "<" case is the interstitial we must not parse.
-      // Anything else is handed to JSON.parse, which is authoritative —
-      // sniffing for a leading "{" wrongly rejected valid bodies that begin
-      // with whitespace or a BOM, and reported a live session as signed out.
-      if (!body || body[0] === "<") return null;
-      try {
-        const parsed = JSON.parse(body);
-        return (parsed && parsed.access_token) || null;
-      } catch {
-        return null;
-      }
+      const data = window.WIZ_global_data;
+      if (!data) return null;
+      const raw = data.SNlM0e;
+      // Defensive: SNlM0e is a bare string on every page observed so far;
+      // tolerate a wrapped {e: "..."} shape too rather than assuming.
+      const token = typeof raw === "string" ? raw : (raw && typeof raw.e === "string" ? raw.e : null);
+      const trimmed = (token || "").trim();
+      return trimmed ? trimmed : null;
     } catch {
       return null;
     }
@@ -316,8 +316,21 @@ function uuid() {
   });
 }
 
+// No longer called (generateOneVideo's current YhhmEf request carries no
+// client-supplied seed at all — confirmed live). Left in place rather than
+// deleted: removing unused-but-harmless code is out of scope for this change.
 function randomSeed() {
   return Math.floor(Math.random() * 300000);
+}
+
+/**
+ * Fresh seed for the ogiZ0b image-generation call only. Range is a positive,
+ * signed-32-bit-safe integer, matching the magnitude of real seeds observed
+ * live from Flow's own UI (e.g. 943918382, 1757688819) — any integer is a
+ * structurally valid seed, this range simply mirrors what Flow itself sends.
+ */
+function randomImageSeed() {
+  return Math.floor(Math.random() * 0x7fffffff);
 }
 
 /**
@@ -521,6 +534,115 @@ export async function apiPost(
   return out.data;
 }
 
+/**
+ * batchexecute codec — narrowly scoped to what Flow's ogiZ0b call needs.
+ * Not a general RPC framework: just enough to build one request envelope
+ * and parse one response back out.
+ *
+ * Request shape (confirmed live, see flow-engine/README or investigation
+ * notes): f.req=[[[rpcid, JSON.stringify(args), null, "generic"]]]&at=<token>
+ *
+ * Response shape: Google's standard anti-hijacking-prefixed, length-chunked
+ * batchexecute format:
+ *   )]}'
+ *   <byte-length>
+ *   [["wrb.fr", rpcid, "<json-encoded-result>", null, null, null, "generic"], ...]
+ *   <byte-length>
+ *   [["e", 4, null, null, <n>]]
+ */
+function buildBatchExecuteRequest(rpcid, args, atToken) {
+  const envelope = [[[rpcid, JSON.stringify(args), null, "generic"]]];
+  return "f.req=" + encodeURIComponent(JSON.stringify(envelope)) + "&at=" + encodeURIComponent(atToken);
+}
+
+export function parseBatchExecuteResponse(text, rpcid) {
+  let body = String(text || "");
+  if (body.startsWith(")]}'")) body = body.slice(4);
+  body = body.replace(/^\s+/, "");
+
+  // Length-prefixed chunks: a line holding a byte length, then that many
+  // bytes of JSON, repeated. Malformed/truncated input just yields no chunks
+  // rather than throwing — callers treat "not found" as a generation failure.
+  const chunks = [];
+  let rest = body;
+  while (rest.length) {
+    const nl = rest.indexOf("\n");
+    if (nl === -1) break;
+    const len = parseInt(rest.slice(0, nl).trim(), 10);
+    if (!Number.isFinite(len) || len <= 0) break;
+    const start = nl + 1;
+    chunks.push(rest.slice(start, start + len));
+    rest = rest.slice(start + len).replace(/^\n/, "");
+  }
+
+  for (const chunk of chunks) {
+    let arr;
+    try {
+      arr = JSON.parse(chunk);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(arr)) continue;
+    for (const entry of arr) {
+      if (Array.isArray(entry) && entry[0] === "wrb.fr" && entry[1] === rpcid) {
+        if (typeof entry[2] !== "string") return null;
+        try {
+          return JSON.parse(entry[2]);
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Pull {mediaId, fifeUrl, width, height} out of ogiZ0b's decoded result.
+ * Anchored to the observed shape (parsed[0][0] = the media entry, its
+ * field[6][0] = detail array containing the flow-content.google URL
+ * somewhere, its last element = [width, height]) but searches rather than
+ * assumes exact indices for the URL specifically, since "Google's response
+ * shape drifts" was already true of the old REST response and is expected
+ * to remain true here.
+ */
+export function extractOgiZ0bImageResult(parsed) {
+  let mediaId = null;
+  let fifeUrl = null;
+  let width = null;
+  let height = null;
+  try {
+    const entry = parsed?.[0]?.[0];
+    if (Array.isArray(entry)) {
+      if (typeof entry[0] === "string") mediaId = entry[0];
+      const detail = entry[6]?.[0];
+      if (Array.isArray(detail)) {
+        const url = detail.find((v) => typeof v === "string" && v.startsWith("https://flow-content.google/"));
+        if (url) fifeUrl = url;
+      }
+      const dims = entry[entry.length - 1];
+      if (Array.isArray(dims) && dims.length === 2) {
+        if (typeof dims[0] === "number") width = dims[0];
+        if (typeof dims[1] === "number") height = dims[1];
+      }
+    }
+  } catch {
+    /* fall through to the last-resort scan below */
+  }
+  if (!fifeUrl && parsed) {
+    // Last-resort deep scan — mirrors the old generateOneImage's own
+    // defensive fallback for response-shape drift.
+    const blob = JSON.stringify(parsed);
+    const m = blob.match(/https:\/\/flow-content\.google\/[^"\\]+/i);
+    if (m) fifeUrl = m[0].replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
+  }
+  if (!mediaId && fifeUrl) {
+    const m = fifeUrl.match(/\/image\/([^?]+)/);
+    if (m) mediaId = m[1];
+  }
+  return { mediaId, fifeUrl, width, height };
+}
+
 export async function generateOneImage(page, projectId, prompt, settings, promptIndex) {
   // Parity with generateOneVideo: never fire the API call while Flow's SPA is
   // still navigating. Without this the image path raced the page and threw
@@ -528,84 +650,125 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
   // is why videos succeeded and images failed in the same run.
   await waitForFlowReady(page);
 
-  const batchId = uuid();
-  const sessionId = ";" + Date.now() + promptIndex;
-  const body = {
-    clientContext: {
-      recaptchaContext: {
-        applicationType: api.recaptchaApplicationType,
-        token: "PLACEHOLDER",
-      },
-      projectId,
-      tool: api.toolName,
-      sessionId,
-    },
-    mediaGenerationContext: { batchId },
-    useNewMedia: true,
-    requests: [
-      {
-        clientContext: {
-          recaptchaContext: {
-            applicationType: api.recaptchaApplicationType,
-            token: "PLACEHOLDER",
-          },
-          projectId,
-          tool: api.toolName,
-          sessionId,
-        },
-        imageAspectRatio: settings.aspectRatio || aspectRatios.default,
-        imageInputs: [],
-        imageModelName: settings.model || models.default,
-        seed:
-          settings.seedMode === "fixed" && settings.seedValue != null
-            ? settings.seedValue
-            : randomSeed(),
-        structuredPrompt: { parts: [{ text: prompt }] },
-      },
-    ],
-  };
+  const seed =
+    settings.seedMode === "fixed" && settings.seedValue != null
+      ? settings.seedValue
+      : randomImageSeed();
+  const model = settings.model || models.default;
+  const uuidA = uuid();
+  const uuidB = uuid();
+  const uuidC = uuid();
 
-  const data = await apiPost(
+  const out = await safeEvaluate(
     page,
-    api.batchGenerateImages(projectId),
-    body,
-    api.recaptchaAction,
+    async ({ projectId, model, prompt, seed, siteKey, recaptchaAction, uuidA, uuidB, uuidC, timeoutMs }) => {
+      // WIZ_global_data carries the page's own CSRF/session state — same
+      // mechanism getSessionToken()/checkAuthStatus() already read from
+      // (SNlM0e), plus the batchexecute query params (cfb2h -> bl,
+      // FdrFJe -> f.sid), confirmed live against this exact page.
+      const wiz = window.WIZ_global_data || {};
+      const at = wiz.SNlM0e;
+      const bl = wiz.cfb2h;
+      const fsid = wiz.FdrFJe;
+      if (!at || !bl || !fsid) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      }
+
+      const grec = window.grecaptcha?.enterprise;
+      if (!grec) return { error: "No reCAPTCHA", recoverable: true };
+      const captcha = await grec.execute(siteKey, { action: recaptchaAction });
+      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true };
+
+      // Positional structure reproduced exactly as captured live — see
+      // flow-engine investigation notes. "context" is reused verbatim at
+      // both the per-request position and the batch-level position, exactly
+      // as observed; array positions are the confirmed jspb wire encoding
+      // for FlowService.BatchGenerateImages ("ogiZ0b"), not invented here.
+      const context = [null, 22, null, null, null, projectId, null, null, null, null, [captcha, 1]];
+      const request = [
+        null, null, null,
+        seed,              // field 4 — confirmed via static trace of the
+                            // real Flow client (see investigation notes)
+        3,
+        model,
+        null,
+        context,
+        [[[prompt]]],
+        null, null, null,
+        uuidA,
+        uuidB,
+      ];
+      const args = [null, [request], 1, context, [uuidC]];
+
+      const reqId = 100000 + Math.floor(Math.random() * 900000);
+      const url =
+        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+        "?rpcids=ogiZ0b" +
+        "&source-path=" + encodeURIComponent("/project/" + projectId) +
+        "&bl=" + encodeURIComponent(bl) +
+        "&f.sid=" + encodeURIComponent(fsid) +
+        "&hl=en-GB" +
+        "&_reqid=" + reqId +
+        "&rt=c";
+
+      const bodyStr =
+        "f.req=" + encodeURIComponent(JSON.stringify([[["ogiZ0b", JSON.stringify(args), null, "generic"]]])) +
+        "&at=" + encodeURIComponent(at);
+
+      const ac = new AbortController();
+      const tm = setTimeout(() => ac.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyStr,
+          credentials: "include",
+          signal: ac.signal,
+        });
+        clearTimeout(tm);
+        const text = await resp.text();
+        if (!resp.ok) {
+          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+        }
+        return { success: true, text };
+      } catch (e) {
+        clearTimeout(tm);
+        return {
+          error: e.name === "AbortError" ? "Request timed out" : e.message,
+          isTimeout: e.name === "AbortError",
+        };
+      }
+    },
+    {
+      projectId, model, prompt, seed,
+      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.recaptchaAction,
+      uuidA, uuidB, uuidC, timeoutMs: timing.apiRequestTimeoutMs,
+    },
   );
 
-  let mediaId = null;
-  let fifeUrl = null;
-  if (data?.workflows) {
-    for (const w of data.workflows) {
-      if (w?.metadata?.primaryMediaId) {
-        mediaId = w.metadata.primaryMediaId;
-        break;
+  if (!out) throw new FatalError("Page evaluate failed", true);
+  if (out.error) {
+    if (out.status === 429) throw new RateLimitError("Rate limited by Google");
+    if (out.status === 401 || out.recoverable) {
+      // Same race apiPost() already documents: the session can be a few
+      // seconds from warm right after navigation. One re-check + retry,
+      // reusing the same session-readiness wait as the rest of the file.
+      await waitForFlowReady(page).catch(() => {});
+      const stillSignedIn = await getSessionToken(page).catch(() => null);
+      if (!stillSignedIn) {
+        throw new AuthExpiredError("Flow account is signed out — open Accounts and sign in again");
       }
+      throw new EndpointRejectedError(
+        `Google rejected the image generation request (${out.status || out.error}) while the account is still signed in`,
+      );
     }
+    throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
   }
-  // Always harvest fifeUrl from media[], even when mediaId came from workflows —
-  // previously we `break`s as soon as an id was found and never read the URL,
-  // so downloads fell back to the flaky redirect-only path.
-  if (data?.media) {
-    for (const m of data.media) {
-      const id = m?.name || m?.mediaId;
-      if (id && !mediaId) mediaId = id;
-      const url =
-        m?.image?.generatedImage?.fifeUrl ||
-        m?.image?.fifeUrl ||
-        m?.fifeUrl ||
-        m?.url ||
-        null;
-      if (url && !fifeUrl) fifeUrl = url;
-    }
-  }
-  if (!fifeUrl && data && typeof data === "object") {
-    // Last-resort deep scan — Google's response shape drifts.
-    const blob = JSON.stringify(data);
-    const m = blob.match(/https:\/\/[^"\\]*fife[^"\\]*/i) || blob.match(/"fifeUrl"\s*:\s*"([^"]+)"/i);
-    if (m) fifeUrl = (m[1] || m[0]).replace(/\\u003d/g, "=").replace(/\\+/g, "");
-  }
+
+  const parsed = parseBatchExecuteResponse(out.text, "ogiZ0b");
+  const { mediaId, fifeUrl, width, height } = extractOgiZ0bImageResult(parsed);
   if (!mediaId) throw new Error("No mediaId in generation response");
-  return { mediaId, fifeUrl };
+  return { mediaId, fifeUrl, width, height };
 }
 
 /**
@@ -636,151 +799,390 @@ export async function syncFlowVideoDuration(page, seconds) {
     .catch(() => null);
 }
 
-function harvestFifeUrl(data, mediaEntry = null) {
-  /** Pull a direct CDN URL from Google's drifting response shapes. */
-  const fromEntry = (m) =>
-    m?.video?.generatedVideo?.fifeUrl ||
-    m?.video?.fifeUrl ||
-    m?.video?.uri ||
-    m?.video?.url ||
-    m?.image?.generatedImage?.fifeUrl ||
-    m?.image?.fifeUrl ||
-    m?.fifeUrl ||
-    m?.url ||
-    m?.downloadUrl ||
-    null;
-  let fifeUrl = fromEntry(mediaEntry);
-  if (!fifeUrl && data?.media && Array.isArray(data.media)) {
-    for (const m of data.media) {
-      fifeUrl = fromEntry(m);
-      if (fifeUrl) break;
+/**
+ * Video RPC lifecycle — confirmed live (see flow-engine investigation notes):
+ *   YhhmEf (start) -> workflowId/mediaId -> jwpduf (poll, ~5-8s interval)
+ *   -> status 3 (complete) -> as29s (fetch final detail) -> signed
+ *   flow-content.google/video/... URL.
+ *
+ * Every workflow entry across all three RPCs shares one recognizable shape:
+ * [workflowId, projectId, mediaId, "CAE", null, DETAIL, ...] — "CAE" is a
+ * stable literal marker observed in every response. Searching for it (rather
+ * than hardcoding each RPC's different wrapping depth: YhhmEf nests it one
+ * level deeper than jwpduf, and as29s returns it unwrapped) is the same
+ * "search, don't assume a fixed index" approach extractOgiZ0bImageResult
+ * already uses for response-shape drift.
+ */
+function findVideoWorkflowEntry(node, depth = 0) {
+  if (!Array.isArray(node) || depth > 6) return null;
+  if (
+    typeof node[0] === "string" &&
+    typeof node[1] === "string" &&
+    typeof node[2] === "string" &&
+    node[3] === "CAE"
+  ) {
+    return node;
+  }
+  for (const child of node) {
+    const found = findVideoWorkflowEntry(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function deepFindVideoContentUrl(node) {
+  if (typeof node === "string" && node.startsWith("https://flow-content.google/video/")) return node;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = deepFindVideoContentUrl(child);
+      if (found) return found;
     }
   }
-  if (!fifeUrl && data && typeof data === "object") {
-    const blob = JSON.stringify(data);
-    const m =
-      blob.match(/https:\/\/[^"\\]*fife[^"\\]*/i) ||
-      blob.match(/"fifeUrl"\s*:\s*"([^"]+)"/i) ||
-      blob.match(/"downloadUrl"\s*:\s*"(https:[^"]+)"/i);
-    if (m) fifeUrl = (m[1] || m[0]).replace(/\\u003d/g, "=").replace(/\\+/g, "");
+  return null;
+}
+
+// Status marker observed at workflowEntry[5][8][0] (DETAIL[8], itself a
+// single-element array). Confirmed live across 5 consecutive polls: stayed
+// 2 while processing, flipped to 3 on the same poll the CDN URL first
+// appeared. No FAILED value has been observed — see pollVideoStatus's
+// timeout fallback for that case.
+const VIDEO_STATUS_PENDING = 2;
+const VIDEO_STATUS_COMPLETE = 3;
+
+export function extractVideoStartResult(parsed) {
+  const entry = findVideoWorkflowEntry(parsed);
+  return {
+    workflowId: entry ? entry[0] || null : null,
+    mediaId: entry ? entry[2] || null : null,
+  };
+}
+
+export function extractVideoPollStatus(parsed) {
+  const entry = findVideoWorkflowEntry(parsed);
+  const detail = entry ? entry[5] : null;
+  const statusArr = Array.isArray(detail) ? detail[8] : null;
+  const status = Array.isArray(statusArr) ? statusArr[0] : null;
+  return {
+    status,
+    workflowId: entry ? entry[0] || null : null,
+    mediaId: entry ? entry[2] || null : null,
+  };
+}
+
+export function extractAs29sVideoResult(parsed) {
+  const entry = findVideoWorkflowEntry(parsed);
+  let fifeUrl = deepFindVideoContentUrl(parsed);
+  if (!fifeUrl && parsed) {
+    // Last-resort deep scan, same convention as extractOgiZ0bImageResult.
+    const blob = JSON.stringify(parsed);
+    const m = blob.match(/https:\/\/flow-content\.google\/video\/[^"\\]+/i);
+    if (m) fifeUrl = m[0].replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
   }
-  return fifeUrl || null;
+  return {
+    mediaId: entry ? entry[2] || null : null,
+    workflowId: entry ? entry[0] || null : null,
+    fifeUrl,
+  };
 }
 
 /**
- * Poll one async video job by mediaId until it finishes — ported verbatim
- * from background.js's pollVideo. Matches Flow's status response shape:
- * media[0].mediaMetadata.mediaStatus.mediaGenerationStatus.
+ * Flow's own model-tool list (the "yBhWQ" RPC, confirmed live) enumerates
+ * "abra", "veo_3_1_fast", "veo_3_1_quality", "veo_3_1_lite" as real,
+ * currently-available tool ids — these are not invented. Mapping the app's
+ * existing model settings (already normalized by resolveVideoModelKey(),
+ * unchanged) onto them reuses only strings Flow itself reported as valid.
+ * Only the "abra" path (the default/no-match fallback here) has been
+ * live-verified end-to-end with the compact mode-string template below;
+ * the veo_3_1_* entries reuse the same confirmed template with real,
+ * confirmed tool ids, but that combination itself has not been live-tested.
  */
-export async function pollVideoStatus(page, mediaId, projectId) {
+const VIDEO_TOOL_BY_MODEL_KEY = {
+  veo_3_1_t2v_lite: "veo_3_1_lite",
+  veo_3_1_t2v_fast: "veo_3_1_fast",
+  veo_3_1_t2v_quality: "veo_3_1_quality",
+};
+
+/**
+ * Compact mode string YhhmEf expects, e.g. "abra_t2v_4s_360p" — confirmed
+ * live in exactly this shape. Duration is NOT sourced from
+ * settings.videoDuration: Flow's old endpoint rejected an explicit duration
+ * entirely (see the now-obsolete videoLengthSeconds handling this replaces),
+ * and the renderer already trims/loops every clip to the scene's real
+ * duration regardless — so this always requests the shortest, cheapest
+ * duration Flow can generate rather than reading (or guessing at) the
+ * operator's requested length. Resolution defaults to 720p (no existing
+ * settings field for it) unless settings.videoResolution is explicitly "360p".
+ */
+function buildVideoModeString(settings) {
+  const aspect = videoAspectRatios.fromImage[settings.aspectRatio] || videoAspectRatios.default;
+  const isPortrait = aspect === "VIDEO_ASPECT_RATIO_PORTRAIT";
+  const modelKey = resolveVideoModelKey(settings.videoModel || settings.model, isPortrait).replace(
+    /_portrait$/,
+    "",
+  );
+  const tool = VIDEO_TOOL_BY_MODEL_KEY[modelKey] || "abra";
+  const resolution = settings.videoResolution === "360p" ? "360p" : "720p";
+  return `${tool}_t2v_4s_${resolution}`;
+}
+
+/**
+ * Poll one video workflow via jwpduf until it completes. No client-supplied
+ * seed and no reCAPTCHA token are sent by jwpduf itself (confirmed live —
+ * only the initial YhhmEf call carries the captcha context); this only needs
+ * at/bl/f.sid, same WIZ_global_data source as everywhere else in this file.
+ */
+export async function pollVideoStatus(page, workflowId, projectId) {
   const maxTries = Math.max(1, Math.ceil(timing.videoPollTimeoutMs / timing.videoPollIntervalMs));
   let errStreak = 0;
-  let lastFife = null;
   for (let i = 0; i < maxTries; i++) {
     await sleep(timing.videoPollIntervalMs);
-    let data;
-    try {
-      data = await apiPost(
-        page,
-        api.batchCheckAsyncVideoGenerationStatus,
-        { media: [{ name: mediaId, projectId }] },
-        api.videoRecaptchaAction,
-      );
-    } catch (e) {
-      const msg = String(e?.message || e);
-      if (msg.includes("401") || msg.includes("expired")) throw e;
-      if (++errStreak >= 5) throw new Error("Video polling failed repeatedly: " + msg);
+
+    const out = await safeEvaluate(
+      page,
+      async ({ workflowId, timeoutMs }) => {
+        const wiz = window.WIZ_global_data || {};
+        const at = wiz.SNlM0e;
+        const bl = wiz.cfb2h;
+        const fsid = wiz.FdrFJe;
+        if (!at || !bl || !fsid) {
+          return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+        }
+        const reqId = 100000 + Math.floor(Math.random() * 900000);
+        const url =
+          "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+          "?rpcids=jwpduf&bl=" + encodeURIComponent(bl) +
+          "&f.sid=" + encodeURIComponent(fsid) +
+          "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+        const args = [null, null, [[workflowId]]];
+        const bodyStr =
+          "f.req=" + encodeURIComponent(JSON.stringify([[["jwpduf", JSON.stringify(args), null, "generic"]]])) +
+          "&at=" + encodeURIComponent(at);
+        const ac = new AbortController();
+        const tm = setTimeout(() => ac.abort(), timeoutMs);
+        try {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: bodyStr,
+            credentials: "include",
+            signal: ac.signal,
+          });
+          clearTimeout(tm);
+          const text = await resp.text();
+          if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+          return { success: true, text };
+        } catch (e) {
+          clearTimeout(tm);
+          return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
+        }
+      },
+      { workflowId, timeoutMs: timing.apiRequestTimeoutMs },
+    );
+
+    if (!out) throw new FatalError("Page evaluate failed", true);
+    if (out.error) {
+      if (out.status === 429) throw new RateLimitError("Rate limited by Google");
+      if (out.status === 401 || out.recoverable) {
+        if (++errStreak >= 5) {
+          await waitForFlowReady(page).catch(() => {});
+          const stillSignedIn = await getSessionToken(page).catch(() => null);
+          if (!stillSignedIn) {
+            throw new AuthExpiredError("Flow account is signed out — open Accounts and sign in again");
+          }
+          throw new EndpointRejectedError(
+            `Google kept rejecting video polling (${out.status || out.error}) while the account is still signed in`,
+          );
+        }
+        continue;
+      }
+      if (++errStreak >= 5) throw new Error("Video polling failed repeatedly: " + out.error);
       continue;
     }
     errStreak = 0;
-    const m = data?.media?.[0];
-    const status = m?.mediaMetadata?.mediaStatus?.mediaGenerationStatus;
-    const harvested = harvestFifeUrl(data, m);
-    if (harvested) lastFife = harvested;
-    if (
-      status === "MEDIA_GENERATION_STATUS_COMPLETED" ||
-      status === "MEDIA_GENERATION_STATUS_COMPLETE" ||
-      status === "MEDIA_GENERATION_STATUS_SUCCESSFUL"
-    ) {
-      // Prefer a direct download URL when Google returns one — redirect-by-id
-      // often fails while the clip is already visible in Flow.
-      return { mediaId, fifeUrl: harvested || lastFife || null };
+
+    const parsed = parseBatchExecuteResponse(out.text, "jwpduf");
+    const { status, mediaId } = extractVideoPollStatus(parsed);
+    if (status === VIDEO_STATUS_COMPLETE) {
+      return { workflowId, mediaId };
     }
-    if (status === "MEDIA_GENERATION_STATUS_FAILED") {
-      const ms = m.mediaMetadata.mediaStatus;
-      throw new Error("Video generation failed: " + (ms.failureReason || ms.errorMessage || "unknown reason"));
-    }
+    // status === VIDEO_STATUS_PENDING (or unrecognized) -> keep polling.
   }
   throw new Error("Video generation timed out after " + Math.round(timing.videoPollTimeoutMs / 1000) + "s");
 }
 
 /**
- * Generate one text->video job and poll it to completion — ported verbatim
- * from background.js's EtVideo (single-slot form; batch-runner.js handles
- * the imageCount/multi-slot loop the same way it already does for images).
+ * Generate one text->video job via the current YhhmEf/jwpduf/as29s lifecycle
+ * and poll it to completion. Same {mediaId, fifeUrl} return contract
+ * batch-runner.js already destructures, so callers are unchanged.
  */
 export async function generateOneVideo(page, projectId, prompt, settings, promptIndex) {
-  const aspect = videoAspectRatios.fromImage[settings.aspectRatio] || videoAspectRatios.default;
-  const isPortrait = aspect === "VIDEO_ASPECT_RATIO_PORTRAIT";
-  const modelKey = resolveVideoModelKey(settings.videoModel || settings.model, isPortrait);
-  const seed =
-    settings.seedMode === "fixed" && settings.seedValue != null ? settings.seedValue : randomSeed();
-
-  // Never click Flow's duration tabs before the API call — that SPA navigation
-  // destroys Playwright's execution context in the first second of video jobs.
+  // Never fire the API call while Flow's SPA is still navigating — same
+  // reason generateOneImage waits (see its comment).
   await waitForFlowReady(page);
 
-  const body = {
-    mediaGenerationContext: { batchId: uuid() },
-    clientContext: {
-      projectId,
-      tool: api.toolName,
-      sessionId: ";" + Date.now() + promptIndex,
-      userPaygateTier: api.paygateTier,
-      recaptchaContext: {
-        applicationType: api.recaptchaApplicationType,
-        token: "PLACEHOLDER",
-      },
+  const mode = buildVideoModeString(settings);
+  const uuidA = uuid();
+  const uuidB = uuid();
+  const uuidC = uuid();
+
+  const out = await safeEvaluate(
+    page,
+    async ({ projectId, mode, prompt, siteKey, recaptchaAction, uuidA, uuidB, uuidC, timeoutMs }) => {
+      const wiz = window.WIZ_global_data || {};
+      const at = wiz.SNlM0e;
+      const bl = wiz.cfb2h;
+      const fsid = wiz.FdrFJe;
+      if (!at || !bl || !fsid) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      }
+
+      const grec = window.grecaptcha?.enterprise;
+      if (!grec) return { error: "No reCAPTCHA", recoverable: true };
+      const captcha = await grec.execute(siteKey, { action: recaptchaAction });
+      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true };
+
+      // Positional structure reproduced exactly as captured live for
+      // FlowService's video-generation RPC ("YhhmEf") — see flow-engine
+      // investigation notes. Same context object shape as ogiZ0b's image
+      // path, confirmed byte-identical.
+      const context = [null, 22, null, null, null, projectId, null, null, null, null, [captcha, 1]];
+      const request = [
+        [null, null, [[[prompt]]]],
+        mode,
+        2,
+        null,
+        [null, null, null, null, uuidA, uuidB],
+        null, null,
+        [4],
+      ];
+      const args = [[request], context, [uuidC, 2]];
+
+      const reqId = 100000 + Math.floor(Math.random() * 900000);
+      const url =
+        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+        "?rpcids=YhhmEf" +
+        "&source-path=" + encodeURIComponent("/project/" + projectId) +
+        "&bl=" + encodeURIComponent(bl) +
+        "&f.sid=" + encodeURIComponent(fsid) +
+        "&hl=en-GB" +
+        "&_reqid=" + reqId +
+        "&rt=c";
+
+      const bodyStr =
+        "f.req=" + encodeURIComponent(JSON.stringify([[["YhhmEf", JSON.stringify(args), null, "generic"]]])) +
+        "&at=" + encodeURIComponent(at);
+
+      const ac = new AbortController();
+      const tm = setTimeout(() => ac.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyStr,
+          credentials: "include",
+          signal: ac.signal,
+        });
+        clearTimeout(tm);
+        const text = await resp.text();
+        if (!resp.ok) {
+          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+        }
+        return { success: true, text };
+      } catch (e) {
+        clearTimeout(tm);
+        return {
+          error: e.name === "AbortError" ? "Request timed out" : e.message,
+          isTimeout: e.name === "AbortError",
+        };
+      }
     },
-    requests: [
-      {
-        aspectRatio: aspect,
-        seed,
-        metadata: {},
-        // Google removed videoLengthSeconds from this endpoint (every job
-        // rejected it, then succeeded once apiPost stripped it) — don't ask
-        // for a duration at all. Flow generates at its own default length;
-        // the renderer trims/loops every clip to the scene's real duration
-        // regardless, so nothing downstream depends on this field.
-        textInput: { structuredPrompt: { parts: [{ text: prompt }] } },
-        videoModelKey: modelKey,
-      },
-    ],
-    useV2ModelConfig: true,
-  };
+    {
+      projectId, mode, prompt,
+      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.recaptchaAction,
+      uuidA, uuidB, uuidC, timeoutMs: timing.apiRequestTimeoutMs,
+    },
+  );
 
-  const gen = await apiPost(page, api.batchAsyncGenerateVideoText, body, api.videoRecaptchaAction);
-  const mediaId = gen?.media?.[0]?.name || null;
-  if (!mediaId) throw new Error("Video generation did not start — no media returned");
-
-  let result = await pollVideoStatus(page, mediaId, projectId);
-  // CDN URL often appears a beat after COMPLETE — one extra harvest helps download.
-  if (!result.fifeUrl) {
-    await sleep(2000);
-    try {
-      const data = await apiPost(
-        page,
-        api.batchCheckAsyncVideoGenerationStatus,
-        { media: [{ name: mediaId, projectId }] },
-        api.videoRecaptchaAction,
+  if (!out) throw new FatalError("Page evaluate failed", true);
+  if (out.error) {
+    if (out.status === 429) throw new RateLimitError("Rate limited by Google");
+    if (out.status === 401 || out.recoverable) {
+      await waitForFlowReady(page).catch(() => {});
+      const stillSignedIn = await getSessionToken(page).catch(() => null);
+      if (!stillSignedIn) {
+        throw new AuthExpiredError("Flow account is signed out — open Accounts and sign in again");
+      }
+      throw new EndpointRejectedError(
+        `Google rejected the video generation request (${out.status || out.error}) while the account is still signed in`,
       );
-      const url = harvestFifeUrl(data, data?.media?.[0]);
-      if (url) result = { mediaId, fifeUrl: url };
-    } catch {
-      /* keep poll result */
     }
+    throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
   }
-  return result;
+
+  const startParsed = parseBatchExecuteResponse(out.text, "YhhmEf");
+  const { workflowId } = extractVideoStartResult(startParsed);
+  if (!workflowId) throw new Error("Video generation did not start — no media returned");
+
+  await pollVideoStatus(page, workflowId, projectId);
+
+  // Final detail fetch — as29s carries the actual signed /video/ URL, which
+  // jwpduf's own responses never do (only status + thumbnail become
+  // available mid-poll). No captcha token needed (confirmed live).
+  const finalOut = await safeEvaluate(
+    page,
+    async ({ workflowId, timeoutMs }) => {
+      const wiz = window.WIZ_global_data || {};
+      const at = wiz.SNlM0e;
+      const bl = wiz.cfb2h;
+      const fsid = wiz.FdrFJe;
+      if (!at || !bl || !fsid) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      }
+      const reqId = 100000 + Math.floor(Math.random() * 900000);
+      const url =
+        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+        "?rpcids=as29s&bl=" + encodeURIComponent(bl) +
+        "&f.sid=" + encodeURIComponent(fsid) +
+        "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+      const args = [workflowId];
+      const bodyStr =
+        "f.req=" + encodeURIComponent(JSON.stringify([[["as29s", JSON.stringify(args), null, "generic"]]])) +
+        "&at=" + encodeURIComponent(at);
+      const ac = new AbortController();
+      const tm = setTimeout(() => ac.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyStr,
+          credentials: "include",
+          signal: ac.signal,
+        });
+        clearTimeout(tm);
+        const text = await resp.text();
+        if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+        return { success: true, text };
+      } catch (e) {
+        clearTimeout(tm);
+        return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
+      }
+    },
+    { workflowId, timeoutMs: timing.apiRequestTimeoutMs },
+  );
+
+  if (!finalOut || finalOut.error) {
+    // Generation completed but the final detail fetch failed — surface
+    // whatever the poll already knew rather than losing the result entirely.
+    throw new Error(
+      "Video finished generating but the final detail fetch (as29s) failed: " +
+        (finalOut?.error || "no response"),
+    );
+  }
+
+  const finalParsed = parseBatchExecuteResponse(finalOut.text, "as29s");
+  const { mediaId, fifeUrl } = extractAs29sVideoResult(finalParsed);
+  if (!mediaId) throw new Error("No mediaId in video generation response");
+  return { mediaId, fifeUrl };
 }
 
 function _looksLikeMedia(buf) {
@@ -852,6 +1254,12 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
       anyRetryable = anyRetryable || !!r.retryable;
     }
 
+    // NOT updated for the labs.google -> flow.google.com migration (unlike
+    // urls.flowHome/flowProject and checkAuthStatus's domain check above):
+    // whether this backend path moved with the frontend, or is still served
+    // from labs.google as a separate backend host, isn't confirmed. If media
+    // downloads start failing after the migration, check this first — direct
+    // fifeUrl (tried before this redirect fallback) may be masking it for now.
     const redirectUrl = `https://labs.google${api.mediaRedirectPath}?name=${encodeURIComponent(mediaId)}`;
     const r2 = await tryWrite("redirect", async () => {
       const resp = await page.context().request.get(redirectUrl, {
@@ -929,7 +1337,12 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
 
 export async function checkAuthStatus(page) {
   try {
-    if (!page.url().includes("labs.google")) {
+    // Flow moved off labs.google onto flow.google.com — accept either so an
+    // already-loaded page (flow.google.com/project/<id>) isn't needlessly
+    // re-navigated to flowHome on every check. labs.google is kept in case
+    // it still resolves/redirects for some accounts.
+    const url = page.url();
+    if (!url.includes("labs.google") && !url.includes("flow.google.com")) {
       await page.goto(urls.flowHome, {
         waitUntil: "domcontentloaded",
         timeout: 45000,

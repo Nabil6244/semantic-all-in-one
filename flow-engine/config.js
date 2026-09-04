@@ -19,10 +19,16 @@ export const secrets = {
   recaptchaSiteKey: "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV",
 };
 
+// Google migrated Flow off labs.google/fx/tools/flow onto its own domain
+// (confirmed live: a real project now loads at
+// https://flow.google.com/project/<id>, not the old labs.google path).
+// flowHome is the guessed landing/creation page (https://flow.google.com/) —
+// not independently confirmed the way flowProject's shape was; if account
+// prepare/sign-in still fails after this change, check what flowHome
+// actually redirects to and correct it here.
 export const urls = {
-  flowHome: "https://labs.google/fx/tools/flow/",
-  flowProject: (projectId) =>
-    `https://labs.google/fx/tools/flow/project/${projectId}`,
+  flowHome: "https://flow.google.com/",
+  flowProject: (projectId) => `https://flow.google.com/project/${projectId}`,
 };
 
 export const api = {

@@ -1,9 +1,10 @@
 /**
- * The session route serves an HTML interstitial while Flow's SPA is still
- * redirecting. Reading it as JSON threw
- *   `Unexpected token '<', "<!doctype "... is not valid JSON`
- * and a single short wait then reported signed-in accounts as signed out —
- * which is why "retry all" failed while retrying one at a time worked.
+ * Flow moved off labs.google onto flow.google.com, and the old
+ * `/fx/api/auth/session` REST route is gone (confirmed live: it now 200s
+ * with the app's HTML shell, not JSON). The new app is built on Google's
+ * Wiz framework, which embeds the signed-in session's token directly in the
+ * page as `window.WIZ_global_data.SNlM0e` — getSessionToken() now reads
+ * that in-page value instead of making a network request.
  * Run: node --test test/session-token.test.js
  */
 import test from "node:test";
@@ -11,56 +12,93 @@ import assert from "node:assert/strict";
 
 const { getSessionToken, waitForSessionToken } = await import("../lib/flow-api.js");
 
-/** Minimal page stub: runs the evaluated fn against a scripted fetch. */
-function fakePage(responses) {
+const REAL_TOKEN = "A".repeat(42); // shape observed live: a 42-char string
+
+/** Minimal page stub: runs the evaluated fn with `window` set from a script. */
+function fakePage(windowStates) {
   let i = 0;
   return {
     calls: 0,
     async waitForLoadState() {},
     async evaluate(fn) {
       this.calls++;
-      const r = responses[Math.min(i++, responses.length - 1)];
-      globalThis.fetch = async () => {
-        if (r === "throw") throw new Error("network");
-        return { ok: r.ok !== false, text: async () => r.body };
-      };
-      return fn();
+      globalThis.window = windowStates[Math.min(i++, windowStates.length - 1)];
+      try {
+        return fn();
+      } finally {
+        delete globalThis.window;
+      }
     },
   };
 }
 
-const HTML = '<!doctype html><html><head><title>Sign in</title></head></html>';
-const JSON_OK = JSON.stringify({ access_token: "at-123" });
-
-test("an HTML interstitial reads as 'not ready', never as a thrown SyntaxError", async () => {
-  const page = fakePage([{ body: HTML }]);
-  const token = await getSessionToken(page);   // must not throw
-  assert.equal(token, null);
+test("a populated SNlM0e token means signed in", async () => {
+  const page = fakePage([{ WIZ_global_data: { SNlM0e: REAL_TOKEN } }]);
+  assert.equal(await getSessionToken(page), REAL_TOKEN);
 });
 
-test("a real session body still yields the token", async () => {
-  assert.equal(await getSessionToken(fakePage([{ body: JSON_OK }])), "at-123");
+test("a wrapped {e: token} shape is also accepted", async () => {
+  const page = fakePage([{ WIZ_global_data: { SNlM0e: { e: REAL_TOKEN } } }]);
+  assert.equal(await getSessionToken(page), REAL_TOKEN);
 });
 
-test("malformed and empty bodies are safe", async () => {
-  for (const body of ["", "not json", "{", "null", "[]"]) {
-    assert.equal(await getSessionToken(fakePage([{ body }])), null, JSON.stringify(body));
+test("missing WIZ_global_data means not signed in", async () => {
+  const page = fakePage([{}]);
+  assert.equal(await getSessionToken(page), null);
+});
+
+test("WIZ_global_data present but SNlM0e missing means not signed in", async () => {
+  const page = fakePage([{ WIZ_global_data: { OtherKey: "x" } }]);
+  assert.equal(await getSessionToken(page), null);
+});
+
+test("empty string token means not signed in", async () => {
+  const page = fakePage([{ WIZ_global_data: { SNlM0e: "" } }]);
+  assert.equal(await getSessionToken(page), null);
+});
+
+test("whitespace-only token means not signed in", async () => {
+  const page = fakePage([{ WIZ_global_data: { SNlM0e: "   " } }]);
+  assert.equal(await getSessionToken(page), null);
+});
+
+test("null/undefined token means not signed in", async () => {
+  assert.equal(await getSessionToken(fakePage([{ WIZ_global_data: { SNlM0e: null } }])), null);
+  assert.equal(await getSessionToken(fakePage([{ WIZ_global_data: { SNlM0e: undefined } }])), null);
+});
+
+test("a non-string, non-{e} shape is not mistaken for a token", async () => {
+  const page = fakePage([{ WIZ_global_data: { SNlM0e: 12345 } }]);
+  assert.equal(await getSessionToken(page), null);
+});
+
+test("no network request is made", async () => {
+  const originalFetch = globalThis.fetch;
+  let called = false;
+  globalThis.fetch = async () => {
+    called = true;
+    throw new Error("getSessionToken must not fetch");
+  };
+  try {
+    await getSessionToken(fakePage([{ WIZ_global_data: { SNlM0e: REAL_TOKEN } }]));
+  } finally {
+    globalThis.fetch = originalFetch;
   }
+  assert.equal(called, false);
 });
 
-test("a non-ok response is not parsed", async () => {
-  assert.equal(await getSessionToken(fakePage([{ ok: false, body: JSON_OK }])), null);
-});
+// ---- existing page/browser behavior (polling, error tolerance) is intact ----
 
 test("a token arriving late is picked up instead of failing the account", async () => {
-  // Exactly the observed shape: HTML first, JSON once the SPA settles.
-  const page = fakePage([{ body: HTML }, { body: HTML }, { body: JSON_OK }]);
-  assert.equal(await waitForSessionToken(page, 8000), "at-123");
+  // The SPA can take a moment after navigation before WIZ_global_data is
+  // populated — waitForSessionToken's polling/backoff must still cover that.
+  const page = fakePage([{}, {}, { WIZ_global_data: { SNlM0e: REAL_TOKEN } }]);
+  assert.equal(await waitForSessionToken(page, 8000), REAL_TOKEN);
   assert.ok(page.calls >= 3, "must have polled, not read once");
 });
 
 test("polling gives up and reports signed-out for a genuinely dead session", async () => {
-  const page = fakePage([{ body: HTML }]);
+  const page = fakePage([{}]);
   const started = Date.now();
   assert.equal(await waitForSessionToken(page, 1200), null);
   assert.ok(Date.now() - started >= 1000, "must actually wait before giving up");
