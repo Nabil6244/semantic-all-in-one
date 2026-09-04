@@ -166,12 +166,53 @@ export async function getSessionToken(page) {
     try {
       const r = await fetch("/fx/api/auth/session", { credentials: "include" });
       if (!r.ok) return null;
-      const j = await r.json();
-      return j.access_token || null;
+      // Read as TEXT first. While Flow's SPA is still redirecting, this route
+      // serves an HTML interstitial, and calling r.json() on it throws
+      // `Unexpected token '<', "<!doctype "...` — which surfaced to the user
+      // as a hard failure instead of "not ready yet".
+      const body = (await r.text() || "").trim();
+      // Only the leading "<" case is the interstitial we must not parse.
+      // Anything else is handed to JSON.parse, which is authoritative —
+      // sniffing for a leading "{" wrongly rejected valid bodies that begin
+      // with whitespace or a BOM, and reported a live session as signed out.
+      if (!body || body[0] === "<") return null;
+      try {
+        const parsed = JSON.parse(body);
+        return (parsed && parsed.access_token) || null;
+      } catch {
+        return null;
+      }
     } catch {
       return null;
     }
   });
+}
+
+/**
+ * Wait for Flow to actually hand out a session token.
+ *
+ * A fixed sleep was not enough: measured against real signed-in profiles, an
+ * immediate read after navigation yields nothing (or a token Google rejects),
+ * while the SAME profile answers normally a few seconds later. A single 1500ms
+ * wait therefore reported perfectly good accounts as "not signed in" — and only
+ * when several were started at once, which is why retrying one at a time
+ * appeared to work: that page was already warm.
+ */
+export async function waitForSessionToken(page, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  let delay = 500;
+  for (;;) {
+    let token = null;
+    try {
+      token = await getSessionToken(page);
+    } catch {
+      /* mid-navigation — treated the same as "not ready yet" */
+    }
+    if (token) return token;
+    if (Date.now() >= deadline) return null;
+    await sleep(Math.min(delay, Math.max(0, deadline - Date.now())));
+    delay = Math.min(delay * 1.6, 3000);
+  }
 }
 
 export async function getProjectId(page) {
@@ -249,7 +290,9 @@ export async function openOrCreateProject(page) {
     await sleep(1500);
   }
 
-  const token = await getSessionToken(page);
+  // Poll rather than trusting the sleep above: a signed-in account can need
+  // several seconds after navigation before the session route returns JSON.
+  const token = await waitForSessionToken(page);
   if (!token) {
     throw new FatalError(
       "Not signed in to labs.google — open this account and sign in once",
@@ -479,6 +522,12 @@ export async function apiPost(
 }
 
 export async function generateOneImage(page, projectId, prompt, settings, promptIndex) {
+  // Parity with generateOneVideo: never fire the API call while Flow's SPA is
+  // still navigating. Without this the image path raced the page and threw
+  // "Execution context was destroyed" — the video path already waited, which
+  // is why videos succeeded and images failed in the same run.
+  await waitForFlowReady(page);
+
   const batchId = uuid();
   const sessionId = ";" + Date.now() + promptIndex;
   const body = {
@@ -887,11 +936,13 @@ export async function checkAuthStatus(page) {
       });
     }
     await dismissBlockingOverlays(page);
-    let token = await getSessionToken(page);
+    // Same race as openOrCreateProject: one immediate read plus a 600ms retry
+    // was not enough to distinguish "still loading" from "signed out", so the
+    // Accounts panel reported healthy accounts as not signed in.
+    let token = await waitForSessionToken(page, 12000);
     if (!token) {
       await dismissBlockingOverlays(page);
-      await sleep(600);
-      token = await getSessionToken(page);
+      token = await waitForSessionToken(page, 6000);
     }
     const email = token ? await tryGetAccountEmail(page) : null;
     return {

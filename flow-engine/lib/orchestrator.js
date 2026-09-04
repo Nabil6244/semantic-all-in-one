@@ -378,19 +378,48 @@ async function runGenerate({ prompts, settings, accountIds }) {
       (a) => !exhaustedAccounts.has(a.id) && !(triedByIndex.get(index) || new Set()).has(a.id),
     );
 
-  async function ensurePrepared(account) {
+  /**
+   * Get a ready page for this account, retrying transient preparation failures.
+   *
+   * A single throw here used to condemn the account's ENTIRE slice: runPass
+   * catches it once, reassigns every prompt as "prepare_failed" and marks the
+   * account exhausted. On a 100+ scene project all workers start navigating at
+   * the same moment, so a transient "Execution context was destroyed" during
+   * that first navigation failed hundreds of scenes instantly — which is what
+   * a whole run of images falling back to stock actually was.
+   *
+   * Preparation is cheap and generates nothing, so retrying it costs no Flow
+   * credit; only a genuinely broken account reaches the throw now.
+   */
+  async function ensurePrepared(account, attempts = 3) {
     const { getPage } = await import("./accounts.js");
-    let page = getPage(account.id);
-    if (!page || page.isClosed()) {
-      await prepareAccount(account.id, account.label);
-      page = getPage(account.id);
-    } else {
-      // Reused Chrome window — ensure we're on a live project, not mid-navigation.
-      await openOrCreateProject(page);
-      await waitForFlowReady(page);
+    let lastErr;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        let page = getPage(account.id);
+        if (!page || page.isClosed()) {
+          await prepareAccount(account.id, account.label);
+          page = getPage(account.id);
+        } else {
+          // Reused Chrome window — ensure we're on a live project, not mid-navigation.
+          await openOrCreateProject(page);
+          await waitForFlowReady(page);
+        }
+        if (!page) throw new Error("Browser closed for " + account.label);
+        return page;
+      } catch (e) {
+        lastErr = e;
+        if (stopAll || attempt >= attempts) break;
+        accountProgress.set(account.id, {
+          status: "checking",
+          message: `Preparing… (attempt ${attempt + 1}/${attempts})`,
+        });
+        pushState();
+        // Let the SPA finish whatever navigation broke the last attempt.
+        await new Promise((r) => setTimeout(r, 3000 * attempt));
+      }
     }
-    if (!page) throw new Error("Browser closed for " + account.label);
-    return page;
+    throw lastErr || new Error("Could not prepare " + account.label);
   }
 
   /**
