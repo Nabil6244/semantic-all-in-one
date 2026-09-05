@@ -790,6 +790,21 @@ class AssetManager:
         if not to_retry:
             return
 
+        # A Google anti-abuse hold (PUBLIC_ERROR_UNUSUAL_ACTIVITY) rejects the
+        # request regardless of which account sends it. Retrying immediately
+        # with a different account is exactly the rapid, multi-account
+        # fan-out pattern that trips this in the first place — it doesn't
+        # recover anything, it just spreads the same failure to another
+        # account and likely extends the hold. Skip the automatic retry in
+        # that case; scenes stay at NEEDS_ACTION for a manual retry once the
+        # hold has cleared.
+        if any("PUBLIC_ERROR_UNUSUAL_ACTIVITY" in (results.get(s.scene_number).error or "") for s in to_retry):
+            self.log(
+                f"[ASSET] {len(to_retry)} {source.value} failure(s) -> Google anti-abuse hold detected, "
+                "skipping automatic retry (would just fan out the same failure to another account)"
+            )
+            return
+
         self.log(f"[ASSET] {len(to_retry)} {source.value} failure(s) -> retrying once")
         if on_scene_start:
             for scene in to_retry:

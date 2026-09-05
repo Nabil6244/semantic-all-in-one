@@ -41,8 +41,15 @@ const WORKFLOW_ID = "5b04d221-f639-4495-9fc3-48828edad1dd";
 const MEDIA_ID = "eef3f601-ea48-4502-9fef-71639a89e197";
 const PROMPT = "a small red ball rolling slowly across a white studio floor";
 
-function fakePage({ wiz = {}, fetchImpl = null } = {}) {
-  const grecaptcha = { enterprise: { execute: async () => "CAPTCHA_TOKEN_XYZ" } };
+function fakePage({ wiz = {}, fetchImpl = null, onCaptchaExecute = null } = {}) {
+  const grecaptcha = {
+    enterprise: {
+      execute: async (siteKey, opts) => {
+        onCaptchaExecute?.(siteKey, opts);
+        return "CAPTCHA_TOKEN_XYZ";
+      },
+    },
+  };
   const location = { href: "https://flow.google.com/project/" + PROJECT_ID };
   const window = { WIZ_global_data: wiz, grecaptcha, location, fetch: fetchImpl };
   return {
@@ -236,6 +243,24 @@ test("generateOneVideo: full lifecycle — call sequence, request shape, and fin
   const finalArgs = JSON.parse(JSON.parse(decodeURIComponent(finals[0].body.match(/^f\.req=([^&]+)/)[1]))[0][0][1]);
   assert.deepEqual(finalArgs, [WORKFLOW_ID]);
   assert.match(finals[0].url, /rpcids=as29s/);
+});
+
+test("generateOneVideo requests its reCAPTCHA token with the VIDEO_GENERATION action, not IMAGE_GENERATION", async () => {
+  // config.js defines api.videoRecaptchaAction ("VIDEO_GENERATION") separately
+  // from api.recaptchaAction ("IMAGE_GENERATION") specifically because a
+  // token declared for one action and submitted against a different
+  // endpoint is exactly the kind of mismatch reCAPTCHA Enterprise's action
+  // verification exists to catch. generateOneVideo must use its own action,
+  // not silently reuse the image path's.
+  const { fetchImpl } = makeLifecycleFetch({ pollsUntilComplete: 1 });
+  const seenActions = [];
+  const page = fakePage({
+    wiz: fullWiz(),
+    fetchImpl,
+    onCaptchaExecute: (_siteKey, opts) => seenActions.push(opts?.action),
+  });
+  await generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0);
+  assert.deepEqual(seenActions, ["VIDEO_GENERATION"]);
 });
 
 // Every case below is a real live-captured value (see buildVideoModeString's

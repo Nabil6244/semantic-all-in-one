@@ -1138,7 +1138,7 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
     },
     {
       projectId, mode, prompt,
-      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.recaptchaAction,
+      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.videoRecaptchaAction,
       uuidA, uuidB, uuidC, timeoutMs: timing.apiRequestTimeoutMs,
     },
   );
