@@ -2,6 +2,9 @@
  * Flow page helpers — ported from extension background.js patterns.
  * Runs inside Playwright page.evaluate / page context.
  */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   api,
   secrets,
@@ -1162,6 +1165,29 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const startParsed = parseBatchExecuteResponse(out.text, "YhhmEf");
   const { workflowId } = extractVideoStartResult(startParsed);
   if (!workflowId) {
+    // TEMPORARY diagnostic capture (see project notes) — passive only, never
+    // alters control flow below, never fires on success. Written to the
+    // run folder (already available via settings.outputDir) so a failure on
+    // any machine can be inspected after the fact without DevTools.
+    try {
+      const diagDir = settings.outputDir || os.tmpdir();
+      const diagPath = path.join(diagDir, "yhhmef-diagnostic.log");
+      fs.appendFileSync(
+        diagPath,
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          host: os.hostname(),
+          promptIndex,
+          prompt,
+          mode,
+          parsed: startParsed,
+          rawResponse: out.text,
+        }) + "\n",
+      );
+    } catch {
+      // Best-effort only — a diagnostic-logging failure must never mask
+      // the real error thrown below.
+    }
     // A 200 OK with no usable result can mean genuinely different things
     // (a bad request, an application-level NOT_FOUND, Google's anti-abuse
     // system) — all confirmed live to hit this exact branch, and all

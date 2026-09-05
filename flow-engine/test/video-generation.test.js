@@ -392,6 +392,58 @@ test("malformed YhhmEf response fails generation before any polling, not a crash
   );
 });
 
+test("a missing workflowId writes a passive diagnostic record without changing the thrown error", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "yhhmef-diag-test-"));
+  const fetchImpl = async (url) => {
+    if (url.includes("rpcids=YhhmEf")) {
+      return { ok: true, status: 200, text: async () => canned(["someOtherRpc", [1]]) };
+    }
+    throw new Error("must not reach polling");
+  };
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    // Same failure, same assertion as the test above — this only adds a check
+    // that a diagnostic record was ALSO written, not a change in behavior.
+    await assert.rejects(
+      () => generateOneVideo(page, PROJECT_ID, PROMPT, { outputDir: runDir }, 0),
+      /Video generation did not start/,
+    );
+    const diagPath = join(runDir, "yhhmef-diagnostic.log");
+    const lines = readFileSync(diagPath, "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.promptIndex, 0);
+    assert.equal(entry.prompt, PROMPT);
+    assert.ok(entry.ts);
+    assert.ok(entry.host);
+    assert.ok(entry.rawResponse.includes("someOtherRpc"));
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("a successful generation writes no diagnostic record", async () => {
+  const { mkdtempSync, existsSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "yhhmef-diag-test-success-"));
+  const { fetchImpl } = makeLifecycleFetch({ pollsUntilComplete: 1 });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await generateOneVideo(page, PROJECT_ID, PROMPT, { outputDir: runDir }, 0);
+    assert.equal(existsSync(join(runDir, "yhhmef-diagnostic.log")), false);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
 test("PUBLIC_ERROR_UNUSUAL_ACTIVITY on YhhmEf is named explicitly, not folded into the generic 'no media returned' message", async () => {
   // Real captured shape (gRPC code 7 / PERMISSION_DENIED with an
   // ErrorInfo detail) — entry[2] is null here, not a JSON string, which is
