@@ -152,8 +152,16 @@ export async function waitForFlowReady(page, timeoutMs = 45000) {
     try {
       const ready = await safeEvaluate(page, () => {
         const hasProject = !!window.location.href.match(/project\/([a-f0-9-]+)/);
+        // Google's reCAPTCHA loader can publish a placeholder `enterprise`
+        // object before the real script has attached `execute` — confirmed
+        // live as "TypeError: grec.execute is not a function" when a call
+        // ran in that window (most likely right after a page.reload()).
+        // Checking object presence alone let generateOneImage/Video proceed
+        // straight into that crash; verifying `execute` is actually callable
+        // keeps this function polling until the library is genuinely ready.
         const hasRecaptcha =
-          typeof grecaptcha !== "undefined" && !!grecaptcha?.enterprise;
+          typeof grecaptcha !== "undefined" &&
+          typeof grecaptcha?.enterprise?.execute === "function";
         return { url: location.href, hasProject, hasRecaptcha };
       });
       if (ready.hasRecaptcha) return ready;
@@ -1071,18 +1079,39 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const out = await safeEvaluate(
     page,
     async ({ projectId, mode, prompt, siteKey, recaptchaAction, uuidA, uuidB, uuidC, timeoutMs }) => {
+      // Safe, non-secret diagnostic snapshot — never includes cookies, the
+      // WIZ token itself, or the reCAPTCHA token, only presence/shape facts.
+      // Attached to every return path below so a failure at ANY stage
+      // (WIZ missing, reCAPTCHA missing/failed, HTTP error, or a parsed-but-
+      // empty result) carries the same context.
+      const diag = {
+        url: location.href,
+        userAgent: navigator.userAgent,
+        recaptchaAction,
+        hasAt: false,
+        hasBl: false,
+        hasFsid: false,
+        executeIsFunction: false,
+        tokenLength: null,
+      };
+
       const wiz = window.WIZ_global_data || {};
       const at = wiz.SNlM0e;
       const bl = wiz.cfb2h;
       const fsid = wiz.FdrFJe;
+      diag.hasAt = !!at;
+      diag.hasBl = !!bl;
+      diag.hasFsid = !!fsid;
       if (!at || !bl || !fsid) {
-        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true, diag };
       }
 
       const grec = window.grecaptcha?.enterprise;
-      if (!grec) return { error: "No reCAPTCHA", recoverable: true };
+      diag.executeIsFunction = typeof grec?.execute === "function";
+      if (!grec) return { error: "No reCAPTCHA", recoverable: true, diag };
       const captcha = await grec.execute(siteKey, { action: recaptchaAction });
-      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true };
+      diag.tokenLength = captcha ? String(captcha).length : 0;
+      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true, diag };
 
       // Positional structure reproduced exactly as captured live for
       // FlowService's video-generation RPC ("YhhmEf") — see flow-engine
@@ -1128,14 +1157,15 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         clearTimeout(tm);
         const text = await resp.text();
         if (!resp.ok) {
-          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), diag };
         }
-        return { success: true, text };
+        return { success: true, text, diag };
       } catch (e) {
         clearTimeout(tm);
         return {
           error: e.name === "AbortError" ? "Request timed out" : e.message,
           isTimeout: e.name === "AbortError",
+          diag,
         };
       }
     },
@@ -1146,8 +1176,42 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
     },
   );
 
+  // TEMPORARY diagnostic capture (see project notes) — passive only, never
+  // alters control flow, never fires on success. Written to the run folder
+  // (already available via settings.outputDir) so a failure on any machine
+  // can be inspected after the fact without DevTools. Called from both the
+  // pre-YhhmEf failure branch (WIZ/reCAPTCHA/HTTP) and the parsed-but-empty
+  // branch below, so every failure stage carries the same safe context.
+  const writeYhhmEfDiagnostic = (extra) => {
+    const diagDir = settings.outputDir || os.tmpdir();
+    const diagPath = path.join(diagDir, "yhhmef-diagnostic.log");
+    try {
+      fs.appendFileSync(
+        diagPath,
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          host: os.hostname(),
+          promptIndex,
+          prompt,
+          mode,
+          diag: out?.diag || null,
+          ...extra,
+        }) + "\n",
+      );
+    } catch (writeErr) {
+      // Best-effort only — a diagnostic-logging failure must never mask
+      // the real error thrown below. Still surface exactly what went wrong
+      // (code/message/path only — no diagnostic content) so a failure to
+      // write can itself be diagnosed instead of vanishing silently.
+      console.error(
+        `[yhhmef-diagnostic] failed to write to ${diagPath}: ${writeErr?.code || "?"} ${writeErr?.message || writeErr}`,
+      );
+    }
+  };
+
   if (!out) throw new FatalError("Page evaluate failed", true);
   if (out.error) {
+    writeYhhmEfDiagnostic({ stage: "pre-YhhmEf", error: out.error, status: out.status ?? null, errText: out.errText ?? null });
     if (out.status === 429) throw new RateLimitError("Rate limited by Google");
     if (out.status === 401 || out.recoverable) {
       await waitForFlowReady(page).catch(() => {});
@@ -1165,29 +1229,12 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const startParsed = parseBatchExecuteResponse(out.text, "YhhmEf");
   const { workflowId } = extractVideoStartResult(startParsed);
   if (!workflowId) {
-    // TEMPORARY diagnostic capture (see project notes) — passive only, never
-    // alters control flow below, never fires on success. Written to the
-    // run folder (already available via settings.outputDir) so a failure on
-    // any machine can be inspected after the fact without DevTools.
-    try {
-      const diagDir = settings.outputDir || os.tmpdir();
-      const diagPath = path.join(diagDir, "yhhmef-diagnostic.log");
-      fs.appendFileSync(
-        diagPath,
-        JSON.stringify({
-          ts: new Date().toISOString(),
-          host: os.hostname(),
-          promptIndex,
-          prompt,
-          mode,
-          parsed: startParsed,
-          rawResponse: out.text,
-        }) + "\n",
-      );
-    } catch {
-      // Best-effort only — a diagnostic-logging failure must never mask
-      // the real error thrown below.
-    }
+    writeYhhmEfDiagnostic({
+      stage: "post-YhhmEf",
+      httpStatus: 200,
+      parsed: startParsed,
+      rawResponse: out.text,
+    });
     // A 200 OK with no usable result can mean genuinely different things
     // (a bad request, an application-level NOT_FOUND, Google's anti-abuse
     // system) — all confirmed live to hit this exact branch, and all

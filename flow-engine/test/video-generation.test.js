@@ -26,6 +26,7 @@ import assert from "node:assert/strict";
 
 const {
   generateOneVideo,
+  waitForFlowReady,
   pollVideoStatus,
   extractVideoStartResult,
   extractVideoPollStatus,
@@ -495,4 +496,55 @@ test("as29s failure after successful completion surfaces a clear error, not a si
     () => generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0),
     /final detail fetch \(as29s\) failed/,
   );
+});
+
+test("full sequence — project ready, page reload leaves reCAPTCHA mid-init, waitForFlowReady keeps polling instead of proceeding into a crash", async () => {
+  // Simulates exactly the reported production sequence: project created ->
+  // page refresh -> Flow readiness check -> reCAPTCHA readiness -> execute()
+  // -> YhhmEf. Google's reCAPTCHA loader can publish a placeholder
+  // `enterprise` object (present, but `execute` not yet attached) for a
+  // window after a reload — this reproduces that window deterministically
+  // and confirms two things: (1) waitForFlowReady does not report ready
+  // while `execute` is not callable, so generateOneVideo can never reach
+  // "grec.execute is not a function", and (2) once the library genuinely
+  // finishes initializing, the full lifecycle still completes normally.
+  const { fetchImpl } = makeLifecycleFetch({ pollsUntilComplete: 1 });
+  const wiz = fullWiz();
+  const location = { href: "https://flow.google.com/project/" + PROJECT_ID };
+  let probeCalls = 0;
+  const NOT_YET_READY_PROBES = 2; // reCAPTCHA "enterprise" exists, execute not attached yet
+
+  const page = {
+    calls: 0,
+    async waitForLoadState() {},
+    async evaluate(fn, arg) {
+      this.calls++;
+      const stillInitializing = probeCalls < NOT_YET_READY_PROBES;
+      const grecaptcha = {
+        enterprise: stillInitializing ? {} : { execute: async () => "CAPTCHA_TOKEN_XYZ" },
+      };
+      globalThis.window = { WIZ_global_data: wiz, grecaptcha, location, fetch: fetchImpl };
+      globalThis.grecaptcha = grecaptcha;
+      globalThis.location = location;
+      globalThis.fetch = fetchImpl;
+      try {
+        // Only waitForFlowReady's own probe takes zero args — use that to
+        // count polling attempts distinctly from generateOneVideo's own call.
+        if (arg === undefined) probeCalls++;
+        return arg === undefined ? await fn() : await fn(arg);
+      } finally {
+        delete globalThis.window;
+        delete globalThis.grecaptcha;
+        delete globalThis.location;
+        delete globalThis.fetch;
+      }
+    },
+  };
+
+  const ready = await waitForFlowReady(page);
+  assert.equal(probeCalls, NOT_YET_READY_PROBES + 1, "must keep polling until execute is actually callable");
+  assert.equal(ready.hasRecaptcha, true);
+
+  const result = await generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0);
+  assert.equal(result.mediaId, MEDIA_ID);
 });
