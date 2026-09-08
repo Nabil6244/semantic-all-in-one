@@ -1118,14 +1118,19 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
       // investigation notes. Same context object shape as ogiZ0b's image
       // path, confirmed byte-identical.
       const context = [null, 22, null, null, null, projectId, null, null, null, null, [captcha, 1]];
+      // FIVE elements, matching a live-captured successful generation. The
+      // trailing `null, null, [4]` this used to append is no longer accepted:
+      // Google rejects the 8-element form with an application-level
+      // INVALID_ARGUMENT (wrb.fr status 3) and returns a null payload, so no
+      // workflow ever starts. Verified by isolating this single variable —
+      // the identical request with those three positions removed returns a
+      // populated payload with workflow and media ids.
       const request = [
         [null, null, [[[prompt]]]],
         mode,
         2,
         null,
         [null, null, null, null, uuidA, uuidB],
-        null, null,
-        [4],
       ];
       const args = [[request], context, [uuidC, 2]];
 
