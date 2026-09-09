@@ -48,8 +48,8 @@ _PURPOSE_SFX_WEIGHT = {
     "outro": 0.25,
 }
 
-_MAX_AMBIENCE_VOL = 0.42
-_MIN_AMBIENCE_VOL = 0.05
+_MAX_AMBIENCE_VOL = 0.32
+_MIN_AMBIENCE_VOL = 0.04
 # Base level the two bounds above were calibrated for; an operator volume
 # other than this rescales them (see _bed_volume_bounds).
 _AMBIENCE_REFERENCE_VOL = 0.30
@@ -225,14 +225,14 @@ def filter_sfx_events(
                 kind = str(e.get("type") or e.get("kind") or "").lower()
                 if kind not in ("whoosh", "transition", "swoosh", "soft_whoosh"):
                     continue
-                e["volume"] = round(min(0.28, float(e.get("volume") or 0.3) * 0.55), 3)
+                e["volume"] = round(min(0.20, float(e.get("volume") or 0.22) * 0.55), 3)
 
             weight = _PURPOSE_SFX_WEIGHT.get(scene.purpose, 0.5)
             weight *= 0.7 + 0.5 * float(scene.attention_score or 0.5)
             if weight < 0.32 and str(e.get("type") or "") not in ("whoosh", "transition"):
                 continue
             e["volume"] = round(
-                min(0.55, float(e.get("volume") or 0.35) * (0.75 + 0.4 * weight)),
+                min(0.40, float(e.get("volume") or 0.26) * (0.75 + 0.4 * weight)),
                 3,
             )
 

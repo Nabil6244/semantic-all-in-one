@@ -560,22 +560,113 @@ class VisualDirector:
         *,
         style_guidance: str = "",
         on_progress: PlanProgressCallback | None = None,
+        state_dir=None,
+        use_cache: bool = True,
+        allow_fallback: bool = True,
     ) -> VisualPlan:
+        """Analyze script → VisualPlan.
+
+        Order: cache → Gemini (primary) → deterministic backup on Gemini failure.
+        Backup preserves the same VisualPlan contract for Options 1/2/3.
+        """
+        from pathlib import Path
+
+        from .cache import (
+            ANALYZER_VERSION,
+            analyzer_cache_key,
+            load_cached_plan,
+            save_cached_plan,
+        )
+        from .chunking import should_chunk_plan
+        from .fallback import deterministic_visual_plan
+
         text = (script or "").strip()
         if not text:
             raise ValueError("script is empty")
-        from .chunking import should_chunk_plan
+
+        cache_dir = Path(state_dir) if state_dir is not None else None
+        cache_key = analyzer_cache_key(
+            text,
+            style_guidance=style_guidance,
+            analyzer_version=ANALYZER_VERSION,
+        )
+
+        if use_cache and cache_dir is not None:
+            cached = load_cached_plan(
+                cache_dir, cache_key, analyzer_version=ANALYZER_VERSION
+            )
+            if cached is not None:
+                self._emit_progress(
+                    on_progress,
+                    f"Reusing cached script analysis — {len(cached.scenes)} scene(s).",
+                    0.9,
+                )
+                return cached
 
         words = script_word_count(text)
         self._emit_progress(
             on_progress,
-            f"Starting analyze (~{words:,} words)…",
+            f"Analyzing script (~{words:,} words)…",
             0.02,
         )
-        if should_chunk_plan(text):
-            return self._plan_chunked(
-                text, style_guidance=style_guidance, on_progress=on_progress
+
+        gemini_failure: Exception | None = None
+        try:
+            if should_chunk_plan(text):
+                plan = self._plan_chunked(
+                    text, style_guidance=style_guidance, on_progress=on_progress
+                )
+            else:
+                plan = self._plan_single(
+                    text, style_guidance=style_guidance, on_progress=on_progress
+                )
+            plan.analyzer_source = "gemini"  # type: ignore[attr-defined]
+            if use_cache and cache_dir is not None:
+                try:
+                    save_cached_plan(
+                        cache_dir,
+                        cache_key,
+                        plan,
+                        analyzer_version=ANALYZER_VERSION,
+                        source="gemini",
+                    )
+                except OSError:
+                    pass
+            self._emit_progress(
+                on_progress,
+                "Script analysis complete.",
+                0.95,
             )
-        return self._plan_single(
-            text, style_guidance=style_guidance, on_progress=on_progress
+            return plan
+        except (LLMError, VisualPlanError) as exc:
+            gemini_failure = exc
+            if not allow_fallback:
+                raise
+
+        reason = str(gemini_failure or "Gemini unavailable")
+        self._emit_progress(
+            on_progress,
+            "Gemini unavailable — using backup analyzer.",
+            0.55,
         )
+        try:
+            plan = deterministic_visual_plan(text, reason=reason)
+        except Exception as backup_exc:
+            raise VisualPlanError(
+                "Script analysis failed: Gemini and backup analyzer both failed. "
+                f"Gemini: {reason[:160]}. Backup: {backup_exc}"
+            ) from backup_exc
+
+        if len(plan.scenes) < MIN_SCENES:
+            raise VisualPlanError(
+                "Script analysis failed: Gemini and backup analyzer both failed. "
+                "Backup produced an incomplete plan."
+            )
+
+        # Do not persist backup over a Gemini cache — next run retries Gemini.
+        self._emit_progress(
+            on_progress,
+            "Gemini unavailable — backup analysis completed.",
+            0.95,
+        )
+        return plan

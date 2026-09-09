@@ -1,4 +1,10 @@
-"""Visual Coverage Planner — narration duration vs asset coverage."""
+"""Visual Coverage Planner — narration duration vs asset coverage.
+
+Pre-asset allocation stage. Post-alignment multi-shot execution lives in
+`editorial.shot_planner` (EditDecision). Strategies here remain compatible
+with the asset manifest (`single` / `hold_tail` / `dual` / `extend`) and map
+onto editorial strategies at compile time.
+"""
 
 from __future__ import annotations
 
@@ -28,6 +34,14 @@ DEFAULT_CLIP_ESTIMATE = {
     "image": 2.5,
     "stock_image": 2.5,
     "flow_image": 2.5,
+}
+
+# Map allocation coverage → editorial EditDecision strategy hints (metadata).
+COVERAGE_TO_EDIT_STRATEGY = {
+    "single": "SINGLE_SHOT",
+    "hold_tail": "HOLD_TAIL",
+    "dual": "DUAL_ASSET",
+    "extend": "PUNCH_IN",
 }
 
 
@@ -128,11 +142,12 @@ def plan_scene_coverage(
             narration_duration=narr,
             segments=[seg_a, seg_b],
             strategy="dual",
-            reason="short video paired with complementary visual",
+            reason="short video paired with complementary visual; "
+            "EditorialEngine may also punch-in / multi-shot the primary",
             avoid_blind_loop=True,
         )
 
-    # Fallback single with loop avoidance flag for renderer
+    # Fallback: prefer editorial punch-in / multi-shot over blind loop
     seg = CoverageSegment(
         0.0, narr, asset_type, visual_role=role, avoid_loop=True, semantic_query_hint=query_hint
     )
@@ -141,7 +156,8 @@ def plan_scene_coverage(
         narration_duration=narr,
         segments=[seg],
         strategy="extend",
-        reason="coverage extension preferred over blind loop",
+        reason="coverage extension preferred over blind loop "
+        "(EditorialEngine: PUNCH_IN / MULTI_SHOT / IMAGE_MOTION)",
         avoid_blind_loop=True,
     )
 
@@ -180,6 +196,14 @@ def refine_coverage_duration(
             plan.strategy = "hold_tail"
             plan.avoid_blind_loop = True
             plan.reason = "aligned narration slightly longer — hold tail"
+            if plan.segments:
+                plan.segments[0].end = narration_duration
+                plan.segments[0].avoid_loop = True
+        elif downloaded_duration / narration_duration < 0.72:
+            # Signal editorial multi-shot / punch-in at compile time
+            plan.strategy = "extend"
+            plan.avoid_blind_loop = True
+            plan.reason = "short download — EditorialEngine multi-shot/punch-in"
             if plan.segments:
                 plan.segments[0].end = narration_duration
                 plan.segments[0].avoid_loop = True

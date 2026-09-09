@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Dict, List, Literal, Optional
 
-EDITORIAL_PLAN_VERSION = 2
+EDITORIAL_PLAN_VERSION = 6  # Graphics + Motion Design Engine
 HOOK_WINDOW_S = 30.0
 
 CameraStyle = Literal["push_in", "pull_out", "static", "hold", "subtle_drift"]
@@ -191,6 +191,17 @@ class EditorialPlan:
     scenes: List[EditorialScene] = dataclasses.field(default_factory=list)
     film_sections: List[dict] = dataclasses.field(default_factory=list)
     music: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    # Compiled by EditorialEngine (optional; older plans omit these).
+    edit_decisions: List[dict] = dataclasses.field(default_factory=list)
+    timeline: Optional[dict] = None
+    editorial_events: List[dict] = dataclasses.field(default_factory=list)
+    editorial_qc: List[dict] = dataclasses.field(default_factory=list)
+    # Graphics + Motion Design Engine (optional).
+    graphics_plan: Optional[dict] = None
+    # AI Editorial Director soft intents (optional).
+    editorial_intents: List[dict] = dataclasses.field(default_factory=list)
+    editorial_intent_fingerprint: str = ""
+    editorial_reasoner_version: str = ""
 
     def to_dict(self) -> dict:
         out = {
@@ -206,6 +217,34 @@ class EditorialPlan:
         style = getattr(self, "style", None)
         if isinstance(style, dict) and style:
             out["style"] = dict(style)
+        decisions = list(self.edit_decisions or getattr(self, "edit_decisions", None) or [])
+        if decisions:
+            out["edit_decisions"] = decisions
+        timeline = self.timeline if self.timeline is not None else getattr(self, "timeline", None)
+        if isinstance(timeline, dict) and timeline:
+            out["timeline"] = timeline
+        gplan = self.graphics_plan if self.graphics_plan is not None else getattr(self, "graphics_plan", None)
+        if isinstance(gplan, dict) and gplan:
+            out["graphics_plan"] = gplan
+        events = list(self.editorial_events or getattr(self, "editorial_events", None) or [])
+        if events:
+            out["editorial_events"] = events
+        qc = list(self.editorial_qc or getattr(self, "editorial_qc", None) or [])
+        if qc:
+            out["editorial_qc"] = qc
+        intents = list(self.editorial_intents or getattr(self, "editorial_intents", None) or [])
+        if intents:
+            out["editorial_intents"] = intents
+        fp = self.editorial_intent_fingerprint or getattr(
+            self, "editorial_intent_fingerprint", ""
+        )
+        if fp:
+            out["editorial_intent_fingerprint"] = str(fp)
+        rv = self.editorial_reasoner_version or getattr(
+            self, "editorial_reasoner_version", ""
+        )
+        if rv:
+            out["editorial_reasoner_version"] = str(rv)
         return out
 
     @classmethod
@@ -217,6 +256,18 @@ class EditorialPlan:
         film = data.get("film") if isinstance(data.get("film"), dict) else {}
         sections = list(film.get("sections") or data.get("film_sections") or [])
         music = data.get("music") if isinstance(data.get("music"), dict) else {}
+        decisions = [
+            d for d in (data.get("edit_decisions") or []) if isinstance(d, dict)
+        ]
+        events = [
+            e for e in (data.get("editorial_events") or []) if isinstance(e, dict)
+        ]
+        qc = [q for q in (data.get("editorial_qc") or []) if isinstance(q, dict)]
+        intents = [
+            i for i in (data.get("editorial_intents") or []) if isinstance(i, dict)
+        ]
+        timeline = data.get("timeline") if isinstance(data.get("timeline"), dict) else None
+        gplan = data.get("graphics_plan") if isinstance(data.get("graphics_plan"), dict) else None
         plan = cls(
             version=int(data.get("version") or EDITORIAL_PLAN_VERSION),
             audio_key=str(data.get("audio_key") or ""),
@@ -228,12 +279,21 @@ class EditorialPlan:
             scenes=scenes,
             film_sections=[s for s in sections if isinstance(s, dict)],
             music=dict(music),
+            edit_decisions=decisions,
+            timeline=timeline,
+            editorial_events=events,
+            editorial_qc=qc,
+            graphics_plan=gplan,
+            editorial_intents=intents,
+            editorial_intent_fingerprint=str(
+                data.get("editorial_intent_fingerprint") or ""
+            ),
+            editorial_reasoner_version=str(data.get("editorial_reasoner_version") or ""),
         )
         style = data.get("style")
         if isinstance(style, dict) and style:
             setattr(plan, "style", dict(style))
         return plan
-
     def scene_by_number(self) -> Dict[str, EditorialScene]:
         return {str(s.scene_number): s for s in self.scenes}
 

@@ -350,7 +350,89 @@ def run_editorial_qa(
                 )
             )
             score -= 2
-            break
+
+    # 7b. Edit-decision coverage QC (EditorialEngine compile)
+    decisions = getattr(plan, "edit_decisions", None) or []
+    if isinstance(decisions, list) and decisions:
+        metrics["edit_decisions"] = len(decisions)
+        multi = 0
+        dual = 0
+        hold_tail = 0
+        for raw in decisions:
+            if not isinstance(raw, dict):
+                continue
+            shots = raw.get("shots") or []
+            if len(shots) > 1:
+                multi += 1
+            strategy = str(raw.get("strategy") or "")
+            if strategy == "DUAL_ASSET":
+                dual += 1
+            if strategy in ("HOLD_TAIL", "SAFE_LOOP"):
+                hold_tail += 1
+            # Distinct source files in one beat
+            srcs = {
+                str(s.get("source_path") or s.get("asset_id") or "")
+                for s in shots
+                if isinstance(s, dict)
+            }
+            srcs.discard("")
+            if strategy == "DUAL_ASSET" and len(srcs) < 2:
+                issues.append(
+                    QAIssue(
+                        str(raw.get("scene_number") or "?"),
+                        0.0,
+                        "WARN",
+                        "coverage",
+                        "DUAL_ASSET decision lacks distinct source paths",
+                        "Re-resolve complementary assets / recompile.",
+                    )
+                )
+                score -= 3
+            req = float(raw.get("required_duration") or 0)
+            total = sum(
+                float(s.get("output_duration") or 0)
+                for s in shots
+                if isinstance(s, dict)
+            )
+            if req > 0 and abs(total - req) > 0.25:
+                issues.append(
+                    QAIssue(
+                        str(raw.get("scene_number") or "?"),
+                        0.0,
+                        "WARN",
+                        "coverage",
+                        f"EditDecision duration mismatch ({total:.2f}s vs {req:.2f}s)",
+                        "Re-run EditorialEngine.compile.",
+                    )
+                )
+                score -= 2
+            if strategy == "SAFE_LOOP":
+                issues.append(
+                    QAIssue(
+                        str(raw.get("scene_number") or "?"),
+                        0.0,
+                        "WARN",
+                        "coverage",
+                        "SAFE_LOOP used — last-resort coverage",
+                        "Prefer complementary asset / multi-shot / punch-in.",
+                    )
+                )
+                score -= 3
+        metrics["multi_shot_scenes"] = multi
+        metrics["dual_asset_scenes"] = dual
+        metrics["hold_or_loop_scenes"] = hold_tail
+        if hold_tail > max(2, len(decisions) * 0.35):
+            issues.append(
+                QAIssue(
+                    "-",
+                    0.0,
+                    "WARN",
+                    "coverage",
+                    f"High hold/loop rate ({hold_tail}/{len(decisions)})",
+                    "Source clips may be too short for narration.",
+                )
+            )
+            score -= 4
 
     # 8. Visual repetition
     keys = [s.visual_variety_key for s in scenes if s.visual_variety_key]

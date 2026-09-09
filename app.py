@@ -30,6 +30,7 @@ def _safe_mac_ver():
 platform.mac_ver = _safe_mac_ver
 
 import csv
+import json
 import multiprocessing
 import queue
 import re
@@ -88,7 +89,7 @@ from editorial import (
     save_editorial_plan,
     save_editorial_qa,
 )
-from editorial.persistence import load_cached_plan
+from editorial.persistence import clear_editorial_plan, load_cached_plan
 from visual_director import parse_visual_plan
 from ui.shell import AppShell
 from ui import views as ui_views
@@ -595,6 +596,7 @@ class _QueueWriter:
 _STEPPER_STEPS = ("Script", "Scenes", "Assets", "Voice", "Render")
 _STEPPER_DONE = _ui_theme.STEPPER_DONE
 _PASTE_SCRIPT_MODES = frozenset({"Paste script", "Paste script", "AI Script"})
+_VO_AWARE_MODES = frozenset({"VO-Aware plan", "VO-Aware Plan", "Option 3"})
 
 
 class VideoGeneratorApp(ctk.CTk):
@@ -878,6 +880,23 @@ class VideoGeneratorApp(ctk.CTk):
             end = start
         return f"{self._format_scene_timecode(start)}–{self._format_scene_timecode(end)}"
 
+    def _invalidate_stale_editorial_timeline(self) -> None:
+        """Drop cached VO timeline so scene Time shows — until the next align.
+
+        A fresh Visual Director plan changes beat structure; keeping
+        editorial_plan.json would show stale windows (e.g. 0:00–0:10).
+        """
+        self._editorial_plan_cache = None
+        self._editorial_plan_mtime = 0.0
+        ws = self._workspace
+        if ws is None:
+            return
+        if clear_editorial_plan(ws.state_dir):
+            self._append_log(
+                "[EDITORIAL] Cleared stale timeline — Time resets until voiceover align.\n"
+            )
+        self._refresh_cache_status()
+
     def _scene_asset_path(self, scene_number) -> Path | None:
         key = _scene_key(scene_number)
         result = self._asset_results.get(key)
@@ -1144,7 +1163,7 @@ class VideoGeneratorApp(ctk.CTk):
         ).grid(row=0, column=0, sticky="w")
         self._mode_seg = ctk.CTkSegmentedButton(
             mode_wrap,
-            values=["Paste script", "Import CSV"],
+            values=["Paste script", "Import CSV", "VO-Aware plan"],
             fg_color=_BORDER,
             selected_color=_ACCENT,
             selected_hover_color=_ACCENT_HOV,
@@ -1218,6 +1237,156 @@ class VideoGeneratorApp(ctk.CTk):
         self._export_csv_btn.grid(row=1, column=0, sticky="w", pady=(6, 0))
         self._export_csv_btn.grid_remove()
         self._refresh_gemini_status()
+
+        # Option 3: VO-Aware Visual Planner (isolated; does not alter Options 1/2)
+        self._vo_block = ctk.CTkFrame(
+            scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
+        )
+        self._vo_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
+        self._vo_block.grid_columnconfigure(0, weight=1)
+        self._vo_status_var = ctk.StringVar(
+            value="Paste script + upload voiceover, then Generate Claude Plan."
+        )
+        self._vo_status_label = ctk.CTkLabel(
+            self._vo_block, textvariable=self._vo_status_var, font=ctk.CTkFont(size=11),
+            text_color=_MUTED, wraplength=220, justify="left", anchor="w",
+        )
+        self._vo_status_label.grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 0))
+        self._bind_responsive_wrap(self._vo_status_label, pad=24)
+
+        vo_script_host = ctk.CTkFrame(self._vo_block, fg_color="transparent")
+        vo_script_host.grid(row=1, column=0, sticky="ew", padx=12, pady=(6, 4))
+        vo_script_host.grid_columnconfigure(0, weight=1)
+        self._vo_script_box = ctk.CTkTextbox(
+            vo_script_host, height=120, fg_color=_BG, border_color=_BORDER, border_width=1,
+            text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="word",
+        )
+        self._vo_script_box.grid(row=0, column=0, sticky="ew")
+        ctk.CTkLabel(
+            vo_script_host,
+            text="Script (semantic beats via existing Script Analyzer)",
+            font=ctk.CTkFont(size=10),
+            text_color=_MUTED,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        mix_frame = ctk.CTkFrame(self._vo_block, fg_color="transparent")
+        mix_frame.grid(row=2, column=0, sticky="ew", padx=12, pady=(4, 0))
+        mix_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            mix_frame, text="Asset mix preferences (allocation targets — quality protected)",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        self._vo_mix_vars = {
+            "video_pct": ctk.StringVar(value="60"),
+            "image_pct": ctk.StringVar(value="40"),
+            "stock_video_pct": ctk.StringVar(value="35"),
+            "flow_video_pct": ctk.StringVar(value="15"),
+            "youtube_video_pct": ctk.StringVar(value="10"),
+            "flow_image_pct": ctk.StringVar(value="15"),
+            "stock_image_pct": ctk.StringVar(value="25"),
+        }
+        mix_labels = [
+            ("Video %", "video_pct"),
+            ("Image %", "image_pct"),
+            ("Stock Video %", "stock_video_pct"),
+            ("Flow Video %", "flow_video_pct"),
+            ("YouTube Video %", "youtube_video_pct"),
+            ("Flow Image %", "flow_image_pct"),
+            ("Stock Image %", "stock_image_pct"),
+        ]
+        for i, (label, key) in enumerate(mix_labels):
+            row = 1 + i // 2
+            col = (i % 2) * 2
+            ctk.CTkLabel(
+                mix_frame, text=label, font=ctk.CTkFont(size=10), text_color=_MUTED, anchor="w",
+            ).grid(row=row, column=col, sticky="w", padx=(0, 4), pady=2)
+            ctk.CTkEntry(
+                mix_frame, textvariable=self._vo_mix_vars[key], width=52, height=24,
+                fg_color=_BG, border_color=_BORDER, text_color=_TEXT,
+            ).grid(row=row, column=col + 1, sticky="w", pady=2)
+
+        # Voiceover upload (same audio_var as the shared Voiceover panel)
+        vo_audio_host = ctk.CTkFrame(self._vo_block, fg_color="transparent")
+        vo_audio_host.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 0))
+        vo_audio_host.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            vo_audio_host, text="Voiceover",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+        self._path_row(
+            1, "", self.audio_var, self._on_upload_vo_for_plan, parent=vo_audio_host,
+            placeholder_text="Upload narration audio (MP3, WAV, M4A)…",
+        )
+
+        vo_btns = ctk.CTkFrame(self._vo_block, fg_color="transparent")
+        vo_btns.grid(row=4, column=0, sticky="ew", padx=12, pady=(8, 4))
+        vo_btns.grid_columnconfigure(0, weight=2)
+        vo_btns.grid_columnconfigure(1, weight=1)
+        vo_btns.grid_columnconfigure(2, weight=1)
+        self._vo_plan_btn = ctk.CTkButton(
+            vo_btns, text="Generate Claude Plan", height=32,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._on_generate_claude_plan,
+        )
+        self._vo_plan_btn.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+        self._vo_csv_btn = ctk.CTkButton(
+            vo_btns, text="Upload Claude CSV", height=32, fg_color="transparent",
+            border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_CARD_HOVER,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._on_upload_claude_csv,
+        )
+        self._vo_csv_btn.grid(row=0, column=1, sticky="ew", padx=(0, 4))
+        self._vo_paste_csv_btn = ctk.CTkButton(
+            vo_btns, text="Paste CSV Data", height=32, fg_color="transparent",
+            border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_CARD_HOVER,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._on_paste_claude_csv,
+        )
+        self._vo_paste_csv_btn.grid(row=0, column=2, sticky="ew", padx=(4, 0))
+
+        self._vo_result_title = ctk.CTkLabel(
+            self._vo_block,
+            text="Claude Visual Production Plan",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=_TEXT,
+            anchor="w",
+        )
+        self._vo_result_title.grid(row=5, column=0, sticky="w", padx=12, pady=(6, 0))
+
+        self._vo_preview = ctk.CTkTextbox(
+            self._vo_block, height=140, fg_color=_BG, border_color=_BORDER, border_width=1,
+            text_color=_TEXT, font=ctk.CTkFont(size=11), wrap="word",
+        )
+        self._vo_preview.grid(row=6, column=0, sticky="ew", padx=12, pady=(4, 4))
+        self._vo_preview.insert(
+            "1.0",
+            "Generate Claude Plan to build a compact handoff.\n"
+            "Then copy/export it for Claude, and Upload or Paste Claude CSV when ready.",
+        )
+        self._vo_preview.configure(state="disabled")
+
+        vo_export = ctk.CTkFrame(self._vo_block, fg_color="transparent")
+        vo_export.grid(row=7, column=0, sticky="ew", padx=12, pady=(0, 12))
+        self._vo_copy_btn = ctk.CTkButton(
+            vo_export, text="Copy", width=72, height=26,
+            fg_color="transparent", border_width=0, text_color=_ACCENT, hover_color=_CARD_HOVER,
+            font=ctk.CTkFont(size=11, underline=True),
+            command=self._on_copy_vo_plan,
+        )
+        self._vo_copy_btn.pack(side="left")
+        self._vo_export_btn = ctk.CTkButton(
+            vo_export, text="Export JSON", width=90, height=26,
+            fg_color="transparent", border_width=0, text_color=_ACCENT, hover_color=_CARD_HOVER,
+            font=ctk.CTkFont(size=11, underline=True),
+            command=self._on_export_vo_plan,
+        )
+        self._vo_export_btn.pack(side="left", padx=(8, 0))
+        self._vo_aware_plan = None
+        self._vo_analysis = None
+        self._vo_claude_plan_ready = False
+        self._vo_block.grid_remove()
 
         voice_panel = ctk.CTkFrame(
             scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
@@ -1938,6 +2107,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._open_project_picker()
         elif action == "analyze":
             self._on_analyze_script()
+        elif action == "vo_plan":
+            self._on_generate_claude_plan()
+        elif action == "upload_claude_csv":
+            self._on_upload_claude_csv()
         elif action == "import_csv":
             self._browse_csv()
         elif action == "import_audio":
@@ -2602,6 +2775,7 @@ class VideoGeneratorApp(ctk.CTk):
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
         has_plan = bool(self.csv_var.get().strip()) and Path(self.csv_var.get().strip()).is_file()
         paste_mode = self._script_mode_is_ai()
+        vo_mode = self._script_mode_is_vo()
         if self._running:
             self._cta_action = "cancel"
             self.stage_var.set("GENERATING")
@@ -2633,6 +2807,15 @@ class VideoGeneratorApp(ctk.CTk):
                 self._cta_action = "analyze"
                 self.hint_var.set("Paste your script, then analyze it into scenes.")
                 self._set_generate_btn(state="normal", text="Analyze Script")
+            elif vo_mode:
+                if getattr(self, "_vo_claude_plan_ready", False):
+                    self._cta_action = "upload_claude_csv"
+                    self.hint_var.set("Claude plan ready. Upload the CSV Claude generated.")
+                    self._set_generate_btn(state="normal", text="Upload Claude CSV")
+                else:
+                    self._cta_action = "vo_plan"
+                    self.hint_var.set("Paste script + voiceover, then Generate Claude Plan.")
+                    self._set_generate_btn(state="normal", text="Generate Claude Plan")
             else:
                 self._cta_action = "import_csv"
                 self.hint_var.set("Import a visual-plan CSV to load scenes.")
@@ -3184,6 +3367,12 @@ class VideoGeneratorApp(ctk.CTk):
             return True
         return mode.get() in _PASTE_SCRIPT_MODES
 
+    def _script_mode_is_vo(self) -> bool:
+        mode = getattr(self, "_mode_seg", None)
+        if mode is None:
+            return False
+        return mode.get() in _VO_AWARE_MODES
+
     def _refresh_gemini_status(self) -> None:
         from visual_director.llm import gemini_configured
 
@@ -3202,16 +3391,35 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "_csv_block", None) is None or getattr(self, "_ai_block", None) is None:
             return
         paste = value in _PASTE_SCRIPT_MODES
+        vo = value in _VO_AWARE_MODES
+        # Hide all mode panels first
+        self._csv_block.grid_remove()
+        self._ai_block.grid_remove()
+        if getattr(self, "_vo_block", None) is not None:
+            self._vo_block.grid_remove()
         if paste:
             if not self._manual_csv_backup:
                 self._manual_csv_backup = self.csv_var.get()
-            self._csv_block.grid_remove()
             self._ai_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
             self._refresh_gemini_status()
             if self._visual_plan is not None:
                 self._render_scene_rows()
+        elif vo:
+            if not self._manual_csv_backup:
+                self._manual_csv_backup = self.csv_var.get()
+            if getattr(self, "_vo_block", None) is not None:
+                self._vo_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
+            # Sync script text from Option 1 box when VO box is empty
+            try:
+                vo_text = self._vo_script_box.get("1.0", "end").strip()
+                ai_text = self.script_box.get("1.0", "end").strip()
+                if not vo_text and ai_text:
+                    self._vo_script_box.delete("1.0", "end")
+                    self._vo_script_box.insert("1.0", ai_text)
+            except Exception:
+                pass
+            self._refresh_gemini_status()
         else:
-            self._ai_block.grid_remove()
             self._csv_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
             if self._manual_csv_backup:
                 self.csv_var.set(self._manual_csv_backup)
@@ -3272,9 +3480,24 @@ class VideoGeneratorApp(ctk.CTk):
 
                 resolved = self._resolve_project_style(script=script, persist=True)
                 guidance = style_prompt_adornment(resolved)
-                plan = VisualDirector(settings=settings).plan(
-                    script, style_guidance=guidance, on_progress=on_progress
+                state_dir = (
+                    self._workspace.state_dir if self._workspace is not None else None
                 )
+                plan = VisualDirector(settings=settings).plan(
+                    script,
+                    style_guidance=guidance,
+                    on_progress=on_progress,
+                    state_dir=state_dir,
+                )
+                source = getattr(plan, "analyzer_source", "gemini")
+                if source == "cache":
+                    done_msg = "Script analysis complete (cached)."
+                elif source == "backup":
+                    done_msg = "Gemini unavailable — backup analysis completed."
+                else:
+                    done_msg = "Script analysis complete."
+                self.after(0, lambda m=done_msg: self.status_var.set(m))
+                self.after(0, lambda m=done_msg: self._append_log(f"[AI] {m}\n"))
                 self.after(
                     0,
                     lambda: self._append_log("[ALLOC] Running visual allocation…\n"),
@@ -3316,6 +3539,8 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _apply_ai_plan(self, plan) -> None:
         self._visual_plan = plan
+        # New beat structure invalidates prior VO-aligned Time windows.
+        self._invalidate_stale_editorial_timeline()
         if self._workspace is None:
             self._sync_images_dir()
             csv_path = Path(self.images_var.get()).resolve().parent / "ai_visual_plan.csv"
@@ -3324,6 +3549,12 @@ class VideoGeneratorApp(ctk.CTk):
             if script:
                 self._workspace.save_script(script)
             plan_payload = plan.to_dict()
+            try:
+                from vo_planner.bridge import merge_vo_aware_into_payload
+
+                plan_payload = merge_vo_aware_into_payload(plan, plan_payload)
+            except Exception:
+                pass
             # Property Video only: scene_number -> property_id, stored beside
             # the plan so research candidates stay scoped to their own
             # listing. Absent (and inert) for the normal YouTube workflow.
@@ -3364,6 +3595,381 @@ class VideoGeneratorApp(ctk.CTk):
         if path:
             self._visual_plan.write_csv(Path(path))
             messagebox.showinfo("Export CSV", f"Saved:\n{path}")
+
+    def _vo_script_text(self) -> str:
+        box = getattr(self, "_vo_script_box", None)
+        if box is not None:
+            text = box.get("1.0", "end").strip()
+            if text:
+                return text
+        return self.script_box.get("1.0", "end").strip()
+
+    def _read_vo_asset_mix(self):
+        from vo_planner import AssetMixPreferences
+
+        vars_map = getattr(self, "_vo_mix_vars", None) or {}
+
+        def _num(key: str, default: float) -> float:
+            raw = vars_map.get(key)
+            try:
+                return float((raw.get() if raw is not None else default) or default)
+            except (TypeError, ValueError):
+                return default
+
+        return AssetMixPreferences(
+            video_pct=_num("video_pct", 60),
+            image_pct=_num("image_pct", 40),
+            stock_video_pct=_num("stock_video_pct", 35),
+            flow_video_pct=_num("flow_video_pct", 15),
+            youtube_video_pct=_num("youtube_video_pct", 10),
+            flow_image_pct=_num("flow_image_pct", 15),
+            stock_image_pct=_num("stock_image_pct", 25),
+            quality_protection=True,
+        ).normalized()
+
+    def _set_vo_preview(self, text: str) -> None:
+        preview = getattr(self, "_vo_preview", None)
+        if preview is None:
+            return
+        preview.configure(state="normal")
+        preview.delete("1.0", "end")
+        preview.insert("1.0", text or "")
+        preview.configure(state="disabled")
+
+    def _on_upload_vo_for_plan(self) -> None:
+        """Upload voiceover from Option 3 without leaving the Script / VO-Aware panel."""
+        if not self._require_workspace("upload a voiceover"):
+            return
+        path = filedialog.askopenfilename(
+            title="Select voiceover audio",
+            filetypes=[
+                ("Audio", "*.mp3 *.wav *.m4a *.webm *.aac *.flac"),
+                ("All files", "*.*"),
+            ],
+            initialdir=str(_browse_start_dir()),
+        )
+        if not path:
+            return
+        src = Path(path)
+        dest = src
+        if self._workspace is not None:
+            self._workspace.ensure_dirs()
+            dest = self._workspace.audio_dir / src.name
+            try:
+                if dest.resolve() != src.resolve():
+                    shutil.copy2(src, dest)
+            except OSError:
+                dest = src
+        if not self._confirm_voiceover_switch(dest, source="imported"):
+            return
+        self._set_active_voiceover(dest, source="imported")
+        self._vo_analysis = None  # stale timing for previous audio
+        self._vo_claude_plan_ready = False
+        self._vo_status_var.set(f"Voiceover ready — {dest.name}")
+        self.status_var.set(f"Voiceover set: {dest.name}")
+        self._append_log(f"[VO] Voiceover uploaded for Claude plan: {dest.name}\n")
+        self._sync_primary_cta()
+
+    def _set_vo_busy(self, busy: bool, *, status: str = "") -> None:
+        plan_btn = getattr(self, "_vo_plan_btn", None)
+        csv_btn = getattr(self, "_vo_csv_btn", None)
+        paste_btn = getattr(self, "_vo_paste_csv_btn", None)
+        if plan_btn is not None:
+            if busy:
+                plan_btn.configure(state="disabled", text="Generating Claude Plan…")
+            else:
+                plan_btn.configure(state="normal", text="Generate Claude Plan")
+        for btn in (csv_btn, paste_btn):
+            if btn is not None:
+                btn.configure(state="disabled" if busy else "normal")
+        if status:
+            self._vo_status_var.set(status)
+
+    def _on_generate_claude_plan(self) -> None:
+        """Single Option 3 action: script + VO → compact Claude Visual Production Plan."""
+        if not self._require_workspace("generate a Claude plan"):
+            return
+        script = self._vo_script_text()
+        if not script:
+            messagebox.showerror("Script validation failed", "Paste your narration script first.")
+            return
+        audio = self.audio_var.get().strip()
+        if not audio or not Path(audio).is_file():
+            messagebox.showerror(
+                "Voiceover validation failed",
+                "Upload a voiceover audio file first.",
+            )
+            return
+        from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
+
+        settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        if not gemini_configured(settings):
+            messagebox.showerror("Script analysis failed", MISSING_GEMINI_KEY)
+            return
+
+        self._set_vo_busy(True, status="Generating Claude Plan…")
+        self.status_var.set("Generating Claude Plan…")
+        self._append_log("\n[CLAUDE-PLAN] Starting Generate Claude Plan…\n")
+        self.progress.set(0.02)
+        whisper_model = self.model_var.get().strip() or "base"
+        mix = self._read_vo_asset_mix()
+        state_dir = self._workspace.state_dir if self._workspace else None
+        self.script_box.delete("1.0", "end")
+        self.script_box.insert("1.0", script)
+
+        def on_progress(message: str, fraction: float | None = None) -> None:
+            def ui_update() -> None:
+                self._append_log(f"[CLAUDE-PLAN] {message}\n")
+                self.status_var.set(message[:80])
+                self._vo_status_var.set(message[:120])
+                if fraction is not None:
+                    self.progress.set(max(0.02, min(0.92, float(fraction))))
+
+            self.after(0, ui_update)
+
+        def work():
+            try:
+                from style_engine import style_prompt_adornment
+                from vo_planner import (
+                    VoPlannerStageError,
+                    compact_handoff_json,
+                    format_plan_preview,
+                    plan_from_voiceover,
+                )
+
+                resolved = self._resolve_project_style(script=script, persist=True)
+                guidance = style_prompt_adornment(resolved)
+                _visual, vo_plan = plan_from_voiceover(
+                    script,
+                    audio,
+                    settings=settings,
+                    state_dir=state_dir,
+                    whisper_model=whisper_model,
+                    style_guidance=guidance,
+                    asset_mix=mix,
+                    on_progress=on_progress,
+                )
+                # Mix preferences travel with the Claude handoff only (targets).
+                handoff_obj = vo_plan.compact_handoff()
+                if isinstance(handoff_obj.get("mix"), dict):
+                    handoff_obj["mix"] = {
+                        **mix.to_dict(),
+                        "targets_only": True,
+                        "quality_protection": True,
+                    }
+                self._vo_aware_plan = vo_plan
+                self._vo_claude_handoff_json = json.dumps(
+                    handoff_obj, indent=2, ensure_ascii=False
+                )
+                summary = format_plan_preview(vo_plan)
+                # UI shows summary + truncated JSON (full JSON via Copy/Export)
+                preview = summary + "\n\n--- COMPACT CLAUDE HANDOFF ---\n"
+                raw = self._vo_claude_handoff_json
+                if len(raw) > 12000:
+                    preview += raw[:12000] + "\n… [truncated in preview — Copy/Export has full JSON]"
+                else:
+                    preview += raw
+
+                def done():
+                    self._vo_claude_plan_ready = True
+                    self._set_vo_preview(preview)
+                    warn_n = sum(
+                        1 for i in vo_plan.qc_issues if i.severity in ("error", "warning")
+                    )
+                    self._vo_status_var.set(
+                        f"Claude plan ready — {len(vo_plan.beats)} beats / "
+                        f"{len(vo_plan.units)} units"
+                        + (f" ({warn_n} warnings)" if warn_n else "")
+                    )
+                    self._set_vo_busy(False)
+                    self.status_var.set("Claude plan ready — Copy, then Upload Claude CSV")
+                    self.progress.set(1.0)
+                    self._append_log(
+                        f"[CLAUDE-PLAN] Ready — {len(vo_plan.beats)} beats, "
+                        f"{len(vo_plan.units)} units. Copy for Claude, then upload CSV.\n"
+                    )
+                    self._sync_primary_cta()
+
+                self.after(0, done)
+            except Exception as exc:
+                from vo_planner import VoPlannerStageError
+
+                if isinstance(exc, VoPlannerStageError):
+                    title = exc.title
+                    msg = exc.user_message
+                else:
+                    title = "VisualPlan generation failed"
+                    msg = str(exc) or "Unexpected error while generating Claude plan."
+
+                def fail(t=title, m=msg):
+                    self._vo_claude_plan_ready = False
+                    self._set_vo_busy(False)
+                    self.status_var.set("Ready")
+                    self.progress.set(0)
+                    self._vo_status_var.set(t)
+                    self._append_log(f"[CLAUDE-PLAN] {t}: {m}\n")
+                    messagebox.showerror(t, m)
+
+                self.after(0, fail)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_upload_claude_csv(self) -> None:
+        """Import Claude-generated CSV through the existing CSV workflow."""
+        if not self._require_workspace("import Claude CSV"):
+            return
+        path = filedialog.askopenfilename(
+            title="Upload Claude CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir=str(_browse_start_dir()),
+        )
+        if not path:
+            return
+        self._import_claude_csv_path(Path(path), source_label="uploaded")
+
+    def _on_paste_claude_csv(self) -> None:
+        """Paste Claude CSV text and feed it into the existing CSV workflow."""
+        if not self._require_workspace("paste Claude CSV"):
+            return
+
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Paste Claude CSV Data")
+        dialog.geometry("640x420")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.configure(fg_color=_BG)
+        dialog.grid_columnconfigure(0, weight=1)
+        dialog.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            dialog,
+            text="Paste the CSV Claude generated (header + rows).",
+            font=ctk.CTkFont(size=12),
+            text_color=_MUTED,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
+
+        box = ctk.CTkTextbox(
+            dialog, fg_color=_CARD, border_color=_BORDER, border_width=1,
+            text_color=_TEXT, font=ctk.CTkFont(size=12), wrap="none",
+        )
+        box.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 8))
+
+        # Prefill from clipboard when it looks like CSV
+        try:
+            clip = self.clipboard_get()
+            if clip and ("scene_number" in clip or "," in clip):
+                box.insert("1.0", clip)
+        except Exception:
+            pass
+
+        btn_row = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_row.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 12))
+        btn_row.grid_columnconfigure(0, weight=1)
+
+        def cancel() -> None:
+            dialog.destroy()
+
+        def apply_paste() -> None:
+            text = box.get("1.0", "end").strip()
+            if not text:
+                messagebox.showerror("CSV import failed", "Paste CSV content first.", parent=dialog)
+                return
+            try:
+                self._import_claude_csv_text(text)
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror(
+                    "CSV import failed",
+                    str(exc) or "Could not import pasted CSV.",
+                    parent=dialog,
+                )
+
+        ctk.CTkButton(
+            btn_row, text="Cancel", width=90, height=30,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_TEXT, hover_color=_CARD_HOVER,
+            command=cancel,
+        ).pack(side="right")
+        ctk.CTkButton(
+            btn_row, text="Import CSV", width=110, height=30,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=apply_paste,
+        ).pack(side="right", padx=(0, 8))
+
+        dialog.after(50, box.focus_set)
+
+    def _import_claude_csv_text(self, text: str) -> None:
+        """Write pasted CSV into the project and open the existing CSV path."""
+        if self._workspace is None:
+            raise RuntimeError("Open a project first.")
+        self._workspace.ensure_dirs()
+        dest = self._workspace.csv_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        # Normalize newlines; keep content as Claude provided
+        normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip() + "\n"
+        if "scene_number" not in normalized.split("\n", 1)[0].lower():
+            # Still allow import — existing CSV path validates rows
+            pass
+        dest.write_text(normalized, encoding="utf-8")
+        self._finish_claude_csv_import(dest, source_label="pasted")
+
+    def _import_claude_csv_path(self, path: Path, *, source_label: str = "uploaded") -> None:
+        try:
+            dest = self._workspace.copy_csv_in(path)
+            self._finish_claude_csv_import(dest, source_label=source_label)
+        except Exception as exc:
+            messagebox.showerror(
+                "CSV import failed",
+                str(exc) or "Could not import the Claude CSV into the existing pipeline.",
+            )
+
+    def _finish_claude_csv_import(self, dest: Path, *, source_label: str) -> None:
+        self.csv_var.set(str(dest))
+        self._sync_images_dir()
+        self._refresh_scene_preview()
+        self._goto_workflow_view("visual_plan")
+        self._vo_status_var.set(f"Claude CSV {source_label} — {Path(dest).name}")
+        self._append_log(f"[CLAUDE-PLAN] Claude CSV {source_label}: {Path(dest).name}\n")
+        self._sync_primary_cta()
+
+    def _on_copy_vo_plan(self) -> None:
+        plan = getattr(self, "_vo_aware_plan", None)
+        raw = getattr(self, "_vo_claude_handoff_json", None)
+        if not raw and plan is not None:
+            from vo_planner import compact_handoff_json
+
+            raw = compact_handoff_json(plan)
+        if not raw:
+            messagebox.showinfo("Copy", "Generate Claude Plan first.")
+            return
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(raw)
+            self._vo_status_var.set("Compact Claude plan copied to clipboard.")
+        except Exception as exc:
+            messagebox.showerror("Copy", str(exc))
+
+    def _on_export_vo_plan(self) -> None:
+        plan = getattr(self, "_vo_aware_plan", None)
+        raw = getattr(self, "_vo_claude_handoff_json", None)
+        if not raw and plan is not None:
+            from vo_planner import compact_handoff_json
+
+            raw = compact_handoff_json(plan)
+        if not raw:
+            messagebox.showinfo("Export JSON", "Generate Claude Plan first.")
+            return
+        path = filedialog.asksaveasfilename(
+            title="Export Claude Visual Production Plan",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            initialfile="claude_visual_production_plan.json",
+        )
+        if path:
+            Path(path).write_text(raw, encoding="utf-8")
+            messagebox.showinfo("Export JSON", f"Saved:\n{path}")
 
     def _voiceover_source_label(self, path: Path | None = None) -> str:
         p = Path(path) if path is not None else None
@@ -6922,6 +7528,43 @@ class VideoGeneratorApp(ctk.CTk):
             else:
                 print(f"[EDITORIAL] Reusing cached plan ({len(editorial_plan.scenes)} scenes).")
 
+            # Editorial Decision Engine — always recompile from current on-disk
+            # assets so dual/complement coverage stays in sync with the manifest.
+            try:
+                from editorial import compile_editorial_plan, decision_map_from_plan
+
+                editorial_plan = compile_editorial_plan(
+                    editorial_plan,
+                    images_dir=Path(config["images_dir"]),
+                    gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                )
+                if state_dir is not None:
+                    save_editorial_plan(state_dir, editorial_plan)
+                n_dec = len(getattr(editorial_plan, "edit_decisions", None) or [])
+                dual = sum(
+                    1
+                    for d in (getattr(editorial_plan, "edit_decisions", None) or [])
+                    if isinstance(d, dict) and d.get("strategy") == "DUAL_ASSET"
+                )
+                multi = sum(
+                    1
+                    for d in (getattr(editorial_plan, "edit_decisions", None) or [])
+                    if isinstance(d, dict) and len(d.get("shots") or []) > 1
+                )
+                n_ai = len(getattr(editorial_plan, "editorial_intents", None) or [])
+                gplan = getattr(editorial_plan, "graphics_plan", None) or {}
+                n_gfx = len(gplan.get("specs") or []) if isinstance(gplan, dict) else 0
+                print(
+                    f"[EDITORIAL] Compiled {n_dec} edit decision(s) "
+                    f"({dual} dual-asset, {multi} multi-shot"
+                    + (f", {n_ai} AI intent(s)" if n_ai else ", AI off/fallback")
+                    + (f", {n_gfx} graphic(s)" if n_gfx else "")
+                    + ")."
+                )
+                edit_decision_map = decision_map_from_plan(editorial_plan)
+            except Exception as exc:
+                print(f"[EDITORIAL] Compile skipped ({exc})")
+                edit_decision_map = {}
             # Brand accent → typography theme for this render only.
             try:
                 from typography.theme import get_theme, set_theme
@@ -7069,6 +7712,12 @@ class VideoGeneratorApp(ctk.CTk):
                 visual_transitions=bool(transition_map),
                 transition_by_scene=transition_map if transition_map else None,
                 camera_by_scene=camera_map if camera_map else None,
+                edit_decisions_by_scene=edit_decision_map or None,
+                editorial_timeline=(
+                    getattr(editorial_plan, "timeline", None)
+                    if isinstance(getattr(editorial_plan, "timeline", None), dict)
+                    else None
+                ),
             )
 
             # Editorial QA (never blocks render)

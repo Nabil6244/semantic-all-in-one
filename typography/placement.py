@@ -36,31 +36,38 @@ _ANCHORS: Dict[str, Tuple[float, float]] = {
     "bottom_right": (0.76, 0.78),
 }
 
-# Style-specific documentary defaults (prefer fewer center collisions).
+# Style-specific documentary defaults — lower third only (never mid/top hero).
 _STYLE_DEFAULT: Dict[str, str] = {
     "minimal_caption": "bottom_center",
-    "question": "center",
-    "statement": "center",
-    "kinetic_punch": "center",
+    "question": "bottom_center",
+    "statement": "bottom_center",
+    "kinetic_punch": "bottom_center",
     "keyword_highlight": "bottom_center",
-    "fact_number": "top_right",
+    "fact_number": "bottom_right",
     "word_reveal": "bottom_center",
     "quote": "bottom_center",
-    "proof_modern": "top_left",
+    "proof_modern": "bottom_left",
 }
 
+_LOWER_BAND = frozenset({"bottom_left", "bottom_center", "bottom_right"})
 
-# Where to move text when its natural home is occupied. Lower-third first
-# (documentary convention), then the top band, then the side columns.
+# When the preferred lower cell is busy, stay in the lower third.
 _RELOCATE_ORDER = (
     "bottom_center",
-    "top_center",
     "bottom_left",
     "bottom_right",
-    "top_left",
-    "top_right",
-    "center",
 )
+
+
+def _force_lower_band(placement: str) -> str:
+    """Documentary rule: keep type in the lower third."""
+    if placement in _LOWER_BAND:
+        return placement
+    if placement.endswith("left"):
+        return "bottom_left"
+    if placement.endswith("right"):
+        return "bottom_right"
+    return "bottom_center"
 
 
 def _aspect_kind(width: int, height: int) -> str:
@@ -123,18 +130,24 @@ def resolve_placement(
     else:
         placement = _STYLE_DEFAULT.get(style_id, "bottom_center")
 
-        # Length / hierarchy rules — long copy stays in lower-third / mid, never corners.
+        # Length / hierarchy — long copy stays bottom-center.
         if n_chars >= 42 or n_words >= 8:
-            placement = "bottom_center" if style_id != "question" else "center"
+            placement = "bottom_center"
         elif n_chars >= 28 or n_words >= 6:
             if placement.endswith(("_left", "_right")):
-                placement = _force_center_column(placement)
-            if style_id in ("keyword_highlight", "word_reveal", "minimal_caption", "quote"):
                 placement = "bottom_center"
-            elif style_id == "statement":
-                placement = "center"
+            if style_id in (
+                "keyword_highlight",
+                "word_reveal",
+                "minimal_caption",
+                "quote",
+                "statement",
+                "question",
+                "kinetic_punch",
+            ):
+                placement = "bottom_center"
 
-        # Short keywords can sit off-center in landscape without covering the hero.
+        # Short keywords can sit lower-left / lower-right in landscape.
         if (
             style_id == "keyword_highlight"
             and aspect == "landscape"
@@ -147,31 +160,30 @@ def resolve_placement(
 
         if style_id == "fact_number":
             if aspect == "vertical":
-                placement = "top_center"
+                placement = "bottom_center"
             elif n_chars <= 8:
-                placement = ("top_right", "top_left")[
+                placement = ("bottom_right", "bottom_left")[
                     _stable_bucket(f"{text}|fact", 2)
                 ]
             else:
-                placement = "top_center"
+                placement = "bottom_center"
 
-        if style_id == "kinetic_punch" and n_words <= 2 and aspect == "landscape":
-            placement = "center"
+        if style_id == "kinetic_punch":
+            placement = "bottom_center"
 
-        if style_id == "question" and n_words >= 8:
-            placement = "center"
+        if style_id == "question":
+            placement = "bottom_center"
 
         # Vertical video: avoid left/right columns (narrow safe area).
         if aspect == "vertical" and placement.endswith(("_left", "_right")):
-            placement = _force_center_column(placement)
+            placement = "bottom_center"
 
-        # Large type relative to frame → prefer center column (except proof style).
-        if (
-            style_id != "proof_modern"
-            and fontsize >= int(height * 0.09)
-            and placement.endswith(("_left", "_right"))
-        ):
-            placement = _force_center_column(placement)
+        # Large type → bottom-center for readability.
+        if fontsize >= int(height * 0.09) and placement.endswith(("_left", "_right")):
+            placement = "bottom_center"
+
+    # Hard rule: never leave mid/top for documentary overlays.
+    placement = _force_lower_band(placement)
 
     if composition.get("avoid_center") and placement == "center":
         placement = "bottom_center"
@@ -180,11 +192,8 @@ def resolve_placement(
         avoid = (avoid,)
     avoid_set = set(avoid)
     if placement in avoid_set:
-        # The style's own choice collides with the picture. Relocate to the
-        # frame analyser's quietest cell when it offered one, else walk a
-        # documentary-sane priority order. Only reached on a real conflict —
-        # a placement that does not collide is never second-guessed.
-        fallback = str(composition.get("fallback") or "")
+        # Relocate only within the lower third.
+        fallback = _force_lower_band(str(composition.get("fallback") or ""))
         if fallback in _ANCHORS and fallback not in avoid_set:
             placement = fallback
         else:
@@ -195,6 +204,7 @@ def resolve_placement(
             else:
                 placement = "bottom_center"
 
+    placement = _force_lower_band(placement)
     if placement not in _ANCHORS:
         placement = "bottom_center"
 
@@ -202,7 +212,8 @@ def resolve_placement(
     # Safe margins from theme — clamp anchors inward on extreme edges.
     mx = float(theme.margin_x_ratio)
     ax = max(mx + 0.06, min(1.0 - mx - 0.06, ax))
-    ay = max(0.12, min(0.86, ay))
+    # Keep anchors in the lower band (never above ~68% of frame height).
+    ay = max(0.68, min(0.86, ay))
 
     if placement.endswith("left"):
         x_align = "left"
@@ -243,7 +254,12 @@ def compute_xy(
         x = cx - text_w // 2
     y = cy - text_h // 2
     x = max(margin_x, min(x, width - margin_x - max(text_w, 1)))
-    y = max(int(height * 0.10), min(y, height - text_h - int(height * 0.08)))
+    # Keep glyphs in the lower third — never climb into mid-frame.
+    y_min = int(height * 0.68)
+    y_max = height - text_h - int(height * 0.06)
+    if y_max < y_min:
+        y_max = y_min
+    y = max(y_min, min(y, y_max))
     return x, y
 
 

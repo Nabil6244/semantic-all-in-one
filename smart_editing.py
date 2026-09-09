@@ -67,7 +67,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 # are calibrated against. An explicit operator volume rescales those clamps by
 # `volume / _AMBIENCE_REFERENCE_VOL`, so the level the operator picks is the
 # level that survives the per-scene envelope instead of being capped at 0.42.
-_AMBIENCE_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.22, "medium": 0.30, "high": 0.38}
+# Kept intentionally under narration — beds should be felt, not heard loud.
+_AMBIENCE_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.14, "medium": 0.20, "high": 0.28}
 _AMBIENCE_REFERENCE_VOL = 0.30
 AMBIENCE_VOLUME_MIN = 0.0
 AMBIENCE_VOLUME_MAX = 1.0
@@ -1222,11 +1223,12 @@ def _heuristic_scene_ambience(
 
 # Mix level per SFX intensity step. Named so the curve can be asserted
 # without a bundled catalog (CI has none) and stays a single source of truth.
-_SFX_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.28, "medium": 0.40, "high": 0.52}
+# Kept a notch under narration so transition / text ticks stay supportive.
+_SFX_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.18, "medium": 0.28, "high": 0.40}
 
 
 def _sfx_base_volume(settings: SmartEditingSettings) -> float:
-    return _SFX_INTENSITY_VOLUME.get(settings.sfx_intensity(), 0.40)
+    return _SFX_INTENSITY_VOLUME.get(settings.sfx_intensity(), 0.28)
 
 
 def _ambience_volume(settings: SmartEditingSettings) -> float:
@@ -1236,16 +1238,16 @@ def _ambience_volume(settings: SmartEditingSettings) -> float:
 def ambience_volume_bounds(base_volume: float) -> Tuple[float, float]:
     """Per-bed clamp window for a given operator base level.
 
-    The historical window was a fixed [0.05, 0.42], calibrated for the default
-    0.30 bed. Scaling it by the operator's chosen base keeps that behaviour
-    identical at 0.30 while letting a deliberately louder or quieter setting
+    The historical window was a fixed [0.04, 0.32], calibrated for the default
+    0.20–0.30 bed. Scaling it by the operator's chosen base keeps that behaviour
+    proportional while letting a deliberately louder or quieter setting
     actually reach the mix rather than being clipped back to the old ceiling.
     """
     base = max(0.0, float(base_volume or 0.0))
     if base <= 0.0:
         return (0.0, 0.0)
     scale = base / _AMBIENCE_REFERENCE_VOL
-    return (round(0.05 * scale, 4), round(0.42 * scale, 4))
+    return (round(0.04 * scale, 4), round(0.32 * scale, 4))
 
 
 def _display_window_by_scene(
@@ -1540,7 +1542,7 @@ def plan_sfx_events(
         return []
     events: List[dict] = []
     recent_ids: List[str] = []
-    # Keep narration dominant, but previous medium≈0.14 was inaudible in real mixes.
+    # Keep narration dominant — text ticks and whooshes stay under the VO.
     base_vol = _sfx_base_volume(settings)
 
     def _remember(entry: SfxEntry) -> None:
@@ -1554,7 +1556,7 @@ def plan_sfx_events(
         if entry is None:
             continue
         fx_w = float(fx.get("intensity") or 0.65)
-        vol = min(0.55, base_vol * (0.9 + 0.25 * fx_w))
+        vol = min(0.40, base_vol * (0.82 + 0.18 * fx_w))
         events.append(
             _entry_to_event(
                 entry,
@@ -1594,7 +1596,7 @@ def plan_sfx_events(
                 entry,
                 request,
                 start=max(0.0, start - 0.08),
-                volume=round(min(0.58, base_vol * 1.05), 3),
+                volume=round(min(0.42, base_vol * 0.88), 3),
                 scene_number=sn,
             )
         )
@@ -1651,7 +1653,7 @@ def plan_sfx_events(
             entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
             if entry is None:
                 continue
-            vol = min(0.42, base_vol * 0.72)
+            vol = min(0.32, base_vol * 0.62)
             events.append(
                 _entry_to_event(
                     entry,
@@ -2096,7 +2098,7 @@ def _ffmpeg_mix_ambience_chunk(
             end = float(ev.get("end") or ev.get("start") or 0.0)
             start = float(ev.get("start") or 0.0)
             dur = max(0.5, end - start)
-        vol = min(0.42, float(ev.get("volume") or 0.30))
+        vol = min(0.32, float(ev.get("volume") or 0.20))
         default_fade = min(0.35, max(0.08, dur / 5.0))
         fade_in = float(ev["fade_in"]) if ev.get("fade_in") is not None else default_fade
         fade_out = float(ev["fade_out"]) if ev.get("fade_out") is not None else default_fade
@@ -2219,7 +2221,7 @@ def _ffmpeg_mix_layers(
                 end = float(ev.get("end") or ev.get("start") or 0.0)
                 start = float(ev.get("start") or 0.0)
                 dur = max(0.5, end - start)
-            vol = min(0.42, float(ev.get("volume") or 0.30))
+            vol = min(0.32, float(ev.get("volume") or 0.20))
             fade = min(0.25, dur / 4.0)
             fade_out_st = max(0.0, dur - fade)
             label = f"x{input_idx}"
@@ -2229,7 +2231,7 @@ def _ffmpeg_mix_layers(
                 f"afade=t=in:st=0:d={fade:.3f},afade=t=out:st={fade_out_st:.3f}:d={fade:.3f}[{label}]"
             )
         else:
-            vol = min(0.55, float(ev.get("volume") or 0.32))
+            vol = min(0.40, float(ev.get("volume") or 0.24))
             dur = float(ev.get("duration") or 0.4)
             label = f"x{input_idx}"
             filter_parts.append(

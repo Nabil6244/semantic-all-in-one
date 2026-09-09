@@ -179,8 +179,46 @@ def _accent_word(text: str) -> str:
 
 
 def _font_size(height: int, size_vh: float, intensity: float, theme: TypographyTheme) -> int:
-    boost = 1.0 + max(0.0, min(1.0, intensity) - 0.5) * theme.intensity_size_boost * 2
-    return max(20, int(round(height * size_vh * boost)))
+    # Intensity must not inflate type into thumbnail scale.
+    boost = 1.0 + max(0.0, min(1.0, intensity) - 0.5) * theme.intensity_size_boost
+    return max(18, int(round(height * size_vh * boost)))
+
+
+_STYLE_MAX_VH = {
+    "kinetic_punch": 0.068,
+    "fact_number": 0.082,
+    "keyword_highlight": 0.052,
+    "statement": 0.050,
+    "question": 0.048,
+    "minimal_caption": 0.036,
+    "word_reveal": 0.050,
+    "quote": 0.046,
+    "proof_modern": 0.070,
+}
+
+
+def _constrain_fontsize(
+    fontsize: int,
+    text: str,
+    width: int,
+    height: int,
+    style_id: str,
+) -> int:
+    """Hard documentary caps: occupancy, role, readable minimum."""
+    cap_vh = _STYLE_MAX_VH.get(style_id, 0.048)
+    fontsize = min(int(fontsize), int(height * cap_vh), int(height * 0.086))
+    n_chars = max(1, len((text or "").replace(" ", "")))
+    n_words = max(1, len((text or "").split()))
+    n_lines = 2 if n_words >= 7 or len(text or "") >= 36 else 1
+    est_w = n_chars * fontsize * 0.56 / max(1, n_lines)
+    max_w = width * 0.72
+    if est_w > max_w:
+        fontsize = int(fontsize * max_w / est_w)
+    max_h = height * (0.18 if style_id in ("fact_number", "kinetic_punch") else 0.12)
+    if fontsize * 1.25 * n_lines > max_h:
+        fontsize = int(max_h / (1.25 * n_lines))
+    min_px = max(16, int(height * 0.026))
+    return max(min_px, fontsize)
 
 
 def _alpha_expr(t0: float, t1: float, fade_in: float, fade_out: float, animation: str) -> str:
@@ -253,13 +291,11 @@ def typography_params_for_effect(
     style = get_style(style_id, theme=theme)
     text = _prepare_text(raw_text, style.id, style.uppercase, style.max_chars_hard)
     fontsize = _font_size(height, style.size_vh, intensity, theme)
-    nchars = len(text.replace(" ", ""))
-    if nchars <= 6 and style.id in ("kinetic_punch", "fact_number", "keyword_highlight"):
-        fontsize = int(fontsize * 1.12)
-    elif len(text) >= 36:
+    if len(text) >= 36:
         fontsize = int(fontsize * 0.88)
     if style.id == "minimal_caption":
-        fontsize = min(fontsize, int(height * 0.045))
+        fontsize = min(fontsize, int(height * 0.036))
+    fontsize = _constrain_fontsize(fontsize, text, width, height, style.id)
 
     # Animation from variation planner (accent_wipe → fade motion + accent).
     animation = decision.animation
@@ -282,6 +318,28 @@ def typography_params_for_effect(
     font_path = resolve_font_path(style.font_family, style.weight)
     margin_x = int(width * theme.margin_x_ratio)
     accent_bar = bool(style.accent_bar or accent_wipe)
+    # Adaptive background from frame composition when available.
+    background_kind = ""
+    try:
+        from graphics.backgrounds import choose_background
+
+        role_guess = {
+            "fact_number": "STATISTIC",
+            "minimal_caption": "CAPTION",
+            "quote": "QUOTE",
+            "kinetic_punch": "EMPHASIS",
+            "statement": "TITLE",
+            "keyword_highlight": "EMPHASIS",
+        }.get(style_id, "LABEL")
+        background_kind = choose_background(
+            role=role_guess,
+            text=text or raw_text,
+            composition=_composition_from_fx(fx),
+            importance="high" if intensity >= 0.75 else "medium",
+        )
+    except Exception:
+        background_kind = "SCRIM" if (style.backplate or accent_wipe) else "NONE"
+
     return {
         "style_id": style_id,
         "style": style_dict(style),
@@ -298,6 +356,7 @@ def typography_params_for_effect(
         "animation": animation,
         "accent_bar": accent_bar,
         "backplate": style.backplate or accent_wipe,
+        "background_kind": background_kind,
         "placement": placement["placement"],
         "placement_info": placement,
         "x_align": placement["x_align"],
@@ -488,12 +547,63 @@ def render_style_overlay(
 
     fontsize = int(params["fontsize"])
 
-    # Readability scrim. The previous treatment was a hard rounded rectangle
-    # hugging the text — a burned-in-subtitle look, and it was forced on for
-    # any line of 24+ characters regardless of style. This is instead a wide,
-    # heavily blurred dark falloff: it lifts text off busy footage without
-    # ever showing an edge.
-    if bool(params["backplate"] or params["accent_bar"]):
+    # Readability background. Adaptive when composition metrics are present
+    # (from graphics.backgrounds); otherwise keep the documentary scrim for
+    # styles that request a backplate — never a hard black box.
+    bg_kind = str(params.get("background_kind") or "").upper()
+    if not bg_kind:
+        if bool(params["backplate"] or params["accent_bar"]):
+            bg_kind = "SCRIM"
+        else:
+            bg_kind = "NONE"
+        # Soften: short text on presumed-dark frames can skip plates.
+        if bg_kind == "SCRIM" and len(text) <= 14 and not params["accent_bar"]:
+            bg_kind = "SHADOW"
+
+    if bg_kind not in ("", "NONE", "SHADOW"):
+        try:
+            from graphics.backgrounds import background_params as _gfx_bg_params
+
+            gp = _gfx_bg_params(bg_kind, fontsize=fontsize, text_w=tw, text_h=th)
+        except Exception:
+            gp = {
+                "kind": "SCRIM",
+                "draw": True,
+                "shape": "ellipse",
+                "pad_x": int(tw * 0.20) + int(fontsize * 1.1),
+                "pad_y": int(th * 0.85) + int(fontsize * 0.75),
+                "fill": (0, 0, 0, 132),
+                "blur": max(28, int(fontsize * 0.85)),
+            }
+        if gp.get("draw"):
+            from PIL import ImageFilter as _IF
+
+            scrim = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            pad_x = int(gp.get("pad_x") or 0)
+            pad_y = int(gp.get("pad_y") or 0)
+            fill = tuple(gp.get("fill") or (0, 0, 0, 132))
+            shape = gp.get("shape") or "ellipse"
+            sd = ImageDraw.Draw(scrim)
+            if shape == "full_width":
+                sd.rectangle([0, max(0, y - pad_y), width, min(height, y + th + pad_y)], fill=fill)
+            elif shape in ("rounded", "pill"):
+                box = [x - pad_x, y - pad_y, x + tw + pad_x, y + th + pad_y]
+                try:
+                    sd.rounded_rectangle(box, radius=int(gp.get("radius") or 8), fill=fill)
+                except Exception:
+                    sd.rectangle(box, fill=fill)
+            else:
+                sd.ellipse(
+                    [x - pad_x, y - pad_y, x + tw + pad_x, y + th + pad_y],
+                    fill=fill,
+                )
+            blur = int(gp.get("blur") or 0)
+            if blur > 0:
+                scrim = scrim.filter(_IF.GaussianBlur(radius=blur))
+            img = Image.alpha_composite(img, scrim)
+            draw = ImageDraw.Draw(img)
+    elif bool(params["backplate"] or params["accent_bar"]) and bg_kind != "NONE":
+        # Legacy scrim path when graphics package unavailable / NONE not forced.
         scrim_alpha = 132
         if params["style_id"] == "minimal_caption":
             scrim_alpha = 112
@@ -514,22 +624,23 @@ def render_style_overlay(
 
     # One soft drop shadow, scaled to the type size. Replaces the old
     # shadow + black outline stack, which darkened glyph edges twice.
-    shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    _draw_tracking_text(
-        ImageDraw.Draw(shadow),
-        (x, y + max(2, int(fontsize * 0.045))),
-        text,
-        font,
-        fill=(0, 0, 0, 185),
-        stroke_width=0,
-        stroke_fill=(0, 0, 0, 0),
-        tracking=tracking,
-    )
-    shadow = shadow.filter(
-        ImageFilter.GaussianBlur(radius=max(3.0, fontsize * 0.05))
-    )
-    img = Image.alpha_composite(img, shadow)
-    draw = ImageDraw.Draw(img)
+    if bg_kind != "NONE" or bool(params.get("shadow", True)):
+        shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        _draw_tracking_text(
+            ImageDraw.Draw(shadow),
+            (x, y + max(2, int(fontsize * 0.045))),
+            text,
+            font,
+            fill=(0, 0, 0, 185),
+            stroke_width=0,
+            stroke_fill=(0, 0, 0, 0),
+            tracking=tracking,
+        )
+        shadow = shadow.filter(
+            ImageFilter.GaussianBlur(radius=max(3.0, fontsize * 0.05))
+        )
+        img = Image.alpha_composite(img, shadow)
+        draw = ImageDraw.Draw(img)
 
     # Accent styles colour a key word inside the line rather than drawing a
     # rule under it. The old bar sat on the descenders and read as a link.

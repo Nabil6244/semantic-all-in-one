@@ -69,8 +69,8 @@ class TestAudioDirector(unittest.TestCase):
         for bed, scene in zip(out, plan.scenes):
             self.assertAlmostEqual(bed["start"], scene.start, places=3)
             self.assertAlmostEqual(bed["end"], scene.end, places=3)
-            self.assertLessEqual(bed["volume"], 0.42)
-            self.assertGreaterEqual(bed["volume"], 0.05)
+            self.assertLessEqual(bed["volume"], 0.32)
+            self.assertGreaterEqual(bed["volume"], 0.04)
 
     def test_silence_suppresses_beat_sfx(self) -> None:
         plan = EditorialPlan(

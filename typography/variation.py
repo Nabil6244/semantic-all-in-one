@@ -14,11 +14,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .placement import PLACEMENTS
 from .styles import TYPOGRAPHY_STYLES, map_effect_to_style
 
-# User-facing positions (subset + aliases map into PLACEMENTS).
+# User-facing positions — lower third only for documentary overlays.
 VARIATION_POSITIONS = (
-    "top_left",
-    "top_center",
-    "center",
     "bottom_center",
     "bottom_left",
     "bottom_right",
@@ -194,47 +191,37 @@ def placement_candidates(
     short = n <= 2 and n_chars <= 16
 
     if semantic == "question":
-        base = [("center", 100.0), ("top_center", 85.0), ("bottom_center", 50.0)]
+        base = [("bottom_center", 100.0), ("bottom_left", 70.0), ("bottom_right", 70.0)]
     elif semantic == "fact":
-        base = [("center", 100.0), ("top_center", 80.0), ("top_left", 60.0)]
+        base = [("bottom_right", 100.0), ("bottom_left", 85.0), ("bottom_center", 70.0)]
     elif semantic == "dramatic":
-        base = [("center", 95.0), ("top_center", 70.0), ("bottom_center", 45.0)]
+        base = [("bottom_center", 100.0), ("bottom_left", 70.0), ("bottom_right", 70.0)]
     elif long or style_id == "minimal_caption":
         base = [
             ("bottom_center", 100.0),
             ("bottom_left", 75.0),
             ("bottom_right", 75.0),
-            ("center", 40.0),
         ]
     elif short or style_id == "keyword_highlight":
         base = [
             ("bottom_left", 90.0),
             ("bottom_right", 90.0),
-            ("top_left", 70.0),
-            ("top_center", 55.0),
-            ("bottom_center", 50.0),
+            ("bottom_center", 80.0),
         ]
     elif style_id == "quote":
-        base = [("bottom_center", 90.0), ("center", 80.0), ("bottom_left", 60.0)]
+        base = [("bottom_center", 100.0), ("bottom_left", 70.0), ("bottom_right", 70.0)]
     else:
         base = [
-            ("center", 80.0),
-            ("bottom_center", 75.0),
-            ("top_center", 60.0),
-            ("bottom_left", 55.0),
-            ("bottom_right", 55.0),
+            ("bottom_center", 100.0),
+            ("bottom_left", 75.0),
+            ("bottom_right", 75.0),
         ]
 
     if aspect == "vertical":
         remapped: List[Tuple[str, float]] = []
         for p, s in base:
             if p.endswith(("_left", "_right")):
-                col = (
-                    "bottom_center"
-                    if p.startswith("bottom")
-                    else ("top_center" if p.startswith("top") else "center")
-                )
-                remapped.append((col, s * 0.9))
+                remapped.append(("bottom_center", s * 0.9))
             else:
                 remapped.append((p, s))
         base = remapped
@@ -255,43 +242,39 @@ def animation_candidates(
     semantic: str,
     duration: float,
 ) -> List[Tuple[str, float]]:
+    """Prefer a tiny documentary vocabulary. Fade is the default, not a fallback."""
     short = duration < 0.55
-    long = duration >= 1.4
     by_style: Dict[str, List[Tuple[str, float]]] = {
-        "kinetic_punch": [("scale_fade", 100.0), ("fade", 60.0), ("slide_in", 40.0)],
-        "fact_number": [("scale_fade", 95.0), ("fade", 70.0), ("accent_wipe", 55.0)],
-        "keyword_highlight": [
-            ("fade", 90.0),
-            ("slide_in", 85.0),
-            ("slide_fade", 75.0),
-            ("accent_wipe", 70.0),
-        ],
-        "question": [("fade", 95.0), ("slide_fade", 70.0), ("reveal", 55.0)],
-        "statement": [("slide_fade", 95.0), ("fade", 75.0), ("slide_in", 65.0)],
-        "minimal_caption": [("fade", 100.0), ("slide_fade", 55.0)],
-        "word_reveal": [("reveal", 100.0), ("fade", 60.0), ("slide_in", 45.0)],
-        "quote": [("fade", 90.0), ("slide_fade", 80.0), ("reveal", 50.0)],
-        "proof_modern": [("scale_fade", 100.0), ("fade", 50.0)],
+        "kinetic_punch": [("reveal", 90.0), ("fade", 85.0)],
+        "fact_number": [("reveal", 100.0), ("fade", 80.0)],
+        "keyword_highlight": [("fade", 100.0), ("slide_fade", 35.0)],
+        "question": [("fade", 100.0), ("reveal", 40.0)],
+        "statement": [("fade", 100.0), ("slide_fade", 40.0)],
+        "minimal_caption": [("fade", 100.0)],
+        "word_reveal": [("reveal", 90.0), ("fade", 80.0)],
+        "quote": [("fade", 100.0)],
+        "proof_modern": [("reveal", 90.0), ("fade", 80.0)],
     }
-    cands = list(by_style.get(style_id, [("fade", 80.0), ("slide_fade", 60.0)]))
-    if semantic == "dramatic":
-        cands = [("scale_fade", 100.0)] + cands
-    # Duration shaping
+    cands = list(by_style.get(style_id, [("fade", 100.0)]))
+    if semantic == "fact":
+        cands = [("reveal", 100.0), ("fade", 80.0)]
+    if semantic in ("long_narration", "narration"):
+        cands = [("fade", 100.0)]
     adjusted: List[Tuple[str, float]] = []
     for anim, score in cands:
         if short and anim in ("reveal", "slide_fade"):
-            score -= 25.0
-        if short and anim in ("fade", "scale_fade", "slide_in", "accent_wipe"):
-            score += 10.0
-        if long and anim == "fade":
-            score += 8.0
-        if long and anim == "scale_fade" and style_id == "minimal_caption":
-            score -= 20.0
+            score -= 40.0
+        if short and anim == "fade":
+            score += 20.0
+        if anim == "scale_fade":
+            score -= 80.0
         adjusted.append((anim, score))
     best: Dict[str, float] = {}
     for a, s in adjusted:
-        if a in _ANIMATIONS:
+        if a in _ANIMATIONS and a != "scale_fade":
             best[a] = max(best.get(a, -1e9), s)
+    if not best:
+        best["fade"] = 100.0
     return sorted(best.items(), key=lambda x: -x[1])
 
 
@@ -323,6 +306,9 @@ def _penalty_placement(placement: str, history: VariationHistory) -> float:
 
 
 def _penalty_animation(animation: str, history: VariationHistory) -> float:
+    # Repeating a restrained fade is the desired look, not a defect.
+    if animation in ("fade", "reveal"):
+        return 0.0
     penalty = 0.0
     recent = history.recent_animations(3)
     if recent and animation == recent[-1]:
@@ -368,8 +354,8 @@ def plan_typography_decision(
         if typography_proof_enabled():
             decision = TypographyDecision(
                 style_id="proof_modern",
-                placement="top_left",
-                animation="scale_fade",
+                placement="bottom_left",
+                animation="reveal",
                 semantic=semantic,
                 score=999.0,
                 raw_text=text,

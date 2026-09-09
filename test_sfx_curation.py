@@ -219,8 +219,8 @@ class TestSmartEditingWithLibrary(unittest.TestCase):
                 volumes[intensity] = plan.sfx_events[0]["volume"]
         self.assertLess(volumes["low"], volumes["medium"])
         self.assertLess(volumes["medium"], volumes["high"])
-        self.assertGreaterEqual(volumes["medium"], 0.30)
-        self.assertLessEqual(volumes["high"], 0.55)
+        self.assertGreaterEqual(volumes["medium"], 0.20)
+        self.assertLessEqual(volumes["high"], 0.45)
 
     def test_mix_preserves_narration_when_no_sfx(self) -> None:
         narration = Path(self.tmp.name) / "narration.wav"

@@ -22,8 +22,11 @@ def cache_settings_key(
     visual_plan_dict: Optional[dict] = None,
     style_fingerprint: Optional[dict] = None,
 ) -> str:
+    from .intent import REASONER_VERSION
+
     payload: dict[str, Any] = {
         "editorial_plan_version": EDITORIAL_PLAN_VERSION,
+        "editorial_reasoner_version": REASONER_VERSION,
         "rows": [
             {
                 "scene_number": str(r.get("scene_number") or ""),
@@ -57,6 +60,22 @@ def load_editorial_plan(state_dir: Path) -> dict:
     except (json.JSONDecodeError, OSError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def clear_editorial_plan(state_dir: Path) -> bool:
+    """Remove cached editorial_plan.json so UI Time windows stay blank until align.
+
+    A new Visual Director plan invalidates prior VO-aligned scene windows; leaving
+    the file makes the scene table show stale ranges (e.g. 0:00–0:10).
+    """
+    path = plan_file(state_dir)
+    if not path.is_file():
+        return False
+    try:
+        path.unlink()
+        return True
+    except OSError:
+        return False
 
 
 def save_editorial_plan(state_dir: Path, plan: EditorialPlan) -> Path:

@@ -18,12 +18,12 @@ class TypographyTheme:
     y_secondary_ratio: float = 0.78
     y_statement_ratio: float = 0.62
     # Motion (seconds) — short & controlled, no bounce.
-    fade_in: float = 0.11
-    fade_out: float = 0.09
-    slide_px: float = 10.0
-    scale_from: float = 0.96
-    # Hierarchy multipliers applied on top of style size_vh.
-    intensity_size_boost: float = 0.10
+    fade_in: float = 0.16
+    fade_out: float = 0.12
+    slide_px: float = 8.0
+    scale_from: float = 0.98
+    # Intensity must not inflate type. Importance ≠ size.
+    intensity_size_boost: float = 0.02
     # Default colors (RGBA 0–255).
     fill: tuple = (255, 255, 255, 255)
     stroke: tuple = (0, 0, 0, 220)

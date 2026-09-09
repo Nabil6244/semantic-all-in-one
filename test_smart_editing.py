@@ -1101,7 +1101,7 @@ class TestAmbienceVolumeControl(unittest.TestCase):
 
     def test_auto_still_follows_intensity_step(self) -> None:
         from smart_editing import _ambience_volume
-        for level, expected in (("low", 0.22), ("medium", 0.30), ("high", 0.38)):
+        for level, expected in (("low", 0.14), ("medium", 0.20), ("high", 0.28)):
             s = self._s(scene_ambience_intensity=level)
             self.assertIsNone(s.scene_ambience_volume)
             self.assertTrue(s.ambience_volume_is_auto())
@@ -1120,15 +1120,15 @@ class TestAmbienceVolumeControl(unittest.TestCase):
         self.assertTrue(self._s(scene_ambience_volume=None).ambience_volume_is_auto())
 
     def test_bounds_unchanged_at_the_default_level(self) -> None:
-        """The historical clamp window must survive untouched at 0.30."""
+        """The clamp window at the reference base (0.30) stays [0.04, 0.32]."""
         from smart_editing import ambience_volume_bounds
-        self.assertEqual(ambience_volume_bounds(0.30), (0.05, 0.42))
+        self.assertEqual(ambience_volume_bounds(0.30), (0.04, 0.32))
 
     def test_louder_setting_raises_the_ceiling_instead_of_being_clipped(self) -> None:
         from smart_editing import ambience_volume_bounds
         lo, hi = ambience_volume_bounds(0.60)
-        self.assertGreater(hi, 0.42)
-        self.assertGreater(lo, 0.05)
+        self.assertGreater(hi, 0.32)
+        self.assertGreater(lo, 0.04)
 
     def test_volume_survives_a_settings_roundtrip(self) -> None:
         from smart_editing import SmartEditingSettings
@@ -1175,14 +1175,14 @@ class TestAmbienceBedClampScalesWithOperatorLevel(unittest.TestCase):
         out = apply_ambience_intensity_to_beds(
             [self._bed(0.30)], self._plan(3.0),
         )
-        self.assertAlmostEqual(out[0]["volume"], 0.42)
+        self.assertAlmostEqual(out[0]["volume"], 0.32)
 
     def test_operator_base_scales_the_ceiling(self) -> None:
         from editorial.audio_director import apply_ambience_intensity_to_beds
         out = apply_ambience_intensity_to_beds(
             [self._bed(0.60, base=0.60)], self._plan(3.0),
         )
-        self.assertGreater(out[0]["volume"], 0.42)
+        self.assertGreater(out[0]["volume"], 0.32)
 
     def test_muted_base_stays_silent(self) -> None:
         from editorial.audio_director import apply_ambience_intensity_to_beds

@@ -10,7 +10,9 @@ from pathlib import Path
 from editorial.builder import build_editorial_plan
 from editorial.persistence import (
     cache_settings_key,
+    clear_editorial_plan,
     load_cached_plan,
+    load_editorial_plan,
     plan_file,
     save_editorial_plan,
 )
@@ -210,7 +212,27 @@ class TestEditorialPersistence(unittest.TestCase):
             self.assertIsNone(load_cached_plan(state, audio_key="audio1", settings_key=key_b))
 
             raw = json.loads(plan_file(state).read_text(encoding="utf-8"))
-            self.assertEqual(raw["version"], 2)
+            from editorial.schema import EDITORIAL_PLAN_VERSION
+
+            self.assertEqual(raw["version"], EDITORIAL_PLAN_VERSION)
+
+    def test_clear_editorial_plan_removes_stale_timeline(self) -> None:
+        rows = _sample_rows()
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            plan = build_editorial_plan(rows, _sample_aligned(), 7.0, settings_key="k", audio_key="a")
+            # Simulate a first scene that looked like 0–10s in the UI.
+            plan.scenes[0].start = 0.0
+            plan.scenes[0].end = 10.0
+            plan.scenes[0].duration = 10.0
+            save_editorial_plan(state, plan)
+            self.assertTrue(plan_file(state).is_file())
+            self.assertAlmostEqual(load_editorial_plan(state)["scenes"][0]["end"], 10.0)
+
+            self.assertTrue(clear_editorial_plan(state))
+            self.assertFalse(plan_file(state).is_file())
+            self.assertEqual(load_editorial_plan(state), {})
+            self.assertFalse(clear_editorial_plan(state))  # already gone
 
 
 class TestSmartEditingHints(unittest.TestCase):

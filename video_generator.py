@@ -568,6 +568,9 @@ def find_image_for_scene(images_dir: Path, scene_number: str, ext_cache: dict = 
 
     Pass ``ext_cache`` from :func:`build_scene_media_index` to avoid repeated
     ``Path.exists`` probes when resolving many scenes.
+
+    Does **not** match complement stems (``001_b``) — those are returned by
+    :func:`find_complement_assets_for_scene`.
     """
     n = int(str(scene_number).strip())
     candidates = [
@@ -586,6 +589,71 @@ def find_image_for_scene(images_dir: Path, scene_number: str, ext_cache: dict = 
             if p.exists():
                 return p
     return None
+
+
+def find_complement_assets_for_scene(images_dir: Path, scene_number: str) -> list[Path]:
+    """Return on-disk complementary assets for a scene (``001_b``, ``001_c``, …).
+
+    Ordered by suffix letter. Primary ``001.ext`` is never included.
+    """
+    images_dir = Path(images_dir)
+    try:
+        n = int(str(scene_number).strip())
+    except ValueError:
+        return []
+    stems = [f"{n:03d}", f"{n}", f"{n:02d}", f"{n:04d}"]
+    found: list[Path] = []
+    seen: set[str] = set()
+    for letter in ("b", "c", "d", "e"):
+        for stem in stems:
+            for ext in _SCENE_SEARCH_EXTS:
+                p = images_dir / f"{stem}_{letter}{ext}"
+                if p.is_file():
+                    key = str(p.resolve())
+                    if key not in seen:
+                        seen.add(key)
+                        found.append(p)
+                    break
+            else:
+                continue
+            break
+    return found
+
+
+def complement_asset_id(scene_number: str, path: Path) -> str:
+    """Stable id like ``001_b`` from a complement filename."""
+    try:
+        n = int(str(scene_number).strip())
+        prefix = f"{n:03d}"
+    except ValueError:
+        prefix = str(scene_number).strip()
+    stem = Path(path).stem  # e.g. 001_b
+    if "_" in stem:
+        return stem
+    return f"{prefix}_b"
+
+
+def manifest_scene_record(images_dir: Path, scene_number: str) -> dict:
+    """Return one scene's asset-manifest record (or {})."""
+    path = Path(images_dir) / ".asset_manifest.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    try:
+        n = int(str(scene_number).strip())
+        keys = [f"{n:03d}", str(n), f"{n:02d}", str(scene_number)]
+    except ValueError:
+        keys = [str(scene_number)]
+    for key in keys:
+        rec = data.get(key)
+        if isinstance(rec, dict):
+            return rec
+    return {}
 
 
 def manifest_coverage_flags(images_dir: Path) -> dict[str, dict]:
@@ -1030,10 +1098,10 @@ def _overlay_xy(
 
 # Overlay motion. Keep these short and controlled — documentary typography
 # settles, it does not bounce.
-_OV_FADE_IN = 0.14
+_OV_FADE_IN = 0.16
 _OV_FADE_OUT = 0.12
-_OV_SCALE_FROM = 0.94
-_OV_SCALE_DUR = 0.18
+_OV_SCALE_FROM = 0.98
+_OV_SCALE_DUR = 0.22
 
 
 def _overlay_scale_expr(t0: float) -> str:
@@ -1102,6 +1170,358 @@ def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
     sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_name}{hint}")
 
 
+def _video_punch_filter(
+    width: int,
+    height: int,
+    fps: int,
+    *,
+    scale: float = 1.0,
+    crop_x: float = 0.5,
+    crop_y: float = 0.5,
+) -> str:
+    """Cover-crop with optional punch-in (scale>1) around a normalized focal point."""
+    s = max(1.0, float(scale) or 1.0)
+    cx = min(1.0, max(0.0, float(crop_x)))
+    cy = min(1.0, max(0.0, float(crop_y)))
+    # Scale up first, then crop a window centered near (cx, cy).
+    # Using expressions keeps this resolution-agnostic.
+    if s <= 1.001:
+        return _video_fit_filter(width, height, fps)
+    # iw/ih after scale-to-cover at punch scale
+    return (
+        f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+        f"crop=iw/{s:.4f}:ih/{s:.4f}:"
+        f"(iw-ow)*{cx:.4f}:(ih-oh)*{cy:.4f},"
+        f"scale={width}:{height},"
+        f"fps={fps},setsar=1,format=yuv420p"
+    )
+
+
+def _render_editorial_shot(
+    img_path: Path,
+    out_path: Path,
+    shot: dict,
+    width: int,
+    height: int,
+    fps: int,
+    zoom_amount: float = 0.10,
+) -> None:
+    """Render one ShotSpec dict from an EditDecision into a temp clip."""
+    duration = max(0.05, float(shot.get("output_duration") or 0.05))
+    frames = max(int(round(duration * fps)), 1)
+    clip_dur = frames / fps
+    scale = float(shot.get("scale") or 1.0)
+    crop_x = float(shot.get("crop_x") if shot.get("crop_x") is not None else 0.5)
+    crop_y = float(shot.get("crop_y") if shot.get("crop_y") is not None else 0.5)
+    speed = float(shot.get("speed") or 1.0)
+    speed = min(1.25, max(0.8, speed))
+    camera_style = str(shot.get("camera_style") or "static")
+    hold_tail = bool(shot.get("hold_tail"))
+    src_start = float(shot.get("source_start") or 0.0)
+    src_end = shot.get("source_end")
+    encode_args = _cpu_encode_argv()
+
+    if is_video_file(img_path):
+        base_vf = _video_punch_filter(
+            width, height, fps, scale=scale, crop_x=crop_x, crop_y=crop_y
+        )
+        base_vf = f"{base_vf},setpts=PTS-STARTPTS"
+        if abs(speed - 1.0) > 0.02:
+            base_vf = f"{base_vf},setpts=PTS/{speed:.4f},fps={fps}"
+        try:
+            from providers.media_clip.ffmpeg_clip import probe_duration
+
+            file_dur = probe_duration(img_path) or 0.0
+        except Exception:
+            file_dur = 0.0
+        src_span = None
+        if src_end is not None:
+            try:
+                src_span = max(0.05, float(src_end) - src_start)
+            except (TypeError, ValueError):
+                src_span = None
+        window = src_span
+        if window is None and file_dur > 0:
+            window = max(0.05, file_dur - max(0.0, src_start))
+        window = float(window or 0.0)
+        playable = window / max(speed, 0.01) if window > 0 else 0.0
+
+        input_args: list[str] = []
+        if src_start > 0.02:
+            input_args += ["-ss", f"{src_start:.3f}"]
+
+        if hold_tail:
+            # Intentional editorial hold: decode the source, then clone the last frame.
+            read_dur = playable if playable > 0 else clip_dur
+            input_args += ["-t", f"{read_dur:.3f}", "-i", str(img_path)]
+            pad = max(0.0, clip_dur - read_dur)
+            if pad > 0.08:
+                base_vf = f"{base_vf},tpad=stop_mode=clone:stop_duration={pad:.3f}"
+        elif playable > 0.08 and playable + 0.05 < clip_dur:
+            # Short source, not a hold — loop the window so motion continues.
+            nframes = max(2, int(round(playable * fps)))
+            base_vf = f"{base_vf},loop=-1:size={nframes}:start=0,setpts=N/{fps}/TB"
+            input_args += ["-t", f"{playable:.3f}", "-i", str(img_path)]
+        else:
+            read_dur = clip_dur / max(speed, 0.01)
+            input_args += ["-t", f"{read_dur:.3f}", "-i", str(img_path)]
+        cmd = [
+            "ffmpeg", "-y",
+            *input_args,
+            "-vf", base_vf,
+            "-t", f"{clip_dur:.6f}",
+            "-r", str(fps),
+            *encode_args,
+            "-pix_fmt", "yuv420p",
+            "-an",
+            str(out_path),
+        ]
+        _run_ffmpeg_encode(cmd, img_path.name)
+        return
+
+    # Still image — Ken Burns / drift using camera_style; punch via zoom_amount
+    use_zoom, zoom_in, style = _camera_motion(camera_style, index=0, zoom=True)
+    punch_boost = max(0.0, scale - 1.0) * 0.35
+    amount = max(zoom_amount, 0.04) + punch_boost
+    if use_zoom:
+        base_vf = _zoompan_filter(
+            width, height, fps, frames, zoom_in, amount, camera_style=style
+        )
+    else:
+        # Static still with optional punch crop
+        if scale > 1.05:
+            base_vf = (
+                f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+                f"crop=iw/{scale:.4f}:ih/{scale:.4f}:"
+                f"(iw-ow)*{crop_x:.4f}:(ih-oh)*{crop_y:.4f},"
+                f"scale={width}:{height},setsar=1,format=yuv420p"
+            )
+        else:
+            base_vf = _static_filter(width, height)
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-i", str(img_path),
+        "-vf", base_vf,
+        "-t", f"{clip_dur:.6f}",
+        "-r", str(fps),
+        *encode_args,
+        "-pix_fmt", "yuv420p",
+        "-an",
+        str(out_path),
+    ]
+    _run_ffmpeg_encode(cmd, img_path.name)
+
+
+def _concat_shot_clips(shot_paths: list[Path], out_path: Path) -> None:
+    """Lossless-ish concat of same-codec shot clips into one scene clip."""
+    if len(shot_paths) == 1:
+        shutil.copy2(shot_paths[0], out_path)
+        return
+    list_path = out_path.with_suffix(".concat.txt")
+    list_path.write_text(
+        "\n".join(f"file '{p.resolve()}'" for p in shot_paths),
+        encoding="utf-8",
+    )
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0",
+        "-fflags", "+genpts",
+        "-i", str(list_path),
+        "-c", "copy",
+        str(out_path),
+    ]
+    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0",
+            "-fflags", "+genpts",
+            "-i", str(list_path),
+            *_cpu_encode_argv(),
+            "-pix_fmt", "yuv420p",
+            "-an",
+            str(out_path),
+        ]
+        _run_ffmpeg_encode(cmd, "shot_concat")
+    list_path.unlink(missing_ok=True)
+
+
+def _apply_overlays_to_clip(
+    base_clip: Path,
+    out_path: Path,
+    duration: float,
+    width: int,
+    height: int,
+    fps: int,
+    caption_overlay: Path | None = None,
+    text_effect_filters: str = "",
+    timed_overlays: list | None = None,
+    fade_in: float = 0.0,
+    fade_out: float = 0.0,
+    fade_color: str = "black",
+) -> None:
+    """Burn captions/smart-text/fades onto an already-assembled scene clip."""
+    frames = max(int(round(duration * fps)), 1)
+    clip_dur = frames / fps
+    timed_overlays = list(timed_overlays or [])
+    encode_args = _cpu_encode_argv()
+    fade_suffix = _fade_vf_suffix(clip_dur, fade_in, fade_out, fade_color)
+    input_args = ["-i", str(base_clip)]
+    base_vf = f"fps={fps},setpts=PTS-STARTPTS,setsar=1,format=yuv420p"
+
+    extra_inputs: list[str] = []
+    layers: list[tuple[int, float | None, float | None, str | None, tuple[int, int] | None]] = []
+    next_idx = 1
+    if caption_overlay is not None:
+        extra_inputs += ["-loop", "1", "-i", str(caption_overlay)]
+        layers.append((next_idx, None, None, None, None))
+        next_idx += 1
+    for item in timed_overlays:
+        png, t0, t1 = item[0], item[1], item[2]
+        anim = item[3] if len(item) > 3 else None
+        center = item[4] if len(item) > 4 else None
+        extra_inputs += ["-loop", "1", "-i", str(png)]
+        layers.append((next_idx, float(t0), float(t1), anim, center))
+        next_idx += 1
+
+    if layers or text_effect_filters or fade_suffix:
+        parts = [f"[0:v]{base_vf}[v0]"]
+        cur = "v0"
+        for layer_i, (in_idx, t0, t1, anim, center) in enumerate(layers):
+            lab_in = f"ov{layer_i}"
+            lab_out = f"v{layer_i + 1}"
+            motion = _overlay_motion_chain(t0, t1, anim, width, height)
+            parts.append(f"[{in_idx}:v]{motion}[{lab_in}]")
+            if t0 is None:
+                enable = ""
+            else:
+                enable = f":enable='{_escape_overlay_enable(t0, t1)}'"
+            xy = _overlay_xy(t0, anim, center)
+            parts.append(
+                f"[{cur}][{lab_in}]overlay={xy}:format=auto{enable}[{lab_out}]"
+            )
+            cur = lab_out
+        tail_bits = []
+        if text_effect_filters:
+            tail_bits.append(text_effect_filters)
+        if fade_suffix:
+            tail_bits.append(fade_suffix)
+        tail_bits.append("format=yuv420p")
+        parts.append(f"[{cur}]{','.join(tail_bits)}[vout]")
+        filter_complex = ";".join(parts)
+        cmd = [
+            "ffmpeg", "-y",
+            *input_args,
+            *extra_inputs,
+            "-filter_complex", filter_complex,
+            "-map", "[vout]",
+            "-t", f"{clip_dur:.6f}",
+            "-r", str(fps),
+            *encode_args,
+            "-pix_fmt", "yuv420p",
+            "-an",
+            str(out_path),
+        ]
+    else:
+        if fade_suffix:
+            cmd = [
+                "ffmpeg", "-y",
+                *input_args,
+                "-vf", f"{base_vf},{fade_suffix}",
+                "-t", f"{clip_dur:.6f}",
+                "-r", str(fps),
+                *encode_args,
+                "-pix_fmt", "yuv420p",
+                "-an",
+                str(out_path),
+            ]
+        else:
+            shutil.copy2(base_clip, out_path)
+            return
+    _run_ffmpeg_encode(cmd, base_clip.name)
+
+
+def _render_scene_from_edit_decision(
+    img_path: Path,
+    out_path: Path,
+    duration: float,
+    edit_decision: dict,
+    width: int,
+    height: int,
+    fps: int,
+    zoom_amount: float = 0.10,
+    caption_overlay: Path | None = None,
+    text_effect_filters: str = "",
+    timed_overlays: list | None = None,
+    fade_in: float = 0.0,
+    fade_out: float = 0.0,
+    fade_color: str = "black",
+) -> bool:
+    """Execute a multi-shot EditDecision. Returns False to fall back to legacy path."""
+    shots = edit_decision.get("shots") if isinstance(edit_decision, dict) else None
+    if not isinstance(shots, list) or not shots:
+        return False
+    # Normalize durations to exact scene length
+    raw_total = sum(max(0.05, float(s.get("output_duration") or 0.05)) for s in shots)
+    if raw_total <= 0:
+        return False
+    scale = float(duration) / raw_total
+    norm_shots = []
+    for s in shots:
+        sc = dict(s)
+        sc["output_duration"] = round(max(0.05, float(s.get("output_duration") or 0.05) * scale), 4)
+        norm_shots.append(sc)
+    # Fix residual frames on last shot
+    used = sum(s["output_duration"] for s in norm_shots[:-1])
+    norm_shots[-1]["output_duration"] = round(max(0.05, float(duration) - used), 4)
+
+    scratch = out_path.parent / f"_shots_{out_path.stem}"
+    scratch.mkdir(parents=True, exist_ok=True)
+    shot_paths: list[Path] = []
+    try:
+        for i, shot in enumerate(norm_shots):
+            sp = scratch / f"shot_{i:02d}.mp4"
+            shot_src = img_path
+            raw_src = shot.get("source_path") or ""
+            if raw_src:
+                cand = Path(raw_src)
+                if cand.is_file():
+                    shot_src = cand
+            _render_editorial_shot(
+                shot_src, sp, shot, width, height, fps, zoom_amount=zoom_amount
+            )
+            shot_paths.append(sp)
+        assembled = scratch / "assembled.mp4"
+        _concat_shot_clips(shot_paths, assembled)
+        needs_post = bool(
+            caption_overlay
+            or text_effect_filters
+            or timed_overlays
+            or fade_in > 0
+            or fade_out > 0
+        )
+        if needs_post:
+            _apply_overlays_to_clip(
+                assembled,
+                out_path,
+                duration,
+                width,
+                height,
+                fps,
+                caption_overlay=caption_overlay,
+                text_effect_filters=text_effect_filters,
+                timed_overlays=timed_overlays,
+                fade_in=fade_in,
+                fade_out=fade_out,
+                fade_color=fade_color,
+            )
+        else:
+            shutil.copy2(assembled, out_path)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    return out_path.is_file()
+
+
 def _render_scene_clip(
     img_path: Path,
     out_path: Path,
@@ -1120,11 +1540,58 @@ def _render_scene_clip(
     fade_color: str = "black",
     camera_style: str | None = None,
     avoid_blind_loop: bool = False,
+    edit_decision: dict | None = None,
 ):
     """
     timed_overlays: list of (png_path, local_start, local_end[, animation])
     for Pillow text when ffmpeg has no drawtext filter.
+
+    When edit_decision contains multiple shots (or punch-in/reframe), the
+    EditorialEngine path assembles coverage before overlays/fades.
     """
+    if isinstance(edit_decision, dict) and edit_decision.get("shots"):
+        shots = edit_decision.get("shots") or []
+        # Use editorial path for multi-shot or punch/reframe/image-motion strategies
+        strategy = str(edit_decision.get("strategy") or "")
+        use_editorial = (
+            len(shots) > 1
+            or strategy in (
+                "DUAL_ASSET",
+                "MULTI_SHOT",
+                "PUNCH_IN",
+                "REFRAME",
+                "IMAGE_MOTION",
+                "MONTAGE",
+                "RETIME",
+                "HOLD_TAIL",
+            )
+            or any(float(s.get("scale") or 1.0) > 1.08 for s in shots if isinstance(s, dict))
+            or any(
+                str(s.get("source_path") or "") and Path(str(s.get("source_path"))).is_file()
+                for s in shots
+                if isinstance(s, dict)
+            )
+        )
+        if use_editorial:
+            ok = _render_scene_from_edit_decision(
+                img_path=img_path,
+                out_path=out_path,
+                duration=duration,
+                edit_decision=edit_decision,
+                width=width,
+                height=height,
+                fps=fps,
+                zoom_amount=zoom_amount,
+                caption_overlay=caption_overlay,
+                text_effect_filters=text_effect_filters,
+                timed_overlays=timed_overlays,
+                fade_in=fade_in,
+                fade_out=fade_out,
+                fade_color=fade_color,
+            )
+            if ok:
+                return
+
     frames = max(int(round(duration * fps)), 1)
     # Use exact frame count so concat length matches audio timeline
     clip_dur = frames / fps
@@ -1132,20 +1599,37 @@ def _render_scene_clip(
     encode_args = _cpu_encode_argv()
     fade_suffix = _fade_vf_suffix(clip_dur, fade_in, fade_out, fade_color)
 
+    # Single-shot edit decision may still carry hold_tail / avoid loop
+    hold_tail = False
+    if isinstance(edit_decision, dict):
+        avoid_blind_loop = avoid_blind_loop or bool(edit_decision.get("avoid_blind_loop"))
+        shots = edit_decision.get("shots") or []
+        strategy = str(edit_decision.get("strategy") or "")
+        if strategy == "HOLD_TAIL":
+            hold_tail = True
+        if len(shots) == 1 and isinstance(shots[0], dict):
+            if shots[0].get("hold_tail"):
+                hold_tail = True
+            cam = shots[0].get("camera_style")
+            if cam and not camera_style:
+                camera_style = str(cam)
+
     if is_video_file(img_path):
-        base_vf = _video_fit_filter(width, height, fps)
-        if avoid_blind_loop:
+        base_vf = f"{_video_fit_filter(width, height, fps)},setpts=PTS-STARTPTS"
+        if hold_tail:
             try:
                 from providers.media_clip.ffmpeg_clip import probe_duration
 
                 src_dur = probe_duration(img_path) or 0.0
             except Exception:
                 src_dur = 0.0
-            pad = max(0.0, clip_dur - src_dur) if src_dur > 0 else clip_dur * 0.35
+            pad = max(0.0, clip_dur - src_dur) if src_dur > 0 else 0.0
             if pad > 0.08:
                 base_vf = f"{base_vf},tpad=stop_mode=clone:stop_duration={pad:.3f}"
             input_args = ["-i", str(img_path)]
         else:
+            # Continuous playback: loop the source when it is shorter than the
+            # scene. Freeze (tpad clone) is reserved for explicit HOLD_TAIL.
             input_args = ["-stream_loop", "-1", "-i", str(img_path)]
     elif zoom:
         base_vf = _zoompan_filter(
@@ -1258,6 +1742,8 @@ def render_video(
     visual_transitions: bool = True,
     transition_by_scene: dict | None = None,
     camera_by_scene: dict | None = None,
+    edit_decisions_by_scene: dict | None = None,
+    editorial_timeline: dict | None = None,
 ):
     print("[3/4] Locating image files...")
     missing = missing_images_for_scenes(aligned_rows, images_dir)
@@ -1271,6 +1757,7 @@ def render_video(
     ]
 
     durations = _scene_durations(aligned_rows, audio_end)
+    display_timeline = _scene_display_timeline(aligned_rows, audio_end)
     width, height = (int(x) for x in resolution.split("x"))
     per_scene_fx = scene_text_effects or [[] for _ in aligned_rows]
 
@@ -1356,7 +1843,69 @@ def render_video(
 
         fx_filters = ""
         timed_overlays: list = []
-        if per_scene_fx[i]:
+        scene_start = float(display_timeline[i][0])
+        scene_end = float(display_timeline[i][1])
+
+        # Prefer timeline graphics (lower-third panel) over floating Smart Text.
+        scene_gfx_specs = []
+        if editorial_timeline:
+            try:
+                from graphics import graphics_from_timeline, render_graphics_for_scene
+                from typography.composition import analyze_media as analyze_gfx_frame
+
+                gfx_specs_all = graphics_from_timeline(editorial_timeline)
+                # Any graphic overlapping this scene window (time-native, not scene-bound).
+                scene_gfx_specs = [
+                    s for s in gfx_specs_all
+                    if float(s.start) < scene_end and float(s.end) > scene_start
+                ]
+                if scene_gfx_specs:
+                    gfx_dir = Path("graphics_overlays")
+                    gfx_dir.mkdir(exist_ok=True)
+                    gfx_comp = analyze_gfx_frame(
+                        img,
+                        at_time=min(float(dur) * 0.5, 2.0),
+                        ffmpeg="ffmpeg",
+                        is_video=is_video_file(img),
+                        scratch_dir=gfx_dir,
+                    )
+                    gfx_timed = render_graphics_for_scene(
+                        scene_gfx_specs,
+                        scene_number=str(row.get("scene_number") or ""),
+                        scene_start=scene_start,
+                        scene_end=scene_end,
+                        width=width,
+                        height=height,
+                        out_dir=gfx_dir,
+                        composition=gfx_comp or None,
+                    )
+                    timed_overlays.extend(gfx_timed)
+            except Exception as exc:
+                print(f"[3/4] Graphics overlays skipped for scene clip {i + 1}: {exc}")
+                scene_gfx_specs = []
+
+        smart_fx_list = list(per_scene_fx[i] or [])
+        if smart_fx_list and scene_gfx_specs:
+            try:
+                from graphics.conflicts import filter_smart_text_for_graphics
+
+                before = len(smart_fx_list)
+                smart_fx_list = filter_smart_text_for_graphics(
+                    smart_fx_list,
+                    scene_gfx_specs,
+                    scene_start=scene_start,
+                    scene_end=scene_end,
+                )
+                skipped = before - len(smart_fx_list)
+                if skipped:
+                    print(
+                        f"[3/4] Skipped {skipped} Smart Text overlay(s) on scene "
+                        f"{row.get('scene_number')} — graphics lower-third preferred."
+                    )
+            except Exception:
+                pass
+
+        if smart_fx_list:
             # Always burn modern typography via Pillow full-frame overlays.
             # System ffmpeg often lacks drawtext; even when present, drawtext
             # cannot reproduce theme fonts / plates / placement. Never fall
@@ -1383,7 +1932,7 @@ def render_video(
                     scratch_dir=smart_dir,
                 )
 
-                for j, fx in enumerate(per_scene_fx[i]):
+                for j, fx in enumerate(smart_fx_list):
                     raw = str(fx.get("text") or "").strip()
                     if not raw:
                         continue
@@ -1451,7 +2000,6 @@ def render_video(
                 # Do not silently substitute old Arial text — surface the failure.
                 print(f"[3/4] Smart typography failed for scene clip {i + 1}: {exc}")
                 fx_filters = ""
-                timed_overlays = []
 
         fade_in = fade_out = 0.0
         fade_color = "black"
@@ -1474,6 +2022,15 @@ def render_video(
         sn_key = str(row.get("scene_number") or "")
         cov = coverage_flags.get(sn_key) or coverage_flags.get(str(int(sn_key)) if sn_key.isdigit() else sn_key)
         avoid_loop = bool(cov and cov.get("avoid_blind_loop"))
+        edit_dec = None
+        if edit_decisions_by_scene:
+            edit_dec = (
+                edit_decisions_by_scene.get(sn_key)
+                or edit_decisions_by_scene.get(sn_key.zfill(3))
+                or edit_decisions_by_scene.get(sn_key.lstrip("0") or sn_key)
+            )
+        if isinstance(edit_dec, dict) and edit_dec.get("avoid_blind_loop"):
+            avoid_loop = True
 
         _render_scene_clip(
             img_path=img,
@@ -1493,6 +2050,7 @@ def render_video(
             fade_out=fade_out,
             fade_color=fade_color,
             avoid_blind_loop=avoid_loop,
+            edit_decision=edit_dec if isinstance(edit_dec, dict) else None,
         )
         clip_files.append(out_clip)
 

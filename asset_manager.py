@@ -379,10 +379,267 @@ class AssetManager:
     def _remove_stale_file(self, scene_number: str, keep: Path) -> None:
         """After a successful STOCK/FLOW download, delete any other pre-existing file
         for this scene (e.g. an old 001.jpg lingering next to a fresh 001.mp4) so the
-        renderer's extension-priority lookup can't pick up the wrong one."""
+        renderer's extension-priority lookup can't pick up the wrong one.
+
+        Never deletes complementary assets (``001_b``, ``001_c``, …).
+        """
         existing = vg.find_image_for_scene(self.images_dir, scene_number)
         if existing and existing.resolve() != keep.resolve() and existing.is_file():
+            stem = existing.stem.lower()
+            if "_" in stem and stem.rsplit("_", 1)[-1] in ("b", "c", "d", "e"):
+                return
             existing.unlink()
+
+    def _complement_letter(self, index: int) -> str:
+        letters = "bcdef"
+        return letters[min(index, len(letters) - 1)]
+
+    def _should_resolve_complements(self, scene: SceneRow, result: AssetResult, record: dict) -> bool:
+        if not result.ok or result.path is None:
+            return False
+        if getattr(self, "_resolving_complement", False):
+            return False
+        cov = record.get("coverage_plan") if isinstance(record.get("coverage_plan"), dict) else {}
+        strategy = str(cov.get("strategy") or "").lower()
+        if strategy == "dual":
+            return True
+        narr = 0.0
+        try:
+            narr = float(cov.get("narration_duration") or 0)
+        except (TypeError, ValueError):
+            narr = 0.0
+        actual = cached_duration(result.metadata) or 0.0
+        if narr > 0 and actual > 0 and (actual / narr) < 0.72:
+            return True
+        if strategy in ("extend", "hold_tail") and narr > 0 and actual > 0 and (actual / narr) < 0.88:
+            return True
+        return False
+
+    def _complement_segment_specs(self, scene: SceneRow, record: dict) -> List[dict]:
+        cov = record.get("coverage_plan") if isinstance(record.get("coverage_plan"), dict) else {}
+        segs = cov.get("segments") if isinstance(cov.get("segments"), list) else []
+        extras = [s for s in segs[1:] if isinstance(s, dict)]
+        if extras:
+            return extras[:3]
+        # Synthesize one stock complement when coverage is short but not pre-planned dual
+        hint = (
+            (scene.visual_description or "").strip()
+            or (scene.prompt or scene.stock or "").strip()
+            or (scene.script_segment or "")[:100]
+        )
+        if not hint:
+            return []
+        primary_type = (scene.asset_type or "").lower()
+        # Prefer a different media kind / detail query
+        if "video" in primary_type:
+            asset_class = "stock_image"
+            hint = f"{hint} close-up detail"
+        else:
+            asset_class = "stock_video"
+            hint = f"{hint} process action"
+        return [
+            {
+                "asset_class": asset_class,
+                "semantic_query_hint": hint,
+                "visual_role": "detail",
+            }
+        ]
+
+    def _build_complement_scene(self, scene: SceneRow, seg: dict) -> SceneRow:
+        asset_class = str(seg.get("asset_class") or "stock_image").strip().lower()
+        # Complements are free stock / archive — never spend Flow credits on B-roll
+        if asset_class in ("video", "flow_video"):
+            asset_class = "stock_video"
+        elif asset_class in ("image", "flow_image"):
+            asset_class = "stock_image"
+        elif asset_class not in (
+            "stock_video",
+            "stock_image",
+            "stock",
+            "youtube_video",
+            "archive_video",
+            "nasa_video",
+        ):
+            asset_class = "stock_image"
+        hint = str(
+            seg.get("semantic_query_hint")
+            or scene.visual_description
+            or scene.prompt
+            or scene.stock
+            or scene.script_segment
+            or ""
+        ).strip()
+        return SceneRow(
+            scene_number=scene.scene_number,
+            script_segment=scene.script_segment,
+            asset_type=asset_class,
+            prompt=hint,
+            stock=hint if "stock" in asset_class or asset_class == "stock" else "",
+            search_queries=[hint] if hint else list(scene.search_queries or []),
+            fallbacks=[],
+            visual_description=hint,
+        )
+
+    def _maybe_resolve_complements(
+        self, scene: SceneRow, primary: AssetResult, record: dict
+    ) -> None:
+        """Download complementary B-roll to ``NNN_b.ext`` when coverage needs it.
+
+        Persists ``complement_assets`` on the manifest record. Failures are soft —
+        editorial falls back to single-asset strategies.
+        """
+        if not self._should_resolve_complements(scene, primary, record):
+            return
+        # Already have complements on disk / manifest
+        existing = list(record.get("complement_assets") or [])
+        if existing:
+            alive = []
+            for item in existing:
+                if isinstance(item, dict) and item.get("path"):
+                    p = Path(str(item["path"]))
+                    if not p.is_file():
+                        p = self.images_dir / p.name
+                    if p.is_file():
+                        item = dict(item)
+                        item["path"] = str(p)
+                        alive.append(item)
+            if alive:
+                record["complement_assets"] = alive
+                return
+        disk = vg.find_complement_assets_for_scene(self.images_dir, scene.scene_number)
+        if disk:
+            record["complement_assets"] = [
+                {
+                    "path": str(p),
+                    "asset_id": vg.complement_asset_id(scene.scene_number, p),
+                    "asset_class": "",
+                    "query_hint": "",
+                    "visual_role": "",
+                }
+                for p in disk
+            ]
+            return
+
+        specs = self._complement_segment_specs(scene, record)
+        if not specs:
+            return
+
+        self._resolving_complement = True
+        complements: List[dict] = []
+        try:
+            n = int(str(scene.scene_number).strip())
+            prefix = f"{n:03d}"
+            for i, seg in enumerate(specs):
+                if self.is_scene_cancelled(scene.scene_number) or self.is_cancelled:
+                    break
+                letter = self._complement_letter(i)
+                staging = self.images_dir / "_complement_staging" / f"{prefix}_{letter}"
+                if staging.exists():
+                    import shutil
+
+                    shutil.rmtree(staging, ignore_errors=True)
+                staging.mkdir(parents=True, exist_ok=True)
+                comp_scene = self._build_complement_scene(scene, seg)
+                source = self.classify(comp_scene)
+                # Skip Flow for complements even if classify somehow returns it
+                if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                    comp_scene = self._build_complement_scene(
+                        scene, {**seg, "asset_class": "stock_image"}
+                    )
+                    source = self.classify(comp_scene)
+                provider = self._provider_for(source)
+                if provider is None:
+                    self.log(
+                        f"[ASSET] Scene {scene.scene_number} complement _{letter} "
+                        f"skipped (no {source.value} provider)"
+                    )
+                    continue
+                self.log(
+                    f"[ASSET] Scene {scene.scene_number} -> complement _{letter} "
+                    f"({comp_scene.asset_type}: {(comp_scene.prompt or comp_scene.stock)[:60]})"
+                )
+                try:
+                    # Duration hint: remaining narration after primary
+                    cov = record.get("coverage_plan") or {}
+                    try:
+                        narr = float(cov.get("narration_duration") or 0)
+                    except (TypeError, ValueError):
+                        narr = 0.0
+                    primary_dur = cached_duration(primary.metadata) or 0.0
+                    remain = max(2.0, narr - primary_dur) if narr else 3.0
+                    provider.required_duration = remain
+                    result = provider.resolve(comp_scene, staging, log=self.log)
+                except Exception as exc:
+                    self.log(
+                        f"[ASSET] Scene {scene.scene_number} complement _{letter} failed: {exc}"
+                    )
+                    continue
+                finally:
+                    try:
+                        provider.required_duration = None
+                    except Exception:
+                        pass
+                if not result.ok or result.path is None or not Path(result.path).is_file():
+                    self.log(
+                        f"[ASSET] Scene {scene.scene_number} complement _{letter} "
+                        f"unavailable: {getattr(result, 'error', '')}"
+                    )
+                    continue
+                src_path = Path(result.path)
+                dest = self.images_dir / f"{prefix}_{letter}{src_path.suffix.lower()}"
+                try:
+                    import shutil
+
+                    if dest.exists():
+                        dest.unlink()
+                    shutil.move(str(src_path), str(dest))
+                except OSError as exc:
+                    self.log(
+                        f"[ASSET] Scene {scene.scene_number} complement _{letter} "
+                        f"move failed: {exc}"
+                    )
+                    continue
+                finally:
+                    import shutil
+
+                    shutil.rmtree(staging, ignore_errors=True)
+                complements.append(
+                    {
+                        "path": str(dest),
+                        "asset_id": f"{prefix}_{letter}",
+                        "asset_class": comp_scene.asset_type,
+                        "query_hint": comp_scene.prompt or comp_scene.stock,
+                        "visual_role": str(seg.get("visual_role") or "detail"),
+                        "semantic_query_hint": str(seg.get("semantic_query_hint") or ""),
+                        "source": result.source.value if result.source else source.value,
+                    }
+                )
+                # Track for repetition penalties in stock selection
+                meta = result.metadata or {}
+                self.selection_history.record(
+                    provider=str(meta.get("provider") or source.value),
+                    asset_id=str(meta.get("provider_asset_id") or meta.get("asset_id") or ""),
+                    title=str(meta.get("title") or meta.get("alt") or ""),
+                    description=str(meta.get("description") or meta.get("tags") or ""),
+                )
+                self.log(
+                    f"[ASSET] Scene {scene.scene_number} complement _{letter} ready: {dest.name}"
+                )
+        finally:
+            self._resolving_complement = False
+
+        if complements:
+            record["complement_assets"] = complements
+            # Keep coverage strategy as dual when we landed complements
+            cov = record.get("coverage_plan")
+            if isinstance(cov, dict) and cov.get("strategy") != "dual":
+                cov = dict(cov)
+                cov["strategy"] = "dual"
+                cov["reason"] = (
+                    str(cov.get("reason") or "")
+                    + "; complementary asset resolved for editorial coverage"
+                ).strip("; ")
+                record["coverage_plan"] = cov
 
     def _annotate_actual_duration(self, result: AssetResult) -> None:
         """Measure the delivered file so the editor works from reality.
@@ -448,6 +705,12 @@ class AssetManager:
         record = self._record_from_result(scene, result)
         if result.ok and result.path is not None:
             self._run_visual_qa(scene, result, record)
+            try:
+                self._maybe_resolve_complements(scene, result, record)
+            except Exception as exc:
+                self.log(
+                    f"[ASSET] Scene {scene.scene_number} complement resolve skipped: {exc}"
+                )
         self._manifest_write(scene, record)
         self.recovery.status[scene_key(scene.scene_number)] = result.status.value
 
@@ -612,6 +875,29 @@ class AssetManager:
 
     # ---------- public API ----------
 
+    def _ensure_complements_for_cached(self, scene: SceneRow, cached: AssetResult) -> AssetResult:
+        """On cache hit, still attempt complementary B-roll if the beat needs it."""
+        record = self.manifest.get(scene.scene_number) or dict(cached.metadata or {})
+        if not isinstance(record, dict):
+            record = {}
+        # Ensure coverage_plan is present for the decision
+        if not record.get("coverage_plan"):
+            key = scene_key(scene.scene_number)
+            cov = self.coverage_by_scene.get(key) or self.coverage_by_scene.get(str(scene.scene_number))
+            if cov:
+                record["coverage_plan"] = cov
+        try:
+            self._maybe_resolve_complements(scene, cached, record)
+            if record.get("complement_assets"):
+                self._manifest_write(scene, record)
+                if cached.metadata is None:
+                    cached.metadata = {}
+                cached.metadata["complement_assets"] = record.get("complement_assets")
+                cached.metadata["coverage_plan"] = record.get("coverage_plan")
+        except Exception as exc:
+            self.log(f"[ASSET] Scene {scene.scene_number} cached complement skipped: {exc}")
+        return cached
+
     def resolve_scene(self, scene: SceneRow, force: bool = False) -> AssetResult:
         """Resolve a single scene. resolve_all() is preferred for a full project run
         (it batches FLOW scenes into one multi-account call); this is the direct,
@@ -627,7 +913,7 @@ class AssetManager:
                     f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()} "
                     f"(cached, reusing {cached.path.name})"
                 )
-                return cached
+                return self._ensure_complements_for_cached(scene, cached)
         return self._resolve_one(scene, source)
 
     def _cancelled_result(self, scene: SceneRow, source: AssetSource) -> AssetResult:
@@ -1126,6 +1412,7 @@ class AssetManager:
                     f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()} "
                     f"(cached, reusing {cached.path.name})"
                 )
+                cached = self._ensure_complements_for_cached(scene, cached)
                 results[scene.scene_number] = cached
                 if on_scene_complete:
                     on_scene_complete(scene, cached)

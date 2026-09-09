@@ -298,8 +298,8 @@ class TestPlacement(unittest.TestCase):
     def test_aspect_ratio_aware_positioning(self) -> None:
         landscape = resolve_placement("fact_number", "42%", 1920, 1080, fontsize=80)
         vertical = resolve_placement("fact_number", "42%", 1080, 1920, fontsize=80)
-        self.assertIn(landscape["placement"], ("top_right", "top_left", "top_center"))
-        self.assertEqual(vertical["placement"], "top_center")
+        self.assertIn(landscape["placement"], ("bottom_right", "bottom_left", "bottom_center"))
+        self.assertEqual(vertical["placement"], "bottom_center")
         self.assertEqual(vertical["aspect"], "vertical")
         self.assertEqual(landscape["aspect"], "landscape")
 
@@ -350,7 +350,7 @@ class TestProofStyle(unittest.TestCase):
             )
             self.assertEqual(params["style_id"], "proof_modern")
             self.assertEqual(params["text"], "Changing")
-            self.assertEqual(params["placement"], "top_left")
+            self.assertEqual(params["placement"], "bottom_left")
             self.assertTrue(params["accent_bar"])
             self.assertIn("Manrope", str(params.get("font_path") or ""))
         finally:
@@ -520,10 +520,14 @@ class TestModernTypographyTreatment(unittest.TestCase):
         self.assertTrue(self._params("highlight", "deep ocean")["accent_word"])
         self.assertFalse(self._params("fade", "a long quiet narration line here")["accent_word"])
 
-    def test_hero_styles_are_actually_hero_sized(self) -> None:
-        """The old sizes were timid — a 'punch' rendered at 7vh reads as a caption."""
-        self.assertGreaterEqual(self._params("punch", "IMPOSSIBLE")["fontsize"], 100)
-        self.assertGreaterEqual(self._params("impact", "97%")["fontsize"], 150)
+    def test_hero_styles_stay_documentary_sized(self) -> None:
+        """Punch/stat stay prominent, never thumbnail-huge."""
+        punch = self._params("punch", "IMPOSSIBLE")["fontsize"]
+        fact = self._params("impact", "97%")["fontsize"]
+        self.assertGreaterEqual(punch, 48)
+        self.assertLessEqual(punch, 90)
+        self.assertGreaterEqual(fact, 48)
+        self.assertLessEqual(fact, 100)
 
     def test_long_lines_no_longer_force_a_plate(self) -> None:
         """`len(text) >= 24 -> plate` overrode the style's own decision."""
@@ -660,7 +664,8 @@ class TestFrameAwarePlacement(unittest.TestCase):
             composition={"avoid": [blind["placement"]], "fallback": "top_center"},
         )
         self.assertNotEqual(aware["placement"], blind["placement"])
-        self.assertEqual(aware["placement"], "top_center")
+        # Fallback remaps into the lower third (never mid/top).
+        self.assertTrue(aware["placement"].startswith("bottom_"))
 
     def test_relocation_falls_back_when_the_target_is_also_occupied(self) -> None:
         from typography.placement import resolve_placement
@@ -668,7 +673,8 @@ class TestFrameAwarePlacement(unittest.TestCase):
             "minimal_caption", "a fairly long caption line", 1920, 1080,
             composition={"avoid": ["bottom_center", "top_center"], "fallback": "top_center"},
         )
-        self.assertNotIn(out["placement"], ("bottom_center", "top_center"))
+        self.assertNotIn(out["placement"], ("bottom_center", "top_center", "center"))
+        self.assertTrue(out["placement"].startswith("bottom_"))
 
     def test_explicit_upstream_placement_still_wins(self) -> None:
         from typography.placement import resolve_placement
@@ -676,8 +682,19 @@ class TestFrameAwarePlacement(unittest.TestCase):
             "minimal_caption", "text", 1920, 1080,
             composition={"prefer": "top_right", "avoid": [], "fallback": "center"},
         )
-        self.assertEqual(out["placement"], "top_right")
+        # Mid/top requests are remapped into the lower third.
+        self.assertEqual(out["placement"], "bottom_right")
 
+    def test_all_styles_stay_in_lower_third(self) -> None:
+        from typography.placement import resolve_placement
+        from typography.styles import TYPOGRAPHY_STYLES
+        for style_id in TYPOGRAPHY_STYLES:
+            info = resolve_placement(style_id, "Sample text here", 1920, 1080, fontsize=48)
+            self.assertTrue(
+                info["placement"].startswith("bottom_"),
+                f"{style_id} placed at {info['placement']}",
+            )
+            self.assertGreaterEqual(info["anchor_y_ratio"], 0.68)
     def test_analysis_failure_is_silent_and_non_blocking(self) -> None:
         from typography.composition import analyze_media
         self.assertEqual(analyze_media("/nonexistent/frame.png"), {})

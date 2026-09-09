@@ -643,7 +643,7 @@ class TestGeminiProvider(unittest.TestCase):
                 return "not json"
 
         with self.assertRaises(VisualPlanError) as ctx:
-            VisualDirector(llm=AlwaysBadLLM()).plan(script)
+            VisualDirector(llm=AlwaysBadLLM()).plan(script, allow_fallback=False)
         self.assertIn("Section", str(ctx.exception))
         self.assertIn("/4", str(ctx.exception))
 
@@ -763,7 +763,7 @@ class TestCoveragePlanning(unittest.TestCase):
         tiny = {"topic": "Pluto", "scenes": [_stock_scene(1, chunk), _stock_scene(2, chunk)]}
         llm = StaticLLM(json.dumps(tiny))
         with self.assertRaises(VisualPlanError) as ctx:
-            VisualDirector(llm=llm).plan(script)
+            VisualDirector(llm=llm).plan(script, allow_fallback=False)
         self.assertIn("under-segmented", str(ctx.exception))
 
     def test_many_scenes_parse_without_a_max_cap(self):
