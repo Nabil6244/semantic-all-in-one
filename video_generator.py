@@ -1312,21 +1312,172 @@ def _render_editorial_shot(
     _run_ffmpeg_encode(cmd, img_path.name)
 
 
+# ---------- FFmpeg concat demuxer paths (Windows-safe) ----------
+
+RENDER_CLIPS_DIRNAME = "._render_clips"
+CONCAT_LIST_FILENAME = "concat_list.txt"
+
+
+class ConcatMuxError(Exception):
+    """concat_list.txt is missing or a listed clip does not exist."""
+
+    def __init__(self, message: str, *, missing_path=None, scene_number=None):
+        super().__init__(message)
+        self.missing_path = missing_path
+        self.scene_number = scene_number
+
+
+def scene_clip_filename(index: int) -> str:
+    return f"scene_{int(index):04d}.mp4"
+
+
+def scene_clip_path(render_dir, scene_filename: str, *, path_cls=None):
+    """Join render-clips dir and scene filename with a real path separator.
+
+    ``Path(render_dir) / scene_filename`` — never ``render_dir + scene_filename``,
+    which on Windows glues ``...\\render_clips`` + ``scene_0000.mp4`` into
+    ``...\\render_clipsscene_0000.mp4``.
+    """
+    cls = path_cls if path_cls is not None else Path
+    return cls(render_dir) / scene_filename
+
+
+def render_clips_dir(work_dir, *, path_cls=None):
+    cls = path_cls if path_cls is not None else Path
+    return cls(work_dir) / RENDER_CLIPS_DIRNAME
+
+
+def concat_list_path_for(work_dir, *, path_cls=None):
+    cls = path_cls if path_cls is not None else Path
+    return cls(work_dir) / CONCAT_LIST_FILENAME
+
+
+def ffmpeg_concat_path_text(clip_path: Path, concat_list_path: Path) -> str:
+    """Path text for one concat demuxer entry, relative to the concat file.
+
+    Always uses forward slashes. FFmpeg's concat demuxer treats ``\\`` as an
+    escape, so a Windows path like ``...\\render_clips\\scene_0000.mp4``
+    becomes ``...render_clipsscene_0000.mp4`` (``\\s`` and ``\\t`` eaten).
+    """
+    clip = Path(clip_path).resolve()
+    base = Path(concat_list_path).resolve().parent
+    try:
+        formatted = clip.relative_to(base).as_posix()
+    except ValueError:
+        formatted = clip.as_posix()
+    return formatted
+
+
+def _escape_ffmpeg_concat_filename(path_text: str) -> str:
+    # Backslash is the concat-demuxer escape; single quote ends the quoted path.
+    return path_text.replace("\\", "\\\\").replace("'", r"'\''")
+
+
+def _unescape_ffmpeg_concat_filename(inner: str) -> str:
+    return inner.replace(r"'\''", "'").replace("\\\\", "\\")
+
+
+def ffmpeg_concat_file_line(clip_path: Path, concat_list_path: Path) -> str:
+    inner = ffmpeg_concat_path_text(clip_path, concat_list_path)
+    return f"file '{_escape_ffmpeg_concat_filename(inner)}'"
+
+
+def write_ffmpeg_concat_list(clip_paths, concat_list_path: Path) -> Path:
+    """Write concat_list.txt with demuxer-safe paths (relative, forward slashes)."""
+    concat_list_path = Path(concat_list_path)
+    concat_list_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [ffmpeg_concat_file_line(Path(p), concat_list_path) for p in clip_paths]
+    concat_list_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    return concat_list_path.resolve()
+
+
+def parse_concat_list_clip_paths(concat_list_path: Path) -> list[Path]:
+    """Resolve each ``file '...'`` entry relative to the concat file's directory."""
+    concat_list_path = Path(concat_list_path)
+    base = concat_list_path.resolve().parent
+    paths: list[Path] = []
+    for line in concat_list_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not stripped.lower().startswith("file "):
+            continue
+        rest = stripped[5:].strip()
+        if len(rest) >= 2 and rest.startswith("'") and rest.endswith("'"):
+            inner = _unescape_ffmpeg_concat_filename(rest[1:-1])
+        else:
+            inner = _unescape_ffmpeg_concat_filename(rest)
+        p = Path(inner)
+        if not p.is_absolute():
+            p = (base / inner).resolve()
+        else:
+            p = p.resolve()
+        paths.append(p)
+    return paths
+
+
+def validate_mux_inputs(
+    concat_list_path: Path,
+    clip_files=None,
+    scene_numbers=None,
+) -> list[Path]:
+    """Fail before FFmpeg if concat_list.txt or any listed clip is missing."""
+    concat_list_path = Path(concat_list_path)
+    if not concat_list_path.is_file():
+        raise ConcatMuxError(
+            f"concat list missing: {concat_list_path.resolve()}",
+            missing_path=concat_list_path,
+        )
+    listed = parse_concat_list_clip_paths(concat_list_path)
+    if not listed:
+        raise ConcatMuxError(
+            f"concat list is empty: {concat_list_path.resolve()}",
+            missing_path=concat_list_path,
+        )
+    expected = [Path(p) for p in clip_files] if clip_files is not None else None
+    if expected is not None and len(listed) != len(expected):
+        raise ConcatMuxError(
+            f"concat list has {len(listed)} clip(s) but {len(expected)} were rendered: "
+            f"{concat_list_path.resolve()}",
+            missing_path=concat_list_path,
+        )
+    for i, listed_path in enumerate(listed):
+        scene = None
+        if scene_numbers is not None and i < len(scene_numbers):
+            scene = scene_numbers[i]
+        else:
+            scene = i
+        if not listed_path.is_file():
+            raise ConcatMuxError(
+                f"mux input missing for scene {scene}: {listed_path}",
+                missing_path=listed_path,
+                scene_number=scene,
+            )
+        if expected is not None and not expected[i].is_file():
+            raise ConcatMuxError(
+                f"mux input missing for scene {scene}: {expected[i].resolve()}",
+                missing_path=expected[i],
+                scene_number=scene,
+            )
+    return listed
+
+
 def _concat_shot_clips(shot_paths: list[Path], out_path: Path) -> None:
     """Lossless-ish concat of same-codec shot clips into one scene clip."""
     if len(shot_paths) == 1:
         shutil.copy2(shot_paths[0], out_path)
         return
     list_path = out_path.with_suffix(".concat.txt")
-    list_path.write_text(
-        "\n".join(f"file '{p.resolve()}'" for p in shot_paths),
-        encoding="utf-8",
-    )
+    write_ffmpeg_concat_list(shot_paths, list_path)
+    try:
+        validate_mux_inputs(list_path, shot_paths)
+    except ConcatMuxError as exc:
+        sys.exit(f"ERROR: {exc}")
     cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
         "-fflags", "+genpts",
-        "-i", str(list_path),
+        "-i", str(list_path.resolve()),
         "-c", "copy",
         str(out_path),
     ]
@@ -1336,7 +1487,7 @@ def _concat_shot_clips(shot_paths: list[Path], out_path: Path) -> None:
             "ffmpeg", "-y",
             "-f", "concat", "-safe", "0",
             "-fflags", "+genpts",
-            "-i", str(list_path),
+            "-i", str(list_path.resolve()),
             *_cpu_encode_argv(),
             "-pix_fmt", "yuv420p",
             "-an",
@@ -1764,7 +1915,8 @@ def render_video(
     if bg_audio is not None and not Path(bg_audio).is_file():
         sys.exit(f"ERROR: background audio not found: {bg_audio}")
 
-    clips_dir = Path("._render_clips")
+    work_dir = Path.cwd().resolve()
+    clips_dir = render_clips_dir(work_dir)
     if clips_dir.exists():
         shutil.rmtree(clips_dir)
     clips_dir.mkdir()
@@ -1821,7 +1973,7 @@ def render_video(
     clip_files = []
     coverage_flags = manifest_coverage_flags(images_dir)
     for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
-        out_clip = clips_dir / f"scene_{i:04d}.mp4"
+        out_clip = scene_clip_path(clips_dir, scene_clip_filename(i))
         sn = str(row.get("scene_number") or "")
         style_key = (camera_by_scene or {}).get(sn)
         use_zoom, zoom_in, camera_style = _camera_motion(
@@ -2054,14 +2206,21 @@ def render_video(
         )
         clip_files.append(out_clip)
 
-    concat_list_path = Path("concat_list.txt")
-    concat_lines = [f"file '{p.resolve()}'" for p in clip_files]
-    concat_list_path.write_text("\n".join(concat_lines), encoding="utf-8")
+    concat_list_path = concat_list_path_for(work_dir)
+    write_ffmpeg_concat_list(clip_files, concat_list_path)
+    scene_numbers = [
+        str(row.get("scene_number") or (i + 1))
+        for i, row in enumerate(aligned_rows)
+    ]
+    try:
+        validate_mux_inputs(concat_list_path, clip_files, scene_numbers=scene_numbers)
+    except ConcatMuxError as exc:
+        sys.exit(f"ERROR: {exc}")
 
     print("[4/4] Muxing clips + audio...")
     cmd = [
         "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
+        "-f", "concat", "-safe", "0", "-i", str(concat_list_path.resolve()),
         "-i", audio_path,
     ]
 
