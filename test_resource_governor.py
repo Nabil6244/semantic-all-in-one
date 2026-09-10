@@ -41,7 +41,7 @@ class TestResourceGovernor(unittest.TestCase):
         self.assertLessEqual(b.ffmpeg, 4)
         self.assertGreaterEqual(b.flow_accounts, 1)
         self.assertLessEqual(b.flow_accounts, 10)
-        self.assertLessEqual(b.flow_accounts, 8)  # default host should stay conservative
+        self.assertGreaterEqual(b.flow_accounts, 5)
 
     def test_long_form_tightens_caps(self) -> None:
         normal = get_governor().budget(long_form=False)

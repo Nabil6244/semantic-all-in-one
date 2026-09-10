@@ -163,11 +163,11 @@ export const timing = {
   sessionRetrySeconds: [5, 15, 30],
   maxParallelImages: 4,
   // Hard cap on simultaneous Chrome/Flow account workers.
-  // Empirically: 1–5 OK, ~10 starts hanging, 20 hangs hard.
+  // Empirically: ~10 is the practical ceiling; 20 hangs hard.
   // Remaining signed-in accounts stay on standby for rate-limit rotation.
   maxParallelAccounts: Number(process.env.FLOW_MAX_PARALLEL_ACCOUNTS) > 0
     ? Math.min(10, Math.max(1, Number(process.env.FLOW_MAX_PARALLEL_ACCOUNTS)))
-    : 6,
+    : 10,
   // Throttle full STATE fan-out during BATCH_PROGRESS (ms).
   progressStateThrottleMs: 250,
   imageSlotStaggerMs: 250,

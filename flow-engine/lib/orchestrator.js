@@ -47,7 +47,7 @@ export function computeFlowWorkerCount(promptCount, accountCount, maxParallel) {
   const accounts = Math.max(0, Number(accountCount) || 0);
   const cap = Math.min(
     10,
-    Math.max(1, Number(maxParallel) || timing.maxParallelAccounts || 6),
+    Math.max(1, Number(maxParallel) || timing.maxParallelAccounts || 10),
   );
   if (prompts <= 0 || accounts <= 0) return 0;
   return Math.min(accounts, prompts, cap);
