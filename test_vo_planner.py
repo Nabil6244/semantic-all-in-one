@@ -474,9 +474,14 @@ class TestQualityAndPrefs(unittest.TestCase):
         )
         out = apply_asset_mix_to_plan(plan, mix)
         flow_imgs = [s for s in out.scenes if s.provider_preference == "flow_image"]
+        flow_vids = [s for s in out.scenes if s.provider_preference == "flow_video"]
         self.assertGreaterEqual(len(flow_imgs), 4)
         self.assertTrue(all(s.asset_type == "image" for s in flow_imgs))
+        # 50% video × 20% flow_video ≈ 1 of 10 scenes
+        self.assertGreaterEqual(len(flow_vids), 1)
+        self.assertTrue(all(s.asset_type == "video" for s in flow_vids))
         self.assertTrue(any("asset_mix_applied" in w for w in out.warnings))
+        self.assertTrue(any("flow_video=" in w for w in out.warnings))
         # Preferred providers appear in Claude handoff
         words = _words_from_script([s.narration for s in out.scenes])
         vo = _vo_from_words(words)
@@ -491,6 +496,25 @@ class TestQualityAndPrefs(unittest.TestCase):
         prefs = [b.get("pref") for b in handoff["beats"]]
         self.assertIn("flow_image", prefs)
         self.assertEqual(handoff["mix"]["flow_image_pct"], 100.0)
+
+    def test_flow_video_pct_twenty_raises_budget(self):
+        from vo_planner.preferences import allocation_settings_for_plan, mix_flow_video_target
+
+        mix = AssetMixPreferences(
+            video_pct=50,
+            image_pct=50,
+            stock_video_pct=80,
+            flow_video_pct=20,
+            youtube_video_pct=0,
+            flow_image_pct=0,
+            stock_image_pct=100,
+        )
+        settings = allocation_settings_from_mix(mix)
+        self.assertEqual(settings.ai_video_budget, "high")
+        self.assertEqual(mix_flow_video_target(10, mix), 1)
+        planned = allocation_settings_for_plan(mix, 40)
+        self.assertEqual(planned.ai_video_budget, "custom")
+        self.assertGreaterEqual(planned.ai_video_budget_custom, 4)
 
 
 class TestBridgeAndEngine(unittest.TestCase):

@@ -671,6 +671,12 @@ class VideoGeneratorApp(ctk.CTk):
         # ensure_sfx_library is idempotent; also re-checked before smart-editing mix.
         self.after_idle(self._ensure_sfx_ready)
         self.after_idle(self._ensure_licensed_then_picker)
+        if str(os.environ.get("VIDEOGEN_DUMP_DIAGNOSTICS", "")).strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            self.after_idle(self._dump_performance_diagnostics)
     # ---------- UI ----------
 
     def _build_ui(self) -> None:
@@ -3502,8 +3508,35 @@ class VideoGeneratorApp(ctk.CTk):
                     0,
                     lambda: self._append_log("[ALLOC] Running visual allocation…\n"),
                 )
-                alloc_settings = load_allocation_settings(self._workspace)
+                from vo_planner.preferences import (
+                    allocation_settings_for_plan,
+                    apply_asset_mix_to_plan,
+                )
+
+                mix = self._read_vo_asset_mix()
+                base_alloc = load_allocation_settings(self._workspace)
+                alloc_settings = allocation_settings_for_plan(
+                    mix, len(plan.scenes), base_alloc
+                )
                 bundle = apply_allocation_to_plan(plan, alloc_settings, resolved)
+                # Soft-enforce Asset mix % (Flow Video / Flow Image) onto the
+                # executable plan so UI targets reach CSV generation.
+                mixed = apply_asset_mix_to_plan(plan, mix)
+                plan.scenes = list(mixed.scenes)
+                plan.warnings = list(mixed.warnings)
+                n_flow_v = sum(
+                    1
+                    for s in plan.scenes
+                    if (s.provider_preference or "") == "flow_video"
+                    or (s.asset_type or "") in ("video", "flow_video")
+                )
+                self.after(
+                    0,
+                    lambda n=n_flow_v, pct=float(mix.flow_video_pct): self._append_log(
+                        f"[ALLOC] Asset mix applied — {n} Flow video scene(s) "
+                        f"(target {pct:.0f}% of video bucket)\n"
+                    ),
+                )
                 plan.set_allocation(bundle.to_dict())
                 report = build_plan_validation_report(plan, bundle)
                 self.after(0, lambda r=report: self._append_log(f"\n{r}\n"))
@@ -3749,6 +3782,9 @@ class VideoGeneratorApp(ctk.CTk):
                     asset_mix=mix,
                     on_progress=on_progress,
                 )
+                # Keep mix-applied VisualPlan so Claude CSV import can enforce
+                # Flow Video % even if Claude returns all stock/youtube.
+                self._vo_mix_visual_plan = _visual
                 # Mix preferences travel with the Claude handoff only (targets).
                 handoff_obj = vo_plan.compact_handoff()
                 if isinstance(handoff_obj.get("mix"), dict):
@@ -3928,11 +3964,110 @@ class VideoGeneratorApp(ctk.CTk):
     def _finish_claude_csv_import(self, dest: Path, *, source_label: str) -> None:
         self.csv_var.set(str(dest))
         self._sync_images_dir()
+        # Enforce Asset mix % onto the imported CSV so Flow Video / Flow Image
+        # targets are not lost when Claude returns a different provider mix.
+        try:
+            applied = self._enforce_asset_mix_on_csv(Path(dest))
+            if applied:
+                self._append_log(
+                    f"[CLAUDE-PLAN] Asset mix enforced on CSV — "
+                    f"{applied} Flow video scene(s)\n"
+                )
+        except Exception as exc:
+            self._append_log(f"[CLAUDE-PLAN] Asset mix enforce skipped: {exc}\n")
         self._refresh_scene_preview()
         self._goto_workflow_view("visual_plan")
         self._vo_status_var.set(f"Claude CSV {source_label} — {Path(dest).name}")
         self._append_log(f"[CLAUDE-PLAN] Claude CSV {source_label}: {Path(dest).name}\n")
         self._sync_primary_cta()
+
+    def _visual_plan_from_csv_rows(self, rows: list) -> "VisualPlan":
+        """Build a minimal VisualPlan from CSV so asset-mix can rewrite providers."""
+        from visual_director.schema import VisualPlan, VisualScene
+
+        scenes = []
+        for row in rows:
+            try:
+                sid = int(str(row.get("scene_number") or "0").strip() or 0)
+            except ValueError:
+                continue
+            if sid <= 0:
+                continue
+            asset = str(row.get("asset_type") or "stock_video").strip().lower()
+            prompt = str(row.get("prompt") or "").strip()
+            narr = str(row.get("script_segment") or "").strip()
+            if asset in ("video", "flow_video"):
+                pref, at = "flow_video", "video"
+            elif asset in ("image", "flow_image"):
+                pref, at = "flow_image", "image"
+            elif asset in ("stock_image",):
+                pref, at = "stock_image", "stock_image"
+            elif asset in ("youtube_video", "youtube"):
+                pref, at = "youtube", "youtube_video"
+            else:
+                pref, at = "stock_video", "stock_video"
+            scenes.append(
+                VisualScene(
+                    scene_id=sid,
+                    narration=narr,
+                    visual_goal=prompt[:120],
+                    visual_description=prompt,
+                    asset_type=at,
+                    provider_preference=pref,
+                    search_queries=[prompt] if prompt else [],
+                    timestamp_needed=False,
+                    timestamp_hint="",
+                    duration=4.0,
+                    importance="medium",
+                    fallbacks=[],
+                    visual_treatment="",
+                    transition="cut",
+                )
+            )
+        return VisualPlan(topic="Claude CSV", scenes=scenes)
+
+    def _enforce_asset_mix_on_csv(self, csv_path: Path) -> int:
+        """Rewrite CSV providers from current Asset mix preferences. Returns Flow video count."""
+        from vo_planner.preferences import apply_asset_mix_to_plan
+
+        mix = self._read_vo_asset_mix()
+        plan = getattr(self, "_vo_mix_visual_plan", None) or getattr(self, "_visual_plan", None)
+        rows = []
+        with csv_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        if not rows:
+            return 0
+
+        # Prefer mix-applied VO plan scene texts when scene counts match;
+        # otherwise rebuild from the imported CSV itself.
+        if plan is None or len(getattr(plan, "scenes", []) or []) != len(rows):
+            plan = self._visual_plan_from_csv_rows(rows)
+        else:
+            # Overlay CSV prompts onto the mix plan so Claude's visual text wins
+            # while mix can still reassign providers.
+            by_num = {str(r.get("scene_number") or "").strip(): r for r in rows}
+            for scene in plan.scenes:
+                row = by_num.get(str(scene.scene_id))
+                if not row:
+                    continue
+                prompt = str(row.get("prompt") or "").strip()
+                narr = str(row.get("script_segment") or "").strip()
+                if narr:
+                    scene.narration = narr
+                if prompt:
+                    scene.visual_description = prompt
+
+        mixed = apply_asset_mix_to_plan(plan, mix)
+        mixed.write_csv(csv_path)
+        self._visual_plan = mixed
+        n_flow_v = sum(
+            1
+            for s in mixed.scenes
+            if (s.provider_preference or "") == "flow_video"
+            or (s.asset_type or "") in ("video", "flow_video")
+        )
+        return n_flow_v
 
     def _on_copy_vo_plan(self) -> None:
         plan = getattr(self, "_vo_aware_plan", None)
@@ -8238,6 +8373,16 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 
+    def _dump_performance_diagnostics(self) -> None:
+        """Hidden support hook — set VIDEOGEN_DUMP_DIAGNOSTICS=1."""
+        try:
+            from hardware.diagnostics import format_diagnostics_text
+
+            text = format_diagnostics_text()
+            self._append_log(text + "\n")
+        except Exception as exc:
+            self._append_log(f"[DIAG] unavailable ({exc})\n")
+
     def _ensure_sfx_ready(self) -> None:
         """Copy bundled SFX + ambience into ~/.videogen/sfx when empty/incomplete."""
         if self._sfx_ready:
@@ -8301,6 +8446,13 @@ class VideoGeneratorApp(ctk.CTk):
             from providers.youtube.acquisition import shutdown_client
 
             shutdown_client()
+        except Exception:
+            pass
+        # Terminate owned FFmpeg/helper children registered during this session.
+        try:
+            from hardware.process_registry import get_registry
+
+            get_registry().terminate_all(grace_s=1.5)
         except Exception:
             pass
         self.destroy()

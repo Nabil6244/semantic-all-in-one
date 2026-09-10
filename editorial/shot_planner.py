@@ -32,6 +32,7 @@ from .continuity import (
     reveal_phase_for_scene,
     scale_for_shot_size,
     shot_size_sequence,
+    source_identity_key,
     visual_role_for_scene,
 )
 from .edit_decision import EditDecision, MediaEditability, ShotSpec
@@ -60,20 +61,22 @@ def _split_durations(total: float, n: int) -> List[float]:
 
 
 def _n_shots_core(required: float, usable: float, role: str, pacing: str) -> int:
+    # Stills (usable <= 0): one strong hold is the default. Multi-shot on the
+    # *same* image (crop/zoom) is last-resort for long narration only.
     if usable <= 0:
-        if required <= 3.5:
+        if required < 8.0:
             return 1
-        if required <= 7.0:
-            return 2
+        if required < 12.0:
+            return 2 if pacing == "fast" else 1
         return 3 if pacing == "fast" else 2
     ratio = usable / required if required > 0 else 1.0
-    if ratio >= 0.98:
+    if ratio >= 0.88:
         return 1
     # Replay with punch-in / reframe rather than freeze the tail.
     n_replay = int(math.ceil(required / max(usable, _MIN_SHOT)))
     n_replay = min(_MAX_SHOTS, max(2, n_replay))
-    if role in ("process", "scale", "reveal", "cause_effect") and required >= 5.0:
-        n_replay = min(_MAX_SHOTS, max(n_replay, 3 if required >= 8.0 else 2))
+    if role in ("process", "scale", "reveal", "cause_effect") and required >= 8.0:
+        n_replay = min(_MAX_SHOTS, max(n_replay, 3 if required >= 10.0 else 2))
     if required >= 8.0 and ratio < 0.65:
         n_replay = min(_MAX_SHOTS, max(n_replay, 3))
     return n_replay
@@ -87,18 +90,24 @@ def _n_shots_for_gap(
     *,
     intent: Optional[EditorialIntent] = None,
 ) -> int:
+    # Short VO beats: never invent multi-shot coverage.
+    if required <= 2.5:
+        return 1
     if intent and intent.confidence >= CONF_MEDIUM:
-        if intent.prefer_single() and required < 7.0 and (
-            usable <= 0 or usable >= required * 0.98
+        if intent.prefer_single() and required < 10.0 and (
+            usable <= 0 or usable >= required * 0.88
         ):
             return 1
-        if intent.pacing == "fast" and required >= 4.0:
+        if intent.pacing == "fast" and required >= 6.0 and usable > 0 and usable < required * 0.88:
             return min(_MAX_SHOTS, max(2, _n_shots_core(required, usable, role, "fast")))
-        if intent.pacing in ("hold", "reflective") and required < 10.0:
-            if usable >= required * 0.98 or usable <= 0:
+        if intent.pacing in ("hold", "reflective") and required < 12.0:
+            if usable >= required * 0.88 or usable <= 0:
                 return 1
             return min(_MAX_SHOTS, max(2, _n_shots_core(required, usable, role, "slow")))
-        if intent.prefer_multi() and required >= 4.5:
+        # prefer_multi only when primary cannot cover — do not chop a strong hold.
+        if intent.prefer_multi() and required >= 7.0 and usable > 0 and usable < required * 0.88:
+            return min(_MAX_SHOTS, max(2, _n_shots_core(required, usable, role, pacing)))
+        if intent.prefer_multi() and usable <= 0 and required >= 10.0:
             return min(_MAX_SHOTS, max(2, _n_shots_core(required, usable, role, pacing)))
     return _n_shots_core(required, usable, role, pacing)
 
@@ -122,7 +131,12 @@ def _single_shot_decision(
 ) -> EditDecision:
     size = shot_size_sequence(role, 1, prev_size=tracker.prev_shot_size)[0]
     cam = camera_for_shot(
-        size, purpose=scene.purpose, index=0, prev_camera=tracker.prev_camera
+        size,
+        purpose=scene.purpose,
+        index=0,
+        prev_camera=tracker.prev_camera,
+        recent_cameras=tracker.recent_cameras,
+        prefer_static=scene.purpose in ("evidence",) or role in ("claim_evidence", "historical"),
     )
     shot = ShotSpec(
         shot_id=f"{scene.scene_number}_s0",
@@ -162,18 +176,23 @@ def _dual_asset_decision(
     complements: Sequence[AssetCandidate],
     tracker: ContinuityTracker,
 ) -> EditDecision:
-    """Build A→B(→C) using real complementary files when they improve the beat."""
+    """Build A→B(→C) using real complementary files when they improve the beat.
+
+    Primary keeps as much of its usable window as the beat allows. Complements
+    cover the remainder — never chop a strong primary down to ~45% just because
+    another coverage unit exists.
+    """
     # Shot count: primary + up to N complements, capped
     n_comp = min(len(complements), 3)
-    # How much primary should hold: prefer its usable window, at least one beat
+    # Leave a meaningful floor for each complement, but let primary breathe.
+    min_comp_room = _MIN_SHOT * n_comp
     if primary_usable > 0:
-        primary_share = min(primary_usable, max(_MIN_SHOT * 1.1, required * 0.45))
-        # Leave room for complements
-        primary_share = min(primary_share, required - _MIN_SHOT * n_comp)
+        # Use the full honest primary window; only trim to leave complement room.
+        primary_share = min(primary_usable, required - min_comp_room)
         primary_share = max(_MIN_SHOT, primary_share)
     else:
-        # Still primary (image) — shorter establish then cut to complements
-        primary_share = min(max(_MIN_SHOT, required * 0.35), required - _MIN_SHOT * n_comp)
+        # Still primary — majority establish, then complementary cut when justified.
+        primary_share = min(max(_MIN_SHOT, required * 0.62), required - min_comp_room)
 
     remaining = max(_MIN_SHOT, required - primary_share)
     n_shots = 1 + n_comp
@@ -183,7 +202,12 @@ def _dual_asset_decision(
     shots: List[ShotSpec] = []
     # Shot 0 — primary (context)
     cam0 = camera_for_shot(
-        sizes[0], purpose=scene.purpose, index=0, prev_camera=tracker.prev_camera
+        sizes[0],
+        purpose=scene.purpose,
+        index=0,
+        prev_camera=tracker.prev_camera,
+        recent_cameras=tracker.recent_cameras,
+        prefer_static=scene.purpose in ("evidence",) or role in ("claim_evidence", "historical"),
     )
     s0 = ShotSpec(
         shot_id=f"{scene.scene_number}_s0",
@@ -211,6 +235,8 @@ def _dual_asset_decision(
             purpose=scene.purpose,
             index=i + 1,
             prev_camera=shots[-1].camera_style,
+            recent_cameras=list(tracker.recent_cameras) + [s.camera_style for s in shots],
+            prefer_static=cand.visual_role in ("evidence", "claim_evidence"),
         )
         # Mild punch only when complement is still + same framing risk
         scale = scale_for_shot_size(size) if cand.visual_role in ("detail", "object") else 1.0
@@ -299,10 +325,12 @@ def _video_multi_shot(
             purpose=scene.purpose,
             index=i,
             prev_camera=tracker.prev_camera if i == 0 else shots[-1].camera_style,
+            recent_cameras=list(tracker.recent_cameras)
+            + [s.camera_style for s in shots],
         )
         if usable <= 0:
             src_start, src_end = 0.0, None
-        elif usable >= required * 0.98 and n == 1:
+        elif usable >= required * 0.88 and n == 1:
             src_start, src_end = 0.0, min(usable, required)
         elif n == 1 or dur <= play + 0.02:
             # Replay the usable window (punch-in / reframe provides the cut).
@@ -388,9 +416,18 @@ def _image_coverage(
     primary: AssetCandidate,
     intent: Optional[EditorialIntent] = None,
 ) -> EditDecision:
+    """Cover narration with a still — prefer one breathing hold over crop cuts."""
     n = _n_shots_for_gap(required, 0.0, role, scene.pacing_bias, intent=intent)
     sizes = shot_size_sequence(role, n, prev_size=tracker.prev_shot_size)
     durs = _split_durations(required, n)
+    prefer_static = scene.purpose in ("evidence",) or role in (
+        "claim_evidence",
+        "historical",
+        "statistic",
+    )
+    blob = f"{scene.narration_excerpt} {scene.visual_description}".lower()
+    if any(w in blob for w in ("document", "archive", "photograph", "evidence", "report")):
+        prefer_static = True
     shots: List[ShotSpec] = []
     for i, (dur, size) in enumerate(zip(durs, sizes)):
         cam = camera_for_shot(
@@ -398,23 +435,37 @@ def _image_coverage(
             purpose=scene.purpose,
             index=i,
             prev_camera=tracker.prev_camera if i == 0 else shots[-1].camera_style,
+            recent_cameras=list(tracker.recent_cameras)
+            + [s.camera_style for s in shots],
+            prefer_static=prefer_static and i == 0,
         )
-        if cam in ("static", "hold") and required >= 2.5:
-            cam = "subtle_drift" if i % 2 else "push_in"
+        # Single hold: keep framing stable (no fake "new shot" via crop).
+        # Multi-shot on same still is rare (long VO) — then mild reframe is OK.
+        if n == 1:
+            scale = 1.0 if size in ("wide", "extreme_wide", "medium") else scale_for_shot_size(size)
+            if prefer_static:
+                scale = 1.0
+            crop_x, crop_y = 0.5, 0.5
+            reason = f"image hold {size}" if cam in ("static", "hold") else f"image {cam} {size}"
+        else:
+            scale = round(scale_for_shot_size(size), 3)
+            crop_x = 0.5 + (0.04 if i % 2 else -0.03)
+            crop_y = 0.5 + (0.02 if i % 2 else -0.02)
+            reason = f"image motion {size}"
         shot = ShotSpec(
             shot_id=f"{scene.scene_number}_s{i}",
             output_duration=round(dur, 4),
             source_start=0.0,
             source_end=None,
-            scale=round(scale_for_shot_size(size), 3),
-            crop_x=0.5 + (0.05 if i % 2 else -0.05),
-            crop_y=0.5 + (0.03 if i % 2 else -0.02),
+            scale=round(scale, 3),
+            crop_x=crop_x,
+            crop_y=crop_y,
             speed=1.0,
             shot_size=size,  # type: ignore[arg-type]
             camera_style=cam,
             transition_in="cut",
             hold_tail=False,
-            reason=f"image motion {size}",
+            reason=reason,
             visual_role=role,
             editorial_purpose=editorial_purpose_for_role(role),
         )
@@ -429,7 +480,10 @@ def _image_coverage(
         source_asset=primary.label,
         visual_role=role,  # type: ignore[arg-type]
         confidence=0.8,
-        reason=f"{strategy}: Ken Burns / reframe covers {required:.1f}s still",
+        reason=(
+            f"{strategy}: still covers {required:.1f}s"
+            + (" with restrained motion" if any(s.camera_style not in ("static", "hold") for s in shots) else " (static/hold)")
+        ),
         avoid_blind_loop=True,
         attention_state=attention_state_for_scene(scene, 0, 1),
         reveal_phase=reveal_phase_for_scene(scene),
@@ -653,10 +707,16 @@ def plan_edit_decision(
         and intent.prefer_dual()
         and not intent.prefer_single()
     )
-    prefer_multi = bool(
-        intent and intent.confidence >= CONF_MEDIUM and intent.prefer_multi()
-    )
     prefs = list(intent.preferred_asset_ids) if intent and intent.confidence >= CONF_MEDIUM else []
+
+    primary_covers = (
+        editability.media_kind == "video" and usable >= required * 0.88
+    ) or (
+        # Stills can hold any VO duration; complements only for long beats.
+        editability.media_kind == "image" and required < 10.0 and not prefer_dual
+    )
+    # Short VO: one visual is enough — never dual-cut a covering primary.
+    short_vo = required <= 2.75
 
     comps: List[AssetCandidate] = []
     need_comp = needs_complementary_coverage(
@@ -665,8 +725,11 @@ def plan_edit_decision(
         coverage_strategy=coverage_strategy,
         media_kind=editability.media_kind,
     )
-    if prefer_dual and candidates:
-        need_comp = True
+    # prefer_dual may seek complements only when primary does not already cover
+    # (or the beat is long enough that progression is editorially useful).
+    if prefer_dual and candidates and not short_vo:
+        if not primary_covers or required >= 8.0:
+            need_comp = True
     if candidates and need_comp:
         comps = select_complements(
             list(candidates),
@@ -679,42 +742,44 @@ def plan_edit_decision(
             preferred_asset_ids=prefs,
         )
 
-    if comps and (
-        usable < required * 0.88
-        or coverage_strategy == "dual"
-        or prefer_dual
-        or (required >= 6.0 and role in ("process", "scale", "cause_effect", "reveal"))
-    ):
+    # Dual only when primary cannot cover OR a long beat with explicit dual intent.
+    # Never: "complement exists → cut early." Never: stale strategy=dual alone.
+    dual_justified = bool(comps) and not short_vo and (
+        (editability.media_kind == "video" and usable < required * 0.88)
+        or (
+            editability.media_kind == "image"
+            and required >= 7.0
+            and (prefer_dual or coverage_strategy == "dual" or required >= 10.0)
+        )
+        or (
+            prefer_dual
+            and required >= 8.0
+            and role in ("process", "scale", "cause_effect", "reveal")
+            and not primary_covers
+        )
+    )
+
+    if dual_justified:
         decision = _dual_asset_decision(
             scene=scene,
             required=required,
             role=role,
             primary=primary,
             primary_usable=usable if editability.media_kind == "video" else 0.0,
-            complements=comps,
+            complements=comps[: 2 if required < 10.0 else 3],
             tracker=tracker,
         )
     elif editability.media_kind == "image":
-        if comps and (required >= 4.0 or prefer_dual):
-            decision = _dual_asset_decision(
-                scene=scene,
-                required=required,
-                role=role,
-                primary=primary,
-                primary_usable=0.0,
-                complements=comps[:2],
-                tracker=tracker,
-            )
-        else:
-            decision = _image_coverage(
-                scene=scene,
-                required=required,
-                role=role,
-                tracker=tracker,
-                primary=primary,
-                intent=intent,
-            )
-    elif usable >= required * 0.98 and not (prefer_multi and required >= 5.5 and comps):
+        decision = _image_coverage(
+            scene=scene,
+            required=required,
+            role=role,
+            tracker=tracker,
+            primary=primary,
+            intent=intent,
+        )
+    elif usable >= required * 0.88:
+        # Strong video covers the beat — do not multi-cut for prefer_multi alone.
         decision = _single_shot_decision(
             scene=scene,
             required=required,
@@ -752,13 +817,15 @@ def plan_edit_decision(
     )
 
     for shot in decision.shots:
-        if shot.asset_id:
-            tracker.note_asset(shot.asset_id)
+        key = source_identity_key(asset_id=shot.asset_id, source_path=shot.source_path)
+        if key:
+            tracker.note_asset(key)
     tracker.update_from_shots(
         [s.shot_size for s in decision.shots],
         decision.shots[-1].camera_style if decision.shots else "static",
         decision.strategy,
         scene.visual_variety_key,
+        cameras=[s.camera_style for s in decision.shots],
     )
     return decision
 
@@ -825,7 +892,9 @@ def plan_all_edit_decisions(
         ):
             decision.reveal_phase = reveal_phase_for_scene(scene)
         for shot in decision.shots:
-            aid = shot.asset_id or ""
+            aid = source_identity_key(
+                asset_id=shot.asset_id, source_path=shot.source_path
+            ) or (shot.asset_id or "")
             if aid:
                 used.append(aid)
                 recent.append(aid)

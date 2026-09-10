@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Tuple
 
 from visual_director.schema import VisualScene
@@ -20,6 +21,16 @@ IMAGE_NEED_BLOCK = frozenset({
 # 0.38 was effectively unreachable: on a real 148-scene project it passed
 # 1 of 131 eligible scenes, handing the other 130 to stock by default.
 FLOW_IMAGE_FIT_FLOOR = 0.24
+
+# Primary Flow-video selection floor. A second fill pass may go lower when
+# the paid budget is still under-filled (mix % / Brand & Style budget).
+FLOW_VIDEO_SCORE_FLOOR = 0.35
+FLOW_VIDEO_FILL_FLOOR = 0.18
+
+_FACTUAL_DOC_RE = re.compile(
+    r"\b(archival|document|newspaper|map|photograph)\b",
+    re.I,
+)
 
 VIDEO_NEED_BOOST = frozenset({
     "action",
@@ -99,7 +110,8 @@ def flow_opportunity_score(
     blob = f"{treatment} {goal} {desc}"
     if any(w in blob for w in ("cinematic", "impossible", "visualization", "metaphor", "conceptual")):
         score += 0.18
-    if any(w in blob for w in ("archival", "document", "newspaper", "map", "photograph")):
+    # Word-boundary match: plain "document" must NOT fire inside "documentary".
+    if _FACTUAL_DOC_RE.search(blob):
         score -= 0.25
 
     if position < 0.15:
@@ -146,29 +158,58 @@ def select_flow_video_scenes(
     scored: List[Tuple[int, float]],
     budget: int,
 ) -> set[int]:
-    """Return scene_ids for paid Flow video — never exceeds budget."""
+    """Return scene_ids for paid Flow video — never exceeds budget.
+
+    Honors scenes already marked flow_video/video by asset mix, then fills
+    remaining budget by score. A second lower-floor pass prevents a hard
+    0.35 gate from leaving mix-driven budgets empty on typical docs.
+    """
     if budget <= 0:
         return set()
     by_id = {item["scene"].scene_id: item for item in prelim}
-    ordered = sorted(scored, key=lambda row: row[1], reverse=True)
     chosen: set[int] = set()
-    for scene_id, score in ordered:
-        if score < 0.35:
-            continue
-        if len(chosen) >= budget:
-            break
-        item = by_id.get(scene_id)
-        if item is None:
-            continue
+
+    def _eligible(item: Dict[str, Any], score: float, *, floor: float) -> bool:
+        if item is None or score < floor:
+            return False
         need = item.get("need") or ""
         if need in IMAGE_NEED_BLOCK:
-            continue
+            return False
         prefer_video = bool(item.get("prefer_video"))
         imp = (item["scene"].importance or "normal").lower()
-        video_fit = prefer_video or need in VIDEO_NEED_BOOST or imp == "high"
+        pref = (item["scene"].provider_preference or "").lower()
+        at = (item["scene"].asset_type or "").lower()
+        mix_wants = pref in ("flow_video", "video", "flow") or at in ("flow_video", "video")
+        video_fit = prefer_video or need in VIDEO_NEED_BOOST or imp == "high" or mix_wants
         if not video_fit and score < 0.5:
+            return False
+        return True
+
+    # Seed with mix / analyzer preferences that already ask for Flow video.
+    for item in prelim:
+        if len(chosen) >= budget:
+            break
+        sid = item["scene"].scene_id
+        pref = (item["scene"].provider_preference or "").lower()
+        at = (item["scene"].asset_type or "").lower()
+        if pref not in ("flow_video", "video", "flow") and at not in ("flow_video", "video"):
             continue
-        chosen.add(scene_id)
+        score = float(item.get("flow_score") or 0.0)
+        if _eligible(item, max(score, FLOW_VIDEO_FILL_FLOOR), floor=FLOW_VIDEO_FILL_FLOOR):
+            chosen.add(sid)
+
+    ordered = sorted(scored, key=lambda row: row[1], reverse=True)
+    for floor in (FLOW_VIDEO_SCORE_FLOOR, FLOW_VIDEO_FILL_FLOOR):
+        if len(chosen) >= budget:
+            break
+        for scene_id, score in ordered:
+            if len(chosen) >= budget:
+                break
+            if scene_id in chosen:
+                continue
+            item = by_id.get(scene_id)
+            if _eligible(item, float(score), floor=floor):
+                chosen.add(scene_id)
     return chosen
 
 

@@ -21,6 +21,7 @@ import {
 } from "./flow-api.js";
 import { runBatchSlice } from "./batch-runner.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
+import { timing } from "../config.js";
 import fs from "node:fs";
 
 /** @type {Set<(msg: object) => void>} */
@@ -31,6 +32,26 @@ let running = false;
 /** Serialize GENERATE so concurrent Retry / asset jobs never race the running flag. */
 let generateChain = Promise.resolve();
 const accountProgress = new Map();
+/** Throttle full STATE broadcasts during high-frequency BATCH_PROGRESS. */
+let lastProgressStateAt = 0;
+
+/**
+ * Cap simultaneous Chrome/Flow workers.
+ *
+ * Real-world: 1–5 accounts OK, ~10 starts hanging, 20 hangs. Never fan out to
+ * every signed-in account just because the prompt count is large — queue the
+ * remaining work onto the active worker pool / standby rotation instead.
+ */
+export function computeFlowWorkerCount(promptCount, accountCount, maxParallel) {
+  const prompts = Math.max(0, Number(promptCount) || 0);
+  const accounts = Math.max(0, Number(accountCount) || 0);
+  const cap = Math.min(
+    10,
+    Math.max(1, Number(maxParallel) || timing.maxParallelAccounts || 6),
+  );
+  if (prompts <= 0 || accounts <= 0) return 0;
+  return Math.min(accounts, prompts, cap);
+}
 
 function broadcast(msg) {
   for (const fn of listeners) {
@@ -333,14 +354,13 @@ async function runGenerate({ prompts, settings, accountIds }) {
   stopAll = false;
   running = true;
 
-  // One Chrome per prompt needed — never open every signed-in account for a
-  // single Flow video (that was flooding the dock with idle browsers).
-  // Large batches (15+) fan out to every signed-in account for parallel work.
-  const PARALLEL_ACCOUNT_THRESHOLD = 15;
-  const workerCount =
-    prompts.length >= PARALLEL_ACCOUNT_THRESHOLD
-      ? selected.length
-      : Math.min(selected.length, Math.max(1, prompts.length));
+  // Bounded Chrome fan-out — never open every signed-in account at once.
+  // Unused authenticated accounts remain on standby for rate-limit rotation.
+  const workerCount = computeFlowWorkerCount(
+    prompts.length,
+    selected.length,
+    timing.maxParallelAccounts,
+  );
   // Only VIDEO consumes Flow credits; IMAGE is free and keeps existing order.
   const isVideoBatch = String(settings?.mediaKind || "").toLowerCase() === "video";
   // Order BEFORE truncating: slicing first would pick the first `workerCount`
@@ -530,7 +550,19 @@ async function runGenerate({ prompts, settings, accountIds }) {
                 message: evt.message || cur.message,
               });
             }
-            pushState();
+            // Always forward BATCH_PROGRESS / PROMPT_RESULT; throttle full STATE
+            // snapshots so N Chrome workers cannot flood the UI websocket.
+            const now = Date.now();
+            const throttle = Number(timing.progressStateThrottleMs) || 250;
+            const important =
+              evt.type === "BATCH_DONE" ||
+              evt.type === "PROMPT_RESULT" ||
+              evt.status === "failed" ||
+              evt.status === "done";
+            if (important || now - lastProgressStateAt >= throttle) {
+              lastProgressStateAt = now;
+              pushState();
+            }
           },
         });
 

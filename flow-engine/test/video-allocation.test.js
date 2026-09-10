@@ -12,7 +12,9 @@ import path from "node:path";
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "flow-alloc-"));
 process.env.SA_DATA_DIR = TMP;
 
-const { splitPrompts, orderWorkersByVideoLoad } = await import("../lib/orchestrator.js");
+const { splitPrompts, orderWorkersByVideoLoad, computeFlowWorkerCount } = await import(
+  "../lib/orchestrator.js"
+);
 const store = await import("../lib/store.js");
 
 const acct = (id) => ({ id, label: id, authenticated: true });
@@ -27,13 +29,8 @@ const prompts = (n) => Array.from({ length: n }, (_, i) => `p${i}`);
  * that caused the defect, so the suite passed while small VIDEO batches were
  * still pinned to the first accounts. Keep this mirroring orchestrator.js.
  */
-const PARALLEL_ACCOUNT_THRESHOLD = 15;
-
-function allocate(accounts, count, loads, isVideo = true) {
-  const workerCount =
-    count >= PARALLEL_ACCOUNT_THRESHOLD
-      ? accounts.length
-      : Math.min(accounts.length, Math.max(1, count));
+function allocate(accounts, count, loads, isVideo = true, maxParallel = 8) {
+  const workerCount = computeFlowWorkerCount(count, accounts.length, maxParallel);
   const workers = orderWorkersByVideoLoad(accounts, isVideo, loads).slice(0, workerCount);
   const slices = splitPrompts(prompts(count), workers.length);
   const out = new Map();
@@ -213,4 +210,20 @@ test("IMAGE small batches keep original order (unchanged by the fix)", () => {
     .filter(([, n]) => n > 0)
     .map(([id]) => id);
   assert.deepEqual(picked, ["a", "b", "c"], "image must still take the first accounts");
+});
+
+test("20 signed-in accounts never open more than maxParallel workers", () => {
+  const twenty = Array.from({ length: 20 }, (_, i) => acct(`a${i}`));
+  const loads = new Map(twenty.map((a) => [a.id, 0]));
+  const sizes = allocate(twenty, 100, loads, true, 6);
+  assert.equal(sizes.size, 6);
+  assert.equal([...sizes.values()].reduce((s, n) => s + n, 0), 100);
+});
+
+test("computeFlowWorkerCount caps at maxParallel even for huge batches", () => {
+  assert.equal(computeFlowWorkerCount(200, 20, 6), 6);
+  assert.equal(computeFlowWorkerCount(3, 20, 6), 3);
+  assert.equal(computeFlowWorkerCount(1, 20, 6), 1);
+  assert.equal(computeFlowWorkerCount(50, 4, 6), 4);
+  assert.equal(computeFlowWorkerCount(0, 10, 6), 0);
 });

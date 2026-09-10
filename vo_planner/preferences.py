@@ -85,12 +85,14 @@ def allocation_settings_from_mix(
         elif strategy == "balanced" and image >= 50:
             strategy = "image_heavy"
 
-    # Flow video budget from flow_video_pct preference
+    # Flow video budget from flow_video_pct preference.
+    # 15–24% used to leave Brand & Style on "normal" (≈12% cap), so a UI
+    # target of 20% never raised the paid Flow video budget.
     flow = mix.flow_video_pct
     if mix.max_flow_video and mix.max_flow_video > 0 and mix.max_flow_video <= 6:
-        budget = "conservative"
+        budget = "custom"
         custom = mix.max_flow_video
-    elif flow >= 25:
+    elif flow >= 20:
         budget = "high"
         custom = base.ai_video_budget_custom
     elif flow <= 8:
@@ -121,6 +123,36 @@ def mix_handoff_note(mix: AssetMixPreferences) -> dict:
     data["quality_protection"] = True
     data["rule"] = "never_sacrifice_critical_visual_for_provider_pct"
     return data
+
+
+def mix_flow_video_target(scene_count: int, mix: AssetMixPreferences) -> int:
+    """Paid Flow-video scene count implied by mix % (quality-protection aside)."""
+    mix = mix.normalized()
+    n = max(0, int(scene_count))
+    if n <= 0 or mix.flow_video_pct <= 0:
+        return 0
+    return int(_target_counts(n, mix).get("flow_video") or 0)
+
+
+def allocation_settings_for_plan(
+    mix: AssetMixPreferences,
+    scene_count: int,
+    base: AllocationSettings | None = None,
+) -> AllocationSettings:
+    """Soft Brand & Style settings + explicit Flow-video custom budget from mix %."""
+    settings = allocation_settings_from_mix(mix, base)
+    target = mix_flow_video_target(scene_count, mix)
+    if mix.normalized().flow_video_pct <= 0:
+        return settings
+    custom = target
+    # Small plans can round to 0 even when the user asked for Flow video.
+    if custom <= 0 and scene_count >= 5 and mix.normalized().flow_video_pct >= 10:
+        custom = 1
+    return dataclasses.replace(
+        settings,
+        ai_video_budget="custom",
+        ai_video_budget_custom=max(0, int(custom)),
+    )
 
 
 def _blob(scene: VisualScene) -> str:
@@ -361,9 +393,12 @@ def apply_asset_mix_to_plan(plan: VisualPlan, mix: AssetMixPreferences) -> Visua
 
     warnings = list(plan.warnings or [])
     n_flow_img = sum(1 for s in new_scenes if (s.provider_preference or "") == "flow_image")
+    n_flow_vid = sum(1 for s in new_scenes if (s.provider_preference or "") == "flow_video")
     warnings.append(
         f"asset_mix_applied: flow_image={n_flow_img}/{len(new_scenes)} "
-        f"(targets image={mix.image_pct:.0f}% flow_image={mix.flow_image_pct:.0f}%)"
+        f"flow_video={n_flow_vid}/{len(new_scenes)} "
+        f"(targets image={mix.image_pct:.0f}% flow_image={mix.flow_image_pct:.0f}% "
+        f"flow_video={mix.flow_video_pct:.0f}%)"
     )
     return VisualPlan(
         topic=plan.topic,

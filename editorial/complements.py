@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
+from .continuity import source_identity_key
 from .media_analysis import analyze_media_editability
 from .schema import EditorialScene
 
@@ -181,20 +182,26 @@ def score_complement_candidate(
     if "stock" in ac:
         score += 0.04
 
-    # Repetition penalties
-    aid = candidate.asset_id
-    if aid and used_asset_ids.count(aid) >= 1:
-        score -= 0.18 * used_asset_ids.count(aid)
-    if aid and aid in recent_asset_ids[-4:]:
-        score -= 0.15
+    # Repetition penalties — same underlying source (crop/reframe counts as same)
+    aid = source_identity_key(asset_id=candidate.asset_id, source_path=str(candidate.path))
+    used_norm = [source_identity_key(asset_id=u) or u for u in used_asset_ids]
+    recent_norm = [source_identity_key(asset_id=u) or u for u in recent_asset_ids]
+    if aid and used_norm.count(aid) >= 1:
+        score -= 0.22 * used_norm.count(aid)
+    if aid and aid in recent_norm[-4:]:
+        score -= 0.18
 
     # Near-duplicate of primary query → reject-ish
+    # Same *subject* with a different role (exterior → workers) is allowed;
+    # only penalize near-identical role + query overlap.
     if prim_tok and cand_tok:
         sim = len(prim_tok & cand_tok) / max(1, len(prim_tok | cand_tok))
-        if sim >= 0.75 and candidate.visual_role == (primary.visual_role or beat_role):
+        same_role = candidate.visual_role == (primary.visual_role or beat_role)
+        if sim >= 0.75 and same_role:
             score -= 0.35
-        elif sim >= 0.85:
+        elif sim >= 0.92 and same_role:
             score -= 0.20
+        # Mild similarity with different role is progression, not repetition.
 
     # AI director preferred assets
     prefs = {str(p) for p in (preferred_asset_ids or []) if str(p).strip()}
@@ -270,20 +277,35 @@ def needs_complementary_coverage(
     coverage_strategy: str = "",
     media_kind: str = "video",
 ) -> bool:
-    """True when another real asset would help more than punch-in alone."""
+    """True when another real asset would help more than punch-in alone.
+
+    A coverage_strategy of ``dual`` is only a hint from pre-download allocation.
+    If the primary already covers narration honestly, do **not** force a cut.
+    Stills can hold for several seconds — complements are for long beats only.
+    """
     if required <= 0:
         return False
     strategy = (coverage_strategy or "").lower()
-    if strategy == "dual":
-        return True
-    if media_kind == "image" and required >= 5.5:
-        return True
-    if primary_usable <= 0:
-        return media_kind != "image"  # images handled via Ken Burns unless long
-    ratio = primary_usable / required
-    if ratio >= 0.88:
+
+    # Video that already covers the beat: never force complementary cuts.
+    if media_kind == "video" and primary_usable > 0:
+        ratio = primary_usable / required
+        if ratio >= 0.88:
+            return False
+        if ratio < 0.72:
+            return True
+        # Mild shortfall: dual/extend hint only when the gap is meaningful.
+        return strategy in ("extend", "hold_tail", "dual") and (required - primary_usable) > 1.0
+
+    # Stills — can hold; only seek complements for long narration or dual hint
+    # on a beat that is long enough to justify two distinct visuals.
+    if media_kind == "image":
+        if required >= 10.0:
+            return True
+        if strategy == "dual" and required >= 7.0:
+            return True
         return False
-    if ratio < 0.72:
-        return True
-    # Mild shortfall: only if dual/extend already planned
-    return strategy in ("extend", "hold_tail", "dual") and (required - primary_usable) > 1.0
+
+    if primary_usable <= 0:
+        return strategy == "dual" and required >= 5.0
+    return False

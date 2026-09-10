@@ -520,7 +520,13 @@ class VisualDirector:
 
         plans: list[VisualPlan | None] = [None] * total
         done = 0
-        workers = min(4, total)
+        try:
+            from hardware.governor import get_governor
+
+            workers = min(get_governor().recommend_processing_workers(), total)
+        except Exception:
+            workers = min(4, total)
+        workers = max(1, workers)
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {
                 pool.submit(plan_one, i, chunk): i

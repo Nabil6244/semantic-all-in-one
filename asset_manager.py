@@ -32,7 +32,23 @@ from scene_recovery import PLACEHOLDER_PNG, SceneRecoveryTracker, mark_needs_act
 from providers.local_provider import LocalProvider
 from providers.router import SceneAssetRouter
 
-DEFAULT_PARALLEL_SCENES = max(1, min(8, int(os.environ.get("ASSET_PARALLEL_SCENES", "4"))))
+def _default_parallel_scenes() -> int:
+    """Ask the resource governor; fall back to env / 4."""
+    env_raw = os.environ.get("ASSET_PARALLEL_SCENES", "").strip()
+    if env_raw:
+        try:
+            return max(1, min(8, int(env_raw)))
+        except ValueError:
+            pass
+    try:
+        from hardware.governor import get_governor
+
+        return int(get_governor().recommend_download_workers())
+    except Exception:
+        return 4
+
+
+DEFAULT_PARALLEL_SCENES = _default_parallel_scenes()
 
 # Candidate-side relevance floor applied to stock searches in the Property
 # Video workflow (0.0 elsewhere). Deliberately modest: it rejects clips with
@@ -1385,7 +1401,18 @@ class AssetManager:
         if errors:
             raise AssetError("validation", "; ".join(errors))
         self.reset_cancel()
-        parallel_limit = max_parallel if max_parallel is not None else DEFAULT_PARALLEL_SCENES
+        if max_parallel is not None:
+            parallel_limit = max(1, min(8, int(max_parallel)))
+        else:
+            try:
+                from hardware.governor import get_governor
+
+                # Long-form projects (many scenes) prefer stability.
+                long_form = len(rows) >= 80
+                parallel_limit = int(get_governor().recommend_download_workers(long_form=long_form))
+            except Exception:
+                parallel_limit = DEFAULT_PARALLEL_SCENES
+            parallel_limit = max(1, min(8, parallel_limit))
 
         results: Dict[str, AssetResult] = {}
         warnings: List[str] = []

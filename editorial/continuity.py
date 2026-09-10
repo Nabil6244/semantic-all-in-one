@@ -136,8 +136,13 @@ def camera_for_shot(
     purpose: str,
     index: int,
     prev_camera: Optional[str] = None,
+    recent_cameras: Optional[Sequence[str]] = None,
+    prefer_static: bool = False,
 ) -> str:
-    if shot_size in ("close", "extreme_close", "detail"):
+    """Pick a camera treatment; avoid repeating recent motion patterns."""
+    if prefer_static:
+        candidate = "static" if prev_camera != "static" else "subtle_drift"
+    elif shot_size in ("close", "extreme_close", "detail"):
         candidate = "push_in"
     elif shot_size in ("extreme_wide", "wide") and purpose == "scale":
         candidate = "pull_out"
@@ -145,13 +150,53 @@ def camera_for_shot(
         candidate = "subtle_drift"
     elif purpose == "outro":
         candidate = "pull_out"
-    else:
-        pool = ("subtle_drift", "push_in", "static", "hold")
+    elif purpose in ("evidence",):
+        # Documents / archival stills: prefer static or extremely subtle motion.
+        pool = ("static", "hold", "subtle_drift", "static")
         candidate = pool[index % len(pool)]
-    if prev_camera == candidate:
-        alts = [c for c in ("push_in", "pull_out", "subtle_drift", "static", "hold") if c != prev_camera]
+    else:
+        pool = ("static", "subtle_drift", "push_in", "hold", "pull_out")
+        candidate = pool[index % len(pool)]
+
+    recent = [c for c in (recent_cameras or []) if c]
+    if prev_camera and not recent:
+        recent = [prev_camera]
+
+    # Avoid identical treatment back-to-back, and avoid three identical motions
+    # in a short window (zoom/zoom/zoom).
+    if candidate == prev_camera or (
+        recent and recent[-3:].count(candidate) >= 2 and candidate not in ("static", "hold")
+    ):
+        alts = [
+            c
+            for c in ("static", "hold", "subtle_drift", "push_in", "pull_out")
+            if c != candidate and c != prev_camera
+        ]
+        # Prefer static/hold over another aggressive zoom when breaking a streak.
+        if recent and recent[-2:].count("push_in") >= 2:
+            alts = [c for c in ("static", "hold", "subtle_drift", "pull_out") if c != prev_camera] or alts
         candidate = alts[index % len(alts)] if alts else candidate
     return candidate
+
+
+def source_identity_key(asset_id: str = "", source_path: str = "") -> str:
+    """Normalize to the underlying asset — crop/reframe variants share identity."""
+    aid = (asset_id or "").strip()
+    if aid:
+        # Strip shot suffixes like _s0 / crop tags; keep 001 / 001_b base ids.
+        base = aid.split("#")[0].split("|")[0].strip()
+        return base
+    path = (source_path or "").strip()
+    if not path:
+        return ""
+    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+    stem = name.rsplit(".", 1)[0] if "." in name else name
+    # 001_crop / 001_zoom still map to 001 when tagged that way
+    for suffix in ("_crop", "_zoom", "_reframe", "_punch", "_kb"):
+        if stem.lower().endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return stem
 
 
 class ContinuityTracker:
@@ -164,16 +209,27 @@ class ContinuityTracker:
         self.prev_variety_key: Optional[str] = None
         self.motif_counts: Dict[str, int] = {}
         self.recent_assets: List[str] = []
+        self.recent_cameras: List[str] = []
+        self.recent_source_keys: List[str] = []
 
     def note_asset(self, asset_key: str) -> int:
-        key = (asset_key or "").strip()
+        key = source_identity_key(asset_id=asset_key) or (asset_key or "").strip()
         if not key:
             return 0
         self.motif_counts[key] = self.motif_counts.get(key, 0) + 1
         self.recent_assets.append(key)
+        self.recent_source_keys.append(key)
         if len(self.recent_assets) > 24:
             self.recent_assets = self.recent_assets[-24:]
+        if len(self.recent_source_keys) > 24:
+            self.recent_source_keys = self.recent_source_keys[-24:]
         return self.motif_counts[key]
+
+    def source_reuse_count(self, asset_id: str = "", source_path: str = "") -> int:
+        key = source_identity_key(asset_id=asset_id, source_path=source_path)
+        if not key:
+            return 0
+        return int(self.motif_counts.get(key, 0))
 
     def update_from_shots(
         self,
@@ -181,9 +237,16 @@ class ContinuityTracker:
         camera: str,
         strategy: str,
         variety_key: str,
+        cameras: Optional[Sequence[str]] = None,
     ) -> None:
         if shot_sizes:
             self.prev_shot_size = shot_sizes[-1]
         self.prev_camera = camera
         self.prev_strategy = strategy
         self.prev_variety_key = variety_key
+        for cam in cameras or ([camera] if camera else []):
+            if not cam:
+                continue
+            self.recent_cameras.append(cam)
+        if len(self.recent_cameras) > 16:
+            self.recent_cameras = self.recent_cameras[-16:]

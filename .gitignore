@@ -47,3 +47,4 @@ __pycache__/
 # Temp renames from local download tests
 *.bak-download-test/
 .boundary_forensics/
+bench_performance_last.json

@@ -570,6 +570,55 @@ class TestUnchangedBehaviour(unittest.TestCase):
         self.assertLessEqual(len(chosen), limit, "Flow VIDEO stays credit-capped")
         self.assertEqual(len(chosen), limit)
 
+    def test_documentary_treatment_does_not_zero_flow_score(self):
+        """'documentary' must not match the factual 'document' penalty."""
+        from visual_allocation.budget import flow_opportunity_score
+
+        scene = _scene(
+            1,
+            "Cranes lift containers at dawn.",
+            provider="stock_video",
+            desc="port cranes cargo morning",
+        )
+        scene.visual_treatment = "documentary"
+        score = flow_opportunity_score(
+            scene,
+            visual_need="action",
+            visual_role="context",
+            position=0.2,
+            style_id="premium_documentary",
+            recent_flow=0,
+        )
+        self.assertGreater(score, 0.2)
+
+    def test_mix_marked_flow_video_is_seeded(self):
+        """Scenes already assigned flow_video by asset mix should be selected."""
+        prelim = [
+            {
+                "scene": _scene(
+                    1,
+                    "Workers load containers.",
+                    provider="flow_video",
+                    asset_type="video",
+                    desc="harbor workers loading steel containers",
+                ),
+                "need": "action",
+                "role": "context",
+                "prefer_video": True,
+                "flow_score": 0.22,
+            },
+            {
+                "scene": _scene(2, "A quiet archival map.", provider="stock_image"),
+                "need": "map",
+                "role": "map",
+                "prefer_video": False,
+                "flow_score": 0.1,
+            },
+        ]
+        scored = [(1, 0.22), (2, 0.1)]
+        chosen = select_flow_video_scenes(prelim, scored, budget=2)
+        self.assertIn(1, chosen)
+
     def test_stock_video_routing_unchanged(self):
         from visual_allocation.allocator import _documentary_asset_type
         self.assertEqual(_documentary_asset_type("action", "context", "", True), "stock_video")

@@ -1149,14 +1149,66 @@ def _overlay_motion_chain(
 
 
 def _cpu_encode_argv() -> list[str]:
-    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+    try:
+        from providers.ffmpeg_runner import encode_argv
+
+        return encode_argv(quality="documentary")
+    except Exception:
+        return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
 
 
 def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
+    """Encode one clip via the central runner (timeout + stall detection)."""
+    try:
+        from providers.ffmpeg_runner import FFmpegError, run_ffmpeg
+    except Exception:
+        FFmpegError = None  # type: ignore
+        run_ffmpeg = None  # type: ignore
+
+    if run_ffmpeg is not None:
+        try:
+            # Infer a soft duration hint from -t in the command when present.
+            media_dur = 0.0
+            for i, tok in enumerate(cmd):
+                if tok == "-t" and i + 1 < len(cmd):
+                    try:
+                        media_dur = float(cmd[i + 1])
+                    except ValueError:
+                        pass
+                    break
+            result = run_ffmpeg(
+                cmd,
+                owner="render",
+                label=str(img_name),
+                media_duration_s=media_dur,
+                stall_s=float(os.environ.get("VIDEOGEN_FFMPEG_STALL_S", "120") or 120),
+            )
+            if result.returncode == 0 and not result.timed_out and not result.stalled:
+                return
+            err = (result.stderr or result.stdout or "").strip()
+            print(err[-3000:])
+            why = "timed out" if result.timed_out else ("stalled" if result.stalled else "failed")
+            hint = ""
+            if "drawtext" in err.lower() and "no such filter" in err.lower():
+                hint = (
+                    "\nHint: this ffmpeg build has no drawtext filter "
+                    "(needs libfreetype). Smart Text should use Pillow overlays; "
+                    "if you still see this, turn off Smart Text Effects or install "
+                    "ffmpeg with --enable-libfreetype."
+                )
+            sys.exit(f"ERROR: ffmpeg {why} rendering clip for {img_name}{hint}")
+        except Exception as exc:
+            if FFmpegError is not None and isinstance(exc, FFmpegError):
+                res = exc.result
+                err = ((res.stderr if res else "") or "").strip()
+                if err:
+                    print(err[-3000:])
+                sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_name}: {exc}")
+            # Fall through to legacy path on unexpected runner failures.
+
     result = hidden_subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode == 0:
         return
-
     err = (result.stderr or result.stdout or "").strip()
     print(err[-3000:])
     hint = ""
