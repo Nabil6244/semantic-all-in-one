@@ -1,7 +1,14 @@
 """Numbered local-asset matching for Local Assets production mode.
 
-Maps scene N → files named like ``001.ext`` / ``002.ext`` inside a user-chosen
-folder. Media kind is taken from the CSV (``local_video`` / ``local_image``).
+Maps scene N → files inside a user-chosen folder. Accepted names:
+
+* Exact stems: ``001.ext``, ``1.ext``, ``01.ext``, ``0001.ext``
+* Leading-number stems (auto-sorted by scene): ``1_Realistic_….mp4``,
+  ``008_clip.mov`` — the integer before ``_`` is the scene number
+  (``10_….mp4`` never matches scene 1).
+
+Media kind is taken from the CSV (``local_video`` / ``local_image``).
+Exact stems win over prefixed names when both exist for the same scene.
 
 This module only finds and (optionally) installs paths. Timing, editorial
 coverage, and rendering stay in the existing pipeline.
@@ -9,6 +16,7 @@ coverage, and rendering stay in the existing pipeline.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -66,6 +74,11 @@ def is_local_numbered_type(asset_type: str) -> bool:
     return (asset_type or "").strip().lower() in LOCAL_NUMBERED_TYPES
 
 
+# Leading digits + underscore: "1_Realistic_…", "008_clip" → scene 1 / 8.
+# Does not match bare "001" (exact path) or "10_…" when looking for scene 1.
+_LEADING_NUMBER_STEM = re.compile(r"^(\d+)_")
+
+
 def _stem_candidates(scene_number: str) -> List[str]:
     try:
         n = int(str(scene_number).strip())
@@ -79,6 +92,17 @@ def _stem_candidates(scene_number: str) -> List[str]:
         if c not in out:
             out.append(c)
     return out
+
+
+def leading_scene_number(stem: str) -> Optional[int]:
+    """Parse scene id from ``N_rest…`` stems; None if not a prefixed name."""
+    m = _LEADING_NUMBER_STEM.match(stem or "")
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except ValueError:
+        return None
 
 
 def _index_folder(folder: Path) -> dict[str, List[Path]]:
@@ -98,12 +122,37 @@ def _index_folder(folder: Path) -> dict[str, List[Path]]:
     return by_stem
 
 
+def _collect_by_ext(
+    paths: Sequence[Path],
+    allowed: frozenset,
+    other: frozenset,
+    seen: set[str],
+) -> tuple[List[Path], List[Path]]:
+    same_kind: List[Path] = []
+    other_kind: List[Path] = []
+    for path in paths:
+        key = str(path.resolve()) if path.exists() else str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        ext = path.suffix.lower()
+        if ext in allowed:
+            same_kind.append(path)
+        elif ext in other:
+            other_kind.append(path)
+    return same_kind, other_kind
+
+
 def find_numbered_asset(
     folder: Path,
     scene_number: str,
     media_kind: str,
 ) -> tuple[Optional[LocalAssetMatch], Optional[LocalAssetIssue]]:
     """Resolve Scene N to exactly one file of the requested media kind.
+
+    Exact numbered stems are preferred. If none exist, files whose stem starts
+    with ``N_`` (leading integer equal to the scene number) are used so exports
+    like ``1_Realistic_cinematic_….mp4`` auto-map to scene 1 without renaming.
 
     Extra files for other scene numbers are ignored. Wrong media type for this
     scene number is a typed error (never silently substituted). Multiple files
@@ -121,7 +170,7 @@ def find_numbered_asset(
             code="bad_scene",
         )
     try:
-        int(str(scene_number).strip())
+        scene_n = int(str(scene_number).strip())
     except ValueError:
         return None, LocalAssetIssue(
             scene_number=str(scene_number),
@@ -144,20 +193,27 @@ def find_numbered_asset(
     other = IMAGE_EXTS if kind == "video" else VIDEO_EXTS
     by_stem = _index_folder(folder)
 
+    exact_stems = set(_stem_candidates(scene_number))
     same_kind: List[Path] = []
     other_kind: List[Path] = []
     seen: set[str] = set()
     for candidate_stem in _stem_candidates(scene_number):
-        for path in by_stem.get(candidate_stem, []):
-            key = str(path.resolve()) if path.exists() else str(path)
-            if key in seen:
+        sk, ok = _collect_by_ext(by_stem.get(candidate_stem, []), allowed, other, seen)
+        same_kind.extend(sk)
+        other_kind.extend(ok)
+
+    # Fall back to N_… prefixed exports only when no exact stem matched.
+    if not same_kind and not other_kind:
+        prefixed: List[Path] = []
+        for file_stem, paths in by_stem.items():
+            if file_stem in exact_stems:
                 continue
-            seen.add(key)
-            ext = path.suffix.lower()
-            if ext in allowed:
-                same_kind.append(path)
-            elif ext in other:
-                other_kind.append(path)
+            if leading_scene_number(file_stem) != scene_n:
+                continue
+            prefixed.extend(paths)
+        sk, ok = _collect_by_ext(prefixed, allowed, other, seen)
+        same_kind.extend(sk)
+        other_kind.extend(ok)
 
     if len(same_kind) == 1:
         return (
@@ -179,7 +235,7 @@ def find_numbered_asset(
             expected_stem=stem,
             reason=(
                 f"Ambiguous local {kind} for scene {scene_number}: "
-                f"multiple matches for {stem}.* ({names}{more})"
+                f"multiple matches for {stem}.* / {scene_n}_* ({names}{more})"
             ),
             code="ambiguous",
         )
@@ -192,7 +248,7 @@ def find_numbered_asset(
             media_kind=kind,
             expected_stem=stem,
             reason=(
-                f"Expected local {kind}: {stem}.{expected_ext} "
+                f"Expected local {kind}: {stem}.{expected_ext} or {scene_n}_*.{expected_ext} "
                 f"(found wrong type: {found})"
             ),
             code="wrong_type",
@@ -203,7 +259,10 @@ def find_numbered_asset(
         scene_number=str(scene_number),
         media_kind=kind,
         expected_stem=stem,
-        reason=f"Local asset not found — expected local {kind}: {stem}.{expected_ext}",
+        reason=(
+            f"Local asset not found — expected local {kind}: "
+            f"{stem}.{expected_ext} or {scene_n}_*.{expected_ext}"
+        ),
         code="missing",
     )
 

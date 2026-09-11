@@ -73,6 +73,64 @@ class NumberMappingTests(unittest.TestCase):
                 self.assertEqual(match.path.name, name)
 
 
+class PrefixedNameAutoSortTests(unittest.TestCase):
+    """Exports like ``1_Realistic_cinematic_….mp4`` map by leading scene number."""
+
+    def test_leading_number_prefixed_videos(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            _touch(folder / "1_Realistic_cinematic_3D_game_76038777_1080p.mp4")
+            _touch(folder / "2_Realistic_cinematic_3D_game_75158932_1080p.mp4")
+            _touch(folder / "8_Realistic_cinematic_3D_game_44106946_1080p.mp4")
+            _touch(folder / "10_Realistic_cinematic_3D_game_99999999_1080p.mp4")
+            _touch(folder / "Success_11-09-2026.txt")
+            _touch(folder / "Video_Save_List_2026-09-11.txt")
+
+            for scene, name in (
+                ("1", "1_Realistic_cinematic_3D_game_76038777_1080p.mp4"),
+                ("2", "2_Realistic_cinematic_3D_game_75158932_1080p.mp4"),
+                ("8", "8_Realistic_cinematic_3D_game_44106946_1080p.mp4"),
+                ("10", "10_Realistic_cinematic_3D_game_99999999_1080p.mp4"),
+            ):
+                match, issue = find_numbered_asset(folder, scene, "video")
+                self.assertIsNone(issue, msg=f"scene {scene}: {issue}")
+                self.assertEqual(match.path.name, name)
+
+            # Scene 1 must not steal the 10_… file
+            match1, _ = find_numbered_asset(folder, "1", "video")
+            self.assertEqual(match1.path.name, "1_Realistic_cinematic_3D_game_76038777_1080p.mp4")
+
+            missing, issue = find_numbered_asset(folder, "7", "video")
+            self.assertIsNone(missing)
+            self.assertEqual(issue.code, "missing")
+
+    def test_exact_stem_wins_over_prefixed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            _touch(folder / "001.mp4")
+            _touch(folder / "1_Realistic_extra_1080p.mp4")
+            match, issue = find_numbered_asset(folder, "1", "video")
+            self.assertIsNone(issue)
+            self.assertEqual(match.path.name, "001.mp4")
+
+    def test_ambiguous_two_prefixed_same_scene(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            _touch(folder / "3_Realistic_a_1080p.mp4")
+            _touch(folder / "3_Realistic_b_1080p.mp4")
+            match, issue = find_numbered_asset(folder, "3", "video")
+            self.assertIsNone(match)
+            self.assertEqual(issue.code, "ambiguous")
+
+    def test_padded_prefix_008(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            _touch(folder / "008_clip.mp4")
+            match, issue = find_numbered_asset(folder, "8", "video")
+            self.assertIsNone(issue)
+            self.assertEqual(match.path.name, "008_clip.mp4")
+
+
 class MissingAndWrongTypeTests(unittest.TestCase):
     def test_missing_asset(self):
         with tempfile.TemporaryDirectory() as tmp:
