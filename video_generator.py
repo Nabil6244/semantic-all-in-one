@@ -1296,26 +1296,41 @@ def _render_editorial_shot(
         if window is None and file_dur > 0:
             window = max(0.05, file_dur - max(0.0, src_start))
         window = float(window or 0.0)
+
+        # Delivered file is authoritative. If it can cover this shot's output
+        # duration, ignore a stale short source_end from an old edit plan and
+        # play one continuous segment (no 2s×3 loop of an 8s Flow clip).
+        file_remaining = max(0.0, file_dur - max(0.0, src_start)) if file_dur > 0 else 0.0
+        if file_remaining + 0.05 >= clip_dur:
+            window = max(window, clip_dur * max(speed, 0.01))
+
         playable = window / max(speed, 0.01) if window > 0 else 0.0
 
         input_args: list[str] = []
         if src_start > 0.02:
             input_args += ["-ss", f"{src_start:.3f}"]
 
-        if hold_tail:
-            # Intentional editorial hold: decode the source, then clone the last frame.
+        if hold_tail and file_remaining + 0.05 < clip_dur:
+            # Intentional editorial hold only when the real file is short.
             read_dur = playable if playable > 0 else clip_dur
             input_args += ["-t", f"{read_dur:.3f}", "-i", str(img_path)]
             pad = max(0.0, clip_dur - read_dur)
             if pad > 0.08:
                 base_vf = f"{base_vf},tpad=stop_mode=clone:stop_duration={pad:.3f}"
-        elif playable > 0.08 and playable + 0.05 < clip_dur:
-            # Short source, not a hold — loop the window so motion continues.
+        elif (
+            playable > 0.08
+            and playable + 0.05 < clip_dur
+            and (file_remaining <= 0 or file_remaining + 0.05 < clip_dur)
+        ):
+            # Loop only when the REAL file cannot cover the shot duration.
             nframes = max(2, int(round(playable * fps)))
             base_vf = f"{base_vf},loop=-1:size={nframes}:start=0,setpts=N/{fps}/TB"
             input_args += ["-t", f"{playable:.3f}", "-i", str(img_path)]
         else:
             read_dur = clip_dur / max(speed, 0.01)
+            # Prefer reading from the real file continuously.
+            if file_remaining > 0:
+                read_dur = min(read_dur, file_remaining + 0.05)
             input_args += ["-t", f"{read_dur:.3f}", "-i", str(img_path)]
         cmd = [
             "ffmpeg", "-y",

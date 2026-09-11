@@ -552,14 +552,72 @@ def _reconcile_playable_coverage(
     """Cap video shots to source length; replay punch-in instead of freezing.
 
     HOLD_TAIL remains only for a small leftover on the last shot.
+
+    Critical post-upgrade fix: if the delivered primary file already covers the
+    VO, collapse same-source multi-shot / replay plans back to one continuous
+    shot so an 8s Flow clip is never chopped into 2s×3 loops.
     """
     shots = list(decision.shots)
     if not shots or required <= 0:
         return decision
 
+    # Authoritative file length (probe) — overrides stale short usable metadata.
+    file_usable = usable
+    if primary.path and Path(primary.path).is_file():
+        probed = analyze_media_editability(
+            primary.path,
+            known_duration=usable if usable > 0 else None,
+            asset_type=primary.asset_class or media_kind,
+        )
+        if probed.media_kind == "video":
+            file_usable = max(
+                file_usable,
+                probed.usable_duration,
+                probed.native_duration,
+            )
+
+    def _is_same_primary_source(shot: ShotSpec) -> bool:
+        if shot.asset_id and primary.asset_id and shot.asset_id == primary.asset_id:
+            return True
+        if not shot.source_path:
+            return True  # unbound → scene primary
+        if not primary.path:
+            return True
+        try:
+            sp = Path(shot.source_path)
+            pp = Path(primary.path)
+            if sp.exists() and pp.exists() and sp.resolve() == pp.resolve():
+                return True
+        except OSError:
+            pass
+        return str(shot.source_path) == str(primary.path)
+
+    same_source = all(_is_same_primary_source(s) for s in shots)
+    if (
+        media_kind == "video"
+        and file_usable >= required * 0.88
+        and len(shots) > 1
+        and same_source
+    ):
+        # File covers narration — one continuous shot, no punch-in replay.
+        keep = shots[0]
+        keep.output_duration = round(required, 4)
+        keep.source_start = 0.0
+        keep.source_end = round(min(file_usable, required * 1.05), 3)
+        keep.scale = min(float(keep.scale or 1.0), 1.12)
+        keep.crop_x = 0.5
+        keep.crop_y = 0.5
+        keep.hold_tail = False
+        keep.reason = "source covers beat (collapsed same-source multi-shot)"
+        decision.shots = [keep]
+        decision.strategy = "SINGLE_SHOT"
+        decision.avoid_blind_loop = False
+        decision.reason = _reason("SINGLE_SHOT", file_usable, required, 1)
+        return decision
+
     remainder = 0.0
     for shot in shots:
-        play = _shot_playable_duration(shot, usable, default_kind=media_kind)
+        play = _shot_playable_duration(shot, file_usable, default_kind=media_kind)
         if play is None:
             continue  # still — image motion covers any duration
         max_play = max(play, 0.4)
@@ -578,9 +636,22 @@ def _reconcile_playable_coverage(
                 shot.source_end = round(max_play, 3)
 
     if remainder > 0.08:
+        # Prefer a real complement / dual path upstream. Same-source replay is
+        # last resort only when the file truly cannot cover the remainder.
+        if file_usable >= required * 0.88 and same_source:
+            shots[0].output_duration = round(required, 4)
+            shots[0].source_start = 0.0
+            shots[0].source_end = round(min(file_usable, required * 1.05), 3)
+            shots[0].hold_tail = False
+            decision.shots = [shots[0]]
+            decision.strategy = "SINGLE_SHOT"
+            decision.avoid_blind_loop = False
+            _normalize_shot_total(decision.shots, required)
+            return decision
+
         while remainder > 0.08 and len(shots) < _MAX_REPLAY_SHOTS:
             prev = shots[-1]
-            play = _shot_playable_duration(prev, usable, default_kind=media_kind) or usable or remainder
+            play = _shot_playable_duration(prev, file_usable, default_kind=media_kind) or file_usable or remainder
             if play is None:
                 # Last shot is a still; let image motion absorb the rest.
                 shots[-1].output_duration = round(shots[-1].output_duration + remainder, 4)
@@ -674,18 +745,29 @@ def plan_edit_decision(
             known_duration=known,
             asset_type=scene.asset_type_intent,
         )
-    elif scene.actual_asset_duration and editability.native_duration <= 0:
-        editability = analyze_media_editability(
-            path,
-            known_duration=scene.actual_asset_duration,
-            asset_type=scene.asset_type_intent,
-        )
+    else:
+        # Always re-probe from the delivered file when present so stale short
+        # actual_asset_duration cannot force same-shot replay loops.
+        if path and Path(path).is_file():
+            editability = analyze_media_editability(
+                path,
+                known_duration=scene.actual_asset_duration or editability.native_duration,
+                asset_type=scene.asset_type_intent,
+            )
+        elif scene.actual_asset_duration and editability.native_duration <= 0:
+            editability = analyze_media_editability(
+                path,
+                known_duration=scene.actual_asset_duration,
+                asset_type=scene.asset_type_intent,
+            )
 
     if editability.native_duration <= 0 and scene.actual_asset_duration:
         editability.native_duration = float(scene.actual_asset_duration)
-        editability.usable_duration = max(0.4, float(scene.actual_asset_duration) - 0.25)
+        editability.usable_duration = max(
+            0.4, float(scene.actual_asset_duration) - 0.15
+        )
 
-    usable = editability.usable_duration or editability.native_duration
+    usable = max(editability.usable_duration, editability.native_duration)
 
     primary = AssetCandidate(
         asset_id=primary_id,

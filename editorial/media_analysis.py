@@ -32,17 +32,27 @@ def analyze_media_editability(
     known_duration: Optional[float] = None,
     asset_type: str = "",
 ) -> MediaEditability:
-    """Score how flexibly a source can be edited to cover narration."""
+    """Score how flexibly a source can be edited to cover narration.
+
+    When a video file exists on disk, probed duration is authoritative.
+    Stale short ``known_duration`` metadata must not force multi-shot replay
+    of an 8s Flow/stock clip into 2s loops.
+    """
     media_path = Path(path) if path else None
     kind = "unknown"
-    native = float(known_duration or 0.0)
+    known = float(known_duration or 0.0)
+    native = known
 
     if media_path and media_path.is_file():
         ext = media_path.suffix.lower()
         if ext in _VIDEO_EXTS:
             kind = "video"
-            if native <= 0:
-                native = _probe_duration(media_path)
+            probed = _probe_duration(media_path)
+            if probed > 0:
+                # Delivered file wins over stale/short manifest metadata.
+                native = probed
+            elif native <= 0:
+                native = 0.0
         elif ext in _IMAGE_EXTS:
             kind = "image"
             native = 0.0  # stills have no native duration
@@ -51,8 +61,11 @@ def analyze_media_editability(
             at = (asset_type or "").lower()
             if "video" in at:
                 kind = "video"
-                if native <= 0:
-                    native = _probe_duration(media_path)
+                probed = _probe_duration(media_path)
+                if probed > 0:
+                    native = probed
+                elif native <= 0:
+                    native = 0.0
             elif "image" in at or at in ("image", "stock_image", "flow_image"):
                 kind = "image"
 
@@ -80,11 +93,12 @@ def analyze_media_editability(
             notes="still — Ken Burns / punch-in / reframe preferred over freeze",
         )
 
-    # Video
+    # Video — keep almost all of the delivered length for coverage decisions.
+    # A tiny handle is fine for endpoints; it must not make an 8s clip look like
+    # it cannot cover a 5s VO (that triggered same-shot 2s×3 replay).
     usable = native
-    # Heuristic: very short clips have less usable material after handle
     if native > 0:
-        handle = min(0.35, native * 0.08)
+        handle = min(0.15, native * 0.02)
         usable = max(0.4, native - handle)
 
     motion = 0.55
@@ -112,6 +126,13 @@ def analyze_media_editability(
     score += min(0.15, loopability)
     score = round(min(1.0, max(0.05, score)), 3)
 
+    notes = "video — prefer multi-shot / punch-in over blind loop"
+    if known > 0 and native > 0 and known + 0.35 < native:
+        notes = (
+            f"video — probed {native:.1f}s overrides stale known {known:.1f}s; "
+            "single-shot when file covers narration"
+        )
+
     return MediaEditability(
         native_duration=round(native, 3),
         usable_duration=round(usable, 3),
@@ -126,5 +147,5 @@ def analyze_media_editability(
         visual_complexity=0.5,
         editability_score=score,
         natural_endpoint=round(usable, 3) if usable > 0 else None,
-        notes="video — prefer multi-shot / punch-in over blind loop",
+        notes=notes,
     )

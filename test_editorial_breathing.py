@@ -217,6 +217,144 @@ class TestVideoBreathing(unittest.TestCase):
             self.assertAlmostEqual(d.total_output_duration(), 2.0, places=1)
 
 
+@unittest.skipUnless(
+    __import__("shutil").which("ffmpeg") is not None
+    and __import__("shutil").which("ffprobe") is not None,
+    "ffmpeg/ffprobe required",
+)
+class TestNoSameShotLoopWhenFileCovers(unittest.TestCase):
+    """Post-upgrade regression: 8s Flow/stock must not become 2s×3 loops."""
+
+    def _make_video(self, path: Path, seconds: float) -> Path:
+        import subprocess
+
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                f"color=c=blue:s=320x180:d={seconds}",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-t",
+                str(seconds),
+                str(path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return path
+
+    def test_stale_short_metadata_does_not_multishot_long_file(self) -> None:
+        """Stale actual=2s must not override probed 8s file for a 5s VO."""
+        with tempfile.TemporaryDirectory() as tmp:
+            primary = self._make_video(Path(tmp) / "flow8.mp4", 8.0)
+            scene = _scene(
+                "20",
+                start=0,
+                end=5,
+                text="Factory production continues with a strong eight second clip.",
+                actual=2.0,  # stale / wrong
+                purpose="process",
+            )
+            d = plan_edit_decision(scene, media_path=primary, coverage_strategy="dual")
+            self.assertEqual(d.strategy, "SINGLE_SHOT")
+            self.assertEqual(len(d.shots), 1)
+            self.assertAlmostEqual(d.shots[0].output_duration, 5.0, places=1)
+            # Source window must cover the VO, not a ~2s stub.
+            span = float(d.shots[0].source_end or 0) - float(d.shots[0].source_start or 0)
+            self.assertGreaterEqual(span, 4.5)
+
+    def test_collapse_same_source_multishot_when_file_covers(self) -> None:
+        from editorial.edit_decision import EditDecision, MediaEditability, ShotSpec
+        from editorial.shot_planner import _reconcile_playable_coverage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            primary_path = self._make_video(Path(tmp) / "stock8.mp4", 8.0)
+            primary = AssetCandidate(
+                asset_id="021",
+                path=primary_path,
+                is_primary=True,
+                asset_class="stock_video",
+            )
+            decision = EditDecision(
+                scene_number="21",
+                required_duration=5.0,
+                strategy="MULTI_SHOT",
+                shots=[
+                    ShotSpec(
+                        shot_id="21_s0",
+                        output_duration=2.0,
+                        source_start=0.0,
+                        source_end=2.0,
+                        scale=1.0,
+                        source_path=str(primary_path),
+                        asset_id="021",
+                    ),
+                    ShotSpec(
+                        shot_id="21_s1",
+                        output_duration=2.0,
+                        source_start=0.0,
+                        source_end=2.0,
+                        scale=1.28,
+                        source_path=str(primary_path),
+                        asset_id="021",
+                    ),
+                    ShotSpec(
+                        shot_id="21_s2",
+                        output_duration=1.0,
+                        source_start=0.0,
+                        source_end=1.0,
+                        scale=1.4,
+                        source_path=str(primary_path),
+                        asset_id="021",
+                    ),
+                ],
+            )
+            out = _reconcile_playable_coverage(
+                decision,
+                primary=primary,
+                usable=2.0,  # stale short
+                required=5.0,
+                media_kind="video",
+            )
+            self.assertEqual(out.strategy, "SINGLE_SHOT")
+            self.assertEqual(len(out.shots), 1)
+            self.assertAlmostEqual(out.shots[0].output_duration, 5.0, places=1)
+
+    def test_render_does_not_loop_when_file_covers_vo(self) -> None:
+        import video_generator as vg
+
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._make_video(Path(tmp) / "src8.mp4", 8.0)
+            out = Path(tmp) / "shot.mp4"
+            # Stale short source_end like an old edit plan — file is still 8s.
+            shot = {
+                "shot_id": "1_s0",
+                "output_duration": 5.0,
+                "source_start": 0.0,
+                "source_end": 2.0,
+                "scale": 1.0,
+                "camera_style": "static",
+                "hold_tail": False,
+            }
+            vg._render_editorial_shot(src, out, shot, 320, 180, 12, zoom_amount=0.05)
+            self.assertTrue(out.is_file())
+            from media_duration import probe_media_duration
+
+            dur = probe_media_duration(out) or 0.0
+            self.assertGreaterEqual(dur, 4.7)
+            self.assertLessEqual(dur, 5.3)
+
+
+
 class TestImageBreathing(unittest.TestCase):
     def test_5s_vo_strong_image_holds(self) -> None:
         """CASE C — strong still covers full VO."""
