@@ -358,6 +358,7 @@ a = Analysis(
         "editorial.continuity",
         "editorial.intent",
         "editorial.timeline",
+        "editorial.render_gate",
         "media_duration",
         "ui",
         "ui.views",
