@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from app import editorial_timeline_for_render
+from editorial.render_gate import editorial_timeline_for_render
 
 
 class EditorialTimelineRenderGateTests(unittest.TestCase):

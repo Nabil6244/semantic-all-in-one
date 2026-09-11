@@ -90,6 +90,7 @@ from editorial import (
     save_editorial_qa,
 )
 from editorial.persistence import clear_editorial_plan, load_cached_plan
+from editorial.render_gate import editorial_timeline_for_render
 from visual_director import parse_visual_plan
 from ui.shell import AppShell
 from ui import views as ui_views
@@ -102,19 +103,6 @@ def _is_frozen() -> bool:
 
 
 APP_DISPLAY_NAME = "Semantic YT Studio"
-
-
-def editorial_timeline_for_render(editorial_plan, *, text_effects: bool):
-    """Pass editorial timeline graphics into render only when Smart Text is on.
-
-    Lower-thirds / callouts / stats live on the editorial TEXT/GRAPHICS tracks.
-    They must follow the same user switch as Smart Editing → Text Effects so
-    turning text off yields a clean picture (Captions is a separate burn-in).
-    """
-    if not text_effects:
-        return None
-    timeline = getattr(editorial_plan, "timeline", None) if editorial_plan is not None else None
-    return timeline if isinstance(timeline, dict) else None
 
 
 def _configure_macos_dock_name(name: str = APP_DISPLAY_NAME) -> None:
