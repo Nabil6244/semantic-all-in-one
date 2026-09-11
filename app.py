@@ -104,6 +104,19 @@ def _is_frozen() -> bool:
 APP_DISPLAY_NAME = "Semantic YT Studio"
 
 
+def editorial_timeline_for_render(editorial_plan, *, text_effects: bool):
+    """Pass editorial timeline graphics into render only when Smart Text is on.
+
+    Lower-thirds / callouts / stats live on the editorial TEXT/GRAPHICS tracks.
+    They must follow the same user switch as Smart Editing → Text Effects so
+    turning text off yields a clean picture (Captions is a separate burn-in).
+    """
+    if not text_effects:
+        return None
+    timeline = getattr(editorial_plan, "timeline", None) if editorial_plan is not None else None
+    return timeline if isinstance(timeline, dict) else None
+
+
 def _configure_macos_dock_name(name: str = APP_DISPLAY_NAME) -> None:
     """Dock hover name when running `python app.py` (not a .app bundle).
 
@@ -1469,7 +1482,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._path_row(
             7, "", self.local_assets_var, self._browse_local_assets_folder,
             parent=self._local_assets_block,
-            placeholder_text="Choose folder with 001.mp4, 002.jpg, …",
+            placeholder_text="Folder with 001.mp4 or 1_clip.mp4, …",
         )
 
         ctk.CTkLabel(
@@ -7547,7 +7560,7 @@ class VideoGeneratorApp(ctk.CTk):
             if self._local_assets_dir() is None:
                 return None, (
                     "Choose a Local Assets folder containing numbered files "
-                    "(001.mp4, 002.jpg, …).\n\n"
+                    "(001.mp4 or 1_Realistic_….mp4, …).\n\n"
                     "Missing files become NEEDS ACTION in the Visual Plan — "
                     "the app will not fall back to Flow, Stock, or YouTube."
                 )
@@ -7715,6 +7728,9 @@ class VideoGeneratorApp(ctk.CTk):
                 f"(text={smart_cfg.text_intensity()}/sfx={smart_cfg.sfx_intensity()}/"
                 f"transitions={smart_cfg.transitions_intensity()}/"
                 f"ambience={smart_cfg.ambience_intensity()}, {smart_cfg.mode})"
+            )
+            print(
+                f"Graphics: {'ON (follow Text Effects)' if smart_cfg.text_effects else 'OFF'}"
             )
             print(f"Work:   {work_dir}")
             print("")
@@ -8120,10 +8136,8 @@ class VideoGeneratorApp(ctk.CTk):
                 transition_by_scene=transition_map if transition_map else None,
                 camera_by_scene=camera_map if camera_map else None,
                 edit_decisions_by_scene=edit_decision_map or None,
-                editorial_timeline=(
-                    getattr(editorial_plan, "timeline", None)
-                    if isinstance(getattr(editorial_plan, "timeline", None), dict)
-                    else None
+                editorial_timeline=editorial_timeline_for_render(
+                    editorial_plan, text_effects=bool(smart_cfg.text_effects),
                 ),
             )
 
