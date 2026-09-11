@@ -5,6 +5,7 @@ import {
   downloadMedia,
   openOrCreateProject,
   waitForFlowReady,
+  flowReload,
   AuthExpiredError,
   EndpointRejectedError,
   QuotaError,
@@ -198,7 +199,10 @@ export async function runBatchSlice({
             status: "running",
             message: "Refreshing Flow page…",
           });
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+          await flowReload(page, `batch-runner:refreshEvery=${refreshEvery}`, {
+            waitUntil: "domcontentloaded",
+            timeout: 45000,
+          });
           await waitForFlowReady(page);
         }
 
@@ -229,7 +233,10 @@ export async function runBatchSlice({
           });
           await sleep(seconds * 1000, shouldStop);
           if (shouldStop?.()) return;
-          await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+          await flowReload(page, `batch-runner:error-recovery:${label}`, {
+            waitUntil: "domcontentloaded",
+            timeout: 45000,
+          });
           await waitForFlowReady(page).catch(() => {});
         };
 

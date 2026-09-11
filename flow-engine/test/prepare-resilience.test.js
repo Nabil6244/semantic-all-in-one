@@ -52,3 +52,30 @@ test("preparation cannot generate media, so retrying it spends no credit", () =>
     assert.ok(!body.includes(forbidden), `prepare must not call ${forbidden}`);
   }
 });
+
+test("runGenerate does not double-prepare workers before runPass", () => {
+  // Regression: Promise.all(ensurePrepared) immediately before runPass caused
+  // every account to openOrCreateProject/waitForFlowReady twice, which could
+  // surface as a second navigation ~seconds after the page first loaded.
+  const start = src.indexOf("try {\n    // Prepare once inside runPass");
+  assert.ok(start > 0, "must document single-prepare path");
+  const region = src.slice(start, src.indexOf("let pending = await runPass"));
+  assert.doesNotMatch(
+    region,
+    /Promise\.all\(\s*workers\.map\(\(a\) =>\s*ensurePrepared/,
+    "must not pre-call ensurePrepared before runPass",
+  );
+});
+
+test("waitForFlowReady requires a project URL, not just reCAPTCHA on home", () => {
+  const body = api.slice(api.indexOf("export async function waitForFlowReady"));
+  const fn = body.slice(0, body.indexOf("export async function getSessionToken"));
+  assert.match(fn, /ready\.hasRecaptcha && ready\.hasProject/);
+});
+
+test("navigation helpers exist so refreshes are attributable", () => {
+  assert.match(api, /export function logFlowNav/);
+  assert.match(api, /export async function flowGoto/);
+  assert.match(api, /export async function flowReload/);
+  assert.match(api, /\[FLOW NAV DEBUG\]/);
+});

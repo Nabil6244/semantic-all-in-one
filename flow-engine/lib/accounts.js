@@ -1,12 +1,23 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import { profileDir, ensureDirs } from "./paths.js";
-import { urls } from "./flow-api.js";
+import { flowGoto, logFlowNav, urls } from "./flow-api.js";
 
 /** @type {Map<string, import('playwright').BrowserContext>} */
 const contexts = new Map();
 /** @type {Map<string, import('playwright').Page>} */
 const pages = new Map();
+
+function tagPage(page, accountId) {
+  if (!page) return page;
+  try {
+    page.__flowAccountId = accountId;
+    if (!page.__flowOpenedAt) page.__flowOpenedAt = Date.now();
+  } catch {
+    /* ignore */
+  }
+  return page;
+}
 
 function launchOpts(headed) {
   // Prefer installed Google Chrome (looks more like a normal user).
@@ -39,8 +50,13 @@ export async function openAccountBrowser(accountId, opts = {}) {
     const ctx = contexts.get(accountId);
     let page = pages.get(accountId);
     if (!page || page.isClosed()) {
-      page = ctx.pages()[0] || (await ctx.newPage());
+      page = tagPage(ctx.pages()[0] || (await ctx.newPage()), accountId);
       pages.set(accountId, page);
+      logFlowNav(page, "page.create", "openAccountBrowser:reuse-context-new-page", {
+        accountId,
+      });
+    } else {
+      tagPage(page, accountId);
     }
     return { context: ctx, page };
   }
@@ -71,8 +87,12 @@ export async function openAccountBrowser(accountId, opts = {}) {
     pages.delete(accountId);
   });
 
-  const page = context.pages()[0] || (await context.newPage());
+  const page = tagPage(context.pages()[0] || (await context.newPage()), accountId);
   pages.set(accountId, page);
+  logFlowNav(page, "page.create", "openAccountBrowser:new-context", {
+    accountId,
+    targetUrl: `profile=${userDataDir}`,
+  });
   return { context, page };
 }
 
@@ -88,10 +108,12 @@ export async function gotoFlow(page) {
   // Flow domain — a project page included.
   const url = page.url();
   if (!url.includes("flow.google.com") && !url.includes("labs.google")) {
-    await page.goto(urls.flowHome, {
+    await flowGoto(page, urls.flowHome, "gotoFlow:not-on-flow-domain", {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
+  } else {
+    logFlowNav(page, "gotoFlow.skip", "already-on-flow-domain");
   }
 }
 

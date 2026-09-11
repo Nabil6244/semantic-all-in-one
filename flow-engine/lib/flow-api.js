@@ -73,6 +73,69 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Temporary lifecycle diagnostics for the Flow page-refresh regression.
+ * Never logs cookies, tokens, credentials, or session secrets.
+ */
+export function logFlowNav(page, action, reason, extra = {}) {
+  let url = "";
+  let title = "";
+  let accountId = "";
+  let elapsedSec = null;
+  try {
+    url = typeof page?.url === "function" ? page.url() : "";
+  } catch {
+    url = "(unavailable)";
+  }
+  try {
+    accountId = page?.__flowAccountId || extra.accountId || "";
+  } catch {
+    /* ignore */
+  }
+  try {
+    const openedAt = page?.__flowOpenedAt;
+    if (typeof openedAt === "number" && openedAt > 0) {
+      elapsedSec = Math.round(((Date.now() - openedAt) / 1000) * 10) / 10;
+    }
+  } catch {
+    /* ignore */
+  }
+  const parts = [
+    "[FLOW NAV DEBUG]",
+    accountId ? `Account: ${accountId}` : null,
+    extra.worker != null ? `Worker: ${extra.worker}` : null,
+    extra.scene != null ? `Scene: ${extra.scene}` : null,
+    `Action: ${action}`,
+    reason ? `Reason: ${reason}` : null,
+    elapsedSec != null ? `Elapsed: ${elapsedSec}s` : null,
+    url ? `URL: ${url}` : null,
+    extra.targetUrl ? `Target: ${extra.targetUrl}` : null,
+  ].filter(Boolean);
+  console.error(parts.join(" | "));
+  // Best-effort title (async callers may ignore the promise).
+  if (page && typeof page.title === "function") {
+    Promise.resolve()
+      .then(() => page.title())
+      .then((t) => {
+        title = String(t || "").slice(0, 120);
+        if (title) console.error(`[FLOW NAV DEBUG] Title: ${title}`);
+      })
+      .catch(() => {});
+  }
+}
+
+/** Navigate with a reason tag so unexpected refreshes are attributable. */
+export async function flowGoto(page, targetUrl, reason, opts = {}) {
+  logFlowNav(page, "page.goto", reason, { targetUrl });
+  return page.goto(targetUrl, opts);
+}
+
+/** Reload with a reason tag. */
+export async function flowReload(page, reason, opts = {}) {
+  logFlowNav(page, "page.reload", reason);
+  return page.reload(opts);
+}
+
 /** Close newsletter / promo modals that block Flow UI but leave cookies intact. */
 export async function dismissBlockingOverlays(page) {
   try {
@@ -148,6 +211,7 @@ async function safeEvaluate(page, fn, arg, { retries = 4, settleMs = 700 } = {})
 
 export async function waitForFlowReady(page, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;
+  let lastSnapshot = null;
   while (Date.now() < deadline) {
     try {
       const ready = await safeEvaluate(page, () => {
@@ -164,12 +228,22 @@ export async function waitForFlowReady(page, timeoutMs = 45000) {
           typeof grecaptcha?.enterprise?.execute === "function";
         return { url: location.href, hasProject, hasRecaptcha };
       });
-      if (ready.hasRecaptcha) return ready;
+      lastSnapshot = ready;
+      // Require a project URL too — reCAPTCHA also loads on flow.google.com/
+      // home, and treating home as "ready" let callers proceed before
+      // openOrCreateProject's project navigation finished (or skip waiting
+      // after a refresh landed back on home).
+      if (ready.hasRecaptcha && ready.hasProject) return ready;
     } catch {
       /* navigation */
     }
     await sleep(800);
   }
+  logFlowNav(page, "waitForFlowReady.timeout", "Timed out waiting for Flow page / reCAPTCHA", {
+    targetUrl: lastSnapshot
+      ? `hasProject=${!!lastSnapshot.hasProject} hasRecaptcha=${!!lastSnapshot.hasRecaptcha}`
+      : "no-snapshot",
+  });
   throw new FatalError("Timed out waiting for Flow page / reCAPTCHA", true);
 }
 
@@ -332,7 +406,10 @@ export async function openOrCreateProject(page) {
   // domain too, or every call forces a needless re-navigation.
   const currentUrl = page.url();
   if (!currentUrl.includes("flow.google.com") && !currentUrl.includes("labs.google")) {
-    await page.goto(urls.flowHome, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await flowGoto(page, urls.flowHome, "openOrCreateProject:not-on-flow-domain", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
     await sleep(1500);
   }
 
@@ -347,7 +424,9 @@ export async function openOrCreateProject(page) {
   }
 
   projectId = await createFlowProject(page);
-  await page.goto(urls.flowProject(projectId), {
+  // This is the intentional first project navigation after create — often
+  // visible ~a few seconds after the home page loads. Not a spurious refresh.
+  await flowGoto(page, urls.flowProject(projectId), "openOrCreateProject:enter-new-project", {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });
@@ -1475,7 +1554,7 @@ export async function checkAuthStatus(page) {
     // it still resolves/redirects for some accounts.
     const url = page.url();
     if (!url.includes("labs.google") && !url.includes("flow.google.com")) {
-      await page.goto(urls.flowHome, {
+      await flowGoto(page, urls.flowHome, "checkAuthStatus:not-on-flow-domain", {
         waitUntil: "domcontentloaded",
         timeout: 45000,
       });

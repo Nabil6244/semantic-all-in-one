@@ -544,7 +544,34 @@ test("full sequence — project ready, page reload leaves reCAPTCHA mid-init, wa
   const ready = await waitForFlowReady(page);
   assert.equal(probeCalls, NOT_YET_READY_PROBES + 1, "must keep polling until execute is actually callable");
   assert.equal(ready.hasRecaptcha, true);
+  assert.equal(ready.hasProject, true);
 
   const result = await generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0);
   assert.equal(result.mediaId, MEDIA_ID);
+});
+
+test("waitForFlowReady stays not-ready on Flow home even when reCAPTCHA execute is callable", async () => {
+  // Home loads grecaptcha too — treating that as ready let prepare proceed
+  // before the project navigation finished.
+  const location = { href: "https://flow.google.com/" };
+  const grecaptcha = { enterprise: { execute: async () => "x" } };
+  let probes = 0;
+  const page = {
+    async waitForLoadState() {},
+    async evaluate(fn, arg) {
+      probes++;
+      globalThis.window = { grecaptcha, location };
+      globalThis.grecaptcha = grecaptcha;
+      globalThis.location = location;
+      try {
+        return arg === undefined ? await fn() : await fn(arg);
+      } finally {
+        delete globalThis.window;
+        delete globalThis.grecaptcha;
+        delete globalThis.location;
+      }
+    },
+  };
+  await assert.rejects(() => waitForFlowReady(page, 1600), /Timed out waiting for Flow page/);
+  assert.ok(probes >= 1);
 });

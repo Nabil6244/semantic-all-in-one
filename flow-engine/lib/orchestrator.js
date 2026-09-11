@@ -18,6 +18,7 @@ import {
   dismissBlockingOverlays,
   openOrCreateProject,
   waitForFlowReady,
+  logFlowNav,
 } from "./flow-api.js";
 import { runBatchSlice } from "./batch-runner.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
@@ -436,7 +437,14 @@ async function runGenerate({ prompts, settings, accountIds }) {
         });
         pushState();
         // Let the SPA finish whatever navigation broke the last attempt.
-        await new Promise((r) => setTimeout(r, 3000 * attempt));
+        // This 3000*attempt sleep is a known ~3–4s delayed re-entry point —
+        // log it so a visible refresh after that delay is attributable.
+        const backoffMs = 3000 * attempt;
+        logFlowNav(getPage(account.id), "ensurePrepared.retry", String(e?.message || e), {
+          accountId: account.id,
+          targetUrl: `backoffMs=${backoffMs} nextAttempt=${attempt + 1}/${attempts}`,
+        });
+        await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
     throw lastErr || new Error("Could not prepare " + account.label);
@@ -618,17 +626,11 @@ async function runGenerate({ prompts, settings, accountIds }) {
   }
 
   try {
-    // First pass — initial workers
-    await Promise.all(
-      workers.map((a) =>
-        ensurePrepared(a).catch((e) => {
-          accountProgress.set(a.id, { status: "error", message: e.message });
-          pushState();
-          throw e;
-        }),
-      ),
-    );
-
+    // Prepare once inside runPass (per worker). A previous redundant
+    // Promise.all(ensurePrepared) here + ensurePrepared again in runPass
+    // double-initialized every account: openOrCreateProject / waitForFlowReady
+    // ran twice before the first generation, which could surface as a second
+    // navigation shortly after the page appeared ready.
     let pending = await runPass(workers, splitPrompts(prompts, workers.length));
     let passesRun = 1;
 
