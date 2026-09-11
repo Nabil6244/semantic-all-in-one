@@ -1158,12 +1158,19 @@ def _cpu_encode_argv() -> list[str]:
 
 
 def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
-    """Encode one clip via the central runner (timeout + stall detection)."""
+    """Encode one clip via the central runner (timeout + stall detection).
+
+    Raises ``RuntimeError`` on failure (never ``sys.exit``) so unit tests and
+    the GUI host are not killed by a single clip encode error.
+    """
     try:
         from providers.ffmpeg_runner import FFmpegError, run_ffmpeg
     except Exception:
         FFmpegError = None  # type: ignore
         run_ffmpeg = None  # type: ignore
+
+    def _fail(message: str) -> None:
+        raise RuntimeError(message)
 
     if run_ffmpeg is not None:
         try:
@@ -1196,14 +1203,16 @@ def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
                     "if you still see this, turn off Smart Text Effects or install "
                     "ffmpeg with --enable-libfreetype."
                 )
-            sys.exit(f"ERROR: ffmpeg {why} rendering clip for {img_name}{hint}")
+            _fail(f"ERROR: ffmpeg {why} rendering clip for {img_name}{hint}")
+        except RuntimeError:
+            raise
         except Exception as exc:
             if FFmpegError is not None and isinstance(exc, FFmpegError):
                 res = exc.result
                 err = ((res.stderr if res else "") or "").strip()
                 if err:
                     print(err[-3000:])
-                sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_name}: {exc}")
+                _fail(f"ERROR: ffmpeg failed rendering clip for {img_name}: {exc}")
             # Fall through to legacy path on unexpected runner failures.
 
     result = hidden_subprocess.run(cmd, capture_output=True, text=True)
@@ -1219,7 +1228,7 @@ def _run_ffmpeg_encode(cmd: list[str], img_name: str) -> None:
             "if you still see this, turn off Smart Text Effects or install "
             "ffmpeg with --enable-libfreetype."
         )
-    sys.exit(f"ERROR: ffmpeg failed rendering clip for {img_name}{hint}")
+    _fail(f"ERROR: ffmpeg failed rendering clip for {img_name}{hint}")
 
 
 def _video_punch_filter(

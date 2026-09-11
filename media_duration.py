@@ -58,6 +58,19 @@ def cached_duration(metadata: Optional[Mapping[str, Any]]) -> Optional[float]:
     return None
 
 
+def _resolve_ffprobe() -> Optional[str]:
+    """Locate ffprobe on PATH or next to a bundled ``bin/`` copy (Windows .exe)."""
+    found = shutil.which("ffprobe")
+    if found:
+        return found
+    root = Path(__file__).resolve().parent
+    for name in ("ffprobe.exe", "ffprobe"):
+        candidate = root / "bin" / name
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
 def probe_media_duration(path: Path | str) -> Optional[float]:
     """Measure a media file with ffprobe. None on any failure — never raises.
 
@@ -68,7 +81,7 @@ def probe_media_duration(path: Path | str) -> Optional[float]:
         media_path = Path(path)
         if not media_path.is_file():
             return None
-        ffprobe = shutil.which("ffprobe")
+        ffprobe = _resolve_ffprobe()
         if not ffprobe:
             return None
         proc = subprocess.run(

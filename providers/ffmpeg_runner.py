@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, List, Optional, Sequence
 
 from providers import hidden_subprocess as hs
@@ -64,6 +66,21 @@ def default_timeout_for_duration(media_duration_s: float, *, base: float = 90.0)
     return float(min(45 * 60, max(120.0, base + d * 25.0)))
 
 
+def _resolve_tool(name: str) -> str:
+    """Resolve ``ffmpeg`` / ``ffprobe`` from PATH or repo ``bin/`` (Windows .exe)."""
+    if name not in ("ffmpeg", "ffprobe"):
+        return name
+    found = shutil.which(name)
+    if found:
+        return found
+    root = Path(__file__).resolve().parents[1]
+    for cand_name in (f"{name}.exe", name):
+        candidate = root / "bin" / cand_name
+        if candidate.is_file():
+            return str(candidate)
+    return name
+
+
 def run_ffmpeg(
     cmd: Sequence[str],
     *,
@@ -84,6 +101,7 @@ def run_ffmpeg(
     argv = [str(c) for c in cmd]
     if not argv:
         raise ValueError("empty ffmpeg command")
+    argv[0] = _resolve_tool(argv[0])
 
     if timeout is None:
         timeout = default_timeout_for_duration(media_duration_s)

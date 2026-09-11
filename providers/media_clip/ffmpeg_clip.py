@@ -13,19 +13,29 @@ LogFn = Callable[[str], None]
 
 def _ffmpeg() -> str:
     path = shutil.which("ffmpeg")
-    if not path:
-        raise RuntimeError("ffmpeg is not installed or not on PATH.")
-    return path
+    if path:
+        return path
+    root = Path(__file__).resolve().parents[2]
+    for name in ("ffmpeg.exe", "ffmpeg"):
+        candidate = root / "bin" / name
+        if candidate.is_file():
+            return str(candidate)
+    raise RuntimeError("ffmpeg is not installed or not on PATH.")
 
 
 def _ffprobe() -> str:
     path = shutil.which("ffprobe")
-    if not path:
-        raise RuntimeError("ffprobe is not installed or not on PATH.")
-    return path
+    if path:
+        return path
+    root = Path(__file__).resolve().parents[2]
+    for name in ("ffprobe.exe", "ffprobe"):
+        candidate = root / "bin" / name
+        if candidate.is_file():
+            return str(candidate)
+    raise RuntimeError("ffprobe is not installed or not on PATH.")
 
 
-def probe_duration(url: str) -> Optional[float]:
+def probe_duration(url: str | Path) -> Optional[float]:
     try:
         proc = subprocess.run(
             [
@@ -33,7 +43,7 @@ def probe_duration(url: str) -> Optional[float]:
                 "-v", "error",
                 "-show_entries", "format=duration",
                 "-of", "json",
-                url,
+                str(url),
             ],
             capture_output=True,
             text=True,

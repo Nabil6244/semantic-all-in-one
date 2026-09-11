@@ -86,10 +86,21 @@ class TestResourceGovernor(unittest.TestCase):
 
 
 class TestFFmpegRunner(unittest.TestCase):
-    @unittest.skipUnless(shutil.which("ffmpeg") or Path("bin/ffmpeg").exists(), "ffmpeg missing")
+    @unittest.skipUnless(
+        shutil.which("ffmpeg")
+        or Path("bin/ffmpeg").exists()
+        or Path("bin/ffmpeg.exe").exists(),
+        "ffmpeg missing",
+    )
     def test_run_ffmpeg_short_encode(self) -> None:
         reset_registry_for_tests()
-        ff = str(Path("bin/ffmpeg")) if Path("bin/ffmpeg").exists() else "ffmpeg"
+        ff = "ffmpeg"
+        for name in ("bin/ffmpeg.exe", "bin/ffmpeg"):
+            if Path(name).is_file():
+                ff = name
+                break
+        else:
+            ff = shutil.which("ffmpeg") or "ffmpeg"
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "t.mp4"
             cmd = [
