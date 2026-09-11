@@ -62,6 +62,8 @@ PROVIDER_LABELS = {
     AssetSource.MANUAL: "Manual",
     "local": "Local",
     AssetSource.LOCAL: "Local",
+    "local_video": "Local Video",
+    "local_image": "Local Image",
 }
 
 STATUS_LABELS = {

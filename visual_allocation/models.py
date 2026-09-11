@@ -36,8 +36,9 @@ ASSET_TYPES_VIDEO = frozenset({
     "youtube_video",
     "archive_video",
     "nasa_video",
+    "local_video",
 })
-ASSET_TYPES_IMAGE = frozenset({"image", "stock_image", "flow_image"})
+ASSET_TYPES_IMAGE = frozenset({"image", "stock_image", "flow_image", "local_image"})
 
 
 ALLOCATION_PRESET_LABELS = (

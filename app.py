@@ -489,6 +489,12 @@ def scene_source_badge(scene) -> tuple[str, str, str]:
     """Badge label for a scene row; unroutable AI rows are Unassigned, not Manual."""
     from providers.router import SceneAssetRouter
 
+    asset_type = (getattr(scene, "asset_type", None) or "").strip().lower()
+    if asset_type == "local_video":
+        return ("Local Video", _MUTED, "transparent")
+    if asset_type == "local_image":
+        return ("Local Image", _MUTED, "transparent")
+
     source = SceneAssetRouter.classify(scene)
     if source is not None:
         return SOURCE_BADGE.get(
@@ -499,7 +505,7 @@ def scene_source_badge(scene) -> tuple[str, str, str]:
                 "transparent",
             ),
         )
-    if (getattr(scene, "asset_type", None) or "").strip().lower() == "local":
+    if asset_type == "local":
         return SOURCE_BADGE[AssetSource.LOCAL]
     return _UNASSIGNED_BADGE
 
@@ -597,6 +603,9 @@ _STEPPER_STEPS = ("Script", "Scenes", "Assets", "Voice", "Render")
 _STEPPER_DONE = _ui_theme.STEPPER_DONE
 _PASTE_SCRIPT_MODES = frozenset({"Paste script", "Paste script", "AI Script"})
 _VO_AWARE_MODES = frozenset({"VO-Aware plan", "VO-Aware Plan", "Option 3"})
+_PROD_AI_CLOUD = "AI / Cloud Production"
+_PROD_LOCAL_ASSETS = "Local Assets"
+_LOCAL_ASSETS_PROD_MODES = frozenset({_PROD_LOCAL_ASSETS, "Local assets", "LOCAL ASSETS"})
 
 
 class VideoGeneratorApp(ctk.CTk):
@@ -938,6 +947,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.csv_var = ctk.StringVar()
         self.audio_var = ctk.StringVar()
         self.images_var = ctk.StringVar()
+        self.local_assets_var = ctk.StringVar()
+        self._local_check_var = ctk.StringVar(value="Select a CSV and local assets folder to check.")
         self.bg_var = ctk.StringVar()
         self.output_var = ctk.StringVar()
         self.model_var = ctk.StringVar(value="small")
@@ -1164,11 +1175,33 @@ class VideoGeneratorApp(ctk.CTk):
         mode_wrap.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 0))
         mode_wrap.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
-            mode_wrap, text="Script", font=ctk.CTkFont(size=12, weight="bold"),
+            mode_wrap, text="Production", font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+        self._prod_mode_seg = ctk.CTkSegmentedButton(
+            mode_wrap,
+            values=[_PROD_AI_CLOUD, _PROD_LOCAL_ASSETS],
+            fg_color=_BORDER,
+            selected_color=_ACCENT,
+            selected_hover_color=_ACCENT_HOV,
+            unselected_color=_CARD,
+            unselected_hover_color=_CARD_HOVER,
+            text_color=_TEXT,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            command=self._on_production_mode,
+        )
+        self._prod_mode_seg.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self._prod_mode_seg.set(_PROD_AI_CLOUD)
+
+        self._script_mode_wrap = ctk.CTkFrame(mode_wrap, fg_color="transparent")
+        self._script_mode_wrap.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        self._script_mode_wrap.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self._script_mode_wrap, text="Script", font=ctk.CTkFont(size=12, weight="bold"),
             text_color=_TEXT, anchor="w",
         ).grid(row=0, column=0, sticky="w")
         self._mode_seg = ctk.CTkSegmentedButton(
-            mode_wrap,
+            self._script_mode_wrap,
             values=["Paste script", "Import CSV", "VO-Aware plan"],
             fg_color=_BORDER,
             selected_color=_ACCENT,
@@ -1393,6 +1426,64 @@ class VideoGeneratorApp(ctk.CTk):
         self._vo_analysis = None
         self._vo_claude_plan_ready = False
         self._vo_block.grid_remove()
+
+        # Local Assets production mode (isolated from AI / Cloud Script modes)
+        self._local_assets_block = ctk.CTkFrame(
+            scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
+        )
+        self._local_assets_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
+        self._local_assets_block.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self._local_assets_block, text="LOCAL ASSETS",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
+        ctk.CTkLabel(
+            self._local_assets_block,
+            text="Numbered folder assets only — no Flow, Stock, or YouTube.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
+            wraplength=220, justify="left",
+        ).grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 0))
+
+        ctk.CTkLabel(
+            self._local_assets_block, text="CSV File",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(8, 0))
+        self._path_row(
+            3, "", self.csv_var, self._browse_csv, parent=self._local_assets_block,
+            placeholder_text="Choose a visual-plan CSV…",
+        )
+
+        ctk.CTkLabel(
+            self._local_assets_block, text="Voiceover",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=4, column=0, sticky="w", padx=12, pady=(8, 0))
+        self._path_row(
+            5, "", self.audio_var, self._browse_audio, parent=self._local_assets_block,
+            placeholder_text="Choose narration audio (MP3, WAV, M4A)…",
+        )
+
+        ctk.CTkLabel(
+            self._local_assets_block, text="Local Assets Folder",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=6, column=0, sticky="w", padx=12, pady=(8, 0))
+        self._path_row(
+            7, "", self.local_assets_var, self._browse_local_assets_folder,
+            parent=self._local_assets_block,
+            placeholder_text="Choose folder with 001.mp4, 002.jpg, …",
+        )
+
+        ctk.CTkLabel(
+            self._local_assets_block, text="Asset Check",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=8, column=0, sticky="w", padx=12, pady=(8, 0))
+        self._local_check_label = ctk.CTkLabel(
+            self._local_assets_block, textvariable=self._local_check_var,
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=220,
+            justify="left", anchor="w",
+        )
+        self._local_check_label.grid(row=9, column=0, sticky="ew", padx=12, pady=(2, 12))
+        self._bind_responsive_wrap(self._local_check_label, pad=24)
+        self._local_assets_block.grid_remove()
 
         voice_panel = ctk.CTkFrame(
             scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
@@ -2782,6 +2873,7 @@ class VideoGeneratorApp(ctk.CTk):
         has_plan = bool(self.csv_var.get().strip()) and Path(self.csv_var.get().strip()).is_file()
         paste_mode = self._script_mode_is_ai()
         vo_mode = self._script_mode_is_vo()
+        local_mode = self._production_mode_is_local()
         if self._running:
             self._cta_action = "cancel"
             self.stage_var.set("GENERATING")
@@ -2822,6 +2914,10 @@ class VideoGeneratorApp(ctk.CTk):
                     self._cta_action = "vo_plan"
                     self.hint_var.set("Paste script + voiceover, then Generate Claude Plan.")
                     self._set_generate_btn(state="normal", text="Generate Claude Plan")
+            elif local_mode:
+                self._cta_action = "import_csv"
+                self.hint_var.set("Import a CSV with local_video / local_image rows.")
+                self._set_generate_btn(state="normal", text="Import CSV")
             else:
                 self._cta_action = "import_csv"
                 self.hint_var.set("Import a visual-plan CSV to load scenes.")
@@ -3364,20 +3460,115 @@ class VideoGeneratorApp(ctk.CTk):
             self.csv_var.set(str(dest))
             self._sync_images_dir()
             self._refresh_scene_preview()
+            if self._production_mode_is_local():
+                self._refresh_local_asset_check()
             self._goto_workflow_view("visual_plan")
             self._sync_primary_cta()
 
     def _script_mode_is_ai(self) -> bool:
+        if self._production_mode_is_local():
+            return False
         mode = getattr(self, "_mode_seg", None)
         if mode is None:
             return True
         return mode.get() in _PASTE_SCRIPT_MODES
 
     def _script_mode_is_vo(self) -> bool:
+        if self._production_mode_is_local():
+            return False
         mode = getattr(self, "_mode_seg", None)
         if mode is None:
             return False
         return mode.get() in _VO_AWARE_MODES
+
+    def _production_mode_is_local(self) -> bool:
+        seg = getattr(self, "_prod_mode_seg", None)
+        if seg is None:
+            return False
+        return seg.get() in _LOCAL_ASSETS_PROD_MODES
+
+    def _local_assets_dir(self) -> Path | None:
+        raw = self.local_assets_var.get().strip() if hasattr(self, "local_assets_var") else ""
+        if not raw:
+            return None
+        path = Path(raw)
+        return path if path.is_dir() else None
+
+    def _on_production_mode(self, value: str) -> None:
+        local = value in _LOCAL_ASSETS_PROD_MODES
+        if getattr(self, "_script_mode_wrap", None) is not None:
+            if local:
+                self._script_mode_wrap.grid_remove()
+            else:
+                self._script_mode_wrap.grid()
+        # Hide AI/Cloud panels when entering Local Assets
+        if getattr(self, "_csv_block", None) is not None:
+            self._csv_block.grid_remove()
+        if getattr(self, "_ai_block", None) is not None:
+            self._ai_block.grid_remove()
+        if getattr(self, "_vo_block", None) is not None:
+            self._vo_block.grid_remove()
+        if getattr(self, "_local_assets_block", None) is not None:
+            if local:
+                self._local_assets_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 0))
+            else:
+                self._local_assets_block.grid_remove()
+        if getattr(self, "_voice_panel", None) is not None:
+            if local:
+                self._voice_panel.grid_remove()
+            else:
+                self._voice_panel.grid(row=2, column=0, sticky="ew", padx=16, pady=(10, 0))
+        if local:
+            self._refresh_local_asset_check()
+        else:
+            # Restore the previously selected AI/Cloud script mode panel
+            try:
+                self._on_script_mode(self._mode_seg.get())
+            except Exception:
+                pass
+        self._sync_primary_cta()
+
+    def _browse_local_assets_folder(self) -> None:
+        if not self._require_workspace("choose a local assets folder"):
+            return
+        initial = self.local_assets_var.get().strip() or str(self._workspace.root)
+        picked = filedialog.askdirectory(title="Choose Local Assets folder", initialdir=initial or None)
+        if not picked:
+            return
+        self.local_assets_var.set(picked)
+        self._refresh_local_asset_check()
+        self._append_log(f"[LOCAL] Assets folder: {picked}\n")
+
+    def _refresh_local_asset_check(self) -> None:
+        """Lightweight CSV ↔ folder status for the Local Assets panel."""
+        if getattr(self, "_local_check_var", None) is None:
+            return
+        folder = self._local_assets_dir()
+        csv_path = self.csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            self._local_check_var.set("Select a CSV and local assets folder to check.")
+            return
+        if folder is None:
+            self._local_check_var.set("Choose a Local Assets folder to check numbered files.")
+            return
+        try:
+            import csv as _csv
+            from providers.local_assets import check_local_assets
+
+            with open(csv_path, newline="", encoding="utf-8-sig") as fh:
+                rows = list(_csv.DictReader(fh))
+            scenes = [SceneRow.from_csv_row(r) for r in rows if str(r.get("scene_number", "")).strip()]
+            checks, ready, needs = check_local_assets(folder, scenes)
+            preview_lines = [c.label for c in checks[:8]]
+            if len(checks) > 8:
+                preview_lines.append(f"… +{len(checks) - 8} more")
+            summary = f"{ready} / {len(checks)} READY"
+            if needs:
+                summary += f"\n{needs} NEEDS ACTION"
+            body = "\n".join(preview_lines)
+            self._local_check_var.set(f"{body}\n\n{summary}" if body else summary)
+        except Exception as exc:
+            self._local_check_var.set(f"Could not check assets: {exc}")
 
     def _refresh_gemini_status(self) -> None:
         from visual_director.llm import gemini_configured
@@ -3394,6 +3585,8 @@ class VideoGeneratorApp(ctk.CTk):
             self.analyze_btn.configure(state="disabled")
 
     def _on_script_mode(self, value: str) -> None:
+        if self._production_mode_is_local():
+            return
         if getattr(self, "_csv_block", None) is None or getattr(self, "_ai_block", None) is None:
             return
         paste = value in _PASTE_SCRIPT_MODES
@@ -3403,6 +3596,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._ai_block.grid_remove()
         if getattr(self, "_vo_block", None) is not None:
             self._vo_block.grid_remove()
+        if getattr(self, "_local_assets_block", None) is not None:
+            self._local_assets_block.grid_remove()
         if paste:
             if not self._manual_csv_backup:
                 self._manual_csv_backup = self.csv_var.get()
@@ -5515,9 +5710,31 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:  # noqa: BLE001 - scope is an optimization, never fatal
             return {}
 
-    def _build_asset_manager(self, images_dir: Path, scene_rows: list[SceneRow]) -> AssetManager:
+    def _build_asset_manager(
+        self,
+        images_dir: Path,
+        scene_rows: list[SceneRow],
+        *,
+        local_only: bool = False,
+    ) -> AssetManager:
         """Shared by the main pipeline and Regenerate — builds providers needed for
-        planned scenes plus Change Source targets (YouTube/Stock/Flow video)."""
+        planned scenes plus Change Source targets (YouTube/Stock/Flow video).
+
+        ``local_only`` builds a lean manager for Local Assets mode: numbered
+        local files only — no Flow/Chrome, Stock, or YouTube initialization.
+        """
+        local_dir = self._local_assets_dir()
+        if local_only or self._production_mode_is_local():
+            # Local Assets mode: never open Chrome / Flow / cloud providers.
+            return AssetManager(
+                images_dir,
+                log=print,
+                resolved_style=getattr(self, "_resolved_style", None),
+                coverage_by_scene=self._coverage_map_from_workspace(),
+                settings=self._settings,
+                local_assets_dir=local_dir,
+            )
+
         needs_stock = True  # Change Source can pick Stock even when the plan didn't
         # Always available: Skip-replace and Change Source can pick Flow image
         # even when the CSV row is still youtube_video / stock_video.
@@ -5616,6 +5833,7 @@ class VideoGeneratorApp(ctk.CTk):
             resolved_style=getattr(self, "_resolved_style", None),
             coverage_by_scene=self._coverage_map_from_workspace(),
             settings=self._settings,
+            local_assets_dir=local_dir,
         )
 
     def _regenerate_scene(self, scene_row: SceneRow) -> None:
@@ -5636,6 +5854,16 @@ class VideoGeneratorApp(ctk.CTk):
                 need_rebuild = True
         if need_rebuild:
             self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
+            self._asset_manager_local_only = bool(self._production_mode_is_local())
+        elif self._asset_manager is not None:
+            # Keep Local Assets folder in sync without rebuilding cloud providers.
+            self._asset_manager.local_provider.library_dir = self._local_assets_dir()
+            # If production mode flipped, rebuild so Local mode never keeps Flow/Stock.
+            want_local = bool(self._production_mode_is_local())
+            have_local = bool(getattr(self, "_asset_manager_local_only", False))
+            if want_local != have_local:
+                self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
+                self._asset_manager_local_only = want_local
         self._asset_manager.recovery.skipped |= set(self._hydrated_skipped)
         return self._asset_manager
 
@@ -5772,11 +6000,16 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _change_source_dialog(self, scene_row: SceneRow) -> None:
         scene_row = self._scene_by_number(scene_row)
-        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
-        if self._asset_manager is not None:
-            options = self._asset_manager.recovery.change_source_options(scene_row) or options
-        if "local" not in options:
-            options = list(options) + ["local"]
+        # Local Assets mode: only the existing Local-file replace path — never
+        # offer cloud providers that would mix acquisition backends.
+        if self._production_mode_is_local():
+            options = ["local"]
+        else:
+            options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
+            if self._asset_manager is not None:
+                options = self._asset_manager.recovery.change_source_options(scene_row) or options
+            if "local" not in options:
+                options = list(options) + ["local"]
         busy = _scene_key(scene_row.scene_number) in self._busy_scenes
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — Scene {scene_row.scene_number}")
@@ -5805,13 +6038,16 @@ class VideoGeneratorApp(ctk.CTk):
     def _change_source_dialog_bulk(self, scenes: list) -> None:
         if not scenes:
             return
-        options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
-        if self._asset_manager is not None:
-            opts = self._asset_manager.recovery.change_source_options(scenes[0])
-            if opts:
-                options = list(opts)
-        if "local" not in options:
-            options = list(options) + ["local"]
+        if self._production_mode_is_local():
+            options = ["local"]
+        else:
+            options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
+            if self._asset_manager is not None:
+                opts = self._asset_manager.recovery.change_source_options(scenes[0])
+                if opts:
+                    options = list(opts)
+            if "local" not in options:
+                options = list(options) + ["local"]
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — {len(scenes)} scenes")
         win.geometry("320x360")
@@ -7307,6 +7543,15 @@ class VideoGeneratorApp(ctk.CTk):
         n_scenes = len(rows)
         scene_rows = [SceneRow.from_csv_row(r) for r in rows]
 
+        if any(s.wants_local_numbered for s in scene_rows) or self._production_mode_is_local():
+            if self._local_assets_dir() is None:
+                return None, (
+                    "Choose a Local Assets folder containing numbered files "
+                    "(001.mp4, 002.jpg, …).\n\n"
+                    "Missing files become NEEDS ACTION in the Visual Plan — "
+                    "the app will not fall back to Flow, Stock, or YouTube."
+                )
+
         has_subfolders = any(
             p.is_dir() and not p.name.startswith(".")
             for p in images_dir.iterdir()
@@ -7477,9 +7722,36 @@ class VideoGeneratorApp(ctk.CTk):
             scene_rows = [SceneRow.from_csv_row(r) for r in config["rows"]]
             if getattr(self, "_visual_plan", None) is not None:
                 scene_rows = self._visual_plan.to_scene_rows()
-            if any(s.wants_flow or s.wants_stock or s.wants_youtube for s in scene_rows):
-                print("[ASSET] Resolving scene assets (AI / stock / manual)...")
-                self._asset_manager = self._build_asset_manager(config["images_dir"], scene_rows)
+            wants_numbered_local = any(s.wants_local_numbered for s in scene_rows)
+            needs_asset_resolve = any(
+                s.wants_flow or s.wants_stock or s.wants_youtube
+                or s.wants_archive or s.wants_nasa or s.wants_research
+                or s.wants_local_numbered
+                for s in scene_rows
+            ) or self._production_mode_is_local()
+            if needs_asset_resolve:
+                print(
+                    "[ASSET] Resolving scene assets (local numbered)..."
+                    if wants_numbered_local and not any(
+                        s.wants_flow or s.wants_stock or s.wants_youtube for s in scene_rows
+                    )
+                    else "[ASSET] Resolving scene assets (AI / stock / manual)..."
+                )
+                self._asset_manager = self._build_asset_manager(
+                    config["images_dir"],
+                    scene_rows,
+                    local_only=bool(self._production_mode_is_local() or (
+                        wants_numbered_local
+                        and not any(
+                            s.wants_flow or s.wants_stock or s.wants_youtube
+                            or s.wants_archive or s.wants_nasa
+                            for s in scene_rows
+                        )
+                    )),
+                )
+                # Keep library_dir in sync if the folder was chosen after manager build.
+                if self._local_assets_dir() is not None:
+                    self._asset_manager.local_provider.library_dir = self._local_assets_dir()
                 from asset_manager import ResolveSummary
                 from providers.base import AssetError
                 from providers.router import SceneAssetRouter

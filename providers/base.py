@@ -76,8 +76,10 @@ class SceneRow:
     - New:    scene_number, script_segment, asset_type, prompt
               asset_type in {image, video, flow_image, flow_video, stock_image,
               stock_video, youtube_video, archive_video, nasa_video, commons_video,
-              commons_image, stock, local}.
+              commons_image, stock, local, local_video, local_image}.
               `flow_video`/`flow_image` are aliases for `video`/`image`.
+              `local_video`/`local_image` resolve numbered files from a Local
+              Assets folder (prompt ignored). Existing `local` is unchanged.
               For a stock_* (or legacy "stock") asset_type, the single `prompt`
               column doubles as the stock search query (normalized into `.stock`
               below so the rest of the code only ever deals with
@@ -120,7 +122,7 @@ class SceneRow:
             # New format: one `prompt` column doubles as the stock query.
             stock = stock or prompt
             prompt = ""
-        elif asset_type == "local":
+        elif asset_type in ("local", "local_video", "local_image"):
             prompt = ""
             stock = ""
         elif asset_type == "youtube_video" and "||" in prompt:
@@ -196,6 +198,21 @@ class SceneRow:
         return self.asset_type == "research"
 
     @property
+    def wants_local_video(self) -> bool:
+        """Numbered file from a Local Assets folder; must be video media."""
+        return self.asset_type == "local_video"
+
+    @property
+    def wants_local_image(self) -> bool:
+        """Numbered file from a Local Assets folder; must be image media."""
+        return self.asset_type == "local_image"
+
+    @property
+    def wants_local_numbered(self) -> bool:
+        """Local Assets mode types (not the legacy asset_type=local)."""
+        return self.wants_local_video or self.wants_local_image
+
+    @property
     def wants_documentary_clip(self) -> bool:
         """Any search-based archival clip provider (Archive, NASA)."""
         return self.wants_archive or self.wants_nasa
@@ -228,6 +245,8 @@ class SceneRow:
             "flow_video": "video",
             "video": "video",
             "local": "local",
+            "local_video": "local_video",
+            "local_image": "local_image",
             "research": "research",
         }
         asset_type = asset_map.get(key, key)
@@ -281,6 +300,13 @@ class SceneRow:
                 script_segment=self.script_segment,
                 asset_type=asset_type,
                 prompt=prompt,
+                visual_description=self.visual_description,
+            )
+        if asset_type in ("local_video", "local_image"):
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type=asset_type,
                 visual_description=self.visual_description,
             )
         return SceneRow(

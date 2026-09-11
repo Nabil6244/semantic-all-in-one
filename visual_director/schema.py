@@ -98,6 +98,8 @@ PROVIDER_TO_ASSET_TYPE = {
     "flow_video": "video",
     "video": "video",
     "local": "local",
+    "local_video": "local_video",
+    "local_image": "local_image",
 }
 # Legacy CSV / old plans may still mention commons — accept and remap to stock.
 for _alias, _target in _COMMONS_PROVIDER_ALIASES.items():
@@ -113,6 +115,8 @@ ASSET_TYPE_TO_PROVIDER = {
     "image": "flow_image",
     "video": "flow_video",
     "local": "local",
+    "local_video": "local",
+    "local_image": "local",
     # Legacy asset_type values from older plans → stock routing.
     "commons_video": "stock_video",
     "commons_image": "stock_image",

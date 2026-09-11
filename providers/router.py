@@ -42,6 +42,10 @@ class SceneAssetRouter:
             return AssetSource.STOCK_IMAGE
         if scene.wants_research:
             return AssetSource.RESEARCH
+        if scene.wants_local_numbered:
+            # Routable without a pre-placed Images/ file — LocalProvider resolves
+            # from the Local Assets folder (or Images/) and copies into place.
+            return AssetSource.LOCAL
         return None
 
     @staticmethod

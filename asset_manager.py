@@ -163,10 +163,13 @@ class AssetManager:
         resolved_style=None,
         coverage_by_scene: Optional[dict] = None,
         settings: Optional[dict] = None,
+        local_assets_dir: Optional[Path] = None,
     ):
         self.images_dir = Path(images_dir)
         self.images_dir.mkdir(parents=True, exist_ok=True)
-        self.local_provider = LocalProvider()
+        self.local_provider = LocalProvider(
+            library_dir=Path(local_assets_dir) if local_assets_dir else None
+        )
         self.stock_provider = stock_provider
         self.flow_image_provider = flow_image_provider
         self.flow_video_provider = flow_video_provider

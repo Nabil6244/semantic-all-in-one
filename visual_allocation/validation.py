@@ -78,10 +78,10 @@ def build_plan_validation_report(
         at = (scene.asset_type or row.asset_type or "unknown").lower()
         type_counts[at] = type_counts.get(at, 0) + 1
         prompt = (row.prompt or row.stock or "").strip()
-        if not prompt and at not in ("local",):
+        if not prompt and at not in ("local", "local_video", "local_image"):
             empty_prompts += 1
         if SceneAssetRouter.classify(row) is None:
-            if at == "local":
+            if at in ("local", "local_video", "local_image"):
                 local_rows += 1
             else:
                 unassigned += 1
