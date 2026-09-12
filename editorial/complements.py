@@ -288,13 +288,16 @@ def needs_complementary_coverage(
     strategy = (coverage_strategy or "").lower()
 
     # Video that already covers the beat: never force complementary cuts.
+    # Mild shortfalls within renderer retime (≈0.8×) also stay single-clip.
     if media_kind == "video" and primary_usable > 0:
         ratio = primary_usable / required
         if ratio >= 0.88:
             return False
+        if ratio >= 0.80:
+            return False
         if ratio < 0.72:
             return True
-        # Mild shortfall: dual/extend hint only when the gap is meaningful.
+        # Mild shortfall below retime band: dual/extend hint only when gap is meaningful.
         return strategy in ("extend", "hold_tail", "dual") and (required - primary_usable) > 1.0
 
     # Stills — can hold; only seek complements for long narration or dual hint

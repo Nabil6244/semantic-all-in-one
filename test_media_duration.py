@@ -81,14 +81,15 @@ class TestCachedMetadataIsRespected(unittest.TestCase):
         self.assertEqual(cached_duration(meta), 6.5)
 
     def test_the_legacy_duration_key_counts_as_cached(self) -> None:
-        """Providers already wrote `duration`; it must not force a re-probe."""
+        """Legacy ``duration`` remains a readable cache hint when no file is probed."""
         self.assertEqual(cached_duration({LEGACY_DURATION_KEY: 4.25}), 4.25)
 
     def test_a_corrupt_cached_value_is_ignored(self) -> None:
         for bad in ("soon", -1, 0, None, {}):
             self.assertIsNone(cached_duration({ACTUAL_DURATION_KEY: bad}), repr(bad))
 
-    def test_cached_metadata_avoids_probing_entirely(self) -> None:
+    def test_cached_metadata_avoids_probing_when_file_missing(self) -> None:
+        """Offline / missing file: keep prior measurement; do not invent."""
         meta = {ACTUAL_DURATION_KEY: 3.0}
         annotate_actual_duration(meta, Path("/definitely/not/here.mp4"), is_video=True)
         self.assertEqual(meta[ACTUAL_DURATION_KEY], 3.0)
@@ -122,10 +123,12 @@ class TestMetadataPersistence(unittest.TestCase):
         annotate_actual_duration(meta, self.video, is_video=True)
         self.assertEqual(meta[LEGACY_DURATION_KEY], meta[ACTUAL_DURATION_KEY])
 
-    def test_an_existing_legacy_value_is_not_overwritten(self) -> None:
+    def test_stale_legacy_duration_is_overwritten_by_file_probe(self) -> None:
+        """Physical file is authoritative — legacy catalog/request lengths lose."""
         meta = {LEGACY_DURATION_KEY: 2.0}
         annotate_actual_duration(meta, self.video, is_video=True)
-        self.assertEqual(meta[LEGACY_DURATION_KEY], 2.0)
+        self.assertAlmostEqual(meta[ACTUAL_DURATION_KEY], 5.0, delta=0.15)
+        self.assertAlmostEqual(meta[LEGACY_DURATION_KEY], 5.0, delta=0.15)
 
     def test_images_get_no_actual_duration(self) -> None:
         meta = {}
@@ -350,3 +353,104 @@ class TestCreditSafety(unittest.TestCase):
         forbidden = {"retry_scene", "regenerate_scene", "alternative_scene",
                      "retry_flow_batch", "generate", "download"}
         self.assertEqual(called & forbidden, set(), f"annotator calls {called & forbidden}")
+
+
+class TestFileAuthoritativeOverStaleCache(unittest.TestCase):
+    """Regression: 8s file must not stay stuck at stale duration=2."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.dir = Path(cls._tmp.name)
+        cls.video = _clip(cls.dir / "real8.mp4", 8.0)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def test_stale_legacy_duration_yields_probed_actual(self) -> None:
+        meta = {LEGACY_DURATION_KEY: 2.0}
+        out = annotate_actual_duration(meta, self.video, is_video=True)
+        self.assertIsNotNone(out)
+        self.assertAlmostEqual(float(out), 8.0, delta=0.2)
+        self.assertAlmostEqual(meta[ACTUAL_DURATION_KEY], 8.0, delta=0.2)
+
+    def test_stale_actual_duration_yields_probed_actual(self) -> None:
+        meta = {ACTUAL_DURATION_KEY: 2.0, LEGACY_DURATION_KEY: 2.0}
+        out = annotate_actual_duration(meta, self.video, is_video=True)
+        self.assertIsNotNone(out)
+        self.assertAlmostEqual(float(out), 8.0, delta=0.2)
+        self.assertAlmostEqual(meta[ACTUAL_DURATION_KEY], 8.0, delta=0.2)
+        self.assertAlmostEqual(meta[LEGACY_DURATION_KEY], 8.0, delta=0.2)
+
+    def test_probed_eight_seconds_feeds_single_shot_for_five_second_vo(self) -> None:
+        from editorial.edit_decision import MediaEditability
+        from editorial.schema import EditorialScene
+        from editorial.shot_planner import plan_edit_decision
+
+        meta = {LEGACY_DURATION_KEY: 2.0}
+        annotate_actual_duration(meta, self.video, is_video=True)
+        actual = float(meta[ACTUAL_DURATION_KEY])
+        self.assertAlmostEqual(actual, 8.0, delta=0.2)
+
+        scene = EditorialScene(
+            scene_number="1",
+            start=0.0,
+            end=5.0,
+            duration=5.0,
+            narration_excerpt="Factory production continues with a strong eight second clip.",
+            purpose="context",
+            attention_score=0.5,
+            asset_type_intent="stock_video",
+            actual_asset_duration=actual,
+            pacing_bias="normal",
+        )
+        d = plan_edit_decision(
+            scene,
+            media_path=self.video,
+            editability=MediaEditability(
+                native_duration=actual,
+                usable_duration=actual,
+                media_kind="video",
+            ),
+        )
+        # plan_edit_decision re-probes the file when present — still SINGLE.
+        self.assertEqual(d.strategy, "SINGLE_SHOT")
+        self.assertEqual(len(d.shots), 1)
+        self.assertAlmostEqual(d.shots[0].speed, 1.0, places=3)
+        self.assertAlmostEqual(d.shots[0].output_duration, 5.0, places=2)
+        self.assertFalse(d.shots[0].hold_tail)
+
+
+class TestProbeFailureDiagnostics(unittest.TestCase):
+    def test_ffprobe_unresolved_is_logged_and_falls_back(self) -> None:
+        from unittest import mock
+        import io
+        import contextlib
+
+        with tempfile.TemporaryDirectory() as tmp:
+            video = _clip(Path(tmp) / "v.mp4", 4.0)
+            meta = {ACTUAL_DURATION_KEY: 2.5}
+            buf = io.StringIO()
+            with mock.patch("media_duration._resolve_ffprobe", return_value=None):
+                with contextlib.redirect_stdout(buf):
+                    out = annotate_actual_duration(meta, video, is_video=True)
+            log = buf.getvalue()
+            self.assertIn("[DURATION] probe_failed", log)
+            self.assertIn("ffprobe_unresolved", log)
+            self.assertIn(str(video), log)
+            self.assertAlmostEqual(float(out or 0), 2.5, places=2)
+            self.assertEqual(meta[ACTUAL_DURATION_KEY], 2.5)
+
+    def test_resolver_finds_bundled_bin_ffprobe_without_path(self) -> None:
+        from unittest import mock
+        from media_duration import _resolve_ffprobe
+
+        repo_bin = Path(__file__).resolve().parent / "bin" / "ffprobe"
+        if not repo_bin.is_file():
+            self.skipTest("repo bin/ffprobe not present")
+        with mock.patch("shutil.which", return_value=None):
+            found = _resolve_ffprobe()
+        self.assertIsNotNone(found)
+        self.assertTrue(Path(found).is_file())
+        self.assertEqual(Path(found).resolve(), repo_bin.resolve())

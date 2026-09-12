@@ -6,11 +6,13 @@ Ranked strategies (least damaging first):
   3. MULTI_SHOT / additional section of primary
   4. REFRAME / PUNCH_IN on primary
   5. IMAGE_MOTION (Ken Burns) for stills
-  6. RETIME (subtle speed)
+  6. RETIME (subtle speed) — preferred over freeze/loop for small shortfalls
   7. SAFE_LOOP only when loopability is high
   8. HOLD_TAIL (freeze) as last resort for small gaps
 
 Ask first: is there a better real shot available before manipulating this one?
+Coverage is planned from the full scene VO window and full usable clip before
+any sub-window trim; trim is assigned coverage, not a reason to discard media.
 """
 
 from __future__ import annotations
@@ -43,6 +45,47 @@ from .schema import EditorialScene
 # Minimum meaningful shot length (seconds)
 _MIN_SHOT = 1.15
 _MAX_SHOTS = 4
+
+# Match video_generator shot render clamp (do not widen without renderer change).
+_RENDER_SPEED_MIN = 0.8
+_RENDER_SPEED_MAX = 1.25
+
+
+def safe_retime_speed(
+    usable: float,
+    required: float,
+    editability: Optional[MediaEditability] = None,
+) -> Optional[float]:
+    """Return a renderer-safe speed so ``usable`` covers ``required``, or None.
+
+    - ``1.0`` when the clip already covers (no retime needed)
+    - ``usable/required`` when a subtle slowdown is enough (within 0.8–1.25)
+    - ``None`` when the shortage is too large (prefer dual / multi / punch-in)
+
+    ``editability`` is accepted for API symmetry with callers; distributed
+    allocation uses ``_retime_cost`` separately.
+    """
+    _ = editability
+    if usable <= 0 or required <= 0:
+        return None
+    if usable + 0.05 >= required:
+        return 1.0
+    speed = usable / required
+    if speed < _RENDER_SPEED_MIN - 1e-9:
+        return None
+    if speed > _RENDER_SPEED_MAX + 1e-9:
+        return None
+    return round(max(_RENDER_SPEED_MIN, min(_RENDER_SPEED_MAX, speed)), 4)
+
+
+def _retime_cost(editability: Optional[MediaEditability]) -> float:
+    """Higher cost → less willing to absorb shortage via slowdown."""
+    if editability is None:
+        return 1.0
+    motion = max(0.05, float(editability.motion_level or 0.5))
+    tol = max(0.05, float(editability.speed_change_tolerance or 0.1))
+    slow = max(0.05, float(editability.slow_motion_potential or 0.2))
+    return (1.0 + motion) / (tol * (0.5 + slow))
 
 
 def _split_durations(total: float, n: int) -> List[float]:
@@ -128,6 +171,7 @@ def _single_shot_decision(
     usable: float,
     tracker: ContinuityTracker,
     primary: AssetCandidate,
+    speed: float = 1.0,
 ) -> EditDecision:
     size = shot_size_sequence(role, 1, prev_size=tracker.prev_shot_size)[0]
     cam = camera_for_shot(
@@ -138,29 +182,39 @@ def _single_shot_decision(
         recent_cameras=tracker.recent_cameras,
         prefer_static=scene.purpose in ("evidence",) or role in ("claim_evidence", "historical"),
     )
+    speed = float(speed or 1.0)
+    retiming = abs(speed - 1.0) > 0.02
+    if retiming and usable > 0:
+        # Read the full usable clip; output stretches via speed.
+        src_end = round(usable, 3)
+    else:
+        src_end = round(min(usable, required * 1.05), 3) if usable > 0 else None
     shot = ShotSpec(
         shot_id=f"{scene.scene_number}_s0",
         output_duration=round(required, 4),
         source_start=0.0,
-        source_end=round(min(usable, required * 1.05), 3) if usable > 0 else None,
+        source_end=src_end,
         scale=scale_for_shot_size(size),
+        speed=round(speed, 4) if retiming else 1.0,
         shot_size=size,  # type: ignore[arg-type]
         camera_style=cam,
-        reason="source covers beat",
+        hold_tail=False,
+        reason=("subtle retime to fit beat" if retiming else "source covers beat"),
         visual_role=role,
         editorial_purpose=editorial_purpose_for_role(role),
     )
     _bind_source(shot, primary)
+    strategy = "RETIME" if retiming else "SINGLE_SHOT"
     return EditDecision(
         scene_number=str(scene.scene_number),
         required_duration=round(required, 4),
-        strategy="SINGLE_SHOT",
+        strategy=strategy,  # type: ignore[arg-type]
         shots=[shot],
         source_asset=primary.label,
         visual_role=role,  # type: ignore[arg-type]
-        confidence=0.9,
-        reason=_reason("SINGLE_SHOT", usable, required, 1),
-        avoid_blind_loop=False,
+        confidence=0.78 if retiming else 0.9,
+        reason=_reason(strategy, usable, required, 1),
+        avoid_blind_loop=retiming,
         attention_state=attention_state_for_scene(scene, 0, 1),
         reveal_phase=reveal_phase_for_scene(scene),
     )
@@ -242,7 +296,11 @@ def _dual_asset_decision(
         scale = scale_for_shot_size(size) if cand.visual_role in ("detail", "object") else 1.0
         if scale < 1.08 and size in ("close", "extreme_close", "detail"):
             scale = scale_for_shot_size(size)
-        edit = analyze_media_editability(cand.path, asset_type=cand.asset_class)
+        edit = analyze_media_editability(
+            cand.path,
+            known_duration=float((cand.metadata or {}).get("actual_duration") or 0) or None,
+            asset_type=cand.asset_class,
+        )
         src_end = None
         if edit.media_kind == "video" and edit.usable_duration > 0:
             src_end = round(min(edit.usable_duration, dur * 1.05), 3)
@@ -269,7 +327,7 @@ def _dual_asset_decision(
     drift = required - sum(s.output_duration for s in shots)
     shots[-1].output_duration = round(max(0.05, shots[-1].output_duration + drift), 4)
 
-    return EditDecision(
+    decision = EditDecision(
         scene_number=str(scene.scene_number),
         required_duration=round(required, 4),
         strategy="DUAL_ASSET",
@@ -285,6 +343,8 @@ def _dual_asset_decision(
         attention_state=attention_state_for_scene(scene, 0, 1),
         reveal_phase=reveal_phase_for_scene(scene),
     )
+    _try_apply_distributed_retime(decision, required=required)
+    return decision
 
 
 def _video_multi_shot(
@@ -541,6 +601,98 @@ def _normalize_shot_total(shots: List[ShotSpec], required: float) -> None:
     shots[-1].output_duration = round(max(0.05, shots[-1].output_duration + drift), 4)
 
 
+def _try_apply_distributed_retime(
+    decision: EditDecision,
+    *,
+    required: float,
+) -> bool:
+    """Stretch video shots slightly when total source nearly covers VO.
+
+    Allocates shortage by inverse retime cost (lower motion / higher tolerance
+    absorbs more). Returns True when speeds were applied.
+    """
+    shots = list(decision.shots)
+    if not shots or required <= 0:
+        return False
+
+    video_rows: List[tuple[ShotSpec, float, float]] = []
+    still_budget = 0.0
+    for shot in shots:
+        play = _shot_playable_duration(shot, 0.0)
+        span_from_spec = 0.0
+        if shot.source_end is not None:
+            try:
+                span_from_spec = max(
+                    0.0, float(shot.source_end) - float(shot.source_start or 0.0)
+                )
+            except (TypeError, ValueError):
+                span_from_spec = 0.0
+        # Stills: no playable span. Video without a file may only have source_end.
+        if play is None and span_from_spec <= 0:
+            still_budget += float(shot.output_duration)
+            continue
+        span = max(float(play or 0.0), span_from_spec, 0.05)
+        edit = analyze_media_editability(
+            Path(shot.source_path) if shot.source_path else None,
+            known_duration=span,
+            asset_type="stock_video",
+        )
+        video_rows.append((shot, span, _retime_cost(edit)))
+
+    if not video_rows:
+        return False
+
+    video_required = required - still_budget
+    if video_required <= 0.05:
+        return False
+
+    total_play = sum(p for _, p, _ in video_rows)
+    if total_play + 0.05 >= video_required:
+        return False  # already covers at 1× — do not retime unnecessarily
+
+    speed_gate = safe_retime_speed(total_play, video_required)
+    if speed_gate is None:
+        return False
+
+    shortage = video_required - total_play
+    inv = [1.0 / max(c, 0.05) for _, _, c in video_rows]
+    inv_sum = sum(inv) or 1.0
+
+    planned: List[tuple[ShotSpec, float, float, float]] = []
+    for i, (shot, play, _cost) in enumerate(video_rows):
+        extra = shortage * (inv[i] / inv_sum)
+        out_d = play + extra
+        speed = play / out_d
+        if speed < _RENDER_SPEED_MIN - 1e-6 or speed > _RENDER_SPEED_MAX + 1e-6:
+            return False
+        planned.append((shot, play, out_d, speed))
+
+    for shot, play, out_d, speed in planned:
+        shot.output_duration = round(out_d, 4)
+        shot.speed = round(speed, 4) if abs(speed - 1.0) > 0.02 else 1.0
+        shot.hold_tail = False
+        shot.source_start = 0.0
+        shot.source_end = round(play, 3)
+        if abs(speed - 1.0) > 0.02:
+            base = (shot.reason or "").rstrip()
+            note = f"retime {speed:.3f}×"
+            shot.reason = f"{base} | {note}" if base else note
+
+    _normalize_shot_total(decision.shots, required)
+
+    if len(decision.shots) == 1:
+        decision.strategy = "RETIME"
+        decision.confidence = min(float(decision.confidence or 0.75), 0.78)
+        decision.reason = _reason("RETIME", total_play, required, 1)
+        decision.avoid_blind_loop = True
+    elif any(abs(float(s.speed) - 1.0) > 0.02 for s in decision.shots):
+        if decision.strategy in ("HOLD_TAIL", "SAFE_LOOP", "SINGLE_SHOT"):
+            decision.strategy = "RETIME"
+        decision.reason = f"{decision.reason} | distributed retime".strip(" |")
+        decision.avoid_blind_loop = True
+    return True
+
+
 def _reconcile_playable_coverage(
     decision: EditDecision,
     *,
@@ -608,6 +760,7 @@ def _reconcile_playable_coverage(
         keep.crop_x = 0.5
         keep.crop_y = 0.5
         keep.hold_tail = False
+        keep.speed = 1.0
         keep.reason = "source covers beat (collapsed same-source multi-shot)"
         decision.shots = [keep]
         decision.strategy = "SINGLE_SHOT"
@@ -615,7 +768,44 @@ def _reconcile_playable_coverage(
         decision.reason = _reason("SINGLE_SHOT", file_usable, required, 1)
         return decision
 
+    # Prefer subtle retime over freeze / replay when source nearly covers VO.
+    if media_kind == "video":
+        # Ensure primary shot windows can use full file before costing retime.
+        if (
+            len(shots) == 1
+            and same_source
+            and file_usable > 0
+            and safe_retime_speed(file_usable, required) is not None
+        ):
+            shots[0].source_start = 0.0
+            shots[0].source_end = round(file_usable, 3)
+            shots[0].output_duration = round(required, 4)
+            decision.shots = shots
+        if _try_apply_distributed_retime(decision, required=required):
+            return decision
+        # Single-shot retime from authoritative file length.
+        speed = safe_retime_speed(file_usable, required)
+        if (
+            speed is not None
+            and abs(speed - 1.0) > 0.02
+            and len(decision.shots) == 1
+            and same_source
+        ):
+            keep = decision.shots[0]
+            keep.output_duration = round(required, 4)
+            keep.source_start = 0.0
+            keep.source_end = round(file_usable, 3)
+            keep.speed = float(speed)
+            keep.hold_tail = False
+            keep.reason = "subtle retime to fit beat"
+            decision.strategy = "RETIME"
+            decision.confidence = 0.78
+            decision.reason = _reason("RETIME", file_usable, required, 1)
+            decision.avoid_blind_loop = True
+            return decision
+
     remainder = 0.0
+    shots = list(decision.shots)
     for shot in shots:
         play = _shot_playable_duration(shot, file_usable, default_kind=media_kind)
         if play is None:
@@ -797,6 +987,12 @@ def plan_edit_decision(
         # Stills can hold any VO duration; complements only for long beats.
         editability.media_kind == "image" and required < 10.0 and not prefer_dual
     )
+    retime_speed = (
+        safe_retime_speed(usable, required, editability)
+        if editability.media_kind == "video"
+        else None
+    )
+    can_retime_cover = retime_speed is not None
     # Short VO: one visual is enough — never dual-cut a covering primary.
     short_vo = required <= 2.75
 
@@ -826,8 +1022,13 @@ def plan_edit_decision(
 
     # Dual only when primary cannot cover OR a long beat with explicit dual intent.
     # Never: "complement exists → cut early." Never: stale strategy=dual alone.
+    # Small shortages that safe retime can solve should not force a dual cut.
     dual_justified = bool(comps) and not short_vo and (
-        (editability.media_kind == "video" and usable < required * 0.88)
+        (
+            editability.media_kind == "video"
+            and usable < required * 0.88
+            and not can_retime_cover
+        )
         or (
             editability.media_kind == "image"
             and required >= 7.0
@@ -838,6 +1039,7 @@ def plan_edit_decision(
             and required >= 8.0
             and role in ("process", "scale", "cause_effect", "reveal")
             and not primary_covers
+            and not can_retime_cover
         )
     )
 
@@ -860,8 +1062,8 @@ def plan_edit_decision(
             primary=primary,
             intent=intent,
         )
-    elif usable >= required * 0.88:
-        # Strong video covers the beat — do not multi-cut for prefer_multi alone.
+    elif can_retime_cover:
+        # Full clip first: 1× when it covers, subtle RETIME for small shortfalls.
         decision = _single_shot_decision(
             scene=scene,
             required=required,
@@ -869,6 +1071,7 @@ def plan_edit_decision(
             usable=usable,
             tracker=tracker,
             primary=primary,
+            speed=float(retime_speed or 1.0),
         )
     else:
         decision = _video_multi_shot(

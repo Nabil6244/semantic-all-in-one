@@ -71,6 +71,8 @@ ALLOWED_STRATEGIES = frozenset(
 
 # Editorial quality ranking — lower is better / less damaging.
 # Prefer a real complementary asset over transforming the primary.
+# RETIME beats freeze/loop; for small shortfalls the planner prefers RETIME
+# over multi-shot via branching (not this rank alone).
 STRATEGY_QUALITY_RANK: Dict[str, int] = {
     "SINGLE_SHOT": 1,
     "DUAL_ASSET": 2,

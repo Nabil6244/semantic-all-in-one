@@ -18,7 +18,13 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 import video_generator as vg
-from media_duration import annotate_actual_duration, cached_duration
+from media_duration import (
+    ACTUAL_DURATION_KEY,
+    LEGACY_DURATION_KEY,
+    REQUESTED_DURATION_KEY,
+    annotate_actual_duration,
+    cached_duration,
+)
 from providers.base import (
     AssetError,
     AssetResult,
@@ -896,9 +902,17 @@ class AssetManager:
 
     def _ensure_complements_for_cached(self, scene: SceneRow, cached: AssetResult) -> AssetResult:
         """On cache hit, still attempt complementary B-roll if the beat needs it."""
+        # Re-measure from the on-disk file so stale manifest ``duration`` /
+        # ``actual_duration`` cannot permanently hide an 8s clip as ~2s.
+        self._annotate_actual_duration(cached)
         record = self.manifest.get(scene.scene_number) or dict(cached.metadata or {})
         if not isinstance(record, dict):
             record = {}
+        # Keep manifest duration keys aligned with the refreshed measurement.
+        if isinstance(cached.metadata, dict):
+            for key in (ACTUAL_DURATION_KEY, LEGACY_DURATION_KEY, REQUESTED_DURATION_KEY):
+                if key in cached.metadata:
+                    record[key] = cached.metadata[key]
         # Ensure coverage_plan is present for the decision
         if not record.get("coverage_plan"):
             key = scene_key(scene.scene_number)
@@ -913,6 +927,10 @@ class AssetManager:
                     cached.metadata = {}
                 cached.metadata["complement_assets"] = record.get("complement_assets")
                 cached.metadata["coverage_plan"] = record.get("coverage_plan")
+            elif cached.ok and any(
+                k in record for k in (ACTUAL_DURATION_KEY, LEGACY_DURATION_KEY)
+            ):
+                self._manifest_write(scene, record)
         except Exception as exc:
             self.log(f"[ASSET] Scene {scene.scene_number} cached complement skipped: {exc}")
         return cached
