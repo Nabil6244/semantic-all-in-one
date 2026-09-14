@@ -510,6 +510,9 @@ async function runGenerate({ prompts, settings, accountIds }) {
           totalAbsolute: total,
           settings: { ...settings, folder: a.label },
           folderLabel: a.label,
+          accountId: a.id,
+          accountLabel: a.label,
+          workerIndex: i,
           shouldStop: () => stopAll,
           onProgress: (evt) => {
             const cur = accountProgress.get(a.id) || {};

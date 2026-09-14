@@ -69,6 +69,17 @@ export class FatalError extends Error {
   }
 }
 
+/**
+ * Generation RPC returned a body without a usable mediaId — usually a
+ * half-ready page / captcha / empty payload, not a hard auth failure.
+ */
+export class MissingMediaIdError extends Error {
+  constructor(m = "No mediaId in generation response") {
+    super(m);
+    this.name = "MissingMediaIdError";
+  }
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -209,25 +220,30 @@ async function safeEvaluate(page, fn, arg, { retries = 4, settleMs = 700 } = {})
   throw lastErr;
 }
 
+/**
+ * One-shot readiness probe (no wait). Used by recovery to decide whether a
+ * reload is needed instead of blindly refreshing on every No mediaId.
+ */
+export async function checkFlowReady(page) {
+  return safeEvaluate(page, () => {
+    const hasProject = !!window.location.href.match(/project\/([a-f0-9-]+)/);
+    // Google's reCAPTCHA loader can publish a placeholder `enterprise`
+    // object before the real script has attached `execute` — confirmed
+    // live as "TypeError: grec.execute is not a function" when a call
+    // ran in that window (most likely right after a page.reload()).
+    const hasRecaptcha =
+      typeof grecaptcha !== "undefined" &&
+      typeof grecaptcha?.enterprise?.execute === "function";
+    return { url: location.href, hasProject, hasRecaptcha };
+  });
+}
+
 export async function waitForFlowReady(page, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;
   let lastSnapshot = null;
   while (Date.now() < deadline) {
     try {
-      const ready = await safeEvaluate(page, () => {
-        const hasProject = !!window.location.href.match(/project\/([a-f0-9-]+)/);
-        // Google's reCAPTCHA loader can publish a placeholder `enterprise`
-        // object before the real script has attached `execute` — confirmed
-        // live as "TypeError: grec.execute is not a function" when a call
-        // ran in that window (most likely right after a page.reload()).
-        // Checking object presence alone let generateOneImage/Video proceed
-        // straight into that crash; verifying `execute` is actually callable
-        // keeps this function polling until the library is genuinely ready.
-        const hasRecaptcha =
-          typeof grecaptcha !== "undefined" &&
-          typeof grecaptcha?.enterprise?.execute === "function";
-        return { url: location.href, hasProject, hasRecaptcha };
-      });
+      const ready = await checkFlowReady(page);
       lastSnapshot = ready;
       // Require a project URL too — reCAPTCHA also loads on flow.google.com/
       // home, and treating home as "ready" let callers proceed before
@@ -239,12 +255,12 @@ export async function waitForFlowReady(page, timeoutMs = 45000) {
     }
     await sleep(800);
   }
-  logFlowNav(page, "waitForFlowReady.timeout", "Timed out waiting for Flow page / reCAPTCHA", {
+  logFlowNav(page, "waitForFlowReady.timeout", "Flow page readiness timeout", {
     targetUrl: lastSnapshot
       ? `hasProject=${!!lastSnapshot.hasProject} hasRecaptcha=${!!lastSnapshot.hasRecaptcha}`
       : "no-snapshot",
   });
-  throw new FatalError("Timed out waiting for Flow page / reCAPTCHA", true);
+  throw new FatalError("Flow page readiness timeout", true);
 }
 
 export async function getSessionToken(page) {
@@ -892,7 +908,7 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
 
   const parsed = parseBatchExecuteResponse(out.text, "ogiZ0b");
   const { mediaId, fifeUrl, width, height } = extractOgiZ0bImageResult(parsed);
-  if (!mediaId) throw new Error("No mediaId in generation response");
+  if (!mediaId) throw new MissingMediaIdError("No mediaId in generation response");
   return { mediaId, fifeUrl, width, height };
 }
 
@@ -1392,7 +1408,7 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
 
   const finalParsed = parseBatchExecuteResponse(finalOut.text, "as29s");
   const { mediaId, fifeUrl } = extractAs29sVideoResult(finalParsed);
-  if (!mediaId) throw new Error("No mediaId in video generation response");
+  if (!mediaId) throw new MissingMediaIdError("No mediaId in video generation response");
   return { mediaId, fifeUrl };
 }
 

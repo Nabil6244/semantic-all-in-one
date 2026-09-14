@@ -5,18 +5,28 @@ import {
   downloadMedia,
   openOrCreateProject,
   waitForFlowReady,
+  checkFlowReady,
   flowReload,
   AuthExpiredError,
   EndpointRejectedError,
   QuotaError,
   RateLimitError,
   FatalError,
+  MissingMediaIdError,
   timing,
   models,
 } from "./flow-api.js";
+import { defaults } from "../config.js";
+import {
+  AccountLifecycle,
+  isMissingMediaIdError,
+  logFlowAccount,
+} from "./account-lifecycle.js";
 import { accountDownloadDir } from "./paths.js";
 
 const MODEL_FALLBACK = models.fallbackOrder || ["NARWHAL", "GEM_PIX_2", "HARBOR_SEAL"];
+const DEFAULT_REFRESH =
+  defaults?.flowSettings?.refreshFrequency ?? 20;
 
 function sleep(ms, shouldStop) {
   return new Promise((resolve) => {
@@ -52,6 +62,9 @@ function nextModel(current) {
  * @param {string} opts.folderLabel  subfolder under Flow_Images
  * @param {() => boolean} opts.shouldStop
  * @param {(evt: object) => void} opts.onProgress
+ * @param {string} [opts.accountId]
+ * @param {string} [opts.accountLabel]
+ * @param {number} [opts.workerIndex]
  */
 export async function runBatchSlice({
   page,
@@ -62,6 +75,9 @@ export async function runBatchSlice({
   folderLabel,
   shouldStop,
   onProgress,
+  accountId,
+  accountLabel,
+  workerIndex,
 }) {
   const emit = (type, payload) => onProgress?.({ type, ...payload });
   const downloadsRoot = settings.outputDir || undefined;
@@ -74,6 +90,23 @@ export async function runBatchSlice({
   // mark it signed-out instead of scheduling it again next batch.
   let authExpired = false;
 
+  const refreshEvery =
+    settingsLocal.refreshFrequency != null
+      ? Number(settingsLocal.refreshFrequency)
+      : DEFAULT_REFRESH;
+  const life = new AccountLifecycle({
+    accountId: accountId || page?.__flowAccountId || "",
+    accountLabel: accountLabel || folderLabel || accountId || "account",
+    workerIndex,
+    refreshEvery,
+    maxAccounts: timing.maxParallelAccounts || 10,
+  });
+
+  logFlowAccount(life.label, `refresh scheduled at ${life.refreshPlan.nextThreshold}/${refreshEvery}`, {
+    nextThreshold: life.refreshPlan.nextThreshold,
+    detail: `offset=${life.refreshPlan.offset}`,
+  });
+
   emit("status", { message: "Opening / creating Flow project…" });
   const projectId = await openOrCreateProject(page);
   await waitForFlowReady(page);
@@ -82,7 +115,6 @@ export async function runBatchSlice({
   const rateRetries = timing.rateLimitRetrySeconds || [60, 120];
   const quotaRetries = timing.quotaRetrySeconds || [60, 120];
   const sessRetries = timing.sessionRetrySeconds || [5, 15, 30];
-  const refreshEvery = settingsLocal.refreshFrequency ?? 5;
   /** Prompts that need another account after this account hit rate/quota limits. */
   const reassign = [];
 
@@ -115,53 +147,63 @@ export async function runBatchSlice({
     let done = false;
     let rateAttempt = 0;
     let sessAttempt = 0;
+    life.resetRecoveryBudget();
 
     while (!done && !shouldStop?.()) {
       try {
+        if (!life.canGenerate()) {
+          throw new FatalError(
+            `Account ${life.label} not ready for generation (state=${life.state})`,
+            true,
+          );
+        }
+
         const mediaIds = [];
         let savedPath = null;
-        for (let slot = 0; slot < count; slot++) {
-          if (shouldStop?.()) break;
-          if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
-          const generated =
-            mediaKind === "video"
-              ? await generateOneVideo(page, projectId, prompt, settingsLocal, abs * 10 + slot)
-              : await generateOneImage(page, projectId, prompt, settingsLocal, abs * 10 + slot);
-          const mediaId = generated.mediaId;
-          const directUrl = generated.fifeUrl || null;
-          mediaIds.push(mediaId);
+        await life.generate(async () => {
+          for (let slot = 0; slot < count; slot++) {
+            if (shouldStop?.()) break;
+            if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
+            const generated =
+              mediaKind === "video"
+                ? await generateOneVideo(page, projectId, prompt, settingsLocal, abs * 10 + slot)
+                : await generateOneImage(page, projectId, prompt, settingsLocal, abs * 10 + slot);
+            const mediaId = generated.mediaId;
+            const directUrl = generated.fifeUrl || null;
+            mediaIds.push(mediaId);
 
-          if (settingsLocal.autoDownload !== false) {
-            const name =
-              count > 1
-                ? `${pad(abs + 1)}-${slot + 1}.${ext}`
-                : `${pad(abs + 1)}.${ext}`;
-            const dest = path.join(outDir, name);
-            emit("BATCH_PROGRESS", {
-              index: abs,
-              total: totalAbsolute,
-              status: "running",
-              message: `Downloading ${name}…`,
-            });
-            await downloadMedia(page, mediaId, dest, directUrl);
-            // Absolute path so Windows Python can resolve the file without
-            // depending on cwd / mixed separators from the Node sidecar.
-            savedPath = path.resolve(dest);
-            const { statSync } = await import("node:fs");
-            let st;
-            try {
-              st = statSync(savedPath);
-            } catch {
-              st = null;
+            if (settingsLocal.autoDownload !== false) {
+              const name =
+                count > 1
+                  ? `${pad(abs + 1)}-${slot + 1}.${ext}`
+                  : `${pad(abs + 1)}.${ext}`;
+              const dest = path.join(outDir, name);
+              emit("BATCH_PROGRESS", {
+                index: abs,
+                total: totalAbsolute,
+                status: "running",
+                message: `Downloading ${name}…`,
+              });
+              await downloadMedia(page, mediaId, dest, directUrl);
+              // Absolute path so Windows Python can resolve the file without
+              // depending on cwd / mixed separators from the Node sidecar.
+              savedPath = path.resolve(dest);
+              const { statSync } = await import("node:fs");
+              let st;
+              try {
+                st = statSync(savedPath);
+              } catch {
+                st = null;
+              }
+              if (!st || !st.isFile() || st.size < 64) {
+                throw new Error(
+                  `Download finished but file missing or empty on disk: ${savedPath}`,
+                );
+              }
+              emit("status", { message: `Saved ${name}` });
             }
-            if (!st || !st.isFile() || st.size < 64) {
-              throw new Error(
-                `Download finished but file missing or empty on disk: ${savedPath}`,
-              );
-            }
-            emit("status", { message: `Saved ${name}` });
           }
-        }
+        });
 
         if (!mediaIds.length) throw new Error(`All ${mediaKind} requests failed`);
         if (settingsLocal.autoDownload !== false && !savedPath) {
@@ -187,23 +229,40 @@ export async function runBatchSlice({
           path: savedPath,
         });
 
+        // Scheduled refresh ONLY after generation+download fully complete.
+        const hasMore = i < prompts.length - 1;
         if (
-          refreshEvery > 0 &&
-          completed % refreshEvery === 0 &&
-          i < prompts.length - 1 &&
+          life.refreshPlan.shouldRefresh(completed, { hasMorePrompts: hasMore }) &&
           !shouldStop?.()
         ) {
+          const threshold = life.refreshPlan.nextThreshold;
+          logFlowAccount(
+            life.label,
+            `refresh scheduled at ${completed}/${refreshEvery}`,
+            { completed, nextThreshold: threshold },
+          );
           emit("BATCH_PROGRESS", {
             index: abs,
             total: totalAbsolute,
             status: "running",
             message: "Refreshing Flow page…",
           });
-          await flowReload(page, `batch-runner:refreshEvery=${refreshEvery}`, {
-            waitUntil: "domcontentloaded",
-            timeout: 45000,
+          await life.refresh(async () => {
+            await flowReload(
+              page,
+              `batch-runner:refreshEvery=${refreshEvery}+offset=${life.refreshPlan.offset}`,
+              {
+                waitUntil: "domcontentloaded",
+                timeout: 45000,
+              },
+            );
+            await waitForFlowReady(page);
           });
-          await waitForFlowReady(page);
+          life.refreshPlan.advanceAfterRefresh(completed);
+          logFlowAccount(life.label, "resumed generation", {
+            completed,
+            nextThreshold: life.refreshPlan.nextThreshold,
+          });
         }
 
         if (i < prompts.length - 1 && !shouldStop?.()) {
@@ -223,7 +282,8 @@ export async function runBatchSlice({
           }
         }
       } catch (err) {
-        const waitThenRefresh = async (seconds, label) => {
+        let activeErr = err;
+        const waitThenRefresh = async (seconds, label, { forceReload = true } = {}) => {
           emit("BATCH_PROGRESS", {
             index: abs,
             total: totalAbsolute,
@@ -233,15 +293,34 @@ export async function runBatchSlice({
           });
           await sleep(seconds * 1000, shouldStop);
           if (shouldStop?.()) return;
-          await flowReload(page, `batch-runner:error-recovery:${label}`, {
-            waitUntil: "domcontentloaded",
-            timeout: 45000,
+
+          await life.recover(async () => {
+            let needReload = forceReload;
+            if (!forceReload) {
+              const snap = await checkFlowReady(page).catch(() => null);
+              needReload = !(snap && snap.hasProject && snap.hasRecaptcha);
+            }
+            if (needReload) {
+              if (!life.canRecoveryReload()) {
+                throw new FatalError(
+                  `Account ${life.label} recovery reload budget exhausted`,
+                  true,
+                );
+              }
+              life.noteRecoveryReload();
+              await flowReload(page, `batch-runner:error-recovery:${label}`, {
+                waitUntil: "domcontentloaded",
+                timeout: 45000,
+              });
+            }
+            // Must pass readiness — never proceed into grec.execute half-ready.
+            await waitForFlowReady(page);
           });
-          await waitForFlowReady(page).catch(() => {});
         };
 
-        if (err instanceof RateLimitError) {
+        if (activeErr instanceof RateLimitError) {
           if (rateAttempt < rateRetries.length) {
+            life.resetRecoveryBudget();
             await waitThenRefresh(rateRetries[rateAttempt++], "Rate limited — retrying in");
             continue;
           }
@@ -252,7 +331,7 @@ export async function runBatchSlice({
             index: abs,
             prompt,
             status: "rate_limited",
-            error: err.message,
+            error: activeErr.message,
             reassign: true,
           });
           emit("BATCH_PROGRESS", {
@@ -266,8 +345,9 @@ export async function runBatchSlice({
           break;
         }
 
-        if (err instanceof QuotaError) {
+        if (activeErr instanceof QuotaError) {
           if (rateAttempt < quotaRetries.length) {
+            life.resetRecoveryBudget();
             await waitThenRefresh(quotaRetries[rateAttempt++], "Quota hit — retrying in");
             continue;
           }
@@ -298,7 +378,7 @@ export async function runBatchSlice({
             index: abs,
             prompt,
             status: "rate_limited",
-            error: err.message,
+            error: activeErr.message,
             reassign: true,
           });
           emit("BATCH_PROGRESS", {
@@ -312,25 +392,30 @@ export async function runBatchSlice({
           break;
         }
 
-        if (err instanceof EndpointRejectedError) {
+        if (activeErr instanceof EndpointRejectedError) {
           // Not the account's fault — rotating to another one would fail
           // identically, so stop this batch and say what is actually wrong.
           done = true;
           stopBatch = true;
           failed++;
-          emit("PROMPT_RESULT", { index: abs, prompt, status: "failed", error: err.message });
+          emit("PROMPT_RESULT", {
+            index: abs,
+            prompt,
+            status: "failed",
+            error: activeErr.message,
+          });
           emit("BATCH_PROGRESS", {
             index: abs,
             total: totalAbsolute,
             status: "failed",
-            message: err.message,
+            message: activeErr.message,
             completed,
             failed,
           });
           break;
         }
 
-        if (err instanceof AuthExpiredError) {
+        if (activeErr instanceof AuthExpiredError) {
           // Signing out is per-account, not per-scene: hand this prompt and
           // every remaining one to another signed-in account rather than
           // failing them all against a dead session.
@@ -349,7 +434,7 @@ export async function runBatchSlice({
             index: abs,
             prompt,
             status: "rate_limited",
-            error: err.message,
+            error: activeErr.message,
             reassign: true,
           });
           emit("BATCH_PROGRESS", {
@@ -363,19 +448,48 @@ export async function runBatchSlice({
           break;
         }
 
-        const recoverable =
-          (err instanceof FatalError && err.recoverable) ||
-          (!(err instanceof FatalError) &&
-            !String(err.message).includes("401") &&
-            !String(err.message).includes("400") &&
-            !String(err.message).includes("expired"));
+        // Missing mediaId: classify, check page health, at most one controlled
+        // reload per prompt, then readiness — never reload-storm.
+        if (
+          activeErr instanceof MissingMediaIdError ||
+          isMissingMediaIdError(activeErr)
+        ) {
+          if (sessAttempt < sessRetries.length) {
+            const delay = sessRetries[sessAttempt++];
+            try {
+              await waitThenRefresh(delay, "No mediaId — retrying in", {
+                forceReload: false,
+              });
+              continue;
+            } catch (recErr) {
+              activeErr = recErr;
+              // Do not spin forever when the reload budget is exhausted.
+              if (
+                sessAttempt < sessRetries.length &&
+                !/recovery reload budget exhausted/i.test(
+                  String(recErr?.message || ""),
+                )
+              ) {
+                continue;
+              }
+            }
+          }
+        } else {
+          const recoverable =
+            (activeErr instanceof FatalError && activeErr.recoverable) ||
+            (!(activeErr instanceof FatalError) &&
+              !String(activeErr.message).includes("401") &&
+              !String(activeErr.message).includes("400") &&
+              !String(activeErr.message).includes("expired"));
 
-        if (recoverable && sessAttempt < sessRetries.length) {
-          await waitThenRefresh(
-            sessRetries[sessAttempt++],
-            `⚠ ${String(err.message).slice(0, 50)} — retrying in`,
-          );
-          continue;
+          if (recoverable && sessAttempt < sessRetries.length) {
+            life.resetRecoveryBudget();
+            await waitThenRefresh(
+              sessRetries[sessAttempt++],
+              `⚠ ${String(activeErr.message).slice(0, 50)} — retrying in`,
+            );
+            continue;
+          }
         }
 
         failed++;
@@ -384,18 +498,18 @@ export async function runBatchSlice({
           index: abs,
           prompt,
           status: "failed",
-          error: err.message,
+          error: activeErr.message,
         });
         emit("BATCH_PROGRESS", {
           index: abs,
           total: totalAbsolute,
           status: "failed",
-          message: `Failed: ${err.message}`,
+          message: `Failed: ${activeErr.message}`,
           completed,
           failed,
         });
 
-        if (err instanceof FatalError && !err.recoverable) {
+        if (activeErr instanceof FatalError && !activeErr.recoverable) {
           stopBatch = true;
         }
       }

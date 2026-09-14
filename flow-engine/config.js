@@ -190,6 +190,9 @@ export const defaults = {
     delayMax: 8,
     seedMode: "random",
     seedValue: 42000,
-    refreshFrequency: 5,
+    // Mid-batch page reload interval (completed prompts). Higher default
+    // reduces synchronized reCAPTCHA reinits across parallel accounts.
+    // Per-account stagger is applied in account-lifecycle.js.
+    refreshFrequency: 20,
   },
 };

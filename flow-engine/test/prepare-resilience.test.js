@@ -68,9 +68,11 @@ test("runGenerate does not double-prepare workers before runPass", () => {
 });
 
 test("waitForFlowReady requires a project URL, not just reCAPTCHA on home", () => {
+  assert.match(api, /export async function checkFlowReady/);
   const body = api.slice(api.indexOf("export async function waitForFlowReady"));
   const fn = body.slice(0, body.indexOf("export async function getSessionToken"));
   assert.match(fn, /ready\.hasRecaptcha && ready\.hasProject/);
+  assert.match(fn, /Flow page readiness timeout/);
 });
 
 test("navigation helpers exist so refreshes are attributable", () => {

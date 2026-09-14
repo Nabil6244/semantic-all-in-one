@@ -572,6 +572,6 @@ test("waitForFlowReady stays not-ready on Flow home even when reCAPTCHA execute 
       }
     },
   };
-  await assert.rejects(() => waitForFlowReady(page, 1600), /Timed out waiting for Flow page/);
+  await assert.rejects(() => waitForFlowReady(page, 1600), /Flow page readiness timeout/);
   assert.ok(probes >= 1);
 });
