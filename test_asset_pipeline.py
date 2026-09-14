@@ -255,13 +255,13 @@ class TestParallelResolveAll(AssetPipelineTestCase):
             for i in range(1, 5)
         ]
         mgr = self._manager(stock=stock)
-        started = time.time()
         summary = mgr.resolve_all(rows, max_parallel=4)
-        elapsed = time.time() - started
         self.assertTrue(summary.ok)
         self.assertEqual(len(summary.results), 4)
+        # Prove overlap via in-flight count — wall-clock thresholds flake on
+        # loaded Windows CI runners (serial 4×delay can look "faster" than
+        # contended parallel under heavy suite load).
         self.assertGreaterEqual(stock.max_in_flight, 2)
-        self.assertLess(elapsed, stock.delay * 4)
 
     def test_one_failed_stock_scene_does_not_block_others(self):
         stock = FakeProvider(AssetSource.STOCK, {"2": "fail"})
