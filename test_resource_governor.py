@@ -163,7 +163,7 @@ class TestWindowsPathRobustness(unittest.TestCase):
         work = PureWindowsPath(r"C:\Users\yousa\Downloads") / long_leaf / "tmp"
         clips = vg.render_clips_dir(work, path_cls=PureWindowsPath)
         clip = vg.scene_clip_path(clips, vg.scene_clip_filename(0), path_cls=PureWindowsPath)
-        self.assertTrue(str(clip).endswith(r"\._render_clips\scene_0000.mp4"))
+        self.assertTrue(str(clip).endswith(r"\_vg_render_clips\scene_0000.mp4"))
         self.assertNotIn("tmpscene", str(clip))
 
 

@@ -71,7 +71,7 @@ class TestWindowsSceneClipJoin(unittest.TestCase):
         clip = vg.scene_clip_path(
             clips_dir, vg.scene_clip_filename(0), path_cls=PureWindowsPath
         )
-        expected = work_dir + r"\._render_clips\scene_0000.mp4"
+        expected = work_dir + r"\_vg_render_clips\scene_0000.mp4"
         self.assertEqual(str(clip), expected)
         self.assertNotIn("Donttmp", str(clip))
         self.assertNotIn("render_clipsscene", str(clip))
@@ -80,13 +80,13 @@ class TestWindowsSceneClipJoin(unittest.TestCase):
 class TestConcatListFormatting(unittest.TestCase):
     def test_concat_line_uses_forward_slashes_not_windows_escapes(self):
         windows_clip = PureWindowsPath(
-            r"C:\Users\yousa\work\._render_clips\scene_0000.mp4"
+            r"C:\Users\yousa\work\_vg_render_clips\scene_0000.mp4"
         )
         posix = windows_clip.as_posix()
         line = f"file '{vg._escape_ffmpeg_concat_filename(posix)}'"
         self.assertEqual(
             line,
-            "file 'C:/Users/yousa/work/._render_clips/scene_0000.mp4'",
+            "file 'C:/Users/yousa/work/_vg_render_clips/scene_0000.mp4'",
         )
         # Raw backslash-s is what FFmpeg concat would eat into "clipsscene".
         unsafe = f"file '{windows_clip}'"
@@ -113,7 +113,8 @@ class TestConcatListFormatting(unittest.TestCase):
 
             text = concat_path.read_text(encoding="utf-8")
             self.assertIn("file '", text)
-            self.assertIn("._render_clips/scene_0000.mp4", text)
+            self.assertIn("_vg_render_clips/scene_0000.mp4", text)
+            self.assertNotIn("._render_clips", text)
             self.assertNotIn("render_clipsscene", text)
             self.assertNotRegex(text, r"\\scene_")
 
@@ -125,6 +126,11 @@ class TestConcatListFormatting(unittest.TestCase):
             vg.validate_mux_inputs(
                 concat_path, [clip], scene_numbers=["1"]
             )
+
+    def test_render_clips_dirname_is_not_appledouble(self):
+        self.assertFalse(vg.RENDER_CLIPS_DIRNAME.startswith("._"))
+        self.assertTrue(vg.RENDER_CLIPS_DIRNAME.startswith("_"))
+        self.assertEqual(vg.RENDER_CLIPS_DIRNAME, "_vg_render_clips")
 
     def test_validate_reports_missing_path_and_scene_number(self):
         with TemporaryDirectory() as tmp:

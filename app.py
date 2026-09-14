@@ -7677,7 +7677,7 @@ class VideoGeneratorApp(ctk.CTk):
         sys.stdout = writer  # type: ignore[assignment]
         sys.stderr = writer  # type: ignore[assignment]
 
-        # video_generator writes ._render_clips / concat_list.txt relative to cwd.
+        # video_generator writes _vg_render_clips / concat_list.txt relative to cwd.
         # Packaged .app bundles are read-only — use a temp work dir instead.
         for key in ("csv_path", "audio_path", "images_dir", "output_path"):
             config[key] = Path(config[key]).resolve()

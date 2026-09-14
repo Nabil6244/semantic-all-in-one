@@ -1390,7 +1390,11 @@ def _render_editorial_shot(
 
 # ---------- FFmpeg concat demuxer paths (Windows-safe) ----------
 
-RENDER_CLIPS_DIRNAME = "._render_clips"
+# Temp scene clips live here during mux. Do NOT use an AppleDouble-style
+# ``._…`` name — macOS cleanup/sync tools treat ``._*`` as metadata and may
+# delete the folder mid-render, leaving concat entries missing at mux time.
+# Windows ``\s`` escape issues are already avoided by forward-slash concat paths.
+RENDER_CLIPS_DIRNAME = "_vg_render_clips"
 CONCAT_LIST_FILENAME = "concat_list.txt"
 
 
@@ -2281,6 +2285,14 @@ def render_video(
             edit_decision=edit_dec if isinstance(edit_dec, dict) else None,
         )
         clip_files.append(out_clip)
+
+    missing_after_render = [p for p in clip_files if not Path(p).is_file()]
+    if missing_after_render:
+        sample = missing_after_render[0]
+        sys.exit(
+            f"ERROR: {len(missing_after_render)} scene clip(s) missing after render "
+            f"(e.g. {sample}). Cannot mux."
+        )
 
     concat_list_path = concat_list_path_for(work_dir)
     write_ffmpeg_concat_list(clip_files, concat_list_path)
