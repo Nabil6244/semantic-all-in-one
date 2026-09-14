@@ -2074,8 +2074,11 @@ class TestYouTubeResolveAllBatching(AssetPipelineTestCase):
 
 _FAKE_BROWSER_WORKER = r"""
 import { createInterface } from 'node:readline';
-import { existsSync, writeFileSync } from 'node:fs';
-console.log(JSON.stringify({ type: 'ready' }));
+import { existsSync, writeFileSync, writeSync } from 'node:fs';
+// Must match browser_worker.mjs: console.log is block-buffered when stdout is a
+// pipe (common on Windows CI), so ready/job replies never reach Python in time.
+const send = (obj) => writeSync(1, `${JSON.stringify(obj)}\n`);
+send({ type: 'ready' });
 const rl = createInterface({ input: process.stdin });
 for await (const line of rl) {
   if (!line.trim()) continue;
@@ -2091,11 +2094,11 @@ for await (const line of rl) {
     }
   }
   if (job.video_id === 'fail') {
-    console.log(JSON.stringify({ id: job.id, ok: false, kind: 'unavailable', error: 'video unavailable' }));
+    send({ id: job.id, ok: false, kind: 'unavailable', error: 'video unavailable' });
     continue;
   }
   writeFileSync(job.out, 'clip-bytes');
-  console.log(JSON.stringify({ id: job.id, ok: true, duration: 3.4, bytes: 10, out: job.out }));
+  send({ id: job.id, ok: true, duration: 3.4, bytes: 10, out: job.out });
 }
 """
 
@@ -2117,7 +2120,7 @@ class TestBrowserPlaybackClient(unittest.TestCase):
         if not node:
             self.skipTest("node not on PATH")
         return BrowserPlaybackClient(
-            node_bin=node, worker_script=self.worker, ready_timeout=5, **kwargs
+            node_bin=node, worker_script=self.worker, ready_timeout=20, **kwargs
         )
 
     def test_persistent_worker_handles_two_jobs(self):
