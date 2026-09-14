@@ -7738,6 +7738,13 @@ class VideoGeneratorApp(ctk.CTk):
                 f"Graphics: {'ON (follow Text Effects)' if smart_cfg.text_effects else 'OFF'}"
             )
             print(f"Work:   {work_dir}")
+            # Fingerprint so Support can tell old vs new installs from the log alone.
+            # Old builds: clips under project/.../tmp/.../._render_clips
+            # This build: OS temp + _vg_render_clips
+            print(
+                f"[MUX] clips_dir_name={vg.RENDER_CLIPS_DIRNAME} "
+                f"scratch={'project_tmp' if scratch_parent else 'os_temp'}"
+            )
             print("")
 
             scene_rows = [SceneRow.from_csv_row(r) for r in config["rows"]]
