@@ -7679,15 +7679,32 @@ class VideoGeneratorApp(ctk.CTk):
 
         # video_generator writes _vg_render_clips / concat_list.txt relative to cwd.
         # Packaged .app bundles are read-only — use a temp work dir instead.
+        #
+        # Default scratch is the OS temp dir, NOT project/tmp under Downloads.
+        # Project folders in Downloads/OneDrive/iCloud often lose or lock files
+        # mid-mux (macOS AppleDouble cleanup of ``._*``, Windows cloud hydrate).
+        # Set VIDEOGEN_WORK_IN_PROJECT_TMP=1 to keep the old location for debug.
         for key in ("csv_path", "audio_path", "images_dir", "output_path"):
             config[key] = Path(config[key]).resolve()
         if config["bg_path"] is not None:
             config["bg_path"] = Path(config["bg_path"]).resolve()
 
+        scratch_parent = None
+        if os.environ.get("VIDEOGEN_WORK_IN_PROJECT_TMP", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            if self._workspace is not None:
+                scratch_parent = str(self._workspace.tmp_dir)
         work_dir = Path(
             tempfile.mkdtemp(
-                prefix=f"videogen_{self._workspace.project_id}_" if self._workspace else "videogen_",
-                dir=str(self._workspace.tmp_dir) if self._workspace is not None else None,
+                prefix=(
+                    f"videogen_{self._workspace.project_id}_"
+                    if self._workspace
+                    else "videogen_"
+                ),
+                dir=scratch_parent,
             )
         )
         old_cwd = os.getcwd()

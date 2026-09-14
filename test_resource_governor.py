@@ -150,8 +150,9 @@ class TestWindowsPathRobustness(unittest.TestCase):
             vg.write_ffmpeg_concat_list([a, b], list_path)
             text = list_path.read_text(encoding="utf-8")
             self.assertIn("file '", text)
-            # Relative POSIX paths — no raw Windows backslash escapes for \s.
+            # Absolute POSIX paths — no raw Windows backslash escapes for \s.
             self.assertNotRegex(text, r"(?<!\\)\\scene")
+            self.assertIn(a.resolve().as_posix(), text)
             self.assertIn("scene 01.mp4", text.replace("\\'", "'"))
             self.assertIn("scene (2).mp4", text.replace("\\'", "'"))
 

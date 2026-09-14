@@ -113,6 +113,8 @@ class TestConcatListFormatting(unittest.TestCase):
 
             text = concat_path.read_text(encoding="utf-8")
             self.assertIn("file '", text)
+            # Absolute POSIX path — no relative cwd dependency, no backslash escapes.
+            self.assertIn(clip.resolve().as_posix(), text)
             self.assertIn("_vg_render_clips/scene_0000.mp4", text)
             self.assertNotIn("._render_clips", text)
             self.assertNotIn("render_clipsscene", text)
@@ -131,6 +133,14 @@ class TestConcatListFormatting(unittest.TestCase):
         self.assertFalse(vg.RENDER_CLIPS_DIRNAME.startswith("._"))
         self.assertTrue(vg.RENDER_CLIPS_DIRNAME.startswith("_"))
         self.assertEqual(vg.RENDER_CLIPS_DIRNAME, "_vg_render_clips")
+
+    def test_legacy_render_clips_path_gets_upgrade_hint(self):
+        hint = vg._mux_missing_hint(
+            Path("/tmp/proj/._render_clips/scene_0000.mp4")
+        )
+        self.assertIn("_vg_render_clips", hint)
+        self.assertIn("._render_clips", hint)
+        self.assertEqual(vg._mux_missing_hint(Path("/tmp/_vg_render_clips/x.mp4")), "")
 
     def test_validate_reports_missing_path_and_scene_number(self):
         with TemporaryDirectory() as tmp:

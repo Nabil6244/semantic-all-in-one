@@ -1433,19 +1433,14 @@ def concat_list_path_for(work_dir, *, path_cls=None):
 
 
 def ffmpeg_concat_path_text(clip_path: Path, concat_list_path: Path) -> str:
-    """Path text for one concat demuxer entry, relative to the concat file.
+    """Path text for one concat demuxer entry.
 
-    Always uses forward slashes. FFmpeg's concat demuxer treats ``\\`` as an
-    escape, so a Windows path like ``...\\render_clips\\scene_0000.mp4``
-    becomes ``...render_clipsscene_0000.mp4`` (``\\s`` and ``\\t`` eaten).
+    Always absolute + forward slashes. Relative entries break when FFmpeg's
+    working directory drifts; Windows backslashes are escapes in the concat
+    demuxer (``\\s`` → eaten), so ``as_posix()`` is mandatory on every OS.
     """
-    clip = Path(clip_path).resolve()
-    base = Path(concat_list_path).resolve().parent
-    try:
-        formatted = clip.relative_to(base).as_posix()
-    except ValueError:
-        formatted = clip.as_posix()
-    return formatted
+    del concat_list_path  # kept in signature for call-site compatibility
+    return Path(clip_path).resolve().as_posix()
 
 
 def _escape_ffmpeg_concat_filename(path_text: str) -> str:
@@ -1463,7 +1458,7 @@ def ffmpeg_concat_file_line(clip_path: Path, concat_list_path: Path) -> str:
 
 
 def write_ffmpeg_concat_list(clip_paths, concat_list_path: Path) -> Path:
-    """Write concat_list.txt with demuxer-safe paths (relative, forward slashes)."""
+    """Write concat_list.txt with demuxer-safe absolute forward-slash paths."""
     concat_list_path = Path(concat_list_path)
     concat_list_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [ffmpeg_concat_file_line(Path(p), concat_list_path) for p in clip_paths]
@@ -1472,7 +1467,7 @@ def write_ffmpeg_concat_list(clip_paths, concat_list_path: Path) -> Path:
 
 
 def parse_concat_list_clip_paths(concat_list_path: Path) -> list[Path]:
-    """Resolve each ``file '...'`` entry relative to the concat file's directory."""
+    """Resolve each ``file '...'`` entry (absolute or relative to the list file)."""
     concat_list_path = Path(concat_list_path)
     base = concat_list_path.resolve().parent
     paths: list[Path] = []
@@ -1494,6 +1489,88 @@ def parse_concat_list_clip_paths(concat_list_path: Path) -> list[Path]:
             p = p.resolve()
         paths.append(p)
     return paths
+
+
+def _mux_missing_hint(missing_path: Path) -> str:
+    text = str(missing_path)
+    if "._render_clips" in text.replace("\\", "/"):
+        return (
+            " Hint: path still uses legacy '._render_clips' — install a build "
+            "from 2026-09-14 or later (uses _vg_render_clips)."
+        )
+    return ""
+
+
+def run_final_mux(
+    *,
+    concat_list_path: Path,
+    audio_path,
+    output_path,
+    bg_audio=None,
+    bg_volume: float = 0.25,
+    clip_files=None,
+    scene_numbers=None,
+) -> None:
+    """Mux scene clips + audio with cwd pinned and a last-chance input check."""
+    concat_list_path = Path(concat_list_path).resolve()
+    work = concat_list_path.parent
+    try:
+        listed = validate_mux_inputs(
+            concat_list_path, clip_files, scene_numbers=scene_numbers
+        )
+    except ConcatMuxError as exc:
+        hint = _mux_missing_hint(Path(exc.missing_path or concat_list_path))
+        sys.exit(f"ERROR: {exc}{hint}")
+
+    print(f"[4/4] Muxing {len(listed)} clip(s) + audio…")
+    print(f"[4/4] concat={concat_list_path}")
+    print(f"[4/4] clips_dir={render_clips_dir(work)}")
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
+        "-i", str(audio_path),
+    ]
+
+    if bg_audio:
+        cmd += ["-stream_loop", "-1", "-i", str(bg_audio)]
+        filter_complex = (
+            f"[2:a]volume={bg_volume:.4f}[bg];"
+            f"[1:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]"
+        )
+        cmd += [
+            "-filter_complex", filter_complex,
+            "-map", "0:v", "-map", "[a]",
+        ]
+    else:
+        cmd += ["-map", "0:v", "-map", "1:a"]
+
+    cmd += [
+        "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(output_path),
+    ]
+
+    result = hidden_subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=str(work),
+    )
+    if result.returncode != 0:
+        # Re-check: FFmpeg's message is often "concat_list.txt" even when the
+        # real problem is a vanished scene clip under a cloud-synced folder.
+        vanished = [p for p in listed if not p.is_file()]
+        print(result.stderr[-3000:] if result.stderr else "")
+        if vanished:
+            sample = vanished[0]
+            hint = _mux_missing_hint(sample)
+            sys.exit(
+                f"ERROR: ffmpeg final mux failed — {len(vanished)} clip(s) missing "
+                f"(e.g. {sample}).{hint}"
+            )
+        sys.exit("ERROR: ffmpeg final mux failed — see log above.")
 
 
 def validate_mux_inputs(
@@ -1561,7 +1638,9 @@ def _concat_shot_clips(shot_paths: list[Path], out_path: Path) -> None:
         "-c", "copy",
         str(out_path),
     ]
-    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    result = hidden_subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(list_path.resolve().parent)
+    )
     if result.returncode != 0:
         cmd = [
             "ffmpeg", "-y",
@@ -1996,10 +2075,16 @@ def render_video(
         sys.exit(f"ERROR: background audio not found: {bg_audio}")
 
     work_dir = Path.cwd().resolve()
+    if RENDER_CLIPS_DIRNAME.startswith("._"):
+        sys.exit(
+            "ERROR: internal render clips dirname must not use an AppleDouble "
+            f"'._' prefix (got {RENDER_CLIPS_DIRNAME!r})."
+        )
     clips_dir = render_clips_dir(work_dir)
     if clips_dir.exists():
         shutil.rmtree(clips_dir)
     clips_dir.mkdir()
+    print(f"[3/4] Scene clips → {clips_dir}")
 
     captions_dir = None
     if captions:
@@ -2300,43 +2385,15 @@ def render_video(
         str(row.get("scene_number") or (i + 1))
         for i, row in enumerate(aligned_rows)
     ]
-    try:
-        validate_mux_inputs(concat_list_path, clip_files, scene_numbers=scene_numbers)
-    except ConcatMuxError as exc:
-        sys.exit(f"ERROR: {exc}")
-
-    print("[4/4] Muxing clips + audio...")
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0", "-i", str(concat_list_path.resolve()),
-        "-i", audio_path,
-    ]
-
-    if bg_audio:
-        # Loop bed under voiceover; keep VO dominant
-        cmd += ["-stream_loop", "-1", "-i", bg_audio]
-        filter_complex = (
-            f"[2:a]volume={bg_volume:.4f}[bg];"
-            f"[1:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]"
-        )
-        cmd += [
-            "-filter_complex", filter_complex,
-            "-map", "0:v", "-map", "[a]",
-        ]
-    else:
-        cmd += ["-map", "0:v", "-map", "1:a"]
-
-    cmd += [
-        "-c:v", "copy",
-        "-c:a", "aac", "-b:a", "192k",
-        "-shortest",
-        output_path,
-    ]
-
-    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(result.stderr[-3000:])
-        sys.exit("ERROR: ffmpeg final mux failed — see log above.")
+    run_final_mux(
+        concat_list_path=concat_list_path,
+        audio_path=audio_path,
+        output_path=output_path,
+        bg_audio=bg_audio,
+        bg_volume=bg_volume,
+        clip_files=clip_files,
+        scene_numbers=scene_numbers,
+    )
 
     shutil.rmtree(clips_dir, ignore_errors=True)
     print(f"[4/4] Done. Output: {output_path}")
