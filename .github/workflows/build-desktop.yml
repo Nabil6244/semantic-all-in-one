@@ -6,8 +6,38 @@ on:
 
 jobs:
   build-macos:
-    name: macOS (.dmg)
-    runs-on: macos-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Existing Apple Silicon artifact name unchanged for current users.
+          - name: macOS Apple Silicon (.dmg)
+            runner: macos-latest
+            arch: arm64
+            ffmpeg_arch: arm64
+            ffmpeg_build: "1787073674_9.0.1"
+            ffmpeg_sha256: "393e4c395020a1cb7cbd77fbe00599ce69d1c6466fee0dbd59d13f86a81a1611"
+            ffprobe_sha256: "7abc49fb2bdf2204f018e76dc6e0a8ae7643313bae09a9fa43e7eb12442271bc"
+            node_arch: darwin-arm64
+            dmg_path: dist/Semantic-YT-Studio.dmg
+            artifact_name: Semantic-YT-Studio.dmg
+            file_arch_grep: arm64
+
+          # Intel Macs (x86_64). Separate DMG so Silicon users keep the old name.
+          - name: macOS Intel (.dmg)
+            runner: macos-15-intel
+            arch: x86_64
+            ffmpeg_arch: amd64
+            ffmpeg_build: "1787081194_9.0.1"
+            ffmpeg_sha256: "56f4a0478fff60fa549ab7aa03759d7ab116dadcdf63dba4d466ebfba1280b2f"
+            ffprobe_sha256: "dd287b051b569382fe32eb73003b04035d416bccfa30148c140e35636cd3a1d8"
+            node_arch: darwin-x64
+            dmg_path: dist/Semantic-YT-Studio-Intel.dmg
+            artifact_name: Semantic-YT-Studio-Intel.dmg
+            file_arch_grep: x86_64
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -22,22 +52,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-build.txt
 
-      - name: Fetch ffmpeg (macOS, static arm64, pinned)
+      - name: Fetch ffmpeg (macOS, static ${{ matrix.arch }}, pinned)
         env:
-          # Pinned build id (timestamp_version) -> reproducible, and a moving
-          # upstream "latest" can never silently change the release artifact.
-          # Bump BUILD + both checksums together when intentionally upgrading.
-          FFMPEG_BUILD: "1787073674_9.0.1"
-          FFMPEG_SHA256: "393e4c395020a1cb7cbd77fbe00599ce69d1c6466fee0dbd59d13f86a81a1611"
-          FFPROBE_SHA256: "7abc49fb2bdf2204f018e76dc6e0a8ae7643313bae09a9fa43e7eb12442271bc"
+          FFMPEG_BUILD: ${{ matrix.ffmpeg_build }}
+          FFMPEG_SHA256: ${{ matrix.ffmpeg_sha256 }}
+          FFPROBE_SHA256: ${{ matrix.ffprobe_sha256 }}
+          FFMPEG_ARCH: ${{ matrix.ffmpeg_arch }}
+          FILE_ARCH: ${{ matrix.file_arch_grep }}
         run: |
           set -euo pipefail
           mkdir -p bin
           # NOT `brew install ffmpeg`: Homebrew's binary links ~17 dylibs under
-          # /opt/homebrew and cannot run on an end-user Mac without a matching
-          # Homebrew install. These builds are genuinely self-contained
-          # (System frameworks + /usr/lib only) and native arm64.
-          BASE="https://ffmpeg.martin-riedl.de/download/macos/arm64/${FFMPEG_BUILD}"
+          # /opt/homebrew (or /usr/local) and cannot run on an end-user Mac
+          # without a matching Homebrew install. These builds are genuinely
+          # self-contained (System frameworks + /usr/lib only).
+          BASE="https://ffmpeg.martin-riedl.de/download/macos/${FFMPEG_ARCH}/${FFMPEG_BUILD}"
           curl -fsSL --retry 3 --retry-delay 5 -o ffmpeg.zip  "${BASE}/ffmpeg.zip"
           curl -fsSL --retry 3 --retry-delay 5 -o ffprobe.zip "${BASE}/ffprobe.zip"
           unzip -o -q ffmpeg.zip  -d bin
@@ -45,15 +74,11 @@ jobs:
           chmod +x bin/ffmpeg bin/ffprobe
           rm -f ffmpeg.zip ffprobe.zip
 
-          # Integrity: the build uses the exact binaries that were audited, or
-          # it fails loudly rather than shipping something unverified.
           echo "${FFMPEG_SHA256}  bin/ffmpeg"   | shasum -a 256 -c -
           echo "${FFPROBE_SHA256}  bin/ffprobe" | shasum -a 256 -c -
 
-          # Hard gate: a non-system dependency means it will not run on a clean
-          # Mac. This is the check that the old Homebrew path only warned about.
           for b in bin/ffmpeg bin/ffprobe; do
-            file "$b" | grep -q 'arm64' || { echo "::error::$b is not arm64"; exit 1; }
+            file "$b" | grep -q "$FILE_ARCH" || { echo "::error::$b is not $FILE_ARCH"; exit 1; }
             leaks=$(otool -L "$b" | tail -n +2 | awk '{print $1}' \
                     | grep -vE '^/usr/lib/|^/System/' || true)
             if [ -n "$leaks" ]; then
@@ -86,14 +111,18 @@ jobs:
           cd providers/youtube/acquisition
           npm install --omit=dev
 
-      - name: Bundle portable Node.js runtime (macOS arm64)
+      - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
         # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.
+        env:
+          NODE_ARCH: ${{ matrix.node_arch }}
+          FILE_ARCH: ${{ matrix.file_arch_grep }}
         run: |
           NODE_VERSION="v24.19.0"
-          curl -sL -o node.tar.gz "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-arm64.tar.gz"
+          curl -sL -o node.tar.gz "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${NODE_ARCH}.tar.gz"
           tar -xzf node.tar.gz
-          cp "node-${NODE_VERSION}-darwin-arm64/bin/node" bin/node
+          cp "node-${NODE_VERSION}-${NODE_ARCH}/bin/node" bin/node
           chmod +x bin/node
+          file bin/node | grep -q "$FILE_ARCH" || { echo "::error::bin/node is not $FILE_ARCH"; exit 1; }
           ./bin/node --version
 
       - name: Verify bundled SFX + ambience
@@ -116,6 +145,19 @@ jobs:
 
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec
+
+      - name: Verify app architecture
+        env:
+          FILE_ARCH: ${{ matrix.file_arch_grep }}
+        run: |
+          set -euo pipefail
+          APP_BIN="dist/Semantic YT Studio.app/Contents/MacOS/Semantic YT Studio"
+          test -x "$APP_BIN"
+          file "$APP_BIN" | tee /tmp/app_arch.txt
+          grep -q "$FILE_ARCH" /tmp/app_arch.txt \
+            || { echo "::error::app binary is not $FILE_ARCH"; exit 1; }
+          file bin/ffmpeg | grep -q "$FILE_ARCH"
+          file bin/node | grep -q "$FILE_ARCH"
 
       # ---- Code signing + notarization (Phase 1.3) ----
       # Fully optional and additive: with no signing secrets configured in
@@ -179,6 +221,8 @@ jobs:
         run: ./scripts/codesign_macos_app.sh
 
       - name: Create DMG
+        env:
+          DMG_PATH: ${{ matrix.dmg_path }}
         run: |
           chmod +x scripts/make_dmg.sh
           ./scripts/make_dmg.sh
@@ -189,13 +233,14 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DMG_PATH: ${{ matrix.dmg_path }}
         run: ./scripts/notarize_macos_dmg.sh
 
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v5
         with:
-          name: Semantic-YT-Studio.dmg
-          path: dist/Semantic-YT-Studio.dmg
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.dmg_path }}
           if-no-files-found: error
           retention-days: 14
 

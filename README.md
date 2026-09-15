@@ -6,10 +6,11 @@
 |---|---|
 | **App name** | Semantic YT Studio |
 | **Windows** | `Semantic-YT-Studio-Setup.exe` (x64) |
-| **macOS** | `Semantic-YT-Studio.dmg` (Apple Silicon only — M1/M2/M3/…) |
+| **macOS Apple Silicon** | `Semantic-YT-Studio.dmg` (M1/M2/M3/M4) |
+| **macOS Intel** | `Semantic-YT-Studio-Intel.dmg` (x86_64 — older MacBooks) |
 | **Projects** | `~/Downloads/Semantic YT Studio/` (or `~/Semantic YT Studio/` if Downloads is missing) |
 
-Intel Macs are not supported. You do **not** install Python, pip, Node, or FFmpeg yourself.
+Pick the Mac DMG that matches your chip (Apple menu → About This Mac). You do **not** install Python, pip, Node, or FFmpeg yourself.
 
 Desktop builds come from the **Build Desktop Apps** GitHub Actions workflow (artifacts retained ~14 days).
 
@@ -129,9 +130,14 @@ No background heartbeat. If you revoke someone while the app is open, they are b
 1. Run `Semantic-YT-Studio-Setup.exe`.  
 2. Open **Semantic YT Studio**.
 
-**Mac (Apple Silicon)**  
+**Mac (Apple Silicon — M1/M2/M3/M4)**  
 1. Open `Semantic-YT-Studio.dmg` and drag **Semantic YT Studio** to Applications.  
 2. First launch: right-click → **Open** if macOS warns about an unidentified developer.
+
+**Mac (Intel — older MacBooks)**  
+1. Open `Semantic-YT-Studio-Intel.dmg` and drag **Semantic YT Studio** to Applications.  
+2. First launch: right-click → **Open** if macOS warns about an unidentified developer.  
+   Do **not** use the Apple Silicon DMG on an Intel Mac (it will not run).
 
 **AI / Flow note:** On first Flow use (Settings → AI / Flow Accounts, or Generate with AI scenes), the app may download Playwright Chromium once into your user cache if Google Chrome is not installed. That needs internet the first time only.
 
@@ -335,7 +341,7 @@ Still stuck? Note the exact message and scene number.
 
 | Workflow | Produces |
 |---|---|
-| **Build Desktop Apps** | `Semantic-YT-Studio.dmg`, `Semantic-YT-Studio-Setup.exe` |
+| **Build Desktop Apps** | `Semantic-YT-Studio.dmg` (Apple Silicon), `Semantic-YT-Studio-Intel.dmg` (Intel), `Semantic-YT-Studio-Setup.exe` (Windows) |
 
 Team installers are **Build Desktop** artifacts from that workflow.
 

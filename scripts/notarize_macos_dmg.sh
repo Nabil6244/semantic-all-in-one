@@ -18,7 +18,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-DMG="dist/Semantic-YT-Studio.dmg"
+DMG="${DMG_PATH:-dist/Semantic-YT-Studio.dmg}"
 
 for var in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
   if [[ -z "${!var:-}" ]]; then

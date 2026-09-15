@@ -5,7 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="dist/Semantic YT Studio.app"
-DMG="dist/Semantic-YT-Studio.dmg"
+# Override for Intel CI builds, e.g. DMG_PATH=dist/Semantic-YT-Studio-Intel.dmg
+DMG="${DMG_PATH:-dist/Semantic-YT-Studio.dmg}"
 STAGE="dist/dmg_stage"
 
 if [[ ! -d "$APP" ]]; then
