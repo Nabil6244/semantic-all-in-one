@@ -564,18 +564,30 @@ class FlowProvider(AssetProvider):
         early_placed: Optional[Dict[int, AssetResult]] = None,
     ) -> Dict[str, AssetResult]:
         """Always try disk pickup first — files may exist even if BATCH_PROGRESS
-        never arrived (or the wait loop timed out)."""
+        never arrived (or the wait loop timed out) — INCLUDING for a scene that
+        was cancelled (per-scene timeout/Stop), since cancellation is a request
+        to stop WAITING, not a promise that nothing was actually produced. A
+        scene already reported READY via on_scene_ready (``early``) must never
+        be re-evaluated here at all: once a result reaches the caller as
+        COMPLETE, a later cleanup pass must not downgrade it to CANCELLED —
+        state transitions are monotonic. See the root-cause report: a per-scene
+        watchdog cancelling ONE slow scene stops the whole Flow engine batch
+        (Flow has no true per-prompt cancel — see _batch_should_stop), and the
+        STOP can race a scene that had already finished generating: the file
+        lands on disk (or was already copied via _try_place_early) at almost
+        the same moment the cancel flag is set. The old code checked
+        "cancelled?" BEFORE checking for either an early result or a file on
+        disk, so a genuinely successful scene silently became CANCELLED — the
+        file stayed on disk (nothing here deletes it) but the persisted result
+        said otherwise, which is exactly "state says PROCESSING/CANCELLED while
+        a valid output already exists."""
         results: Dict[str, AssetResult] = {}
         early = early_placed or {}
         for idx, scene in enumerate(scenes):
-            if self._scene_stopped(scene.scene_number):
-                results[scene.scene_number] = AssetResult(
-                    scene.scene_number, None, None, self.source,
-                    SceneStatus.CANCELLED, error="Cancelled.",
-                )
-                continue
             prior = early.get(idx)
             if prior is not None and prior.status == SceneStatus.READY and prior.path:
+                # Already reported complete to the caller — never re-evaluate,
+                # never let a stop/cancel flag downgrade it.
                 results[scene.scene_number] = prior
                 continue
             msg = progress.get(idx)
@@ -591,6 +603,14 @@ class FlowProvider(AssetProvider):
             )
             if resolved.status == SceneStatus.READY:
                 results[scene.scene_number] = resolved
+                continue
+            if self._scene_stopped(scene.scene_number):
+                # No valid output was actually found on disk for this scene —
+                # NOW cancellation is the correct, honest explanation.
+                results[scene.scene_number] = AssetResult(
+                    scene.scene_number, None, None, self.source,
+                    SceneStatus.CANCELLED, error="Cancelled.",
+                )
                 continue
             if msg and msg.get("status") == "failed":
                 results[scene.scene_number] = self._fail(

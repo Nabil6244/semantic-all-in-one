@@ -487,5 +487,139 @@ class TestConfirmAlternativesCrash(unittest.TestCase):
         self.assertIn("2 scenes selected", shown_text)
 
 
+# ---------------------------------------------------------------------------
+# 7. Completed-vs-cancelled race: a per-scene cancel (e.g. the 12-minute
+#    watchdog in app.py's _timeout_scene, or Flow's whole-batch STOP that
+#    _batch_should_stop triggers off ONE cancelled scene) landing at almost
+#    the same moment the scene actually finishes must never discard the
+#    real result. Root cause: _on_scene_ready and _resolve_flow_batch's
+#    final loop both checked "is this scene cancelled?" BEFORE checking
+#    whether the result was actually a success, so a legitimately-completed
+#    scene (file written and already copied into the project's assets
+#    folder) was reported CANCELLED and its file deleted — reported live as
+#    "the generated video exists on disk but the app still says PROCESSING
+#    / never reaches COMPLETED". State transitions must be monotonic: once
+#    a result is genuinely successful, a cancel request from that point on
+#    has nothing left to stop.
+# ---------------------------------------------------------------------------
+
+
+class TestCompletedResultSurvivesConcurrentCancel(unittest.TestCase):
+    def test_on_scene_ready_keeps_a_successful_result_despite_a_concurrent_cancel(self):
+        """Direct test of the FlowProvider-level callback used while a batch
+        is still running (_try_place_early -> on_scene_ready in
+        providers/flow/provider.py, consumed by asset_manager.py's
+        _on_scene_ready)."""
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", prompt="p")
+
+            # Simulate the watchdog firing for this scene BEFORE its result
+            # is reported — the scene is now "cancelled" from the manager's
+            # point of view, but the underlying Flow work is about to (or
+            # already did) succeed.
+            mgr.request_cancel_scene("1")
+            self.assertTrue(mgr.is_scene_cancelled("1"))
+
+            results: dict = {}
+            mgr._resolve_flow_batch(AssetSource.FLOW_IMAGE, flow, [scene], results)
+
+            self.assertTrue(
+                results["1"].ok,
+                "a genuinely successful result must survive a concurrent per-scene cancel",
+            )
+            self.assertEqual(results["1"].status, SceneStatus.READY)
+            self.assertIsNotNone(results["1"].path)
+            self.assertTrue(
+                Path(results["1"].path).is_file(),
+                "the real output file must not be deleted just because the scene was also cancelled",
+            )
+
+    def test_stale_pending_early_reported_result_is_never_downgraded_by_the_final_pass(self):
+        """Reproduces the SAME bug at the boundary between the early
+        (mid-batch) report and _resolve_flow_batch's own final aggregation
+        loop: `final = batch_results.get(...) or early_reported[...]` used
+        to prefer a stale/mismatched batch_results entry over an already
+        -reported READY result just because it was truthy."""
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+
+            class _EarlyThenCancelledProvider(FakeProvider):
+                """resolve_batch reports READY via on_scene_ready, exactly
+                like FlowProvider does mid-batch, then (simulating the
+                watchdog firing a beat later, before resolve_batch itself
+                returns) the manager marks the scene cancelled."""
+
+                def resolve_batch(self, scenes, images_dir, log=print, should_stop=None, on_scene_ready=None, on_scene_generating=None):
+                    results = {}
+                    for s in scenes:
+                        result = self.resolve(s, images_dir, log=log)
+                        results[s.scene_number] = result
+                        if on_scene_ready is not None:
+                            on_scene_ready(s, result)
+                            mgr_ref.request_cancel_scene(s.scene_number)
+                    return results
+
+            flow = _EarlyThenCancelledProvider(AssetSource.FLOW_IMAGE, {})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            mgr_ref = mgr
+            scene = SceneRow(scene_number="1", script_segment="x", prompt="p")
+
+            results: dict = {}
+            mgr._resolve_flow_batch(AssetSource.FLOW_IMAGE, flow, [scene], results)
+
+            self.assertTrue(results["1"].ok, "the early-reported success must win — never downgraded by a later cancel")
+            self.assertEqual(results["1"].status, SceneStatus.READY)
+            self.assertTrue(Path(results["1"].path).is_file())
+
+    def test_genuinely_unfinished_cancelled_scene_still_reports_cancelled(self):
+        """The fix must not turn EVERY cancelled scene into a fake success —
+        a scene that never produced a file must still be reported CANCELLED,
+        never a fabricated FAILED or a fabricated success."""
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_VIDEO, {"1": "fail"})
+            mgr = AssetManager(images, flow_video_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", prompt="p")
+            mgr.request_cancel_scene("1")
+
+            results: dict = {}
+            mgr._resolve_flow_batch(AssetSource.FLOW_VIDEO, flow, [scene], results)
+
+            self.assertFalse(results["1"].ok)
+            self.assertEqual(results["1"].status, SceneStatus.CANCELLED)
+
+    def test_provider_level_collect_batch_results_picks_up_disk_file_for_a_cancelled_scene(self):
+        """Unit test of the FlowProvider fix directly: _collect_batch_results
+        must attempt disk pickup even for a scene whose should_stop_scene is
+        already true — cancellation must not skip checking for a real,
+        already-completed output."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _make_client(root)
+            saved = root / "run1" / "001.png"
+            _png(saved)
+
+            fp = FlowProvider(_FakeEngineManager(client))
+            fp.should_stop_scene = lambda scene_number: True  # every scene "cancelled"
+            scene = SceneRow(scene_number="1", script_segment="a", prompt="p")
+
+            result = fp._resolve_one_result(
+                0, scene, root, str(root / "run1"), {"status": "done", "path": str(saved)},
+                log=lambda *_: None,
+            )
+            self.assertEqual(result.status, SceneStatus.READY, "a real file on disk must resolve READY regardless of should_stop_scene")
+
+            collected = fp._collect_batch_results(
+                [scene], root, str(root / "run1"), progress={0: {"status": "done", "path": str(saved)}},
+                log=lambda *_: None, engine_root=None, batch_started_at=None,
+                cancelled=False, should_stop=None, fallback_error=None,
+            )
+            self.assertTrue(collected["1"].ok, "_collect_batch_results must pick up a real file even for a should_stop_scene==True scene")
+            self.assertEqual(collected["1"].status, SceneStatus.READY)
+
+
 if __name__ == "__main__":
     unittest.main()

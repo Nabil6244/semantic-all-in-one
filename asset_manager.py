@@ -1003,12 +1003,29 @@ class AssetManager:
         early_reported: Dict[str, AssetResult] = {}
 
         def _on_scene_ready(scene: SceneRow, result: AssetResult) -> None:
-            """Flip the UI off PROCESSING as soon as a Flow file lands mid-batch."""
+            """Flip the UI off PROCESSING as soon as a Flow file lands mid-batch.
+
+            A genuinely successful result (``result.ok`` — the file already
+            exists, was already content-verified, and was already copied into
+            the project's assets folder by the provider) must be honored even
+            if this scene was ALSO marked cancelled (e.g. a per-scene
+            generation-timeout watchdog fired around the same moment the
+            engine actually finished). By the time this callback runs the
+            work is done; a cancel request from here on has nothing left to
+            stop. Discarding a completed result and deleting its file — the
+            previous behavior — is exactly the "state never reaches COMPLETED
+            even though a valid output exists" bug: state transitions must be
+            monotonic, and a request to cancel must never downgrade an
+            already-successful result. Cancellation still applies normally to
+            a NOT-ok result (nothing to preserve)."""
             if scene.scene_number in early_reported:
                 return
-            if self.is_scene_cancelled(scene.scene_number):
-                if result.ok and result.path:
-                    result.path.unlink(missing_ok=True)
+            if result.ok and self.is_scene_cancelled(scene.scene_number):
+                self.log(
+                    f"[ASSET] Scene {scene.scene_number} finished successfully after being "
+                    "marked cancelled — keeping the completed result, not discarding it."
+                )
+            if not result.ok and self.is_scene_cancelled(scene.scene_number):
                 result = self._cancelled_result(scene, source)
             else:
                 self._record_failed_approach(scene, source, result)
@@ -1041,18 +1058,25 @@ class AssetManager:
             self.log(f"[FLOW] batch failed: {exc}")
         for scene in scenes:
             if scene.scene_number in early_reported:
-                # Already finalized + UI-notified while the batch was still running.
-                final = batch_results.get(scene.scene_number) or early_reported[scene.scene_number]
-                results[scene.scene_number] = final
+                # Already finalized + UI-notified while the batch was still
+                # running — monotonic: never let a later pass's result
+                # (batch_results), however it turned out, override this.
+                results[scene.scene_number] = early_reported[scene.scene_number]
                 continue
             result = batch_results.get(scene.scene_number) or AssetResult(
                 scene_number=scene.scene_number, path=None, media_type=None,
                 source=source, status=SceneStatus.FAILED,
                 error="Flow engine returned no result for this scene.",
             )
-            if self.is_scene_cancelled(scene.scene_number):
-                if result.ok and result.path:
-                    result.path.unlink(missing_ok=True)
+            # A genuinely successful result (real file, already content-
+            # verified and placed by the provider — see provider.py's
+            # _collect_batch_results, which checks disk even for a cancelled
+            # scene) must be kept even if this scene was ALSO marked
+            # cancelled: the work already finished, so cancelling has
+            # nothing left to stop, and discarding + deleting a completed
+            # asset is the root cause this fixes (state stuck/wrong despite
+            # a valid output already existing).
+            if not result.ok and self.is_scene_cancelled(scene.scene_number):
                 result = self._cancelled_result(scene, source)
             else:
                 self._record_failed_approach(scene, source, result)
