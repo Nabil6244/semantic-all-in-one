@@ -44,6 +44,21 @@ from providers import hidden_subprocess
 
 hidden_subprocess.install()
 
+# Real, previously-latent Windows crash: this module's own print()/logging
+# calls contain non-ASCII characters (→, ✓, ⚠, …) throughout, and Windows'
+# default console codepage (cp1252 or similar, NOT UTF-8) raises
+# UnicodeEncodeError on ANY of them — confirmed for real via CI (Windows
+# runner, plain `python -m unittest`, e.g. "[3/4] Scene clips → {dir}").
+# This is not merely a test artifact: the packaged .exe's stdout is subject
+# to the exact same default codepage whenever it isn't already UTF-8
+# (console redirection, certain Windows locales). errors="replace" makes
+# this fail-safe even if reconfigure itself is unavailable for some reason.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 # ---------- text normalization ----------
 

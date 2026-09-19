@@ -20,6 +20,18 @@ import video_generator as vg
 FFMPEG_AVAILABLE = shutil.which("ffmpeg") is not None
 
 
+def _assert_close_color(test, actual, expected, msg, *, tol=3):
+    """yuv420p round-tripping (RGB -> YUV -> RGB) is lossy — different
+    ffmpeg builds/platforms can legitimately land a color channel off by a
+    couple of values (confirmed for real via CI: (253,0,0) vs (254,0,0) on
+    macOS Intel for the exact same filter graph that produces (254,0,0) on
+    the dev machine). Exact tuple equality was too strict for this; a small
+    per-channel tolerance still catches a genuinely wrong color (e.g. blue
+    showing where red should be) while tolerating real encoder rounding."""
+    for a, e in zip(actual, expected):
+        test.assertLessEqual(abs(a - e), tol, f"{msg} (got {actual}, expected ~{expected})")
+
+
 @unittest.skipUnless(FFMPEG_AVAILABLE, "ffmpeg not on PATH")
 class TestCompositeBrollOverlay(unittest.TestCase):
     @classmethod
@@ -68,10 +80,10 @@ class TestCompositeBrollOverlay(unittest.TestCase):
         after = self._sample(out, 95, pip_point)  # t~3.8s, after window
         bg = self._sample(out, 50, outside_point)  # unaffected background
 
-        self.assertEqual(before, (254, 0, 0), "before the overlay window, the PIP area must show the base (red)")
-        self.assertEqual(during, (0, 0, 255), "during the overlay window, the PIP area must show the B-roll (blue)")
-        self.assertEqual(after, (254, 0, 0), "after the overlay window, the PIP area must revert to the base (red)")
-        self.assertEqual(bg, (254, 0, 0), "outside the PIP rectangle, the base must be unaffected")
+        _assert_close_color(self, before, (254, 0, 0), "before the overlay window, the PIP area must show the base (red)")
+        _assert_close_color(self, during, (0, 0, 255), "during the overlay window, the PIP area must show the B-roll (blue)")
+        _assert_close_color(self, after, (254, 0, 0), "after the overlay window, the PIP area must revert to the base (red)")
+        _assert_close_color(self, bg, (254, 0, 0), "outside the PIP rectangle, the base must be unaffected")
 
     def test_zero_duration_returns_false_without_crashing(self):
         out = self.root / "zero.mp4"

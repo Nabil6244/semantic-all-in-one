@@ -17,7 +17,12 @@ class TestTimerRecording(unittest.TestCase):
     def test_timer_records_one_event(self):
         perf = PerfRecorder()
         with perf.timer("whisper"):
-            time.sleep(0.01)
+            # 0.01s was flaky on a real Windows CI runner (coarse Sleep()
+            # timer resolution occasionally returning near-instantly for a
+            # very short sleep — confirmed live: elapsed came back exactly
+            # 0.0). A larger margin makes an exact-zero elapsed reading
+            # effectively impossible while still keeping the test fast.
+            time.sleep(0.05)
         self.assertEqual(perf.count_for("whisper"), 1)
         self.assertGreater(perf.total_for("whisper"), 0.0)
 
