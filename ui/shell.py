@@ -6,7 +6,10 @@ from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
 
+from . import icons as I
 from . import theme as T
+from . import tooltip as TT
+from .widgets import Toast
 
 
 class AppShell(ctk.CTkFrame):
@@ -29,6 +32,11 @@ class AppShell(ctk.CTkFrame):
         status_line_var,
         cache_var,
         logo_image=None,
+        on_toggle_theme: Optional[Callable[[], None]] = None,
+        theme_label_var=None,
+        on_undo: Optional[Callable[[], None]] = None,
+        on_redo: Optional[Callable[[], None]] = None,
+        save_state_var=None,
         **kwargs,
     ):
         super().__init__(master, fg_color=T.BG, **kwargs)
@@ -51,6 +59,11 @@ class AppShell(ctk.CTkFrame):
             on_close_instances=on_close_instances,
             on_primary_cta=on_primary_cta,
             on_toggle_issues=on_toggle_issues,
+            on_toggle_theme=on_toggle_theme,
+            theme_label_var=theme_label_var,
+            on_undo=on_undo,
+            on_redo=on_redo,
+            save_state_var=save_state_var,
         )
         self._build_sidebar()
         self._build_center()
@@ -127,13 +140,55 @@ class AppShell(ctk.CTkFrame):
         )
         self.generate_btn.pack(side="left", padx=(0, 6))
 
+        if kw.get("on_undo") is not None:
+            self.undo_btn = ctk.CTkButton(
+                right, text=I.icon("undo"), width=T.ICON_BTN_W, height=30,
+                fg_color="transparent", border_width=1, border_color=T.BORDER,
+                text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=14),
+                command=kw["on_undo"], state="disabled",
+            )
+            self.undo_btn.pack(side="left", padx=(0, 2))
+            TT.attach(self.undo_btn, "Undo", shortcut="Ctrl/Cmd+Z")
+        if kw.get("on_redo") is not None:
+            self.redo_btn = ctk.CTkButton(
+                right, text=I.icon("redo"), width=T.ICON_BTN_W, height=30,
+                fg_color="transparent", border_width=1, border_color=T.BORDER,
+                text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=14),
+                command=kw["on_redo"], state="disabled",
+            )
+            self.redo_btn.pack(side="left", padx=(0, 6))
+            TT.attach(self.redo_btn, "Redo", shortcut="Ctrl/Cmd+Shift+Z")
+
+        if kw.get("on_toggle_theme") is not None:
+            theme_kwargs = {}
+            if kw.get("theme_label_var") is not None:
+                theme_kwargs["textvariable"] = kw["theme_label_var"]
+            else:
+                theme_kwargs["text"] = "Theme"
+            self.theme_btn = ctk.CTkButton(
+                right, width=76, height=30,
+                fg_color="transparent", border_width=1, border_color=T.BORDER,
+                text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=11),
+                command=kw["on_toggle_theme"], **theme_kwargs,
+            )
+            self.theme_btn.pack(side="left", padx=(0, 6))
+            TT.attach(self.theme_btn, "Cycle theme (Dark / Light / System)")
+
         self.settings_btn = ctk.CTkButton(
-            right, text="⚙", width=34, height=30,
+            right, text=I.icon("settings"), width=34, height=30,
             fg_color="transparent", border_width=1, border_color=T.BORDER,
             text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=15),
             command=kw["on_settings"],
         )
         self.settings_btn.pack(side="left")
+        TT.attach(self.settings_btn, "Settings")
+
+        if kw.get("save_state_var") is not None:
+            self.save_state_label = ctk.CTkLabel(
+                right, textvariable=kw["save_state_var"],
+                font=ctk.CTkFont(size=11), text_color=T.MUTED,
+            )
+            self.save_state_label.pack(side="left", padx=(8, 0))
 
         self.progress = ctk.CTkProgressBar(
             top, height=3, progress_color=T.ACCENT, fg_color=T.BORDER, corner_radius=1,
@@ -147,11 +202,24 @@ class AppShell(ctk.CTkFrame):
         side.grid_propagate(False)
         side.grid_columnconfigure(0, weight=1)
         self.sidebar = side
-        ctk.CTkLabel(
-            side, text="WORKSPACE", font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 4))
-        for i, (key, label) in enumerate(T.NAV_ITEMS):
+
+        # Grouped nav: a small primary "workspace" flow (script -> visuals ->
+        # timeline -> audio -> graphics -> export) plus everything that
+        # already existed, re-bucketed under "advanced" — nothing removed.
+        row = 0
+        current_group = None
+        self._group_headers: list = []
+        for key, label, group in T.NAV_ITEMS:
+            if group != current_group:
+                header = ctk.CTkLabel(
+                    side, text=("WORKSPACE" if group == "workspace" else "ADVANCED"),
+                    font=ctk.CTkFont(size=10, weight="bold"),
+                    text_color=T.MUTED, anchor="w",
+                )
+                header.grid(row=row, column=0, sticky="ew", padx=12, pady=(10, 4))
+                self._group_headers.append(header)
+                current_group = group
+                row += 1
             btn = ctk.CTkButton(
                 side, text=label, height=28, anchor="w",
                 fg_color="transparent", hover_color=T.CARD_HOVER,
@@ -159,8 +227,9 @@ class AppShell(ctk.CTkFrame):
                 corner_radius=T.RADIUS,
                 command=lambda k=key: self.navigate(k),
             )
-            btn.grid(row=i + 1, column=0, sticky="ew", padx=6, pady=0)
+            btn.grid(row=row, column=0, sticky="ew", padx=6, pady=0)
             self._nav_btns[key] = btn
+            row += 1
 
     def _build_center(self) -> None:
         center = ctk.CTkFrame(self, fg_color=T.PANEL_ALT, corner_radius=0)
@@ -168,6 +237,19 @@ class AppShell(ctk.CTkFrame):
         center.grid_columnconfigure(0, weight=1)
         center.grid_rowconfigure(0, weight=1)
         self.center = center
+
+        # One reusable toast (spec item 20) — placed over the center area,
+        # never stacking, so a burst of quick actions never floods the
+        # screen with notifications.
+        self.toast = Toast(center)
+
+    def notify(self, message: str, *, tone: str = "info") -> None:
+        """Best-effort — a missing/failed toast host never blocks the
+        action that triggered it."""
+        try:
+            self.toast.show(message, tone=tone)
+        except Exception:
+            pass
 
     def _build_inspector(self) -> None:
         insp = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=0, width=T.INSPECTOR_WIDTH)
@@ -225,3 +307,50 @@ class AppShell(ctk.CTkFrame):
     @property
     def active_view(self) -> str:
         return self._active
+
+    def apply_theme_chrome(self) -> None:
+        """Live-reconfigure the shell chrome this class directly owns
+        (topbar/sidebar/center/inspector/statusbar + nav buttons) to the
+        CURRENT ui.theme token values. Called right after ui.theme.set_mode()
+        so the toggle has a real, immediate, flicker-free visual effect on
+        the app's chrome without a full window rebuild. View *content*
+        (each workspace's own widgets) was built with the previous palette
+        baked in and picks up the new one on next launch — see the Phase 2
+        report's THEME section."""
+        try:
+            self.configure(fg_color=T.BG)
+            self.topbar.configure(fg_color=T.PANEL)
+            self.sidebar.configure(fg_color=T.PANEL)
+            self.center.configure(fg_color=T.PANEL_ALT)
+            self.inspector.configure(fg_color=T.PANEL)
+            self.statusbar.configure(fg_color=T.PANEL)
+            self.project_chip_label.configure(text_color=T.TEXT)
+            self.stage_label.configure(text_color=T.ACCENT)
+            self.cache_label.configure(text_color=T.MUTED)
+            self.progress.configure(progress_color=T.ACCENT, fg_color=T.BORDER)
+            for btn in (
+                self.close_instances_btn, self.settings_btn,
+                getattr(self, "theme_btn", None), getattr(self, "undo_btn", None),
+                getattr(self, "redo_btn", None),
+            ):
+                if btn is not None:
+                    btn.configure(border_color=T.BORDER, text_color=T.TEXT, hover_color=T.CARD_HOVER)
+            self.generate_btn.configure(
+                fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+            )
+            for header in getattr(self, "_group_headers", []):
+                header.configure(text_color=T.MUTED)
+            for k, btn in self._nav_btns.items():
+                if k == self._active:
+                    btn.configure(fg_color=T.ACCENT_SEL, text_color=T.TEXT, border_color=T.ACCENT_BORDER)
+                else:
+                    btn.configure(text_color=T.MUTED, hover_color=T.CARD_HOVER)
+            self.inspector_body.configure(
+                scrollbar_button_color=T.BORDER, scrollbar_button_hover_color=T.ACCENT,
+            )
+            if getattr(self, "toast", None) is not None:
+                self.toast.configure(fg_color=T.CARD, border_color=T.ACCENT_BORDER)
+        except Exception:
+            # Live re-theming is a bonus on top of the persisted preference,
+            # which always applies correctly on next launch — never raise.
+            pass

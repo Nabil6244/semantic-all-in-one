@@ -328,7 +328,7 @@ class TestNavigationPlacement(unittest.TestCase):
     def test_about_is_the_final_nav_item_after_qa(self):
         from ui.theme import NAV_ITEMS
 
-        keys = [k for k, _label in NAV_ITEMS]
+        keys = [k for k, _label, _group in NAV_ITEMS]
         self.assertEqual(keys[-1], "about")
         self.assertEqual(keys[-2], "qa")
 
@@ -336,7 +336,8 @@ class TestNavigationPlacement(unittest.TestCase):
         from ui.theme import NAV_ITEMS
         from licensing import terms
 
-        self.assertEqual(dict(NAV_ITEMS)["about"], terms.TITLE)
+        labels = {k: label for k, label, _group in NAV_ITEMS}
+        self.assertEqual(labels["about"], terms.TITLE)
 
 
 class TestFailureBoundaries(unittest.TestCase):

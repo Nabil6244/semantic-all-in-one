@@ -134,7 +134,37 @@ def probe_media_duration(
     log_failures: bool = True,
     fallback_for_log: Optional[float] = None,
 ) -> Optional[float]:
-    """Measure a media file with ffprobe. None on any failure — never raises.
+    """Measure a media file with ffprobe — memoized per (path, size, mtime)
+    within this process (PHASE 7), so the same unchanged file is only ever
+    actually probed once per run no matter how many pipeline stages ask for
+    its duration. ffprobe remains authoritative: a changed file (different
+    size/mtime) always gets a fresh probe, never a stale cached value. See
+    ``media_metadata_cache.py``.
+    """
+    try:
+        from media_metadata_cache import cached_probe_duration
+
+        return cached_probe_duration(
+            path,
+            _probe_media_duration_uncached,
+            log_failures=log_failures,
+            fallback_for_log=fallback_for_log,
+        )
+    except Exception:
+        # Caching is a pure optimization; any failure in the cache layer
+        # itself must never prevent the (authoritative) probe from running.
+        return _probe_media_duration_uncached(
+            path, log_failures=log_failures, fallback_for_log=fallback_for_log
+        )
+
+
+def _probe_media_duration_uncached(
+    path: Path | str,
+    *,
+    log_failures: bool = True,
+    fallback_for_log: Optional[float] = None,
+) -> Optional[float]:
+    """The real ffprobe call — unchanged from before caching was added.
 
     Duration is advisory metadata: a probe that fails must leave the asset
     usable, not fail the scene. Failures are logged when ``log_failures``.

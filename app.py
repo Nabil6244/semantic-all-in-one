@@ -29,6 +29,7 @@ def _safe_mac_ver():
 
 platform.mac_ver = _safe_mac_ver
 
+import contextlib
 import csv
 import json
 import multiprocessing
@@ -96,6 +97,8 @@ from ui.shell import AppShell
 from ui import views as ui_views
 from ui import theme as _ui_theme
 from ui import scene_list as _scene_list
+from ui.undo_stack import Command, UndoStack
+import editorial_timeline_edit as _tl_edit
 
 
 def _is_frozen() -> bool:
@@ -569,6 +572,62 @@ STAGE_PROGRESS = {
     "[4/4]": 95,
 }
 
+# PHASE 8: in-process preview-thumbnail memoization, keyed by the source
+# video's (resolved path, size, mtime_ns) — same identity convention as
+# media_metadata_cache.py. Re-showing the preview for an unchanged output
+# file skips the ffmpeg frame-extraction subprocess entirely. Process-local
+# only, never persisted, and any lookup/store failure just falls back to
+# re-extracting, exactly as before this cache existed.
+_THUMBNAIL_CACHE: dict[tuple, bytes] = {}
+
+
+def _video_identity(path: Path) -> Optional[tuple]:
+    try:
+        st = path.stat()
+        return (str(path.resolve()), st.st_size, st.st_mtime_ns)
+    except OSError:
+        return None
+
+
+# Phase 2: scene-browser row thumbnails. Same identity-keyed, in-process,
+# never-persisted cache convention as _THUMBNAIL_CACHE above — separate
+# dict because these are small square CTkImage objects (not raw JPEG
+# bytes) sized for a 28px table row, not the post-render preview panel.
+_SCENE_THUMB_CACHE: dict[tuple, "ctk.CTkImage"] = {}
+_SCENE_THUMB_SIZE = 22
+
+
+def _scene_thumbnail_image(path, size: int = _SCENE_THUMB_SIZE) -> Optional["ctk.CTkImage"]:
+    """Still-image scenes only (Flow/stock/manual PNG/JPG) — decoding a video
+    frame per row via ffmpeg would not stay lazy-cheap at 200+ scenes, so
+    video-sourced scenes simply show no thumbnail here (their badge/status
+    already indicates type). Never raises: any decode failure just means no
+    thumbnail for that row, never a broken scene list. ``size`` lets the
+    same cache serve both the dense scene-row icon and the larger Inspector
+    preview (Phase 2 item I) — each size is keyed separately."""
+    if not path:
+        return None
+    p = Path(path)
+    if p.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp", ".bmp"):
+        return None
+    key = _video_identity(p)
+    if key is None:
+        return None
+    key = key + (size,)
+    cached = _SCENE_THUMB_CACHE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        from PIL import Image
+
+        img = Image.open(p).convert("RGB")
+        img.thumbnail((size, size))
+        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
+        _SCENE_THUMB_CACHE[key] = ctk_img
+        return ctk_img
+    except Exception:
+        return None
+
 
 class _PipelineCancelled(Exception):
     """Raised inside _run_pipeline when asset resolution was cancelled by the user,
@@ -710,6 +769,11 @@ class VideoGeneratorApp(ctk.CTk):
             status_line_var=self.status_line_var,
             cache_var=self.cache_status_var,
             logo_image=self._logo_ctk,
+            on_toggle_theme=self._on_toggle_theme,
+            theme_label_var=self._theme_label_var,
+            on_undo=self._on_undo,
+            on_redo=self._on_redo,
+            save_state_var=self._save_state_var,
         )
         self._shell.grid(row=0, column=0, sticky="nsew")
         self._topbar = self._shell.topbar
@@ -738,6 +802,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._view_render = ui_views.RenderView(self._shell.center, self)
         self._view_qa = ui_views.QAView(self._shell.center, self)
         self._view_about = ui_views.AboutOwnershipView(self._shell.center, self)
+        self._view_timeline = ui_views.TimelineView(self._shell.center, self)
+        self._view_graphics = ui_views.GraphicsView(self._shell.center, self)
+        from ui.editor_view import EditorView
+
+        self._view_editor = EditorView(self._shell.center, self)
         self._shell.center.grid_columnconfigure(0, weight=1)
         self._shell.center.grid_rowconfigure(0, weight=1)
         for key, view in (
@@ -753,6 +822,9 @@ class VideoGeneratorApp(ctk.CTk):
             ("render", self._view_render),
             ("qa", self._view_qa),
             ("about", self._view_about),
+            ("timeline", self._view_timeline),
+            ("graphics", self._view_graphics),
+            ("editor", self._view_editor),
         ):
             self._shell.register_view(key, view)
 
@@ -768,6 +840,37 @@ class VideoGeneratorApp(ctk.CTk):
         self._scene_scroll_frac = 0.0
         self._editorial_plan_cache: dict | None = None
         self._editorial_plan_mtime = 0.0
+        # PHASE 3: scene_number -> scene-dict index, built once per plan load
+        # instead of _editorial_scene_lookup linearly rescanning plan["scenes"]
+        # on every call. Invalidated everywhere _editorial_plan_cache is.
+        self._editorial_scene_index: dict | None = None
+        self._bind_global_shortcuts()
+
+    def _bind_global_shortcuts(self) -> None:
+        """Keyboard-first UX (spec item 22): Undo/Redo work from anywhere in
+        the app, not only while the Timeline canvas has focus — but never
+        while the user is typing into a text field."""
+        for seq in ("<Control-z>", "<Command-z>"):
+            self.bind_all(seq, self._on_global_undo_shortcut)
+        for seq in ("<Control-Shift-Z>", "<Command-Shift-Z>", "<Control-Shift-z>", "<Command-Shift-z>"):
+            self.bind_all(seq, self._on_global_redo_shortcut)
+
+    @staticmethod
+    def _typing_target(event) -> bool:
+        widget = getattr(event, "widget", None)
+        return isinstance(widget, (ctk.CTkEntry, ctk.CTkTextbox)) or widget.__class__.__name__ in (
+            "Entry", "Text", "CTkEntry", "CTkTextbox",
+        )
+
+    def _on_global_undo_shortcut(self, event) -> None:
+        if self._typing_target(event):
+            return
+        self._on_undo()
+
+    def _on_global_redo_shortcut(self, event) -> None:
+        if self._typing_target(event):
+            return
+        self._on_redo()
 
     def _on_shell_nav(self, key: str) -> None:
         # Preserve Visual Plan scroll index across navigations.
@@ -794,6 +897,64 @@ class VideoGeneratorApp(ctk.CTk):
             shell.navigate(key)
         except Exception:
             return
+
+    # ---------- Phase 2: theme, undo/redo, save-state ----------
+
+    def _theme_button_label(self) -> str:
+        mode = _ui_theme.current_mode()
+        return {"dark": "🌙 Dark", "light": "☀ Light", "system": "🖥 System"}.get(mode, "Theme")
+
+    def _on_toggle_theme(self) -> None:
+        """Cycle Dark -> Light -> System -> Dark. Persists immediately and
+        re-themes the shell chrome live; full effect on already-built view
+        content applies next launch (see ui/theme.py's set_mode docstring)."""
+        order = ("dark", "light", "system")
+        current = _ui_theme.current_mode()
+        nxt = order[(order.index(current) + 1) % len(order)] if current in order else "dark"
+        _ui_theme.set_mode(nxt)
+        self._theme_label_var.set(self._theme_button_label())
+        shell = getattr(self, "_shell", None)
+        if shell is not None:
+            shell.apply_theme_chrome()
+
+    def _on_undo_stack_change(self) -> None:
+        shell = getattr(self, "_shell", None)
+        if shell is None:
+            return
+        undo_btn = getattr(shell, "undo_btn", None)
+        redo_btn = getattr(shell, "redo_btn", None)
+        try:
+            if undo_btn is not None:
+                undo_btn.configure(state="normal" if self._timeline_undo.can_undo() else "disabled")
+            if redo_btn is not None:
+                redo_btn.configure(state="normal" if self._timeline_undo.can_redo() else "disabled")
+        except Exception:
+            pass
+
+    def _on_undo(self) -> None:
+        label = self._timeline_undo.undo()
+        if label is not None:
+            self._mark_unsaved(f"Undid: {label}")
+        view = getattr(self, "_view_timeline", None)
+        if view is not None and hasattr(view, "refresh_canvas"):
+            view.refresh_canvas()
+
+    def _on_redo(self) -> None:
+        label = self._timeline_undo.redo()
+        if label is not None:
+            self._mark_unsaved(f"Redid: {label}")
+        view = getattr(self, "_view_timeline", None)
+        if view is not None and hasattr(view, "refresh_canvas"):
+            view.refresh_canvas()
+
+    def _mark_saved(self) -> None:
+        self._save_state_var.set("Saved")
+
+    def _mark_saving(self) -> None:
+        self._save_state_var.set("Saving…")
+
+    def _mark_unsaved(self, _reason: str = "") -> None:
+        self._save_state_var.set("Unsaved changes")
 
     def _open_issues_drawer(self) -> None:
         """Show Issues drawer when unresolved scenes exist (Need Attention / bulk retry)."""
@@ -842,6 +1003,7 @@ class VideoGeneratorApp(ctk.CTk):
         ws = self._workspace
         if ws is None:
             self._editorial_plan_cache = None
+            self._editorial_scene_index = None
             return {}
         path = ws.state_dir / "editorial_plan.json"
         try:
@@ -860,20 +1022,40 @@ class VideoGeneratorApp(ctk.CTk):
                 data = {}
         self._editorial_plan_cache = data
         self._editorial_plan_mtime = mtime
+        self._editorial_scene_index = None  # stale — rebuilt lazily on next lookup
         return data
+
+    def _editorial_scene_index_for(self, plan: dict) -> dict:
+        """scene_number -> scene dict, built once per plan load (PHASE 3).
+
+        Reachable by both a scene's raw string scene_number and its
+        int-normalized form (e.g. "007" and "7" resolve to the same entry),
+        matching _editorial_scene_lookup's original two-pass string-then-int
+        comparison exactly — only the O(n)-per-call rescan is removed.
+        """
+        if self._editorial_scene_index is not None:
+            return self._editorial_scene_index
+        index: dict = {}
+        for s in plan.get("scenes") or []:
+            raw_key = str(s.get("scene_number"))
+            index.setdefault(raw_key, s)
+            try:
+                index.setdefault(str(int(raw_key)), s)
+            except (TypeError, ValueError):
+                pass
+        self._editorial_scene_index = index
+        return index
 
     def _editorial_scene_lookup(self, scene_number) -> dict:
         plan = self._load_editorial_plan_cached()
+        index = self._editorial_scene_index_for(plan)
         key = str(scene_number)
-        for s in plan.get("scenes") or []:
-            if str(s.get("scene_number")) == key:
-                return s
-            try:
-                if int(str(s.get("scene_number"))) == int(str(scene_number)):
-                    return s
-            except (TypeError, ValueError):
-                continue
-        return {}
+        if key in index:
+            return index[key]
+        try:
+            return index.get(str(int(key)), {})
+        except (TypeError, ValueError):
+            return {}
 
     @staticmethod
     def _format_scene_timecode(seconds: float) -> str:
@@ -904,6 +1086,7 @@ class VideoGeneratorApp(ctk.CTk):
         """
         self._editorial_plan_cache = None
         self._editorial_plan_mtime = 0.0
+        self._editorial_scene_index = None
         ws = self._workspace
         if ws is None:
             return
@@ -945,6 +1128,12 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showerror("Open clip", str(exc))
 
     def _init_ui_vars(self) -> None:
+        self._theme_label_var = ctk.StringVar(value=self._theme_button_label())
+        self._save_state_var = ctk.StringVar(value="")
+        self._export_progress_var = ctk.StringVar(value="Idle")
+        self._render_cache_hits = 0
+        self._timeline_undo = UndoStack()
+        self._timeline_undo.bind_on_change(self._on_undo_stack_change)
         self.csv_var = ctk.StringVar()
         self.audio_var = ctk.StringVar()
         self.images_var = ctk.StringVar()
@@ -1787,6 +1976,15 @@ class VideoGeneratorApp(ctk.CTk):
         if insp_parent is not None:
             details_col.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
             insp_parent.grid_rowconfigure(0, weight=1)
+        # Phase 2 item I: lightweight selected-scene preview — a static
+        # image of the resolved asset (still images only; see
+        # _scene_thumbnail_image). No new media-playback engine: full
+        # play/pause/seek over the rendered timeline stays deferred (see
+        # the Phase 2 report's PREVIEW note).
+        self._inspector_preview_label = ctk.CTkLabel(details_col, text="", height=120)
+        self._inspector_preview_label.pack(fill="x", padx=8, pady=(6, 0))
+        self._inspector_preview_label.pack_forget()
+
         self.details_title_var = ctk.StringVar(value="Selected scene")
         ctk.CTkLabel(
             details_col, textvariable=self.details_title_var, font=ctk.CTkFont(size=11, weight="bold"),
@@ -1841,6 +2039,40 @@ class VideoGeneratorApp(ctk.CTk):
         self.details_stop_btn.configure(state="disabled")
         details_actions.bind("<Configure>", self._on_inspector_configure, add="+")
         self._layout_inspector_actions()
+
+        # Phase 2: extended Inspector actions (spec item G). Kept in their
+        # own always-2-column row rather than joining the width-responsive
+        # grid above, so the existing 7-button layout logic is untouched.
+        ext_actions = ctk.CTkFrame(details_col, fg_color="transparent")
+        ext_actions.pack(fill="x", padx=8, pady=(0, 6))
+        for i in range(2):
+            ext_actions.grid_columnconfigure(i, weight=1, uniform="insp_ext")
+        self._details_ext_actions = ext_actions
+
+        def _ext_btn(row, col, text, action, *, danger=False):
+            btn = ctk.CTkButton(
+                ext_actions, text=text, height=26,
+                fg_color="transparent", border_width=1,
+                border_color=(_DANGER if danger else _BORDER),
+                text_color=(_DANGER if danger else _ACCENT), font=ctk.CTkFont(size=11),
+                command=lambda: self._details_action(action),
+            )
+            btn.grid(row=row, column=col, sticky="ew", padx=(0, 4), pady=2)
+            return btn
+
+        self.details_add_sfx_btn = _ext_btn(0, 0, "Add SFX", "add_sfx")
+        self.details_add_ambience_btn = _ext_btn(0, 1, "Add Ambience", "add_ambience")
+        self.details_add_graphic_btn = _ext_btn(1, 0, "Add Graphic", "add_graphic")
+        self.details_edit_timing_btn = _ext_btn(1, 1, "Edit Timing", "edit_timing")
+        self.details_add_broll_btn = _ext_btn(2, 0, "Add B-roll", "add_broll")
+        self.details_add_broll_btn.configure(state="disabled")
+        # No tooltip widget in this UI kit — explain via the status-bar hint
+        # on hover instead of pretending the disabled action does something.
+        self.details_add_broll_btn.bind(
+            "<Enter>", lambda _e: self.hint_var.set("B-roll: not yet supported by the render pipeline")
+        )
+        self.details_add_broll_btn.bind("<Leave>", lambda _e: self.hint_var.set(""))
+        self.details_reset_btn = _ext_btn(2, 1, "Reset Scene", "reset_scene", danger=True)
 
         self._issues_drawer = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
         qa_bulk = ctk.CTkFrame(self._issues_drawer, fg_color="transparent")
@@ -3047,6 +3279,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._workspace = ws
         self._editorial_plan_cache = None
         self._editorial_plan_mtime = 0.0
+        self._editorial_scene_index = None
+        if hasattr(self, "_timeline_undo"):
+            self._timeline_undo.clear()
+        if hasattr(self, "_mark_saved"):
+            self._mark_saved()
         ws.ensure_dirs()
         if clear_session:
             self._asset_manager = None
@@ -3315,6 +3552,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._scene_row_widgets = {}
         self._editorial_plan_cache = None
         self._editorial_plan_mtime = 0.0
+        self._editorial_scene_index = None
         if hasattr(self, "details_title_var"):
             self.details_title_var.set("Selected scene")
         if hasattr(self, "details_text_var"):
@@ -5246,7 +5484,7 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self._scene_header_check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=2)
         cols = (
-            ("#", 28),
+            ("#", 46),
             ("Time", 72),
             ("Narration", 110),
             ("Visual", 100),
@@ -5323,6 +5561,8 @@ class VideoGeneratorApp(ctk.CTk):
         )
         row.grid(row=(grid_row if grid_row is not None else i + 1), column=0, sticky="ew", pady=0)
         row.grid_columnconfigure(3, weight=1)
+        row.bind("<Button-3>", lambda e, s=scene: self._show_scene_context_menu(e, s))
+        row.bind("<Button-2>", lambda e, s=scene: self._show_scene_context_menu(e, s))  # macOS trackpad right-click
 
         key = _scene_key(scene.scene_number)
         check_var = ctk.BooleanVar(value=key in self._qa.selected_failed)
@@ -5333,10 +5573,34 @@ class VideoGeneratorApp(ctk.CTk):
         )
         check.grid(row=0, column=0, sticky="w", padx=(6, 0), pady=1)
 
+        num_cell = ctk.CTkFrame(row, fg_color="transparent", width=46)
+        num_cell.grid(row=0, column=1, sticky="w", padx=2)
+        thumb_label = ctk.CTkLabel(num_cell, text="", width=_SCENE_THUMB_SIZE)
+        thumb_label.pack(side="left", padx=(0, 3))
         ctk.CTkLabel(
-            row, text=f"{scene.scene_number}", width=28,
+            num_cell, text=f"{scene.scene_number}",
             font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
-        ).grid(row=0, column=1, sticky="w", padx=2)
+        ).pack(side="left")
+
+        def _load_thumb(lbl=thumb_label, sn=scene.scene_number, gen=self._scene_render_gen):
+            # Skipped if the row's whole render pass was superseded (project
+            # switch, list rebuild) — never paints a thumbnail onto a stale
+            # or already-destroyed row.
+            if gen != self._scene_render_gen:
+                return
+            result = self._asset_results.get(_scene_key(sn))
+            if result is None or not getattr(result, "ok", False):
+                return
+            if result.media_type != MediaType.IMAGE:
+                return
+            img = _scene_thumbnail_image(result.path)
+            if img is not None:
+                try:
+                    lbl.configure(image=img)
+                except Exception:
+                    pass
+
+        self.after_idle(_load_thumb)
 
         time_label = ctk.CTkLabel(
             row, text=self._scene_time_label(scene.scene_number), width=72, anchor="w",
@@ -6408,11 +6672,34 @@ class VideoGeneratorApp(ctk.CTk):
             meta["visual_qa"]["status"] = "PASS"
         self._refresh_qa_ui()
 
+    def _update_inspector_preview(self, selected: list) -> None:
+        lbl = getattr(self, "_inspector_preview_label", None)
+        if lbl is None:
+            return
+        try:
+            if len(selected) != 1:
+                lbl.pack_forget()
+                return
+            key = _scene_key(selected[0].scene_number)
+            result = self._asset_results.get(key)
+            if result is None or not getattr(result, "ok", False) or result.media_type != MediaType.IMAGE:
+                lbl.pack_forget()
+                return
+            img = _scene_thumbnail_image(result.path, size=200)
+            if img is None:
+                lbl.pack_forget()
+                return
+            lbl.configure(image=img, text="")
+            lbl.pack(fill="x", padx=8, pady=(6, 0), before=self._details_text_label)
+        except Exception:
+            lbl.pack_forget()
+
     def _update_details_panel(self, snap=None) -> None:
         snap = snap or self._qa_snapshot()
         selected = self._selected_scenes()
         panel = getattr(self, "_details_panel", None)
         self._ensure_details_in_inspector()
+        self._update_inspector_preview(selected)
         if not selected:
             self.details_title_var.set("Selected scene")
             self.details_text_var.set("Select a scene in Visual Plan to inspect assets and editorial cues.")
@@ -6597,6 +6884,39 @@ class VideoGeneratorApp(ctk.CTk):
         if key:
             self._focus_scene(key, scroll=True)
 
+    def _show_scene_context_menu(self, event, scene: SceneRow) -> None:
+        """Right-click menu (spec item H) — reuses the exact same
+        _details_action dispatch the Inspector buttons use, so there is
+        never a second copy of any action's business logic."""
+        import tkinter as tk
+
+        self._focus_scene(_scene_key(scene.scene_number), scroll=False)
+        menu = tk.Menu(self, tearoff=0)
+        entries = [
+            ("Replace Visual…", "change_source"),
+            ("Regenerate Visual", "retry"),
+            ("Alternative", "alternative"),
+            ("Open", "open"),
+            ("Add Local Clip…", "local_clip"),
+            (None, None),
+            ("Add SFX", "add_sfx"),
+            ("Add Ambience", "add_ambience"),
+            ("Add Graphic", "add_graphic"),
+            ("Edit Timing…", "edit_timing"),
+            (None, None),
+            ("Reset Scene", "reset_scene"),
+            ("Skip…", "skip"),
+        ]
+        for label, action in entries:
+            if label is None:
+                menu.add_separator()
+                continue
+            menu.add_command(label=label, command=lambda a=action: self._details_action(a))
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
     def _details_action(self, action: str) -> None:
         scenes = self._selected_scenes()
         if not scenes:
@@ -6630,7 +6950,80 @@ class VideoGeneratorApp(ctk.CTk):
         if action == "local_clip":
             self._add_local_clip(scene)
             return
+        if action in ("add_sfx", "add_ambience", "add_graphic"):
+            self._inspector_add_timeline_event(scene, action)
+            return
+        if action == "edit_timing":
+            self._inspector_edit_timing(scene)
+            return
+        if action == "reset_scene":
+            # Reuses the existing "retry" capability verbatim (spec item G:
+            # "Do NOT create fake actions") — Reset Scene is just the
+            # Inspector-facing name for re-triggering generation from scratch.
+            self._scene_action("retry", scene)
+            return
+        if action == "add_broll":
+            return  # disabled in the UI; no-op if ever reached
         self._scene_action(action, scene)
+
+    def _inspector_add_timeline_event(self, scene: SceneRow, action: str) -> None:
+        """Add SFX / Add Ambience / Add Graphic (spec item G) — all three
+        insert a short placeholder TimelineEvent via editorial_timeline_edit
+        (the same module the Timeline view edits through), scoped to this
+        scene's own window, then persist immediately."""
+        ws = self._workspace
+        if ws is None:
+            return
+        ed = self._editorial_scene_lookup(scene.scene_number)
+        start = float(ed.get("start") or 0.0)
+        end = float(ed.get("end") or (start + 2.0))
+        track, metadata, label = {
+            "add_sfx": ("SFX", {}, "SFX"),
+            "add_ambience": ("AMBIENCE", {}, "Ambience"),
+            "add_graphic": (
+                "TEXT",
+                {"graphic": True, "role": "LABEL",
+                 "text_overlay": {"role": "LABEL", "text": "New label", "start": start, "end": min(end, start + 3.0)}},
+                "Graphic",
+            ),
+        }[action]
+        timeline = _tl_edit.load_timeline(ws.state_dir)
+        new_end = min(end, start + 3.0) if track != "SFX" else min(end, start + 1.0)
+        new_id = _tl_edit.add_event(
+            timeline, track=track, start=start, end=max(new_end, start + 0.5),
+            scene_number=str(scene.scene_number), metadata=metadata,
+        )
+        if new_id is None:
+            messagebox.showinfo(label, f"Could not add {label.lower()} to scene {scene.scene_number}.")
+            return
+        self._mark_saving()
+        ok = _tl_edit.save_timeline(ws.state_dir, timeline)
+        if ok:
+            self._mark_saved()
+            self._timeline_undo.push(
+                Command(f"Add {label}", do=lambda: None, undo=lambda: None), run=False,
+            )
+            self.status_var.set(f"Added {label.lower()} to scene {scene.scene_number} — see Timeline")
+        else:
+            self._mark_unsaved()
+            messagebox.showinfo(
+                label, "Render once to create the editorial timeline before adding overlays.",
+            )
+
+    def _inspector_edit_timing(self, scene: SceneRow) -> None:
+        """Jump to the Timeline workspace for this scene — the interactive
+        timeline IS the timing editor (spec item J/K); no separate dialog
+        duplicates that."""
+        shell = getattr(self, "_shell", None)
+        if shell is None:
+            return
+        shell.navigate("timeline")
+        view = getattr(self, "_view_timeline", None)
+        if view is not None:
+            try:
+                view._selection_var.set(f"Scene {scene.scene_number} — select a clip below to edit its timing")
+            except Exception:
+                pass
 
     def _add_local_clip_bulk(self, scenes: list) -> None:
         if not scenes:
@@ -6864,6 +7257,47 @@ class VideoGeneratorApp(ctk.CTk):
             win, fg_color=_BG, scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
         )
         body.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(
+            body, text="APPEARANCE", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(20, 4))
+        appearance_row = ctk.CTkFrame(body, fg_color="transparent")
+        appearance_row.pack(anchor="w", padx=20, pady=(0, 8), fill="x")
+
+        def _set_theme(mode: str) -> None:
+            _ui_theme.set_mode(mode)
+            self._theme_label_var.set(self._theme_button_label())
+            if getattr(self, "_shell", None) is not None:
+                self._shell.apply_theme_chrome()
+            _refresh_theme_buttons()
+
+        theme_btns = {}
+        for mode, label in (("dark", "Dark"), ("light", "Light"), ("system", "System")):
+            b = ctk.CTkButton(
+                appearance_row, text=label, width=90, height=30,
+                fg_color="transparent", border_width=1, border_color=_BORDER,
+                text_color=_TEXT, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=12),
+                command=lambda m=mode: _set_theme(m),
+            )
+            b.pack(side="left", padx=(0, 6))
+            theme_btns[mode] = b
+
+        def _refresh_theme_buttons() -> None:
+            current = _ui_theme.current_mode()
+            for mode, b in theme_btns.items():
+                if mode == current:
+                    b.configure(fg_color=_ACCENT, border_color=_ACCENT_BORDER, text_color=_ACCENT_DARK)
+                else:
+                    b.configure(fg_color="transparent", border_color=_BORDER, text_color=_TEXT)
+
+        _refresh_theme_buttons()
+        ctk.CTkLabel(
+            body,
+            text="Dark is the default. Changing this updates the workspace chrome "
+                 "immediately; individual panels pick up the new colors next launch.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, justify="left", anchor="w",
+            wraplength=420,
+        ).pack(anchor="w", padx=20, pady=(0, 12))
 
         if self._auth_required():
             ctk.CTkLabel(
@@ -7644,6 +8078,10 @@ class VideoGeneratorApp(ctk.CTk):
             if mode == "assets"
             else "Starting render pipeline…\n"
         )
+        if getattr(self, "_shell", None) is not None:
+            self._shell.notify(
+                "Generating assets…" if mode == "assets" else "Export started", tone="info",
+            )
         # Hide stale preview from a previous run
         self._preview_panel.grid_forget()
         self._right_panel.grid_rowconfigure(4, weight=0)
@@ -7676,6 +8114,23 @@ class VideoGeneratorApp(ctk.CTk):
         writer = _QueueWriter(self._ui_queue)
         sys.stdout = writer  # type: ignore[assignment]
         sys.stderr = writer  # type: ignore[assignment]
+
+        # PHASE 2: perf instrumentation for this run. Failure-safe by design
+        # (see perf_instrumentation.py) — never able to break the pipeline.
+        try:
+            from perf_instrumentation import PerfRecorder
+
+            perf = PerfRecorder()
+        except Exception:
+            perf = None
+
+        def _progress_cb(evt) -> None:
+            # PHASE 9: structured progress, pushed through the existing
+            # _ui_queue — never a new threading/communication mechanism.
+            try:
+                self._ui_queue.put(("progress", evt))
+            except Exception:
+                pass
 
         # video_generator writes _vg_render_clips / concat_list.txt relative to cwd.
         # Packaged .app bundles are read-only — use a temp work dir instead.
@@ -7916,10 +8371,11 @@ class VideoGeneratorApp(ctk.CTk):
                     whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
                     print("[SMART] Reusing cached word alignment.")
             if whisper_words is None:
-                whisper_words = vg.transcribe_audio(
-                    str(config["audio_path"]),
-                    config["model"],
-                )
+                with perf.timer("whisper") if perf is not None else contextlib.nullcontext():
+                    whisper_words = vg.transcribe_audio(
+                        str(config["audio_path"]),
+                        config["model"],
+                    )
             aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
             visual_plan = getattr(self, "_visual_plan", None)
@@ -7944,19 +8400,20 @@ class VideoGeneratorApp(ctk.CTk):
                     settings_key=editorial_settings_key,
                 )
             if editorial_plan is None:
-                editorial_plan = build_editorial_plan(
-                    config["rows"],
-                    aligned,
-                    audio_end,
-                    visual_plan=visual_plan,
-                    settings_key=editorial_settings_key,
-                    audio_key=audio_key,
-                    resolved_style=resolved_style,
-                    # Resolved assets carry the measured length of the delivered
-                    # file, so the editor plans from the real source rather than
-                    # assuming the configured duration was honoured.
-                    asset_results=self._asset_results,
-                )
+                with perf.timer("editorial") if perf is not None else contextlib.nullcontext():
+                    editorial_plan = build_editorial_plan(
+                        config["rows"],
+                        aligned,
+                        audio_end,
+                        visual_plan=visual_plan,
+                        settings_key=editorial_settings_key,
+                        audio_key=audio_key,
+                        resolved_style=resolved_style,
+                        # Resolved assets carry the measured length of the delivered
+                        # file, so the editor plans from the real source rather than
+                        # assuming the configured duration was honoured.
+                        asset_results=self._asset_results,
+                    )
                 if state_dir is not None:
                     save_editorial_plan(state_dir, editorial_plan)
                     print(f"[EDITORIAL] Saved plan for {len(editorial_plan.scenes)} scene(s).")
@@ -8000,6 +8457,76 @@ class VideoGeneratorApp(ctk.CTk):
             except Exception as exc:
                 print(f"[EDITORIAL] Compile skipped ({exc})")
                 edit_decision_map = {}
+
+            # Editor integration: if the operator opened the CapCut-style
+            # Editor and edited the timeline (trim/split/delete/reorder/
+            # replace/speed on VIDEO_1/VIDEO_2/IMAGE, or moved/added/edited
+            # TEXT/GRAPHICS/SFX/AMBIENCE/MUSIC), that edited timeline is the
+            # operator's authoritative intent — reconcile it back into
+            # edit_decisions/plan.timeline so THIS render (and the
+            # first-cut's own future re-opens) reflect it exactly. A
+            # project that was never opened in the Editor renders exactly
+            # as before this feature existed (no saved timeline -> no-op).
+            if mode != "firstcut" and state_dir is not None:
+                try:
+                    import editorial_timeline_edit as _tl_edit
+                    from editorial.edit_decision import EditDecision as _EditDecision
+                    from editorial.engine import edit_decisions_from_plan as _decisions_from_plan
+
+                    operator_timeline = _tl_edit.load_timeline(state_dir)
+                    if operator_timeline.events:
+                        base_decisions = _decisions_from_plan(editorial_plan)
+                        reconciled = _tl_edit.reconcile_timeline_into_decisions(
+                            base_decisions, operator_timeline,
+                        )
+                        editorial_plan.edit_decisions = [
+                            d.to_dict() if isinstance(d, _EditDecision) else d for d in reconciled
+                        ]
+                        editorial_plan.timeline = operator_timeline.to_dict()
+                        save_editorial_plan(state_dir, editorial_plan)
+                        edit_decision_map = decision_map_from_plan(editorial_plan)
+                        print(
+                            f"[EDITORIAL] Reconciled {len(operator_timeline.events)} "
+                            "operator-edited timeline event(s) into this render."
+                        )
+                except Exception as exc:
+                    print(f"[EDITORIAL] Timeline reconciliation skipped ({exc})")
+
+            if mode == "firstcut":
+                from firstcut import save_first_cut_timeline
+
+                # Plan real, resolved SFX/ambience (same call the render
+                # pipeline makes below) so the first cut's SFX/AMBIENCE
+                # clips are the ones that will actually be heard, not the
+                # editorial engine's semantic-only placeholders — see
+                # editorial_timeline_edit.materialize_sfx_ambience_events.
+                fc_sfx_events: list = []
+                fc_ambience_beds: list = []
+                if smart_cfg.enabled():
+                    try:
+                        fc_plan = build_plan(
+                            config["rows"], aligned, whisper_words, smart_cfg,
+                            state_dir=state_dir, audio_path=config["audio_path"],
+                            gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                            editorial_plan=editorial_plan,
+                        )
+                        fc_sfx_events = fc_plan.sfx_events if smart_cfg.sound_effects else []
+                        fc_ambience_beds = fc_plan.scene_ambience if smart_cfg.scene_ambience else []
+                    except Exception as exc:
+                        print(f"[FIRSTCUT] SFX/ambience planning skipped ({exc})")
+
+                ok = save_first_cut_timeline(
+                    state_dir, editorial_plan, bg_path=config.get("bg_path"),
+                    sfx_events=fc_sfx_events, ambience_beds=fc_ambience_beds,
+                )
+                print(
+                    f"[FIRSTCUT] Timeline saved ({len(editorial_plan.scenes)} scene(s), "
+                    f"{len(fc_sfx_events)} SFX, {len(fc_ambience_beds)} ambience bed(s))."
+                    if ok else "[FIRSTCUT] No timeline to save."
+                )
+                self._ui_queue.put(("firstcut_complete", {"ok": ok}))
+                return
+
             # Brand accent → typography theme for this render only.
             try:
                 from typography.theme import get_theme, set_theme
@@ -8090,10 +8617,36 @@ class VideoGeneratorApp(ctk.CTk):
                     if len(plan.scene_ambience) > 8:
                         mix += f", +{len(plan.scene_ambience) - 8} more"
                     print(f"[SMART] {len(plan.scene_ambience)} scene ambience bed(s): {mix}")
-                needs_audio_mix = (
-                    (smart_cfg.sound_effects and plan.sfx_events)
-                    or (smart_cfg.scene_ambience and plan.scene_ambience)
-                )
+                sfx_for_mix = plan.sfx_events if smart_cfg.sound_effects else []
+                ambience_for_mix = plan.scene_ambience if smart_cfg.scene_ambience else []
+                # If the operator opened the Editor, their SFX/AMBIENCE
+                # clips (moved/trimmed/deleted/volume/muted) are what
+                # should actually be heard — not a fresh smart_editing plan
+                # that knows nothing about those edits. See
+                # editorial_timeline_edit.sfx_ambience_events_for_export.
+                if state_dir is not None:
+                    try:
+                        import editorial_timeline_edit as _tl_edit2
+                        from editorial.timeline import EditorialTimeline as _ET2
+
+                        op_tl = _ET2.from_dict(getattr(editorial_plan, "timeline", None) or {})
+                        op_sfx, op_amb = _tl_edit2.sfx_ambience_events_for_export(
+                            op_tl,
+                            muted_tracks=frozenset(op_tl.muted_tracks),
+                            solo_tracks=frozenset(op_tl.solo_tracks),
+                        )
+                        if op_sfx or op_amb or any(e.track in ("SFX", "AMBIENCE") for e in op_tl.events):
+                            # The operator timeline is authoritative for
+                            # these tracks once it exists, even if every
+                            # event was deleted (op_sfx/op_amb empty on
+                            # purpose) — an empty list is a real "operator
+                            # removed all SFX/ambience", not "no plan yet".
+                            sfx_for_mix = op_sfx if smart_cfg.sound_effects else []
+                            ambience_for_mix = op_amb if smart_cfg.scene_ambience else []
+                    except Exception as exc:
+                        print(f"[EDITORIAL] Operator SFX/ambience reconciliation skipped ({exc})")
+
+                needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:
                     mixed = work_dir / "narration_with_sfx.wav"
                     from sfx.seed import ensure_sfx_library
@@ -8103,10 +8656,10 @@ class VideoGeneratorApp(ctk.CTk):
                     mix_stats: dict = {}
                     mix_sfx_with_narration(
                         config["audio_path"],
-                        plan.sfx_events if smart_cfg.sound_effects else [],
+                        sfx_for_mix,
                         mixed,
                         sfx_root=sfx_library_root(),
-                        ambience_beds=plan.scene_ambience if smart_cfg.scene_ambience else [],
+                        ambience_beds=ambience_for_mix,
                         stats=mix_stats,
                     )
                     render_audio = str(mixed)
@@ -8151,7 +8704,16 @@ class VideoGeneratorApp(ctk.CTk):
                 editorial_timeline=editorial_timeline_for_render(
                     editorial_plan, text_effects=bool(smart_cfg.text_effects),
                 ),
+                render_cache_state_dir=state_dir,
+                perf=perf,
+                progress_cb=_progress_cb,
             )
+
+            if perf is not None:
+                try:
+                    print(perf.summary())
+                except Exception:
+                    pass
 
             # Editorial QA (never blocks render)
             if state_dir is not None:
@@ -8220,6 +8782,7 @@ class VideoGeneratorApp(ctk.CTk):
         logs: list[str] = []
         processed = 0
         batch_limit = self._UI_QUEUE_BATCH
+        latest_progress = None
         try:
             try:
                 while processed < batch_limit:
@@ -8228,6 +8791,13 @@ class VideoGeneratorApp(ctk.CTk):
                     if kind == "log":
                         logs.append(payload)
                         self._maybe_update_progress(payload)
+                    elif kind == "progress":
+                        # PHASE 9/10: coalesce — only the latest structured
+                        # progress event in this drain is applied to the UI,
+                        # matching the existing batch/debounce convention
+                        # (_UI_QUEUE_BATCH, _refresh_qa_ui) rather than
+                        # repainting once per event.
+                        latest_progress = payload
                     else:
                         if logs:
                             self._append_log("".join(logs))
@@ -8242,6 +8812,8 @@ class VideoGeneratorApp(ctk.CTk):
                             self._on_assets_partial(payload)
                         elif kind == "assets_complete":
                             self._on_assets_complete(payload)
+                        elif kind == "firstcut_complete":
+                            self._on_firstcut_complete(payload)
                         elif kind == "assets_status":
                             self._refresh_qa_ui()
                         elif kind == "scene_busy":
@@ -8327,6 +8899,8 @@ class VideoGeneratorApp(ctk.CTk):
                 pass
             if logs:
                 self._append_log("".join(logs))
+            if latest_progress is not None:
+                self._apply_progress_event(latest_progress)
         except Exception:
             # Never let a handler crash stop the poll loop.
             try:
@@ -8367,6 +8941,29 @@ class VideoGeneratorApp(ctk.CTk):
             "Successful assets were kept. Open Issues for Retry failed / Retry selected.",
         )
 
+    def _on_firstcut_complete(self, payload: dict) -> None:
+        """Completion of the "firstcut" pipeline mode (see firstcut.py) —
+        editorial plan compiled and the timeline saved, but no FFmpeg scene
+        rendering happened (zero render/Flow cost). Reuses the same
+        run-finished bookkeeping as assets/render completion."""
+        self._end_generate_run()
+        ok = bool((payload or {}).get("ok"))
+        self.status_var.set("First cut ready" if ok else "First cut failed")
+        self._append_log(
+            "\n✓ First cut built — opening the Editor.\n"
+            if ok
+            else "\n✗ Could not build a first cut (see log above).\n"
+        )
+        if ok and getattr(self, "_shell", None) is not None:
+            self._shell.navigate("editor")
+        callback = getattr(self, "_firstcut_on_done", None)
+        self._firstcut_on_done = None
+        if callback is not None:
+            try:
+                callback(ok, "First cut ready." if ok else "Could not build the first cut.")
+            except Exception:
+                pass
+
     def _on_assets_complete(self, payload: dict) -> None:
         self._end_generate_run()
         snap = self._qa_snapshot()
@@ -8380,7 +8977,19 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self._refresh_cleanup_button(defer=True)
         self._log_visual_qa_report()
-        self._goto_workflow_view("audio")
+        audio_ready = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
+        if audio_ready:
+            # Assets AND voiceover are both already in place (the operator
+            # picked audio before generating) — skip straight to an
+            # automatic first cut instead of making them re-click Import.
+            try:
+                from firstcut import build_first_cut_async
+
+                build_first_cut_async(self)
+            except Exception:
+                self._goto_workflow_view("audio")
+        else:
+            self._goto_workflow_view("audio")
 
     def _log_visual_qa_report(self) -> None:
         try:
@@ -8505,6 +9114,57 @@ class VideoGeneratorApp(ctk.CTk):
             self.fix_all_vqa_btn.configure(state="normal")
         messagebox.showerror("Fix All Issues", message)
 
+    def _apply_progress_event(self, evt) -> None:
+        """PHASE 9: consume a structured ProgressEvent (see progress_events.py),
+        mapping it onto the existing progress bar / status label rather than
+        adding new UI. Rendering/mux are the only producers today (per-scene
+        granularity); other phases still rely on the marker-based
+        ``_maybe_update_progress`` below. Also feeds the Export workspace's
+        plain-language progress text (Phase 2 spec item P)."""
+        try:
+            phase = getattr(evt, "phase", None)
+            percent = getattr(evt, "percent", None)
+            message = getattr(evt, "message", "") or ""
+            scene_id = getattr(evt, "scene_id", None)
+            eta = getattr(evt, "eta_seconds", None)
+            current = getattr(evt, "current", None)
+            total = getattr(evt, "total", None)
+            status = getattr(evt, "status", None)
+            if phase == "rendering" and percent is not None:
+                # Interpolate within the existing [3/4]→[4/4] band (70%-95%).
+                self.progress.set((70 + 0.25 * percent) / 100.0)
+            elif phase == "mux" and percent is not None:
+                self.progress.set((95 + 0.05 * percent) / 100.0)
+            text = message
+            if scene_id is not None:
+                text = f"{text} (scene {scene_id})"
+            if eta is not None and eta > 1:
+                text = f"{text} — ~{int(eta)}s left"
+            if text:
+                self.status_var.set(text.strip())
+            self._update_export_progress_text(phase, current, total, message, status)
+        except Exception:
+            pass
+
+    def _update_export_progress_text(self, phase, current, total, message, status) -> None:
+        """Plain-language Export workspace copy, e.g.:
+            Rendering
+            37 / 82 scenes
+            Cache: 36 reused
+        then "Finalizing video..." during mux — never raw FFmpeg output."""
+        var = getattr(self, "_export_progress_var", None)
+        if var is None:
+            return
+        if "(cached)" in (message or ""):
+            self._render_cache_hits = getattr(self, "_render_cache_hits", 0) + 1
+        if phase == "rendering" and current is not None and total is not None:
+            hits = getattr(self, "_render_cache_hits", 0)
+            cache_line = f"\nCache: {hits} reused" if hits else ""
+            var.set(f"Rendering\n{int(current)} / {int(total)} scenes{cache_line}")
+        elif phase == "mux":
+            self._render_cache_hits = 0
+            var.set("Finalizing video…" if status != "done" else "Done")
+
     def _maybe_update_progress(self, line: str) -> None:
         for marker, value in STAGE_PROGRESS.items():
             if marker in line:
@@ -8516,6 +9176,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_finished(self, success: bool, message: str, cancelled: bool = False) -> None:
         self._end_generate_run()
+        shell = getattr(self, "_shell", None)
         if success:
             self.progress.set(1.0)
             self.status_var.set(f"Done — {message}")
@@ -8523,50 +9184,131 @@ class VideoGeneratorApp(ctk.CTk):
             self._last_output = message
             self._show_preview(message)
             self._goto_workflow_view("render")
+            if shell is not None:
+                shell.notify("Export completed", tone="success")
             messagebox.showinfo("Done", f"Video saved to:\n{message}")
             self._offer_cleanup_after_render()
         elif cancelled:
             self.status_var.set("Cancelled")
             self._append_log(f"\n○ Cancelled: {message}\n")
+            if shell is not None:
+                shell.notify("Export cancelled", tone="warning")
             messagebox.showinfo("Cancelled", message)
             self._refresh_cleanup_button(defer=True)
         else:
             self.status_var.set("Failed")
             self._append_log(f"\n✗ Error: {message}\n")
-            messagebox.showerror("Generation failed", message)
+            if shell is not None:
+                shell.notify("Export failed", tone="error")
+            self._show_error_dialog(
+                "Export failed",
+                "The render could not finish. You can try again, or view technical details below.",
+                message,
+            )
             self._refresh_cleanup_button(defer=True)
+
+    def _show_error_dialog(self, title: str, summary: str, details: str) -> None:
+        """Professional error UX (spec item 19): a plain-language summary
+        up front, raw technical text (paths, exception text) tucked behind
+        a collapsible Details section rather than shown as the primary
+        experience. Falls back to the plain messagebox if the dialog
+        itself can't be built for any reason."""
+        try:
+            from ui.widgets import CollapsibleSection
+            import ui.theme as T
+
+            win = ctk.CTkToplevel(self)
+            win.title(title)
+            win.geometry("480x320")
+            win.minsize(380, 220)
+            win.configure(fg_color=T.BG)
+            win.grab_set()
+            ctk.CTkLabel(
+                win, text=title, font=ctk.CTkFont(size=T.FONT_WORKSPACE_TITLE[0], weight="bold"),
+                text_color=T.DANGER, anchor="w",
+            ).pack(fill="x", padx=T.SPACE_LG, pady=(T.SPACE_LG, T.SPACE_XS))
+            ctk.CTkLabel(
+                win, text=summary, font=ctk.CTkFont(size=T.FONT_CONTROL_LABEL[0]),
+                text_color=T.TEXT, anchor="w", justify="left", wraplength=430,
+            ).pack(fill="x", padx=T.SPACE_LG, pady=(0, T.SPACE_MD))
+            section = CollapsibleSection(win, "Details", expanded=False)
+            section.pack(fill="both", expand=True, padx=T.SPACE_LG)
+            details_box = ctk.CTkTextbox(
+                section.body, height=140, fg_color=T.PANEL, text_color=T.MUTED,
+                font=ctk.CTkFont(size=T.FONT_METADATA[0]), wrap="word",
+            )
+            details_box.pack(fill="both", expand=True, pady=(T.SPACE_XS, 0))
+            details_box.insert("1.0", details or "(no further details)")
+            details_box.configure(state="disabled")
+            actions = ctk.CTkFrame(win, fg_color="transparent")
+            actions.pack(fill="x", padx=T.SPACE_LG, pady=T.SPACE_LG)
+            ctk.CTkButton(
+                actions, text="Retry", height=T.CONTROL_H, width=100,
+                fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+                command=lambda: (win.destroy(), self._on_generate()),
+            ).pack(side="left")
+            ctk.CTkButton(
+                actions, text="Dismiss", height=T.CONTROL_H, width=100,
+                fg_color="transparent", border_width=1, border_color=T.BORDER,
+                text_color=T.TEXT, command=win.destroy,
+            ).pack(side="left", padx=(T.SPACE_SM, 0))
+        except Exception:
+            messagebox.showerror(title, details or summary)
         self._refresh_qa_ui(immediate=True)
 
     def _show_preview(self, video_path: str) -> None:
-        """Extract a thumbnail frame via ffmpeg and reveal the preview panel."""
+        """Extract a thumbnail frame via ffmpeg and reveal the preview panel.
+
+        PHASE 8: checks the in-process thumbnail cache first — if this exact
+        file (by path/size/mtime) was already thumbnailed this session, its
+        bytes are reused and ffmpeg is not re-invoked."""
+        import io
         import tempfile as _tmp
 
+        video_p = Path(video_path)
+        cache_key = _video_identity(video_p)
+        thumb_bytes: Optional[bytes] = (
+            _THUMBNAIL_CACHE.get(cache_key) if cache_key is not None else None
+        )
+
         thumb = Path(_tmp.mktemp(suffix=".jpg"))
-        ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
-        try:
-            from providers import hidden_subprocess
+        if thumb_bytes is None:
+            ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+            try:
+                from providers import hidden_subprocess
 
-            result = hidden_subprocess.run(
-                [
-                    ffmpeg, "-y",
-                    "-ss", "1",           # seek to 1 s for a more interesting frame
-                    "-i", video_path,
-                    "-vframes", "1",
-                    "-q:v", "3",
-                    str(thumb),
-                ],
-                capture_output=True, timeout=15,
-            )
-        except Exception:
-            return
+                result = hidden_subprocess.run(
+                    [
+                        ffmpeg, "-y",
+                        "-ss", "1",           # seek to 1 s for a more interesting frame
+                        "-i", video_path,
+                        "-vframes", "1",
+                        "-q:v", "3",
+                        str(thumb),
+                    ],
+                    capture_output=True, timeout=15,
+                )
+            except Exception:
+                return
 
-        if not thumb.is_file():
-            return
+            if not thumb.is_file():
+                return
+
+            try:
+                thumb_bytes = thumb.read_bytes()
+                if cache_key is not None and thumb_bytes:
+                    _THUMBNAIL_CACHE[cache_key] = thumb_bytes
+            except OSError:
+                thumb_bytes = None
 
         try:
             from PIL import Image
 
-            img = Image.open(thumb).convert("RGB")
+            img = (
+                Image.open(io.BytesIO(thumb_bytes)).convert("RGB")
+                if thumb_bytes
+                else Image.open(thumb).convert("RGB")
+            )
             thumb.unlink(missing_ok=True)
 
             # Determine display size: fill available width keeping 16:9 ratio

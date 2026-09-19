@@ -8,7 +8,7 @@ from pathlib import Path
 
 from editorial.intent import EditorialIntent
 from editorial.schema import EditorialPlan, EditorialScene
-from editorial.timeline import EditorialTimeline
+from editorial.timeline import EditorialTimeline, TimelineEvent
 from graphics.backgrounds import choose_background
 from graphics.design_system import get_design_system
 from graphics.director import decide_graphic
@@ -202,6 +202,49 @@ class TestPlanAndTimeline(unittest.TestCase):
         self.assertEqual(ev.track, "TEXT")
         self.assertTrue(ev.metadata.get("graphic"))
         self.assertIn("+25%", ev.source)
+
+
+class TestDisabledGraphicToggle(unittest.TestCase):
+    """Phase 2 Graphics workspace: an operator-disabled event is skipped by
+    the single function that turns timeline events into renderable specs —
+    the metadata flag it respects, not a second graphics engine."""
+
+    def test_disabled_event_is_skipped(self) -> None:
+        tl = EditorialTimeline(
+            audio_end=10,
+            events=[
+                TimelineEvent(
+                    event_id="g1", track="TEXT", start=0, end=2, scene_number="1",
+                    metadata={"graphic": True, "text_overlay": {
+                        "role": "LABEL", "text": "Hello", "start": 0, "end": 2,
+                    }},
+                ),
+                TimelineEvent(
+                    event_id="g2", track="TEXT", start=2, end=4, scene_number="1",
+                    metadata={
+                        "disabled": True, "graphic": True,
+                        "text_overlay": {"role": "LABEL", "text": "Hidden", "start": 2, "end": 4},
+                    },
+                ),
+            ],
+        )
+        specs = graphics_from_timeline(tl)
+        ids = {s.graphic_id for s in specs}
+        self.assertIn("g1", ids)
+        self.assertNotIn("g2", ids)
+
+    def test_re_enabling_restores_it(self) -> None:
+        ev = TimelineEvent(
+            event_id="g3", track="TEXT", start=0, end=2, scene_number="1",
+            metadata={
+                "disabled": True, "graphic": True,
+                "text_overlay": {"role": "LABEL", "text": "X", "start": 0, "end": 2},
+            },
+        )
+        tl = EditorialTimeline(audio_end=10, events=[ev])
+        self.assertEqual(len(graphics_from_timeline(tl)), 0)
+        ev.metadata["disabled"] = False
+        self.assertEqual(len(graphics_from_timeline(tl)), 1)
 
 
 class TestRender(unittest.TestCase):

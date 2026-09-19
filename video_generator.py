@@ -29,6 +29,7 @@ Optional:
 """
 
 import argparse
+import contextlib
 import csv
 import json
 import os
@@ -996,6 +997,84 @@ def _static_filter(width: int, height: int) -> str:
     )
 
 
+# ---- real B-roll (VIDEO_2) picture-in-picture overlay --------------------
+#
+# VIDEO_2 previously had no real "simultaneous overlay" semantics anywhere:
+# build_timeline_from_decisions labels the SECOND shot of a multi-shot scene
+# "VIDEO_2" purely for timeline-row display, but the renderer plays every
+# shot in a scene sequentially — there was never any actual compositing.
+# This is a genuine picture-in-picture compositor using ffmpeg's overlay
+# filter: two real decoded video streams, one drawn on top of the other for
+# the requested time window.
+
+_BROLL_POSITIONS = {
+    "bottom_right": "main_w-overlay_w-{margin}:main_h-overlay_h-{margin}",
+    "bottom_left": "{margin}:main_h-overlay_h-{margin}",
+    "top_right": "main_w-overlay_w-{margin}:{margin}",
+    "top_left": "{margin}:{margin}",
+    "center": "(main_w-overlay_w)/2:(main_h-overlay_h)/2",
+}
+
+
+def composite_broll_overlay(
+    base_clip: Path,
+    broll_source: Path,
+    out_path: Path,
+    *,
+    overlay_start: float,
+    overlay_duration: float,
+    width: int,
+    height: int,
+    fps: int,
+    broll_source_start: float = 0.0,
+    broll_speed: float = 1.0,
+    scale: float = 0.4,
+    position: str = "bottom_right",
+) -> bool:
+    """Composite ``broll_source`` as a real picture-in-picture overlay onto
+    ``base_clip`` for [overlay_start, overlay_start+overlay_duration).
+    ``scale`` is the B-roll's width as a fraction of the full frame (aspect
+    preserved). Returns False (never raises) on any ffmpeg failure — the
+    caller keeps the un-composited base_clip in that case, never a corrupt
+    or half-written output."""
+    if overlay_duration <= 0:
+        return False
+    margin = max(8, int(round(min(width, height) * 0.03)))
+    pos_expr = _BROLL_POSITIONS.get(position, _BROLL_POSITIONS["bottom_right"]).format(margin=margin)
+    pip_w = max(2, int(round(width * max(0.1, min(0.9, scale)))))
+
+    speed = 1.0
+    try:
+        from editorial_timeline_edit import clamp_speed
+
+        speed = clamp_speed(broll_speed)
+    except Exception:
+        speed = max(0.25, min(2.0, broll_speed))
+
+    src_start = max(0.0, float(broll_source_start))
+    read_dur = overlay_duration * speed
+    pts_chain = f"setpts={1.0 / speed:.6f}*PTS," if abs(speed - 1.0) > 1e-3 else ""
+
+    filter_complex = (
+        f"[1:v]{pts_chain}scale={pip_w}:-2,format=yuva420p[pip];"
+        f"[0:v][pip]overlay={pos_expr}:"
+        f"enable='between(t\\,{overlay_start:.3f}\\,{overlay_start + overlay_duration:.3f})'[vout]"
+    )
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(base_clip),
+        "-ss", f"{src_start:.3f}", "-t", f"{read_dur:.3f}", "-i", str(broll_source),
+        "-filter_complex", filter_complex,
+        "-map", "[vout]",
+        *_cpu_encode_argv(),
+        "-an",
+        "-r", str(fps),
+        str(out_path),
+    ]
+    result = hidden_subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode == 0 and Path(out_path).is_file() and Path(out_path).stat().st_size > 0
+
+
 def _video_fit_filter(width: int, height: int, fps: int) -> str:
     """Cover-crop to fill the frame and conform to the target fps (no Ken Burns — the clip already has motion)."""
     return (
@@ -1057,6 +1136,103 @@ def _fade_vf_suffix(clip_dur: float, fade_in: float, fade_out: float, color: str
         # Outgoing fades always go to black so the next clip can open cleanly.
         parts.append(f"fade=t=out:st={st:.3f}:d={fo:.3f}:color=black")
     return ",".join(parts)
+
+
+# ---- real cross-clip transitions (ffmpeg xfade) ---------------------------
+#
+# The fade-in/fade-out machinery above (transition_fade_params/_fade_vf_suffix)
+# is each clip independently fading to/from a solid color at its own edges —
+# "duration-preserving (no overlap)" per its own docstring. That is NOT a
+# crossfade: clip A's tail and clip B's head never actually blend. Real
+# crossfade/dip/wipe/slide need ffmpeg's xfade filter, which requires both
+# clips as decoded inputs to one filter graph — it cannot work with the fast
+# "-c copy" concat-demuxer mux. This is used ONLY when the operator actually
+# requests a real transition (TimelineEvent.metadata["transition_duration"]
+# set to something > 0 with a transition_in in TRANSITION_TYPES) — a project
+# that never asks for one renders through the exact same fast path as before
+# this existed (see run_final_mux's `transitions is None` fast path).
+
+TRANSITION_TYPES = ("cut", "crossfade", "dip_black", "dip_white", "wipe", "slide")
+
+_XFADE_NAME_FOR_TYPE = {
+    "cut": "fade",  # only reached with a near-zero duration (see build_xfade_filter_complex)
+    "crossfade": "fade",
+    "dip_black": "fadeblack",
+    "dip_white": "fadewhite",
+    "wipe": "wipeleft",
+    "slide": "slideleft",
+}
+
+# Directional xfade variants for "wipe"/"slide" — all 8 are real ffmpeg
+# xfade transition names (verified against `ffmpeg -h filter=xfade`), not
+# an invented vocabulary. Only these two base types expose a direction;
+# every other TRANSITION_TYPES entry ignores transition_direction.
+TRANSITION_DIRECTIONS = ("left", "right", "up", "down")
+_DIRECTIONAL_XFADE_NAME = {
+    "wipe": {"left": "wipeleft", "right": "wiperight", "up": "wipeup", "down": "wipedown"},
+    "slide": {"left": "slideleft", "right": "slideright", "up": "slideup", "down": "slidedown"},
+}
+
+MIN_XFADE_DURATION = 0.05  # short enough to read as a cut, long enough for xfade to accept
+
+
+def xfade_name_for_transition(transition_type: str, direction: str = "") -> str:
+    ttype = (transition_type or "cut").lower()
+    by_dir = _DIRECTIONAL_XFADE_NAME.get(ttype)
+    if by_dir:
+        return by_dir.get((direction or "left").lower(), by_dir["left"])
+    return _XFADE_NAME_FOR_TYPE.get(ttype, "fade")
+
+
+def build_xfade_filter_complex(
+    durations: list[float],
+    transitions: list[tuple[str, float] | None] | list[tuple[str, float, str] | None],
+) -> tuple[str, str]:
+    """Build the ffmpeg filter_complex chaining xfade across every clip
+    boundary. ``durations[i]`` is clip i's own length in seconds;
+    ``transitions[i]`` is the (type, duration) or (type, duration,
+    direction) to use at the boundary BETWEEN clip i and clip i+1, or None
+    for an (effectively-instant, see MIN_XFADE_DURATION) cut there.
+    ``direction`` (only meaningful for "wipe"/"slide" — see
+    TRANSITION_DIRECTIONS) defaults to "left" when omitted. len(transitions)
+    must be len(durations)-1.
+
+    Returns (filter_complex_string, final_video_stream_label). Each xfade's
+    ``offset`` is measured from the start of the FIRST original input
+    (ffmpeg xfade semantics) — computed here by tracking the cumulative
+    duration of the merged stream so far, which shrinks by each
+    transition's own duration as clips start overlapping.
+    """
+    n = len(durations)
+    if n < 2:
+        raise ValueError("build_xfade_filter_complex needs at least 2 clips")
+    if len(transitions) != n - 1:
+        raise ValueError(f"expected {n - 1} boundary transition(s), got {len(transitions)}")
+
+    parts: list[str] = []
+    running = float(durations[0])
+    prev_label = "0:v"
+    for i in range(1, n):
+        spec = transitions[i - 1]
+        if spec is None:
+            ttype, tdur, tdir = "cut", 0.0, ""
+        elif len(spec) >= 3:
+            ttype, tdur, tdir = spec[0], spec[1], spec[2]
+        else:
+            ttype, tdur, tdir = spec[0], spec[1], ""
+        # Never exceed either neighboring clip's own length — xfade can't
+        # borrow frames that don't exist.
+        tdur = max(MIN_XFADE_DURATION, min(float(tdur) or MIN_XFADE_DURATION, durations[i - 1] - 0.02, durations[i] - 0.02))
+        tdur = max(MIN_XFADE_DURATION, tdur)
+        xf_name = xfade_name_for_transition(ttype, tdir)
+        offset = max(0.0, running - tdur)
+        out_label = f"vx{i}"
+        parts.append(
+            f"[{prev_label}][{i}:v]xfade=transition={xf_name}:duration={tdur:.3f}:offset={offset:.3f}[{out_label}]"
+        )
+        running = running + float(durations[i]) - tdur
+        prev_label = out_label
+    return ";".join(parts), prev_label
 
 
 def _overlay_xy(
@@ -1275,7 +1451,12 @@ def _render_editorial_shot(
     crop_x = float(shot.get("crop_x") if shot.get("crop_x") is not None else 0.5)
     crop_y = float(shot.get("crop_y") if shot.get("crop_y") is not None else 0.5)
     speed = float(shot.get("speed") or 1.0)
-    speed = min(1.25, max(0.8, speed))
+    try:
+        from editorial_timeline_edit import clamp_speed
+
+        speed = clamp_speed(speed)
+    except Exception:
+        speed = min(2.0, max(0.25, speed))
     camera_style = str(shot.get("camera_style") or "static")
     hold_tail = bool(shot.get("hold_tail"))
     src_start = float(shot.get("source_start") or 0.0)
@@ -1510,8 +1691,21 @@ def run_final_mux(
     bg_volume: float = 0.25,
     clip_files=None,
     scene_numbers=None,
+    transitions=None,
+    clip_durations=None,
 ) -> None:
-    """Mux scene clips + audio with cwd pinned and a last-chance input check."""
+    """Mux scene clips + audio with cwd pinned and a last-chance input check.
+
+    ``transitions``/``clip_durations``: when transitions is None (the
+    default) or every entry is None, this is byte-for-byte the same fast
+    stream-copy concat-demuxer mux as before real transitions existed — a
+    project that never requests one pays zero cost for this feature. When
+    at least one boundary requests a real transition, every clip becomes a
+    separate ffmpeg input and the video is built via an xfade filter chain
+    (build_xfade_filter_complex) instead — this DOES require a full video
+    re-encode (xfade can't work with "-c copy"), which only projects that
+    actually use the feature pay for.
+    """
     concat_list_path = Path(concat_list_path).resolve()
     work = concat_list_path.parent
     try:
@@ -1522,9 +1716,21 @@ def run_final_mux(
         hint = _mux_missing_hint(Path(exc.missing_path or concat_list_path))
         sys.exit(f"ERROR: {exc}{hint}")
 
+    has_transitions = bool(transitions) and any(t is not None for t in transitions)
+
     print(f"[4/4] Muxing {len(listed)} clip(s) + audio…")
     print(f"[4/4] concat={concat_list_path}")
     print(f"[4/4] clips_dir={render_clips_dir(work)}")
+    if has_transitions:
+        print(f"[4/4] {sum(1 for t in transitions if t is not None)} real transition(s) requested — re-encoding via xfade.")
+
+    if has_transitions:
+        _run_final_mux_with_transitions(
+            listed, audio_path=audio_path, output_path=output_path,
+            bg_audio=bg_audio, bg_volume=bg_volume,
+            transitions=transitions, clip_durations=clip_durations, work=work,
+        )
+        return
 
     cmd = [
         "ffmpeg", "-y",
@@ -1571,6 +1777,60 @@ def run_final_mux(
                 f"(e.g. {sample}).{hint}"
             )
         sys.exit("ERROR: ffmpeg final mux failed — see log above.")
+
+
+def _run_final_mux_with_transitions(
+    clip_paths: list[Path],
+    *,
+    audio_path,
+    output_path,
+    bg_audio,
+    bg_volume: float,
+    transitions,
+    clip_durations,
+    work: Path,
+) -> None:
+    if clip_durations is None:
+        from providers.media_clip.ffmpeg_clip import probe_duration
+
+        clip_durations = [probe_duration(p) or 0.05 for p in clip_paths]
+    if len(clip_durations) != len(clip_paths):
+        sys.exit("ERROR: xfade mux — clip_durations length mismatch.")
+    if len(transitions) != len(clip_paths) - 1:
+        sys.exit("ERROR: xfade mux — transitions length mismatch.")
+
+    if len(clip_paths) == 1:
+        # Nothing to cross-fade between — fall back to a plain re-encode.
+        video_filter_complex, video_label = "", "0:v"
+    else:
+        video_filter_complex, video_label = build_xfade_filter_complex(clip_durations, transitions)
+
+    cmd = ["ffmpeg", "-y"]
+    for p in clip_paths:
+        cmd += ["-i", str(p)]
+    audio_input_index = len(clip_paths)
+    cmd += ["-i", str(audio_path)]
+
+    filter_parts = [video_filter_complex] if video_filter_complex else []
+    if bg_audio:
+        bg_input_index = audio_input_index + 1
+        cmd += ["-stream_loop", "-1", "-i", str(bg_audio)]
+        filter_parts.append(
+            f"[{bg_input_index}:a]volume={bg_volume:.4f}[bg];"
+            f"[{audio_input_index}:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]"
+        )
+        audio_label = "[a]"
+    else:
+        audio_label = f"{audio_input_index}:a"
+
+    cmd += ["-filter_complex", ";".join(p for p in filter_parts if p)]
+    cmd += ["-map", f"[{video_label}]" if video_filter_complex else f"{video_label}", "-map", audio_label]
+    cmd += [*_cpu_encode_argv(), "-c:a", "aac", "-b:a", "192k", "-shortest", str(output_path)]
+
+    result = hidden_subprocess.run(cmd, capture_output=True, text=True, cwd=str(work))
+    if result.returncode != 0:
+        print(result.stderr[-3000:] if result.stderr else "")
+        sys.exit("ERROR: ffmpeg transition mux failed — see log above.")
 
 
 def validate_mux_inputs(
@@ -2054,7 +2314,28 @@ def render_video(
     camera_by_scene: dict | None = None,
     edit_decisions_by_scene: dict | None = None,
     editorial_timeline: dict | None = None,
+    render_cache_state_dir: Path | None = None,
+    perf=None,
+    progress_cb=None,
 ):
+    """
+    render_cache_state_dir, perf, progress_cb: all optional, all default to
+    None/no-op (Semantic YT Studio 2.0 — Batch 1). Every existing caller and
+    test that does not pass them gets byte-for-byte the same behavior as
+    before this batch — caching, instrumentation, and progress reporting are
+    strictly additive.
+
+      render_cache_state_dir: a project's state/ directory. When given, a
+        RenderCache is opened there and unchanged scene clips are reused
+        instead of re-encoded (PHASE 4/5). When None, no cache is used at
+        all — every scene renders exactly as it always has.
+      perf: an optional perf_instrumentation.PerfRecorder to record
+        scene_render/mux timings and cache hit/miss counts into.
+      progress_cb: an optional callable(ProgressEvent) invoked once per
+        scene and once for mux — the caller (app.py) is responsible for how
+        that turns into UI updates (PHASE 9); render_video() never touches
+        the UI queue directly.
+    """
     print("[3/4] Locating image files...")
     missing = missing_images_for_scenes(aligned_rows, images_dir)
     if missing:
@@ -2135,7 +2416,50 @@ def render_video(
         except Exception as exc:
             print(f"[3/4] Typography reload warning: {exc}")
 
+    # PHASE 3: hoisted out of the per-scene loop below. editorial_timeline
+    # never changes across scenes, so rebuilding the full graphics-spec list
+    # from every timeline event on every single scene iteration (previously:
+    # inside the loop, O(n_scenes * n_timeline_events)) was pure repeated
+    # work — compute it once here instead. Each scene still filters this
+    # same list down to only the specs overlapping its own window, exactly
+    # as before; only the (expensive) rebuild itself moved outside the loop.
+    gfx_specs_all_once: list = []
+    if editorial_timeline:
+        try:
+            from graphics import graphics_from_timeline
+
+            gfx_specs_all_once = graphics_from_timeline(editorial_timeline)
+        except Exception as exc:
+            print(f"[3/4] Graphics timeline load skipped: {exc}")
+            gfx_specs_all_once = []
+
+    # PHASE 4/5: project-scoped render cache — off entirely (pure render,
+    # identical to pre-Batch-1 behavior) unless a caller opts in by passing
+    # render_cache_state_dir. See render_cache.py for the invalidation rules.
+    render_cache = None
+    if render_cache_state_dir is not None:
+        try:
+            from render_cache import RenderCache
+
+            render_cache = RenderCache(render_cache_state_dir)
+        except Exception as exc:
+            print(f"[3/4] Render cache unavailable, rendering without it: {exc}")
+            render_cache = None
+
+    scene_eta = None
+    if progress_cb is not None:
+        try:
+            from progress_events import EtaEstimator
+
+            scene_eta = EtaEstimator()
+        except Exception:
+            scene_eta = None
+
     clip_files = []
+    # Real (xfade) transition requested at the boundary INTO scene i, or
+    # None for a hard cut — filled in below from each scene's first shot's
+    # transition_in/transition_duration (see build_xfade_filter_complex).
+    real_transition_into_scene: list[tuple[str, float] | None] = [None] * n
     coverage_flags = manifest_coverage_flags(images_dir)
     for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
         out_clip = scene_clip_path(clips_dir, scene_clip_filename(i))
@@ -2164,13 +2488,15 @@ def render_video(
         scene_end = float(display_timeline[i][1])
 
         # Prefer timeline graphics (lower-third panel) over floating Smart Text.
+        # gfx_specs_all_once was built once, before this loop (PHASE 3) —
+        # reused here instead of rebuilding the full spec list every scene.
         scene_gfx_specs = []
         if editorial_timeline:
             try:
-                from graphics import graphics_from_timeline, render_graphics_for_scene
+                from graphics import render_graphics_for_scene
                 from typography.composition import analyze_media as analyze_gfx_frame
 
-                gfx_specs_all = graphics_from_timeline(editorial_timeline)
+                gfx_specs_all = gfx_specs_all_once
                 # Any graphic overlapping this scene window (time-native, not scene-bound).
                 scene_gfx_specs = [
                     s for s in gfx_specs_all
@@ -2349,7 +2675,16 @@ def render_video(
         if isinstance(edit_dec, dict) and edit_dec.get("avoid_blind_loop"):
             avoid_loop = True
 
-        _render_scene_clip(
+        if isinstance(edit_dec, dict) and edit_dec.get("shots"):
+            first_shot = edit_dec["shots"][0]
+            if isinstance(first_shot, dict):
+                t_type = str(first_shot.get("transition_in") or "cut").lower()
+                t_dur = float(first_shot.get("transition_duration") or 0.0)
+                t_dir = str(first_shot.get("transition_direction") or "")
+                if t_type in TRANSITION_TYPES and t_type != "cut" and t_dur > 0.0:
+                    real_transition_into_scene[i] = (t_type, t_dur, t_dir)
+
+        _scene_clip_kwargs = dict(
             img_path=img,
             out_path=out_clip,
             duration=dur,
@@ -2369,6 +2704,91 @@ def render_video(
             avoid_blind_loop=avoid_loop,
             edit_decision=edit_dec if isinstance(edit_dec, dict) else None,
         )
+
+        cache_hit = False
+        _perf_ctx = perf.timer("scene_render", scene_id=sn_key) if perf is not None else contextlib.nullcontext()
+        with _perf_ctx:
+            if render_cache is not None:
+                try:
+                    from render_cache import build_scene_cache_key
+
+                    cache_key = build_scene_cache_key(
+                        scene_number=sn_key,
+                        encode_args=_cpu_encode_argv(),
+                        **_scene_clip_kwargs,
+                    )
+                    cached_clip = render_cache.get(sn_key, cache_key)
+                except Exception as exc:
+                    # Any failure building/looking up the key is a miss —
+                    # never let cache-layer trouble block a render.
+                    print(f"[3/4] Render cache lookup skipped for scene {sn_key}: {exc}")
+                    cache_key = None
+                    cached_clip = None
+                if cached_clip is not None and render_cache.reuse(cached_clip, out_clip):
+                    cache_hit = True
+
+            if not cache_hit:
+                _render_scene_clip(**_scene_clip_kwargs)
+                if render_cache is not None and cache_key is not None:
+                    try:
+                        render_cache.put(sn_key, cache_key, out_clip)
+                    except Exception as exc:
+                        print(f"[3/4] Render cache store skipped for scene {sn_key}: {exc}")
+
+        # Real B-roll overlay: composite any genuinely-overlapping VIDEO_2
+        # clip(s) (see reconcile_timeline_into_decisions) onto the just-
+        # rendered scene clip. Applied AFTER cache lookup/render (a cache
+        # hit's stored clip never has broll baked in — the cache key
+        # doesn't cover it) so it always reflects the current broll state;
+        # cheap in practice since most scenes have no broll entries at all.
+        broll_entries = edit_dec.get("broll") if isinstance(edit_dec, dict) else None
+        if broll_entries:
+            for b_i, broll in enumerate(broll_entries):
+                broll_src = broll.get("source_path")
+                if not broll_src or not Path(broll_src).is_file():
+                    continue
+                composited = out_clip.parent / f"{out_clip.stem}_broll{b_i}{out_clip.suffix}"
+                ok = composite_broll_overlay(
+                    out_clip, Path(broll_src), composited,
+                    overlay_start=float(broll.get("overlay_start") or 0.0),
+                    overlay_duration=float(broll.get("overlay_duration") or 0.0),
+                    width=width, height=height, fps=fps,
+                    broll_source_start=float(broll.get("source_start") or 0.0),
+                    broll_speed=float(broll.get("speed") or 1.0),
+                    scale=float(broll.get("scale") or 0.4),
+                    position=str(broll.get("position") or "bottom_right"),
+                )
+                if ok:
+                    try:
+                        composited.replace(out_clip)
+                    except OSError:
+                        pass
+                else:
+                    print(f"[3/4] B-roll overlay failed for scene {sn_key} — kept base clip without it.")
+                    try:
+                        composited.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+
+        if perf is not None:
+            perf.note_cache(cache_hit)
+        if progress_cb is not None:
+            try:
+                from progress_events import make_event
+
+                progress_cb(
+                    make_event(
+                        "rendering",
+                        i + 1,
+                        n,
+                        scene_id=sn_key,
+                        message=f"Scene {sn_key}" + (" (cached)" if cache_hit else ""),
+                        eta=scene_eta,
+                    )
+                )
+            except Exception:
+                pass
+
         clip_files.append(out_clip)
 
     missing_after_render = [p for p in clip_files if not Path(p).is_file()]
@@ -2385,15 +2805,32 @@ def render_video(
         str(row.get("scene_number") or (i + 1))
         for i, row in enumerate(aligned_rows)
     ]
-    run_final_mux(
-        concat_list_path=concat_list_path,
-        audio_path=audio_path,
-        output_path=output_path,
-        bg_audio=bg_audio,
-        bg_volume=bg_volume,
-        clip_files=clip_files,
-        scene_numbers=scene_numbers,
-    )
+    if progress_cb is not None:
+        try:
+            from progress_events import make_event
+
+            progress_cb(make_event("mux", 0, 1, message="Finalizing video"))
+        except Exception:
+            pass
+    with (perf.timer("mux") if perf is not None else contextlib.nullcontext()):
+        run_final_mux(
+            concat_list_path=concat_list_path,
+            audio_path=audio_path,
+            output_path=output_path,
+            bg_audio=bg_audio,
+            bg_volume=bg_volume,
+            clip_files=clip_files,
+            scene_numbers=scene_numbers,
+            transitions=real_transition_into_scene[1:] if len(clip_files) > 1 else None,
+            clip_durations=list(durations) if len(clip_files) > 1 else None,
+        )
+    if progress_cb is not None:
+        try:
+            from progress_events import make_event
+
+            progress_cb(make_event("mux", 1, 1, status="done", message="Mux complete"))
+        except Exception:
+            pass
 
     shutil.rmtree(clips_dir, ignore_errors=True)
     print(f"[4/4] Done. Output: {output_path}")

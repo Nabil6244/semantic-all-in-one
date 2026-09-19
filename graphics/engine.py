@@ -223,6 +223,12 @@ def graphics_from_timeline(timeline: EditorialTimeline | dict | None) -> List[Gr
     specs: List[GraphicSpec] = []
     for ev in timeline.events:
         meta = ev.metadata or {}
+        if meta.get("disabled"):
+            # Phase 2 Graphics workspace: operator-toggled off. Skipped here
+            # (the single place timeline events become renderable specs)
+            # rather than deleted, so re-enabling is just flipping the flag
+            # back — no new graphics engine, just one respected metadata key.
+            continue
         if not meta.get("graphic"):
             continue
         raw = meta.get("spec")

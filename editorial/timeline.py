@@ -90,12 +90,22 @@ class EditorialTimeline:
     version: int = 1
     audio_end: float = 0.0
     events: List[TimelineEvent] = dataclasses.field(default_factory=list)
+    # Track-level mute/solo (TimelineCanvas header buttons) — persisted here
+    # (added additively; an older saved timeline simply has neither key, so
+    # from_dict() below defaults both to empty == "nothing muted/soloed",
+    # identical to previous behavior) so it survives save/reopen and so
+    # export can honor it (see editorial_timeline_edit.sfx_ambience_events_
+    # for_export / reconcile_timeline_into_decisions callers in app.py).
+    muted_tracks: List[str] = dataclasses.field(default_factory=list)
+    solo_tracks: List[str] = dataclasses.field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
             "version": self.version,
             "audio_end": round(float(self.audio_end), 4),
             "events": [e.to_dict() for e in self.events],
+            "muted_tracks": sorted(set(self.muted_tracks)),
+            "solo_tracks": sorted(set(self.solo_tracks)),
         }
 
     @classmethod
@@ -111,6 +121,8 @@ class EditorialTimeline:
             version=int(data.get("version") or 1),
             audio_end=float(data.get("audio_end") or 0.0),
             events=events,
+            muted_tracks=[str(t) for t in (data.get("muted_tracks") or [])],
+            solo_tracks=[str(t) for t in (data.get("solo_tracks") or [])],
         )
 
     def events_on(self, track: str) -> List[TimelineEvent]:

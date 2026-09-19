@@ -138,6 +138,19 @@ class ShotSpec:
     shot_size: ShotSize = "medium"
     camera_style: str = "static"
     transition_in: str = "cut"
+    # Real (xfade-blended) transition duration in seconds — 0 means "use
+    # the existing per-clip fade-to-color scheme" (transition_in's OLD
+    # vocabulary: fade/dissolve/flash/soft). A value > 0 together with
+    # transition_in set to one of video_generator.TRANSITION_TYPES
+    # (crossfade/dip_black/dip_white/wipe/slide) requests a genuine
+    # cross-clip blend via video_generator.build_xfade_filter_complex —
+    # see editorial_timeline_edit.py's module docstring for why these two
+    # vocabularies are kept separate rather than reusing one field.
+    transition_duration: float = 0.0
+    # Directional variant for "wipe"/"slide" (left/right/up/down — see
+    # video_generator.TRANSITION_DIRECTIONS). Ignored by every other
+    # transition_in value. Empty string -> renderer default ("left").
+    transition_direction: str = ""
     hold_tail: bool = False
     reason: str = ""
     # Multi-asset coverage (optional — empty means scene primary)
@@ -180,6 +193,16 @@ class EditDecision:
     avoid_blind_loop: bool = True
     attention_state: str = "understanding"
     reveal_phase: str = "none"  # none|setup|build|withhold|reveal|emphasize
+    # Real B-roll picture-in-picture overlays for this scene — VIDEO_2
+    # timeline events that genuinely OVERLAP a primary (VIDEO_1/IMAGE)
+    # shot in time, as opposed to `shots` (always sequential/concatenated).
+    # Each entry: {source_path, source_start, speed, overlay_start,
+    # overlay_duration, scale, position} — overlay_start/duration are
+    # relative to the SCENE's own rendered clip (t=0 at scene start). See
+    # editorial_timeline_edit.reconcile_timeline_into_decisions (which
+    # populates this from an operator-edited timeline) and
+    # video_generator.composite_broll_overlay (which renders it).
+    broll: List[dict] = dataclasses.field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -194,6 +217,7 @@ class EditDecision:
             "avoid_blind_loop": self.avoid_blind_loop,
             "attention_state": self.attention_state,
             "reveal_phase": self.reveal_phase,
+            "broll": list(self.broll),
         }
 
     @classmethod
@@ -220,6 +244,7 @@ class EditDecision:
             avoid_blind_loop=bool(data.get("avoid_blind_loop", True)),
             attention_state=str(data.get("attention_state") or "understanding"),
             reveal_phase=str(data.get("reveal_phase") or "none"),
+            broll=[b for b in (data.get("broll") or []) if isinstance(b, dict)],
         )
 
     @property

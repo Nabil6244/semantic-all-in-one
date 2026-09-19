@@ -1836,9 +1836,18 @@ def drawtext_filters(effects: Sequence[dict], width: int, height: int) -> str:
 
 
 def _resolve_sfx_file(entry: dict, root: Optional[Path] = None) -> Optional[Path]:
+    """Resolve an SFX/ambience entry's audio file — a catalog-relative path
+    (the normal case: "whoosh/whoosh_1.wav" under sfx_library_root()), or an
+    absolute path that already exists (an operator-supplied custom file via
+    the Editor's "Replace media" — see editorial_timeline_edit.py's
+    sfx_ambience_events_for_export()). Absolute-path support is additive:
+    every existing catalog-relative caller is unaffected."""
     raw = str(entry.get("file") or "").strip()
     if not raw:
         return None
+    raw_path = Path(raw)
+    if raw_path.is_absolute():
+        return raw_path if raw_path.is_file() else None
     base = Path(root or sfx_library_root())
     path = (base / raw).resolve()
     if path.is_file():

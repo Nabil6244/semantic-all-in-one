@@ -238,6 +238,8 @@ def build_timeline_from_decisions(
                         "visual_role": shot.visual_role or decision.visual_role,
                         "editorial_purpose": shot.editorial_purpose,
                         "asset_id": shot.asset_id,
+                        "transition_duration": shot.transition_duration,
+                        "transition_direction": shot.transition_direction,
                     },
                 )
             )

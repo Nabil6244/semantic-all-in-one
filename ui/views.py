@@ -2128,7 +2128,43 @@ class RenderView(_BaseView):
             command=app._on_generate,
         ).grid(row=len(names) + 2, column=0, sticky="w", padx=T.PAD, pady=(8, T.PAD))
 
+        # Phase 2 item P: plain-language export settings + structured
+        # progress, sourced from Phase 1's perf/progress instrumentation —
+        # never raw FFmpeg command text (that stays behind Advanced).
+        settings_card = Card(self._body)
+        settings_card.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        settings_card.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            settings_card, text="OUTPUT SETTINGS", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.MUTED, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 4))
+        self._resolution_row = MetricRow(settings_card, "Resolution")
+        self._resolution_row.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=2)
+        self._fps_row = MetricRow(settings_card, "FPS")
+        self._fps_row.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=2)
+        self._encoder_row = MetricRow(settings_card, "Encoder")
+        self._encoder_row.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(2, T.PAD))
+
+        progress_card = Card(self._body)
+        progress_card.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+        progress_card.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            progress_card, textvariable=app._export_progress_var,
+            font=ctk.CTkFont(size=13, weight="bold"), text_color=T.TEXT,
+            justify="left", anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=T.PAD)
+
     def on_show(self) -> None:
+        self._resolution_row.set_value("1920x1080")
+        self._fps_row.set_value("30")
+        try:
+            import video_generator as vg
+
+            argv = vg._cpu_encode_argv()
+            enc = argv[argv.index("-c:v") + 1] if "-c:v" in argv else "—"
+        except Exception:
+            enc = "—"
+        self._encoder_row.set_value(enc)
         running = bool(getattr(self.app, "_running", False))
         stage = (self.app.stage_var.get() or "").upper()
         # Map common stage strings onto phase pills (read-only).
@@ -2162,6 +2198,240 @@ class RenderView(_BaseView):
         self._op.set_value(stage or ("Rendering…" if running else "Idle"))
         out = self.app._last_output or self.app.output_var.get() or "—"
         self._out.set_value(Path(out).name if out != "—" else "—")
+
+
+class TimelineView(ctk.CTkFrame):
+    """Interactive timeline (Phase 2). Not a _BaseView — a CTkScrollableFrame
+    body would fight the TimelineCanvas's own scrolling/zoom, so this owns a
+    plain fixed layout instead, same pattern as VisualPlanView."""
+
+    key = "timeline"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, fg_color=T.PANEL_ALT, **kwargs)
+        self.app = app
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        SectionHeader(
+            self, "Timeline",
+            "Video, image, voiceover, music, ambience, SFX, text and graphics — "
+            "drag Text/Graphics/SFX/Ambience/Music clips to retime them.",
+        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 4))
+
+        self._selection_var = ctk.StringVar(value="No clip selected")
+        ctk.CTkLabel(
+            self, textvariable=self._selection_var, font=ctk.CTkFont(size=11),
+            text_color=T.MUTED, anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=(0, 4))
+
+        self._empty = EmptyState(
+            self, "No timeline yet",
+            "Render once (or run alignment) to build the editorial timeline, "
+            "then come back here to fine-tune text, graphics, SFX, ambience and music.",
+            "Go to Export",
+            command=lambda: app._shell.navigate("render") if getattr(app, "_shell", None) else None,
+        )
+        self._empty.grid(row=2, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
+
+        from .timeline_canvas import TimelineCanvas
+
+        self._canvas_host = TimelineCanvas(
+            self,
+            undo_stack=getattr(app, "_timeline_undo", None),
+            on_select=self._on_select,
+            on_dirty=lambda: app._mark_unsaved("Timeline edit") if hasattr(app, "_mark_unsaved") else None,
+            on_notify=lambda msg: app._shell.notify(msg) if getattr(app, "_shell", None) else None,
+        )
+        self._canvas_host.grid(row=2, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
+        self._canvas_host.grid_remove()
+        self._timeline = None
+
+    def _on_select(self, event_id: Optional[str]) -> None:
+        if event_id is None or self._timeline is None:
+            self._selection_var.set("No clip selected")
+            return
+        import editorial_timeline_edit as tl_edit
+
+        ev = tl_edit.find_event(self._timeline, event_id)
+        if ev is None:
+            self._selection_var.set("No clip selected")
+            return
+        editable = "editable" if tl_edit.is_editable(ev) else "read-only"
+        self._selection_var.set(
+            f"{ev.track} · {ev.start:.2f}s–{ev.end:.2f}s ({editable}) · scene {ev.scene_number or '—'}"
+        )
+
+    def _save(self) -> None:
+        ws = self.app._workspace
+        if ws is None or self._timeline is None:
+            return
+        import editorial_timeline_edit as tl_edit
+
+        if hasattr(self.app, "_mark_saving"):
+            self.app._mark_saving()
+        ok = tl_edit.save_timeline(ws.state_dir, self._timeline)
+        if hasattr(self.app, "_mark_saved") and ok:
+            self.app._mark_saved()
+
+    def refresh_canvas(self) -> None:
+        self._canvas_host.redraw()
+        self._save()
+
+    def on_show(self) -> None:
+        import editorial_timeline_edit as tl_edit
+
+        ws = self.app._workspace
+        if ws is None:
+            self._empty.grid()
+            self._canvas_host.grid_remove()
+            return
+        timeline = tl_edit.load_timeline(ws.state_dir)
+        if not timeline.events:
+            self._empty.grid()
+            self._canvas_host.grid_remove()
+            return
+        self._timeline = timeline
+        self._empty.grid_remove()
+        self._canvas_host.grid()
+        self._canvas_host.set_timeline(timeline, save_cb=self._save)
+
+
+class GraphicsView(ctk.CTkFrame):
+    """Existing Professional Graphics / Motion Design Engine, surfaced for
+    the operator: list existing TEXT/GRAPHICS timeline events with
+    select / enable-disable / edit text / retime. No new graphics engine —
+    every action reuses editorial_timeline_edit.py (same module the Timeline
+    view uses) and graphics.engine's existing metadata["disabled"] guard."""
+
+    key = "graphics"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, fg_color=T.PANEL_ALT, **kwargs)
+        self.app = app
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        SectionHeader(
+            self, "Graphics",
+            "Titles, lower thirds, statistics and callouts placed by the Motion Design Engine.",
+        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 4))
+
+        self._empty = EmptyState(
+            self, "No graphics yet",
+            "Graphics are generated automatically from your script's Editorial "
+            "Timeline. Render once with Text Effects enabled, then manage them here.",
+            "Go to Audio",
+            command=lambda: app._shell.navigate("audio") if getattr(app, "_shell", None) else None,
+        )
+        self._empty.grid(row=1, column=0, sticky="nsew")
+
+        self._list = ctk.CTkScrollableFrame(
+            self, fg_color="transparent",
+            scrollbar_button_color=T.BORDER, scrollbar_button_hover_color=T.ACCENT,
+        )
+        self._list.grid(row=1, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
+        self._list.grid_columnconfigure(0, weight=1)
+        self._list.grid_remove()
+        self._timeline = None
+        self._rows: list = []
+
+    def _reload(self) -> dict:
+        import editorial_timeline_edit as tl_edit
+
+        ws = self.app._workspace
+        if ws is None:
+            return {}
+        self._timeline = tl_edit.load_timeline(ws.state_dir)
+        return {"ws": ws}
+
+    def _graphic_events(self):
+        if self._timeline is None:
+            return []
+        return [e for e in self._timeline.events if (e.metadata or {}).get("graphic")]
+
+    def on_show(self) -> None:
+        ctx = self._reload()
+        events = self._graphic_events()
+        if not ctx or not events:
+            self._empty.grid()
+            self._list.grid_remove()
+            return
+        self._empty.grid_remove()
+        self._list.grid()
+        for w in self._rows:
+            w.destroy()
+        self._rows = []
+        for ev in sorted(events, key=lambda e: e.start):
+            self._rows.append(self._build_row(ev))
+
+    def _build_row(self, ev):
+        meta = ev.metadata or {}
+        row = Card(self._list)
+        row.grid(sticky="ew", pady=3)
+        row.grid_columnconfigure(1, weight=1)
+        disabled = bool(meta.get("disabled"))
+
+        var = ctk.BooleanVar(value=not disabled)
+        ctk.CTkSwitch(
+            row, text="", variable=var, width=40,
+            progress_color=T.ACCENT, button_color=T.TEXT,
+            command=lambda: self._toggle(ev.event_id, var),
+        ).grid(row=0, column=0, padx=(10, 4), pady=8)
+
+        role = str(meta.get("role") or ev.track)
+        text_overlay = meta.get("text_overlay") or {}
+        preview = text_overlay.get("text") or (ev.source.split("|")[0] if ev.source else role)
+        label_var = ctk.StringVar(value=str(preview)[:60])
+        ctk.CTkLabel(
+            row, text=f"{role} · scene {ev.scene_number or '—'} · {ev.start:.1f}s–{ev.end:.1f}s",
+            font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
+        ).grid(row=0, column=1, sticky="w", padx=4, pady=(8, 0))
+        entry = ctk.CTkEntry(
+            row, textvariable=label_var, height=28, fg_color=T.BG,
+            border_color=T.BORDER, text_color=T.TEXT,
+        )
+        entry.grid(row=1, column=1, sticky="ew", padx=4, pady=(0, 8))
+        entry.bind("<Return>", lambda _e, eid=ev.event_id, v=label_var: self._rename(eid, v))
+        entry.bind("<FocusOut>", lambda _e, eid=ev.event_id, v=label_var: self._rename(eid, v))
+        if disabled:
+            entry.configure(state="disabled")
+        return row
+
+    def _toggle(self, event_id: str, var) -> None:
+        import editorial_timeline_edit as tl_edit
+
+        ev = tl_edit.find_event(self._timeline, event_id)
+        if ev is None:
+            return
+        ev.metadata = dict(ev.metadata or {})
+        ev.metadata["disabled"] = not bool(var.get())
+        self._persist()
+        self.on_show()
+
+    def _rename(self, event_id: str, label_var) -> None:
+        import editorial_timeline_edit as tl_edit
+
+        ev = tl_edit.find_event(self._timeline, event_id)
+        if ev is None:
+            return
+        ev.metadata = dict(ev.metadata or {})
+        overlay = dict(ev.metadata.get("text_overlay") or {})
+        overlay["text"] = label_var.get()
+        ev.metadata["text_overlay"] = overlay
+        self._persist()
+
+    def _persist(self) -> None:
+        import editorial_timeline_edit as tl_edit
+
+        ws = self.app._workspace
+        if ws is None or self._timeline is None:
+            return
+        if hasattr(self.app, "_mark_saving"):
+            self.app._mark_saving()
+        ok = tl_edit.save_timeline(ws.state_dir, self._timeline)
+        if ok and hasattr(self.app, "_mark_saved"):
+            self.app._mark_saved()
 
 
 class QAView(_BaseView):
