@@ -80,6 +80,31 @@ export class MissingMediaIdError extends Error {
   }
 }
 
+/**
+ * Google explicitly reported this video generation workflow as FAILED
+ * (poll status matched a confirmed-failed value in VIDEO_STATUS_FAILED —
+ * see that constant's own comment for why it currently ships empty).
+ * Extends FatalError with recoverable=false so batch-runner.js's existing
+ * classification (an instance of FatalError with recoverable=false is NOT
+ * retried) fails this scene immediately instead of cycling through
+ * waitThenRefresh — retrying a workflow Google has already terminated
+ * cannot succeed. providerStatus/providerDetail are attached for
+ * diagnostics; never populated with credentials/tokens.
+ */
+export class VideoGenerationFailedError extends FatalError {
+  constructor(providerStatus, providerDetail = null) {
+    super(
+      providerDetail
+        ? `Flow video generation failed (provider status: ${providerStatus}, ${providerDetail})`
+        : `Flow video generation failed (provider status: ${providerStatus})`,
+      false,
+    );
+    this.name = "VideoGenerationFailedError";
+    this.providerStatus = providerStatus;
+    this.providerDetail = providerDetail;
+  }
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -985,10 +1010,28 @@ function deepFindVideoContentUrl(node) {
 // Status marker observed at workflowEntry[5][8][0] (DETAIL[8], itself a
 // single-element array). Confirmed live across 5 consecutive polls: stayed
 // 2 while processing, flipped to 3 on the same poll the CDN URL first
-// appeared. No FAILED value has been observed — see pollVideoStatus's
-// timeout fallback for that case.
+// appeared.
 const VIDEO_STATUS_PENDING = 2;
 const VIDEO_STATUS_COMPLETE = 3;
+
+// A real Google Flow workflow HAS since been observed reaching a visible
+// "Failed" state in the Flow web UI (2026-09-19 report), proving a FAILED
+// value does exist on Google's side — but no live poll response was
+// captured at the moment it happened, so the actual numeric value is NOT
+// yet known to this codebase. This set intentionally ships EMPTY rather
+// than guessing: populate it (e.g. `new Set([4])`) the moment a real
+// pollVideoStatus response is captured with entry[5][8][0] holding the
+// failed workflow's status — see the "raw_video_status" diagnostic log
+// line below, which exists specifically to capture that value the next
+// time a workflow fails. Until then, an unrecognized status is treated as
+// UNKNOWN (logged, poll continues under the existing timeout), never
+// silently promoted to FAILED — see pollVideoStatus.
+// Exported (not just module-private) so tests can inject an assumed value
+// to prove the detection MECHANISM works end-to-end — see
+// flow-engine/test/video-poll-status.test.js's "CONFIRMED FAILED" cases —
+// without that constituting a real captured value. Production code must
+// never populate this except from a live-captured response.
+export const VIDEO_STATUS_FAILED = new Set();
 
 export function extractVideoStartResult(parsed) {
   const entry = findVideoWorkflowEntry(parsed);
@@ -1007,7 +1050,25 @@ export function extractVideoPollStatus(parsed) {
     status,
     workflowId: entry ? entry[0] || null : null,
     mediaId: entry ? entry[2] || null : null,
+    // A short, capped, non-sensitive preview of the surrounding DETAIL
+    // array — structural shape only (numbers/booleans/short strings), for
+    // the diagnostic log below. Never intended to (and structurally
+    // cannot, given entry[5]'s own observed contents) carry cookies,
+    // tokens, or credentials — those live in WIZ_global_data, a completely
+    // separate object never touched here.
+    detailPreview: safeJsonPreview(detail, 200),
   };
+}
+
+/** JSON.stringify capped to `maxLen` chars — never throws on cyclic/odd input. */
+function safeJsonPreview(value, maxLen) {
+  try {
+    const s = JSON.stringify(value);
+    if (s == null) return null;
+    return s.length > maxLen ? s.slice(0, maxLen) + "…" : s;
+  } catch {
+    return null;
+  }
 }
 
 export function extractAs29sVideoResult(parsed) {
@@ -1080,6 +1141,13 @@ function buildVideoModeString(settings) {
 export async function pollVideoStatus(page, workflowId, projectId) {
   const maxTries = Math.max(1, Math.ceil(timing.videoPollTimeoutMs / timing.videoPollIntervalMs));
   let errStreak = 0;
+  // Last unrecognized (neither PENDING nor COMPLETE) status seen this poll
+  // loop — carried into the timeout message so a timeout caused by a
+  // genuinely weird/new status is distinguishable from ordinary "still
+  // processing" (task: "preserve the raw provider status if useful for
+  // diagnostics" — this is the un-short-circuited fallback for when
+  // VIDEO_STATUS_FAILED doesn't (yet) recognize the value).
+  let lastUnknownStatus = null;
   for (let i = 0; i < maxTries; i++) {
     await sleep(timing.videoPollIntervalMs);
 
@@ -1147,11 +1215,38 @@ export async function pollVideoStatus(page, workflowId, projectId) {
     errStreak = 0;
 
     const parsed = parseBatchExecuteResponse(out.text, "jwpduf");
-    const { status, mediaId } = extractVideoPollStatus(parsed);
+    const { status, mediaId, detailPreview } = extractVideoPollStatus(parsed);
+
+    // COMPLETE wins outright — even on the very same poll a FAILED-set
+    // value might otherwise match (task: "COMPLETE race... success must
+    // still win"). status/mediaId come from the SAME extraction call, so
+    // there is no separate "did the URL show up" check to race against.
     if (status === VIDEO_STATUS_COMPLETE) {
       return { workflowId, mediaId };
     }
-    // status === VIDEO_STATUS_PENDING (or unrecognized) -> keep polling.
+
+    if (VIDEO_STATUS_FAILED.has(status)) {
+      throw new VideoGenerationFailedError(status, detailPreview);
+    }
+
+    if (status !== VIDEO_STATUS_PENDING) {
+      // UNKNOWN: neither the known PENDING nor COMPLETE value, and not
+      // (yet) a confirmed FAILED value either. Log it for future capture,
+      // but do NOT guess — keep polling under the existing timeout, per
+      // "do not silently map arbitrary unknown values to FAILED without
+      // evidence."
+      lastUnknownStatus = { status, detailPreview };
+      console.error(
+        `[FLOW] pollVideoStatus workflow=${workflowId} raw_video_status=${JSON.stringify(status)} recognized=false detail=${detailPreview ?? "null"}`,
+      );
+    }
+    // status === VIDEO_STATUS_PENDING -> keep polling, nothing to log.
+  }
+  if (lastUnknownStatus) {
+    throw new Error(
+      "Video generation timed out after " + Math.round(timing.videoPollTimeoutMs / 1000) + "s" +
+        ` (last provider status: ${JSON.stringify(lastUnknownStatus.status)}, unrecognized — not a confirmed failure)`,
+    );
   }
   throw new Error("Video generation timed out after " + Math.round(timing.videoPollTimeoutMs / 1000) + "s");
 }
