@@ -112,6 +112,19 @@ async function openSettingsPanelWithRetry(page, diag, { maxAttempts = 3, perAtte
         domChanged: false,
         imageRadioVisibleAfter: false,
       });
+      // Confirmed live (2026-09-24 investigation): a fresh project's — and
+      // in fact ANY project's — composer/Settings UI takes ~1.4-4.7s to
+      // mount after navigation (waitForFlowReady only checks reCAPTCHA + a
+      // project URL, not the actual Angular UI). This branch used to `continue`
+      // immediately with no wait, so all `maxAttempts` could burn through in
+      // well under a second — nowhere near that real render delay. Actually
+      // wait for either control to become visible before retrying the find.
+      await page
+        .waitForSelector(SETTINGS_CONTROL_SELECTORS.join(", "), {
+          state: "visible",
+          timeout: perAttemptTimeoutMs,
+        })
+        .catch(() => {});
       continue; // bounded retry — the control may become available shortly
     }
 
