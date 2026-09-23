@@ -245,6 +245,8 @@ def _classify_scene_status(tail: str) -> str | None:
     t = tail.lower()
     if "(cached" in t or t.startswith("success"):
         return "ready"
+    if "failed" in t or t.startswith("error"):
+        return "failed"
     if "searching" in t:
         return "searching"
     if "selected" in t or "downloading" in t:
@@ -689,6 +691,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._project_chip_full = "No project"
         self._project_picker = None
         self._optional_open = False
+        # Single source of truth for which pipeline the shared Generate
+        # button routes to — "normal" (existing Flow/Visual Director path,
+        # unchanged) or "overscaled". See _on_generate/_sync_primary_cta.
+        self.generation_mode = "normal"
 
         # Dark cinematic theme — premium production workspace
         ctk.set_appearance_mode("Dark")
@@ -1360,6 +1366,8 @@ class VideoGeneratorApp(ctk.CTk):
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         scroll.grid_columnconfigure(0, weight=1)
         self._scroll = scroll
+        scroll._parent_canvas.bind("<Configure>", lambda e: self.after(30, self._recompute_scroll_fit), add="+")
+        scroll.bind("<Configure>", lambda e: self.after(30, self._recompute_scroll_fit), add="+")
 
         mode_wrap = ctk.CTkFrame(scroll, fg_color="transparent")
         mode_wrap.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 0))
@@ -1404,13 +1412,32 @@ class VideoGeneratorApp(ctk.CTk):
         self._mode_seg.grid(row=1, column=0, sticky="ew", pady=(6, 0))
         self._mode_seg.set("Paste script")
 
-        self._csv_block = ctk.CTkFrame(scroll, fg_color="transparent")
+        self._csv_block = ctk.CTkFrame(
+            scroll, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER,
+        )
         self._csv_block.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
         self._csv_block.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            self._csv_block, text="Visual Plan CSV",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
         self._path_row(
-            0, "", self.csv_var, self._browse_csv, parent=self._csv_block,
+            1, "", self.csv_var, self._browse_csv, parent=self._csv_block,
             placeholder_text="Choose a visual-plan CSV…",
         )
+        self._csv_helper_label = ctk.CTkLabel(
+            self._csv_block,
+            text=(
+                "One row per scene: scene_number, script_segment, asset_type, prompt, "
+                "and a caption. For the Overscaled style, also see chapter_title, "
+                "node_label, highlight (comma-separated), edge_from/edge_to, "
+                "edge_label and edge_style (\"callout\" for a thick red pointer)."
+            ),
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=220,
+            justify="left", anchor="w",
+        )
+        self._csv_helper_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 10))
+        self._bind_responsive_wrap(self._csv_helper_label, pad=24)
         self._csv_block.grid_remove()
 
         self._ai_block = ctk.CTkFrame(
@@ -1811,6 +1838,15 @@ class VideoGeneratorApp(ctk.CTk):
         ).grid(row=0, column=3, sticky="e", padx=(14, 0))
         opts.grid_remove()
 
+        # Overscaled: mounted directly in the SCROLLABLE content column (the
+        # same `scroll` that hosts the CSV/script/voiceover controls above),
+        # not the fixed footer — a fixed, non-scrolling footer clips anything
+        # added past its natural height, which is exactly why this card was
+        # previously invisible. Row 8 is the first unused row after opts
+        # (row 7); always visible (never grid_remove()'d) per spec — only
+        # its CSV picker/Generate button are gated behind the switch.
+        self._build_overscaled_section(scroll, row=8)
+
         bottom = ctk.CTkFrame(left, fg_color=_PANEL, corner_radius=0)
         bottom.grid(row=1, column=0, sticky="ew")
         bottom.grid_columnconfigure(0, weight=1)
@@ -1860,6 +1896,306 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._on_cancel,
         )
         # Cancel shown only while running via existing helpers; keep packed off by default.
+
+    def _build_overscaled_section(self, parent, *, row: int) -> None:
+        """Overscaled: an ADDITIVE mode toggle + its own CSV picker only.
+
+        No second Generate button and no second Visual Plan here by design
+        — importing a CSV sets self.generation_mode = "overscaled", feeds
+        the EXISTING Visual Plan scene table (self._scene_rows /
+        self._render_scene_rows(), see _browse_overscaled_csv), and the
+        SAME shared self.generate_btn (routed through the existing
+        _on_primary_cta -> _on_generate dispatch, see _sync_primary_cta's
+        mode-aware branch) drives generation from here on. The existing
+        voiceover control (self.audio_var / self._current_voiceover_path /
+        the "Import voiceover" button elsewhere on this page) is reused
+        as-is; Overscaled never gets a second voiceover importer.
+        """
+        self._overscaled_csv_var = ctk.StringVar()
+        self._overscaled_status_var = ctk.StringVar(value="")
+        self._overscaled_enabled_var = ctk.BooleanVar(value=False)
+        self._overscaled_running = False
+        self._overscaled_scene_graph = None  # last compiled plan; feeds self._scene_rows
+
+        block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
+        block.grid(row=row, column=0, sticky="ew", padx=16, pady=(10, 12))
+        block.grid_columnconfigure(0, weight=1)
+        self._overscaled_block = block
+
+        ctk.CTkLabel(
+            block, text="Overscaled (whiteboard-collage style)",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
+
+        ctk.CTkSwitch(
+            block, text="Use Overscaled for this generation",
+            variable=self._overscaled_enabled_var, onvalue=True, offvalue=False,
+            progress_color=_ACCENT, button_color=_TEXT, button_hover_color=_ACCENT,
+            text_color=_TEXT, font=ctk.CTkFont(size=12),
+            command=self._on_overscaled_toggle,
+        ).grid(row=1, column=0, sticky="w", padx=12, pady=(6, 0))
+
+        controls = ctk.CTkFrame(block, fg_color="transparent")
+        controls.grid(row=2, column=0, sticky="ew", padx=12, pady=(8, 10))
+        controls.grid_columnconfigure(0, weight=1)
+        self._overscaled_controls = controls
+
+        self._path_row(
+            0, "Overscaled CSV", self._overscaled_csv_var, self._browse_overscaled_csv,
+            parent=controls, placeholder_text="Choose an Overscaled CSV (scene_number, script_segment, node_id, ...)",
+        )
+        ctk.CTkLabel(
+            controls,
+            text="Uses the voiceover already selected above (Import voiceover / Voiceover Audio). "
+                 "After importing, review the plan on Visual Plan, then click the usual Generate button.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
+        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        self._overscaled_status_label = ctk.CTkLabel(
+            controls, textvariable=self._overscaled_status_var,
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
+        )
+        self._overscaled_status_label.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+
+        controls.grid_remove()
+
+    def _on_overscaled_toggle(self) -> None:
+        if self._overscaled_enabled_var.get():
+            self._overscaled_controls.grid()
+            self.generation_mode = "overscaled"
+        else:
+            self._overscaled_controls.grid_remove()
+            self.generation_mode = "normal"
+        self._sync_primary_cta()
+
+    def _browse_overscaled_csv(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Select Overscaled CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir=str(_browse_start_dir()),
+        )
+        if not path:
+            return
+        self._overscaled_csv_var.set(path)
+        if self._load_overscaled_csv(path):
+            self._goto_workflow_view("visual_plan")
+
+    def _load_overscaled_csv(self, path: str) -> bool:
+        """Compile ``path`` and populate the Visual Plan table from it —
+        the shared body behind both _browse_overscaled_csv (a freshly picked
+        file) and _bind_workspace_paths (restoring a project's own saved
+        Overscaled CSV on reopen). Compile-only (no media resolution, no
+        rendering, no FFmpeg) so the operator can review the plan BEFORE
+        committing to a full Overscaled generation — same principle as the
+        normal CSV import, which only ever populates the scene table at this
+        point too. Returns True on success."""
+        import csv as _csv
+
+        from providers.base import SceneRow
+        from scene_graph.overscaled_csv import compile_overscaled_csv
+
+        try:
+            with open(path, newline="", encoding="utf-8-sig") as f:
+                rows = list(_csv.DictReader(f))
+        except OSError as exc:
+            messagebox.showerror("Cannot read CSV", str(exc))
+            return False
+
+        result = compile_overscaled_csv(rows, segment_id=Path(path).stem, title=Path(path).stem)
+        if not result.ok:
+            messagebox.showerror("Invalid Overscaled CSV", "\n".join(result.errors) or "Unknown error")
+            return False
+
+        self._overscaled_scene_graph = result.scene_graph
+        self.generation_mode = "overscaled"
+        self._overscaled_enabled_var.set(True)
+        self._overscaled_controls.grid()
+
+        # Feed the EXISTING Visual Plan table (same self._scene_rows /
+        # self._render_scene_rows() the normal CSV path uses) — reusing
+        # SceneRow.from_csv_row verbatim, since the Overscaled CSV shares
+        # the exact scene_number/script_segment/asset_type/prompt column
+        # names (extra Overscaled-only columns are simply ignored by it).
+        # A role prefix is added to script_segment for rows that define a
+        # node — display-only enrichment; the SceneGraph itself is untouched.
+        role_by_scene_number = {
+            n.metadata.get("scene_number"): n.semantic_role
+            for n in result.scene_graph.nodes
+            if n.metadata.get("scene_number")
+        }
+        display_rows = [SceneRow.from_csv_row(r) for r in rows]
+        for scene_row in display_rows:
+            role = role_by_scene_number.get(scene_row.scene_number)
+            if role:
+                scene_row.script_segment = f"[{role}] {scene_row.script_segment}"
+        self._scene_rows = display_rows
+        self._render_scene_rows()
+        self._sync_primary_cta()
+        return True
+
+    def _sync_primary_cta_overscaled(self) -> None:
+        """Overscaled's own, independent branch of the SAME primary-CTA
+        state machine _sync_primary_cta already runs for the normal
+        workflow — normal mode's logic below is completely unaffected."""
+        if self._overscaled_running:
+            self._cta_action = "generate"
+            self.stage_var.set("GENERATING")
+            self.hint_var.set("Overscaled generation in progress…")
+            self._set_generate_btn(state="disabled", text="Generating…")
+            return
+        if self._workspace is None:
+            self._cta_action = "picker"
+            self.stage_var.set("SCRIPT")
+            self.hint_var.set("Choose a project to get started.")
+            self._set_generate_btn(state="normal", text="Choose project")
+            return
+        csv_path = self._overscaled_csv_var.get().strip()
+        has_csv = bool(csv_path) and Path(csv_path).is_file() and self._overscaled_scene_graph is not None
+        if not has_csv:
+            self._cta_action = "overscaled_import_csv"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Import an Overscaled CSV to load the plan.")
+            self._set_generate_btn(state="normal", text="Import Overscaled CSV")
+            return
+        if self._current_voiceover_path() is None:
+            self._cta_action = "import_audio"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Select or import a voiceover to continue.")
+            self._set_generate_btn(state="normal", text="Import Voiceover")
+            return
+        self._cta_action = "generate"
+        self.stage_var.set("GENERATE")
+        self.hint_var.set("Ready — click Generate to render the Overscaled video.")
+        self._set_generate_btn(state="normal", text="Generate")
+
+    def _run_overscaled_generation(self) -> None:
+        """The Overscaled branch of the SHARED _on_generate() entry point —
+        reached only via the existing Generate button/(_on_primary_cta ->
+        _on_generate) dispatch when self.generation_mode == "overscaled".
+        Never a second button; never a second workflow."""
+        if self._overscaled_running:
+            return
+        csv_path = self._overscaled_csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            messagebox.showerror("Cannot start", "Choose a valid Overscaled CSV file first.")
+            return
+        if self._workspace is None:
+            messagebox.showerror("Cannot start", "Create or choose a project first.")
+            return
+
+        # Mirror the normal workflow's persistence (_apply_ai_plan saves the
+        # script + writes the CSV into the project): copy the chosen CSV into
+        # this project's own csv/ folder before generating, so reopening the
+        # project later still has the Overscaled source that drove it —
+        # previously only the generated video was ever saved, never this.
+        try:
+            persisted_csv = self._workspace.copy_overscaled_csv_in(Path(csv_path))
+        except OSError as exc:
+            messagebox.showerror("Cannot start", f"Could not save the Overscaled CSV into the project:\n{exc}")
+            return
+        csv_path = str(persisted_csv)
+        self._overscaled_csv_var.set(csv_path)
+
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showerror(
+                "Cannot start",
+                "Select or import a voiceover first (same voiceover control used for the normal workflow).",
+            )
+            return
+
+        out_dir = self._workspace.root / "overscaled"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_path = out_dir / "overscaled_final.mp4"
+
+        # Same resolution the normal workflow already uses (app.py:6170/8160)
+        # for stock_image/stock_video scenes — Overscaled must not require a
+        # second, separately-configured API key.
+        pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+        # Same lazy, thread-safe singleton the normal workflow uses for
+        # flow_image/flow_video scenes (safe to call from this background
+        # thread too — _get_flow_engine_manager holds its own lock).
+        flow_engine_manager = self._get_flow_engine_manager()
+
+        self._overscaled_running = True
+        self._sync_primary_cta()
+        self._overscaled_status_var.set("Starting Overscaled generation…")
+        self._append_log("Starting Overscaled generation…\n")
+
+        def progress_cb(message: str, fraction: float) -> None:
+            def apply() -> None:
+                self._overscaled_status_var.set(f"{message} ({int(fraction * 100)}%)")
+                self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+
+            self.after(0, apply)
+
+        _scene_log_re = re.compile(r"Scene (\d+)\s*(?:->\s*)?(.+)$")
+        _scenes_ready_re = re.compile(r"(\d+)/(\d+)\s+scenes ready")
+
+        def thread_safe_log(message: str) -> None:
+            # resolve_scene_assets()/render_video() invoke `log` from THIS
+            # background thread — Tkinter widgets are not thread-safe, so
+            # every log line is bounced onto the main loop via after(0, ...),
+            # exactly like progress_cb above.
+            self.after(0, lambda: self._append_log(f"{message}\n"))
+
+            # The Visual Plan table's Status column has no data source of
+            # its own for Overscaled rows (they never go through the normal
+            # per-scene asset-resolution loop that drives it) — it just sits
+            # on "QUEUED" forever even while this exact log shows real,
+            # scene-by-scene activity. Reuse the SAME status display the
+            # normal workflow uses (_set_scene_status/_status_display) by
+            # classifying these same log lines, instead of inventing a
+            # second status system.
+            done_match = _scenes_ready_re.search(message)
+            if done_match and done_match.group(1) == done_match.group(2):
+                scene_numbers = [s.scene_number for s in self._scene_rows]
+                self.after(0, lambda nums=scene_numbers: [self._set_scene_status(n, "ready") for n in nums])
+                return
+            scene_match = _scene_log_re.search(message)
+            if scene_match:
+                status = _classify_scene_status(scene_match.group(2))
+                if status:
+                    scene_number = scene_match.group(1)
+                    self.after(0, lambda n=scene_number, s=status: self._set_scene_status(n, s))
+
+        def worker() -> None:
+            from scene_graph.app_integration import generate_overscaled_video
+
+            result = generate_overscaled_video(
+                csv_path, str(voiceover_path), str(output_path),
+                resolution="1920x1080", fps=30,
+                segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
+                pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                progress_cb=progress_cb, log=thread_safe_log,
+            )
+
+            def finish() -> None:
+                self._overscaled_running = False
+                if result.ok:
+                    self._overscaled_status_var.set(f"Done: {result.output_path}")
+                    self._append_log(f"[OVERSCALED] Final video: {result.output_path}\n")
+                    self._last_output = str(result.output_path)
+                    # Belt-and-braces: the whole segment rendered successfully,
+                    # so every scene's asset is provably resolved by now —
+                    # sweep the table to READY regardless of whether every
+                    # in-between log line was recognized above.
+                    for scene in self._scene_rows:
+                        self._set_scene_status(scene.scene_number, "ready")
+                    try:
+                        self._show_preview(str(result.output_path))
+                    except Exception:
+                        pass  # preview is a bonus; a failure here must not hide the real result
+                    messagebox.showinfo("Overscaled video ready", f"Saved to:\n{result.output_path}")
+                else:
+                    self._overscaled_status_var.set("Failed — see log")
+                    self._append_log("[OVERSCALED] Generation failed:\n" + "\n".join(result.errors) + "\n")
+                    messagebox.showerror("Overscaled generation failed", "\n".join(result.errors) or "Unknown error")
+                self._sync_primary_cta()
+
+            self.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _build_scenes_workspace(self, parent=None) -> None:
         right = parent if parent is not None else ctk.CTkFrame(self, fg_color=_PANEL_ALT, corner_radius=0)
@@ -2248,6 +2584,44 @@ class VideoGeneratorApp(ctk.CTk):
 
         widget.bind("<Configure>", _on_configure, add="+")
 
+    def _recompute_scroll_fit(self, event=None) -> None:
+        # The Script panel's CTkScrollableFrame is gridded with weight=1 so it
+        # can use the full window when content is genuinely long (many scene
+        # rows, a big CSV plan). But on a tall window with short content (e.g.
+        # the empty "Paste script" state), that same weight=1 stretches its
+        # canvas to the full panel height, leaving a large dead-black gap
+        # below the actual cards. Here we measure the real content height and
+        # switch the panel to hug it instead, so the layout stays compact;
+        # once content grows past the available height we switch back to
+        # filling + the scrollable frame's own internal scrollbar.
+        left = getattr(self, "_left_panel", None)
+        scroll = getattr(self, "_scroll", None)
+        if left is None or scroll is None:
+            return
+        try:
+            available = left.winfo_height()
+            bbox = scroll._parent_canvas.bbox("all")
+            content_h = (bbox[3] - bbox[1]) if bbox else 0
+        except Exception:
+            return
+        if available <= 1 or content_h <= 0:
+            return
+        pad = 8
+        currently_fitted = getattr(self, "_scroll_fitted", None)
+        if content_h < available - pad:
+            target_h = content_h + pad
+            if currently_fitted is not True or abs(getattr(self, "_scroll_fit_height", 0) - target_h) > 6:
+                left.grid_rowconfigure(0, weight=0)
+                scroll.grid(row=0, column=0, sticky="new", padx=0, pady=0)
+                scroll.configure(height=target_h)
+                self._scroll_fitted = True
+                self._scroll_fit_height = target_h
+        else:
+            if currently_fitted is not False:
+                left.grid_rowconfigure(0, weight=1)
+                scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+                self._scroll_fitted = False
+
     def _set_stepper_compact(self, compact: bool) -> None:
         compact = bool(compact)
         if compact == self._stepper_compact:
@@ -2443,6 +2817,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_upload_claude_csv()
         elif action == "import_csv":
             self._browse_csv()
+        elif action == "overscaled_import_csv":
+            self._browse_overscaled_csv()
         elif action == "import_audio":
             self._browse_audio()
         elif action == "cancel":
@@ -3101,6 +3477,10 @@ class VideoGeneratorApp(ctk.CTk):
         return killed
 
     def _sync_primary_cta(self, snap=None) -> None:
+        if self.generation_mode == "overscaled":
+            self._sync_primary_cta_overscaled()
+            return
+
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
         has_plan = bool(self.csv_var.get().strip()) and Path(self.csv_var.get().strip()).is_file()
@@ -3589,6 +3969,17 @@ class VideoGeneratorApp(ctk.CTk):
             self.script_box.delete("1.0", "end")
             self.script_box.insert("1.0", text)
             self._sync_script_watermark()
+        if hasattr(self, "_overscaled_csv_var"):
+            if ws.overscaled_csv_path.is_file():
+                self._overscaled_csv_var.set(str(ws.overscaled_csv_path))
+                self._load_overscaled_csv(str(ws.overscaled_csv_path))
+            else:
+                self._overscaled_csv_var.set("")
+                self._overscaled_scene_graph = None
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+                if self.generation_mode == "overscaled":
+                    self.generation_mode = "normal"
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -3867,6 +4258,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._sync_export_csv_link()
             self._refresh_scene_preview()
         self._sync_primary_cta()
+        self.after(30, self._recompute_scroll_fit)
 
     def _on_analyze_script(self) -> None:
         if not self._require_workspace("analyze a script"):
@@ -4987,7 +5379,19 @@ class VideoGeneratorApp(ctk.CTk):
     def _refresh_scene_preview(self) -> None:
         """Parse the chosen CSV (if any) and repaint the Scenes table with each
         row's routed source. Cheap — no network, no provider calls — just
-        SceneAssetRouter.classify() against the CSV columns."""
+        SceneAssetRouter.classify() against the CSV columns.
+
+        Overscaled mode owns self._scene_rows itself (populated from the
+        Overscaled CSV in _browse_overscaled_csv) — this function reads the
+        NORMAL self.csv_var, so without this guard, VisualPlanView.on_show()
+        (called on every navigation to Visual Plan, including the one
+        _browse_overscaled_csv triggers) would immediately re-derive an
+        empty row list from the empty normal csv_var and wipe out the
+        Overscaled plan the user just navigated here to review. Normal mode
+        is completely unaffected — this only ever short-circuits when
+        Overscaled is the active generation mode."""
+        if self.generation_mode == "overscaled":
+            return
         csv_path = self.csv_var.get().strip()
         rows: list[dict] = []
         if csv_path and Path(csv_path).is_file():
@@ -8022,6 +8426,10 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- generate ----------
 
     def _on_generate(self) -> None:
+        if self.generation_mode == "overscaled":
+            self._run_overscaled_generation()
+            return
+
         if self._running:
             self._on_cancel()
             return

@@ -16,6 +16,7 @@ const {
   generateOneImage,
   parseBatchExecuteResponse,
   extractOgiZ0bImageResult,
+  extractRpcErrorInfoReason,
   RateLimitError,
   AuthExpiredError,
   EndpointRejectedError,
@@ -116,7 +117,11 @@ test("request is sent to the confirmed batchexecute endpoint with the expected q
   assert.match(captured.url, /source-path=%2Fproject%2F3fe16e7e-e725-4dc0-852b-80593cffdd9f/);
   assert.match(captured.url, /bl=boq_labs-ai-sandbox-frontend_20260903\.13_p0/);
   assert.match(captured.url, /f\.sid=5154174394542838292/);
-  assert.match(captured.url, /hl=en-GB/);
+  // hl is read from the page's own current URL now (confirmed live from the
+  // real Flow frontend bundle — see project notes), falling back to the
+  // frontend's own default "en-US" when the URL carries no ?hl= param, as
+  // this fakePage's URL does not. No longer the old hardcoded "en-GB".
+  assert.match(captured.url, /hl=en-US/);
   assert.match(captured.url, /_reqid=\d+/);
   assert.match(captured.url, /rt=c/);
 });
@@ -373,4 +378,270 @@ test("network/timeout failure surfaces cleanly", async () => {
   };
   const page = fakePage({ wiz: fullWiz(), fetchImpl });
   await assert.rejects(() => generateOneImage(page, PROJECT_ID, "prompt", {}, 0), /Request timed out/);
+});
+
+// ---------------------------------------------------------------------------
+// extractRpcErrorInfoReason — shared google.rpc.ErrorInfo extractor. Used at
+// all three RPC sites (ogiZ0b here, YhhmEf and as29s in generateOneVideo) so
+// a real application-level rejection is named instead of collapsing into a
+// generic "no mediaId" message. Real captured envelope shapes (see project
+// notes): gRPC 7/PERMISSION_DENIED for PUBLIC_ERROR_UNUSUAL_ACTIVITY, gRPC
+// 8/RESOURCE_EXHAUSTED for PUBLIC_ERROR_USER_QUOTA_REACHED.
+// ---------------------------------------------------------------------------
+
+function errorEnvelope(rpcid, grpcCode, reason) {
+  return (
+    ")]}'\n\n" +
+    chunkOf([
+      [
+        "wrb.fr",
+        rpcid,
+        null,
+        null,
+        null,
+        [grpcCode, null, [["type.googleapis.com/google.rpc.ErrorInfo", [reason]]]],
+        "generic",
+      ],
+    ]) +
+    chunkOf([["e", 4, null, null, 228]])
+  );
+}
+
+test("extractRpcErrorInfoReason finds PUBLIC_ERROR_UNUSUAL_ACTIVITY (gRPC 7)", () => {
+  const text = errorEnvelope("ogiZ0b", 7, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
+  assert.equal(extractRpcErrorInfoReason(text, "ogiZ0b"), "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
+});
+
+test("extractRpcErrorInfoReason finds PUBLIC_ERROR_USER_QUOTA_REACHED (gRPC 8)", () => {
+  const text = errorEnvelope("ogiZ0b", 8, "PUBLIC_ERROR_USER_QUOTA_REACHED");
+  assert.equal(extractRpcErrorInfoReason(text, "ogiZ0b"), "PUBLIC_ERROR_USER_QUOTA_REACHED");
+});
+
+test("extractRpcErrorInfoReason is not hardcoded to known reasons — surfaces an arbitrary one", () => {
+  const text = errorEnvelope("ogiZ0b", 9, "SOME_FUTURE_REASON_NEVER_SEEN_BEFORE");
+  assert.equal(extractRpcErrorInfoReason(text, "ogiZ0b"), "SOME_FUTURE_REASON_NEVER_SEEN_BEFORE");
+});
+
+test("extractRpcErrorInfoReason returns null for a normal successful workflow response", () => {
+  const text = canned(["ogiZ0b", REAL_RESULT]);
+  assert.equal(extractRpcErrorInfoReason(text, "ogiZ0b"), null);
+});
+
+test("extractRpcErrorInfoReason returns null for malformed/unexpected response, never throws", () => {
+  for (const bad of ["", "not batchexecute at all", ")]}'\nnotanumber\n{}", ")]}'\n5\n{broken"]) {
+    assert.doesNotThrow(() => extractRpcErrorInfoReason(bad, "ogiZ0b"));
+    assert.equal(extractRpcErrorInfoReason(bad, "ogiZ0b"), null);
+  }
+});
+
+test("extractRpcErrorInfoReason returns null when the rpcid never arrives", () => {
+  const text = errorEnvelope("someOtherRpc", 7, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
+  assert.equal(extractRpcErrorInfoReason(text, "ogiZ0b"), null);
+});
+
+// ---------------------------------------------------------------------------
+// generateOneImage surfaces the ErrorInfo reason instead of the generic
+// "No mediaId in generation response" message, and writes the same style of
+// passive diagnostic capture generateOneVideo already has for YhhmEf.
+// ---------------------------------------------------------------------------
+
+test("generateOneImage surfaces the ErrorInfo reason instead of a generic message", async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => errorEnvelope("ogiZ0b", 8, "PUBLIC_ERROR_USER_QUOTA_REACHED"),
+  });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+  await assert.rejects(
+    () => generateOneImage(page, PROJECT_ID, "prompt", {}, 0),
+    /Flow RPC rejected: PUBLIC_ERROR_USER_QUOTA_REACHED/,
+  );
+});
+
+test("generateOneImage without any ErrorInfo still falls back to the original generic message", async () => {
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => canned(["someOtherRpc", [1]]) });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+  await assert.rejects(
+    () => generateOneImage(page, PROJECT_ID, "prompt", {}, 0),
+    /No mediaId in generation response/,
+  );
+});
+
+test("a missing mediaId writes a passive ogiz0b diagnostic record without changing the thrown error", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "ogiz0b-diag-test-"));
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => errorEnvelope("ogiZ0b", 8, "PUBLIC_ERROR_USER_QUOTA_REACHED"),
+  });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await assert.rejects(
+      () => generateOneImage(page, PROJECT_ID, "prompt", { outputDir: runDir }, 0),
+      /Flow RPC rejected: PUBLIC_ERROR_USER_QUOTA_REACHED/,
+    );
+    const diagPath = join(runDir, "ogiz0b-diagnostic.log");
+    const lines = readFileSync(diagPath, "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.rpc, "ogiZ0b");
+    assert.equal(entry.promptIndex, 0);
+    assert.equal(entry.prompt, "prompt");
+    assert.equal(entry.httpStatus, 200);
+    assert.equal(entry.errorInfoReason, "PUBLIC_ERROR_USER_QUOTA_REACHED");
+    assert.ok(entry.ts);
+    assert.ok(entry.host);
+    assert.ok(Number.isInteger(entry.responseLength) && entry.responseLength > 0);
+    assert.ok(entry.rawResponse.includes("PUBLIC_ERROR_USER_QUOTA_REACHED"));
+    // Never log cookies/tokens/credentials/session secrets.
+    assert.ok(!JSON.stringify(entry).includes(REAL_TOKEN));
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("a successful image generation writes no ogiz0b diagnostic record", async () => {
+  const { mkdtempSync, existsSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "ogiz0b-diag-test-success-"));
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => canned(["ogiZ0b", REAL_RESULT]) });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await generateOneImage(page, PROJECT_ID, "a single red apple", { outputDir: runDir }, 0);
+    assert.equal(existsSync(join(runDir, "ogiz0b-diagnostic.log")), false);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Symmetric generation-diagnostic.log — fires on BOTH success and failure,
+// with the same field shape, so a future incident can compare a successful
+// attempt's timings against a failing one (the exact gap that blocked the
+// 2026-09-23 investigation: a real success and a real failure on the same
+// account/project/code had nothing captured to compare).
+// ---------------------------------------------------------------------------
+
+test("a successful image generation writes a symmetric generation-diagnostic.log entry", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-test-success-"));
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => canned(["ogiZ0b", REAL_RESULT]) });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await generateOneImage(page, PROJECT_ID, "a single red apple", { outputDir: runDir }, 0);
+    const lines = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.rpc, "ogiZ0b");
+    assert.equal(entry.outcome, "success");
+    assert.equal(entry.mediaId, "e7205d39-9526-468f-bf3f-01ef99d476d0");
+    assert.equal(entry.httpStatus, 200);
+    assert.ok(entry.responseLength > 0);
+    assert.equal(entry.hasWizState, true);
+    assert.equal(entry.errorInfoReason, null);
+    assert.equal(entry.grpcCode, null);
+    assert.ok(entry.ts);
+    assert.ok(entry.flowReadyAt);
+    assert.ok(entry.recaptchaExecuteStartedAt);
+    assert.ok(entry.recaptchaExecuteEndedAt);
+    assert.ok(entry.recaptchaExecuteDurationMs >= 0);
+    assert.ok(entry.rpcSentAt);
+    assert.ok(entry.rpcRespondedAt);
+    assert.ok(entry.totalElapsedMs >= 0);
+    assert.equal(entry.pageReused, false);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("a failing image generation (with ErrorInfo) writes the same shape entry, with grpcCode/reason populated", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-test-failure-"));
+  const fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => errorEnvelope("ogiZ0b", 7, "PUBLIC_ERROR_UNUSUAL_ACTIVITY"),
+  });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await assert.rejects(() => generateOneImage(page, PROJECT_ID, "prompt", { outputDir: runDir }, 0));
+    const lines = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.outcome, "no_media_id");
+    assert.equal(entry.mediaId, null);
+    assert.equal(entry.grpcCode, 7);
+    assert.equal(entry.errorInfoReason, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
+    assert.equal(entry.httpStatus, 200);
+    assert.equal(entry.hasWizState, true);
+    // Same fields present as the success case — symmetric shape.
+    assert.ok(entry.flowReadyAt);
+    assert.ok(entry.recaptchaExecuteStartedAt);
+    assert.ok(entry.rpcSentAt);
+    assert.ok(entry.rpcRespondedAt);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("generation-diagnostic.log never contains the reCAPTCHA token, the WIZ at/bl/f.sid values, or the request URL's session query params", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-test-secrets-"));
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => canned(["ogiZ0b", REAL_RESULT]) });
+  const wiz = fullWiz();
+  const page = fakePage({ wiz, fetchImpl });
+
+  try {
+    await generateOneImage(page, PROJECT_ID, "a single red apple", { outputDir: runDir }, 0);
+    const raw = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8");
+    assert.ok(!raw.includes(REAL_TOKEN), "must not log the WIZ 'at' token");
+    assert.ok(!raw.includes(wiz.cfb2h), "must not log 'bl'");
+    assert.ok(!raw.includes(wiz.FdrFJe), "must not log 'f.sid'");
+    assert.ok(!raw.includes("CAPTCHA_TOKEN"), "must not log the reCAPTCHA token");
+    assert.ok(!raw.includes("cookie"), "must not log cookies");
+    const entry = JSON.parse(raw.trim());
+    assert.equal(entry.url, "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=ogiZ0b");
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("pageReused is false on a page's first generation and true on its second", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-test-reuse-"));
+  const fetchImpl = async () => ({ ok: true, status: 200, text: async () => canned(["ogiZ0b", REAL_RESULT]) });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await generateOneImage(page, PROJECT_ID, "first", { outputDir: runDir }, 0);
+    await generateOneImage(page, PROJECT_ID, "second", { outputDir: runDir }, 1);
+    const lines = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8").trim().split("\n");
+    assert.equal(lines.length, 2);
+    assert.equal(JSON.parse(lines[0]).pageReused, false);
+    assert.equal(JSON.parse(lines[1]).pageReused, true);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
 });

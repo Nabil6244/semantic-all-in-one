@@ -1,6 +1,5 @@
 import path from "node:path";
 import {
-  generateOneImage,
   generateOneVideo,
   downloadMedia,
   openOrCreateProject,
@@ -16,6 +15,7 @@ import {
   timing,
   models,
 } from "./flow-api.js";
+import { generateOneImageViaUI } from "./flow-ui-experiment.js";
 import { defaults } from "../config.js";
 import {
   AccountLifecycle,
@@ -167,7 +167,7 @@ export async function runBatchSlice({
             const generated =
               mediaKind === "video"
                 ? await generateOneVideo(page, projectId, prompt, settingsLocal, abs * 10 + slot)
-                : await generateOneImage(page, projectId, prompt, settingsLocal, abs * 10 + slot);
+                : await generateOneImageViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot);
             const mediaId = generated.mediaId;
             const directUrl = generated.fifeUrl || null;
             mediaIds.push(mediaId);

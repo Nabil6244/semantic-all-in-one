@@ -1,0 +1,60 @@
+{
+  "id": "overscaled",
+  "version": 1,
+  "name": "Overscaled",
+  "description": "Whiteboard-collage documentary style: one fixed 1920x1080 white canvas per segment that never moves. Image, diagram, video-loop, and anchor nodes are revealed on it over time and stay persistent, connected by hand-drawn causal arrows — a motion-design board, not a camera moving over a large canvas.",
+  "canvas": {
+    "background": "#ffffff",
+    "width": 1920,
+    "height": 1080,
+    "no_hard_cuts_within_segment": true
+  },
+  "nodes": {
+    "supported_types": ["image", "diagram", "video_loop", "anchor"],
+    "border": {"enabled": false, "color": "#1a1a1a", "width_px": 3},
+    "shadow": {"enabled": false, "blur_px": 18, "opacity": 0.25},
+    "preserve_aspect_ratio": true,
+    "placement_style": "slightly_imperfect_scrapbook",
+    "treatment": "editorial_documentary"
+  },
+  "typography": {
+    "title": {
+      "font_family": "marker",
+      "weight": "bold",
+      "size_role": "display"
+    },
+    "caption": {
+      "font_family": "handwritten",
+      "style": "short_declarative",
+      "max_highlights_per_caption": 4,
+      "highlight_is_structural": true
+    }
+  },
+  "arrows": {
+    "style": "hand_drawn",
+    "default_color": "#c0392b",
+    "alt_color": "#1a1a1a",
+    "notes": "default_color (red) is used ONLY for kind='callout' edges; alt_color (black) is the default 'sequential' connector color — see SceneEdge.kind / composition._draw_arrow.",
+    "organic_jitter": true,
+    "draw_on_animation": true,
+    "default_duration_s": 1.2
+  },
+  "camera": {
+    "fixed": true,
+    "notes": "The camera never moves — this key is kept only so older SceneGraph JSON with camera_keyframes still deserializes; scene_graph.render ignores it entirely."
+  },
+  "transitions": {
+    "between_segments": "hard_cut",
+    "within_segment": "none",
+    "composition_layer_change": "optional_dissolve"
+  },
+  "segment_structure_guidance": [
+    "cold_open",
+    "title",
+    "context",
+    "design_decision",
+    "failure_chain",
+    "consequence",
+    "legacy_close"
+  ]
+}

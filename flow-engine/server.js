@@ -25,6 +25,7 @@ import {
   resetGenerateState,
   closeBrowsers,
   shutdown,
+  inspectAccount,
 } from "./lib/orchestrator.js";
 import { defaults } from "./config.js";
 
@@ -127,6 +128,12 @@ export async function startServer(port = DEFAULT_PORT) {
           resetGenerateState();
         } else if (t === "CLOSE_BROWSERS") {
           await closeBrowsers();
+        } else if (t === "INSPECT_PAGE") {
+          // TEMPORARY read-only diagnostic — see accounts.js's
+          // inspectAccountPage doc comment. Never touches Flow RPCs,
+          // reCAPTCHA, or generation.
+          const result = await inspectAccount(msg.accountId);
+          send(ws, { type: "INSPECT_RESULT", accountId: msg.accountId, ...result });
         }
       } catch (e) {
         send(ws, { type: "ERROR", message: e.message });

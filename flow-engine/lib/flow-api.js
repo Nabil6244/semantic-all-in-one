@@ -379,10 +379,12 @@ export async function createFlowProject(page) {
       hour12: false,
     })
     .replace(",", "");
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
 
   const out = await safeEvaluate(
     page,
-    async ({ title, timeoutMs }) => {
+    async ({ title, reqId, hl, timeoutMs }) => {
       const wiz = window.WIZ_global_data || {};
       const at = wiz.SNlM0e;
       const bl = wiz.cfb2h;
@@ -391,13 +393,12 @@ export async function createFlowProject(page) {
         return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
       }
 
-      const reqId = 100000 + Math.floor(Math.random() * 900000);
       const url =
         "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
         "?rpcids=jHPbke&source-path=%2F" +
         "&bl=" + encodeURIComponent(bl) +
         "&f.sid=" + encodeURIComponent(fsid) +
-        "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+        "&hl=" + encodeURIComponent(hl) + "&_reqid=" + reqId + "&rt=c";
       const args = ["projects/*", [null, [title]], [null, 22]];
       const bodyStr =
         "f.req=" + encodeURIComponent(JSON.stringify([[["jHPbke", JSON.stringify(args), null, "generic"]]])) +
@@ -422,7 +423,7 @@ export async function createFlowProject(page) {
         return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
       }
     },
-    { title, timeoutMs: timing.apiRequestTimeoutMs },
+    { title, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs },
   );
 
   if (!out || out.error) {
@@ -475,11 +476,161 @@ export async function openOrCreateProject(page) {
   return projectId;
 }
 
+/**
+ * `AiSandbox.GetProject` ("ngNC2") — the real Flow UI's own project-load
+ * RPC. Confirmed by reading the live AiSandboxAngularFrontend bundle
+ * (2026-09-23 investigation): the UI's GENERATE_IMAGE mutation gates its
+ * Generate button's enabled state on this query's data already being
+ * cached (`Rm: () => !!a.ma.Lc() && !!b.data()`), and the query itself is
+ * exactly this RPC:
+ *   queryFn: () => fetch(ngNC2, request-name-field = `tools/${toolName}/projects/${id}`)
+ * Request is a single resource-name string field (jspb field 1), built
+ * from the same api.toolName ("PINHOLE") this file already uses elsewhere
+ * — not invented here. No reCAPTCHA token, matching jHPbke's project-
+ * creation call (confirmed live: no grecaptcha call appears in the
+ * bundle's queryFn for this RPC either).
+ */
+export async function getFlowProject(page, projectId) {
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
+  const name = `tools/${api.toolName}/projects/${projectId}`;
+
+  const out = await safeEvaluate(
+    page,
+    async ({ name, projectId, reqId, hl, timeoutMs }) => {
+      const wiz = window.WIZ_global_data || {};
+      const at = wiz.SNlM0e;
+      const bl = wiz.cfb2h;
+      const fsid = wiz.FdrFJe;
+      if (!at || !bl || !fsid) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      }
+
+      const url =
+        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
+        "?rpcids=ngNC2" +
+        "&source-path=" + encodeURIComponent("/project/" + projectId) +
+        "&bl=" + encodeURIComponent(bl) +
+        "&f.sid=" + encodeURIComponent(fsid) +
+        "&hl=" + encodeURIComponent(hl) +
+        "&_reqid=" + reqId +
+        "&rt=c";
+
+      const bodyStr =
+        "f.req=" + encodeURIComponent(JSON.stringify([[["ngNC2", JSON.stringify([name]), null, "generic"]]])) +
+        "&at=" + encodeURIComponent(at);
+
+      const ac = new AbortController();
+      const tm = setTimeout(() => ac.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: bodyStr,
+          credentials: "include",
+          signal: ac.signal,
+        });
+        clearTimeout(tm);
+        const text = await resp.text();
+        if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+        return { success: true, text };
+      } catch (e) {
+        clearTimeout(tm);
+        return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
+      }
+    },
+    { name, projectId, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs },
+  );
+
+  if (!out || out.error) {
+    return { success: false, error: out?.error || "no response" };
+  }
+  const parsed = parseBatchExecuteResponse(out.text, "ngNC2");
+  const reason = extractRpcErrorInfoReason(out.text, "ngNC2");
+  const grpcCode = extractRpcErrorGrpcCode(out.text, "ngNC2");
+  return { success: !!parsed && !reason, parsed, reason, grpcCode };
+}
+
+/**
+ * Calls getFlowProject once per (page, projectId) and remembers the
+ * outcome on the page object — mirrors the real UI's query-cache
+ * semantics (one GetProject per project, not once per generation).
+ * Deliberately non-fatal: a failure here is recorded on `diag` but does
+ * NOT block the caller from proceeding to ogiZ0b — this exists to test
+ * whether GetProject is a precondition ogiZ0b's backend checks for, not
+ * to become a new hard failure mode if it errors for an unrelated reason.
+ */
+async function ensureProjectStateLoaded(page, projectId, diag) {
+  if (page.__flowProjectStateLoadedFor === projectId) {
+    diag.getProjectCached = true;
+    return;
+  }
+  const startedAt = Date.now();
+  let result;
+  try {
+    result = await getFlowProject(page, projectId);
+  } catch (e) {
+    result = { success: false, error: e?.message || String(e) };
+  }
+  diag.getProjectAttempted = true;
+  diag.getProjectSuccess = !!result.success;
+  diag.getProjectError = result.success ? null : (result.error || result.reason || null);
+  diag.getProjectGrpcCode = result.grpcCode ?? null;
+  diag.getProjectDurationMs = Date.now() - startedAt;
+  if (result.success) page.__flowProjectStateLoadedFor = projectId;
+}
+
 function uuid() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     return (c === "x" ? r : (r & 3) | 8).toString(16);
   });
+}
+
+/**
+ * `_reqid` matching the current Flow frontend's own scheme — confirmed live
+ * by fetching and reading the real, current AiSandboxAngularFrontend
+ * production bundle (see project notes): the frontend computes
+ * `1 + hq + Kb*100000`, where `hq` is seconds-since-local-midnight computed
+ * once per page session, and `Kb` is a counter incremented once per request
+ * object, shared across every RPC type that page makes (project creation,
+ * image/video generation, polling, final detail fetch) — not a fresh random
+ * draw per call, and not a process-wide global.
+ *
+ * This replicates that scope at the narrowest place this codebase actually
+ * has a "page session" object: the Playwright `page` itself, which already
+ * persists for the lifetime of one Flow browser session and is threaded
+ * through every RPC call site (see accounts.js's tagPage / getPage). `hq` is
+ * computed once per page (first call lazily initializes it, exactly as the
+ * frontend does on its first request), and `Kb` increments on every call
+ * regardless of which RPC is being built next.
+ */
+export function nextReqId(page) {
+  if (page.__flowReqIdHq == null) {
+    const now = new Date();
+    page.__flowReqIdHq = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    page.__flowReqIdCounter = 0;
+  }
+  const kb = page.__flowReqIdCounter++;
+  return 1 + page.__flowReqIdHq + kb * 100000;
+}
+
+/**
+ * `hl` matching the current Flow frontend's own scheme — confirmed live from
+ * the same bundle: `a=window.location.href; Fm(a,"hl")||(a=Zha(a,"hl","en-US"))`.
+ * The frontend reads `hl` from the page's own current URL, falling back to
+ * `"en-US"` only when the URL doesn't already carry one — it is not a fixed
+ * locale. Read here from `page.url()` (no browser round-trip needed, this is
+ * a Playwright API available directly in Node) rather than hardcoding a
+ * literal.
+ */
+export function currentHl(page) {
+  try {
+    const u = new URL(page.url());
+    return u.searchParams.get("hl") || "en-US";
+  } catch {
+    return "en-US";
+  }
 }
 
 // No longer called (generateOneVideo's current YhhmEf request carries no
@@ -721,23 +872,29 @@ function buildBatchExecuteRequest(rpcid, args, atToken) {
   return "f.req=" + encodeURIComponent(JSON.stringify(envelope)) + "&at=" + encodeURIComponent(atToken);
 }
 
-export function parseBatchExecuteResponse(text, rpcid) {
+// Length-prefixed chunks: a line holding a declared byte length, then that
+// many bytes of JSON. NOT sliced by that declared length — verified live
+// against a real captured response that the declared count is 2 bytes
+// larger than what a JS string's .length actually measures after
+// fetch()/page.evaluate() has already decoded the body (almost certainly
+// a \r\n vs \n line-ending difference between Google's byte count and the
+// normalized string Playwright hands back). Every chunk's JSON is emitted
+// on its own single line in every response observed, so splitting on "\n"
+// and skipping bare-integer length-marker lines is both simpler and
+// actually correct against live data, where the byte-slicing approach
+// this replaces was not. Malformed/truncated input just yields nothing
+// parseable rather than throwing — callers treat "not found" as a
+// generation failure.
+//
+// Shared by parseBatchExecuteResponse (decodes entry[2], the success
+// payload) and extractRpcErrorInfoReason (searches the whole entry, since a
+// rejection puts its detail at a different position and leaves entry[2]
+// null) — both need the identical "find the wrb.fr entry for this rpcid"
+// step, just different things done with it afterwards.
+function findWrbFrEntry(text, rpcid) {
   let body = String(text || "");
   if (body.startsWith(")]}'")) body = body.slice(4);
 
-  // Length-prefixed chunks: a line holding a declared byte length, then that
-  // many bytes of JSON. NOT sliced by that declared length — verified live
-  // against a real captured response that the declared count is 2 bytes
-  // larger than what a JS string's .length actually measures after
-  // fetch()/page.evaluate() has already decoded the body (almost certainly
-  // a \r\n vs \n line-ending difference between Google's byte count and the
-  // normalized string Playwright hands back). Every chunk's JSON is emitted
-  // on its own single line in every response observed, so splitting on "\n"
-  // and skipping bare-integer length-marker lines is both simpler and
-  // actually correct against live data, where the byte-slicing approach
-  // this replaces was not. Malformed/truncated input just yields nothing
-  // parseable rather than throwing — callers treat "not found" as a
-  // generation failure.
   const lines = body.split("\n");
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -751,16 +908,293 @@ export function parseBatchExecuteResponse(text, rpcid) {
     if (!Array.isArray(arr)) continue;
     for (const entry of arr) {
       if (Array.isArray(entry) && entry[0] === "wrb.fr" && entry[1] === rpcid) {
-        if (typeof entry[2] !== "string") return null;
-        try {
-          return JSON.parse(entry[2]);
-        } catch {
-          return null;
-        }
+        return entry;
       }
     }
   }
   return null;
+}
+
+export function parseBatchExecuteResponse(text, rpcid) {
+  const entry = findWrbFrEntry(text, rpcid);
+  if (!entry || typeof entry[2] !== "string") return null;
+  try {
+    return JSON.parse(entry[2]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pull the reason out of a `google.rpc.ErrorInfo` detail when Google
+ * rejects an RPC at the application level (200 OK, but no usable result —
+ * confirmed live for both `PUBLIC_ERROR_UNUSUAL_ACTIVITY` (gRPC code 7,
+ * anti-abuse) and `PUBLIC_ERROR_USER_QUOTA_REACHED` (gRPC code 8, quota) on
+ * this exact wrb.fr envelope shape:
+ *   ["wrb.fr", rpcid, null, null, null,
+ *     [<grpcCode>, null, [["type.googleapis.com/google.rpc.ErrorInfo", ["<REASON>"]]]],
+ *     "generic"]
+ * Deliberately does NOT hardcode a fixed set of reasons — it searches for
+ * the ErrorInfo type marker and returns whatever reason string sits next to
+ * it, so a reason neither of the two observed so far still gets surfaced
+ * instead of silently falling back to a generic "no mediaId" message.
+ * Returns null when no ErrorInfo detail is present (including the ordinary
+ * success shape, and malformed/unparseable input).
+ */
+export function extractRpcErrorInfoReason(text, rpcid) {
+  const entry = findWrbFrEntry(text, rpcid);
+  if (!entry) return null;
+  return findErrorInfoReason(entry);
+}
+
+function findErrorInfoReason(node, depth = 0) {
+  if (depth > 8 || !Array.isArray(node)) return null;
+  if (
+    node[0] === "type.googleapis.com/google.rpc.ErrorInfo" &&
+    Array.isArray(node[1]) &&
+    typeof node[1][0] === "string"
+  ) {
+    return node[1][0];
+  }
+  for (const child of node) {
+    const found = findErrorInfoReason(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * The leading gRPC status code sitting alongside the ErrorInfo detail on a
+ * rejected wrb.fr entry (see extractRpcErrorInfoReason's own doc comment for
+ * the exact envelope shape — this reads entry[5][0], the same position that
+ * was 7 for PUBLIC_ERROR_UNUSUAL_ACTIVITY and 8 for
+ * PUBLIC_ERROR_USER_QUOTA_REACHED in the real captures this file already
+ * cites). Diagnostic-only: never used by any control-flow/error-message
+ * decision, only by writeGenerationDiagnostic below.
+ */
+export function extractRpcErrorGrpcCode(text, rpcid) {
+  const entry = findWrbFrEntry(text, rpcid);
+  const detail = entry ? entry[5] : null;
+  return Array.isArray(detail) && typeof detail[0] === "number" ? detail[0] : null;
+}
+
+/**
+ * Symmetric, passive, per-generation-attempt diagnostic — fires on BOTH
+ * success and failure, at every RPC site that calls it, so a future incident
+ * can compare a successful attempt's timings/shape against a failing one
+ * instead of only ever having detail captured on failure (the exact gap
+ * that blocked the 2026-09-23 investigation: a real success and a real
+ * failure happened ~3.5 hours apart on the same account/project/code, and
+ * neither had any captured telemetry to compare).
+ *
+ * Deliberately narrow: every field here is non-sensitive metadata (ids,
+ * timestamps, durations, counts, booleans, HTTP/gRPC status codes, the
+ * already-safe ErrorInfo reason string). Never the WIZ token values
+ * (at/bl/f.sid), never the reCAPTCHA token, never cookies — those never
+ * enter this function's arguments at all, so there is nothing to
+ * accidentally include.
+ *
+ * Written to its own file, additive to (not replacing) the existing
+ * ogiz0b-diagnostic.log/yhhmef-diagnostic.log raw-response captures.
+ */
+function writeGenerationDiagnostic(settings, entry) {
+  try {
+    const diagDir = settings?.outputDir || os.tmpdir();
+    const diagPath = path.join(diagDir, "generation-diagnostic.log");
+    fs.appendFileSync(diagPath, JSON.stringify(entry) + "\n");
+  } catch (writeErr) {
+    // Best-effort only — a diagnostic-logging failure must never mask or
+    // alter the real generation outcome.
+    console.error(
+      `[generation-diagnostic] failed to write: ${writeErr?.code || "?"} ${writeErr?.message || writeErr}`,
+    );
+  }
+}
+
+/**
+ * Page/context lifecycle facts for the diagnostic entry — pageCreatedAt
+ * comes from accounts.js's tagPage() (page.__flowOpenedAt, already set on
+ * every page there for exactly this purpose), and pageReused/contextAgeMs
+ * are derived here from a passive per-page attempt counter. Never touches
+ * account lifecycle, browser launch, or context creation itself — purely
+ * reads existing state and counts calls.
+ */
+function pageLifecycleFields(page) {
+  let priorAttempts = 0;
+  try {
+    priorAttempts = page.__flowGenerationAttempts || 0;
+    page.__flowGenerationAttempts = priorAttempts + 1;
+  } catch {
+    /* best-effort only */
+  }
+  const pageCreatedAt = page?.__flowOpenedAt || null;
+  return {
+    accountId: page?.__flowAccountId || null,
+    pageCreatedAt: pageCreatedAt ? new Date(pageCreatedAt).toISOString() : null,
+    pageReused: priorAttempts > 0,
+    contextAgeMsAtStart: pageCreatedAt ? Date.now() - pageCreatedAt : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// TEMPORARY read-only outgoing-request capture (see project notes) — for a
+// one-off protocol comparison against a real captured human browser request.
+// Purely passive: a Playwright `page.on("request")` listener observes the
+// one real network request the existing code already sends; it never
+// intercepts, blocks, modifies, delays, or replays anything, and adds no
+// headers. This is the only way to see headers a real Chromium network
+// stack adds (sec-ch-ua*, sec-fetch-*, x-client-data, etc.) — page-level
+// JavaScript can never read those, by browser design, regardless of what
+// instrumentation runs inside page.evaluate(). Remove this block (and its
+// one call site in generateOneImageInner) once the investigation is done.
+// ---------------------------------------------------------------------------
+
+const NEVER_LOG_HEADERS = new Set(["cookie", "authorization"]);
+const REDACT_VALUE_HEADERS = new Set(["x-browser-validation", "x-client-data"]);
+const CAPTURED_HEADER_NAMES = [
+  "x-browser-channel", "x-browser-copyright", "x-browser-validation", "x-browser-year",
+  "x-client-data", "x-same-domain",
+  "sec-ch-ua", "sec-ch-ua-arch", "sec-ch-ua-bitness", "sec-ch-ua-form-factors",
+  "sec-ch-ua-full-version", "sec-ch-ua-full-version-list", "sec-ch-ua-mobile",
+  "sec-ch-ua-model", "sec-ch-ua-platform", "sec-ch-ua-platform-version", "sec-ch-ua-wow64",
+  "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site",
+  "origin", "referer", "accept", "accept-language", "content-type", "priority", "user-agent",
+];
+
+function sanitizeHeaders(rawHeaders) {
+  const out = {};
+  for (const name of CAPTURED_HEADER_NAMES) {
+    const val = rawHeaders?.[name];
+    if (val === undefined) {
+      out[name] = { present: false };
+    } else if (NEVER_LOG_HEADERS.has(name) || REDACT_VALUE_HEADERS.has(name)) {
+      out[name] = { present: true, value: "<PRESENT_REDACTED>" };
+    } else {
+      out[name] = { present: true, value: val };
+    }
+  }
+  return out;
+}
+
+/** Structural-only description — never a raw value for strings (length only). */
+function describeStructure(value, depth = 0) {
+  if (depth > 10) return { type: "max-depth" };
+  if (value === null) return { type: "null" };
+  if (value === undefined) return { type: "undefined" };
+  if (Array.isArray(value)) {
+    return { type: "array", length: value.length, items: value.map((v) => describeStructure(v, depth + 1)) };
+  }
+  if (typeof value === "string") return { type: "string", length: value.length };
+  if (typeof value === "number") return { type: "number", value };
+  if (typeof value === "boolean") return { type: "boolean", value };
+  if (typeof value === "object") {
+    const keys = Object.keys(value);
+    const fields = {};
+    for (const k of keys) fields[k] = describeStructure(value[k], depth + 1);
+    return { type: "object", keys: keys.length, fields };
+  }
+  return { type: typeof value };
+}
+
+function sanitizeUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    return {
+      pathname: u.pathname,
+      queryParamNames: Array.from(u.searchParams.keys()),
+      rpcids: u.searchParams.get("rpcids"),
+      sourcePath: u.searchParams.get("source-path"),
+      blPresent: u.searchParams.has("bl"),
+      fsidPresent: u.searchParams.has("f.sid"),
+      hl: u.searchParams.get("hl"),
+      reqid: u.searchParams.get("_reqid"),
+      rt: u.searchParams.get("rt"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Decodes the real outgoing POST body's f.req into a structural summary,
+ * redacting the `at` token and any string content (lengths only). */
+function sanitizeFReqBody(postData) {
+  if (!postData) return null;
+  const params = new URLSearchParams(postData);
+  const fReq = params.get("f.req");
+  const atPresent = params.has("at");
+  if (!fReq) return { fReqPresent: false, atPresent };
+  let outer;
+  try {
+    outer = JSON.parse(fReq);
+  } catch {
+    return { fReqPresent: true, parseError: true, atPresent };
+  }
+  const entry = outer?.[0]?.[0];
+  const rpcid = Array.isArray(entry) ? entry[0] : null;
+  const argsStr = Array.isArray(entry) ? entry[1] : null;
+  let argsStructure = null;
+  if (typeof argsStr === "string") {
+    try {
+      argsStructure = describeStructure(JSON.parse(argsStr));
+    } catch {
+      argsStructure = { parseError: true, length: argsStr.length };
+    }
+  }
+  return {
+    fReqPresent: true,
+    atPresent,
+    outerShape: Array.isArray(outer) ? describeStructure(outer.map((a) => (Array.isArray(a) ? a.map(() => "<entry>") : a))) : null,
+    rpcid,
+    thirdElement: Array.isArray(entry) ? entry[2] : undefined,
+    fourthElement: Array.isArray(entry) ? entry[3] : undefined,
+    argsStructure,
+  };
+}
+
+function writeRequestCaptureLog(settings, entry) {
+  try {
+    const diagDir = settings?.outputDir || os.tmpdir();
+    const diagPath = path.join(diagDir, "ogiz0b-request-capture.log");
+    fs.appendFileSync(diagPath, JSON.stringify(entry) + "\n");
+  } catch (writeErr) {
+    console.error(
+      `[ogiz0b-request-capture] failed to write: ${writeErr?.code || "?"} ${writeErr?.message || writeErr}`,
+    );
+  }
+}
+
+/**
+ * Attach a one-shot, passive listener for the next request matching
+ * `rpcids=<rpcid>`. Never blocks, modifies, or delays the request — Playwright
+ * request listeners are observers, not interceptors (that's `page.route()`,
+ * not used here). Resolves with the Playwright Request object, or null if it
+ * doesn't fire within `timeoutMs`.
+ */
+function captureNextRequest(page, rpcid, timeoutMs = 15000) {
+  // Test doubles (unit-test fakePage objects) don't implement Playwright's
+  // event API — skip capture entirely rather than throw, since this is
+  // passive/best-effort instrumentation, never something callers depend on.
+  if (typeof page?.on !== "function" || typeof page?.off !== "function") {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    let done = false;
+    const onRequest = (req) => {
+      if (done) return;
+      if (req.url().includes(`rpcids=${rpcid}`)) {
+        done = true;
+        page.off("request", onRequest);
+        resolve(req);
+      }
+    };
+    page.on("request", onRequest);
+    setTimeout(() => {
+      if (done) return;
+      done = true;
+      page.off("request", onRequest);
+      resolve(null);
+    }, timeoutMs);
+  });
 }
 
 /**
@@ -810,11 +1244,61 @@ export function extractOgiZ0bImageResult(parsed) {
 }
 
 export async function generateOneImage(page, projectId, prompt, settings, promptIndex) {
+  // Symmetric per-attempt diagnostic (see writeGenerationDiagnostic's doc
+  // comment) — accumulated below and always written in the finally block,
+  // whichever way this call exits, so a success and a failure produce the
+  // same shape of record.
+  const diag = {
+    ts: null,
+    rpc: "ogiZ0b",
+    promptIndex,
+    ...pageLifecycleFields(page),
+    url: "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=ogiZ0b",
+    flowReadyAt: null,
+    getProjectAttempted: false,
+    getProjectCached: false,
+    getProjectSuccess: null,
+    getProjectError: null,
+    getProjectGrpcCode: null,
+    getProjectDurationMs: null,
+    recaptchaExecuteStartedAt: null,
+    recaptchaExecuteEndedAt: null,
+    recaptchaExecuteDurationMs: null,
+    rpcSentAt: null,
+    rpcRespondedAt: null,
+    httpStatus: null,
+    responseLength: null,
+    hasWizState: null,
+    grpcCode: null,
+    errorInfoReason: null,
+    mediaId: null,
+    outcome: "unknown",
+    totalElapsedMs: null,
+  };
+  const callStartedAt = Date.now();
+
+  try {
+    return await generateOneImageInner(page, projectId, prompt, settings, promptIndex, diag);
+  } finally {
+    diag.ts = new Date().toISOString();
+    diag.totalElapsedMs = Date.now() - callStartedAt;
+    writeGenerationDiagnostic(settings, diag);
+  }
+}
+
+async function generateOneImageInner(page, projectId, prompt, settings, promptIndex, diag) {
   // Parity with generateOneVideo: never fire the API call while Flow's SPA is
   // still navigating. Without this the image path raced the page and threw
   // "Execution context was destroyed" — the video path already waited, which
   // is why videos succeeded and images failed in the same run.
   await waitForFlowReady(page);
+  diag.flowReadyAt = new Date().toISOString();
+
+  // Reproduces the real Flow UI's own precondition for generation: its
+  // GENERATE_IMAGE mutation only enables once AiSandbox.GetProject ("ngNC2")
+  // has loaded this project's state (see getFlowProject's doc comment).
+  // Non-fatal by design — see ensureProjectStateLoaded's doc comment.
+  await ensureProjectStateLoaded(page, projectId, diag);
 
   const seed =
     settings.seedMode === "fixed" && settings.seedValue != null
@@ -824,10 +1308,17 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
+
+  // TEMPORARY — see the request-capture block above this function. Passive
+  // only; does not affect the request below in any way.
+  const requestCreatedAt = Date.now();
+  const captureP = captureNextRequest(page, "ogiZ0b");
 
   const out = await safeEvaluate(
     page,
-    async ({ projectId, model, prompt, seed, siteKey, recaptchaAction, uuidA, uuidB, uuidC, timeoutMs }) => {
+    async ({ projectId, model, prompt, seed, siteKey, recaptchaAction, uuidA, uuidB, uuidC, reqId, hl, timeoutMs }) => {
       // WIZ_global_data carries the page's own CSRF/session state — same
       // mechanism getSessionToken()/checkAuthStatus() already read from
       // (SNlM0e), plus the batchexecute query params (cfb2h -> bl,
@@ -836,14 +1327,22 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
       const at = wiz.SNlM0e;
       const bl = wiz.cfb2h;
       const fsid = wiz.FdrFJe;
-      if (!at || !bl || !fsid) {
-        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
+      const hasWizState = !!(at && bl && fsid);
+      if (!hasWizState) {
+        return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true, hasWizState };
       }
 
       const grec = window.grecaptcha?.enterprise;
-      if (!grec) return { error: "No reCAPTCHA", recoverable: true };
+      if (!grec) return { error: "No reCAPTCHA", recoverable: true, hasWizState };
+      const recaptchaExecuteStartedAt = Date.now();
       const captcha = await grec.execute(siteKey, { action: recaptchaAction });
-      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true };
+      const recaptchaExecuteEndedAt = Date.now();
+      if (!captcha) {
+        return {
+          error: "reCAPTCHA execute failed", recoverable: true, hasWizState,
+          recaptchaExecuteStartedAt, recaptchaExecuteEndedAt,
+        };
+      }
 
       // Positional structure reproduced exactly as captured live — see
       // flow-engine investigation notes. "context" is reused verbatim at
@@ -866,14 +1365,13 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
       ];
       const args = [null, [request], 1, context, [uuidC]];
 
-      const reqId = 100000 + Math.floor(Math.random() * 900000);
       const url =
         "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
         "?rpcids=ogiZ0b" +
         "&source-path=" + encodeURIComponent("/project/" + projectId) +
         "&bl=" + encodeURIComponent(bl) +
         "&f.sid=" + encodeURIComponent(fsid) +
-        "&hl=en-GB" +
+        "&hl=" + encodeURIComponent(hl) +
         "&_reqid=" + reqId +
         "&rt=c";
 
@@ -883,6 +1381,7 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
 
       const ac = new AbortController();
       const tm = setTimeout(() => ac.abort(), timeoutMs);
+      const rpcSentAt = Date.now();
       try {
         const resp = await fetch(url, {
           method: "POST",
@@ -893,27 +1392,80 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
         });
         clearTimeout(tm);
         const text = await resp.text();
+        const rpcRespondedAt = Date.now();
+        const timing_ = { hasWizState, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt, rpcRespondedAt };
         if (!resp.ok) {
-          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
+          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), ...timing_ };
         }
-        return { success: true, text };
+        return { success: true, text, ...timing_ };
       } catch (e) {
         clearTimeout(tm);
         return {
           error: e.name === "AbortError" ? "Request timed out" : e.message,
           isTimeout: e.name === "AbortError",
+          hasWizState, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt,
         };
       }
     },
     {
       projectId, model, prompt, seed,
       siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.recaptchaAction,
-      uuidA, uuidB, uuidC, timeoutMs: timing.apiRequestTimeoutMs,
+      uuidA, uuidB, uuidC, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs,
     },
   );
 
-  if (!out) throw new FatalError("Page evaluate failed", true);
+  // TEMPORARY — resolve/write the passive capture. Read-only observation of
+  // a request that has already been sent by the code above; this can never
+  // affect `out` or anything that follows, and never throws.
+  try {
+    const capturedReq = await captureP;
+    if (capturedReq) {
+      let postData = null;
+      try {
+        postData = capturedReq.postData();
+      } catch {}
+      let rawHeaders = null;
+      try {
+        rawHeaders = await capturedReq.allHeaders();
+      } catch {
+        try {
+          rawHeaders = capturedReq.headers();
+        } catch {}
+      }
+      writeRequestCaptureLog(settings, {
+        ts: new Date().toISOString(),
+        rpc: "ogiZ0b",
+        requestCreatedAt: new Date(requestCreatedAt).toISOString(),
+        capturedAt: new Date().toISOString(),
+        elapsedMsBeforeCaptured: Date.now() - requestCreatedAt,
+        method: capturedReq.method(),
+        url: sanitizeUrl(capturedReq.url()),
+        headers: sanitizeHeaders(rawHeaders || {}),
+        fReq: sanitizeFReqBody(postData),
+      });
+    } else {
+      writeRequestCaptureLog(settings, { ts: new Date().toISOString(), rpc: "ogiZ0b", captured: false });
+    }
+  } catch (captureErr) {
+    console.error(`[ogiz0b-request-capture] capture failed: ${captureErr?.message || captureErr}`);
+  }
+
+  if (!out) {
+    diag.outcome = "evaluate_failed";
+    throw new FatalError("Page evaluate failed", true);
+  }
+  diag.hasWizState = out.hasWizState ?? diag.hasWizState;
+  diag.recaptchaExecuteStartedAt = out.recaptchaExecuteStartedAt ? new Date(out.recaptchaExecuteStartedAt).toISOString() : null;
+  diag.recaptchaExecuteEndedAt = out.recaptchaExecuteEndedAt ? new Date(out.recaptchaExecuteEndedAt).toISOString() : null;
+  diag.recaptchaExecuteDurationMs =
+    out.recaptchaExecuteStartedAt && out.recaptchaExecuteEndedAt
+      ? out.recaptchaExecuteEndedAt - out.recaptchaExecuteStartedAt
+      : null;
+  diag.rpcSentAt = out.rpcSentAt ? new Date(out.rpcSentAt).toISOString() : null;
+  diag.rpcRespondedAt = out.rpcRespondedAt ? new Date(out.rpcRespondedAt).toISOString() : null;
   if (out.error) {
+    diag.outcome = "rpc_error";
+    diag.httpStatus = out.status ?? null;
     if (out.status === 429) throw new RateLimitError("Rate limited by Google");
     if (out.status === 401 || out.recoverable) {
       // Same race apiPost() already documents: the session can be a few
@@ -930,10 +1482,52 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
     }
     throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
   }
+  diag.httpStatus = 200;
+  diag.responseLength = out.text.length;
 
   const parsed = parseBatchExecuteResponse(out.text, "ogiZ0b");
   const { mediaId, fifeUrl, width, height } = extractOgiZ0bImageResult(parsed);
-  if (!mediaId) throw new MissingMediaIdError("No mediaId in generation response");
+  if (!mediaId) {
+    const reason = extractRpcErrorInfoReason(out.text, "ogiZ0b");
+    diag.outcome = "no_media_id";
+    diag.errorInfoReason = reason;
+    diag.grpcCode = extractRpcErrorGrpcCode(out.text, "ogiZ0b");
+    // TEMPORARY diagnostic capture, same convention as generateOneVideo's
+    // yhhmef-diagnostic.log (see project notes) — passive only, never
+    // fires on success, never alters control flow. Written to the run
+    // folder so a real image-generation failure can be inspected after the
+    // fact instead of only ever seeing the generic thrown message.
+    try {
+      const diagDir = settings.outputDir || os.tmpdir();
+      const diagPath = path.join(diagDir, "ogiz0b-diagnostic.log");
+      fs.appendFileSync(
+        diagPath,
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          host: os.hostname(),
+          rpc: "ogiZ0b",
+          promptIndex,
+          prompt,
+          model,
+          httpStatus: 200,
+          responseLength: out.text.length,
+          errorInfoReason: reason,
+          parsed,
+          rawResponse: out.text,
+        }) + "\n",
+      );
+    } catch (writeErr) {
+      // Best-effort only — a diagnostic-logging failure must never mask
+      // the real error thrown below.
+      console.error(
+        `[ogiz0b-diagnostic] failed to write diagnostic: ${writeErr?.code || "?"} ${writeErr?.message || writeErr}`,
+      );
+    }
+    if (reason) throw new MissingMediaIdError(`Flow RPC rejected: ${reason}`);
+    throw new MissingMediaIdError("No mediaId in generation response");
+  }
+  diag.outcome = "success";
+  diag.mediaId = mediaId;
   return { mediaId, fifeUrl, width, height };
 }
 
@@ -1151,9 +1745,11 @@ export async function pollVideoStatus(page, workflowId, projectId) {
   for (let i = 0; i < maxTries; i++) {
     await sleep(timing.videoPollIntervalMs);
 
+    const reqId = nextReqId(page);
+    const hl = currentHl(page);
     const out = await safeEvaluate(
       page,
-      async ({ workflowId, timeoutMs }) => {
+      async ({ workflowId, reqId, hl, timeoutMs }) => {
         const wiz = window.WIZ_global_data || {};
         const at = wiz.SNlM0e;
         const bl = wiz.cfb2h;
@@ -1161,12 +1757,11 @@ export async function pollVideoStatus(page, workflowId, projectId) {
         if (!at || !bl || !fsid) {
           return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
         }
-        const reqId = 100000 + Math.floor(Math.random() * 900000);
         const url =
           "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
           "?rpcids=jwpduf&bl=" + encodeURIComponent(bl) +
           "&f.sid=" + encodeURIComponent(fsid) +
-          "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+          "&hl=" + encodeURIComponent(hl) + "&_reqid=" + reqId + "&rt=c";
         const args = [null, null, [[workflowId]]];
         const bodyStr =
           "f.req=" + encodeURIComponent(JSON.stringify([[["jwpduf", JSON.stringify(args), null, "generic"]]])) +
@@ -1190,7 +1785,7 @@ export async function pollVideoStatus(page, workflowId, projectId) {
           return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
         }
       },
-      { workflowId, timeoutMs: timing.apiRequestTimeoutMs },
+      { workflowId, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs },
     );
 
     if (!out) throw new FatalError("Page evaluate failed", true);
@@ -1257,18 +1852,64 @@ export async function pollVideoStatus(page, workflowId, projectId) {
  * batch-runner.js already destructures, so callers are unchanged.
  */
 export async function generateOneVideo(page, projectId, prompt, settings, promptIndex) {
+  // Symmetric per-attempt diagnostic — same convention as generateOneImage's
+  // (see writeGenerationDiagnostic's doc comment). "stage" tracks how far
+  // the lifecycle (YhhmEf start -> poll -> as29s final) got before the
+  // outcome was known, so a start-stage rejection and a final-stage
+  // rejection are still distinguishable in the same record shape.
+  const videoDiag = {
+    ts: null,
+    rpc: "YhhmEf",
+    promptIndex,
+    ...pageLifecycleFields(page),
+    url: "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=YhhmEf",
+    stage: "start",
+    flowReadyAt: null,
+    recaptchaExecuteStartedAt: null,
+    recaptchaExecuteEndedAt: null,
+    recaptchaExecuteDurationMs: null,
+    rpcSentAt: null,
+    rpcRespondedAt: null,
+    httpStatus: null,
+    responseLength: null,
+    hasWizState: null,
+    grpcCode: null,
+    errorInfoReason: null,
+    workflowId: null,
+    finalRpcSentAt: null,
+    finalRpcRespondedAt: null,
+    finalHttpStatus: null,
+    mediaId: null,
+    outcome: "unknown",
+    totalElapsedMs: null,
+  };
+  const videoCallStartedAt = Date.now();
+
+  try {
+    return await generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag);
+  } finally {
+    videoDiag.ts = new Date().toISOString();
+    videoDiag.totalElapsedMs = Date.now() - videoCallStartedAt;
+    writeGenerationDiagnostic(settings, videoDiag);
+  }
+}
+
+async function generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag) {
   // Never fire the API call while Flow's SPA is still navigating — same
   // reason generateOneImage waits (see its comment).
   await waitForFlowReady(page);
+  videoDiag.flowReadyAt = new Date().toISOString();
 
   const mode = buildVideoModeString(settings);
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
 
   const out = await safeEvaluate(
     page,
-    async ({ projectId, mode, prompt, siteKey, recaptchaAction, uuidA, uuidB, uuidC, timeoutMs }) => {
+    async ({ projectId, mode, prompt, siteKey, recaptchaAction, uuidA, uuidB, uuidC, reqId, hl, timeoutMs }) => {
       // Safe, non-secret diagnostic snapshot — never includes cookies, the
       // WIZ token itself, or the reCAPTCHA token, only presence/shape facts.
       // Attached to every return path below so a failure at ANY stage
@@ -1299,9 +1940,16 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
       const grec = window.grecaptcha?.enterprise;
       diag.executeIsFunction = typeof grec?.execute === "function";
       if (!grec) return { error: "No reCAPTCHA", recoverable: true, diag };
+      const recaptchaExecuteStartedAt = Date.now();
       const captcha = await grec.execute(siteKey, { action: recaptchaAction });
+      const recaptchaExecuteEndedAt = Date.now();
       diag.tokenLength = captcha ? String(captcha).length : 0;
-      if (!captcha) return { error: "reCAPTCHA execute failed", recoverable: true, diag };
+      if (!captcha) {
+        return {
+          error: "reCAPTCHA execute failed", recoverable: true, diag,
+          recaptchaExecuteStartedAt, recaptchaExecuteEndedAt,
+        };
+      }
 
       // Positional structure reproduced exactly as captured live for
       // FlowService's video-generation RPC ("YhhmEf") — see flow-engine
@@ -1324,14 +1972,13 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
       ];
       const args = [[request], context, [uuidC, 2]];
 
-      const reqId = 100000 + Math.floor(Math.random() * 900000);
       const url =
         "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
         "?rpcids=YhhmEf" +
         "&source-path=" + encodeURIComponent("/project/" + projectId) +
         "&bl=" + encodeURIComponent(bl) +
         "&f.sid=" + encodeURIComponent(fsid) +
-        "&hl=en-GB" +
+        "&hl=" + encodeURIComponent(hl) +
         "&_reqid=" + reqId +
         "&rt=c";
 
@@ -1341,6 +1988,7 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
 
       const ac = new AbortController();
       const tm = setTimeout(() => ac.abort(), timeoutMs);
+      const rpcSentAt = Date.now();
       try {
         const resp = await fetch(url, {
           method: "POST",
@@ -1351,23 +1999,25 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         });
         clearTimeout(tm);
         const text = await resp.text();
+        const rpcRespondedAt = Date.now();
+        const timing_ = { recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt, rpcRespondedAt };
         if (!resp.ok) {
-          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), diag };
+          return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), diag, ...timing_ };
         }
-        return { success: true, text, diag };
+        return { success: true, text, diag, ...timing_ };
       } catch (e) {
         clearTimeout(tm);
         return {
           error: e.name === "AbortError" ? "Request timed out" : e.message,
           isTimeout: e.name === "AbortError",
-          diag,
+          diag, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt,
         };
       }
     },
     {
       projectId, mode, prompt,
       siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.videoRecaptchaAction,
-      uuidA, uuidB, uuidC, timeoutMs: timing.apiRequestTimeoutMs,
+      uuidA, uuidB, uuidC, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs,
     },
   );
 
@@ -1404,8 +2054,23 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
     }
   };
 
-  if (!out) throw new FatalError("Page evaluate failed", true);
+  videoDiag.hasWizState = out ? !!(out.diag?.hasAt && out.diag?.hasBl && out.diag?.hasFsid) : null;
+  videoDiag.recaptchaExecuteStartedAt = out?.recaptchaExecuteStartedAt ? new Date(out.recaptchaExecuteStartedAt).toISOString() : null;
+  videoDiag.recaptchaExecuteEndedAt = out?.recaptchaExecuteEndedAt ? new Date(out.recaptchaExecuteEndedAt).toISOString() : null;
+  videoDiag.recaptchaExecuteDurationMs =
+    out?.recaptchaExecuteStartedAt && out?.recaptchaExecuteEndedAt
+      ? out.recaptchaExecuteEndedAt - out.recaptchaExecuteStartedAt
+      : null;
+  videoDiag.rpcSentAt = out?.rpcSentAt ? new Date(out.rpcSentAt).toISOString() : null;
+  videoDiag.rpcRespondedAt = out?.rpcRespondedAt ? new Date(out.rpcRespondedAt).toISOString() : null;
+
+  if (!out) {
+    videoDiag.outcome = "evaluate_failed";
+    throw new FatalError("Page evaluate failed", true);
+  }
   if (out.error) {
+    videoDiag.outcome = "rpc_error";
+    videoDiag.httpStatus = out.status ?? null;
     writeYhhmEfDiagnostic({ stage: "pre-YhhmEf", error: out.error, status: out.status ?? null, errText: out.errText ?? null });
     if (out.status === 429) throw new RateLimitError("Rate limited by Google");
     if (out.status === 401 || out.recoverable) {
@@ -1421,6 +2086,9 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
     throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
   }
 
+  videoDiag.httpStatus = 200;
+  videoDiag.responseLength = out.text.length;
+
   const startParsed = parseBatchExecuteResponse(out.text, "YhhmEf");
   const { workflowId } = extractVideoStartResult(startParsed);
   if (!workflowId) {
@@ -1432,27 +2100,35 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
     });
     // A 200 OK with no usable result can mean genuinely different things
     // (a bad request, an application-level NOT_FOUND, Google's anti-abuse
-    // system) — all confirmed live to hit this exact branch, and all
-    // indistinguishable from a generic message. PUBLIC_ERROR_UNUSUAL_ACTIVITY
-    // specifically is worth naming: it means the request itself was fine
-    // and this needs no code change, just time — unlike the other cases.
-    if (out.text.includes("PUBLIC_ERROR_UNUSUAL_ACTIVITY")) {
-      throw new Error(
-        "Video generation blocked by Google (PUBLIC_ERROR_UNUSUAL_ACTIVITY) — " +
-          "this is an anti-abuse hold on this account/browser, not a request error. Wait and retry later.",
-      );
+    // system, a quota hold — all confirmed live to hit this exact branch).
+    // Surface whatever ErrorInfo reason Google actually sent rather than
+    // hardcoding a single recognized value — PUBLIC_ERROR_UNUSUAL_ACTIVITY
+    // and PUBLIC_ERROR_USER_QUOTA_REACHED are both real observed reasons on
+    // this exact branch, and a reason not yet seen should still be named
+    // instead of silently collapsing into a generic message.
+    const reason = extractRpcErrorInfoReason(out.text, "YhhmEf");
+    videoDiag.outcome = "no_workflow_id";
+    videoDiag.errorInfoReason = reason;
+    videoDiag.grpcCode = extractRpcErrorGrpcCode(out.text, "YhhmEf");
+    if (reason) {
+      throw new Error(`Flow RPC rejected: ${reason}`);
     }
     throw new Error("Video generation did not start — no media returned");
   }
+  videoDiag.workflowId = workflowId;
+  videoDiag.stage = "poll";
 
   await pollVideoStatus(page, workflowId, projectId);
+  videoDiag.stage = "final";
 
   // Final detail fetch — as29s carries the actual signed /video/ URL, which
   // jwpduf's own responses never do (only status + thumbnail become
   // available mid-poll). No captcha token needed (confirmed live).
+  const finalReqId = nextReqId(page);
+  const finalHl = currentHl(page);
   const finalOut = await safeEvaluate(
     page,
-    async ({ workflowId, timeoutMs }) => {
+    async ({ workflowId, reqId, hl, timeoutMs }) => {
       const wiz = window.WIZ_global_data || {};
       const at = wiz.SNlM0e;
       const bl = wiz.cfb2h;
@@ -1460,18 +2136,18 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
       if (!at || !bl || !fsid) {
         return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true };
       }
-      const reqId = 100000 + Math.floor(Math.random() * 900000);
       const url =
         "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
         "?rpcids=as29s&bl=" + encodeURIComponent(bl) +
         "&f.sid=" + encodeURIComponent(fsid) +
-        "&hl=en-GB&_reqid=" + reqId + "&rt=c";
+        "&hl=" + encodeURIComponent(hl) + "&_reqid=" + reqId + "&rt=c";
       const args = [workflowId];
       const bodyStr =
         "f.req=" + encodeURIComponent(JSON.stringify([[["as29s", JSON.stringify(args), null, "generic"]]])) +
         "&at=" + encodeURIComponent(at);
       const ac = new AbortController();
       const tm = setTimeout(() => ac.abort(), timeoutMs);
+      const rpcSentAt = Date.now();
       try {
         const resp = await fetch(url, {
           method: "POST",
@@ -1482,17 +2158,23 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         });
         clearTimeout(tm);
         const text = await resp.text();
-        if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500) };
-        return { success: true, text };
+        const rpcRespondedAt = Date.now();
+        if (!resp.ok) return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), rpcSentAt, rpcRespondedAt };
+        return { success: true, text, rpcSentAt, rpcRespondedAt };
       } catch (e) {
         clearTimeout(tm);
-        return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError" };
+        return { error: e.name === "AbortError" ? "Request timed out" : e.message, isTimeout: e.name === "AbortError", rpcSentAt };
       }
     },
-    { workflowId, timeoutMs: timing.apiRequestTimeoutMs },
+    { workflowId, reqId: finalReqId, hl: finalHl, timeoutMs: timing.apiRequestTimeoutMs },
   );
 
+  videoDiag.finalRpcSentAt = finalOut?.rpcSentAt ? new Date(finalOut.rpcSentAt).toISOString() : null;
+  videoDiag.finalRpcRespondedAt = finalOut?.rpcRespondedAt ? new Date(finalOut.rpcRespondedAt).toISOString() : null;
+
   if (!finalOut || finalOut.error) {
+    videoDiag.outcome = "final_fetch_failed";
+    videoDiag.finalHttpStatus = finalOut?.status ?? null;
     // Generation completed but the final detail fetch failed — surface
     // whatever the poll already knew rather than losing the result entirely.
     throw new Error(
@@ -1500,10 +2182,20 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
         (finalOut?.error || "no response"),
     );
   }
+  videoDiag.finalHttpStatus = 200;
 
   const finalParsed = parseBatchExecuteResponse(finalOut.text, "as29s");
   const { mediaId, fifeUrl } = extractAs29sVideoResult(finalParsed);
-  if (!mediaId) throw new MissingMediaIdError("No mediaId in video generation response");
+  if (!mediaId) {
+    const reason = extractRpcErrorInfoReason(finalOut.text, "as29s");
+    videoDiag.outcome = "no_media_id";
+    videoDiag.errorInfoReason = reason;
+    videoDiag.grpcCode = extractRpcErrorGrpcCode(finalOut.text, "as29s");
+    if (reason) throw new MissingMediaIdError(`Flow RPC rejected: ${reason}`);
+    throw new MissingMediaIdError("No mediaId in video generation response");
+  }
+  videoDiag.outcome = "success";
+  videoDiag.mediaId = mediaId;
   return { mediaId, fifeUrl };
 }
 

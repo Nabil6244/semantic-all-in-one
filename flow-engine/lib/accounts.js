@@ -140,3 +140,89 @@ export function isBrowserOpen(accountId) {
 export function getPage(accountId) {
   return pages.get(accountId) || null;
 }
+
+/**
+ * TEMPORARY read-only diagnostic — measures browser runtime state (navigator/
+ * WebGL/service-worker/location facts) on an account's Flow page, for a
+ * one-off differential audit against a normal Chrome session. Never touches
+ * Flow RPCs, reCAPTCHA, generation, or browser launch configuration; never
+ * reads cookies, WIZ values, or any query parameter besides `hl`.
+ *
+ * Reuses the existing page if the account's browser is already open (no new
+ * browser, no new page, no reload); only opens/navigates if nothing is open
+ * yet for this account, since there is otherwise nothing to measure.
+ *
+ * Remove this function (and its server.js/orchestrator.js wiring) once the
+ * one-off measurement it exists for is done — it is not part of normal
+ * account/generation behavior.
+ */
+export async function inspectAccountPage(accountId) {
+  let page = getPage(accountId);
+  let openedFresh = false;
+  if (!page || page.isClosed()) {
+    ({ page } = await openAccountBrowser(accountId, { headed: true }));
+    await gotoFlow(page);
+    openedFresh = true;
+  }
+
+  const data = await page.evaluate(() => {
+    const out = {
+      webdriver: navigator.webdriver ?? null,
+      pluginsLength: navigator.plugins ? navigator.plugins.length : null,
+      languages: navigator.languages ? Array.from(navigator.languages) : null,
+      language: navigator.language ?? null,
+      userAgent: navigator.userAgent ?? null,
+      userAgentData: null,
+      webglVendor: null,
+      webglRenderer: null,
+      serviceWorkerScopes: null,
+      href: location.href,
+      pathname: location.pathname,
+      hl: null,
+    };
+
+    try {
+      if (navigator.userAgentData) {
+        out.userAgentData = {
+          brands: navigator.userAgentData.brands || null,
+          mobile: navigator.userAgentData.mobile ?? null,
+          platform: navigator.userAgentData.platform ?? null,
+        };
+      }
+    } catch {}
+
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (gl) {
+        const ext = gl.getExtension("WEBGL_debug_renderer_info");
+        if (ext) {
+          out.webglVendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+          out.webglRenderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+        }
+      }
+    } catch {}
+
+    try {
+      const u = new URL(location.href);
+      out.hl = u.searchParams.get("hl");
+    } catch {}
+
+    return out;
+  });
+
+  // Separate evaluate: getRegistrations() is async and awaiting it inline
+  // above would need top-level await inside the sync evaluate callback.
+  const scopes = await page.evaluate(async () => {
+    try {
+      if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) return null;
+      const regs = await navigator.serviceWorker.getRegistrations();
+      return regs.map((r) => r.scope);
+    } catch {
+      return null;
+    }
+  });
+  data.serviceWorkerScopes = scopes;
+
+  return { data, openedFresh };
+}

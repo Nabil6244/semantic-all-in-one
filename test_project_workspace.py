@@ -104,6 +104,32 @@ class TestProjectLifecycle(unittest.TestCase):
         self.assertTrue(path_is_inside(dest, a.root))
         self.assertEqual(dest.read_text(encoding="utf-8"), src.read_text(encoding="utf-8"))
 
+    def test_overscaled_csv_saved_inside_project_separately_from_normal_csv(self):
+        # Regression: the Overscaled CSV was never persisted into the
+        # project at all (only the generated video was), so reopening a
+        # project lost the source that drove the generation. It must also
+        # live at a DIFFERENT path than the normal workflow's visual_plan.csv
+        # since the two schemas are incompatible — using the same slot would
+        # let one silently clobber the other in a project that uses both.
+        a = create_project("Overscaled", projects_root=self.tmp)
+        normal_src = self.tmp / "normal.csv"
+        normal_src.write_text("scene_number,script_segment\n1,hello\n", encoding="utf-8")
+        overscaled_src = self.tmp / "outside_overscaled.csv"
+        overscaled_src.write_text(
+            "scene_number,script_segment,node_id,node_type,asset_type,prompt\n"
+            "1,intro,n1,image,flow_image,a ship\n",
+            encoding="utf-8",
+        )
+        normal_dest = a.copy_csv_in(normal_src)
+        overscaled_dest = a.copy_overscaled_csv_in(overscaled_src)
+
+        self.assertEqual(overscaled_dest, a.overscaled_csv_path)
+        self.assertNotEqual(overscaled_dest, normal_dest)
+        self.assertTrue(path_is_inside(overscaled_dest, a.root))
+        self.assertEqual(overscaled_dest.read_text(encoding="utf-8"), overscaled_src.read_text(encoding="utf-8"))
+        # The normal CSV must be untouched by saving the Overscaled one.
+        self.assertEqual(normal_dest.read_text(encoding="utf-8"), normal_src.read_text(encoding="utf-8"))
+
     def test_tts_path_inside_project(self):
         a = create_project("TTS", projects_root=self.tmp)
         a.audio_path.write_bytes(b"RIFF")

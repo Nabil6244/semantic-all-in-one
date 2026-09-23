@@ -19,6 +19,11 @@ UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 TITLE_MAX_LEN = 60
 META_NAME = "project.json"
 CSV_NAME = "visual_plan.csv"
+# Separate filename, same csv/ folder — the Overscaled CSV schema (node_id,
+# node_type, caption, edge_from/edge_to, ...) is entirely different from the
+# normal workflow's visual_plan.csv, so it needs its own slot rather than
+# overwriting/being overwritten by it when both are used in the same project.
+OVERSCALED_CSV_NAME = "overscaled_visual_plan.csv"
 NARRATION_WAV = "narration.wav"
 NARRATION_MP3 = "narration.mp3"
 PLAN_JSON_NAME = "ai_visual_plan.json"
@@ -95,6 +100,10 @@ class ProjectWorkspace:
     @property
     def csv_path(self) -> Path:
         return self.csv_dir / CSV_NAME
+
+    @property
+    def overscaled_csv_path(self) -> Path:
+        return self.csv_dir / OVERSCALED_CSV_NAME
 
     @property
     def audio_path(self) -> Path:
@@ -383,6 +392,15 @@ class ProjectWorkspace:
         if src.resolve() != self.csv_path.resolve():
             shutil.copy2(src, self.csv_path)
         return self.csv_path
+
+    def copy_overscaled_csv_in(self, src: Path) -> Path:
+        """Same idea as copy_csv_in, but for the Overscaled CSV's own slot
+        (see OVERSCALED_CSV_NAME) so the two never collide."""
+        self.ensure_dirs()
+        src = Path(src)
+        if src.resolve() != self.overscaled_csv_path.resolve():
+            shutil.copy2(src, self.overscaled_csv_path)
+        return self.overscaled_csv_path
 
     def next_final_path(self) -> Path:
         """First export uses the title (or final_video). Re-exports become final 1, final 2, …"""

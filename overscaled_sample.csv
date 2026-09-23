@@ -1,0 +1,8 @@
+scene_number,script_segment,node_id,node_type,role,asset_type,prompt,caption,highlight,camera_action,camera_target,edge_from,edge_to,edge_label
+1,"The Aurora Bridge was once the pride of the whole valley.",n1,image,title,flow_image,"wide establishing shot of a suspension bridge at dawn","The pride of the whole valley",pride of the whole valley,establish,n1,,,
+2,"A small painted marker followed this story from start to finish.",anchor1,anchor,anchor,flow_image,"small hand-drawn bridge icon",,,,,,,
+3,"It carried ten thousand cars a day across the river gorge.",n2,image,entity,stock_image,"cars crossing a long suspension bridge",,,,,,,
+4,"But engineers had shortened the support cables to save on cost.",n3,diagram,design_flaw,flow_image,"engineering diagram of shortened suspension cables","Engineers shortened the support cables to save cost",shortened the support cables,focus,n3,,,
+5,"Within months the deck began to twist wildly in the wind.",n4,video_loop,failure,flow_video,"bridge deck twisting and oscillating in high wind","The deck began to twist wildly in the wind",twist wildly in the wind,focus,n4,n3,n4,caused the deck to resonate
+6,"The bridge finally collapsed into the river below.",n5,video_loop,consequence,stock_video,"suspension bridge collapsing into a river","The bridge collapsed into the river below",collapsed into the river,focus,n5,n4,n5,caused total structural failure
+7,"Every bridge engineered since has studied exactly why it fell.",n6,image,final_still,flow_image,"modern suspension bridge with reinforced cables at sunset","Every bridge since has studied why it fell",studied why it fell,zoom_out,n6,,,

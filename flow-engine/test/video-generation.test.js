@@ -478,6 +478,62 @@ test("PUBLIC_ERROR_UNUSUAL_ACTIVITY on YhhmEf is named explicitly, not folded in
   );
 });
 
+function videoErrorEnvelope(rpcid, grpcCode, reason) {
+  return (
+    ")]}'\n\n" +
+    chunkOf([
+      [
+        "wrb.fr",
+        rpcid,
+        null,
+        null,
+        null,
+        [grpcCode, null, [["type.googleapis.com/google.rpc.ErrorInfo", [reason]]]],
+        "generic",
+      ],
+    ]) +
+    chunkOf([["e", 4, null, null, 228]])
+  );
+}
+
+test("a different ErrorInfo reason on YhhmEf (not the hardcoded anti-abuse one) is still named explicitly", async () => {
+  // Real captured shape from a different failure (gRPC 8 / RESOURCE_EXHAUSTED,
+  // PUBLIC_ERROR_USER_QUOTA_REACHED) — proves the extractor is not hardcoded
+  // to only PUBLIC_ERROR_UNUSUAL_ACTIVITY.
+  const quotaResponse = videoErrorEnvelope("YhhmEf", 8, "PUBLIC_ERROR_USER_QUOTA_REACHED");
+  const fetchImpl = async (url) => {
+    if (url.includes("rpcids=YhhmEf")) {
+      return { ok: true, status: 200, text: async () => quotaResponse };
+    }
+    throw new Error("must not reach polling");
+  };
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+  await assert.rejects(
+    () => generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0),
+    /Flow RPC rejected: PUBLIC_ERROR_USER_QUOTA_REACHED/,
+  );
+});
+
+test("as29s rejected with an ErrorInfo reason surfaces it instead of the generic 'no mediaId' message", async () => {
+  const fetchImpl = async (url) => {
+    if (url.includes("rpcids=YhhmEf")) {
+      return { ok: true, status: 200, text: async () => canned(["YhhmEf", YHHMEF_START_RESULT]) };
+    }
+    if (url.includes("rpcids=jwpduf")) {
+      return { ok: true, status: 200, text: async () => canned(["jwpduf", jwpdufResult(3)]) };
+    }
+    if (url.includes("rpcids=as29s")) {
+      return { ok: true, status: 200, text: async () => videoErrorEnvelope("as29s", 7, "PUBLIC_ERROR_UNUSUAL_ACTIVITY") };
+    }
+    throw new Error("unexpected URL: " + url);
+  };
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+  await assert.rejects(
+    () => generateOneVideo(page, PROJECT_ID, PROMPT, {}, 0),
+    /Flow RPC rejected: PUBLIC_ERROR_UNUSUAL_ACTIVITY/,
+  );
+});
+
 test("as29s failure after successful completion surfaces a clear error, not a silent loss", async () => {
   const fetchImpl = async (url) => {
     if (url.includes("rpcids=YhhmEf")) {
@@ -574,4 +630,105 @@ test("waitForFlowReady stays not-ready on Flow home even when reCAPTCHA execute 
   };
   await assert.rejects(() => waitForFlowReady(page, 1600), /Flow page readiness timeout/);
   assert.ok(probes >= 1);
+});
+
+// ---------------------------------------------------------------------------
+// Symmetric generation-diagnostic.log for video — same shape on success and
+// failure, mirroring the image-path tests in ogiz0b-image-generation.test.js.
+// ---------------------------------------------------------------------------
+
+test("a successful video generation writes a symmetric generation-diagnostic.log entry", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-video-success-"));
+  const { fetchImpl } = makeLifecycleFetch({ pollsUntilComplete: 1 });
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await generateOneVideo(page, PROJECT_ID, PROMPT, { outputDir: runDir }, 0);
+    const lines = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.rpc, "YhhmEf");
+    assert.equal(entry.outcome, "success");
+    assert.equal(entry.stage, "final");
+    assert.equal(entry.mediaId, MEDIA_ID);
+    assert.equal(entry.httpStatus, 200);
+    assert.equal(entry.finalHttpStatus, 200);
+    assert.equal(entry.hasWizState, true);
+    assert.equal(entry.errorInfoReason, null);
+    assert.equal(entry.grpcCode, null);
+    assert.ok(entry.workflowId);
+    assert.ok(entry.flowReadyAt);
+    assert.ok(entry.recaptchaExecuteStartedAt);
+    assert.ok(entry.recaptchaExecuteEndedAt);
+    assert.ok(entry.rpcSentAt);
+    assert.ok(entry.rpcRespondedAt);
+    assert.ok(entry.finalRpcSentAt);
+    assert.ok(entry.finalRpcRespondedAt);
+    assert.ok(entry.totalElapsedMs >= 0);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("a video generation rejected at YhhmEf with an ErrorInfo reason writes the same shape entry", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-video-failure-"));
+  const fetchImpl = async (url) => {
+    if (url.includes("rpcids=YhhmEf")) {
+      return { ok: true, status: 200, text: async () => videoErrorEnvelope("YhhmEf", 7, "PUBLIC_ERROR_UNUSUAL_ACTIVITY") };
+    }
+    throw new Error("must not reach polling");
+  };
+  const page = fakePage({ wiz: fullWiz(), fetchImpl });
+
+  try {
+    await assert.rejects(() => generateOneVideo(page, PROJECT_ID, PROMPT, { outputDir: runDir }, 0));
+    const lines = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8").trim().split("\n");
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]);
+    assert.equal(entry.outcome, "no_workflow_id");
+    assert.equal(entry.mediaId, null);
+    assert.equal(entry.grpcCode, 7);
+    assert.equal(entry.errorInfoReason, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
+    assert.equal(entry.httpStatus, 200);
+    assert.equal(entry.hasWizState, true);
+    assert.ok(entry.flowReadyAt);
+    assert.ok(entry.recaptchaExecuteStartedAt);
+    assert.ok(entry.rpcSentAt);
+    assert.ok(entry.rpcRespondedAt);
+    assert.equal(entry.workflowId, null);
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
+});
+
+test("video generation-diagnostic.log never contains the reCAPTCHA token or WIZ at/bl/f.sid values", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const runDir = mkdtempSync(join(tmpdir(), "gen-diag-video-secrets-"));
+  const { fetchImpl } = makeLifecycleFetch({ pollsUntilComplete: 1 });
+  const wiz = fullWiz();
+  const page = fakePage({ wiz, fetchImpl });
+
+  try {
+    await generateOneVideo(page, PROJECT_ID, PROMPT, { outputDir: runDir }, 0);
+    const raw = readFileSync(join(runDir, "generation-diagnostic.log"), "utf8");
+    assert.ok(!raw.includes(REAL_TOKEN), "must not log the WIZ 'at' token");
+    assert.ok(!raw.includes(wiz.cfb2h), "must not log 'bl'");
+    assert.ok(!raw.includes(wiz.FdrFJe), "must not log 'f.sid'");
+    assert.ok(!raw.includes("CAPTCHA_TOKEN"), "must not log the reCAPTCHA token");
+    const entry = JSON.parse(raw.trim());
+    assert.equal(entry.url, "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=YhhmEf");
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
+  }
 });

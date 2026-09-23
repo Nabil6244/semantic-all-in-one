@@ -12,6 +12,7 @@ import {
   closeAccountBrowser,
   gotoFlow,
   closeAllBrowsers,
+  inspectAccountPage,
 } from "./accounts.js";
 import {
   checkAuthStatus,
@@ -775,4 +776,9 @@ export async function closeBrowsers() {
 export async function shutdown() {
   stopAll = true;
   await closeAllBrowsers();
+}
+
+/** TEMPORARY — see accounts.js's inspectAccountPage doc comment. */
+export async function inspectAccount(accountId) {
+  return inspectAccountPage(accountId);
 }
