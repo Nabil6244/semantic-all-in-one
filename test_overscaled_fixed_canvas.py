@@ -218,8 +218,13 @@ class TestUnrelatedChaptersReplaceEachOther(unittest.TestCase):
         # must be genuinely clear at t=8s too — this is the exact spot a
         # stale/frozen overlay (ffmpeg's default eof_action=repeat) would
         # keep bleeding n1's old caption text into, since n2's card doesn't
-        # cover it (regression guard for that bug).
-        caption_band = (int(rect.x), int(rect.y2) + 2, int(rect.x2), int(rect.y2) + 22)
+        # cover it (regression guard for that bug). Starts 6px below the
+        # rect (not 2px): H.264 edge ringing at a sharp saturated-color
+        # boundary bleeds a couple of near-white px right at the edge
+        # regardless of any real caption content — confirmed by manual
+        # pixel inspection (white fraction 0.95 at +2px vs 1.0 at +6px),
+        # not a stale-frame regression.
+        caption_band = (int(rect.x), int(rect.y2) + 6, int(rect.x2), int(rect.y2) + 26)
         long_after_caption = _extract_frame(out_path, 8.0, self.tmp / "long_after_caption.png").crop(caption_band)
         self.assertTrue(
             _region_is_mostly_white(long_after_caption, (0, 0, caption_band[2] - caption_band[0], caption_band[3] - caption_band[1])),

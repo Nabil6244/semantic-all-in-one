@@ -50,7 +50,13 @@ SCENE_GRAPH_VERSION = 1
 # Documentary/recommended node types — intentionally NOT a strict enum.
 # Unknown types are accepted (permissive schema, matches TextOverlaySpec/
 # GraphicSpec convention of normalizing-with-fallback rather than rejecting).
-KNOWN_NODE_TYPES = frozenset({"image", "diagram", "video_loop", "anchor"})
+# "checklist_item" is Exp Solar-only (scene_graph.exp_solar_csv's
+# beat="checklist" adapter) — a node of this type carries no visible card
+# of its own; scene_graph.layout excludes it from ordinary chaptering
+# entirely (same as "anchor") and instead uses its .label/.appear_at to
+# build the persistent checklist header strip. Overscaled's own CSV never
+# emits this type.
+KNOWN_NODE_TYPES = frozenset({"image", "diagram", "video_loop", "anchor", "checklist_item"})
 
 # Action types with a well-defined required target field. Unknown/custom
 # action types are still accepted; only these get their target-field

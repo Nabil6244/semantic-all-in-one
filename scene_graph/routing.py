@@ -265,6 +265,49 @@ def _rects_overlap(a: ObstacleRect, b: ObstacleRect) -> bool:
     return not (a.x1 <= b.x0 or b.x1 <= a.x0 or a.y1 <= b.y0 or b.y1 <= a.y0)
 
 
+# A node's narration caption stays visually anchored to its OWN card — these
+# are small nudges around the primary (today's default) position, never a
+# jump to some unrelated part of the canvas, unlike an edge label's
+# perpendicular-offset ladder (which orbits a curve, not a card). Index 0 is
+# always (0, 0) — the existing default position — tried FIRST, so a caption
+# with no real conflict renders in EXACTLY the same place as before this
+# existed (see composition._draw_caption's offset parameter).
+_CAPTION_OFFSET_LADDER: Tuple[Point, ...] = (
+    (0.0, 0.0),
+    (0.0, 26.0),
+    (0.0, 52.0),
+    (-48.0, 0.0),
+    (48.0, 0.0),
+    (-48.0, 26.0),
+    (48.0, 26.0),
+)
+
+
+def solve_caption_position(
+    primary_x: float, primary_y: float, width: float, height: float,
+    keep_out: Sequence[ObstacleRect], *, bounds: ObstacleRect,
+) -> Point:
+    """Where a node's narration caption's top-left corner should sit —
+    tries the primary (today's) position first, then a small deterministic
+    ladder of nearby alternates, each tested against every obstacle AND the
+    canvas bounds, returning the first fully clear one. Called ONCE per
+    captioned node at layout time; scene_graph.composition only ever draws
+    at the returned point, never searches. If nothing is fully clear, falls
+    back to the primary position clamped inside ``bounds`` (never off
+    canvas, never a crash) — the same "least-bad, still deterministic"
+    contract solve_edge_route/solve_label_position already use."""
+    for dx, dy in _CAPTION_OFFSET_LADDER:
+        x, y = primary_x + dx, primary_y + dy
+        box = ObstacleRect(x, y, x + width, y + height)
+        if box.x0 < bounds.x0 or box.y0 < bounds.y0 or box.x1 > bounds.x1 or box.y1 > bounds.y1:
+            continue
+        if not any(_rects_overlap(box, r) for r in keep_out):
+            return (x, y)
+    x = min(max(primary_x, bounds.x0), bounds.x1 - width)
+    y = min(max(primary_y, bounds.y0), bounds.y1 - height)
+    return (x, y)
+
+
 def keep_out_exit_point(
     cx: float, cy: float, tx: float, ty: float, box: ObstacleRect, *, pad: float = 0.0,
 ) -> Point:

@@ -76,6 +76,7 @@ from providers.ffmpeg_runner import run_ffmpeg
 
 from .composition import (
     VIDEO_SUFFIXES,
+    render_checklist_strip_frame,
     render_edge_reveal_frame,
     render_node_decoration_frame,
     render_node_media_only_frame,
@@ -194,13 +195,17 @@ def _node_reveal_layers(
     canvas_size = (layout.canvas_width, layout.canvas_height)
     reveal_duration = min(_clamp(NODE_REVEAL_DURATION_S, *_NODE_REVEAL_RANGE), total)
     hold_duration = max(0.0, total - reveal_duration)
+    # Already-solved once at layout time (see compute_layout's narration-
+    # caption pass / routing.solve_caption_position) — (0, 0) when there was
+    # no conflict, reproducing today's exact position.
+    caption_offset = layout.caption_positions.get(node.id, (0.0, 0.0))
 
     node_dir = work_dir / f"node_{node.id}"
     reveal_count = max(1, round(reveal_duration * fps))
     reveal_frames = [
         render_node_reveal_frame(
             node, rect, media_image, style, canvas_size=canvas_size, background="",
-            progress=min(1.0, (i + 1) / reveal_count), hollow=hollow,
+            progress=min(1.0, (i + 1) / reveal_count), hollow=hollow, caption_offset=caption_offset,
         )
         for i in range(reveal_count)
     ]
@@ -229,7 +234,9 @@ def _node_reveal_layers(
                 )
             )
             decoration_path = node_dir / "kb_decoration.png"
-            render_node_decoration_frame(node, rect, style, canvas_size=canvas_size).save(decoration_path)
+            render_node_decoration_frame(
+                node, rect, style, canvas_size=canvas_size, caption_offset=caption_offset,
+            ).save(decoration_path)
             layers.append(
                 _Layer(["-itsoffset", f"{hold_start:.4f}", "-loop", "1", "-t",
                         f"{max(_MIN_HOLD_S, hold_duration):.4f}", "-i", str(decoration_path)])
@@ -257,12 +264,16 @@ def _title_reveal_layers(
     canvas_size = (layout.canvas_width, layout.canvas_height)
     reveal_duration = min(_clamp(NODE_REVEAL_DURATION_S, *_NODE_REVEAL_RANGE), total)
     hold_duration = max(0.0, total - reveal_duration)
+    # Pushed down below Exp Solar's checklist strip when one is reserved
+    # (layout.checklist_band_px is 0 for Overscaled and for every
+    # non-checklist Exp Solar segment, so this is MARGIN_PX unchanged then).
+    top_margin = MARGIN_PX + layout.checklist_band_px
 
     title_dir = work_dir / f"title_{index}"
     reveal_count = max(1, round(reveal_duration * fps))
     reveal_frames = [
         render_title_reveal_frame(
-            text, canvas_size=canvas_size, top_margin=MARGIN_PX, progress=min(1.0, (i + 1) / reveal_count),
+            text, canvas_size=canvas_size, top_margin=top_margin, progress=min(1.0, (i + 1) / reveal_count),
         )
         for i in range(reveal_count)
     ]
@@ -277,6 +288,49 @@ def _title_reveal_layers(
         layers.append(
             _Layer(["-itsoffset", f"{start + reveal_duration:.4f}", "-loop", "1", "-t",
                     f"{max(_MIN_HOLD_S, hold_duration):.4f}", "-i", str(settled_path)])
+        )
+    return layers
+
+
+def _checklist_strip_layers(
+    scene_graph: SceneGraph, *, layout: SceneGraphLayout, fps: int, work_dir: Path,
+) -> List[_Layer]:
+    """Exp Solar's persistent checklist header strip: one STATIC image per
+    state-segment (layout.checklist_windows is already in chronological
+    order, one entry per item), held via -loop/-t for that item's own
+    (becomes_current_at, becomes_completed_at) window — no reveal/fade, per
+    the reference's instant state-change behavior (same convention
+    _title_reveal_layers/_node_reveal_layers already use for a hard cut).
+    Spans the segment from the FIRST item's own start through the LAST
+    item's own end, i.e. the whole time any item is "current" — before the
+    first item starts, nothing is drawn (nothing to show grey-only that
+    the reveal itself doesn't already show at index -1... in practice the
+    first item's own window starts at its appear_at, matching every other
+    node's own reveal timing). Empty (returns []) whenever there are no
+    checklist items — Overscaled and non-checklist Exp Solar segments are
+    unaffected."""
+
+    windows = layout.checklist_windows
+    if not windows:
+        return []
+
+    labels = [label for label, _, _ in windows]
+    canvas_size = (layout.canvas_width, layout.canvas_height)
+    layers: List[_Layer] = []
+    strip_dir = work_dir / "checklist_strip"
+    for i, (_, start, end) in enumerate(windows):
+        total = end - start
+        if total <= 0:
+            continue
+        frame = render_checklist_strip_frame(
+            labels, i, canvas_size=canvas_size, band_height=layout.checklist_band_px, margin_px=MARGIN_PX,
+        )
+        frame_path = strip_dir / f"state_{i:02d}.png"
+        frame_path.parent.mkdir(parents=True, exist_ok=True)
+        frame.save(frame_path)
+        layers.append(
+            _Layer(["-itsoffset", f"{start:.4f}", "-loop", "1", "-t",
+                    f"{max(_MIN_HOLD_S, total):.4f}", "-i", str(frame_path)])
         )
     return layers
 
@@ -466,6 +520,13 @@ def render_overscaled_segment(
             edge, layout=layout, style=style, fps=fps, work_dir=work_dir,
         ):
             _chain_overlay(reveal_layer)
+
+    # Exp Solar's persistent checklist strip, added LAST so it is always
+    # the topmost layer — "reserve its own screen area so it never
+    # overlaps the main visual/captions" per spec; empty (a no-op) for
+    # Overscaled and any non-checklist Exp Solar segment.
+    for checklist_layer in _checklist_strip_layers(scene_graph, layout=layout, fps=fps, work_dir=work_dir):
+        _chain_overlay(checklist_layer)
 
     filters.append(
         f"[{label}]scale={out_width}:{out_height}:flags=lanczos,setsar=1,format=yuv420p,fps={fps}[outv]"

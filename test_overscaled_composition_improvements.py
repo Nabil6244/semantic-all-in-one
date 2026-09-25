@@ -7,6 +7,7 @@ and scene_graph/render.py's module docstrings for the full design rationale.
 
 from __future__ import annotations
 
+import csv
 import math
 import tempfile
 import unittest
@@ -20,9 +21,13 @@ from scene_graph.routing import (
     ObstacleRect,
     polyline_hits_rect,
     rect_obstacle,
+    solve_caption_position,
     solve_edge_route,
     solve_label_position,
 )
+
+
+FIXTURE = Path(__file__).resolve().parent / "overscaled_sample.csv"
 
 
 def _graph(rows, **kwargs):
@@ -285,6 +290,190 @@ class TestKenBurnsRenderWiring(unittest.TestCase):
         hold_layers = [l for l in layers if "-loop" in l.input_args]
         self.assertEqual(len(hold_layers), 2)
         self.assertTrue(any("zoompan=" in l.pre_filter for l in hold_layers))
+
+
+class TestChapterVerticalVariation(unittest.TestCase):
+    """Every slot template used to hardcode cy_frac=0.50 — every card in
+    every chapter sat on the exact same horizontal line for the whole
+    video. A small deterministic per-chapter offset fixes that without
+    touching slot sizing or introducing any per-frame movement."""
+
+    def _fixture(self):
+        with open(FIXTURE, newline="", encoding="utf-8-sig") as f:
+            rows = list(csv.DictReader(f))
+        return compile_overscaled_csv(rows, segment_id="aurora_bridge").scene_graph
+
+    def test_different_chapters_get_different_vertical_centers(self):
+        sg = self._fixture()
+        layout = compute_layout(sg, canvas_width=1600, canvas_height=1000)
+        centers = {
+            members[0]: layout.node_rects[members[0]].y + layout.node_rects[members[0]].height / 2.0
+            for members in layout.chapters
+        }
+        self.assertGreater(len(set(round(v, 3) for v in centers.values())), 1)
+
+    def test_offset_is_deterministic(self):
+        sg = self._fixture()
+        layout1 = compute_layout(sg, canvas_width=1600, canvas_height=1000)
+        layout2 = compute_layout(sg, canvas_width=1600, canvas_height=1000)
+        self.assertEqual(layout1.to_dict()["node_rects"], layout2.to_dict()["node_rects"])
+
+    def test_members_of_one_chapter_share_the_same_offset(self):
+        # The RELATIVE geometry within a chapter (the deliberate
+        # diagonal/asymmetric slot layout) must be unaffected — only the
+        # whole chapter's group shifts together.
+        rows = [
+            _row(1, "a", script="Germany was falling behind in the industrial race of the war."),
+            _row(2, "b", script="Factories in the middle of the country kept struggling to keep pace.",
+                 edge_from="a", edge_to="b"),
+        ]
+        sg = _graph(rows)
+        layout = compute_layout(sg)
+        ra, rb = layout.node_rects["a"], layout.node_rects["b"]
+        self.assertAlmostEqual(ra.y, rb.y, delta=0.01)
+
+    def test_still_collision_free_with_offset_applied(self):
+        from scene_graph.layout import find_overlaps
+
+        sg = self._fixture()
+        layout = compute_layout(sg, canvas_width=1600, canvas_height=1000)
+        self.assertEqual(find_overlaps(layout, tolerance=0.5), [])
+
+    def test_offset_never_pushes_a_rect_outside_the_canvas(self):
+        sg = self._fixture()
+        layout = compute_layout(sg, canvas_width=1600, canvas_height=1000)
+        for node_id, rect in layout.node_rects.items():
+            self.assertGreaterEqual(rect.y, 0, node_id)
+            self.assertLessEqual(rect.y2, layout.canvas_height, node_id)
+
+
+class TestCaptionPlacementSolver(unittest.TestCase):
+    """routing.solve_caption_position — the pure-geometry layer under
+    scene_graph.layout's narration-caption pass."""
+
+    def test_no_conflict_returns_exactly_the_primary_position(self):
+        bounds = ObstacleRect(0.0, 0.0, 1920.0, 1080.0)
+        pos = solve_caption_position(100.0, 200.0, 300.0, 160.0, [], bounds=bounds)
+        self.assertEqual(pos, (100.0, 200.0))
+
+    def test_blocked_primary_escapes_to_a_clear_alternate(self):
+        bounds = ObstacleRect(0.0, 0.0, 1920.0, 1080.0)
+        blocker = ObstacleRect(100.0, 200.0, 400.0, 220.0)  # covers only the primary slice
+        pos = solve_caption_position(100.0, 200.0, 300.0, 160.0, [blocker], bounds=bounds)
+        self.assertNotEqual(pos, (100.0, 200.0))
+        box = ObstacleRect(pos[0], pos[1], pos[0] + 300.0, pos[1] + 160.0)
+        overlap = not (box.x1 <= blocker.x0 or blocker.x1 <= box.x0 or box.y1 <= blocker.y0 or blocker.y1 <= box.y0)
+        self.assertFalse(overlap)
+
+    def test_fully_blocked_falls_back_inside_bounds_deterministically(self):
+        bounds = ObstacleRect(0.0, 0.0, 1920.0, 1080.0)
+        huge_blocker = ObstacleRect(0.0, 0.0, 1920.0, 1080.0)
+        pos1 = solve_caption_position(100.0, 200.0, 300.0, 160.0, [huge_blocker], bounds=bounds)
+        pos2 = solve_caption_position(100.0, 200.0, 300.0, 160.0, [huge_blocker], bounds=bounds)
+        self.assertEqual(pos1, pos2)
+        self.assertGreaterEqual(pos1[0], bounds.x0)
+        self.assertGreaterEqual(pos1[1], bounds.y0)
+        self.assertLessEqual(pos1[0] + 300.0, bounds.x1)
+        self.assertLessEqual(pos1[1] + 160.0, bounds.y1)
+
+    def test_never_escapes_canvas_bounds_even_with_no_obstacles(self):
+        bounds = ObstacleRect(0.0, 0.0, 1920.0, 1080.0)
+        pos = solve_caption_position(1900.0, 200.0, 300.0, 160.0, [], bounds=bounds)
+        self.assertLessEqual(pos[0] + 300.0, bounds.x1 + 1e-6)
+
+
+class TestCaptionPlacementLayoutIntegration(unittest.TestCase):
+    """scene_graph.layout.compute_layout's narration-caption pass — wired
+    end to end, not just the underlying solver."""
+
+    def test_caption_positions_present_for_every_captioned_node(self):
+        rows = [
+            _row(1, "a", script="Germany was falling behind in the industrial race of the war.",
+                 caption="Germany was falling behind"),
+            _row(2, "b", script="Factories in the middle of the country kept struggling to keep pace.",
+                 edge_from="a", edge_to="b", caption="Factories struggled"),
+        ]
+        sg = _graph(rows)
+        layout = compute_layout(sg)
+        self.assertIn("a", layout.caption_positions)
+        self.assertIn("b", layout.caption_positions)
+
+    def test_no_conflict_gives_zero_offset(self):
+        # A single solo node has nothing to conflict with.
+        rows = [_row(1, "solo", script="A reasonably long narration line here.", caption="A short caption")]
+        sg = _graph(rows)
+        layout = compute_layout(sg)
+        self.assertEqual(layout.caption_positions.get("solo"), (0.0, 0.0))
+
+    def test_deterministic_across_two_computations(self):
+        rows = [
+            _row(1, "a", script="Germany was falling behind in the industrial race of the war.",
+                 caption="Germany was falling behind"),
+            _row(2, "b", script="Factories in the middle of the country kept struggling to keep pace.",
+                 edge_from="a", edge_to="b", caption="Factories struggled"),
+            _row(3, "c", script="In the end the entire industrial base collapsed under the pressure.",
+                 edge_from="b", edge_to="c", caption="Industry collapsed"),
+        ]
+        sg = _graph(rows)
+        layout1 = compute_layout(sg)
+        layout2 = compute_layout(sg)
+        self.assertEqual(layout1.caption_positions, layout2.caption_positions)
+
+    def test_node_without_caption_gets_no_entry(self):
+        rows = [_row(1, "nocap", script="A reasonably long narration line here without a caption.")]
+        sg = _graph(rows)
+        layout = compute_layout(sg)
+        self.assertNotIn("nocap", layout.caption_positions)
+
+
+class TestCaptionDrawOffset(unittest.TestCase):
+    """composition._draw_caption — the render-time consumer: draws at the
+    already-solved offset, never searches, and reproduces the exact
+    pre-existing pixel position when the offset is (0, 0)."""
+
+    def _render(self, offset):
+        from scene_graph.composition import _draw_caption
+        from scene_graph.layout import NodeRect
+        from scene_graph.schema import CaptionSpec
+        from scene_graph.style_presets import load_style_preset
+
+        canvas = Image.new("RGBA", (800, 600), (255, 255, 255, 255))
+        rect = NodeRect(node_id="n1", x=100.0, y=100.0, width=400.0, height=300.0)
+        caption = CaptionSpec(text="A short caption line")
+        style = load_style_preset("overscaled")
+        _draw_caption(canvas, caption, rect, style=style, offset=offset)
+        return canvas
+
+    def test_default_offset_matches_legacy_zero_offset_call(self):
+        import numpy as np
+
+        from scene_graph.composition import _draw_caption
+        from scene_graph.layout import NodeRect
+        from scene_graph.schema import CaptionSpec
+        from scene_graph.style_presets import load_style_preset
+
+        rect = NodeRect(node_id="n1", x=100.0, y=100.0, width=400.0, height=300.0)
+        caption = CaptionSpec(text="A short caption line")
+        style = load_style_preset("overscaled")
+
+        canvas_legacy = Image.new("RGBA", (800, 600), (255, 255, 255, 255))
+        _draw_caption(canvas_legacy, caption, rect, style=style)  # no offset kwarg at all
+
+        canvas_explicit = Image.new("RGBA", (800, 600), (255, 255, 255, 255))
+        _draw_caption(canvas_explicit, caption, rect, style=style, offset=(0.0, 0.0))
+
+        self.assertEqual(
+            np.asarray(canvas_legacy).tobytes(), np.asarray(canvas_explicit).tobytes(),
+        )
+
+    def test_nonzero_offset_actually_shifts_the_drawn_pixels(self):
+        import numpy as np
+
+        canvas_zero = self._render((0.0, 0.0))
+        canvas_shifted = self._render((0.0, 40.0))
+        self.assertFalse(
+            np.array_equal(np.asarray(canvas_zero), np.asarray(canvas_shifted))
+        )
 
 
 def _fake_rect(node_id, x, y, w, h):

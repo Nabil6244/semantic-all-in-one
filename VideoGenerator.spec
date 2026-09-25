@@ -153,6 +153,22 @@ for _data_dir_name in ("styles", "brand_kits"):
     else:
         print(f"WARNING: {_data_dir} missing — packaged Brand & Style menus may be empty.")
 
+# Overscaled/Exp Solar composition style presets (scene_graph/style_presets.py
+# reads these from _PKG_ROOT/"composition_styles", where _PKG_ROOT is
+# sys._MEIPASS in a frozen build — PyInstaller has no way to discover this
+# directory on its own since it's read at runtime via Path, never imported.
+# Without it, load_style_preset() finds zero presets and even the built-in
+# "overscaled" style fails with "unknown style preset: 'overscaled'".
+_COMPOSITION_STYLES_DIR = ROOT / "composition_styles"
+if _COMPOSITION_STYLES_DIR.is_dir():
+    for f in _COMPOSITION_STYLES_DIR.glob("*.json"):
+        datas.append((str(f), "composition_styles"))
+else:
+    raise SystemExit(
+        f"Missing {_COMPOSITION_STYLES_DIR} — Overscaled/Exp Solar style "
+        "presets must ship with the app."
+    )
+
 # Bundled typography fonts
 _FONTS_DIR = ROOT / "assets" / "fonts"
 if _FONTS_DIR.is_dir():
@@ -410,6 +426,24 @@ a = Analysis(
         "sfx.catalog_io",
         "sfx.ambience_profiles",
         "sfx.audio_probe",
+        "cache_manager",
+        "downloaded_assets",
+        "scene_graph",
+        "scene_graph.app_integration",
+        "scene_graph.composition",
+        "scene_graph.exp_solar_audio",
+        "scene_graph.exp_solar_csv",
+        "scene_graph.generator",
+        "scene_graph.layout",
+        "scene_graph.media_resolution",
+        "scene_graph.overscaled_csv",
+        "scene_graph.pipeline",
+        "scene_graph.render",
+        "scene_graph.routing",
+        "scene_graph.schema",
+        "scene_graph.style_presets",
+        "scene_graph.timeline",
+        "scene_graph.voiceover_sync",
     ],
     hookspath=[],
     hooksconfig={},

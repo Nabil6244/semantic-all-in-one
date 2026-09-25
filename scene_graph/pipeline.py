@@ -111,9 +111,15 @@ def run_overscaled_pipeline(
             )
 
         _report("Computing layout…", 0.40)
+        # Only a style preset's metadata can raise this above the default
+        # 3-card cap (see layout.compute_layout's own docstring) — absent
+        # for every existing preset except exp_solar.json, so Overscaled's
+        # own layout is byte-identical to before this existed.
+        max_active_per_chapter = (style.metadata or {}).get("max_active_per_chapter")
         layout = compute_layout(
             scene_graph, resolved_media=resolved_media,
             canvas_width=canvas_width, canvas_height=canvas_height,
+            max_active_per_chapter=max_active_per_chapter,
         )
         overlaps = find_overlaps(layout)
         if overlaps:

@@ -1,0 +1,63 @@
+{
+  "id": "exp_solar",
+  "version": 1,
+  "name": "Exp Solar",
+  "description": "Reference-documentary editing style built on the existing Overscaled renderer: same fixed-canvas whiteboard-collage mechanics (nodes, layout, Ken Burns, hand-drawn arrows), tuned toward restrained arrow usage and a hero/supporting rhythm, plus a 4-in-a-row composition for the reference's transitional beat (beat=four_row). Does not yet add the 3x5 index/checklist layouts or sound design; those are later Exp Solar phases and fall back to Overscaled's existing behavior for now.",
+  "canvas": {
+    "background": "#ffffff",
+    "width": 1920,
+    "height": 1080,
+    "no_hard_cuts_within_segment": true
+  },
+  "nodes": {
+    "supported_types": ["image", "diagram", "video_loop", "anchor"],
+    "border": {"enabled": false, "color": "#1a1a1a", "width_px": 3},
+    "shadow": {"enabled": false, "blur_px": 18, "opacity": 0.25},
+    "preserve_aspect_ratio": true,
+    "placement_style": "slightly_imperfect_scrapbook",
+    "treatment": "editorial_documentary"
+  },
+  "typography": {
+    "title": {
+      "font_family": "marker",
+      "weight": "bold",
+      "size_role": "display"
+    },
+    "caption": {
+      "font_family": "handwritten",
+      "style": "short_declarative",
+      "max_highlights_per_caption": 4,
+      "highlight_is_structural": true
+    }
+  },
+  "arrows": {
+    "style": "hand_drawn",
+    "default_color": "#c0392b",
+    "alt_color": "#1a1a1a",
+    "notes": "Exp Solar CSV-generation rule: default is NO arrow — only draw one for a stated causal/dependency/consequence/transformation/mechanism relationship, never for mere adjacency. default_color (red) stays reserved for the rare kind='callout' proof relationship; alt_color (black) is the default 'sequential' connector. Enforced at CSV-generation time, not by this renderer.",
+    "organic_jitter": true,
+    "draw_on_animation": true,
+    "default_duration_s": 1.2
+  },
+  "camera": {
+    "fixed": true,
+    "notes": "The camera never moves; automatic per-node Ken Burns (scene_graph.routing.deterministic_unit -> layout.node_ken_burns -> FFmpeg zoompan) is reused unchanged. camera_action/camera_target remain accepted for CSV compatibility but stay inert, exactly as in Overscaled."
+  },
+  "transitions": {
+    "between_segments": "hard_cut",
+    "within_segment": "none",
+    "composition_layer_change": "optional_dissolve"
+  },
+  "segment_structure_guidance": [
+    "cold_open",
+    "hero_establish",
+    "supporting_proof",
+    "reaction_beat",
+    "relationship_payoff",
+    "legacy_close"
+  ],
+  "metadata": {
+    "max_active_per_chapter": 4,
+    "max_active_per_chapter_notes": "Read by scene_graph.pipeline.run_overscaled_pipeline and threaded into scene_graph.layout.compute_layout's max_active_per_chapter param, ONLY for this preset. Overscaled's own preset carries no such key, so compute_layout's default (module MAX_ACTIVE_PER_CHAPTER=3) still applies there, unchanged. Raising this beyond 4 would KeyError (only 1/2/3/4-slot templates exist)."
+  }
+}

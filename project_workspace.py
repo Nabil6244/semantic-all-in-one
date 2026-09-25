@@ -417,6 +417,24 @@ class ProjectWorkspace:
                 return candidate
             n += 1
 
+    def next_overscaled_final_path(self) -> Path:
+        """Same auto-increment convention as next_final_path(), for the
+        Overscaled/Exp Solar output directory: first export uses
+        overscaled_final.mp4, re-exports become overscaled_final 1.mp4,
+        overscaled_final 2.mp4, ... — re-rendering never silently
+        overwrites a previous export."""
+        out_dir = self.root / "overscaled"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        primary = out_dir / "overscaled_final.mp4"
+        if not primary.exists():
+            return primary
+        n = 1
+        while True:
+            candidate = out_dir / f"overscaled_final {n}.mp4"
+            if not candidate.exists():
+                return candidate
+            n += 1
+
     def append_log(self, text: str) -> None:
         self.ensure_dirs()
         try:

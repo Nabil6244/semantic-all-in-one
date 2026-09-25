@@ -179,7 +179,18 @@ def compile_overscaled_csv(
         if edge_from and edge_to:
             edge_id = f"e_{edge_from}_{edge_to}"
             edge_label = _get(row, "edge_label")
-            edge_kind = "callout" if _get(row, "edge_style").lower() == "callout" else "sequential"
+            edge_style_raw = _get(row, "edge_style").lower()
+            # "group"/"group_grid" are real graph edges (group their
+            # endpoints into one on-screen chapter, see
+            # layout._connected_chapters) that never draw a visible arrow
+            # (see layout.compute_layout's edge-window loop) — used by
+            # scene_graph.exp_solar_csv's four_row/index_grid adapters
+            # respectively. No existing/documented Overscaled CSV column
+            # value was ever "group"/"group_grid" (only "callout" was
+            # recognized; everything else, including these, previously
+            # fell through to "sequential"), so this is additive: any
+            # pre-existing CSV keeps its exact prior behavior.
+            edge_kind = edge_style_raw if edge_style_raw in ("callout", "group", "group_grid") else "sequential"
             edges.append(
                 SceneEdge(
                     id=edge_id,

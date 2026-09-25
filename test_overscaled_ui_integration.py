@@ -66,6 +66,15 @@ class TestOverscaledUIWiring(unittest.TestCase):
         self.assertIn("generate_overscaled_video(", src)
         self.assertIn("threading.Thread", src)
 
+    def test_generation_handler_never_overwrites_a_previous_export(self):
+        # Regression: output_path used to be a hardcoded
+        # overscaled/overscaled_final.mp4 — every re-render silently
+        # overwrote the previous one. Must use the same auto-increment
+        # convention as the normal workflow's next_final_path().
+        src = inspect.getsource(self._app.VideoGeneratorApp._run_overscaled_generation)
+        self.assertIn("self._workspace.next_overscaled_final_path()", src)
+        self.assertNotIn('"overscaled_final.mp4"', src)
+
     def test_generation_handler_persists_the_csv_into_the_project(self):
         # Regression: the normal workflow saves both the script and the CSV
         # into the project (_apply_ai_plan: ws.save_script + plan.write_csv),
@@ -288,11 +297,22 @@ instance._workspace = type("W", (), {
     # generating — this fake workspace only cares about dispatch, so it
     # just hands the same path back unchanged.
     "copy_overscaled_csv_in": lambda self, src: src,
+    # _run_overscaled_generation now also asks for an auto-incremented
+    # output path (see project_workspace.next_overscaled_final_path) —
+    # this fake workspace only cares about dispatch, so a fixed path is fine.
+    "next_overscaled_final_path": lambda self: tmp_root / "overscaled" / "overscaled_final.mp4",
 })()
 instance.pexels_key_var.set("fake-pexels-key-for-test")
 
 import scene_graph.app_integration as real_module
 real_module.generate_overscaled_video = fake_generate
+
+# _run_overscaled_generation's worker now also tries a real Whisper
+# transcription as its cache-miss fallback (the fake workspace above has no
+# state_dir, so it always misses) — stub it out so this dispatch-only check
+# doesn't load a real whisper model in a throwaway subprocess.
+import video_generator as vg_module
+vg_module.transcribe_audio = lambda *a, **k: []
 
 instance.generation_mode = "overscaled"
 instance._on_generate()

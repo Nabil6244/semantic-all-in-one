@@ -223,11 +223,16 @@ def _draw_node_label(canvas: Image.Image, node: SceneNode, rect: NodeRect) -> No
     font = _load_font(_LABEL_FONT_CANDIDATES, max(20, min(32, int(rect.height * 0.09))))
     draw = ImageDraw.Draw(canvas)
     bbox = draw.textbbox((0, 0), label, font=font)
-    y = rect.y - (bbox[3] - bbox[1]) - 14
+    y = rect.y - (bbox[3] - bbox[1]) - 28
     draw.text((rect.x, y), label, font=font, fill=_LABEL_COLOR)
 
 
 _CAPTION_MAX_LINES = 3
+# Must stay >= the largest |dx|/dy in routing._CAPTION_OFFSET_LADDER (48/52)
+# — the reveal frame's local sub-canvas padding (render_node_reveal_frame)
+# uses this so a solved alternate caption position never clips against the
+# sub-canvas's own edge.
+_CAPTION_OFFSET_MARGIN_PX = 60
 
 
 def _wrap_caption_lines(draw: ImageDraw.ImageDraw, text: str, font, max_width: float, max_lines: int) -> List[str]:
@@ -299,7 +304,16 @@ def _split_highlight_runs(line: str, terms: List[str]) -> List[Tuple[str, bool]]
     return runs
 
 
-def _draw_caption(canvas: Image.Image, caption: CaptionSpec, rect: NodeRect, *, style: StylePreset) -> None:
+def _draw_caption(
+    canvas: Image.Image, caption: CaptionSpec, rect: NodeRect, *, style: StylePreset,
+    offset: Tuple[float, float] = (0.0, 0.0),
+) -> None:
+    """``offset`` is an ALREADY-SOLVED (dx, dy) nudge away from the default
+    position — see scene_graph.layout.compute_layout's narration-caption
+    pass / scene_graph.routing.solve_caption_position. (0, 0), the default,
+    reproduces the exact pre-existing position: nothing here ever searches
+    for a placement itself, it only draws at rect's position plus whatever
+    offset the caller (already computed once, at layout time) supplies."""
     if not caption or not caption.text:
         return
     highlight_color = (style.arrows or {}).get("default_color", "#c0392b")
@@ -313,8 +327,8 @@ def _draw_caption(canvas: Image.Image, caption: CaptionSpec, rect: NodeRect, *, 
     terms = _highlight_terms(caption.highlight)
     lines = _wrap_caption_lines(draw, caption.text, font, rect.width, _CAPTION_MAX_LINES)
     line_height = draw.textbbox((0, 0), "Ag", font=font)[3] + 6
-    x = rect.x
-    y = rect.y2 + 10
+    x = rect.x + offset[0]
+    y = rect.y2 + 10 + offset[1]
 
     for line in lines:
         cursor_x = x
@@ -593,9 +607,15 @@ def render_edge_reveal_frame(
 def render_node_reveal_frame(
     node: SceneNode, rect: NodeRect, media_image: Optional[Image.Image], style: StylePreset,
     *, canvas_size, background: str, progress: float, hollow: bool = False,
+    caption_offset: Tuple[float, float] = (0.0, 0.0),
 ) -> Image.Image:
     """One transparent canvas-sized frame of a node's reveal: a restrained
-    scale-in (95% -> 100%) + fade, easing out, never a 'cheesy' bounce."""
+    scale-in (95% -> 100%) + fade, easing out, never a 'cheesy' bounce.
+
+    ``caption_offset`` is the same ALREADY-SOLVED (dx, dy) nudge
+    _draw_caption takes — see scene_graph.layout.compute_layout's
+    narration-caption pass. (0, 0), the default, reproduces the exact
+    pre-existing layout."""
     progress = max(0.0, min(1.0, progress))
     eased = 1 - (1 - progress) ** 3
     frame = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
@@ -611,27 +631,32 @@ def render_node_reveal_frame(
     # than that or its own text gets clipped by the sub-canvas's edge
     # regardless of how much room scene_graph/layout.py's
     # CAPTION_RESERVE_PX reserved in the outer canvas (a real bug: those
-    # two numbers were unrelated).
+    # two numbers were unrelated). side_pad/bottom_pad also unconditionally
+    # cover the caption offset ladder's worst case (_CAPTION_OFFSET_MARGIN_PX)
+    # so a solved alternate position never clips against this sub-canvas's
+    # own edge, whether or not THIS particular node actually got nudged.
     pad = 24
+    side_pad = pad
     bottom_pad = pad
     if node.type != "anchor" and node.caption and node.caption.text:
         # Up to 3 lines at the caption's own font-size cap (see
         # _draw_caption), plus the leading gap — with a safety margin.
-        bottom_pad = max(pad, 200)
+        bottom_pad = max(pad, 200) + _CAPTION_OFFSET_MARGIN_PX
+        side_pad = pad + _CAPTION_OFFSET_MARGIN_PX
     top_pad = pad
     if node.type != "anchor" and node.label:
         top_pad = max(pad, _LABEL_RESERVE_PX + pad)
     sub = Image.new(
-        "RGBA", (int(rect.width) + 2 * pad, int(rect.height) + top_pad + bottom_pad), (0, 0, 0, 0)
+        "RGBA", (int(rect.width) + 2 * side_pad, int(rect.height) + top_pad + bottom_pad), (0, 0, 0, 0)
     )
-    sub_rect = NodeRect(node_id=rect.node_id, x=pad, y=top_pad, width=rect.width, height=rect.height)
+    sub_rect = NodeRect(node_id=rect.node_id, x=side_pad, y=top_pad, width=rect.width, height=rect.height)
     if node.type == "anchor":
         _draw_anchor(sub, node, sub_rect, media_image)
     else:
         _draw_node_media(sub, node, sub_rect, media_image, style=style, hollow=hollow)
         _draw_node_label(sub, node, sub_rect)
         if node.caption:
-            _draw_caption(sub, node.caption, sub_rect, style=style)
+            _draw_caption(sub, node.caption, sub_rect, style=style, offset=caption_offset)
 
     scale = 0.95 + 0.05 * eased
     new_w, new_h = max(1, round(sub.width * scale)), max(1, round(sub.height * scale))
@@ -645,7 +670,7 @@ def render_node_reveal_frame(
     # above and caption below), so the sub-canvas's own center no longer
     # coincides with the card's.
     cx, cy = rect.center
-    sub_rect_cx, sub_rect_cy = pad + rect.width / 2.0, top_pad + rect.height / 2.0
+    sub_rect_cx, sub_rect_cy = side_pad + rect.width / 2.0, top_pad + rect.height / 2.0
     paste_x = int(round(cx - sub_rect_cx * scale))
     paste_y = int(round(cy - sub_rect_cy * scale))
     frame.alpha_composite(scaled, (paste_x, paste_y))
@@ -672,15 +697,21 @@ def render_node_media_only_frame(
     return frame
 
 
-def render_node_decoration_frame(node: SceneNode, rect: NodeRect, style: StylePreset, *, canvas_size) -> Image.Image:
+def render_node_decoration_frame(
+    node: SceneNode, rect: NodeRect, style: StylePreset, *, canvas_size,
+    caption_offset: Tuple[float, float] = (0.0, 0.0),
+) -> Image.Image:
     """Just the label (above) and caption (below) — no media — the
     complement to render_node_media_only_frame: composited on top of the
     (Ken-Burns-animated, via FFmpeg zoompan) media layer so the text stays
-    perfectly still while the photo underneath moves."""
+    perfectly still while the photo underneath moves.
+
+    ``caption_offset`` — see render_node_reveal_frame's docstring; same
+    already-solved (dx, dy), same (0, 0) no-op default."""
     frame = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     _draw_node_label(frame, node, rect)
     if node.caption:
-        _draw_caption(frame, node.caption, rect, style=style)
+        _draw_caption(frame, node.caption, rect, style=style, offset=caption_offset)
     return frame
 
 
@@ -694,13 +725,82 @@ def render_title_reveal_frame(text: str, *, canvas_size, top_margin: int, progre
     if progress <= 0.0 or not text:
         return frame
 
-    font = _load_font(_TITLE_FONT_CANDIDATES, max(24, int(canvas_size[1] * 0.045)))
+    font = _load_font(_TITLE_FONT_CANDIDATES, max(36, int(canvas_size[1] * 0.07)))
     draw = ImageDraw.Draw(frame)
     bbox = draw.textbbox((0, 0), text, font=font)
     x = (canvas_size[0] - (bbox[2] - bbox[0])) / 2.0
     y = top_margin
     alpha = int(255 * progress)
     draw.text((x, y), text, font=font, fill=(20, 20, 20, alpha))
+    return frame
+
+
+_CHECKLIST_INACTIVE_FILL = (208, 208, 208, 255)  # grey — not yet reached
+_CHECKLIST_CURRENT_FILL = (192, 57, 43, 255)  # matches _LABEL_COLOR / arrows.default_color
+_CHECKLIST_COMPLETED_FILL = (90, 90, 90, 255)  # darker neutral — reached and passed
+_CHECKLIST_CELL_GUTTER_PX = 6
+_CHECKLIST_CELL_TOP_PX = 14  # top padding inside the reserved band
+
+
+def render_checklist_strip_frame(
+    labels: List[str], current_index: int, *, canvas_size: Tuple[int, int], band_height: float, margin_px: int,
+) -> Image.Image:
+    """One transparent canvas-sized frame of Exp Solar's persistent
+    checklist header strip: up to CHECKLIST_MAX_ITEMS (15) evenly-spaced
+    cells across the reserved top band (scene_graph.layout.CHECKLIST_BAND_PX/
+    checklist_band_px), each a small filled rounded cell + centered number
+    + a short label beneath it. State is purely a function of position
+    relative to ``current_index`` (items before it: completed/darker;
+    ``current_index`` itself: highlighted; after it: inactive/grey) — never
+    per-frame animation, matching the reference's instant state-change
+    ("turns to full color once its segment is reached") rather than a
+    fade. No per-item thumbnail: text-only, so this never depends on asset
+    resolution — only Exp Solar's own CSV-declared labels.
+    """
+    frame = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    n = len(labels)
+    if n == 0:
+        return frame
+
+    draw = ImageDraw.Draw(frame)
+    stage_w = canvas_size[0] - 2 * margin_px
+    cell_w = stage_w / n
+    cell_h = max(24.0, band_height - _CHECKLIST_CELL_TOP_PX - 10)
+    number_font = _load_font(_LABEL_FONT_CANDIDATES, max(14, min(22, int(cell_h * 0.42))))
+    label_font = _load_font(_CAPTION_FONT_CANDIDATES, max(10, min(14, int(cell_h * 0.22))))
+
+    for i, label in enumerate(labels):
+        if i < current_index:
+            fill = _CHECKLIST_COMPLETED_FILL
+        elif i == current_index:
+            fill = _CHECKLIST_CURRENT_FILL
+        else:
+            fill = _CHECKLIST_INACTIVE_FILL
+
+        cell_x = margin_px + i * cell_w
+        box = [
+            cell_x + _CHECKLIST_CELL_GUTTER_PX / 2, _CHECKLIST_CELL_TOP_PX,
+            cell_x + cell_w - _CHECKLIST_CELL_GUTTER_PX / 2, _CHECKLIST_CELL_TOP_PX + cell_h,
+        ]
+        radius = min(10.0, cell_h * 0.2, cell_w * 0.2)
+        draw.rounded_rectangle(box, radius=radius, fill=fill)
+
+        number_text = str(i + 1)
+        nb = draw.textbbox((0, 0), number_text, font=number_font)
+        nx = (box[0] + box[2]) / 2.0 - (nb[2] - nb[0]) / 2.0
+        ny = box[1] + cell_h * 0.12
+        draw.text((nx, ny), number_text, font=number_font, fill=(255, 255, 255, 255))
+
+        short_label = (label or "").strip()
+        if short_label:
+            if len(short_label) > 10:
+                short_label = short_label[:9] + "…"
+            lb = draw.textbbox((0, 0), short_label, font=label_font)
+            lx = (box[0] + box[2]) / 2.0 - (lb[2] - lb[0]) / 2.0
+            ly = box[1] + cell_h * 0.55
+            if ly + (lb[3] - lb[1]) <= box[3]:  # only draw if it actually fits the cell
+                draw.text((lx, ly), short_label, font=label_font, fill=(255, 255, 255, 255))
+
     return frame
 
 

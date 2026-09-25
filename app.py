@@ -1917,6 +1917,14 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_enabled_var = ctk.BooleanVar(value=False)
         self._overscaled_running = False
         self._overscaled_scene_graph = None  # last compiled plan; feeds self._scene_rows
+        # Which composition_styles/*.json id compiling/rendering uses — the
+        # ONLY thing that differs between "Overscaled" and "Exp Solar" today.
+        # Both are the exact same generation_mode == "overscaled" workflow
+        # (same CSV schema/parser, same Visual Plan, same asset pipeline,
+        # same renderer); Exp Solar is Overscaled with a different style
+        # preset id, per the Reference Editing Style plan.
+        self._overscaled_style_preset_id = "overscaled"
+        self._overscaled_style_labels = {"overscaled": "Overscaled", "exp_solar": "Exp Solar"}
 
         block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
         block.grid(row=row, column=0, sticky="ew", padx=16, pady=(10, 12))
@@ -1924,33 +1932,48 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_block = block
 
         ctk.CTkLabel(
-            block, text="Overscaled (whiteboard-collage style)",
+            block, text="Video Style / Mode",
             font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
         ).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
 
+        self._overscaled_style_segmented = ctk.CTkSegmentedButton(
+            block, values=["Overscaled", "Exp Solar"],
+            command=self._on_overscaled_style_change,
+            font=ctk.CTkFont(size=12),
+        )
+        self._overscaled_style_segmented.set("Overscaled")
+        self._overscaled_style_segmented.grid(row=1, column=0, sticky="w", padx=12, pady=(6, 0))
+
+        self._overscaled_toggle_label_var = ctk.StringVar(value="Use Overscaled for this generation")
         ctk.CTkSwitch(
-            block, text="Use Overscaled for this generation",
+            block, textvariable=self._overscaled_toggle_label_var,
             variable=self._overscaled_enabled_var, onvalue=True, offvalue=False,
             progress_color=_ACCENT, button_color=_TEXT, button_hover_color=_ACCENT,
             text_color=_TEXT, font=ctk.CTkFont(size=12),
             command=self._on_overscaled_toggle,
-        ).grid(row=1, column=0, sticky="w", padx=12, pady=(6, 0))
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(8, 0))
 
         controls = ctk.CTkFrame(block, fg_color="transparent")
-        controls.grid(row=2, column=0, sticky="ew", padx=12, pady=(8, 10))
+        controls.grid(row=3, column=0, sticky="ew", padx=12, pady=(8, 10))
         controls.grid_columnconfigure(0, weight=1)
         self._overscaled_controls = controls
 
+        # Label kept generic ("CSV", not "Overscaled CSV"/"Exp Solar CSV"):
+        # _path_row's own `label` is a plain static string, not a live
+        # variable — which style is active is already communicated by the
+        # switch text above (self._overscaled_toggle_label_var) and the
+        # status/hint line below, both of which DO update live.
         self._path_row(
-            0, "Overscaled CSV", self._overscaled_csv_var, self._browse_overscaled_csv,
-            parent=controls, placeholder_text="Choose an Overscaled CSV (scene_number, script_segment, node_id, ...)",
+            0, "CSV", self._overscaled_csv_var, self._browse_active_style_csv,
+            parent=controls, placeholder_text="Choose a CSV (scene_number, script_segment, node_id, ...)",
         )
-        ctk.CTkLabel(
+        self._overscaled_hint_label = ctk.CTkLabel(
             controls,
             text="Uses the voiceover already selected above (Import voiceover / Voiceover Audio). "
                  "After importing, review the plan on Visual Plan, then click the usual Generate button.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        )
+        self._overscaled_hint_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
 
         self._overscaled_status_label = ctk.CTkLabel(
             controls, textvariable=self._overscaled_status_var,
@@ -1959,6 +1982,20 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_status_label.grid(row=2, column=0, sticky="ew", pady=(6, 0))
 
         controls.grid_remove()
+
+    def _on_overscaled_style_change(self, choice: str) -> None:
+        """Segmented-button command: switches which style_preset_id the
+        SAME Overscaled workflow (CSV parser, Visual Plan, asset pipeline,
+        renderer) compiles/renders with. Does not change generation_mode,
+        the CSV schema, or which functions run — only the preset id."""
+        self._overscaled_style_preset_id = "exp_solar" if choice == "Exp Solar" else "overscaled"
+        label = self._overscaled_style_labels[self._overscaled_style_preset_id]
+        self._overscaled_toggle_label_var.set(f"Use {label} for this generation")
+        # Re-compile the already-loaded CSV (if any) under the newly chosen
+        # style so the Visual Plan / render both reflect the current choice.
+        csv_path = self._overscaled_csv_var.get().strip()
+        if csv_path and Path(csv_path).is_file():
+            self._load_overscaled_csv(csv_path)
 
     def _on_overscaled_toggle(self) -> None:
         if self._overscaled_enabled_var.get():
@@ -1970,6 +2007,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_primary_cta()
 
     def _browse_overscaled_csv(self) -> None:
+        """Overscaled's own CSV picker — unchanged file dialog, unchanged
+        compile_overscaled_csv parser (see _load_overscaled_csv)."""
         path = filedialog.askopenfilename(
             title="Select Overscaled CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -1981,19 +2020,46 @@ class VideoGeneratorApp(ctk.CTk):
         if self._load_overscaled_csv(path):
             self._goto_workflow_view("visual_plan")
 
+    def _browse_exp_solar_csv(self) -> None:
+        """Exp Solar's own CSV picker — same file-dialog pattern as
+        Overscaled's, but a dedicated action per the Exp Solar CSV contract
+        (see scene_graph/exp_solar_csv.py); routed to the Exp Solar parser
+        by _load_overscaled_csv, never the raw Overscaled one."""
+        path = filedialog.askopenfilename(
+            title="Select Exp Solar CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir=str(_browse_start_dir()),
+        )
+        if not path:
+            return
+        self._overscaled_csv_var.set(path)
+        if self._load_overscaled_csv(path):
+            self._goto_workflow_view("visual_plan")
+
+    def _browse_active_style_csv(self) -> None:
+        """The single Visual Plan CSV path-row's browse command — routes to
+        whichever dedicated picker matches the currently selected style."""
+        if self._overscaled_style_preset_id == "exp_solar":
+            self._browse_exp_solar_csv()
+        else:
+            self._browse_overscaled_csv()
+
     def _load_overscaled_csv(self, path: str) -> bool:
         """Compile ``path`` and populate the Visual Plan table from it —
-        the shared body behind both _browse_overscaled_csv (a freshly picked
-        file) and _bind_workspace_paths (restoring a project's own saved
-        Overscaled CSV on reopen). Compile-only (no media resolution, no
-        rendering, no FFmpeg) so the operator can review the plan BEFORE
-        committing to a full Overscaled generation — same principle as the
-        normal CSV import, which only ever populates the scene table at this
-        point too. Returns True on success."""
+        the shared body behind both pickers above (a freshly picked file)
+        and _bind_workspace_paths (restoring a project's own saved CSV on
+        reopen). Compile-only (no media resolution, no rendering, no
+        FFmpeg) so the operator can review the plan BEFORE committing to a
+        full generation — same principle as the normal CSV import, which
+        only ever populates the scene table at this point too. Which
+        parser runs depends on self._overscaled_style_preset_id: Exp Solar
+        CSVs go through scene_graph.exp_solar_csv's dedicated adapter (its
+        own schema/vocabulary), which itself compiles into a SceneGraph via
+        the SAME compile_overscaled_csv Overscaled uses — no second
+        SceneGraph, no second renderer. Returns True on success."""
         import csv as _csv
 
         from providers.base import SceneRow
-        from scene_graph.overscaled_csv import compile_overscaled_csv
 
         try:
             with open(path, newline="", encoding="utf-8-sig") as f:
@@ -2002,10 +2068,25 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showerror("Cannot read CSV", str(exc))
             return False
 
-        result = compile_overscaled_csv(rows, segment_id=Path(path).stem, title=Path(path).stem)
-        if not result.ok:
-            messagebox.showerror("Invalid Overscaled CSV", "\n".join(result.errors) or "Unknown error")
-            return False
+        if self._overscaled_style_preset_id == "exp_solar":
+            from scene_graph.exp_solar_csv import compile_exp_solar_csv
+
+            result = compile_exp_solar_csv(rows, segment_id=Path(path).stem, title=Path(path).stem)
+            if not result.ok:
+                messagebox.showerror("Invalid Exp Solar CSV", "\n".join(result.errors) or "Unknown error")
+                return False
+            if result.warnings:
+                self._append_log("[Exp Solar] " + "\n[Exp Solar] ".join(result.warnings) + "\n")
+        else:
+            from scene_graph.overscaled_csv import compile_overscaled_csv
+
+            result = compile_overscaled_csv(
+                rows, segment_id=Path(path).stem, title=Path(path).stem,
+                style_preset=self._overscaled_style_preset_id,
+            )
+            if not result.ok:
+                messagebox.showerror("Invalid Overscaled CSV", "\n".join(result.errors) or "Unknown error")
+                return False
 
         self._overscaled_scene_graph = result.scene_graph
         self.generation_mode = "overscaled"
@@ -2105,9 +2186,8 @@ class VideoGeneratorApp(ctk.CTk):
             )
             return
 
-        out_dir = self._workspace.root / "overscaled"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        output_path = out_dir / "overscaled_final.mp4"
+        output_path = self._workspace.next_overscaled_final_path()
+        out_dir = output_path.parent
 
         # Same resolution the normal workflow already uses (app.py:6170/8160)
         # for stock_image/stock_video scenes — Overscaled must not require a
@@ -2117,6 +2197,15 @@ class VideoGeneratorApp(ctk.CTk):
         # flow_image/flow_video scenes (safe to call from this background
         # thread too — _get_flow_engine_manager holds its own lock).
         flow_engine_manager = self._get_flow_engine_manager()
+        # Read on the MAIN thread, like pexels_api_key/flow_engine_manager
+        # above — self.model_var is a Tkinter variable, and reading it from
+        # the background worker thread below is not safe (Tkinter widgets/
+        # variables are main-thread-only, same reason thread_safe_log exists).
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None) if self._workspace is not None else None
+        # Plain str attribute (not a Tk variable), but captured here anyway
+        # to match the same main-thread-read convention as the values above.
+        style_preset_id = self._overscaled_style_preset_id
 
         self._overscaled_running = True
         self._sync_primary_cta()
@@ -2163,11 +2252,35 @@ class VideoGeneratorApp(ctk.CTk):
         def worker() -> None:
             from scene_graph.app_integration import generate_overscaled_video
 
+            # Reuse the EXISTING Whisper cache/transcribe pattern the normal
+            # pipeline already uses (see get_cached_whisper_words call site
+            # elsewhere in this file) so Overscaled retimes against real
+            # per-word narration timing instead of placeholder word-count
+            # pacing — never re-transcribes if a cached alignment for this
+            # exact audio file already exists. Falls back to today's
+            # unchanged behavior (whisper_words=None -> proportional
+            # retiming) on any failure, so this can never break a render
+            # that used to work.
+            whisper_words = None
+            try:
+                if whisper_state_dir is not None:
+                    cached = get_cached_whisper_words(whisper_state_dir, voiceover_path)
+                    if cached:
+                        whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
+                        thread_safe_log("[Overscaled] Reusing cached word alignment for narration timing.")
+                if whisper_words is None:
+                    whisper_words = vg.transcribe_audio(str(voiceover_path), whisper_model)
+            except Exception as exc:
+                thread_safe_log(f"[Overscaled] Whisper alignment unavailable ({exc}); using placeholder pacing.")
+                whisper_words = None
+
             result = generate_overscaled_video(
                 csv_path, str(voiceover_path), str(output_path),
                 resolution="1920x1080", fps=30,
                 segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
+                style_preset_id=style_preset_id,
                 pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                whisper_words=whisper_words,
                 progress_cb=progress_cb, log=thread_safe_log,
             )
 
@@ -7870,6 +7983,114 @@ class VideoGeneratorApp(ctk.CTk):
             text="Smart Editing controls (Text / SFX / Transitions / Ambience) live on the Audio dashboard.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 12))
+
+        ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
+
+        # ── Cache & Storage — thin UI over cache_manager.py's existing,
+        # already-project-scoped helpers (downloaded_assets/preview_engine).
+        # No new cache system: this only exposes size + clear controls.
+        ctk.CTkLabel(
+            body, text="CACHE & STORAGE", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(16, 4))
+
+        cache_size_var = ctk.StringVar(value="Current Project Cache: —")
+
+        def _refresh_cache_size_label() -> None:
+            # project_cache_bytes() recursively walks+stats flow/youtube/stock/
+            # tmp/proxy dirs (cache_manager._dir_size uses Path.rglob("*")) —
+            # on Windows, with many accumulated flow/runs/* folders, this was
+            # measured taking tens of seconds synchronously on Settings open
+            # (no threading wrapper here previously). Backgrounded like every
+            # other disk-scan in this app; result unchanged, just non-blocking.
+            if self._workspace is None:
+                cache_size_var.set("Current Project Cache: no active project")
+                return
+            ws = self._workspace
+            cache_size_var.set("Current Project Cache: calculating…")
+
+            def worker(ws=ws):
+                try:
+                    import cache_manager as _cm
+
+                    size = _cm.project_cache_bytes(ws)
+                    text = f"Current Project Cache: {_cm.format_bytes(size)}"
+                except Exception:
+                    text = "Current Project Cache: unavailable"
+                self.after(0, lambda t=text: cache_size_var.set(t))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        _refresh_cache_size_label()
+        ctk.CTkLabel(
+            body, textvariable=cache_size_var, font=ctk.CTkFont(size=12), text_color=_TEXT,
+        ).pack(anchor="w", padx=20, pady=(0, 8))
+
+        def _cache_btn(parent, text, command, *, danger: bool = False):
+            return ctk.CTkButton(
+                parent, text=text, height=30,
+                fg_color="transparent" if danger else _BG,
+                border_width=1, border_color=_DANGER if danger else _BORDER,
+                text_color=_DANGER if danger else _TEXT,
+                hover_color=_DANGER_BG if danger else _CARD,
+                command=command,
+            )
+
+        def _clear_temp_cache() -> None:
+            if not self._require_workspace("clear temporary cache"):
+                return
+            import cache_manager as _cm
+
+            freed = _cm.clear_temp_cache(self._workspace)
+            messagebox.showinfo("Temporary cache cleared", f"Freed {_cm.format_bytes(freed)}.")
+            _refresh_cache_size_label()
+
+        def _clear_preview_cache() -> None:
+            if not self._require_workspace("clear preview/proxy cache"):
+                return
+            import cache_manager as _cm
+
+            freed = _cm.clear_preview_cache(self._workspace)
+            messagebox.showinfo("Preview/proxy cache cleared", f"Freed {_cm.format_bytes(freed)}.")
+            _refresh_cache_size_label()
+
+        def _clear_generated_cache() -> None:
+            # Reuses the EXISTING downloaded-assets cleanup entry point
+            # verbatim (same confirmation dialog, same manifest/QA/asset-
+            # manager bookkeeping) rather than a second code path.
+            self._on_cleanup_downloaded_assets()
+            _refresh_cache_size_label()
+
+        def _clear_all_cache() -> None:
+            if not messagebox.askyesno(
+                "Clear All Cache",
+                "This clears temporary, preview/proxy, and generated-asset "
+                "cache for EVERY project.\n\n"
+                "Scripts, CSVs, narration, final renders, and project files "
+                "are never touched.\n\nContinue?",
+            ):
+                return
+            import cache_manager as _cm
+
+            result = _cm.clear_all_cache()
+            msg = (
+                f"Cleared cache for {result.projects_scanned} project(s), "
+                f"freed {_cm.format_bytes(result.bytes_freed)}."
+            )
+            if result.failures:
+                msg += f"\n\n{len(result.failures)} project(s) had errors (see logs)."
+            messagebox.showinfo("Clear All Cache", msg)
+            _refresh_cache_size_label()
+            self._refresh_cleanup_button()
+
+        cache_row1 = ctk.CTkFrame(body, fg_color="transparent")
+        cache_row1.pack(fill="x", padx=20, pady=(0, 4))
+        _cache_btn(cache_row1, "Clear Temporary Cache", _clear_temp_cache).pack(side="left", padx=(0, 8))
+        _cache_btn(cache_row1, "Clear Preview/Proxy Cache", _clear_preview_cache).pack(side="left")
+
+        cache_row2 = ctk.CTkFrame(body, fg_color="transparent")
+        cache_row2.pack(fill="x", padx=20, pady=(0, 16))
+        _cache_btn(cache_row2, "Clear Generated Asset Cache", _clear_generated_cache).pack(side="left", padx=(0, 8))
+        _cache_btn(cache_row2, "Clear All Cache", _clear_all_cache, danger=True).pack(side="left")
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
 

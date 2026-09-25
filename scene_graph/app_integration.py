@@ -41,6 +41,7 @@ from scene_graph.media_resolution import resolve_scene_graph_media
 from scene_graph.overscaled_csv import compile_overscaled_csv
 from scene_graph.pipeline import run_overscaled_pipeline
 from scene_graph.schema import SceneGraph
+from scene_graph.voiceover_sync import WhisperWord
 
 ProgressCallback = Callable[[str, float], None]
 
@@ -80,6 +81,7 @@ def generate_overscaled_video(
     pexels_api_key: Optional[str] = None,
     flow_engine_manager=None,
     flow_settings: Optional[dict] = None,
+    whisper_words: Optional[List[WhisperWord]] = None,
     progress_cb: Optional[ProgressCallback] = None,
     log: Callable[[str], None] = print,
 ) -> OverscaledGenerationResult:
@@ -89,6 +91,14 @@ def generate_overscaled_video(
     (CSV compile / layout / composition / camera / retiming); real network
     media resolution (Flow/Pexels/YouTube) only runs for nodes whose
     asset_type actually calls for it, exactly like the normal pipeline.
+
+    ``whisper_words`` is optional, real per-word (word, start, end) voiceover
+    timestamps — the SAME shape/source the normal pipeline already produces
+    (see app.py's existing get_cached_whisper_words/transcribe_audio call
+    site). When given, run_overscaled_pipeline retimes every beat against
+    real narration timing instead of the cruder proportional whole-segment
+    scale; when omitted (the previous, still-default behavior), nothing
+    changes here.
     """
 
     csv_path = Path(overscaled_csv_path)
@@ -106,6 +116,24 @@ def generate_overscaled_video(
             csv_rows = list(csv.DictReader(f))
     except OSError as exc:
         return _fail([f"could not read Overscaled CSV: {exc}"])
+
+    if style_preset_id == "exp_solar":
+        # Exp Solar CSVs use their own schema (beat/chapter/relationship_to/
+        # ... — see scene_graph.exp_solar_csv) and must be adapted into
+        # Overscaled-CSV-shaped rows BEFORE either compile_overscaled_csv
+        # call below — otherwise those columns are silently ignored and the
+        # render doesn't match the Visual Plan the operator already
+        # reviewed (which DOES go through this same adapter, in app.py's
+        # _load_overscaled_csv). No second SceneGraph/renderer: from here
+        # on this is the exact same path Overscaled itself uses.
+        from .exp_solar_csv import adapt_exp_solar_csv_rows
+
+        adapted = adapt_exp_solar_csv_rows(csv_rows)
+        if not adapted.ok:
+            return _fail(adapted.errors)
+        for warning in adapted.warnings:
+            log(f"[Exp Solar] {warning}")
+        csv_rows = adapted.rows
 
     compiled = compile_overscaled_csv(csv_rows, segment_id=segment_id, title=title, style_preset=style_preset_id)
     if not compiled.ok:
@@ -133,16 +161,38 @@ def generate_overscaled_video(
         csv_rows, segment_id=segment_id, title=title, style_preset_id=style_preset_id,
         voiceover_path=voiceover_path, out_dir=work_dir_path / "overscaled",
         resolved_media=resolved_media, resolution=resolution, fps=fps,
-        progress_cb=progress_cb,
+        whisper_words=whisper_words, progress_cb=progress_cb,
     )
     if not pipeline_result.ok:
         return _fail(pipeline_result.errors)
 
-    _report(progress_cb, "Muxing final video with voiceover…", 0.97)
+    final_audio_path = voiceover_path
+    if style_preset_id == "exp_solar":
+        # Exp Solar's sound design layer: narration + deterministic SFX +
+        # an optional ambience bed, via the EXISTING smart_editing FFmpeg
+        # mixing pipeline (see scene_graph.exp_solar_audio) — never a
+        # second audio engine. Overscaled (style_preset_id == "overscaled")
+        # never reaches this branch, so its own plain voiceover mux below
+        # is completely unaffected. Any failure here falls back to the
+        # unmixed voiceover rather than failing the whole render.
+        _report(progress_cb, "Building Exp Solar audio mix…", 0.93)
+        try:
+            from .exp_solar_audio import build_exp_solar_audio_mix
+
+            mixed_path = build_exp_solar_audio_mix(
+                pipeline_result.scene_graph, pipeline_result.layout,
+                voiceover_path=Path(voiceover_path), output_path=work_dir_path / "exp_solar_audio_mix.wav",
+            )
+            final_audio_path = str(mixed_path)
+        except Exception as exc:
+            log(f"[Exp Solar] audio mix failed ({exc}); using narration only.")
+            final_audio_path = voiceover_path
+
+    _report(progress_cb, "Muxing final video with audio…", 0.97)
     try:
         _export_via_existing_renderer(
             pipeline_result.scene_graph, pipeline_result.segment_clip_path,
-            voiceover_path=voiceover_path, output_path=Path(output_path),
+            voiceover_path=final_audio_path, output_path=Path(output_path),
             resolution=resolution, fps=fps, work_dir=work_dir_path,
         )
     except Exception as exc:
