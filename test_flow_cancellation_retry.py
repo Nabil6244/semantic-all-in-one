@@ -621,5 +621,79 @@ class TestCompletedResultSurvivesConcurrentCancel(unittest.TestCase):
             self.assertEqual(collected["1"].status, SceneStatus.READY)
 
 
+class TestFinalizeCrashNeverStrandsRemainingScenes(unittest.TestCase):
+    """Reproduces the "every scene stays PROCESSING forever, header stuck at
+    0 ready, even after generation finishes" report: a scene whose Flow file
+    genuinely arrived (real log lines, real download) but whose
+    AssetManager._finalize() step (VQA scoring / manifest write / selection
+    history) raises for any reason.
+
+    Before the fix: _on_scene_ready's call to self._finalize(scene, result)
+    was unguarded, so the exception propagated out of _on_scene_ready, was
+    swallowed by FlowProvider._try_place_early's own try/except into a single
+    log line, and left `early_reported` never set for that scene.
+    _resolve_flow_batch's own FINAL per-scene loop then re-attempted
+    self._finalize(scene, result) a second time, ALSO unguarded -- if that
+    (now state-mutated) second attempt also raised, the exception propagated
+    straight out of the for-loop, out of resolve_all() (which only catches
+    AssetError), and silently killed the background generation worker thread
+    -- so on_scene_complete was never called for that scene OR for any scene
+    still left in that same for-loop, and nothing ever fires the UI's
+    catch-up flush again. Every remaining row stays wherever _poll_queue last
+    left it, and the header stays frozen at whatever it was when the thread
+    died (0 ready, if this happens on the very first scene)."""
+
+    def test_finalize_exception_still_reaches_on_scene_complete_for_every_scene(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+
+            class _EarlyReportingProvider(FakeProvider):
+                """resolve_batch reports READY via on_scene_ready mid-batch,
+                exactly like the real FlowProvider does as each file lands."""
+
+                def resolve_batch(self, scenes, images_dir, log=print, should_stop=None,
+                                   on_scene_ready=None, on_scene_generating=None):
+                    results = {}
+                    for s in scenes:
+                        result = self.resolve(s, images_dir, log=log)
+                        results[s.scene_number] = result
+                        if on_scene_ready is not None:
+                            on_scene_ready(s, result)
+                    return results
+
+            flow = _EarlyReportingProvider(AssetSource.FLOW_IMAGE, {})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+
+            real_finalize = mgr._finalize
+
+            def flaky_finalize(scene, result):
+                if scene.scene_number == "1":
+                    raise RuntimeError("simulated VQA/manifest crash for scene 1")
+                return real_finalize(scene, result)
+
+            mgr._finalize = flaky_finalize
+
+            scenes = [
+                SceneRow(scene_number="1", script_segment="a", prompt="p1"),
+                SceneRow(scene_number="2", script_segment="b", prompt="p2"),
+                SceneRow(scene_number="3", script_segment="c", prompt="p3"),
+            ]
+
+            completed: list[str] = []
+            results: dict = {}
+            mgr._resolve_flow_batch(
+                AssetSource.FLOW_IMAGE, flow, scenes, results,
+                on_scene_complete=lambda scene, result: completed.append(scene.scene_number),
+            )
+
+            self.assertEqual(
+                sorted(completed), ["1", "2", "3"],
+                "a crash finalizing scene 1 must not strand scenes 2 and 3 -- "
+                "on_scene_complete must still fire for every scene",
+            )
+            self.assertEqual(sorted(results.keys()), ["1", "2", "3"])
+            self.assertTrue(results["2"].ok and results["3"].ok, "unaffected scenes must still finish normally")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1028,8 +1028,19 @@ class AssetManager:
             if not result.ok and self.is_scene_cancelled(scene.scene_number):
                 result = self._cancelled_result(scene, source)
             else:
-                self._record_failed_approach(scene, source, result)
-                self._finalize(scene, result)
+                try:
+                    self._record_failed_approach(scene, source, result)
+                    self._finalize(scene, result)
+                except Exception as exc:
+                    # _finalize (VQA scoring / manifest write / selection-
+                    # history) is best-effort bookkeeping; a crash here must
+                    # never propagate out of this callback. The caller
+                    # (FlowProvider._try_place_early) only logs and swallows
+                    # any exception raised by this callback, which previously
+                    # meant early_reported never got set for this scene and
+                    # on_scene_complete was never called — the scene stayed
+                    # PROCESSING forever with no further event to recover it.
+                    self.log(f"[ASSET] Scene {scene.scene_number} finalize failed: {exc}")
             early_reported[scene.scene_number] = result
             results[scene.scene_number] = result
             if on_scene_complete:
@@ -1079,8 +1090,24 @@ class AssetManager:
             if not result.ok and self.is_scene_cancelled(scene.scene_number):
                 result = self._cancelled_result(scene, source)
             else:
-                self._record_failed_approach(scene, source, result)
-                self._finalize(scene, result)
+                try:
+                    self._record_failed_approach(scene, source, result)
+                    self._finalize(scene, result)
+                except Exception as exc:
+                    # This loop runs once per scene, uncaught, directly on the
+                    # generation worker thread -- an exception here (e.g. a
+                    # scene whose mid-batch _on_scene_ready already partly
+                    # ran _finalize before failing, now hitting it a second
+                    # time with already-mutated state) previously aborted
+                    # this whole for-loop, so on_scene_complete was never
+                    # called for THIS scene or any scene after it in
+                    # iteration order -- every remaining row stayed
+                    # PROCESSING/QUEUED forever with the header frozen,
+                    # because the exception then propagated out of
+                    # resolve_all() uncaught (only AssetError is handled by
+                    # the caller) and silently killed the background worker
+                    # thread (invisible in a windowed packaged build).
+                    self.log(f"[ASSET] Scene {scene.scene_number} finalize failed: {exc}")
             results[scene.scene_number] = result
             if on_scene_complete:
                 on_scene_complete(scene, result)

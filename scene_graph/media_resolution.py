@@ -46,6 +46,9 @@ def resolve_scene_graph_media(
     youtube_clip_duration: float = 3.5,
     youtube_transcript_matching: bool = True,
     log=print,
+    on_scene_start=None,
+    on_scene_complete=None,
+    on_scene_generating=None,
 ) -> Dict[str, str]:
     """Resolve every node's real media file through the EXISTING provider
     stack. Returns {node_id: local_file_path} for whatever actually resolved
@@ -84,6 +87,9 @@ def resolve_scene_graph_media(
         youtube_clip_duration=youtube_clip_duration,
         youtube_transcript_matching=youtube_transcript_matching,
         log=log,
+        on_scene_start=on_scene_start,
+        on_scene_complete=on_scene_complete,
+        on_scene_generating=on_scene_generating,
     )
 
     resolved: Dict[str, str] = {}

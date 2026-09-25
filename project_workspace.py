@@ -417,6 +417,19 @@ class ProjectWorkspace:
                 return candidate
             n += 1
 
+    @property
+    def overscaled_images_dir(self) -> Path:
+        """Where generate_overscaled_video() resolves Flow/stock/YouTube/local
+        media for BOTH Overscaled and Exp Solar (see app.py's
+        _run_overscaled_generation: work_dir=str(out_dir / "_work") ->
+        images_dir = work_dir / "media" inside app_integration.py). Same
+        formula, named once, so the resume-hydration path below can never
+        drift from the path generation actually resolves into — the asset
+        manifest / AssetManager cache living there is the SAME mechanism
+        the normal CSV workflow already uses, just pointed at this project's
+        own overscaled/ subtree instead of its plain Images/ folder."""
+        return self.root / "overscaled" / "_work" / "media"
+
     def next_overscaled_final_path(self) -> Path:
         """Same auto-increment convention as next_final_path(), for the
         Overscaled/Exp Solar output directory: first export uses

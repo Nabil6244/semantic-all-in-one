@@ -2864,6 +2864,9 @@ def resolve_scene_assets(
     youtube_clip_duration: float = 3.5,
     youtube_transcript_matching: bool = True,
     log=print,
+    on_scene_start=None,
+    on_scene_complete=None,
+    on_scene_generating=None,
 ) -> None:
     """
     Routes each CSV row to LocalProvider / StockProvider / FlowProvider(image or
@@ -2947,7 +2950,12 @@ def resolve_scene_assets(
         log=log,
     )
     try:
-        summary = manager.resolve_all(scene_rows)
+        summary = manager.resolve_all(
+            scene_rows,
+            on_scene_start=on_scene_start,
+            on_scene_complete=on_scene_complete,
+            on_scene_generating=on_scene_generating,
+        )
     except AssetError as exc:
         sys.exit(f"ERROR: {exc.reason}")
 

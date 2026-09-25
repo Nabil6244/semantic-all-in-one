@@ -84,6 +84,9 @@ def generate_overscaled_video(
     whisper_words: Optional[List[WhisperWord]] = None,
     progress_cb: Optional[ProgressCallback] = None,
     log: Callable[[str], None] = print,
+    on_scene_start=None,
+    on_scene_complete=None,
+    on_scene_generating=None,
 ) -> OverscaledGenerationResult:
     """Overscaled CSV + real voiceover -> a real, final MP4.
 
@@ -126,9 +129,23 @@ def generate_overscaled_video(
         # reviewed (which DOES go through this same adapter, in app.py's
         # _load_overscaled_csv). No second SceneGraph/renderer: from here
         # on this is the exact same path Overscaled itself uses.
-        from .exp_solar_csv import adapt_exp_solar_csv_rows
+        #
+        # This whole call runs on a background thread (app.py's
+        # _run_overscaled_generation worker) with no wrapper of its own —
+        # an uncaught exception here previously escaped this function
+        # (breaking its own "never raises past this module" contract),
+        # escaped the thread, and was silently dropped by Python's default
+        # threading.excepthook, which is invisible in a windowed packaged
+        # build. Converting any failure into the existing _fail() result
+        # restores that contract and surfaces the real error through the
+        # normal "Overscaled generation failed" dialog instead of hanging.
+        try:
+            from .exp_solar_csv import adapt_exp_solar_csv_rows
 
-        adapted = adapt_exp_solar_csv_rows(csv_rows)
+            adapted = adapt_exp_solar_csv_rows(csv_rows)
+        except Exception as exc:
+            return _fail([f"Exp Solar CSV adaptation failed: {exc}"])
+
         if not adapted.ok:
             return _fail(adapted.errors)
         for warning in adapted.warnings:
@@ -146,6 +163,8 @@ def generate_overscaled_video(
             compiled.scene_graph, images_dir=images_dir,
             pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
             flow_settings=flow_settings, log=log,
+            on_scene_start=on_scene_start, on_scene_complete=on_scene_complete,
+            on_scene_generating=on_scene_generating,
         )
     except SystemExit as exc:
         return _fail([f"media resolution failed: {exc}"])

@@ -2111,9 +2111,63 @@ class VideoGeneratorApp(ctk.CTk):
             if role:
                 scene_row.script_segment = f"[{role}] {scene_row.script_segment}"
         self._scene_rows = display_rows
+        self._hydrate_overscaled_assets_from_manifest()
         self._render_scene_rows()
         self._sync_primary_cta()
         return True
+
+    def _hydrate_overscaled_assets_from_manifest(self) -> None:
+        """Restore Success/Needs-action into self._asset_results for
+        Overscaled/Exp Solar rows from the SAME AssetManifest class and the
+        SAME on-disk manifest.json format the normal CSV workflow's own
+        _hydrate_assets_from_manifest() already reads — just pointed at
+        this project's overscaled_images_dir instead of Images/.
+
+        Without this, generate_overscaled_video()'s own AssetManager
+        already skips re-resolving a scene whose manifest record is
+        status=="complete" with a real file on disk (see AssetManager.
+        _cache_hit/resolve_all — completely unmodified here), but nothing
+        ever told the Visual Plan UI about that on project reopen, so every
+        row showed QUEUED regardless of how much of the project was
+        actually already done. This only restores UI state; it changes
+        nothing about which scenes generation actually resolves."""
+        if self._workspace is None or not self._scene_rows:
+            return
+        images_dir = self._workspace.overscaled_images_dir
+        manifest_path = images_dir / ".asset_manifest.json"
+        if not manifest_path.is_file():
+            return
+        from asset_manager import AssetManifest
+
+        manifest = AssetManifest(images_dir)
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            rec = manifest.get(scene.scene_number) or {}
+            raw_path = rec.get("local_path")
+            path = Path(raw_path) if raw_path else None
+            if rec.get("status") == "complete" and path is not None and path.is_file():
+                media = MediaType.VIDEO if vg.is_video_file(path) else MediaType.IMAGE
+                try:
+                    source = AssetSource(str(rec.get("source") or "local"))
+                except ValueError:
+                    source = AssetSource.LOCAL
+                self._asset_results[key] = AssetResult(
+                    scene_number=scene.scene_number,
+                    path=path,
+                    media_type=media,
+                    source=source,
+                    status=SceneStatus.READY,
+                    metadata=rec,
+                )
+            elif rec.get("status") == "failed":
+                self._asset_results[key] = AssetResult(
+                    scene_number=scene.scene_number,
+                    path=path if path is not None and path.is_file() else None,
+                    media_type=None,
+                    source=AssetSource.LOCAL,
+                    status=SceneStatus.NEEDS_ACTION,
+                    error=str(rec.get("error") or "Previous attempt failed"),
+                )
 
     def _sync_primary_cta_overscaled(self) -> None:
         """Overscaled's own, independent branch of the SAME primary-CTA
@@ -2249,6 +2303,33 @@ class VideoGeneratorApp(ctk.CTk):
                     scene_number = scene_match.group(1)
                     self.after(0, lambda n=scene_number, s=status: self._set_scene_status(n, s))
 
+        # Real per-scene events, reusing the EXACT SAME _ui_queue / _poll_queue
+        # machinery the normal CSV workflow's scene_busy/scene_asset handlers
+        # already drive (app.py's _poll_queue, _set_scene_status,
+        # _asset_results, _refresh_qa_ui/_flush_qa_ui, header counts) — the
+        # log-line classifier above only recognizes "(cached, reusing ...)"
+        # and the final "N/N scenes ready" sweep; a freshly-resolved (not
+        # cached) scene's own "[ASSET] Scene N -> STOCK_IMAGE" routing line
+        # matches none of _classify_scene_status's cases, so that scene's
+        # row never left QUEUED/NEEDS_ACTION even after it genuinely
+        # succeeded, and the header undercounted real progress (e.g.
+        # "8 ready" while the log said "157/165 scenes ready"). These
+        # callbacks are the SAME shape resolve_all() already calls for the
+        # normal workflow (see _on_scene_start/_on_scene_complete/
+        # _on_scene_generating elsewhere in this file) — no new event kind,
+        # no new queue, no change to Flow/asset resolution itself.
+        def _overscaled_on_scene_start(scene: SceneRow, source: AssetSource) -> None:
+            if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                self._ui_queue.put(("scene_busy", (scene.scene_number, "waiting")))
+            else:
+                self._ui_queue.put(("scene_busy", (scene.scene_number, _scene_busy_kind(source))))
+
+        def _overscaled_on_scene_generating(scene: SceneRow) -> None:
+            self._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
+
+        def _overscaled_on_scene_complete(scene: SceneRow, result) -> None:
+            self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
         def worker() -> None:
             from scene_graph.app_integration import generate_overscaled_video
 
@@ -2282,6 +2363,9 @@ class VideoGeneratorApp(ctk.CTk):
                 pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
                 whisper_words=whisper_words,
                 progress_cb=progress_cb, log=thread_safe_log,
+                on_scene_start=_overscaled_on_scene_start,
+                on_scene_complete=_overscaled_on_scene_complete,
+                on_scene_generating=_overscaled_on_scene_generating,
             )
 
             def finish() -> None:
