@@ -5863,7 +5863,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         if not self.images_var.get().strip():
             self._sync_images_dir()
-        images_dir = self._workspace.assets_dir
+        images_dir = self._scene_action_images_dir()
         tokens: dict[str, int] = {}
         for scene in updated:
             key = _scene_key(scene.scene_number)
@@ -6742,6 +6742,31 @@ class VideoGeneratorApp(ctk.CTk):
     def _regenerate_scene(self, scene_row: SceneRow) -> None:
         self._scene_action("retry", scene_row)
 
+    def _scene_action_images_dir(self) -> Path:
+        """Where per-scene actions (Change Source, Retry, Alternative, Skip,
+        Add Local Clip, Flow batch retry) read/write asset state via
+        _ensure_asset_manager(). This MUST be the same directory the active
+        generation mode's own resolve path actually reads from, or an
+        action taken here is invisible to the next full Generate run.
+
+        Overscaled/Exp Solar's real generation entry (scene_graph.
+        app_integration.generate_overscaled_video -> resolve_scene_graph_
+        media -> video_generator.resolve_scene_assets) always builds its
+        OWN fresh AssetManager scoped to ProjectWorkspace.
+        overscaled_images_dir -- never assets_dir, and never anything
+        in self._asset_manager/self._scene_rows. Previously every one of
+        these actions hardcoded assets_dir regardless of generation_mode,
+        so e.g. picking "Change Source: stock_image" for an Overscaled
+        scene downloaded the file and wrote its manifest record into the
+        normal workflow's Images/ folder -- a location Overscaled's own
+        resolver never looks at. The next full Generate re-parsed the
+        CSV, saw asset_type=flow_image again (the CSV itself is
+        untouched), found no manifest record in overscaled_images_dir,
+        and asked Flow for it again, discarding the user's choice."""
+        if self.generation_mode == "overscaled" and self._workspace is not None:
+            return self._workspace.overscaled_images_dir
+        return self._workspace.assets_dir
+
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
         images_dir.mkdir(parents=True, exist_ok=True)
         mgr = self._asset_manager
@@ -6807,7 +6832,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if not self.images_var.get().strip():
             self._sync_images_dir()
-        images_dir = self._workspace.assets_dir
+        images_dir = self._scene_action_images_dir()
         token = self._qa.begin_job(key, "adding_local")
         self._busy_scenes.add(key)
         self._set_scene_status(scene_row.scene_number, "adding_local")
@@ -6828,7 +6853,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if not self.images_var.get().strip():
             self._sync_images_dir()
-        images_dir = self._workspace.assets_dir
+        images_dir = self._scene_action_images_dir()
         kind = {"retry": "retrying", "alternative": "using_alternative", "skip": "generating"}.get(action, "generating")
         token = self._qa.begin_job(key, kind)
         self._busy_scenes.add(key)
@@ -7001,7 +7026,7 @@ class VideoGeneratorApp(ctk.CTk):
         scene_row = self._apply_scene_source_choice(scene_row, provider_name)
         if not self.images_var.get().strip():
             self._sync_images_dir()
-        images_dir = self._workspace.assets_dir if self._workspace is not None else Path(self.images_var.get().strip())
+        images_dir = self._scene_action_images_dir() if self._workspace is not None else Path(self.images_var.get().strip())
         self._busy_scenes.add(key)
         token = self._qa.begin_job(key, "generating")
         self._set_scene_status(scene_row.scene_number, "generating")
@@ -7690,7 +7715,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if not self.images_var.get().strip():
             self._sync_images_dir()
-        images_dir = self._workspace.assets_dir
+        images_dir = self._scene_action_images_dir()
         self.status_var.set("Copying asset…")
         for scene_row in scenes:
             scene_row = self._scene_by_number(scene_row)
