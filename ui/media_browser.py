@@ -20,6 +20,7 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 
 from . import theme as T
+from providers import hidden_subprocess
 
 try:
     import video_generator as vg
@@ -51,7 +52,7 @@ def _video_thumbnail(path: Path, cache_dir: Path) -> Optional[Path]:
     if out.is_file() and out.stat().st_size > 0:
         return out
     try:
-        result = subprocess.run(
+        result = hidden_subprocess.run(
             ["ffmpeg", "-y", "-i", str(path), "-frames:v", "1", "-vf", "scale=192:-1", str(out)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8,
         )
@@ -98,6 +99,7 @@ class MediaBrowser(ctk.CTkFrame):
         self._selected: Optional[AssetItem] = None
         self._thumb_cache: dict = {}
         self._drag_ghost = None
+        self._project_sig: Optional[tuple] = None
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)
@@ -137,6 +139,26 @@ class MediaBrowser(ctk.CTkFrame):
         return "VIDEO_2" if self._target_display_var.get().startswith("VIDEO_2") else "VIDEO_1"
 
     def set_project(self, images_dir: Optional[Path], voiceover_path: Optional[Path], music_path: Optional[Path]) -> None:
+        # Editor tab calls this on every on_show() — with 100-300+ scene
+        # assets, re-scanning images_dir every navigation (Path.iterdir() +
+        # a natural-key sort per visit) was a measurable Windows stall, same
+        # pattern as the Visual Plan tab's CSV/manifest re-read. Skip the
+        # rescan when nothing on disk has changed since the last visit.
+        try:
+            images_mtime = Path(images_dir).stat().st_mtime if images_dir else None
+        except OSError:
+            images_mtime = None
+        sig = (
+            str(images_dir) if images_dir else None,
+            images_mtime,
+            str(voiceover_path) if voiceover_path else None,
+            str(music_path) if music_path else None,
+        )
+        if sig == self._project_sig and self._items:
+            self._refresh_list()
+            return
+        self._project_sig = sig
+
         items: List[AssetItem] = []
         if images_dir is not None:
             items += scan_visual_assets(Path(images_dir))

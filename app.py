@@ -711,6 +711,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._project_menu_lock = False
         self._log_disk_buf: list[str] = []
         self._log_disk_scheduled = False
+        self._scene_preview_cache_sig = None
         # Windows CustomTkinter freezes if we process hundreds of scene events
         # (each forcing a full QA rebuild) in one poll tick.
         self._UI_QUEUE_BATCH = 48
@@ -3446,12 +3447,14 @@ class VideoGeneratorApp(ctk.CTk):
         killed = 0
         try:
             if sys.platform == "win32":
+                from providers import hidden_subprocess
+
                 ps = (
                     "Get-CimInstance Win32_Process -Filter \"name='chrome.exe' OR name='chromium.exe'\" "
                     f"| Where-Object {{ $_.CommandLine -and ($_.CommandLine -like '*{marker}*profiles*') }} "
                     "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; 1 }"
                 )
-                out = subprocess.run(
+                out = hidden_subprocess.run(
                     ["powershell", "-NoProfile", "-Command", ps],
                     capture_output=True, text=True, timeout=15,
                 )
@@ -5376,6 +5379,24 @@ class VideoGeneratorApp(ctk.CTk):
 
     # ---------- scenes preview / asset pipeline ----------
 
+    def _scene_preview_disk_signature(self):
+        """Cheap (2-stat) fingerprint of what _refresh_scene_preview's full
+        reparse would read from disk, used to skip that reparse on a plain
+        idle tab revisit. A directory's mtime changes when entries are added
+        or removed inside it (true on both NTFS and APFS), which is how
+        asset generation naturally invalidates this without special-casing."""
+        csv_path = self.csv_var.get().strip()
+        try:
+            csv_mtime = Path(csv_path).stat().st_mtime if csv_path else None
+        except OSError:
+            return None
+        images_raw = self.images_var.get().strip()
+        try:
+            images_mtime = Path(images_raw).stat().st_mtime if images_raw else None
+        except OSError:
+            return None
+        return (csv_path, csv_mtime, images_raw, images_mtime)
+
     def _refresh_scene_preview(self) -> None:
         """Parse the chosen CSV (if any) and repaint the Scenes table with each
         row's routed source. Cheap — no network, no provider calls — just
@@ -5389,9 +5410,25 @@ class VideoGeneratorApp(ctk.CTk):
         empty row list from the empty normal csv_var and wipe out the
         Overscaled plan the user just navigated here to review. Normal mode
         is completely unaffected — this only ever short-circuits when
-        Overscaled is the active generation mode."""
+        Overscaled is the active generation mode.
+
+        Idle re-navigation short-circuit: every visit to Visual Plan re-reads
+        the CSV from disk and re-scans/re-hydrates the images directory (incl.
+        JSON manifest parsing) even when nothing changed — on Windows this
+        measured as a multi-second synchronous freeze on tab switch (repeated
+        directory scans are slower there, e.g. under AV real-time scanning).
+        Never disk not fully avoided during active generation (self._running),
+        so in-flight progress still refreshes exactly as before; this only
+        skips redundant re-parses on a plain, idle tab revisit."""
         if self.generation_mode == "overscaled":
             return
+        if not self._running and self._scene_rows:
+            sig = self._scene_preview_disk_signature()
+            if sig is not None and sig == self._scene_preview_cache_sig:
+                self._render_scene_rows()
+                self._refresh_assets_cta()
+                return
+            self._scene_preview_cache_sig = sig
         csv_path = self.csv_var.get().strip()
         rows: list[dict] = []
         if csv_path and Path(csv_path).is_file():
@@ -9669,7 +9706,14 @@ class VideoGeneratorApp(ctk.CTk):
 
         PHASE 8: checks the in-process thumbnail cache first — if this exact
         file (by path/size/mtime) was already thumbnailed this session, its
-        bytes are reused and ffmpeg is not re-invoked."""
+        bytes are reused and ffmpeg is not re-invoked.
+
+        The ffmpeg extraction + PIL decode run on a background thread — this
+        was previously synchronous on the GUI thread and ran on every
+        completed render (cache miss every time, since the output file is
+        new each render), freezing the UI right after every successful
+        render/preview. Only the final CTkImage creation + widget layout
+        (Tk calls, must stay on the GUI thread) are posted back via after(0)."""
         import io
         import tempfile as _tmp
 
@@ -9679,46 +9723,57 @@ class VideoGeneratorApp(ctk.CTk):
             _THUMBNAIL_CACHE.get(cache_key) if cache_key is not None else None
         )
 
-        thumb = Path(_tmp.mktemp(suffix=".jpg"))
-        if thumb_bytes is None:
-            ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
-            try:
-                from providers import hidden_subprocess
+        def worker(thumb_bytes=thumb_bytes):
+            thumb = Path(_tmp.mktemp(suffix=".jpg"))
+            if thumb_bytes is None:
+                ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+                try:
+                    from providers import hidden_subprocess
 
-                result = hidden_subprocess.run(
-                    [
-                        ffmpeg, "-y",
-                        "-ss", "1",           # seek to 1 s for a more interesting frame
-                        "-i", video_path,
-                        "-vframes", "1",
-                        "-q:v", "3",
-                        str(thumb),
-                    ],
-                    capture_output=True, timeout=15,
+                    hidden_subprocess.run(
+                        [
+                            ffmpeg, "-y",
+                            "-ss", "1",           # seek to 1 s for a more interesting frame
+                            "-i", video_path,
+                            "-vframes", "1",
+                            "-q:v", "3",
+                            str(thumb),
+                        ],
+                        capture_output=True, timeout=15,
+                    )
+                except Exception:
+                    return
+
+                if not thumb.is_file():
+                    return
+
+                try:
+                    thumb_bytes = thumb.read_bytes()
+                    if cache_key is not None and thumb_bytes:
+                        _THUMBNAIL_CACHE[cache_key] = thumb_bytes
+                except OSError:
+                    thumb_bytes = None
+
+            try:
+                from PIL import Image
+
+                img = (
+                    Image.open(io.BytesIO(thumb_bytes)).convert("RGB")
+                    if thumb_bytes
+                    else Image.open(thumb).convert("RGB")
                 )
+                thumb.unlink(missing_ok=True)
             except Exception:
+                thumb.unlink(missing_ok=True)
                 return
 
-            if not thumb.is_file():
-                return
+            self.after(0, lambda img=img: self._apply_preview_image(img))
 
-            try:
-                thumb_bytes = thumb.read_bytes()
-                if cache_key is not None and thumb_bytes:
-                    _THUMBNAIL_CACHE[cache_key] = thumb_bytes
-            except OSError:
-                thumb_bytes = None
+        threading.Thread(target=worker, daemon=True).start()
 
+    def _apply_preview_image(self, img) -> None:
+        """GUI-thread half of _show_preview: CTkImage creation + layout."""
         try:
-            from PIL import Image
-
-            img = (
-                Image.open(io.BytesIO(thumb_bytes)).convert("RGB")
-                if thumb_bytes
-                else Image.open(thumb).convert("RGB")
-            )
-            thumb.unlink(missing_ok=True)
-
             # Determine display size: fill available width keeping 16:9 ratio
             panel_w = self._right_panel.winfo_width() - 40
             if panel_w < 100:
@@ -9742,9 +9797,8 @@ class VideoGeneratorApp(ctk.CTk):
             # Ensure equal row weights so log and preview each get ~half
             self._right_panel.grid_rowconfigure(3, weight=1)
             self._right_panel.grid_rowconfigure(4, weight=1)
-
         except Exception:
-            thumb.unlink(missing_ok=True)
+            pass
 
     def _open_in_player(self) -> None:
         """Open the generated video in the system default player."""
@@ -9906,10 +9960,46 @@ class VideoGeneratorApp(ctk.CTk):
         self.destroy()
 
 
+_SINGLE_INSTANCE_MUTEX = None  # kept alive for the process lifetime
+
+
+def _acquire_single_instance_lock_windows() -> bool:
+    """Windows-only guard against duplicate launches.
+
+    Each instance independently starts its own Flow engine + Chrome fleet
+    (confirmed: a single leftover instance accumulated ~50 orphaned chrome.exe
+    processes). A double-click while the app is still opening is the common
+    trigger on Windows. No-op elsewhere — macOS behavior is unchanged.
+    """
+    if sys.platform != "win32":
+        return True
+    global _SINGLE_INSTANCE_MUTEX
+    try:
+        import ctypes
+
+        ERROR_ALREADY_EXISTS = 183
+        handle = ctypes.windll.kernel32.CreateMutexW(
+            None, False, "Global\\SemanticYTStudio_SingleInstance"
+        )
+        if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+            return False
+        _SINGLE_INSTANCE_MUTEX = handle
+        return True
+    except Exception:
+        return True  # never block launch over a guard failing
+
+
 def main() -> None:
     # Re-assert Windows console hiding (frozen builds / late imports of yt-dlp).
     _hidden_subprocess.install()
     _configure_macos_dock_name()
+    if not _acquire_single_instance_lock_windows():
+        messagebox.showwarning(
+            "Semantic YT Studio",
+            "Semantic YT Studio is already running.\n\n"
+            "Check your taskbar for the existing window.",
+        )
+        return
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()
     app.mainloop()

@@ -256,12 +256,34 @@ class FlowEngineManager:
         if self._proc is None:
             return
         if self._proc.poll() is None:
-            self._proc.terminate()
-            try:
-                self._proc.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                self._proc.kill()
-                self._proc.wait(timeout=timeout)
+            pid = self._proc.pid
+            if sys.platform == "win32":
+                # Popen.terminate() on Windows is TerminateProcess on this PID only —
+                # it does NOT kill the Chrome/Playwright children Node spawned under
+                # it, so they're left running as orphans (confirmed: a single leftover
+                # node.exe accumulated ~50 orphaned chrome.exe processes across
+                # restarts because start() reuses a still-listening engine instead of
+                # replacing it). taskkill /T kills the whole process tree.
+                try:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(pid), "/T", "/F"],
+                        capture_output=True,
+                        check=False,
+                        timeout=timeout,
+                    )
+                except Exception:
+                    pass
+                try:
+                    self._proc.wait(timeout=timeout)
+                except Exception:
+                    pass
+            else:
+                self._proc.terminate()
+                try:
+                    self._proc.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    self._proc.kill()
+                    self._proc.wait(timeout=timeout)
         self._proc = None
         self.log("[FLOW] Engine stopped.")
 

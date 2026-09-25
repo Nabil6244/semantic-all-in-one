@@ -28,6 +28,8 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+from providers import hidden_subprocess
+
 # Canonical metadata key for the measured length of the delivered file.
 ACTUAL_DURATION_KEY = "actual_duration"
 # What the operator asked for, recorded alongside so the two are never confused.
@@ -191,7 +193,7 @@ def _probe_media_duration_uncached(
                     fallback=fallback_for_log,
                 )
             return None
-        proc = subprocess.run(
+        proc = hidden_subprocess.run(
             [
                 ffprobe, "-v", "error",
                 "-show_entries", "format=duration",

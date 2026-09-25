@@ -20,6 +20,8 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from providers import hidden_subprocess
+
 WAVEFORM_SCHEMA_VERSION = 1
 WAVEFORM_DIRNAME = "waveforms"
 DEFAULT_BUCKETS = 400
@@ -45,7 +47,7 @@ def _decode_peaks(audio_path: Path, buckets: int) -> Optional[List[Tuple[float, 
     ffmpeg/IO failure — callers must treat that as "no waveform available"
     and simply not draw one, never fabricate bars."""
     try:
-        proc = subprocess.run(
+        proc = hidden_subprocess.run(
             [
                 "ffmpeg", "-v", "error", "-i", str(audio_path),
                 "-ac", "1", "-ar", str(_DECODE_SAMPLE_RATE), "-f", "s16le", "-",

@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 
+from providers import hidden_subprocess
+
 LogFn = Callable[[str], None]
 
 
@@ -37,7 +39,7 @@ def _ffprobe() -> str:
 
 def probe_duration(url: str | Path) -> Optional[float]:
     try:
-        proc = subprocess.run(
+        proc = hidden_subprocess.run(
             [
                 _ffprobe(),
                 "-v", "error",
@@ -96,7 +98,7 @@ def download_clip(
         str(tmp),
     ]
     log(f"[CLIP] ffmpeg segment {start:.1f}s + {duration:.1f}s")
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, check=False)
+    proc = hidden_subprocess.run(cmd, capture_output=True, text=True, timeout=180, check=False)
     if proc.returncode != 0:
         if tmp.exists():
             tmp.unlink(missing_ok=True)
