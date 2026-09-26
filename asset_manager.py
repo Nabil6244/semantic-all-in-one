@@ -316,6 +316,31 @@ class AssetManager:
     def validate_rows(self, rows: List[SceneRow]) -> List[str]:
         return SceneAssetRouter.validate(rows, self.images_dir)
 
+    def _mark_requested_provider(self, scene_number: str, provider_name: str) -> None:
+        """Durably record the user's most recent explicit Change Source choice
+        for this scene, written BEFORE the resolve it triggers runs -- so it
+        survives even if that attempt fails. Without this, a Change Source
+        attempt that errors (e.g. a Flow account timeout) leaves nothing
+        behind: a later full regenerate builds a brand-new SceneRow straight
+        from the original CSV row and reclassifies it from scratch, silently
+        reverting to the CSV's original source (see _apply_requested_provider)."""
+        with self._manifest_lock:
+            record = dict(self.manifest.get(scene_number) or {})
+            record["requested_provider"] = provider_name
+            self.manifest.set(scene_number, record)
+
+    def _apply_requested_provider(self, scene: SceneRow) -> SceneRow:
+        """If a prior Change Source choice was durably recorded for this scene
+        (see _mark_requested_provider), reapply it to a freshly-built SceneRow
+        (e.g. one just parsed again from the original CSV) before classifying
+        -- otherwise a scene whose last Change Source attempt failed reverts
+        to the CSV's original routing on the very next full regenerate."""
+        record = self.manifest.get(scene.scene_number)
+        provider_name = record.get("requested_provider") if record else None
+        if not provider_name:
+            return scene
+        return scene.as_fallback(provider_name)
+
     # ---------- caching ----------
 
     def _result_from_complete_record(self, scene: SceneRow, record: dict) -> Optional[AssetResult]:
@@ -399,6 +424,14 @@ class AssetManager:
         cov = self.coverage_by_scene.get(key) or self.coverage_by_scene.get(str(scene.scene_number))
         if cov:
             record["coverage_plan"] = cov
+        # Carry forward a durable Change Source choice (see _mark_requested_provider)
+        # across this write -- this dict is about to WHOLESALE REPLACE the
+        # manifest's prior record for this scene (AssetManifest.set), so
+        # anything not copied here is lost the instant this result is
+        # recorded, success OR failure.
+        prior = self.manifest.get(scene.scene_number)
+        if prior and prior.get("requested_provider"):
+            record["requested_provider"] = prior["requested_provider"]
         return record
 
     def _remove_stale_file(self, scene_number: str, keep: Path) -> None:
@@ -950,6 +983,7 @@ class AssetManager:
         """Resolve a single scene. resolve_all() is preferred for a full project run
         (it batches FLOW scenes into one multi-account call); this is the direct,
         one-off path used by tests and anything that only needs one scene."""
+        scene = self._apply_requested_provider(scene)
         source = self.classify(scene)
         warning = scene.ignored_stock_warning
         if warning:
@@ -1510,6 +1544,7 @@ class AssetManager:
         }
 
         for scene in rows:
+            scene = self._apply_requested_provider(scene)
             source = self.classify(scene)
             warning = scene.ignored_stock_warning
             if warning:
@@ -1732,6 +1767,7 @@ class AssetManager:
         self._cancelled_scenes.discard(key)
         self._clear_skip(scene)
         self.log(f"[SCENE {scene.scene_number}] Change source -> {provider_name}")
+        self._mark_requested_provider(scene.scene_number, provider_name)
         fallback = scene.as_fallback(provider_name)
         return self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
 
@@ -1760,6 +1796,7 @@ class AssetManager:
             key = scene_key(scene.scene_number)
             self._cancelled_scenes.discard(key)
             self._clear_skip(scene)
+            self._mark_requested_provider(scene.scene_number, provider_name)
             updated.append(scene.as_fallback(provider_name))
 
         by_source: Dict[AssetSource, List[SceneRow]] = {}

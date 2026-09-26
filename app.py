@@ -6959,6 +6959,13 @@ class VideoGeneratorApp(ctk.CTk):
         win.title(f"Change source — Scene {scene_row.scene_number}")
         win.geometry("300x340")
         win.transient(self)
+        # A plain CTkToplevel with no explicit stacking request can open
+        # BEHIND the main window on some window arrangements (a maximized
+        # main window, multi-monitor setups) -- indistinguishable from "the
+        # button did nothing". Force it to the front and give it focus.
+        win.lift()
+        win.after(10, win.lift)
+        win.focus_force()
         title = "Choose a source for this scene only"
         if busy:
             title = "Scene is busy — it will Stop, then switch source"
@@ -6996,6 +7003,9 @@ class VideoGeneratorApp(ctk.CTk):
         win.title(f"Change source — {len(scenes)} scenes")
         win.geometry("320x360")
         win.transient(self)
+        win.lift()
+        win.after(10, win.lift)
+        win.focus_force()
         ctk.CTkLabel(
             win, text=f"Apply one source to {len(scenes)} selected scenes",
         ).pack(pady=(12, 8))

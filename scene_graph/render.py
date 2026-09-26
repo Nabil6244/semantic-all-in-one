@@ -72,7 +72,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from media_duration import probe_media_duration
-from providers.ffmpeg_runner import run_ffmpeg
+from providers.ffmpeg_runner import encode_argv, run_ffmpeg
 
 from .composition import (
     VIDEO_SUFFIXES,
@@ -551,7 +551,7 @@ def render_overscaled_segment(
 
     cmd = ["ffmpeg", *inputs, "-filter_complex", ";".join(filters), "-map", "[outv]",
            "-t", f"{duration:.4f}",
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", str(out_path)]
+           *encode_argv(quality="documentary"), str(out_path)]
     result = run_ffmpeg(
         cmd, owner="overscaled_render", media_duration_s=duration, label="overscaled_render",
         on_progress=_ffmpeg_progress,

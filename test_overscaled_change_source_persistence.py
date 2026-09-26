@@ -240,6 +240,92 @@ class TestChangeSourceReverseDirection(unittest.TestCase):
         self.assertEqual(Path(resolved["n1"]), change_result.path)
 
 
+class TestFailedChangeSourceStillPersistsAcrossRegenerate(unittest.TestCase):
+    """A Change Source attempt that FAILS (e.g. a Flow account error) must
+    still durably remember the user's chosen provider -- otherwise a
+    subsequent full regenerate (a brand-new AssetManager + a brand-new
+    SceneRow parsed fresh from the original, untouched CSV) has no memory
+    of the override attempt at all and silently reclassifies the scene
+    from the CSV's original asset_type, reverting a scene the user moved
+    to AI Image straight back to AI Video."""
+
+    def test_failed_override_is_retried_not_reverted_on_next_regenerate(self):
+        tmp = Path(tempfile.mkdtemp())
+        images_dir = tmp / "overscaled" / "_work" / "media"
+        images_dir.mkdir(parents=True)
+
+        csv_row = {
+            "scene_number": "14", "script_segment": "narration text",
+            "asset_type": "flow_video", "prompt": "a cinematic test scene of an airplane",
+        }
+        original_scene = SceneRow.from_csv_row(csv_row)
+
+        flow_video_ok = FakeProvider(AssetSource.FLOW_VIDEO, {"14": "ok"}, media_type=MediaType.VIDEO)
+        mgr1 = AssetManager(images_dir, flow_video_provider=flow_video_ok, log=lambda *_: None)
+        baseline = mgr1.resolve_scene(original_scene)
+        self.assertTrue(baseline.ok)
+        self.assertEqual(baseline.source, AssetSource.FLOW_VIDEO)
+
+        # Change Source -> AI Image, but the attempt FAILS.
+        flow_image_fail = FakeProvider(AssetSource.FLOW_IMAGE, {"14": "fail"}, media_type=MediaType.IMAGE)
+        mgr1.flow_image_provider = flow_image_fail
+        change_result = mgr1.change_source(original_scene, "flow_image")
+        self.assertFalse(change_result.ok)
+        del mgr1
+
+        # A fresh "Generate": new AssetManager (same images_dir/manifest on
+        # disk), scene rebuilt straight from the ORIGINAL, un-mutated CSV row.
+        fresh_scene = SceneRow.from_csv_row(dict(csv_row))
+        flow_video_ok2 = FakeProvider(AssetSource.FLOW_VIDEO, {"14": "ok"}, media_type=MediaType.VIDEO)
+        flow_image_ok2 = FakeProvider(AssetSource.FLOW_IMAGE, {"14": "ok"}, media_type=MediaType.IMAGE)
+        mgr2 = AssetManager(
+            images_dir, flow_video_provider=flow_video_ok2, flow_image_provider=flow_image_ok2,
+            log=lambda *_: None,
+        )
+        result = mgr2.resolve_scene(fresh_scene)
+        self.assertTrue(result.ok)
+        self.assertEqual(
+            result.source, AssetSource.FLOW_IMAGE,
+            "must retry the user's chosen AI Image source, not revert to the CSV's original AI Video",
+        )
+        self.assertEqual(flow_video_ok2.calls, [], "must never re-generate the abandoned AI Video")
+        self.assertEqual(flow_image_ok2.calls, ["14"])
+
+    def test_resolve_all_full_batch_also_honors_a_failed_overrides_intent(self):
+        """Same scenario through resolve_all() -- the real entry point
+        generate_overscaled_video's full batch run actually uses."""
+        tmp = Path(tempfile.mkdtemp())
+        images_dir = tmp / "overscaled" / "_work" / "media"
+        images_dir.mkdir(parents=True)
+
+        csv_row = {
+            "scene_number": "1", "script_segment": "narration",
+            "asset_type": "flow_video", "prompt": "a cinematic test scene",
+        }
+        original_scene = SceneRow.from_csv_row(csv_row)
+
+        flow_video_ok = FakeProvider(AssetSource.FLOW_VIDEO, {"1": "ok"}, media_type=MediaType.VIDEO)
+        mgr1 = AssetManager(images_dir, flow_video_provider=flow_video_ok, log=lambda *_: None)
+        self.assertTrue(mgr1.resolve_scene(original_scene).ok)
+
+        flow_image_fail = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"}, media_type=MediaType.IMAGE)
+        mgr1.flow_image_provider = flow_image_fail
+        self.assertFalse(mgr1.change_source(original_scene, "flow_image").ok)
+        del mgr1
+
+        fresh_scene = SceneRow.from_csv_row(dict(csv_row))
+        flow_video_ok2 = FakeProvider(AssetSource.FLOW_VIDEO, {"1": "ok"}, media_type=MediaType.VIDEO)
+        flow_image_ok2 = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "ok"}, media_type=MediaType.IMAGE)
+        mgr2 = AssetManager(
+            images_dir, flow_video_provider=flow_video_ok2, flow_image_provider=flow_image_ok2,
+            log=lambda *_: None,
+        )
+        summary = mgr2.resolve_all([fresh_scene])
+        self.assertTrue(summary.ok, summary.failed)
+        self.assertEqual(summary.results["1"].source, AssetSource.FLOW_IMAGE)
+        self.assertEqual(flow_video_ok2.calls, [])
+
+
 class TestHydrationReflectsOverride(unittest.TestCase):
     """Reopen-safety: after Change Source persists a stock_image override
     into overscaled_images_dir's manifest, the EXISTING project-reopen
