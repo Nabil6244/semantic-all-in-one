@@ -87,6 +87,7 @@ def generate_overscaled_video(
     on_scene_start=None,
     on_scene_complete=None,
     on_scene_generating=None,
+    on_manager_ready=None,
 ) -> OverscaledGenerationResult:
     """Overscaled CSV + real voiceover -> a real, final MP4.
 
@@ -164,7 +165,7 @@ def generate_overscaled_video(
             pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
             flow_settings=flow_settings, log=log,
             on_scene_start=on_scene_start, on_scene_complete=on_scene_complete,
-            on_scene_generating=on_scene_generating,
+            on_scene_generating=on_scene_generating, on_manager_ready=on_manager_ready,
         )
     except SystemExit as exc:
         return _fail([f"media resolution failed: {exc}"])

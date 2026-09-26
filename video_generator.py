@@ -2867,6 +2867,7 @@ def resolve_scene_assets(
     on_scene_start=None,
     on_scene_complete=None,
     on_scene_generating=None,
+    on_manager_ready=None,
 ) -> None:
     """
     Routes each CSV row to LocalProvider / StockProvider / FlowProvider(image or
@@ -2949,6 +2950,27 @@ def resolve_scene_assets(
         youtube_provider=youtube_provider,
         log=log,
     )
+    # Hands the caller the REAL, live manager instance this call is about to
+    # run resolve_all() on — the normal/simple CSV workflow's own generation
+    # worker assigns its own inline-built AssetManager straight into
+    # self._asset_manager, so a per-scene action (Change Source/Retry/
+    # Alternative/Skip) taken WHILE that same batch is still running reaches
+    # the actual in-flight manager and can genuinely cancel/override a scene
+    # via request_cancel_scene(). Overscaled/Exp Solar generation calls this
+    # function too (via scene_graph.media_resolution.resolve_scene_graph_
+    # media) but had no way to expose ITS manager the same way — a per-scene
+    # action during an active Overscaled run silently targeted a different,
+    # unrelated AssetManager object, so a cancel request never reached the
+    # real batch and a slow in-flight Flow attempt could finish later and
+    # overwrite the user's own override back to the old (often failed)
+    # result. This callback is the minimal fix: purely additive, None by
+    # default, so every existing caller (the CLI tool, this function's own
+    # direct callers) is completely unaffected.
+    if on_manager_ready is not None:
+        try:
+            on_manager_ready(manager)
+        except Exception:
+            pass
     try:
         summary = manager.resolve_all(
             scene_rows,

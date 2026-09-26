@@ -187,34 +187,70 @@ def build_exp_solar_sfx_events(
     return sfx_events
 
 
-def build_exp_solar_ambience_beds(duration: float, *, sfx_root: Optional[Path] = None) -> List[dict]:
-    """At most ONE continuous ambience/music bed spanning the whole
-    segment — no per-scene profile switching (that is the normal
-    pipeline's own, considerably larger feature; out of scope for this
-    minimal layer). Returns [] whenever the catalog has no "ambience"
-    entry at all — no music/ambience is required for a valid render."""
+def build_exp_solar_ambience_beds(
+    duration: float, *, layout: Optional[SceneGraphLayout] = None, sfx_root: Optional[Path] = None,
+) -> List[dict]:
+    """One ambience/music bed PER CHAPTER — scene_graph.layout's own
+    title_windows, the exact same persistent-header boundaries the
+    video's chapter titles already use — so the ambience changes when
+    the chapter does, instead of one continuous bed for the whole
+    segment. Falls back to a single bed spanning the whole duration when
+    the CSV defines no chapter_title at all (title_windows empty, or no
+    layout given at all — keeps this function usable the old way too).
+    Returns [] whenever the catalog has no "ambience" entry at all — no
+    music/ambience is required for a valid render.
+
+    Reuses smart_editing.mix_sfx_with_narration's EXISTING support for
+    multiple, independently-timed ambience_beds (see _merge_ambience_beds/
+    _annotate_ambience_boundary_fades — already exercised by the normal,
+    non-Overscaled pipeline's own per-scene ambience feature) — no new
+    mixing logic, just more entries in the same list this function
+    already returned."""
     if duration <= 0:
         return []
     catalog = se.get_sfx_catalog(root=sfx_root)
     if len(catalog) == 0:
         return []
     settings = se.SmartEditingSettings(intensity="low")
-    request = se.SfxRequest("exp_solar_ambience", "ambience", (), settings.ambience_intensity(), duration)
-    entry = catalog.match(request)
-    if entry is None:
-        return []
     # Ambience is a quiet bed under narration+SFX, not a competing layer —
     # cap it below smart_editing's own "low" tier (0.14) for good measure.
     volume = min(settings.ambience_volume(), 0.12)
-    event = se._entry_to_event(entry, request, start=0.0, volume=volume)
-    # Override the catalog entry's own (short) native duration with the
-    # FULL segment length — smart_editing's ambience mixer already loops
-    # the source file (-stream_loop -1) and trims to this "duration", so
-    # this is what actually makes the bed span the whole segment rather
-    # than just the asset's own few seconds.
-    event["duration"] = round(duration, 3)
-    event["end"] = round(duration, 3)
-    return [event]
+
+    windows = list(layout.title_windows) if layout is not None and layout.title_windows else [("", 0.0, duration)]
+
+    beds: List[dict] = []
+    avoid_ids: List[str] = []
+    for _text, start, end in windows:
+        span = max(0.0, round(float(end) - float(start), 3))
+        if span <= 0:
+            continue
+        # max_duration deliberately left at its None default: SfxCatalog.
+        # match() treats it as a HARD exclusion (entry.duration >
+        # max_duration + 0.05 scores -999 and is never even used as a
+        # fallback — see smart_editing.SfxCatalog.match), which is right
+        # for a short one-shot SFX but wrong for a looping ambience bed —
+        # the mixer already loops+trims any ambience file to fit
+        # (-stream_loop -1), so a track's own native length must never
+        # exclude it just because a chapter happens to be shorter than it.
+        request = se.SfxRequest("exp_solar_ambience", "ambience", (), settings.ambience_intensity())
+        entry = catalog.match(request, avoid_ids=avoid_ids)
+        if entry is None:
+            continue
+        event = se._entry_to_event(entry, request, start=float(start), volume=volume)
+        # Override the catalog entry's own (short) native duration with
+        # this CHAPTER's own span — smart_editing's ambience mixer already
+        # loops the source file (-stream_loop -1) and trims to this
+        # "duration", so this is what makes the bed cover its own
+        # chapter's full length rather than just the asset's own few
+        # seconds. "end" is the absolute timeline position the next
+        # chapter's own bed (if any) picks up from.
+        event["duration"] = span
+        event["end"] = round(float(end), 3)
+        beds.append(event)
+        avoid_ids.append(entry.id)
+        if len(avoid_ids) > _MAX_AVOID_MEMORY:
+            avoid_ids.pop(0)
+    return beds
 
 
 def build_exp_solar_audio_mix(
@@ -235,7 +271,7 @@ def build_exp_solar_audio_mix(
     is always exactly the narration's own duration (plus the fixed 0.25s
     tail margin ``mix_sfx_with_narration`` already applies)."""
     sfx_events = build_exp_solar_sfx_events(scene_graph, layout, sfx_root=sfx_root)
-    ambience_beds = build_exp_solar_ambience_beds(float(scene_graph.duration), sfx_root=sfx_root)
+    ambience_beds = build_exp_solar_ambience_beds(float(scene_graph.duration), layout=layout, sfx_root=sfx_root)
     return se.mix_sfx_with_narration(
         voiceover_path, sfx_events, output_path, sfx_root=sfx_root, ambience_beds=ambience_beds,
     )

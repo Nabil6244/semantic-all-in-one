@@ -695,5 +695,56 @@ class TestFinalizeCrashNeverStrandsRemainingScenes(unittest.TestCase):
             self.assertTrue(results["2"].ok and results["3"].ok, "unaffected scenes must still finish normally")
 
 
+class TestCancelledSceneIsNeverRetried(unittest.TestCase):
+    """Reproduces the "Change Source still generating the AI video" report:
+    _resolve_one()'s retry loop (max_attempts=2 for Flow sources) only
+    checked `if result.ok: break` -- a CANCELLED result (returned when a
+    provider notices should_stop_scene/is_scene_cancelled mid-flight,
+    exactly what Change Source's "Stop then Change source" path triggers)
+    has ok=False too, so the loop fell through to "retrying once" and ran
+    the SAME Flow attempt a second time before the cancellation was finally
+    honored by the check right after the loop -- for Flow specifically, a
+    full engine-restart cycle, a real user-visible delay that looked like
+    the Change Source override was being ignored.
+
+    Fix: the loop now also breaks immediately on a CANCELLED result."""
+
+    def test_cancelled_result_is_not_retried(self):
+        from asset_manager import AssetManager
+        from providers.base import AssetResult, AssetSource, MediaType, SceneRow, SceneStatus
+
+        class _CancelOnResolveProvider(FakeProvider):
+            """A provider whose resolve() itself returns CANCELLED -- exactly
+            what a real FlowProvider does when it notices should_stop_scene
+            mid-flight (see providers/flow/provider.py's should_stop_scene
+            plumbing), independent of AssetManager's own pre-attempt
+            is_scene_cancelled() checks."""
+
+            def __init__(self, source, media_type=None):
+                super().__init__(source, {}, media_type=media_type or MediaType.VIDEO)
+                self.calls: list[str] = []
+
+            def resolve(self, scene, images_dir, log=print):
+                self.calls.append(scene.scene_number)
+                return AssetResult(
+                    scene.scene_number, None, None, self.source, SceneStatus.CANCELLED, error="Cancelled.",
+                )
+
+        with TemporaryDirectory() as tmp:
+            images_dir = Path(tmp)
+            flow = _CancelOnResolveProvider(AssetSource.FLOW_VIDEO)
+            mgr = AssetManager(images_dir, flow_video_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="4", script_segment="x", asset_type="flow_video", prompt="y")
+
+            result = mgr._resolve_one(scene, AssetSource.FLOW_VIDEO)
+
+            self.assertEqual(result.status, SceneStatus.CANCELLED)
+            self.assertEqual(
+                len(flow.calls), 1,
+                "a cancelled result must never trigger a retry -- the user asked to stop, "
+                "not try again -- but resolve() was called a second (wasted) time",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -48,6 +48,142 @@ def _fail(errors: Sequence[str]) -> OverscaledPipelineResult:
     return OverscaledPipelineResult(ok=False, errors=list(errors))
 
 
+def _sync_grouped_node_timing(scene_graph: SceneGraph) -> SceneGraph:
+    """Exp Solar ONLY (never called for style_preset_id != "exp_solar", so
+    Overscaled's own layout stays byte-identical): nodes chained into one
+    on-screen composition -- a two_panel pair, a four_row/index_grid run,
+    joined by "group"/"group_grid" edges (see scene_graph.exp_solar_csv's
+    _chain_two_panel_beats/_chain_four_row_beats/_chain_index_grid_beats
+    and scene_graph.layout._connected_chapters) -- are meant to appear
+    TOGETHER as a single grouped beat. But each CSV row still compiles to
+    its OWN narration beat with its OWN appear_at (overscaled_csv.py /
+    voiceover_sync.py, shared with Overscaled, unchanged here), so a
+    continuation row (the 2nd/3rd/4th member, typically authored with an
+    empty script_segment) only becomes visible partway through the
+    group's own on-screen span -- for most of a four_row chapter's
+    duration only the first member is on screen alone, and
+    layout.compute_layout's adaptive sizing (_peak_concurrent) sees low
+    real overlap and can shrink the composition's slot template to match.
+
+    This is a purely additive post-retiming pass: every member of a
+    group/group_grid connected set gets its appear_at snapped to the
+    EARLIEST member's appear_at, so they all become visible at the same
+    instant (still only for the group's real on-screen span -- nothing
+    about WHEN that span ends changes). A causal ("sequential"/"callout")
+    edge between two otherwise-independent nodes is untouched -- only the
+    two group-edge kinds unify timing, never causal storytelling pacing."""
+
+    parent: Dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for edge in scene_graph.edges:
+        if edge.kind in ("group", "group_grid"):
+            union(edge.from_node, edge.to_node)
+
+    if not parent:
+        return scene_graph
+
+    groups: Dict[str, List[str]] = {}
+    for node in scene_graph.nodes:
+        if node.id in parent:
+            groups.setdefault(find(node.id), []).append(node.id)
+
+    data = scene_graph.to_dict()
+    node_by_id = {n["id"]: n for n in data["nodes"]}
+    for member_ids in groups.values():
+        if len(member_ids) < 2:
+            continue
+        earliest = min(float(node_by_id[nid]["appear_at"]) for nid in member_ids)
+        for nid in member_ids:
+            node_by_id[nid]["appear_at"] = round(earliest, 4)
+    return SceneGraph.from_dict(data)
+
+
+def _merge_grouped_beats_for_retime(scene_graph: SceneGraph) -> SceneGraph:
+    """Exp Solar ONLY, called BEFORE retime_to_whisper_words (never for
+    Overscaled, never for the no-whisper retime_to_audio_duration path,
+    which has no per-beat word-consumption logic to begin with):
+    compile_overscaled_csv builds one SceneGraphBeat per CSV row
+    (shared with Overscaled, unmodified here), and voiceover_sync.py's
+    retime_to_whisper_words claims real Whisper words per beat via
+    ``word_count = max(1, len(narration.split()))`` -- so a continuation
+    row (empty script_segment, the correct way to author a two_panel/
+    four_row/index_grid member per the CSV-authoring guidance) still
+    steals exactly 1 real word it never actually needed. Across a video
+    with several such groups this compounds: every beat AFTER a group
+    drifts a little further from the real audio for each continuation
+    row that preceded it.
+
+    This purely additive pre-pass (only scene_graph.beats is touched;
+    every node/edge is untouched here and re-positioned correctly
+    afterward by _sync_grouped_node_timing, which already overwrites
+    every group member's appear_at to the group's own earliest anyway)
+    merges each group's continuation beats into their group's own
+    primary beat -- the first member in CSV order, whose start/end widen
+    to cover the whole group's original placeholder span -- and drops
+    the continuation beats from the list entirely, so
+    retime_to_whisper_words's sequential word-count loop consumes real
+    words ONCE per group, never once per row."""
+    parent: Dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for edge in scene_graph.edges:
+        if edge.kind in ("group", "group_grid"):
+            union(edge.from_node, edge.to_node)
+
+    if not parent:
+        return scene_graph
+
+    groups: Dict[str, List[str]] = {}
+    for node in scene_graph.nodes:
+        if node.id in parent:
+            groups.setdefault(find(node.id), []).append(node.id)
+
+    node_scene_number = {n.id: n.metadata.get("scene_number") for n in scene_graph.nodes}
+    data = scene_graph.to_dict()
+    beat_by_id = {b["beat_id"]: b for b in data["beats"]}
+
+    drop_beat_ids: set = set()
+    for member_ids in groups.values():
+        if len(member_ids) < 2:
+            continue
+        member_beat_ids = [f"beat_{node_scene_number[nid]}" for nid in member_ids]
+        member_beats = [beat_by_id[bid] for bid in member_beat_ids if bid in beat_by_id]
+        if len(member_beats) < 2:
+            continue
+        primary = member_beats[0]
+        primary["start"] = min(float(b["start"]) for b in member_beats)
+        primary["end"] = max(float(b["end"]) for b in member_beats)
+        for bid in member_beat_ids[1:]:
+            if bid in beat_by_id:
+                drop_beat_ids.add(bid)
+
+    data["beats"] = [b for b in data["beats"] if b["beat_id"] not in drop_beat_ids]
+    return SceneGraph.from_dict(data)
+
+
 def run_overscaled_pipeline(
     csv_rows: Sequence[Mapping[str, str]],
     *,
@@ -101,9 +237,16 @@ def run_overscaled_pipeline(
     try:
         _report("Synchronizing with voiceover…", 0.35)
         if whisper_words:
-            scene_graph = retime_to_whisper_words(scene_graph, whisper_words)
+            retime_input = (
+                _merge_grouped_beats_for_retime(scene_graph)
+                if style_preset_id == "exp_solar" else scene_graph
+            )
+            scene_graph = retime_to_whisper_words(retime_input, whisper_words)
         else:
             scene_graph = retime_to_audio_duration(scene_graph, voiceover_path)
+
+        if style_preset_id == "exp_solar":
+            scene_graph = _sync_grouped_node_timing(scene_graph)
 
         if write_debug_files:
             (out_dir / "overscaled_scene_graph.json").write_text(

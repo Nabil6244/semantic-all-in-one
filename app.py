@@ -2330,6 +2330,21 @@ class VideoGeneratorApp(ctk.CTk):
         def _overscaled_on_scene_complete(scene: SceneRow, result) -> None:
             self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
+        def _overscaled_on_manager_ready(manager) -> None:
+            # Mirrors what the normal/simple CSV workflow's own generation
+            # worker already does (see the plain self._asset_manager =
+            # self._build_asset_manager(...) assignment elsewhere in this
+            # file): expose the REAL, live AssetManager this batch is
+            # running on, so a per-scene action taken WHILE this run is
+            # still in progress (Change Source / Retry / Alternative /
+            # Skip, all of which act on self._asset_manager via
+            # _ensure_asset_manager) reaches the actual in-flight manager
+            # instead of a separate, unrelated one -- request_cancel_scene()
+            # then genuinely stops the real batch's work on that scene, and
+            # the batch can no longer silently overwrite a manual override
+            # by finishing later on a completely different object.
+            self._asset_manager = manager
+
         def worker() -> None:
             from scene_graph.app_integration import generate_overscaled_video
 
@@ -2366,6 +2381,7 @@ class VideoGeneratorApp(ctk.CTk):
                 on_scene_start=_overscaled_on_scene_start,
                 on_scene_complete=_overscaled_on_scene_complete,
                 on_scene_generating=_overscaled_on_scene_generating,
+                on_manager_ready=_overscaled_on_manager_ready,
             )
 
             def finish() -> None:

@@ -861,6 +861,17 @@ class AssetManager:
                 )
             if result.ok:
                 break
+            if result.status == SceneStatus.CANCELLED:
+                # A cancellation is a deliberate stop request (e.g. Change
+                # Source cancelling this scene's in-flight Flow attempt so
+                # it can switch to stock instead) -- never a transient
+                # failure to retry. Retrying it anyway re-runs the exact
+                # attempt the user just asked to stop (for Flow specifically,
+                # a full engine restart cycle) before the cancellation is
+                # finally honored by the check right after this loop --
+                # a real, user-visible delay that looked like the override
+                # was being ignored.
+                break
             if attempt < max_attempts:
                 self.log(
                     f"[ASSET] Scene {scene.scene_number} -> {source.value} failed "

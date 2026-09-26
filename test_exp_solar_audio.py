@@ -206,6 +206,87 @@ class TestAmbienceBehavior(unittest.TestCase):
         beds = build_exp_solar_ambience_beds(20.0, sfx_root=empty_root)
         self.assertEqual(beds, [])
 
+    def test_one_bed_per_chapter_when_layout_has_multiple_title_windows(self):
+        """The reported bug: one continuous ambience bed for the whole
+        video, start to end, regardless of chapter changes. Fix: one bed
+        PER title window (chapter), each spanning exactly that chapter's
+        own on-screen range."""
+        tmp = Path(tempfile.mkdtemp())
+        root = tmp / "sfxlib"
+        se.write_test_sfx_library(root, entries=[
+            {"id": "amb_a", "file": "ambience/a.wav", "category": "ambience", "tags": [],
+             "intensity": "low", "duration": 10.0, "source": "test", "license": "test",
+             "commercial_use": True, "attribution_required": False},
+            {"id": "amb_b", "file": "ambience/b.wav", "category": "ambience", "tags": [],
+             "intensity": "low", "duration": 10.0, "source": "test", "license": "test",
+             "commercial_use": True, "attribution_required": False},
+            {"id": "amb_c", "file": "ambience/c.wav", "category": "ambience", "tags": [],
+             "intensity": "low", "duration": 10.0, "source": "test", "license": "test",
+             "commercial_use": True, "attribution_required": False},
+        ])
+
+        class _FakeLayout:
+            title_windows = [("Intro", 0.0, 10.0), ("Middle", 10.0, 22.0), ("Outro", 22.0, 30.0)]
+
+        beds = build_exp_solar_ambience_beds(30.0, layout=_FakeLayout(), sfx_root=root)
+
+        self.assertEqual(len(beds), 3, "one bed per chapter, not one for the whole video")
+        self.assertEqual([b["start"] for b in beds], [0.0, 10.0, 22.0])
+        self.assertEqual([b["end"] for b in beds], [10.0, 22.0, 30.0])
+        self.assertEqual([b["duration"] for b in beds], [10.0, 12.0, 8.0], "each bed's own duration is its OWN chapter span")
+        self.assertEqual(
+            len({b["sfx_id"] for b in beds}), 3,
+            "with 3 distinct ambience tracks available, each chapter should get a different one",
+        )
+
+    def test_falls_back_to_one_whole_segment_bed_when_layout_has_no_chapters(self):
+        """A layout with no chapter_title at all (title_windows empty) must
+        keep the OLD single-bed-for-the-whole-segment behavior, not
+        silently drop ambience entirely."""
+        tmp = Path(tempfile.mkdtemp())
+        root = tmp / "sfxlib"
+        se.write_test_sfx_library(root)
+
+        class _FakeLayoutNoChapters:
+            title_windows = []
+
+        beds = build_exp_solar_ambience_beds(42.5, layout=_FakeLayoutNoChapters(), sfx_root=root)
+        self.assertEqual(len(beds), 1)
+        self.assertAlmostEqual(beds[0]["duration"], 42.5, places=2)
+
+    def test_real_csv_with_repeated_chapter_text_still_gets_per_chapter_beds(self):
+        """End-to-end through the real compiler/layout: 3 sections, each
+        repeating its own chapter text across several rows (the exact
+        pattern from the live bug report) -- must still produce exactly
+        3 ambience beds, one per real section, not one per row and not
+        one for the whole video."""
+        tmp = Path(tempfile.mkdtemp())
+        root = tmp / "sfxlib"
+        se.write_test_sfx_library(root, entries=[
+            {"id": "amb_a", "file": "ambience/a.wav", "category": "ambience", "tags": [],
+             "intensity": "low", "duration": 10.0, "source": "test", "license": "test",
+             "commercial_use": True, "attribution_required": False},
+            {"id": "amb_b", "file": "ambience/b.wav", "category": "ambience", "tags": [],
+             "intensity": "low", "duration": 10.0, "source": "test", "license": "test",
+             "commercial_use": True, "attribution_required": False},
+        ])
+
+        rows = []
+        for section in ("Section One", "Section Two", "Section Three"):
+            for i in range(3):
+                rows.append({
+                    "scene_number": str(len(rows) + 1),
+                    "script_segment": f"{section} narration line {i}." if i == 0 else "",
+                    "node_id": f"n{len(rows) + 1}", "beat": "hero", "asset_type": "flow_image",
+                    "prompt": "p", "chapter": section,
+                })
+        _, sg = _compile(rows)
+        layout = compute_layout(sg, resolved_media={})
+        self.assertEqual(len(layout.title_windows), 3, "sanity: 3 real sections after title-collapse")
+
+        beds = build_exp_solar_ambience_beds(float(sg.duration), layout=layout, sfx_root=root)
+        self.assertEqual(len(beds), 3, "one ambience bed per real section, not one continuous bed")
+
 
 class TestGracefulDegradation(unittest.TestCase):
     def setUp(self):

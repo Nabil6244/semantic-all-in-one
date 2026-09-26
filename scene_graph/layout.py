@@ -749,7 +749,17 @@ def compute_layout(
         is_grid = _is_grid_chapter(members, scene_graph)
         chapter_cap = chapter_caps[c_index]
         peak = _peak_concurrent([active_windows[n.id] for n in members])
-        template_size = max(1, min(peak, chapter_cap, len(members)))
+        # SLOT_TEMPLATE_GRID_15 has exactly ONE entry, keyed 15 (a fixed
+        # 3x5 board — see its own definition) — it is never "adaptively"
+        # smaller like the 1/2/3/4-slot row templates below. Sizing a grid
+        # chapter from peak/chapter_cap/len(members) (as every non-grid
+        # chapter correctly is) looks up template[6] or similar and raises
+        # KeyError the moment a real index_grid chapter has fewer than 15
+        # simultaneously-active members — i.e. always, since index_grid is
+        # authored with far fewer than 15 rows in practice. Pre-existing,
+        # independent of any timing fix: reproduced with this exact
+        # KeyError before touching node timing at all.
+        template_size = 15 if is_grid else max(1, min(peak, chapter_cap, len(members)))
         template = SLOT_TEMPLATE_GRID_15 if is_grid else _choose_template_variant(members)
         # Role-based reordering (put an elevated-role member in the hero
         # slot) is only SAFE when every member gets its own dedicated slot
@@ -821,11 +831,31 @@ def compute_layout(
         edge_windows[edge.id] = (draw_at, window_end)
 
     cues_sorted = sorted(scene_graph.title_cues, key=lambda c: float(c.at))
+    # Collapse a RUN of consecutive cues sharing the IDENTICAL text into ONE
+    # persistent window (the run's first cue's own start -> the next
+    # DIFFERENT cue's start, or duration) instead of starting a brand-new
+    # reveal-in animation on every row that merely repeats the same
+    # chapter text. Setting `chapter`/`chapter_title` on every row of a
+    # section (rather than only its first row) is a common CSV-authoring
+    # pattern the compiler has never rejected — TitleCue creation
+    # (overscaled_csv.py) appends one per non-empty value with no
+    # deduplication — and without this collapse it produced a title that
+    # kept restarting its own reveal every few seconds, never staying
+    # settled long enough to read (looked like "no title at all"). A CSV
+    # that already sets chapter_title on only the first row of each
+    # section (as documented) never has two consecutive cues with the
+    # same text, so this is a no-op there — provably inert for both
+    # Overscaled and any already-correct Exp Solar CSV.
+    collapsed_cues: List[Tuple[str, float]] = []
+    for cue in cues_sorted:
+        if collapsed_cues and collapsed_cues[-1][0] == cue.text:
+            continue
+        collapsed_cues.append((cue.text, max(0.0, float(cue.at))))
+
     title_windows: List[Tuple[str, float, float]] = []
-    for i, cue in enumerate(cues_sorted):
-        own_start = max(0.0, float(cue.at))
-        next_start = cues_sorted[i + 1].at if i + 1 < len(cues_sorted) else duration
-        title_windows.append((cue.text, own_start, max(next_start, own_start + MIN_HOLD_S)))
+    for i, (text, own_start) in enumerate(collapsed_cues):
+        next_start = collapsed_cues[i + 1][1] if i + 1 < len(collapsed_cues) else duration
+        title_windows.append((text, own_start, max(next_start, own_start + MIN_HOLD_S)))
 
     # ARROW ROUTING + LABEL POSITIONS — solved ONCE per edge, right here,
     # never per frame (scene_graph.composition only SAMPLES the cached

@@ -35,6 +35,40 @@ reuse logic (asset_manager.py, unmodified) -- that logic already handles
 this correctly once given the right directory, which
 TestChangeSourcePersistsThroughFullRender proves empirically below.
 
+FOLLOW-UP BUG (found after the directory fix landed, reported live: a user
+changed a scene's source to stock_image while a real Generate run was still
+in progress, and the manifest kept recording a FAILED flow_video result for
+that scene instead): the directory fix alone was not sufficient. Overscaled/
+Exp Solar's live batch (generate_overscaled_video -> resolve_scene_assets)
+builds its AssetManager as a purely local variable inside resolve_scene_
+assets(), never assigning it to self._asset_manager the way the normal/
+simple CSV workflow's own generation worker already does. So a per-scene
+action (Change Source/Retry/Alternative/Skip, all of which act on self.
+_asset_manager via _ensure_asset_manager) taken WHILE an Overscaled batch is
+still running targeted a completely different, unrelated AssetManager
+object:
+  1. request_cancel_scene() during "Change Source" never reached the real,
+     in-flight manager, so the actual running Flow job for that scene was
+     never told to stop.
+  2. Both objects wrote to the same manifest file with no coordination --
+     whichever finished last won. The batch's own slow, real Flow attempt
+     often finished AFTER the Change Source action's quick stock write,
+     silently overwriting the user's override back to a failed flow_video
+     record.
+
+FIX: video_generator.resolve_scene_assets() gained an optional
+on_manager_ready(manager) callback, invoked immediately after the REAL
+AssetManager is constructed and before resolve_all() runs -- threaded
+through scene_graph/media_resolution.py's resolve_scene_graph_media() and
+scene_graph/app_integration.py's generate_overscaled_video() unchanged in
+every other respect (None by default, so the CLI tool and every other
+existing caller is unaffected). app.py's _run_overscaled_generation worker
+passes a callback that assigns self._asset_manager = manager -- mirroring
+exactly what the normal workflow's own generation worker already does
+inline, so per-scene actions during an active Overscaled/Exp Solar run now
+reach the real, live manager. See TestLiveAssetManagerIsExposedDuringGeneration
+below.
+
 No real Flow account, network call, or real render is used anywhere in
 this file. Flow credits spent: 0.
 """
@@ -49,7 +83,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from asset_manager import AssetManager
-from providers.base import AssetSource, SceneRow
+from providers.base import AssetSource, MediaType, SceneRow
 from scene_graph.exp_solar_csv import adapt_exp_solar_csv_rows
 from scene_graph.media_resolution import resolve_scene_graph_media
 from scene_graph.overscaled_csv import compile_overscaled_csv
@@ -331,6 +365,105 @@ class TestSceneActionImagesDirRouting(unittest.TestCase):
 
     def test_normal_mode_uses_assets_dir(self):
         self._assert_check("normal_mode_uses_assets_dir")
+
+
+class _CancelDuringStartProvider(FakeProvider):
+    """Simulates the real race: 'user clicks Change Source WHILE this scene
+    is still being resolved'. on_start_hook runs exactly where app.py's
+    real on_scene_start callback would fire, giving the test a chance to
+    call request_cancel_scene() on whatever manager it was handed via
+    on_manager_ready -- if that's genuinely the SAME live object the
+    resolve loop below is about to check, the scene must come back
+    CANCELLED, not its normal successful result."""
+
+    def __init__(self, source, scripted, on_start_hook, media_type=None):
+        super().__init__(source, scripted, media_type=media_type or MediaType.IMAGE)
+        self.on_start_hook = on_start_hook
+
+    def resolve(self, scene, images_dir, log=print):
+        self.on_start_hook(scene)
+        return super().resolve(scene, images_dir, log=log)
+
+
+class TestLiveAssetManagerIsExposedDuringGeneration(unittest.TestCase):
+    """Proves the follow-up fix: on_manager_ready hands back the REAL, live
+    AssetManager instance resolve_all() is about to run on -- not merely one
+    pointed at the same directory -- by cancelling a scene THROUGH that
+    captured reference from inside the resolve loop itself and confirming
+    it takes effect."""
+
+    def test_captured_manager_can_genuinely_cancel_the_live_in_flight_scene(self):
+        # Two scenes: only scene "1" gets cancelled mid-resolve, so the
+        # batch still has an overall-ok scene "2" and resolve_scene_graph_
+        # media doesn't hard-exit on a total failure -- isolating the
+        # assertion to exactly what this test is proving (selective
+        # cancellation reaches the live manager), not a side effect of
+        # cancelling the only scene in the batch.
+        tmp = Path(tempfile.mkdtemp())
+        images_dir = tmp / "images"
+        images_dir.mkdir()
+
+        rows = [
+            {"scene_number": "1", "script_segment": "a", "node_id": "n1", "beat": "hero",
+             "asset_type": "stock_image", "prompt": "x"},
+            {"scene_number": "2", "script_segment": "b", "node_id": "n2", "beat": "hero",
+             "asset_type": "stock_image", "prompt": "y"},
+        ]
+        adapted = adapt_exp_solar_csv_rows(rows)
+        self.assertTrue(adapted.ok, adapted.errors)
+        compiled = compile_overscaled_csv(adapted.rows, segment_id="seg", style_preset="exp_solar")
+        self.assertTrue(compiled.ok, compiled.errors)
+
+        captured = {}
+
+        def capture(manager):
+            captured["manager"] = manager
+
+        def on_start(scene):
+            if scene.scene_number == "1":
+                # This is the exact moment a real "Change Source" click,
+                # racing against this same in-flight resolution, would call
+                # self._asset_manager.request_cancel_scene(...) -- proving
+                # captured["manager"] really is the object resolve_all()
+                # below is checking, not a disconnected lookalike.
+                captured["manager"].request_cancel_scene(scene.scene_number)
+
+        # A cancelled scene makes resolve_scene_assets() sys.exit (an
+        # overall-incomplete batch, by design -- see ResolveSummary.ok) even
+        # though scene 2 individually succeeded; this test only cares
+        # whether the cancel request reached the real manager, so it just
+        # confirms scene 1 -- and only scene 1 -- is reported as cancelled.
+        fake = _CancelDuringStartProvider(AssetSource.STOCK_IMAGE, {}, on_start_hook=on_start)
+        with patch("providers.stock.pexels.build_pexels_provider", side_effect=lambda d, k: fake):
+            with self.assertRaises(SystemExit) as ctx:
+                resolve_scene_graph_media(
+                    compiled.scene_graph, images_dir=images_dir, pexels_api_key="k",
+                    on_manager_ready=capture,
+                )
+
+        self.assertIn("manager", captured, "on_manager_ready must fire before resolution starts")
+        self.assertEqual(captured["manager"].images_dir, images_dir)
+        # A cancelled (not failed) scene is deliberately excluded from
+        # ResolveSummary.failed's error listing (see its own property), so
+        # the proof that the cancel request reached the REAL live manager
+        # is the manager's own recorded cancellation state afterward, not
+        # the sys.exit message text.
+        self.assertTrue(
+            captured["manager"].is_scene_cancelled("1"),
+            "scene 1's cancellation must be recorded on the SAME manager instance that "
+            "actually ran resolve_all() -- proving on_manager_ready exposed the real object",
+        )
+        self.assertFalse(captured["manager"].is_scene_cancelled("2"), "scene 2 was never cancelled")
+
+    def test_overscaled_generation_worker_wires_on_manager_ready_to_self_asset_manager(self):
+        import inspect
+
+        import app as app_module
+
+        source = inspect.getsource(app_module.VideoGeneratorApp._run_overscaled_generation)
+        self.assertIn("on_manager_ready=_overscaled_on_manager_ready", source)
+        self.assertIn("_overscaled_on_manager_ready", source)
+        self.assertIn("self._asset_manager = manager", source)
 
 
 if __name__ == "__main__":
