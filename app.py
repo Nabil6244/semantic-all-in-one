@@ -807,6 +807,19 @@ class VideoGeneratorApp(ctk.CTk):
         self.minsize(900, 600)
         self._qa_ui_dirty = False
         self._qa_ui_scheduled = False
+        # Scoped-repaint bookkeeping for _flush_qa_ui: a per-scene event
+        # (scene_busy/scene_asset/etc.) only ever needs to repaint ITS OWN
+        # row, but _sync_scene_statuses_from_results/_paint_qa_chrome used to
+        # unconditionally re-walk every row on every debounced flush --
+        # O(total scenes) per tick regardless of how many actually changed,
+        # measured at ~330ms/flush at 130 scenes (see the Exp Solar header-
+        # lag diagnostic). _mark_scene_dirty() records just the changed
+        # key(s); any OTHER caller of _refresh_qa_ui() (bulk actions,
+        # selection changes, CSV reload, ...) sets _qa_ui_full_repaint
+        # instead, which keeps today's exact full-table-repaint behavior for
+        # every path not specifically switched to the scoped one below.
+        self._dirty_scene_keys: set[str] = set()
+        self._qa_ui_full_repaint = False
         self._qa_persist_at = 0.0
         self._log_visible = False
         self._issues_visible = False
@@ -6291,9 +6304,11 @@ class VideoGeneratorApp(ctk.CTk):
     def _row_status_from_result(self, scene: SceneRow) -> str:
         return self._qa.row_status(scene, self._asset_results, self._skipped_set())
 
-    def _sync_scene_statuses_from_results(self) -> None:
+    def _sync_scene_statuses_from_results(self, only_keys: set | None = None) -> None:
         for scene in self._scene_rows:
             key = _scene_key(scene.scene_number)
+            if only_keys is not None and key not in only_keys:
+                continue
             if key in self._busy_scenes:
                 continue
             self._set_scene_status(scene.scene_number, self._row_status_from_result(scene))
@@ -7974,6 +7989,22 @@ class VideoGeneratorApp(ctk.CTk):
             self._workspace.sync_state_copies()
 
     def _refresh_qa_ui(self, immediate: bool = False) -> None:
+        # Unscoped callers (bulk actions, selection changes, CSV reload, ...)
+        # don't know which specific row(s) changed, so the next flush must
+        # repaint everything -- exactly today's existing behavior, preserved
+        # for every caller except _refresh_qa_ui_for_scene below.
+        self._qa_ui_full_repaint = True
+        self._schedule_qa_ui_flush(immediate)
+
+    def _refresh_qa_ui_for_scene(self, scene_number, immediate: bool = False) -> None:
+        """Same debounced flush as _refresh_qa_ui, but scoped: only the named
+        scene's row is guaranteed to be repainted on the next flush (unless
+        some other, unscoped _refresh_qa_ui() call also happened in the same
+        debounce window, which still forces a full repaint)."""
+        self._dirty_scene_keys.add(_scene_key(scene_number))
+        self._schedule_qa_ui_flush(immediate)
+
+    def _schedule_qa_ui_flush(self, immediate: bool) -> None:
         self._qa_ui_dirty = True
         if immediate:
             self._flush_qa_ui()
@@ -7989,11 +8020,18 @@ class VideoGeneratorApp(ctk.CTk):
         if not self._qa_ui_dirty:
             return
         self._qa_ui_dirty = False
+        # None = repaint every row (today's original behavior, used whenever
+        # any unscoped _refresh_qa_ui() call happened since the last flush);
+        # otherwise only the specific scene(s) a scoped per-scene event
+        # touched need their row repainted this tick.
+        only_keys = None if self._qa_ui_full_repaint else set(self._dirty_scene_keys)
+        self._qa_ui_full_repaint = False
+        self._dirty_scene_keys.clear()
         snap = self._qa_snapshot()
         self._qa.prune_selection([_scene_key(s.scene_number) for s in self._scene_rows])
         self._qa.clear_focus_if_resolved(snap.unresolved_keys)
-        self._sync_scene_statuses_from_results()
-        self._paint_qa_chrome(snap)
+        self._sync_scene_statuses_from_results(only_keys=only_keys)
+        self._paint_qa_chrome(snap, only_keys=only_keys)
         # Rebuilding hundreds of issue cards mid-run freezes Windows — defer until idle.
         if self._issues_visible and not self._running:
             self._rebuild_issues(snap)
@@ -8086,7 +8124,7 @@ class VideoGeneratorApp(ctk.CTk):
             return badge[0]
         return str(getattr(source, "value", source)).replace("_", " ").title()
 
-    def _paint_qa_chrome(self, snap=None) -> None:
+    def _paint_qa_chrome(self, snap=None, only_keys: set | None = None) -> None:
         snap = snap or self._qa_snapshot()
         if snap.total:
             parts = [f"{snap.total} scene{'s' if snap.total != 1 else ''}", f"{snap.ready} ready"]
@@ -8146,7 +8184,12 @@ class VideoGeneratorApp(ctk.CTk):
         self.alt_selected_btn.configure(state=sel_state)
         self.skip_selected_btn.configure(state=sel_state)
         self.issues_header_var.set(f"NEEDS ATTENTION — {n}")
-        for key, widgets in self._scene_row_widgets.items():
+        row_items = (
+            self._scene_row_widgets.items()
+            if only_keys is None
+            else ((k, self._scene_row_widgets[k]) for k in only_keys if k in self._scene_row_widgets)
+        )
+        for key, widgets in row_items:
             self._paint_row_highlight(key)
             check = widgets.get("check")
             if check is not None:
@@ -10502,7 +10545,7 @@ class VideoGeneratorApp(ctk.CTk):
                             self._qa.busy[key] = status
                             self._set_scene_status(scene_number, status)
                             # Deferred — immediate flush per scene freezes Windows on large projects.
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(scene_number)
                         elif kind == "scene_asset":
                             scene_number, result = payload
                             key = _scene_key(scene_number)
@@ -10522,7 +10565,7 @@ class VideoGeneratorApp(ctk.CTk):
                             )
                             if scene is not None:
                                 self._set_scene_status(scene.scene_number, self._row_status_from_result(scene))
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(scene_number)
                             self._maybe_resume_pending_source_change(key)
                         elif kind == "scene_result":
                             scene_number, token, result = payload
@@ -10550,7 +10593,7 @@ class VideoGeneratorApp(ctk.CTk):
                                 if getattr(result, "source", None) == AssetSource.MANUAL:
                                     self.status_var.set("⚠ Could not add local clip")
                                     messagebox.showerror("Could not add local clip", err)
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(scene_number)
                             self._maybe_resume_pending_source_change(key)
                         elif kind == "flow_retry_batch_done":
                             self._flow_retry_batch_busy = False
@@ -10559,23 +10602,23 @@ class VideoGeneratorApp(ctk.CTk):
                         elif kind == "scene_done":
                             key = _scene_key(payload)
                             self._busy_scenes.discard(key)
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(payload)
                             self._maybe_resume_pending_source_change(key)
                         elif kind == "scene_skipped":
                             key = _scene_key(payload)
                             self._busy_scenes.discard(key)
                             self._hydrated_skipped.add(key)
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(payload)
                         elif kind == "scene_cancelled":
                             key = _scene_key(payload)
                             self._busy_scenes.discard(key)
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(payload)
                             self._maybe_resume_pending_source_change(key)
                         elif kind == "scene_failed":
                             scene_number, error = payload
                             self._busy_scenes.discard(_scene_key(scene_number))
                             self._append_log(f"[SCENE {scene_number}] {error}\n")
-                            self._refresh_qa_ui()
+                            self._refresh_qa_ui_for_scene(scene_number)
             except queue.Empty:
                 pass
             if logs:

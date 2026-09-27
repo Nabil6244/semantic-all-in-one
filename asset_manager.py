@@ -1205,6 +1205,26 @@ class AssetManager:
                 continue  # already rerouted (e.g. video quota -> image); not our concern
             if self.is_cancelled or self.is_scene_cancelled(key):
                 continue
+            # Flow has no true per-prompt cancel: a SIBLING scene's per-scene
+            # stop (e.g. app.py's per-scene generation watchdog) forces the
+            # whole shared batch to STOP, and this scene — which never got
+            # its own done/failed signal — is marked FAILED with this exact
+            # message (see providers/flow/provider.py's _collect_batch_
+            # results), not because ITS OWN generation actually failed. There
+            # is no way to confirm whether its underlying browser submission
+            # already reached Google before the STOP cut off polling.
+            # Flow VIDEO generation is paid — auto-resubmitting here would
+            # risk a second, fully paid, duplicate video generation for one
+            # logical scene (the "10 CSV rows -> ~22 Flow submissions"
+            # credit-washing bug), so leave it at NEEDS_ACTION for a
+            # deliberate manual Retry instead, exactly like the anti-abuse-
+            # hold case just below. Flow IMAGE generation is free and carries
+            # no such credit risk — it keeps its existing automatic retry.
+            if (
+                source == AssetSource.FLOW_VIDEO
+                and "Interrupted when another scene in this batch was stopped" in (result.error or "")
+            ):
+                continue
             to_retry.append(scene)
         if not to_retry:
             return

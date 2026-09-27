@@ -746,5 +746,210 @@ class TestCancelledSceneIsNeverRetried(unittest.TestCase):
             )
 
 
+# ---------------------------------------------------------------------------
+# 7. THE CREDIT-WASHING BUG (real production report, Ahmed, 2026-09-27):
+#    a 10-row flow_video CSV produced ~22 actual Flow submissions.
+#
+#    Root cause: Flow has no true per-prompt cancel -- _batch_should_stop
+#    stops the WHOLE shared multi-account batch the instant ANY one scene
+#    is per-scene-cancelled (e.g. app.py's 720s per-scene watchdog tripping
+#    on one slow/stuck scene). Every OTHER scene that hadn't yet produced
+#    its own done/failed progress message is marked FAILED (not CANCELLED)
+#    with "Interrupted when another scene in this batch was stopped. Use
+#    Retry." (provider.py's _collect_batch_results). _retry_flow_batch_once
+#    is gated only on the RUN-LEVEL is_cancelled flag -- never set by a
+#    per-scene stop -- so it silently auto-resubmits every one of those
+#    FAILED-but-actually-interrupted siblings as a BRAND NEW Flow GENERATE
+#    call in the very same resolve_all() pass, with zero proof their
+#    original browser-side submission never reached Google. One slow scene
+#    can cascade into ~9 duplicate paid submissions out of a 10-scene batch
+#    -- closely matching the reported 22-from-10 (~2.2x).
+#
+#    Fix: _retry_flow_batch_once now excludes the "Interrupted when another
+#    scene in this batch was stopped" failure from automatic retry ONLY when
+#    `source == AssetSource.FLOW_VIDEO` (paid, real credit-washing risk).
+#    Flow IMAGE generation is free and keeps its prior automatic-retry
+#    behavior unchanged, on this same failure reason, exactly as before.
+# ---------------------------------------------------------------------------
+
+
+def _run_sibling_interruption_batch(media_kind: str, n_scenes: int = 10, watchdog_scene: str = "5"):
+    """Real production path (AssetManager.resolve_all -> FlowProvider.
+    resolve_batch -> the real _batch_should_stop/_collect_batch_results
+    cascade -> _retry_flow_batch_once), Node boundary faked (no Chrome, no
+    Google, zero credits/cost) -- simulates one scene's per-scene watchdog
+    (app.py's real 720s _timeout_scene) tripping mid-batch while every other
+    scene is still genuinely in flight server-side. Returns
+    (summary, client, mgr)."""
+    tmp = TemporaryDirectory()
+    root = Path(tmp.name)
+    client = _make_client(root)
+    handlers: dict = {}
+    generate_calls: list = []
+
+    def fake_subscribe(fn):
+        handlers["on_message"] = fn
+        return lambda: None
+
+    def fake_generate(prompts, **kwargs):
+        generate_calls.append(prompts)
+        if len(generate_calls) == 1:
+            for i in range(len(prompts)):
+                handlers["on_message"]({
+                    "type": "BATCH_PROGRESS", "index": i, "status": "running",
+                    "label": f"acct{i}", "message": "generating",
+                })
+            mgr.request_cancel_scene(watchdog_scene)
+        else:
+            # If a retry/resubmission fires (the bug, for flow_video), let it
+            # resolve immediately -- the test only needs to prove/disprove
+            # that a second GENERATE call happens at all, not what it returns.
+            handlers["on_message"]({"type": "GENERATE_DONE"})
+
+    def fake_stop():
+        handlers["on_message"]({"type": "GENERATE_DONE"})
+
+    client.subscribe.side_effect = fake_subscribe
+    client.generate.side_effect = fake_generate
+    client.stop.side_effect = fake_stop
+
+    fp = FlowProvider(_FakeEngineManager(client), media_kind=media_kind)
+    asset_type = "video" if media_kind == "video" else "image"
+    kwargs = {"flow_video_provider": fp} if media_kind == "video" else {"flow_image_provider": fp}
+    mgr = AssetManager(root, log=lambda *_: None, **kwargs)
+    scenes = [
+        SceneRow(scene_number=str(i), script_segment=f"s{i}", asset_type=asset_type, prompt=f"p{i}")
+        for i in range(1, n_scenes + 1)
+    ]
+    summary = mgr.resolve_all(scenes)
+    tmp.cleanup()
+    return summary, client, mgr
+
+
+class TestSiblingInterruptionIsNeverAutoResubmitted(unittest.TestCase):
+    def test_flow_video_interrupted_sibling_is_not_automatically_retried(self):
+        n_scenes, watchdog_scene = 10, "5"
+        summary, client, _mgr = _run_sibling_interruption_batch("video", n_scenes, watchdog_scene)
+
+        self.assertEqual(
+            summary.results[watchdog_scene].status, SceneStatus.CANCELLED,
+            "the ONE scene that actually tripped the watchdog must still show CANCELLED",
+        )
+        for n in [str(i) for i in range(1, n_scenes + 1) if str(i) != watchdog_scene]:
+            self.assertEqual(
+                summary.results[n].status, SceneStatus.NEEDS_ACTION,
+                f"scene {n} was only interrupted by scene {watchdog_scene}'s stop -- it must "
+                "stay at NEEDS_ACTION for a deliberate manual retry, never be silently resubmitted",
+            )
+        self.assertEqual(
+            client.generate.call_count, 1,
+            f"got {client.generate.call_count} separate Flow GENERATE calls for one "
+            "10-scene flow_video batch after a single scene's watchdog tripped -- this is "
+            "the credit-washing bug (10 CSV rows -> ~22 Flow submissions in production)",
+        )
+
+    def test_flow_image_interrupted_sibling_still_gets_the_existing_automatic_retry(self):
+        """Flow image generation is free -- the new video-only exclusion must
+        NOT change this path's behavior. A retry attempt (a second GENERATE
+        call) is the EXISTING, intended behavior here, preserved exactly."""
+        n_scenes, watchdog_scene = 10, "5"
+        summary, client, _mgr = _run_sibling_interruption_batch("image", n_scenes, watchdog_scene)
+
+        self.assertEqual(summary.results[watchdog_scene].status, SceneStatus.CANCELLED)
+        self.assertGreaterEqual(
+            client.generate.call_count, 2,
+            "flow_image's existing automatic retry-on-sibling-interruption must be unchanged "
+            "by the new flow_video-only exclusion",
+        )
+
+
+class TestGenuineTransientFailureRetryUnaffected(unittest.TestCase):
+    """The new exclusion is scoped to ONE specific failure reason
+    ("Interrupted when another scene in this batch was stopped") AND
+    source == FLOW_VIDEO. An ordinary, unrelated transient failure (a real
+    Flow-side error with a different message) must still get its existing
+    single bounded auto-retry, for both video and image."""
+
+    def test_flow_video_genuine_transient_failure_still_retries(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_VIDEO, {"1": "fail"}, media_type=MediaType.VIDEO)
+            mgr = AssetManager(images, flow_video_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")
+
+            mgr.resolve_all([scene])
+
+            self.assertEqual(
+                flow.calls.count("1"), 2,
+                "an ordinary transient flow_video failure must still get its existing "
+                "single bounded auto-retry",
+            )
+
+    def test_flow_image_genuine_transient_failure_still_retries(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_IMAGE, {"1": "fail"})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="p")
+
+            mgr.resolve_all([scene])
+
+            self.assertEqual(
+                flow.calls.count("1"), 2,
+                "an ordinary transient flow_image failure must still get its existing "
+                "single bounded auto-retry",
+            )
+
+
+class _AntiAbuseHoldProvider(FakeProvider):
+    """Returns a real FAILED AssetResult carrying the exact
+    PUBLIC_ERROR_UNUSUAL_ACTIVITY text _retry_flow_batch_once string-matches
+    on -- avoids relying on resolve_batch's default loop propagating a raised
+    exception (which _resolve_flow_batch's outer except Exception would
+    instead swallow into an empty batch_results, not a per-scene FAILED
+    result with this message)."""
+
+    def resolve(self, scene, images_dir, log=print):
+        self.calls.append(scene.scene_number)
+        return AssetResult(
+            scene.scene_number, None, None, self.source, SceneStatus.FAILED,
+            error="Flow RPC rejected: PUBLIC_ERROR_UNUSUAL_ACTIVITY",
+        )
+
+
+class TestAntiAbuseHoldRetrySkipUnaffected(unittest.TestCase):
+    """PUBLIC_ERROR_UNUSUAL_ACTIVITY must keep skipping automatic retry
+    entirely (a pre-existing, separate protection) -- unchanged by the new
+    flow_video-only sibling-interruption exclusion, for both media kinds."""
+
+    def test_flow_video_anti_abuse_hold_still_skips_automatic_retry(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = _AntiAbuseHoldProvider(AssetSource.FLOW_VIDEO, {}, media_type=MediaType.VIDEO)
+            mgr = AssetManager(images, flow_video_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")
+
+            mgr.resolve_all([scene])
+
+            self.assertEqual(
+                flow.calls.count("1"), 1,
+                "an anti-abuse-hold failure must still skip the automatic retry entirely",
+            )
+
+    def test_flow_image_anti_abuse_hold_still_skips_automatic_retry(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = _AntiAbuseHoldProvider(AssetSource.FLOW_IMAGE, {})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            scene = SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="p")
+
+            mgr.resolve_all([scene])
+
+            self.assertEqual(
+                flow.calls.count("1"), 1,
+                "an anti-abuse-hold failure must still skip the automatic retry entirely",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
