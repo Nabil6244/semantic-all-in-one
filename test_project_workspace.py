@@ -173,15 +173,17 @@ class TestProjectLifecycle(unittest.TestCase):
         self.assertEqual(first.read_bytes(), b"one")
 
     def test_overscaled_final_versioning_avoids_overwrite_on_rerender(self):
+        # Overscaled/Exp Solar exports share the normal final/ folder and naming.
         a = create_project("Mars Clues", projects_root=self.tmp)
         first = a.next_overscaled_final_path()
-        self.assertEqual(first.name, "overscaled_final.mp4")
+        self.assertEqual(first.parent, a.final_dir)
+        self.assertEqual(first, a.next_final_path())
         first.write_bytes(b"one")
         second = a.next_overscaled_final_path()
-        self.assertEqual(second.name, "overscaled_final 1.mp4")
+        self.assertEqual(second, a.final_dir / "final 1.mp4")
         second.write_bytes(b"two")
-        third = a.next_overscaled_final_path()
-        self.assertEqual(third.name, "overscaled_final 2.mp4")
+        third = a.next_final_path()  # a normal export after it doesn't collide
+        self.assertEqual(third.name, "final 2.mp4")
         self.assertTrue(first.is_file())
         self.assertEqual(first.read_bytes(), b"one")  # re-render never overwrote it
 

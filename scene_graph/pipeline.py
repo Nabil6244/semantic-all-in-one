@@ -25,9 +25,10 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence
 
 from editorial.timeline import EditorialTimeline
 
+from .generator import generate_scene_graph_local_planner, scene_rows_from_csv_rows
 from .layout import SceneGraphLayout, compute_layout, find_overlaps
 from .overscaled_csv import compile_overscaled_csv
-from .render import render_overscaled_segment
+from .render import RenderCancelled, render_overscaled_segment
 from .schema import SceneGraph
 from .style_presets import StylePreset, load_style_preset
 from .timeline import compile_segment_to_timeline
@@ -42,6 +43,7 @@ class OverscaledPipelineResult:
     layout: Optional[SceneGraphLayout] = None
     segment_clip_path: Optional[Path] = None
     timeline: Optional[EditorialTimeline] = None
+    cancelled: bool = False
 
 
 def _fail(errors: Sequence[str]) -> OverscaledPipelineResult:
@@ -161,6 +163,19 @@ def _merge_grouped_beats_for_retime(scene_graph: SceneGraph) -> SceneGraph:
         if node.id in parent:
             groups.setdefault(find(node.id), []).append(node.id)
 
+    # Which beat reveals each node — read from the beat's own reveal_node
+    # action (true for both compile_overscaled_csv and the Local Visual
+    # Planner), falling back to the CSV compiler's "beat_<scene_number>"
+    # naming. The fallback alone was wrong for the Local Planner (beat ids
+    # are positional, not scene_number-based), and for a compound-split row
+    # every sub-node mapped to the SAME beat, so the primary beat was both
+    # kept and then dropped as its own "continuation" — deleting that row's
+    # narration beat entirely before retiming.
+    node_beat_id: Dict[str, str] = {}
+    for beat in scene_graph.beats:
+        for action in beat.actions:
+            if action.type == "reveal_node" and action.node_id:
+                node_beat_id.setdefault(action.node_id, beat.beat_id)
     node_scene_number = {n.id: n.metadata.get("scene_number") for n in scene_graph.nodes}
     data = scene_graph.to_dict()
     beat_by_id = {b["beat_id"]: b for b in data["beats"]}
@@ -169,13 +184,24 @@ def _merge_grouped_beats_for_retime(scene_graph: SceneGraph) -> SceneGraph:
     for member_ids in groups.values():
         if len(member_ids) < 2:
             continue
-        member_beat_ids = [f"beat_{node_scene_number[nid]}" for nid in member_ids]
+        member_beat_ids = list(dict.fromkeys(
+            node_beat_id.get(nid) or f"beat_{node_scene_number[nid]}" for nid in member_ids
+        ))
         member_beats = [beat_by_id[bid] for bid in member_beat_ids if bid in beat_by_id]
         if len(member_beats) < 2:
             continue
         primary = member_beats[0]
         primary["start"] = min(float(b["start"]) for b in member_beats)
         primary["end"] = max(float(b["end"]) for b in member_beats)
+        # The dropped beats' OWN narration must still be consumed by the
+        # word-count retime. Exp Solar CSV continuation rows are empty (no
+        # change), but Local Visual Planner group members carry real
+        # narration — dropping it left those words unclaimed, so every
+        # later beat drifted early and the render ended seconds before the
+        # voiceover (measured: 18.5s clip for a 28.6s narration).
+        primary["narration"] = " ".join(
+            str(b.get("narration") or "").strip() for b in member_beats if str(b.get("narration") or "").strip()
+        )
         for bid in member_beat_ids[1:]:
             if bid in beat_by_id:
                 drop_beat_ids.add(bid)
@@ -200,13 +226,25 @@ def run_overscaled_pipeline(
     fps: int = 30,
     write_debug_files: bool = True,
     progress_cb: Optional[Callable[[str, float], None]] = None,
+    use_local_planner: bool = False,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> OverscaledPipelineResult:
     """``progress_cb(message, fraction)`` is optional and best-effort —
     scene_graph.render does the whole segment in ONE ffmpeg encode (no
     camera, no per-leg re-encodes), so progress here is coarse: layout,
     then composing/writing the reveal layers, then the single encode's own
     ffmpeg ``time=`` progress (see render_overscaled_segment's on_progress).
-    A broken callback must never abort a real render."""
+    A broken callback must never abort a real render.
+
+    ``use_local_planner`` (default False — every existing caller keeps its
+    exact current behavior): when True, ``csv_rows`` only needs
+    scene_number/script_segment (asset_type/prompt stay optional) and the
+    Local Visual Planner (scene_graph.generator.generate_scene_graph_local_
+    planner) infers node/role/relationship/group structure from narration
+    alone instead of the dedicated Overscaled CSV's beat/node_id/
+    relationship_to/chapter columns. Everything from voiceover retiming
+    onward (layout, composition, rendering, timeline) is 100% unchanged —
+    both paths converge on the same SceneGraph contract."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -221,7 +259,12 @@ def run_overscaled_pipeline(
     if style is None:
         return _fail([f"unknown style preset: {style_preset_id!r}"])
 
-    compiled = compile_overscaled_csv(csv_rows, segment_id=segment_id, title=title, style_preset=style_preset_id)
+    if use_local_planner:
+        compiled = generate_scene_graph_local_planner(
+            segment_id, scene_rows_from_csv_rows(csv_rows), title=title, style_preset=style_preset_id
+        )
+    else:
+        compiled = compile_overscaled_csv(csv_rows, segment_id=segment_id, title=title, style_preset=style_preset_id)
     if not compiled.ok:
         return _fail(compiled.errors)
     scene_graph = compiled.scene_graph
@@ -277,6 +320,7 @@ def run_overscaled_pipeline(
             out_path=clip_path, resolved_media=resolved_media, resolution=resolution, fps=fps,
             work_dir=out_dir / "_render",
             on_progress=lambda message, fraction: _report(message, fraction),
+            cancel_check=cancel_check,
         )
 
         _report("Building timeline…", 0.95)
@@ -286,6 +330,8 @@ def run_overscaled_pipeline(
             duration=scene_graph.duration,
             scene_number=segment_id,
         )
+    except RenderCancelled:
+        return OverscaledPipelineResult(ok=False, errors=["Cancelled"], cancelled=True)
     except Exception as exc:
         return _fail([f"Overscaled pipeline failed: {exc}"])
 

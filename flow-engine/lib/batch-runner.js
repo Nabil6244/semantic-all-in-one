@@ -1,6 +1,5 @@
 import path from "node:path";
 import {
-  generateOneVideo,
   downloadMedia,
   openOrCreateProject,
   waitForFlowReady,
@@ -15,7 +14,14 @@ import {
   timing,
   models,
 } from "./flow-api.js";
-import { generateOneImageViaUI } from "./flow-ui-experiment.js";
+// Both image and video generation go through the same UI-based approach
+// (flow-ui-experiment.js's runUiGeneration, mode-parameterized) — the old
+// direct-RPC generateOneVideo (flow-api.js) was exactly as unreliable as
+// the old direct-RPC generateOneImage was, and is no longer called from
+// here. flow-api.js's generateOneVideo export itself is left in place
+// (untouched) in case anything else still references it, but this
+// orchestrator no longer does.
+import { generateOneImageViaUI, generateOneVideoViaUI } from "./flow-ui-experiment.js";
 import { defaults } from "../config.js";
 import {
   AccountLifecycle,
@@ -166,7 +172,7 @@ export async function runBatchSlice({
             if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
             const generated =
               mediaKind === "video"
-                ? await generateOneVideo(page, projectId, prompt, settingsLocal, abs * 10 + slot)
+                ? await generateOneVideoViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot)
                 : await generateOneImageViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot);
             const mediaId = generated.mediaId;
             const directUrl = generated.fifeUrl || null;

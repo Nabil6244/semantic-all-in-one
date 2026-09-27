@@ -141,6 +141,16 @@ class SceneRow:
             prompt=prompt,
             stock=stock,
             search_queries=search_queries,
+            # Optional Local Visual Planner column (scene_graph.generator):
+            # creative guidance for a row, distinct from an explicit
+            # asset_type/prompt override. Reuses this ALREADY-EXISTING field
+            # (see its own docstring above — asset_manager.py already treats
+            # `.visual_description` as a legitimate prompt-hint fallback for
+            # every SceneRow, it just had no CSV column feeding it before)
+            # rather than adding a new dataclass field, so this is a
+            # backward-compatible no-op for every CSV that doesn't have a
+            # `visual_hint` column.
+            visual_description=str(row.get("visual_hint", "") or "").strip(),
         )
 
     @property

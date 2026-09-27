@@ -1729,6 +1729,22 @@ class AssetManager:
 
     def alternative_scene(self, scene: SceneRow) -> AssetResult:
         """Different query, candidate, or declared fallback — never the last failed query."""
+        return self._mark_user_override(scene, self._alternative_scene(scene))
+
+    def _mark_user_override(self, scene: SceneRow, result: AssetResult) -> AssetResult:
+        """Flag a successful Alternative/Change Source record as the user's own
+        choice. Such a record is produced from DIFFERENT text than the CSV row
+        (a new query, another provider), which is otherwise exactly what a
+        stale asset looks like — the app's READY hydration and Generate's
+        reuse check use this flag to keep the user's pick while still
+        re-resolving media whose CSV prompt/query genuinely changed."""
+        if getattr(result, "ok", False):
+            record = self.manifest.get(scene.scene_number)
+            if record and record.get("status") == "complete" and not record.get("user_override"):
+                self.manifest.set(scene.scene_number, {**record, "user_override": True})
+        return result
+
+    def _alternative_scene(self, scene: SceneRow) -> AssetResult:
         key = scene_key(scene.scene_number)
         self._cancelled_scenes.discard(key)
         self._clear_skip(scene)
@@ -1769,7 +1785,8 @@ class AssetManager:
         self.log(f"[SCENE {scene.scene_number}] Change source -> {provider_name}")
         self._mark_requested_provider(scene.scene_number, provider_name)
         fallback = scene.as_fallback(provider_name)
-        return self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
+        result = self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
+        return self._mark_user_override(scene, result)
 
     def change_source_flow_batch(
         self,
@@ -1817,6 +1834,11 @@ class AssetManager:
                 on_scene_generating=on_scene_generating,
             )
             out.update(results)
+        by_number = {scene_key(s.scene_number): s for s in scenes}
+        for number, result in out.items():
+            scene = by_number.get(scene_key(number))
+            if scene is not None:
+                self._mark_user_override(scene, result)
         return out
 
     def skip_scene(self, scene: SceneRow) -> AssetResult:

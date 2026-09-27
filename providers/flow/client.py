@@ -64,6 +64,12 @@ class FlowClient:
         if self._connect_error:
             raise FlowClientError(self._connect_error)
 
+    def is_alive(self) -> bool:
+        """True while the WebSocket connection is up (its listener thread
+        ends when the engine closes the connection or exits)."""
+        thread = getattr(self, "_thread", None)
+        return bool(thread is not None and thread.is_alive() and not self._closed and not self._connect_error)
+
     def close(self) -> None:
         self._closed = True
         if self._loop is not None and self._ws is not None:

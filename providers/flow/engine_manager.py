@@ -31,6 +31,85 @@ class FlowEngineError(Exception):
     pass
 
 
+def engine_code_version(engine_dir: Path) -> str:
+    """Fingerprint of flow-engine's code on disk — MUST match server.js's
+    ENGINE_CODE_VERSION (server.js + lib/*.js, sorted, sha256 of
+    path\0content\0 for each)."""
+    import hashlib
+
+    root = Path(engine_dir)
+    try:
+        files = ["server.js"] + [f"lib/{p.name}" for p in sorted((root / "lib").glob("*.js"), key=lambda p: p.name)]
+        digest = hashlib.sha256()
+        for rel in files:
+            digest.update(rel.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update((root / rel).read_bytes())
+            digest.update(b"\0")
+        return digest.hexdigest()[:16]
+    except OSError:
+        return "unknown"
+
+
+def _pids_listening_on(port: int) -> list[int]:
+    """PIDs listening on a local TCP port (macOS/Linux: lsof; Windows: netstat)."""
+    try:
+        if sys.platform == "win32":
+            out = hidden_subprocess.check_output(["netstat", "-ano", "-p", "TCP"], text=True, timeout=10)
+            pids = set()
+            for line in out.splitlines():
+                parts = line.split()
+                if len(parts) >= 5 and parts[1].endswith(f":{port}") and parts[3].upper() == "LISTENING":
+                    pids.add(int(parts[4]))
+            return sorted(pids)
+        out = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                             capture_output=True, text=True, timeout=10).stdout
+        return sorted({int(x) for x in out.split() if x.strip().isdigit()})
+    except Exception:
+        return []
+
+
+def _is_flow_engine_process(pid: int) -> bool:
+    """Only ever terminate a Node process running flow-engine's server.js."""
+    try:
+        if sys.platform == "win32":
+            out = hidden_subprocess.check_output(
+                ["wmic", "process", "where", f"ProcessId={pid}", "get", "CommandLine"], text=True, timeout=10)
+        else:
+            out = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True,
+                                 timeout=10).stdout
+        low = out.lower()
+        return "node" in low and "server.js" in low
+    except Exception:
+        return False
+
+
+def _terminate_pid(pid: int, force: bool = False) -> None:
+    try:
+        if sys.platform == "win32":
+            hidden_subprocess.check_output(["taskkill", "/PID", str(pid), "/T", "/F"], text=True, timeout=10)
+        else:
+            import signal
+
+            os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)
+    except Exception:
+        pass
+
+
+def _pid_alive(pid: int) -> bool:
+    if sys.platform == "win32":
+        try:
+            out = hidden_subprocess.check_output(["tasklist", "/FI", f"PID eq {pid}", "/NH"], text=True, timeout=10)
+            return str(pid) in out
+        except Exception:
+            return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
 def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
@@ -142,6 +221,12 @@ class FlowEngineManager:
     # ---------- lifecycle ----------
 
     def start(self, timeout: float = 20.0) -> FlowClient:
+        cached = self._client
+        if cached is not None and hasattr(cached, "is_alive") and not cached.is_alive():
+            # The engine behind the cached connection is gone (exited,
+            # restarted, or retired as outdated): connect afresh — through
+            # the code-version check below — instead of returning a dead client.
+            self._client = None
         if self._client is not None:
             return self._client
 
@@ -179,6 +264,19 @@ class FlowEngineManager:
             probe = FlowClient(self.url, log=self.log)
             try:
                 probe.connect(timeout=1.5)
+            except FlowClientError:
+                probe = None
+            if probe is not None and not self._running_engine_is_current(probe):
+                # Node only loads code at start: an engine left running across
+                # an app update keeps executing its OLD code (measured: a
+                # 3-day-old engine still used the retired direct-RPC video path
+                # after the app moved Flow video to the UI path). Replace it.
+                self.log("[FLOW] The running Flow engine is from an older app version — restarting it.")
+                self._retire_running_engine(probe)
+                probe = None
+            try:
+                if probe is None:
+                    raise FlowClientError("no reusable engine")
                 self._client = probe
                 self.log(f"[FLOW] Reusing an already-running engine on port {self.port}.")
                 # App relaunch often leaves `running: true` with no live batch —
@@ -234,6 +332,66 @@ class FlowEngineManager:
                     time.sleep(0.5)
 
             raise FlowEngineError(f"Flow engine did not become ready in time: {last_error}")
+
+    def _running_engine_is_current(self, client: "FlowClient", wait_s: float = 1.5) -> bool:
+        """True when the engine answering on our port reports the same code
+        fingerprint as the engine files on disk. The INFO message arrives
+        right after connect; an engine from before fingerprints existed never
+        sends one and is therefore treated as outdated."""
+        expected = engine_code_version(self.engine_dir)
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            reported = (client.get_info() or {}).get("codeVersion")
+            if reported:
+                return reported == expected
+            time.sleep(0.05)
+        return False
+
+    def _retire_running_engine(self, client: "FlowClient") -> None:
+        """Stop an outdated engine on our port so a current one can start.
+        Asks it to exit (engines with SHUTDOWN support), then — for older
+        engines that predate it — terminates the process that owns the port,
+        but only after confirming it is a Node ``server.js``. If it still
+        can't be freed, fail clearly rather than silently run old code."""
+        old_pids = [pid for pid in _pids_listening_on(self.port) if _is_flow_engine_process(pid)]
+        try:
+            client.send({"type": "SHUTDOWN"})
+        except Exception:
+            pass
+        try:
+            client.close()
+        except Exception:
+            pass
+        if not self._wait_port_free(3.0):
+            for pid in old_pids:
+                _terminate_pid(pid)
+        # A graceful stop frees the port but can hang while other clients
+        # (e.g. another app window) keep their WebSocket open — measured: the
+        # old engine lingered, still serving that client with outdated code.
+        # Give it a moment, then force it (verified flow-engine PIDs only).
+        deadline = time.time() + 4.0
+        while old_pids and time.time() < deadline and any(_pid_alive(p) for p in old_pids):
+            time.sleep(0.2)
+        for pid in old_pids:
+            if _pid_alive(pid):
+                _terminate_pid(pid, force=True)
+        if not self._wait_port_free(8.0):
+            raise FlowEngineError(
+                f"An older Flow engine is still running on port {self.port} and could not be stopped. "
+                "Quit it (or restart the computer), then try again."
+            )
+
+    def _wait_port_free(self, timeout: float) -> bool:
+        import socket
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.3)
+                if sock.connect_ex(("127.0.0.1", self.port)) != 0:
+                    return True
+            time.sleep(0.2)
+        return False
 
     def _pump_logs(self) -> None:
         if not self._proc or not self._proc.stdout:

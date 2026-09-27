@@ -127,7 +127,12 @@ class TestAppPhase2Wiring(unittest.TestCase):
         self.assertIn("progress_cb=_progress_cb", src)
 
     def test_theme_toggle_persists_and_repaints_chrome(self):
-        src = inspect.getsource(self.app.VideoGeneratorApp._on_toggle_theme)
+        # The toggle delegates to _apply_theme_mode (shared with the Settings
+        # dialog's theme buttons), which persists AND repaints — now the whole
+        # window, not only the chrome (see test_theme_live_switch.py).
+        toggle_src = inspect.getsource(self.app.VideoGeneratorApp._on_toggle_theme)
+        self.assertIn("_apply_theme_mode", toggle_src)
+        src = inspect.getsource(self.app.VideoGeneratorApp._apply_theme_mode)
         self.assertIn("_ui_theme.set_mode", src)
         self.assertIn("apply_theme_chrome", src)
 

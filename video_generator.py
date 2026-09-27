@@ -2853,6 +2853,24 @@ def render_video(
 
 # ---------- scene asset resolution (AI / stock / local) ----------
 
+# Acquisition ordering only, not a semantic/quality preference (see
+# scene_graph.generator's shared source-selection intelligence for that) —
+# "image"/"video" are the canonical post-normalization spellings for
+# flow_image/flow_video (see SceneRow.from_csv_row/wants_flow_image).
+_ACQUISITION_ORDER = {"stock_video": 0, "image": 1, "stock_image": 2, "video": 3}
+
+
+def _acquisition_rank(scene) -> int:
+    """Rank by what the row will ACTUALLY resolve as, not only its literal
+    asset_type: a legacy row (blank asset_type + prompt) is a Flow image
+    too (SceneRow.wants_flow_image), and previously fell into the
+    unordered tail tier behind every Flow video."""
+    asset_type = str(scene.asset_type or "").strip().lower()
+    if not asset_type and scene.wants_flow_image:
+        asset_type = "image"
+    return _ACQUISITION_ORDER.get(asset_type, 4)
+
+
 def resolve_scene_assets(
     rows,
     images_dir: Path,
@@ -2891,6 +2909,15 @@ def resolve_scene_assets(
     from providers.base import AssetError, SceneRow
 
     scene_rows = [SceneRow.from_csv_row(r) for r in rows]
+    # Acquisition ORDER only (never a correctness concern — each row already
+    # routes to its own provider regardless of position): stock_video ->
+    # flow_image -> stock_image -> flow_video. Practical, not semantic —
+    # stock video downloads are fast, Flow images come next, stock images
+    # are cheap, and the slowest/most expensive Flow video generations are
+    # deferred to the end. A stable sort preserves each tier's original
+    # relative order; any other asset_type (youtube_video, local, ...) is
+    # left in its own default tier, unaffected by this reordering.
+    scene_rows.sort(key=_acquisition_rank)
     needs_flow_image = any(s.wants_flow_image for s in scene_rows)
     needs_flow_video = any(s.wants_flow_video for s in scene_rows)
     needs_stock = any(s.wants_stock for s in scene_rows)

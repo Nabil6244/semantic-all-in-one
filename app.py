@@ -473,22 +473,128 @@ _SKIPPED = _ui_theme.SKIPPED
 _COPPER = _ACCENT
 # ───────────────────────────────────────────────────────────────────────────
 
+# One vocabulary everywhere (badge, header counts, Change Source dialog):
+# the source Generate will actually use. Stock image vs stock video used to
+# share one "Stock" badge, and Flow read "AI Image/AI Video" here but
+# "Flow Image/Flow Video" in Change Source.
 SOURCE_BADGE = {
-    AssetSource.FLOW_IMAGE: ("AI Image", _MUTED, "transparent"),
-    AssetSource.FLOW_VIDEO: ("AI Video", _MUTED, "transparent"),
+    AssetSource.FLOW_IMAGE: ("Flow Image", _MUTED, "transparent"),
+    AssetSource.FLOW_VIDEO: ("Flow Video", _MUTED, "transparent"),
     AssetSource.STOCK: ("Stock", _MUTED, "transparent"),
-    AssetSource.STOCK_IMAGE: ("Stock", _MUTED, "transparent"),
-    AssetSource.STOCK_VIDEO: ("Stock", _MUTED, "transparent"),
+    AssetSource.STOCK_IMAGE: ("Stock Image", _MUTED, "transparent"),
+    AssetSource.STOCK_VIDEO: ("Stock Video", _MUTED, "transparent"),
     AssetSource.YOUTUBE_VIDEO: ("YouTube", _MUTED, "transparent"),
     AssetSource.ARCHIVE_VIDEO: ("Archive", _MUTED, "transparent"),
     AssetSource.NASA_VIDEO: ("NASA", _MUTED, "transparent"),
-    AssetSource.COMMONS_VIDEO: ("Stock", _MUTED, "transparent"),
-    AssetSource.COMMONS_IMAGE: ("Stock", _MUTED, "transparent"),
-    AssetSource.MANUAL: ("Manual", _MUTED, "transparent"),
-    AssetSource.LOCAL: ("Manual", _MUTED, "transparent"),
+    AssetSource.COMMONS_VIDEO: ("Commons Video", _MUTED, "transparent"),
+    AssetSource.COMMONS_IMAGE: ("Commons Image", _MUTED, "transparent"),
+    AssetSource.MANUAL: ("Local", _MUTED, "transparent"),
+    AssetSource.LOCAL: ("Local", _MUTED, "transparent"),
 }
 
 _UNASSIGNED_BADGE = ("Unassigned", _WARNING, "transparent")
+
+
+def _manifest_record_matches_row(rec: dict, scene) -> bool:
+    """True when an AssetManifest record was produced for the prompt/query
+    this row requests NOW — the same rule AssetManager._cache_hit applies at
+    Generate (a record for other text is re-resolved, not reused). Used by
+    both manifest-hydration paths so the Visual Plan never shows READY (or a
+    stale failure) for media Generate will not actually use. A record with
+    no recorded text (older manifests) is accepted, as before."""
+    if rec.get("user_override"):
+        return True  # the user's own Alternative/Change Source pick (see AssetManager._mark_user_override)
+    recorded = {str(rec.get("prompt") or "").strip(), str(rec.get("stock_query") or "").strip()} - {""}
+    wanted = (getattr(scene, "prompt", "") or getattr(scene, "stock", "") or "").strip()
+    return not recorded or not wanted or wanted in recorded
+
+
+_SOURCE_OPTION_LABELS = {
+    "stock_video": "Stock Video",
+    "stock_image": "Stock Image",
+    "flow_image": "Flow Image",
+    "flow_video": "Flow Video",
+    "youtube": "YouTube",
+    "local": "Local file…",
+}
+
+
+def source_option_label(name: str, current_label: str = "") -> str:
+    """Change Source button text — same vocabulary as the Visual Plan badge."""
+    label = _SOURCE_OPTION_LABELS.get(name) or name.replace("_", " ").title()
+    return f"{label}  (current)" if current_label and label == current_label else label
+
+
+def scene_visual_text_summary(scene) -> str:
+    """What the current source will run with, labelled by its KIND — a stock
+    search query and a Flow generation prompt are different things."""
+    asset_type = (getattr(scene, "asset_type", "") or "").lower()
+    if asset_type in ("stock", "stock_image", "stock_video"):
+        text, kind = getattr(scene, "stock", "") or getattr(scene, "prompt", ""), "Search"
+    elif asset_type == "youtube_video":
+        text, kind = getattr(scene, "prompt", ""), "YouTube search"
+    elif asset_type in ("local", "local_image", "local_video"):
+        return "Uses this scene's numbered local file."
+    else:
+        text, kind = getattr(scene, "prompt", "") or getattr(scene, "stock", ""), "Prompt"
+    text = (text or "").strip()
+    if not text:
+        return "No prompt/query yet."
+    return f"{kind}: {text if len(text) <= 140 else text[:137] + '…'}"
+
+
+_PLAN_STRUCTURE_COLUMNS = frozenset({
+    "node_id", "node_type", "beat", "chapter", "chapter_title", "relationship_to", "role",
+    "edge_from", "edge_to", "caption",
+})
+
+
+def _csv_is_plain_narration(csv_path) -> bool:
+    """True when a CSV has no Overscaled/Exp Solar structure columns — only
+    narration (+ optional asset_type/prompt/visual_hint), i.e. a Local Visual
+    Planner CSV."""
+    import csv as _csv
+
+    try:
+        with open(csv_path, newline="", encoding="utf-8-sig") as f:
+            header = next(_csv.reader(f), [])
+    except (OSError, StopIteration):
+        return False
+    columns = {str(c).strip().lower() for c in header}
+    return "script_segment" in columns and not (columns & _PLAN_STRUCTURE_COLUMNS)
+
+
+def overscaled_failure_summary(errors) -> str:
+    """Plain-language, actionable summary for an Overscaled/Exp Solar failure.
+    The raw text (ffmpeg stderr can be ~2,000 characters) goes to the log
+    and the dialog's collapsible Details, not the headline."""
+    text = "\n".join(str(e) for e in (errors or [])).strip()
+    low = text.lower()
+    if "voiceover doesn't match" in low:
+        return text.splitlines()[0]
+    if "overlapping nodes" in low:
+        return ("The layout couldn't fit every card of one chapter on screen at once. Your assets are "
+                "kept — please report this with the log; splitting that chapter's rows usually avoids it.")
+    if "scene_number" in low and "repeated" in low:
+        return "Two or more CSV rows share a scene number. Give every row its own scene_number, then import it again."
+    if "voiceover file not found" in low:
+        return "The voiceover file can't be found. Re-import the voiceover, then Generate again."
+    if "csv not found" in low or "could not read overscaled csv" in low:
+        return "The plan's CSV file can't be read. Re-import it, then Generate again."
+    if "csv adaptation failed" in low or "missing required column" in low:
+        return "The CSV doesn't match this style's format. Check the log for the first problem row."
+    if "media resolution failed" in low:
+        return ("Some visuals couldn't be fetched. Your plan is unchanged — use Retry or Src on the "
+                "affected scenes, then Generate again.")
+    if "failed validation" in low:
+        return "The rendered video is incomplete or unreadable, so it was not kept. Generate again."
+    if "render failed" in low or "segment join failed" in low or "pipeline failed" in low:
+        return ("The video encoder stopped before finishing. Your plan and downloaded visuals are kept — "
+                "Generate again; if it repeats, check free disk space.")
+    if "final export failed" in low:
+        return "The final video couldn't be written. Check free disk space and the output folder, then Generate again."
+    first = text.splitlines()[0] if text else "Unknown error"
+    return first if len(first) <= 200 else first[:197] + "…"
 
 
 def scene_source_badge(scene) -> tuple[str, str, str]:
@@ -565,6 +671,29 @@ def _status_display(status: str) -> tuple[str, str]:
         return mapping[status]
     label = status.replace("_", " ").upper()
     return (label, _MUTED)
+
+# app.py-level copies of ui.theme's palette (the _X = _ui_theme.X block
+# above) and the tables built from them. Re-derived on a live theme switch —
+# plain constants by NAME from ui.theme, the badge/status tables (all text
+# colors) through the text-role remap — so rows/labels built AFTER the switch
+# use the new palette instead of the one captured at import.
+_PALETTE_NAMES = (
+    "BG", "PANEL", "PANEL_ALT", "CARD", "CARD_HOVER", "ROW_ALT", "BORDER", "TEXT", "MUTED",
+    "ACCENT", "ACCENT_HOV", "ACCENT_DARK", "ACCENT_SEL", "ACCENT_BORDER", "SUCCESS",
+    "PROCESSING", "QUEUED", "WARNING", "DANGER", "DANGER_BG", "SKIPPED",
+)
+
+
+def _sync_palette_from_theme(text_remap: dict) -> None:
+    global _COPPER, _STEPPER_DONE, SOURCE_BADGE, _UNASSIGNED_BADGE, STATUS_COLOR
+    for name in _PALETTE_NAMES:
+        globals()[f"_{name}"] = getattr(_ui_theme, name)
+    _COPPER = _ui_theme.ACCENT
+    _STEPPER_DONE = _ui_theme.STEPPER_DONE
+    SOURCE_BADGE = _ui_theme.remap_color_value(SOURCE_BADGE, text_remap)
+    _UNASSIGNED_BADGE = _ui_theme.remap_color_value(_UNASSIGNED_BADGE, text_remap)
+    STATUS_COLOR = _ui_theme.remap_color_value(STATUS_COLOR, text_remap)
+
 
 STAGE_PROGRESS = {
     "[0/4]": 5,
@@ -696,8 +825,10 @@ class VideoGeneratorApp(ctk.CTk):
         # unchanged) or "overscaled". See _on_generate/_sync_primary_cta.
         self.generation_mode = "normal"
 
-        # Dark cinematic theme — premium production workspace
-        ctk.set_appearance_mode("Dark")
+        # Follow the saved theme (ui.theme resolves dark/light/system at
+        # import). Hardcoding "Dark" here kept every CustomTkinter-default-
+        # colored widget dark even when Light was saved.
+        ctk.set_appearance_mode("Light" if _ui_theme.active_appearance() == "light" else "Dark")
         ctk.set_default_color_theme("blue")
         self.configure(fg_color=_BG)
 
@@ -731,6 +862,10 @@ class VideoGeneratorApp(ctk.CTk):
         # crashed the Flow engine with EADDRINUSE. See report.
         self._flow_engine_manager_lock = threading.Lock()
         self._auth_session = None  # licensing.AuthSession when signed in
+        # Supabase video_generation_events telemetry (never affects a run).
+        self._generation_tracker = None
+        self._normal_tracking = None
+        self._overscaled_tracking = None
 
         # Parent containers reused by helpers
         self._left_panel: ctk.CTkFrame | None = None
@@ -801,6 +936,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._view_script = ui_views.ScriptView(self._shell.center, self)
         self._view_brand_style = ui_views.BrandStyleView(self._shell.center, self)
         self._view_research = ui_views.ResearchView(self._shell.center, self)
+        self._view_visual_director = ui_views.VisualDirectorView(self._shell.center, self)
         self._view_visual = ui_views.VisualPlanView(self._shell.center, self)
         self._view_assets = ui_views.AssetsView(self._shell.center, self)
         self._view_audio = ui_views.AudioView(self._shell.center, self)
@@ -821,6 +957,7 @@ class VideoGeneratorApp(ctk.CTk):
             ("brand_style", self._view_brand_style),
             ("script", self._view_script),
             ("research", self._view_research),
+            ("visual_director", self._view_visual_director),
             ("visual_plan", self._view_visual),
             ("assets", self._view_assets),
             ("audio", self._view_audio),
@@ -836,6 +973,14 @@ class VideoGeneratorApp(ctk.CTk):
             self._shell.register_view(key, view)
 
         self._build_left_sections(parent=self._view_script.content)
+        # Moved out of the Script tab into its own "Visual Director" tab —
+        # this is the Exp Solar/Overscaled Local Visual Planner workflow's
+        # dedicated home, so it has room to grow (optional Gemini
+        # enhancement, manual overrides, prompt review, ...) without
+        # crowding the plain-CSV script workflow. Always visible (never
+        # grid_remove()'d) per spec — only its CSV picker/Generate button
+        # are gated behind the switch.
+        self._build_overscaled_section(self._view_visual_director.content, row=0)
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
         self._shell.navigate("script")
@@ -918,11 +1063,31 @@ class VideoGeneratorApp(ctk.CTk):
         order = ("dark", "light", "system")
         current = _ui_theme.current_mode()
         nxt = order[(order.index(current) + 1) % len(order)] if current in order else "dark"
-        _ui_theme.set_mode(nxt)
+        self._apply_theme_mode(nxt)
+
+    def _apply_theme_mode(self, mode: str) -> None:
+        """Switch the WHOLE window live, not just the shell chrome.
+
+        Previously only the top bar/sidebar were repainted; every view's
+        content (Visual Plan table, log, inspector, dialogs) kept the old
+        palette baked into its widgets — a half-dark/half-light window with
+        white-on-white text — and app.py's import-time color copies (_BG,
+        _ROW_ALT, SOURCE_BADGE, STATUS_COLOR, ...) kept building NEW rows in
+        the old palette too."""
+        old_tokens = _ui_theme.active_tokens()
+        _ui_theme.set_mode(mode)
+        maps = _ui_theme.color_remaps(old_tokens, _ui_theme.active_tokens())
+        ctk.set_appearance_mode("Light" if _ui_theme.active_appearance() == "light" else "Dark")
+        _sync_palette_from_theme(maps["text"])
+        _ui_theme.recolor_widget_tree(self, maps)
         self._theme_label_var.set(self._theme_button_label())
         shell = getattr(self, "_shell", None)
         if shell is not None:
             shell.apply_theme_chrome()
+        # Rebuild the Visual Plan rows from the new palette (their badge/
+        # status/zebra colors come from the module-level tables above).
+        self._scene_row_signature = ()
+        self._render_scene_rows()
 
     def _on_undo_stack_change(self) -> None:
         shell = getattr(self, "_shell", None)
@@ -1839,14 +2004,6 @@ class VideoGeneratorApp(ctk.CTk):
         ).grid(row=0, column=3, sticky="e", padx=(14, 0))
         opts.grid_remove()
 
-        # Overscaled: mounted directly in the SCROLLABLE content column (the
-        # same `scroll` that hosts the CSV/script/voiceover controls above),
-        # not the fixed footer — a fixed, non-scrolling footer clips anything
-        # added past its natural height, which is exactly why this card was
-        # previously invisible. Row 8 is the first unused row after opts
-        # (row 7); always visible (never grid_remove()'d) per spec — only
-        # its CSV picker/Generate button are gated behind the switch.
-        self._build_overscaled_section(scroll, row=8)
 
         bottom = ctk.CTkFrame(left, fg_color=_PANEL, corner_radius=0)
         bottom.grid(row=1, column=0, sticky="ew")
@@ -1916,6 +2073,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_status_var = ctk.StringVar(value="")
         self._overscaled_enabled_var = ctk.BooleanVar(value=False)
         self._overscaled_running = False
+        # Set by the Stop button during an Overscaled/Exp Solar run; checked by
+        # the worker at every stage boundary (see generate_overscaled_video).
+        self._overscaled_cancel = threading.Event()
+        self._overscaled_run_manager = None  # the AssetManager of the CURRENT run only
         self._overscaled_scene_graph = None  # last compiled plan; feeds self._scene_rows
         # Which composition_styles/*.json id compiling/rendering uses — the
         # ONLY thing that differs between "Overscaled" and "Exp Solar" today.
@@ -1925,6 +2086,15 @@ class VideoGeneratorApp(ctk.CTk):
         # preset id, per the Reference Editing Style plan.
         self._overscaled_style_preset_id = "overscaled"
         self._overscaled_style_labels = {"overscaled": "Overscaled", "exp_solar": "Exp Solar"}
+        # Experimental, off by default: when set, the CSV only needs
+        # scene_number/script_segment and scene_graph.generator's Local
+        # Visual Planner infers node/role/relationship/group structure from
+        # narration language instead of reading beat/node_id/relationship_to/
+        # chapter columns. Same SceneGraph contract either way — nothing
+        # downstream (media resolution, layout, composition, renderer)
+        # changes based on this flag; see _load_overscaled_csv and
+        # _run_overscaled_generation for the two call sites it affects.
+        self._overscaled_use_local_planner_var = ctk.BooleanVar(value=False)
 
         block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
         block.grid(row=row, column=0, sticky="ew", padx=16, pady=(10, 12))
@@ -1967,32 +2137,119 @@ class VideoGeneratorApp(ctk.CTk):
             0, "CSV", self._overscaled_csv_var, self._browse_active_style_csv,
             parent=controls, placeholder_text="Choose a CSV (scene_number, script_segment, node_id, ...)",
         )
+
+        # Experimental (off by default): swaps compile_overscaled_csv /
+        # compile_exp_solar_csv for scene_graph.generator's Local Visual
+        # Planner at both the preview step (_load_overscaled_csv) and the
+        # real generation step (_run_overscaled_generation) — see
+        # self._overscaled_use_local_planner_var's own comment above for
+        # the full contract. Re-compiles the already-loaded CSV immediately
+        # on toggle so the Visual Plan preview always reflects the current
+        # choice, same as flipping the style segmented button above.
+        ctk.CTkSwitch(
+            controls, text="Use Local Visual Planner (experimental — CSV only needs scene_number/script_segment)",
+            variable=self._overscaled_use_local_planner_var, onvalue=True, offvalue=False,
+            progress_color=_ACCENT, button_color=_TEXT, button_hover_color=_ACCENT,
+            text_color=_TEXT, font=ctk.CTkFont(size=11),
+            command=self._on_overscaled_local_planner_toggle,
+        ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+
         self._overscaled_hint_label = ctk.CTkLabel(
             controls,
             text="Uses the voiceover already selected above (Import voiceover / Voiceover Audio). "
                  "After importing, review the plan on Visual Plan, then click the usual Generate button.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
-        self._overscaled_hint_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        self._overscaled_hint_label.grid(row=2, column=0, sticky="w", pady=(4, 0))
 
         self._overscaled_status_label = ctk.CTkLabel(
             controls, textvariable=self._overscaled_status_var,
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
-        self._overscaled_status_label.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+        self._overscaled_status_label.grid(row=3, column=0, sticky="ew", pady=(6, 0))
 
         controls.grid_remove()
+
+    def _save_overscaled_settings(self) -> None:
+        if self._workspace is None:
+            return
+        try:
+            self._workspace.set_overscaled_settings(
+                style_preset_id=self._overscaled_style_preset_id,
+                use_local_planner=bool(self._overscaled_use_local_planner_var.get()),
+            )
+        except OSError as exc:
+            self._append_log(f"[OVERSCALED] Could not save the style/planner choice: {exc}\n")
+
+    def _restore_overscaled_settings(self, csv_path: Path) -> None:
+        """Apply the project's saved style/planner choice before its plan is
+        reloaded. A project that never saved one (made before this existed)
+        gets the planner ON when its CSV is plain narration — no
+        node_id/beat/chapter structure columns — because the CSV compilers can
+        only build a bare plan (no titles, captions, or groups) from that."""
+        saved = self._workspace.overscaled_settings() if self._workspace is not None else {}
+        style = saved.get("style_preset_id")
+        if style in ("overscaled", "exp_solar"):
+            self._overscaled_style_preset_id = style
+            try:
+                self._overscaled_style_segmented.set("Exp Solar" if style == "exp_solar" else "Overscaled")
+                self._on_overscaled_style_label_sync()
+            except Exception:
+                pass
+        planner = saved.get("use_local_planner")
+        if planner is None:
+            planner = _csv_is_plain_narration(csv_path)
+        self._overscaled_use_local_planner_var.set(bool(planner))
+
+    def _on_overscaled_style_label_sync(self) -> None:
+        label = self._overscaled_style_labels[self._overscaled_style_preset_id]
+        self._overscaled_toggle_label_var.set(f"Use {label} for this generation")
+
+    def _refuse_plan_change_while_running(self) -> bool:
+        """True (after telling the user) when an Overscaled/Exp Solar render
+        is in flight: that run already compiled its CSV under a captured
+        style/planner setting, so swapping the Visual Plan, style, or CSV
+        now would make the table describe something other than what is
+        being rendered — and live per-scene status events would land on
+        rows from a different plan."""
+        if not self._overscaled_running:
+            return False
+        messagebox.showinfo(
+            "Generation running",
+            "Wait for the current generation to finish before changing the plan, style, or CSV.",
+        )
+        return True
 
     def _on_overscaled_style_change(self, choice: str) -> None:
         """Segmented-button command: switches which style_preset_id the
         SAME Overscaled workflow (CSV parser, Visual Plan, asset pipeline,
         renderer) compiles/renders with. Does not change generation_mode,
         the CSV schema, or which functions run — only the preset id."""
+        if self._refuse_plan_change_while_running():
+            self._overscaled_style_segmented.set(
+                "Exp Solar" if self._overscaled_style_preset_id == "exp_solar" else "Overscaled"
+            )
+            return
         self._overscaled_style_preset_id = "exp_solar" if choice == "Exp Solar" else "overscaled"
+        self._save_overscaled_settings()
         label = self._overscaled_style_labels[self._overscaled_style_preset_id]
         self._overscaled_toggle_label_var.set(f"Use {label} for this generation")
         # Re-compile the already-loaded CSV (if any) under the newly chosen
         # style so the Visual Plan / render both reflect the current choice.
+        csv_path = self._overscaled_csv_var.get().strip()
+        if csv_path and Path(csv_path).is_file():
+            self._load_overscaled_csv(csv_path)
+
+    def _on_overscaled_local_planner_toggle(self) -> None:
+        """Switch command for self._overscaled_use_local_planner_var — same
+        re-compile-on-change pattern as _on_overscaled_style_change, so
+        flipping this switch immediately shows the Local Visual Planner's
+        own inferred structure in the Visual Plan table rather than only
+        taking effect at the next full generation."""
+        if self._refuse_plan_change_while_running():
+            self._overscaled_use_local_planner_var.set(not self._overscaled_use_local_planner_var.get())
+            return
+        self._save_overscaled_settings()
         csv_path = self._overscaled_csv_var.get().strip()
         if csv_path and Path(csv_path).is_file():
             self._load_overscaled_csv(csv_path)
@@ -2009,6 +2266,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _browse_overscaled_csv(self) -> None:
         """Overscaled's own CSV picker — unchanged file dialog, unchanged
         compile_overscaled_csv parser (see _load_overscaled_csv)."""
+        if self._refuse_plan_change_while_running():
+            return
         path = filedialog.askopenfilename(
             title="Select Overscaled CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -2025,6 +2284,8 @@ class VideoGeneratorApp(ctk.CTk):
         Overscaled's, but a dedicated action per the Exp Solar CSV contract
         (see scene_graph/exp_solar_csv.py); routed to the Exp Solar parser
         by _load_overscaled_csv, never the raw Overscaled one."""
+        if self._refuse_plan_change_while_running():
+            return
         path = filedialog.askopenfilename(
             title="Select Exp Solar CSV",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -2043,6 +2304,18 @@ class VideoGeneratorApp(ctk.CTk):
             self._browse_exp_solar_csv()
         else:
             self._browse_overscaled_csv()
+
+    def _clear_overscaled_plan(self) -> None:
+        """A failed (re)load must not leave the PREVIOUS plan on screen: the
+        CSV path var already points at the new file (both pickers set it
+        before loading) and a style switch has already changed
+        _overscaled_style_preset_id, so Generate would compile something
+        other than what the Visual Plan still showed. Clearing the plan
+        makes the primary CTA fall back to "Import CSV" instead."""
+        self._overscaled_scene_graph = None
+        self._scene_rows = []
+        self._render_scene_rows()
+        self._sync_primary_cta()
 
     def _load_overscaled_csv(self, path: str) -> bool:
         """Compile ``path`` and populate the Visual Plan table from it —
@@ -2066,14 +2339,47 @@ class VideoGeneratorApp(ctk.CTk):
                 rows = list(_csv.DictReader(f))
         except OSError as exc:
             messagebox.showerror("Cannot read CSV", str(exc))
+            self._clear_overscaled_plan()
             return False
 
-        if self._overscaled_style_preset_id == "exp_solar":
+        from scene_graph.overscaled_csv import duplicate_scene_numbers
+
+        dupes = duplicate_scene_numbers(rows)
+        if dupes:
+            messagebox.showerror(
+                "Invalid CSV",
+                "Each row needs its own scene_number. Repeated: " + ", ".join(dupes[:10]),
+            )
+            self._clear_overscaled_plan()
+            return False
+
+        if self._overscaled_use_local_planner_var.get():
+            # Experimental path: bypasses BOTH CSV vocabularies entirely —
+            # only scene_number/script_segment (asset_type/prompt optional)
+            # feed the Local Visual Planner, which infers everything else
+            # from narration language. Same SceneGraph contract as either
+            # branch below, so nothing after this if/else needs to change.
+            from scene_graph.generator import generate_scene_graph_local_planner, scene_rows_from_csv_rows
+
+            result = generate_scene_graph_local_planner(
+                # title="" exactly like Generate does (its app_integration entry
+                # point's default) — the planner turns `title` into the visible
+                # opening TitleCue, so the file's stem here made the plan's
+                # opening title differ from the rendered one.
+                Path(path).stem, scene_rows_from_csv_rows(rows), title="",
+                style_preset=self._overscaled_style_preset_id,
+            )
+            if not result.ok:
+                messagebox.showerror("Local Visual Planner failed", "\n".join(result.errors) or "Unknown error")
+                self._clear_overscaled_plan()
+                return False
+        elif self._overscaled_style_preset_id == "exp_solar":
             from scene_graph.exp_solar_csv import compile_exp_solar_csv
 
             result = compile_exp_solar_csv(rows, segment_id=Path(path).stem, title=Path(path).stem)
             if not result.ok:
                 messagebox.showerror("Invalid Exp Solar CSV", "\n".join(result.errors) or "Unknown error")
+                self._clear_overscaled_plan()
                 return False
             if result.warnings:
                 self._append_log("[Exp Solar] " + "\n[Exp Solar] ".join(result.warnings) + "\n")
@@ -2086,6 +2392,7 @@ class VideoGeneratorApp(ctk.CTk):
             )
             if not result.ok:
                 messagebox.showerror("Invalid Overscaled CSV", "\n".join(result.errors) or "Unknown error")
+                self._clear_overscaled_plan()
                 return False
 
         self._overscaled_scene_graph = result.scene_graph
@@ -2100,16 +2407,64 @@ class VideoGeneratorApp(ctk.CTk):
         # names (extra Overscaled-only columns are simply ignored by it).
         # A role prefix is added to script_segment for rows that define a
         # node — display-only enrichment; the SceneGraph itself is untouched.
-        role_by_scene_number = {
-            n.metadata.get("scene_number"): n.semantic_role
-            for n in result.scene_graph.nodes
-            if n.metadata.get("scene_number")
-        }
+        #
+        # This is also where the compiled graph's OWN asset_type/prompt
+        # decision gets surfaced, so the operator sees exactly what
+        # scene_source_badge()/SceneAssetRouter.classify() (the EXISTING,
+        # pure/no-network row->AssetSource classifier already used for
+        # every row's badge — see app.py's scene_source_badge) will show
+        # BEFORE Generate is ever clicked: with the Local Visual Planner on,
+        # the raw CSV's own asset_type/prompt columns are typically blank
+        # (that's the point — the planner infers a prompt from narration
+        # instead), so without this the badge would show "Unassigned" for
+        # every row even though the compiled SceneGraph already has a real
+        # asset_reference. Only fills in what the raw CSV row left blank —
+        # never overrides an author-specified asset_type/prompt/stock value,
+        # so the existing CSV-compiler path's display is unaffected.
+        # A scene_number with NO node in the compiled graph (an Exp Solar-
+        # style group continuation row, or a Local Planner continuation —
+        # see scene_graph.generator's PART 3) is labeled "[continues
+        # previous]" instead, so it reads the same way in both paths.
+        #
+        # The Local Visual Planner is different: it REFINES a generic
+        # "image"/"video"/blank row into a specific source + prompt, so its
+        # compiled node — not the raw CSV cell — is what Generate will
+        # actually resolve (media_resolution reads node.asset_source/
+        # asset_reference). Showing the raw cell there made the badge
+        # disagree with Generate. In that mode the node is authoritative;
+        # normalized through SceneRow.from_csv_row exactly like
+        # media_resolution's own rows are, so aliases/stock-query placement
+        # match what the resolver sees. The FIRST node for a scene_number
+        # represents the row (a compound-split row has several; the first
+        # keeps the real scene_number in media_resolution too).
+        node_by_scene_number: dict = {}
+        for n in result.scene_graph.nodes:
+            sn = str(n.metadata.get("scene_number") or "").strip()
+            if sn:
+                node_by_scene_number.setdefault(sn, n)
+        planner_is_authoritative = bool(self._overscaled_use_local_planner_var.get())
         display_rows = [SceneRow.from_csv_row(r) for r in rows]
         for scene_row in display_rows:
-            role = role_by_scene_number.get(scene_row.scene_number)
-            if role:
-                scene_row.script_segment = f"[{role}] {scene_row.script_segment}"
+            node = node_by_scene_number.get(scene_row.scene_number)
+            if node is None:
+                if scene_row.script_segment:
+                    scene_row.script_segment = f"[continues previous] {scene_row.script_segment}"
+                if planner_is_authoritative:
+                    # No node -> Generate requests no media for this row.
+                    scene_row.asset_type = scene_row.prompt = scene_row.stock = ""
+                continue
+            if node.semantic_role:
+                scene_row.script_segment = f"[{node.semantic_role}] {scene_row.script_segment}"
+            if planner_is_authoritative or not (scene_row.asset_type or scene_row.prompt or scene_row.stock):
+                resolved = SceneRow.from_csv_row({
+                    "scene_number": scene_row.scene_number,
+                    "asset_type": str(node.asset_source or ""),
+                    "prompt": str(node.asset_reference or ""),
+                })
+                scene_row.asset_type = resolved.asset_type
+                scene_row.prompt = resolved.prompt
+                scene_row.stock = resolved.stock
+                scene_row.search_queries = resolved.search_queries
         self._scene_rows = display_rows
         self._hydrate_overscaled_assets_from_manifest()
         self._render_scene_rows()
@@ -2131,7 +2486,16 @@ class VideoGeneratorApp(ctk.CTk):
         row showed QUEUED regardless of how much of the project was
         actually already done. This only restores UI state; it changes
         nothing about which scenes generation actually resolves."""
-        if self._workspace is None or not self._scene_rows:
+        if not self._scene_rows:
+            return
+        # Results from a PREVIOUS plan (an earlier CSV, style, or source
+        # choice for the same scene numbers) must not survive a reload —
+        # the manifest below is the persisted truth and is re-read fresh.
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            if key not in self._busy_scenes:
+                self._asset_results.pop(key, None)
+        if self._workspace is None:
             return
         images_dir = self._workspace.overscaled_images_dir
         manifest_path = images_dir / ".asset_manifest.json"
@@ -2142,7 +2506,15 @@ class VideoGeneratorApp(ctk.CTk):
         manifest = AssetManifest(images_dir)
         for scene in self._scene_rows:
             key = _scene_key(scene.scene_number)
+            if key in self._busy_scenes:
+                continue
             rec = manifest.get(scene.scene_number) or {}
+            # Same rule AssetManager._cache_hit applies at Generate: a record
+            # produced for a different prompt/query is NOT this row's asset
+            # (it will be re-resolved), so showing it as READY/failed here
+            # would disagree with what Generate actually does.
+            if not (scene.prompt or scene.stock) or not _manifest_record_matches_row(rec, scene):
+                continue
             raw_path = rec.get("local_path")
             path = Path(raw_path) if raw_path else None
             if rec.get("status") == "complete" and path is not None and path.is_file():
@@ -2174,10 +2546,21 @@ class VideoGeneratorApp(ctk.CTk):
         state machine _sync_primary_cta already runs for the normal
         workflow — normal mode's logic below is completely unaffected."""
         if self._overscaled_running:
-            self._cta_action = "generate"
+            if self._overscaled_cancel.is_set():
+                self._cta_action = "generate"
+                self.stage_var.set("STOPPING")
+                self.hint_var.set("Stopping — finishing the current step…")
+                self._set_generate_btn(state="disabled", text="Stopping…")
+                return
+            # Was a permanently disabled "Generating…": a 40-minute render
+            # could not be stopped at all.
+            self._cta_action = "overscaled_cancel"
             self.stage_var.set("GENERATING")
-            self.hint_var.set("Overscaled generation in progress…")
-            self._set_generate_btn(state="disabled", text="Generating…")
+            self.hint_var.set(
+                "Generating — plan, style, and source changes are locked until it finishes. "
+                "Click Stop to cancel."
+            )
+            self._set_generate_btn(state="normal", text="Stop")
             return
         if self._workspace is None:
             self._cta_action = "picker"
@@ -2203,6 +2586,33 @@ class VideoGeneratorApp(ctk.CTk):
         self.stage_var.set("GENERATE")
         self.hint_var.set("Ready — click Generate to render the Overscaled video.")
         self._set_generate_btn(state="normal", text="Generate")
+
+    def _on_overscaled_cancel(self) -> None:
+        """Stop an Overscaled/Exp Solar run: the worker sees the event at its
+        next stage boundary (media resolution, each render segment, export);
+        in-flight asset work and the running ffmpeg are stopped now. Whisper
+        transcription, if running, finishes its current file first."""
+        if not self._overscaled_running or self._overscaled_cancel.is_set():
+            return
+        self._overscaled_cancel.set()
+        self._append_log("[OVERSCALED] Stop requested — cancelling the current step…\n")
+        # Only THIS run's manager: self._asset_manager may still be an earlier
+        # run's (Stop pressed during Whisper, before this run built its own),
+        # and a run-level cancel flag left set there silently skipped B-roll
+        # complements on later per-scene Retry/Alternative actions.
+        run_manager = self._overscaled_run_manager
+        if run_manager is not None:
+            try:
+                run_manager.request_cancel()
+            except Exception as exc:
+                self._append_log(f"[OVERSCALED] Could not signal the asset batch to stop: {exc}\n")
+        try:
+            from hardware.process_registry import get_registry
+
+            get_registry().terminate_owned(owner="overscaled_render")
+        except Exception as exc:
+            self._append_log(f"[OVERSCALED] Could not stop the running encoder: {exc}\n")
+        self._sync_primary_cta()
 
     def _run_overscaled_generation(self) -> None:
         """The Overscaled branch of the SHARED _on_generate() entry point —
@@ -2241,7 +2651,11 @@ class VideoGeneratorApp(ctk.CTk):
             return
 
         output_path = self._workspace.next_overscaled_final_path()
-        out_dir = output_path.parent
+        self.output_var.set(str(output_path))
+        # The finished video goes to the project's final/ folder (same as the
+        # normal workflow); the work/media cache stays under overscaled/_work
+        # (= workspace.overscaled_images_dir) so downloaded visuals are reused.
+        out_dir = Path(self._workspace.root) / "overscaled"
 
         # Same resolution the normal workflow already uses (app.py:6170/8160)
         # for stock_image/stock_video scenes — Overscaled must not require a
@@ -2260,8 +2674,14 @@ class VideoGeneratorApp(ctk.CTk):
         # Plain str attribute (not a Tk variable), but captured here anyway
         # to match the same main-thread-read convention as the values above.
         style_preset_id = self._overscaled_style_preset_id
+        use_local_planner = self._overscaled_use_local_planner_var.get()
 
+        self._overscaled_cancel.clear()
+        self._overscaled_run_manager = None
         self._overscaled_running = True
+        self._overscaled_tracking = self._track_generation_start(
+            "exp_solar" if style_preset_id == "exp_solar" else "overscaled"
+        )
         self._sync_primary_cta()
         self._overscaled_status_var.set("Starting Overscaled generation…")
         self._append_log("Starting Overscaled generation…\n")
@@ -2344,70 +2764,115 @@ class VideoGeneratorApp(ctk.CTk):
             # the batch can no longer silently overwrite a manual override
             # by finishing later on a completely different object.
             self._asset_manager = manager
+            self._overscaled_run_manager = manager
 
         def worker() -> None:
             from scene_graph.app_integration import generate_overscaled_video
+            from scene_graph.app_integration import OverscaledGenerationResult
 
-            # Reuse the EXISTING Whisper cache/transcribe pattern the normal
-            # pipeline already uses (see get_cached_whisper_words call site
-            # elsewhere in this file) so Overscaled retimes against real
-            # per-word narration timing instead of placeholder word-count
-            # pacing — never re-transcribes if a cached alignment for this
-            # exact audio file already exists. Falls back to today's
-            # unchanged behavior (whisper_words=None -> proportional
-            # retiming) on any failure, so this can never break a render
-            # that used to work.
-            whisper_words = None
+            # A raise anywhere in here (planner, style preset, Whisper import,
+            # an unguarded provider path) previously escaped the thread before
+            # finish() ran — _overscaled_running stayed True and the Generate
+            # button was stuck on "Generating…" until the app was restarted.
             try:
-                if whisper_state_dir is not None:
-                    cached = get_cached_whisper_words(whisper_state_dir, voiceover_path)
-                    if cached:
-                        whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
-                        thread_safe_log("[Overscaled] Reusing cached word alignment for narration timing.")
-                if whisper_words is None:
-                    whisper_words = vg.transcribe_audio(str(voiceover_path), whisper_model)
-            except Exception as exc:
-                thread_safe_log(f"[Overscaled] Whisper alignment unavailable ({exc}); using placeholder pacing.")
+                # Reuse the EXISTING Whisper cache/transcribe pattern the normal
+                # pipeline already uses (see get_cached_whisper_words call site
+                # elsewhere in this file) so Overscaled retimes against real
+                # per-word narration timing instead of placeholder word-count
+                # pacing — never re-transcribes if a cached alignment for this
+                # exact audio file already exists. Falls back to today's
+                # unchanged behavior (whisper_words=None -> proportional
+                # retiming) on any failure, so this can never break a render
+                # that used to work.
                 whisper_words = None
+                try:
+                    if whisper_state_dir is not None:
+                        cached = get_cached_whisper_words(whisper_state_dir, voiceover_path)
+                        if cached:
+                            whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
+                            thread_safe_log("[Overscaled] Reusing cached word alignment for narration timing.")
+                    if whisper_words is None:
+                        whisper_words = vg.transcribe_audio(str(voiceover_path), whisper_model)
+                except Exception as exc:
+                    thread_safe_log(f"[Overscaled] Whisper alignment unavailable ({exc}); using placeholder pacing.")
+                    whisper_words = None
 
-            result = generate_overscaled_video(
-                csv_path, str(voiceover_path), str(output_path),
-                resolution="1920x1080", fps=30,
-                segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
-                style_preset_id=style_preset_id,
-                pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
-                whisper_words=whisper_words,
-                progress_cb=progress_cb, log=thread_safe_log,
-                on_scene_start=_overscaled_on_scene_start,
-                on_scene_complete=_overscaled_on_scene_complete,
-                on_scene_generating=_overscaled_on_scene_generating,
-                on_manager_ready=_overscaled_on_manager_ready,
+                result = generate_overscaled_video(
+                    csv_path, str(voiceover_path), str(output_path),
+                    resolution="1920x1080", fps=30,
+                    segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
+                    style_preset_id=style_preset_id,
+                    pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                    whisper_words=whisper_words,
+                    progress_cb=progress_cb, log=thread_safe_log,
+                    on_scene_start=_overscaled_on_scene_start,
+                    on_scene_complete=_overscaled_on_scene_complete,
+                    on_scene_generating=_overscaled_on_scene_generating,
+                    on_manager_ready=_overscaled_on_manager_ready,
+                    use_local_planner=use_local_planner,
+                    cancel_check=self._overscaled_cancel.is_set,
+                )
+
+            except Exception as exc:
+                result = OverscaledGenerationResult(ok=False, errors=[f"Unexpected error: {exc!r}"])
+            self.after(0, lambda: finish(result))
+
+        def finish(result) -> None:
+            self._overscaled_running = False
+            cancelled = bool(getattr(result, "cancelled", False)) or self._overscaled_cancel.is_set()
+            self._overscaled_cancel.clear()
+            tracking_run, self._overscaled_tracking = self._overscaled_tracking, None
+            # result.ok is only True after validate_rendered_output passed.
+            self._track_generation_end(
+                tracking_run,
+                "cancelled" if (cancelled and not result.ok) else ("completed" if result.ok else "failed"),
+                output_path=result.output_path, validated=True,
+                message="\n".join(str(e) for e in (result.errors or [])),
             )
-
-            def finish() -> None:
-                self._overscaled_running = False
-                if result.ok:
-                    self._overscaled_status_var.set(f"Done: {result.output_path}")
-                    self._append_log(f"[OVERSCALED] Final video: {result.output_path}\n")
-                    self._last_output = str(result.output_path)
-                    # Belt-and-braces: the whole segment rendered successfully,
-                    # so every scene's asset is provably resolved by now —
-                    # sweep the table to READY regardless of whether every
-                    # in-between log line was recognized above.
-                    for scene in self._scene_rows:
-                        self._set_scene_status(scene.scene_number, "ready")
-                    try:
-                        self._show_preview(str(result.output_path))
-                    except Exception:
-                        pass  # preview is a bonus; a failure here must not hide the real result
-                    messagebox.showinfo("Overscaled video ready", f"Saved to:\n{result.output_path}")
-                else:
-                    self._overscaled_status_var.set("Failed — see log")
-                    self._append_log("[OVERSCALED] Generation failed:\n" + "\n".join(result.errors) + "\n")
-                    messagebox.showerror("Overscaled generation failed", "\n".join(result.errors) or "Unknown error")
+            run_manager, self._overscaled_run_manager = self._overscaled_run_manager, None
+            if run_manager is not None:
+                try:
+                    # The manager stays live for per-scene actions after the
+                    # run; a leftover run-level cancel must not affect them.
+                    run_manager.reset_cancel()
+                except Exception:
+                    pass
+            if cancelled and not result.ok:
+                self._overscaled_status_var.set("Cancelled")
+                self._append_log("[OVERSCALED] Generation cancelled. Nothing was exported; Generate again to restart.\n")
+                # Rows left mid-flight by the stopped batch go back to their
+                # real persisted state instead of spinning forever.
+                for scene in self._scene_rows:
+                    key = _scene_key(scene.scene_number)
+                    if key in self._busy_scenes or key in self._qa.busy:
+                        self._busy_scenes.discard(key)
+                        self._qa.busy.pop(key, None)
+                        self._set_scene_status(scene.scene_number, self._row_status_from_result(scene) or "queued")
                 self._sync_primary_cta()
-
-            self.after(0, finish)
+                return
+            if result.ok:
+                self._overscaled_status_var.set(f"Done: {result.output_path}")
+                self._append_log(f"[OVERSCALED] Final video: {result.output_path}\n")
+                self._last_output = str(result.output_path)
+                # Belt-and-braces: the whole segment rendered successfully,
+                # so every scene's asset is provably resolved by now —
+                # sweep the table to READY regardless of whether every
+                # in-between log line was recognized above.
+                for scene in self._scene_rows:
+                    self._set_scene_status(scene.scene_number, "ready")
+                try:
+                    self._show_preview(str(result.output_path))
+                except Exception:
+                    pass  # preview is a bonus; a failure here must not hide the real result
+                messagebox.showinfo("Overscaled video ready", f"Saved to:\n{result.output_path}")
+            else:
+                self._overscaled_status_var.set("Failed — see log")
+                self._append_log("[OVERSCALED] Generation failed:\n" + "\n".join(result.errors) + "\n")
+                self._show_error_dialog(
+                    "Generation failed", overscaled_failure_summary(result.errors),
+                    "\n".join(result.errors) or "Unknown error",
+                )
+            self._sync_primary_cta()
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -2440,7 +2905,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 4))
         self.goto_error_btn = ctk.CTkButton(
             self._error_nav, text="Go to Error", width=96, height=24,
-            fg_color=_WARNING, hover_color="#D97706", text_color="#0B0D10",
+            fg_color=_WARNING, hover_color="#D97706", text_color="#111317",  # fixed dark-on-amber, not a theme token
             font=ctk.CTkFont(size=11, weight="bold"), corner_radius=4,
             command=self._go_to_error,
         )
@@ -3037,6 +3502,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._browse_audio()
         elif action == "cancel":
             self._on_cancel()
+        elif action == "overscaled_cancel":
+            self._on_overscaled_cancel()
         else:
             self._on_generate()
 
@@ -3226,6 +3693,50 @@ class VideoGeneratorApp(ctk.CTk):
             return (True, "") if self._auth_session is not None else (False, exc.message)
         except Exception:
             return (True, "") if self._auth_session is not None else (False, "Access check failed")
+
+    # ---------- generation tracking (Supabase telemetry, never fatal) ----------
+
+    def _get_generation_tracker(self):
+        if self._generation_tracker is None:
+            from licensing.generation_tracking import GenerationTracker
+
+            def refresh_session():
+                # Access tokens expire mid long render; same refresh the
+                # licence check uses (also persists the rotated tokens).
+                from licensing.auth_client import get_auth_client
+
+                session = get_auth_client().verify_stored_session()
+                self._auth_session = session
+                return session
+
+            self._generation_tracker = GenerationTracker(
+                lambda: self._auth_session,
+                refresh_session=refresh_session,
+                log=lambda m: self.after(0, lambda: self._append_log(f"{m}\n")),
+            )
+        return self._generation_tracker
+
+    def _track_generation_start(self, render_engine: str):
+        try:
+            project_id = getattr(self._workspace, "project_id", None) if self._workspace is not None else None
+            return self._get_generation_tracker().start(render_engine=render_engine, project_id=project_id)
+        except Exception:
+            return None
+
+    def _track_generation_end(self, run, outcome: str, *, output_path=None, validated: bool = False,
+                              message: str = "", category: Optional[str] = None) -> None:
+        if run is None:
+            return
+        try:
+            tracker = self._get_generation_tracker()
+            if outcome == "completed":
+                tracker.complete(run, output_path, validated=validated)
+            elif outcome == "cancelled":
+                tracker.cancel(run)
+            else:
+                tracker.fail(run, message, category=category)
+        except Exception:
+            pass
 
     def _force_logout(self, reason: str = "") -> None:
         from licensing import session_store
@@ -4188,6 +4699,7 @@ class VideoGeneratorApp(ctk.CTk):
         if hasattr(self, "_overscaled_csv_var"):
             if ws.overscaled_csv_path.is_file():
                 self._overscaled_csv_var.set(str(ws.overscaled_csv_path))
+                self._restore_overscaled_settings(ws.overscaled_csv_path)
                 self._load_overscaled_csv(str(ws.overscaled_csv_path))
             else:
                 self._overscaled_csv_var.set("")
@@ -5685,10 +6197,18 @@ class VideoGeneratorApp(ctk.CTk):
         for key in qa_data.get("skipped") or []:
             self._hydrated_skipped.add(_scene_key(key))
         restored: dict[str, AssetResult] = {}
+        stale: list = []
         media_index = vg.build_scene_media_index(images_dir) if images_dir.is_dir() else {}
         for scene in self._scene_rows:
             key = _scene_key(scene.scene_number)
             rec = manifest.get(scene.scene_number) or {}
+            if rec and not _manifest_record_matches_row(rec, scene):
+                # Produced for a prompt/query this row no longer asks for (the
+                # CSV was re-imported or edited) — not this row's asset.
+                # Previously it showed READY and Generate reused it, putting
+                # the OLD visual into the new video.
+                stale.append(scene.scene_number)
+                continue
             path = Path(rec["local_path"]) if rec.get("local_path") else None
             if path is not None and self._workspace is not None:
                 if not asset_belongs_to_project(path, self._workspace):
@@ -5747,6 +6267,12 @@ class VideoGeneratorApp(ctk.CTk):
                 self._asset_results[key] = restored[key]
             elif key not in self._busy_scenes:
                 self._asset_results.pop(key, None)
+        if stale:
+            shown = ", ".join(str(n) for n in stale[:12]) + (" …" if len(stale) > 12 else "")
+            self._append_log(
+                f"[ASSET] {len(stale)} scene(s) changed since their media was made (scene {shown}) — "
+                "they will be generated again.\n"
+            )
         self._sync_scene_statuses_from_results()
         self._refresh_qa_ui()
 
@@ -6051,7 +6577,16 @@ class VideoGeneratorApp(ctk.CTk):
             return 0.0, 400.0
 
     def _render_scene_rows(self) -> None:
-        signature = tuple(_scene_key(s.scene_number) for s in self._scene_rows)
+        # The fast path below may only skip rebuilding when the rows are the
+        # SAME objects with the SAME displayed content. Keyed on scene_number
+        # alone, any reload/recompile/source change that kept the same
+        # scene numbers left every row's badge/visual label AND its
+        # widgets["scene"]/callback-captured SceneRow pointing at the
+        # previous plan's objects.
+        signature = tuple(
+            (_scene_key(s.scene_number), id(s), s.asset_type, s.prompt, s.stock, s.script_segment)
+            for s in self._scene_rows
+        )
         total = len(self._scene_rows)
         use_window = _scene_list.should_window(total)
         if (
@@ -6063,6 +6598,9 @@ class VideoGeneratorApp(ctk.CTk):
             if use_window:
                 self._schedule_scene_window_refresh()
             self._refresh_qa_ui(immediate=True)
+            return
+
+        if self._update_changed_scene_rows(signature, use_window):
             return
 
         self._scene_render_gen += 1
@@ -6125,6 +6663,52 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_scene_window(force=True)
         self._refresh_qa_ui(immediate=True)
 
+    def _update_changed_scene_rows(self, signature: tuple, use_window: bool) -> bool:
+        """Incremental redraw when the SAME scene numbers are shown in the
+        same order and only some rows' displayed content changed (a Change
+        Source / Alternative reload). Rebuilds just those rows; every other
+        row keeps its widgets and is re-pointed at the reloaded SceneRow
+        object (so no widget ever references the previous plan's objects).
+        A full rebuild of every row after a one-row change measured ~0.7 s of
+        silent Tk work on a 26-scene plan — it felt stuck. Returns False
+        (caller does a full rebuild) whenever the row set itself changed."""
+        previous = self._scene_row_signature
+        if not previous or len(previous) != len(signature) or not self._scene_row_widgets:
+            return False
+        if [p[0] for p in previous] != [n[0] for n in signature]:
+            return False
+        if not use_window and len(self._scene_row_widgets) != len(signature):
+            return False  # a batched first build is still in progress
+        content = lambda sig: sig[:1] + sig[2:]  # everything but object identity
+        changed = [i for i, (a, b) in enumerate(zip(previous, signature)) if content(a) != content(b)]
+        if len(changed) > max(8, len(signature) // 4):
+            return False  # a broad change: the full rebuild path is no slower
+        changed_set = set(changed)
+        for i, scene in enumerate(self._scene_rows):
+            key = signature[i][0]
+            widgets = self._scene_row_widgets.get(key)
+            if widgets is None:
+                continue  # windowed and off-screen: built from current rows on scroll
+            if i not in changed_set:
+                widgets["scene"] = scene
+                continue
+            row = widgets.get("row")
+            grid_row = None
+            try:
+                grid_row = int(row.grid_info().get("row")) if row is not None else None
+            except Exception:
+                grid_row = None
+            try:
+                if row is not None:
+                    row.destroy()
+            except Exception:
+                pass
+            self._scene_row_widgets.pop(key, None)
+            self._decorate_scene_row(i, scene, grid_row=grid_row)
+        self._scene_row_signature = signature
+        self._refresh_qa_ui(immediate=True)
+        return True
+
     def _build_scene_list_header(self) -> None:
         header = ctk.CTkFrame(self._scenes_list, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 4))
@@ -6142,7 +6726,7 @@ class VideoGeneratorApp(ctk.CTk):
             ("Time", 72),
             ("Narration", 110),
             ("Visual", 100),
-            ("Src", 56),
+            ("Src", 72),
             ("Cam", 52),
             ("Tr", 40),
             ("Amb", 48),
@@ -6277,7 +6861,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         badge = ctk.CTkLabel(
             row, text=badge_text, font=ctk.CTkFont(size=9),
-            text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=56, anchor="w",
+            text_color=badge_fg, fg_color=badge_bg, corner_radius=4, width=72, anchor="w",
         )
         badge.grid(row=0, column=5, sticky="w", padx=2)
 
@@ -6955,9 +7539,10 @@ class VideoGeneratorApp(ctk.CTk):
             if "local" not in options:
                 options = list(options) + ["local"]
         busy = _scene_key(scene_row.scene_number) in self._busy_scenes
+        current_label = scene_source_badge(scene_row)[0]
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — Scene {scene_row.scene_number}")
-        win.geometry("300x340")
+        win.geometry("340x420")
         win.transient(self)
         # A plain CTkToplevel with no explicit stacking request can open
         # BEHIND the main window on some window arrangements (a maximized
@@ -6969,19 +7554,29 @@ class VideoGeneratorApp(ctk.CTk):
         title = "Choose a source for this scene only"
         if busy:
             title = "Scene is busy — it will Stop, then switch source"
-        ctk.CTkLabel(win, text=title).pack(pady=(12, 8))
+        ctk.CTkLabel(win, text=title).pack(pady=(12, 4))
+        ctk.CTkLabel(
+            win, text=f"Current: {current_label}\n{scene_visual_text_summary(scene_row)}",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=300, justify="left",
+        ).pack(padx=16, pady=(0, 8), anchor="w")
 
         def pick(name: str) -> None:
             win.destroy()
+            if self.generation_mode == "overscaled" and name == "local":
+                messagebox.showinfo(
+                    "Change source",
+                    "Local-file override isn't supported yet for Overscaled/Exp Solar — "
+                    "set asset_type=local/local_image/local_video directly in the CSV instead.",
+                )
+                return
             if name == "local":
                 self._add_local_clip(scene_row)
             else:
                 self._scene_action_with_source(scene_row, name)
 
         for name in options:
-            label = "Local file…" if name == "local" else name.replace("_", " ").title()
             ctk.CTkButton(
-                win, text=label, height=28,
+                win, text=source_option_label(name, current_label), height=28,
                 command=lambda n=name: pick(n),
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
@@ -7012,6 +7607,17 @@ class VideoGeneratorApp(ctk.CTk):
 
         def apply(name: str) -> None:
             win.destroy()
+            if self.generation_mode == "overscaled":
+                if name == "local":
+                    messagebox.showinfo(
+                        "Change source",
+                        "Local-file override isn't supported yet for Overscaled/Exp Solar — "
+                        "set asset_type=local/local_image/local_video (and the file's scene "
+                        "number) directly in the CSV instead.",
+                    )
+                    return
+                self._apply_overscaled_source_override([s.scene_number for s in scenes], name)
+                return
             if name == "local":
                 self._add_local_clip_bulk(scenes)
                 return
@@ -7022,14 +7628,266 @@ class VideoGeneratorApp(ctk.CTk):
                     self._scene_action_with_source(scene, name)
 
         for name in options:
-            label = "Local file…" if name == "local" else name.replace("_", " ").title()
             ctk.CTkButton(
-                win, text=label, height=28,
+                win, text=source_option_label(name), height=28,
                 command=lambda n=name: apply(n),
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
 
+    def _apply_overscaled_source_override(self, scene_numbers, provider_name: str) -> None:
+        """Overscaled/Exp Solar's own Change Source: unlike the normal
+        per-scene workflow (which resolves immediately against a live
+        AssetManager), Generate here always re-reads and recompiles the CSV
+        file from disk (see _run_overscaled_generation -> generate_overscaled_
+        video -> run_overscaled_pipeline) — a bulk/per-scene source choice
+        that only mutated self._scene_rows in memory was silently discarded
+        at Generate time, and Flow's Chrome automation still launched for
+        every row the Local Visual Planner had left with a blank asset_type
+        (its legacy-format default is Flow, never stock). This writes the
+        chosen provider's asset_type/prompt directly into the CSV file for
+        the selected scene_number(s) — the ONE thing both compile_overscaled_
+        csv and generate_scene_graph_local_planner already always respect
+        verbatim and never override — then reloads the Visual Plan so the
+        preview reflects it immediately, before Generate ever runs."""
+        import csv as _csv
+
+        if self._overscaled_running:
+            # The in-flight run already compiled the CSV and its AssetManager
+            # would later write a "complete" manifest record for the OLD
+            # source over the one this override clears — which the next
+            # Generate's cache check would then happily reuse, silently
+            # undoing the user's choice.
+            messagebox.showinfo(
+                "Change source",
+                "Generation is running. Change sources after it finishes.",
+            )
+            return
+        csv_path = self._overscaled_csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            messagebox.showerror("Change source", "No Overscaled/Exp Solar CSV is loaded.")
+            return
+        if self._workspace is not None:
+            # Edit the PROJECT's own copy (the same one Generate persists and
+            # compiles), never the user's original file picked from disk.
+            try:
+                csv_path = str(self._workspace.copy_overscaled_csv_in(Path(csv_path)))
+            except OSError as exc:
+                messagebox.showerror("Change source", f"Could not copy CSV into the project: {exc}")
+                return
+            self._overscaled_csv_var.set(csv_path)
+        try:
+            with open(csv_path, newline="", encoding="utf-8-sig") as f:
+                reader = _csv.DictReader(f)
+                fieldnames = list(reader.fieldnames or [])
+                rows = list(reader)
+        except OSError as exc:
+            messagebox.showerror("Change source", f"Could not read CSV: {exc}")
+            return
+
+        for col in ("asset_type", "prompt"):
+            if col not in fieldnames:
+                fieldnames.append(col)
+
+        # A bare (scene_number, script_segment[, visual_hint]) row has no
+        # existing prompt/stock for as_fallback() to reuse as its search
+        # query — it only falls back to script_segment for the youtube/
+        # archive/nasa branches, not stock. Use the ALREADY-COMPILED
+        # SceneGraph's own derived prompt (the Local Visual Planner's or
+        # compile_overscaled_csv's) when present — it's already the best
+        # available description of that row's visual — before falling back
+        # to the raw narration text itself.
+        derived_prompt_by_scene_number = {}
+        if self._overscaled_scene_graph is not None:
+            for node in self._overscaled_scene_graph.nodes:
+                sn = node.metadata.get("scene_number")
+                if sn and node.asset_reference:
+                    derived_prompt_by_scene_number.setdefault(str(sn), node.asset_reference)
+
+        scene_numbers = self._overscaled_override_targets(scene_numbers, rows)
+        if not scene_numbers:
+            messagebox.showinfo(
+                "Change source",
+                "The selected row(s) have no visual of their own (they narrate over "
+                "the previous visual). Change the source on the row that shows it.",
+            )
+            return
+        wanted_keys = {_scene_key(sn) for sn in scene_numbers}
+        changed = 0
+        for row in rows:
+            scene_number = row.get("scene_number", "")
+            if _scene_key(scene_number) not in wanted_keys:
+                continue
+            source_row = SceneRow.from_csv_row(row)
+            if not (source_row.prompt or source_row.stock):
+                # No author prompt: derive one suited to the TARGET source
+                # (the same planner helpers the Local Visual Planner uses) —
+                # the previously compiled node's reference was written for
+                # the OLD source (a cinematic Flow prompt is a poor stock
+                # search query, and a 4-word stock query a poor Flow prompt).
+                from scene_graph.generator import _derive_source_aware_prompt
+
+                target_type = SceneRow(scene_number="", script_segment="", prompt="x").as_fallback(provider_name).asset_type
+                segment = (row.get("script_segment") or "").strip()
+                derived = _derive_source_aware_prompt(target_type, segment, source_row.visual_description)
+                source_row.prompt = (
+                    derived
+                    or derived_prompt_by_scene_number.get(str(scene_number).strip())
+                    or segment
+                )
+            fallback = source_row.as_fallback(provider_name)
+            row["asset_type"] = fallback.asset_type
+            row["prompt"] = (fallback.prompt or fallback.stock or "").strip()
+            changed += 1
+
+        if not changed:
+            messagebox.showerror("Change source", "None of the selected scenes were found in the CSV.")
+            return
+
+        try:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = _csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({k: row.get(k, "") for k in fieldnames})
+        except OSError as exc:
+            messagebox.showerror("Change source", f"Could not write CSV: {exc}")
+            return
+
+        # A scene switched away from a source that previously FAILED (e.g. a
+        # Flow RPC rejection) must not keep showing that old error: both the
+        # on-disk manifest AND the in-memory self._asset_results still carry
+        # it, and _load_overscaled_csv below re-runs
+        # _hydrate_overscaled_assets_from_manifest, which would otherwise
+        # resurrect the stale "failed"/NEEDS_ACTION record on every reload —
+        # the CSV/plan updates correctly, but the table looks unchanged.
+        for sn in scene_numbers:
+            self._asset_results.pop(_scene_key(sn), None)
+        if self._workspace is not None:
+            images_dir = self._workspace.overscaled_images_dir
+            if images_dir.is_dir():
+                from asset_manager import AssetManifest
+
+                manifest = AssetManifest(images_dir)
+                for sn in scene_numbers:
+                    if manifest.get(sn) is not None:
+                        manifest.set(sn, {})
+
+        self._append_log(
+            f"[OVERSCALED] Changed source to {provider_name} for {changed} scene(s); reloading plan.\n"
+        )
+        # Immediate feedback before the reload (it re-plans and redraws).
+        try:
+            self.configure(cursor="watch")
+            self._overscaled_status_var.set("Updating plan…")
+            self.update_idletasks()
+        except Exception:
+            pass
+        # (_render_scene_rows' cache key now includes each row's identity and
+        # displayed content, so this reload always repaints every badge.)
+        try:
+            self._load_overscaled_csv(csv_path)
+        finally:
+            try:
+                self.configure(cursor="")
+                self._overscaled_status_var.set("")
+            except Exception:
+                pass
+
+    def _persist_overscaled_action_result(self, scene_number) -> None:
+        """A per-scene action (Alternative's new YouTube query, a declared
+        fallback provider, ...) can complete with a DIFFERENT asset_type/
+        prompt than the CSV row. Overscaled/Exp Solar Generate always
+        recompiles the CSV and AssetManager._cache_hit then rejects the
+        manifest record (its prompt no longer matches) — silently re-fetching
+        the original and discarding what the user just picked. Write the
+        record's asset_type/prompt back into the project CSV so the plan,
+        the Visual Plan row, and Generate all agree on the chosen asset."""
+        import csv as _csv
+        from asset_manager import AssetManifest
+
+        if self._workspace is None:
+            return
+        rec = AssetManifest(self._workspace.overscaled_images_dir).get(scene_number) or {}
+        if rec.get("status") != "complete":
+            return
+        rec_type = str(rec.get("asset_type") or "").strip()
+        rec_text = str(rec.get("prompt") or rec.get("stock_query") or "").strip()
+        csv_path = self._overscaled_csv_var.get().strip()
+        if not (rec_type and rec_text and csv_path and Path(csv_path).is_file()):
+            return
+        try:
+            csv_path = str(self._workspace.copy_overscaled_csv_in(Path(csv_path)))
+            with open(csv_path, newline="", encoding="utf-8-sig") as f:
+                reader = _csv.DictReader(f)
+                fieldnames = list(reader.fieldnames or [])
+                rows = list(reader)
+        except OSError as exc:
+            self._append_log(f"[OVERSCALED] Could not persist scene {scene_number}'s new asset: {exc}\n")
+            return
+        row = next((r for r in rows if _scene_key(r.get("scene_number", "")) == _scene_key(scene_number)), None)
+        if row is None:
+            return
+        current = SceneRow.from_csv_row(row)
+        if current.asset_type == rec_type and (current.prompt or current.stock) == rec_text:
+            return  # already what Generate will request — nothing to do
+        for col in ("asset_type", "prompt"):
+            if col not in fieldnames:
+                fieldnames.append(col)
+        row["asset_type"], row["prompt"] = rec_type, rec_text
+        try:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                writer = _csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for r in rows:
+                    writer.writerow({k: r.get(k, "") for k in fieldnames})
+        except OSError as exc:
+            self._append_log(f"[OVERSCALED] Could not persist scene {scene_number}'s new asset: {exc}\n")
+            return
+        self._overscaled_csv_var.set(csv_path)
+        self._append_log(f"[OVERSCALED] Scene {scene_number}: kept the new {rec_type} asset for Generate.\n")
+        self._load_overscaled_csv(csv_path)
+
+    def _overscaled_override_targets(self, scene_numbers, csv_rows=()) -> list:
+        """Map selected Visual Plan rows to the CSV rows that actually DEFINE
+        the visual each one shows.
+
+        Local Visual Planner: every row is its own target (an override on a
+        continuation row gives it its own node — see generator's
+        has_explicit_asset). CSV compilers (Overscaled / Exp Solar): a row
+        that only REFERENCES an earlier node_id re-reveals that node, so
+        writing asset_type/prompt onto it turned it into a conflicting
+        redefinition and the whole CSV stopped compiling; a narration-only
+        row (no node at all) was silently ignored at Generate. Redirect the
+        former to the node's defining row; drop the latter."""
+        if self._overscaled_use_local_planner_var.get() or self._overscaled_scene_graph is None:
+            return list(scene_numbers)
+        graph = self._overscaled_scene_graph
+        defining: dict = {}
+        for node in graph.nodes:
+            sn = str(node.metadata.get("scene_number") or "").strip()
+            # Exp Solar checklist items are drawn from their label, never from
+            # media (media_resolution skips them) — a source on them is inert.
+            if sn and node.type != "checklist_item":
+                defining.setdefault(node.id, sn)
+        defined_rows = {_scene_key(sn) for sn in defining.values()}
+        referenced_node = {
+            _scene_key(r.get("scene_number", "")): str(r.get("node_id") or "").strip()
+            for r in csv_rows
+        }
+        targets: list = []
+        for sn in scene_numbers:
+            if _scene_key(sn) in defined_rows:
+                target = str(sn).strip()
+            else:
+                target = defining.get(referenced_node.get(_scene_key(sn), ""))
+            if target and _scene_key(target) not in {_scene_key(t) for t in targets}:
+                targets.append(target)
+        return targets
+
     def _scene_action_with_source(self, scene_row: SceneRow, provider_name: str) -> None:
+        if self.generation_mode == "overscaled":
+            self._apply_overscaled_source_override([scene_row.scene_number], provider_name)
+            return
         if not self._require_workspace("change a scene source"):
             return
         scene_row = self._scene_by_number(scene_row)
@@ -7180,14 +8038,16 @@ class VideoGeneratorApp(ctk.CTk):
             label = self._source_mix_bucket(source)
             counts[label] += 1
         order = (
-            "AI Image",
-            "AI Video",
+            "Stock Video",
+            "Flow Image",
+            "Stock Image",
+            "Flow Video",
             "Stock",
             "YouTube",
             "Archive",
             "NASA",
             "Commons",
-            "Manual",
+            "Local",
             "Unassigned",
         )
         extras = [name for name in counts if name not in order]
@@ -7202,10 +8062,14 @@ class VideoGeneratorApp(ctk.CTk):
         if source is None:
             return "Unassigned"
         if source == AssetSource.FLOW_IMAGE:
-            return "AI Image"
+            return "Flow Image"
         if source == AssetSource.FLOW_VIDEO:
-            return "AI Video"
-        if source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO):
+            return "Flow Video"
+        if source == AssetSource.STOCK_IMAGE:
+            return "Stock Image"
+        if source == AssetSource.STOCK_VIDEO:
+            return "Stock Video"
+        if source == AssetSource.STOCK:
             return "Stock"
         if source == AssetSource.YOUTUBE_VIDEO:
             return "YouTube"
@@ -7216,7 +8080,7 @@ class VideoGeneratorApp(ctk.CTk):
         if source in (AssetSource.COMMONS_VIDEO, AssetSource.COMMONS_IMAGE):
             return "Commons"
         if source in (AssetSource.MANUAL, AssetSource.LOCAL):
-            return "Manual"
+            return "Local"
         badge = SOURCE_BADGE.get(source)
         if badge:
             return badge[0]
@@ -7954,10 +8818,7 @@ class VideoGeneratorApp(ctk.CTk):
         appearance_row.pack(anchor="w", padx=20, pady=(0, 8), fill="x")
 
         def _set_theme(mode: str) -> None:
-            _ui_theme.set_mode(mode)
-            self._theme_label_var.set(self._theme_button_label())
-            if getattr(self, "_shell", None) is not None:
-                self._shell.apply_theme_chrome()
+            self._apply_theme_mode(mode)
             _refresh_theme_buttons()
 
         theme_btns = {}
@@ -7982,8 +8843,8 @@ class VideoGeneratorApp(ctk.CTk):
         _refresh_theme_buttons()
         ctk.CTkLabel(
             body,
-            text="Dark is the default. Changing this updates the workspace chrome "
-                 "immediately; individual panels pick up the new colors next launch.",
+            text="System (follows your computer's light/dark setting) is the default. "
+                 "Changing this recolors the whole workspace immediately.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, justify="left", anchor="w",
             wraplength=420,
         ).pack(anchor="w", padx=20, pady=(0, 12))
@@ -8867,6 +9728,8 @@ class VideoGeneratorApp(ctk.CTk):
             border_color=_DANGER,
         )
         self.cancel_btn.grid_forget()
+        # Only a render produces a video; asset-only runs are not tracked.
+        self._normal_tracking = self._track_generation_start("normal") if mode == "render" else None
         self.progress.set(0)
         if mode == "assets":
             self.status_var.set("Generating assets…")
@@ -8940,29 +9803,40 @@ class VideoGeneratorApp(ctk.CTk):
         # Project folders in Downloads/OneDrive/iCloud often lose or lock files
         # mid-mux (macOS AppleDouble cleanup of ``._*``, Windows cloud hydrate).
         # Set VIDEOGEN_WORK_IN_PROJECT_TMP=1 to keep the old location for debug.
-        for key in ("csv_path", "audio_path", "images_dir", "output_path"):
-            config[key] = Path(config[key]).resolve()
-        if config["bg_path"] is not None:
-            config["bg_path"] = Path(config["bg_path"]).resolve()
+        # Setup runs AFTER stdout/stderr were redirected but BEFORE the main
+        # try below: a failure here (unresolvable path, disk full on
+        # mkdtemp) used to kill the worker without ever sending "done" or
+        # "error" — the UI stayed on "running" and stdout stayed hijacked.
+        try:
+            for key in ("csv_path", "audio_path", "images_dir", "output_path"):
+                config[key] = Path(config[key]).resolve()
+            if config["bg_path"] is not None:
+                config["bg_path"] = Path(config["bg_path"]).resolve()
 
-        scratch_parent = None
-        if os.environ.get("VIDEOGEN_WORK_IN_PROJECT_TMP", "").strip().lower() in (
-            "1",
-            "true",
-            "yes",
-        ):
-            if self._workspace is not None:
-                scratch_parent = str(self._workspace.tmp_dir)
-        work_dir = Path(
-            tempfile.mkdtemp(
-                prefix=(
-                    f"videogen_{self._workspace.project_id}_"
-                    if self._workspace
-                    else "videogen_"
-                ),
-                dir=scratch_parent,
+            scratch_parent = None
+            if os.environ.get("VIDEOGEN_WORK_IN_PROJECT_TMP", "").strip().lower() in (
+                "1",
+                "true",
+                "yes",
+            ):
+                if self._workspace is not None:
+                    scratch_parent = str(self._workspace.tmp_dir)
+            work_dir = Path(
+                tempfile.mkdtemp(
+                    prefix=(
+                        f"videogen_{self._workspace.project_id}_"
+                        if self._workspace
+                        else "videogen_"
+                    ),
+                    dir=scratch_parent,
+                )
             )
-        )
+        except Exception as exc:
+            writer.flush()
+            sys.stdout = old_out
+            sys.stderr = old_err
+            self._ui_queue.put(("error", f"Could not prepare the render: {exc}"))
+            return
         old_cwd = os.getcwd()
 
         try:
@@ -9051,11 +9925,15 @@ class VideoGeneratorApp(ctk.CTk):
                     key = _scene_key(scene.scene_number)
                     existing = self._asset_results.get(key)
                     path = getattr(existing, "path", None) if existing is not None else None
+                    record = self._asset_manager.manifest.get(scene.scene_number) or {}
                     if (
                         existing is not None
                         and getattr(existing, "ok", False)
                         and path is not None
                         and Path(path).is_file()
+                        # Same rule as READY hydration: never reuse media made
+                        # for a prompt/query this row no longer asks for.
+                        and (not record or _manifest_record_matches_row(record, scene))
                     ):
                         pre_resolved[str(scene.scene_number)] = existing
                         print(
@@ -9662,6 +10540,8 @@ class VideoGeneratorApp(ctk.CTk):
                                     if getattr(result, "source", None) == AssetSource.MANUAL:
                                         self.status_var.set(f"✓ Scene {scene_number} ready")
                                         self._append_log(f"[ASSET] Scene {scene_number} → MANUAL ({Path(result.path).name})\n")
+                                    if self.generation_mode == "overscaled" and not self._overscaled_running:
+                                        self._persist_overscaled_action_result(scene_number)
                             if self._recovery_total:
                                 self._recovery_done += 1
                             if result is not None and not getattr(result, "ok", False):
@@ -9725,6 +10605,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_primary_cta()
 
     def _on_assets_partial(self, payload: dict) -> None:
+        tracking_run, self._normal_tracking = self._normal_tracking, None
+        self._track_generation_end(
+            tracking_run, "failed", category="asset",
+            message=f"Render stopped: {payload.get('ready', '?')}/{payload.get('total', '?')} scenes ready",
+        )
         self._end_generate_run()
         snap = self._qa_snapshot()
         self.progress.set(snap.progress)
@@ -9818,6 +10703,22 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_fix_all_visual_issues(self) -> None:
         if not self._scene_rows:
+            return
+        if self.generation_mode == "overscaled":
+            # This button's VQA/report system (visual_qa.build_project_report
+            # below) is normal-CSV-workflow-only and has no scene_graph
+            # concept — it also used self.images_var here (never populated
+            # for Overscaled/Exp Solar) instead of the overscaled-aware
+            # _scene_action_images_dir(), so it silently built an
+            # AssetManager rooted at an empty path. Rather than doing
+            # something wrong against the wrong directory, tell the
+            # operator plainly instead: Change Source (Src) already covers
+            # per-scene/bulk source fixes for this workflow today.
+            messagebox.showinfo(
+                "Fix All Issues",
+                "Not available yet for Overscaled/Exp Solar. Use Src (Change Source) "
+                "on the affected scene(s) instead.",
+            )
             return
         mgr = self._ensure_asset_manager(Path(self.images_var.get()))
 
@@ -9976,6 +10877,15 @@ class VideoGeneratorApp(ctk.CTk):
             self.progress.set(1.0)
 
     def _on_finished(self, success: bool, message: str, cancelled: bool = False) -> None:
+        tracking_run, self._normal_tracking = self._normal_tracking, None
+        # The normal pipeline has no final-output check of its own, so the
+        # tracker runs validate_rendered_output before counting (telemetry
+        # only — this run's result shown below is unchanged).
+        self._track_generation_end(
+            tracking_run,
+            "completed" if success else ("cancelled" if cancelled else "failed"),
+            output_path=message if success else None, validated=False, message=message,
+        )
         self._end_generate_run()
         shell = getattr(self, "_shell", None)
         if success:

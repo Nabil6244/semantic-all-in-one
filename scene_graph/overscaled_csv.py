@@ -90,6 +90,23 @@ def _get(row: Mapping[str, str], key: str) -> str:
     return str(row.get(key, "") or "").strip()
 
 
+def duplicate_scene_numbers(csv_rows: Sequence[Mapping[str, str]]) -> List[str]:
+    """Scene numbers that appear on more than one row (blank ones ignored).
+
+    Shared by the Visual Plan load and Generate (both Overscaled and Exp
+    Solar, with or without the Local Visual Planner): every downstream
+    consumer keys a row by its scene_number — the Visual Plan's row
+    widgets/badges, Change Source's CSV rewrite, the asset manifest, and
+    resolve_scene_assets' numbered media files — so two rows sharing one
+    number silently show/override/resolve the wrong row."""
+    seen: Dict[str, int] = {}
+    for row in csv_rows:
+        sn = _get(row, "scene_number")
+        if sn:
+            seen[sn] = seen.get(sn, 0) + 1
+    return [sn for sn, count in seen.items() if count > 1]
+
+
 def _node_defines_data(row: Mapping[str, str]) -> bool:
     return any(_get(row, k) for k in ("node_type", "asset_type", "prompt", "caption"))
 

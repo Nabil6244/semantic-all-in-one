@@ -604,6 +604,12 @@ def render_edge_reveal_frame(
     return frame
 
 
+# Single-entry memo for render_node_reveal_frame's full-size card image. The
+# key includes id()s, so "refs" pins those objects while the entry lives —
+# an id can never be reused by a different object and produce a false hit.
+_REVEAL_SUB_CACHE: dict = {}
+
+
 def render_node_reveal_frame(
     node: SceneNode, rect: NodeRect, media_image: Optional[Image.Image], style: StylePreset,
     *, canvas_size, background: str, progress: float, hollow: bool = False,
@@ -646,17 +652,33 @@ def render_node_reveal_frame(
     top_pad = pad
     if node.type != "anchor" and node.label:
         top_pad = max(pad, _LABEL_RESERVE_PX + pad)
-    sub = Image.new(
-        "RGBA", (int(rect.width) + 2 * side_pad, int(rect.height) + top_pad + bottom_pad), (0, 0, 0, 0)
+    # The full-size card (media fit, shadow, border, label, caption) is
+    # identical for every frame of one node's reveal — only the scale/alpha
+    # applied below changes — so it is built once per node, not once per
+    # frame (measured: the media LANCZOS fit alone was the renderer's single
+    # largest Python cost). Same inputs -> same pixels; output is unchanged.
+    cache_key = (
+        id(node), node.id, rect.x, rect.y, rect.width, rect.height, id(media_image), id(style),
+        hollow, tuple(caption_offset), side_pad, top_pad, bottom_pad,
     )
-    sub_rect = NodeRect(node_id=rect.node_id, x=side_pad, y=top_pad, width=rect.width, height=rect.height)
-    if node.type == "anchor":
-        _draw_anchor(sub, node, sub_rect, media_image)
+    entry = _REVEAL_SUB_CACHE.get("entry")  # one atomic read: (key, sub, refs)
+    if entry is not None and entry[0] == cache_key:
+        sub = entry[1]
     else:
-        _draw_node_media(sub, node, sub_rect, media_image, style=style, hollow=hollow)
-        _draw_node_label(sub, node, sub_rect)
-        if node.caption:
-            _draw_caption(sub, node.caption, sub_rect, style=style, offset=caption_offset)
+        sub = Image.new(
+            "RGBA", (int(rect.width) + 2 * side_pad, int(rect.height) + top_pad + bottom_pad), (0, 0, 0, 0)
+        )
+        sub_rect = NodeRect(node_id=rect.node_id, x=side_pad, y=top_pad, width=rect.width, height=rect.height)
+        if node.type == "anchor":
+            _draw_anchor(sub, node, sub_rect, media_image)
+        else:
+            _draw_node_media(sub, node, sub_rect, media_image, style=style, hollow=hollow)
+            _draw_node_label(sub, node, sub_rect)
+            if node.caption:
+                _draw_caption(sub, node.caption, sub_rect, style=style, offset=caption_offset)
+        # One entry only: frames of a reveal are rendered consecutively, and
+        # holding more would pin full card images in memory for nothing.
+        _REVEAL_SUB_CACHE["entry"] = (cache_key, sub, (node, media_image, style))
 
     scale = 0.95 + 0.05 * eased
     new_w, new_h = max(1, round(sub.width * scale)), max(1, round(sub.height * scale))
@@ -738,6 +760,9 @@ def render_title_reveal_frame(text: str, *, canvas_size, top_margin: int, progre
 _CHECKLIST_INACTIVE_FILL = (208, 208, 208, 255)  # grey — not yet reached
 _CHECKLIST_CURRENT_FILL = (192, 57, 43, 255)  # matches _LABEL_COLOR / arrows.default_color
 _CHECKLIST_COMPLETED_FILL = (90, 90, 90, 255)  # darker neutral — reached and passed
+# Text on a not-yet-reached (light grey) tab: white on light grey was
+# barely legible, so upcoming tabs use dark text.
+_CHECKLIST_INACTIVE_TEXT = (95, 95, 95, 255)
 _CHECKLIST_CELL_GUTTER_PX = 6
 _CHECKLIST_CELL_TOP_PX = 14  # top padding inside the reserved band
 
@@ -767,15 +792,17 @@ def render_checklist_strip_frame(
     cell_w = stage_w / n
     cell_h = max(24.0, band_height - _CHECKLIST_CELL_TOP_PX - 10)
     number_font = _load_font(_LABEL_FONT_CANDIDATES, max(14, min(22, int(cell_h * 0.42))))
-    label_font = _load_font(_CAPTION_FONT_CANDIDATES, max(10, min(14, int(cell_h * 0.22))))
+    label_font = _load_font(_CAPTION_FONT_CANDIDATES, max(10, min(18, int(cell_h * 0.24))))
 
     for i, label in enumerate(labels):
+        text_fill = (255, 255, 255, 255)
         if i < current_index:
             fill = _CHECKLIST_COMPLETED_FILL
         elif i == current_index:
             fill = _CHECKLIST_CURRENT_FILL
         else:
             fill = _CHECKLIST_INACTIVE_FILL
+            text_fill = _CHECKLIST_INACTIVE_TEXT
 
         cell_x = margin_px + i * cell_w
         box = [
@@ -789,17 +816,23 @@ def render_checklist_strip_frame(
         nb = draw.textbbox((0, 0), number_text, font=number_font)
         nx = (box[0] + box[2]) / 2.0 - (nb[2] - nb[0]) / 2.0
         ny = box[1] + cell_h * 0.12
-        draw.text((nx, ny), number_text, font=number_font, fill=(255, 255, 255, 255))
+        draw.text((nx, ny), number_text, font=number_font, fill=text_fill)
 
         short_label = (label or "").strip()
         if short_label:
-            if len(short_label) > 10:
-                short_label = short_label[:9] + "…"
+            # Shorten only when the text really doesn't fit its own tab (it
+            # used to cut every label at 10 characters regardless of width,
+            # so "Construction" read "Construct…" in a 300 px tab).
+            max_w = (box[2] - box[0]) - 12
+            if draw.textbbox((0, 0), short_label, font=label_font)[2] > max_w:
+                while len(short_label) > 1 and draw.textbbox((0, 0), short_label + "…", font=label_font)[2] > max_w:
+                    short_label = short_label[:-1].rstrip()
+                short_label += "…"
             lb = draw.textbbox((0, 0), short_label, font=label_font)
             lx = (box[0] + box[2]) / 2.0 - (lb[2] - lb[0]) / 2.0
             ly = box[1] + cell_h * 0.55
             if ly + (lb[3] - lb[1]) <= box[3]:  # only draw if it actually fits the cell
-                draw.text((lx, ly), short_label, font=label_font, fill=(255, 255, 255, 255))
+                draw.text((lx, ly), short_label, font=label_font, fill=text_fill)
 
     return frame
 

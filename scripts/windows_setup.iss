@@ -5,7 +5,7 @@
 
 #define MyAppName "Semantic YT Studio"
 #define MyAppExeName "Semantic YT Studio.exe"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define RepoRoot ".."
 
 [Setup]

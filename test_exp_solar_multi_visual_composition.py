@@ -403,11 +403,18 @@ class TestGroupedContinuationRowsDoNotStealRealNarrationWords(unittest.TestCase)
 
         retimed = retime_to_whisper_words(compiled.scene_graph, whisper_words)
         n5 = next(n for n in retimed.nodes if n.id == "n5")
+        # Without the merge pre-pass the 3 empty continuation beats still
+        # count as script words, so scene 5 starts LATE (the merged path
+        # above lands it exactly on 5.0). The raw count-walking retimer put
+        # it at 8.0; since the retimer maps script positions proportionally
+        # when counts differ (so a short transcript can no longer squeeze
+        # the last scenes into the audio's final instant) the drift is 6.0
+        # — smaller, but still present: the merge remains what removes it.
         self.assertAlmostEqual(
-            n5.appear_at, 8.0, places=3,
-            msg="without the merge pre-pass, 3 continuation beats each steal 1 real "
-                "word, pushing scene 5 three seconds late -- this documents the bug shape",
+            n5.appear_at, 6.0, places=3,
+            msg="without the merge pre-pass scene 5 must still start late -- documents the bug shape",
         )
+        self.assertGreater(n5.appear_at, 5.5)
 
 
 class TestOverscaledUnaffectedByExpSolarFixes(unittest.TestCase):

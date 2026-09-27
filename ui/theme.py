@@ -4,8 +4,8 @@ Every existing named constant below (BG, PANEL, TEXT, ACCENT, ...) is kept —
 nothing that already reads ``T.BG`` etc. needs to change — but each one is
 now *derived* from a semantic token table (``LIGHT`` / ``DARK``) selected by
 the persisted appearance mode, instead of being a single hardcoded hex
-value. Dark is the default (matches the existing look when no preference is
-saved yet).
+value. System (follow the OS light/dark setting) is the default when no
+preference is saved yet.
 
 Persistence reuses app.py's existing ``settings.json`` store (same file as
 the Pexels/Gemini keys) under the ``"theme_mode"`` key — no new persistence
@@ -187,7 +187,7 @@ _TABLES = {"dark": DARK, "light": LIGHT}
 # ui.theme is always imported (and thus resolved) before app.py's later
 # top-level lines copy these values. See ui/theme.py module docstring and
 # the Phase 2 report's THEME section for the live-toggle scope note.
-MODE = _read_saved_mode() or "dark"
+MODE = _read_saved_mode() or "system"  # follow the OS appearance unless the user picked one
 _ACTIVE_MODE = _resolve(MODE)
 _TOKENS = _TABLES[_ACTIVE_MODE]
 
@@ -274,6 +274,143 @@ def current_mode() -> str:
     return MODE
 
 
+def active_tokens() -> dict:
+    """A copy of the token table currently in effect."""
+    return dict(_TOKENS)
+
+
+# ---------------------------------------------------------------------------
+# Live re-theme of ALREADY-BUILT widgets.
+#
+# Every themed widget was built with a literal hex from the active token table
+# baked in (CustomTkinter has no reactive binding to module globals), so a
+# toggle used to repaint only the shell chrome and left every view's content in
+# the old palette — the half-dark/half-light window users saw. Because each of
+# those literals IS a token value, the old palette can be mapped 1:1 onto the
+# new one and every existing widget/canvas item reconfigured in place.
+# ---------------------------------------------------------------------------
+
+_CTK_COLOR_OPTIONS = (
+    "fg_color", "bg_color", "text_color", "text_color_disabled", "border_color",
+    "hover_color", "button_color", "button_hover_color", "progress_color",
+    "scrollbar_button_color", "scrollbar_button_hover_color", "placeholder_text_color",
+    "selected_color", "selected_hover_color", "unselected_color", "unselected_hover_color",
+    "dropdown_fg_color", "dropdown_hover_color", "dropdown_text_color", "checkmark_color",
+    "label_fg_color",
+)
+_TK_COLOR_OPTIONS = (
+    "background", "foreground", "highlightbackground", "highlightcolor",
+    "insertbackground", "selectbackground", "selectforeground", "activebackground",
+    "activeforeground", "troughcolor",
+)
+_CANVAS_ITEM_COLOR_OPTIONS = ("fill", "outline", "activefill", "activeoutline")
+
+
+_TEXT_TOKEN_PRIORITY = ("accent_on_accent", "text_primary", "text_secondary")
+
+
+def color_remap(old_tokens: dict, new_tokens: dict, role: str = "fill") -> dict:
+    """{OLD_HEX_UPPER: new_hex}. Several tokens can share one hex (light
+    "#FFFFFF" is both the surface AND the text-on-accent color), so the
+    winner depends on how the color is used: role="text" prefers the text
+    tokens, role="fill" prefers surfaces (text-on-accent last). Timeline
+    clip tokens always lose to UI tokens."""
+
+    def rank(key: str) -> tuple:
+        is_text_token = key in _TEXT_TOKEN_PRIORITY
+        text_rank = _TEXT_TOKEN_PRIORITY.index(key) if is_text_token else len(_TEXT_TOKEN_PRIORITY)
+        if role == "text":
+            return (key.startswith("clip_"), text_rank)
+        return (key.startswith("clip_"), key == "accent_on_accent", 0)
+
+    mapping: dict = {}
+    for key in sorted(old_tokens, key=rank):
+        old, new = old_tokens.get(key), new_tokens.get(key)
+        if isinstance(old, str) and isinstance(new, str):
+            mapping.setdefault(old.upper(), new)
+    return mapping
+
+
+def color_remaps(old_tokens: dict, new_tokens: dict) -> dict:
+    return {role: color_remap(old_tokens, new_tokens, role) for role in ("fill", "text")}
+
+
+_TEXT_ROLE_OPTIONS = frozenset({
+    "text_color", "text_color_disabled", "placeholder_text_color", "dropdown_text_color",
+    "checkmark_color", "foreground", "selectforeground", "activeforeground", "insertbackground",
+})
+
+
+def remap_color_value(value, mapping: dict):
+    """Remap a hex string, or hexes nested in tuples/lists/dicts (module-level
+    palettes like app.py's SOURCE_BADGE/STATUS_COLOR); anything else as-is."""
+    if isinstance(value, str):
+        return mapping.get(value.upper(), value)
+    if isinstance(value, tuple):
+        return tuple(remap_color_value(v, mapping) for v in value)
+    if isinstance(value, list):
+        return [remap_color_value(v, mapping) for v in value]
+    if isinstance(value, dict):
+        return {k: remap_color_value(v, mapping) for k, v in value.items()}
+    return value
+
+
+def _recolor_one(widget, maps: dict) -> None:
+    # Try both vocabularies on every widget: CTk windows (the app root, CTk
+    # dialogs) and CustomTkinter's own internal CTkCanvas only answer to some
+    # of each; an option a widget doesn't support simply fails cget().
+    is_ctk = type(widget).__module__.startswith("customtkinter") or hasattr(widget, "_fg_color")
+    for opt in _CTK_COLOR_OPTIONS + _TK_COLOR_OPTIONS:
+        try:
+            current = widget.cget(opt)
+        except Exception:
+            continue  # widget doesn't have this option
+        # (light, dark) tuples are CustomTkinter's own appearance-mode pairs —
+        # ctk.set_appearance_mode() already handles those.
+        mapping = maps["text" if opt in _TEXT_ROLE_OPTIONS else "fill"]
+        if isinstance(current, str) and current.upper() in mapping:
+            try:
+                widget.configure(**{opt: mapping[current.upper()]})
+            except Exception:
+                pass
+    if widget.winfo_class() == "Canvas" and not is_ctk:
+        try:
+            items = widget.find_all()
+        except Exception:
+            items = ()
+        for item in items:
+            try:
+                mapping = maps["text" if widget.type(item) == "text" else "fill"]
+            except Exception:
+                mapping = maps["fill"]
+            for opt in _CANVAS_ITEM_COLOR_OPTIONS:
+                try:
+                    current = widget.itemcget(item, opt)
+                except Exception:
+                    continue
+                if isinstance(current, str) and current.upper() in mapping:
+                    try:
+                        widget.itemconfigure(item, **{opt: mapping[current.upper()]})
+                    except Exception:
+                        pass
+
+
+def recolor_widget_tree(root, maps: dict) -> int:
+    """Reconfigure every widget under (and including) ``root`` from the old
+    palette to the new one (``maps`` from color_remaps()). Returns how many
+    widgets were visited."""
+    stack, seen = [root], 0
+    while stack:
+        widget = stack.pop()
+        seen += 1
+        _recolor_one(widget, maps)
+        try:
+            stack.extend(widget.winfo_children())
+        except Exception:
+            pass
+    return seen
+
+
 def active_appearance() -> str:
     """The resolved dark/light in effect right now (never "system")."""
     return _ACTIVE_MODE
@@ -330,6 +467,7 @@ FOCUS_RING_WIDTH = 2
 # removed — advanced items are the exact same views, just re-bucketed.
 NAV_ITEMS = (
     ("script", "Script", "workspace"),
+    ("visual_director", "Visual Director", "workspace"),
     ("visual_plan", "Visuals", "workspace"),
     ("timeline", "Timeline", "workspace"),
     ("audio", "Audio", "workspace"),

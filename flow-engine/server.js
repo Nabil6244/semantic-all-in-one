@@ -28,6 +28,35 @@ import {
   inspectAccount,
 } from "./lib/orchestrator.js";
 import { defaults } from "./config.js";
+import crypto from "node:crypto";
+
+/**
+ * Fingerprint of the engine code THIS process loaded (server.js + lib/*.js),
+ * computed once at startup. The app compares it with the files on disk
+ * before reusing an already-running engine: Node only reads code at start,
+ * so an engine left running across an app update kept executing its OLD
+ * code (a days-old engine was still using the retired direct-RPC video path
+ * after batch-runner.js had moved to the UI path). Must match
+ * providers/flow/engine_manager.py's engine_code_version().
+ */
+const ENGINE_CODE_VERSION = (() => {
+  try {
+    const root = path.dirname(fileURLToPath(import.meta.url));
+    const files = ["server.js"].concat(
+      fs.readdirSync(path.join(root, "lib")).filter((f) => f.endsWith(".js")).sort().map((f) => `lib/${f}`),
+    );
+    const h = crypto.createHash("sha256");
+    for (const rel of files) {
+      h.update(rel);
+      h.update("\0");
+      h.update(fs.readFileSync(path.join(root, rel)));
+      h.update("\0");
+    }
+    return h.digest("hex").slice(0, 16);
+  } catch {
+    return "unknown";
+  }
+})();
 
 const DEFAULT_PORT = Number(process.env.SA_PORT || 8787);
 
@@ -86,6 +115,7 @@ export async function startServer(port = DEFAULT_PORT) {
       downloadsRoot: DOWNLOADS_ROOT,
       dataDir: DATA_DIR,
       defaults: defaults.flowSettings,
+      codeVersion: ENGINE_CODE_VERSION,
     });
 
     ws.on("message", async (raw) => {
@@ -99,6 +129,10 @@ export async function startServer(port = DEFAULT_PORT) {
       try {
         if (t === "HELLO") {
           send(ws, getState());
+        } else if (t === "SHUTDOWN") {
+          // The app retiring an engine that runs outdated code (see
+          // ENGINE_CODE_VERSION); same exit path as SIGTERM.
+          setTimeout(() => process.kill(process.pid, "SIGTERM"), 50);
         } else if (t === "ADD_ACCOUNT") {
           await addAccount(msg.label);
         } else if (t === "LOGIN") {

@@ -74,11 +74,24 @@ def retime_to_whisper_words(scene_graph: SceneGraph, whisper_words: Sequence[Whi
 
     data = scene_graph.to_dict()
     beats = data.get("beats") or []
+    counts = [max(1, len((beat.get("narration") or "").split())) for beat in beats]
+    script_total = sum(counts)
+    spoken_total = len(whisper_words)
     cursor = 0
     new_windows = []  # (old_start, old_end, new_start, new_end) per beat
-    for beat in beats:
-        word_count = max(1, len((beat.get("narration") or "").split()))
-        chunk = whisper_words[cursor: cursor + word_count]
+    for beat, word_count in zip(beats, counts):
+        if spoken_total == script_total:
+            chunk = whisper_words[cursor: cursor + word_count]
+        else:
+            # Transcript and script counts differ (Whisper merges/splits
+            # words, numbers read aloud, a reworded take): map each beat's
+            # position in the script proportionally onto the transcript.
+            # Consuming by raw count instead ran out of words before the
+            # last beats and squeezed them all into the audio's final
+            # instant — overlapping cards and a failed layout.
+            first = (cursor * spoken_total) // script_total
+            last = max(first + 1, ((cursor + word_count) * spoken_total) // script_total)
+            chunk = whisper_words[first:last]
         cursor += word_count
         if not chunk:
             # Ran out of real words (narration shorter than the CSV

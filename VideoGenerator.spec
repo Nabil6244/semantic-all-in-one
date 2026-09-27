@@ -294,6 +294,8 @@ a = Analysis(
     datas=datas,
     hiddenimports=hiddenimports + [
         "video_generator",
+        "app_version",
+        "licensing.generation_tracking",
         "customtkinter",
         "darkdetect",
         "faster_whisper",
@@ -456,6 +458,9 @@ a = Analysis(
 pyz = PYZ(a.pure)
 
 APP_NAME = "Semantic YT Studio"
+_version_ns: dict = {}
+exec((ROOT / "app_version.py").read_text(encoding="utf-8"), _version_ns)
+APP_VERSION = _version_ns["APP_VERSION"]
 
 exe = EXE(
     pyz,
@@ -495,6 +500,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleDisplayName": APP_NAME,
             "CFBundleName": APP_NAME,
+            "CFBundleShortVersionString": APP_VERSION,
+            "CFBundleVersion": APP_VERSION,
             "NSHighResolutionCapable": True,
         },
     )

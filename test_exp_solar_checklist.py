@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from PIL import Image
@@ -311,3 +312,35 @@ class TestChecklistRealRender(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestChecklistLabelsReadable(unittest.TestCase):
+    """Tab labels were cut at 10 characters whatever the tab's width
+    ("Construction" -> "Construct…" in a 300 px tab)."""
+
+    def test_labels_that_fit_are_not_truncated_and_long_ones_still_fit(self):
+        from PIL import ImageDraw
+
+        from scene_graph import composition as C
+
+        calls = []
+        real_text = ImageDraw.ImageDraw.text
+
+        def record(self, xy, text, *args, **kwargs):
+            calls.append(text)
+            return real_text(self, xy, text, *args, **kwargs)
+
+        with unittest.mock.patch.object(ImageDraw.ImageDraw, "text", record):
+            C.render_checklist_strip_frame(
+                ["Hoover Dam", "Construction", "Black Canyon", "River's Path", "Tunnel Project", "River"], 2,
+                canvas_size=(1920, 1080), band_height=110, margin_px=60,
+            )
+        for label in ("Construction", "Black Canyon", "River's Path", "Tunnel Project"):
+            self.assertIn(label, calls)
+        calls.clear()
+        with unittest.mock.patch.object(ImageDraw.ImageDraw, "text", record):
+            C.render_checklist_strip_frame(
+                ["An extremely long chapter label that cannot fit"] * 15, 0,
+                canvas_size=(1920, 1080), band_height=110, margin_px=60,
+            )
+        self.assertTrue(any(t.endswith("…") for t in calls))

@@ -333,12 +333,21 @@ async function runUiGeneration(page, prompt, opts = {}) {
     while (Date.now() < deadline && !mediaUrl) {
       mediaUrl = await page
         .evaluate(
-          ({ host, known }) => {
+          ({ host, known, wantVideo }) => {
+            // Video mode must only ever accept a real /video/ URL: a result
+            // tile's poster/thumbnail <img> (an /image/ URL) can appear first,
+            // and returning it saved image bytes as the scene's .mp4.
             const els = Array.from(document.querySelectorAll("img[src], video[src]"));
-            const hit = els.find((el) => el.src && el.src.includes(host) && !known.includes(el.src));
+            const hit = els.find(
+              (el) =>
+                el.src &&
+                el.src.includes(host) &&
+                !known.includes(el.src) &&
+                (!wantVideo || el.src.includes("/video/")),
+            );
             return hit ? hit.src : null;
           },
-          { host: MEDIA_HOST, known: preExistingMediaUrls },
+          { host: MEDIA_HOST, known: preExistingMediaUrls, wantVideo: opts.mode === "video" },
         )
         .catch(() => null);
       if (!mediaUrl) await new Promise((r) => setTimeout(r, 1500));
@@ -353,7 +362,10 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.mediaUrlDetected = true;
     diag.outcome = "success";
 
-    const m = mediaUrl.match(/\/image\/([^?]+)/) || mediaUrl.match(/\/video\/([^?]+)/);
+    const m =
+      opts.mode === "video"
+        ? mediaUrl.match(/\/video\/([^?]+)/)
+        : mediaUrl.match(/\/image\/([^?]+)/) || mediaUrl.match(/\/video\/([^?]+)/);
     const mediaId = m ? m[1] : null;
     return { mediaId, fifeUrl: mediaUrl, diag };
   } catch (e) {
@@ -384,6 +396,40 @@ export async function generateOneImageViaUI(page, projectId, prompt, settings, p
   if (!mediaId) {
     throw new MissingMediaIdError(
       `Flow UI generation did not produce an image (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
+    );
+  }
+  return { mediaId, fifeUrl, width: null, height: null };
+}
+
+/**
+ * Drop-in replacement for generateOneVideo(page, projectId, prompt,
+ * settings, promptIndex) — the direct-RPC video path (flow-api.js's
+ * YhhmEf/as29s calls) was unreliable in the same way the old direct-RPC
+ * image path was, and was never migrated to the UI-based approach when
+ * generateOneImageViaUI replaced generateOneImage. Same contract
+ * ({mediaId, fifeUrl}), same caller-visible MissingMediaIdError on
+ * failure/timeout, so batch-runner.js's existing download/retry/error-
+ * handling logic works completely unchanged — only which function it calls
+ * for a video slot changes (see batch-runner.js). runUiGeneration already
+ * handles both modes identically (the Image/Video radio selection, prompt
+ * entry, Generate click, and DOM-based media-URL polling are mode-agnostic
+ * — see its own `/\/image\/([^?]+)/ || /\/video\/([^?]+)/` match); this
+ * simply calls it with mode: "video" and a longer default generation
+ * timeout (video generation is well known to take longer than image
+ * generation), same as generateOneImageViaUI does for images. No direct
+ * RPC, no header/fingerprint changes, no anti-abuse bypass — same waits-
+ * for-real-UI-state, no-fixed-sleep synchronization already proven for
+ * images.
+ */
+export async function generateOneVideoViaUI(page, projectId, prompt, settings, promptIndex) {
+  const { mediaId, fifeUrl, diag } = await runUiGeneration(page, prompt, {
+    outputDir: settings?.outputDir,
+    mode: "video",
+    generationTimeoutMs: settings?.generationTimeoutMs || 180000,
+  });
+  if (!mediaId) {
+    throw new MissingMediaIdError(
+      `Flow UI generation did not produce a video (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
     );
   }
   return { mediaId, fifeUrl, width: null, height: null };

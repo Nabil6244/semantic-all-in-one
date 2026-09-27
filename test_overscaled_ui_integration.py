@@ -241,8 +241,12 @@ emit("generation_mode_starts_normal", instance.generation_mode == "normal", inst
 
 # 2) Card is mounted in the real scrollable frame and visible by default;
 #    its controls (just a CSV picker now) start hidden.
-emit("mounted_in_scroll", instance._overscaled_block.master is instance._scroll,
-     instance._scroll.__class__.__name__)
+# Moved out of the Script tab's own scroll frame into the dedicated
+# "Visual Director" tab (see ui/views.py:VisualDirectorView / app.py's
+# NAV_ITEMS entry) — the intelligent-planning workflow's new, growable
+# home. Still a real, live scrollable frame, just a different one.
+emit("mounted_in_scroll", instance._overscaled_block.master is instance._view_visual_director.content,
+     instance._view_visual_director.content.__class__.__name__)
 emit("card_visible_by_default", bool(instance._overscaled_block.grid_info()), "")
 emit("controls_start_hidden", not bool(instance._overscaled_controls.grid_info()), "")
 

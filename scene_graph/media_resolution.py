@@ -73,12 +73,29 @@ def resolve_scene_graph_media(
 
     rows = []
     scene_number_to_node_id: Dict[str, str] = {}
-    for node in scene_graph.nodes:
-        if node.type in _NON_ASSET_NODE_TYPES:
-            continue
+    resolvable = [
+        n for n in scene_graph.nodes
+        if n.type not in _NON_ASSET_NODE_TYPES
+        and str(n.metadata.get("scene_number") or "").strip()
+        and (n.asset_source or n.asset_reference)
+    ]
+    # Several nodes can legitimately share one CSV scene_number (the Local
+    # Visual Planner's compound-row split: n2_1/n2_2/n2_3 all come from row
+    # 2). resolve_scene_assets writes/reads ONE numbered file per
+    # scene_number, so previously every sub-node overwrote the same
+    # images_dir/002.* file and all but one rendered as a placeholder. The
+    # FIRST node keeps the real scene_number (it is the one the Visual Plan
+    # row shows and per-row actions act on); each later duplicate gets a
+    # deterministic synthetic numeric key above every real scene_number.
+    numeric = [int(s) for s in (str(n.metadata.get("scene_number")).strip() for n in resolvable) if s.isdigit()]
+    span = 10 ** len(str(max(numeric))) if numeric else 1000
+    occurrences: Dict[str, int] = {}
+    for node in resolvable:
         scene_number = str(node.metadata.get("scene_number") or "").strip()
-        if not scene_number or not (node.asset_source or node.asset_reference):
-            continue
+        k = occurrences.get(scene_number, 0)
+        occurrences[scene_number] = k + 1
+        if k and scene_number.isdigit():
+            scene_number = str(span * k + int(scene_number))
         scene_number_to_node_id[scene_number] = node.id
         rows.append({
             "scene_number": scene_number,

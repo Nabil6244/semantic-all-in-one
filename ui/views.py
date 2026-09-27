@@ -1674,6 +1674,26 @@ class ResearchView(_BaseView):
         self.app._apply_ai_plan(plan)
 
 
+class VisualDirectorView(_BaseView):
+    """Dedicated home for Exp Solar/Overscaled's Local Visual Planner
+    workflow (CSV import, style selection, Local Visual Planner toggle) —
+    moved out of the Script tab so this intelligence layer has room to grow
+    (optional Gemini enhancement, manual overrides, prompt review, ...)
+    without crowding the plain-CSV script workflow. The actual controls are
+    built by app._build_overscaled_section(self.content, row=0) — this view
+    only owns the header and the scrollable host frame."""
+
+    key = "visual_director"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, app, **kwargs)
+        SectionHeader(
+            self, "Visual Director",
+            "Exp Solar / Overscaled: import a simple CSV and let the Local Visual "
+            "Planner infer visual structure — review the plan, then Generate.",
+        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
+
+
 class VisualPlanView(ctk.CTkFrame):
     """Scene table fills the view — toolbar lives inside the workspace builder."""
 

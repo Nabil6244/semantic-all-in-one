@@ -302,6 +302,24 @@ class ProjectWorkspace:
         """No-op: new projects never write voice_id. Leaves existing values untouched."""
         return
 
+    def overscaled_settings(self) -> Dict[str, Any]:
+        """The project's saved Overscaled/Exp Solar choices: ``style_preset_id``
+        and ``use_local_planner`` (absent keys = never chosen for this project)."""
+        data = self.read_meta().get("overscaled_settings")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_overscaled_settings(self, **values: Any) -> None:
+        """Persist the style/planner choice WITH the project. They used to live
+        only in the running app, so every app restart silently switched a
+        planner project back to the CSV compiler — the re-render then had no
+        titles, captions, or groups."""
+        data = self.read_meta()
+        current = data.get("overscaled_settings") if isinstance(data.get("overscaled_settings"), dict) else {}
+        merged = {**current, **{k: v for k, v in values.items() if v is not None}}
+        if merged != current:
+            data["overscaled_settings"] = merged
+            self._write_meta(data)
+
     def smart_editing_settings(self) -> dict:
         from smart_editing import DEFAULT_SETTINGS
 
@@ -431,22 +449,12 @@ class ProjectWorkspace:
         return self.root / "overscaled" / "_work" / "media"
 
     def next_overscaled_final_path(self) -> Path:
-        """Same auto-increment convention as next_final_path(), for the
-        Overscaled/Exp Solar output directory: first export uses
-        overscaled_final.mp4, re-exports become overscaled_final 1.mp4,
-        overscaled_final 2.mp4, ... — re-rendering never silently
-        overwrites a previous export."""
-        out_dir = self.root / "overscaled"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        primary = out_dir / "overscaled_final.mp4"
-        if not primary.exists():
-            return primary
-        n = 1
-        while True:
-            candidate = out_dir / f"overscaled_final {n}.mp4"
-            if not candidate.exists():
-                return candidate
-            n += 1
+        """Overscaled/Exp Solar exports land in the SAME folder, with the same
+        naming, as normal exports (final/<title>.mp4, then final 1.mp4,
+        final 2.mp4, ...) — re-rendering never overwrites a previous export.
+        Only the finished video lives there: the Overscaled work/media cache
+        stays under overscaled/_work (see overscaled_images_dir)."""
+        return self.next_final_path()
 
     def append_log(self, text: str) -> None:
         self.ensure_dirs()

@@ -32,7 +32,9 @@ from __future__ import annotations
 import csv
 import dataclasses
 import os
+import re
 import tempfile
+import unicodedata
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -53,6 +55,7 @@ class OverscaledGenerationResult:
     output_path: Optional[Path] = None
     scene_graph: Optional[SceneGraph] = None
     timeline: Optional[EditorialTimeline] = None
+    cancelled: bool = False
 
 
 def _fail(errors: List[str]) -> OverscaledGenerationResult:
@@ -88,6 +91,8 @@ def generate_overscaled_video(
     on_scene_complete=None,
     on_scene_generating=None,
     on_manager_ready=None,
+    use_local_planner: bool = False,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> OverscaledGenerationResult:
     """Overscaled CSV + real voiceover -> a real, final MP4.
 
@@ -103,6 +108,17 @@ def generate_overscaled_video(
     real narration timing instead of the cruder proportional whole-segment
     scale; when omitted (the previous, still-default behavior), nothing
     changes here.
+
+    ``use_local_planner`` (default False — every existing caller keeps its
+    exact current behavior): the CSV at ``overscaled_csv_path`` only needs
+    ``scene_number``/``script_segment`` columns (``asset_type``/``prompt``
+    stay optional); the Local Visual Planner
+    (scene_graph.generator.generate_scene_graph_local_planner) infers node/
+    role/relationship/group structure from narration language instead of
+    the dedicated Overscaled/Exp Solar CSV vocabulary (beat/node_id/
+    relationship_to/chapter/...). Media resolution, retiming, layout,
+    composition, rendering, and the final export are all completely
+    unaffected — both paths converge on the same SceneGraph contract.
     """
 
     csv_path = Path(overscaled_csv_path)
@@ -121,7 +137,13 @@ def generate_overscaled_video(
     except OSError as exc:
         return _fail([f"could not read Overscaled CSV: {exc}"])
 
-    if style_preset_id == "exp_solar":
+    from scene_graph.overscaled_csv import duplicate_scene_numbers
+
+    dupes = duplicate_scene_numbers(csv_rows)
+    if dupes:
+        return _fail([f"each row needs its own scene_number; repeated: {', '.join(dupes[:10])}"])
+
+    if style_preset_id == "exp_solar" and not use_local_planner:
         # Exp Solar CSVs use their own schema (beat/chapter/relationship_to/
         # ... — see scene_graph.exp_solar_csv) and must be adapted into
         # Overscaled-CSV-shaped rows BEFORE either compile_overscaled_csv
@@ -130,6 +152,13 @@ def generate_overscaled_video(
         # reviewed (which DOES go through this same adapter, in app.py's
         # _load_overscaled_csv). No second SceneGraph/renderer: from here
         # on this is the exact same path Overscaled itself uses.
+        #
+        # Skipped entirely when use_local_planner is set: the planner needs
+        # only scene_number/script_segment and infers its own structure —
+        # it has no concept of Exp Solar's beat/chapter/relationship_to
+        # vocabulary, so running the adapter against a bare narration CSV
+        # would either no-op or reject rows that were never meant to have
+        # those columns in the first place.
         #
         # This whole call runs on a background thread (app.py's
         # _run_overscaled_generation worker) with no wrapper of its own —
@@ -153,9 +182,38 @@ def generate_overscaled_video(
             log(f"[Exp Solar] {warning}")
         csv_rows = adapted.rows
 
-    compiled = compile_overscaled_csv(csv_rows, segment_id=segment_id, title=title, style_preset=style_preset_id)
+    if use_local_planner:
+        from scene_graph.generator import generate_scene_graph_local_planner, scene_rows_from_csv_rows
+
+        compiled = generate_scene_graph_local_planner(
+            segment_id, scene_rows_from_csv_rows(csv_rows), title=title, style_preset=style_preset_id
+        )
+    else:
+        compiled = compile_overscaled_csv(csv_rows, segment_id=segment_id, title=title, style_preset=style_preset_id)
     if not compiled.ok:
         return _fail(compiled.errors)
+
+    def _cancelled() -> bool:
+        return bool(cancel_check is not None and cancel_check())
+
+    # Checked BEFORE any media is fetched: when the voiceover says far fewer
+    # words than the plan's script (a different/shorter take), word-timed
+    # retiming runs out of speech and squeezes every remaining scene into
+    # the audio's last instant — which surfaced only after every asset was
+    # downloaded, as layout's cryptic "overlapping nodes" failure.
+    voiceover_check = check_voiceover_matches_script(csv_rows, whisper_words)
+    if voiceover_check is not None:
+        log(voiceover_check.diagnostic())
+        if os.environ.get("VIDEOGEN_VOICEOVER_DIAG", "").strip() in ("1", "true", "yes"):
+            log(f"[VOICEOVER CHECK] script: {' '.join(_narration_rows_text(csv_rows))[:2000]}")
+            log(f"[VOICEOVER CHECK] voiceover: {' '.join(str(w[0]) for w in whisper_words)[:2000]}")
+        if voiceover_check.status == "fail":
+            return _fail([voiceover_check.message])
+        if voiceover_check.status == "warn":
+            log(f"[VOICEOVER CHECK] {voiceover_check.message}")
+
+    if _cancelled():
+        return OverscaledGenerationResult(ok=False, errors=["Cancelled"], cancelled=True)
 
     _report(progress_cb, "Resolving media (Flow/stock/YouTube/local)…", 0.20)
     images_dir = work_dir_path / "media"
@@ -171,6 +229,9 @@ def generate_overscaled_video(
         return _fail([f"media resolution failed: {exc}"])
     except Exception as exc:
         return _fail([f"media resolution failed unexpectedly: {exc}"])
+    if _cancelled():
+        # Stopped during acquisition: don't go on to render a partial plan.
+        return OverscaledGenerationResult(ok=False, errors=["Cancelled"], cancelled=True)
 
     # From here on, run_overscaled_pipeline reports its OWN finer-grained
     # progress (layout, composition, and — the genuinely long part — one
@@ -182,7 +243,10 @@ def generate_overscaled_video(
         voiceover_path=voiceover_path, out_dir=work_dir_path / "overscaled",
         resolved_media=resolved_media, resolution=resolution, fps=fps,
         whisper_words=whisper_words, progress_cb=progress_cb,
+        use_local_planner=use_local_planner, cancel_check=cancel_check,
     )
+    if pipeline_result.cancelled or _cancelled():
+        return OverscaledGenerationResult(ok=False, errors=["Cancelled"], cancelled=True)
     if not pipeline_result.ok:
         return _fail(pipeline_result.errors)
 
@@ -220,12 +284,152 @@ def generate_overscaled_video(
 
     if not Path(output_path).is_file():
         return _fail(["final export did not produce an output file"])
+    problem = validate_rendered_output(Path(output_path), expected_duration_s=pipeline_result.scene_graph.duration)
+    if problem:
+        # Never report a broken file as success (a missing stream or a clip
+        # far shorter than the narration is a failed render, not a result).
+        return _fail([f"final video failed validation: {problem}"])
 
     _report(progress_cb, "Done.", 1.0)
     return OverscaledGenerationResult(
         ok=True, errors=[], output_path=Path(output_path),
         scene_graph=pipeline_result.scene_graph, timeline=pipeline_result.timeline,
     )
+
+
+# --- Voiceover <-> script check ------------------------------------------
+# Thresholds calibrated on real project recordings (script-word coverage by
+# an order-preserving word alignment, after comparison-only normalization):
+#   matching script <-> its voiceover .............. 0.90 - 1.00
+#   revised / reworded take of the same story ....... 0.53 - 0.62
+#   a different script's voiceover .................. 0.01 - 0.12
+# Only a materially different script (or no usable speech) blocks Generate.
+_VO_PASS_COVERAGE = 0.80
+_VO_FAIL_COVERAGE = 0.35
+_VO_TOKEN_RE = re.compile(r"[0-9a-z]+(?:['.-][0-9a-z]+)*")
+
+
+def _comparison_tokens(text: str) -> List[str]:
+    """Comparison-only normalization — never applied to narration or render
+    text. Unicode NFKC, case-folded, curly quotes/apostrophes unified,
+    punctuation and whitespace dropped; words, numbers, and in-word
+    apostrophes/hyphens/decimal points kept ("nasa's artemis-iii 1931")."""
+    text = unicodedata.normalize("NFKC", str(text or "")).casefold()
+    text = text.replace("\u2019", "'").replace("\u2018", "'").replace("\u02bc", "'")
+    return _VO_TOKEN_RE.findall(text)
+
+
+def _narration_rows_text(csv_rows) -> List[str]:
+    """The SPOKEN narration only: each row's script_segment exactly once.
+    Rows with no narration (visual-only / continuation / checklist members
+    authored with an empty script_segment) contribute nothing, and a row
+    repeating the previous row's text verbatim (one narration beat spread
+    over several visual rows) is not counted twice. Visual metadata
+    (prompt, visual_hint, captions, titles, [role] display prefixes — those
+    exist only on UI rows, never in the CSV) is never read."""
+    texts: List[str] = []
+    for row in csv_rows:
+        text = str(row.get("script_segment") or "").strip()
+        if text and (not texts or text != texts[-1]):
+            texts.append(text)
+    return texts
+
+
+@dataclasses.dataclass
+class VoiceoverCheck:
+    status: str  # "pass" | "warn" | "fail"
+    coverage: float
+    script_words: int
+    spoken_words: int
+    message: str
+
+    def diagnostic(self) -> str:
+        return (
+            f"[VOICEOVER CHECK] {self.status.upper()} — {self.coverage:.0%} of {self.script_words} "
+            f"script words found in order in {self.spoken_words} transcribed words "
+            f"(pass >= {_VO_PASS_COVERAGE:.0%}, block < {_VO_FAIL_COVERAGE:.0%})"
+        )
+
+
+def check_voiceover_matches_script(csv_rows, whisper_words) -> Optional[VoiceoverCheck]:
+    """Compare the plan's spoken narration with the transcribed voiceover by
+    an order-preserving word alignment (difflib), NOT by word count or audio
+    duration — natural pace, pauses, Whisper merges/splits, and numbers read
+    aloud all change counts without meaning the recording is wrong. Returns
+    None when there is nothing to compare (no transcript -> the proportional
+    retime is used; no narration in the CSV)."""
+    import difflib
+
+    if whisper_words is None:
+        return None
+    script = [t for text in _narration_rows_text(csv_rows) for t in _comparison_tokens(text)]
+    if not script:
+        return None
+    spoken = [t for word in whisper_words for t in _comparison_tokens(word[0] if word else "")]
+    if not spoken:
+        return VoiceoverCheck(
+            "fail", 0.0, len(script), 0,
+            "No speech was recognised in the voiceover (silent, corrupt, or not narration). "
+            "Import the narration recording for this script, then Generate again.",
+        )
+    matcher = difflib.SequenceMatcher(a=script, b=spoken, autojunk=False)
+    matched = sum(block.size for block in matcher.get_matching_blocks())
+    coverage = matched / len(script)
+    if coverage >= _VO_PASS_COVERAGE:
+        return VoiceoverCheck("pass", coverage, len(script), len(spoken), "")
+    if coverage >= _VO_FAIL_COVERAGE:
+        return VoiceoverCheck(
+            "warn", coverage, len(script), len(spoken),
+            f"The voiceover's wording differs from the script ({coverage:.0%} of the script matches) — "
+            "it looks like a different take of the same story. Generating anyway; scene timing may "
+            "drift where the wording differs.",
+        )
+    return VoiceoverCheck(
+        "fail", coverage, len(script), len(spoken),
+        f"The voiceover doesn't match this plan's script: only {coverage:.0%} of the script's words "
+        f"are spoken in it ({len(spoken)} transcribed words vs {len(script)} in the script). It looks "
+        "like a recording of a different script. Import the voiceover recorded from this script, or "
+        "import the CSV that belongs to this recording, then Generate again.",
+    )
+
+
+def validate_rendered_output(path: Path, *, expected_duration_s: float, tolerance_s: float = 1.5) -> Optional[str]:
+    """ffprobe the final file. Returns a human-readable problem, or None when
+    it has a decodable video stream with real frame size, an audio stream,
+    and a duration within ``tolerance_s`` of the SceneGraph's own (i.e. the
+    narration it was retimed to). Probe unavailable -> None (don't fail a
+    render on a missing ffprobe; the file-exists check still applies)."""
+    import json
+    import subprocess
+
+    from media_duration import _resolve_ffprobe
+    from providers import hidden_subprocess as hs
+
+    ffprobe = _resolve_ffprobe()
+    if not ffprobe:
+        return None
+    try:
+        out = hs.run(
+            [ffprobe, "-v", "error", "-show_entries",
+             "stream=codec_type,width,height:format=duration", "-of", "json", str(path)],
+            capture_output=True, text=True, timeout=60,
+        )
+        info = json.loads(out.stdout or "{}")
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return f"could not be probed ({exc})"
+    streams = info.get("streams") or []
+    video = [s for s in streams if s.get("codec_type") == "video"]
+    if not video or not (video[0].get("width") and video[0].get("height")):
+        return "no decodable video stream"
+    if not any(s.get("codec_type") == "audio" for s in streams):
+        return "no audio stream (narration missing)"
+    try:
+        duration = float((info.get("format") or {}).get("duration"))
+    except (TypeError, ValueError):
+        return "duration unreadable"
+    if expected_duration_s and abs(duration - float(expected_duration_s)) > tolerance_s:
+        return f"duration {duration:.1f}s but the narration/plan is {float(expected_duration_s):.1f}s"
+    return None
 
 
 def _export_via_existing_renderer(
