@@ -24,6 +24,7 @@ jobs:
             dmg_path: dist/Semantic-YT-Studio.dmg
             artifact_name: Semantic-YT-Studio.dmg
             file_arch_grep: arm64
+            run_tests: true
 
           # Intel Macs (x86_64). Separate DMG so Silicon users keep the old name.
           - name: macOS Intel (.dmg)
@@ -37,6 +38,9 @@ jobs:
             dmg_path: dist/Semantic-YT-Studio-Intel.dmg
             artifact_name: Semantic-YT-Studio-Intel.dmg
             file_arch_grep: x86_64
+            # Same macOS test suite already runs on the Apple Silicon job;
+            # skipping the duplicate run here saves ~6 min per build.
+            run_tests: false
 
     steps:
       - name: Checkout
@@ -94,6 +98,7 @@ jobs:
           test -x bin/ffprobe
 
       - name: Run unit tests
+        if: ${{ matrix.run_tests }}
         env:
           PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
         # Same tests as unittest discover, one process per module in parallel.
