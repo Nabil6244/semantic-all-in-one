@@ -39,6 +39,7 @@ state in-process).
 from __future__ import annotations
 
 import csv
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -649,8 +650,12 @@ class TestVisualPlanLifecycleLive(unittest.TestCase):
 
         script = Path(tempfile.mkdtemp()) / "_visual_plan_lifecycle_live.py"
         script.write_text(_LIVE_SCRIPT, encoding="utf-8")
+        # UTF-8 both ways: the app logs "—", "→", "✓"; with the Windows
+        # default code page the child can't encode them and the parent's
+        # decode fails, leaving proc.stdout as None.
         proc = subprocess.run(
             [sys.executable, str(script)], capture_output=True, text=True, timeout=120,
+            encoding="utf-8", errors="replace", env=dict(os.environ, PYTHONIOENCODING="utf-8"),
             cwd=Path(__file__).resolve().parent,
         )
         cls._stdout, cls._stderr, cls._results = proc.stdout, proc.stderr, {}

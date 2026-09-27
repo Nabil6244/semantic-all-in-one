@@ -46,6 +46,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
 
       - name: Install build dependencies
         run: |
@@ -94,7 +96,8 @@ jobs:
       - name: Run unit tests
         env:
           PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
-        run: python -m unittest discover -s . -p "test_*.py" -q
+        # Same tests as unittest discover, one process per module in parallel.
+        run: python scripts/run_tests_parallel.py
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
@@ -255,6 +258,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
 
       - name: Install build dependencies
         run: |
@@ -297,7 +302,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = "$PWD\bin;" + $env:PATH
-          python -m unittest discover -s . -p "test_*.py" -q
+          python scripts/run_tests_parallel.py
 
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
