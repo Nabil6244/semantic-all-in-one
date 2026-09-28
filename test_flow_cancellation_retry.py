@@ -951,5 +951,84 @@ class TestAntiAbuseHoldRetrySkipUnaffected(unittest.TestCase):
             )
 
 
+# ---------------------------------------------------------------------------
+# 8. A dead or silent engine must fail the batch fast -- never leave the app
+#    waiting until the user presses Stop (real report: Chrome closed 0.3s into
+#    Generate, the engine never sent anything, the app sat "generating").
+# ---------------------------------------------------------------------------
+
+
+def _engine_client(root, *, alive_after_generate: bool, send_running: bool):
+    client = _make_client(root)
+    handlers: dict = {}
+
+    def fake_subscribe(fn):
+        handlers["on_message"] = fn
+        return lambda: None
+
+    def fake_generate(prompts, **kwargs):
+        client.is_alive.return_value = alive_after_generate
+        if send_running:
+            handlers["on_message"]({"type": "BATCH_PROGRESS", "index": 0, "status": "running",
+                                    "label": "acct1", "message": "generating"})
+
+    client.subscribe.side_effect = fake_subscribe
+    client.generate.side_effect = fake_generate
+    client.is_alive.return_value = True
+    return client
+
+
+class TestDeadOrSilentEngineFailsFast(unittest.TestCase):
+    def test_engine_that_dies_mid_batch_fails_fast(self):
+        import time as _time
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _engine_client(root, alive_after_generate=False, send_running=True)
+            fp = FlowProvider(_FakeEngineManager(client), media_kind="image")
+            scenes = [SceneRow(scene_number=str(i), script_segment="x", prompt=f"p{i}") for i in (1, 2)]
+            t0 = _time.monotonic()
+            results = fp.resolve_batch(scenes, root, log=lambda *_: None)
+            self.assertLess(_time.monotonic() - t0, 10, "must not wait for the full generation timeout")
+            for sn in ("1", "2"):
+                self.assertFalse(results[sn].ok)
+                self.assertIn("stopped unexpectedly", results[sn].error)
+
+    def test_silent_engine_that_never_starts_a_prompt_fails_fast(self):
+        import time as _time
+
+        from providers.flow import provider as flow_provider_module
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _engine_client(root, alive_after_generate=True, send_running=False)
+            fp = FlowProvider(_FakeEngineManager(client), media_kind="image")
+            scenes = [SceneRow(scene_number="1", script_segment="x", prompt="p1")]
+            with unittest.mock.patch.object(flow_provider_module, "_NO_START_TIMEOUT_SECONDS", 1.5):
+                t0 = _time.monotonic()
+                results = fp.resolve_batch(scenes, root, log=lambda *_: None)
+            self.assertLess(_time.monotonic() - t0, 10)
+            self.assertIn("never started", results["1"].error)
+            client.stop.assert_called()
+
+    def test_lost_engine_video_is_not_auto_resubmitted_but_image_is(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _engine_client(root, alive_after_generate=False, send_running=True)
+            fp = FlowProvider(_FakeEngineManager(client), media_kind="video")
+            mgr = AssetManager(root, flow_video_provider=fp, log=lambda *_: None)
+            summary = mgr.resolve_all([SceneRow(scene_number="1", script_segment="x", asset_type="video", prompt="p")])
+            self.assertEqual(summary.results["1"].status, SceneStatus.NEEDS_ACTION)
+            self.assertEqual(client.generate.call_count, 1, "a started video must not be re-submitted automatically")
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _engine_client(root, alive_after_generate=False, send_running=True)
+            fp = FlowProvider(_FakeEngineManager(client), media_kind="image")
+            mgr = AssetManager(root, flow_image_provider=fp, log=lambda *_: None)
+            mgr.resolve_all([SceneRow(scene_number="1", script_segment="x", asset_type="image", prompt="p")])
+            self.assertEqual(client.generate.call_count, 2, "free image keeps its one automatic retry")
+
+
 if __name__ == "__main__":
     unittest.main()

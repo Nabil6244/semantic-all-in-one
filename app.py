@@ -2943,13 +2943,21 @@ class VideoGeneratorApp(ctk.CTk):
         self.next_error_btn.pack(side="left")
         self._error_nav.grid_remove()
 
+        self._select_by_source_btn = ctk.CTkButton(
+            act_header, text="Select by source ▾", width=140, height=24,
+            fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11),
+            corner_radius=4, command=self._open_select_by_source_menu,
+        )
+        self._select_by_source_btn.grid(row=0, column=3, sticky="e", padx=(0, 4))
+
         self._overflow_btn = ctk.CTkButton(
             act_header, text="⋯", width=30, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_MUTED, hover_color=_CARD_HOVER, font=ctk.CTkFont(size=14),
             command=self._open_workspace_overflow,
         )
-        self._overflow_btn.grid(row=0, column=3, sticky="e")
+        self._overflow_btn.grid(row=0, column=4, sticky="e")
 
         # Hidden compatibility widgets (state still updated by existing helpers).
         self.cleanup_assets_btn = ctk.CTkButton(
@@ -8059,6 +8067,65 @@ class VideoGeneratorApp(ctk.CTk):
             self.progress.set(snap.progress)
             if self._running:
                 self.status_var.set(snap.header)
+
+    def _scene_keys_by_source_bucket(self) -> dict[str, list[str]]:
+        """Same per-scene source classification as _scene_source_mix_label
+        (resolved source when available, else what the CSV/router would
+        route it to), grouped into scene_number keys per bucket instead of
+        just counted -- feeds the "Select by source" menu so its entries and
+        counts always match the summary line exactly."""
+        from providers.router import SceneAssetRouter
+
+        by_bucket: dict[str, list[str]] = {}
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            result = self._asset_results.get(key)
+            source = getattr(result, "source", None) if result is not None else None
+            if source is None:
+                source = SceneAssetRouter.classify(scene)
+            label = self._source_mix_bucket(source)
+            by_bucket.setdefault(label, []).append(key)
+        return by_bucket
+
+    def _open_select_by_source_menu(self) -> None:
+        import tkinter as tk
+
+        by_bucket = self._scene_keys_by_source_bucket()
+        if not by_bucket:
+            return
+        order = (
+            "Stock Video", "Flow Image", "Stock Image", "Flow Video", "Stock",
+            "YouTube", "Archive", "NASA", "Commons", "Local", "Unassigned",
+        )
+        extras = [name for name in by_bucket if name not in order]
+        menu = tk.Menu(
+            self, tearoff=0, bg=_CARD, fg=_TEXT, activebackground=_CARD_HOVER,
+            activeforeground=_TEXT, bd=0,
+        )
+        for name in (*order, *sorted(extras)):
+            keys = by_bucket.get(name)
+            if not keys:
+                continue
+            menu.add_command(
+                label=f"{name} ({len(keys)})",
+                command=lambda ks=keys: self._select_scenes_by_source_bucket(ks),
+            )
+        menu.tk_popup(
+            self._select_by_source_btn.winfo_rootx(),
+            self._select_by_source_btn.winfo_rooty() + 28,
+        )
+
+    def _select_scenes_by_source_bucket(self, keys: list[str]) -> None:
+        """Replaces the current selection with exactly this source bucket's
+        scenes -- reuses the SAME selection set (self._qa.selected_failed)
+        and repaint path as _select_all_failed, so the existing bulk actions
+        (Retry selected, bulk Change Source, ...) work on it unmodified."""
+        self._qa.selected_failed = set(keys)
+        for key, widgets in self._scene_row_widgets.items():
+            if widgets.get("check_var") is not None:
+                widgets["check_var"].set(key in self._qa.selected_failed)
+        self._paint_qa_chrome()
+        self._update_details_panel()
 
     def _scene_source_mix_label(self) -> str:
         """Counts by resolved source (post-generate when available), one label per provider."""

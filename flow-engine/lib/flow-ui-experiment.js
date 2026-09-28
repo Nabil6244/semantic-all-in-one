@@ -428,9 +428,14 @@ export async function generateOneVideoViaUI(page, projectId, prompt, settings, p
     generationTimeoutMs: settings?.generationTimeoutMs || 180000,
   });
   if (!mediaId) {
-    throw new MissingMediaIdError(
+    const err = new MissingMediaIdError(
       `Flow UI generation did not produce a video (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
     );
+    // Whether Flow's paid "Start generation" was actually clicked before
+    // detection gave up -- batch-runner.js must not re-click it then, since
+    // the first request may still complete (and bill) on Google's side.
+    err.generateClicked = Boolean(diag.generationClickedAt);
+    throw err;
   }
   return { mediaId, fifeUrl, width: null, height: null };
 }

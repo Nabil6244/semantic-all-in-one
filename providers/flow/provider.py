@@ -50,6 +50,10 @@ _IDLE_POLL_SECONDS = 0.45
 _SOFT_STOP_AFTER_SECONDS = 2.0
 _FORCE_RESET_AFTER_SECONDS = 6.0
 _IDLE_WAIT_TIMEOUT = 180.0
+# If the engine hasn't reported ANY prompt activity this long after GENERATE,
+# its browser/accounts never opened -- fail the batch instead of waiting for
+# the full generation timeout (an hour+ for a video batch).
+_NO_START_TIMEOUT_SECONDS = 180.0
 # One GENERATE at a time — Retry used to fire several Flow jobs and fail extras
 # with "A Flow batch is already running".
 _ENGINE_GENERATE_LOCK = threading.Lock()
@@ -241,6 +245,7 @@ class FlowProvider(AssetProvider):
         done_event = threading.Event()
         terminal_error: List[str] = []
         generating_reported: set = set()
+        prompt_activity_seen = threading.Event()
 
         def _try_place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
             """Copy into assets/ as soon as Node finishes a scene — otherwise the
@@ -276,6 +281,8 @@ class FlowProvider(AssetProvider):
 
         def on_message(msg: dict) -> None:
             mtype = msg.get("type")
+            if mtype in ("BATCH_PROGRESS", "PROMPT_RESULT"):
+                prompt_activity_seen.set()
             if mtype == "BATCH_PROGRESS":
                 idx = msg.get("index")
                 status = msg.get("status")
@@ -370,12 +377,40 @@ class FlowProvider(AssetProvider):
             deadline = time.monotonic() + timeout_seconds
             poll_seconds = 1.0
             timed_out = False
+            stall_error: Optional[str] = None
             while not done_event.is_set():
                 if self._batch_should_stop(should_stop, scenes):
                     log("[FLOW] Cancelling — sending STOP to the engine...")
                     client.stop()
                     cancelled = True
                     done_event.wait(timeout=15)  # give it a moment to wind down gracefully
+                    break
+                is_alive = getattr(client, "is_alive", None)
+                if callable(is_alive) and is_alive() is False:
+                    log("[FLOW] Lost connection to the Flow engine — it stopped unexpectedly.")
+                    stall_error = "The Flow engine stopped unexpectedly before this scene finished."
+                    if self.media_kind == "video":
+                        # A started video may still bill on Google's side.
+                        stall_error += " It may still bill, so it was not resubmitted automatically — use Retry."
+                    else:
+                        stall_error += " Use Retry."
+                    break
+                if (
+                    not prompt_activity_seen.is_set()
+                    and time.monotonic() - t_gen > _NO_START_TIMEOUT_SECONDS
+                ):
+                    log(
+                        f"[FLOW] The Flow engine hasn't started any prompt in "
+                        f"{int(_NO_START_TIMEOUT_SECONDS)}s — stopping this batch."
+                    )
+                    try:
+                        client.stop()
+                    except Exception:
+                        pass
+                    stall_error = (
+                        "The Flow engine never started this scene (its browser/accounts "
+                        "didn't open). Use Retry."
+                    )
                     break
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -405,6 +440,7 @@ class FlowProvider(AssetProvider):
             if (
                 not cancelled
                 and not timed_out
+                and stall_error is None
                 and not abort_retried
                 and self._abort_is_retryable(terminal_error)
                 and self._looks_like_ghost_abort(scenes, progress, run_dir, elapsed)
@@ -439,7 +475,9 @@ class FlowProvider(AssetProvider):
                 "Timed out waiting for the Flow engine to finish generating. "
                 "Finished scenes were kept — use Retry on the rest."
             )
-            if timed_out or (not done_event.is_set() and not cancelled):
+            if stall_error is not None:
+                fallback = stall_error
+            elif timed_out or (not done_event.is_set() and not cancelled):
                 fallback = timeout_error
             elif terminal_error and not progress and self._count_run_media(run_dir) == 0:
                 return {s.scene_number: self._fail(s, terminal_error[0]) for s in scenes}

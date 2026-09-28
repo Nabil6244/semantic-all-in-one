@@ -153,6 +153,12 @@ export async function runBatchSlice({
     let done = false;
     let rateAttempt = 0;
     let sessAttempt = 0;
+    // Set once this prompt's paid video "Start generation" click has
+    // happened (success or a detection timeout after the click). After that,
+    // nothing below may loop back and click it again: the first request may
+    // still complete and bill on Google's side, so a retry would be a second
+    // paid generation for the same scene.
+    let videoSubmitted = false;
     life.resetRecoveryBudget();
 
     while (!done && !shouldStop?.()) {
@@ -174,6 +180,7 @@ export async function runBatchSlice({
               mediaKind === "video"
                 ? await generateOneVideoViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot)
                 : await generateOneImageViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot);
+            if (mediaKind === "video") videoSubmitted = true;
             const mediaId = generated.mediaId;
             const directUrl = generated.fifeUrl || null;
             mediaIds.push(mediaId);
@@ -289,6 +296,26 @@ export async function runBatchSlice({
         }
       } catch (err) {
         let activeErr = err;
+        if (mediaKind === "video" && (videoSubmitted || err?.generateClicked)) {
+          // Never re-click a paid video generation for the same prompt. Leave
+          // it failed (the app shows it as needs-action for a deliberate
+          // manual Retry) instead of risking a duplicate billed video.
+          failed++;
+          done = true;
+          const message =
+            `${err?.message || err} — not resubmitted: this video may already ` +
+            `have been generated on Flow (avoiding a duplicate paid generation). Use Retry.`;
+          emit("PROMPT_RESULT", { index: abs, prompt, status: "failed", error: message });
+          emit("BATCH_PROGRESS", {
+            index: abs,
+            total: totalAbsolute,
+            status: "failed",
+            message: `Failed: ${message}`,
+            completed,
+            failed,
+          });
+          continue;
+        }
         const waitThenRefresh = async (seconds, label, { forceReload = true } = {}) => {
           emit("BATCH_PROGRESS", {
             index: abs,

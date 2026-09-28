@@ -274,6 +274,18 @@ class FlowEngineManager:
                 self.log("[FLOW] The running Flow engine is from an older app version — restarting it.")
                 self._retire_running_engine(probe)
                 probe = None
+            elif probe is not None and not self._owns_live_engine():
+                # Only ever reuse an engine THIS app started. A foreign one (a
+                # leftover/second copy of the app, a previous session) keeps its
+                # own lifecycle: its output never reaches our log, we can't stop
+                # it on quit, and its owner can kill it -- and every Chrome
+                # profile with it -- mid-batch. Measured on a user's Mac: Generate
+                # "reused" such an engine, its Chrome window closed 0.3s after
+                # opening, and the batch sat waiting until Stop; Retry/relaunch
+                # worked because they started a fresh engine. Do that up front.
+                self.log("[FLOW] A Flow engine this app didn't start is already running — replacing it with a fresh one.")
+                self._retire_running_engine(probe)
+                probe = None
             try:
                 if probe is None:
                     raise FlowClientError("no reusable engine")
@@ -403,6 +415,11 @@ class FlowEngineManager:
 
     def health_check(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
+
+    def _owns_live_engine(self) -> bool:
+        """True when the engine on our port is the Node process this manager
+        spawned and it is still running."""
+        return self.health_check()
 
     def stop(self, timeout: float = 5.0) -> None:
         if self._client is not None:

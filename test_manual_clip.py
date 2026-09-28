@@ -202,5 +202,57 @@ class TestInstallAndState(AssetPipelineTestCase):
         self.assertTrue((self.images / "002.png").is_file())
 
 
+class TestLocalClipAlwaysWinsAtGenerate(AssetPipelineTestCase):
+    """Real report: local files attached to 10 flow_video rows before Generate
+    were ignored and Flow generated videos for them anyway. The Generate-time
+    reuse check only kept a local clip if the row's prompt text still matched
+    the text recorded when it was attached -- any change in between (an AI
+    visual plan, the planner, a style prefix, an edit) silently dropped the
+    user's file and paid for a Flow video instead."""
+
+    def _row(self, prompt):
+        return SceneRow.from_csv_row(
+            {"scene_number": "3", "script_segment": "x", "asset_type": "flow_video", "prompt": prompt}
+        )
+
+    def _attach(self, prompt):
+        src = self.tmp / "mine.png"
+        src.write_bytes(PLACEHOLDER_PNG)
+        AssetManager(self.images, log=lambda *_: None).attach_manual_clip(self._row(prompt), src)
+
+    def _generate(self, prompt):
+        flow = FakeProvider(AssetSource.FLOW_VIDEO, {}, media_type=MediaType.VIDEO)
+        mgr = AssetManager(self.images, flow_video_provider=flow, log=lambda *_: None)
+        return flow, mgr.resolve_all([self._row(prompt)])
+
+    def test_local_clip_is_used_even_when_the_prompt_text_changed(self):
+        self._attach("a jet at dusk")
+        flow, summary = self._generate("Realistic, painterly digital illustration of a jet at dusk")
+        self.assertEqual(flow.calls, [], "Flow must not generate a video for a scene that has a local file")
+        self.assertEqual(summary.results["3"].source, AssetSource.MANUAL)
+
+    def test_local_clip_is_used_when_the_prompt_is_unchanged(self):
+        self._attach("a jet at dusk")
+        flow, summary = self._generate("a jet at dusk")
+        self.assertEqual(flow.calls, [])
+        self.assertEqual(summary.results["3"].source, AssetSource.MANUAL)
+
+    def test_deliberate_change_source_still_replaces_the_local_clip(self):
+        self._attach("a jet at dusk")
+        flow = FakeProvider(AssetSource.FLOW_VIDEO, {}, media_type=MediaType.VIDEO)
+        mgr = AssetManager(self.images, flow_video_provider=flow, log=lambda *_: None)
+        result = mgr.change_source(self._row("a jet at dusk"), "flow_video")
+        self.assertEqual(flow.calls, ["3"], "an explicit Change Source must still regenerate")
+        self.assertEqual(result.source, AssetSource.FLOW_VIDEO)
+
+    def test_attached_clip_counts_as_the_users_own_pick_for_ready_display(self):
+        from app import _manifest_record_matches_row
+
+        self._attach("a jet at dusk")
+        record = AssetManager(self.images, log=lambda *_: None).manifest.get("3")
+        self.assertTrue(record.get("user_override"))
+        self.assertTrue(_manifest_record_matches_row(record, self._row("a reworded prompt for the same scene")))
+
+
 if __name__ == "__main__":
     unittest.main()

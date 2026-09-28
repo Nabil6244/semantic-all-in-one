@@ -378,6 +378,14 @@ class AssetManager:
         record = self.manifest.get(scene.scene_number)
         if not record or record.get("status") != "complete":
             return None
+        if record.get("source") == AssetSource.MANUAL.value:
+            # A file the user picked with "Local clip" is their explicit choice:
+            # always use it, whatever the row's prompt text says now. Matching it
+            # against the prompt (as below) silently discarded it whenever that
+            # text changed between attaching and Generate, and Flow generated a
+            # (paid) video for a scene that already had one. Only a deliberate
+            # action (Change Source / Retry / Alternative / Reset) replaces it.
+            return self._result_from_complete_record(scene, record)
         # Change Source (e.g. YouTube → Flow image) leaves a complete file whose
         # recorded source no longer matches the CSV. Reuse it for final render
         # unless the CSV text itself changed (stock → a new Flow prompt).
@@ -905,6 +913,10 @@ class AssetManager:
                 # a real, user-visible delay that looked like the override
                 # was being ignored.
                 break
+            if source == AssetSource.FLOW_VIDEO and "not resubmitted" in (result.error or ""):
+                # The engine already clicked the paid video generation for this
+                # prompt; retrying here would be a second billed video.
+                break
             if attempt < max_attempts:
                 self.log(
                     f"[ASSET] Scene {scene.scene_number} -> {source.value} failed "
@@ -1220,9 +1232,13 @@ class AssetManager:
             # deliberate manual Retry instead, exactly like the anti-abuse-
             # hold case just below. Flow IMAGE generation is free and carries
             # no such credit risk — it keeps its existing automatic retry.
-            if (
-                source == AssetSource.FLOW_VIDEO
-                and "Interrupted when another scene in this batch was stopped" in (result.error or "")
+            # Same reason for a video whose paid "Start generation" click already
+            # happened in the engine (flow-engine/lib/batch-runner.js reports it
+            # as "not resubmitted"): the first request may still bill.
+            error_text = result.error or ""
+            if source == AssetSource.FLOW_VIDEO and (
+                "Interrupted when another scene in this batch was stopped" in error_text
+                or "not resubmitted" in error_text
             ):
                 continue
             to_retry.append(scene)
@@ -1913,4 +1929,4 @@ class AssetManager:
         )
         self.log(f"[ASSET] Scene {scene.scene_number} -> MANUAL ({dest.name})")
         self._finalize(scene, result)
-        return result
+        return self._mark_user_override(scene, result)

@@ -131,5 +131,53 @@ class TestReuseDecision(unittest.TestCase):
         self.assertFalse(em._is_flow_engine_process(os.getpid()))
 
 
+class _SpawnAttempted(Exception):
+    pass
+
+
+class TestEngineOwnership(unittest.TestCase):
+    """A Flow engine this app didn't spawn must never be reused, even when it
+    runs current code: its owner controls its lifetime (on a user's Mac its
+    Chrome windows closed 0.3s into Generate and the batch hung until Stop),
+    and its output never reaches the app log."""
+
+    def setUp(self):
+        self.mgr = em.FlowEngineManager(engine_dir=ENGINE_DIR, log=lambda *_: None)
+        current = em.engine_code_version(ENGINE_DIR)
+        probe = mock.Mock()
+        probe.get_info.return_value = {"codeVersion": current}
+        probe.get_state.return_value = {"running": False}
+        self.probe = probe
+        self.patches = [
+            mock.patch.object(em, "FlowClient", return_value=probe),
+            mock.patch.object(em, "_find_node_binary", return_value="node"),
+            mock.patch.object(self.mgr, "is_installed", return_value=True),
+            mock.patch.object(self.mgr, "ensure_browser"),
+        ]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+
+    def test_foreign_engine_with_current_code_is_replaced_not_reused(self):
+        with mock.patch.object(self.mgr, "_retire_running_engine") as retire, \
+                mock.patch.object(em.hidden_subprocess, "popen", side_effect=_SpawnAttempted):
+            with self.assertRaises(_SpawnAttempted):
+                self.mgr.start(timeout=1)
+        retire.assert_called_once_with(self.probe)
+
+    def test_our_own_live_engine_is_still_reused(self):
+        own = mock.Mock()
+        own.poll.return_value = None  # the Node process we spawned is alive
+        self.mgr._proc = own
+        with mock.patch.object(self.mgr, "_retire_running_engine") as retire, \
+                mock.patch.object(em.hidden_subprocess, "popen", side_effect=_SpawnAttempted):
+            client = self.mgr.start(timeout=1)
+        self.assertIs(client, self.probe)
+        retire.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
