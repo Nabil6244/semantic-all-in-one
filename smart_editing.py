@@ -1121,20 +1121,38 @@ def _whoosh_timing(path: Optional[Path], cut: float, file_duration: float) -> Tu
     return round(start, 3), round(max(0.25, duration), 3)
 
 
+_FAST_WHOOSH_MIN_S = 0.4       # shorter files are clicks/blips, not a whoosh
+_FAST_WHOOSH_MAX_S = 4.0       # longer files are ambient sweeps, not a cut accent
+_FAST_WHOOSH_MAX_PEAK_S = 1.6  # loudest moment early: a whoosh, not a slow build
+
+
 def _loud_fast_whoosh(cat: "SfxCatalog", *, avoid: Sequence[str]) -> Optional["SfxEntry"]:
-    """A fast/sweep whoosh or transition that is actually loud (measured once
-    per file), alternating away from ``avoid``."""
+    """A short, loud whoosh or transition for a zoom-blur cut, alternating
+    away from ``avoid``.
+
+    Chosen by how the file actually sounds (measured once per file: short,
+    loud, loudest near the start), not only by its tags — the library that
+    ships with the app has no "fast"/"sweep" tags at all, so a tag-only
+    rule found nothing there and every cut fell back to the same generic
+    match. Files tagged fast/sweep are still preferred when present."""
     candidates = []
     for entry in cat.entries:
-        if entry.category not in ("whoosh", "transition") or not ({"fast", "sweep"} & set(entry.tags)):
+        if entry.category not in ("whoosh", "transition") or "soft" in entry.tags:
+            continue
+        if entry.duration and not (_FAST_WHOOSH_MIN_S <= entry.duration <= _FAST_WHOOSH_MAX_S):
             continue
         path = entry.resolved_path(cat.root)
         if not path.is_file():
             continue
-        db = _mean_db(str(path), path.stat().st_mtime)
-        if db is not None and db >= _LOUD_WHOOSH_MIN_DB:
-            candidates.append(entry)
-    candidates.sort(key=lambda e: (e.id in set(avoid), e.duration))
+        mtime = path.stat().st_mtime
+        db = _mean_db(str(path), mtime)
+        if db is None or db < _LOUD_WHOOSH_MIN_DB:
+            continue
+        if _peak_seconds(str(path), mtime) > _FAST_WHOOSH_MAX_PEAK_S:
+            continue
+        candidates.append(entry)
+    avoided = set(avoid)
+    candidates.sort(key=lambda e: (e.id in avoided, not ({"fast", "sweep"} & set(e.tags)), e.duration))
     return candidates[0] if candidates else None
 
 

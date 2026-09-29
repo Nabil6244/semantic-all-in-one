@@ -58,6 +58,7 @@ class AppShell(ctk.CTkFrame):
         self._nav_btns: Dict[str, ctk.CTkButton] = {}
         self._nav_bars: Dict[str, ctk.CTkFrame] = {}
         self.views: Dict[str, ctk.CTkFrame] = {}
+        self._factories: Dict[str, Callable[[], ctk.CTkFrame]] = {}
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -326,13 +327,24 @@ class AppShell(ctk.CTkFrame):
     # Navigation
     # ------------------------------------------------------------------
 
-    def register_view(self, key: str, frame: ctk.CTkFrame) -> None:
+    def register_view(self, key: str, frame) -> None:
+        """Register a page, or a zero-argument factory that builds it the
+        first time it's needed (see ``view``)."""
+        if callable(frame) and not isinstance(frame, ctk.CTkBaseClass) and not hasattr(frame, "winfo_exists"):
+            self._factories[key] = frame
+            return
         frame.grid(row=0, column=0, sticky="nsew")
         frame.grid_remove()
         self.views[key] = frame
 
+    def view(self, key: str):
+        """The page for ``key``, building a lazily-registered one on first use."""
+        if key not in self.views and key in self._factories:
+            self.register_view(key, self._factories.pop(key)())
+        return self.views.get(key)
+
     def navigate(self, key: str) -> None:
-        if key not in self.views:
+        if self.view(key) is None:
             return
         for k, fr in self.views.items():
             if k == key:

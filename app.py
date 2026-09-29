@@ -803,7 +803,37 @@ _PROD_LOCAL_ASSETS = "Local Assets"
 _LOCAL_ASSETS_PROD_MODES = frozenset({_PROD_LOCAL_ASSETS, "Local assets", "LOCAL ASSETS"})
 
 
+# Pages built on first use: shell key -> ui.views class name.
+_LAZY_VIEWS = {
+    "project": "ProjectView",
+    "brand_style": "BrandStyleView",
+    "research": "ResearchView",
+    "audio": "AudioView",
+    "music": "MusicView",
+    "editorial": "EditorialView",
+    "render": "RenderView",
+    "qa": "QAView",
+    "about": "AboutOwnershipView",
+    "graphics": "GraphicsView",
+}
+
+
+def _lazy_view(key: str) -> property:
+    return property(lambda self: self._shell.view(key))
+
+
 class VideoGeneratorApp(ctk.CTk):
+    _view_project = _lazy_view("project")
+    _view_brand_style = _lazy_view("brand_style")
+    _view_research = _lazy_view("research")
+    _view_audio = _lazy_view("audio")
+    _view_music = _lazy_view("music")
+    _view_editorial = _lazy_view("editorial")
+    _view_render = _lazy_view("render")
+    _view_qa = _lazy_view("qa")
+    _view_about = _lazy_view("about")
+    _view_graphics = _lazy_view("graphics")
+
     def __init__(self) -> None:
         super().__init__()
         self.title("Semantic YT Studio")
@@ -948,37 +978,23 @@ class VideoGeneratorApp(ctk.CTk):
         self._stepper_compact_label = ctk.CTkLabel(self, text="")
         self._stepper_compact_label.grid_remove()
 
-        self._view_project = ui_views.ProjectView(self._shell.center, self)
+        # The three pages the app builds its own controls into are created now;
+        # every other page is built the first time it is opened (or its
+        # self._view_* attribute is read) — fewer widgets at startup, which is
+        # what dominates launch time on Windows.
         self._view_script = ui_views.ScriptView(self._shell.center, self)
-        self._view_brand_style = ui_views.BrandStyleView(self._shell.center, self)
-        self._view_research = ui_views.ResearchView(self._shell.center, self)
         self._view_visual_director = ui_views.VisualDirectorView(self._shell.center, self)
         self._view_visual = ui_views.VisualPlanView(self._shell.center, self)
-        self._view_audio = ui_views.AudioView(self._shell.center, self)
-        self._view_music = ui_views.MusicView(self._shell.center, self)
-        self._view_editorial = ui_views.EditorialView(self._shell.center, self)
-        self._view_render = ui_views.RenderView(self._shell.center, self)
-        self._view_qa = ui_views.QAView(self._shell.center, self)
-        self._view_about = ui_views.AboutOwnershipView(self._shell.center, self)
-        self._view_graphics = ui_views.GraphicsView(self._shell.center, self)
         self._shell.center.grid_columnconfigure(0, weight=1)
         self._shell.center.grid_rowconfigure(0, weight=1)
         for key, view in (
-            ("project", self._view_project),
-            ("brand_style", self._view_brand_style),
             ("script", self._view_script),
-            ("research", self._view_research),
             ("visual_director", self._view_visual_director),
             ("visual_plan", self._view_visual),
-            ("audio", self._view_audio),
-            ("music", self._view_music),
-            ("editorial", self._view_editorial),
-            ("render", self._view_render),
-            ("qa", self._view_qa),
-            ("about", self._view_about),
-            ("graphics", self._view_graphics),
         ):
             self._shell.register_view(key, view)
+        for key, cls in _LAZY_VIEWS.items():
+            self._shell.register_view(key, lambda cls=cls: getattr(ui_views, cls)(self._shell.center, self))
 
         self._build_left_sections(parent=self._view_script.content)
         # Moved out of the Script tab into its own "Visual Director" tab —

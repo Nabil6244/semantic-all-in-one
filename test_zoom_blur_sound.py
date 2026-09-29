@@ -58,13 +58,81 @@ class TestTimelineSoundAuthority(unittest.TestCase):
         self.assertIn("if op_tl.audio_materialized or op_sfx or op_amb:", src)
 
 
+def _write_sound(path: Path, *, seconds: float, peak_at: float, level: float, seed: int) -> None:
+    """Tone-plus-noise burst shaped to peak at ``peak_at`` s (linear rise,
+    then decay). Mostly low-frequency so its level survives the 8 kHz
+    analysis the whoosh code does."""
+    import wave
+
+    import numpy as np
+
+    rate = 44100
+    n = int(seconds * rate)
+    t = np.arange(n) / rate
+    rise = np.clip(t / max(peak_at, 1e-3), 0, 1)
+    fall = np.exp(-np.clip(t - peak_at, 0, None) * 3.0)
+    env = np.where(t <= peak_at, rise, fall)
+    rng = np.random.default_rng(seed)
+    signal = 0.85 * np.sin(2 * np.pi * (220 + 40 * seed) * t) + 0.15 * rng.uniform(-1, 1, n)
+    data = (signal * env * level * 32767).astype(np.int16)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(data.tobytes())
+
+
+# A small, self-contained library shaped like the one that ships with the
+# app: no "fast"/"sweep" tags, so whooshes must be picked by how they sound.
+_FIXTURE = [
+    # (id, category, tags, seconds, peak_at, level)
+    ("whoosh_a", "whoosh", ["movement"], 0.8, 0.10, 0.9),
+    ("whoosh_b", "whoosh", ["impact", "whoosh"], 1.2, 0.15, 0.7),
+    ("whoosh_soft", "whoosh", ["soft", "sweep"], 0.9, 0.10, 0.9),     # soft: never used for a cut
+    ("whoosh_quiet", "whoosh", ["whoosh"], 0.9, 0.10, 0.02),          # too quiet under narration
+    ("whoosh_ambient", "whoosh", ["movement"], 9.0, 0.5, 0.9),        # too long: an ambient sweep
+    ("riser_late", "riser", ["transition"], 2.6, 1.2, 0.8),           # builds slowly, peaks late
+    ("text_pop", "text", ["pop"], 0.3, 0.02, 0.8),
+]
+
+
+@unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not available")
 class TestZoomBlurWhooshes(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import json
+        from unittest import mock
+
+        import smart_editing
+
+        cls._tmp = tempfile.TemporaryDirectory()
+        root = Path(cls._tmp.name) / "sfx"
+        items = []
+        for i, (sid, cat, tags, secs, peak, level) in enumerate(_FIXTURE):
+            rel = f"{'transition' if cat == 'riser' else cat}/{sid}.wav"
+            _write_sound(root / rel, seconds=secs, peak_at=peak, level=level, seed=i)
+            items.append({"id": sid, "file": rel, "category": cat, "tags": tags, "duration": secs,
+                          "intensity": "medium"})
+        (root / "catalog.json").write_text(json.dumps({"version": 2, "sfx": items}), encoding="utf-8")
+        cls._patch = mock.patch.object(smart_editing, "sfx_library_root", return_value=root)
+        cls._patch.start()
+        smart_editing.get_sfx_catalog(force_reload=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        import smart_editing
+
+        cls._patch.stop()
+        smart_editing.get_sfx_catalog(force_reload=True)
+        cls._tmp.cleanup()
+
     def test_added_raised_never_doubled_and_a_text_pop_does_not_count(self):
-        existing = [{"start": 11.48, "file": "whoosh/whoosh_05.wav", "volume": 0.3},
-                    {"start": 15.06, "file": "text/text_pop_01.wav", "volume": 0.25}]
+        existing = [{"start": 11.48, "file": "whoosh/whoosh_a.wav", "volume": 0.3},
+                    {"start": 15.06, "file": "text/text_pop.wav", "volume": 0.25}]
         out, added, raised = apply_zoom_blur_whooshes(existing, [("3", 11.6), ("4", 15.06)], SmartEditingSettings())
         self.assertEqual((added, raised), (1, 1))
-        self.assertTrue(out[0]["zoom_blur"] and out[0]["volume"] > 0.6)  # whoosh_05 plays at full zoom-blur level
+        self.assertTrue(out[0]["zoom_blur"] and out[0]["volume"] > 0.3)  # raised to the zoom-blur level
         self.assertEqual(out[1]["volume"], 0.25)  # the text pop is untouched
         from smart_editing import _peak_at
 
@@ -77,23 +145,23 @@ class TestZoomBlurWhooshes(unittest.TestCase):
         from smart_editing import _peak_at
 
         raised, _, _ = apply_zoom_blur_whooshes(
-            [{"start": 11.48, "end": 11.98, "file": "transition/transition_02.wav", "volume": 0.3}],
+            [{"start": 11.48, "end": 11.98, "file": "transition/riser_late.wav", "volume": 0.3}],
             [("3", 11.6)], SmartEditingSettings())
         e = raised[0]
         self.assertAlmostEqual(_peak_at(e), 11.6, delta=0.06)
         self.assertGreater(e["duration"], 1.0)  # plays through its peak, not just the quiet build-up
         self.assertTrue(e["zoom_blur"])
 
-    def test_loud_fast_sounds_alternate(self):
+    def test_untagged_loud_short_whooshes_are_found_and_alternate(self):
         events = zoom_blur_whoosh_events([("2", 6.0), ("3", 12.0), ("4", 18.0)], [], SmartEditingSettings())
         ids = [e["sfx_id"] for e in events]
         self.assertEqual(len(ids), 3)
         self.assertNotEqual(ids[0], ids[1])
+        self.assertTrue(set(ids) <= {"whoosh_a", "whoosh_b"})  # never soft, quiet, ambient or a slow riser
         self.assertTrue(all(e["zoom_blur"] for e in events))
         levels = [_effective_peak_db(e) for e in events]
         self.assertLess(max(levels) - min(levels), 1.5)  # every cut hits at the same loudness
 
-    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not available")
     def test_zoom_blur_whoosh_is_mixed_louder_than_the_normal_sfx_cap(self):
         import numpy as np
 
@@ -106,7 +174,7 @@ class TestZoomBlurWhooshes(unittest.TestCase):
 
             def level(flag: bool) -> float:
                 out = Path(tmp) / f"o{int(flag)}.wav"
-                ev = {"start": 1.0, "duration": 0.5, "volume": 0.67, "file": "whoosh/whoosh_05.wav"}
+                ev = {"start": 1.0, "duration": 0.5, "volume": 0.67, "file": "whoosh/whoosh_a.wav"}
                 if flag:
                     ev["zoom_blur"] = True
                 mix_sfx_with_narration(narration, [ev], out, sfx_root=sfx_library_root(), ambience_beds=[])
