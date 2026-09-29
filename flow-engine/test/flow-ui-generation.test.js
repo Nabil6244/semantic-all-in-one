@@ -321,3 +321,12 @@ test("a video that appears after the old 180s cap is detected (one click) and do
   assert.equal(fs.readFileSync(dest).length, mp4.length);
   assert.ok(!fs.existsSync(`${dest}.part`));
 });
+
+test("Agent UI: image requests say 'still image, not a video'; video requests are unchanged", async () => {
+  const { agentPromptFor } = await import("../lib/flow-ui-experiment.js");
+  const img = agentPromptFor("slow drone glide over sawgrass with visible water flow", "image");
+  assert.match(img, /still image/i);
+  assert.match(img, /not a video/i);
+  assert.ok(img.endsWith("slow drone glide over sawgrass with visible water flow"));
+  assert.equal(agentPromptFor("drone flight over the coast", "video"), "drone flight over the coast");
+});

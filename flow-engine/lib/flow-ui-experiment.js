@@ -300,7 +300,12 @@ async function runUiGeneration(page, prompt, opts = {}) {
     await editor.click();
     await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await page.keyboard.press("Backspace");
-    await editor.pressSequentially(prompt);
+    // Flow's Agent UI has no Image/Video switch: its agent decides from the
+    // wording, and motion words ("drone glide", "water flow") made it plan a
+    // paid 10 s video when an image was requested. Say what we want.
+    const typed = diag.modeSelected === "agent-defaults" ? agentPromptFor(prompt, opts.mode) : prompt;
+    diag.agentInstructionAdded = typed !== prompt;
+    await editor.pressSequentially(typed);
     diag.promptEntered = true;
 
     diag.stage = "locating_generate_button";
@@ -388,6 +393,17 @@ async function runUiGeneration(page, prompt, opts = {}) {
  * (the page is already on the right project) but are accepted to match the
  * signature exactly.
  */
+
+/**
+ * Prompt text for Flow's Agent UI, which picks image vs video from the words
+ * alone. Image requests get an explicit "one still image, not a video"
+ * instruction; video requests are left as they are.
+ */
+export function agentPromptFor(prompt, mode) {
+  if (mode !== "image") return prompt;
+  return `Generate one still image only (a single photo, not a video, no motion): ${prompt}`;
+}
+
 export async function generateOneImageViaUI(page, projectId, prompt, settings, promptIndex) {
   const { mediaId, fifeUrl, diag } = await runUiGeneration(page, prompt, {
     outputDir: settings?.outputDir,

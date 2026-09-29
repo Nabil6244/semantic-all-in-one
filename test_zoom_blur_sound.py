@@ -132,7 +132,13 @@ class TestZoomBlurWhooshes(unittest.TestCase):
                     {"start": 15.06, "file": "text/text_pop.wav", "volume": 0.25}]
         out, added, raised = apply_zoom_blur_whooshes(existing, [("3", 11.6), ("4", 15.06)], SmartEditingSettings())
         self.assertEqual((added, raised), (1, 1))
-        self.assertTrue(out[0]["zoom_blur"] and out[0]["volume"] > 0.3)  # raised to the zoom-blur level
+        self.assertTrue(out[0]["zoom_blur"])  # taken over at the zoom-blur level
+        from smart_editing import _WHOOSH_PEAK_TARGET_DB, _zoom_blur_volume
+        import math
+
+        expected = _WHOOSH_PEAK_TARGET_DB + 20 * math.log10(_zoom_blur_volume(SmartEditingSettings()))
+        self.assertAlmostEqual(_effective_peak_db(out[0]), expected, delta=1.0)
+        self.assertLess(_effective_peak_db(out[0]), -18.0)  # stays under the narration
         self.assertEqual(out[1]["volume"], 0.25)  # the text pop is untouched
         from smart_editing import _peak_at
 

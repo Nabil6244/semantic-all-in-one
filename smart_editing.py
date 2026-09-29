@@ -1066,9 +1066,10 @@ def _mean_db(path: str, _mtime: float) -> Optional[float]:
 
 
 # Every zoom-blur whoosh hits the cut at the same level: a sound whose 50 ms
-# peak is stronger than this is turned down to it (the library's quick
-# whoosh_05 sits right at it and plays at full zoom-blur volume).
-_WHOOSH_PEAK_TARGET_DB = -10.0
+# peak is stronger than this is turned down to it. -10 dBFS sat level with the
+# narration and was far too loud; -18 is clearly audible at the cut but stays
+# under the voice.
+_WHOOSH_PEAK_TARGET_DB = -18.0
 
 
 def _peak_seconds(path: str, mtime: float) -> float:
