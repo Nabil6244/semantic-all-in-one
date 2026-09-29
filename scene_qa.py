@@ -162,7 +162,7 @@ class QASnapshot:
     error_counter: str = "0 NEEDS ACTION"
     allow_render: bool = False
     progress: float = 0.0
-    go_to_error_label: str = "GO TO ERROR"
+    go_to_error_label: str = "Go to error"
     visual_pass: int = 0
     visual_weak: int = 0
     visual_fail: int = 0
@@ -336,9 +336,9 @@ class SceneQAState:
                 snap.progress = snap.ready / snap.total
         if unresolved:
             idx = unresolved.index(self.focused_key) + 1 if self.focused_key in unresolved else 1
-            snap.go_to_error_label = f"GO TO ERROR {idx}/{len(unresolved)}"
+            snap.go_to_error_label = f"Go to error {idx}/{len(unresolved)}"
         else:
-            snap.go_to_error_label = "GO TO ERROR"
+            snap.go_to_error_label = "Go to error"
         self._append_visual_qa(snap, scenes, results)
         return snap
 

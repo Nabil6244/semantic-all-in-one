@@ -10,10 +10,27 @@ from typing import Any, Callable, Optional
 import customtkinter as ctk
 
 from . import theme as T
-from .widgets import Card, EmptyState, MetricRow, SectionHeader, StatusPill
+from .widgets import (
+    Card,
+    Divider,
+    EmptyState,
+    MetricRow,
+    SectionHeader,
+    SectionLabel,
+    StatTile,
+    StatusPill,
+    make_button,
+    segmented_style,
+    switch_style,
+)
 
 
 class _BaseView(ctk.CTkFrame):
+    """A page: header row (whatever the subclass grids at row 0) above one
+    scrolling body. On wide windows both are held to a readable measure
+    (T.CONTENT_MAX_W) and centred, so labels and values never drift to
+    opposite edges of a 2,000 px screen."""
+
     key = "base"
 
     def __init__(self, master, app: Any, **kwargs):
@@ -21,13 +38,35 @@ class _BaseView(ctk.CTkFrame):
         self.app = app
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
-        self._body = ctk.CTkScrollableFrame(
+        self._scroll = ctk.CTkScrollableFrame(
             self, fg_color="transparent",
-            scrollbar_button_color=T.BORDER, scrollbar_button_hover_color=T.ACCENT,
+            scrollbar_button_color=T.BORDER, scrollbar_button_hover_color=T.BORDER_STRONG,
         )
-        self._body.grid(row=1, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
+        self._scroll.grid(row=1, column=0, sticky="nsew", padx=(0, 4), pady=(0, 6))
+        self._scroll.grid_columnconfigure(0, weight=1)
+        self._body = ctk.CTkFrame(self._scroll, fg_color="transparent")
+        self._body.grid(row=0, column=0, sticky="ew", padx=T.PAD_LG, pady=(0, T.PAD_LG))
         self._body.grid_columnconfigure(0, weight=1)
         self.content = self._body  # alias for legacy builders
+        self._side_pad = None
+        self.bind("<Configure>", self._fit_measure, add="+")
+
+    def _fit_measure(self, event=None) -> None:
+        width = int(getattr(event, "width", 0) or self.winfo_width())
+        if width <= 1:
+            return
+        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2)
+        if side == self._side_pad:
+            return
+        self._side_pad = side
+        for child in self.grid_slaves(row=0):
+            try:
+                child.grid_configure(padx=side, pady=(22, 14))
+            except Exception:
+                pass
+        # The scroll frame spans the full width (scrollbar at the window
+        # edge); only its content is inset.
+        self._body.grid_configure(padx=(max(0, side - 4), max(0, side - 12)))
 
     def on_show(self) -> None:
         """Refresh read-only displays. Never trigger production work."""
@@ -35,41 +74,70 @@ class _BaseView(ctk.CTkFrame):
 
 
 class ProjectView(_BaseView):
+    """Overview: where the project stands and the one thing to do next."""
+
     key = "project"
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(
-            self, "Project", "Production health at a glance",
-        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
+        self._header = SectionHeader(self, "Overview", "Where this project stands, and what to do next.")
+        self._header.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
         self._empty = EmptyState(
             self._body,
             "No project open",
-            "Choose a project to start planning, acquiring assets, and rendering.",
+            "Create a project or open an existing one to start planning scenes, generating visuals and rendering.",
             "Choose project",
             command=app._open_project_picker,
+            icon="\u2302",
         )
-        self._empty.grid(row=0, column=0, sticky="ew", pady=8)
-        self._panel = Card(self._body)
-        self._panel.grid(row=1, column=0, sticky="ew", pady=8)
+        self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 8))
+
+        self._panel = ctk.CTkFrame(self._body, fg_color="transparent")
+        self._panel.grid(row=1, column=0, sticky="ew")
         self._panel.grid_columnconfigure(0, weight=1)
+
+        nxt = ctk.CTkFrame(self._panel, fg_color=T.ACCENT_SEL, corner_radius=T.RADIUS_LG,
+                           border_width=1, border_color=T.ACCENT_BORDER)
+        nxt.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        nxt.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(nxt, text="NEXT STEP", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.ACCENT,
+                     anchor="w").grid(row=0, column=0, sticky="w", padx=18, pady=(14, 0))
+        ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=T.TEXT, anchor="w", justify="left", wraplength=620).grid(
+            row=1, column=0, sticky="w", padx=18, pady=(2, 14))
+        self._next_btn = make_button(nxt, "Continue", app._on_primary_cta, variant="primary", size="lg", width=170)
+        self._next_btn.grid(row=0, column=1, rowspan=2, sticky="e", padx=18)
+
+        tiles = ctk.CTkFrame(self._panel, fg_color="transparent")
+        tiles.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        tiles.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="overview_tiles")
+        self._tile_scenes = StatTile(tiles, "Visuals")
+        self._tile_scenes.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self._tile_voice = StatTile(tiles, "Voiceover")
+        self._tile_voice.grid(row=0, column=1, sticky="ew", padx=6)
+        self._tile_sound = StatTile(tiles, "Sound design")
+        self._tile_sound.grid(row=0, column=2, sticky="ew", padx=6)
+        self._tile_qa = StatTile(tiles, "Quality score")
+        self._tile_qa.grid(row=0, column=3, sticky="ew", padx=(6, 0))
+
+        details = Card(self._panel, title="Project details")
+        details.grid(row=2, column=0, sticky="ew", pady=(0, 12))
         self._metrics: list[MetricRow] = []
-        for i, label in enumerate(
-            (
-                "Project",
-                "Narration",
-                "Scenes",
-                "Visual assets",
-                "Ambience",
-                "SFX",
-                "Music",
-                "Editorial score",
-                "Render",
-            )
-        ):
-            row = MetricRow(self._panel, label)
-            row.grid(row=i, column=0, sticky="ew", padx=T.PAD, pady=4)
+        for i, label in enumerate(("Project", "Narration", "Scenes", "Visual assets", "Ambience", "SFX",
+                                   "Music", "Editorial score", "Last render")):
+            row = MetricRow(details.body, label)
+            row.grid(row=i, column=0, sticky="ew", pady=2)
             self._metrics.append(row)
+
+        jump = Card(self._panel, title="Jump to")
+        jump.grid(row=3, column=0, sticky="ew")
+        links = ctk.CTkFrame(jump.body, fg_color="transparent")
+        links.grid(row=0, column=0, sticky="w")
+        for key, label in (("script", "Script"), ("visual_plan", "Visuals"), ("audio", "Audio & Effects"),
+                           ("render", "Export")):
+            make_button(links, f"{T.NAV_ICONS.get(key, '')}  {label}",
+                        lambda k=key: app._shell.navigate(k) if getattr(app, "_shell", None) else None,
+                        width=140).pack(side="left", padx=(0, 8))
 
     def on_show(self) -> None:
         ws = self.app._workspace
@@ -79,6 +147,12 @@ class ProjectView(_BaseView):
             return
         self._empty.grid_remove()
         self._panel.grid()
+        cta = getattr(self.app, "generate_btn", None)
+        if cta is not None:
+            try:
+                self._next_btn.configure(text=cta.cget("text"), state=cta.cget("state"))
+            except Exception:
+                pass
         audio = self.app.audio_var.get().strip()
         audio_ok = bool(audio) and Path(audio).is_file()
         n_scenes = len(getattr(self.app, "_scene_rows", None) or [])
@@ -90,6 +164,7 @@ class ProjectView(_BaseView):
             snap = None
         ready = getattr(snap, "ready", 0) if snap else 0
         total = getattr(snap, "total", n_scenes) if snap else n_scenes
+        needs = getattr(snap, "needs_action", 0) if snap else 0
         ep = _load_json(ws.state_dir / "editorial_plan.json")
         qa = _load_json(ws.state_dir / "editorial_qa.json")
         beds = 0
@@ -120,51 +195,95 @@ class ProjectView(_BaseView):
         ]
         for row, val in zip(self._metrics, vals):
             row.set_value(val)
+        self._header.set_title(ws.title or "Overview")
+        if total:
+            self._tile_scenes.set(f"{ready}/{total}", f"{needs} need attention" if needs else "scenes ready",
+                                  "fail" if needs else ("ok" if ready >= total else "warn"))
+        else:
+            self._tile_scenes.set("—", "No scenes yet")
+        self._tile_voice.set("Loaded" if audio_ok else "Missing",
+                             Path(audio).name[:28] if audio_ok else "Needed before render",
+                             "ok" if audio_ok else "warn")
+        if sfx or beds:
+            self._tile_sound.set(f"{sfx + beds}", f"{sfx} sound effects \u00B7 {beds} ambience beds")
+        else:
+            self._tile_sound.set("—", "Planned at render")
+        if isinstance(score, (int, float)):
+            tone = "ok" if verdict == "PASS" else ("warn" if verdict == "WARN" else "fail")
+            self._tile_qa.set(f"{score:.0f}", str(verdict), tone)
+        else:
+            self._tile_qa.set("—", "After the first render")
 
 
 class ScriptView(ctk.CTkFrame):
-    """Hosts legacy script/CSV/voice builders. One scroll only — no nested scrollables."""
+    """Script input (paste / CSV / VO-aware) built by app._build_left_sections
+    into ``self.content``. One scroll only — no nested scrollables."""
 
     key = "script"
+
+    # app._stepper_index 0..4 -> these steps.
+    STEPS = ("Script", "Scenes", "Visuals", "Voiceover", "Export")
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, fg_color=T.PANEL_ALT, **kwargs)
         self.app = app
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
-        SectionHeader(
-            self, "Script", "CSV import or Analyze Script",
-        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD_SM, 2))
+        self._header = SectionHeader(
+            self, "Script", "Paste a narration script, import a visual-plan CSV, or plan from a voiceover.",
+        )
+        self._header.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(22, 10))
         self._workflow = ctk.CTkFrame(self, fg_color="transparent")
-        self._workflow.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=(0, 2))
+        self._workflow.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=(0, 10))
         self._step_labels = []
-        for i, name in enumerate(T.WORKFLOW_STEPS):
+        self._step_badges = []
+        for i, name in enumerate(self.STEPS):
             if i:
-                ctk.CTkLabel(self._workflow, text="·", text_color=T.BORDER, font=ctk.CTkFont(size=11)).pack(
-                    side="left", padx=2
-                )
+                ctk.CTkFrame(self._workflow, fg_color=T.BORDER, height=1, width=28, corner_radius=0).pack(
+                    side="left", padx=8)
+            badge = ctk.CTkLabel(
+                self._workflow, text=str(i + 1), width=22, height=22, corner_radius=11,
+                fg_color=T.CARD_HOVER, text_color=T.MUTED, font=ctk.CTkFont(size=11, weight="bold"),
+            )
+            badge.pack(side="left", padx=(0, 6))
             lbl = ctk.CTkLabel(
-                self._workflow, text=name, font=ctk.CTkFont(size=10, weight="bold"),
-                text_color=T.MUTED,
+                self._workflow, text=name, font=ctk.CTkFont(size=12), text_color=T.MUTED,
             )
             lbl.pack(side="left")
+            self._step_badges.append(badge)
             self._step_labels.append(lbl)
         # Plain host — _build_left_sections adds its own CTkScrollableFrame
         self.content = ctk.CTkFrame(self, fg_color="transparent")
         self.content.grid(row=2, column=0, sticky="nsew", padx=0, pady=(0, T.PAD_SM))
         self.content.grid_columnconfigure(0, weight=1)
         self.content.grid_rowconfigure(0, weight=1)
+        self._side_pad = None
+        self.bind("<Configure>", self._fit_measure, add="+")
+
+    def _fit_measure(self, event=None) -> None:
+        width = int(getattr(event, "width", 0) or self.winfo_width())
+        if width <= 1:
+            return
+        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2)
+        if side == self._side_pad:
+            return
+        self._side_pad = side
+        self._header.grid_configure(padx=side)
+        self._workflow.grid_configure(padx=side)
+        self.content.grid_configure(padx=(max(0, side - 16), max(0, side - 20)))
 
     def on_show(self) -> None:
         idx = int(getattr(self.app, "_stepper_index", 0) or 0)
-        map_idx = {0: 0, 1: 1, 2: 2, 3: 3, 4: 5}.get(idx, 0)
-        for i, lbl in enumerate(self._step_labels):
-            if i == map_idx:
-                lbl.configure(text_color=T.ACCENT)
-            elif i < map_idx:
-                lbl.configure(text_color=T.STEPPER_DONE)
+        for i, (badge, lbl) in enumerate(zip(self._step_badges, self._step_labels)):
+            if i < idx:
+                badge.configure(text="\u2713", fg_color=T.SUCCESS_BG, text_color=T.SUCCESS)
+                lbl.configure(text_color=T.TEXT, font=ctk.CTkFont(size=12))
+            elif i == idx:
+                badge.configure(text=str(i + 1), fg_color=T.ACCENT, text_color=T.ACCENT_DARK)
+                lbl.configure(text_color=T.TEXT, font=ctk.CTkFont(size=12, weight="bold"))
             else:
-                lbl.configure(text_color=T.MUTED)
+                badge.configure(text=str(i + 1), fg_color=T.CARD_HOVER, text_color=T.MUTED)
+                lbl.configure(text_color=T.MUTED, font=ctk.CTkFont(size=12))
 
 
 class BrandStyleView(_BaseView):
@@ -195,11 +314,8 @@ class BrandStyleView(_BaseView):
             onvalue=True,
             offvalue=False,
             command=self._on_brand_toggle,
-            progress_color=T.ACCENT,
-            button_color=T.TEXT,
-            button_hover_color=T.MUTED,
+            
             font=ctk.CTkFont(size=12),
-            text_color=T.TEXT,
         )
         self._brand_switch.grid(row=0, column=1, sticky="w", padx=T.PAD, pady=(10, 4))
 
@@ -209,7 +325,6 @@ class BrandStyleView(_BaseView):
         self._brand_var = ctk.StringVar(value="Default")
         self._brand_menu = ctk.CTkOptionMenu(
             form, variable=self._brand_var, values=["Default"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_selection_changed(),
         )
 
@@ -221,7 +336,6 @@ class BrandStyleView(_BaseView):
             form,
             variable=self._mode_var,
             values=["Legacy (unchanged)", "Auto", "Manual", "Custom"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_mode_changed(),
         )
         self._mode_menu.grid(row=2, column=1, sticky="ew", padx=T.PAD, pady=4)
@@ -233,7 +347,6 @@ class BrandStyleView(_BaseView):
         self._style_var = ctk.StringVar(value="—")
         self._style_menu = ctk.CTkOptionMenu(
             form, variable=self._style_var, values=["—"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_selection_changed(),
         )
         self._style_menu.grid(row=3, column=1, sticky="ew", padx=T.PAD, pady=4)
@@ -254,7 +367,6 @@ class BrandStyleView(_BaseView):
             form,
             variable=self._alloc_preset_var,
             values=list(ALLOCATION_PRESET_LABELS),
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_preset_changed(),
         )
         self._alloc_preset_menu.grid(row=5, column=1, sticky="ew", padx=T.PAD, pady=4)
@@ -267,7 +379,6 @@ class BrandStyleView(_BaseView):
             form,
             variable=self._visual_strategy_var,
             values=["Automatic", "Video Heavy", "Balanced", "Image Heavy"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_changed(),
         )
         self._visual_strategy_menu.grid(row=6, column=1, sticky="ew", padx=T.PAD, pady=4)
@@ -280,7 +391,6 @@ class BrandStyleView(_BaseView):
             form,
             variable=self._ai_budget_var,
             values=["Conservative", "Normal", "High", "Custom"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_changed(),
         )
         self._ai_budget_menu.grid(row=7, column=1, sticky="ew", padx=T.PAD, pady=4)
@@ -293,7 +403,6 @@ class BrandStyleView(_BaseView):
             form,
             variable=self._coverage_mode_var,
             values=["Automatic", "Minimize Repetition", "Cinematic Coverage", "Maximum Motion"],
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
             command=lambda _v: self._on_allocation_changed(),
         )
         self._coverage_mode_menu.grid(row=8, column=1, sticky="ew", padx=T.PAD, pady=(4, 4))
@@ -798,7 +907,6 @@ class ResearchView(_BaseView):
         self._topic_var = ctk.StringVar(value="")
         ctk.CTkEntry(
             form, textvariable=self._topic_var, placeholder_text="e.g. Hunters Ridge, Clio Alabama",
-            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
         ).grid(row=0, column=1, sticky="ew", padx=T.PAD, pady=(10, 4))
 
         ctk.CTkLabel(form, text="Script (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
@@ -808,7 +916,7 @@ class ResearchView(_BaseView):
         script_frame.grid(row=1, column=1, sticky="ew", padx=T.PAD, pady=4)
         script_frame.grid_columnconfigure(0, weight=1)
         self._script_box = ctk.CTkTextbox(
-            script_frame, height=70, fg_color=T.BG, border_width=1, border_color=T.BORDER, text_color=T.TEXT,
+            script_frame, height=70, 
         )
         self._script_box.grid(row=0, column=0, sticky="ew")
         self._script_path_label = ctk.CTkLabel(
@@ -844,7 +952,6 @@ class ResearchView(_BaseView):
         entry = ctk.CTkEntry(
             adder, textvariable=self._new_listing_var,
             placeholder_text="paste a listing URL, then Add (or press Enter)",
-            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
         )
         entry.grid(row=0, column=0, sticky="ew")
         entry.bind("<Return>", lambda _e: self._on_add_listing())
@@ -866,7 +973,6 @@ class ResearchView(_BaseView):
         self._domain_labels = ("Auto", "Real Estate", "Products", "Travel", "Cars", "News", "Science", "General")
         ctk.CTkOptionMenu(
             form, variable=self._domain_var, values=list(self._domain_labels),
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
         ).grid(row=3, column=1, sticky="ew", padx=T.PAD, pady=4)
 
         ctk.CTkLabel(form, text="Max media / property", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
@@ -875,7 +981,6 @@ class ResearchView(_BaseView):
         self._max_media_var = ctk.StringVar(value="20")
         ctk.CTkEntry(
             form, textvariable=self._max_media_var, width=80,
-            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
         ).grid(row=4, column=1, sticky="w", padx=T.PAD, pady=4)
 
         button_row = ctk.CTkFrame(form, fg_color="transparent")
@@ -953,8 +1058,7 @@ class ResearchView(_BaseView):
             font=ctk.CTkFont(size=11), text_color=T.MUTED, wraplength=460, justify="left",
         ).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(0, 6))
         self._property_script_box = ctk.CTkTextbox(
-            self._property_script_card, height=140, fg_color=T.BG,
-            border_width=1, border_color=T.BORDER, text_color=T.TEXT,
+            self._property_script_card, height=140, 
         )
         self._property_script_box.grid(row=2, column=0, sticky="ew", padx=T.PAD)
         analyze_row = ctk.CTkFrame(self._property_script_card, fg_color="transparent")
@@ -1012,7 +1116,6 @@ class ResearchView(_BaseView):
         ctk.CTkEntry(
             self._engine_advanced_block, textvariable=self._engine_root_var,
             placeholder_text="(bundled)",
-            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
         ).grid(row=1, column=1, sticky="ew", pady=4)
         ctk.CTkLabel(self._engine_advanced_block, text="Python interpreter", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
             row=2, column=0, sticky="w", pady=4
@@ -1021,7 +1124,6 @@ class ResearchView(_BaseView):
         ctk.CTkEntry(
             self._engine_advanced_block, textvariable=self._engine_python_var,
             placeholder_text="(bundled)",
-            fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
         ).grid(row=2, column=1, sticky="ew", pady=4)
         ctk.CTkButton(
             self._engine_advanced_block, text="Save Engine Path", height=28, width=140,
@@ -1052,7 +1154,7 @@ class ResearchView(_BaseView):
         self._realtyapi_key_var = ctk.StringVar(value="")
         ctk.CTkEntry(
             realty_card, textvariable=self._realtyapi_key_var, show="•", height=34,
-            placeholder_text="RealtyAPI API key", fg_color=T.BG, border_color=T.BORDER, text_color=T.TEXT,
+            placeholder_text="RealtyAPI API key", 
         ).grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=(0, 4))
         self._realtyapi_status_label = ctk.CTkLabel(
             realty_card, text="Not configured", font=ctk.CTkFont(size=12), text_color=T.MUTED,
@@ -1073,7 +1175,7 @@ class ResearchView(_BaseView):
         self._image_source_var = ctk.StringVar(value="Existing")
         ctk.CTkOptionMenu(
             image_source_row, variable=self._image_source_var, values=list(self._image_source_labels),
-            fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT, width=140,
+            width=140,
         ).pack(side="left", padx=(T.PAD_SM, 0))
 
         ctk.CTkButton(
@@ -1735,15 +1837,15 @@ class AudioView(_BaseView):
         self._host.grid_columnconfigure(0, weight=1)
         self.content = self._host  # voice panel may be reparented here
 
-        self._info = Card(self._body)
-        self._info.grid(row=1, column=0, sticky="ew", pady=8)
-        self._info.grid_columnconfigure(0, weight=1)
-        self._narr = MetricRow(self._info, "Narration")
-        self._narr.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=4)
+        info_card = Card(self._body, title="Narration", subtitle="The voiceover the video is timed to.")
+        info_card.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        self._info = info_card.body
+        self._narr = MetricRow(self._info, "Voiceover file")
+        self._narr.grid(row=0, column=0, sticky="ew", pady=3)
         self._amb = MetricRow(self._info, "Ambience beds")
-        self._amb.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=4)
-        self._sfx = MetricRow(self._info, "SFX events")
-        self._sfx.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=4)
+        self._amb.grid(row=1, column=0, sticky="ew", pady=3)
+        self._sfx = MetricRow(self._info, "Sound effects")
+        self._sfx.grid(row=2, column=0, sticky="ew", pady=3)
 
         # Narration was display-only here, so there was no way to swap the
         # voiceover from the Audio view (Music already had "Change track").
@@ -1751,35 +1853,20 @@ class AudioView(_BaseView):
         # the project's audio/ folder and runs the usual voiceover-switch
         # confirmation — no new audio handling logic.
         audio_actions = ctk.CTkFrame(self._info, fg_color="transparent")
-        audio_actions.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(8, T.PAD))
-        ctk.CTkButton(
-            audio_actions, text="Choose audio…", height=28,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._on_choose_audio,
-        ).pack(side="left")
-        ctk.CTkButton(
-            audio_actions, text="Open folder", height=28, width=110,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.MUTED, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._on_open_audio_folder,
-        ).pack(side="left", padx=(T.PAD_SM, 0))
+        audio_actions.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        make_button(audio_actions, "Choose voiceover…", self._on_choose_audio, width=150).pack(side="left")
+        self._open_audio_btn = make_button(audio_actions, "Open folder", self._on_open_audio_folder,
+                                           variant="ghost", width=110)
+        self._open_audio_btn.pack(side="left", padx=(T.PAD_SM, 0))
 
         # Smart Editing: what the final video adds on top of the footage,
         # in three plain groups — what you SEE (text), how it MOVES, what you
         # HEAR. Every row says what it does; intensity is a Low/Medium/High
         # choice in one aligned column, greyed out while its feature is off.
-        smart = Card(self._body)
-        smart.grid(row=2, column=0, sticky="ew", pady=4)
-        smart.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            smart, text="SMART EDITING", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 0))
-        ctk.CTkLabel(
-            smart, text="What the final video adds on top of your footage and narration.",
-            font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
-        ).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(2, 4))
+        smart_card = Card(self._body, title="Smart editing",
+                          subtitle="What the final video adds on top of your footage and narration.")
+        smart_card.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        smart = smart_card.body
 
         self._intensity_controls = []
         grid_row = [2]
@@ -1789,16 +1876,13 @@ class AudioView(_BaseView):
             return grid_row[0]
 
         def _group(title: str) -> None:
-            ctk.CTkFrame(smart, fg_color=T.BORDER, height=1).grid(
-                row=_next_row(), column=0, sticky="ew", padx=T.PAD, pady=(12, 8))
-            ctk.CTkLabel(
-                smart, text=title, font=ctk.CTkFont(size=11, weight="bold"),
-                text_color=T.ACCENT, anchor="w",
-            ).grid(row=_next_row(), column=0, sticky="w", padx=T.PAD, pady=(0, 2))
+            if grid_row[0] > 2:
+                Divider(smart).grid(row=_next_row(), column=0, sticky="ew", pady=(10, 0))
+            SectionLabel(smart, title).grid(row=_next_row(), column=0, sticky="w", pady=(12, 4))
 
         def _feature(name: str, desc: str, enabled_var, intensity_var=None, on_intensity=None):
             row = ctk.CTkFrame(smart, fg_color="transparent")
-            row.grid(row=_next_row(), column=0, sticky="ew", padx=T.PAD, pady=4)
+            row.grid(row=_next_row(), column=0, sticky="ew", pady=5)
             row.grid_columnconfigure(1, weight=1)
             seg = None
 
@@ -1809,15 +1893,15 @@ class AudioView(_BaseView):
 
             ctk.CTkSwitch(
                 row, text="", width=46, variable=enabled_var, onvalue=True, offvalue=False,
-                progress_color=T.ACCENT, button_color=T.TEXT, command=_toggled,
+                **switch_style(), command=_toggled,
             ).grid(row=0, column=0, rowspan=2, sticky="w")
             ctk.CTkLabel(
                 row, text=name, font=ctk.CTkFont(size=13, weight="bold"), text_color=T.TEXT, anchor="w",
-            ).grid(row=0, column=1, sticky="w", padx=(8, 0))
+            ).grid(row=0, column=1, sticky="w", padx=(10, 0))
             ctk.CTkLabel(
-                row, text=desc, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
-                justify="left", wraplength=560,
-            ).grid(row=1, column=1, sticky="w", padx=(8, 0))
+                row, text=desc, font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
+                justify="left", wraplength=520,
+            ).grid(row=1, column=1, sticky="w", padx=(10, 0))
             if intensity_var is not None:
                 def _changed(_v, cb=on_intensity) -> None:
                     if cb is not None:
@@ -1826,9 +1910,7 @@ class AudioView(_BaseView):
 
                 seg = ctk.CTkSegmentedButton(
                     row, values=["Low", "Medium", "High"], variable=intensity_var, width=210, height=28,
-                    selected_color=T.ACCENT, selected_hover_color=T.ACCENT_HOV, unselected_color=T.BG,
-                    unselected_hover_color=T.CARD_HOVER, text_color=T.TEXT, font=ctk.CTkFont(size=12),
-                    command=_changed,
+                    **segmented_style(), font=ctk.CTkFont(size=12), command=_changed,
                 )
                 seg.grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
                 seg.configure(state="normal" if enabled_var.get() else "disabled")
@@ -1865,14 +1947,13 @@ class AudioView(_BaseView):
         # Fine ambience level, right under its feature. The intensity step is
         # the coarse control; this overrides it and reads back the real level.
         amb_row = ctk.CTkFrame(smart, fg_color="transparent")
-        amb_row.grid(row=_next_row(), column=0, sticky="ew", padx=(T.PAD + 54, T.PAD), pady=(0, T.PAD))
+        amb_row.grid(row=_next_row(), column=0, sticky="ew", padx=(56, 0), pady=(2, 4))
         amb_row.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
             amb_row, text="Ambience level", font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
         ).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self._amb_vol_slider = ctk.CTkSlider(
             amb_row, from_=0.0, to=1.0, number_of_steps=100,
-            progress_color=T.ACCENT, button_color=T.TEXT, fg_color=T.BG,
             command=self._on_ambience_volume,
         )
         self._amb_vol_slider.grid(row=0, column=1, sticky="ew")
@@ -1880,12 +1961,7 @@ class AudioView(_BaseView):
             amb_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="e", width=86,
         )
         self._amb_vol_value.grid(row=0, column=2, sticky="e", padx=(10, 8))
-        self._amb_vol_auto = ctk.CTkButton(
-            amb_row, text="Auto", height=24, width=58,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.MUTED, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=11),
-            command=self._on_ambience_volume_auto,
-        )
+        self._amb_vol_auto = make_button(amb_row, "Auto", self._on_ambience_volume_auto, size="sm", width=58)
         self._amb_vol_auto.grid(row=0, column=3, sticky="e")
         self._sync_ambience_volume()
 
@@ -1974,32 +2050,43 @@ class MusicView(_BaseView):
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Music", "Manual background track · optional editorial ducking").grid(
+        SectionHeader(self, "Music", "An optional background track, automatically lowered under the narration.").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
         )
         self._empty = EmptyState(
             self._body,
             "No music selected",
-            "Choose an optional background track. When present, Editorial Music Director ducks under narration.",
-            "Browse music",
-            command=app._browse_bg,
+            "Add an optional background track. It is ducked automatically while the narrator speaks.",
+            "Choose music…",
+            command=self._browse,
+            icon="\u266B",
         )
-        self._empty.grid(row=0, column=0, sticky="ew")
-        self._card = Card(self._body)
+        self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 0))
+        self._card = Card(self._body, title="Background music")
         self._card.grid(row=1, column=0, sticky="ew")
-        self._card.grid_columnconfigure(0, weight=1)
-        self._track = MetricRow(self._card, "Track")
-        self._track.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=4)
-        self._sections = MetricRow(self._card, "Sections")
-        self._sections.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=4)
-        self._duck = MetricRow(self._card, "Ducking")
-        self._duck.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=4)
-        ctk.CTkButton(
-            self._card, text="Change track", height=28,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=app._browse_bg,
-        ).grid(row=3, column=0, sticky="w", padx=T.PAD, pady=(8, T.PAD))
+        body = self._card.body
+        self._track = MetricRow(body, "Track")
+        self._track.grid(row=0, column=0, sticky="ew", pady=2)
+        self._sections = MetricRow(body, "Sections")
+        self._sections.grid(row=1, column=0, sticky="ew", pady=2)
+        self._duck = MetricRow(body, "Ducking")
+        self._duck.grid(row=2, column=0, sticky="ew", pady=2)
+        actions = ctk.CTkFrame(body, fg_color="transparent")
+        actions.grid(row=3, column=0, sticky="w", pady=(10, 0))
+        make_button(actions, "Change track…", self._browse, width=130).pack(side="left")
+        make_button(actions, "Remove", self._remove, variant="ghost", width=90).pack(side="left", padx=(6, 0))
+
+    def _browse(self) -> None:
+        self.app._browse_bg()
+        self.on_show()
+
+    def _remove(self) -> None:
+        self.app.bg_var.set("")
+        try:
+            self.app._shell.notify("Background music removed", tone="info")
+        except Exception:
+            pass
+        self.on_show()
 
     def on_show(self) -> None:
         path = self.app.bg_var.get().strip()
@@ -2027,17 +2114,19 @@ class EditorialView(_BaseView):
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Editorial", "Film bible from the last aligned plan (read-only)").grid(
+        SectionHeader(self, "Editorial Stats", "How the last editorial plan paces, sounds and looks (read-only).").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
         )
         self._empty = EmptyState(
             self._body,
-            "No Editorial Plan yet",
-            "Render once (or run alignment) to build state/editorial_plan.json. Navigation never rebuilds it.",
-            "Go to Render",
+            "No editorial plan yet",
+            "The plan is built when you render (or align a voiceover). Its hook, pacing, audio and music "
+            "choices show up here.",
+            "Go to Export",
             command=lambda: app._shell.navigate("render") if getattr(app, "_shell", None) else None,
+            icon="\u2261",
         )
-        self._empty.grid(row=0, column=0, sticky="ew")
+        self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 0))
         self._cards = ctk.CTkFrame(self._body, fg_color="transparent")
         self._cards.grid(row=1, column=0, sticky="ew")
         self._cards.grid_columnconfigure((0, 1), weight=1)
@@ -2049,17 +2138,13 @@ class EditorialView(_BaseView):
         self._qa = self._section_card(self._cards, "QA", 2, 1)
 
     def _section_card(self, parent, title, r, c):
-        card = Card(parent)
-        card.grid(row=r, column=c, sticky="nsew", padx=4, pady=4)
-        card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            card, text=title, font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(8, 2))
+        card = Card(parent, title=title if title == "QA" else title.title())
+        card.grid(row=r, column=c, sticky="nsew", padx=(0 if c == 0 else 6, 6 if c == 0 else 0), pady=6)
         body = ctk.CTkLabel(
-            card, text="—", font=ctk.CTkFont(size=12), text_color=T.TEXT,
-            anchor="nw", justify="left", wraplength=280,
+            card.body, text="—", font=ctk.CTkFont(size=12), text_color=T.MUTED,
+            anchor="nw", justify="left", wraplength=380,
         )
-        body.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        body.grid(row=0, column=0, sticky="ew")
         return body
 
     def on_show(self) -> None:
@@ -2106,65 +2191,101 @@ class EditorialView(_BaseView):
 
 
 class RenderView(_BaseView):
+    """Export: is the project ready, one button that does the right next
+    thing, and live progress while a run is going."""
+
     key = "render"
+
+    # (label, progress fraction at which the step is finished) — the same
+    # bands app.STAGE_PROGRESS writes into the top progress bar.
+    _STEPS = (
+        ("Preparing", 0.05),
+        ("Visual assets", 0.25),
+        ("Voiceover alignment", 0.50),
+        ("Editorial plan", 0.70),
+        ("Rendering scenes", 0.95),
+        ("Final mix", 1.0),
+    )
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Render", "Production pipeline progress").grid(
+        SectionHeader(self, "Export", "Render the final video and follow its progress.").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
         )
+        self._tick_id = None
+
+        # Readiness + the one action.
+        ready_card = Card(self._body, title="Ready to export",
+                          subtitle="Everything the render needs, and what to do next.")
+        ready_card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        body = ready_card.body
+        tiles = ctk.CTkFrame(body, fg_color="transparent")
+        tiles.grid(row=0, column=0, sticky="ew")
+        tiles.grid_columnconfigure((0, 1, 2), weight=1, uniform="export_tiles")
+        self._scenes_tile = StatTile(tiles, "Scenes")
+        self._scenes_tile.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self._voice_tile = StatTile(tiles, "Voiceover")
+        self._voice_tile.grid(row=0, column=1, sticky="ew", padx=6)
+        self._output_tile = StatTile(tiles, "Last output")
+        self._output_tile.grid(row=0, column=2, sticky="ew", padx=(6, 0))
+
+        actions = ctk.CTkFrame(body, fg_color="transparent")
+        actions.grid(row=1, column=0, sticky="ew", pady=(14, 0))
+        self._action_btn = make_button(actions, "Render Video", app._on_primary_cta, variant="primary",
+                                       size="lg", width=180)
+        self._action_btn.pack(side="left")
+        self._open_video_btn = make_button(actions, "\u25B6  Play video", app._open_in_player, width=130)
+        self._open_video_btn.pack(side="left", padx=(8, 0))
+        self._open_folder_btn = make_button(actions, "Open output folder", app._open_output_folder,
+                                            variant="ghost", width=150)
+        self._open_folder_btn.pack(side="left", padx=(4, 0))
+        self._hint = ctk.CTkLabel(body, textvariable=app.hint_var, font=ctk.CTkFont(size=12),
+                                  text_color=T.MUTED, anchor="w", justify="left", wraplength=640)
+        self._hint.grid(row=2, column=0, sticky="w", pady=(10, 0))
+
+        # Pipeline progress.
+        prog_card = Card(self._body, title="Progress")
+        prog_card.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        pb = prog_card.body
+        pb.grid_columnconfigure(0, weight=0)
+        pb.grid_columnconfigure(1, weight=1)
         self._phases = []
-        card = Card(self._body)
-        card.grid(row=0, column=0, sticky="ew")
-        card.grid_columnconfigure(1, weight=1)
-        names = ("Preparation", "Assets", "Audio", "Visuals", "Encoding", "QA")
-        for i, name in enumerate(names):
-            ctk.CTkLabel(
-                card, text=name, font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
-            ).grid(row=i, column=0, sticky="w", padx=T.PAD, pady=4)
-            pill = StatusPill(card, "IDLE", "muted")
-            pill.grid(row=i, column=1, sticky="e", padx=T.PAD, pady=4)
-            self._phases.append(pill)
-        self._op = MetricRow(card, "Current operation")
-        self._op.grid(row=len(names), column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=4)
-        self._out = MetricRow(card, "Output")
-        self._out.grid(row=len(names) + 1, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=4)
-        ctk.CTkButton(
-            card, text="Render Video", height=34,
-            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            command=app._on_generate,
-        ).grid(row=len(names) + 2, column=0, sticky="w", padx=T.PAD, pady=(8, T.PAD))
-
-        # Phase 2 item P: plain-language export settings + structured
-        # progress, sourced from Phase 1's perf/progress instrumentation —
-        # never raw FFmpeg command text (that stays behind Advanced).
-        settings_card = Card(self._body)
-        settings_card.grid(row=1, column=0, sticky="ew", pady=(8, 0))
-        settings_card.grid_columnconfigure(0, weight=1)
+        for i, (name, _end) in enumerate(self._STEPS):
+            dot = ctk.CTkLabel(pb, text="\u25CB", width=18, font=ctk.CTkFont(size=13), text_color=T.TEXT_TERTIARY)
+            dot.grid(row=i, column=0, sticky="w", pady=3)
+            lbl = ctk.CTkLabel(pb, text=name, font=ctk.CTkFont(size=13), text_color=T.MUTED, anchor="w")
+            lbl.grid(row=i, column=1, sticky="w", padx=(8, 0), pady=3)
+            pill = StatusPill(pb, "Waiting", "muted")
+            pill.grid(row=i, column=2, sticky="e", pady=3)
+            self._phases.append((dot, lbl, pill))
+        self._bar = ctk.CTkProgressBar(pb, height=6, corner_radius=3, progress_color=T.ACCENT, fg_color=T.BORDER)
+        self._bar.grid(row=len(self._STEPS), column=0, columnspan=3, sticky="ew", pady=(12, 6))
+        self._bar.set(0)
         ctk.CTkLabel(
-            settings_card, text="OUTPUT SETTINGS", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 4))
-        self._resolution_row = MetricRow(settings_card, "Resolution")
-        self._resolution_row.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=2)
-        self._fps_row = MetricRow(settings_card, "FPS")
-        self._fps_row.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=2)
-        self._encoder_row = MetricRow(settings_card, "Encoder")
-        self._encoder_row.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(2, T.PAD))
-
-        progress_card = Card(self._body)
-        progress_card.grid(row=2, column=0, sticky="ew", pady=(8, 0))
-        progress_card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            progress_card, textvariable=app._export_progress_var,
-            font=ctk.CTkFont(size=13, weight="bold"), text_color=T.TEXT,
+            pb, textvariable=app._export_progress_var, font=ctk.CTkFont(size=12), text_color=T.MUTED,
             justify="left", anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=T.PAD)
+        ).grid(row=len(self._STEPS) + 1, column=0, columnspan=3, sticky="w")
+        # Kept for tests/legacy readers: the operation/output rows.
+        self._op = MetricRow(pb, "Status")
+        self._op.grid(row=len(self._STEPS) + 2, column=0, columnspan=3, sticky="ew", pady=(8, 0))
+        self._out = MetricRow(pb, "Output file")
+        self._out.grid(row=len(self._STEPS) + 3, column=0, columnspan=3, sticky="ew", pady=(2, 0))
+
+        settings_card = Card(self._body, title="Output settings")
+        settings_card.grid(row=2, column=0, sticky="ew")
+        sb = settings_card.body
+        self._resolution_row = MetricRow(sb, "Resolution")
+        self._resolution_row.grid(row=0, column=0, sticky="ew", pady=2)
+        self._fps_row = MetricRow(sb, "Frame rate")
+        self._fps_row.grid(row=1, column=0, sticky="ew", pady=2)
+        self._encoder_row = MetricRow(sb, "Video encoder")
+        self._encoder_row.grid(row=2, column=0, sticky="ew", pady=2)
+
+    # -- live refresh while the page is visible -------------------------
 
     def on_show(self) -> None:
-        self._resolution_row.set_value("1920x1080")
-        self._fps_row.set_value("30")
+        self._resolution_row.set_value("1920 \u00D7 1080")
+        self._fps_row.set_value("30 fps")
         try:
             import video_generator as vg
 
@@ -2173,75 +2294,130 @@ class RenderView(_BaseView):
         except Exception:
             enc = "—"
         self._encoder_row.set_value(enc)
-        running = bool(getattr(self.app, "_running", False))
-        stage = (self.app.stage_var.get() or "").upper()
-        # Map common stage strings onto phase pills (read-only).
-        phase_map = {
-            "SCRIPT": 0, "SCENES": 0, "PREP": 0, "PREPARATION": 0,
-            "ASSETS": 1, "ASSET": 1,
-            "AUDIO": 2, "VOICE": 2, "AMBIENCE": 2,
-            "VISUAL": 3, "VISUALS": 3, "MIX": 3,
-            "ENCODE": 4, "ENCODING": 4, "RENDER": 4,
-            "QA": 5,
-        }
-        active_i = None
-        for token, idx in phase_map.items():
-            if token in stage:
-                active_i = idx
-                break
-        for i, pill in enumerate(self._phases):
-            if running and active_i is not None:
-                if i < active_i:
-                    pill.set_tone("DONE", "ok")
-                elif i == active_i:
-                    pill.set_tone("ACTIVE", "run")
-                else:
-                    pill.set_tone("IDLE", "muted")
-            elif running:
-                pill.set_tone("ACTIVE" if i <= 4 else "IDLE", "run" if i <= 4 else "muted")
-            elif not running and self.app._last_output:
-                pill.set_tone("DONE", "ok")
+        self._refresh()
+        self._schedule()
+
+    def _schedule(self) -> None:
+        if self._tick_id is not None:
+            return
+
+        def tick() -> None:
+            self._tick_id = None
+            try:
+                visible = self.winfo_ismapped()
+            except Exception:
+                return
+            if visible:
+                self._refresh()
+                self._schedule()
+
+        self._tick_id = self.after(700, tick)
+
+    def _refresh(self) -> None:
+        app = self.app
+        running = bool(getattr(app, "_running", False))
+        # Action button mirrors the top bar's primary action (same label,
+        # same handler) so it can never say "Render" and do something else.
+        cta = getattr(app, "generate_btn", None)
+        if cta is not None:
+            try:
+                text = cta.cget("text")
+                stop = text.strip().lower().startswith("stop")
+                self._action_btn.configure(
+                    text=text, state=cta.cget("state"),
+                    fg_color="transparent" if stop else T.ACCENT,
+                    hover_color=T.DANGER_BG if stop else T.ACCENT_HOV,
+                    text_color=T.DANGER if stop else T.ACCENT_DARK,
+                    border_width=1 if stop else 0, border_color=T.DANGER,
+                )
+            except Exception:
+                pass
+
+        snap = None
+        try:
+            if getattr(app, "_scene_rows", None):
+                snap = app._qa_snapshot()
+        except Exception:
+            snap = None
+        if snap is not None and snap.total:
+            tone = "ok" if snap.ready >= snap.total else ("fail" if snap.needs_action else "warn")
+            detail = f"{snap.needs_action} need attention" if snap.needs_action else (
+                "All visuals ready" if snap.ready >= snap.total else "Visuals still missing")
+            self._scenes_tile.set(f"{snap.ready}/{snap.total}", detail, tone)
+        else:
+            self._scenes_tile.set("—", "No scenes yet", "")
+        audio = app.audio_var.get().strip()
+        if audio and Path(audio).is_file():
+            self._voice_tile.set("Loaded", Path(audio).name[:34], "ok")
+        else:
+            self._voice_tile.set("Missing", "Add it on Audio & Effects", "warn")
+        out = app._last_output or app.output_var.get().strip() or ""
+        has_out = bool(out) and Path(out).is_file()
+        self._output_tile.set(Path(out).name[:26] if has_out else "None yet",
+                              "Ready to play" if has_out else "Render to create one", "ok" if has_out else "")
+        self._open_video_btn.configure(state="normal" if has_out else "disabled")
+        self._open_folder_btn.configure(state="normal" if app._workspace is not None else "disabled")
+
+        try:
+            frac = float(app.progress.get())
+        except Exception:
+            frac = 0.0
+        finished = not running and has_out and frac >= 0.99
+        self._bar.set(frac if running else (1.0 if finished else 0.0))
+        for i, (dot, lbl, pill) in enumerate(self._phases):
+            end = self._STEPS[i][1]
+            start = self._STEPS[i - 1][1] if i else 0.0
+            if running and frac >= end:
+                state = "done"
+            elif running and frac >= start:
+                state = "active"
+            elif not running and has_out and frac >= 0.99:
+                state = "done"
             else:
-                pill.set_tone("IDLE", "muted")
-        self._op.set_value(stage or ("Rendering…" if running else "Idle"))
-        out = self.app._last_output or self.app.output_var.get() or "—"
-        self._out.set_value(Path(out).name if out != "—" else "—")
+                state = "idle"
+            if state == "done":
+                dot.configure(text="\u2713", text_color=T.SUCCESS)
+                lbl.configure(text_color=T.TEXT)
+                pill.set_tone("Done", "ok")
+            elif state == "active":
+                dot.configure(text="\u25CF", text_color=T.ACCENT)
+                lbl.configure(text_color=T.TEXT)
+                pill.set_tone("Running", "run")
+            else:
+                dot.configure(text="\u25CB", text_color=T.TEXT_TERTIARY)
+                lbl.configure(text_color=T.MUTED)
+                pill.set_tone("Waiting", "muted")
+        status = (app.status_var.get() or "").strip() if hasattr(app, "status_var") else ""
+        self._op.set_value(status or ("Working\u2026" if running else "Idle"))
+        self._out.set_value(Path(out).name if out else "—")
 
 
-class GraphicsView(ctk.CTkFrame):
-    """Existing Professional Graphics / Motion Design Engine, surfaced for
-    the operator: list existing TEXT/GRAPHICS timeline events with
-    select / enable-disable / edit text / retime. No new graphics engine —
-    every action reuses editorial_timeline_edit.py (same module the Timeline
-    view uses) and graphics.engine's existing metadata["disabled"] guard."""
+class GraphicsView(_BaseView):
+    """Graphics placed by the Motion Design Engine (titles, lower thirds,
+    statistics, callouts): turn each one on/off or edit its text. Edits are
+    saved to the project's editorial timeline, which the next render reads."""
 
     key = "graphics"
 
     def __init__(self, master, app: Any, **kwargs):
-        super().__init__(master, fg_color=T.PANEL_ALT, **kwargs)
-        self.app = app
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-
+        super().__init__(master, app, **kwargs)
         SectionHeader(
             self, "Graphics",
-            "Titles, lower thirds, statistics and callouts placed by the Motion Design Engine.",
+            "Titles, lower thirds, statistics and callouts placed automatically. Turn any off or edit its text.",
         ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 4))
 
         self._empty = EmptyState(
-            self, "No graphics yet",
-            "Graphics are generated automatically from your script's Editorial "
-            "Timeline. Render once with Text Effects enabled, then manage them here.",
-            "Go to Audio",
+            self._body, "No graphics yet",
+            "Graphics are placed automatically when you render with the Graphics switch on "
+            "(Audio & Effects). After a render they appear here for review.",
+            "Open Audio & Effects",
             command=lambda: app._shell.navigate("audio") if getattr(app, "_shell", None) else None,
+            icon="\u2726",
         )
-        self._empty.grid(row=1, column=0, sticky="nsew")
+        self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 0))
 
-        self._list = ctk.CTkScrollableFrame(
-            self, fg_color="transparent",
-            scrollbar_button_color=T.BORDER, scrollbar_button_hover_color=T.ACCENT,
-        )
-        self._list.grid(row=1, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
+        self._list = ctk.CTkFrame(self._body, fg_color="transparent")
+        self._list.grid(row=1, column=0, sticky="ew")
         self._list.grid_columnconfigure(0, weight=1)
         self._list.grid_remove()
         self._timeline = None
@@ -2279,30 +2455,29 @@ class GraphicsView(ctk.CTkFrame):
     def _build_row(self, ev):
         meta = ev.metadata or {}
         row = Card(self._list)
-        row.grid(sticky="ew", pady=3)
+        row.grid(sticky="ew", pady=4)
         row.grid_columnconfigure(1, weight=1)
         disabled = bool(meta.get("disabled"))
 
         var = ctk.BooleanVar(value=not disabled)
         ctk.CTkSwitch(
-            row, text="", variable=var, width=40,
-            progress_color=T.ACCENT, button_color=T.TEXT,
+            row, text="", variable=var, width=40, **switch_style(),
             command=lambda: self._toggle(ev.event_id, var),
-        ).grid(row=0, column=0, padx=(10, 4), pady=8)
+        ).grid(row=0, column=0, rowspan=2, padx=(14, 6), pady=10)
 
         role = str(meta.get("role") or ev.track)
         text_overlay = meta.get("text_overlay") or {}
         preview = text_overlay.get("text") or (ev.source.split("|")[0] if ev.source else role)
         label_var = ctk.StringVar(value=str(preview)[:60])
+        pretty_role = role.replace("_", " ").title()
         ctk.CTkLabel(
-            row, text=f"{role} · scene {ev.scene_number or '—'} · {ev.start:.1f}s–{ev.end:.1f}s",
-            font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=1, sticky="w", padx=4, pady=(8, 0))
+            row, text=f"{pretty_role}  \u00B7  scene {ev.scene_number or '—'}  \u00B7  {ev.start:.1f}s \u2013 {ev.end:.1f}s",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED, anchor="w",
+        ).grid(row=0, column=1, sticky="w", padx=(4, 14), pady=(10, 2))
         entry = ctk.CTkEntry(
-            row, textvariable=label_var, height=28, fg_color=T.BG,
-            border_color=T.BORDER, text_color=T.TEXT,
+            row, textvariable=label_var, height=30, 
         )
-        entry.grid(row=1, column=1, sticky="ew", padx=4, pady=(0, 8))
+        entry.grid(row=1, column=1, sticky="ew", padx=(4, 14), pady=(0, 12))
         entry.bind("<Return>", lambda _e, eid=ev.event_id, v=label_var: self._rename(eid, v))
         entry.bind("<FocusOut>", lambda _e, eid=ev.event_id, v=label_var: self._rename(eid, v))
         if disabled:
@@ -2328,9 +2503,15 @@ class GraphicsView(ctk.CTkFrame):
             return
         ev.metadata = dict(ev.metadata or {})
         overlay = dict(ev.metadata.get("text_overlay") or {})
+        if overlay.get("text") == label_var.get():
+            return  # focus left without a change — nothing to save
         overlay["text"] = label_var.get()
         ev.metadata["text_overlay"] = overlay
         self._persist()
+        try:
+            self.app._shell.notify("Graphic text saved", tone="success")
+        except Exception:
+            pass
 
     def _persist(self) -> None:
         import editorial_timeline_edit as tl_edit
@@ -2348,39 +2529,62 @@ class GraphicsView(ctk.CTkFrame):
 class QAView(_BaseView):
     key = "qa"
 
+    _CATEGORIES = ("Visual", "Audio", "Pacing", "Music", "Ambience", "Asset Health")
+
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Editorial QA", "Post-render scorecard (never blocks export)").grid(
+        SectionHeader(self, "Quality Check",
+                      "An automatic scorecard of the last render. It never blocks export.").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
         )
         self._empty = EmptyState(
             self._body,
-            "No QA report",
-            "After a successful render, state/editorial_qa.json is written with score and findings.",
-            "Go to Render",
+            "No quality report yet",
+            "The report is written after each successful render: an overall score, a verdict "
+            "and the scenes worth a second look.",
+            "Go to Export",
             command=lambda: app._shell.navigate("render") if getattr(app, "_shell", None) else None,
+            icon="\u2713",
         )
-        self._empty.grid(row=0, column=0, sticky="ew")
+        self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 0))
+
         self._head = Card(self._body)
-        self._head.grid(row=1, column=0, sticky="ew")
+        self._head.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        self._head.grid_columnconfigure(1, weight=1)
         self._score = ctk.CTkLabel(
-            self._head, text="—", font=ctk.CTkFont(size=28, weight="bold"), text_color=T.TEXT,
+            self._head, text="—", font=ctk.CTkFont(size=40, weight="bold"), text_color=T.TEXT,
         )
-        self._score.pack(anchor="w", padx=T.PAD, pady=(T.PAD, 0))
+        self._score.grid(row=0, column=0, rowspan=2, sticky="w", padx=(20, 14), pady=16)
+        ctk.CTkLabel(self._head, text="OVERALL SCORE", font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=T.TEXT_TERTIARY, anchor="w").grid(row=0, column=1, sticky="sw", pady=(18, 0))
         self._verdict = StatusPill(self._head, "—", "muted")
-        self._verdict.pack(anchor="w", padx=T.PAD, pady=(4, T.PAD))
-        self._cats = Card(self._body)
-        self._cats.grid(row=2, column=0, sticky="ew", pady=8)
-        self._cat_rows: dict[str, MetricRow] = {}
-        for i, name in enumerate(("Visual", "Audio", "Pacing", "Music", "Ambience", "Asset Health")):
-            row = MetricRow(self._cats, name, "—")
-            row.grid(row=i, column=0, sticky="ew", padx=T.PAD, pady=3)
-            self._cat_rows[name] = row
+        self._verdict.grid(row=1, column=1, sticky="nw", pady=(4, 18))
+
+        cats = Card(self._body, title="By category")
+        cats.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        self._cats = cats
+        grid = ctk.CTkFrame(cats.body, fg_color="transparent")
+        grid.grid(row=0, column=0, sticky="ew")
+        grid.grid_columnconfigure((0, 1, 2), weight=1, uniform="qa_cats")
+        self._cat_rows: dict = {}
+        for i, name in enumerate(self._CATEGORIES):
+            cell = ctk.CTkFrame(grid, fg_color=T.PANEL_ALT, corner_radius=T.RADIUS)
+            cell.grid(row=i // 3, column=i % 3, sticky="ew", padx=4, pady=4)
+            cell.grid_columnconfigure(0, weight=1)
+            ctk.CTkLabel(cell, text=name, font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w").grid(
+                row=0, column=0, sticky="w", padx=12, pady=10)
+            pill = StatusPill(cell, "—", "muted")
+            pill.grid(row=0, column=1, sticky="e", padx=10)
+            self._cat_rows[name] = _PillValue(pill)
+
+        issues_card = Card(self._body, title="Findings")
+        issues_card.grid(row=3, column=0, sticky="ew")
+        self._issues_card = issues_card
         self._issues = ctk.CTkTextbox(
-            self._body, height=180, fg_color=T.CARD, border_color=T.BORDER, border_width=1,
-            text_color=T.TEXT, font=ctk.CTkFont(size=11),
+            issues_card.body, height=200, 
+            font=ctk.CTkFont(size=12),
         )
-        self._issues.grid(row=3, column=0, sticky="ew", pady=4)
+        self._issues.grid(row=0, column=0, sticky="ew")
 
     def on_show(self) -> None:
         ws = self.app._workspace
@@ -2389,12 +2593,12 @@ class QAView(_BaseView):
             self._empty.grid()
             self._head.grid_remove()
             self._cats.grid_remove()
-            self._issues.grid_remove()
+            self._issues_card.grid_remove()
             return
         self._empty.grid_remove()
         self._head.grid()
         self._cats.grid()
-        self._issues.grid()
+        self._issues_card.grid()
         score = qa.get("score")
         verdict = str(qa.get("verdict") or "—")
         self._score.configure(text=f"{score:.0f}" if isinstance(score, (int, float)) else "—")
@@ -2425,9 +2629,21 @@ class QAView(_BaseView):
             for i in issues[:40]:
                 self._issues.insert(
                     "end",
-                    f"Scene {i.get('scene_number')}  {i.get('timestamp', 0):.1f}s  "
-                    f"[{i.get('severity')}] {i.get('message')}\n",
+                    f"{i.get('severity', '—'):<5}  Scene {i.get('scene_number')}  \u00B7  "
+                    f"{float(i.get('timestamp') or 0):.1f}s  \u00B7  {i.get('message')}\n",
                 )
+
+
+class _PillValue:
+    """MetricRow-compatible wrapper (set_value) around a StatusPill."""
+
+    _TONES = {"PASS": "ok", "WARN": "warn", "FAIL": "fail"}
+
+    def __init__(self, pill: StatusPill):
+        self.pill = pill
+
+    def set_value(self, value: str) -> None:
+        self.pill.set_tone(value, self._TONES.get(str(value).upper(), "muted"))
 
 
 def _load_json(path: Path) -> dict:

@@ -216,10 +216,8 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             card,
             height=36,
             placeholder_text=_TITLE_PLACEHOLDER,
-            fg_color=_BG,
-            border_color=_BORDER,
-            text_color=_TEXT,
-            placeholder_text_color=_MUTED,
+            
+            
         )
         self._title_entry.grid(row=1, column=0, sticky="ew", padx=(14, 8), pady=(0, 8))
         self._title_entry.bind("<Return>", lambda _e: self._handle_create())
@@ -255,7 +253,6 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             self._create_brand_ids = {"None": None}
         ctk.CTkOptionMenu(
             opts, variable=self._create_brand_var, values=brand_labels, width=120,
-            fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
             font=ctk.CTkFont(size=11),
         ).grid(row=0, column=1, sticky="ew", padx=(0, 10))
         ctk.CTkLabel(opts, text="Style", text_color=_MUTED, font=ctk.CTkFont(size=11)).grid(
@@ -275,7 +272,6 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             self._create_style_ids = {"Legacy": ("", None), "Auto": ("auto", None)}
         ctk.CTkOptionMenu(
             opts, variable=self._create_style_var, values=style_labels, width=160,
-            fg_color=_BG, button_color=_BORDER, button_hover_color=_ACCENT,
             font=ctk.CTkFont(size=11),
         ).grid(row=0, column=3, sticky="ew")
 

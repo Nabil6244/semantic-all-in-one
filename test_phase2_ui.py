@@ -108,8 +108,10 @@ class TestShellStructure(unittest.TestCase):
 
     def test_build_sidebar_renders_grouped_headers(self):
         src = inspect.getsource(self.shell_mod.AppShell._build_sidebar)
-        self.assertIn("WORKSPACE", src)
-        self.assertIn("ADVANCED", src)
+        self.assertIn("NAV_GROUP_LABELS", src)
+        import ui.theme as T
+
+        self.assertEqual(set(T.NAV_GROUP_LABELS), {g for _k, _l, g in T.NAV_ITEMS})
 
 
 class TestAppPhase2Wiring(unittest.TestCase):
@@ -136,19 +138,24 @@ class TestAppPhase2Wiring(unittest.TestCase):
         self.assertIn("_ui_theme.set_mode", src)
         self.assertIn("apply_theme_chrome", src)
 
-    def test_undo_redo_wired_to_shell_buttons(self):
-        src = inspect.getsource(self.app.VideoGeneratorApp._on_undo_stack_change)
-        self.assertIn("undo_btn", src)
-        self.assertIn("redo_btn", src)
+    def test_no_dead_undo_redo_controls(self):
+        # Nothing records undo steps since the Timeline/Editor were removed,
+        # so the always-disabled Undo/Redo buttons and shortcuts are gone.
+        self.assertFalse(hasattr(self.app.VideoGeneratorApp, "_on_undo"))
+        self.assertFalse(hasattr(self.app.VideoGeneratorApp, "_bind_global_shortcuts"))
 
     def test_details_action_dispatches_new_inspector_actions(self):
         src = inspect.getsource(self.app.VideoGeneratorApp._details_action)
-        for action in ("reset_scene",):
+        for action in ("change_source", "local_clip", "skip", "cancel", "open"):
             self.assertIn(action, src)
+        # "Reset Scene" was a duplicate of Retry and "Add B-roll" a no-op.
+        self.assertNotIn("reset_scene", src)
+        self.assertNotIn("add_broll", src)
 
-    def test_add_broll_is_disabled_not_faked(self):
+    def test_no_placeholder_inspector_buttons(self):
         src = inspect.getsource(self.app.VideoGeneratorApp._build_scenes_workspace)
-        self.assertIn('self.details_add_broll_btn.configure(state="disabled")', src)
+        self.assertNotIn("details_add_broll_btn", src)
+        self.assertNotIn("details_reset_btn", src)
 
     def test_context_menu_reuses_details_action(self):
         src = inspect.getsource(self.app.VideoGeneratorApp._show_scene_context_menu)
@@ -189,7 +196,6 @@ class TestAppPhase2Wiring(unittest.TestCase):
 
     def test_activate_workspace_clears_undo_and_marks_saved(self):
         src = inspect.getsource(self.app.VideoGeneratorApp._activate_workspace)
-        self.assertIn("_timeline_undo.clear", src)
         self.assertIn("_mark_saved", src)
 
 
@@ -263,12 +269,24 @@ class TestLiveWidgetSmoke(unittest.TestCase):
         self.assertTrue(bool(view._empty.grid_info()))
         self.assertFalse(bool(view._list.grid_info()))
 
-    def test_inspector_extended_action_buttons_exist(self):
-        for name in (
-            "details_add_broll_btn", "details_reset_btn",
-        ):
-            self.assertTrue(hasattr(self.app, name))
-        self.assertEqual(self.app.details_add_broll_btn.cget("state"), "disabled")
+    def test_inspector_actions_have_clear_labels(self):
+        self.assertEqual(self.app.details_retry_btn.cget("text"), "Regenerate")
+        self.assertEqual(self.app.details_alt_btn.cget("text"), "Alternative")
+        self.assertEqual(self.app.details_source_btn.cget("text"), "Change source")
+        self.assertFalse(hasattr(self.app, "details_add_broll_btn"))
+
+    def test_export_action_mirrors_the_primary_button(self):
+        view = self.app._view_render
+        self.app._shell.navigate("render")
+        self.app.update_idletasks()
+        view._refresh()
+        self.assertEqual(view._action_btn.cget("text"), self.app.generate_btn.cget("text"))
+
+    def test_overview_page_is_reachable(self):
+        self.app._shell.navigate("project")
+        self.app.update_idletasks()
+        self.assertEqual(self.app._shell.active_view, "project")
+        self.assertEqual(self.app._shell.page_title.cget("text"), "Overview")
 
 
 if __name__ == "__main__":

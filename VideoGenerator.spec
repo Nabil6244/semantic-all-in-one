@@ -439,7 +439,6 @@ a = Analysis(
         "ui.widgets",
         "ui.scene_list",
         "ui.undo_stack",
-        "ui.inspector_panel",
         "ui.icons",
         "ui.tooltip",
         "typography",

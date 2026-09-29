@@ -88,9 +88,8 @@ class TermsDialog(ctk.CTkToplevel):
         ctk.CTkCheckBox(
             foot, text=textwrap.fill(_terms.CHECKBOX_LABEL, 76),
             variable=self._agree_var,
-            command=self._sync_continue, text_color=_TEXT,
+            command=self._sync_continue, 
             font=ctk.CTkFont(size=12),
-            fg_color=_ACCENT, hover_color=_ACCENT_HOV, border_color=_BORDER,
         ).grid(row=0, column=0, sticky="w")
 
         self._status = ctk.CTkLabel(

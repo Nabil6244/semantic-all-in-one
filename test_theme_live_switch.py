@@ -22,9 +22,9 @@ from ui import theme as T
 class TestRoleAwareRemap(unittest.TestCase):
     def test_light_white_maps_to_text_or_surface_by_role(self):
         maps = T.color_remaps(T.LIGHT, T.DARK)
-        # "#FFFFFF" is BOTH light surface and text-on-accent.
+        # "#FFFFFF" is BOTH the light card surface and text-on-accent.
         self.assertEqual(maps["text"]["#FFFFFF"], T.DARK["accent_on_accent"])
-        self.assertEqual(maps["fill"]["#FFFFFF"], T.DARK["surface"])
+        self.assertEqual(maps["fill"]["#FFFFFF"], T.DARK["surface_elevated"])
 
     def test_ui_tokens_win_over_timeline_clip_tokens(self):
         maps = T.color_remaps(T.DARK, T.LIGHT)

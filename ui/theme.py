@@ -102,31 +102,35 @@ def _resolve(mode: str) -> str:
 # ---------------------------------------------------------------------------
 
 DARK = {
-    "background": "#0B0D10",
-    "surface": "#12151A",
-    "surface_alt": "#0F1218",
-    "surface_elevated": "#181C24",
-    "surface_elevated_hover": "#1E2430",
-    "row_alt": "#141820",
-    "border": "#2A3140",
-    "text_primary": "#E8EAED",
-    "text_secondary": "#8B95A8",
-    "accent": "#4F6BF6",
-    "accent_hover": "#3D56E8",
+    "background": "#090A0D",
+    "surface": "#101217",
+    "surface_alt": "#0C0E12",
+    "surface_elevated": "#15181F",
+    "surface_elevated_hover": "#1C2029",
+    "row_alt": "#12151B",
+    "border": "#232833",
+    "border_strong": "#323949",
+    "text_primary": "#ECEEF3",
+    "text_secondary": "#8C95A7",
+    "text_tertiary": "#5D6576",
+    "accent": "#5B6CFF",
+    "accent_hover": "#4B5BF0",
     "accent_on_accent": "#FFFFFF",
-    "selected": "#1A2240",
-    "accent_border": "#3D5080",
-    "success": "#34D399",
-    "processing": "#60A5FA",
+    "selected": "#1A1F3D",
+    "accent_border": "#3B4586",
+    "success": "#3DD68C",
+    "success_bg": "#0F2419",
+    "processing": "#5AA9FF",
     "queued": "#64748B",
-    "warning": "#FBBF24",
-    "error": "#F87171",
-    "error_bg": "#2A1A1A",
+    "warning": "#F5B544",
+    "warning_bg": "#281F0E",
+    "error": "#F26D6D",
+    "error_bg": "#2A1517",
     "skipped": "#6B7280",
-    "stepper_done": "#2F8F6E",
-    "hover": "#1E2430",
-    "disabled": "#3A4150",
-    "timeline_bg": "#0F1218",
+    "stepper_done": "#2F9E72",
+    "hover": "#1C2029",
+    "disabled": "#383F4D",
+    "timeline_bg": "#0C0E12",
     "track": "#161B22",
     "track_alt": "#12161C",
     "clip_video": "#3D5080",
@@ -137,35 +141,39 @@ DARK = {
     "clip_ambience": "#2F8F6E",
     "clip_music": "#B08900",
     "clip_voiceover": "#4F6BF6",
-    "playhead": "#F87171",
+    "playhead": "#F26D6D",
 }
 
 LIGHT = {
-    "background": "#F5F6F8",
-    "surface": "#FFFFFF",
-    "surface_alt": "#F0F1F4",
+    "background": "#ECEEF2",
+    "surface": "#FAFAFB",
+    "surface_alt": "#F3F4F7",
     "surface_elevated": "#FFFFFF",
-    "surface_elevated_hover": "#E9ECF2",
-    "row_alt": "#F3F4F7",
-    "border": "#D7DBE3",
-    "text_primary": "#1B1F27",
-    "text_secondary": "#5B6270",
-    "accent": "#3654E0",
-    "accent_hover": "#2A44C4",
+    "surface_elevated_hover": "#EEF0F5",
+    "row_alt": "#F7F8FA",
+    "border": "#DDE1E8",
+    "border_strong": "#C5CBD6",
+    "text_primary": "#151922",
+    "text_secondary": "#586072",
+    "text_tertiary": "#8A92A1",
+    "accent": "#4454EE",
+    "accent_hover": "#3443D6",
     "accent_on_accent": "#FFFFFF",
-    "selected": "#E4E9FF",
-    "accent_border": "#AAB8F0",
+    "selected": "#E7EAFF",
+    "accent_border": "#AFB8F5",
     "success": "#0E9F6E",
+    "success_bg": "#E3F6EE",
     "processing": "#2F80D6",
     "queued": "#8891A0",
     "warning": "#B7791F",
+    "warning_bg": "#FBF1DF",
     "error": "#D64545",
     "error_bg": "#FBEAEA",
     "skipped": "#9AA1AD",
     "stepper_done": "#1F8F5E",
-    "hover": "#E9ECF2",
+    "hover": "#EEF0F5",
     "disabled": "#C7CCD6",
-    "timeline_bg": "#F0F1F4",
+    "timeline_bg": "#F3F4F7",
     "track": "#FFFFFF",
     "track_alt": "#F5F6F8",
     "clip_video": "#AAB8F0",
@@ -201,7 +209,7 @@ def _apply_active_tokens() -> None:
     global BG, PANEL, PANEL_ALT, CARD, CARD_HOVER, ROW_ALT, BORDER
     global TEXT, MUTED, ACCENT, ACCENT_HOV, ACCENT_DARK, ACCENT_SEL, ACCENT_BORDER
     global SUCCESS, PROCESSING, QUEUED, WARNING, DANGER, DANGER_BG, SKIPPED, STEPPER_DONE
-    global HOVER, DISABLED
+    global HOVER, DISABLED, BORDER_STRONG, TEXT_TERTIARY, SUCCESS_BG, WARNING_BG
     global TIMELINE_BG, TRACK, TRACK_ALT, PLAYHEAD
     global CLIP_VIDEO, CLIP_IMAGE, CLIP_TEXT, CLIP_GRAPHICS, CLIP_SFX, CLIP_AMBIENCE, CLIP_MUSIC, CLIP_VOICEOVER
 
@@ -229,6 +237,10 @@ def _apply_active_tokens() -> None:
     STEPPER_DONE = _TOKENS["stepper_done"]
     HOVER = _TOKENS["hover"]
     DISABLED = _TOKENS["disabled"]
+    BORDER_STRONG = _TOKENS["border_strong"]
+    TEXT_TERTIARY = _TOKENS["text_tertiary"]
+    SUCCESS_BG = _TOKENS["success_bg"]
+    WARNING_BG = _TOKENS["warning_bg"]
     TIMELINE_BG = _TOKENS["timeline_bg"]
     TRACK = _TOKENS["track"]
     TRACK_ALT = _TOKENS["track_alt"]
@@ -306,7 +318,7 @@ _TK_COLOR_OPTIONS = (
 _CANVAS_ITEM_COLOR_OPTIONS = ("fill", "outline", "activefill", "activeoutline")
 
 
-_TEXT_TOKEN_PRIORITY = ("accent_on_accent", "text_primary", "text_secondary")
+_TEXT_TOKEN_PRIORITY = ("accent_on_accent", "text_primary", "text_secondary", "text_tertiary")
 
 
 def color_remap(old_tokens: dict, new_tokens: dict, role: str = "fill") -> dict:
@@ -424,61 +436,122 @@ def recolor_widget_tree(root, maps: dict) -> int:
     return seen
 
 
+def install_ctk_theme() -> None:
+    """Point CustomTkinter's default widget colours at our tokens, as
+    (light, dark) pairs so CustomTkinter itself flips them with the
+    appearance mode. Any control built without explicit colours (entries,
+    dropdowns, checkboxes, scrollbars, text boxes, dialogs) then matches
+    the app instead of CustomTkinter's stock blue/grey. Call once after
+    ctk.set_default_color_theme() and before building widgets."""
+    try:
+        import customtkinter as ctk
+    except Exception:
+        return
+    th = ctk.ThemeManager.theme
+
+    def pair(token: str) -> list:
+        return [LIGHT[token], DARK[token]]
+
+    def put(widget: str, **values) -> None:
+        th.setdefault(widget, {}).update(values)
+
+    put("CTk", fg_color=pair("background"))
+    put("CTkToplevel", fg_color=pair("background"))
+    put("CTkFrame", corner_radius=RADIUS, border_width=0, fg_color=pair("surface_alt"),
+        top_fg_color=pair("surface_elevated"), border_color=pair("border"))
+    put("CTkButton", corner_radius=RADIUS, border_width=0, fg_color=pair("accent"),
+        hover_color=pair("accent_hover"), border_color=pair("border_strong"),
+        text_color=pair("accent_on_accent"), text_color_disabled=pair("text_tertiary"))
+    put("CTkLabel", text_color=pair("text_primary"))
+    put("CTkEntry", corner_radius=RADIUS, border_width=1, fg_color=pair("background"),
+        border_color=pair("border_strong"), text_color=pair("text_primary"),
+        placeholder_text_color=pair("text_tertiary"))
+    put("CTkTextbox", corner_radius=RADIUS, border_width=1, fg_color=pair("background"),
+        border_color=pair("border_strong"), text_color=pair("text_primary"),
+        scrollbar_button_color=pair("border"), scrollbar_button_hover_color=pair("border_strong"))
+    put("CTkCheckBox", corner_radius=4, border_width=2, fg_color=pair("accent"),
+        border_color=pair("border_strong"), hover_color=pair("accent_hover"),
+        checkmark_color=pair("accent_on_accent"), text_color=pair("text_primary"),
+        text_color_disabled=pair("text_tertiary"))
+    put("CTkSwitch", fg_color=pair("border_strong"), progress_color=pair("accent"),
+        button_color=pair("accent_on_accent"), button_hover_color=pair("accent_on_accent"),
+        text_color=pair("text_primary"), text_color_disabled=pair("text_tertiary"))
+    put("CTkRadioButton", fg_color=pair("accent"), border_color=pair("border_strong"),
+        hover_color=pair("accent_hover"), text_color=pair("text_primary"))
+    put("CTkProgressBar", fg_color=pair("border"), progress_color=pair("accent"))
+    put("CTkSlider", fg_color=pair("border"), progress_color=pair("accent"),
+        button_color=pair("accent"), button_hover_color=pair("accent_hover"))
+    put("CTkOptionMenu", corner_radius=RADIUS, fg_color=pair("background"), button_color=pair("background"),
+        button_hover_color=pair("surface_elevated_hover"), text_color=pair("text_primary"),
+        text_color_disabled=pair("text_tertiary"))
+    put("CTkComboBox", corner_radius=RADIUS, border_width=1, fg_color=pair("background"),
+        border_color=pair("border_strong"), button_color=pair("border_strong"),
+        button_hover_color=pair("accent"), text_color=pair("text_primary"))
+    put("CTkScrollbar", button_color=pair("border"), button_hover_color=pair("border_strong"))
+    put("CTkSegmentedButton", corner_radius=RADIUS, fg_color=pair("surface_alt"),
+        selected_color=pair("accent"), selected_hover_color=pair("accent_hover"),
+        unselected_color=pair("surface_elevated"), unselected_hover_color=pair("surface_elevated_hover"),
+        text_color=pair("text_primary"), text_color_disabled=pair("text_tertiary"))
+    put("CTkScrollableFrame", label_fg_color=pair("surface_elevated"))
+    put("DropdownMenu", fg_color=pair("surface_elevated"), hover_color=pair("surface_elevated_hover"),
+        text_color=pair("text_primary"))
+
+
 def active_appearance() -> str:
     """The resolved dark/light in effect right now (never "system")."""
     return _ACTIVE_MODE
 
 
-# Layout (unaffected by theme — kept exactly as before)
-SIDEBAR_WIDTH = 148
-INSPECTOR_WIDTH = 260
-TOPBAR_HEIGHT = 44
-STATUSBAR_HEIGHT = 32
-PAD = 10
+# Layout (unaffected by theme)
+SIDEBAR_WIDTH = 204
+INSPECTOR_WIDTH = 296
+TOPBAR_HEIGHT = 52
+STATUSBAR_HEIGHT = 28
+PAD = 12
 PAD_SM = 6
-PAD_LG = 14
-RADIUS = 4  # restrained, not pill-like
+PAD_LG = 18
+RADIUS = 6
+RADIUS_LG = 10
+# Readable measure for form/dashboard pages: wider windows centre the content
+# instead of stretching labels and values to opposite edges of the screen.
+CONTENT_MAX_W = 1040
 
 # ---------------------------------------------------------------------------
-# Design system extension (premium UI/UX pass): a centralized spacing rhythm,
-# typography hierarchy, and control-sizing scale so nothing new scatters its
-# own one-off numbers. Existing PAD/PAD_SM/PAD_LG/RADIUS above are kept
-# as-is for call sites that already use them.
+# Design system: one spacing rhythm, one type scale and one control-size
+# scale, so every page is built from the same parts.
 # ---------------------------------------------------------------------------
 
-# 4px spacing rhythm (spec item 15).
 SPACE_XXS = 2
 SPACE_XS = 4
 SPACE_SM = 8
 SPACE_MD = 12
 SPACE_LG = 16
 SPACE_XL = 24
+SPACE_XXL = 32
 
-# Typography hierarchy (spec item 14) — (size, weight) pairs, consumed as
-# ctk.CTkFont(size=FONT_X[0], weight=FONT_X[1]).
-FONT_APP_TITLE = (16, "bold")
+# (size, weight) pairs, consumed as ctk.CTkFont(size=..., weight=...).
+FONT_PAGE_TITLE = (22, "bold")
+FONT_APP_TITLE = (15, "bold")
 FONT_WORKSPACE_TITLE = (15, "bold")
+FONT_CARD_TITLE = (14, "bold")
 FONT_SECTION_TITLE = (11, "bold")
+FONT_BODY = (13, "normal")
 FONT_CONTROL_LABEL = (12, "normal")
-FONT_SECONDARY_LABEL = (11, "normal")
-FONT_METADATA = (10, "normal")
+FONT_SECONDARY_LABEL = (12, "normal")
+FONT_METADATA = (11, "normal")
 FONT_TIMELINE_LABEL = (9, "normal")
 FONT_STATUS = (11, "normal")
 
-# Control sizing scale — every new button/entry/switch should pick one of
-# these rather than an ad hoc height.
-CONTROL_H_SM = 24
-CONTROL_H = 28
-CONTROL_H_LG = 34
-ICON_BTN_W = 30
+CONTROL_H_SM = 26
+CONTROL_H = 32
+CONTROL_H_LG = 38
+ICON_BTN_W = 32
 
 FOCUS_RING_WIDTH = 2
 
-# Sidebar navigation, grouped into a small primary "workspace" flow (the
-# Phase 2 script -> visuals -> timeline -> audio -> graphics -> export path)
-# and an "advanced" group for everything that already existed. Nothing was
-# removed — advanced items are the exact same views, just re-bucketed.
+# Sidebar navigation: the production flow first, supporting tools below.
 NAV_ITEMS = (
+    ("project", "Overview", "workspace"),
     ("script", "Script", "workspace"),
     ("visual_director", "Visual Director", "workspace"),
     ("visual_plan", "Visuals", "workspace"),
@@ -489,8 +562,26 @@ NAV_ITEMS = (
     ("research", "Research", "advanced"),
     ("music", "Music", "advanced"),
     ("editorial", "Editorial Stats", "advanced"),
-    ("qa", "QA", "advanced"),
+    ("qa", "Quality Check", "advanced"),
     ("about", "About & Ownership", "advanced"),
 )
 
-WORKFLOW_STEPS = ("INPUT", "PLAN", "ASSETS", "AUDIO", "EDITORIAL", "RENDER", "QA")
+NAV_GROUP_LABELS = {"workspace": "PRODUCTION", "advanced": "TOOLS"}
+
+# One glyph per page; plain Unicode so it renders on macOS and Windows alike.
+NAV_ICONS = {
+    "project": "\u2302",          # ⌂
+    "script": "\u270E",           # ✎
+    "visual_director": "\u25CE",  # ◎
+    "visual_plan": "\u25A6",      # ▦
+    "audio": "\u266A",            # ♪
+    "graphics": "\u2726",         # ✦
+    "render": "\u21EA",           # ⇪
+    "brand_style": "\u25D0",      # ◐
+    "research": "\u2315",         # ⌕
+    "music": "\u266B",            # ♫
+    "editorial": "\u2261",        # ≡
+    "qa": "\u2713",               # ✓
+    "about": "\u24D8",            # ⓘ
+}
+

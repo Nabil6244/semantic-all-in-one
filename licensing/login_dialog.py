@@ -128,9 +128,7 @@ class LoginDialog(ctk.CTkToplevel):
             body,
             height=40,
             placeholder_text="you@example.com",
-            fg_color=_BG,
-            border_color=_BORDER,
-            text_color=_TEXT,
+            
         )
         self._email.pack(fill="x", padx=20, pady=(4, 12))
 
@@ -142,9 +140,7 @@ class LoginDialog(ctk.CTkToplevel):
             height=40,
             show="•",
             placeholder_text="Password",
-            fg_color=_BG,
-            border_color=_BORDER,
-            text_color=_TEXT,
+            
         )
         self._password.pack(fill="x", padx=20, pady=(4, 2))
         self._password.bind("<Return>", lambda _e: self._submit())

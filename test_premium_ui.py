@@ -137,30 +137,6 @@ class TestLiveWidgets(unittest.TestCase):
 
 
 
-class TestGlobalShortcutWiring(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        try:
-            cls.app = __import__("app")
-        except ModuleNotFoundError as exc:
-            raise unittest.SkipTest(f"customtkinter not available: {exc}")
-
-    def test_bind_global_shortcuts_uses_bind_all_not_per_widget_bind(self):
-        src = inspect.getsource(self.app.VideoGeneratorApp._bind_global_shortcuts)
-        self.assertIn("bind_all", src)
-
-    def test_typing_target_guard_checks_entry_and_textbox(self):
-        src = inspect.getsource(self.app.VideoGeneratorApp._typing_target)
-        self.assertIn("CTkEntry", src)
-        self.assertIn("CTkTextbox", src)
-
-    def test_undo_redo_shortcuts_respect_typing_guard(self):
-        src_u = inspect.getsource(self.app.VideoGeneratorApp._on_global_undo_shortcut)
-        src_r = inspect.getsource(self.app.VideoGeneratorApp._on_global_redo_shortcut)
-        self.assertIn("_typing_target", src_u)
-        self.assertIn("_typing_target", src_r)
-
-
 class TestErrorDialog(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
