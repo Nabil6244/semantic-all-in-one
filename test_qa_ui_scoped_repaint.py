@@ -158,7 +158,7 @@ class TestScopedQAUiRepaintFixesLargeProjectLag(unittest.TestCase):
         script_path.write_text(_LIVE_CHECK_SCRIPT, encoding="utf-8")
         proc = subprocess.run(
             [sys.executable, str(script_path)],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, text=True, timeout=180,  # full app start; slow on Windows CI
             cwd=Path(__file__).resolve().parent,
         )
         cls._stdout = proc.stdout

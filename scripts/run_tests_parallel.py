@@ -30,6 +30,10 @@ SERIAL_MODULES = {
     "test_preview_parity",
     "test_long_form_stress",
     "test_phase2_verification",
+    # Start the full app / a browser helper with fixed time limits; on a busy
+    # Windows runner these timed out while 8 other modules were running.
+    "test_qa_ui_scoped_repaint",
+    "test_asset_pipeline",
 }
 
 # Slowest modules (ffmpeg renders) start first so none is left running alone
