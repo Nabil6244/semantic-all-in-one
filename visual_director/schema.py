@@ -42,6 +42,7 @@ PROVIDER_MAX_DURATION = {
     "flow": 3.0,
     "stock_image": 3.0,
     "local": 6.0,
+    "map": 12.0,
 }
 
 PROVIDER_DEFAULT_DURATION = {
@@ -100,6 +101,7 @@ PROVIDER_TO_ASSET_TYPE = {
     "local": "local",
     "local_video": "local_video",
     "local_image": "local_image",
+    "map": "map",
 }
 # Legacy CSV / old plans may still mention commons — accept and remap to stock.
 for _alias, _target in _COMMONS_PROVIDER_ALIASES.items():
@@ -117,6 +119,7 @@ ASSET_TYPE_TO_PROVIDER = {
     "local": "local",
     "local_video": "local",
     "local_image": "local",
+    "map": "map",
     # Legacy asset_type values from older plans → stock routing.
     "commons_video": "stock_video",
     "commons_image": "stock_image",
@@ -235,6 +238,14 @@ class VisualScene:
                 asset_type=asset_type,
                 prompt=query,
                 stock=query,
+            )
+        if asset_type == "map":
+            # visual_description holds the map prompt ("Florida > Florida Panhandle").
+            return SceneRow(
+                scene_number=str(self.scene_id),
+                script_segment=narration,
+                asset_type="map",
+                prompt=description,
             )
         if asset_type in FLOW_ASSET_TYPES:
             return SceneRow(

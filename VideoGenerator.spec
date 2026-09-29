@@ -133,6 +133,28 @@ if YT_ACQ_DIR.is_dir():
 else:
     print(f"WARNING: {YT_ACQ_DIR} not found — YouTube browser capture will not be available.")
 
+# Map scenes: map-engine/ (the Node renderer + its page) with only the four
+# MapLibre runtime files it loads, and map_scene/data (bundled place borders,
+# read next to map_scene/places.py at runtime).
+MAP_ENGINE_DIR = ROOT / "map-engine"
+_MAPLIBRE_FILES = ("package.json", "dist/maplibre-gl.mjs", "dist/maplibre-gl-shared.mjs",
+                   "dist/maplibre-gl-worker.mjs", "dist/maplibre-gl.css")
+for _name in ("render.mjs", "page.html", "page.js", "package.json"):
+    _p = MAP_ENGINE_DIR / _name
+    if not _p.is_file():
+        raise SystemExit(f"Missing {_p} — map scenes must ship with the app.")
+    datas.append((str(_p), "map-engine"))
+for _name in _MAPLIBRE_FILES:
+    _p = MAP_ENGINE_DIR / "node_modules" / "maplibre-gl" / _name
+    if not _p.is_file():
+        raise SystemExit(f"Missing {_p} — run `npm ci --omit=dev` in map-engine/ before building.")
+    datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+_MAP_DATA_DIR = ROOT / "map_scene" / "data"
+for _p in list(_MAP_DATA_DIR.glob("*.json.gz")) + list(_MAP_DATA_DIR.glob("*.json")):
+    datas.append((str(_p), "map_scene/data"))
+if not (_MAP_DATA_DIR / "admin1.json.gz").is_file():
+    raise SystemExit(f"Missing {_MAP_DATA_DIR} place data — run scripts/build_map_data.py.")
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership)
@@ -296,6 +318,13 @@ a = Analysis(
         "video_generator",
         "app_version",
         "licensing.generation_tracking",
+        "map_scene",
+        "map_scene.render",
+        "map_scene.places",
+        "map_scene.spec",
+        "map_scene.clip",
+        "map_scene.ai_places",
+        "providers.map.provider",
         "customtkinter",
         "darkdetect",
         "faster_whisper",
@@ -402,7 +431,6 @@ a = Analysis(
         "render_cache",
         "editorial_timeline_edit",
         "preview_engine",
-        "firstcut",
         "waveform_cache",
         "ui",
         "ui.views",
@@ -410,13 +438,8 @@ a = Analysis(
         "ui.shell",
         "ui.widgets",
         "ui.scene_list",
-        "ui.timeline_canvas",
-        "ui.timeline_layout",
         "ui.undo_stack",
-        "ui.editor_view",
         "ui.inspector_panel",
-        "ui.media_browser",
-        "ui.preview_player",
         "ui.icons",
         "ui.tooltip",
         "typography",

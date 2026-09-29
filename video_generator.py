@@ -1126,7 +1126,7 @@ def transition_fade_params(style: str, duration: float) -> tuple[float, float, s
     d = max(float(duration), 0.4)
     max_fade = min(0.42, d * 0.20)
     style = (style or "fade").lower()
-    if style == "cut":
+    if style in ("cut", "zoom_blur"):  # zoom_blur is its own pass on the clip (editorial.zoom_blur)
         return 0.0, 0.0, "black"
     if style == "dissolve":
         return min(0.38, max_fade), min(0.38, max_fade), "black"
@@ -1697,6 +1697,31 @@ def _mux_missing_hint(missing_path: Path) -> str:
     return ""
 
 
+def _exit_if_disk_full(stderr, output_path) -> None:
+    """A full disk is the one mux failure that looks like a broken project
+    but isn't: FFmpeg dies with "No space left on device" part-way through
+    writing, leaving a truncated output behind. Remove that partial file and
+    say what actually happened instead of "see log above"."""
+    if "No space left on device" not in (stderr or ""):
+        return
+    out = Path(output_path)
+    try:
+        out.unlink(missing_ok=True)
+    except OSError:
+        pass
+    free = ""
+    try:
+        free_mb = shutil.disk_usage(out.parent).free / (1024 * 1024)
+        free = f" ({free_mb:,.0f} MB free now)"
+    except OSError:
+        pass
+    sys.exit(
+        f"ERROR: export ran out of disk space while writing {out.name}{free}. "
+        f"Free up space on the drive holding {out.parent} and the system temp "
+        f"folder, then export again — the project itself is fine."
+    )
+
+
 def run_final_mux(
     *,
     concat_list_path: Path,
@@ -1784,6 +1809,7 @@ def run_final_mux(
         # real problem is a vanished scene clip under a cloud-synced folder.
         vanished = [p for p in listed if not p.is_file()]
         print(result.stderr[-3000:] if result.stderr else "")
+        _exit_if_disk_full(result.stderr, output_path)
         if vanished:
             sample = vanished[0]
             hint = _mux_missing_hint(sample)
@@ -1845,6 +1871,7 @@ def _run_final_mux_with_transitions(
     result = hidden_subprocess.run(cmd, capture_output=True, text=True, cwd=str(work))
     if result.returncode != 0:
         print(result.stderr[-3000:] if result.stderr else "")
+        _exit_if_disk_full(result.stderr, output_path)
         sys.exit("ERROR: ffmpeg transition mux failed — see log above.")
 
 
@@ -2186,6 +2213,14 @@ def _render_scene_clip(
 
     # Single-shot edit decision may still carry hold_tail / avoid loop
     hold_tail = False
+    try:
+        from map_scene.clip import is_map_clip
+
+        # A map clip is one continuous camera move: never loop it (the zoom
+        # would jump back to the start) — hold its last frame instead.
+        hold_tail = is_map_clip(img_path)
+    except Exception:
+        hold_tail = False
     if isinstance(edit_decision, dict):
         avoid_blind_loop = avoid_blind_loop or bool(edit_decision.get("avoid_blind_loop"))
         shots = edit_decision.get("shots") or []
@@ -2661,6 +2696,7 @@ def render_video(
 
         fade_in = fade_out = 0.0
         fade_color = "black"
+        zoom_blur_in = zoom_blur_out = False
         if visual_transitions:
             style_map = transition_by_scene or {}
             # Only AI/heuristic-selected scenes get a visual transition; others hard-cut.
@@ -2676,6 +2712,8 @@ def render_video(
                 fade_in, _, fade_color = transition_fade_params(style_in, dur)
             if style_out:
                 _, fade_out, _ = transition_fade_params(style_out, dur)
+            zoom_blur_in = style_in == "zoom_blur"
+            zoom_blur_out = style_out == "zoom_blur"
 
         sn_key = str(row.get("scene_number") or "")
         cov = coverage_flags.get(sn_key) or coverage_flags.get(str(int(sn_key)) if sn_key.isdigit() else sn_key)
@@ -2696,7 +2734,7 @@ def render_video(
                 t_type = str(first_shot.get("transition_in") or "cut").lower()
                 t_dur = float(first_shot.get("transition_duration") or 0.0)
                 t_dir = str(first_shot.get("transition_direction") or "")
-                if t_type in TRANSITION_TYPES and t_type != "cut" and t_dur > 0.0:
+                if t_type in TRANSITION_TYPES and t_type != "cut" and t_dur > 0.0 and not zoom_blur_in:
                     real_transition_into_scene[i] = (t_type, t_dur, t_dir)
 
         _scene_clip_kwargs = dict(
@@ -2784,6 +2822,19 @@ def render_video(
                         composited.unlink(missing_ok=True)
                     except OSError:
                         pass
+
+        # Zoom-blur transition (maps / countdown facts): a pass on the finished
+        # clip, after cache + B-roll, like the B-roll overlay above — a cached
+        # clip never has it baked in. Failure leaves a plain cut.
+        if zoom_blur_in or zoom_blur_out:
+            try:
+                from editorial.zoom_blur import apply_zoom_blur
+
+                if not apply_zoom_blur(out_clip, head=zoom_blur_in, tail=zoom_blur_out, width=width,
+                                       height=height, fps=fps, encode_args=_cpu_encode_argv()):
+                    print(f"[3/4] Zoom-blur transition skipped for scene {sn_key} (plain cut).")
+            except Exception as exc:
+                print(f"[3/4] Zoom-blur transition skipped for scene {sn_key}: {exc}")
 
         if perf is not None:
             perf.note_cache(cache_hit)
@@ -2878,6 +2929,7 @@ def resolve_scene_assets(
     pexels_api_key: str | None = None,
     flow_engine_manager=None,
     flow_settings: dict | None = None,
+    flow_video_account_ids: list[str] | None = None,
     youtube_max_results: int = 5,
     youtube_clip_duration: float = 3.5,
     youtube_transcript_matching: bool = True,
@@ -2950,8 +3002,11 @@ def resolve_scene_assets(
                 flow_engine_manager, media_kind="image", flow_settings=flow_settings
             )
         if needs_flow_video:
+            # None = all signed-in accounts (CLI / never-configured profile);
+            # the app passes the Video Profile's checked accounts here.
             flow_video_provider = FlowProvider(
-                flow_engine_manager, media_kind="video", flow_settings=flow_settings
+                flow_engine_manager, media_kind="video", flow_settings=flow_settings,
+                account_ids=flow_video_account_ids,
             )
 
     youtube_provider = None

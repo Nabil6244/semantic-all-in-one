@@ -72,6 +72,7 @@ import shutil
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from map_scene.clip import is_map_clip
 from media_duration import probe_media_duration
 from providers.ffmpeg_runner import encode_argv, run_ffmpeg
 
@@ -85,6 +86,7 @@ from .composition import (
     render_title_reveal_frame,
 )
 from .layout import MARGIN_PX, SceneGraphLayout
+from .map_nodes import is_map_node
 from .schema import SceneEdge, SceneGraph, SceneNode
 from .style_presets import StylePreset
 
@@ -452,6 +454,12 @@ def _node_video_layer(
     play_duration = min(available, real_duration) if real_duration else available
     if play_duration <= 0:
         return None
+    # A map clip is one continuous camera move: when the scene outlasts it,
+    # hold its last frame for the rest of the window (a card that goes blank,
+    # or a zoom that restarts, would look broken).
+    hold_pad = 0.0
+    if is_map_node(node) and real_duration and available > real_duration + 0.05 and is_map_clip(media_path):
+        hold_pad = available - real_duration
 
     w, h = max(2, round(rect.width)), max(2, round(rect.height))
     fade_in_d = min(0.3, play_duration)
@@ -463,11 +471,12 @@ def _node_video_layer(
         f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
         f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=white,setsar=1,"
         f"setpts=PTS-STARTPTS,fade=t=in:st=0:d={fade_in_d:.3f}:alpha=1,"
-        f"setpts=PTS+{_OFFSET_TOKEN}/TB,format=rgba"
+        + (f"tpad=stop_mode=clone:stop_duration={hold_pad:.4f}," if hold_pad > 0 else "")
+        + f"setpts=PTS+{_OFFSET_TOKEN}/TB,format=rgba"
     )
     return _Layer(
         ["-t", f"{play_duration:.4f}", "-i", str(media_path)],
-        offset=appear_at, duration=play_duration,
+        offset=appear_at, duration=play_duration + hold_pad,
         overlay_xy=(int(rect.x), int(rect.y)),
         pre_filter=filt,
     )
@@ -642,6 +651,8 @@ def _collect_layers(
         if video_layer is not None:
             layers.append(video_layer)
 
+        if is_map_node(node):
+            continue  # full-screen map: just the clip — no card, border or caption layers
         media_image = None if is_live_video else load_media_image(media_path, media_tmp)
         layers.extend(_node_reveal_layers(
             node, layout=layout, style=style, media_image=media_image, hollow=is_live_video,

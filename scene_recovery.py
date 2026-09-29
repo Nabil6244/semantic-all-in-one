@@ -22,6 +22,7 @@ CHANGE_SOURCE_ORDER = (
     "youtube",
     "archive",
     "nasa",
+    "map",
     "flow_video",
     "flow_image",
     "stock_image",

@@ -141,6 +141,13 @@ def classify_semantic(text: str, effect: str = "") -> str:
     return "narration"
 
 
+# The Smart Text styles a video may use. The others (kinetic_punch,
+# keyword_highlight, minimal_caption, fact_number, word_reveal, proof_modern)
+# were removed from videos; their definitions stay so an older saved plan
+# still renders, but they are never chosen.
+SMART_TEXT_STYLES = ("statement", "question", "quote")
+
+
 def style_candidates(semantic: str, effect: str, text: str) -> List[Tuple[str, float]]:
     """(style_id, base_score) for this semantic situation."""
     primary = map_effect_to_style(effect, text)
@@ -173,7 +180,15 @@ def style_candidates(semantic: str, effect: str, text: str) -> List[Tuple[str, f
     # Dedup keep best score
     best: Dict[str, float] = {}
     for sid, score in out:
+        if sid not in SMART_TEXT_STYLES:
+            continue
+        # Quote is for real quotes, Question for questions — never a stand-in
+        # for plain narration; everything else reads as a Statement.
+        if (sid == "quote" and semantic != "quote") or (sid == "question" and semantic != "question"):
+            continue
         best[sid] = max(best.get(sid, -1e9), score)
+    if not best:
+        best["statement"] = 50.0  # whatever the line, it reads as a statement
     return sorted(best.items(), key=lambda x: -x[1])
 
 

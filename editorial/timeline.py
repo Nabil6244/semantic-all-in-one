@@ -98,6 +98,11 @@ class EditorialTimeline:
     # for_export / reconcile_timeline_into_decisions callers in app.py).
     muted_tracks: List[str] = dataclasses.field(default_factory=list)
     solo_tracks: List[str] = dataclasses.field(default_factory=list)
+    # True once the SFX/AMBIENCE tracks hold the real, audible plan (the first
+    # cut materializes it; Editor edits keep it). Only then are those tracks
+    # authoritative for the final mix — an engine-compiled timeline carries
+    # file-less placeholders that must never silence a render.
+    audio_materialized: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -106,6 +111,7 @@ class EditorialTimeline:
             "events": [e.to_dict() for e in self.events],
             "muted_tracks": sorted(set(self.muted_tracks)),
             "solo_tracks": sorted(set(self.solo_tracks)),
+            "audio_materialized": bool(self.audio_materialized),
         }
 
     @classmethod
@@ -123,6 +129,9 @@ class EditorialTimeline:
             events=events,
             muted_tracks=[str(t) for t in (data.get("muted_tracks") or [])],
             solo_tracks=[str(t) for t in (data.get("solo_tracks") or [])],
+            audio_materialized=bool(data.get("audio_materialized")) or any(
+                e.track in ("SFX", "AMBIENCE") and (e.metadata or {}).get("file") for e in events
+            ),
         )
 
     def events_on(self, track: str) -> List[TimelineEvent]:

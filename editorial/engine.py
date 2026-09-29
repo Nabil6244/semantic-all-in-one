@@ -660,6 +660,8 @@ class EditorialEngine:
             )
 
             graphics_plan = plan_graphics(self.plan, intents=self.intents or None)
+            _add_countdown_graphics(self.plan, graphics_plan)
+            _add_keyword_callouts(self.plan, graphics_plan)
             if self.timeline is not None and graphics_plan.specs:
                 materialize_graphics_on_timeline(self.timeline, graphics_plan)
             attach_graphics_plan(self.plan, graphics_plan)
@@ -712,6 +714,75 @@ def attach_editorial_compile(
         d = by_sn.get(str(scene.scene_number))
         if d and d.shots:
             scene.camera_style = d.shots[0].camera_style  # type: ignore[assignment]
+
+
+_LOWER_PANEL_ROLES = {"LOWER_THIRD", "NAME", "CALLOUT", "EMPHASIS", "LABEL", "TITLE", "CHAPTER"}
+
+
+def _add_countdown_graphics(plan: EditorialPlan, graphics_plan) -> None:
+    """A "35 wild facts" script: numbered fact tags + the hook title (see
+    editorial.countdown). Generic panels that would sit on top of them are
+    dropped for those moments. A script without a countdown is unchanged."""
+    try:
+        from .countdown import countdown_graphics, detect_countdown
+
+        scenes = list(getattr(plan, "scenes", None) or [])
+        full = getattr(plan, "narrations_by_scene", None) or {}
+        narrations = [full.get(str(s.scene_number)) or getattr(s, "narration_excerpt", "") for s in scenes]
+        countdown = detect_countdown(narrations)
+        if countdown is None:
+            return
+        added = countdown_graphics(scenes, countdown)
+        windows = [(g.start, g.end) for g in added]
+
+        def clashes(spec) -> bool:
+            role = str(getattr(spec, "role", "") or "").upper()
+            decision = str(getattr(spec, "decision", "") or "").upper()
+            if role not in _LOWER_PANEL_ROLES and decision not in ("LOWER_THIRD", "CALLOUT"):
+                return False
+            return any(float(spec.start) < e and float(spec.end) > s for s, e in windows)
+
+        graphics_plan.specs = [g for g in graphics_plan.specs if not clashes(g)] + added
+    except Exception:
+        pass  # additive — never block editorial compile
+
+
+_CALLOUT_REPLACES = {"STATISTIC", "NAME", "LOWER_THIRD", "CALLOUT", "EMPHASIS", "LABEL", "DATA_LABEL", "PERSON"}
+
+
+def _add_keyword_callouts(plan: EditorialPlan, graphics_plan) -> None:
+    """Big yellow keyword text (see editorial.keyword_callouts) — replaces the
+    plain statistic/name panel at the same moment; never over a countdown
+    tag or hook."""
+    try:
+        from .keyword_callouts import callout_graphics
+
+        scenes = list(getattr(plan, "scenes", None) or [])
+        if not scenes:
+            return
+        full = getattr(plan, "narrations_by_scene", None) or {}
+        narrations = [full.get(str(s.scene_number)) or getattr(s, "narration_excerpt", "") for s in scenes]
+        # Keep clear of a fact tag / the hook and the 3 s after it — the
+        # heading and hook lines themselves are never callouts.
+        blocked = [(g.start, g.end + 3.0) for g in graphics_plan.specs
+                   if str((g.payload or {}).get("template") or "").startswith("countdown_")]
+        added = callout_graphics(scenes, narrations, blocked=blocked)
+        if not added:
+            return
+        windows = [(g.start, g.end) for g in added]
+
+        def replaced(spec) -> bool:
+            if str((spec.payload or {}).get("template") or "").startswith("countdown_"):
+                return False
+            role = str(getattr(spec, "role", "") or "").upper()
+            decision = str(getattr(spec, "decision", "") or "").upper()
+            if role not in _CALLOUT_REPLACES and decision not in ("STATISTIC", "LOWER_THIRD", "CALLOUT"):
+                return False
+            return any(float(spec.start) < e and float(spec.end) > s for s, e in windows)
+
+        graphics_plan.specs = [g for g in graphics_plan.specs if not replaced(g)] + added
+    except Exception:
+        pass  # additive — never block editorial compile
 
 
 def compile_editorial_plan(

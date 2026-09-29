@@ -2219,9 +2219,14 @@ function _looksLikeMedia(buf) {
  * which previously looked like "generated in browser but never downloaded".
  */
 export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
-  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const { mkdirSync, writeFileSync, renameSync, rmSync } = await import("node:fs");
   const pathMod = await import("node:path");
   mkdirSync(pathMod.dirname(destPath), { recursive: true });
+  // Write to a temp name and rename into place, so destPath only ever exists
+  // as a complete file. The Python side picks up <run>/**/NNN.mp4 straight
+  // off disk (e.g. after a STOP/timeout), and a direct write let it copy a
+  // half-written video into the project as a READY asset.
+  const partPath = `${destPath}.part`;
 
   const tryWrite = async (label, getter) => {
     try {
@@ -2241,9 +2246,13 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
           retryable,
         };
       }
-      writeFileSync(destPath, Buffer.from(body));
+      writeFileSync(partPath, Buffer.from(body));
+      renameSync(partPath, destPath);
       return { ok: true };
     } catch (e) {
+      try {
+        rmSync(partPath, { force: true });
+      } catch {}
       const msg = String(e.message || e);
       const retryable = /HTTP 404|HTTP 403|HTTP 429|timeout|ECONN|not ready/i.test(msg);
       return { ok: false, error: `${label}: ${msg}`, retryable };

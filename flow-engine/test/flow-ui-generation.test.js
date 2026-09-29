@@ -252,3 +252,72 @@ test("batch-runner.js no longer uses the old direct-RPC generateOneVideo for vid
     "video generation must come from the same UI infrastructure as images",
   );
 });
+
+test("video detection waits well past 3 minutes by default (Flow videos finish late under load)", () => {
+  const src = fs.readFileSync(new URL("../lib/flow-ui-experiment.js", import.meta.url), "utf8");
+  const m = src.match(/mode: "video",[\s\S]*?generationTimeoutMs: settings\?\.generationTimeoutMs \|\| (\d+)/);
+  assert.ok(m, "video default generationTimeoutMs not found");
+  const ms = Number(m[1]);
+  assert.ok(ms > 180000, `video detection window ${ms}ms is no longer than the old 180s cap`);
+  assert.ok(ms < 12 * 60 * 1000, "must stay under the app's 12-minute per-scene watchdog");
+});
+
+test("a Stop ends the video detection wait promptly without re-clicking Generate", async () => {
+  const outputDir = tmpOutputDir();
+  const { page, state } = makeFakePage({ mediaKind: "video", mediaId: "never", neverFindsMedia: true });
+  let stop = false;
+  setTimeout(() => (stop = true), 20);
+  const started = Date.now();
+  await assert.rejects(
+    () =>
+      generateOneVideoViaUI(page, PROJECT_ID, PROMPT, { outputDir }, 0, { shouldStop: () => stop }),
+    (err) => /outcome: stopped/.test(err.message) && err.generateClicked === true,
+  );
+  assert.ok(Date.now() - started < 5000, "stop must not wait out the full detection window");
+  assert.equal(state.generateClicked, true);
+});
+
+test("a video that appears after the old 180s cap is detected (one click) and downloaded", async () => {
+  const { downloadMedia } = await import("../lib/flow-api.js");
+  const outputDir = tmpOutputDir();
+  const { page, state } = makeFakePage({ mediaKind: "video", mediaId: "late-vid-1", neverFindsMedia: true });
+  let clicks = 0;
+  const realLocator = page.locator;
+  page.locator = (selector) => {
+    const loc = realLocator(selector);
+    if (selector !== 'button[aria-label="Start generation"]') return loc;
+    return { ...loc, first: () => ({ ...loc, click: async () => { clicks += 1; await loc.click(); } }) };
+  };
+  // Simulated clock: every poll advances 70s; the video only shows up once
+  // 250s have "passed" since Generate was clicked.
+  const realNow = Date.now;
+  let offset = 0;
+  let clickedAt = null;
+  const polled = page.evaluate;
+  page.evaluate = async (...args) => {
+    if (state.generateClicked && clickedAt === null) clickedAt = Date.now();
+    if (clickedAt !== null && state.evalCalls >= 2) {
+      offset += 70000;
+      state.evalCalls += 1;
+      return Date.now() - clickedAt >= 250000 ? "https://flow-content.google/video/late-vid-1?fife=1" : null;
+    }
+    return polled(...args);
+  };
+  Date.now = () => realNow() + offset;
+  let result;
+  try {
+    result = await generateOneVideoViaUI(page, PROJECT_ID, PROMPT, { outputDir }, 0);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(result.mediaId, "late-vid-1");
+  assert.ok(offset >= 250000, "detection must have run past the old 180s window");
+  assert.equal(clicks, 1, "Start generation must be clicked exactly once");
+
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from("ftypisom"), Buffer.alloc(200, 1)]);
+  const dlPage = { context: () => ({ request: { get: async () => ({ ok: () => true, status: () => 200, body: async () => mp4 }) } }) };
+  const dest = path.join(outputDir, "013.mp4");
+  await downloadMedia(dlPage, result.mediaId, dest, result.fifeUrl);
+  assert.equal(fs.readFileSync(dest).length, mp4.length);
+  assert.ok(!fs.existsSync(`${dest}.part`));
+});

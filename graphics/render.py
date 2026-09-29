@@ -36,6 +36,13 @@ def render_graphic_overlay(
             return None
         text = TextOverlaySpec(role=spec.role, text=hint)
 
+    template = str((spec.payload or {}).get("template") or "")
+    if template == "countdown_tag":
+        return _render_countdown_tag(text.text, out_path, width, height)
+    if template == "countdown_hook":
+        return _render_countdown_hook(text.text, out_path, width, height)
+    if template == "keyword_callout":
+        return _render_countdown_hook(text.text, out_path, width, height, size_frac=0.078, center_y=0.42)
     if spec.role.upper() == "STATISTIC" or spec.decision == "STATISTIC":
         return _render_statistic(text, out_path, width, height, design=design, composition=composition)
     # Documentary default: cyan-bar lower-third panel for names, callouts, emphasis.
@@ -56,7 +63,24 @@ def graphic_timed_overlay_tuple(
     t0 = max(0.0, float(spec.start) - float(scene_start))
     t1 = max(t0 + 0.12, float(spec.end) - float(scene_start))
     anim = overlay_animation_name(spec.animation or (spec.text.animation if spec.text else "FADE"))
-    return (png, t0, t1, anim, None)
+    center = None
+    if anim == "scale_fade":
+        # scale_fade grows the full-frame overlay about this point (its text's centre).
+        center = tuple((spec.payload or {}).get("center") or ()) or _png_center(png)
+    return (png, t0, t1, anim, center)
+
+
+def _png_center(png: Path) -> Optional[Tuple[int, int]]:
+    try:
+        from PIL import Image
+
+        with Image.open(png) as im:
+            box = im.getbbox()
+            if box:
+                return ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
+            return (im.width // 2, im.height // 2)
+    except Exception:
+        return None
 
 
 def render_graphics_for_scene(
@@ -559,4 +583,81 @@ def _render_lower_third(
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(out_path, format="PNG")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# Countdown ("35 wild facts") templates — the reference style's look
+# ---------------------------------------------------------------------------
+
+_COUNTDOWN_FONT = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "Outfit-ExtraBold.ttf"
+_COUNTDOWN_ORANGE = (246, 146, 30, 255)
+_HOOK_YELLOW = (255, 222, 40, 255)
+_HOOK_OUTLINE = (20, 20, 20, 255)
+
+
+def _countdown_font(size: int):
+    from PIL import ImageFont
+
+    try:
+        return ImageFont.truetype(str(_COUNTDOWN_FONT), size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def _render_countdown_tag(text: str, out_path, width: int, height: int) -> Optional[Path]:
+    """ "34. THE ROOF OF FLORIDA" — white bold capitals on an orange box,
+    bottom-left, above where subtitles sit."""
+    from PIL import Image, ImageDraw
+
+    text = " ".join(str(text or "").upper().split())
+    if not text:
+        return None
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    size = max(14, int(height * 0.044))
+    font = _countdown_font(size)
+    max_w = int(width * 0.62)
+    while size > 14 and draw.textlength(text, font=font) > max_w:
+        size -= 2
+        font = _countdown_font(size)
+    pad_x, pad_y = int(size * 0.45), int(size * 0.22)
+    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+    box_w, box_h = (right - left) + 2 * pad_x, (bottom - top) + 2 * pad_y
+    x0, y1 = int(width * 0.035), int(height * 0.845)
+    y0 = y1 - box_h
+    draw.rectangle([x0, y0, x0 + box_w, y1], fill=_COUNTDOWN_ORANGE)
+    draw.text((x0 + pad_x - left, y0 + pad_y - top), text, font=font, fill=(255, 255, 255, 255))
+    out_path = Path(out_path)
+    img.save(out_path)
+    return out_path
+
+
+def _render_countdown_hook(text: str, out_path, width: int, height: int, *, size_frac: float = 0.10,
+                           center_y: float = 0.5) -> Optional[Path]:
+    """ "35 WILD FACTS" — big yellow capitals with a dark outline and shadow,
+    centred (the reference's hook title). Keyword callouts ("345 FT ABOVE SEA
+    LEVEL") use the same look a little smaller and higher."""
+    from PIL import Image, ImageDraw, ImageFilter
+
+    text = " ".join(str(text or "").upper().split())
+    if not text:
+        return None
+    size = max(18, int(height * size_frac))
+    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    font = _countdown_font(size)
+    while size > 18 and probe.textlength(text, font=font) > width * 0.84:
+        size -= 4
+        font = _countdown_font(size)
+    stroke = max(2, int(size * 0.07))
+    left, top, right, bottom = probe.textbbox((0, 0), text, font=font, stroke_width=stroke)
+    x = (width - (right - left)) // 2 - left
+    y = int(height * center_y) - (bottom - top) // 2 - top
+    shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).text((x + int(size * 0.04), y + int(size * 0.06)), text, font=font,
+                                fill=(0, 0, 0, 170), stroke_width=stroke, stroke_fill=(0, 0, 0, 170))
+    img = shadow.filter(ImageFilter.GaussianBlur(max(2, size // 14)))
+    ImageDraw.Draw(img).text((x, y), text, font=font, fill=_HOOK_YELLOW, stroke_width=stroke, stroke_fill=_HOOK_OUTLINE)
+    out_path = Path(out_path)
+    img.save(out_path)
     return out_path

@@ -27,6 +27,7 @@ PIPELINE_SOURCES = frozenset(
         "nasa_video",
         "commons_video",
         "commons_image",
+        "map",
     }
 )
 PROTECTED_SOURCES = frozenset({"local", "manual"})

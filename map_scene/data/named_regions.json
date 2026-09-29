@@ -1,0 +1,23 @@
+{
+  "_comment": "Informal regions with no official border, defined as groups of official areas. Each entry: country + list of US counties (\"State|County\") or admin-1 areas (\"Country|Area\").",
+  "regions": {
+    "Florida Panhandle": {"us_counties": ["Florida|Escambia", "Florida|Santa Rosa", "Florida|Okaloosa", "Florida|Walton", "Florida|Holmes", "Florida|Washington", "Florida|Bay", "Florida|Jackson", "Florida|Calhoun", "Florida|Gulf", "Florida|Liberty", "Florida|Franklin", "Florida|Gadsden", "Florida|Leon", "Florida|Wakulla", "Florida|Jefferson"], "parent": "Florida"},
+    "Emerald Coast": {"us_counties": ["Florida|Escambia", "Florida|Santa Rosa", "Florida|Okaloosa", "Florida|Walton", "Florida|Bay"], "parent": "Florida"},
+    "Forgotten Coast": {"us_counties": ["Florida|Gulf", "Florida|Franklin", "Florida|Wakulla"], "parent": "Florida"},
+    "Big Bend": {"us_counties": ["Florida|Jefferson", "Florida|Taylor", "Florida|Dixie", "Florida|Lafayette", "Florida|Madison"], "parent": "Florida"},
+    "Florida Keys": {"us_counties": ["Florida|Monroe"], "parent": "Florida"},
+    "Mississippi Delta": {"us_counties": ["Mississippi|Bolivar", "Mississippi|Coahoma", "Mississippi|Humphreys", "Mississippi|Issaquena", "Mississippi|Leflore", "Mississippi|Quitman", "Mississippi|Sharkey", "Mississippi|Sunflower", "Mississippi|Tallahatchie", "Mississippi|Tunica", "Mississippi|Washington", "Mississippi|Carroll", "Mississippi|Holmes", "Mississippi|Panola", "Mississippi|Tate", "Mississippi|Warren", "Mississippi|Yazoo", "Mississippi|DeSoto"], "parent": "Mississippi"},
+    "Texas Panhandle": {"us_counties": ["Texas|Dallam", "Texas|Sherman", "Texas|Hansford", "Texas|Ochiltree", "Texas|Lipscomb", "Texas|Hartley", "Texas|Moore", "Texas|Hutchinson", "Texas|Roberts", "Texas|Hemphill", "Texas|Oldham", "Texas|Potter", "Texas|Carson", "Texas|Gray", "Texas|Wheeler", "Texas|Deaf Smith", "Texas|Randall", "Texas|Armstrong", "Texas|Donley", "Texas|Collingsworth", "Texas|Parmer", "Texas|Castro", "Texas|Swisher", "Texas|Briscoe", "Texas|Hall", "Texas|Childress"], "parent": "Texas"},
+    "Oklahoma Panhandle": {"us_counties": ["Oklahoma|Cimarron", "Oklahoma|Texas", "Oklahoma|Beaver"], "parent": "Oklahoma"},
+    "Upper Peninsula": {"us_counties": ["Michigan|Alger", "Michigan|Baraga", "Michigan|Chippewa", "Michigan|Delta", "Michigan|Dickinson", "Michigan|Gogebic", "Michigan|Houghton", "Michigan|Iron", "Michigan|Keweenaw", "Michigan|Luce", "Michigan|Mackinac", "Michigan|Marquette", "Michigan|Menominee", "Michigan|Ontonagon", "Michigan|Schoolcraft"], "parent": "Michigan"},
+    "Silicon Valley": {"us_counties": ["California|Santa Clara", "California|San Mateo"], "parent": "California"},
+    "San Francisco Bay Area": {"us_counties": ["California|Alameda", "California|Contra Costa", "California|Marin", "California|Napa", "California|San Francisco", "California|San Mateo", "California|Santa Clara", "California|Solano", "California|Sonoma"], "parent": "California"},
+    "Inland Empire": {"us_counties": ["California|Riverside", "California|San Bernardino"], "parent": "California"},
+    "Central Valley": {"us_counties": ["California|Butte", "California|Colusa", "California|Glenn", "California|Sacramento", "California|San Joaquin", "California|Shasta", "California|Sutter", "California|Tehama", "California|Yolo", "California|Yuba", "California|Fresno", "California|Kern", "California|Kings", "California|Madera", "California|Merced", "California|Stanislaus", "California|Tulare"], "parent": "California"},
+    "Outer Banks": {"us_counties": ["North Carolina|Dare", "North Carolina|Currituck", "North Carolina|Hyde"], "parent": "North Carolina"},
+    "Cape Cod": {"us_counties": ["Massachusetts|Barnstable"], "parent": "Massachusetts"},
+    "Long Island": {"us_counties": ["New York|Nassau", "New York|Suffolk", "New York|Queens", "New York|Kings"], "parent": "New York"},
+    "Acadiana": {"us_counties": ["Louisiana|Acadia", "Louisiana|Evangeline", "Louisiana|Iberia", "Louisiana|Lafayette", "Louisiana|St. Landry", "Louisiana|St. Martin", "Louisiana|St. Mary", "Louisiana|Vermilion"], "parent": "Louisiana"},
+    "Black Belt": {"us_counties": ["Alabama|Dallas", "Alabama|Greene", "Alabama|Hale", "Alabama|Lowndes", "Alabama|Macon", "Alabama|Marengo", "Alabama|Perry", "Alabama|Sumter", "Alabama|Wilcox", "Alabama|Bullock"], "parent": "Alabama"}
+  }
+}

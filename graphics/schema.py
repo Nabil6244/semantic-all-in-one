@@ -162,6 +162,8 @@ ANIMATION_TO_OVERLAY: Dict[str, str] = {
     "WORD_EMPHASIS": "fade",
     "COUNT_UP": "reveal",
     "NONE": "fade",
+    "SLIDE_IN": "slide_in",  # countdown fact tag: slides in from the left
+    "POP": "scale_fade",  # countdown hook: grows in about its centre
 }
 
 EasingKind = Literal["linear", "ease_in", "ease_out", "ease_in_out"]

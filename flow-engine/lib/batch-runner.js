@@ -178,7 +178,9 @@ export async function runBatchSlice({
             if (slot > 0) await sleep(timing.imageSlotStaggerMs || 250, shouldStop);
             const generated =
               mediaKind === "video"
-                ? await generateOneVideoViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot)
+                ? await generateOneVideoViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot, {
+                    shouldStop,
+                  })
                 : await generateOneImageViaUI(page, projectId, prompt, settingsLocal, abs * 10 + slot);
             if (mediaKind === "video") videoSubmitted = true;
             const mediaId = generated.mediaId;

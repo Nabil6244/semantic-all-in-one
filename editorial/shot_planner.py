@@ -220,6 +220,53 @@ def _single_shot_decision(
     )
 
 
+def _is_map_clip(path) -> bool:
+    try:
+        from map_scene.clip import is_map_clip
+
+        return is_map_clip(path)
+    except Exception:
+        return False
+
+
+def _map_clip_decision(*, scene: EditorialScene, required: float, role: str, native: float,
+                       primary: AssetCandidate) -> EditDecision:
+    """A map clip is one continuous camera move (wide -> push-in -> drift):
+    play it once from the start, uncropped, and hold its last frame if the
+    beat is longer. Never loop, replay, punch in or split it — a zoom that
+    jumps back to the start looks broken."""
+    hold = native > 0 and required > native + 0.08
+    shot = ShotSpec(
+        shot_id=f"{scene.scene_number}_s0",
+        output_duration=round(required, 4),
+        source_start=0.0,
+        source_end=round(native, 3) if hold else None,
+        scale=1.0,
+        speed=1.0,
+        shot_size="wide",  # type: ignore[arg-type]
+        camera_style="static",
+        hold_tail=hold,
+        reason="map clip: plays once" + (", holds its last frame" if hold else ""),
+        visual_role=role,
+        editorial_purpose=editorial_purpose_for_role(role),
+    )
+    _bind_source(shot, primary)
+    strategy = "HOLD_TAIL" if hold else "SINGLE_SHOT"
+    return EditDecision(
+        scene_number=str(scene.scene_number),
+        required_duration=round(required, 4),
+        strategy=strategy,  # type: ignore[arg-type]
+        shots=[shot],
+        source_asset=primary.label,
+        visual_role=role,  # type: ignore[arg-type]
+        confidence=0.9,
+        reason=_reason(strategy, native, required, 1),
+        avoid_blind_loop=True,
+        attention_state=attention_state_for_scene(scene, 0, 1),
+        reveal_phase=reveal_phase_for_scene(scene),
+    )
+
+
 def _dual_asset_decision(
     *,
     scene: EditorialScene,
@@ -972,6 +1019,10 @@ def plan_edit_decision(
     if role:
         primary.visual_role = "context" if role in ("process", "scale", "reveal") else role
         primary.editorial_purpose = editorial_purpose_for_role(primary.visual_role)
+
+    if path is not None and _is_map_clip(path):
+        return _map_clip_decision(scene=scene, required=required, role=role,
+                                  native=editability.native_duration, primary=primary)
 
     prefer_dual = bool(
         intent

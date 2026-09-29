@@ -31,6 +31,7 @@ platform.mac_ver = _safe_mac_ver
 
 import contextlib
 import csv
+import dataclasses
 import json
 import multiprocessing
 import queue
@@ -486,6 +487,7 @@ SOURCE_BADGE = {
     AssetSource.YOUTUBE_VIDEO: ("YouTube", _MUTED, "transparent"),
     AssetSource.ARCHIVE_VIDEO: ("Archive", _MUTED, "transparent"),
     AssetSource.NASA_VIDEO: ("NASA", _MUTED, "transparent"),
+    AssetSource.MAP: ("Map", _MUTED, "transparent"),
     AssetSource.COMMONS_VIDEO: ("Commons Video", _MUTED, "transparent"),
     AssetSource.COMMONS_IMAGE: ("Commons Image", _MUTED, "transparent"),
     AssetSource.MANUAL: ("Local", _MUTED, "transparent"),
@@ -515,6 +517,7 @@ _SOURCE_OPTION_LABELS = {
     "flow_image": "Flow Image",
     "flow_video": "Flow Video",
     "youtube": "YouTube",
+    "map": "Map…",
     "local": "Local file…",
 }
 
@@ -535,6 +538,8 @@ def scene_visual_text_summary(scene) -> str:
         text, kind = getattr(scene, "prompt", ""), "YouTube search"
     elif asset_type in ("local", "local_image", "local_video"):
         return "Uses this scene's numbered local file."
+    elif asset_type == "map":
+        text, kind = getattr(scene, "prompt", ""), "Map"
     else:
         text, kind = getattr(scene, "prompt", "") or getattr(scene, "stock", ""), "Prompt"
     text = (text or "").strip()
@@ -951,18 +956,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._view_research = ui_views.ResearchView(self._shell.center, self)
         self._view_visual_director = ui_views.VisualDirectorView(self._shell.center, self)
         self._view_visual = ui_views.VisualPlanView(self._shell.center, self)
-        self._view_assets = ui_views.AssetsView(self._shell.center, self)
         self._view_audio = ui_views.AudioView(self._shell.center, self)
         self._view_music = ui_views.MusicView(self._shell.center, self)
         self._view_editorial = ui_views.EditorialView(self._shell.center, self)
         self._view_render = ui_views.RenderView(self._shell.center, self)
         self._view_qa = ui_views.QAView(self._shell.center, self)
         self._view_about = ui_views.AboutOwnershipView(self._shell.center, self)
-        self._view_timeline = ui_views.TimelineView(self._shell.center, self)
         self._view_graphics = ui_views.GraphicsView(self._shell.center, self)
-        from ui.editor_view import EditorView
-
-        self._view_editor = EditorView(self._shell.center, self)
         self._shell.center.grid_columnconfigure(0, weight=1)
         self._shell.center.grid_rowconfigure(0, weight=1)
         for key, view in (
@@ -972,16 +972,13 @@ class VideoGeneratorApp(ctk.CTk):
             ("research", self._view_research),
             ("visual_director", self._view_visual_director),
             ("visual_plan", self._view_visual),
-            ("assets", self._view_assets),
             ("audio", self._view_audio),
             ("music", self._view_music),
             ("editorial", self._view_editorial),
             ("render", self._view_render),
             ("qa", self._view_qa),
             ("about", self._view_about),
-            ("timeline", self._view_timeline),
             ("graphics", self._view_graphics),
-            ("editor", self._view_editor),
         ):
             self._shell.register_view(key, view)
 
@@ -1120,17 +1117,11 @@ class VideoGeneratorApp(ctk.CTk):
         label = self._timeline_undo.undo()
         if label is not None:
             self._mark_unsaved(f"Undid: {label}")
-        view = getattr(self, "_view_timeline", None)
-        if view is not None and hasattr(view, "refresh_canvas"):
-            view.refresh_canvas()
 
     def _on_redo(self) -> None:
         label = self._timeline_undo.redo()
         if label is not None:
             self._mark_unsaved(f"Redid: {label}")
-        view = getattr(self, "_view_timeline", None)
-        if view is not None and hasattr(view, "refresh_canvas"):
-            view.refresh_canvas()
 
     def _mark_saved(self) -> None:
         self._save_state_var.set("Saved")
@@ -1328,13 +1319,27 @@ class VideoGeneratorApp(ctk.CTk):
         self.output_var = ctk.StringVar()
         self.model_var = ctk.StringVar(value="small")
         self.captions_var = ctk.BooleanVar(value=False)
-        self.zoom_var = ctk.BooleanVar(value=True)
+        # Ken Burns zoom on still images (Smart Editing panel + Settings) —
+        # saved like the other Smart Editing switches.
+        self.zoom_var = ctk.BooleanVar(value=bool(self._settings.get("ken_burns", True)))
+        self.ken_burns_intensity_var = ctk.StringVar(
+            value=str(self._settings.get("ken_burns_intensity") or "Medium").title()
+            if str(self._settings.get("ken_burns_intensity") or "Medium").title() in {"Low", "Medium", "High"}
+            else "Medium"
+        )
+        self.zoom_var.trace_add("write", lambda *_: self._persist_ken_burns())
         self.smart_text_effects_var = ctk.BooleanVar(
             value=bool(self._settings.get("smart_text_effects", DEFAULT_SETTINGS["text_effects"]))
         )
         self.smart_sfx_var = ctk.BooleanVar(
             value=bool(self._settings.get("smart_sound_effects", DEFAULT_SETTINGS["sound_effects"]))
         )
+        # Text is three switches: Smart Text Styles (smart_text_effects_var),
+        # Graphics, Map Niche — the two new ones start where the old single
+        # Text Effects switch was.
+        _text_on = bool(self._settings.get("smart_text_effects", DEFAULT_SETTINGS["text_effects"]))
+        self.smart_graphics_var = ctk.BooleanVar(value=bool(self._settings.get("smart_graphics", _text_on)))
+        self.smart_map_niche_var = ctk.BooleanVar(value=bool(self._settings.get("smart_map_niche", _text_on)))
         self.smart_visual_transitions_var = ctk.BooleanVar(
             value=bool(
                 self._settings.get(
@@ -2816,6 +2821,7 @@ class VideoGeneratorApp(ctk.CTk):
                     segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
                     style_preset_id=style_preset_id,
                     pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                    flow_video_account_ids=self._video_account_ids(),
                     whisper_words=whisper_words,
                     progress_cb=progress_cb, log=thread_safe_log,
                     on_scene_start=_overscaled_on_scene_start,
@@ -3096,11 +3102,7 @@ class VideoGeneratorApp(ctk.CTk):
             btn.grid(row=row, column=col, sticky="ew", padx=(0, 4), pady=2)
             return btn
 
-        self.details_add_sfx_btn = _ext_btn(0, 0, "Add SFX", "add_sfx")
-        self.details_add_ambience_btn = _ext_btn(0, 1, "Add Ambience", "add_ambience")
-        self.details_add_graphic_btn = _ext_btn(1, 0, "Add Graphic", "add_graphic")
-        self.details_edit_timing_btn = _ext_btn(1, 1, "Edit Timing", "edit_timing")
-        self.details_add_broll_btn = _ext_btn(2, 0, "Add B-roll", "add_broll")
+        self.details_add_broll_btn = _ext_btn(0, 0, "Add B-roll", "add_broll")
         self.details_add_broll_btn.configure(state="disabled")
         # No tooltip widget in this UI kit — explain via the status-bar hint
         # on hover instead of pretending the disabled action does something.
@@ -3108,7 +3110,7 @@ class VideoGeneratorApp(ctk.CTk):
             "<Enter>", lambda _e: self.hint_var.set("B-roll: not yet supported by the render pipeline")
         )
         self.details_add_broll_btn.bind("<Leave>", lambda _e: self.hint_var.set(""))
-        self.details_reset_btn = _ext_btn(2, 1, "Reset Scene", "reset_scene", danger=True)
+        self.details_reset_btn = _ext_btn(0, 1, "Reset Scene", "reset_scene", danger=True)
 
         self._issues_drawer = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=6, border_width=1, border_color=_BORDER)
         qa_bulk = ctk.CTkFrame(self._issues_drawer, fg_color="transparent")
@@ -4062,6 +4064,8 @@ class VideoGeneratorApp(ctk.CTk):
             return
         self._issues_visible = not self._issues_visible
         if self._issues_visible:
+            # The drawer lives in the inspector, which only the Visuals page shows.
+            self._goto_workflow_view("visual_plan")
             self._issues_drawer.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 0))
             self._rebuild_issues()
         else:
@@ -4597,6 +4601,8 @@ class VideoGeneratorApp(ctk.CTk):
         mode_raw = (self.smart_mode_var.get() or "Smart").strip().lower()
         return SmartEditingSettings(
             text_effects=bool(self.smart_text_effects_var.get()),
+            graphics=bool(self.smart_graphics_var.get()),
+            map_niche=bool(self.smart_map_niche_var.get()),
             sound_effects=bool(self.smart_sfx_var.get()),
             visual_transitions=bool(self.smart_visual_transitions_var.get()),
             scene_ambience=bool(self.smart_scene_ambience_var.get()),
@@ -4610,11 +4616,30 @@ class VideoGeneratorApp(ctk.CTk):
         )
 
     def _smart_editing_settings_dict(self) -> dict:
-        return self._smart_editing_settings().to_settings_dict()
+        payload = self._smart_editing_settings().to_settings_dict()
+        payload["ken_burns"] = bool(self.zoom_var.get())
+        payload["ken_burns_intensity"] = self.ken_burns_intensity_var.get().lower()
+        return payload
+
+    def _persist_ken_burns(self) -> None:
+        """Every Ken Burns switch (Smart Editing panel, Settings, Render
+        options) shares zoom_var — save whichever one changed it."""
+        if getattr(self, "_loading_smart_settings", False) or not hasattr(self, "smart_mode_var"):
+            return
+        try:
+            self._persist_smart_editing_settings()
+        except Exception:
+            pass
+
+    def ken_burns_zoom_amount(self) -> float:
+        """How far a still image zooms over its shot: Low / Medium / High."""
+        return {"low": 0.05, "medium": 0.10, "high": 0.16}.get(self.ken_burns_intensity_var.get().lower(), 0.10)
 
     def _persist_smart_editing_settings(self) -> None:
         payload = self._smart_editing_settings_dict()
         self._settings["smart_text_effects"] = payload["text_effects"]
+        self._settings["smart_graphics"] = payload["graphics"]
+        self._settings["smart_map_niche"] = payload["map_niche"]
         self._settings["smart_sound_effects"] = payload["sound_effects"]
         self._settings["smart_visual_transitions"] = payload["visual_transitions"]
         self._settings["smart_scene_ambience"] = payload["scene_ambience"]
@@ -4625,6 +4650,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._settings["smart_scene_ambience_intensity"] = payload["scene_ambience_intensity"]
         self._settings["smart_scene_ambience_volume"] = payload["scene_ambience_volume"]
         self._settings["smart_mode"] = payload["mode"]
+        self._settings["ken_burns"] = payload["ken_burns"]
+        self._settings["ken_burns_intensity"] = payload["ken_burns_intensity"]
         save_settings(self._settings)
         if self._workspace is not None:
             self._workspace.set_smart_editing_settings(payload)
@@ -4632,6 +4659,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _load_smart_editing_settings_from_project(self, ws) -> None:
         data = ws.smart_editing_settings()
         self.smart_text_effects_var.set(bool(data.get("text_effects", True)))
+        self.smart_graphics_var.set(bool(data.get("graphics", data.get("text_effects", True))))
+        self.smart_map_niche_var.set(bool(data.get("map_niche", data.get("text_effects", True))))
         self.smart_sfx_var.set(bool(data.get("sound_effects", True)))
         self.smart_visual_transitions_var.set(bool(data.get("visual_transitions", True)))
         self.smart_scene_ambience_var.set(bool(data.get("scene_ambience", True)))
@@ -4651,6 +4680,14 @@ class VideoGeneratorApp(ctk.CTk):
         self.smart_ambience_volume_var.set(-1.0 if amb_vol is None else amb_vol)
         mode = str(data.get("mode") or "smart").title()
         self.smart_mode_var.set("Automatic" if mode.lower().startswith("auto") else "Smart")
+        self._loading_smart_settings = True
+        try:
+            if "ken_burns" in data:
+                self.zoom_var.set(bool(data.get("ken_burns")))
+            kb = str(data.get("ken_burns_intensity") or self.ken_burns_intensity_var.get()).title()
+            self.ken_burns_intensity_var.set(kb if kb in {"Low", "Medium", "High"} else "Medium")
+        finally:
+            self._loading_smart_settings = False
 
     def _clear_render_preview(self) -> None:
         """Drop final-render thumbnail/path so project switches don't show stale media."""
@@ -5146,6 +5183,16 @@ class VideoGeneratorApp(ctk.CTk):
         messagebox.showerror("AI Script", message)
 
     def _apply_ai_plan(self, plan) -> None:
+        # Full-screen map scenes where the narration places the story
+        # somewhere real (see visual_director.map_pass) — AI plans only.
+        try:
+            from visual_director.map_pass import add_map_scenes
+
+            maps = add_map_scenes(plan)
+            if maps:
+                self._append_log(f"[AI] {maps} scene(s) will show an animated map of the place named.\n")
+        except Exception as exc:
+            self._append_log(f"[AI] Map scenes skipped: {exc}\n")
         self._visual_plan = plan
         # New beat structure invalidates prior VO-aligned Time windows.
         self._invalidate_stale_editorial_timeline()
@@ -7123,10 +7170,15 @@ class VideoGeneratorApp(ctk.CTk):
         }
 
     def _video_account_ids(self) -> list[str] | None:
-        """The default Video Profile's assigned accounts, or None (= all
-        signed-in accounts) if the profile has none assigned yet."""
-        ids = self._default_video_profile().get("account_ids") or []
-        return ids or None
+        """The default Video Profile's checked accounts. None (= all signed-in
+        accounts) only while the profile's checkboxes have never been touched;
+        once the user has unchecked every account this is [] (= none), never
+        a silent fallback to all of them."""
+        profile = self._default_video_profile()
+        ids = profile.get("account_ids") or []
+        if ids:
+            return ids
+        return [] if profile.get("account_ids_explicit") else None
 
     def _coverage_map_from_workspace(self) -> dict:
         ws = self._workspace
@@ -7415,6 +7467,13 @@ class VideoGeneratorApp(ctk.CTk):
             if want_local != have_local:
                 self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
                 self._asset_manager_local_only = want_local
+        # The cached manager's video provider captured the checked accounts
+        # when it was built; Retry / Alternatives / Fix All reuse it, so
+        # re-read the current checkboxes or accounts unchecked since the last
+        # Generate would still be sent to Flow.
+        video_provider = getattr(self._asset_manager, "flow_video_provider", None)
+        if video_provider is not None and hasattr(video_provider, "account_ids"):
+            video_provider.account_ids = self._video_account_ids()
         self._asset_manager.recovery.skipped |= set(self._hydrated_skipped)
         return self._asset_manager
 
@@ -7556,7 +7615,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self._production_mode_is_local():
             options = ["local"]
         else:
-            options = ["stock_video", "youtube", "flow_video", "flow_image", "stock_image", "local"]
+            options = ["stock_video", "youtube", "map", "flow_video", "flow_image", "stock_image", "local"]
             if self._asset_manager is not None:
                 options = self._asset_manager.recovery.change_source_options(scene_row) or options
             if "local" not in options:
@@ -7594,6 +7653,11 @@ class VideoGeneratorApp(ctk.CTk):
                 return
             if name == "local":
                 self._add_local_clip(scene_row)
+            elif name == "map":
+                place = self._ask_map_place(scene_row)
+                if place:
+                    self._scene_action_with_source(
+                        dataclasses.replace(scene_row, asset_type="map", prompt=place, stock=""), "map")
             else:
                 self._scene_action_with_source(scene_row, name)
 
@@ -7603,6 +7667,62 @@ class VideoGeneratorApp(ctk.CTk):
                 command=lambda n=name: pick(n),
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
+
+    def _ask_map_place(self, scene_row: SceneRow) -> Optional[str]:
+        """Which place should this scene's map show? Checked before anything
+        renders, so a typo is reported here rather than as a failed scene."""
+        from map_scene.places import PlaceNotFound
+        from map_scene.render import resolve_places
+        from map_scene.spec import MapPromptError, parse_map_prompt
+
+        current = scene_row.prompt if (scene_row.asset_type or "").lower() == "map" else ""
+        win = ctk.CTkToplevel(self)
+        win.title(f"Map — Scene {scene_row.scene_number}")
+        win.geometry("460x230")
+        win.transient(self)
+        win.lift()
+        win.after(10, win.lift)
+        ctk.CTkLabel(
+            win, justify="left", wraplength=420,
+            text=("Place to show, big to small (only the last one is required):\n"
+                  "Florida > Florida Panhandle\n"
+                  "Options after |, e.g.  | camera: zoom_out | label: First Capital"),
+        ).pack(padx=16, pady=(14, 8), anchor="w")
+        entry = ctk.CTkEntry(win, width=420)
+        entry.pack(padx=16)
+        if current:
+            entry.insert(0, current)
+        entry.focus_force()
+        error = ctk.CTkLabel(win, text="", text_color=_DANGER, wraplength=420, justify="left")
+        error.pack(padx=16, pady=(6, 0), anchor="w")
+        chosen: list[str] = []
+
+        def ok(_event=None) -> None:
+            text = entry.get().strip()
+            try:
+                spec = parse_map_prompt(text)
+                try:
+                    resolve_places(spec)
+                except PlaceNotFound:
+                    from visual_director.llm import gemini_configured
+
+                    if not gemini_configured(getattr(self, "_settings", None) or {}):
+                        raise
+                    # Not in the bundled data: Gemini gets a try at render time.
+            except (MapPromptError, PlaceNotFound) as exc:
+                error.configure(text=str(exc))
+                return
+            chosen.append(text)
+            win.destroy()
+
+        entry.bind("<Return>", ok)
+        buttons = ctk.CTkFrame(win, fg_color="transparent")
+        buttons.pack(pady=12)
+        ctk.CTkButton(buttons, text="Use this map", width=140, command=ok).pack(side="left", padx=6)
+        ctk.CTkButton(buttons, text="Cancel", width=100, fg_color="transparent", command=win.destroy).pack(side="left", padx=6)
+        win.grab_set()
+        self.wait_window(win)
+        return chosen[0] if chosen else None
 
     def _change_source_dialog_bulk(self, scenes: list) -> None:
         if not scenes:
@@ -7617,6 +7737,8 @@ class VideoGeneratorApp(ctk.CTk):
                     options = list(opts)
             if "local" not in options:
                 options = list(options) + ["local"]
+            # Each map scene needs its own place: Map is a per-scene choice.
+            options = [o for o in options if o != "map"]
         win = ctk.CTkToplevel(self)
         win.title(f"Change source — {len(scenes)} scenes")
         win.geometry("320x360")
@@ -7657,7 +7779,7 @@ class VideoGeneratorApp(ctk.CTk):
             ).pack(fill="x", padx=16, pady=3)
         ctk.CTkButton(win, text="Cancel", fg_color="transparent", command=win.destroy).pack(pady=8)
 
-    def _apply_overscaled_source_override(self, scene_numbers, provider_name: str) -> None:
+    def _apply_overscaled_source_override(self, scene_numbers, provider_name: str, map_prompt: str = "") -> None:
         """Overscaled/Exp Solar's own Change Source: unlike the normal
         per-scene workflow (which resolves immediately against a live
         AssetManager), Generate here always re-reads and recompiles the CSV
@@ -7739,6 +7861,12 @@ class VideoGeneratorApp(ctk.CTk):
         for row in rows:
             scene_number = row.get("scene_number", "")
             if _scene_key(scene_number) not in wanted_keys:
+                continue
+            if provider_name == "map" and map_prompt:
+                # The place the user typed in the Map dialog is the prompt.
+                row["asset_type"] = "map"
+                row["prompt"] = map_prompt
+                changed += 1
                 continue
             source_row = SceneRow.from_csv_row(row)
             if not (source_row.prompt or source_row.stock):
@@ -7909,7 +8037,8 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _scene_action_with_source(self, scene_row: SceneRow, provider_name: str) -> None:
         if self.generation_mode == "overscaled":
-            self._apply_overscaled_source_override([scene_row.scene_number], provider_name)
+            map_prompt = scene_row.prompt if provider_name == "map" and (scene_row.asset_type or "").lower() == "map" else ""
+            self._apply_overscaled_source_override([scene_row.scene_number], provider_name, map_prompt=map_prompt)
             return
         if not self._require_workspace("change a scene source"):
             return
@@ -8095,7 +8224,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         order = (
             "Stock Video", "Flow Image", "Stock Image", "Flow Video", "Stock",
-            "YouTube", "Archive", "NASA", "Commons", "Local", "Unassigned",
+            "YouTube", "Archive", "NASA", "Map", "Commons", "Local", "Unassigned",
         )
         extras = [name for name in by_bucket if name not in order]
         menu = tk.Menu(
@@ -8151,6 +8280,7 @@ class VideoGeneratorApp(ctk.CTk):
             "YouTube",
             "Archive",
             "NASA",
+            "Map",
             "Commons",
             "Local",
             "Unassigned",
@@ -8182,6 +8312,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Archive"
         if source == AssetSource.NASA_VIDEO:
             return "NASA"
+        if source == AssetSource.MAP:
+            return "Map"
         if source in (AssetSource.COMMONS_VIDEO, AssetSource.COMMONS_IMAGE):
             return "Commons"
         if source in (AssetSource.MANUAL, AssetSource.LOCAL):
@@ -8562,11 +8694,6 @@ class VideoGeneratorApp(ctk.CTk):
             ("Open", "open"),
             ("Add Local Clip…", "local_clip"),
             (None, None),
-            ("Add SFX", "add_sfx"),
-            ("Add Ambience", "add_ambience"),
-            ("Add Graphic", "add_graphic"),
-            ("Edit Timing…", "edit_timing"),
-            (None, None),
             ("Reset Scene", "reset_scene"),
             ("Skip…", "skip"),
         ]
@@ -8613,12 +8740,6 @@ class VideoGeneratorApp(ctk.CTk):
         if action == "local_clip":
             self._add_local_clip(scene)
             return
-        if action in ("add_sfx", "add_ambience", "add_graphic"):
-            self._inspector_add_timeline_event(scene, action)
-            return
-        if action == "edit_timing":
-            self._inspector_edit_timing(scene)
-            return
         if action == "reset_scene":
             # Reuses the existing "retry" capability verbatim (spec item G:
             # "Do NOT create fake actions") — Reset Scene is just the
@@ -8628,65 +8749,6 @@ class VideoGeneratorApp(ctk.CTk):
         if action == "add_broll":
             return  # disabled in the UI; no-op if ever reached
         self._scene_action(action, scene)
-
-    def _inspector_add_timeline_event(self, scene: SceneRow, action: str) -> None:
-        """Add SFX / Add Ambience / Add Graphic (spec item G) — all three
-        insert a short placeholder TimelineEvent via editorial_timeline_edit
-        (the same module the Timeline view edits through), scoped to this
-        scene's own window, then persist immediately."""
-        ws = self._workspace
-        if ws is None:
-            return
-        ed = self._editorial_scene_lookup(scene.scene_number)
-        start = float(ed.get("start") or 0.0)
-        end = float(ed.get("end") or (start + 2.0))
-        track, metadata, label = {
-            "add_sfx": ("SFX", {}, "SFX"),
-            "add_ambience": ("AMBIENCE", {}, "Ambience"),
-            "add_graphic": (
-                "TEXT",
-                {"graphic": True, "role": "LABEL",
-                 "text_overlay": {"role": "LABEL", "text": "New label", "start": start, "end": min(end, start + 3.0)}},
-                "Graphic",
-            ),
-        }[action]
-        timeline = _tl_edit.load_timeline(ws.state_dir)
-        new_end = min(end, start + 3.0) if track != "SFX" else min(end, start + 1.0)
-        new_id = _tl_edit.add_event(
-            timeline, track=track, start=start, end=max(new_end, start + 0.5),
-            scene_number=str(scene.scene_number), metadata=metadata,
-        )
-        if new_id is None:
-            messagebox.showinfo(label, f"Could not add {label.lower()} to scene {scene.scene_number}.")
-            return
-        self._mark_saving()
-        ok = _tl_edit.save_timeline(ws.state_dir, timeline)
-        if ok:
-            self._mark_saved()
-            self._timeline_undo.push(
-                Command(f"Add {label}", do=lambda: None, undo=lambda: None), run=False,
-            )
-            self.status_var.set(f"Added {label.lower()} to scene {scene.scene_number} — see Timeline")
-        else:
-            self._mark_unsaved()
-            messagebox.showinfo(
-                label, "Render once to create the editorial timeline before adding overlays.",
-            )
-
-    def _inspector_edit_timing(self, scene: SceneRow) -> None:
-        """Jump to the Timeline workspace for this scene — the interactive
-        timeline IS the timing editor (spec item J/K); no separate dialog
-        duplicates that."""
-        shell = getattr(self, "_shell", None)
-        if shell is None:
-            return
-        shell.navigate("timeline")
-        view = getattr(self, "_view_timeline", None)
-        if view is not None:
-            try:
-                view._selection_var.set(f"Scene {scene.scene_number} — select a clip below to edit its timing")
-            except Exception:
-                pass
 
     def _add_local_clip_bulk(self, scenes: list) -> None:
         if not scenes:
@@ -9482,6 +9544,7 @@ class VideoGeneratorApp(ctk.CTk):
                     ids = set(p.get("account_ids") or [])
                     ids.add(aid) if var.get() else ids.discard(aid)
                     p["account_ids"] = sorted(ids)
+                    p["account_ids_explicit"] = True
             self._save_video_profiles(self._get_video_profiles())
 
         def render_profiles():
@@ -9784,6 +9847,7 @@ class VideoGeneratorApp(ctk.CTk):
             "model": self.model_var.get().strip() or "small",
             "captions": bool(self.captions_var.get()),
             "zoom": bool(self.zoom_var.get()),
+            "zoom_amount": self.ken_burns_zoom_amount(),
             "smart_editing": self._smart_editing_settings(),
         }, None
 
@@ -9975,7 +10039,9 @@ class VideoGeneratorApp(ctk.CTk):
                 f"ambience={smart_cfg.ambience_intensity()}, {smart_cfg.mode})"
             )
             print(
-                f"Graphics: {'ON (follow Text Effects)' if smart_cfg.text_effects else 'OFF'}"
+                f"Smart Text Styles: {'ON' if smart_cfg.text_effects else 'OFF'}  "
+                f"Graphics: {'ON' if smart_cfg.graphics else 'OFF'}  "
+                f"Map Niche: {'ON' if smart_cfg.map_niche else 'OFF'}"
             )
             print(f"Work:   {work_dir}")
             # Fingerprint so Support can tell old vs new installs from the log alone.
@@ -9994,7 +10060,7 @@ class VideoGeneratorApp(ctk.CTk):
             needs_asset_resolve = any(
                 s.wants_flow or s.wants_stock or s.wants_youtube
                 or s.wants_archive or s.wants_nasa or s.wants_research
-                or s.wants_local_numbered
+                or s.wants_map or s.wants_local_numbered
                 for s in scene_rows
             ) or self._production_mode_is_local()
             if needs_asset_resolve:
@@ -10012,7 +10078,7 @@ class VideoGeneratorApp(ctk.CTk):
                         wants_numbered_local
                         and not any(
                             s.wants_flow or s.wants_stock or s.wants_youtube
-                            or s.wants_archive or s.wants_nasa
+                            or s.wants_archive or s.wants_nasa or s.wants_map
                             for s in scene_rows
                         )
                     )),
@@ -10209,11 +10275,29 @@ class VideoGeneratorApp(ctk.CTk):
             else:
                 print(f"[EDITORIAL] Reusing cached plan ({len(editorial_plan.scenes)} scenes).")
 
+            # The operator's Editor / first-cut timeline, read BEFORE the
+            # compile below rewrites editorial_plan.json — reloading it after
+            # that save got the fresh engine timeline instead, so a first
+            # cut's sounds (and any Editor edits) never reached the render.
+            pre_compile_timeline = None
+            if state_dir is not None:
+                try:
+                    import editorial_timeline_edit as _tl_pre
+
+                    pre_compile_timeline = _tl_pre.load_timeline(state_dir)
+                except Exception:
+                    pre_compile_timeline = None
+
             # Editorial Decision Engine — always recompile from current on-disk
             # assets so dual/complement coverage stays in sync with the manifest.
             try:
                 from editorial import compile_editorial_plan, decision_map_from_plan
 
+                # Full scene narrations (the plan keeps only excerpts) for
+                # countdown detection — "34. The Roof of Florida" fact tags.
+                from editorial.countdown import narrations_by_scene
+
+                editorial_plan.narrations_by_scene = narrations_by_scene(config["rows"])
                 editorial_plan = compile_editorial_plan(
                     editorial_plan,
                     images_dir=Path(config["images_dir"]),
@@ -10256,14 +10340,14 @@ class VideoGeneratorApp(ctk.CTk):
             # first-cut's own future re-opens) reflect it exactly. A
             # project that was never opened in the Editor renders exactly
             # as before this feature existed (no saved timeline -> no-op).
-            if mode != "firstcut" and state_dir is not None:
+            if state_dir is not None:
                 try:
                     import editorial_timeline_edit as _tl_edit
                     from editorial.edit_decision import EditDecision as _EditDecision
                     from editorial.engine import edit_decisions_from_plan as _decisions_from_plan
 
-                    operator_timeline = _tl_edit.load_timeline(state_dir)
-                    if operator_timeline.events:
+                    operator_timeline = pre_compile_timeline
+                    if operator_timeline is not None and operator_timeline.events:
                         base_decisions = _decisions_from_plan(editorial_plan)
                         reconciled = _tl_edit.reconcile_timeline_into_decisions(
                             base_decisions, operator_timeline,
@@ -10281,40 +10365,30 @@ class VideoGeneratorApp(ctk.CTk):
                 except Exception as exc:
                     print(f"[EDITORIAL] Timeline reconciliation skipped ({exc})")
 
-            if mode == "firstcut":
-                from firstcut import save_first_cut_timeline
+            # Zoom-blur cuts (the reference style's fast zoom + red/blue blur +
+            # whoosh) — marked BEFORE the first cut, so its SFX plan (and the
+            # Editor timeline it saves, which the final mix then uses) has the
+            # whoosh on every one of them. into/out of map scenes and at each countdown fact. Map
+            # scenes are recognized by their rendered clip, so a scene switched
+            # to Map with Change Source counts too.
+            try:
+                from editorial.zoom_blur import mark_zoom_blur_transitions
+                from map_scene.clip import is_map_clip
 
-                # Plan real, resolved SFX/ambience (same call the render
-                # pipeline makes below) so the first cut's SFX/AMBIENCE
-                # clips are the ones that will actually be heard, not the
-                # editorial engine's semantic-only placeholders — see
-                # editorial_timeline_edit.materialize_sfx_ambience_events.
-                fc_sfx_events: list = []
-                fc_ambience_beds: list = []
-                if smart_cfg.enabled():
-                    try:
-                        fc_plan = build_plan(
-                            config["rows"], aligned, whisper_words, smart_cfg,
-                            state_dir=state_dir, audio_path=config["audio_path"],
-                            gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
-                            editorial_plan=editorial_plan,
-                        )
-                        fc_sfx_events = fc_plan.sfx_events if smart_cfg.sound_effects else []
-                        fc_ambience_beds = fc_plan.scene_ambience if smart_cfg.scene_ambience else []
-                    except Exception as exc:
-                        print(f"[FIRSTCUT] SFX/ambience planning skipped ({exc})")
-
-                ok = save_first_cut_timeline(
-                    state_dir, editorial_plan, bg_path=config.get("bg_path"),
-                    sfx_events=fc_sfx_events, ambience_beds=fc_ambience_beds,
+                map_scenes = set()
+                for _row in config["rows"]:
+                    _sn = str(_row.get("scene_number") or "")
+                    _clip = vg.find_image_for_scene(Path(config["images_dir"]), _sn)
+                    if _clip is not None and is_map_clip(_clip):
+                        map_scenes.add(_sn)
+                zoom_cuts = mark_zoom_blur_transitions(
+                    editorial_plan, map_scene_numbers=map_scenes,
+                    narrations_by_scene=getattr(editorial_plan, "narrations_by_scene", None),
                 )
-                print(
-                    f"[FIRSTCUT] Timeline saved ({len(editorial_plan.scenes)} scene(s), "
-                    f"{len(fc_sfx_events)} SFX, {len(fc_ambience_beds)} ambience bed(s))."
-                    if ok else "[FIRSTCUT] No timeline to save."
-                )
-                self._ui_queue.put(("firstcut_complete", {"ok": ok}))
-                return
+                if zoom_cuts:
+                    print(f"[EDITORIAL] Zoom-blur transition into scene(s): {', '.join(zoom_cuts)}")
+            except Exception as exc:
+                print(f"[EDITORIAL] Zoom-blur transitions skipped ({exc})")
 
             # Brand accent → typography theme for this render only.
             try:
@@ -10424,7 +10498,7 @@ class VideoGeneratorApp(ctk.CTk):
                             muted_tracks=frozenset(op_tl.muted_tracks),
                             solo_tracks=frozenset(op_tl.solo_tracks),
                         )
-                        if op_sfx or op_amb or any(e.track in ("SFX", "AMBIENCE") for e in op_tl.events):
+                        if op_tl.audio_materialized or op_sfx or op_amb:
                             # The operator timeline is authoritative for
                             # these tracks once it exists, even if every
                             # event was deleted (op_sfx/op_amb empty on
@@ -10434,6 +10508,22 @@ class VideoGeneratorApp(ctk.CTk):
                             ambience_for_mix = op_amb if smart_cfg.scene_ambience else []
                     except Exception as exc:
                         print(f"[EDITORIAL] Operator SFX/ambience reconciliation skipped ({exc})")
+
+                # Every zoom-blur cut has its whoosh — including projects whose
+                # Editor timeline (authoritative above) was saved before the cut
+                # existed. Only missing ones are added; nothing is doubled.
+                if smart_cfg.sound_effects:
+                    try:
+                        from editorial.zoom_blur import ZOOM_BLUR
+                        from smart_editing import apply_zoom_blur_whooshes
+
+                        cuts = [(str(sc.scene_number), float(sc.start)) for sc in editorial_plan.scenes
+                                if str(getattr(sc, "transition_in", "") or "") == ZOOM_BLUR]
+                        sfx_for_mix, zb_added, zb_raised = apply_zoom_blur_whooshes(sfx_for_mix, cuts, smart_cfg)
+                        if zb_added or zb_raised:
+                            print(f"[SMART] Zoom-blur whooshes: {zb_added} added, {zb_raised} raised to full level.")
+                    except Exception as exc:
+                        print(f"[SMART] Zoom-blur whooshes skipped ({exc})")
 
                 needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:
@@ -10481,7 +10571,7 @@ class VideoGeneratorApp(ctk.CTk):
                 resolution="1920x1080",
                 fps=30,
                 zoom=config["zoom"],
-                zoom_amount=0.10,
+                zoom_amount=float(config.get("zoom_amount") or 0.10),
                 bg_audio=str(bg_path) if bg_path else None,
                 bg_volume=bg_volume,
                 captions=config["captions"],
@@ -10491,7 +10581,7 @@ class VideoGeneratorApp(ctk.CTk):
                 camera_by_scene=camera_map if camera_map else None,
                 edit_decisions_by_scene=edit_decision_map or None,
                 editorial_timeline=editorial_timeline_for_render(
-                    editorial_plan, text_effects=bool(smart_cfg.text_effects),
+                    editorial_plan, graphics=bool(smart_cfg.graphics), map_niche=bool(smart_cfg.map_niche),
                 ),
                 render_cache_state_dir=state_dir,
                 perf=perf,
@@ -10601,8 +10691,6 @@ class VideoGeneratorApp(ctk.CTk):
                             self._on_assets_partial(payload)
                         elif kind == "assets_complete":
                             self._on_assets_complete(payload)
-                        elif kind == "firstcut_complete":
-                            self._on_firstcut_complete(payload)
                         elif kind == "assets_status":
                             self._refresh_qa_ui()
                         elif kind == "scene_busy":
@@ -10737,29 +10825,6 @@ class VideoGeneratorApp(ctk.CTk):
             "Successful assets were kept. Open Issues for Retry failed / Retry selected.",
         )
 
-    def _on_firstcut_complete(self, payload: dict) -> None:
-        """Completion of the "firstcut" pipeline mode (see firstcut.py) —
-        editorial plan compiled and the timeline saved, but no FFmpeg scene
-        rendering happened (zero render/Flow cost). Reuses the same
-        run-finished bookkeeping as assets/render completion."""
-        self._end_generate_run()
-        ok = bool((payload or {}).get("ok"))
-        self.status_var.set("First cut ready" if ok else "First cut failed")
-        self._append_log(
-            "\n✓ First cut built — opening the Editor.\n"
-            if ok
-            else "\n✗ Could not build a first cut (see log above).\n"
-        )
-        if ok and getattr(self, "_shell", None) is not None:
-            self._shell.navigate("editor")
-        callback = getattr(self, "_firstcut_on_done", None)
-        self._firstcut_on_done = None
-        if callback is not None:
-            try:
-                callback(ok, "First cut ready." if ok else "Could not build the first cut.")
-            except Exception:
-                pass
-
     def _on_assets_complete(self, payload: dict) -> None:
         self._end_generate_run()
         snap = self._qa_snapshot()
@@ -10773,19 +10838,7 @@ class VideoGeneratorApp(ctk.CTk):
         )
         self._refresh_cleanup_button(defer=True)
         self._log_visual_qa_report()
-        audio_ready = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
-        if audio_ready:
-            # Assets AND voiceover are both already in place (the operator
-            # picked audio before generating) — skip straight to an
-            # automatic first cut instead of making them re-click Import.
-            try:
-                from firstcut import build_first_cut_async
-
-                build_first_cut_async(self)
-            except Exception:
-                self._goto_workflow_view("audio")
-        else:
-            self._goto_workflow_view("audio")
+        self._goto_workflow_view("audio")
 
     def _log_visual_qa_report(self) -> None:
         try:

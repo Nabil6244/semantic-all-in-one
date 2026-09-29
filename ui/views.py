@@ -1719,70 +1719,18 @@ class VisualPlanView(ctk.CTkFrame):
             pass
 
 
-class AssetsView(_BaseView):
-    key = "assets"
-
-    def __init__(self, master, app: Any, **kwargs):
-        super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Assets", "Acquire and recover scene media").grid(
-            row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
-        )
-        self._empty = EmptyState(
-            self._body,
-            "No scenes yet",
-            "Import a CSV or Analyze Script to create a visual plan, then generate assets.",
-            "Go to Script",
-            command=lambda: app._shell.navigate("script") if getattr(app, "_shell", None) else None,
-        )
-        self._empty.grid(row=0, column=0, sticky="ew")
-        self._card = Card(self._body)
-        self._card.grid(row=1, column=0, sticky="ew", pady=8)
-        self._card.grid_columnconfigure(0, weight=1)
-        self._ready = MetricRow(self._card, "Ready")
-        self._ready.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=4)
-        self._needs = MetricRow(self._card, "Needs action")
-        self._needs.grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=4)
-        self._proc = MetricRow(self._card, "Processing")
-        self._proc.grid(row=2, column=0, sticky="ew", padx=T.PAD, pady=4)
-        ctk.CTkButton(
-            self._card, text="Generate Assets", height=32,
-            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            command=app._on_generate,
-        ).grid(row=3, column=0, sticky="w", padx=T.PAD, pady=(8, T.PAD))
-        ctk.CTkButton(
-            self._card, text="Open Issues", height=28,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=app._toggle_issues,
-        ).grid(row=4, column=0, sticky="w", padx=T.PAD, pady=(0, T.PAD))
-
-    def on_show(self) -> None:
-        rows = getattr(self.app, "_scene_rows", None) or []
-        if not rows:
-            self._empty.grid()
-            self._card.grid_remove()
-            return
-        self._empty.grid_remove()
-        self._card.grid()
-        try:
-            snap = self.app._qa_snapshot()
-            self._ready.set_value(str(snap.ready))
-            self._needs.set_value(str(snap.needs_action))
-            self._proc.set_value("yes" if snap.processing else "no")
-        except Exception:
-            self._ready.set_value("—")
-
-
 class AudioView(_BaseView):
     key = "audio"
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        SectionHeader(self, "Audio", "Narration + Smart Editing (SFX, transitions, ambience)").grid(
+        SectionHeader(self, "Audio & Effects", "Narration, plus the text, motion and sound added to the final video").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
         )
-        self._host = ctk.CTkFrame(self._body, fg_color="transparent")
+        # height=1: an empty frame otherwise keeps its default 200 px and left a
+        # big blank gap above the narration card; it grows when the voice panel
+        # is placed in it.
+        self._host = ctk.CTkFrame(self._body, fg_color="transparent", height=1)
         self._host.grid(row=0, column=0, sticky="ew")
         self._host.grid_columnconfigure(0, weight=1)
         self.content = self._host  # voice panel may be reparented here
@@ -1817,95 +1765,129 @@ class AudioView(_BaseView):
             command=self._on_open_audio_folder,
         ).pack(side="left", padx=(T.PAD_SM, 0))
 
-        # Smart Editing lives on the Audio dashboard (not buried in Settings)
+        # Smart Editing: what the final video adds on top of the footage,
+        # in three plain groups — what you SEE (text), how it MOVES, what you
+        # HEAR. Every row says what it does; intensity is a Low/Medium/High
+        # choice in one aligned column, greyed out while its feature is off.
         smart = Card(self._body)
         smart.grid(row=2, column=0, sticky="ew", pady=4)
-        smart.grid_columnconfigure(1, weight=1)
+        smart.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             smart, text="SMART EDITING", font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.MUTED, anchor="w",
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=T.PAD, pady=(T.PAD, 6))
+        ).grid(row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 0))
+        ctk.CTkLabel(
+            smart, text="What the final video adds on top of your footage and narration.",
+            font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
+        ).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(2, 4))
 
-        def _feature_row(row_i: int, label: str, enabled_var, intensity_var, on_intensity=None) -> None:
-            ctk.CTkSwitch(
-                smart, text=label, variable=enabled_var,
-                onvalue=True, offvalue=False, progress_color=T.ACCENT, button_color=T.TEXT,
-                text_color=T.TEXT, font=ctk.CTkFont(size=12),
-                command=app._persist_smart_editing_settings,
-            ).grid(row=row_i, column=0, sticky="w", padx=T.PAD, pady=2)
+        self._intensity_controls = []
+        grid_row = [2]
 
-            def _changed(_v, cb=on_intensity) -> None:
-                if cb is not None:
-                    cb()
+        def _next_row() -> int:
+            grid_row[0] += 1
+            return grid_row[0]
+
+        def _group(title: str) -> None:
+            ctk.CTkFrame(smart, fg_color=T.BORDER, height=1).grid(
+                row=_next_row(), column=0, sticky="ew", padx=T.PAD, pady=(12, 8))
+            ctk.CTkLabel(
+                smart, text=title, font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=T.ACCENT, anchor="w",
+            ).grid(row=_next_row(), column=0, sticky="w", padx=T.PAD, pady=(0, 2))
+
+        def _feature(name: str, desc: str, enabled_var, intensity_var=None, on_intensity=None):
+            row = ctk.CTkFrame(smart, fg_color="transparent")
+            row.grid(row=_next_row(), column=0, sticky="ew", padx=T.PAD, pady=4)
+            row.grid_columnconfigure(1, weight=1)
+            seg = None
+
+            def _toggled() -> None:
+                if seg is not None:
+                    seg.configure(state="normal" if enabled_var.get() else "disabled")
                 app._persist_smart_editing_settings()
 
-            ctk.CTkOptionMenu(
-                smart, variable=intensity_var, values=["Low", "Medium", "High"],
-                width=96, fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
-                text_color=T.TEXT, dropdown_fg_color=T.CARD, dropdown_text_color=T.TEXT,
-                command=_changed,
-            ).grid(row=row_i, column=1, sticky="e", padx=T.PAD, pady=2)
+            ctk.CTkSwitch(
+                row, text="", width=46, variable=enabled_var, onvalue=True, offvalue=False,
+                progress_color=T.ACCENT, button_color=T.TEXT, command=_toggled,
+            ).grid(row=0, column=0, rowspan=2, sticky="w")
+            ctk.CTkLabel(
+                row, text=name, font=ctk.CTkFont(size=13, weight="bold"), text_color=T.TEXT, anchor="w",
+            ).grid(row=0, column=1, sticky="w", padx=(8, 0))
+            ctk.CTkLabel(
+                row, text=desc, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
+                justify="left", wraplength=560,
+            ).grid(row=1, column=1, sticky="w", padx=(8, 0))
+            if intensity_var is not None:
+                def _changed(_v, cb=on_intensity) -> None:
+                    if cb is not None:
+                        cb()
+                    app._persist_smart_editing_settings()
 
-        _feature_row(1, "Text Effects", app.smart_text_effects_var, app.smart_text_intensity_var)
-        _feature_row(2, "Sound Effects", app.smart_sfx_var, app.smart_sfx_intensity_var)
-        _feature_row(3, "Visual Transitions", app.smart_visual_transitions_var, app.smart_transitions_intensity_var)
+                seg = ctk.CTkSegmentedButton(
+                    row, values=["Low", "Medium", "High"], variable=intensity_var, width=210, height=28,
+                    selected_color=T.ACCENT, selected_hover_color=T.ACCENT_HOV, unselected_color=T.BG,
+                    unselected_hover_color=T.CARD_HOVER, text_color=T.TEXT, font=ctk.CTkFont(size=12),
+                    command=_changed,
+                )
+                seg.grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
+                seg.configure(state="normal" if enabled_var.get() else "disabled")
+                self._intensity_controls.append((enabled_var, seg))
+            return row
+
+        _group("ON-SCREEN TEXT")
+        _feature("Smart Text Styles",
+                 "Short lines from the narration: statements, questions and quotes. Intensity = how often.",
+                 app.smart_text_effects_var, app.smart_text_intensity_var)
+        _feature("Graphics", "Name lower-thirds, statistic cards and titles.", app.smart_graphics_var)
+        _feature("Map Niche",
+                 "Countdown fact tags (\u201c34. THE ROOF OF FLORIDA\u201d), the \u201c35 WILD FACTS\u201d hook "
+                 "and yellow number / name callouts.",
+                 app.smart_map_niche_var)
+
+        _group("MOTION")
+        _feature("Ken Burns Zoom", "Slow zoom on every still image. Intensity = how far (5% / 10% / 16%).",
+                 app.zoom_var, app.ken_burns_intensity_var)
+        _feature("Visual Transitions",
+                 "Transitions between scenes, including the zoom-blur into maps and new facts. "
+                 "Intensity = how many.",
+                 app.smart_visual_transitions_var, app.smart_transitions_intensity_var)
+
+        _group("SOUND")
+        _feature("Sound Effects", "Whooshes, hits and pops on cuts and text. Intensity = how loud / how many.",
+                 app.smart_sfx_var, app.smart_sfx_intensity_var)
         # Picking an ambience intensity step re-syncs the fine volume control
-        # back to Auto, so the dropdown never silently does nothing.
-        _feature_row(
-            4, "Scene Ambience", app.smart_scene_ambience_var,
-            app.smart_ambience_intensity_var,
-            on_intensity=self._on_ambience_volume_auto_silent,
-        )
+        # back to Auto, so the choice never silently does nothing.
+        _feature("Scene Ambience", "A quiet background sound bed for each scene (water, city, nature\u2026).",
+                 app.smart_scene_ambience_var, app.smart_ambience_intensity_var,
+                 on_intensity=self._on_ambience_volume_auto_silent)
 
-        # Fine ambience level. The intensity step above is the coarse control;
-        # this overrides it outright, and reads back as the real bed level.
+        # Fine ambience level, right under its feature. The intensity step is
+        # the coarse control; this overrides it and reads back the real level.
         amb_row = ctk.CTkFrame(smart, fg_color="transparent")
-        amb_row.grid(row=5, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(4, 2))
+        amb_row.grid(row=_next_row(), column=0, sticky="ew", padx=(T.PAD + 54, T.PAD), pady=(0, T.PAD))
         amb_row.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
-            amb_row, text="Ambience volume", font=ctk.CTkFont(size=12), text_color=T.TEXT,
-            anchor="w",
-        ).grid(row=0, column=0, sticky="w")
-        self._amb_vol_value = ctk.CTkLabel(
-            amb_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
-            anchor="e", width=90,
-        )
-        self._amb_vol_value.grid(row=0, column=2, sticky="e")
+            amb_row, text="Ambience level", font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self._amb_vol_slider = ctk.CTkSlider(
             amb_row, from_=0.0, to=1.0, number_of_steps=100,
             progress_color=T.ACCENT, button_color=T.TEXT, fg_color=T.BG,
             command=self._on_ambience_volume,
         )
-        self._amb_vol_slider.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        self._amb_vol_slider.grid(row=0, column=1, sticky="ew")
+        self._amb_vol_value = ctk.CTkLabel(
+            amb_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="e", width=86,
+        )
+        self._amb_vol_value.grid(row=0, column=2, sticky="e", padx=(10, 8))
         self._amb_vol_auto = ctk.CTkButton(
             amb_row, text="Auto", height=24, width=58,
             fg_color="transparent", border_width=1, border_color=T.BORDER,
             text_color=T.MUTED, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=11),
             command=self._on_ambience_volume_auto,
         )
-        self._amb_vol_auto.grid(row=0, column=1, sticky="e", padx=(0, 8))
+        self._amb_vol_auto.grid(row=0, column=3, sticky="e")
         self._sync_ambience_volume()
-
-        ctk.CTkLabel(
-            smart,
-            text="Each feature has its own intensity. SFX, transitions, and ambience "
-                 "are AI-picked when Gemini is configured. Ambience volume sets the "
-                 "bed level directly — 0% mutes the beds entirely.",
-            font=ctk.CTkFont(size=11), text_color=T.MUTED, justify="left", anchor="w",
-            wraplength=520,
-        ).grid(row=6, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(6, 4))
-
-        mode_row = ctk.CTkFrame(smart, fg_color="transparent")
-        mode_row.grid(row=7, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(2, T.PAD))
-        ctk.CTkLabel(mode_row, text="Mode", font=ctk.CTkFont(size=12), text_color=T.TEXT).pack(
-            side="left"
-        )
-        ctk.CTkOptionMenu(
-            mode_row, variable=app.smart_mode_var, values=["Smart", "Automatic"],
-            width=110, fg_color=T.BG, button_color=T.BORDER, button_hover_color=T.ACCENT,
-            text_color=T.TEXT, dropdown_fg_color=T.CARD, dropdown_text_color=T.TEXT,
-            command=lambda _v: app._persist_smart_editing_settings(),
-        ).pack(side="left", padx=(8, 0))
 
     def _sync_ambience_volume(self) -> None:
         """Push the current setting into the slider + readout."""
@@ -1979,6 +1961,12 @@ class AudioView(_BaseView):
         self._sfx.set_value(str(sfx) if sfx else "—")
         # A project switch reloads the smart-editing settings, so re-read them.
         self._sync_ambience_volume()
+        # A switch flipped elsewhere (e.g. Ken Burns in Settings) re-greys its intensity here.
+        for enabled_var, seg in getattr(self, "_intensity_controls", []):
+            try:
+                seg.configure(state="normal" if enabled_var.get() else "disabled")
+            except Exception:
+                pass
 
 
 class MusicView(_BaseView):
@@ -2218,103 +2206,6 @@ class RenderView(_BaseView):
         self._op.set_value(stage or ("Rendering…" if running else "Idle"))
         out = self.app._last_output or self.app.output_var.get() or "—"
         self._out.set_value(Path(out).name if out != "—" else "—")
-
-
-class TimelineView(ctk.CTkFrame):
-    """Interactive timeline (Phase 2). Not a _BaseView — a CTkScrollableFrame
-    body would fight the TimelineCanvas's own scrolling/zoom, so this owns a
-    plain fixed layout instead, same pattern as VisualPlanView."""
-
-    key = "timeline"
-
-    def __init__(self, master, app: Any, **kwargs):
-        super().__init__(master, fg_color=T.PANEL_ALT, **kwargs)
-        self.app = app
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
-
-        SectionHeader(
-            self, "Timeline",
-            "Video, image, voiceover, music, ambience, SFX, text and graphics — "
-            "drag Text/Graphics/SFX/Ambience/Music clips to retime them.",
-        ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 4))
-
-        self._selection_var = ctk.StringVar(value="No clip selected")
-        ctk.CTkLabel(
-            self, textvariable=self._selection_var, font=ctk.CTkFont(size=11),
-            text_color=T.MUTED, anchor="w",
-        ).grid(row=1, column=0, sticky="ew", padx=T.PAD, pady=(0, 4))
-
-        self._empty = EmptyState(
-            self, "No timeline yet",
-            "Render once (or run alignment) to build the editorial timeline, "
-            "then come back here to fine-tune text, graphics, SFX, ambience and music.",
-            "Go to Export",
-            command=lambda: app._shell.navigate("render") if getattr(app, "_shell", None) else None,
-        )
-        self._empty.grid(row=2, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
-
-        from .timeline_canvas import TimelineCanvas
-
-        self._canvas_host = TimelineCanvas(
-            self,
-            undo_stack=getattr(app, "_timeline_undo", None),
-            on_select=self._on_select,
-            on_dirty=lambda: app._mark_unsaved("Timeline edit") if hasattr(app, "_mark_unsaved") else None,
-            on_notify=lambda msg: app._shell.notify(msg) if getattr(app, "_shell", None) else None,
-        )
-        self._canvas_host.grid(row=2, column=0, sticky="nsew", padx=T.PAD, pady=(0, T.PAD))
-        self._canvas_host.grid_remove()
-        self._timeline = None
-
-    def _on_select(self, event_id: Optional[str]) -> None:
-        if event_id is None or self._timeline is None:
-            self._selection_var.set("No clip selected")
-            return
-        import editorial_timeline_edit as tl_edit
-
-        ev = tl_edit.find_event(self._timeline, event_id)
-        if ev is None:
-            self._selection_var.set("No clip selected")
-            return
-        editable = "editable" if tl_edit.is_editable(ev) else "read-only"
-        self._selection_var.set(
-            f"{ev.track} · {ev.start:.2f}s–{ev.end:.2f}s ({editable}) · scene {ev.scene_number or '—'}"
-        )
-
-    def _save(self) -> None:
-        ws = self.app._workspace
-        if ws is None or self._timeline is None:
-            return
-        import editorial_timeline_edit as tl_edit
-
-        if hasattr(self.app, "_mark_saving"):
-            self.app._mark_saving()
-        ok = tl_edit.save_timeline(ws.state_dir, self._timeline)
-        if hasattr(self.app, "_mark_saved") and ok:
-            self.app._mark_saved()
-
-    def refresh_canvas(self) -> None:
-        self._canvas_host.redraw()
-        self._save()
-
-    def on_show(self) -> None:
-        import editorial_timeline_edit as tl_edit
-
-        ws = self.app._workspace
-        if ws is None:
-            self._empty.grid()
-            self._canvas_host.grid_remove()
-            return
-        timeline = tl_edit.load_timeline(ws.state_dir)
-        if not timeline.events:
-            self._empty.grid()
-            self._canvas_host.grid_remove()
-            return
-        self._timeline = timeline
-        self._empty.grid_remove()
-        self._canvas_host.grid()
-        self._canvas_host.set_timeline(timeline, save_cb=self._save)
 
 
 class GraphicsView(ctk.CTkFrame):

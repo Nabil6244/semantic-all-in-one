@@ -785,6 +785,7 @@ def materialize_sfx_ambience_events(
     used as-is for ``.source`` — good enough for the timeline/UI to display
     a filename; the preview proxy resolves the real absolute path itself
     via smart_editing.sfx_library_root() (see preview_engine.py)."""
+    timeline.audio_materialized = True
     timeline.events = [e for e in timeline.events if e.track not in ("SFX", "AMBIENCE")]
     for i, ev in enumerate(sfx_events or []):
         file_rel = str(ev.get("file") or "")
@@ -802,7 +803,8 @@ def materialize_sfx_ambience_events(
                 scene_number=str(ev.get("scene_number") or ""),
                 source=file_rel,
                 z_index=40,
-                metadata={"file": file_rel, "volume": float(ev.get("volume") or 1.0)},
+                metadata={"file": file_rel, "volume": float(ev.get("volume") or 1.0),
+                          **({"zoom_blur": True} if ev.get("zoom_blur") else {})},
             )
         )
     for i, bed in enumerate(ambience_beds or []):
@@ -863,6 +865,12 @@ def sfx_ambience_events_for_export(
             "volume": float(meta.get("volume", 1.0)),
             "file": file_ref,
         }
+        if e.track == "SFX":
+            # The mixer trims an SFX to its "duration" (0.4 s when missing),
+            # which cut every timeline sound short.
+            entry["duration"] = round(max(0.05, float(e.end) - float(e.start)), 3)
+        if meta.get("zoom_blur"):
+            entry["zoom_blur"] = True
         if e.track == "SFX":
             sfx.append(entry)
         else:

@@ -181,46 +181,27 @@ class TestDisplayCasing(unittest.TestCase):
         )
 
     def test_style_specific_uppercase_behavior(self) -> None:
+        # Only Statement / Question / Quote remain; none force capitals, so a
+        # punch word keeps sentence case instead of the removed Kinetic Punch.
         punch = typography_params_for_effect(
-            {
-                "text": "breakthrough",
-                "effect": "punch",
-                "intensity": 0.65,
-                "local_start": 1.0,
-                "local_end": 1.4,
-            },
-            1920,
-            1080,
+            {"text": "breakthrough", "effect": "punch", "intensity": 0.65, "local_start": 1.0, "local_end": 1.4},
+            1920, 1080,
         )
-        self.assertEqual(punch["style_id"], "kinetic_punch")
-        self.assertEqual(punch["text"], "BREAKTHROUGH")
-        self.assertEqual(punch["raw_text"], "breakthrough")
+        self.assertEqual((punch["style_id"], punch["text"], punch["raw_text"]), ("statement", "Breakthrough", "breakthrough"))
 
         caption = typography_params_for_effect(
-            {
-                "text": "technology is changing the way we live.",
-                "effect": "fade",
-                "intensity": 0.5,
-                "local_start": 0.0,
-                "local_end": 0.8,
-            },
-            1920,
-            1080,
+            {"text": "technology is changing the way we live.", "effect": "fade", "intensity": 0.5,
+             "local_start": 0.0, "local_end": 0.8},
+            1920, 1080,
         )
-        self.assertEqual(caption["style_id"], "minimal_caption")
+        self.assertEqual(caption["style_id"], "statement")
         self.assertEqual(caption["text"], "Technology is changing the way we live.")
         self.assertFalse(caption["text"].isupper())
 
         question = typography_params_for_effect(
-            {
-                "text": "what will technology turn us into?",
-                "effect": "highlight",
-                "intensity": 0.6,
-                "local_start": 0.0,
-                "local_end": 0.7,
-            },
-            1280,
-            720,
+            {"text": "what will technology turn us into?", "effect": "highlight", "intensity": 0.6,
+             "local_start": 0.0, "local_end": 0.7},
+            1280, 720,
         )
         self.assertEqual(question["style_id"], "question")
         self.assertEqual(question["text"], "What will technology turn us into?")
@@ -256,17 +237,10 @@ class TestDisplayCasing(unittest.TestCase):
         self.assertNotRegex(filt, r"fontcolor=white@\(if\(lt\(t,[0-9]")
 
     def test_theme_override_changes_size(self) -> None:
-        fx = {
-            "text": "Quiet moment here today",
-            "effect": "fade",
-            "intensity": 0.5,
-            "local_start": 0.0,
-            "local_end": 0.4,
-        }
+        fx = {"text": "Quiet moment here today", "effect": "fade", "intensity": 0.5, "local_start": 0.0, "local_end": 0.4}
         base = typography_params_for_effect(fx, 1280, 720, theme=DEFAULT_THEME)
-        theme = TypographyTheme(
-            style_overrides={"minimal_caption": {"size_vh": 0.08}},
-        )
+        self.assertEqual(base["style_id"], "statement")
+        theme = TypographyTheme(style_overrides={"statement": {"size_vh": 0.12}})
         tuned = typography_params_for_effect(fx, 1280, 720, theme=theme)
         self.assertGreater(tuned["fontsize"], base["fontsize"])
 
@@ -365,84 +339,53 @@ class TestVariationAntiRepetition(unittest.TestCase):
         self.assertEqual(classify_semantic("What happens next?", "highlight"), "question")
         self.assertEqual(classify_semantic("42%", "impact"), "fact")
         self.assertEqual(classify_semantic("WE ARE DONE", "punch"), "dramatic")
-        self.assertIn(
-            classify_semantic(
-                "Technology is changing the way we live every day.",
-                "fade",
-            ),
-            ("long_narration", "narration"),
-        )
-        q = plan_typography_decision("What will technology turn us into?", "highlight")
-        self.assertEqual(q.style_id, "question")
-        f = plan_typography_decision("42%", "impact")
-        self.assertEqual(f.style_id, "fact_number")
-        d = plan_typography_decision("NOW", "punch")
-        self.assertEqual(d.style_id, "kinetic_punch")
+        self.assertIn(classify_semantic("Technology is changing the way we live every day.", "fade"),
+                      ("long_narration", "narration"))
+        self.assertEqual(plan_typography_decision("What will technology turn us into?", "highlight").style_id, "question")
+        self.assertEqual(plan_typography_decision("\u201cIt was the largest dam on Earth.\u201d", "fade").style_id, "quote")
+        self.assertEqual(plan_typography_decision("42%", "impact").style_id, "statement")
+        self.assertEqual(plan_typography_decision("NOW", "punch").style_id, "statement")
 
     def test_long_text_gets_lower_third(self) -> None:
         reset_variation_history()
         d = plan_typography_decision(
-            "Technology is changing the way we live every single day around us.",
-            "fade",
-            duration=1.5,
+            "Technology is changing the way we live every single day around us.", "fade", duration=1.5,
         )
-        self.assertEqual(d.style_id, "minimal_caption")
+        self.assertEqual(d.style_id, "statement")
         self.assertIn(d.placement, ("bottom_center", "bottom_left", "bottom_right"))
 
     def test_numbers_and_questions(self) -> None:
         reset_variation_history()
+        # Numbers read as Statements (Fact Number was removed; the yellow Map
+        # Niche callouts carry measured numbers now).
         self.assertEqual(
-            typography_params_for_effect(
-                {"text": "42%", "effect": "impact", "local_start": 0, "local_end": 0.4},
-                1280,
-                720,
-            )["style_id"],
-            "fact_number",
+            typography_params_for_effect({"text": "42%", "effect": "impact", "local_start": 0, "local_end": 0.4},
+                                         1280, 720)["style_id"],
+            "statement",
         )
         self.assertEqual(
-            typography_params_for_effect(
-                {
-                    "text": "What will technology turn us into?",
-                    "effect": "highlight",
-                    "local_start": 0,
-                    "local_end": 0.8,
-                },
-                1280,
-                720,
-            )["style_id"],
+            typography_params_for_effect({"text": "What will technology turn us into?", "effect": "highlight",
+                                          "local_start": 0, "local_end": 0.8}, 1280, 720)["style_id"],
             "question",
         )
 
     def test_short_dramatic_can_be_kinetic(self) -> None:
+        # Kinetic Punch was removed from videos: a dramatic word is a Statement.
         reset_variation_history()
         d = plan_typography_decision("BREAKTHROUGH", "punch", duration=0.4)
-        self.assertEqual(d.style_id, "kinetic_punch")
+        self.assertEqual(d.style_id, "statement")
 
     def test_consecutive_effects_vary_style(self) -> None:
         reset_variation_history()
-        # Many similar keywords — must not all lock to one style.
-        texts = [
-            "Neural",
-            "Attention",
-            "Signal",
-            "Pattern",
-            "Network",
-            "System",
-            "Model",
-            "Engine",
-        ]
-        styles = []
-        for t in texts:
-            d = plan_typography_decision(t, "highlight", duration=0.5)
-            styles.append(d.style_id)
-        unique = set(styles)
-        self.assertGreaterEqual(len(unique), 2, f"styles not varied: {styles}")
-        # No run of 3 identical styles in a row.
-        for i in range(len(styles) - 2):
-            self.assertFalse(
-                styles[i] == styles[i + 1] == styles[i + 2],
-                f"same style thrice at {i}: {styles}",
-            )
+        # Similar keywords all read as Statements now; the variation planner
+        # still varies WHERE they sit, so the frame never repeats one spot.
+        texts = ["Neural", "Attention", "Signal", "Pattern", "Network", "System", "Model", "Engine"]
+        decisions = [plan_typography_decision(t, "highlight", duration=0.5) for t in texts]
+        self.assertEqual({d.style_id for d in decisions}, {"statement"})
+        spots = [d.placement for d in decisions]
+        self.assertGreaterEqual(len(set(spots)), 2, f"placements not varied: {spots}")
+        for i in range(len(spots) - 2):
+            self.assertFalse(spots[i] == spots[i + 1] == spots[i + 2], f"same spot thrice at {i}: {spots}")
 
     def test_consecutive_effects_vary_position(self) -> None:
         reset_variation_history()
@@ -517,7 +460,9 @@ class TestModernTypographyTreatment(unittest.TestCase):
         self.assertEqual(_accent_word("IMPOSSIBLE"), "")
 
     def test_accent_word_only_exposed_for_accent_styles(self) -> None:
-        self.assertTrue(self._params("highlight", "deep ocean")["accent_word"])
+        # The accent-word styles (Keyword Highlight, Fact Number, Proof Modern)
+        # were removed from videos: no Smart Text shows an accent word now.
+        self.assertFalse(self._params("highlight", "deep ocean")["accent_word"])
         self.assertFalse(self._params("fade", "a long quiet narration line here")["accent_word"])
 
     def test_hero_styles_stay_documentary_sized(self) -> None:

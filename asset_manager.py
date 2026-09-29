@@ -167,6 +167,7 @@ class AssetManager:
         research_provider=None,
         log: LogFn = print,
         resolved_style=None,
+        map_provider=None,
         coverage_by_scene: Optional[dict] = None,
         settings: Optional[dict] = None,
         local_assets_dir: Optional[Path] = None,
@@ -189,6 +190,13 @@ class AssetManager:
         # vision_semantic_score() returned None before reading the key and the
         # whole vision tier was unreachable regardless of configuration.
         self.settings = dict(settings or {})
+        # Map scenes need no account or key (Gemini only as an optional place
+        # lookup), so every manager — normal, Overscaled, Exp Solar — has one.
+        if map_provider is None:
+            from providers.map.provider import MapProvider
+
+            map_provider = MapProvider(settings=self.settings)
+        self.map_provider = map_provider
         self.coverage_by_scene = dict(coverage_by_scene or {})
         # Property Video only: when a project has researched listings, stock
         # scenes get a candidate-side relevance floor so a clip that merely
@@ -214,11 +222,14 @@ class AssetManager:
             self.flow_image_provider,
             self.flow_video_provider,
             self.research_provider,
+            self.map_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
                 provider.resolved_style = resolved_style
                 provider.selection_history = self.selection_history
+        # A map render takes seconds: a whole-run Stop must reach it too.
+        self.map_provider.should_stop_run = lambda: self.is_cancelled
 
     # ---------- cancellation ----------
 
@@ -241,6 +252,7 @@ class AssetManager:
             self.flow_image_provider,
             self.flow_video_provider,
             self.research_provider,
+            self.map_provider,
         ):
             if provider is not None:
                 provider.should_stop_scene = self.is_scene_cancelled
@@ -294,6 +306,7 @@ class AssetManager:
             AssetSource.COMMONS_VIDEO: self.stock_provider,
             AssetSource.COMMONS_IMAGE: self.stock_provider,
             AssetSource.RESEARCH: self.research_provider,
+            AssetSource.MAP: self.map_provider,
         }[source]
 
     def classify(self, scene: SceneRow) -> AssetSource:
@@ -316,7 +329,7 @@ class AssetManager:
     def validate_rows(self, rows: List[SceneRow]) -> List[str]:
         return SceneAssetRouter.validate(rows, self.images_dir)
 
-    def _mark_requested_provider(self, scene_number: str, provider_name: str) -> None:
+    def _mark_requested_provider(self, scene_number: str, provider_name: str, prompt: str = "") -> None:
         """Durably record the user's most recent explicit Change Source choice
         for this scene, written BEFORE the resolve it triggers runs -- so it
         survives even if that attempt fails. Without this, a Change Source
@@ -327,6 +340,11 @@ class AssetManager:
         with self._manifest_lock:
             record = dict(self.manifest.get(scene_number) or {})
             record["requested_provider"] = provider_name
+            if provider_name == "map" and prompt:
+                # A map's place isn't in the CSV row; keep it with the choice.
+                record["requested_prompt"] = prompt
+            else:
+                record.pop("requested_prompt", None)
             self.manifest.set(scene_number, record)
 
     def _apply_requested_provider(self, scene: SceneRow) -> SceneRow:
@@ -339,6 +357,8 @@ class AssetManager:
         provider_name = record.get("requested_provider") if record else None
         if not provider_name:
             return scene
+        if provider_name == "map" and record.get("requested_prompt"):
+            scene = dataclasses.replace(scene, asset_type="map", prompt=str(record["requested_prompt"]), stock="")
         return scene.as_fallback(provider_name)
 
     # ---------- caching ----------
@@ -402,7 +422,7 @@ class AssetManager:
         ):
             return None
         if (
-            source in (AssetSource.ARCHIVE_VIDEO, AssetSource.NASA_VIDEO)
+            source in (AssetSource.ARCHIVE_VIDEO, AssetSource.NASA_VIDEO, AssetSource.MAP)
             and self._norm_text(record.get("prompt")) != self._norm_text(scene.prompt)
         ):
             return None
@@ -440,6 +460,8 @@ class AssetManager:
         prior = self.manifest.get(scene.scene_number)
         if prior and prior.get("requested_provider"):
             record["requested_provider"] = prior["requested_provider"]
+            if prior.get("requested_prompt"):
+                record["requested_prompt"] = prior["requested_prompt"]
         return record
 
     def _remove_stale_file(self, scene_number: str, keep: Path) -> None:
@@ -878,6 +900,7 @@ class AssetManager:
             self.stock_provider,
             self.flow_image_provider,
             self.flow_video_provider,
+            self.map_provider,
         ):
             if p is not None:
                 p.should_stop_scene = self.is_scene_cancelled
@@ -1577,6 +1600,7 @@ class AssetManager:
             AssetSource.ARCHIVE_VIDEO: [], AssetSource.NASA_VIDEO: [],
             AssetSource.COMMONS_VIDEO: [], AssetSource.COMMONS_IMAGE: [],
             AssetSource.RESEARCH: [],
+            AssetSource.MAP: [],
         }
 
         for scene in rows:
@@ -1624,6 +1648,16 @@ class AssetManager:
             parallel_items,
             results,
             max_workers=parallel_limit,
+            on_scene_start=on_scene_start,
+            on_scene_complete=on_scene_complete,
+        )
+
+        # Map clips render in a local browser (GPU/CPU-bound): two at a time,
+        # never alongside the downloads' worker count.
+        self._resolve_parallel(
+            [(AssetSource.MAP, scene) for scene in pending[AssetSource.MAP]],
+            results,
+            max_workers=2,
             on_scene_start=on_scene_start,
             on_scene_complete=on_scene_complete,
         )
@@ -1819,8 +1853,9 @@ class AssetManager:
         self._cancelled_scenes.discard(key)
         self._clear_skip(scene)
         self.log(f"[SCENE {scene.scene_number}] Change source -> {provider_name}")
-        self._mark_requested_provider(scene.scene_number, provider_name)
         fallback = scene.as_fallback(provider_name)
+        self._mark_requested_provider(scene.scene_number, provider_name,
+                                      prompt=fallback.prompt if provider_name == "map" else "")
         result = self._resolve_one(fallback, self.classify(fallback), try_declared_fallbacks=False)
         return self._mark_user_override(scene, result)
 

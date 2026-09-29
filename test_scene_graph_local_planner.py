@@ -204,10 +204,16 @@ class TestAbbreviationSafeFallbackPrompt(unittest.TestCase):
         self.assertEqual(result, "The U.N. and U.K. issued a joint statement.")
 
     def test_planner_uses_the_abbreviation_safe_prompt(self):
-        rows = _rows("In 1959, the U.S. Army began building Camp Century in Greenland.")
+        # (No place named "in X" here: a line that places the story somewhere
+        # real becomes a map scene instead — see the Greenland check below.)
+        rows = _rows("In 1959, the U.S. Army began building Camp Century under the ice.")
         result = generate_scene_graph_local_planner("seg", rows)
         prompt = result.scene_graph.nodes[0].asset_reference
         self.assertIn("U.S. Army began building Camp Century", prompt)
+        located = generate_scene_graph_local_planner(
+            "seg", _rows("In 1959, the U.S. Army began building Camp Century in Greenland.")
+        ).scene_graph.nodes[0]
+        self.assertEqual((located.asset_source, located.asset_reference), ("map", "Greenland"))
 
 
 class TestSmallCollection(unittest.TestCase):

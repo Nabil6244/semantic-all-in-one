@@ -21,6 +21,9 @@ from .statistic import build_statistic_overlay
 from .text_overlay import apply_composition_to_text, build_text_overlay
 
 
+REMOVED_GRAPHIC_ROLES = frozenset({"LOCATION", "DATE"})
+
+
 def plan_graphics(
     plan: Any,
     *,
@@ -116,6 +119,9 @@ def plan_graphics(
                 scene_number=sn,
             )
 
+    # Location and Date labels were removed from videos.
+    specs = [s for s in specs if str(s.role or "").upper() not in REMOVED_GRAPHIC_ROLES
+             and str(s.decision or "").upper() not in REMOVED_GRAPHIC_ROLES]
     gplan = GraphicsPlan(specs=specs, design_system=design.name)
     gplan.qc_issues = qc_graphics_plan(gplan, plan=plan, memory=memory)
     drop_ids = {

@@ -330,7 +330,7 @@ async function runUiGeneration(page, prompt, opts = {}) {
 
     diag.stage = "waiting_for_completion";
     const deadline = Date.now() + generationTimeoutMs;
-    while (Date.now() < deadline && !mediaUrl) {
+    while (Date.now() < deadline && !mediaUrl && !opts.shouldStop?.()) {
       mediaUrl = await page
         .evaluate(
           ({ host, known, wantVideo }) => {
@@ -354,7 +354,7 @@ async function runUiGeneration(page, prompt, opts = {}) {
     }
 
     if (!mediaUrl) {
-      diag.outcome = "timeout_no_media_detected";
+      diag.outcome = opts.shouldStop?.() ? "stopped" : "timeout_no_media_detected";
       return { mediaId: null, fifeUrl: null, diag };
     }
     diag.generationCompletedAt = Date.now();
@@ -421,11 +421,18 @@ export async function generateOneImageViaUI(page, projectId, prompt, settings, p
  * for-real-UI-state, no-fixed-sleep synchronization already proven for
  * images.
  */
-export async function generateOneVideoViaUI(page, projectId, prompt, settings, promptIndex) {
+export async function generateOneVideoViaUI(page, projectId, prompt, settings, promptIndex, { shouldStop } = {}) {
   const { mediaId, fifeUrl, diag } = await runUiGeneration(page, prompt, {
     outputDir: settings?.outputDir,
     mode: "video",
-    generationTimeoutMs: settings?.generationTimeoutMs || 180000,
+    shouldStop,
+    // Flow video jobs routinely run past 3 minutes under load (and several
+    // run concurrently across accounts). The old 180s window gave up while
+    // Flow was still rendering: the video then finished on Flow, but since
+    // Generate was already clicked it was never re-clicked, downloaded, or
+    // added. Waiting longer costs no extra credit (still exactly one click)
+    // and stays under the app's 12-minute per-scene watchdog.
+    generationTimeoutMs: settings?.generationTimeoutMs || 540000,
   });
   if (!mediaId) {
     const err = new MissingMediaIdError(

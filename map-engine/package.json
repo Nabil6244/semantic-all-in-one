@@ -1,0 +1,14 @@
+{
+  "name": "video-generator-map-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone map-scene renderer: draws an animated satellite map (MapLibre in a hidden, temporary browser) and pipes frames to ffmpeg. Separate process from flow-engine; never uses its port or Chrome profiles.",
+  "main": "render.mjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "maplibre-gl": "6.11.2"
+  }
+}

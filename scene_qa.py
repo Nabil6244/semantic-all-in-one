@@ -41,6 +41,8 @@ PROVIDER_LABELS = {
     "nasa_video": "NASA Media",
     "nasa": "NASA Media",
     AssetSource.NASA_VIDEO: "NASA Media",
+    "map": "Map",
+    AssetSource.MAP: "Map",
     "commons_video": "Stock Video",
     "commons": "Stock Video",
     AssetSource.COMMONS_VIDEO: "Stock Video",

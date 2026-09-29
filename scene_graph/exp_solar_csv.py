@@ -122,7 +122,7 @@ RELATIONSHIP_TYPES = ("causation", "dependency", "consequence", "transformation"
 # a supporting node (see layout._ELEVATED_ROLE_KEYWORDS).
 _BEAT_DEFAULT_ROLE = {"hero": "hero", "title": "hero", "cta": "hero", "reaction": "reaction"}
 
-_VIDEO_ASSET_TYPES = {"flow_video", "stock_video", "youtube"}
+_VIDEO_ASSET_TYPES = {"flow_video", "stock_video", "youtube", "map"}
 
 
 def _get(row: Mapping[str, str], key: str) -> str:

@@ -11,6 +11,9 @@ from . import theme as T
 from . import tooltip as TT
 from .widgets import Toast
 
+# Pages that show the right-hand scene inspector.
+INSPECTOR_VIEWS = frozenset({"visual_plan"})
+
 
 class AppShell(ctk.CTkFrame):
     """Production workstation chrome. Controller owns callbacks and CTA."""
@@ -297,6 +300,12 @@ class AppShell(ctk.CTkFrame):
             else:
                 fr.grid_remove()
         self._active = key
+        # The inspector acts on the selected scene, which only the Visuals
+        # page shows — elsewhere it was an empty panel, so hide it.
+        if key in INSPECTOR_VIEWS:
+            self.inspector.grid()
+        else:
+            self.inspector.grid_remove()
         for k, btn in self._nav_btns.items():
             if k == key:
                 btn.configure(fg_color=T.ACCENT_SEL, text_color=T.TEXT, border_width=1, border_color=T.ACCENT_BORDER)

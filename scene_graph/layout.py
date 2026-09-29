@@ -41,6 +41,7 @@ import dataclasses
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from .map_nodes import is_map_node, subtract_windows
 from .schema import SceneGraph, SceneNode
 
 DEFAULT_CANVAS_WIDTH = 1920
@@ -673,6 +674,14 @@ def compute_layout(
         checklist_windows.append((label, own_start, max(next_start, own_start + MIN_HOLD_S)))
 
     chapters = _connected_chapters(scene_graph)
+    # Map scenes are shown full screen with the screen to themselves: each is
+    # its own one-node chapter (a hard cut in and out), never a slot in
+    # another chapter's card template.
+    map_nodes = [n for n in scene_graph.nodes if is_map_node(n) and n.type not in ("anchor", _CHECKLIST_ITEM_TYPE)]
+    if map_nodes:
+        map_ids = {n.id for n in map_nodes}
+        chapters = [[n for n in members if n.id not in map_ids] for members in chapters]
+        chapters = [members for members in chapters if members] + [[n] for n in map_nodes]
     node_id_chapters: List[List[str]] = [[n.id for n in members] for members in chapters]
     chapter_index_of_node: Dict[str, int] = {
         node.id: c_index for c_index, members in enumerate(chapters) for node in members
@@ -746,6 +755,9 @@ def compute_layout(
     # members, not the smaller 3-slot one — lightweight, deterministic,
     # computed once (see _peak_concurrent), never re-solved per frame.
     for c_index, members in enumerate(chapters):
+        if len(members) == 1 and is_map_node(members[0]):
+            rects[members[0].id] = NodeRect(node_id=members[0].id, x=0.0, y=0.0, width=float(width), height=float(height))
+            continue
         is_grid = _is_grid_chapter(members, scene_graph)
         chapter_cap = chapter_caps[c_index]
         peak = _peak_concurrent([active_windows[n.id] for n in members])
@@ -799,6 +811,8 @@ def compute_layout(
     # retires an older arrow once MAX_ACTIVE_EDGES newer ones have been
     # drawn, so the canvas is never criss-crossed with every causal link
     # drawn so far.
+    map_window_ids = {n.id for n in map_nodes}
+    map_windows = [active_windows[i] for i in map_window_ids if i in active_windows]
     edge_draw_at: Dict[str, float] = {}
     edge_natural_end: Dict[str, float] = {}
     valid_edges = []
@@ -815,8 +829,8 @@ def compute_layout(
             continue
         from_window = active_windows.get(edge.from_node)
         to_window = active_windows.get(edge.to_node)
-        if from_window is None or to_window is None:
-            continue
+        if from_window is None or to_window is None or edge.from_node in map_window_ids or edge.to_node in map_window_ids:
+            continue  # no arrows into or out of a full-screen map
         edge_draw_at[edge.id] = max(0.0, float(edge.draw_at))
         edge_natural_end[edge.id] = min(from_window[1], to_window[1])
         valid_edges.append(edge)
@@ -855,7 +869,11 @@ def compute_layout(
     title_windows: List[Tuple[str, float, float]] = []
     for i, (text, own_start) in enumerate(collapsed_cues):
         next_start = collapsed_cues[i + 1][1] if i + 1 < len(collapsed_cues) else duration
-        title_windows.append((text, own_start, max(next_start, own_start + MIN_HOLD_S)))
+        window = (own_start, max(next_start, own_start + MIN_HOLD_S))
+        # The chapter title band sits on the white stage; it is not drawn over
+        # a full-screen map (it returns when the map ends).
+        for start, end in (subtract_windows(window, map_windows) if map_windows else [window]):
+            title_windows.append((text, start, end))
 
     # ARROW ROUTING + LABEL POSITIONS — solved ONCE per edge, right here,
     # never per frame (scene_graph.composition only SAMPLES the cached
@@ -963,7 +981,7 @@ def compute_layout(
     solved_caption_obstacles: List[Tuple[Window, "ObstacleRect"]] = []
 
     for node in scene_graph.nodes:
-        if not node.caption or not str(node.caption.text or "").strip():
+        if not node.caption or not str(node.caption.text or "").strip() or node.id in map_window_ids:
             continue
         rect = rects.get(node.id)
         node_window = active_windows.get(node.id)
@@ -1004,7 +1022,7 @@ def compute_layout(
     # design. Small and slow per spec: ~100% -> 104-108% scale, a small pan.
     node_ken_burns: Dict[str, Dict[str, float]] = {}
     for node in scene_graph.nodes:
-        if node.type not in ("image", "diagram"):
+        if node.type not in ("image", "diagram") or node.id in map_window_ids:
             continue
         zoom_end = 1.04 + 0.04 * (0.5 + 0.5 * deterministic_unit(node.id, 10))
         pan_x = 0.05 * deterministic_unit(node.id, 11)

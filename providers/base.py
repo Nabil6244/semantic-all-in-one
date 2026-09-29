@@ -31,6 +31,7 @@ class AssetSource(str, enum.Enum):
     COMMONS_IMAGE = "commons_image"
     MANUAL = "manual"  # user-supplied local file for a failed scene
     RESEARCH = "research"  # property-scoped media from the standalone research engine
+    MAP = "map"  # rendered satellite-map clip (map_scene); prompt = "Parent > Focus > Inner | options"
 
 
 _STOCK_SOURCES = (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
@@ -76,7 +77,9 @@ class SceneRow:
     - New:    scene_number, script_segment, asset_type, prompt
               asset_type in {image, video, flow_image, flow_video, stock_image,
               stock_video, youtube_video, archive_video, nasa_video, commons_video,
-              commons_image, stock, local, local_video, local_image}.
+              commons_image, map, stock, local, local_video, local_image}.
+              `map` renders an animated satellite map; its prompt is the
+              place, big to small: "Florida > Florida Panhandle | camera: zoom_out".
               `flow_video`/`flow_image` are aliases for `video`/`image`.
               `local_video`/`local_image` resolve numbered files from a Local
               Assets folder (prompt ignored). Existing `local` is unchanged.
@@ -201,6 +204,10 @@ class SceneRow:
         return self.asset_type == "commons_image" and bool(self.prompt or self.stock)
 
     @property
+    def wants_map(self) -> bool:
+        return self.asset_type == "map" and bool(self.prompt)
+
+    @property
     def wants_research(self) -> bool:
         """Property Video workflow only (research/property_visual_plan.py) —
         an explicit asset_type=research scene. No prompt required: research
@@ -258,8 +265,22 @@ class SceneRow:
             "local_video": "local_video",
             "local_image": "local_image",
             "research": "research",
+            "map": "map",
         }
         asset_type = asset_map.get(key, key)
+        if asset_type == "map":
+            # The place to show. Change Source to Map supplies it (the app asks);
+            # otherwise the row's own text is the best guess, and an unknown
+            # place fails with a clear Needs-action message.
+            map_prompt = (self.prompt if self.asset_type == "map" else (self.prompt or self.stock)) or ""
+            return SceneRow(
+                scene_number=self.scene_number,
+                script_segment=self.script_segment,
+                asset_type="map",
+                prompt=map_prompt.strip(),
+                visual_description=self.visual_description,
+                fallbacks=list(self.fallbacks or []),
+            )
         query = (self.stock or self.prompt or "").strip()
         description = (self.visual_description or self.prompt or "").strip()
         if asset_type == "youtube_video":

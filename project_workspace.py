@@ -346,6 +346,10 @@ class ProjectWorkspace:
                 "visual_transitions_intensity",
                 "scene_ambience_intensity",
                 "mode",
+                "ken_burns",
+                "ken_burns_intensity",
+                "graphics",
+                "map_niche",
             )
             if k in settings
         }

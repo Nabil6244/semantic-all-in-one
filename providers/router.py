@@ -40,6 +40,8 @@ class SceneAssetRouter:
             return AssetSource.STOCK_VIDEO
         if scene.wants_commons_image:
             return AssetSource.STOCK_IMAGE
+        if scene.wants_map:
+            return AssetSource.MAP
         if scene.wants_research:
             return AssetSource.RESEARCH
         if scene.wants_local_numbered:

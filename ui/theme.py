@@ -373,6 +373,19 @@ def _recolor_one(widget, maps: dict) -> None:
                 widget.configure(**{opt: mapping[current.upper()]})
             except Exception:
                 pass
+    if is_ctk:
+        # A CTk widget's own tk background (set once from its master at
+        # construction) is what shows through a "transparent" frame, and
+        # CTk's configure(bg_color=...) never updates it — so transparent
+        # panels stayed dark after switching to light mode.
+        try:
+            import tkinter
+
+            current = tkinter.Misc.cget(widget, "background")
+            if isinstance(current, str) and current.upper() in maps["fill"]:
+                tkinter.Misc.configure(widget, background=maps["fill"][current.upper()])
+        except Exception:
+            pass
     if widget.winfo_class() == "Canvas" and not is_ctk:
         try:
             items = widget.find_all()
@@ -469,14 +482,11 @@ NAV_ITEMS = (
     ("script", "Script", "workspace"),
     ("visual_director", "Visual Director", "workspace"),
     ("visual_plan", "Visuals", "workspace"),
-    ("timeline", "Timeline", "workspace"),
-    ("audio", "Audio", "workspace"),
-    ("editor", "Editor", "workspace"),
+    ("audio", "Audio & Effects", "workspace"),
     ("graphics", "Graphics", "workspace"),
     ("render", "Export", "workspace"),
     ("brand_style", "Brand & Style", "advanced"),
     ("research", "Research", "advanced"),
-    ("assets", "Assets", "advanced"),
     ("music", "Music", "advanced"),
     ("editorial", "Editorial Stats", "advanced"),
     ("qa", "QA", "advanced"),

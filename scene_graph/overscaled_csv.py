@@ -51,6 +51,7 @@ from typing import Dict, List, Mapping, Optional, Sequence
 
 from .generator import MIN_ROW_DURATION_S, WORDS_PER_SECOND
 from .generator import SceneGraphGenerationResult
+from .map_nodes import prepare_map_nodes
 from .schema import (
     CameraKeyframe,
     CaptionSpec,
@@ -269,6 +270,7 @@ def compile_overscaled_csv(
         beats=beats,
         title_cues=title_cues,
     )
+    prepare_map_nodes(scene_graph)  # full-screen map scenes (see scene_graph.map_nodes)
     validation_errors = scene_graph.validate()
     if validation_errors:
         return SceneGraphGenerationResult(

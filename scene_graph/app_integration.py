@@ -84,6 +84,7 @@ def generate_overscaled_video(
     pexels_api_key: Optional[str] = None,
     flow_engine_manager=None,
     flow_settings: Optional[dict] = None,
+    flow_video_account_ids: Optional[List[str]] = None,
     whisper_words: Optional[List[WhisperWord]] = None,
     progress_cb: Optional[ProgressCallback] = None,
     log: Callable[[str], None] = print,
@@ -221,7 +222,7 @@ def generate_overscaled_video(
         resolved_media: Dict[str, str] = resolve_scene_graph_media(
             compiled.scene_graph, images_dir=images_dir,
             pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
-            flow_settings=flow_settings, log=log,
+            flow_settings=flow_settings, flow_video_account_ids=flow_video_account_ids, log=log,
             on_scene_start=on_scene_start, on_scene_complete=on_scene_complete,
             on_scene_generating=on_scene_generating, on_manager_ready=on_manager_ready,
         )

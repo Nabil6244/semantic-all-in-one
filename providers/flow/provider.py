@@ -125,6 +125,11 @@ class FlowProvider(AssetProvider):
     ) -> Dict[str, AssetResult]:
         if not scenes:
             return {}
+        if self.account_ids is not None and not self.account_ids:
+            # [] means every account was explicitly unchecked. The engine
+            # treats an empty list as "use all accounts", so stop here.
+            error = "No Flow accounts are checked in the Video Profile — check at least one in Settings."
+            return {s.scene_number: self._fail(s, error) for s in scenes}
         try:
             client = self.engine_manager.ensure_running()
         except FlowEngineError as exc:

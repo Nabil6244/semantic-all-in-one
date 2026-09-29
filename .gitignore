@@ -6,6 +6,7 @@ venv/
 
 # Flow engine sidecar (Node deps + downloaded Chromium — installed locally, not committed)
 flow-engine/node_modules/
+map-engine/node_modules/
 
 # YouTube browser acquisition (playwright-core — installed locally / in CI)
 providers/youtube/acquisition/node_modules/

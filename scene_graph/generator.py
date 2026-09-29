@@ -65,6 +65,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from providers.base import SceneRow
 from visual_director.llm import LLMError, LLMProvider
 
+from .map_nodes import prepare_map_nodes
 from .schema import (
     CameraKeyframe,
     CaptionSpec,
@@ -93,6 +94,7 @@ _VIDEO_LOOP_NODE_TYPES = frozenset(
         "commons_video",
         "local_video",
         "stock",
+        "map",
     }
 )
 
@@ -106,8 +108,18 @@ _ARCHIVAL_ASSET_TYPES = frozenset(
     {"youtube_video", "archive_video", "nasa_video", "commons_video", "commons_image"}
 )
 
-WORDS_PER_SECOND = 2.5  # ~150 wpm narration pace; a placeholder ordering signal
+WORDS_PER_SECOND = 2.5
+_MAP_MIN_GAP_S = 30.0  # planner-chosen map scenes: at most about one per 30 s of narration  # ~150 wpm narration pace; a placeholder ordering signal
 MIN_ROW_DURATION_S = 1.5
+
+
+def _detect_map_place(text: str):
+    try:
+        from map_scene.detect import detect_map_place
+
+        return detect_map_place(text)
+    except Exception:
+        return None  # a planner must never fail over an optional map
 
 
 def _node_type_for_asset_type(asset_type: str) -> str:
@@ -1235,14 +1247,26 @@ def _chapter_title(text: str) -> str:
         return _title_case(by_gerund.group(1).strip(" ,.;:").split())
     body = _LEADING_CONNECTOR_RE.sub("", sentence)
     words: List[str] = []
-    for raw in body.split():
+    raws = body.split()
+    for i, raw in enumerate(raws):
         word = raw.strip(",.;:!?\"'()")
         if not word:
             continue
         if words and (word.lower() in _TITLE_STOP_WORDS or (len(words) >= 2 and word.lower().endswith("ed"))):
             break
         words.append(word)
-        if raw.endswith((",", ";", ":")) or len(words) >= 6:
+        if raw.endswith((",", ";", ":")):
+            break
+        if len(words) >= 6:
+            # Never cut a name in half ("...in the Florida" + "Panhandle"):
+            # finish a capitalized name the cap landed inside (a few words).
+            for extra in raws[i + 1:i + 4]:
+                if not word[:1].isupper() or not extra[:1].isupper():
+                    break
+                word = extra.strip(",.;:!?\"'()")
+                words.append(word)
+                if extra.endswith((",", ";", ":", ".")):
+                    break
             break
     if len(words) >= 2:
         return _title_case(words)
@@ -1529,6 +1553,8 @@ def generate_scene_graph_local_planner(
 
     cursor = 0.0
     prev_node_id: Optional[str] = None
+    last_map_at: Optional[float] = None
+    prev_was_map = False
 
     for index, row in enumerate(rows):
         script_segment = (row.script_segment or "").strip()
@@ -1573,6 +1599,17 @@ def generate_scene_graph_local_planner(
         # single author-supplied prompt/visual_hint overriding the whole
         # row (a visual_hint expresses ONE specific intended shot for this
         # row, so splitting it into several would contradict the author).
+        # A line that places the story somewhere real ("...in the Florida
+        # Panhandle") gets ONE full-screen map, like the reference style —
+        # at most one per ~30 s and never two in a row, never over an author's
+        # own asset choice, inside a list, or on a continuation line.
+        map_pick = None
+        if (
+            group_info is None and not has_explicit_asset and not visual_hint and not is_continuation
+            and not prev_was_map and (last_map_at is None or start - last_map_at >= _MAP_MIN_GAP_S)
+        ):
+            map_pick = _detect_map_place(script_segment)
+
         compound_parts: Optional[List[str]] = None
         if (
             group_info is None
@@ -1580,6 +1617,7 @@ def generate_scene_graph_local_planner(
             and not is_continuation
             and not supplied_prompt
             and not visual_hint
+            and map_pick is None  # the map is this line's one visual
             and word_count >= _MIN_COMPOUND_ROW_WORDS
         ):
             compound_parts = _split_compound_visual_ideas(script_segment)
@@ -1623,6 +1661,7 @@ def generate_scene_graph_local_planner(
                     )
                 prev_sub_id = sub_id
             prev_node_id = prev_sub_id
+            prev_was_map = False
         else:
             node = _build_scene_node(
                 node_id=node_id, index=index, total=total, text=script_segment,
@@ -1639,6 +1678,14 @@ def generate_scene_graph_local_planner(
                     else _CAPTION_MAX_WORDS
                 ),
             )
+            if map_pick is not None:
+                node.asset_source = "map"
+                node.asset_reference = map_pick.prompt
+                node.type = "video_loop"
+                node.caption = None  # the map labels the place itself
+                node.label = ""
+                last_map_at = start
+            prev_was_map = map_pick is not None
             nodes.append(node)
             created_node_ids.append(node_id)
             actions.append(
@@ -1774,6 +1821,7 @@ def generate_scene_graph_local_planner(
         beats=beats,
         title_cues=title_cues,
     )
+    prepare_map_nodes(scene_graph)  # full-screen map scenes (see scene_graph.map_nodes)
     errors = scene_graph.validate()
     return SceneGraphGenerationResult(
         ok=not errors, scene_graph=scene_graph, errors=errors, source="local_planner"

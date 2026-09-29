@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import functools
 import re
 import shutil
 import subprocess
@@ -48,7 +49,9 @@ SFX_CATEGORIES = (
 )
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    "text_effects": True,
+    "text_effects": True,  # "Smart Text Styles" (Statement / Question / Quote)
+    "graphics": True,  # lower thirds, statistic cards, titles
+    "map_niche": True,  # countdown fact tag, hook, yellow keyword callouts
     "sound_effects": True,
     "visual_transitions": True,
     "scene_ambience": True,
@@ -124,7 +127,9 @@ def _normalize_intensity(value: Any, fallback: str = "medium") -> str:
 
 @dataclass
 class SmartEditingSettings:
-    text_effects: bool = True
+    text_effects: bool = True  # "Smart Text Styles"
+    graphics: bool = True
+    map_niche: bool = True
     sound_effects: bool = True
     visual_transitions: bool = True
     scene_ambience: bool = True
@@ -145,8 +150,13 @@ class SmartEditingSettings:
         mode = str(raw.get("mode") or "smart").lower()
         if mode not in MODES:
             mode = "smart"
+        text_effects = bool(raw.get("text_effects", True))
         return cls(
-            text_effects=bool(raw.get("text_effects", True)),
+            text_effects=text_effects,
+            # Settings saved before the split had one switch for all text:
+            # both new switches start where it was.
+            graphics=bool(raw.get("graphics", text_effects)),
+            map_niche=bool(raw.get("map_niche", text_effects)),
             sound_effects=bool(raw.get("sound_effects", True)),
             visual_transitions=bool(raw.get("visual_transitions", True)),
             scene_ambience=bool(raw.get("scene_ambience", True)),
@@ -172,6 +182,8 @@ class SmartEditingSettings:
     def enabled(self) -> bool:
         return (
             self.text_effects
+            or self.graphics
+            or self.map_niche
             or self.sound_effects
             or self.visual_transitions
             or self.scene_ambience
@@ -204,6 +216,8 @@ class SmartEditingSettings:
     def to_settings_dict(self) -> Dict[str, Any]:
         return {
             "text_effects": self.text_effects,
+            "graphics": self.graphics,
+            "map_niche": self.map_niche,
             "sound_effects": self.sound_effects,
             "visual_transitions": self.visual_transitions,
             "scene_ambience": self.scene_ambience,
@@ -1006,6 +1020,233 @@ def _merge_transition_picks(
     return out
 
 
+ZOOM_BLUR_WHOOSH_WINDOW_S = 0.35
+ZOOM_BLUR_WHOOSH_MAX_S = 1.2
+ZOOM_BLUR_WHOOSH_VOLUME_CAP = 0.75  # the mixer's cap for these (other SFX stay capped at 0.40)
+
+
+def _zoom_blur_volume(settings: "SmartEditingSettings") -> float:
+    return round(min(ZOOM_BLUR_WHOOSH_VOLUME_CAP, _sfx_base_volume(settings) * 2.4), 3)
+
+
+def _event_path(ev: dict) -> Optional[Path]:
+    ref = str(ev.get("file") or "")
+    if not ref:
+        return None
+    path = Path(ref)
+    return path if path.is_absolute() else sfx_library_root() / ref
+
+
+def _peak_at(ev: dict) -> float:
+    """Global time of an event's loudest moment."""
+    path = _event_path(ev)
+    peak = _peak_seconds(str(path), path.stat().st_mtime) if path is not None and path.is_file() else 0.12
+    return float(ev.get("start") or 0.0) + peak
+
+
+def _is_whoosh(ev: dict) -> bool:
+    ref = str(ev.get("category") or "") + " " + str(ev.get("file") or "")
+    return "whoosh" in ref or "transition" in ref
+
+
+_LOUD_WHOOSH_MIN_DB = -24.0  # mean loudness; quieter sweeps vanish under narration
+
+
+@functools.lru_cache(maxsize=64)
+def _mean_db(path: str, _mtime: float) -> Optional[float]:
+    try:
+        from providers import hidden_subprocess as hs
+
+        out = hs.run(["ffmpeg", "-hide_banner", "-i", path, "-af", "volumedetect", "-f", "null", "-"],
+                     capture_output=True, text=True, timeout=30)
+        m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", out.stderr or "")
+        return float(m.group(1)) if m else None
+    except Exception:
+        return None
+
+
+# Every zoom-blur whoosh hits the cut at the same level: a sound whose 50 ms
+# peak is stronger than this is turned down to it (the library's quick
+# whoosh_05 sits right at it and plays at full zoom-blur volume).
+_WHOOSH_PEAK_TARGET_DB = -10.0
+
+
+def _peak_seconds(path: str, mtime: float) -> float:
+    return _peak_profile(path, mtime)[0]
+
+
+def _level_gain(path: Optional[Path]) -> float:
+    """Turn a sound with a stronger peak down to the common target (never up)."""
+    if path is None or not path.is_file():
+        return 1.0
+    peak_db = _peak_profile(str(path), path.stat().st_mtime)[1]
+    if peak_db is None:
+        return 1.0
+    return min(1.0, 10 ** ((_WHOOSH_PEAK_TARGET_DB - peak_db) / 20.0))
+
+
+@functools.lru_cache(maxsize=64)
+def _peak_profile(path: str, _mtime: float) -> Tuple[float, Optional[float]]:
+    """(when the sound is loudest in 50 ms windows, that window's level in dB)
+    — a riser peaks late, a quick whoosh at once. (0, None) if unknown."""
+    try:
+        import numpy as np
+
+        from providers import hidden_subprocess as hs
+
+        raw = hs.run(["ffmpeg", "-v", "error", "-i", path, "-f", "s16le", "-ac", "1", "-ar", "8000", "-"],
+                     capture_output=True, timeout=30).stdout
+        a = np.frombuffer(raw, dtype=np.int16).astype(float)
+        if a.size < 400:
+            return 0.0, None
+        win = 400  # 50 ms at 8 kHz
+        energy = np.convolve(a * a, np.ones(win), mode="valid")
+        i = int(np.argmax(energy))
+        rms = (float(energy[i]) / win) ** 0.5
+        db = 20.0 * np.log10(max(rms, 1e-6) / 32768.0)
+        return round(float(i + win / 2) / 8000.0, 3), round(float(db), 2)
+    except Exception:
+        return 0.0, None
+
+
+def _whoosh_timing(path: Optional[Path], cut: float, file_duration: float) -> Tuple[float, float]:
+    """(start, duration) so the sound's loudest moment lands on the cut and it
+    ends shortly after, whatever the file's shape."""
+    peak = 0.0
+    if path is not None and path.is_file():
+        peak = _peak_seconds(str(path), path.stat().st_mtime)
+    peak = min(peak, 2.5)
+    start = max(0.0, float(cut) - peak - 0.02)
+    duration = min(float(file_duration or ZOOM_BLUR_WHOOSH_MAX_S), peak + 0.45)
+    return round(start, 3), round(max(0.25, duration), 3)
+
+
+def _loud_fast_whoosh(cat: "SfxCatalog", *, avoid: Sequence[str]) -> Optional["SfxEntry"]:
+    """A fast/sweep whoosh or transition that is actually loud (measured once
+    per file), alternating away from ``avoid``."""
+    candidates = []
+    for entry in cat.entries:
+        if entry.category not in ("whoosh", "transition") or not ({"fast", "sweep"} & set(entry.tags)):
+            continue
+        path = entry.resolved_path(cat.root)
+        if not path.is_file():
+            continue
+        db = _mean_db(str(path), path.stat().st_mtime)
+        if db is not None and db >= _LOUD_WHOOSH_MIN_DB:
+            candidates.append(entry)
+    candidates.sort(key=lambda e: (e.id in set(avoid), e.duration))
+    return candidates[0] if candidates else None
+
+
+def apply_zoom_blur_whooshes(
+    sfx_events: Sequence[dict],
+    cut_times: Sequence[Tuple[str, float]],
+    settings: "SmartEditingSettings",
+    *,
+    catalog: Optional["SfxCatalog"] = None,
+) -> Tuple[List[dict], int, int]:
+    """Make every zoom-blur cut ((scene_number, cut time in the video)) have a
+    clearly audible fast whoosh: a whoosh already within ±0.35 s is raised to
+    the zoom-blur level (never doubled); otherwise one is added. Returns
+    (events, added, raised). Other sound effects are untouched."""
+    events = [dict(e) for e in sfx_events]
+    volume = _zoom_blur_volume(settings)
+    added = raised = 0
+    recent = [str(e.get("sfx_id") or e.get("file") or "") for e in events if _is_whoosh(e)][-1:]
+    for sn, cut in cut_times:
+        near = [e for e in events if _is_whoosh(e) and abs(_peak_at(e) - float(cut)) <= 1.6]
+        near = [e for e in near if abs(_peak_at(e) - float(cut)) <= ZOOM_BLUR_WHOOSH_WINDOW_S
+                or abs(float(e.get("start") or 0.0) - (float(cut) - 0.12)) <= ZOOM_BLUR_WHOOSH_WINDOW_S]
+        if near:
+            e = near[0]
+            path = _event_path(e)
+            file_len = _probe_duration(path) if path is not None and path.is_file() else None
+            w_start, w_dur = _whoosh_timing(path, cut, float(file_len or 1.0))
+            level = round(volume * _level_gain(path), 3)
+            changed = (not e.get("zoom_blur") or abs(float(e.get("volume") or 0.0) - level) > 0.01
+                       or abs(float(e.get("start") or 0.0) - w_start) > 0.05)
+            if changed:
+                e.update(volume=level, zoom_blur=True, start=w_start,
+                         duration=w_dur, end=round(w_start + w_dur, 3))
+                raised += 1
+            continue
+        new = zoom_blur_whoosh_events([(sn, cut)], [], settings, catalog=catalog, avoid_ids=recent)
+        if new:
+            events.append(new[0])
+            recent = [str(new[0].get("sfx_id") or "")]
+            added += 1
+    return events, added, raised
+
+
+def zoom_blur_whoosh_events(
+    cut_times: Sequence[Tuple[str, float]],
+    existing: Sequence[dict],
+    settings: "SmartEditingSettings",
+    *,
+    catalog: Optional["SfxCatalog"] = None,
+    avoid_ids: Optional[List[str]] = None,
+) -> List[dict]:
+    """A fast whoosh for each zoom-blur cut ((scene_number, cut time in the
+    video)) with no whoosh within ±0.35 s yet — so one is never doubled.
+    Punchier and clearly louder than a soft scene transition (the zoom-blur
+    is a big moment), alternating between the library's fast whooshes."""
+    if not cut_times:
+        return []
+    cat = catalog if catalog is not None else get_sfx_catalog()
+    intensity = settings.sfx_intensity()
+    chain = [
+        SfxRequest("zoom_blur_transition", "whoosh", ("fast", "sweep"), intensity, ZOOM_BLUR_WHOOSH_MAX_S),
+        # A longer fast sweep is fine: it's trimmed to ZOOM_BLUR_WHOOSH_MAX_S with a fade.
+        SfxRequest("zoom_blur_transition", "transition", ("fast", "movement"), intensity, None),
+        SfxRequest("zoom_blur_transition", "whoosh", ("sweep",), intensity, ZOOM_BLUR_WHOOSH_MAX_S),
+        SfxRequest("zoom_blur_transition", "whoosh", (), intensity, ZOOM_BLUR_WHOOSH_MAX_S),
+    ]
+    volume = _zoom_blur_volume(settings)
+    taken = [_peak_at(e) for e in existing if _is_whoosh(e)]
+    out: List[dict] = []
+    recent: List[str] = list(avoid_ids or [])
+    for sn, cut in cut_times:
+        if any(abs(t - float(cut)) <= ZOOM_BLUR_WHOOSH_WINDOW_S for t in taken):
+            continue
+        entry = _loud_fast_whoosh(cat, avoid=recent)
+        request = chain[0]
+        if entry is None:
+            hit = cat.match_any(chain, avoid_ids=recent) or cat.match_any(chain, avoid_ids=[])
+            if hit is None:
+                continue
+            entry, request = hit
+        taken.append(float(cut))
+        w_start, w_dur = _whoosh_timing(entry.resolved_path(cat.root), cut, entry.duration)
+        level = round(volume * _level_gain(entry.resolved_path(cat.root)), 3)
+        event = _entry_to_event(entry, request, start=w_start, volume=level, scene_number=str(sn))
+        event["duration"] = w_dur
+        event["zoom_blur"] = True
+        out.append(event)
+        recent = [entry.id]
+    return out
+
+
+def _with_zoom_blur_whooshes(picks: List[dict], editorial_plan: Any) -> List[dict]:
+    """Every zoom-blur cut (editorial.zoom_blur) is a transition with a whoosh,
+    whatever the budget/AI merge picked."""
+    try:
+        from editorial.zoom_blur import ZOOM_BLUR, zoom_blur_scene_numbers
+
+        zb = zoom_blur_scene_numbers(editorial_plan) if editorial_plan is not None else []
+    except Exception:
+        return picks
+    if not zb:
+        return picks
+    by_sn = {str(p.get("scene_number")): p for p in picks}
+    for sn in zb:
+        entry = by_sn.get(sn)
+        if entry is None:
+            picks.append({"scene_number": sn, "style": ZOOM_BLUR, "sfx": True, "source": "zoom_blur"})
+        else:
+            entry["style"], entry["sfx"] = ZOOM_BLUR, True
+    return picks
+
+
 def plan_scene_transitions(
     rows: Sequence[dict],
     aligned_rows: Sequence[dict],
@@ -1015,6 +1256,21 @@ def plan_scene_transitions(
     editorial_plan: Any = None,
 ) -> List[dict]:
     """Choose sparse scene boundaries for visual + SFX transitions (AI preferred)."""
+    return _with_zoom_blur_whooshes(
+        _plan_scene_transitions(rows, aligned_rows, settings, gemini_settings=gemini_settings,
+                                editorial_plan=editorial_plan),
+        editorial_plan,
+    ) if (settings.sound_effects or settings.visual_transitions) else []
+
+
+def _plan_scene_transitions(
+    rows: Sequence[dict],
+    aligned_rows: Sequence[dict],
+    settings: SmartEditingSettings,
+    *,
+    gemini_settings: Optional[Mapping[str, Any]] = None,
+    editorial_plan: Any = None,
+) -> List[dict]:
     if not (settings.sound_effects or settings.visual_transitions):
         return []
     if len(aligned_rows) < 2:
@@ -1574,6 +1830,12 @@ def plan_sfx_events(
         for item in (scene_transitions or [])
         if item.get("sfx", True) is not False and item.get("scene_number")
     }
+    zb_recent: List[str] = []
+    zoom_blur_scenes = {
+        str(item.get("scene_number") or "")
+        for item in (scene_transitions or [])
+        if str(item.get("style") or "") == "zoom_blur"
+    }
     for i, row in enumerate(aligned_rows):
         if i == 0:
             continue
@@ -1584,6 +1846,13 @@ def plan_sfx_events(
         duration = float(row["end_time"]) - start
         if duration < 0.8:
             continue
+        if sn in zoom_blur_scenes:
+            # The zoom-blur cut's own punchier whoosh (see zoom_blur_whoosh_events).
+            zb = zoom_blur_whoosh_events([(sn, start)], [], settings, catalog=cat, avoid_ids=zb_recent)
+            if zb:
+                events.append(zb[0])
+                zb_recent = [zb[0]["sfx_id"]]
+                continue
         hit = cat.match_any(
             _transition_sfx_fallback_chain(settings, i - 1),
             avoid_ids=recent_ids,
@@ -1693,6 +1962,16 @@ def build_plan(
 
     audio_key = _audio_fingerprint(audio_path) if audio_path else ""
     settings_key = cache_settings_key(settings)
+    try:
+        from editorial.zoom_blur import zoom_blur_scene_numbers
+
+        zb = zoom_blur_scene_numbers(editorial_plan) if editorial_plan is not None else []
+    except Exception:
+        zb = []
+    if zb:
+        # A zoom-blur cut always gets its whoosh: a cached plan made before
+        # these cuts existed must not be reused.
+        settings_key = f"{settings_key}|zoom_blur:{','.join(zb)}"
     cached: dict = {}
     if state_dir is not None:
         cached = load_cache(state_dir)
@@ -2240,12 +2519,15 @@ def _ffmpeg_mix_layers(
                 f"afade=t=in:st=0:d={fade:.3f},afade=t=out:st={fade_out_st:.3f}:d={fade:.3f}[{label}]"
             )
         else:
-            vol = min(0.40, float(ev.get("volume") or 0.24))
+            zoom = bool(ev.get("zoom_blur"))
+            vol = min(ZOOM_BLUR_WHOOSH_VOLUME_CAP if zoom else 0.40, float(ev.get("volume") or 0.24))
             dur = float(ev.get("duration") or 0.4)
             label = f"x{input_idx}"
+            # A zoom-blur whoosh may be a trimmed longer sweep: fade its tail.
+            tail = (f"afade=t=out:st={max(0.0, dur - 0.25):.3f}:d=0.25," if zoom and dur > 0.5 else "")
             filter_parts.append(
                 f"[{input_idx}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
-                f"volume={vol:.4f},adelay={delay_ms}|{delay_ms}[{label}]"
+                f"volume={vol:.4f},{tail}adelay={delay_ms}|{delay_ms}[{label}]"
             )
         mix_inputs.append(f"[{label}]")
         input_idx += 1
