@@ -299,21 +299,6 @@
       "attribution_required": false
     },
     {
-      "id": "transition_02",
-      "file": "transition/transition_02.wav",
-      "category": "transition",
-      "tags": [
-        "fast",
-        "movement"
-      ],
-      "intensity": "medium",
-      "duration": 0.48,
-      "source": "Sonniss GDC",
-      "license": "Sonniss #GameAudioGDC Bundle License",
-      "commercial_use": true,
-      "attribution_required": false
-    },
-    {
       "id": "transition_03",
       "file": "transition/transition_03.wav",
       "category": "transition",

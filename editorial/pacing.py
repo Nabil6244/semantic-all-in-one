@@ -124,6 +124,45 @@ def finalize_transitions(plan: EditorialPlan) -> EditorialPlan:
     return plan
 
 
+# Visual Transitions intensity -> (largest share of scene changes that get a
+# transition, minimum seconds between two transitions).
+TRANSITION_SETTINGS = {"low": (0.18, 12.0), "medium": (0.32, 6.0), "high": (0.48, 3.0)}
+
+
+def apply_transition_settings(plan: EditorialPlan, *, enabled: bool, intensity: str) -> Dict[str, str]:
+    """The operator's Visual Transitions switch and Low/Medium/High have the
+    final say over every transition in the plan — zoom-blur cuts included.
+
+    Runs the normal pacing pass first, then: switched off -> every scene is a
+    plain cut; otherwise at most the intensity's share of scene changes keep a
+    transition, spaced at least its minimum gap apart (zoom-blur cuts first,
+    then the strongest moments). Returns the render's transition map. Callers
+    must use this map rather than authoritative_transition_map() afterwards,
+    which would refill the budget."""
+    finalize_transitions(plan)
+    scenes = plan.scenes
+    if not enabled:
+        for scene in scenes:
+            scene.transition_in = "cut"
+        return {}
+    frac, gap = TRANSITION_SETTINGS.get(str(intensity or "medium").lower(), TRANSITION_SETTINGS["medium"])
+    budget = max(1, int(round(max(0, len(scenes) - 1) * frac)))
+    candidates = [s for s in scenes[1:] if s.transition_in and s.transition_in != "cut"]
+    candidates.sort(key=lambda s: (s.transition_in != "zoom_blur", -float(s.attention_score or 0.0), float(s.start)))
+    kept: List[EditorialScene] = []
+    for scene in candidates:
+        if len(kept) >= budget:
+            break
+        if any(abs(float(scene.start) - float(k.start)) < gap for k in kept):
+            continue
+        kept.append(scene)
+    keep_ids = {id(s) for s in kept}
+    for scene in scenes[1:]:
+        if scene.transition_in and scene.transition_in != "cut" and id(scene) not in keep_ids:
+            scene.transition_in = "cut"
+    return plan.transition_style_map()
+
+
 def authoritative_transition_map(plan: EditorialPlan) -> Dict[str, str]:
     """Single map for render_video — only non-cut styles."""
     finalize_transitions(plan)

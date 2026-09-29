@@ -10279,7 +10279,17 @@ class VideoGeneratorApp(ctk.CTk):
                 self._pipeline_prev_theme = None
 
             # Pacing Director: single authoritative transition + camera energy map
-            transition_map = authoritative_transition_map(editorial_plan)
+            # The Visual Transitions switch + intensity decide how many survive
+            # (zoom-blur cuts included); the SFX plan below follows this plan.
+            from editorial.pacing import apply_transition_settings
+
+            transition_map = apply_transition_settings(
+                editorial_plan, enabled=bool(smart_cfg.visual_transitions),
+                intensity=smart_cfg.transitions_intensity(),
+            )
+            print(f"[EDITORIAL] Visual Transitions "
+                  f"{smart_cfg.transitions_intensity() if smart_cfg.visual_transitions else 'OFF'}: "
+                  f"{len(transition_map)} transition(s) kept.")
             camera_map = editorial_plan.camera_style_map()
             if transition_map:
                 print(
@@ -10402,6 +10412,18 @@ class VideoGeneratorApp(ctk.CTk):
                             print(f"[SMART] Zoom-blur whooshes: {zb_added} added, {zb_raised} raised to full level.")
                     except Exception as exc:
                         print(f"[SMART] Zoom-blur whooshes skipped ({exc})")
+                if smart_cfg.sound_effects and sfx_for_mix:
+                    try:
+                        from smart_editing import limit_sfx_density
+
+                        before = len(sfx_for_mix)
+                        sfx_for_mix, dropped = limit_sfx_density(
+                            sfx_for_mix, float(audio_end), smart_cfg.sfx_intensity())
+                        if dropped:
+                            print(f"[SMART] Sound density ({smart_cfg.sfx_intensity()}): kept "
+                                  f"{len(sfx_for_mix)} of {before} sound effects.")
+                    except Exception as exc:
+                        print(f"[SMART] Sound density limit skipped ({exc})")
 
                 needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:

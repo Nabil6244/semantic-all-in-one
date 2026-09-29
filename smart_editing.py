@@ -34,7 +34,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 13
+SMART_EDITING_VERSION = 14  # 14: transitions follow Visual Transitions Low/Medium/High
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -392,6 +392,10 @@ class SfxRequest:
     max_duration: Optional[float] = None
 
 
+# Sounds never used, whatever library is installed (rejected by ear).
+EXCLUDED_SFX_IDS = frozenset({"transition_02"})
+
+
 class SfxCatalog:
     def __init__(self, root: Path, entries: Sequence[SfxEntry]):
         self.root = Path(root)
@@ -416,7 +420,7 @@ class SfxCatalog:
         entries: List[SfxEntry] = []
         for raw in items:
             entry = SfxEntry.from_dict(raw)
-            if entry is not None:
+            if entry is not None and entry.id not in EXCLUDED_SFX_IDS:
                 entries.append(entry)
         return cls(lib_root, entries)
 
@@ -1168,7 +1172,11 @@ def apply_zoom_blur_whooshes(
     clearly audible fast whoosh: a whoosh already within ±0.35 s is raised to
     the zoom-blur level (never doubled); otherwise one is added. Returns
     (events, added, raised). Other sound effects are untouched."""
-    events = [dict(e) for e in sfx_events]
+    # A whoosh saved for a zoom-blur cut that no longer exists (the operator
+    # lowered Visual Transitions, or turned them off) must not play.
+    cut_list = [float(c) for _sn, c in cut_times]
+    events = [dict(e) for e in sfx_events
+              if not e.get("zoom_blur") or any(abs(_peak_at(e) - c) <= 1.6 for c in cut_list)]
     volume = _zoom_blur_volume(settings)
     added = raised = 0
     recent = [str(e.get("sfx_id") or e.get("file") or "") for e in events if _is_whoosh(e)][-1:]
@@ -1195,6 +1203,49 @@ def apply_zoom_blur_whooshes(
             recent = [str(new[0].get("sfx_id") or "")]
             added += 1
     return events, added, raised
+
+
+# Final sound-effect density per Sound Effects intensity: (minimum gap between
+# two sounds in seconds, maximum sounds per minute). Applied to the complete
+# list at mix time — planned SFX *and* the zoom-blur whooshes added there —
+# so "Low" really is sparse (a 1:38 video on Low had 30 sounds before).
+SFX_DENSITY = {"low": (6.0, 6), "medium": (3.5, 12), "high": (2.0, 20)}
+
+
+def _sfx_priority(ev: dict) -> int:
+    if ev.get("zoom_blur"):
+        return 3
+    ref = f"{ev.get('category') or ''} {ev.get('file') or ''}".lower()
+    if "whoosh" in ref or "transition" in ref:
+        return 2
+    if "impact" in ref or "riser" in ref or "cinematic" in ref:
+        return 1
+    return 0
+
+
+def limit_sfx_density(events: Sequence[dict], duration_s: float, intensity: str) -> Tuple[List[dict], int]:
+    """Thin the final sound list to the intensity's gap and per-minute cap
+    (``duration_s`` is kept for callers; the cap is per 60 s window).
+    Zoom-blur whooshes are kept first, then transitions, then accents; within
+    a tier, earlier sounds win. Returns (kept events in time order, dropped)."""
+    events = list(events)
+    if not events:
+        return [], 0
+    gap, per_min = SFX_DENSITY.get(str(intensity or "medium").lower(), SFX_DENSITY["medium"])
+    kept: List[dict] = []
+    # The per-minute cap holds in every 60 s window (not just overall), so
+    # the sounds stay spread across the video instead of bunching up early.
+    for ev in sorted(events, key=lambda e: (-_sfx_priority(e), float(e.get("start") or 0.0))):
+        t = float(ev.get("start") or 0.0)
+        times = [float(k.get("start") or 0.0) for k in kept]
+        if any(abs(t - k) < gap for k in times):
+            continue
+        if any(sum(1 for k in times + [t] if w <= k < w + 60.0) > per_min
+               for w in [k - 60.0 + 1e-6 for k in times + [t]] + [t]):
+            continue
+        kept.append(ev)
+    kept.sort(key=lambda e: float(e.get("start") or 0.0))
+    return kept, len(events) - len(kept)
 
 
 def zoom_blur_whoosh_events(
