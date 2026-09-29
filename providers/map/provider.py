@@ -90,6 +90,8 @@ class MapProvider(AssetProvider):
             return AssetResult(sn, None, None, self.source, SceneStatus.FAILED, error=str(exc))
         except Exception as exc:  # never let one map take the whole run down
             return AssetResult(sn, None, None, self.source, SceneStatus.FAILED, error=f"Map render failed: {exc}")
+        for note in getattr(result, "notes", None) or []:
+            log(f"[MAP] Scene {sn} -> {note}")
         log(f"[MAP] Scene {sn} -> map ready ({Path(result.output).name})")
         return AssetResult(
             scene_number=sn, path=Path(result.output), media_type=MediaType.VIDEO, source=self.source,

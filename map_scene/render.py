@@ -13,11 +13,11 @@ import subprocess
 import sys
 import tempfile
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
-from .places import AiResolver, Place, find_place, sea_polygon
+from .places import AiResolver, Place, PlaceNotFound, find_place, sea_polygon
 from .spec import MapSpec, parse_map_prompt
 
 CREDIT = "Imagery: NASA Blue Marble"
@@ -37,6 +37,7 @@ class MapRenderResult:
     output: Path
     frames: int
     places: dict
+    notes: list = field(default_factory=list)  # fallbacks taken, e.g. an unknown spot left out
 
 
 def _roots() -> list[Path]:
@@ -126,10 +127,34 @@ def _ensure_browser() -> None:
         raise MapRenderError(f"No browser available to draw the map: {exc}") from exc
 
 
-def resolve_places(spec: MapSpec, ai: Optional[AiResolver] = None) -> dict:
-    parent = find_place(spec.parent, ai=ai) if spec.parent else None
-    focus = find_place(spec.focus, parent=parent, ai=ai)
-    inner = find_place(spec.inner, parent=focus, ai=ai) if spec.inner else None
+def resolve_places(spec: MapSpec, ai: Optional[AiResolver] = None, notes: Optional[list] = None) -> dict:
+    """Find each level of the prompt. A level that can't be found degrades
+    the map instead of failing it, as long as something real is left: an
+    unknown inner spot is dropped (the focus area still shows), and an
+    unknown focus falls back to its parent area. Each fallback is added to
+    ``notes``. Only when nothing at all can be found does it raise."""
+    notes = notes if notes is not None else []
+    parent = None
+    if spec.parent:
+        try:
+            parent = find_place(spec.parent, ai=ai)
+        except PlaceNotFound as exc:
+            notes.append(f"wider area left out: {exc}")
+    try:
+        focus = find_place(spec.focus, parent=parent, ai=ai)
+    except PlaceNotFound as exc:
+        if parent is None:
+            raise
+        notes.append(f"showing {parent.name} instead: {exc}")
+        focus, parent = parent, None
+        spec.label = focus.name  # a custom label named the missing place, not this wider area
+        spec.inner = None
+    inner = None
+    if spec.inner:
+        try:
+            inner = find_place(spec.inner, parent=focus, ai=ai)
+        except PlaceNotFound as exc:
+            notes.append(f"exact spot left out, showing {focus.name}: {exc}")
     return {k: v for k, v in (("parent", parent), ("focus", focus), ("inner", inner)) if v is not None}
 
 
@@ -191,7 +216,8 @@ def render_map(
     imagery: bool = True,
 ) -> MapRenderResult:
     spec = parse_map_prompt(prompt)
-    places = resolve_places(spec, ai=ai)
+    notes: list = []
+    places = resolve_places(spec, ai=ai, notes=notes)
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     font = _find("assets/fonts/Outfit-ExtraBold.ttf")
@@ -250,4 +276,5 @@ def render_map(
         raise MapRenderError(f"Map render failed: {detail}")
     os.replace(tmp_out, output)
     return MapRenderResult(output=output, frames=frames,
-                           places={role: (p.name, p.kind, p.source) for role, p in places.items()})
+                           places={role: (p.name, p.kind, p.source) for role, p in places.items()},
+                           notes=notes)

@@ -1,23 +1,706 @@
 {
-  "_comment": "Informal regions with no official border, defined as groups of official areas. Each entry: country + list of US counties (\"State|County\") or admin-1 areas (\"Country|Area\").",
-  "regions": {
-    "Florida Panhandle": {"us_counties": ["Florida|Escambia", "Florida|Santa Rosa", "Florida|Okaloosa", "Florida|Walton", "Florida|Holmes", "Florida|Washington", "Florida|Bay", "Florida|Jackson", "Florida|Calhoun", "Florida|Gulf", "Florida|Liberty", "Florida|Franklin", "Florida|Gadsden", "Florida|Leon", "Florida|Wakulla", "Florida|Jefferson"], "parent": "Florida"},
-    "Emerald Coast": {"us_counties": ["Florida|Escambia", "Florida|Santa Rosa", "Florida|Okaloosa", "Florida|Walton", "Florida|Bay"], "parent": "Florida"},
-    "Forgotten Coast": {"us_counties": ["Florida|Gulf", "Florida|Franklin", "Florida|Wakulla"], "parent": "Florida"},
-    "Big Bend": {"us_counties": ["Florida|Jefferson", "Florida|Taylor", "Florida|Dixie", "Florida|Lafayette", "Florida|Madison"], "parent": "Florida"},
-    "Florida Keys": {"us_counties": ["Florida|Monroe"], "parent": "Florida"},
-    "Mississippi Delta": {"us_counties": ["Mississippi|Bolivar", "Mississippi|Coahoma", "Mississippi|Humphreys", "Mississippi|Issaquena", "Mississippi|Leflore", "Mississippi|Quitman", "Mississippi|Sharkey", "Mississippi|Sunflower", "Mississippi|Tallahatchie", "Mississippi|Tunica", "Mississippi|Washington", "Mississippi|Carroll", "Mississippi|Holmes", "Mississippi|Panola", "Mississippi|Tate", "Mississippi|Warren", "Mississippi|Yazoo", "Mississippi|DeSoto"], "parent": "Mississippi"},
-    "Texas Panhandle": {"us_counties": ["Texas|Dallam", "Texas|Sherman", "Texas|Hansford", "Texas|Ochiltree", "Texas|Lipscomb", "Texas|Hartley", "Texas|Moore", "Texas|Hutchinson", "Texas|Roberts", "Texas|Hemphill", "Texas|Oldham", "Texas|Potter", "Texas|Carson", "Texas|Gray", "Texas|Wheeler", "Texas|Deaf Smith", "Texas|Randall", "Texas|Armstrong", "Texas|Donley", "Texas|Collingsworth", "Texas|Parmer", "Texas|Castro", "Texas|Swisher", "Texas|Briscoe", "Texas|Hall", "Texas|Childress"], "parent": "Texas"},
-    "Oklahoma Panhandle": {"us_counties": ["Oklahoma|Cimarron", "Oklahoma|Texas", "Oklahoma|Beaver"], "parent": "Oklahoma"},
-    "Upper Peninsula": {"us_counties": ["Michigan|Alger", "Michigan|Baraga", "Michigan|Chippewa", "Michigan|Delta", "Michigan|Dickinson", "Michigan|Gogebic", "Michigan|Houghton", "Michigan|Iron", "Michigan|Keweenaw", "Michigan|Luce", "Michigan|Mackinac", "Michigan|Marquette", "Michigan|Menominee", "Michigan|Ontonagon", "Michigan|Schoolcraft"], "parent": "Michigan"},
-    "Silicon Valley": {"us_counties": ["California|Santa Clara", "California|San Mateo"], "parent": "California"},
-    "San Francisco Bay Area": {"us_counties": ["California|Alameda", "California|Contra Costa", "California|Marin", "California|Napa", "California|San Francisco", "California|San Mateo", "California|Santa Clara", "California|Solano", "California|Sonoma"], "parent": "California"},
-    "Inland Empire": {"us_counties": ["California|Riverside", "California|San Bernardino"], "parent": "California"},
-    "Central Valley": {"us_counties": ["California|Butte", "California|Colusa", "California|Glenn", "California|Sacramento", "California|San Joaquin", "California|Shasta", "California|Sutter", "California|Tehama", "California|Yolo", "California|Yuba", "California|Fresno", "California|Kern", "California|Kings", "California|Madera", "California|Merced", "California|Stanislaus", "California|Tulare"], "parent": "California"},
-    "Outer Banks": {"us_counties": ["North Carolina|Dare", "North Carolina|Currituck", "North Carolina|Hyde"], "parent": "North Carolina"},
-    "Cape Cod": {"us_counties": ["Massachusetts|Barnstable"], "parent": "Massachusetts"},
-    "Long Island": {"us_counties": ["New York|Nassau", "New York|Suffolk", "New York|Queens", "New York|Kings"], "parent": "New York"},
-    "Acadiana": {"us_counties": ["Louisiana|Acadia", "Louisiana|Evangeline", "Louisiana|Iberia", "Louisiana|Lafayette", "Louisiana|St. Landry", "Louisiana|St. Martin", "Louisiana|St. Mary", "Louisiana|Vermilion"], "parent": "Louisiana"},
-    "Black Belt": {"us_counties": ["Alabama|Dallas", "Alabama|Greene", "Alabama|Hale", "Alabama|Lowndes", "Alabama|Macon", "Alabama|Marengo", "Alabama|Perry", "Alabama|Sumter", "Alabama|Wilcox", "Alabama|Bullock"], "parent": "Alabama"}
+ "_comment": "Informal regions with no official border, defined as groups of official areas. Each entry: country + list of US counties (\"State|County\") or admin-1 areas (\"Country|Area\"). Continents and multi-country regions use \"countries_iso\" (ISO3 codes; codes not in the data are skipped).",
+ "regions": {
+  "Florida Panhandle": {
+   "us_counties": [
+    "Florida|Escambia",
+    "Florida|Santa Rosa",
+    "Florida|Okaloosa",
+    "Florida|Walton",
+    "Florida|Holmes",
+    "Florida|Washington",
+    "Florida|Bay",
+    "Florida|Jackson",
+    "Florida|Calhoun",
+    "Florida|Gulf",
+    "Florida|Liberty",
+    "Florida|Franklin",
+    "Florida|Gadsden",
+    "Florida|Leon",
+    "Florida|Wakulla",
+    "Florida|Jefferson"
+   ],
+   "parent": "Florida"
+  },
+  "Emerald Coast": {
+   "us_counties": [
+    "Florida|Escambia",
+    "Florida|Santa Rosa",
+    "Florida|Okaloosa",
+    "Florida|Walton",
+    "Florida|Bay"
+   ],
+   "parent": "Florida"
+  },
+  "Forgotten Coast": {
+   "us_counties": [
+    "Florida|Gulf",
+    "Florida|Franklin",
+    "Florida|Wakulla"
+   ],
+   "parent": "Florida"
+  },
+  "Big Bend": {
+   "us_counties": [
+    "Florida|Jefferson",
+    "Florida|Taylor",
+    "Florida|Dixie",
+    "Florida|Lafayette",
+    "Florida|Madison"
+   ],
+   "parent": "Florida"
+  },
+  "Florida Keys": {
+   "us_counties": [
+    "Florida|Monroe"
+   ],
+   "parent": "Florida"
+  },
+  "Mississippi Delta": {
+   "us_counties": [
+    "Mississippi|Bolivar",
+    "Mississippi|Coahoma",
+    "Mississippi|Humphreys",
+    "Mississippi|Issaquena",
+    "Mississippi|Leflore",
+    "Mississippi|Quitman",
+    "Mississippi|Sharkey",
+    "Mississippi|Sunflower",
+    "Mississippi|Tallahatchie",
+    "Mississippi|Tunica",
+    "Mississippi|Washington",
+    "Mississippi|Carroll",
+    "Mississippi|Holmes",
+    "Mississippi|Panola",
+    "Mississippi|Tate",
+    "Mississippi|Warren",
+    "Mississippi|Yazoo",
+    "Mississippi|DeSoto"
+   ],
+   "parent": "Mississippi"
+  },
+  "Texas Panhandle": {
+   "us_counties": [
+    "Texas|Dallam",
+    "Texas|Sherman",
+    "Texas|Hansford",
+    "Texas|Ochiltree",
+    "Texas|Lipscomb",
+    "Texas|Hartley",
+    "Texas|Moore",
+    "Texas|Hutchinson",
+    "Texas|Roberts",
+    "Texas|Hemphill",
+    "Texas|Oldham",
+    "Texas|Potter",
+    "Texas|Carson",
+    "Texas|Gray",
+    "Texas|Wheeler",
+    "Texas|Deaf Smith",
+    "Texas|Randall",
+    "Texas|Armstrong",
+    "Texas|Donley",
+    "Texas|Collingsworth",
+    "Texas|Parmer",
+    "Texas|Castro",
+    "Texas|Swisher",
+    "Texas|Briscoe",
+    "Texas|Hall",
+    "Texas|Childress"
+   ],
+   "parent": "Texas"
+  },
+  "Oklahoma Panhandle": {
+   "us_counties": [
+    "Oklahoma|Cimarron",
+    "Oklahoma|Texas",
+    "Oklahoma|Beaver"
+   ],
+   "parent": "Oklahoma"
+  },
+  "Upper Peninsula": {
+   "us_counties": [
+    "Michigan|Alger",
+    "Michigan|Baraga",
+    "Michigan|Chippewa",
+    "Michigan|Delta",
+    "Michigan|Dickinson",
+    "Michigan|Gogebic",
+    "Michigan|Houghton",
+    "Michigan|Iron",
+    "Michigan|Keweenaw",
+    "Michigan|Luce",
+    "Michigan|Mackinac",
+    "Michigan|Marquette",
+    "Michigan|Menominee",
+    "Michigan|Ontonagon",
+    "Michigan|Schoolcraft"
+   ],
+   "parent": "Michigan"
+  },
+  "Silicon Valley": {
+   "us_counties": [
+    "California|Santa Clara",
+    "California|San Mateo"
+   ],
+   "parent": "California"
+  },
+  "San Francisco Bay Area": {
+   "us_counties": [
+    "California|Alameda",
+    "California|Contra Costa",
+    "California|Marin",
+    "California|Napa",
+    "California|San Francisco",
+    "California|San Mateo",
+    "California|Santa Clara",
+    "California|Solano",
+    "California|Sonoma"
+   ],
+   "parent": "California"
+  },
+  "Inland Empire": {
+   "us_counties": [
+    "California|Riverside",
+    "California|San Bernardino"
+   ],
+   "parent": "California"
+  },
+  "Central Valley": {
+   "us_counties": [
+    "California|Butte",
+    "California|Colusa",
+    "California|Glenn",
+    "California|Sacramento",
+    "California|San Joaquin",
+    "California|Shasta",
+    "California|Sutter",
+    "California|Tehama",
+    "California|Yolo",
+    "California|Yuba",
+    "California|Fresno",
+    "California|Kern",
+    "California|Kings",
+    "California|Madera",
+    "California|Merced",
+    "California|Stanislaus",
+    "California|Tulare"
+   ],
+   "parent": "California"
+  },
+  "Outer Banks": {
+   "us_counties": [
+    "North Carolina|Dare",
+    "North Carolina|Currituck",
+    "North Carolina|Hyde"
+   ],
+   "parent": "North Carolina"
+  },
+  "Cape Cod": {
+   "us_counties": [
+    "Massachusetts|Barnstable"
+   ],
+   "parent": "Massachusetts"
+  },
+  "Long Island": {
+   "us_counties": [
+    "New York|Nassau",
+    "New York|Suffolk",
+    "New York|Queens",
+    "New York|Kings"
+   ],
+   "parent": "New York"
+  },
+  "Acadiana": {
+   "us_counties": [
+    "Louisiana|Acadia",
+    "Louisiana|Evangeline",
+    "Louisiana|Iberia",
+    "Louisiana|Lafayette",
+    "Louisiana|St. Landry",
+    "Louisiana|St. Martin",
+    "Louisiana|St. Mary",
+    "Louisiana|Vermilion"
+   ],
+   "parent": "Louisiana"
+  },
+  "Black Belt": {
+   "us_counties": [
+    "Alabama|Dallas",
+    "Alabama|Greene",
+    "Alabama|Hale",
+    "Alabama|Lowndes",
+    "Alabama|Macon",
+    "Alabama|Marengo",
+    "Alabama|Perry",
+    "Alabama|Sumter",
+    "Alabama|Wilcox",
+    "Alabama|Bullock"
+   ],
+   "parent": "Alabama"
+  },
+  "Africa": {
+   "countries_iso": [
+    "DZA",
+    "AGO",
+    "BEN",
+    "BWA",
+    "BFA",
+    "BDI",
+    "CMR",
+    "CPV",
+    "CAF",
+    "TCD",
+    "COM",
+    "COD",
+    "COG",
+    "CIV",
+    "DJI",
+    "EGY",
+    "GNQ",
+    "ERI",
+    "SWZ",
+    "ETH",
+    "GAB",
+    "GMB",
+    "GHA",
+    "GIN",
+    "GNB",
+    "KEN",
+    "LSO",
+    "LBR",
+    "LBY",
+    "MDG",
+    "MWI",
+    "MLI",
+    "MRT",
+    "MUS",
+    "MAR",
+    "MOZ",
+    "NAM",
+    "NER",
+    "NGA",
+    "RWA",
+    "STP",
+    "SEN",
+    "SYC",
+    "SLE",
+    "SOM",
+    "SOL",
+    "ZAF",
+    "SDS",
+    "SDN",
+    "TZA",
+    "TGO",
+    "TUN",
+    "UGA",
+    "ZMB",
+    "ZWE",
+    "SAH"
+   ]
+  },
+  "Europe": {
+   "countries_iso": [
+    "ALB",
+    "AND",
+    "AUT",
+    "BLR",
+    "BEL",
+    "BIH",
+    "BGR",
+    "HRV",
+    "CYP",
+    "CZE",
+    "DNK",
+    "EST",
+    "FIN",
+    "FRA",
+    "DEU",
+    "GRC",
+    "HUN",
+    "ISL",
+    "IRL",
+    "ITA",
+    "KOS",
+    "LVA",
+    "LIE",
+    "LTU",
+    "LUX",
+    "MLT",
+    "MDA",
+    "MCO",
+    "MNE",
+    "NLD",
+    "MKD",
+    "NOR",
+    "POL",
+    "PRT",
+    "ROU",
+    "SMR",
+    "SRB",
+    "SVK",
+    "SVN",
+    "ESP",
+    "SWE",
+    "CHE",
+    "UKR",
+    "GBR",
+    "VAT",
+    "FRO",
+    "GIB",
+    "IMN",
+    "JEY",
+    "GGY",
+    "ALD"
+   ]
+  },
+  "Asia": {
+   "countries_iso": [
+    "AFG",
+    "ARM",
+    "AZE",
+    "BHR",
+    "BGD",
+    "BTN",
+    "BRN",
+    "KHM",
+    "CHN",
+    "GEO",
+    "IND",
+    "IDN",
+    "IRN",
+    "IRQ",
+    "ISR",
+    "JPN",
+    "JOR",
+    "KAZ",
+    "KWT",
+    "KGZ",
+    "LAO",
+    "LBN",
+    "MYS",
+    "MDV",
+    "MNG",
+    "MMR",
+    "NPL",
+    "PRK",
+    "OMN",
+    "PAK",
+    "PSX",
+    "PHL",
+    "QAT",
+    "SAU",
+    "SGP",
+    "KOR",
+    "LKA",
+    "SYR",
+    "TWN",
+    "TJK",
+    "THA",
+    "TLS",
+    "TUR",
+    "TKM",
+    "ARE",
+    "UZB",
+    "VNM",
+    "YEM",
+    "HKG",
+    "MAC",
+    "KAS"
+   ]
+  },
+  "North America": {
+   "countries_iso": [
+    "CAN",
+    "USA",
+    "MEX",
+    "GRL",
+    "GTM",
+    "BLZ",
+    "SLV",
+    "HND",
+    "NIC",
+    "CRI",
+    "PAN",
+    "CUB",
+    "JAM",
+    "HTI",
+    "DOM",
+    "BHS",
+    "PRI"
+   ]
+  },
+  "South America": {
+   "countries_iso": [
+    "ARG",
+    "BOL",
+    "BRA",
+    "CHL",
+    "COL",
+    "ECU",
+    "GUY",
+    "PRY",
+    "PER",
+    "SUR",
+    "URY",
+    "VEN",
+    "FLK"
+   ]
+  },
+  "Oceania": {
+   "countries_iso": [
+    "AUS",
+    "NZL",
+    "PNG",
+    "SLB",
+    "VUT",
+    "NCL"
+   ]
+  },
+  "Australia and Oceania": {
+   "countries_iso": [
+    "AUS",
+    "NZL",
+    "PNG",
+    "SLB",
+    "VUT",
+    "NCL"
+   ]
+  },
+  "Middle East": {
+   "countries_iso": [
+    "BHR",
+    "CYP",
+    "EGY",
+    "IRN",
+    "IRQ",
+    "ISR",
+    "JOR",
+    "KWT",
+    "LBN",
+    "OMN",
+    "PSX",
+    "QAT",
+    "SAU",
+    "SYR",
+    "TUR",
+    "ARE",
+    "YEM"
+   ]
+  },
+  "Central America": {
+   "countries_iso": [
+    "BLZ",
+    "CRI",
+    "SLV",
+    "GTM",
+    "HND",
+    "NIC",
+    "PAN"
+   ]
+  },
+  "Caribbean": {
+   "countries_iso": [
+    "CUB",
+    "JAM",
+    "HTI",
+    "DOM",
+    "BHS",
+    "PRI",
+    "TTO",
+    "BRB",
+    "LCA",
+    "VCT",
+    "GRD",
+    "ATG",
+    "DMA",
+    "KNA"
+   ]
+  },
+  "Scandinavia": {
+   "countries_iso": [
+    "NOR",
+    "SWE",
+    "DNK"
+   ]
+  },
+  "Nordic Countries": {
+   "countries_iso": [
+    "NOR",
+    "SWE",
+    "DNK",
+    "FIN",
+    "ISL"
+   ]
+  },
+  "Balkans": {
+   "countries_iso": [
+    "ALB",
+    "BIH",
+    "BGR",
+    "HRV",
+    "KOS",
+    "MNE",
+    "MKD",
+    "SRB",
+    "SVN",
+    "GRC",
+    "ROU"
+   ]
+  },
+  "Southeast Asia": {
+   "countries_iso": [
+    "BRN",
+    "KHM",
+    "IDN",
+    "LAO",
+    "MYS",
+    "MMR",
+    "PHL",
+    "SGP",
+    "THA",
+    "TLS",
+    "VNM"
+   ]
+  },
+  "Latin America": {
+   "countries_iso": [
+    "MEX",
+    "GTM",
+    "BLZ",
+    "SLV",
+    "HND",
+    "NIC",
+    "CRI",
+    "PAN",
+    "CUB",
+    "HTI",
+    "DOM",
+    "PRI",
+    "ARG",
+    "BOL",
+    "BRA",
+    "CHL",
+    "COL",
+    "ECU",
+    "GUY",
+    "PRY",
+    "PER",
+    "SUR",
+    "URY",
+    "VEN"
+   ]
+  },
+  "Scandinavian Peninsula": {
+   "countries_iso": [
+    "NOR",
+    "SWE"
+   ]
+  },
+  "Horn of Africa": {
+   "countries_iso": [
+    "ETH",
+    "ERI",
+    "DJI",
+    "SOM",
+    "SOL"
+   ]
+  },
+  "Sahel": {
+   "countries_iso": [
+    "SEN",
+    "MRT",
+    "MLI",
+    "BFA",
+    "NER",
+    "TCD",
+    "SDN",
+    "ERI"
+   ]
+  },
+  "Arabian Peninsula": {
+   "countries_iso": [
+    "SAU",
+    "YEM",
+    "OMN",
+    "ARE",
+    "QAT",
+    "BHR",
+    "KWT"
+   ]
+  },
+  "Iberian Peninsula": {
+   "countries_iso": [
+    "ESP",
+    "PRT",
+    "AND",
+    "GIB"
+   ]
+  },
+  "British Isles": {
+   "countries_iso": [
+    "GBR",
+    "IRL",
+    "IMN",
+    "JEY",
+    "GGY"
+   ]
+  },
+  "Baltic States": {
+   "countries_iso": [
+    "EST",
+    "LVA",
+    "LTU"
+   ]
+  },
+  "Central Asia": {
+   "countries_iso": [
+    "KAZ",
+    "KGZ",
+    "TJK",
+    "TKM",
+    "UZB"
+   ]
+  },
+  "South Asia": {
+   "countries_iso": [
+    "AFG",
+    "BGD",
+    "BTN",
+    "IND",
+    "MDV",
+    "NPL",
+    "PAK",
+    "LKA"
+   ]
+  },
+  "East Asia": {
+   "countries_iso": [
+    "CHN",
+    "JPN",
+    "KOR",
+    "PRK",
+    "MNG",
+    "TWN",
+    "HKG",
+    "MAC"
+   ]
+  },
+  "Everglades": {
+   "us_counties": [
+    "Florida|Miami-Dade",
+    "Florida|Monroe",
+    "Florida|Collier"
+   ],
+   "parent": "Florida"
+  },
+  "Everglades National Park": {
+   "us_counties": [
+    "Florida|Miami-Dade",
+    "Florida|Monroe",
+    "Florida|Collier"
+   ],
+   "parent": "Florida"
   }
+ }
 }

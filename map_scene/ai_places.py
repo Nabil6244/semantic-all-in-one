@@ -34,6 +34,7 @@ def cached_resolver(ask: Callable[[str, Optional[str]], Optional[dict]], path: O
     """Wrap ``ask`` so every answer (including "unknown") is stored and reused."""
 
     def resolve(name: str, parent: Optional[str]) -> Optional[dict]:
+        resolve.last_error = None
         store = path or _cache_path()
         key = f"{(parent or '').strip().lower()}>{name.strip().lower()}"
         with _LOCK:
@@ -45,6 +46,7 @@ def cached_resolver(ask: Callable[[str, Optional[str]], Optional[dict]], path: O
             return cache[key]
         answer = ask(name, parent)
         if answer is None:  # transient failure: don't cache, ask again next time
+            resolve.last_error = getattr(ask, "last_error", None) or "no answer"
             return None
         with _LOCK:
             try:
@@ -58,6 +60,7 @@ def cached_resolver(ask: Callable[[str, Optional[str]], Optional[dict]], path: O
             tmp.replace(store)
         return answer
 
+    resolve.last_error = None
     return resolve
 
 
@@ -68,11 +71,25 @@ def gemini_place_resolver(settings=None):
 
     def ask(name: str, parent: Optional[str]) -> Optional[dict]:
         where = f" (inside {parent})" if parent else ""
+        ask.last_error = None
         try:
             text = llm.complete(_SYSTEM, f"Place: {name}{where}", thinking_level="low", max_output_tokens=2048)
+        except LLMError as exc:
+            msg = str(exc)
+            ask.last_error = ("Gemini quota exceeded" if "quota" in msg.lower() or "429" in msg
+                              else f"Gemini error: {msg[:120]}")
+            return None
+        text = text.strip()
+        if text.startswith("```"):  # tolerate a fenced JSON reply
+            text = text.strip("`")
+            text = text[4:] if text.lower().startswith("json") else text
+        try:
             data = json.loads(text)
-        except (LLMError, ValueError):
+        except ValueError:
+            ask.last_error = "Gemini gave an unreadable answer"
             return None
         return data if isinstance(data, dict) else None
+
+    ask.last_error = None
 
     return cached_resolver(ask)

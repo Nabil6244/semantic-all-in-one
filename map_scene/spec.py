@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 CAMERAS = ("zoom_in", "zoom_out", "drift")
+_WORLD_WORDS = frozenset({"world", "the world", "earth", "the earth", "globe", "the globe", "planet earth"})
 STYLES = ("dark", "natural")
 
 
@@ -40,8 +41,12 @@ def parse_map_prompt(prompt: str) -> MapSpec:
         raise MapPromptError("Map prompt is empty — write at least the place to show, e.g. 'Florida > Florida Panhandle'.")
     places_part, *option_parts = [p.strip() for p in text.split("|")]
     places = [p.strip() for p in places_part.split(">") if p.strip()]
+    # "World > Africa": the whole world isn't a mappable area and adds nothing
+    # as a wider level, so it is simply left out.
+    places = [p for p in places if p.strip().lower() not in _WORLD_WORDS]
     if not places:
-        raise MapPromptError(f"Map prompt has no place: {prompt!r}")
+        raise MapPromptError(
+            f"Map prompt has no place: {prompt!r}. Name a continent, country or smaller area (e.g. 'Africa').")
     if len(places) > 3:
         raise MapPromptError(f"Map prompt has more than three levels (parent > focus > inner): {prompt!r}")
     if len(places) == 1:

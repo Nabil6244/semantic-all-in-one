@@ -239,5 +239,56 @@ class TestKeptApartFromFlow(unittest.TestCase):
         self.assertNotIn("profiles", src)
 
 
+
+
+class TestPlaceFallbacks(unittest.TestCase):
+    """Geography-niche prompts that used to fail the whole map."""
+
+    def _failing_ai(self):
+        ai = lambda _name, _parent: None  # noqa: E731
+        ai.last_error = "Gemini quota exceeded"
+        return ai
+
+    def test_world_level_is_ignored_and_continents_exist(self):
+        from map_scene.render import resolve_places
+        from map_scene.spec import parse_map_prompt
+
+        spec = parse_map_prompt("World > Africa | camera: zoom_out | label: AFRICA")
+        self.assertEqual((spec.parent, spec.focus), (None, "Africa"))
+        for name in ("Africa", "Europe", "South America", "Middle East", "Scandinavia", "Southeast Asia"):
+            self.assertIn("focus", resolve_places(parse_map_prompt(name)))
+        with self.assertRaises(Exception):
+            parse_map_prompt("World")
+
+    def test_unknown_spot_keeps_the_area_around_it(self):
+        from map_scene.render import resolve_places
+        from map_scene.spec import parse_map_prompt
+
+        notes = []
+        spec = parse_map_prompt("Florida > Okaloosa County > Eglin Air Force Base | label: EGLIN AFB")
+        places = resolve_places(spec, ai=self._failing_ai(), notes=notes)
+        self.assertEqual({k: v.name for k, v in places.items()}, {"parent": "Florida", "focus": "Okaloosa"})
+        self.assertEqual(spec.label_text, "EGLIN AFB")
+        self.assertTrue(notes and "Gemini quota exceeded" in notes[0])
+
+    def test_unknown_focus_falls_back_to_its_parent_and_relabels(self):
+        from map_scene.render import resolve_places
+        from map_scene.spec import parse_map_prompt
+
+        spec = parse_map_prompt("Florida > Coral Castle | label: CORAL CASTLE")
+        places = resolve_places(spec, ai=self._failing_ai())
+        self.assertEqual(places["focus"].name, "Florida")
+        self.assertEqual(spec.label_text, "FLORIDA")  # never a label naming a place that isn't shown
+
+    def test_nothing_found_still_fails_with_the_real_reason(self):
+        from map_scene.places import PlaceNotFound
+        from map_scene.render import resolve_places
+        from map_scene.spec import parse_map_prompt
+
+        with self.assertRaises(PlaceNotFound) as ctx:
+            resolve_places(parse_map_prompt("Atlantis"), ai=self._failing_ai())
+        self.assertIn("Gemini quota exceeded", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

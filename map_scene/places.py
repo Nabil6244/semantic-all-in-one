@@ -162,6 +162,13 @@ def _from_components(name: str, kind_key: str, items: Sequence[str], source: str
             if not hits:
                 return None
             hit = _to_place(hits[0], "country")
+        elif kind_key == "countries_iso":
+            # Continents / multi-country regions: a code missing from the
+            # bundled data (a tiny territory) is skipped, not fatal.
+            hits = [f for f in _dataset("countries") if f.get("iso") == str(item).strip().upper()]
+            if not hits:
+                continue
+            hit = _to_place(hits[0], "country")
         else:
             return None
         polygons.extend(hit.polygons)
@@ -197,7 +204,7 @@ def find_place(name: str, *, parent: Optional[Place] = None, ai: Optional[AiReso
             return hit
     region = _named_regions().get(key)
     if region:
-        for kind_key in ("us_counties", "admin1", "countries"):
+        for kind_key in ("us_counties", "admin1", "countries", "countries_iso"):
             if kind_key in region:
                 hit = _from_components(region["name"], kind_key, region[kind_key], "named_region")
                 if hit:
@@ -223,9 +230,15 @@ def find_place(name: str, *, parent: Optional[Place] = None, ai: Optional[AiReso
         if place is not None:
             return place
     where = f" in {parent.name}" if parent is not None else ""
+    ai_error = getattr(ai, "last_error", None) if ai is not None else None
+    if ai_error:
+        raise PlaceNotFound(
+            f"Couldn't find \"{name}\"{where}: it isn't in the built-in map data, and the AI place lookup "
+            f"failed ({ai_error}). Try again later, or name the county, state or country around it."
+        )
     raise PlaceNotFound(
         f"Couldn't find \"{name}\"{where} on the map. Use an official name (country, state/province, "
-        "US county) or a region from the named-region list, or pick another source for this scene."
+        "US county, continent) or a region from the named-region list, or pick another source for this scene."
     )
 
 
