@@ -1,4 +1,9 @@
 faster-whisper>=1.0.0
+# faster-whisper 1.2.x decodes audio with av.open(..., metadata_errors="ignore"),
+# which PyAV 19.0.0 removed -- every transcription then dies with "open() got an
+# unexpected keyword argument 'metadata_errors'". Stay below 19 until
+# faster-whisper supports it (test_transcribe_dependency_compat.py guards this).
+av>=11,<19
 customtkinter>=5.2.0
 Pillow>=10.0.0
 requests>=2.31.0
