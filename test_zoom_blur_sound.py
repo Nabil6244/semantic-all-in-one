@@ -194,5 +194,56 @@ class TestZoomBlurWhooshes(unittest.TestCase):
             self.assertGreater(zoom, normal * 1.5)  # 0.67 vs the 0.40 cap
 
 
+class TestSoundDensity(unittest.TestCase):
+    """Sound Effects intensity limits the FINAL sound list (planned SFX plus
+    the zoom-blur whooshes added at mix time)."""
+
+    def _events(self, n=30, every=3.2):
+        out = []
+        for i in range(n):
+            ev = {"start": 1.0 + i * every, "duration": 0.5, "volume": 0.2, "file": "whoosh/w.wav"}
+            if i % 2 == 0:
+                ev["zoom_blur"] = True
+            elif i % 5 == 0:
+                ev["file"] = "impact/i.wav"
+            out.append(ev)
+        return out
+
+    def test_low_is_sparse_and_spread_across_the_video(self):
+        from smart_editing import SFX_DENSITY, limit_sfx_density
+
+        kept, dropped = limit_sfx_density(self._events(), 98.0, "low")
+        gap, per_min = SFX_DENSITY["low"]
+        starts = [e["start"] for e in kept]
+        self.assertLessEqual(len(kept), 12)
+        self.assertEqual(dropped, 30 - len(kept))
+        self.assertTrue(all(b - a >= gap for a, b in zip(starts, starts[1:])))
+        for w in starts:  # no 60 s window holds more than the cap
+            self.assertLessEqual(sum(1 for t in starts if w <= t < w + 60), per_min)
+        self.assertGreater(max(starts), 80.0)  # the ending still gets sounds
+
+    def test_levels_are_ordered_and_zoom_blur_cuts_win(self):
+        from smart_editing import limit_sfx_density
+
+        counts = [len(limit_sfx_density(self._events(), 98.0, lvl)[0]) for lvl in ("low", "medium", "high")]
+        self.assertLess(counts[0], counts[1])
+        self.assertLess(counts[1], counts[2])
+        kept, _ = limit_sfx_density(self._events(), 98.0, "low")
+        self.assertGreaterEqual(sum(1 for e in kept if e.get("zoom_blur")), len(kept) - 1)
+
+    def test_excluded_sound_is_never_loaded(self):
+        import json
+
+        from smart_editing import SfxCatalog
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "catalog.json").write_text(json.dumps({"sfx": [
+                {"id": "transition_02", "file": "transition/transition_02.wav", "category": "transition"},
+                {"id": "whoosh_05", "file": "whoosh/whoosh_05.wav", "category": "whoosh"},
+            ]}), encoding="utf-8")
+            self.assertEqual([e.id for e in SfxCatalog.load(root).entries], ["whoosh_05"])
+
+
 if __name__ == "__main__":
     unittest.main()
