@@ -25,6 +25,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 
 const PROMPT_EDITOR_SELECTOR = "div.ProseMirror";
@@ -46,6 +47,33 @@ const SETTINGS_CONTROL_SELECTORS = ['button[aria-label="Settings trigger"]', 'bu
 const MODE_TOGGLE_LABEL = { image: "Image", video: "Video" };
 /** Confirmed live in earlier ogiZ0b response captures this investigation. */
 const MEDIA_HOST = "flow-content.google";
+/**
+ * Second result-URL shape (confirmed live 2026-09-30 in a real project): a
+ * finished video tile is an <img alt="Generated video thumbnail"> on
+ * flow.google.com/asb/<token>, which becomes a <video> on
+ * flow.google.com/asb/<token>=mm,22,15 (thumbnail and video share the token).
+ * Neither lives on MEDIA_HOST nor has "/video/" in it, so a run whose page
+ * only ever shows this shape was never detected: the video finished on Flow
+ * but the wait loop timed out and it was never downloaded. GET on the
+ * "=mm,22,15" URL returns the full video/mp4 with the account's session.
+ */
+const ASB_VIDEO_SUFFIX = "=mm,22,15";
+const ASB_TOKEN_RE = /\/asb\/([^=?&#]+)/;
+
+/**
+ * Turns an asb thumbnail/video URL into the {mediaId, fifeUrl} pair the rest
+ * of the pipeline expects. The token is a signed media reference, so it is
+ * never used as the id itself (ids are logged) -- a short hash of it is.
+ */
+export function resolveAsbVideo(url) {
+  const m = ASB_TOKEN_RE.exec(url || "");
+  if (!m) return null;
+  const base = String(url).split(/[=?&#]/)[0];
+  return {
+    mediaId: `asb-${createHash("sha256").update(m[1]).digest("hex").slice(0, 16)}`,
+    fifeUrl: `${base}${ASB_VIDEO_SUFFIX}`,
+  };
+}
 /** Any radio in the mode-toggle group is a reliable "settings panel is open"
  * signal, independent of which mode we're about to select. */
 const SETTINGS_PANEL_SIGNAL_SELECTOR = 'button[role="radio"]';
@@ -324,7 +352,7 @@ async function runUiGeneration(page, prompt, opts = {}) {
     const preExistingMediaUrls = await page
       .evaluate((host) => {
         const els = Array.from(document.querySelectorAll("img[src], video[src]"));
-        return els.filter((el) => el.src && el.src.includes(host)).map((el) => el.src);
+        return els.filter((el) => el.src && (el.src.includes(host) || el.src.includes("/asb/"))).map((el) => el.src);
       }, MEDIA_HOST)
       .catch(() => []);
     diag.preExistingMediaCount = preExistingMediaUrls.length;
@@ -350,7 +378,22 @@ async function runUiGeneration(page, prompt, opts = {}) {
                 !known.includes(el.src) &&
                 (!wantVideo || el.src.includes("/video/")),
             );
-            return hit ? hit.src : null;
+            if (hit) return hit.src;
+            if (!wantVideo) return null;
+            // flow.google.com/asb/<token> video tiles (see ASB_VIDEO_SUFFIX):
+            // a thumbnail <img> while idle, a <video> once hovered. Compared
+            // by token, since the thumbnail and video URLs differ by suffix.
+            const tokenOf = (u) => {
+              const m = /\/asb\/([^=?&#]+)/.exec(u || "");
+              return m ? m[1] : null;
+            };
+            const knownTokens = new Set(known.map(tokenOf).filter(Boolean));
+            const tile = els.find((el) => {
+              const t = tokenOf(el.src);
+              if (!t || knownTokens.has(t)) return false;
+              return el.tagName === "VIDEO" || /video thumbnail/i.test(el.alt || "");
+            });
+            return tile ? tile.src : null;
           },
           { host: MEDIA_HOST, known: preExistingMediaUrls, wantVideo: opts.mode === "video" },
         )
@@ -360,6 +403,30 @@ async function runUiGeneration(page, prompt, opts = {}) {
 
     if (!mediaUrl) {
       diag.outcome = opts.shouldStop?.() ? "stopped" : "timeout_no_media_detected";
+      if (diag.outcome === "timeout_no_media_detected") {
+        // What the page actually showed when detection gave up: element
+        // counts by host / first path segment / alt text only (never a full
+        // URL or token), so a future miss can be told apart in the log.
+        diag.mediaInventory = await page
+          .evaluate(() => {
+            const kind = (u) => {
+              try {
+                const x = new URL(u, location.href);
+                return x.host + "/" + (x.pathname.split("/")[1] || "");
+              } catch {
+                return "?";
+              }
+            };
+            const counts = {};
+            for (const el of document.querySelectorAll("img, video")) {
+              const alt = el.alt ? ` alt="${String(el.alt).slice(0, 30)}"` : "";
+              const key = `${el.tagName.toLowerCase()} ${kind(el.currentSrc || el.src || "")}${alt}`;
+              counts[key] = (counts[key] || 0) + 1;
+            }
+            return counts;
+          })
+          .catch(() => null);
+      }
       return { mediaId: null, fifeUrl: null, diag };
     }
     diag.generationCompletedAt = Date.now();
@@ -367,6 +434,13 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.mediaUrlDetected = true;
     diag.outcome = "success";
 
+    if (opts.mode === "video" && !mediaUrl.includes(MEDIA_HOST)) {
+      const asb = resolveAsbVideo(mediaUrl);
+      if (asb) {
+        diag.mediaUrlKind = "asb";
+        return { mediaId: asb.mediaId, fifeUrl: asb.fifeUrl, diag };
+      }
+    }
     const m =
       opts.mode === "video"
         ? mediaUrl.match(/\/video\/([^?]+)/)
