@@ -1567,8 +1567,9 @@ class VideoGeneratorApp(ctk.CTk):
             text=(
                 "One row per scene: scene_number, script_segment, asset_type, prompt, "
                 "and a caption. For the Overscaled style, also see chapter_title, "
-                "node_label, highlight (comma-separated), edge_from/edge_to, "
-                "edge_label and edge_style (\"callout\" for a thick red pointer)."
+                "highlight (comma-separated), edge_from/edge_to, edge_label and "
+                "edge_style (\"group\" joins cards without an arrow). "
+                "See composition_styles/overscaled_csv_rules.md."
             ),
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=220,
             justify="left", anchor="w",

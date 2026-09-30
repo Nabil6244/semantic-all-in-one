@@ -36,6 +36,10 @@
     "alt_color": "#1a1a1a",
     "notes": "default_color (red) is used ONLY for kind='callout' edges; alt_color (black) is the default 'sequential' connector color — see SceneEdge.kind / composition._draw_arrow.",
     "organic_jitter": true,
+    "line_width": 10,
+    "jitter_px": 3,
+    "head_len": 38,
+    "stroke_notes": "Overscaled-only overrides read by composition._draw_arrow: thicker stroke, calmer wobble, bigger head. Defaults (6px, 10px wobble, 28px head) still apply to every style without these keys.",
     "draw_on_animation": true,
     "default_duration_s": 1.2
   },
@@ -56,5 +60,15 @@
     "failure_chain",
     "consequence",
     "legacy_close"
-  ]
+  ],
+  "metadata": {
+    "anchor_inline_title": true,
+    "anchor_style": "photo",
+    "anchor_notes": "The subject anchor is drawn as a plain photo at the left of the title row (layout.INLINE_ANCHOR_*), with the title left-aligned next to it, instead of a circled icon in its own band above the stage.",
+    "slot_templates": {
+      "2": [[0.224, 0.3635, 0.448, 0.727], [0.776, 0.6365, 0.448, 0.727]],
+      "3": [[0.145, 0.26, 0.29, 0.52], [0.855, 0.29, 0.29, 0.52], [0.50, 0.74, 0.29, 0.52]]
+    },
+    "slot_templates_notes": "Overscaled's staggered collage (cx, cy, w, h as stage fractions), passed to scene_graph.layout.compute_layout's slot_templates ONLY for this preset. 2 cards step down from top-left to bottom-right with a gap wide enough for a visible arrow; 3 cards form a triangle (two on top at slightly different heights, one below in the middle), spaced so an arrow from a top card to the bottom card has ~170px to travel. Card 1 of a build lands in slot 1, so 1 -> 2 -> 3 grows like a whiteboard. Solo stays layout.OVERSCALED_SOLO_SLOT. Exp Solar carries no such key and keeps the built-in single-row templates."
+  }
 }

@@ -49,6 +49,12 @@ DEFAULT_CANVAS_HEIGHT = 1080
 MARGIN_PX = 60  # outer canvas margin
 GUTTER_PX = 48  # spacing reserved between anchors / anchor band and the stage
 ANCHOR_SIZE_PX = 160  # a small corner icon, not a content card — kept modest so it doesn't eat stage space
+# Overscaled's inline subject photo (compute_layout's anchor_inline_title):
+# the anchor sits at the left of the title row instead of its own band, and
+# the title starts just right of it — no stage height is given up for it.
+INLINE_ANCHOR_W_PX = 170
+INLINE_ANCHOR_H_PX = 96
+INLINE_ANCHOR_TITLE_GAP_PX = 28
 TITLE_BAND_PX = 130  # vertical room reserved at the top when the segment has any TitleCue
 # Exp Solar's persistent checklist header strip only (scene_graph.exp_solar_csv's
 # beat="checklist" — see _CHECKLIST_ITEM_TYPE below). Reserved ABOVE the
@@ -102,8 +108,13 @@ MIN_HOLD_S = 1.5  # a node always gets at least this much screen time
 # _choose_template_variant): SYMMETRIC (equal-sized slots) when no member
 # has an elevated role, WEIGHTED (one wider "hero" slot) when one does —
 # see _ELEVATED_ROLE_KEYWORDS. 1 slot has only one sensible shape either way.
+# The 1-slot shape is per-style (compute_layout's ``solo_slot``): this
+# default is Overscaled's own original solo card, with white canvas around
+# it. Exp Solar's near-full-stage hero passes its own via preset metadata.
+# (The Exp Solar commit once changed this shared default for every style.)
+OVERSCALED_SOLO_SLOT: Tuple[float, float, float, float] = (0.50, 0.50, 0.62, 0.90)
 _SLOT_TEMPLATES_SYMMETRIC: Dict[int, List[Tuple[float, float, float, float]]] = {
-    1: [(0.50, 0.50, 0.98, 0.97)],
+    1: [OVERSCALED_SOLO_SLOT],
     2: [(0.235, 0.50, 0.47, 0.90), (0.765, 0.50, 0.47, 0.90)],
     3: [
         (0.155, 0.50, 0.31, 0.90),
@@ -124,7 +135,7 @@ _SLOT_TEMPLATES_SYMMETRIC: Dict[int, List[Tuple[float, float, float, float]]] = 
     ],
 }
 _SLOT_TEMPLATES_WEIGHTED: Dict[int, List[Tuple[float, float, float, float]]] = {
-    1: [(0.50, 0.50, 0.98, 0.97)],
+    1: [OVERSCALED_SOLO_SLOT],
     2: [
         (0.71, 0.50, 0.58, 0.90),  # hero: right, wider
         (0.18, 0.50, 0.36, 0.90),  # supporting: left
@@ -299,6 +310,9 @@ class SceneGraphLayout:
     # scene_graph.composition._draw_caption only ever adds this offset, it
     # never solves anything itself.
     caption_positions: Dict[str, Tuple[float, float]] = dataclasses.field(default_factory=dict)
+    # Left x of the persistent title when it's placed next to an inline
+    # anchor photo; None keeps the title centered (every other case).
+    title_x_px: Optional[float] = None
 
     def to_dict(self) -> dict:
         return {
@@ -315,6 +329,7 @@ class SceneGraphLayout:
             "edge_label_positions": {eid: list(p) for eid, p in self.edge_label_positions.items()},
             "node_ken_burns": {nid: dict(p) for nid, p in self.node_ken_burns.items()},
             "caption_positions": {nid: list(p) for nid, p in self.caption_positions.items()},
+            "title_x_px": self.title_x_px,
         }
 
     @classmethod
@@ -365,6 +380,7 @@ class SceneGraphLayout:
             edge_label_positions=edge_label_positions,
             node_ken_burns=node_ken_burns,
             caption_positions=caption_positions,
+            title_x_px=(float(data["title_x_px"]) if data.get("title_x_px") is not None else None),
         )
 
     def bounds_for(self, node_ids: List[str]) -> Optional[Tuple[float, float, float, float]]:
@@ -597,6 +613,9 @@ def compute_layout(
     canvas_width: Optional[int] = None,
     canvas_height: Optional[int] = None,
     max_active_per_chapter: Optional[int] = None,
+    solo_slot: Optional[Tuple[float, float, float, float]] = None,
+    slot_templates: Optional[Dict] = None,
+    anchor_inline_title: bool = False,
 ) -> SceneGraphLayout:
     """Time-scoped editorial layout: chapters (causal chains / singles) take
     turns on a small, fixed set of non-grid stage slots, capped at
@@ -606,6 +625,19 @@ def compute_layout(
     that needs more (e.g. Exp Solar's four_row beat) passes a higher value
     explicitly; nothing about the default path changes. Same SceneGraph +
     same resolved_media + same cap -> byte-identical layout.
+
+    ``solo_slot`` (cx, cy, w, h as stage fractions) overrides the 1-card
+    slot for styles that want a different solo shape; omitted, it is
+    ``OVERSCALED_SOLO_SLOT``.
+
+    ``slot_templates`` ({slot_count: [(cx, cy, w, h), ...]}, stage
+    fractions) replaces the built-in single-row shapes for those slot
+    counts — e.g. Overscaled's staggered 2/3-card collage. Omitted, the
+    built-in templates apply unchanged (Exp Solar passes none).
+
+    ``anchor_inline_title`` puts each anchor (the subject photo) at the
+    left of the title row instead of a separate band above the stage, and
+    left-aligns the title next to it (Overscaled). Off by default.
     """
 
     width = int(canvas_width or scene_graph.canvas.width or DEFAULT_CANVAS_WIDTH)
@@ -629,14 +661,26 @@ def compute_layout(
     # they all share the exact same top-left slot rather than stacking.
     anchors_sorted = sorted(anchors, key=lambda n: (float(n.appear_at), n.id))
     for i, node in enumerate(anchors_sorted):
-        rects[node.id] = NodeRect(
-            node_id=node.id, x=MARGIN_PX, y=MARGIN_PX, width=ANCHOR_SIZE_PX, height=ANCHOR_SIZE_PX,
-        )
+        if anchor_inline_title:
+            rects[node.id] = NodeRect(
+                node_id=node.id, x=MARGIN_PX, y=MARGIN_PX, width=INLINE_ANCHOR_W_PX, height=INLINE_ANCHOR_H_PX,
+            )
+        else:
+            rects[node.id] = NodeRect(
+                node_id=node.id, x=MARGIN_PX, y=MARGIN_PX, width=ANCHOR_SIZE_PX, height=ANCHOR_SIZE_PX,
+            )
         own_start = max(0.0, float(node.appear_at))
         next_start = anchors_sorted[i + 1].appear_at if i + 1 < len(anchors_sorted) else duration
         active_windows[node.id] = (own_start, max(next_start, own_start + MIN_HOLD_S))
 
     anchor_band = (ANCHOR_SIZE_PX + GUTTER_PX) if anchors else 0
+    title_x_px: Optional[float] = None
+    if anchor_inline_title and anchors:
+        # The anchor shares the title row: no band of its own, and the
+        # title band is reserved even without a TitleCue so the photo
+        # never sits on top of a card.
+        anchor_band = 0
+        title_x_px = float(MARGIN_PX + INLINE_ANCHOR_W_PX + INLINE_ANCHOR_TITLE_GAP_PX)
     # A persistent chapter TitleCue renders centered near the very top
     # (render_title_reveal_frame, top_margin — see checklist_band_px below)
     # independent of any node — the stage must reserve room for it too,
@@ -644,7 +688,7 @@ def compute_layout(
     # ABOVE its rect, see composition._draw_node_label) can collide with
     # title text when a slot sits close to the top (e.g. the 3-slot
     # template's top-right hero).
-    title_band = TITLE_BAND_PX if scene_graph.title_cues else 0
+    title_band = TITLE_BAND_PX if (scene_graph.title_cues or title_x_px is not None) else 0
     # Exp Solar's persistent checklist strip (see CHECKLIST_BAND_PX) is the
     # TOPMOST reserved band — it stacks BEFORE anchor/title, pushing both
     # further down, so the strip is never covered by the chapter title or
@@ -773,6 +817,16 @@ def compute_layout(
         # KeyError before touching node timing at all.
         template_size = 15 if is_grid else max(1, min(peak, chapter_cap, len(members)))
         template = SLOT_TEMPLATE_GRID_15 if is_grid else _choose_template_variant(members)
+        if solo_slot is not None and not is_grid:
+            template = {**template, 1: [tuple(float(v) for v in solo_slot)]}
+        if slot_templates and not is_grid:
+            template = {
+                **template,
+                **{
+                    int(count): [tuple(float(v) for v in slot) for slot in slots]
+                    for count, slots in slot_templates.items()
+                },
+            }
         # Role-based reordering (put an elevated-role member in the hero
         # slot) is only SAFE when every member gets its own dedicated slot
         # (len(members) <= template_size) — a chapter with MORE members
@@ -897,15 +951,19 @@ def compute_layout(
 
     edge_routes: Dict[str, List[Tuple[float, float]]] = {}
     edge_label_positions: Dict[str, Tuple[float, float]] = {}
-    solved_arrow_bboxes: List = []
+    # (window, bbox) of every arrow solved so far. A later arrow avoids only
+    # the ones actually on screen at the same time: compositions reuse the
+    # same slots, so an arrow from an earlier, already-cleared composition
+    # sits exactly where the next pair's straight arrow goes, and treating
+    # it as an obstacle bent that arrow into a hook around nothing.
+    solved_arrow_bboxes: List[Tuple[Window, "ObstacleRect"]] = []
     # Every solved edge label's own box, collected here so the narration
     # caption pass below (which runs after every edge is solved) can treat
     # edge labels as obstacles too — not fed back into edge/label solving
     # itself, which is unchanged.
     solved_label_boxes: List = []
     # (window, box) pairs for the caption pass below — unlike
-    # solved_arrow_bboxes/solved_label_boxes (used ONLY to keep later edges
-    # from crossing earlier ones, order-dependent, no window needed), a
+    # solved_label_boxes (not windowed), a
     # node's caption must only avoid an edge that's actually on screen AT
     # THE SAME TIME as it is, so its own window is kept alongside each box.
     caption_edge_obstacles: List[Tuple[Window, "ObstacleRect"]] = []
@@ -924,7 +982,9 @@ def compute_layout(
             and active_windows.get(nid) is not None
             and _windows_overlap(active_windows[nid], window)
         ]
-        obstacles.extend(solved_arrow_bboxes)
+        obstacles.extend(
+            box for arrow_window, box in solved_arrow_bboxes if _windows_overlap(arrow_window, window)
+        )
 
         from_cx, from_cy = from_rect.center
         to_cx, to_cy = to_rect.center
@@ -936,7 +996,7 @@ def compute_layout(
         route = solve_edge_route(x0, y0, x1, y1, obstacles)
         edge_routes[edge.id] = list(route.points)
         route_bbox = polyline_bbox(route.points, margin=14.0)
-        solved_arrow_bboxes.append(route_bbox)
+        solved_arrow_bboxes.append((window, route_bbox))
         caption_edge_obstacles.append((window, route_bbox))
 
         label = str((edge.metadata or {}).get("label") or "").strip()
@@ -1037,6 +1097,7 @@ def compute_layout(
         title_windows=title_windows, checklist_windows=checklist_windows, checklist_band_px=float(checklist_band),
         edge_routes=edge_routes, edge_label_positions=edge_label_positions,
         node_ken_burns=node_ken_burns, caption_positions=caption_positions,
+        title_x_px=title_x_px,
     )
 
 

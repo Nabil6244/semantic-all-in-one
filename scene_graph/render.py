@@ -372,6 +372,7 @@ def _title_reveal_layers(
     reveal_frames = [
         render_title_reveal_frame(
             text, canvas_size=canvas_size, top_margin=top_margin, progress=min(1.0, (i + 1) / reveal_count),
+            x_px=layout.title_x_px,
         )
         for i in range(reveal_count)
     ]
@@ -458,8 +459,15 @@ def _node_video_layer(
     # hold its last frame for the rest of the window (a card that goes blank,
     # or a zoom that restarts, would look broken).
     hold_pad = 0.0
+    loop_input: List[str] = []
     if is_map_node(node) and real_duration and available > real_duration + 0.05 and is_map_clip(media_path):
         hold_pad = available - real_duration
+    elif real_duration and available > real_duration + 0.05:
+        # Any other clip shorter than its card's window loops for the whole
+        # window. Playing it once used to end the video layer early, leaving
+        # the card blank with its caption still on screen.
+        loop_input = ["-stream_loop", "-1"]
+        play_duration = available
 
     w, h = max(2, round(rect.width)), max(2, round(rect.height))
     fade_in_d = min(0.3, play_duration)
@@ -475,7 +483,7 @@ def _node_video_layer(
         + f"setpts=PTS+{_OFFSET_TOKEN}/TB,format=rgba"
     )
     return _Layer(
-        ["-t", f"{play_duration:.4f}", "-i", str(media_path)],
+        [*loop_input, "-t", f"{play_duration:.4f}", "-i", str(media_path)],
         offset=appear_at, duration=play_duration + hold_pad,
         overlay_xy=(int(rect.x), int(rect.y)),
         pre_filter=filt,

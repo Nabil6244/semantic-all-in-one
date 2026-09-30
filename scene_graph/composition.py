@@ -342,7 +342,20 @@ def _draw_caption(
         y += line_height
 
 
-def _draw_anchor(canvas: Image.Image, node: SceneNode, rect: NodeRect, media_image: Optional[Image.Image]) -> None:
+def _draw_anchor(
+    canvas: Image.Image, node: SceneNode, rect: NodeRect, media_image: Optional[Image.Image],
+    style: Optional[StylePreset] = None,
+) -> None:
+    if str(((style.metadata if style else None) or {}).get("anchor_style") or "") == "photo":
+        # Overscaled's subject photo: the picture itself, fitted into the
+        # anchor rect — no circle outline, no inset.
+        if media_image is not None:
+            fitted = _resize_to_fit(media_image, int(rect.width), int(rect.height))
+            canvas.alpha_composite(
+                fitted,
+                (int(rect.x + (rect.width - fitted.width) / 2), int(rect.y + (rect.height - fitted.height) / 2)),
+            )
+        return
     d = ImageDraw.Draw(canvas)
     d.ellipse([rect.x, rect.y, rect.x2, rect.y2], outline="#1a1a1a", width=4)
     if media_image is not None:
@@ -508,13 +521,15 @@ def _draw_arrow(
     # pointer used to call out a specific proof/detail (e.g. caption text ->
     # the photo that proves it) — visually distinct so it doesn't blend into
     # the ordinary connector chain.
+    # Optional per-style stroke overrides (Overscaled's thicker, calmer
+    # arrows); absent keys keep the original values for every other style.
     if is_callout:
         color = edge.color or arrow_cfg.get("default_color", "#c0392b")
-        line_width = 11
+        line_width = int(arrow_cfg.get("callout_line_width", 11))
     else:
         color = edge.color or arrow_cfg.get("alt_color", "#1a1a1a")
-        line_width = 6
-    jitter = 10.0 if arrow_cfg.get("organic_jitter", True) else 0.0
+        line_width = int(arrow_cfg.get("line_width", 6))
+    jitter = float(arrow_cfg.get("jitter_px", 10.0)) if arrow_cfg.get("organic_jitter", True) else 0.0
 
     if route_points is not None:
         full_points = _jitter_polyline(list(route_points), jitter=jitter, seed=edge.id)
@@ -543,7 +558,7 @@ def _draw_arrow(
         ax, ay = points[-2]
         bx, by = points[-1]
         angle = math.atan2(by - ay, bx - ax)
-        head_len, head_w = (34, 20) if is_callout else (28, 16)
+        head_len, head_w = (34, 20) if is_callout else (int(arrow_cfg.get("head_len", 28)), 16)
         left = (bx - head_len * math.cos(angle - math.radians(25)), by - head_len * math.sin(angle - math.radians(25)))
         right = (bx - head_len * math.cos(angle + math.radians(25)), by - head_len * math.sin(angle + math.radians(25)))
         d.polygon([(bx, by), left, right], fill=color)
@@ -670,7 +685,7 @@ def render_node_reveal_frame(
         )
         sub_rect = NodeRect(node_id=rect.node_id, x=side_pad, y=top_pad, width=rect.width, height=rect.height)
         if node.type == "anchor":
-            _draw_anchor(sub, node, sub_rect, media_image)
+            _draw_anchor(sub, node, sub_rect, media_image, style)
         else:
             _draw_node_media(sub, node, sub_rect, media_image, style=style, hollow=hollow)
             _draw_node_label(sub, node, sub_rect)
@@ -737,7 +752,9 @@ def render_node_decoration_frame(
     return frame
 
 
-def render_title_reveal_frame(text: str, *, canvas_size, top_margin: int, progress: float) -> Image.Image:
+def render_title_reveal_frame(
+    text: str, *, canvas_size, top_margin: int, progress: float, x_px: Optional[float] = None,
+) -> Image.Image:
     """One transparent canvas-sized frame of a persistent chapter/subject
     title's reveal: bold, centered, near the top — a simple fade-in (no
     scale, no card) matching the reference "Overscaled" style's per-subject
@@ -750,7 +767,9 @@ def render_title_reveal_frame(text: str, *, canvas_size, top_margin: int, progre
     font = _load_font(_TITLE_FONT_CANDIDATES, max(36, int(canvas_size[1] * 0.07)))
     draw = ImageDraw.Draw(frame)
     bbox = draw.textbbox((0, 0), text, font=font)
-    x = (canvas_size[0] - (bbox[2] - bbox[0])) / 2.0
+    # x_px: left-aligned next to an inline anchor photo (Overscaled);
+    # None keeps the original centered title.
+    x = float(x_px) if x_px is not None else (canvas_size[0] - (bbox[2] - bbox[0])) / 2.0
     y = top_margin
     alpha = int(255 * progress)
     draw.text((x, y), text, font=font, fill=(20, 20, 20, alpha))
@@ -867,7 +886,7 @@ def render_composition(
             if rect is None:
                 continue
             if node.type == "anchor":
-                _draw_anchor(canvas, node, rect, media_images.get(node.id))
+                _draw_anchor(canvas, node, rect, media_images.get(node.id), style)
             else:
                 _draw_node_media(canvas, node, rect, media_images.get(node.id), style=style)
                 _draw_node_label(canvas, node, rect)
@@ -877,7 +896,7 @@ def render_composition(
             # Standalone transparent overlay for this node (fade-in source).
             overlay = _blank_canvas(layout.canvas_width, layout.canvas_height, background, transparent=True)
             if node.type == "anchor":
-                _draw_anchor(overlay, node, rect, media_images.get(node.id))
+                _draw_anchor(overlay, node, rect, media_images.get(node.id), style)
             else:
                 _draw_node_media(overlay, node, rect, media_images.get(node.id), style=style)
                 _draw_node_label(overlay, node, rect)

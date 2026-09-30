@@ -58,6 +58,8 @@
   ],
   "metadata": {
     "max_active_per_chapter": 4,
+    "solo_slot": [0.50, 0.50, 0.98, 0.97],
+    "solo_slot_notes": "Near-full-stage single card (cx, cy, w, h as stage fractions), passed to scene_graph.layout.compute_layout's solo_slot ONLY for this preset. Overscaled carries no such key and keeps layout.OVERSCALED_SOLO_SLOT.",
     "max_active_per_chapter_notes": "Read by scene_graph.pipeline.run_overscaled_pipeline and threaded into scene_graph.layout.compute_layout's max_active_per_chapter param, ONLY for this preset. Overscaled's own preset carries no such key, so compute_layout's default (module MAX_ACTIVE_PER_CHAPTER=3) still applies there, unchanged. Raising this beyond 4 would KeyError (only 1/2/3/4-slot templates exist)."
   }
 }

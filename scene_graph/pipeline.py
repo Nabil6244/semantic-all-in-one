@@ -306,6 +306,9 @@ def run_overscaled_pipeline(
             scene_graph, resolved_media=resolved_media,
             canvas_width=canvas_width, canvas_height=canvas_height,
             max_active_per_chapter=max_active_per_chapter,
+            solo_slot=(style.metadata or {}).get("solo_slot"),
+            slot_templates=(style.metadata or {}).get("slot_templates"),
+            anchor_inline_title=bool((style.metadata or {}).get("anchor_inline_title")),
         )
         overlaps = find_overlaps(layout)
         if overlaps:
