@@ -1004,10 +1004,38 @@ def _camera_motion(
     return True, (index % 2 == 0), style
 
 
+def _still_camera_motion(
+    camera_style: str | None,
+    *,
+    index: int,
+    zoom: bool,
+) -> tuple[bool, bool, str | None]:
+    """Camera motion for a STILL image: the global Ken Burns switch has the last word.
+
+    The editorial plan's camera style only steers the direction / kind of
+    motion; it can neither cancel Ken Burns (``static`` / ``hold`` used to
+    leave stills frozen with the switch ON) nor force it (``push_in`` /
+    ``pull_out`` / ``subtle_drift`` used to zoom with the switch OFF).
+    """
+    style = (camera_style or "").strip().lower().replace(" ", "_") or None
+    if not zoom:
+        return False, False, style
+    use_zoom, zoom_in, style_token = _camera_motion(camera_style, index=index, zoom=True)
+    if use_zoom:
+        return use_zoom, zoom_in, style_token
+    # static / hold: neutral slow zoom instead of no movement.
+    return True, (index % 2 == 0), style_token
+
+
 def _static_filter(width: int, height: int) -> str:
+    """Still image, no motion: cover the whole frame (scale up, crop the excess).
+
+    Never letterbox/pillarbox -- a portrait still must not get black side bars.
+    Same cover approach the Ken Burns filters use, so both look the same framed.
+    """
     return (
-        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,"
+        f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+        f"crop={width}:{height},"
         f"setsar=1,format=yuv420p"
     )
 
@@ -1457,8 +1485,12 @@ def _render_editorial_shot(
     height: int,
     fps: int,
     zoom_amount: float = 0.10,
+    zoom: bool = True,
 ) -> None:
-    """Render one ShotSpec dict from an EditDecision into a temp clip."""
+    """Render one ShotSpec dict from an EditDecision into a temp clip.
+
+    ``zoom`` is the global Ken Burns switch; it applies to still images only.
+    """
     duration = max(0.05, float(shot.get("output_duration") or 0.05))
     frames = max(int(round(duration * fps)), 1)
     clip_dur = frames / fps
@@ -1552,7 +1584,7 @@ def _render_editorial_shot(
         return
 
     # Still image — Ken Burns / drift using camera_style; punch via zoom_amount
-    use_zoom, zoom_in, style = _camera_motion(camera_style, index=0, zoom=True)
+    use_zoom, zoom_in, style = _still_camera_motion(camera_style, index=0, zoom=zoom)
     punch_boost = max(0.0, scale - 1.0) * 0.35
     amount = max(zoom_amount, 0.04) + punch_boost
     if use_zoom:
@@ -2062,6 +2094,7 @@ def _render_scene_from_edit_decision(
     height: int,
     fps: int,
     zoom_amount: float = 0.10,
+    zoom: bool = True,
     caption_overlay: Path | None = None,
     text_effect_filters: str = "",
     timed_overlays: list | None = None,
@@ -2100,7 +2133,7 @@ def _render_scene_from_edit_decision(
                 if cand.is_file():
                     shot_src = cand
             _render_editorial_shot(
-                shot_src, sp, shot, width, height, fps, zoom_amount=zoom_amount
+                shot_src, sp, shot, width, height, fps, zoom_amount=zoom_amount, zoom=zoom
             )
             shot_paths.append(sp)
         assembled = scratch / "assembled.mp4"
@@ -2194,6 +2227,7 @@ def _render_scene_clip(
                 height=height,
                 fps=fps,
                 zoom_amount=zoom_amount,
+                zoom=zoom,
                 caption_overlay=caption_overlay,
                 text_effect_filters=text_effect_filters,
                 timed_overlays=timed_overlays,
@@ -2515,7 +2549,7 @@ def render_video(
         out_clip = scene_clip_path(clips_dir, scene_clip_filename(i))
         sn = str(row.get("scene_number") or "")
         style_key = (camera_by_scene or {}).get(sn)
-        use_zoom, zoom_in, camera_style = _camera_motion(
+        use_zoom, zoom_in, camera_style = _still_camera_motion(
             style_key,
             index=i,
             zoom=zoom,
@@ -2768,7 +2802,7 @@ def render_video(
                     cache_key = build_scene_cache_key(
                         scene_number=sn_key,
                         encode_args=_cpu_encode_argv(),
-                        **_scene_clip_kwargs,
+                        **{k: v for k, v in _scene_clip_kwargs.items() if k != "out_path"},
                     )
                     cached_clip = render_cache.get(sn_key, cache_key)
                 except Exception as exc:

@@ -9798,6 +9798,12 @@ class VideoGeneratorApp(ctk.CTk):
             self._shell.notify(
                 "Generating assets…" if mode == "assets" else "Export started", tone="info",
             )
+            if mode == "render":
+                # Follow the render on the Export page (live progress lives there).
+                try:
+                    self._shell.navigate("render")
+                except Exception as exc:
+                    self._append_log(f"[UI] Could not open the Export page ({exc})\n")
         # Hide stale preview from a previous run
         self._preview_panel.grid_forget()
         self._right_panel.grid_rowconfigure(4, weight=0)
