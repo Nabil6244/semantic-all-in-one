@@ -1004,9 +1004,11 @@ class VideoGeneratorApp(ctk.CTk):
         # crowding the plain-CSV script workflow. Always visible (never
         # grid_remove()'d) per spec — only its CSV picker/Generate button
         # are gated behind the switch.
-        self._build_overscaled_section(self._view_visual_director.content, row=0)
-        self._build_pakmap_section(self._view_visual_director.content, row=1)
-        self._build_hybrid_section(self._view_visual_director.content, row=2)
+        self._build_style_picker(self._view_visual_director.content, row=0)
+        self._build_overscaled_section(self._view_visual_director.content, row=1)
+        self._build_pakmap_section(self._view_visual_director.content, row=2)
+        self._build_hybrid_section(self._view_visual_director.content, row=3)
+        self._sync_style_picker()
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
         self._shell.navigate("script")
@@ -2029,8 +2031,9 @@ class VideoGeneratorApp(ctk.CTk):
         block.grid_columnconfigure(0, weight=1)
         self._overscaled_block = block
 
+        self._overscaled_title_var = ctk.StringVar(value="Overscaled")
         ctk.CTkLabel(
-            block, text="Video style",
+            block, textvariable=self._overscaled_title_var,
             font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w",
         ).grid(row=0, column=0, sticky="w", padx=16, pady=(14, 0))
 
@@ -2043,12 +2046,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_style_segmented.grid(row=1, column=0, sticky="w", padx=16, pady=(8, 0))
 
         self._overscaled_toggle_label_var = ctk.StringVar(value="Use Overscaled for this generation")
-        ctk.CTkSwitch(
+        self._overscaled_switch = ctk.CTkSwitch(
             block, textvariable=self._overscaled_toggle_label_var,
             variable=self._overscaled_enabled_var, onvalue=True, offvalue=False,
             font=ctk.CTkFont(size=12),
             command=self._on_overscaled_toggle,
-        ).grid(row=2, column=0, sticky="w", padx=16, pady=(12, 0))
+        )
+        self._overscaled_switch.grid(row=2, column=0, sticky="w", padx=16, pady=(12, 0))
         ctk.CTkFrame(block, fg_color="transparent", height=1).grid(row=4, column=0, pady=(0, 6))
 
         controls = ctk.CTkFrame(block, fg_color="transparent")
@@ -2808,6 +2812,88 @@ class VideoGeneratorApp(ctk.CTk):
 
     # ---------- pakMap (a third, independent video style) ----------
 
+    # ---- one picker for the video style ------------------------------------------------------------------------------
+    STYLE_CHOICES = ("Normal video", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map")
+    STYLE_BLURBS = {
+        "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
+        "Overscaled": "Photo and video cards arranged around the narration, from a simple CSV.",
+        "Exp Solar": "Overscaled's layout in the Exp Solar look (rows of cards), from the same CSV.",
+        "pakMap": "One continuous satellite-map camera with titles, markers, numbers and photo cards.",
+        "Hybrid Map": "The map explains where, full-screen footage shows what it is like.",
+    }
+
+    def _build_style_picker(self, parent, *, row: int) -> None:
+        """The one place a style is chosen. It drives the styles' own switches and handlers (which keep the styles exclusive,
+        refuse a switch during a render, and save per-project state), so nothing about how a style runs changes."""
+        block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
+        block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+        block.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(block, text="Video style", font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").grid(
+            row=0, column=0, sticky="w", padx=16, pady=(14, 0))
+        self._style_picker = ctk.CTkSegmentedButton(block, values=list(self.STYLE_CHOICES), command=self._on_style_pick, font=ctk.CTkFont(size=12))
+        self._style_picker.set("Normal video")
+        self._style_picker.grid(row=1, column=0, sticky="w", padx=16, pady=(8, 0))
+        self._style_blurb_var = ctk.StringVar(value=self.STYLE_BLURBS["Normal video"])
+        ctk.CTkLabel(block, textvariable=self._style_blurb_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left",
+                     wraplength=640).grid(row=2, column=0, sticky="w", padx=16, pady=(6, 14))
+
+    def _active_style(self) -> str:
+        mode = getattr(self, "generation_mode", "normal")
+        if mode == "overscaled":
+            return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
+        return {"pakmap": "pakMap", "hybrid": "Hybrid Map"}.get(mode, "Normal video")
+
+    def _on_style_pick(self, choice: str) -> None:
+        if choice == self._active_style():
+            return
+        if getattr(self, "_overscaled_running", False) or getattr(self, "_pakmap_running", False) or getattr(self, "_hybrid_running", False):
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
+        if choice in ("Overscaled", "Exp Solar"):
+            if self._overscaled_style_segmented.get() != choice:
+                self._overscaled_style_segmented.set(choice)
+                self._on_overscaled_style_change(choice)
+            if not self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(True)
+                self._on_overscaled_toggle()
+        elif choice == "pakMap":
+            self._pakmap_enabled_var.set(True)
+            self._on_pakmap_toggle()
+        elif choice == "Hybrid Map":
+            self._hybrid_enabled_var.set(True)
+            self._on_hybrid_toggle()
+        else:  # Normal video: every style steps aside
+            if self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._on_overscaled_toggle()
+            self._pakmap_deactivate()  # also steps Hybrid aside
+            self.generation_mode = "normal"
+        self._sync_primary_cta()
+
+    def _sync_style_picker(self) -> None:
+        """Show the active style in the picker, and only that style's card (with its controls open)."""
+        if not hasattr(self, "_style_picker") or not hasattr(self, "_hybrid_block"):
+            return
+        active = self._active_style()
+        if self._style_picker.get() != active:
+            self._style_picker.set(active)
+        self._style_blurb_var.set(self.STYLE_BLURBS[active])
+        self._overscaled_title_var.set(active if active in ("Overscaled", "Exp Solar") else "Overscaled")
+        for w in (self._overscaled_style_segmented, self._overscaled_switch, self._pakmap_switch, self._hybrid_switch):
+            w.grid_remove()  # the picker replaces the per-card switches (their variables and handlers still run the styles)
+        for block, on in ((self._overscaled_block, active in ("Overscaled", "Exp Solar")), (self._pakmap_block, active == "pakMap"),
+                          (self._hybrid_block, active == "Hybrid Map")):
+            block.grid() if on else block.grid_remove()
+
+    def _style_card_header(self, block, title: str, description: str) -> None:
+        """A style card's title with a one-line description under it (row 0 of the card), so a collapsed card says what it is."""
+        head = ctk.CTkFrame(block, fg_color="transparent")
+        head.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 0))
+        ctk.CTkLabel(head, text=title, font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(head, text=description, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left",
+                     wraplength=640).pack(anchor="w", pady=(2, 0))
+
     def _build_pakmap_section(self, parent, *, row: int) -> None:
         """pakMap: continuous satellite-map videos from a one-row-per-event CSV.
 
@@ -2833,15 +2919,15 @@ class VideoGeneratorApp(ctk.CTk):
         block.grid_columnconfigure(0, weight=1)
         self._pakmap_block = block
 
-        ctk.CTkLabel(
-            block, text="pakMap (satellite-map videos)",
-            font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=16, pady=(14, 0))
-        ctk.CTkSwitch(
+        self._style_card_header(block, "pakMap (satellite-map videos)",
+                                "One continuous satellite-map camera with titles, markers, numbers and photo cards. "
+                                "Load a CSV written with composition_styles/pakmap_csv_prompt.txt.")
+        self._pakmap_switch = ctk.CTkSwitch(
             block, text="Use pakMap for this generation",
             variable=self._pakmap_enabled_var, onvalue=True, offvalue=False,
             font=ctk.CTkFont(size=12), command=self._on_pakmap_toggle,
-        ).grid(row=1, column=0, sticky="w", padx=16, pady=(12, 0))
+        )
+        self._pakmap_switch.grid(row=1, column=0, sticky="w", padx=16, pady=(12, 14))
 
         controls = ctk.CTkFrame(block, fg_color="transparent")
         controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
@@ -2990,12 +3076,14 @@ class VideoGeneratorApp(ctk.CTk):
         block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
         block.grid_columnconfigure(0, weight=1)
         self._hybrid_block = block
-        ctk.CTkLabel(block, text="Hybrid Map (map + footage)", font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").grid(
-            row=0, column=0, sticky="w", padx=16, pady=(14, 0))
-        ctk.CTkSwitch(
+        self._style_card_header(block, "Hybrid Map (map + footage)",
+                                "The map explains where, full-screen footage shows what it is like. Load a beat CSV written with "
+                                "composition_styles/hybrid_beats_prompt.txt, or use Plan with AI.")
+        self._hybrid_switch = ctk.CTkSwitch(
             block, text="Use Hybrid Map for this project", variable=self._hybrid_enabled_var, command=self._on_hybrid_toggle,
             font=ctk.CTkFont(size=12), text_color=_TEXT,
-        ).grid(row=1, column=0, sticky="w", padx=16, pady=(12, 0))
+        )
+        self._hybrid_switch.grid(row=1, column=0, sticky="w", padx=16, pady=(12, 14))
         controls = ctk.CTkFrame(block, fg_color="transparent")
         controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
         controls.grid_columnconfigure(0, weight=1)
@@ -3036,7 +3124,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_open_btn = _btn(ai_row, "Open plan file", self._hybrid_open_plan_file, 2)
         ctk.CTkLabel(
             controls,
-            text="Uses the voiceover chosen on the Script page. Load a CSV (made with the Hybrid CSV prompt) or let Plan with AI decide where the story is "
+            text="Uses the voiceover chosen on the Script page. Load a CSV (made with the Hybrid beats prompt or the Hybrid CSV prompt) or let Plan with AI decide where the story is "
                  "told on the map and where in footage. Check plan shows where every layer lands before anything is drawn; the footage appears in the "
                  "Visual Plan tab, and the main action button renders the video.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
@@ -3231,10 +3319,29 @@ class VideoGeneratorApp(ctk.CTk):
                                                                                        ("All files", "*.*")], initialdir=str(_browse_start_dir()))
         if not path:
             return
-        if Path(path).suffix.lower() == ".json":
-            self._hybrid_load_plan_file(path)
+        if Path(path).suffix.lower() == ".json" or (self._hybrid_is_beat_csv(path) and not self._hybrid_beat_csv_needs_words(path)):
+            self._hybrid_load_plan_file(path)  # a plan, as JSON or as a beat CSV in seconds (Open plan file): loaded exactly as written
         else:
-            self._hybrid_import_csv_file(path)
+            self._hybrid_import_csv_file(path)  # a Hybrid CSV, or a beat CSV timed by the narrator's words: read against the narration
+
+    @staticmethod
+    def _hybrid_is_beat_csv(path: str) -> bool:
+        from hybrid.beat_csv import is_beat_csv
+
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                return is_beat_csv(f.readline())
+        except OSError:
+            return False
+
+    @staticmethod
+    def _hybrid_beat_csv_needs_words(path: str) -> bool:
+        from hybrid.beat_csv import needs_words
+
+        try:
+            return needs_words(Path(path).read_text(encoding="utf-8-sig"))
+        except OSError:
+            return False
 
     def _hybrid_import_csv_file(self, path: str) -> None:
         """A Hybrid CSV (see composition_styles/hybrid_csv_prompt.txt) read against this project's narration and loaded as the plan."""
@@ -3258,11 +3365,14 @@ class VideoGeneratorApp(ctk.CTk):
 
         def worker() -> None:
             try:
+                from hybrid.beat_csv import import_beats, is_beat_csv
                 from hybrid.csv_import import plan_from_csv
                 from pakmap.app_integration import voiceover_duration
 
                 words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
-                got = plan_from_csv(text, words, voiceover_duration(voiceover_path))
+                # a beat CSV (composition_styles/hybrid_beats_prompt.txt) is the plan itself; a Hybrid CSV is pakMap rows re-cut into beats
+                importer = import_beats if is_beat_csv(text) else plan_from_csv
+                got = importer(text, words, voiceover_duration(voiceover_path))
                 post(lambda: finish(got, None))
             except Exception as exc:
                 post(lambda e=exc: finish(None, e))
@@ -3300,7 +3410,12 @@ class VideoGeneratorApp(ctk.CTk):
         from hybrid.plan import HybridPlan, PlanError
 
         try:
-            plan = HybridPlan.load(path)
+            if Path(path).suffix.lower() == ".csv":
+                from hybrid.beat_csv import plan_from_csv
+
+                plan = plan_from_csv(Path(path).read_text(encoding="utf-8-sig"))
+            else:
+                plan = HybridPlan.load(path)
         except (PlanError, OSError, ValueError) as exc:
             detail = "\n".join(getattr(exc, "problems", [])) or str(exc)
             self._set_hybrid_text("The plan file has problems:\n\n" + detail)
@@ -3391,19 +3506,24 @@ class VideoGeneratorApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _hybrid_open_plan_file(self) -> None:
-        """Open the plan (JSON) in the system editor: fix a place or a query by hand, save, then Load plan… (or Check plan)."""
+        """Open the plan as a beat CSV (hybrid/beat_csv.py: one row per beat, camera step, layer, clip and card) in the system
+        spreadsheet app: edit, save, then Browse (Plan / CSV) and choose it; it is read back exactly. The JSON stays the saved plan."""
         ws = self._workspace
-        if ws is None or not ws.hybrid_plan_path.is_file():
+        if ws is None or not ws.hybrid_plan_path.is_file() or self._hybrid_plan is None:
             messagebox.showinfo("Open plan file", "There is no saved Hybrid plan in this project yet.")
             return
         try:
+            from hybrid.beat_csv import plan_to_csv
+
+            target = ws.hybrid_dir / "hybrid_beats.csv"
+            target.write_text(plan_to_csv(self._hybrid_plan), encoding="utf-8")
             if sys.platform == "darwin":
-                subprocess.Popen(["open", str(ws.hybrid_plan_path)])
+                subprocess.Popen(["open", str(target)])
             elif sys.platform == "win32":
-                os.startfile(str(ws.hybrid_plan_path))  # type: ignore[attr-defined]
+                os.startfile(str(target))  # type: ignore[attr-defined]
             else:
-                subprocess.Popen(["xdg-open", str(ws.hybrid_plan_path)])
-            self._hybrid_status_var.set("Edit and save the plan file, then click Load plan… and choose it again.")
+                subprocess.Popen(["xdg-open", str(target)])
+            self._hybrid_status_var.set(f"Opened {target.name}: edit and save it, then click Browse next to Plan / CSV and choose it.")
         except Exception as exc:
             messagebox.showerror("Open plan file", str(exc))
 
@@ -5416,6 +5536,7 @@ class VideoGeneratorApp(ctk.CTk):
         return killed
 
     def _sync_primary_cta(self, snap=None) -> None:
+        self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
         if self.generation_mode == "overscaled":
             self._sync_primary_cta_overscaled()
             return
@@ -10357,11 +10478,12 @@ class VideoGeneratorApp(ctk.CTk):
                  "You can also set GEMINI_API_KEY.",
             font=ctk.CTkFont(size=12), text_color=_TEXT, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20)
+        ctk.CTkLabel(body, text="Main Gemini API key", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(anchor="w", padx=20, pady=(8, 0))
         gemini_entries = [ctk.CTkEntry(
             body, textvariable=self.gemini_key_var, show="•", height=34,
-            placeholder_text="Gemini API key", 
+            placeholder_text="Gemini API key",
         )]
-        gemini_entries[0].pack(fill="x", padx=20, pady=(8, 4))
+        gemini_entries[0].pack(fill="x", padx=20, pady=(2, 4))
 
         ctk.CTkLabel(
             body,
@@ -10369,8 +10491,9 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(6, 0))
         for n, var in enumerate(self.gemini_backup_vars, 1):
+            ctk.CTkLabel(body, text=f"Backup Gemini key {n}", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(anchor="w", padx=20, pady=(6, 0))
             entry = ctk.CTkEntry(body, textvariable=var, show="•", height=34, placeholder_text=f"Backup Gemini key {n}")
-            entry.pack(fill="x", padx=20, pady=(6, 0))
+            entry.pack(fill="x", padx=20, pady=(2, 0))
             gemini_entries.append(entry)
 
         keys_note = ctk.StringVar(value="")
@@ -10417,17 +10540,21 @@ class VideoGeneratorApp(ctk.CTk):
         sw_row.pack(fill="x", padx=20, pady=(6, 0))
         ctk.CTkCheckBox(sw_row, text="Use Gemini", variable=self.gemini_enabled_var).pack(side="left", padx=(0, 18))
         ctk.CTkCheckBox(sw_row, text="Use Groq", variable=self.groq_enabled_var).pack(side="left")
+        ctk.CTkLabel(body, text="Groq API key (starts with gsk_)", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(anchor="w", padx=20, pady=(8, 0))
         groq_entry = ctk.CTkEntry(body, textvariable=self.groq_key_var, show="•", height=34, placeholder_text="Groq API key")
-        groq_entry.pack(fill="x", padx=20, pady=(8, 0))
+        groq_entry.pack(fill="x", padx=20, pady=(2, 0))
         gemini_entries.append(groq_entry)               # "Show keys" reveals it too
         ctk.CTkLabel(
             body, text="Models for each job (leave empty for the defaults; names can change as providers change theirs):",
             font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(8, 0))
-        for key, hint in (("gemini_director", "Gemini model for the plan (Director)"), ("gemini_second", "Second Gemini model (used when the first is out of quota)"),
-                          ("gemini_critic", "Gemini model for reviews/repairs (only if Groq cannot)"), ("groq_director", "Groq model as Director fallback"),
-                          ("groq_critic", "Groq model for the Critic"), ("groq_repair", "Groq model for Repairs")):
-            ctk.CTkEntry(body, textvariable=self.ai_model_vars[key], height=30, placeholder_text=hint).pack(fill="x", padx=20, pady=(4, 0))
+        model_hints = (("gemini_director", "Gemini model for the plan (Director)"), ("gemini_second", "Second Gemini model (used when the first is out of quota)"),
+                       ("gemini_critic", "Gemini model for reviews/repairs (only if Groq cannot)"), ("groq_director", "Groq model as Director fallback"),
+                       ("groq_critic", "Groq model for the Critic"), ("groq_repair", "Groq model for Repairs"))
+        for key, hint in model_hints:
+            # a visible label, not only a placeholder: once a box has text its hint is gone, and these sit right under the Groq key box
+            ctk.CTkLabel(body, text=hint + " (model name, not a key)", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(anchor="w", padx=20, pady=(6, 0))
+            ctk.CTkEntry(body, textvariable=self.ai_model_vars[key], height=30, placeholder_text="empty = default").pack(fill="x", padx=20, pady=(2, 0))
         ai_results = ctk.CTkTextbox(body, height=120, wrap="word", font=ctk.CTkFont(size=12))
         ai_results.insert("1.0", "Press Test keys to check each key with one tiny request.")
         ai_results.configure(state="disabled")
@@ -10473,6 +10600,13 @@ class VideoGeneratorApp(ctk.CTk):
         ai_results.pack(fill="x", padx=20, pady=(0, 4))
 
         def save_gemini():
+            from ai_router.config import looks_like_key
+
+            wrong = [hint for key, hint in model_hints if looks_like_key(self.ai_model_vars[key].get())]
+            if wrong:
+                messagebox.showerror("Save AI Settings", "These model boxes hold an API key, not a model name:\n\n- " + "\n- ".join(wrong)
+                                     + "\n\nPut keys in the key boxes above (the Groq key goes in \"Groq API key\") and leave a model box empty for its default.")
+                return
             self._settings["gemini_api_key"] = self.gemini_key_var.get().strip()
             for n, var in enumerate(self.gemini_backup_vars, 1):
                 self._settings[f"gemini_api_key_{n}"] = var.get().strip()

@@ -29,14 +29,16 @@ HOW TIME WORKS (the most important rule)
 ITEMS
 - item_no groups rows into one idea: a numbered fact, a "part", or one location
   story. Item numbers go 1, 2, 3 ... in script order. A new item starts when the
-  topic changes.
+  topic changes. An item (a PART) often runs a minute or more: inside it, keep
+  adding layers and pictures as the narration moves on.
 - Each item has AT LEAST ONE anchored row. Start each item with a hud_title row.
 - The video ends when the narration ends. Do not add a closing row.
 
 LAYER TYPES (layer_type) AND WHAT EACH NEEDS
 - hud_title: label_text (for example PART 1 or NUMBER 14), sub_text optional (a
   short subtitle in capitals). One per item, first row of the item. Keep text
-  short.
+  short. For a reflective PART where nothing concrete is named, set params
+  {"pacing": "abstract"} on its hud_title instead of inventing pictures.
 - camera: camera_action plus a target. First row of the video: camera_action=start
   with geo_ref and frame. Later: fly_to (geo_ref + frame), push_in (slow zoom in),
   pull_back. frame is one of: globe, continental, country, region, local.
@@ -62,8 +64,13 @@ LAYER TYPES (layer_type) AND WHAT EACH NEEDS
   that place). label_text optional.
 - filmstrip: 3 to 7 photo cards in a row. Use one row per card, all with the
   SAME layer_id, each with asset_path and label_text. anchor: center, left, right.
-- media_full: a picture or clip that covers the whole screen for a few seconds.
-  The map holds still underneath. Use rarely, for a dramatic moment.
+  Use it when the narration lists related things (the king, the flag, the army).
+- Two cards side by side: two pip rows on the same words with different anchors
+  (tl and tr, or ml and mr), for a pair or a comparison (country A and country B,
+  a machine and its inventor, before and after).
+- media_full: a picture or clip that covers the whole screen for 5 to 12 seconds.
+  The map holds still underneath. Use it when real motion or physical action
+  helps (a storm, a battle charge, a machine working).
 - dots: a cloud of dots (for example where people live). data_source
   bundled:populated_places, geo_ref the country, params {"per_million": 160}.
 - value_overlay: a colour map of rainfall. data_source bundled:rainfall_chirps,
@@ -92,22 +99,36 @@ PICTURES (asset_path)
   objects. Only a photo card (pip) may cross-fade two pictures, with a pipe:
   stock_image:A|stock_image:B. Every other layer (media_full, filmstrip card)
   takes exactly ONE picture or clip: never put a pipe in it.
-- Never use a sticker row.
-- Use at most one photo card (pip or filmstrip) per item, and not more than one
-  full-screen media_full in the whole video unless the script clearly calls for it.
+- sticker: only when the author has given you transparent PNG sticker files to use
+  (asset_path is that file). Put it on the place it explains (a volcano on the
+  volcanic region), never as decoration. A sticker cannot be on screen together
+  with a photo card. Without such files, do not use sticker rows.
+- Plan a new picture moment roughly every 10 to 20 seconds when the narration
+  introduces something that can be shown: a person, object, flag, place, historical
+  subject, vehicle, structure, document, artifact or animal. This is a target, not
+  a timer: the narration must justify every picture; never add a card just to fill
+  time. A long PART normally has several picture moments.
+- A short full-screen media_full insert is fine about once per PART when the
+  narration benefits from real motion. The map stays the main surface: never
+  more than one insert in a PART, and keep each one 5 to 12 seconds.
 
 PACING AND LIMITS (the app enforces these; breaking them is an error)
 - At most 2 stat chips on screen at once.
 - At most 5 text layers on screen at once (a title with a subtitle counts as 2).
 - A layer stays on screen: stat 4.5 s, caption 4 s, marker 9 s, photo card 6 s,
   filmstrip 7 s, dots 10 s; titles, fills and lines stay until the item ends.
-  Set hold (seconds) only when the default is wrong.
+  Set hold (seconds) only when the default is wrong; a card may stay 5 to 8 s.
+- Cards can hand over: a new card in the same corner may start while the previous
+  one is still up; the app fades the old one out under the new one. Avoid long
+  stretches (over about 25 s) with no picture when the narration names things.
 - Between items there is a 0.5 s empty beat that the app adds itself.
 - Never leave more than about 5 seconds of narration with nothing new appearing:
   add a marker, caption, camera move or number so the screen keeps changing.
-- Be economical. A strong item is: a title, one camera move, 2 to 4 markers or
-  one fill, one number, and at most one photo. Do not put a layer on every
-  sentence.
+- Something small should change every few seconds (a marker, fill, line,
+  number, caption or camera move) while pictures arrive every 10 to 20 seconds.
+  A strong PART is: a title, camera moves as the story travels, markers or
+  fills for the places, the stated numbers, and a picture for each concrete
+  thing the narrator names. Do not put a layer on every sentence.
 
 WHAT TO PUT ON SCREEN (editorial rules)
 - A place is named -> a marker on it. A region is the subject -> a fill.
@@ -117,6 +138,7 @@ WHAT TO PUT ON SCREEN (editorial rules)
 - A comparison of size -> ghost_shape. People density -> dots.
 - A new topic or place -> new item, hud_title, and usually a camera move.
 - A person, object or scene that cannot be shown on a map -> a pip photo card.
+- Several related things named together -> a filmstrip, or two cards side by side.
 - Show only what the narrator says. Never add facts, numbers, places or claims
   that are not in the script.
 
@@ -139,7 +161,9 @@ CHECKLIST BEFORE YOU ANSWER
 4. Every number comes from the script. Every place is a real place.
 5. No file names invented; pictures are stock_image:/stock_video: descriptions.
 6. No more than 2 stat chips or 5 text layers at once; nothing silent for 5 s.
-7. Output is the CSV only.
+7. A picture every 10 to 20 s where the narration names something to show; at most
+   one short media_full per PART.
+8. Output is the CSV only.
 
 EXAMPLE
 Script:

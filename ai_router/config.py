@@ -19,9 +19,25 @@ DEFAULT_MODELS = {
 }
 
 
+KEY_PREFIXES = ("gsk_", "AIza", "AQ.", "sk-")
+
+
+def looks_like_key(value: Any) -> bool:
+    """An API key typed into a model box (the boxes sit right under the Groq key box). Model names are short and have dashes
+    (gemini-3.5-flash, llama-3.3-70b-versatile); keys are long runs without one."""
+    v = str(value or "").strip()
+    return v.startswith(KEY_PREFIXES) or (len(v) >= 30 and "-" not in v)
+
+
 def model_settings(settings: Optional[Mapping[str, Any]]) -> Dict[str, str]:
+    """The model for each job. A box holding an API key instead of a model name is ignored (the default is used), so a key is
+    never sent as a model name, which fails every call and puts the key in the request's web address."""
     saved = (settings or {}).get("ai_models") or {}
-    return {k: (str(saved.get(k) or "").strip() or v) for k, v in DEFAULT_MODELS.items()}
+    out = {}
+    for k, v in DEFAULT_MODELS.items():
+        mine = str(saved.get(k) or "").strip()
+        out[k] = v if (not mine or looks_like_key(mine)) else mine
+    return out
 
 
 def _gemini_default() -> str:

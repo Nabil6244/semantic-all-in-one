@@ -250,3 +250,21 @@ class TestGroqProvider(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestModelBoxHoldsAKey(unittest.TestCase):
+    """A Groq key pasted into the 'Gemini model for the plan' box made every Gemini call fail (and sent the key as the model name)."""
+
+    def test_a_key_in_a_model_box_is_ignored_and_the_default_used(self):
+        from ai_router.config import DEFAULT_MODELS, default_routes, looks_like_key, model_settings
+
+        st = {"ai_models": {"gemini_director": "gsk_" + "x" * 52, "gemini_critic": "AIza" + "y" * 35, "groq_critic": "llama-3.1-8b-instant"}}
+        m = model_settings(st)
+        self.assertEqual(m["gemini_director"], DEFAULT_MODELS["gemini_director"])
+        self.assertEqual(m["gemini_critic"], DEFAULT_MODELS["gemini_critic"])
+        self.assertEqual(m["groq_critic"], "llama-3.1-8b-instant")  # a real model name is kept
+        self.assertFalse(any("gsk_" in r.model for routes in default_routes(st).values() for r in routes))
+        for name in ("gemini-3.5-flash", "gemini-3.6-flash", "llama-3.3-70b-versatile", "gemini-flash-latest"):
+            self.assertFalse(looks_like_key(name), name)
+        for key in ("gsk_abc", "AQ." + "z" * 50, "AIzaSyD" + "q" * 32, "a" * 39):
+            self.assertTrue(looks_like_key(key))

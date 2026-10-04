@@ -1791,8 +1791,8 @@ class VisualDirectorView(_BaseView):
         super().__init__(master, app, **kwargs)
         SectionHeader(
             self, "Visual Director",
-            "Exp Solar / Overscaled: import a simple CSV and let the Local Visual "
-            "Planner infer visual structure — review the plan, then Generate.",
+            "Pick one style below. Overscaled / Exp Solar: a simple CSV and the Local Visual Planner. "
+            "pakMap: one continuous satellite map. Hybrid Map: the map and full-screen footage in turns.",
         ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
 
 

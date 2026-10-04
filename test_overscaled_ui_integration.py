@@ -247,7 +247,10 @@ emit("generation_mode_starts_normal", instance.generation_mode == "normal", inst
 # home. Still a real, live scrollable frame, just a different one.
 emit("mounted_in_scroll", instance._overscaled_block.master is instance._view_visual_director.content,
      instance._view_visual_director.content.__class__.__name__)
-emit("card_visible_by_default", bool(instance._overscaled_block.grid_info()), "")
+# One Video style picker (always visible) replaces the per-card switches: the Overscaled card shows only while Overscaled /
+# Exp Solar is the chosen style, so in the default Normal video style the picker is what is visible.
+emit("card_visible_by_default", bool(instance._style_picker.grid_info()) and instance._style_picker.get() == "Normal video"
+     and not bool(instance._overscaled_block.grid_info()), "")
 emit("controls_start_hidden", not bool(instance._overscaled_controls.grid_info()), "")
 
 # 3) Switch toggling flips generation_mode both ways.
@@ -400,6 +403,7 @@ class TestOverscaledLiveWidgetConstruction(unittest.TestCase):
         self._assert_check("mounted_in_scroll")
 
     def test_overscaled_card_is_visible_by_default(self):
+        # now: the style picker is visible by default and the Overscaled card waits until Overscaled is picked (test_style_picker.py)
         self._assert_check("card_visible_by_default")
 
     def test_controls_start_hidden_but_card_itself_does_not(self):

@@ -1,5 +1,17 @@
 # Hybrid CSV import
 
+## Beat CSV (recommended)
+
+`composition_styles/hybrid_beats_prompt.txt`: give it and your script to an AI (for example Claude). It writes the plan itself, one row per
+beat, layer, photo card and clip, timed by the narrator's own words. **Hybrid panel > Plan / CSV > Browse** recognises it by its header (`beat,row,...`),
+reads the narration, and loads it **as written**: nothing is re-cut or dropped. Camera moves come from each map beat's place, as for an AI plan.
+A problem names its row ("row 14: vo_anchor 'the capital' is not in the narration"). No Gemini or Groq call is made (Repair errors is optional).
+
+**Open plan file** writes the current plan (however it was made) as `hybrid/hybrid_beats.csv` in seconds and opens it in your spreadsheet app;
+edit, save, and **Browse** to it again: it loads exactly, without reading the narration again.
+
+## Hybrid CSV (pakMap rows)
+
 A CSV written to `composition_styles/hybrid_csv_prompt.txt` (give that prompt and your script to any AI) loads straight into Hybrid mode:
 **Hybrid panel > Load CSV…** (the voiceover must be chosen first: the rows are tied to the narrator's own words).
 

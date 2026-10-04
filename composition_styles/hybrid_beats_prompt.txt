@@ -1,0 +1,165 @@
+You are writing the BEAT PLAN for the "Hybrid Map" style of Semantic YT Studio: a
+documentary that alternates between a satellite MAP (one camera that glides from place
+to place, with titles, markers, region fills, routes, number chips and a photo card
+drawn on it) and full-screen FOOTAGE (real video or photos that let the viewer
+experience what the narrator describes). The map explains WHERE and HOW BIG. Footage
+shows WHAT IT IS LIKE.
+
+You cut the narration into BEATS. A beat is one stretch of the story, told one way:
+  map          the map, with its layers
+  map_footage  the map, with ONE photo card on it (the map says where, the card shows what)
+  footage      full-screen clips (one to three), the map waits underneath
+Under each beat you list what appears in it. The app times everything from the
+narrator's own words, moves the camera for you, and renders the video.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma, for example "-29.3,27.5".
+
+HEADER (exactly this, in this order)
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+
+ROWS
+Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and what it is
+(row = beat, layer, card or clip). Write the beat row first, then that beat's rows.
+
+- row=beat: opens a beat.
+    vo_anchor  the first words of the beat, copied exactly from the script
+    mode       map, map_footage or footage
+    place      (map beats) where the camera looks: a country, province, region or big city
+    frame      (map beats) country, region or local (local = a city or a site)
+    type       (map beats, optional) push_in for a slow zoom in, hold to keep the camera still
+    why        one short phrase: what this beat does ("where Lesotho is", "feel the winter")
+  A beat ends where the next beat starts. The first beat starts the video.
+
+- row=layer: something drawn on the map (map and map_footage beats only).
+    vo_anchor  the words it appears on
+    type       hud_title, marker, zone_label, fill, line, stat or caption
+    and what that type needs (see LAYERS)
+    until      leave empty (it leaves with its beat), after_footage (it is still there when
+               the map comes back after the next footage), or end (until the video ends)
+    hold       seconds, only to make it leave sooner
+
+- row=card: the ONE photo card of a map_footage beat.
+    vo_anchor  the words it appears on
+    asset      stock_image:<specific description of the photo>
+    label      a short name in capitals shown under the card
+    place      optional: draws a leader line from the card to this place
+
+- row=clip: a clip of a footage beat (one to three per footage beat, in order).
+    asset      stock_video:<specific description> (or stock_image: for a still)
+    why        what this clip shows that the map cannot
+    dur        optional seconds; leave empty and the beat's time is shared between its clips
+
+HOW TIME WORKS (the most important rule)
+- vo_anchor = the narrator's own words, copied EXACTLY from the script: the first 1 to 4
+  words of the moment. Never invent or reword. If a phrase repeats, use enough words to
+  make it unique. Numbers may be digits or words ("2000" matches "two thousand"). Add
+  |end to anchor on the LAST word of the phrase.
+- Rows follow the script from start to finish; never go back in time. A layer or card
+  must be spoken INSIDE its own beat (after the beat's first words, before the next
+  beat's first words).
+- Spoken pace is about 2.5 words per second, so a beat of 25 words lasts about 10 s.
+
+THE HYBRID RHYTHM
+- Alternate: map, footage, map again. Do not leave the map up for more than about 25
+  seconds without a card or footage, and do not stack footage for minutes. Footage is
+  usually 25 to 45 percent of the running time.
+- MAP when the narration is about a place, a distance, a route, a border, a size, a
+  number tied to a place. FOOTAGE when it describes something you could film: a scene,
+  a landscape, people at work, weather, an object. MAP_FOOTAGE when a named thing needs a
+  picture but the place still matters.
+- Do not switch mode every sentence. A footage beat is 5 to 12 seconds (about 12 to 30
+  words of narration), one to three clips. A map beat is usually 8 to 25 seconds.
+- A map_footage beat runs at least about 6 seconds (15 words or more) and its card is
+  anchored in the first half of the beat: when the beat's place changes, the card waits
+  for the camera to arrive, and it then needs a few seconds on screen.
+- Never cut to footage for a passage too abstract to film; keep it on the map.
+
+CAMERA
+- You do not write camera moves. Give each map or map_footage beat its place and frame;
+  the app opens on the globe, flies to the first place, and moves only when a beat's
+  place changes, never while footage is on screen.
+- place must be a NAME the atlas knows (a country, province, big city, or a region like
+  Sahel), never a coordinate. Use frame=country or region; local for a city or site.
+- Keep the same place for beats that stay in the same area, so the camera does not move
+  for nothing.
+
+LAYERS
+- hud_title: label (for example PART 1), sub optional (a short subtitle in capitals).
+  One per new part of the story; never repeat a title.
+- marker: place and label (its name in capitals). role: dark (default), neutral,
+  featured, subject.
+- zone_label: place and label, a region name without a dot.
+- fill: place must be an AREA (a country, province, region). role: subject (red, the
+  main subject), featured, compare, orange, accent, water, green.
+- line: kind (flow, river, rail, border_trace, divide, reference, connector) and place
+  listing the points in order separated by ; (for example Maseru;Leribe). For a river
+  or route use 3 to 6 points along it.
+- stat: value_to (the number stated in the script), value_from (what it counts up from,
+  optional), format with ONE number placeholder written with 0 or #, and any text around
+  it. NEVER type the number itself in the format: for 37 million write value_to=37 and
+  format="0 MILLION PEOPLE". sub is the small caption. anchor: br, bl, tr, tl.
+- caption: text, anchor bc. At most 44 characters. Use sparingly.
+
+PLACES
+- Real, well-known names exactly as an atlas spells them: Kenya, Nairobi, Lake Victoria.
+  A city that shares a name with another: city:Moscow,RUS.
+- Anything an atlas lacks (a river, mountain, pass, sea, small town) is "lat,lon" in
+  quotes, latitude first, for markers and line points only. Never guess coordinates you
+  are unsure of; use a nearby well-known place. A fill is always a named area.
+
+PICTURES AND CLIPS (asset)
+- Do NOT invent file names. Name what to find: stock_video:<description> or
+  stock_image:<description>. Concrete and visual ("aerial view of a flash flood filling
+  a dry riverbed", not "water"). Never a person's name or a brand. youtube_video:<description>
+  at most once or twice, for a real event or historical scene. Never use Flow sources.
+- Do not repeat the same description or idea twice.
+
+LIMITS (the app checks these)
+- At most 2 stat chips and 5 text layers on screen at once (a title with a subtitle
+  counts as 2; fills, lines and cards do not count).
+- Layers stay: stat 4.5 s, caption 4 s, marker 9 s; titles, fills and lines until their
+  beat ends (or until after_footage / end).
+- A footage beat has only clip rows. A map beat has no clip rows and no card. A
+  map_footage beat has exactly one card row.
+- Never leave more than about 5 seconds of map narration with nothing new appearing.
+- Show only what the narrator says. Never add facts, numbers or places that are not in
+  the script.
+
+LONG SCRIPTS
+For a long script, write it in parts if you must: continue the beat numbers (b41, b42 ...)
+and do not repeat the header. The parts are pasted together into one file.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly as given and every row has the same number of cells.
+2. Beats are numbered b1, b2, b3 ... in order; each beat row comes before its rows.
+3. Every vo_anchor is copied from the script, in order; layers and cards are spoken
+   inside their own beat.
+4. Every map and map_footage beat has a place and frame; footage beats have only clips.
+5. Every map_footage beat has exactly one card; every footage beat one to three clips.
+6. Every number comes from the script; stat formats contain no typed number.
+7. No file names invented; pictures are stock_image:/stock_video: descriptions.
+8. Output is the CSV only.
+
+EXAMPLE
+Script:
+Lesotho is a kingdom inside South Africa. Its capital Maseru sits on the western border, right on the river that separates the two countries. Up in the highlands, snow falls every winter and shepherds wrap themselves in blankets. Back on the map, the Orange River starts here and runs two thousand kilometres to the Atlantic.
+
+CSV:
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+b1,beat,Lesotho is,map,,,Lesotho,country,,,,,,,,,,,,,,where Lesotho is
+b1,layer,Lesotho is,,hud_title,,,,PART 1,THE KINGDOM IN THE SKY,,,,,,,,,,,,
+b1,layer,inside South Africa,,fill,,Lesotho,,,,,subject,,,,,,after_footage,,,,
+b2,beat,Its capital,map_footage,,,Maseru,region,,,,,,,,,,,,,,the capital on the border
+b2,layer,Maseru,,marker,,Maseru,,MASERU,,,featured,,,,,,,,,,
+b2,card,sits on the western,,,,Maseru,,MASERU,,,,,,,,,,,stock_image:Maseru city view from a hill,,
+b3,beat,Up in the highlands,footage,,,,,,,,,,,,,,,,,,feel the highland winter
+b3,clip,,,,,,,,,,,,,,,,,,stock_video:snow falling on mountain grassland in Lesotho,,the winter snow
+b3,clip,,,,,,,,,,,,,,,,,,stock_video:shepherd wrapped in a wool blanket with sheep,,the people of the highlands
+b4,beat,Back on the map,map,,,Lesotho,country,,,,,,,,,,,,,,where the river goes
+b4,layer,the Orange River,,line,,"Maseru;-29.0,23.0;-28.6,16.5",,,,,,river,,,,,,,,,
+b4,layer,two thousand kilometres,,stat,,,,,LENGTH,,,,,2000,"#,##0 KM",br,,,,,
+
+NOW WRITE THE BEAT PLAN FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

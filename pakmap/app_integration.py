@@ -16,6 +16,7 @@ from typing import Callable, List, Optional, Sequence
 
 from .anchor import Word
 from .compile import CompileError, CompileResult, Report, compile_csv
+from .pacing import apply_pacing
 from .schema import CsvError
 
 ProgressCallback = Callable[[str, float], None]
@@ -119,6 +120,7 @@ def check_pakmap_plan(csv_path: "str | Path", words: Sequence[Word], *, duration
     (when there is one) explains each issue."""
     try:
         res = compile_csv(csv_path, words, duration=duration, base_dir=base_dir, watermark=watermark)
+        apply_pacing(res, csv_path)  # PakMap only: card handoff + picture-density warnings (pakmap/pacing.py)
         res.report.info.extend(describe_sourced(csv_path, images_dir))
         return res, res.report, []
     except CsvError as exc:
@@ -218,6 +220,8 @@ def generate_pakmap_video(
         return PakmapResult(False, [f"could not get the pictures: {exc!r}"])
     try:
         res = compile_csv(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir, watermark=watermark, media_map=media_map, spec_extra=spec_extra)
+        if not spec_extra:  # PakMap only: Hybrid Map renders through here too (with spec_extra) and keeps its own pacing
+            apply_pacing(res, csv_path)  # the same card handoff as Check plan showed
     except CsvError as exc:
         return PakmapResult(False, list(exc.problems))
     except CompileError as exc:

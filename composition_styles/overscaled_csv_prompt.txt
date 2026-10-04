@@ -1,0 +1,124 @@
+You are writing a visual-plan CSV for the "Overscaled" style of Semantic YT Studio.
+
+THE LOOK
+A plain white whiteboard canvas. Photo and video cards are added one at a time
+while the narrator speaks, sometimes linked by a thick hand-drawn arrow. After
+1 to 3 cards the board clears and the next small collage begins. A small photo
+of the current subject and the subject's title stay in the top-left header for
+as long as that subject is being discussed.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code
+fences, no blank lines. Quote any field that contains a comma.
+
+COLUMNS (exactly these, in this order)
+scene_number,script_segment,node_id,node_type,role,asset_type,prompt,caption,highlight,camera_action,camera_target,edge_from,edge_to,edge_label,edge_style,chapter_title,node_label
+
+- scene_number: 1, 2, 3 ... one per row, no gaps.
+- script_segment: the narration for this row, copied WORD FOR WORD from the
+  script. All rows joined in order must reproduce the script exactly - never
+  reword, add, or drop words.
+- node_id: the id of the NEW card this row adds: n1, n2, n3 ... (anchors: a1,
+  a2 ...). Leave empty on narration-only rows. Never reuse an id.
+- node_type: image, video_loop, diagram, or anchor.
+- role: usually empty. "anchor" on anchor rows. Optionally "hero" on the most
+  important card of a composition.
+- asset_type: where the card's media comes from:
+    commons_image  - real named things: specific cars, people, places, events
+    stock_image    - generic photos (money, hands, a skyline, a silhouette)
+    stock_video    - generic footage (driving, engines, crowds, nature)
+    image / video  - AI-generated, only when nothing real would exist
+    youtube_video, archive_video, nasa_video, commons_video - real footage
+    map            - an animated map; prompt is the place, big to small,
+                     e.g. "Italy > Modena"
+  Use a video type (stock_video, video, youtube_video ...) for video_loop cards.
+- prompt: a short search query or generation prompt for the card's media.
+- caption: the spoken words of THIS row, trimmed to 10 words or fewer. Copy
+  the words; do not paraphrase or summarize.
+- highlight: one or two key names, numbers, or terms from the caption. Must
+  appear EXACTLY (same letters, same capitalization) inside the caption.
+- camera_action, camera_target: always empty.
+- edge_from, edge_to: link this row's new card (edge_to) to a card already on
+  screen in the current composition (edge_from).
+- edge_label: usually empty. A 1-2 word label on about 1 arrow in 4, only
+  when it adds meaning (e.g. "produces").
+- edge_style: empty = a visible arrow. "group" = joins the composition with
+  NO arrow. Never use "callout".
+- chapter_title: only on each subject's anchor row.
+- node_label: always empty.
+
+RHYTHM
+- One row per beat of about 2.5-3.5 seconds of speech (roughly 7-10 words).
+  Split long sentences across rows at natural pauses.
+- A new card roughly every 2-2.5 seconds; a fresh composition roughly every
+  3.5-4 seconds.
+
+SUBJECTS AND ANCHORS
+- A subject is the thing being explained (a car, a person, a building, "how
+  batteries work"). Most videos have 1-4 subjects, each lasting 45-90 seconds.
+- Each subject starts with ONE anchor row: node_id a1/a2..., node_type=anchor,
+  role=anchor, an image asset_type (usually commons_image), a prompt for a
+  clean, recognizable photo of the subject itself, and the subject's
+  chapter_title. Its script_segment is just the subject's opening words. Leave
+  caption, highlight, and all edge columns empty.
+- Never put a chapter_title anywhere else. Never link an arrow or group to an
+  anchor. No anchors for subtopics.
+
+COMPOSITIONS
+- A composition is the set of cards on screen together: 1 to 3 cards, never
+  more. Aim for about 40% single-card, 42% two-card, 16% three-card.
+- Build progressively, 1 -> 2 -> 3: every new card gets its own row. Never add
+  two cards on one row.
+- A new card joins the current composition ONLY through edge_from/edge_to. A
+  new card with NO edge clears the board and starts a new composition.
+- The first card is the subject or cause; later cards are what it leads to,
+  proves, or sits beside.
+- In a 3-card composition, both later cards can link back to the first card
+  (one with an arrow, one with "group"), or form a chain (1 -> 2 -> 3).
+
+ARROWS VS. GROUP
+- Arrow (edge_style empty): only for a meaningful relationship - cause ->
+  effect, before -> after, myth -> reality, a thing -> what it produces.
+  About half of the multi-card compositions should have one.
+- "group": cards that simply belong together - a comparison, a list, two
+  views of the same thing. Same composition, no arrow.
+
+HOLDING A CARD
+- When the narration keeps talking about what is already on screen, add a
+  narration-only row: fill ONLY scene_number and script_segment and leave
+  every other column empty. The current cards stay visible. Use these freely
+  to keep every row at 2.5-3.5 seconds.
+
+CHECK BEFORE ANSWERING
+1. Joining every script_segment in order gives back the script exactly.
+2. Every subject starts with exactly one anchor row with its chapter_title;
+   no other row has a chapter_title.
+3. No composition ever has more than 3 cards.
+4. Every edge_from is a card in the current composition; no edges touch
+   anchors.
+5. Every highlight appears exactly inside its caption.
+6. node_label, camera_action and camera_target are empty everywhere, and
+   "callout" is never used.
+7. Rows average about 2.5-3.5 seconds of speech (7-10 words).
+
+EXAMPLE (the first rows of a correct CSV)
+scene_number,script_segment,node_id,node_type,role,asset_type,prompt,caption,highlight,camera_action,camera_target,edge_from,edge_to,edge_label,edge_style,chapter_title,node_label
+1,The Pagani Zonda HP Barchetta.,a1,anchor,anchor,commons_image,Pagani Zonda HP Barchetta,,,,,,,,,Pagani Zonda HP Barchetta,
+2,"It sold for about seventeen and a half million dollars,",n1,image,hero,commons_image,Pagani Zonda HP Barchetta front,sold for about seventeen and a half million dollars,seventeen and a half million,,,,,,,,
+3,making it one of the priciest new cars ever.,,,,,,,,,,,,,,,
+4,"Pagani built only three of them,",n2,image,,commons_image,Pagani factory San Cesario sul Panaro,Pagani built only three of them,only three,,,,,,,,
+5,and each one was assembled entirely by hand.,n3,video_loop,,stock_video,mechanic hand assembling supercar engine,each one was assembled entirely by hand,by hand,,,n2,n3,,,,
+6,"Horacio Pagani created the car as a personal project,",n4,image,,commons_image,Horacio Pagani,Horacio Pagani created the car as a personal project,Horacio Pagani,,,,,,,,
+7,a gift to himself for his sixtieth birthday.,n5,image,,stock_image,birthday gift box ribbon,a gift to himself for his sixtieth birthday,sixtieth birthday,,,n4,n5,,group,,
+8,He even kept one of the three for himself.,,,,,,,,,,,,,,,
+9,Behind the seats sits a naturally aspirated AMG V12.,n6,video_loop,,stock_video,V12 engine close up running,a naturally aspirated AMG V12,AMG V12,,,,,,,,
+10,It produces 789 horsepower without any turbochargers.,n7,image,,stock_image,supercar tachometer redline,789 horsepower without any turbochargers,789 horsepower,,,n6,n7,produces,,,
+11,The open cockpit puts the driver right in the wind.,n8,video_loop,,stock_video,open top supercar driving mountain road,the open cockpit puts the driver right in the wind,open cockpit,,,n6,n8,,group,,
+12,It feels less like a car and more like a machine.,,,,,,,,,,,,,,,
+13,The other two went to buyers whose names were never revealed.,n9,image,,stock_image,anonymous man silhouette dark background,buyers whose names were never revealed,never revealed,,,,,,,,
+14,Those buyers did not just pay for a car.,n10,image,,stock_image,stack of hundred dollar bills,did not just pay for a car,not just,,,,,,,,
+15,"They bought the final chapter of the Zonda story,",n11,image,,commons_image,Pagani Zonda,the final chapter of the Zonda story,final chapter,,,n10,n11,,,,
+16,a design Pagani had refined for nearly two decades.,,,,,,,,,,,,,,,
+
+SCRIPT
+<paste the narration script here>
