@@ -148,7 +148,7 @@ def check_with_engine(spec: dict) -> Tuple[List[str], List[str], bool]:
     with tempfile.TemporaryDirectory() as d:
         f = Path(d) / "spec.json"
         f.write_text(json.dumps(spec), encoding="utf-8")
-        r = subprocess.run([node, str(tool), str(f)], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([node, str(tool), str(f)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     try:
         data = json.loads(r.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):

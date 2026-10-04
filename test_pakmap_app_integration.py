@@ -296,7 +296,7 @@ class TestPakmapInTheApp(unittest.TestCase):
     def setUpClass(cls):
         script = Path(tempfile.mkdtemp()) / "_pakmap_app_check.py"
         script.write_text(_SCRIPT, encoding="utf-8")
-        proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, timeout=240, cwd=Path(__file__).resolve().parent)
+        proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=240, cwd=Path(__file__).resolve().parent)
         cls._stdout, cls._stderr, cls._results = proc.stdout, proc.stderr, {}
         for line in proc.stdout.splitlines():
             if line.startswith("SKIP:"):

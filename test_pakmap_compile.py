@@ -273,7 +273,7 @@ class TestRendersForReal(unittest.TestCase):
         d = pathlib.Path(tempfile.mkdtemp())
         spec = dict(res.spec, output=str(d / "out.mp4"), cache_dir=str(d / "cache"), width=480, height=270, fps=4, imagery_enabled=False, flat_only=True)
         (d / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
-        run = subprocess.run(["node", str(ROOT / "pakmap-engine" / "render.mjs"), str(d / "spec.json")], capture_output=True, text=True, timeout=600,
+        run = subprocess.run(["node", str(ROOT / "pakmap-engine" / "render.mjs"), str(d / "spec.json")], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
                              env={**__import__("os").environ, "PAKMAP_GL": "software"})
         events = [json.loads(l) for l in run.stdout.splitlines() if l.startswith("{")]
         self.assertEqual(events[-1]["event"], "done", run.stdout[-800:] + run.stderr[-800:])
@@ -301,7 +301,7 @@ class TestWholeScript(unittest.TestCase):
 
     def test_the_command_line_writes_a_spec(self):
         d = pathlib.Path(tempfile.mkdtemp())
-        run = lambda *a: subprocess.run(["python3", "-m", "pakmap", *a], cwd=ROOT, capture_output=True, text=True)
+        run = lambda *a: subprocess.run(["python3", "-m", "pakmap", *a], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
         self.assertEqual(run("words", str(self.SAMPLES / "kenya-story.txt"), "--out", str(d / "w.json")).returncode, 0)
         out = run("compile", str(self.SAMPLES / "kenya-story.csv"), "--words", str(d / "w.json"), "--out", str(d / "spec.json"))
         self.assertEqual(out.returncode, 0, out.stderr + out.stdout)
