@@ -44,6 +44,7 @@ import time
 import traceback
 from io import StringIO
 from pathlib import Path
+import tkinter as tk
 from tkinter import filedialog, messagebox
 
 # Windows: hide black CMD flashes from ffmpeg / node / yt-dlp (must run before
@@ -820,6 +821,27 @@ _LAZY_VIEWS = {
 
 def _lazy_view(key: str) -> property:
     return property(lambda self: self._shell.view(key))
+
+
+class _StylePickerState:
+    """What the style cards show as chosen (get/set like the segmented button they replace)."""
+
+    def __init__(self, app) -> None:
+        self._app, self._value = app, "Normal video"
+
+    def get(self) -> str:
+        return self._value
+
+    def set(self, value: str) -> None:
+        self._value = value
+        self._app._paint_style_cards(value)
+
+    def grid_info(self) -> dict:
+        return self._app._style_grid.grid_info()
+
+
+def _span_text(t: float) -> str:
+    return f"{int(t // 60)}:{int(t % 60):02d}"
 
 
 class VideoGeneratorApp(ctk.CTk):
@@ -2822,20 +2844,111 @@ class VideoGeneratorApp(ctk.CTk):
         "Hybrid Map": "The map explains where, full-screen footage shows what it is like.",
     }
 
+    STYLE_CARDS = {
+        # icon, one-line pitch, what it needs, what it suits
+        "Normal video": ("\u25A4", "Scenes cut to your script", "Script + voiceover", "Explainers on any topic"),
+        "Overscaled": ("\u25A6", "A collage of photo and video cards", "A simple CSV", "Lists, rankings, comparisons"),
+        "Exp Solar": ("\u2630", "Rows of cards with a checklist strip", "The same simple CSV", "Step-by-step and survival topics"),
+        "pakMap": ("\u25C9", "One continuous satellite map", "A pakMap CSV", "Geography, borders, routes"),
+        "Hybrid Map": ("\u25D0", "Map and full-screen footage in turns", "A beat CSV, or AI", "Place-based documentaries"),
+    }
+
     def _build_style_picker(self, parent, *, row: int) -> None:
-        """The one place a style is chosen. It drives the styles' own switches and handlers (which keep the styles exclusive,
-        refuse a switch during a render, and save per-project state), so nothing about how a style runs changes."""
+        """The one place a style is chosen: a card per style (what it makes, what it needs, what it suits). It drives the styles' own
+        switches and handlers (which keep the styles exclusive, refuse a switch during a render, and save per-project state)."""
         block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
         block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
         block.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(block, text="Video style", font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").grid(
-            row=0, column=0, sticky="w", padx=16, pady=(14, 0))
-        self._style_picker = ctk.CTkSegmentedButton(block, values=list(self.STYLE_CHOICES), command=self._on_style_pick, font=ctk.CTkFont(size=12))
-        self._style_picker.set("Normal video")
-        self._style_picker.grid(row=1, column=0, sticky="w", padx=16, pady=(8, 0))
+
+        # what to do next, in one line with one button (no project yet, no voiceover yet, or the style's own next step)
+        self._style_next = ctk.CTkFrame(block, fg_color=_CARD_HOVER, corner_radius=8, border_width=1, border_color=_ACCENT)
+        self._style_next.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 0))
+        self._style_next.grid_columnconfigure(0, weight=1)
+        self._style_next_label = ctk.CTkLabel(self._style_next, text="", font=ctk.CTkFont(size=13, weight="bold"), text_color=_TEXT, anchor="w",
+                                              justify="left", wraplength=620)
+        self._style_next_label.grid(row=0, column=0, sticky="ew", padx=14, pady=12)
+        self._style_next_btn = ctk.CTkButton(self._style_next, text="", width=150, height=34, corner_radius=6, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+                                             font=ctk.CTkFont(size=12, weight="bold"), command=self._on_primary_cta)
+        self._style_next_btn.grid(row=0, column=1, padx=14, pady=10)
+
+        ctk.CTkLabel(block, text="Choose a video style", font=ctk.CTkFont(size=15, weight="bold"), text_color=_TEXT, anchor="w").grid(
+            row=1, column=0, sticky="w", padx=16, pady=(18, 0))
+        ctk.CTkLabel(block, text="Each style makes a different kind of video. You can switch at any time before rendering; each keeps its own plan.",
+                     font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w").grid(row=2, column=0, sticky="w", padx=16, pady=(2, 0))
+        grid = ctk.CTkFrame(block, fg_color="transparent")
+        grid.grid(row=3, column=0, sticky="ew", padx=12, pady=(10, 16))
+        self._style_grid = grid
+        self._style_cards = {}
+        for name in self.STYLE_CHOICES:
+            self._style_cards[name] = self._make_style_card(grid, name)
+        self._style_grid_cols = 0
+        grid.bind("<Configure>", lambda e: self._layout_style_cards(e.width))
+        self._layout_style_cards(900)
+        self._style_picker = _StylePickerState(self)
         self._style_blurb_var = ctk.StringVar(value=self.STYLE_BLURBS["Normal video"])
-        ctk.CTkLabel(block, textvariable=self._style_blurb_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left",
-                     wraplength=640).grid(row=2, column=0, sticky="w", padx=16, pady=(6, 14))
+        self._style_picker.set("Normal video")
+
+    def _make_style_card(self, parent, name: str):
+        icon, pitch, needs, suits = self.STYLE_CARDS[name]
+        card = ctk.CTkFrame(parent, fg_color=_BG, corner_radius=10, border_width=2, border_color=_BORDER, cursor="hand2")
+        card.grid_columnconfigure(0, weight=1)
+        top = ctk.CTkFrame(card, fg_color="transparent")
+        top.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 0))
+        top.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(top, text=icon, font=ctk.CTkFont(size=22), text_color=_ACCENT, width=28).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(top, text=name, font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").grid(row=0, column=1, sticky="w", padx=(6, 0))
+        badge = ctk.CTkLabel(top, text="  \u2713 Selected  ", font=ctk.CTkFont(size=10, weight="bold"), fg_color=_ACCENT, text_color="#FFFFFF", corner_radius=8, height=20)
+        badge.grid(row=0, column=2, sticky="e")
+        ctk.CTkLabel(card, text=pitch, font=ctk.CTkFont(size=12), text_color=_TEXT, anchor="w", justify="left", wraplength=190).grid(
+            row=1, column=0, sticky="ew", padx=12, pady=(8, 0))
+        ctk.CTkLabel(card, text=f"Needs: {needs}", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w").grid(row=2, column=0, sticky="ew", padx=12, pady=(6, 0))
+        ctk.CTkLabel(card, text=f"Good for: {suits}", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left", wraplength=190).grid(
+            row=3, column=0, sticky="ew", padx=12, pady=(0, 12))
+
+        def click(_e=None, n=name):
+            self._on_style_pick(n)
+
+        def hover(on, c=card, n=name):
+            if self._style_picker.get() != n:
+                c.configure(border_color=_ACCENT_HOV if on else _BORDER)
+
+        for w in [card, top] + list(card.winfo_children()) + list(top.winfo_children()):
+            w.bind("<Button-1>", click)
+            w.bind("<Enter>", lambda _e: hover(True))
+            w.bind("<Leave>", lambda _e: hover(False))
+        card._badge = badge  # type: ignore[attr-defined]
+        return card
+
+    def _layout_style_cards(self, width: int) -> None:
+        cols = 5 if width >= 1050 else 3 if width >= 620 else 2
+        if cols == self._style_grid_cols:
+            return
+        self._style_grid_cols = cols
+        for c in range(5):
+            self._style_grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="style" if c < cols else "")
+        for k, name in enumerate(self.STYLE_CHOICES):
+            self._style_cards[name].grid(row=k // cols, column=k % cols, sticky="nsew", padx=4, pady=4)
+
+    def _paint_style_cards(self, active: str) -> None:
+        for name, card in getattr(self, "_style_cards", {}).items():
+            on = name == active
+            card.configure(border_color=_ACCENT if on else _BORDER, fg_color=_ACCENT_SEL if on else _BG)
+            card._badge.grid() if on else card._badge.grid_remove()
+
+    def _refresh_style_next(self) -> None:
+        """The banner above the cards: the one thing to do next, with the same action as the main button."""
+        if not hasattr(self, "_style_next_label"):
+            return
+        try:
+            text = self.hint_var.get().strip()
+            btn = self.generate_btn.cget("text") if hasattr(self, "generate_btn") else ""
+            state = self.generate_btn.cget("state") if hasattr(self, "generate_btn") else "normal"
+        except Exception:
+            return
+        if self._workspace is None:
+            text, btn, state = "Start by choosing a project. Everything you make is saved in it.", "Choose project", "normal"
+        self._style_next_label.configure(text=("Next: " + text) if text else "")
+        self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
         mode = getattr(self, "generation_mode", "normal")
@@ -2879,6 +2992,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self._style_picker.get() != active:
             self._style_picker.set(active)
         self._style_blurb_var.set(self.STYLE_BLURBS[active])
+        self._refresh_style_next()
         self._overscaled_title_var.set(active if active in ("Overscaled", "Exp Solar") else "Overscaled")
         for w in (self._overscaled_style_segmented, self._overscaled_switch, self._pakmap_switch, self._hybrid_switch):
             w.grid_remove()  # the picker replaces the per-card switches (their variables and handlers still run the styles)
@@ -3078,7 +3192,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_block = block
         self._style_card_header(block, "Hybrid Map (map + footage)",
                                 "The map explains where, full-screen footage shows what it is like. Load a beat CSV written with "
-                                "composition_styles/hybrid_beats_prompt.txt, or use Plan with AI.")
+                                "composition_styles/hybrid_beats_prompt.txt, or let the app write the plan with AI.")
         self._hybrid_switch = ctk.CTkSwitch(
             block, text="Use Hybrid Map for this project", variable=self._hybrid_enabled_var, command=self._on_hybrid_toggle,
             font=ctk.CTkFont(size=12), text_color=_TEXT,
@@ -3089,51 +3203,74 @@ class VideoGeneratorApp(ctk.CTk):
         controls.grid_columnconfigure(0, weight=1)
         self._hybrid_controls = controls
 
-        # the same layout as the pakMap block: a file row with Browse, the channel name, Check plan beside the sound switch, a hint, the plan, the status;
-        # Hybrid's AI actions sit in one extra row of small buttons
+        # Top to bottom: where you are (4 steps), what is happening now (progress), what to do (two big choices), the plan as a timeline,
+        # what needs attention, and the written details. The technical actions sit in one quiet row.
+        self._hybrid_build_steps(controls, 0)
+        self._hybrid_build_progress(controls, 1)
+
+        actions = ctk.CTkFrame(controls, fg_color="transparent")
+        actions.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        self._hybrid_load_btn = ctk.CTkButton(
+            actions, text="Load beat CSV…", width=150, height=36, corner_radius=6, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+            font=ctk.CTkFont(size=12, weight="bold"), command=self._hybrid_browse_file,
+        )
+        self._hybrid_load_btn.grid(row=0, column=0, padx=(0, 8))
+        self._hybrid_plan_btn = ctk.CTkButton(
+            actions, text="Write plan with AI", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12), command=self._hybrid_plan_with_ai,
+        )
+        self._hybrid_plan_btn.grid(row=0, column=1, padx=(0, 8))
+        ctk.CTkButton(
+            actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1, border_color=_BORDER,
+            text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12), command=self._hybrid_copy_prompt,
+        ).grid(row=0, column=2)
+        ctk.CTkLabel(
+            controls, text="Load beat CSV: your own plan, written by any AI with the CSV prompt.   Write plan with AI: the app plans it from your narration.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left",
+        ).grid(row=3, column=0, sticky="w", pady=(6, 0))
+
         self._path_row(
-            0, "Plan / CSV", self._hybrid_file_var, self._hybrid_browse_file,
-            parent=controls, placeholder_text="Choose a Hybrid CSV or plan file (or use Plan with AI below)",
+            4, "Loaded file", self._hybrid_file_var, self._hybrid_browse_file,
+            parent=controls, placeholder_text="Nothing loaded yet: click Load beat CSV",
         )
         name_row = ctk.CTkFrame(controls, fg_color="transparent")
-        name_row.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        name_row.grid(row=5, column=0, sticky="ew", pady=(10, 0))
         name_row.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED, anchor="w").grid(
             row=0, column=0, sticky="w", padx=(0, 10))
         ctk.CTkEntry(name_row, textvariable=self._pakmap_channel_var, height=32,
                      placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")   # the same setting as pakMap's
 
-        def _btn(parent, text, command, col, width=110):
-            b = ctk.CTkButton(parent, text=text, width=width, height=30, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
-                              text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=command)
-            b.grid(row=0, column=col, padx=(0, 8))
+        more = ctk.CTkFrame(controls, fg_color="transparent")
+        more.grid(row=6, column=0, sticky="ew", pady=(10, 0))
+        more.grid_columnconfigure(3, weight=1)
+
+        def _small(text, command, col):
+            b = ctk.CTkButton(more, text=text, width=96, height=26, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
+                              text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=command)
+            b.grid(row=0, column=col, padx=(0, 6))
             return b
 
-        self._hybrid_check_btn = ctk.CTkButton(
-            controls, text="Check plan", width=110, height=30, corner_radius=4,
-            fg_color="transparent", border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_ACCENT_SEL,
-            font=ctk.CTkFont(size=11), command=self._hybrid_check_plan,
-        )
-        self._hybrid_check_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
-        ctk.CTkSwitch(controls, text="Hybrid sound design (effects + ambience)", variable=self._hybrid_sound_var, command=self._save_hybrid_settings,
-                      font=ctk.CTkFont(size=11)).grid(row=2, column=0, sticky="e", pady=(10, 0))
-        ai_row = ctk.CTkFrame(controls, fg_color="transparent")
-        ai_row.grid(row=3, column=0, sticky="w", pady=(8, 0))
-        self._hybrid_plan_btn = _btn(ai_row, "Plan with AI", self._hybrid_plan_with_ai, 0)
-        self._hybrid_repair_btn = _btn(ai_row, "Repair errors", self._hybrid_repair_errors, 1)
-        self._hybrid_open_btn = _btn(ai_row, "Open plan file", self._hybrid_open_plan_file, 2)
-        ctk.CTkLabel(
-            controls,
-            text="Uses the voiceover chosen on the Script page. Load a CSV (made with the Hybrid beats prompt or the Hybrid CSV prompt) or let Plan with AI decide where the story is "
-                 "told on the map and where in footage. Check plan shows where every layer lands before anything is drawn; the footage appears in the "
-                 "Visual Plan tab, and the main action button renders the video.",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
-        ).grid(row=4, column=0, sticky="w", pady=(6, 0))
-        self._hybrid_plan_box = ctk.CTkTextbox(controls, height=220, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
-        self._hybrid_plan_box.grid(row=5, column=0, sticky="ew", pady=(8, 0))
+        self._hybrid_check_btn = _small("Check plan", self._hybrid_check_plan, 0)
+        self._hybrid_repair_btn = _small("Fix errors", self._hybrid_repair_errors, 1)
+        self._hybrid_open_btn = _small("Edit in spreadsheet", self._hybrid_open_plan_file, 2)
+        ctk.CTkSwitch(more, text="Sound effects + ambience", variable=self._hybrid_sound_var, command=self._save_hybrid_settings,
+                      font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
+
+        self._hybrid_timeline = tk.Canvas(controls, height=54, highlightthickness=0, bd=0, bg=_CARD)
+        self._hybrid_timeline.grid(row=7, column=0, sticky="ew", pady=(14, 0))
+        self._hybrid_timeline.bind("<Configure>", lambda _e: self._hybrid_draw_timeline())
+        self._hybrid_timeline.bind("<Button-1>", self._hybrid_timeline_click)
+        self._hybrid_selected_beat = None
+        self._hybrid_beat_label = ctk.CTkLabel(controls, text="", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left")
+        self._hybrid_beat_label.grid(row=8, column=0, sticky="ew", pady=(4, 0))
+        self._hybrid_chips = ctk.CTkFrame(controls, fg_color="transparent")
+        self._hybrid_chips.grid(row=9, column=0, sticky="ew", pady=(6, 0))
+        self._hybrid_plan_box = ctk.CTkTextbox(controls, height=170, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+        self._hybrid_plan_box.grid(row=10, column=0, sticky="ew", pady=(8, 0))
         self._hybrid_plan_box.configure(state="disabled")
-        ctk.CTkLabel(controls, textvariable=self._hybrid_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420,
-                     justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        ctk.CTkLabel(controls, textvariable=self._hybrid_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520,
+                     justify="left").grid(row=11, column=0, sticky="ew", pady=(6, 0))
         controls.grid_remove()
 
     def _set_hybrid_text(self, text: str) -> None:
@@ -3142,6 +3279,275 @@ class VideoGeneratorApp(ctk.CTk):
         box.delete("1.0", "end")
         box.insert("1.0", text)
         box.configure(state="disabled")
+
+    # ---- Hybrid panel: steps, progress, timeline, attention chips -------------------------------------------------------------------
+
+    _HY_DONE, _HY_NOW, _HY_WARN, _HY_ERR = "#3FB27F", "#5B8DEF", "#E0A33A", "#E5534B"
+    _HY_BEAT = {"map": "#3B6EA8", "map_footage": "#2E8F8A", "footage": "#B8743A"}
+
+    def _hybrid_build_steps(self, parent, row: int) -> None:
+        strip = ctk.CTkFrame(parent, fg_color="transparent")
+        strip.grid(row=row, column=0, sticky="ew")
+        self._hybrid_step_labels = []
+        for k, name in enumerate(("Narration", "Plan", "Pictures", "Render")):
+            lab = ctk.CTkLabel(strip, text=f"{k + 1}  {name}", font=ctk.CTkFont(size=12, weight="bold"), corner_radius=12, height=26, padx=12,
+                               fg_color=_BORDER, text_color=_MUTED)
+            lab.grid(row=0, column=k, padx=(0, 6))
+            self._hybrid_step_labels.append(lab)
+
+    def _hybrid_refresh_steps(self) -> None:
+        """Which of the four steps is done, which is next, and the one thing to do now."""
+        if not hasattr(self, "_hybrid_step_labels"):
+            return
+        has_vo = self._current_voiceover_path() is not None if self._workspace is not None else False
+        plan = getattr(self, "_hybrid_plan", None)
+        busy = bool(getattr(self, "_hybrid_busy", False) or getattr(self, "_hybrid_running", False))
+        pictures_done = False
+        if plan is not None:
+            need = [r for r in getattr(self, "_scene_rows", []) if getattr(self, "_scene_rows_owner", None) == "hybrid"]
+            if not need:
+                pictures_done = True
+            else:
+                try:
+                    pictures_done = all(str(self._row_status_from_result(r)).lower() in ("ready", "done", "complete", "completed", "ok", "skipped") for r in need)
+                except Exception:
+                    pictures_done = False
+        done = [has_vo, plan is not None, pictures_done, False]
+        now = next((k for k, d in enumerate(done) if not d), 3)
+        for k, lab in enumerate(self._hybrid_step_labels):
+            name = ("Narration", "Plan", "Pictures", "Render")[k]
+            if done[k]:
+                lab.configure(text=f"\u2713  {name}", fg_color=self._HY_DONE, text_color="#0B1F16")
+            elif k == now:
+                lab.configure(text=f"{k + 1}  {name}" + ("  \u2026" if busy else ""), fg_color=self._HY_NOW, text_color="#FFFFFF")
+            else:
+                lab.configure(text=f"{k + 1}  {name}", fg_color=_BORDER, text_color=_MUTED)
+
+    def _hybrid_build_progress(self, parent, row: int) -> None:
+        card = ctk.CTkFrame(parent, fg_color=_CARD_HOVER, corner_radius=8, border_width=1, border_color=_ACCENT)
+        card.grid(row=row, column=0, sticky="ew", pady=(12, 0))
+        card.grid_columnconfigure(0, weight=1)
+        self._hybrid_progress_title = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=13, weight="bold"), text_color=_TEXT, anchor="w")
+        self._hybrid_progress_title.grid(row=0, column=0, sticky="ew", padx=14, pady=(10, 0))
+        self._hybrid_progress_detail = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=480, justify="left")
+        self._hybrid_progress_detail.grid(row=1, column=0, sticky="ew", padx=14, pady=(2, 0))
+        self._hybrid_progress_bar = ctk.CTkProgressBar(card, height=8, progress_color=_ACCENT)
+        self._hybrid_progress_bar.grid(row=2, column=0, sticky="ew", padx=14, pady=(8, 0))
+        self._hybrid_progress_time = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w")
+        self._hybrid_progress_time.grid(row=3, column=0, sticky="w", padx=14, pady=(4, 10))
+        self._hybrid_progress_stop = ctk.CTkButton(card, text="Stop", width=70, height=26, corner_radius=4, fg_color="transparent", border_width=1,
+                                                   border_color=_BORDER, text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11),
+                                                   command=self._hybrid_stop_work)
+        self._hybrid_progress_stop.grid(row=3, column=0, sticky="e", padx=14, pady=(4, 10))
+        card.grid_remove()
+        self._hybrid_progress_card = card
+        self._hybrid_work_id = 0
+        self._hybrid_work_started = 0.0
+        self._hybrid_work_last = 0.0
+
+    def _hybrid_progress_start(self, title: str, detail: str = "") -> int:
+        """Show the progress card for a piece of work. Returns an id; results that arrive for an older id are ignored (Stop)."""
+        import time as _time
+
+        self._hybrid_work_id += 1
+        self._hybrid_work_started = self._hybrid_work_last = _time.time()
+        self._hybrid_progress_title.configure(text=title)
+        self._hybrid_progress_detail.configure(text=detail)
+        self._hybrid_progress_bar.configure(mode="indeterminate")
+        self._hybrid_progress_bar.start()
+        self._hybrid_progress_stop.configure(state="normal", text="Stop")
+        self._hybrid_progress_card.grid()
+        self.stage_var.set("PLANNING")
+        self.hint_var.set(f"{title} Watch the progress on the Visual Director page.")
+        self._set_generate_btn(state="disabled", text="Working…")
+        self._set_scenes_empty_text()
+        self._hybrid_refresh_steps()
+        self._hybrid_tick(self._hybrid_work_id)
+        return self._hybrid_work_id
+
+    def _hybrid_progress_update(self, detail: str, work_id: int, fraction: "float | None" = None) -> None:
+        import time as _time
+
+        if work_id != self._hybrid_work_id:
+            return
+        self._hybrid_work_last = _time.time()
+        self._hybrid_progress_detail.configure(text=detail)
+        if fraction is not None:
+            self._hybrid_progress_bar.stop()
+            self._hybrid_progress_bar.configure(mode="determinate")
+            self._hybrid_progress_bar.set(max(0.02, min(1.0, fraction)))
+
+    def _hybrid_progress_done(self, work_id: int, text: str = "") -> None:
+        if work_id != self._hybrid_work_id:
+            return
+        self._hybrid_work_id += 1
+        try:
+            self._hybrid_progress_bar.stop()
+        except Exception:
+            pass
+        self._hybrid_progress_card.grid_remove()
+        if text:
+            self._hybrid_status_var.set(text)
+        self._set_scenes_empty_text()
+        self._sync_primary_cta()
+        self._hybrid_refresh_steps()
+
+    def _hybrid_tick(self, work_id: int) -> None:
+        import time as _time
+
+        if work_id != self._hybrid_work_id:
+            return
+        now = _time.time()
+        secs = int(now - self._hybrid_work_started)
+        quiet = int(now - self._hybrid_work_last)
+        note = "   Still working: a long step can take a minute or two." if quiet >= 20 else ""
+        self._hybrid_progress_time.configure(text=f"{secs // 60}:{secs % 60:02d} elapsed{note}")
+        self.after(1000, lambda: self._hybrid_tick(work_id))
+
+    def _hybrid_stop_work(self) -> None:
+        """Stop waiting for the plan or import now. What the AI already finished is saved with the project; a late answer is ignored."""
+        self._hybrid_busy = False
+        self._hybrid_plan_btn.configure(state="normal", text="Write plan with AI")
+        self._hybrid_progress_done(self._hybrid_work_id, "Stopped. Chapters already planned are saved, so planning again continues from there.")
+        self._append_log("[HYBRID] Stopped by the user.\n")
+
+    @staticmethod
+    def _hybrid_friendly(message: str) -> "tuple[str, float | None]":
+        """A technical progress line -> plain words, plus how far along it is when the line says so."""
+        import re as _re
+
+        text = message.replace("Hybrid Director: ", "").strip()
+        m = _re.search(r"chapter (\d+)/(\d+)", text)
+        frac = (int(m.group(1)) - 1) / max(1, int(m.group(2))) if m else None
+        if m:
+            text = f"Planning part {m.group(1)} of {m.group(2)} of the story. " + text.split("),")[-1].strip().rstrip("\u2026").strip().capitalize()
+        elif text.lower().startswith("planning the beats"):
+            text = "Planning where the story is on the map and where in footage."
+        elif "redoing" in text:
+            text = "Improving the beats that were weak. " + text
+        return text, frac
+
+    def _set_scenes_empty_text(self) -> None:
+        """The Visuals page's empty message, in the words of the style in use."""
+        label = getattr(self, "_scenes_empty_label", None)
+        if label is None:
+            return
+        if getattr(self, "generation_mode", "") != "hybrid":
+            label.configure(text="\u25A6\n\nNo scenes yet\nAnalyze a script or import a visual-plan CSV on the Script page,\nand every scene appears here with its visual and status.")
+        elif getattr(self, "_hybrid_busy", False):
+            label.configure(text="\u25A6\n\nPlanning your Hybrid video\u2026\nThe progress is on the Visual Director page.\nThe footage and photo cards appear here when the plan is ready.")
+        else:
+            label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, load your beat CSV (or write a plan with AI).\nEvery photo card and footage clip then appears here, ready to replace or retry.")
+
+    def _hybrid_copy_prompt(self) -> None:
+        """Copy the beat-CSV prompt: paste it into any AI, put your script at the end, and load the CSV it gives back."""
+        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        path = base / "composition_styles" / "hybrid_beats_prompt.txt"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self._hybrid_status_var.set("Prompt copied. Paste it into your AI, replace the last line with your script, then load the CSV it writes.")
+
+    def _hybrid_draw_timeline(self) -> None:
+        cv = getattr(self, "_hybrid_timeline", None)
+        if cv is None:
+            return
+        cv.delete("all")
+        plan = getattr(self, "_hybrid_plan", None)
+        w = max(cv.winfo_width(), 200)
+        if plan is None or not plan.beats:
+            cv.create_text(w // 2, 27, text="Your plan appears here as a timeline once you load a CSV", fill=_MUTED, font=("Helvetica", 11))
+            return
+        total = max(plan.duration, 1e-6)
+        self._hybrid_beat_boxes = []
+        for idx, b in enumerate(plan.beats):
+            x0, x1 = 2 + (w - 4) * b.start / total, 2 + (w - 4) * b.end / total
+            colour = self._HY_BEAT.get(b.mode, _BORDER)
+            outline = "#FFFFFF" if idx == self._hybrid_selected_beat else _CARD
+            cv.create_rectangle(x0, 6, max(x1 - 1, x0 + 1), 38, fill=colour, outline=outline, width=2 if idx == self._hybrid_selected_beat else 1)
+            for card in b.cards:
+                t = card.t if card.t is not None else min(b.start + 1.0, b.end - 2.0)
+                cx = 2 + (w - 4) * t / total
+                cv.create_oval(cx - 3, 40, cx + 3, 46, fill="#F5F5F5", outline="")
+            if x1 - x0 > 22:
+                cv.create_text((x0 + x1) / 2, 22, text=str(idx + 1), fill="#FFFFFF", font=("Helvetica", 10, "bold"))
+            self._hybrid_beat_boxes.append((x0, x1, idx))
+        cv.create_text(2, 50, anchor="w", text="map", fill=self._HY_BEAT["map"], font=("Helvetica", 9))
+        cv.create_text(40, 50, anchor="w", text="map + cards", fill=self._HY_BEAT["map_footage"], font=("Helvetica", 9))
+        cv.create_text(112, 50, anchor="w", text="footage", fill=self._HY_BEAT["footage"], font=("Helvetica", 9))
+        cv.create_text(w - 2, 50, anchor="e", text="\u25CF photo card", fill=_MUTED, font=("Helvetica", 9))
+
+    def _hybrid_timeline_click(self, event) -> None:
+        for x0, x1, idx in getattr(self, "_hybrid_beat_boxes", []):
+            if x0 <= event.x <= x1:
+                self._hybrid_select_beat(idx)
+                return
+
+    def _hybrid_select_beat(self, idx: "int | None") -> None:
+        plan = getattr(self, "_hybrid_plan", None)
+        self._hybrid_selected_beat = idx
+        self._hybrid_draw_timeline()
+        if plan is None or idx is None or not (0 <= idx < len(plan.beats)):
+            self._hybrid_beat_label.configure(text="")
+            return
+        b = plan.beats[idx]
+        mode = {"map": "Map", "map_footage": "Map with photo cards", "footage": "Footage"}.get(b.mode, b.mode)
+        bits = [f"Beat {idx + 1}  \u00B7  {_span_text(b.start)}-{_span_text(b.end)}  \u00B7  {mode}"]
+        if b.purpose:
+            bits.append(b.purpose)
+        if b.layers:
+            bits.append("On the map: " + ", ".join(sorted({l.type.replace("_", " ") for l in b.layers})))
+        if b.cards:
+            bits.append(f"{len(b.cards)} photo card(s): " + ", ".join(c.label or c.asset.split(":", 1)[-1][:28] for c in b.cards))
+        if b.clips:
+            bits.append(f"{len(b.clips)} clip(s)")
+        self._hybrid_beat_label.configure(text="\n".join(bits))
+
+    def _hybrid_refresh_chips(self) -> None:
+        """Short, readable chips for what needs attention, with one button to fix the errors."""
+        frame = getattr(self, "_hybrid_chips", None)
+        if frame is None:
+            return
+        for child in frame.winfo_children():
+            child.destroy()
+        plan = getattr(self, "_hybrid_plan", None)
+        if plan is None:
+            return
+        from hybrid.validate import validate as _val
+
+        findings = _val(plan)
+        errs = [f for f in findings if f.severity == "error"]
+        warns = [f for f in findings if f.severity != "error"]
+        shown = (errs + warns)[:5]
+        if not shown:
+            ctk.CTkLabel(frame, text="\u2713  The plan looks good: nothing needs attention.", font=ctk.CTkFont(size=11), text_color=self._HY_DONE, anchor="w").pack(anchor="w")
+            return
+        for f in shown:
+            colour = self._HY_ERR if f.severity == "error" else self._HY_WARN
+            text = (f.message[:95] + "\u2026") if len(f.message) > 96 else f.message
+            ctk.CTkButton(frame, text=("\u25CF  " + text), anchor="w", height=24, corner_radius=4, fg_color="transparent", hover_color=_ACCENT_SEL,
+                          text_color=colour, font=ctk.CTkFont(size=11), command=lambda m=f.message, b=f.beat: self._hybrid_chip_click(m, b)).pack(fill="x", pady=1)
+        extra = len(errs) + len(warns) - len(shown)
+        row = ctk.CTkFrame(frame, fg_color="transparent")
+        row.pack(fill="x", pady=(4, 0))
+        if extra > 0:
+            ctk.CTkLabel(row, text=f"+ {extra} more (see Details below)", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(side="left")
+        if errs:
+            ctk.CTkButton(row, text=f"Fix {len(errs)} error(s) for me", width=150, height=26, corner_radius=4, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+                          font=ctk.CTkFont(size=11, weight="bold"), command=self._hybrid_repair_errors).pack(side="right")
+
+    def _hybrid_chip_click(self, message: str, beat_id: str) -> None:
+        self._hybrid_status_var.set(message)
+        plan = getattr(self, "_hybrid_plan", None)
+        if plan is not None and beat_id:
+            for idx, b in enumerate(plan.beats):
+                if b.id == beat_id:
+                    self._hybrid_select_beat(idx)
+                    return
 
     def _hybrid_deactivate(self) -> None:
         """Another style takes over: Hybrid steps aside (its plan stays in the project)."""
@@ -3153,6 +3559,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "hybrid":
             self.generation_mode = "normal"
         self._clear_hybrid_visual_plan()
+        self._set_scenes_empty_text()
         # remember "not active" for the project the Hybrid state belongs to (never for a project that is merely being opened)
         if was and self._workspace is not None and getattr(self, "_hybrid_for_project", None) == self._workspace.project_id:
             self._save_hybrid_settings(active=False)
@@ -3172,6 +3579,10 @@ class VideoGeneratorApp(ctk.CTk):
             self.generation_mode = "hybrid"
             self._populate_hybrid_visual_plan()
             self._hybrid_show_plan()
+            self._set_scenes_empty_text()
+            self._hybrid_draw_timeline()
+            self._hybrid_refresh_chips()
+            self._hybrid_refresh_steps()
             self._save_hybrid_settings(active=True)
         else:
             self._hybrid_deactivate()
@@ -3230,6 +3641,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "hybrid":
             self._populate_hybrid_visual_plan()
         self._hybrid_show_plan()
+        self._hybrid_select_beat(None)
+        self._hybrid_refresh_chips()
+        self._hybrid_refresh_steps()
         self._sync_primary_cta()
 
     def _hybrid_scene_status(self) -> dict:
@@ -3243,7 +3657,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         plan = self._hybrid_plan
         if plan is None:
-            self._set_hybrid_text("No plan yet.\n\nChoose the voiceover, then click Plan with AI (or Load plan… to use a plan file).")
+            self._set_hybrid_text("No plan yet.\n\n1. Choose your voiceover on the Script page.\n2. Click Load beat CSV (a plan written with the CSV prompt), or Write plan with AI.\n3. Check the timeline above, then click Generate.")
             return
         from hybrid.app_integration import plan_text
 
@@ -3312,6 +3726,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _hybrid_browse_file(self) -> None:
         """One Browse for both kinds of file: a Hybrid CSV is imported against the narration, a plan (JSON) is loaded as it is."""
         if self._hybrid_running or self._hybrid_busy:
+            messagebox.showinfo("Hybrid", "Still working: " + (self._hybrid_status_var.get().strip() or "a render or import is in progress") + "\n\nTry again when it has finished.")
             return
         if not self._require_workspace("load a Hybrid plan"):
             return
@@ -3358,7 +3773,8 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(self._workspace, "state_dir", None)
         name = Path(path).name
         self._hybrid_busy = True
-        self._hybrid_status_var.set("Reading the narration, then the CSV…")
+        self._hybrid_status_var.set("")
+        work = self._hybrid_progress_start("Reading your CSV", "Listening to the narration so every row lands on the words it names (the first time can take a few minutes).")
 
         def post(fn) -> None:
             self.after(0, fn)
@@ -3370,20 +3786,24 @@ class VideoGeneratorApp(ctk.CTk):
                 from pakmap.app_integration import voiceover_duration
 
                 words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
+                post(lambda: self._hybrid_progress_update("Placing every row on the narrator's words and checking the plan.", work))
                 # a beat CSV (composition_styles/hybrid_beats_prompt.txt) is the plan itself; a Hybrid CSV is pakMap rows re-cut into beats
                 importer = import_beats if is_beat_csv(text) else plan_from_csv
                 got = importer(text, words, voiceover_duration(voiceover_path))
                 post(lambda: finish(got, None))
-            except Exception as exc:
+            except BaseException as exc:  # incl. SystemExit: the panel must never be left busy
                 post(lambda e=exc: finish(None, e))
 
         def finish(got, exc) -> None:
+            if work != self._hybrid_work_id:
+                return   # stopped by the user
             self._hybrid_busy = False
             if exc is not None:
-                detail = "\n".join(getattr(exc, "problems", [])) or str(exc)
+                detail = "\n".join(getattr(exc, "problems", [])) or str(exc) or type(exc).__name__
                 self._set_hybrid_text(f"{name} has problems:\n\n{detail}")
-                self._hybrid_status_var.set("Fix the CSV and load it again.")
+                self._hybrid_progress_done(work, "The CSV could not be read. The problems are listed under Details; fix the CSV and load it again.")
                 return
+            self._hybrid_progress_done(work)
             self._hybrid_set_plan(got.plan, None)
             self._hybrid_file_var.set(str(path))
             extra = [f"note: {n}" for n in got.notes] + [f"warning: {w}" for w in got.warnings]
@@ -3465,14 +3885,19 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(self._workspace, "state_dir", None)
         self._hybrid_busy = True
         self._hybrid_plan_btn.configure(state="disabled", text="Planning…")
-        self._hybrid_status_var.set("Reading the narration…")
+        self._hybrid_status_var.set("")
         self._append_log("[HYBRID] Planning with the Hybrid Director…\n")
+        work = self._hybrid_progress_start("Planning your Hybrid video", "Listening to the narration first (the first time can take a few minutes).")
 
         def post(fn) -> None:
             self.after(0, fn)
 
         def progress(message: str) -> None:
-            post(lambda: (self._hybrid_status_var.set(message), self._append_log(f"[HYBRID] {message}\n")))
+            def show() -> None:
+                text, frac = self._hybrid_friendly(message)
+                self._hybrid_progress_update(text, work, frac)
+                self._append_log(f"[HYBRID] {message}\n")
+            post(show)
 
         def worker() -> None:
             try:
@@ -3484,17 +3909,20 @@ class VideoGeneratorApp(ctk.CTk):
                                   checkpoint_dir=getattr(self._workspace, "hybrid_dir", None) and self._workspace.hybrid_dir / "_chapters",
                                   state_dir=getattr(self._workspace, "hybrid_dir", None) and self._workspace.hybrid_dir / "_ai")
                 post(lambda: finish(res, None))
-            except Exception as exc:
+            except BaseException as exc:  # incl. SystemExit: the panel must never be left busy
                 post(lambda e=exc: finish(None, e))
 
         def finish(res, exc) -> None:
+            if work != self._hybrid_work_id:
+                return   # stopped by the user: a late answer is ignored (the chapters it finished are saved)
             self._hybrid_busy = False
-            self._hybrid_plan_btn.configure(state="normal", text="Plan with AI")
+            self._hybrid_plan_btn.configure(state="normal", text="Write plan with AI")
             if exc is not None:
-                self._hybrid_status_var.set("Planning failed.")
                 self._append_log(f"[HYBRID] Planning failed: {exc}\n")
-                messagebox.showerror("Plan with AI", f"The Hybrid plan could not be made:\n\n{exc}")
+                self._hybrid_progress_done(work, "Planning could not finish. Click Write plan with AI to try again; finished chapters are kept.")
+                messagebox.showerror("Write plan with AI", f"The Hybrid plan could not be made:\n\n{exc or type(exc).__name__}")
                 return
+            self._hybrid_progress_done(work)
             self._hybrid_set_plan(res.plan, res)
             ne = sum(1 for f in res.findings if f.severity == "error")
             self._hybrid_status_var.set(
@@ -3614,6 +4042,11 @@ class VideoGeneratorApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _sync_primary_cta_hybrid(self) -> None:
+        self._hybrid_refresh_steps()
+        if self._hybrid_busy:
+            self._cta_action = "none"
+            self._set_generate_btn(state="disabled", text="Working…")
+            return
         if self._hybrid_running:
             self._cta_action = "hybrid_cancel"
             self.stage_var.set("GENERATING")
@@ -3637,10 +4070,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._set_generate_btn(state="normal", text="Import Voiceover")
             return
         if self._hybrid_plan is None:
-            self._cta_action = "hybrid_plan"
+            self._cta_action = "hybrid_load_csv"
             self.stage_var.set("PLAN")
-            self.hint_var.set("Click to plan the video: the Hybrid Director decides where the story is on the map and where in footage.")
-            self._set_generate_btn(state="normal", text="Plan Hybrid Map")
+            self.hint_var.set("Load your beat CSV. (Or use Write plan with AI in the Hybrid panel to have the app plan it.)")
+            self._set_generate_btn(state="normal", text="Load beat CSV")
             return
         self._cta_action = "generate"
         self.stage_var.set("GENERATE")
@@ -3923,7 +4356,11 @@ class VideoGeneratorApp(ctk.CTk):
                 words = [(w, float(s), float(e)) for w, s, e in cached]
                 log("[pakMap] Reusing cached word alignment for narration timing.")
         if words is None:
-            words = vg.transcribe_audio(str(voiceover_path), whisper_model)
+            try:
+                words = vg.transcribe_audio(str(voiceover_path), whisper_model)
+            except SystemExit as exc:
+                # transcribe_audio ends the process on failure; in a worker thread that would skip every handler and leave the panel busy forever
+                raise RuntimeError(str(exc.code or "the narration could not be transcribed")) from None
         if not words:
             raise RuntimeError("the narration produced no words to anchor the script to")
         self._pakmap_words = (str(voiceover_path), mtime, words)
@@ -4833,6 +5270,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._browse_pakmap_csv()
         elif action == "pakmap_cancel":
             self._on_pakmap_cancel()
+        elif action == "hybrid_load_csv":
+            self._hybrid_browse_file()
         elif action == "hybrid_plan":
             self._hybrid_plan_with_ai()
         elif action == "hybrid_cancel":
@@ -5641,6 +6080,7 @@ class VideoGeneratorApp(ctk.CTk):
             text_color=_ACCENT_DARK,
             border_width=0,
         )
+        self.after_idle(self._refresh_style_next)  # the Visual Director banner offers the same next step
 
     def _apply_defaults(self) -> None:
         # Fresh session: never auto-activate the last project or prefill bg music.

@@ -1791,8 +1791,7 @@ class VisualDirectorView(_BaseView):
         super().__init__(master, app, **kwargs)
         SectionHeader(
             self, "Visual Director",
-            "Pick one style below. Overscaled / Exp Solar: a simple CSV and the Local Visual Planner. "
-            "pakMap: one continuous satellite map. Hybrid Map: the map and full-screen footage in turns.",
+            "Pick the kind of video you want to make. The cards say what each style needs and what it is good for.",
         ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
 
 

@@ -68,7 +68,7 @@ def scenario():
     emit("button_asks_for_the_voiceover_first", inst._cta_action == "import_audio", inst._cta_action)
     inst._current_voiceover_path = lambda: wav
     inst._sync_primary_cta()
-    emit("then_for_the_plan", inst._cta_action == "hybrid_plan" and "Hybrid Director" in inst.hint_var.get(), inst._cta_action)
+    emit("then_for_the_plan", inst._cta_action == "hybrid_load_csv" and "beat CSV" in inst.hint_var.get(), inst._cta_action)
     inst._pakmap_enabled_var.set(True); inst._on_pakmap_toggle()
     emit("pakmap_takes_over_from_hybrid", inst.generation_mode == "pakmap" and not inst._hybrid_enabled_var.get() and not inst._hybrid_controls.winfo_ismapped())
     inst._hybrid_enabled_var.set(True); inst._on_hybrid_toggle()
@@ -78,17 +78,37 @@ def scenario():
     inst._overscaled_enabled_var.set(False); inst._on_overscaled_toggle()
     inst._hybrid_enabled_var.set(True); inst._on_hybrid_toggle()
 
-    # ---- the panel has the same shape as pakMap's: file row, channel name, Check plan + sound, hint, plan, status --------------------------
+    # ---- the panel: four steps, progress, two big choices, file row, channel name, quiet actions, timeline, chips, details, status ---------
     kids = inst._hybrid_controls.winfo_children()
     rows_used = sorted({int(w.grid_info().get("row", -1)) for w in kids})
-    emit("the_panel_follows_pakmaps_layout_row_for_row", rows_used == [0, 1, 2, 3, 4, 5, 6], str(rows_used))
+    emit("the_panel_follows_pakmaps_layout_row_for_row", rows_used == [-1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], str(rows_used))  # row 1 is the progress card, hidden while nothing runs
     emit("it_has_check_plan_and_the_ai_actions_as_buttons", all(hasattr(inst, n) for n in ("_hybrid_check_btn", "_hybrid_plan_btn", "_hybrid_repair_btn", "_hybrid_open_btn")))
-    emit("the_old_load_plan_and_load_csv_buttons_are_one_browse", not hasattr(inst, "_hybrid_load_btn") and not hasattr(inst, "_hybrid_csv_btn"))
+    emit("the_old_load_plan_and_load_csv_buttons_are_one_browse", hasattr(inst, "_hybrid_load_btn") and not hasattr(inst, "_hybrid_csv_btn"))
 
     # ---- loading a plan: footage becomes rows of the existing Visual Plan table -----------------------
     ok = inst._hybrid_load_plan_file(str(PLAN_PATH))
     rows = inst._scene_rows
     emit("a_plan_file_loads_and_is_kept_in_the_project", ok and ws.hybrid_plan_path.is_file() and inst._hybrid_plan is not None)
+    # ---- friendly panel: steps, timeline, chips, copy-the-prompt -----------------------------------------------------------------------
+    labels = [l.cget("text") for l in inst._hybrid_step_labels]
+    emit("the_four_steps_show_the_plan_as_done", len(labels) == 4 and labels[1].startswith("\u2713"), str(labels))
+    inst._hybrid_draw_timeline()
+    n_beats = len(inst._hybrid_plan.beats)
+    emit("the_timeline_draws_one_block_per_beat", len(getattr(inst, "_hybrid_beat_boxes", [])) == n_beats and n_beats > 0, str(n_beats))
+    inst._hybrid_select_beat(0)
+    emit("clicking_a_beat_describes_it", inst._hybrid_beat_label.cget("text").startswith("Beat 1"), inst._hybrid_beat_label.cget("text"))
+    emit("the_attention_list_is_filled_or_says_all_good", len(inst._hybrid_chips.winfo_children()) >= 1)
+    _copied = []
+    inst.clipboard_append = lambda text, **k: _copied.append(text)
+    inst._hybrid_copy_prompt()
+    emit("the_csv_prompt_is_copied_for_the_user", bool(_copied) and "BEAT PLAN" in _copied[0] and "copied" in inst._hybrid_status_var.get().lower(), repr(_copied)[:80] + inst._hybrid_status_var.get()[:30])
+    wid = inst._hybrid_progress_start("Testing", "detail")
+    emit("the_progress_card_shows_while_work_runs_and_the_main_button_waits", bool(inst._hybrid_progress_card.grid_info()))
+    inst._hybrid_progress_update("part 2 of 5", wid, 0.4)
+    emit("the_progress_text_and_bar_follow_the_work", inst._hybrid_progress_detail.cget("text") == "part 2 of 5" and abs(inst._hybrid_progress_bar.get() - 0.4) < 0.01)
+    inst._hybrid_progress_done(wid, "done")
+    emit("the_progress_card_goes_away_when_it_is_done", not inst._hybrid_progress_card.grid_info() and inst._hybrid_status_var.get() == "done")
+    emit("friendly_words_for_the_directors_progress_lines", inst._hybrid_friendly("Hybrid Director: chapter 2/5 (6-12 min), attempt 1/2\u2026")[1] == 0.2 and "part 2 of 5" in inst._hybrid_friendly("Hybrid Director: chapter 2/5 (6-12 min), attempt 1/2\u2026")[0])
     emit("footage_clips_and_the_card_are_rows_map_beats_and_local_files_are_not",
          [(r.scene_number, r.asset_type) for r in rows] == [("1", "stock_video"), ("2", "image"), ("3", "stock_image")], str([(r.scene_number, r.asset_type) for r in rows]))
     emit("rows_say_which_beat_and_why", "Hybrid beat 02" in rows[0].script_segment and "clip 1/3" in rows[0].script_segment and "farmers at work" in rows[0].script_segment and "supporting card" in rows[2].script_segment, rows[0].script_segment)
@@ -361,6 +381,9 @@ class TestHybridInTheApp(unittest.TestCase):
         self._all("the_panel_follows_pakmaps_layout_row_for_row", "it_has_check_plan_and_the_ai_actions_as_buttons", "the_old_load_plan_and_load_csv_buttons_are_one_browse")
 
     def test_footage_is_rows_of_the_existing_visual_plan(self):
+        self._all("the_four_steps_show_the_plan_as_done", "the_timeline_draws_one_block_per_beat", "clicking_a_beat_describes_it", "the_attention_list_is_filled_or_says_all_good",
+                  "the_csv_prompt_is_copied_for_the_user", "the_progress_card_shows_while_work_runs_and_the_main_button_waits", "the_progress_text_and_bar_follow_the_work",
+                  "the_progress_card_goes_away_when_it_is_done", "friendly_words_for_the_directors_progress_lines")
         self._all("a_plan_file_loads_and_is_kept_in_the_project", "footage_clips_and_the_card_are_rows_map_beats_and_local_files_are_not", "rows_say_which_beat_and_why",
                   "visiting_the_tab_does_not_wipe_them", "scene_actions_use_the_hybrid_images_folder", "the_plan_view_lists_every_beat",
                   "button_says_generate_when_there_is_a_plan")
