@@ -97,13 +97,6 @@ jobs:
           ./bin/ffprobe -version | head -1
           test -x bin/ffprobe
 
-      - name: Run unit tests
-        if: ${{ matrix.run_tests }}
-        env:
-          PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
-        # Same tests as unittest discover, one process per module in parallel.
-        run: python scripts/run_tests_parallel.py
-
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
         with:
@@ -128,6 +121,13 @@ jobs:
         run: |
           cd pakmap-engine
           npm ci --omit=dev
+
+      - name: Run unit tests
+        if: ${{ matrix.run_tests }}
+        env:
+          PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
+        # Same tests as unittest discover, one process per module in parallel.
+        run: python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
         # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.
@@ -313,12 +313,6 @@ jobs:
           if (-not $probe) { throw "ffprobe.exe not found in download" }
           Copy-Item $probe.FullName -Destination "bin\ffprobe.exe"
 
-      - name: Run unit tests
-        shell: pwsh
-        run: |
-          $env:PATH = "$PWD\bin;" + $env:PATH
-          python scripts/run_tests_parallel.py
-
       - name: Set up Node.js (for npm install only — not what gets bundled)
         uses: actions/setup-node@v5
         with:
@@ -343,6 +337,12 @@ jobs:
         run: |
           cd pakmap-engine
           npm ci --omit=dev
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD\bin;" + $env:PATH
+          python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (Windows x64)
         shell: pwsh
