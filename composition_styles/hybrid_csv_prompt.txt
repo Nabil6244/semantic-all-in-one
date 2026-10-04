@@ -98,7 +98,9 @@ LAYER TYPES AND WHAT EACH NEEDS
   tl, br, bl, ml, mr, center. label_text (short, capitals). geo_ref adds a leader line to
   that place. Use a card on a map beat when a named place, plant, animal, building or
   landscape deserves a picture; the more concrete things the narrator names, the more
-  cards. Only one card on screen at a time.
+  cards. Open with a card in the first 10 seconds. Two or three cards may be on screen
+  together if they sit in different places (tr, ml, br; keep tl for the title); a new card
+  in the same place replaces the old one.
 - media_full (FOOTAGE): asset_path = stock_video:<specific description> (or stock_image: for
   a still), one clip per row, never a pipe. hold = seconds. params, always for footage:
   {"cover_ui": true, "dissolve_s": 0.5, "kenburns": "auto", "fit": "slow"}

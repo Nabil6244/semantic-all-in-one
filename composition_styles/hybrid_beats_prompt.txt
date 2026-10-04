@@ -7,7 +7,7 @@ shows WHAT IT IS LIKE.
 
 You cut the narration into BEATS. A beat is one stretch of the story, told one way:
   map          the map, with its layers
-  map_footage  the map, with ONE photo card on it (the map says where, the card shows what)
+  map_footage  the map, with one to three PHOTO CARDS on it (the map says where, the cards show what)
   footage      full-screen clips (one to three), the map waits underneath
 Under each beat you list what appears in it. The app times everything from the
 narrator's own words, moves the camera for you, and renders the video.
@@ -40,8 +40,11 @@ Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and wha
                the map comes back after the next footage), or end (until the video ends)
     hold       seconds, only to make it leave sooner
 
-- row=card: the ONE photo card of a map_footage beat.
+- row=card: a photo card of a map_footage beat (one to three per beat).
     vo_anchor  the words it appears on
+    anchor     where on the screen: tr (default for the first), ml, br, bl, tl, mr. Give cards
+               that are on screen together DIFFERENT places; keep tl free for the title
+    hold       seconds on screen (default 6)
     asset      stock_image:<specific description of the photo>
     label      a short name in capitals shown under the card
     place      optional: draws a leader line from the card to this place
@@ -71,10 +74,36 @@ THE HYBRID RHYTHM
   picture but the place still matters.
 - Do not switch mode every sentence. A footage beat is 5 to 12 seconds (about 12 to 30
   words of narration), one to three clips. A map beat is usually 8 to 25 seconds.
-- A map_footage beat runs at least about 6 seconds (15 words or more) and its card is
-  anchored in the first half of the beat: when the beat's place changes, the card waits
+- A map_footage beat runs at least about 6 seconds (15 words or more) and its first card
+  is anchored in the first half of the beat: when the beat's place changes, the card waits
   for the camera to arrive, and it then needs a few seconds on screen.
 - Never cut to footage for a passage too abstract to film; keep it on the map.
+- CARDS ARE THE HEART OF THIS STYLE. The first card appears within the first 10 seconds.
+  After that a card is on screen for most of every map stretch: when the narrator names
+  a thing that can be photographed (a mineral, a plant, an animal, a building, a machine,
+  a mine, a landmark, a person's trade), give it a card the moment it is named.
+- When the narrator lists things ("phosphate, bones and shark teeth"), put 2 or 3 cards
+  on the screen TOGETHER in different places (tr, ml, br), each appearing on its own word,
+  so the screen builds up as the list is spoken.
+- Aim for 60 to 70 percent of the map time to carry at least one card. Use a plain map
+  beat only for pure geography (a border, a distance, a region lit up).
+- KEEP IT MOVING. A viewer gets bored of a map that sits still: no map beat longer than
+  about 12 seconds (30 words). Split a long map passage into a map beat followed by a
+  map_footage beat, or a map beat followed by a footage beat.
+- THE MAP MUST KEEP BUILDING. Something new appears on it at least every 4 seconds of map
+  narration: a marker, a label, a line, a fill, a number or a card. Vary the kinds across
+  beats; do not repeat one kind (never the same fill twice).
+  * Fill the SPECIFIC area the narrator is on (a county, province, region), not the whole
+    country again and again. Say each area once.
+  * Draw a LINE (type=line) whenever the story moves along something: a river, a rail
+    line, a shipping or trade route, a border, a migration, a flow from a mine to a port.
+    A documentary of 2 minutes or more has several lines.
+  * Name places with markers (type=marker) or zone_label as they are spoken: every town,
+    county, lake, river or site the narrator names gets one.
+  * Use a stat chip for each real number (count, area, share, year, money). Use a caption
+    for a short key phrase (at most 44 characters), about one per beat.
+- Do not put a stat and a caption within 4 seconds of each other: they share the bottom of
+  the screen. Give a number its stat OR a caption, and space the text layers out.
 
 CAMERA
 - You do not write camera moves. Give each map or map_footage beat its place and frame;
@@ -122,7 +151,7 @@ LIMITS (the app checks these)
 - Layers stay: stat 4.5 s, caption 4 s, marker 9 s; titles, fills and lines until their
   beat ends (or until after_footage / end).
 - A footage beat has only clip rows. A map beat has no clip rows and no card. A
-  map_footage beat has exactly one card row.
+  map_footage beat has one to three card rows.
 - Never leave more than about 5 seconds of map narration with nothing new appearing.
 - Show only what the narrator says. Never add facts, numbers or places that are not in
   the script.
@@ -137,14 +166,19 @@ CHECKLIST BEFORE YOU ANSWER
 3. Every vo_anchor is copied from the script, in order; layers and cards are spoken
    inside their own beat.
 4. Every map and map_footage beat has a place and frame; footage beats have only clips.
-5. Every map_footage beat has exactly one card; every footage beat one to three clips.
+5. Every map_footage beat has one to three cards (each in its own place); every footage beat one to three clips.
 6. Every number comes from the script; stat formats contain no typed number.
 7. No file names invented; pictures are stock_image:/stock_video: descriptions.
-8. Output is the CSV only.
+8. PACE: the first card is spoken within the first 10 seconds; no map beat is longer than
+   about 12 seconds; a card is anchored at least 3 seconds before its beat ends; cards that
+   share the screen have different anchors; a new thing appears on the map every ~4 seconds.
+9. VARIETY: several different layer types across the video; at least one line in a video
+   of 2 minutes or more; no area filled twice; no stat and caption within 4 seconds.
+10. Output is the CSV only.
 
 EXAMPLE
 Script:
-Lesotho is a kingdom inside South Africa. Its capital Maseru sits on the western border, right on the river that separates the two countries. Up in the highlands, snow falls every winter and shepherds wrap themselves in blankets. Back on the map, the Orange River starts here and runs two thousand kilometres to the Atlantic.
+Lesotho is a kingdom inside South Africa. Its capital Maseru sits on the western border, right on the river that separates the two countries. Up in the highlands, snow falls every winter and shepherds wrap themselves in blankets. The kingdom lives on water, wool and mohair, and its diamonds. Back on the map, the Orange River starts here and runs two thousand kilometres to the Atlantic.
 
 CSV:
 beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
@@ -153,13 +187,20 @@ b1,layer,Lesotho is,,hud_title,,,,PART 1,THE KINGDOM IN THE SKY,,,,,,,,,,,,
 b1,layer,inside South Africa,,fill,,Lesotho,,,,,subject,,,,,,after_footage,,,,
 b2,beat,Its capital,map_footage,,,Maseru,region,,,,,,,,,,,,,,the capital on the border
 b2,layer,Maseru,,marker,,Maseru,,MASERU,,,featured,,,,,,,,,,
-b2,card,sits on the western,,,,Maseru,,MASERU,,,,,,,,,,,stock_image:Maseru city view from a hill,,
+b2,card,sits on the western,,,,Maseru,,MASERU,,,,,,,,tr,,,stock_image:Maseru city view from a hill,,
+b2,card,right on the river,,,,,,THE BORDER RIVER,,,,,,,,ml,,,stock_image:a river with a road bridge on a national border,,
 b3,beat,Up in the highlands,footage,,,,,,,,,,,,,,,,,,feel the highland winter
 b3,clip,,,,,,,,,,,,,,,,,,stock_video:snow falling on mountain grassland in Lesotho,,the winter snow
 b3,clip,,,,,,,,,,,,,,,,,,stock_video:shepherd wrapped in a wool blanket with sheep,,the people of the highlands
-b4,beat,Back on the map,map,,,Lesotho,country,,,,,,,,,,,,,,where the river goes
-b4,layer,the Orange River,,line,,"Maseru;-29.0,23.0;-28.6,16.5",,,,,,river,,,,,,,,,
-b4,layer,two thousand kilometres,,stat,,,,,LENGTH,,,,,2000,"#,##0 KM",br,,,,,
+b4,beat,The kingdom lives,map_footage,,,Lesotho,country,,,,,,,,,,,,,,what the kingdom lives on
+b4,layer,The kingdom lives,,hud_title,,,,PART 2,WHAT IT LIVES ON,,,,,,,,,,,,
+b4,card,water,,,,,,WATER,,,,,,,,tr,,,stock_image:a large mountain reservoir dam in a high valley,,
+b4,card,wool and,,,,,,MOHAIR,,,,,,,,ml,,,stock_image:angora goats grazing on a mountain slope,,
+b4,card,its diamonds,,,,,,DIAMONDS,,,,,,,,br,,,stock_image:a rough diamond held in a gloved hand,,
+b5,beat,Back on the map,map,,,Lesotho,country,,,,,,,,,,,,,,where the river goes
+b5,layer,the Orange River,,line,,"Maseru;-29.0,23.0;-28.6,16.5",,,,,,river,,,,,,,,,
+b5,layer,Atlantic,,zone_label,,"-28.6,16.0",,ATLANTIC OCEAN,,,neutral,,,,,,,,,,
+b5,layer,two thousand kilometres,,stat,,,,,LENGTH,,,,,2000,"#,##0 KM",br,,,,,
 
 NOW WRITE THE BEAT PLAN FOR THIS SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>
