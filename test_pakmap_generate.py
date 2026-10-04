@@ -172,8 +172,18 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIn("- A", t); self.assertIn("- B", t); self.assertIn("- note", t)
 
 
+def _has_browser():
+    """Playwright's own Chromium is installed (a CI runner may only have a system Chrome)."""
+    try:
+        from providers.playwright_chromium import is_playwright_chromium_installed
+
+        return bool(is_playwright_chromium_installed())
+    except Exception:
+        return False
+
+
 def _can_render():
-    return HAS_NODE and HAS_FFMPEG and (ROOT / "flow-engine" / "node_modules" / "playwright").exists() and (ROOT / "pakmap-engine" / "node_modules" / "maplibre-gl").exists()
+    return HAS_NODE and HAS_FFMPEG and _has_browser() and (ROOT / "flow-engine" / "node_modules" / "playwright").exists() and (ROOT / "pakmap-engine" / "node_modules" / "maplibre-gl").exists()
 
 
 @unittest.skipUnless(_can_render(), "needs node, ffmpeg, Playwright and the engine's packages")

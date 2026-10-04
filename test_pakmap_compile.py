@@ -258,8 +258,18 @@ class TestRendererRules(unittest.TestCase):
         self.assertEqual(e, [])
 
 
+def _has_browser():
+    """Playwright's own Chromium is installed (a CI runner may only have a system Chrome)."""
+    try:
+        from providers.playwright_chromium import is_playwright_chromium_installed
+
+        return bool(is_playwright_chromium_installed())
+    except Exception:
+        return False
+
+
 def _can_render() -> bool:
-    if not (HAS_NODE and shutil.which("ffmpeg")):
+    if not (HAS_NODE and shutil.which("ffmpeg") and _has_browser()):
         return False
     return (ROOT / "flow-engine" / "node_modules" / "playwright").exists() and (ROOT / "pakmap-engine" / "node_modules" / "maplibre-gl").exists()
 

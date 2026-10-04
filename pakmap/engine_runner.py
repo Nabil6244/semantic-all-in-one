@@ -109,6 +109,13 @@ def render_spec(spec: dict, output: Path, *, progress: Optional[Callable[[int, i
             for raw in proc.stdout:
                 if cancel_check is not None and cancel_check():
                     proc.kill()
+                    try:
+                        proc.wait(timeout=10)
+                    except Exception:
+                        pass
+                    # The engine may already have started the file: never leave it behind.
+                    tmp_out.unlink(missing_ok=True)
+                    Path(str(tmp_out) + ".pakmap.json").unlink(missing_ok=True)
                     raise PakmapRenderCancelled("pakMap render cancelled.")
                 try:
                     event = json.loads(raw)
