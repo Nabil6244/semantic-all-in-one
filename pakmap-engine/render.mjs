@@ -19,7 +19,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { planRender } from './lib/plan.mjs';
 import { resolveSpecData } from './lib/datasets.mjs';
-import { prepareMedia } from './lib/media.mjs';
+import { prepareMedia, materializeClip, releaseClips, disposeMedia } from './lib/media.mjs';
 import { fetchTile } from './lib/tiles.mjs';
 import { parsePointsCsv } from './lib/points.mjs';
 
@@ -71,7 +71,10 @@ function startServer(spec, plan, media) {
       if (med) {
         const m = media.files[med[1]];
         if (!m) { res.writeHead(404); return res.end(); }
-        const f = m.file || path.join(m.dir, `${String(Math.max(1, Number(med[2] ?? 1) + 1)).padStart(5, '0')}.jpg`);
+        if (m.lazy && !m.dir) materializeClip(m, { ffmpeg: spec.ffmpeg || 'ffmpeg', fps: spec.fps });
+        let frame = Math.max(1, Number(med[2] ?? 1) + 1);
+        if (m.count) frame = Math.min(frame, m.count);   // a lazy clip may hold a frame fewer than its length promised
+        const f = m.file || path.join(m.dir, `${String(frame).padStart(5, '0')}.jpg`);
         if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.mime || 'image/jpeg' });
         return fs.createReadStream(f).pipe(res);
@@ -110,7 +113,7 @@ async function main() {
   emit({ event: 'plan', layer_facts: plan.layer_facts, frames: total, min_frame_km: plan.minFrameKm, imagery_used: [...plan.used], credits: plan.credits });
   plan.warnings.forEach((w) => emit({ event: 'warning', message: w.message }));
 
-  const media = prepareMedia(spec, { baseDir: spec.base_dir || path.dirname(path.resolve(process.argv[2])), ffmpeg: spec.ffmpeg || 'ffmpeg' });
+  const media = prepareMedia(spec, { baseDir: spec.base_dir || path.dirname(path.resolve(process.argv[2])), ffmpeg: spec.ffmpeg || 'ffmpeg', lazy: spec.media_lazy === true, ffprobe: spec.ffprobe || 'ffprobe' });
   const server = await startServer(spec, plan, media);
   const origin = `http://127.0.0.1:${server.address().port}`;
   const { chromium } = loadPlaywright(spec);
@@ -149,6 +152,7 @@ async function main() {
       const jpg = Buffer.from(b64, 'base64');
       if (!ffmpeg.stdin.write(jpg)) await new Promise((r) => ffmpeg.stdin.once('drain', r));
       if (i % 15 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total });
+      if (i % 30 === 0 && spec.media_lazy === true) releaseClips(media.files, i / fps);
     }
     ffmpeg.stdin.end();
     const code = await ffDone;
@@ -158,6 +162,7 @@ async function main() {
     fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total }, null, 2));
     emit({ event: 'done', output: spec.output, sidecar, frames: total });
   } finally {
+    disposeMedia(media.files);   // the frame folders are this render's own: they never outlive it
     if (ffmpeg && ffmpeg.exitCode === null) { try { ffmpeg.stdin.destroy(); ffmpeg.kill('SIGKILL'); } catch { /* gone */ } }
     await browser.close().catch(() => {});
     server.close();

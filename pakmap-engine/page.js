@@ -10,6 +10,7 @@ import { freezeWindows } from '/lib/events.mjs';
 import { Grid, resolveRamp, imageSize, renderGridRGBA, mercY } from '/lib/raster.mjs';
 import { FILL_ROLES } from '/lib/style.mjs';
 import { lifeAlpha } from '/lib/anim.mjs';
+import { footageWindows, shiftedEvent } from '/lib/hybrid.mjs';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -94,6 +95,7 @@ async function setup() {
   }
 
   // ---- fill events (translucent regions with an outline), timed like any other layer ----
+  const hold = spec.hybrid && spec.hybrid.pause_overlays ? footageWindows(spec.events || []) : []; // Hybrid Map: map layers' clocks stop under footage
   const fillEvents = (spec.events || []).filter((e) => e.type === 'fill');
   fillEvents.forEach((e) => {
     const colour = e.color || FILL_ROLES[e.role || 'primary'];
@@ -157,12 +159,12 @@ async function setup() {
       }
     }
     for (const e of fillEvents) {
-      const a = lifeAlpha(t, e.t_in, e.t_out, e.fade_in ?? 0.4, 0.3);
+      const a = lifeAlpha(t, shiftedEvent(e, t, hold).t_in, e.t_out, e.fade_in ?? 0.4, 0.3);
       map.setPaintProperty(`fe-${e.id}`, 'fill-opacity', a * (e.opacity ?? 0.45));
       if (e.outline !== false) map.setPaintProperty(`fe-line-${e.id}`, 'line-opacity', a * 0.9);
     }
     for (const e of valueOverlays) {
-      const a = lifeAlpha(t, e.t_in, e.t_out, e.fade_in ?? 0.6, 0.4) * (e.opacity ?? 0.8);
+      const a = lifeAlpha(t, shiftedEvent(e, t, hold).t_in, e.t_out, e.fade_in ?? 0.6, 0.4) * (e.opacity ?? 0.8);
       map.setLayoutProperty(`vo-${e.id}`, 'visibility', a > 0 ? 'visible' : 'none');
       if (a > 0) map.setPaintProperty(`vo-${e.id}`, 'raster-opacity', a);
     }

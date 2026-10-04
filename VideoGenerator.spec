@@ -193,6 +193,9 @@ _COMPOSITION_STYLES_DIR = ROOT / "composition_styles"
 if _COMPOSITION_STYLES_DIR.is_dir():
     for f in _COMPOSITION_STYLES_DIR.glob("*.json"):
         datas.append((str(f), "composition_styles"))
+    # Hybrid Map: the Director's and the critic's prompts (hybrid/director.py reads them at runtime, never imports them)
+    for f in sorted(_COMPOSITION_STYLES_DIR.glob("hybrid_*_prompt.txt")):
+        datas.append((str(f), "composition_styles"))
 else:
     raise SystemExit(
         f"Missing {_COMPOSITION_STYLES_DIR} — Overscaled/Exp Solar style "

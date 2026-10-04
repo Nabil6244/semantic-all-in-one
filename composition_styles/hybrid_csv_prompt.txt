@@ -1,0 +1,175 @@
+You are writing the edit-plan CSV for the "Hybrid Map" style of Semantic YT Studio: a
+documentary that alternates between a satellite MAP (one camera that glides from
+place to place, with titles, markers, region fills, routes, number chips and photo
+cards drawn on it) and full-screen FOOTAGE (real video or photos that let the
+viewer experience what the narrator describes). The map explains WHERE and HOW BIG.
+Footage shows WHAT IT IS LIKE. Your CSV tells the app what appears and when, each
+row tied to the narrator's own words.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences,
+no blank lines. Quote any cell that contains a comma, for example "-1.29,36.82" or
+{"cover_ui": true, "fit": "slow"} (inside quotes, double the quotes: "{""cover_ui"": true}").
+
+HEADER (exactly this, in this order)
+item_no,vo_anchor,offset_s,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,camera_action,frame,line_kind,hold,params
+
+ABOUT THIS RUN (fill in before sending; leave the defaults for a short script)
+  STARTING ITEM NUMBER: 1
+  THIS IS: the opening of the video          (or: a later part; the camera is currently looking at <PLACE>)
+  TITLES ALREADY USED: none
+For a long documentary, send it in parts of about 6 minutes of narration. For a later
+part, start item numbers where the last part ended, do NOT write a camera "start" row,
+and continue the camera from where it was.
+
+HOW TIME WORKS (the most important rule)
+- vo_anchor = the narrator's own words, copied EXACTLY from the script, where the layer
+  should appear: the first 1 to 4 words of that moment. The layer appears on the first
+  of those words. Never invent or reword. If a phrase repeats, use enough words to make
+  it unique. Numbers may be written as digits or words ("47 million" matches "forty
+  seven million"). Add |end to anchor on the LAST word of the phrase.
+- Rows must follow the script from start to finish; never go back in time.
+- offset_s (optional, seconds) shifts a row after its anchor. Use it only for the opening
+  camera move below.
+- hold = how long a layer stays, in seconds. For FOOTAGE it is how long the clip plays, so
+  estimate it from the narration it covers: spoken pace is about 2.5 words per second
+  (a 25-word passage is about 10 s). If the script comes with times, such as [00:12.4],
+  use them to set hold exactly.
+
+ITEMS
+- item_no groups rows into one idea or one stretch of the story. A new item starts when
+  the topic or place changes. Titles, fills and lines stay on the map until their item
+  ends, so keep an item going across a footage clip if the fill or line should still be
+  there when the map comes back.
+- Start each item with a hud_title row. Start the video with the camera row below. The
+  video ends when the narration ends; add no closing row.
+- A layer can NEVER outlive its item: an item ends 0.5 s before the next item begins, and
+  everything in it is cut at that moment. So a footage clip or card needs enough narration
+  AFTER its anchor to cover its hold. If the narration ends the item sooner, shorten the
+  hold, move the anchor earlier, or keep the item going (merge it with the next one).
+  Do not start a new item just because footage starts: footage is part of the item it
+  interrupts, and the map comes back inside the same item.
+
+THE HYBRID RHYTHM (what makes it good)
+- Alternate. A stretch of map, then footage, then map again. Do not leave the map up for
+  more than about 25 seconds without a card or footage, and do not stack footage for
+  minutes. Footage is usually 25 to 45 percent of the running time.
+- MAP when the narration is about a place, a distance, a route, a border, a size, a
+  number tied to a place. FOOTAGE when it describes something you could film: a scene, a
+  landscape, people at work, weather, an object. A PHOTO CARD (pip) on the map when a
+  named thing needs a picture but the place still matters.
+- Do not switch mode every sentence. A footage beat is 5 to 12 seconds, one to three
+  clips. Never cut away for a passage too abstract to film; keep it on the map.
+- Every cut to footage should be motivated by the words: say why in the notes in your
+  head, not in the CSV.
+
+CAMERA
+- First row of the video: layer_type=camera, camera_action=start, frame=globe, geo_ref=
+  the main subject. Directly after it, on the same vo_anchor, a camera fly_to row with
+  offset_s=1.4, the same geo_ref and frame=country. So the video opens on the whole planet
+  for about 1.4 seconds, then flies in and STAYS CLOSE.
+- After that use frame=country or region (a country, a province, a region such as Sahel).
+  Use frame=local for a city or a site. Do not return to globe or continental unless the
+  story is truly planet-wide, and then only briefly.
+- Camera geo_ref must be a NAME the atlas knows: a country, a province, a big city, or a
+  region like Sahel. A coordinate is a single point and is always shown at street level,
+  so never use a coordinate for a camera country/region view.
+- Move the camera only when the story moves to a new place, never within 3 seconds of
+  another move, and never while footage is on screen. Vary where it looks.
+
+LAYER TYPES AND WHAT EACH NEEDS
+- camera: camera_action (start, fly_to, push_in, pull_back) plus geo_ref and frame.
+- hud_title: label_text (for example PART 1), optional sub_text in capitals. One per item,
+  first row of the item. Never repeat a title already used.
+- marker: geo_ref (the place) and label_text (its name in capitals). color_role: dark
+  (default), neutral, featured, subject. Put a marker where a place is named.
+- zone_label: geo_ref and label_text for a region name without a dot.
+- fill: geo_ref must be an AREA (a country, province, region). color_role: subject (red,
+  the main subject), featured, compare, orange, accent, water, green.
+- line: line_kind (flow, river, rail, border_trace, divide, reference, connector) and
+  geo_ref listing points in order separated by ; (for example Mombasa;Nairobi). For a
+  river or route use 3 to 6 points along it.
+- stat: value_to (the number stated in the script), value_from (what it counts up from,
+  optional), value_format with ONE number placeholder written with 0 or #, and any text
+  around it. NEVER type the number itself in the format: for 37 million write value_to=37
+  and value_format="0 MILLION PEOPLE". sub_text is the small caption. anchor: br, bl, tr, tl.
+- caption: label_text, anchor bc. At most 44 characters. Use sparingly.
+- pip (photo card): asset_path = stock_image:<specific description>. anchor tr (default),
+  tl, br, bl, ml, mr, center. label_text (short, capitals). geo_ref adds a leader line to
+  that place. Use a card on a map beat when a named place, plant, animal, building or
+  landscape deserves a picture; the more concrete things the narrator names, the more
+  cards. Only one card on screen at a time.
+- media_full (FOOTAGE): asset_path = stock_video:<specific description> (or stock_image: for
+  a still), one clip per row, never a pipe. hold = seconds. params, always for footage:
+  {"cover_ui": true, "dissolve_s": 0.5, "kenburns": "auto", "fit": "slow"}
+  For two or three clips in one footage beat, write one media_full row per clip, each with its own
+  vo_anchor, and make sure a clip's hold ends before the next clip's anchor (clips must not
+  overlap). Footage covers everything on the map while it plays; the map returns exactly
+  as it was.
+
+PLACES (geo_ref)
+- Real, well-known names exactly as an atlas spells them, without a country suffix: Kenya,
+  Nairobi, Lake Victoria. A city that shares a name with another: city:Moscow,RUS.
+- Anything an atlas lacks (a river, mountain, pass, desert, sea, small town) is given as
+  "lat,lon" in quotes, latitude first. Never guess coordinates you are unsure of; use a
+  nearby well-known place instead. A fill must be an area, never a coordinate.
+- To show a desert or a basin, name the countries or region it covers (Libya, Algeria,
+  Mali, Niger, Chad, Sahel).
+
+PICTURES AND CLIPS (asset_path)
+- Do NOT invent file names. Name what to find: stock_video:<description> or
+  stock_image:<description>. Make the description concrete and visual ("aerial view of a
+  flash flood filling a dry riverbed", not "water"). Never a person's name or a brand.
+  You may use youtube_video:<description> once or twice for a real event or historical scene.
+  Never use Flow sources.
+- Do not repeat the same description or the same idea twice.
+
+PACING AND LIMITS (the app enforces these; breaking them is an error)
+- At most 2 stat chips and 5 text layers on screen at once (a title with a subtitle counts
+  as 2; fills, lines and cards do not count).
+- Defaults: stat 4.5 s, caption 4 s, marker 9 s, photo card 6 s. Titles, fills and lines
+  stay until their item ends. Set hold only when the default is wrong.
+- Never leave more than about 5 seconds of narration with nothing new appearing.
+- Be economical on the map: a strong map beat is a camera move, one title, 1 to 3 markers
+  or a fill, perhaps one number, perhaps one card. Do not put a layer on every sentence.
+- Show only what the narrator says. Never add facts, numbers or places that are not in
+  the script.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly as given; every row has the same number of cells.
+2. Every vo_anchor is copied from the script, in order, and unique.
+3. The video opens with camera start on the globe, then a fly_to with offset_s 1.4 (unless
+   this is a later part).
+4. Every item starts with a hud_title; no title is repeated.
+5. Footage rows have asset_path stock_video:/stock_image:, a hold, and the footage params;
+   no two clips overlap; no camera move while footage plays.
+6. Map and footage alternate; footage is a good share of the video; abstract passages stay
+   on the map.
+7. Every number and place comes from the script; stat formats contain no typed number.
+8. No more than 2 stat chips or 5 text layers at once; nothing silent for 5 seconds.
+9. Output is the CSV only.
+
+EXAMPLE
+Script:
+The Sahara stretches across nine million square kilometers of North Africa. On the map it looks lifeless. But travel south, toward the Sahel, and the sand gives way to grass. Rain fills dry riverbeds in Niger, and farmers plant again, row after row, as green returns to the edge of the desert. Thousands of years ago, lakes covered this land, and people painted giraffes on the rocks of Algeria. Their paintings are still there today.
+
+CSV:
+item_no,vo_anchor,offset_s,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,camera_action,frame,line_kind,hold,params
+1,The Sahara,,camera,cam0,Algeria,,,,,,,,,start,globe,,,
+1,The Sahara,1.4,camera,cam1,Algeria,,,,,,,,,fly_to,country,,,
+1,The Sahara,,hud_title,,,THE GREEN SAHARA,A SHIFTING LANDSCAPE,,,,,,,,,,,
+1,The Sahara,,fill,sahara,Algeria,,,subject,,,,,,,,,,
+1,nine million,,stat,area,,,SAHARA,,0,9,0 MILLION KM²,br,,,,,,
+1,On the map,,pip,dunes,Algeria,SAHARA,,,,,,tr,stock_image:endless sand dunes of the Sahara under a hard noon sun,,,,5,
+1,But travel south,,camera,cam2,Niger,,,,,,,,,fly_to,region,,,
+1,toward the Sahel,,zone_label,sahel,Sahel,THE SAHEL,,neutral,,,,,,,,,,
+1,the sand gives way,,media_full,f1,,,,,,,,,stock_video:green grass sprouting through pale sand in a time lapse,,,,4,"{""cover_ui"": true, ""dissolve_s"": 0.5, ""kenburns"": ""auto"", ""fit"": ""slow""}"
+1,Rain fills,,marker,niger,Niger,NIGER,,featured,,,,,,,,,,
+1,row after row,,media_full,f2,,,,,,,,,stock_video:farmer planting seedlings in dark wet soil after rain,,,,3.5,"{""cover_ui"": true, ""dissolve_s"": 0.5, ""kenburns"": ""auto"", ""fit"": ""slow""}"
+2,Thousands of years,,hud_title,,,A WETTER PAST,LAKES AND GIRAFFES,,,,,,,,,,,
+2,Thousands of years,,camera,cam3,Algeria,,,,,,,,,fly_to,country,,,
+2,people painted,,pip,art,"28.5,8.0",ROCK ART,,,,,,tr,stock_image:prehistoric rock painting of giraffes on a sandstone wall,,,,4,
+2,rocks of Algeria,,marker,alg,Algeria,ALGERIA,,dark,,,,,,,,,,
+
+NOW WRITE THE CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

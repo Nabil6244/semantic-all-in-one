@@ -459,6 +459,36 @@ class ProjectWorkspace:
         """Render scratch (the silent map video, the compiled spec, credits); the finished video goes to final/."""
         return self.root / "pakmap" / "_work"
 
+    # ---- Hybrid Map: the plan is the source of truth; its footage lives in the Visual Plan's folder like every other style's ----
+    @property
+    def hybrid_dir(self) -> Path:
+        return self.root / "hybrid"
+
+    @property
+    def hybrid_plan_path(self) -> Path:
+        return self.hybrid_dir / "plan.json"
+
+    @property
+    def hybrid_work_dir(self) -> Path:
+        """Render scratch (the compiled pakMap script, the silent map video, the sound plan); the finished video goes to final/."""
+        return self.hybrid_dir / "_work"
+
+    @property
+    def hybrid_images_dir(self) -> Path:
+        return self.hybrid_work_dir / "media"
+
+    def hybrid_settings(self) -> Dict[str, Any]:
+        data = self.read_meta().get("hybrid_settings")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_hybrid_settings(self, **values: Any) -> None:
+        data = self.read_meta()
+        current = data.get("hybrid_settings") if isinstance(data.get("hybrid_settings"), dict) else {}
+        merged = {**current, **{k: v for k, v in values.items() if v is not None}}
+        if merged != current:
+            data["hybrid_settings"] = merged
+            self._write_meta(data)
+
     @property
     def pakmap_images_dir(self) -> Path:
         """Where the Visual Plan's pictures for pakMap live (numbered 001.jpg ... and .asset_manifest.json), resolved by the same

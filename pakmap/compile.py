@@ -159,7 +159,7 @@ def check_with_engine(spec: dict) -> Tuple[List[str], List[str], bool]:
 def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[float] = None, width: int = 1920, height: int = 1080,
                  fps: int = 30, base_dir: "str | Path | None" = None, watermark: Optional[dict] = None, borders: bool = True,
                  output: str = "OUTPUT.mp4", cache_dir: str = "CACHE_DIR", validate: bool = True,
-                 media_map: Optional[Dict[str, str]] = None) -> CompileResult:
+                 media_map: Optional[Dict[Any, Optional[str]]] = None, spec_extra: Optional[Dict[str, Any]] = None) -> CompileResult:
     rep = Report()
     err = rep.errors.append
     # pictures named by source (stock_image:..., flow_image:...): a sticker needs a transparent PNG, which no provider can supply;
@@ -360,6 +360,8 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
         spec["base_dir"] = str(base)
     if watermark:
         spec["watermark"] = watermark
+    if spec_extra:  # engine options a caller needs (Hybrid Map); a pakMap script never passes any
+        spec.update(spec_extra)
     if validate and not rep.errors:
         e2, w2, ran = check_with_engine(spec)
         rep.errors.extend(f"renderer rule: {m}" for m in e2)

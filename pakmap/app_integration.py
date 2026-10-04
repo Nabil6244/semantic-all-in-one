@@ -157,7 +157,8 @@ def generate_pakmap_video(
     pexels_api_key: Optional[str] = None, flow_engine_manager: object = None, flow_settings: Optional[dict] = None,
     flow_video_account_ids: Optional[list] = None, media_callbacks: Optional[dict] = None, media_resolver: Optional[Callable[..., object]] = None,
     media_find_file: Optional[Callable[..., object]] = None, scene_rows: Optional[Sequence[object]] = None,
-    media_dir: "str | Path | None" = None, media_manifest_cls: object = None,
+    media_dir: "str | Path | None" = None, media_manifest_cls: object = None, spec_extra: Optional[dict] = None,
+    media_options: Optional[dict] = None,
 ) -> PakmapResult:
     csv_path, voiceover_path, output_path = Path(csv_path), Path(voiceover_path), Path(output_path)
     if not csv_path.is_file():
@@ -197,7 +198,7 @@ def generate_pakmap_video(
             got = fetch_scenes(
                 rows, media_dir or (work / MEDIA_DIRNAME), resolver=media_resolver, find_file=media_find_file, manifest_cls=media_manifest_cls, log=log,
                 pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager, flow_settings=flow_settings,
-                flow_video_account_ids=flow_video_account_ids, **(media_callbacks or {}),
+                flow_video_account_ids=flow_video_account_ids, **(media_callbacks or {}), **(media_options or {}),
             )
             if cancelled():
                 return PakmapResult(False, ["Cancelled"], cancelled=True)
@@ -216,7 +217,7 @@ def generate_pakmap_video(
     except Exception as exc:
         return PakmapResult(False, [f"could not get the pictures: {exc!r}"])
     try:
-        res = compile_csv(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir, watermark=watermark, media_map=media_map)
+        res = compile_csv(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir, watermark=watermark, media_map=media_map, spec_extra=spec_extra)
     except CsvError as exc:
         return PakmapResult(False, list(exc.problems))
     except CompileError as exc:

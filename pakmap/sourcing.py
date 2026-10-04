@@ -145,12 +145,13 @@ def _record(manifest_cls, images_dir: Path, scene_number: str) -> Dict[str, Any]
 def fetch_scenes(
     scenes: Sequence[Any], images_dir: "str | Path", *, resolver: Optional[Callable[..., Any]] = None,
     find_file: Optional[Callable[[Path, str], Optional[Path]]] = None, manifest_cls: Any = None,
-    log: Callable[[str], None] = print, **provider_kwargs: Any,
+    log: Callable[[str], None] = print, dedupe: bool = False, **provider_kwargs: Any,
 ) -> FetchResult:
     """Resolve the Visual Plan rows through the existing providers and return a file for each. The AssetManager behind
     `resolver` reuses any scene whose manifest record is complete (including a user's replacement), so only new or failed
     scenes touch Flow / stock / YouTube. `provider_kwargs` go to video_generator.resolve_scene_assets. A provider failure never
-    raises: the scene comes back in `missing` (or `skipped` when the author chose Skip)."""
+    raises: the scene comes back in `missing` (or `skipped` when the author chose Skip). `dedupe` (Hybrid Map only; a pakMap script
+    never sets it) fetches a source and description asked for twice in one run once."""
     images_dir = Path(images_dir)
     images_dir.mkdir(parents=True, exist_ok=True)
     result = FetchResult()
@@ -164,13 +165,41 @@ def fetch_scenes(
         find_file = find_file or vg.find_image_for_scene
         manifest_cls = manifest_cls or AssetManifest
     before = {str(sc.scene_number): _record(manifest_cls, images_dir, str(sc.scene_number)) for sc in scenes}
+    # The same source and description asked for twice in one run is fetched (or, for Flow, paid for) once; each use still gets its own file
+    # and its own manifest record, so each can be replaced on its own afterwards.
+    first_of: Dict[Any, str] = {}
+    duplicate_of: Dict[str, str] = {}
+    for sc in scenes:
+        n, d = str(sc.scene_number), _row_dict(sc)
+        if not dedupe or before[n].get("status") == "complete" or not d["prompt"].strip():
+            continue
+        key = (d["asset_type"], " ".join(d["prompt"].lower().split()))
+        if key in first_of:
+            duplicate_of[n] = first_of[key]
+        else:
+            first_of[key] = n
     error = ""
     try:
-        resolver([_row_dict(sc) for sc in scenes], images_dir, log=log, **provider_kwargs)
+        resolver([_row_dict(sc) for sc in scenes if str(sc.scene_number) not in duplicate_of], images_dir, log=log, **provider_kwargs)
     except SystemExit as exc:
         error = str(exc) or "the provider stopped"
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
+    import shutil
+
+    for n, src in duplicate_of.items():  # give each repeat its own copy of what the first one found
+        found = find_file(images_dir, src)
+        src_rec = _record(manifest_cls, images_dir, src)
+        if found is None or src_rec.get("status") != "complete":
+            continue  # the first one failed or was skipped: the repeat is reported below like any other missing clip
+        try:
+            target = Path(images_dir) / f"{int(n):03d}{Path(found).suffix}"
+            shutil.copy2(found, target)
+            record = {**src_rec, "local_path": str(target), "user_override": False}
+            manifest_cls(images_dir).set(n, record)
+            log(f"[ASSET] Scene {n} -> same as scene {src} ({Path(found).name}): fetched once")
+        except (OSError, AttributeError, ValueError) as exc:
+            log(f"[ASSET] Scene {n}: could not reuse scene {src}'s file ({exc})")
     for sc in scenes:
         n = str(sc.scene_number)
         rec = _record(manifest_cls, images_dir, n)

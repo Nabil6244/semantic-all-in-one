@@ -82,6 +82,8 @@ export function validateEvents(events, duration) {
       if (e.opacity != null && !(e.opacity >= 0 && e.opacity <= 1)) errors.push(`${at}: fill opacity must be between 0 and 1`);
     }
     if (e.type === 'media_full' && !e.media) errors.push(`${at}: media_full needs media (a picture or video file)`);
+    if (e.type === 'media_full' && e.fit != null && e.fit !== 'slow') errors.push(`${at}: media_full fit must be "slow"`);
+    if (e.type === 'media_full') for (const k of ['cover_ui', 'xfade_prev', 'kenburns']) if (e[k] != null && typeof e[k] !== 'boolean' && !(k === 'kenburns' && e[k] === 'auto')) errors.push(`${at}: media_full ${k} must be true or false${k === 'kenburns' ? ' (or "auto")' : ''}`);
   });
   if (errors.length) return { errors, warnings };
 
@@ -95,7 +97,9 @@ export function validateEvents(events, duration) {
     if (text > MAX_TEXT_LAYERS) errors.push(`${text} text layers are on screen at ${t.toFixed(2)}s (max ${MAX_TEXT_LAYERS}): ${live.filter((e) => textLayers(e) > 0).map((e) => `${e.id}${textLayers(e) > 1 ? ` (${textLayers(e)})` : ''}`).join(', ')}. Shorten one with hold or t_end.`);
     if (live.filter((e) => e.type === 'hud_title').length > 1) errors.push(`two hud_title events overlap at ${t.toFixed(2)}s`);
     if (live.some((e) => e.type === 'sticker') && live.some((e) => e.type === 'pip' || e.type === 'filmstrip')) errors.push(`a sticker and a photo card are on screen together at ${t.toFixed(2)}s (the references show one rich picture at a time)`);
-    if (live.filter((e) => e.type === 'media_full').length > 1) errors.push(`two media_full events overlap at ${t.toFixed(2)}s`);
+    const fulls = live.filter((e) => e.type === 'media_full').sort((a, b) => a.t_in - b.t_in);
+    // Hybrid footage may hand over from one clip to the next (xfade_prev) while the first stays opaque; nothing else may overlap
+    if (fulls.length > 2 || (fulls.length === 2 && fulls[1].xfade_prev !== true)) errors.push(`two media_full events overlap at ${t.toFixed(2)}s`);
   }
   // silence: no event of any kind for more than MAX_GAP_S
   if (num(duration) && events.length) {
@@ -134,7 +138,7 @@ export function mediaRefs(e) {
     case 'pip': return (e.images && e.images.length ? e.images : [e.media]).map((p) => mk(p, { maxW: 900 }));
     case 'filmstrip': return (e.cards || []).map((c) => mk(c.media, { start_s: c.start_s ?? 0, loop: !!c.loop, maxW: 700 }));
     case 'sticker': return [mk(e.media, { maxW: 1400 })];
-    case 'media_full': return [mk(e.media, { maxW: 1920 })];
+    case 'media_full': return [mk(e.media, { maxW: 1920, fit: e.fit === 'slow' })];
     default: return [];
   }
 }

@@ -1,0 +1,20 @@
+{
+  "version": 1, "duration": 24.0,
+  "settings": {"dissolve_s": 0.5, "return_grace_s": 0.8, "drift_pct_per_s": 0.5},
+  "beats": [
+    {"id": "b1", "mode": "map", "start": 0, "end": 9, "purpose": "establish where we are",
+     "camera": [{"action": "start", "place": "Kenya", "frame": "country"},
+                {"action": "fly_to", "t": 4.0, "dur": 2.4, "place": "Nairobi", "frame": "region"}],
+     "layers": [
+       {"id": "title", "type": "hud_title", "t": 0.3, "label": "PART 1", "sub": "THE EMPTY HALF"},
+       {"id": "kenya", "type": "fill", "t": 0.5, "place": "Kenya", "role": "subject", "until": "after_footage"},
+       {"id": "nbo", "type": "marker", "t": 3.2, "place": "Nairobi", "label": "NAIROBI", "role": "featured", "until": "after_footage"},
+       {"id": "pop", "type": "stat", "t": 7.6, "from": 0, "to": 47, "format": "0 MILLION PEOPLE", "sub": "KENYA", "until": "after_footage"}]},
+    {"id": "b2", "mode": "footage", "start": 9, "end": 15, "purpose": "what the highlands actually look like",
+     "footage": {"clips": [{"asset": "media/highlands.jpg", "kenburns": true}, {"asset": "media/lake.jpg", "kenburns": true}]}},
+    {"id": "b3", "mode": "map", "start": 15, "end": 24, "purpose": "back to the geography: where the railway runs",
+     "layers": [
+       {"id": "rail", "type": "line", "t": 15.8, "kind": "rail", "places": ["Mombasa", "Nairobi"]},
+       {"id": "mba", "type": "marker", "t": 16.4, "place": "Mombasa", "label": "MOMBASA", "role": "featured"}]}
+  ]
+}

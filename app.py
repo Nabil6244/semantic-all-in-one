@@ -1006,6 +1006,7 @@ class VideoGeneratorApp(ctk.CTk):
         # are gated behind the switch.
         self._build_overscaled_section(self._view_visual_director.content, row=0)
         self._build_pakmap_section(self._view_visual_director.content, row=1)
+        self._build_hybrid_section(self._view_visual_director.content, row=2)
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
         self._shell.navigate("script")
@@ -1356,6 +1357,15 @@ class VideoGeneratorApp(ctk.CTk):
         self.pexels_key_var = ctk.StringVar(value=self._settings.get("pexels_api_key", ""))
         self.pixabay_key_var = ctk.StringVar(value=self._settings.get("pixabay_api_key", ""))
         self.gemini_key_var = ctk.StringVar(value=self._settings.get("gemini_api_key", ""))
+        # Optional backup keys: Gemini switches to the next one when a key hits its quota or a transient limit (see visual_director.llm)
+        self.gemini_backup_vars = [ctk.StringVar(value=self._settings.get(f"gemini_api_key_{i}", "")) for i in range(1, 5)]
+        # AI routing: Groq as the second provider, which provider is on, and which model serves which job (empty = the built-in default)
+        self.groq_key_var = ctk.StringVar(value=self._settings.get("groq_api_key", ""))
+        self.gemini_enabled_var = ctk.BooleanVar(value=bool(self._settings.get("gemini_enabled", True)))
+        self.groq_enabled_var = ctk.BooleanVar(value=bool(self._settings.get("groq_enabled", True)))
+        _saved_models = self._settings.get("ai_models") or {}
+        self.ai_model_vars = {k: ctk.StringVar(value=str(_saved_models.get(k, ""))) for k in
+                              ("gemini_director", "gemini_second", "gemini_critic", "groq_director", "groq_critic", "groq_repair")}
         self._visual_plan = None
         self._manual_csv_backup = ""
         self.youtube_clip_duration_var = ctk.StringVar(
@@ -2896,6 +2906,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "pakmap":
             self.generation_mode = "normal"
         self._clear_pakmap_visual_plan()
+        self._hybrid_deactivate()  # the styles are exclusive: whatever takes over from pakMap takes over from Hybrid too
 
     def _on_pakmap_toggle(self) -> None:
         if self._pakmap_running:
@@ -2903,6 +2914,7 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             return
         if self._pakmap_enabled_var.get():
+            self._hybrid_deactivate()
             self._pakmap_controls.grid()
             self.generation_mode = "pakmap"
             if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
@@ -2955,6 +2967,737 @@ class VideoGeneratorApp(ctk.CTk):
     def _pakmap_watermark(self) -> "dict | None":
         name = self._pakmap_channel_var.get().strip()
         return {"text": name} if name else None
+
+    # ---------- Hybrid Map (third style: map + footage, planned by the Hybrid Director) ----------
+
+    def _build_hybrid_section(self, parent, *, row: int) -> None:
+        """Hybrid Map: the plan (beats of MAP / FOOTAGE / MAP+FOOTAGE) is the editable source of truth. The SHARED Generate button
+        drives it (see _sync_primary_cta_hybrid). Footage is rows of the EXISTING Visual Plan table, so replacing, retrying and
+        skipping a clip is done there; the map beats stay in this block's plan view."""
+        self._hybrid_enabled_var = ctk.BooleanVar(value=False)
+        self._hybrid_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+        self._hybrid_status_var = ctk.StringVar(value="")
+        self._hybrid_file_var = ctk.StringVar(value="")     # the CSV or plan file the plan came from (shown like pakMap's CSV row)
+        self._hybrid_running = False
+        self._hybrid_busy = False
+        self._hybrid_cancel = threading.Event()
+        self._hybrid_plan = None
+        self._hybrid_report = None
+        self._hybrid_tracking = None
+        self._hybrid_run_manager = None
+
+        block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
+        block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+        block.grid_columnconfigure(0, weight=1)
+        self._hybrid_block = block
+        ctk.CTkLabel(block, text="Hybrid Map (map + footage)", font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w").grid(
+            row=0, column=0, sticky="w", padx=16, pady=(14, 0))
+        ctk.CTkSwitch(
+            block, text="Use Hybrid Map for this project", variable=self._hybrid_enabled_var, command=self._on_hybrid_toggle,
+            font=ctk.CTkFont(size=12), text_color=_TEXT,
+        ).grid(row=1, column=0, sticky="w", padx=16, pady=(12, 0))
+        controls = ctk.CTkFrame(block, fg_color="transparent")
+        controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
+        controls.grid_columnconfigure(0, weight=1)
+        self._hybrid_controls = controls
+
+        # the same layout as the pakMap block: a file row with Browse, the channel name, Check plan beside the sound switch, a hint, the plan, the status;
+        # Hybrid's AI actions sit in one extra row of small buttons
+        self._path_row(
+            0, "Plan / CSV", self._hybrid_file_var, self._hybrid_browse_file,
+            parent=controls, placeholder_text="Choose a Hybrid CSV or plan file (or use Plan with AI below)",
+        )
+        name_row = ctk.CTkFrame(controls, fg_color="transparent")
+        name_row.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        name_row.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED, anchor="w").grid(
+            row=0, column=0, sticky="w", padx=(0, 10))
+        ctk.CTkEntry(name_row, textvariable=self._pakmap_channel_var, height=32,
+                     placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")   # the same setting as pakMap's
+
+        def _btn(parent, text, command, col, width=110):
+            b = ctk.CTkButton(parent, text=text, width=width, height=30, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
+                              text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=command)
+            b.grid(row=0, column=col, padx=(0, 8))
+            return b
+
+        self._hybrid_check_btn = ctk.CTkButton(
+            controls, text="Check plan", width=110, height=30, corner_radius=4,
+            fg_color="transparent", border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_ACCENT_SEL,
+            font=ctk.CTkFont(size=11), command=self._hybrid_check_plan,
+        )
+        self._hybrid_check_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
+        ctk.CTkSwitch(controls, text="Hybrid sound design (effects + ambience)", variable=self._hybrid_sound_var, command=self._save_hybrid_settings,
+                      font=ctk.CTkFont(size=11)).grid(row=2, column=0, sticky="e", pady=(10, 0))
+        ai_row = ctk.CTkFrame(controls, fg_color="transparent")
+        ai_row.grid(row=3, column=0, sticky="w", pady=(8, 0))
+        self._hybrid_plan_btn = _btn(ai_row, "Plan with AI", self._hybrid_plan_with_ai, 0)
+        self._hybrid_repair_btn = _btn(ai_row, "Repair errors", self._hybrid_repair_errors, 1)
+        self._hybrid_open_btn = _btn(ai_row, "Open plan file", self._hybrid_open_plan_file, 2)
+        ctk.CTkLabel(
+            controls,
+            text="Uses the voiceover chosen on the Script page. Load a CSV (made with the Hybrid CSV prompt) or let Plan with AI decide where the story is "
+                 "told on the map and where in footage. Check plan shows where every layer lands before anything is drawn; the footage appears in the "
+                 "Visual Plan tab, and the main action button renders the video.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
+        ).grid(row=4, column=0, sticky="w", pady=(6, 0))
+        self._hybrid_plan_box = ctk.CTkTextbox(controls, height=220, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+        self._hybrid_plan_box.grid(row=5, column=0, sticky="ew", pady=(8, 0))
+        self._hybrid_plan_box.configure(state="disabled")
+        ctk.CTkLabel(controls, textvariable=self._hybrid_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420,
+                     justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        controls.grid_remove()
+
+    def _set_hybrid_text(self, text: str) -> None:
+        box = self._hybrid_plan_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        box.insert("1.0", text)
+        box.configure(state="disabled")
+
+    def _hybrid_deactivate(self) -> None:
+        """Another style takes over: Hybrid steps aside (its plan stays in the project)."""
+        if not hasattr(self, "_hybrid_enabled_var"):
+            return
+        was = self._hybrid_enabled_var.get()
+        self._hybrid_enabled_var.set(False)
+        self._hybrid_controls.grid_remove()
+        if self.generation_mode == "hybrid":
+            self.generation_mode = "normal"
+        self._clear_hybrid_visual_plan()
+        # remember "not active" for the project the Hybrid state belongs to (never for a project that is merely being opened)
+        if was and self._workspace is not None and getattr(self, "_hybrid_for_project", None) == self._workspace.project_id:
+            self._save_hybrid_settings(active=False)
+
+    def _on_hybrid_toggle(self) -> None:
+        if self._hybrid_running:
+            self._hybrid_enabled_var.set(True)
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            return
+        if self._hybrid_enabled_var.get():
+            self._pakmap_deactivate()  # also clears the other styles' rows from the shared table
+            if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+            self._hybrid_enabled_var.set(True)
+            self._hybrid_controls.grid()
+            self.generation_mode = "hybrid"
+            self._populate_hybrid_visual_plan()
+            self._hybrid_show_plan()
+            self._save_hybrid_settings(active=True)
+        else:
+            self._hybrid_deactivate()
+        self._sync_primary_cta()
+
+    def _save_hybrid_settings(self, active: "bool | None" = None) -> None:
+        if self._workspace is None:
+            return
+        self._hybrid_for_project = self._workspace.project_id
+        try:
+            self._workspace.set_hybrid_settings(sound_design=bool(self._hybrid_sound_var.get()), active=active)
+        except OSError as exc:
+            self._append_log(f"[HYBRID] Could not save the Hybrid settings: {exc}\n")
+
+    def _hybrid_follow_rows(self, plan) -> None:
+        """When the plan's rows have changed, the files and records the user already made follow their logical rows instead of their numbers."""
+        if plan is None or self._workspace is None:
+            return
+        try:
+            from hybrid import identity
+
+            ws = self._workspace
+            new = identity.row_descriptors(plan)
+            old = identity.load_descriptors(ws.hybrid_dir)
+            if old is not None and old != new:
+                done = identity.reconcile(ws.hybrid_images_dir, old, new)
+                if done["moved"] or done["unattached"]:
+                    self._append_log(f"[HYBRID] The plan changed: {done['moved']} saved clip(s) followed their rows"
+                                     + (f"; {len(done['unattached'])} no longer have a row and were set aside in {identity.UNATTACHED}" if done["unattached"] else "") + "\n")
+            identity.save_descriptors(ws.hybrid_dir, new)
+        except Exception as exc:   # identity bookkeeping must never stop a plan from loading
+            self._append_log(f"[HYBRID] Could not follow the saved clips to the new plan: {exc}\n")
+
+    def _hybrid_set_plan(self, plan, report=None, *, save: bool = True) -> None:
+        """Make `plan` the project's Hybrid plan: keep it on disk, put its footage in the Visual Plan table, show it."""
+        self._hybrid_plan = plan
+        self._hybrid_report = report
+        if plan is None:
+            self._hybrid_file_var.set("")
+        elif report is not None:
+            self._hybrid_file_var.set("Made with Plan with AI")
+        elif not self._hybrid_file_var.get().strip() and self._workspace is not None:
+            self._hybrid_file_var.set(str(self._workspace.hybrid_plan_path))      # a plan restored with the project
+        self._hybrid_follow_rows(plan)
+        if save and self._workspace is not None:
+            try:
+                if report is not None:
+                    from hybrid.pipeline import save_bundle
+
+                    save_bundle(self._workspace.hybrid_dir, report)
+                else:
+                    self._workspace.hybrid_dir.mkdir(parents=True, exist_ok=True)
+                    plan.save(self._workspace.hybrid_plan_path)
+            except OSError as exc:
+                self._append_log(f"[HYBRID] Could not save the plan: {exc}\n")
+        if self.generation_mode == "hybrid":
+            self._populate_hybrid_visual_plan()
+        self._hybrid_show_plan()
+        self._sync_primary_cta()
+
+    def _hybrid_scene_status(self) -> dict:
+        status = {}
+        for row in getattr(self, "_scene_rows", []) if getattr(self, "_scene_rows_owner", None) == "hybrid" else []:
+            status[str(row.scene_number)] = self._row_status_from_result(row)
+        return status
+
+    def _hybrid_show_plan(self) -> None:
+        if not hasattr(self, "_hybrid_plan_box"):
+            return
+        plan = self._hybrid_plan
+        if plan is None:
+            self._set_hybrid_text("No plan yet.\n\nChoose the voiceover, then click Plan with AI (or Load plan… to use a plan file).")
+            return
+        from hybrid.app_integration import plan_text
+
+        self._set_hybrid_text(plan_text(plan, scene_status=self._hybrid_scene_status(), report=self._hybrid_report))
+
+    def _populate_hybrid_visual_plan(self) -> None:
+        """Put the plan's footage in the EXISTING Visual Plan table (one row per clip / supporting card). Map beats are not rows."""
+        from providers.base import SceneRow
+
+        dicts = []
+        if self._hybrid_plan is not None:
+            try:
+                from hybrid.app_integration import visual_dicts
+
+                dicts = visual_dicts(self._hybrid_plan)
+            except Exception as exc:
+                self._append_log(f"[HYBRID] The plan cannot be listed for the Visual Plan yet: {exc}\n")
+        self._scene_rows = [SceneRow.from_csv_row(d) for d in dicts]
+        self._scene_rows_owner = "hybrid"
+        self._scene_preview_cache_sig = None
+        keep = {_scene_key(r.scene_number) for r in self._scene_rows}
+        self._asset_results = {k: v for k, v in self._asset_results.items() if k in keep}
+        if self._workspace is not None:
+            self._hydrate_overscaled_assets_from_manifest(self._workspace.hybrid_images_dir)
+        self._render_scene_rows()
+        self._refresh_assets_cta()
+
+    def _clear_hybrid_visual_plan(self) -> None:
+        if getattr(self, "_scene_rows_owner", None) != "hybrid":
+            return
+        self._scene_rows_owner = None
+        self._scene_rows = []
+        self._scene_preview_cache_sig = None
+        self._render_scene_rows()
+
+    def _restore_hybrid(self, ws) -> None:
+        """Reopening a project: the saved plan, the sound switch and (if Hybrid was the active style) the style itself."""
+        if not hasattr(self, "_hybrid_enabled_var"):
+            return
+        saved = ws.hybrid_settings()
+        self._hybrid_for_project = ws.project_id
+        if "sound_design" in saved:
+            self._hybrid_sound_var.set(bool(saved["sound_design"]))
+        plan = None
+        if ws.hybrid_plan_path.is_file():
+            try:
+                from hybrid.plan import HybridPlan
+
+                plan = HybridPlan.load(ws.hybrid_plan_path)
+            except Exception as exc:
+                self._append_log(f"[HYBRID] The saved plan could not be read: {exc}\n")
+        self._hybrid_plan, self._hybrid_report = plan, None
+        if plan is not None and saved.get("active"):
+            self._pakmap_deactivate()
+            if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+            self._hybrid_enabled_var.set(True)
+            self._hybrid_controls.grid()
+            self.generation_mode = "hybrid"
+            self._populate_hybrid_visual_plan()
+            self._hybrid_show_plan()
+        else:
+            self._hybrid_deactivate()
+
+    def _hybrid_browse_file(self) -> None:
+        """One Browse for both kinds of file: a Hybrid CSV is imported against the narration, a plan (JSON) is loaded as it is."""
+        if self._hybrid_running or self._hybrid_busy:
+            return
+        if not self._require_workspace("load a Hybrid plan"):
+            return
+        path = filedialog.askopenfilename(title="Select a Hybrid CSV or plan", filetypes=[("Hybrid CSV or plan", "*.csv *.json"), ("Hybrid CSV", "*.csv"), ("Hybrid plan", "*.json"),
+                                                                                       ("All files", "*.*")], initialdir=str(_browse_start_dir()))
+        if not path:
+            return
+        if Path(path).suffix.lower() == ".json":
+            self._hybrid_load_plan_file(path)
+        else:
+            self._hybrid_import_csv_file(path)
+
+    def _hybrid_import_csv_file(self, path: str) -> None:
+        """A Hybrid CSV (see composition_styles/hybrid_csv_prompt.txt) read against this project's narration and loaded as the plan."""
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showinfo("Load CSV", "Select or import the voiceover first: the CSV rows are tied to the narrator's own words and times.")
+            return
+        try:
+            text = Path(path).read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            messagebox.showerror("Load CSV", f"The CSV could not be read: {exc}")
+            return
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None)
+        name = Path(path).name
+        self._hybrid_busy = True
+        self._hybrid_status_var.set("Reading the narration, then the CSV…")
+
+        def post(fn) -> None:
+            self.after(0, fn)
+
+        def worker() -> None:
+            try:
+                from hybrid.csv_import import plan_from_csv
+                from pakmap.app_integration import voiceover_duration
+
+                words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
+                got = plan_from_csv(text, words, voiceover_duration(voiceover_path))
+                post(lambda: finish(got, None))
+            except Exception as exc:
+                post(lambda e=exc: finish(None, e))
+
+        def finish(got, exc) -> None:
+            self._hybrid_busy = False
+            if exc is not None:
+                detail = "\n".join(getattr(exc, "problems", [])) or str(exc)
+                self._set_hybrid_text(f"{name} has problems:\n\n{detail}")
+                self._hybrid_status_var.set("Fix the CSV and load it again.")
+                return
+            self._hybrid_set_plan(got.plan, None)
+            self._hybrid_file_var.set(str(path))
+            extra = [f"note: {n}" for n in got.notes] + [f"warning: {w}" for w in got.warnings]
+            if extra:
+                self._hybrid_plan_box.configure(state="normal")
+                self._hybrid_plan_box.insert("end", f"\n\nImported from {name}:\n" + "\n".join(extra))
+                self._hybrid_plan_box.configure(state="disabled")
+                for line in extra:
+                    self._append_log(f"[HYBRID] {line}\n")
+            ne = sum(1 for f in self._hybrid_validate_now() if f.severity == "error")
+            self._hybrid_status_var.set(f"Imported {name}: {len(got.plan.beats)} beats." + (f" {ne} error(s) must be fixed before rendering." if ne else " Open the Visual Plan tab to review the footage."))
+            self._append_log(f"[HYBRID] Imported {name}: {len(got.plan.beats)} beats\n")
+            if not ne and any(b.mode != "map" for b in got.plan.beats):
+                self._goto_workflow_view("visual_plan")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _hybrid_validate_now(self) -> list:
+        from hybrid.validate import validate as _val
+
+        return _val(self._hybrid_plan) if self._hybrid_plan is not None else []
+
+    def _hybrid_load_plan_file(self, path: str) -> bool:
+        from hybrid.plan import HybridPlan, PlanError
+
+        try:
+            plan = HybridPlan.load(path)
+        except (PlanError, OSError, ValueError) as exc:
+            detail = "\n".join(getattr(exc, "problems", [])) or str(exc)
+            self._set_hybrid_text("The plan file has problems:\n\n" + detail)
+            self._hybrid_status_var.set("Fix the plan file and load it again.")
+            return False
+        self._hybrid_set_plan(plan, None)
+        self._hybrid_file_var.set(str(path))
+        self._hybrid_status_var.set(f"Loaded {Path(path).name}")
+        return True
+
+    def _gemini_settings(self) -> dict:
+        """The Gemini keys the user has set: the main one, plus the backup keys (Settings). Environment keys GEMINI_API_KEY_1..4 are read by the client itself."""
+        out = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        for i, var in enumerate(self.gemini_backup_vars, 1):
+            v = var.get().strip()
+            if v:
+                out[f"gemini_api_key_{i}"] = v
+        return out
+
+    def _ai_settings(self) -> dict:
+        """Everything the AI router needs from the user's settings: the Gemini keys, the Groq key, what is switched on, and the model choices."""
+        out = self._gemini_settings()
+        out["groq_api_key"] = self.groq_key_var.get().strip()
+        out["gemini_enabled"] = bool(self.gemini_enabled_var.get())
+        out["groq_enabled"] = bool(self.groq_enabled_var.get())
+        out["ai_models"] = {k: v.get().strip() for k, v in self.ai_model_vars.items() if v.get().strip()}
+        return out
+
+    def _hybrid_plan_with_ai(self) -> None:
+        """Script + voiceover -> Hybrid Director -> validation -> critic -> repair of weak beats -> the plan."""
+        if self._hybrid_running or self._hybrid_busy:
+            return
+        if not self._require_workspace("plan Hybrid Map"):
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showinfo("Plan with AI", "Select or import a voiceover first: the plan is made from the narration's real timing.")
+            return
+        from ai_router import MISSING_AI_KEY, providers_configured
+
+        settings = self._ai_settings()
+        if not any(providers_configured(settings).values()):
+            messagebox.showerror("Plan with AI", MISSING_AI_KEY)
+            return
+        script = self._vo_script_text()
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None)
+        self._hybrid_busy = True
+        self._hybrid_plan_btn.configure(state="disabled", text="Planning…")
+        self._hybrid_status_var.set("Reading the narration…")
+        self._append_log("[HYBRID] Planning with the Hybrid Director…\n")
+
+        def post(fn) -> None:
+            self.after(0, fn)
+
+        def progress(message: str) -> None:
+            post(lambda: (self._hybrid_status_var.set(message), self._append_log(f"[HYBRID] {message}\n")))
+
+        def worker() -> None:
+            try:
+                from hybrid.app_integration import plan_with_ai
+                from pakmap.app_integration import voiceover_duration
+
+                words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
+                res = plan_with_ai(words, script or None, settings, duration=voiceover_duration(voiceover_path), on_progress=progress,
+                                  checkpoint_dir=getattr(self._workspace, "hybrid_dir", None) and self._workspace.hybrid_dir / "_chapters",
+                                  state_dir=getattr(self._workspace, "hybrid_dir", None) and self._workspace.hybrid_dir / "_ai")
+                post(lambda: finish(res, None))
+            except Exception as exc:
+                post(lambda e=exc: finish(None, e))
+
+        def finish(res, exc) -> None:
+            self._hybrid_busy = False
+            self._hybrid_plan_btn.configure(state="normal", text="Plan with AI")
+            if exc is not None:
+                self._hybrid_status_var.set("Planning failed.")
+                self._append_log(f"[HYBRID] Planning failed: {exc}\n")
+                messagebox.showerror("Plan with AI", f"The Hybrid plan could not be made:\n\n{exc}")
+                return
+            self._hybrid_set_plan(res.plan, res)
+            ne = sum(1 for f in res.findings if f.severity == "error")
+            self._hybrid_status_var.set(
+                f"Plan ready: {len(res.plan.beats)} beats." + (f" {ne} error(s) must be fixed before rendering." if ne else " Open the Visual Plan tab to review the footage."))
+            self._append_log(f"[HYBRID] Plan ready ({len(res.plan.beats)} beats, {res.repair_passes} repair pass(es)).\n")
+            if ne == 0 and any(b.mode != "map" for b in res.plan.beats):
+                self._goto_workflow_view("visual_plan")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _hybrid_open_plan_file(self) -> None:
+        """Open the plan (JSON) in the system editor: fix a place or a query by hand, save, then Load plan… (or Check plan)."""
+        ws = self._workspace
+        if ws is None or not ws.hybrid_plan_path.is_file():
+            messagebox.showinfo("Open plan file", "There is no saved Hybrid plan in this project yet.")
+            return
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(ws.hybrid_plan_path)])
+            elif sys.platform == "win32":
+                os.startfile(str(ws.hybrid_plan_path))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(ws.hybrid_plan_path)])
+            self._hybrid_status_var.set("Edit and save the plan file, then click Load plan… and choose it again.")
+        except Exception as exc:
+            messagebox.showerror("Open plan file", str(exc))
+
+    def _hybrid_repair_errors(self) -> None:
+        """Send ONLY the beats that have errors (an unfindable place, an unsupported source, footage too short ...) back to the Director."""
+        if self._hybrid_running or self._hybrid_busy:
+            return
+        if self._hybrid_plan is None:
+            messagebox.showinfo("Repair errors", "There is no Hybrid plan yet.")
+            return
+        from hybrid.validate import errors as _errs, validate as _val
+
+        if not _errs(_val(self._hybrid_plan)):
+            self._hybrid_status_var.set("The plan has no errors to repair.")
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showinfo("Repair errors", "Select or import the voiceover first: the repair is made against the narration.")
+            return
+        from ai_router import MISSING_AI_KEY, providers_configured, router_from_settings
+
+        settings = self._ai_settings()
+        if not any(providers_configured(settings).values()):
+            messagebox.showerror("Repair errors", MISSING_AI_KEY)
+            return
+        plan, script = self._hybrid_plan, self._vo_script_text()
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None)
+        self._hybrid_busy = True
+        self._hybrid_repair_btn.configure(state="disabled", text="Repairing…")
+        self._hybrid_status_var.set("Repairing the beats with errors…")
+
+        def post(fn) -> None:
+            self.after(0, fn)
+
+        def worker() -> None:
+            try:
+                from hybrid.pipeline import repair_errors
+                from pakmap.app_integration import voiceover_duration
+
+                words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
+                res = repair_errors(plan, words, router_from_settings(settings, state_dir=getattr(self._workspace, "hybrid_dir", None) and self._workspace.hybrid_dir / "_ai"), script=script or None, duration=voiceover_duration(voiceover_path),
+                                    on_progress=lambda m: post(lambda: (self._hybrid_status_var.set(m), self._append_log(f"[HYBRID] {m}\n"))))
+                post(lambda: finish(res, None))
+            except Exception as exc:
+                post(lambda e=exc: finish(None, e))
+
+        def finish(res, exc) -> None:
+            self._hybrid_busy = False
+            self._hybrid_repair_btn.configure(state="normal", text="Repair errors")
+            if exc is not None:
+                self._hybrid_status_var.set("Repair failed.")
+                messagebox.showerror("Repair errors", f"The plan could not be repaired:\n\n{exc}")
+                return
+            self._hybrid_set_plan(res.plan, None)
+            left = [f for f in res.findings if f.severity == "error"]
+            self._hybrid_status_var.set("Repaired: the plan has no errors." if not left else f"{len(left)} error(s) are still there: edit the plan file, or run Repair errors again.")
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _hybrid_check_plan(self) -> None:
+        if self._hybrid_running or self._hybrid_busy:
+            return
+        if self._hybrid_plan is None:
+            messagebox.showinfo("Check plan", "There is no Hybrid plan yet: click Plan with AI or Load plan….")
+            return
+        plan, report, status = self._hybrid_plan, self._hybrid_report, self._hybrid_scene_status()
+        self._hybrid_busy = True
+        self._hybrid_check_btn.configure(state="disabled")
+        self._hybrid_status_var.set("Checking the plan…")
+
+        def worker() -> None:
+            try:
+                from hybrid.app_integration import check_plan
+
+                text, ok = check_plan(plan, report=report, scene_status=status)
+            except Exception as exc:
+                text, ok = f"Could not check the plan: {exc}", False
+            self.after(0, lambda: finish(text, ok))
+
+        def finish(text: str, ok: bool) -> None:
+            self._hybrid_busy = False
+            self._hybrid_check_btn.configure(state="normal")
+            self._set_hybrid_text(text)
+            self._hybrid_status_var.set("Plan is ready." if ok else "The plan has problems: see the list above.")
+            self._sync_primary_cta()
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _sync_primary_cta_hybrid(self) -> None:
+        if self._hybrid_running:
+            self._cta_action = "hybrid_cancel"
+            self.stage_var.set("GENERATING")
+            if self._hybrid_cancel.is_set():
+                self.hint_var.set("Stopping…")
+                self._set_generate_btn(state="disabled", text="Stopping…")
+            else:
+                self.hint_var.set("Generating — the plan is locked until it finishes. Click Stop to cancel.")
+                self._set_generate_btn(state="normal", text="Stop")
+            return
+        if self._workspace is None:
+            self._cta_action = "picker"
+            self.stage_var.set("SETUP")
+            self.hint_var.set("Choose a project to get started.")
+            self._set_generate_btn(state="normal", text="Choose project")
+            return
+        if self._current_voiceover_path() is None:
+            self._cta_action = "import_audio"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Select or import a voiceover to continue.")
+            self._set_generate_btn(state="normal", text="Import Voiceover")
+            return
+        if self._hybrid_plan is None:
+            self._cta_action = "hybrid_plan"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Click to plan the video: the Hybrid Director decides where the story is on the map and where in footage.")
+            self._set_generate_btn(state="normal", text="Plan Hybrid Map")
+            return
+        self._cta_action = "generate"
+        self.stage_var.set("GENERATE")
+        self.hint_var.set("Ready — click Generate to render the Hybrid Map video.")
+        self._set_generate_btn(state="normal", text="Generate")
+
+    def _on_hybrid_cancel(self) -> None:
+        if not self._hybrid_running or self._hybrid_cancel.is_set():
+            return
+        self._hybrid_cancel.set()
+        self._append_log("[HYBRID] Stop requested — cancelling the current step…\n")
+        run_manager = getattr(self, "_hybrid_run_manager", None)
+        if run_manager is not None:
+            try:
+                run_manager.request_cancel()
+            except Exception as exc:
+                self._append_log(f"[HYBRID] Could not signal the picture batch to stop: {exc}\n")
+        try:
+            from hardware.process_registry import get_registry
+
+            get_registry().terminate_owned(owner="pakmap_render")
+            get_registry().terminate_owned(owner="overscaled_render")
+        except Exception as exc:
+            self._append_log(f"[HYBRID] Could not stop the running renderer: {exc}\n")
+        self._sync_primary_cta()
+
+    def _run_hybrid_generation(self) -> None:
+        """The Hybrid branch of the SHARED _on_generate() entry point (generation_mode == "hybrid")."""
+        if self._hybrid_running or self._hybrid_busy:
+            return
+        if self._workspace is None:
+            messagebox.showerror("Cannot start", "Create or choose a project first.")
+            return
+        plan = self._hybrid_plan
+        if plan is None:
+            messagebox.showerror("Cannot start", "There is no Hybrid plan yet: click Plan with AI or Load plan….")
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showerror("Cannot start", "Select or import a voiceover first (same voiceover control used for the other styles).")
+            return
+        from hybrid.validate import errors as _hy_errors, validate as _hy_validate
+
+        blocking = _hy_errors(_hy_validate(plan))
+        if blocking:
+            self._hybrid_show_plan()
+            messagebox.showerror("Fix the plan first", "The plan has errors that would stop the render:\n\n" + "\n".join(f"- {f.message}" for f in blocking[:8]))
+            return
+        ws = self._workspace
+        output_path = ws.next_final_path()
+        self.output_var.set(str(output_path))
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(ws, "state_dir", None)
+        watermark = self._pakmap_watermark()
+        sound_design = bool(self._hybrid_sound_var.get())
+        title = getattr(ws, "title", "") or ""
+        pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+        flow_engine_manager = None
+        flow_video_account_ids = None
+        plan_rows = list(self._scene_rows) if getattr(self, "_scene_rows_owner", None) == "hybrid" else None
+        images_dir = ws.hybrid_images_dir
+        try:
+            from asset_manager import AssetManifest as _HyManifest
+
+            _man = _HyManifest(images_dir) if images_dir.is_dir() else None
+            _new_flow = [
+                r for r in (plan_rows or [])
+                if (SceneAssetRouter.classify(r) in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO))
+                and not (_man is not None and (_man.get(r.scene_number) or {}).get("status") == "complete")
+            ]
+        except Exception:
+            _new_flow = []
+        if _new_flow:
+            if not messagebox.askyesno(
+                "Generate footage with Flow?",
+                f"{len(_new_flow)} clip(s)/picture(s) in this plan will be generated with Flow, which uses Flow credits:\n\n"
+                + "\n".join(f"- {(r.prompt or r.stock)[:70]}" for r in _new_flow[:6]) + ("\n- ..." if len(_new_flow) > 6 else "")
+                + "\n\nFootage already saved (or replaced in the Visual Plan) is reused. Continue?",
+            ):
+                return
+            flow_engine_manager = self._get_flow_engine_manager()
+            flow_video_account_ids = self._video_account_ids()
+
+        self._hybrid_cancel.clear()
+        self._hybrid_running = True
+        self._hybrid_tracking = self._track_generation_start("hybrid")
+        self._hybrid_run_manager = None
+        self._sync_primary_cta()
+        self._hybrid_status_var.set("Starting Hybrid Map generation…")
+        self._append_log("Starting Hybrid Map generation…\n")
+
+        def progress_cb(message: str, fraction: float) -> None:
+            def apply() -> None:
+                self._hybrid_status_var.set(f"{message} ({int(fraction * 100)}%)")
+                self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+            self.after(0, apply)
+
+        def thread_safe_log(message: str) -> None:
+            self.after(0, lambda: self._append_log(f"{message}\n"))
+
+        def _scene_start(scene, source) -> None:
+            if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                self._ui_queue.put(("scene_busy", (scene.scene_number, "waiting")))
+            else:
+                self._ui_queue.put(("scene_busy", (scene.scene_number, _scene_busy_kind(source))))
+
+        def _scene_generating(scene) -> None:
+            self._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
+
+        def _scene_complete(scene, result) -> None:
+            self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+        def _manager_ready(manager) -> None:
+            self._asset_manager = manager
+            self._hybrid_run_manager = manager
+
+        def worker() -> None:
+            from hybrid.generate import generate_hybrid_video
+            from pakmap.app_integration import PakmapResult
+
+            try:
+                try:
+                    words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
+                except Exception as exc:
+                    result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
+                else:
+                    result = generate_hybrid_video(
+                        plan, voiceover_path, output_path, work_dir=ws.hybrid_work_dir, whisper_words=words, base_dir=str(ws.hybrid_dir),
+                        watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log, cancel_check=self._hybrid_cancel.is_set,
+                        sound_design=sound_design, pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir,
+                        media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
+                                             on_manager_ready=_manager_ready),
+                    )
+            except Exception as exc:
+                result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+            self.after(0, lambda: finish(result))
+
+        def finish(result) -> None:
+            self._hybrid_running = False
+            cancelled = bool(getattr(result, "cancelled", False)) or self._hybrid_cancel.is_set()
+            self._hybrid_cancel.clear()
+            run, self._hybrid_tracking = self._hybrid_tracking, None
+            self._track_generation_end(run, "cancelled" if (cancelled and not result.ok) else ("completed" if result.ok else "failed"),
+                                       output_path=result.output_path, validated=True, message="\n".join(str(e) for e in (result.errors or [])))
+            self._hybrid_show_plan()
+            if cancelled and not result.ok:
+                self._hybrid_status_var.set("Cancelled")
+                self._append_log("[HYBRID] Generation cancelled. Nothing was exported; Generate again to restart.\n")
+                self._sync_primary_cta()
+                return
+            if result.ok:
+                self._hybrid_status_var.set(f"Done: {result.output_path}")
+                self._append_log(f"[HYBRID] Final video: {result.output_path}\n")
+                for credit in result.credits:
+                    self._append_log(f"[HYBRID] Credit to include: {credit}\n")
+                for w in result.warnings:
+                    self._append_log(f"[HYBRID] note: {w}\n")
+                self._last_output = str(result.output_path)
+                try:
+                    self._show_preview(str(result.output_path))
+                except Exception:
+                    pass
+                messagebox.showinfo("Hybrid Map video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').")
+            else:
+                self._append_log("[HYBRID] Generation failed:\n" + "\n".join(result.errors) + "\n")
+                if getattr(result, "unresolved", None):
+                    n = len(result.unresolved)
+                    self._hybrid_status_var.set(f"{n} clip(s) need attention — fix them in the Visual Plan tab, then Generate again")
+                    self._refresh_qa_ui(immediate=True)
+                    self._goto_workflow_view("visual_plan")
+                else:
+                    self._hybrid_status_var.set("Failed — see the plan box and the log")
+                self._show_error_dialog("Generation failed", overscaled_failure_summary(result.errors), "\n".join(result.errors) or "Unknown error")
+            self._sync_primary_cta()
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _browse_pakmap_csv(self) -> None:
         if self._pakmap_running:
@@ -3970,6 +4713,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._browse_pakmap_csv()
         elif action == "pakmap_cancel":
             self._on_pakmap_cancel()
+        elif action == "hybrid_plan":
+            self._hybrid_plan_with_ai()
+        elif action == "hybrid_cancel":
+            self._on_hybrid_cancel()
         else:
             self._on_generate()
 
@@ -4675,6 +5422,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "pakmap":
             self._sync_primary_cta_pakmap()
             return
+        if self.generation_mode == "hybrid":
+            self._sync_primary_cta_hybrid()
+            return
 
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
@@ -5218,6 +5968,7 @@ class VideoGeneratorApp(ctk.CTk):
             else:
                 self._pakmap_csv_var.set("")
                 self._pakmap_deactivate()
+        self._restore_hybrid(ws)
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -5441,7 +6192,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _refresh_gemini_status(self) -> None:
         from visual_director.llm import gemini_configured
 
-        settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        settings = self._gemini_settings()
         if gemini_configured(settings):
             self._gemini_status_var.set("Gemini 3.6 Flash is configured.")
             self.analyze_btn.configure(state="normal")
@@ -5507,7 +6258,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
 
-        settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        settings = self._gemini_settings()
         if not gemini_configured(settings):
             messagebox.showerror("AI Script", MISSING_GEMINI_KEY)
             return
@@ -5809,7 +6560,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         from visual_director.llm import MISSING_GEMINI_KEY, gemini_configured
 
-        settings = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        settings = self._gemini_settings()
         if not gemini_configured(settings):
             messagebox.showerror("Script analysis failed", MISSING_GEMINI_KEY)
             return
@@ -6669,6 +7420,8 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "pakmap":
             return  # pakMap owns self._scene_rows too (its pictures); see _populate_pakmap_visual_plan
+        if self.generation_mode == "hybrid":
+            return  # so does Hybrid Map (its footage); see _populate_hybrid_visual_plan
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -6948,6 +7701,21 @@ class VideoGeneratorApp(ctk.CTk):
         def _on_scene_generating(scene: SceneRow) -> None:
             self._ui_queue.put(("scene_busy", (scene.scene_number, job_kind)))
 
+        # Each scene is shown the moment it finishes, not when the WHOLE batch
+        # returns. Otherwise every row sits on PROCESSING until the slowest
+        # scene (e.g. one stuck behind a 2-minute detection timeout) is done,
+        # even though its file was saved long before.
+        delivered: dict = {}
+
+        def _publish(scene: SceneRow, result) -> None:
+            key = _scene_key(scene.scene_number)
+            try:
+                self._mirror_result_into_workspace(result, sync_state=False)
+            except Exception:
+                pass
+            delivered[key] = result
+            self._ui_queue.put(("scene_result", (scene.scene_number, tokens.get(key, 0), result)))
+
         def worker() -> None:
             old_out, old_err = sys.stdout, sys.stderr
             writer = _QueueWriter(self._ui_queue)
@@ -6958,10 +7726,13 @@ class VideoGeneratorApp(ctk.CTk):
                 mgr = self._ensure_asset_manager(images_dir)
                 if provider_name:
                     results = mgr.change_source_flow_batch(
-                        updated, provider_name, on_scene_generating=_on_scene_generating,
+                        updated, provider_name,
+                        on_scene_generating=_on_scene_generating, on_scene_complete=_publish,
                     )
                 else:
-                    results = mgr.retry_flow_batch(updated, on_scene_generating=_on_scene_generating)
+                    results = mgr.retry_flow_batch(
+                        updated, on_scene_generating=_on_scene_generating, on_scene_complete=_publish,
+                    )
             except Exception as exc:
                 for scene in updated:
                     results[_scene_key(scene.scene_number)] = AssetResult(
@@ -6982,6 +7753,8 @@ class VideoGeneratorApp(ctk.CTk):
                             AssetSource.FLOW_IMAGE, SceneStatus.NEEDS_ACTION,
                             error="Flow batch returned no result for this scene.",
                         )
+                    if delivered.get(key) is result:
+                        continue  # already shown when it finished
                     try:
                         self._mirror_result_into_workspace(result, sync_state=False)
                     except Exception:
@@ -7896,6 +8669,8 @@ class VideoGeneratorApp(ctk.CTk):
             return self._workspace.overscaled_images_dir
         if self.generation_mode == "pakmap" and self._workspace is not None:
             return self._workspace.pakmap_images_dir
+        if self.generation_mode == "hybrid" and self._workspace is not None:
+            return self._workspace.hybrid_images_dir
         return self._workspace.assets_dir
 
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
@@ -9582,22 +10357,138 @@ class VideoGeneratorApp(ctk.CTk):
                  "You can also set GEMINI_API_KEY.",
             font=ctk.CTkFont(size=12), text_color=_TEXT, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20)
-        ctk.CTkEntry(
+        gemini_entries = [ctk.CTkEntry(
             body, textvariable=self.gemini_key_var, show="•", height=34,
             placeholder_text="Gemini API key", 
-        ).pack(fill="x", padx=20, pady=(8, 4))
+        )]
+        gemini_entries[0].pack(fill="x", padx=20, pady=(8, 4))
+
+        ctk.CTkLabel(
+            body,
+            text="Backup keys (optional): used one after another when the main key runs out of quota or is rate-limited.",
+            font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(6, 0))
+        for n, var in enumerate(self.gemini_backup_vars, 1):
+            entry = ctk.CTkEntry(body, textvariable=var, show="•", height=34, placeholder_text=f"Backup Gemini key {n}")
+            entry.pack(fill="x", padx=20, pady=(6, 0))
+            gemini_entries.append(entry)
+
+        keys_note = ctk.StringVar(value="")
+
+        def refresh_keys_note(*_a) -> None:
+            vals = [self.gemini_key_var.get().strip()] + [v.get().strip() for v in self.gemini_backup_vars]
+            names = ["main key"] + [f"backup {i}" for i in range(1, 5)]
+            seen: dict = {}
+            dup = []
+            for name, v in zip(names, vals):
+                if not v:
+                    continue
+                if v in seen:
+                    dup.append(f"{name} is the same as {seen[v]}")
+                else:
+                    seen[v] = name
+            note = f"{len(seen)} different key(s) set." if seen else "No key set."
+            if dup:
+                note += " Duplicates: " + "; ".join(dup) + " (a repeated key adds nothing)."
+            keys_note.set(note)
+
+        for var in [self.gemini_key_var] + list(self.gemini_backup_vars):
+            var.trace_add("write", refresh_keys_note)
+        refresh_keys_note()
+
+        def toggle_show_keys() -> None:
+            for entry in gemini_entries:
+                entry.configure(show="" if show_keys.get() else "•")
+
+        show_keys = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(body, text="Show keys", variable=show_keys, command=toggle_show_keys).pack(anchor="w", padx=20, pady=(8, 0))
+        ctk.CTkLabel(body, textvariable=keys_note, font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left").pack(anchor="w", padx=20, pady=(4, 0))
+
+        ctk.CTkLabel(
+            body, text="AI PROVIDERS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(14, 2))
+        ctk.CTkLabel(
+            body,
+            text="Long documentaries use Gemini for the creative plan and Groq for reviews and repairs, so both free allowances are used. "
+                 "Without a Groq key everything runs on Gemini.",
+            font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20)
+        sw_row = ctk.CTkFrame(body, fg_color="transparent")
+        sw_row.pack(fill="x", padx=20, pady=(6, 0))
+        ctk.CTkCheckBox(sw_row, text="Use Gemini", variable=self.gemini_enabled_var).pack(side="left", padx=(0, 18))
+        ctk.CTkCheckBox(sw_row, text="Use Groq", variable=self.groq_enabled_var).pack(side="left")
+        groq_entry = ctk.CTkEntry(body, textvariable=self.groq_key_var, show="•", height=34, placeholder_text="Groq API key")
+        groq_entry.pack(fill="x", padx=20, pady=(8, 0))
+        gemini_entries.append(groq_entry)               # "Show keys" reveals it too
+        ctk.CTkLabel(
+            body, text="Models for each job (leave empty for the defaults; names can change as providers change theirs):",
+            font=ctk.CTkFont(size=12), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(8, 0))
+        for key, hint in (("gemini_director", "Gemini model for the plan (Director)"), ("gemini_second", "Second Gemini model (used when the first is out of quota)"),
+                          ("gemini_critic", "Gemini model for reviews/repairs (only if Groq cannot)"), ("groq_director", "Groq model as Director fallback"),
+                          ("groq_critic", "Groq model for the Critic"), ("groq_repair", "Groq model for Repairs")):
+            ctk.CTkEntry(body, textvariable=self.ai_model_vars[key], height=30, placeholder_text=hint).pack(fill="x", padx=20, pady=(4, 0))
+        ai_results = ctk.CTkTextbox(body, height=120, wrap="word", font=ctk.CTkFont(size=12))
+        ai_results.insert("1.0", "Press Test keys to check each key with one tiny request.")
+        ai_results.configure(state="disabled")
+
+        def run_key_test() -> None:
+            test_btn.configure(state="disabled", text="Testing…")
+
+            def show(text: str) -> None:
+                try:
+                    ai_results.configure(state="normal"); ai_results.delete("1.0", "end"); ai_results.insert("1.0", text); ai_results.configure(state="disabled")
+                    test_btn.configure(state="normal", text="Test keys")
+                except Exception:
+                    pass
+
+            def worker() -> None:
+                try:
+                    from ai_router.config import model_settings
+                    from ai_router.providers import GeminiProvider, GroqProvider
+                    from visual_director.llm import DEFAULT_GEMINI_MODEL
+
+                    st = self._ai_settings()
+                    m = model_settings(st)
+                    rows = []
+                    if st.get("gemini_enabled", True):
+                        rows += [("Gemini", r) for r in GeminiProvider(st).test(m["gemini_director"] or os.environ.get("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL)]
+                    if st.get("groq_enabled", True) and st.get("groq_api_key"):
+                        rows += [("Groq", r) for r in GroqProvider(st["groq_api_key"]).test(m["groq_critic"])]
+                    lines = [f"{p} {r['alias']}: {r['state']} · {r['model']} · {r['latency_ms']} ms · {r['tested']}" + (f" · {r['summary']}" if r["state"] != "READY" else "") for p, r in rows]
+                    seen = {}
+                    vals = [self.gemini_key_var.get().strip()] + [v.get().strip() for v in self.gemini_backup_vars]
+                    if len([v for v in vals if v]) != len(set(v for v in vals if v)):
+                        lines.append("Some Gemini keys are the same key: they add no extra capacity.")
+                    lines.append("Keys from the same Google project share one quota, so only keys from different projects add capacity.")
+                    text = "\n".join(lines) if rows else "No key is set up (or the provider is switched off)."
+                except Exception as exc:
+                    text = f"The test could not run: {exc}"
+                self.after(0, lambda: show(text))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        test_btn = ctk.CTkButton(body, text="Test keys", height=30, fg_color="transparent", border_width=1, border_color=_BORDER, command=run_key_test)
+        test_btn.pack(anchor="w", padx=20, pady=(8, 4))
+        ai_results.pack(fill="x", padx=20, pady=(0, 4))
 
         def save_gemini():
             self._settings["gemini_api_key"] = self.gemini_key_var.get().strip()
+            for n, var in enumerate(self.gemini_backup_vars, 1):
+                self._settings[f"gemini_api_key_{n}"] = var.get().strip()
+            self._settings["groq_api_key"] = self.groq_key_var.get().strip()
+            self._settings["gemini_enabled"] = bool(self.gemini_enabled_var.get())
+            self._settings["groq_enabled"] = bool(self.groq_enabled_var.get())
+            self._settings["ai_models"] = {k: v.get().strip() for k, v in self.ai_model_vars.items() if v.get().strip()}
             save_settings(self._settings)
             self._refresh_gemini_status()
-            self._notify_saved("Gemini API key saved", button=gemini_save_btn)
+            self._notify_saved("AI provider settings saved", button=gemini_save_btn)
 
         gemini_save_btn = ctk.CTkButton(
-            body, text="Save Gemini Key", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+            body, text="Save AI Settings", height=32, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
             text_color=_ACCENT_DARK, command=save_gemini,
         )
-        gemini_save_btn.pack(anchor="w", padx=20, pady=(0, 16))
+        gemini_save_btn.pack(anchor="w", padx=20, pady=(10, 16))
 
         ctk.CTkLabel(
             body, text="OUTPUT", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
@@ -10328,6 +11219,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "pakmap":
             self._run_pakmap_generation()
             return
+        if self.generation_mode == "hybrid":
+            self._run_hybrid_generation()
+            return
 
         if self._running:
             self._on_cancel()
@@ -10778,7 +11672,7 @@ class VideoGeneratorApp(ctk.CTk):
                 editorial_plan = compile_editorial_plan(
                     editorial_plan,
                     images_dir=Path(config["images_dir"]),
-                    gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                    gemini_settings=self._gemini_settings(),
                 )
                 if state_dir is not None:
                     save_editorial_plan(state_dir, editorial_plan)
@@ -10942,7 +11836,7 @@ class VideoGeneratorApp(ctk.CTk):
                     smart_cfg,
                     state_dir=state_dir,
                     audio_path=config["audio_path"],
-                    gemini_settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                    gemini_settings=self._gemini_settings(),
                     editorial_plan=editorial_plan,
                 )
                 plan = smart_plan
@@ -11351,7 +12245,7 @@ class VideoGeneratorApp(ctk.CTk):
                 coverage_by_scene=getattr(mgr, "coverage_by_scene", None) if mgr else None,
                 selection_history=getattr(mgr, "selection_history", None) if mgr else None,
                 resolved=getattr(self, "_resolved_style", None),
-                settings={"gemini_api_key": self.gemini_key_var.get().strip()},
+                settings=self._gemini_settings(),
             )
             self._append_log("\n" + "\n".join(report.summary_lines()) + "\n")
             from scene_recovery import scene_key as _sk
@@ -11366,10 +12260,10 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_fix_all_visual_issues(self) -> None:
         if not self._scene_rows:
             return
-        if self.generation_mode == "pakmap":
+        if self.generation_mode in ("pakmap", "hybrid"):
             messagebox.showinfo(
                 "Fix All Issues",
-                "Not available for pakMap. Use Retry or Change source on the affected picture(s) instead.",
+                "Not available for pakMap or Hybrid Map. Use Retry or Change source on the affected picture(s) instead.",
             )
             return
         if self.generation_mode == "overscaled":

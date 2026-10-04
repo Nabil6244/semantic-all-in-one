@@ -33,6 +33,9 @@ class FakeManifest:
     def get(self, n):
         return self.records.get(str(n))
 
+    def set(self, n, record):
+        self.records[str(n)] = record
+
 
 class FakeProviders:
     """Stands in for video_generator.resolve_scene_assets (+ the AssetManager cache) and find_image_for_scene."""
@@ -155,6 +158,31 @@ class TestFetching(unittest.TestCase):
         r2 = self.fetch(again, [Row(1, "stock_image", "A"), Row(2, "stock_image", "B")])
         self.assertEqual([x["prompt"] for x in again.calls[0]], ["B"])  # only the missing one is retried
         self.assertEqual(r2.reused, 1)
+
+    def test_the_same_source_and_description_twice_is_fetched_once_and_each_use_keeps_its_own_file(self):
+        fake = FakeProviders()
+        rows = [Row(1, "stock_video", "aerial of Lahore"), Row(2, "flow_image", "a canal"), Row(3, "stock_video", "Aerial  of lahore"), Row(4, "flow_image", "a canal"), Row(5, "stock_image", "aerial of Lahore")]
+        r = self.fetch(fake, rows, dedupe=True)
+        self.assertEqual([(x["scene_number"], x["asset_type"]) for x in fake.calls[0]], [("1", "stock_video"), ("2", "flow_image"), ("5", "stock_image")])  # 3 and 4 were not asked for
+        self.assertEqual(sorted(r.paths), ["1", "2", "3", "4", "5"])
+        self.assertEqual(len({r.paths[k] for k in r.paths}), 5)                        # five different files: each use can be replaced alone
+        self.assertEqual(r.missing, {})
+        self.assertEqual(FakeManifest.store[str(self.media)]["3"]["status"], "complete")
+        self.assertFalse(FakeManifest.store[str(self.media)]["3"]["user_override"])
+
+    def test_pakmap_itself_fetches_every_row_as_before(self):
+        fake = FakeProviders()
+        self.fetch(fake, [Row(1, "stock_video", "aerial of Lahore"), Row(2, "stock_video", "aerial of Lahore")])
+        self.assertEqual([x["scene_number"] for x in fake.calls[0]], ["1", "2"])
+
+    def test_a_repeat_of_something_that_failed_is_reported_missing_and_a_saved_one_is_not_refetched(self):
+        r = self.fetch(FakeProviders(fail={"a canal"}), [Row(1, "flow_image", "a canal"), Row(2, "flow_image", "a canal")], dedupe=True)
+        self.assertEqual(sorted(r.missing), ["1", "2"])
+        fake = FakeProviders()
+        self.fetch(fake, [Row(1, "stock_image", "x")])
+        again = FakeProviders()
+        self.fetch(again, [Row(1, "stock_image", "x"), Row(2, "stock_image", "x")], dedupe=True)
+        self.assertEqual([x["scene_number"] for x in again.calls[0]], ["2"])           # 1 is saved; 2 is the first not-yet-saved one, so it is fetched
 
     def test_a_scene_the_author_skipped_is_reported_as_skipped_not_missing(self):
         r = self.fetch(FakeProviders(skip={"B"}), [Row(1, "stock_image", "A"), Row(2, "stock_image", "B")])
@@ -402,6 +430,30 @@ class TestRealAssetManager(unittest.TestCase):
             self.assertEqual(r.missing, {})
             self.assertTrue(r.paths["1"].endswith("001.png"))
             self.assertEqual(r.reused, 1)
+
+
+class TestDedupeWithTheRealManifest(unittest.TestCase):
+    def test_a_repeat_gets_its_own_file_and_a_real_manifest_record_the_visual_tab_can_read(self):
+        from asset_manager import AssetManifest
+        from providers.base import SceneRow
+
+        with tempfile.TemporaryDirectory() as d:
+            media = Path(d) / "media"
+            calls = []
+
+            def resolver(rows, images_dir, **kw):
+                calls.append([r["scene_number"] for r in rows])
+                for r in rows:
+                    (Path(images_dir) / f"{int(r['scene_number']):03d}.jpg").write_bytes(b"\xff\xd8\xff" + b"x" * 30)
+                    AssetManifest(images_dir).set(r["scene_number"], {"status": "complete", "source": r["asset_type"], "stock_query": r["prompt"], "local_path": str(Path(images_dir) / f"{int(r['scene_number']):03d}.jpg")})
+
+            rows = [SceneRow.from_csv_row({"scene_number": str(i), "asset_type": "stock_image", "prompt": "Lahore skyline"}) for i in (1, 2)]
+            r = sc.fetch_scenes(rows, media, resolver=resolver, log=lambda m: None, dedupe=True)
+            self.assertEqual(calls, [["1"]])
+            self.assertEqual(sorted(r.paths), ["1", "2"])
+            rec = AssetManifest(media).get("2")
+            self.assertEqual((rec["status"], rec["user_override"]), ("complete", False))
+            self.assertTrue(Path(rec["local_path"]).is_file() and Path(rec["local_path"]).name == "002.jpg")
 
 
 class TestEndToEndWithTheRealAssetMachinery(unittest.TestCase):

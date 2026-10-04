@@ -1,0 +1,12 @@
+item_no,beat,vo_anchor,offset_s,t_start,t_end,hold,layer_type,layer_id,layer_action,camera_action,camera_dur,lat,lon,zoom,frame,easing,geo_ref,line_kind,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,data_source,sfx,ambience,params,notes
+1,,,0,0,,,camera,b1_cam_start_0,in,start,,,,,country,,Kenya,,,,,,,,,,,,,,
+1,,,0,4,,,camera,b1_cam_fly_to_1,in,fly_to,2.4,,,,region,,Nairobi,,,,,,,,,,,,,,
+1,,,0,0.3,9.5,,hud_title,title,in,,,,,,,,,,PART 1,THE EMPTY HALF,,,,,,,,,,,
+1,,,0,0.5,24,,fill,kenya,in,,,,,,,,Kenya,,,,subject,,,,,,,,,,
+1,,,0,3.2,24,,marker,nbo,in,,,,,,,,Nairobi,,NAIROBI,,featured,,,,,,,,,,
+1,,,0,7.6,24,,stat,pop,in,,,,,,,,,,,KENYA,,0,47,0 MILLION PEOPLE,br,,,,,,
+1,,,0,9,12.25,,media_full,b2_c1,in,,,,,,,,,,,,,,,,,media/highlands.jpg,,,,"{""dissolve_s"":0.5,""cover_ui"":true,""kenburns"":true}",
+1,,,0,11.75,15,,media_full,b2_c2,in,,,,,,,,,,,,,,,,,media/lake.jpg,,,,"{""dissolve_s"":0.5,""cover_ui"":true,""xfade_prev"":true,""kenburns"":true}",
+1,,,0,15.8,24,,line,rail,in,,,,,,,,Mombasa;Nairobi,rail,,,,,,,,,,,,,
+1,,,0,16.4,24,,marker,mba,in,,,,,,,,Mombasa,,MOMBASA,,featured,,,,,,,,,,
+1,,,0,0,,,camera,drift,in,drift,,,,,,,,,,,,,,,,,,,,"{""pct_per_s"":0.5,""heading_deg"":60}",

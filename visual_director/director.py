@@ -389,6 +389,7 @@ class VisualDirector:
                 base_url=llm.base_url,
                 timeout=gemini_opts["timeout"],
                 settings=self.settings,
+                credentials=getattr(llm, "credentials", None),   # the tuned copy shares the original's keys and their cooldowns
             )
         return llm, gemini_opts
 

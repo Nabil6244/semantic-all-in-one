@@ -9,6 +9,7 @@ import { hudLayout, statLayout, captionLayout, markerLayout, pickSide, watermark
 import { trimPolyline } from './geom.mjs';
 import { generatePoints } from './points.mjs';
 import { mercY } from './raster.mjs';
+import { footageWindows, shiftedEvent, footageAlpha, kenBurnsScale, resolveKenBurns, fitFrame } from './hybrid.mjs';
 
 const font = (px) => `${FONT.weight} ${px}px ${FONT.family}, Montserrat, sans-serif`;
 const easeOutBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
@@ -23,6 +24,8 @@ function roundRect(ctx, x, y, w, h, r) {
 export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia = null }) {
   const W = spec.width, H = spec.height, S = H / FRAME.h;
   const events = spec.events || [];
+  // Hybrid Map only: while full-screen media is up the map layers' clocks stop (empty for PakMap, so nothing changes there)
+  const hold = spec.hybrid && spec.hybrid.pause_overlays ? footageWindows(events) : [];
   const measure = (text, px) => { ctx.save(); ctx.font = font(px); const w = ctx.measureText(text).width; ctx.restore(); return w; };
 
   // point sets are resolved once, in a fixed order
@@ -39,7 +42,7 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
   const bitmaps = new Map(); // "id:frame" -> ImageBitmap
   const fps = spec.fps;
   const lookup = (path, start = 0) => mediaIndex[mediaKey(path, start)];
-  const frameOf = (info, t, tIn, loop) => (info.kind === 'video' ? clipFrame(t, tIn, fps, info.count, loop) : 0);
+  const frameOf = (info, t, tIn, loop) => (info.kind === 'video' ? (info.fit ? fitFrame(t, tIn, fps, info.count, info.rate) : clipFrame(t, tIn, fps, info.count, loop)) : 0);
   async function ensure(info, frame) {
     const k = `${info.id}:${frame}`;
     if (bitmaps.has(k)) return;
@@ -50,7 +53,8 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
   const bmp = (path, start, t, tIn, loop) => { const info = lookup(path, start); return info ? bitmaps.get(`${info.id}:${frameOf(info, t, tIn, loop)}`) || null : null; };
   /** Every picture/clip frame the layers visible at t will need. */
   async function prepare(t) {
-    for (const e of activeAt(events, t)) {
+    for (const e0 of activeAt(events, t)) {
+      const e = shiftedEvent(e0, t, hold);
       if (e.type === 'filmstrip') {
         for (let i = 0; i < e.cards.length; i++) {
           const c = e.cards[i], info = lookup(c.media, c.start_s ?? 0);
@@ -311,10 +315,14 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
   }
 
   function drawMediaFull(e, t) {
-    const d = e.dissolve_s ?? TIMING.dissolve, a = Math.min(clamp01((t - e.t_in) / d), clamp01((e.t_out - t) / d)); // a straight cross-dissolve: linear both ways
-    if (a <= 0 || t < e.t_in || t >= e.t_out) return;
+    if (t < e.t_in || t >= e.t_out) return;
+    // a straight cross-dissolve: linear both ways (a clip handed over to the next one stays opaque; see lib/hybrid.mjs)
+    const a = e.xfade_prev || events.some((o) => o.xfade_prev) ? footageAlpha(e, t, events, TIMING.dissolve) : Math.min(clamp01((t - e.t_in) / (e.dissolve_s ?? TIMING.dissolve)), clamp01((e.t_out - t) / (e.dissolve_s ?? TIMING.dissolve)));
+    if (a <= 0) return;
     const b = bmp(e.media, e.start_s ?? 0, t, e.t_in, e.loop); if (!b) return;
     ctx.save(); ctx.globalAlpha = a; const c = coverCrop(b.width, b.height, FRAME.w, FRAME.h);
+    const k = kenBurnsScale(resolveKenBurns(e, e.kenburns === 'auto' ? lookup(e.media, e.start_s ?? 0) : null), t);
+    if (k !== 1) { ctx.translate(FRAME.w / 2, FRAME.h / 2); ctx.scale(k, k); ctx.translate(-FRAME.w / 2, -FRAME.h / 2); }
     ctx.drawImage(b, c.sx, c.sy, c.sw, c.sh, 0, 0, FRAME.w, FRAME.h); ctx.restore();
   }
 
@@ -334,7 +342,7 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
     prepare,
     /** Draw every active overlay for time t onto ctx (the map is already on it). Call prepare(t) first. */
     draw(t) {
-      const live = activeAt(events, t), each = (type, fn) => { for (const e of live) if (e.type === type) fn(e, t); };
+      const live = activeAt(events, t).map((e) => shiftedEvent(e, t, hold)), each = (type, fn) => { for (const e of live) if (e.type === type) fn(e, t); };
       // map-anchored layers, in real pixels
       ctx.save();
       each('ghost_shape', drawGhost); each('streak', drawStreaks);
@@ -342,11 +350,13 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
       each('line', drawLine);
       ctx.restore();
       // everything else in 1080p reference units. Full-screen media covers the map layers (and markers/stickers)
-      // but stays UNDER the cards, stat chips, captions and the HUD.
+      // but stays UNDER the cards, stat chips, captions and the HUD. Hybrid footage (cover_ui) goes over those too.
       ctx.save(); ctx.scale(S, S);
-      each('marker', drawMarker); each('sticker', drawSticker); each('media_full', drawMediaFull);
+      each('marker', drawMarker); each('sticker', drawSticker);
+      for (const e of live) if (e.type === 'media_full' && !e.cover_ui) drawMediaFull(e, t);
       each('pip', drawPip); each('filmstrip', drawFilmstrip);
       each('stat', drawStat); each('caption', drawCaption); each('hud_title', drawHud);
+      for (const e of live) if (e.type === 'media_full' && e.cover_ui) drawMediaFull(e, t);
       drawWatermark();
       ctx.restore();
     },
