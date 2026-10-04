@@ -1,0 +1,15 @@
+{
+  "id": "populated_places",
+  "title": "Populated places (Natural Earth 10m)",
+  "kind": "places",
+  "file": "populated_places.json.gz",
+  "fields": [
+    "lon",
+    "lat",
+    "population",
+    "country_iso3"
+  ],
+  "licence": "Public domain (Natural Earth).",
+  "attribution": "Populated places: Natural Earth (public domain). Dot positions are generated around these places, not a measured population grid.",
+  "note": "Approximation for dot-density layers; supply a real population grid or point file for exact distributions."
+}

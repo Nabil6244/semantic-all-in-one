@@ -1,0 +1,56 @@
+{
+  "_note": "DRAFT constants for pakMap. Kept in docs/ on purpose: composition_styles/*.json is scanned by the app's style-preset loader, so this must not live there until Phase 1. Values marked INFERRED are not directly measured.",
+  "version": 0,
+  "canvas": {"width": 1920, "height": 1080, "fps": 30},
+  "typeface": {"family": "Montserrat", "weight": "ExtraBold", "case": "upper", "status": "visual match, not identified from pixels"},
+  "colors": {
+    "chip_white": "#FFFFFF",
+    "panel_dark": "#081320",
+    "subtitle_chip": "#111111",
+    "brand_yellow": "#FBE040",
+    "stat_yellow_ref2": "#FDE23E",
+    "subject_red": "#DF2721",
+    "compare_blue_chip": "#2978D8",
+    "region_primary_red": "#6B2820",
+    "region_orange": "#D2641E",
+    "region_blue_fill": "#4A7FB5",
+    "region_purple": "#7B4FC4",
+    "water_cyan": "#3FC8E0",
+    "route_orange": "#F09030"
+  },
+  "hud": {
+    "optional": true,
+    "title_chip": {"x": 45, "y": 37, "height": 67, "radius": 10, "width": "content", "pad_left": 19, "note": "PART 1 = 208 px wide, NUMBER 30 = 335 px wide"},
+    "subtitle_chip": {"x": 44, "y": 112, "height": 39, "gap_below_title": 9, "cap_height": 15, "width": "content"},
+    "watermark": {"anchor": "bottom-right", "text": "EXPLAINS-IT", "opacity": "low"}
+  },
+  "timing": {
+    "clear_beat_s": 0.5,
+    "title_before_first_word_s": 0.14,
+    "title_chip_pop_s": 0.07,
+    "subtitle_chip_grow_s": 0.27,
+    "subtitle_reveal": {"mode": "word", "seconds_per_word": 0.067, "status": "measured on Reference 2 (3 words); Reference 1 cursor behaviour not confirmed"},
+    "route_draw_s": 0.9,
+    "pip_in_s": [0.15, 0.20],
+    "pip_out_s": [0.4, 0.5],
+    "sticker_in_s": 0.2,
+    "dissolve_s": [0.4, 0.6],
+    "region_fill_in_s": 0.3,
+    "dot_density_reveal_s": 3.1,
+    "dot_density_curve": "linear",
+    "dot_px": 6,
+    "number_ramp": "ease-out, no overshoot, about 0.4 s",
+    "status_inferred": ["region_fill_in_s"]
+  },
+  "camera": {
+    "idle_drift_pct_width_per_s": [0.4, 0.9],
+    "active_move_pct_width_per_s": 3.4,
+    "fly_to_s": [1.5, 2.5],
+    "pull_back_s": [1.5, 2.0],
+    "push_in": {"scale": [1.0, 1.25], "seconds": [8, 15]},
+    "tilt": 0,
+    "bearing": 0
+  },
+  "limits": {"max_stat_chips": 2, "max_text_layers": 5, "overlay_event_gap_max_s": 5},
+  "audio": {"sfx": false, "bed_db": -42, "target_lufs": -16}
+}

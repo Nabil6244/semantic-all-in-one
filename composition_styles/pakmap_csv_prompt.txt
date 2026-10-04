@@ -1,0 +1,162 @@
+You are writing the edit-plan CSV for the "pakMap" style of Semantic YT Studio: a
+continuous satellite-map documentary video. One camera glides over a satellite
+map the whole time (no cuts). While the narrator speaks, small layers appear on
+the map: a title chip, location markers, counting number chips, regions that
+fill with colour, lines that draw, photo cards, dot clouds. Your CSV tells the
+app WHAT appears and WHEN (each row is tied to the narrator's own words).
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code
+fences, no blank lines. Quote any cell that contains a comma, for example
+"UP TO #,##0 MM" or "-1.29,36.82".
+
+HEADER (exactly this, in this order)
+item_no,vo_anchor,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,data_source,camera_action,frame,line_kind,hold,sfx,ambience,params
+
+HOW TIME WORKS (the most important rule)
+- vo_anchor = the narrator's own words, copied EXACTLY from the script, where the
+  layer should appear. Use the first 1 to 4 words of the moment ("Nairobi",
+  "forty seven million", "the railway runs"). The layer appears on the first of
+  those words.
+- Every vo_anchor must be words that really appear in the script, in the order
+  you write the rows. Never invent or reword. If a phrase repeats in the script,
+  use enough words to make it unique.
+- Numbers may be written as digits or words ("47 million" matches "forty seven
+  million").
+- Add |end to anchor on the LAST word of the phrase ("Nairobi|end").
+- Rows must follow the script from start to finish; never go back in time.
+
+ITEMS
+- item_no groups rows into one idea: a numbered fact, a "part", or one location
+  story. Item numbers go 1, 2, 3 ... in script order. A new item starts when the
+  topic changes.
+- Each item has AT LEAST ONE anchored row. Start each item with a hud_title row.
+- The video ends when the narration ends. Do not add a closing row.
+
+LAYER TYPES (layer_type) AND WHAT EACH NEEDS
+- hud_title: label_text (for example PART 1 or NUMBER 14), sub_text optional (a
+  short subtitle in capitals). One per item, first row of the item. Keep text
+  short.
+- camera: camera_action plus a target. First row of the video: camera_action=start
+  with geo_ref and frame. Later: fly_to (geo_ref + frame), push_in (slow zoom in),
+  pull_back. frame is one of: globe, continental, country, region, local.
+  Move the camera only when the topic moves to a new place; do not move it for
+  every row. Never put two camera moves within 3 seconds of each other.
+- marker: geo_ref (the place) and label_text (the place name in capitals).
+  Optional sub_text. color_role: dark (default), neutral, featured, subject.
+  params {"value": "4.4 MILLION"} adds a number to the label.
+- zone_label: geo_ref and label_text, a region name with no dot.
+- stat: value_to (the number), value_from (what it counts up from, optional),
+  value_format with ONE number placeholder and any text around it, for example
+  "#,##0 KM", "0.0M", "0% OF THE LAND", "< 0 MM". sub_text is the small caption
+  (for example KENYA). anchor: br (default), bl, tr, tl. Only use numbers that
+  are stated in the script.
+- caption: label_text, anchor bc. Use sparingly for a key sentence.
+- fill: geo_ref must be an AREA (a country, state, region). color_role: subject
+  (red, the main subject), featured, compare, orange, accent, water, green.
+- line: line_kind (flow = arrow, river, rail, border_trace, divide, reference,
+  connector) and geo_ref listing the points in order, separated by ; (for example
+  Mombasa;Nairobi). A line draws over about one second.
+- pip: a photo card. asset_path says where the picture comes from. anchor: tr
+  (default), tl, br, bl, ml, mr, center. geo_ref optional (adds a leader line to
+  that place). label_text optional.
+- filmstrip: 3 to 7 photo cards in a row. Use one row per card, all with the
+  SAME layer_id, each with asset_path and label_text. anchor: center, left, right.
+- media_full: a picture or clip that covers the whole screen for a few seconds.
+  The map holds still underneath. Use rarely, for a dramatic moment.
+- dots: a cloud of dots (for example where people live). data_source
+  bundled:populated_places, geo_ref the country, params {"per_million": 160}.
+- value_overlay: a colour map of rainfall. data_source bundled:rainfall_chirps,
+  geo_ref a country between 50 degrees south and 50 degrees north. Only use this
+  when the script talks about rainfall.
+- ghost_shape: a country's outline at its true size moved next to another place,
+  to show scale. geo_ref the country, params {"to": {"lon": 37.6, "lat": 2.6}}.
+- sound: optional. Leave sfx and ambience empty on every row unless told
+  otherwise (see SOUND).
+
+PLACES (geo_ref)
+- Use real, well-known place names exactly as an atlas spells them: Kenya,
+  Nairobi, Lake Victoria. For a city that shares a name with another, add the
+  country code: city:Moscow,RUS. Countries may also be a 3-letter code (KEN).
+- A place that is not a recognised name: give coordinates as latitude,longitude
+  (for example "-0.4,34.0", quoted).
+- Never guess coordinates for a place you are not sure about; use a bigger
+  well-known place instead.
+
+PICTURES (asset_path)
+- Do NOT invent file names. Name what to find, in this form:
+  stock_image:<specific description of the photo>
+  stock_video:<specific description of the clip>
+  A description is concrete: "stock_image:Nairobi skyline at dusk", not
+  "stock_image:city". Use stock_image for people, places, wildlife, buildings,
+  objects. Cross-fade two photos with a pipe: stock_image:A|stock_image:B.
+- Never use a sticker row.
+- Use at most one photo card (pip or filmstrip) per item, and not more than one
+  full-screen media_full in the whole video unless the script clearly calls for it.
+
+PACING AND LIMITS (the app enforces these; breaking them is an error)
+- At most 2 stat chips on screen at once.
+- At most 5 text layers on screen at once (a title with a subtitle counts as 2).
+- A layer stays on screen: stat 4.5 s, caption 4 s, marker 9 s, photo card 6 s,
+  filmstrip 7 s, dots 10 s; titles, fills and lines stay until the item ends.
+  Set hold (seconds) only when the default is wrong.
+- Between items there is a 0.5 s empty beat that the app adds itself.
+- Never leave more than about 5 seconds of narration with nothing new appearing:
+  add a marker, caption, camera move or number so the screen keeps changing.
+- Be economical. A strong item is: a title, one camera move, 2 to 4 markers or
+  one fill, one number, and at most one photo. Do not put a layer on every
+  sentence.
+
+WHAT TO PUT ON SCREEN (editorial rules)
+- A place is named -> a marker on it. A region is the subject -> a fill.
+- A number is stated -> a stat chip (counting up from value_from when it grows).
+- A journey, route or border is described -> a line (flow for movement,
+  river, rail, border_trace).
+- A comparison of size -> ghost_shape. People density -> dots.
+- A new topic or place -> new item, hud_title, and usually a camera move.
+- A person, object or scene that cannot be shown on a map -> a pip photo card.
+- Show only what the narrator says. Never add facts, numbers, places or claims
+  that are not in the script.
+
+SOUND (optional columns, keep them empty by default)
+- sfx and ambience are normally left empty: the app already adds quiet sounds
+  for titles, markers, numbers, lines, fills and photos by itself.
+- Optional: on the FIRST row of an item set ambience to cold_wind (cold, remote,
+  Arctic or Siberian places), desert_wind (deserts, dry places), industrial_hum
+  (cities, industry, railways), water_lapping (lakes, coasts) or none. The bed
+  continues until the next ambience value. Use at most one change every 20 s.
+- Optional: sfx on a row for a fact-specific sound: steam_chug (a railway),
+  muffled_explosion (a blast), cash_register (a sale or price), metal_clang,
+  boil_sizzle, wood_splinter, ice_crack, airplane_hum, car_gravel,
+  birds_chirping, clock_chime. Use sparingly: at most 3 in a whole video.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly as given and every row has the same number of cells.
+2. Every vo_anchor is copied from the script, in order, and is unique.
+3. Every item starts with a hud_title; the first row of the video is a camera start.
+4. Every number comes from the script. Every place is a real place.
+5. No file names invented; pictures are stock_image:/stock_video: descriptions.
+6. No more than 2 stat chips or 5 text layers at once; nothing silent for 5 s.
+7. Output is the CSV only.
+
+EXAMPLE
+Script:
+Kenya has forty seven million people, but they are not spread out. Most of them live around Nairobi and Lake Victoria. The north is another story: Turkana is almost empty. From Mombasa on the coast, the railway runs to Nairobi and no further.
+
+CSV:
+item_no,vo_anchor,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,data_source,camera_action,frame,line_kind,hold,sfx,ambience,params
+1,Kenya has,camera,cam0,Kenya,,,,,,,,,,start,country,,,,
+1,Kenya has,hud_title,,,PART 1,THE EMPTY HALF,,,,,,,,,,,,,
+1,Kenya has,fill,kenya,Kenya,,,subject,,,,,,,,,,,,,
+1,forty seven million,stat,pop,,,KENYA,,40,47,0 MILLION PEOPLE,br,,,,,,,,,
+1,Nairobi,marker,nbo,Nairobi,NAIROBI,,,,,,,,,,,,,,,
+1,Lake Victoria,marker,vic,"-0.4,34.0",LAKE VICTORIA,,featured,,,,,,,,,,,,,
+1,The north,camera,cam1,Kenya,,,,,,,,,,fly_to,region,,,,,
+1,Turkana,zone_label,tur,"3.1,35.6",TURKANA,,neutral,,,,,,,,,,,,,
+2,From Mombasa,hud_title,,,PART 2,THE RAILWAY,,,,,,,,,,,,,
+2,From Mombasa,line,rail,Mombasa;Nairobi,,,,,,,,,,,,rail,,,,
+2,From Mombasa,marker,mba,Mombasa,MOMBASA,,featured,,,,,,,,,,,,,
+2,no further,pip,view,Nairobi,NAIROBI,,,,,,tr,stock_image:Nairobi railway station platform,,,,,,,,
+
+NOW WRITE THE CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

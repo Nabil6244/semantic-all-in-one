@@ -1,0 +1,18 @@
+{
+  "id": "places_index",
+  "title": "Populated place names (Natural Earth 10m)",
+  "kind": "names",
+  "file": "places_index.json.gz",
+  "fields": [
+    "name",
+    "ascii",
+    "alt",
+    "lon",
+    "lat",
+    "population",
+    "country_iso3",
+    "region"
+  ],
+  "licence": "Public domain (Natural Earth).",
+  "attribution": "Place names and positions: Natural Earth (public domain)."
+}

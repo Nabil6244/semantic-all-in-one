@@ -1,0 +1,130 @@
+{
+  "_note": "Phase 3 demo: data layers on Kenya. Rainfall colours come from the bundled CHIRPS grid; dots are generated around Natural Earth populated places (an approximation, not a measured population grid); the Poland outline is Poland's real size moved over northern Kenya.",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 30,
+  "output": "OUTPUT.mp4",
+  "cache_dir": "CACHE_DIR",
+  "ffmpeg": "ffmpeg",
+  "watermark": {
+    "text": "Your Channel"
+  },
+  "tokens": {
+    "region_primary_red": "#8A2A20"
+  },
+  "overlays": {
+    "borders": true,
+    "fills": []
+  },
+  "camera": {
+    "start": {
+      "lon": 37.9,
+      "lat": 0.6,
+      "zoom": 5.9
+    },
+    "drift": {
+      "pct_per_s": 0.45,
+      "heading_deg": 70
+    },
+    "moves": []
+  },
+  "events": [
+    {
+      "id": "hud",
+      "type": "hud_title",
+      "t_in": 1.0,
+      "t_out": 29.0,
+      "label": "PART 2",
+      "sub": "THE EQUATOR PARADOX"
+    },
+    {
+      "id": "rain",
+      "type": "value_overlay",
+      "t_in": 1.5,
+      "t_out": 10.0,
+      "data": "bundled:rainfall_chirps",
+      "clip_iso": [
+        "KEN"
+      ],
+      "opacity": 0.82
+    },
+    {
+      "id": "rain_chip",
+      "type": "stat",
+      "anchor": "br",
+      "t_in": 3.0,
+      "t_out": 9.5,
+      "value_from": 1500,
+      "value_to": 2000,
+      "format": "UP TO #,##0 MM",
+      "sub": "THE WESTERN HIGHLANDS"
+    },
+    {
+      "id": "pol",
+      "type": "ghost_shape",
+      "iso": "POL",
+      "to": {
+        "lon": 37.6,
+        "lat": 2.6
+      },
+      "t_in": 11.0,
+      "t_out": 18.0,
+      "role": "compare"
+    },
+    {
+      "id": "pol_chip",
+      "type": "stat",
+      "anchor": "br",
+      "t_in": 11.6,
+      "t_out": 17.5,
+      "value_from": 300000,
+      "value_to": 312700,
+      "format": "#,##0 KM²",
+      "sub": "POLAND · SAME SIZE AS NORTHERN KENYA"
+    },
+    {
+      "id": "streak",
+      "type": "streak",
+      "region_iso": [
+        "KEN"
+      ],
+      "n": 46,
+      "seed": 4,
+      "heading_deg": 55,
+      "t_in": 18.5,
+      "t_out": 23.5
+    },
+    {
+      "id": "cap",
+      "type": "caption",
+      "anchor": "bc",
+      "t_in": 19.0,
+      "t_out": 23.5,
+      "text": "SOMETHING YOU CAN'T SEE"
+    },
+    {
+      "id": "dots",
+      "type": "dots",
+      "data": "bundled:populated_places",
+      "region_iso": [
+        "KEN"
+      ],
+      "per_million": 400,
+      "seed": 3,
+      "t_in": 24.0,
+      "t_out": 29.0
+    },
+    {
+      "id": "dots_chip",
+      "type": "stat",
+      "anchor": "bl",
+      "t_in": 24.5,
+      "t_out": 29.0,
+      "value_from": 0,
+      "value_to": 54,
+      "format": "0% OF THE LAND",
+      "sub": "KENYA'S 7 NORTHERN COUNTIES"
+    }
+  ]
+}

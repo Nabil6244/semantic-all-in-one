@@ -155,6 +155,14 @@ for _p in list(_MAP_DATA_DIR.glob("*.json.gz")) + list(_MAP_DATA_DIR.glob("*.jso
 if not (_MAP_DATA_DIR / "admin1.json.gz").is_file():
     raise SystemExit(f"Missing {_MAP_DATA_DIR} place data — run scripts/build_map_data.py.")
 
+# pakMap: pakmap-engine/ (the Node renderer for continuous satellite-map videos) with exactly the files it loads at
+# run time (see pakmap/packaging.py, which is unit-tested). It shares map_scene/data (country outlines) and
+# flow-engine's Playwright with the map scenes above.
+sys.path.insert(0, str(ROOT))
+from pakmap.packaging import engine_data_files  # noqa: E402
+
+datas += engine_data_files(ROOT)
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership)

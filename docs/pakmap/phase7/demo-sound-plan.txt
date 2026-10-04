@@ -1,0 +1,19 @@
+Sound design: 13 effect(s), 3 ambience bed(s), 2 dropped for restraint.
+    0.00s  deep_thud            a title lands
+    0.50s  counter_ticks        a counter runs up
+    3.76s  bubble_pluck         dots appear
+    5.80s  marker_pop           marker appears
+    7.30s  marker_pop           marker appears
+   12.88s  ui_click             a picture card appears
+   14.48s  marker_pop           marker appears
+   14.48s  steam_chug           explicit sfx on the row  [explicit]
+   20.94s  deep_thud            a title lands
+   21.98s  equator_ding         the reference line finishes drawing
+   26.56s  counter_ticks        a counter runs up
+   30.16s  counter_ticks        a counter runs up
+   31.54s  paper_slide          a comparison shape slides on
+    0.00-25.26s  ambience geographic_atmosphere: ambience set in the script
+   25.26-33.90s  ambience desert_wind: ambience set in the script
+   33.90-38.90s  ambience rushing_wind: a wind-flow layer is on screen
+    0.00s  (dropped bubble_pluck: too close to deep_thud (0.00s))
+   21.08s  (dropped draw_zap: too close to deep_thud (0.14s))

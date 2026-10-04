@@ -1,0 +1,116 @@
+{
+  "_note": "Phase 1 spike: one continuous camera, no cuts. Globe over Eurasia -> Russia -> Urals -> Caucasus (22-30 km frame) -> Bering Strait -> pull back to a continental view (the final pull-back used to stop at zoom 3.4 to avoid the globe zoom-out defect, which is now fixed). Drift is on the whole time.",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 60,
+  "output": "OUTPUT.mp4",
+  "cache_dir": "CACHE_DIR",
+  "ffmpeg": "ffmpeg",
+  "debug_hud": true,
+  "tokens": {
+    "region_primary_red": "#8A2A20"
+  },
+  "overlays": {
+    "borders": true,
+    "fills": [
+      {
+        "iso": [
+          "RUS"
+        ],
+        "color": "region_primary_red",
+        "opacity": 0.5,
+        "t": 3.0,
+        "dur": 0.4
+      }
+    ]
+  },
+  "camera": {
+    "start": {
+      "lon": 75,
+      "lat": 48,
+      "zoom": 1.7
+    },
+    "drift": {
+      "pct_per_s": 0.6,
+      "heading_deg": 100,
+      "turn_deg_per_s": 2.0
+    },
+    "moves": [
+      {
+        "type": "fly_to",
+        "t": 2.0,
+        "dur": 5.0,
+        "to": {
+          "lon": 95,
+          "lat": 60,
+          "zoom": 3.0
+        }
+      },
+      {
+        "type": "fly_to",
+        "t": 12.0,
+        "dur": 4.5,
+        "to": {
+          "lon": 60,
+          "lat": 57,
+          "zoom": 5.4
+        }
+      },
+      {
+        "type": "push_in",
+        "t": 17.0,
+        "dur": 6.0,
+        "to": {
+          "zoom": 6.6
+        }
+      },
+      {
+        "type": "fly_to",
+        "t": 24.0,
+        "dur": 5.0,
+        "to": {
+          "lon": 42.5,
+          "lat": 43.35,
+          "zoom": 8.2
+        }
+      },
+      {
+        "type": "push_in",
+        "t": 29.5,
+        "dur": 7.0,
+        "to": {
+          "zoom": 12.3
+        }
+      },
+      {
+        "type": "pull_back",
+        "t": 37.0,
+        "dur": 2.5,
+        "to": {
+          "zoom": 6.0
+        }
+      },
+      {
+        "type": "fly_to",
+        "t": 40.5,
+        "dur": 7.0,
+        "to": {
+          "lon": -169,
+          "lat": 66,
+          "zoom": 6.2
+        }
+      },
+      {
+        "type": "pull_back",
+        "t": 50.0,
+        "dur": 9.0,
+        "to": {
+          "lon": -150,
+          "lat": 55,
+          "zoom": 3.4
+        }
+      }
+    ]
+  }
+}

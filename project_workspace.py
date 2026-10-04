@@ -24,6 +24,7 @@ CSV_NAME = "visual_plan.csv"
 # normal workflow's visual_plan.csv, so it needs its own slot rather than
 # overwriting/being overwritten by it when both are used in the same project.
 OVERSCALED_CSV_NAME = "overscaled_visual_plan.csv"
+PAKMAP_CSV_NAME = "pakmap_script.csv"
 NARRATION_WAV = "narration.wav"
 NARRATION_MP3 = "narration.mp3"
 PLAN_JSON_NAME = "ai_visual_plan.json"
@@ -104,6 +105,10 @@ class ProjectWorkspace:
     @property
     def overscaled_csv_path(self) -> Path:
         return self.csv_dir / OVERSCALED_CSV_NAME
+
+    @property
+    def pakmap_csv_path(self) -> Path:
+        return self.csv_dir / PAKMAP_CSV_NAME
 
     @property
     def audio_path(self) -> Path:
@@ -320,6 +325,22 @@ class ProjectWorkspace:
             data["overscaled_settings"] = merged
             self._write_meta(data)
 
+    def pakmap_settings(self) -> Dict[str, Any]:
+        """The project's saved pakMap choices: ``channel_name`` (the watermark text, may be empty on
+        purpose) and ``base_dir`` (the folder the CSV came from; its picture/clip paths are relative to it)."""
+        data = self.read_meta().get("pakmap_settings")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_pakmap_settings(self, **values: Any) -> None:
+        """Persist pakMap choices WITH the project. Unlike set_overscaled_settings, an empty string is a real
+        value ("no channel name"); only ``None`` means "leave as it was"."""
+        data = self.read_meta()
+        current = data.get("pakmap_settings") if isinstance(data.get("pakmap_settings"), dict) else {}
+        merged = {**current, **{k: v for k, v in values.items() if v is not None}}
+        if merged != current:
+            data["pakmap_settings"] = merged
+            self._write_meta(data)
+
     def smart_editing_settings(self) -> dict:
         from smart_editing import DEFAULT_SETTINGS
 
@@ -423,6 +444,30 @@ class ProjectWorkspace:
         if src.resolve() != self.overscaled_csv_path.resolve():
             shutil.copy2(src, self.overscaled_csv_path)
         return self.overscaled_csv_path
+
+    def copy_pakmap_csv_in(self, src: Path) -> Path:
+        """The pakMap script CSV gets its own slot (see PAKMAP_CSV_NAME) so it never collides with the
+        normal or Overscaled CSVs."""
+        self.ensure_dirs()
+        src = Path(src)
+        if src.resolve() != self.pakmap_csv_path.resolve():
+            shutil.copy2(src, self.pakmap_csv_path)
+        return self.pakmap_csv_path
+
+    @property
+    def pakmap_work_dir(self) -> Path:
+        """Render scratch (the silent map video, the compiled spec, credits); the finished video goes to final/."""
+        return self.root / "pakmap" / "_work"
+
+    @property
+    def pakmap_images_dir(self) -> Path:
+        """Where the Visual Plan's pictures for pakMap live (numbered 001.jpg ... and .asset_manifest.json), resolved by the same
+        AssetManager the other styles use. Inside the work folder; the finished video goes to final/."""
+        return self.pakmap_work_dir / "media"
+
+    def next_pakmap_final_path(self) -> Path:
+        """Same folder and naming as every other export, so re-rendering never overwrites an earlier one."""
+        return self.next_final_path()
 
     def next_final_path(self) -> Path:
         """First export uses the title (or final_video). Re-exports become final 1, final 2, …"""

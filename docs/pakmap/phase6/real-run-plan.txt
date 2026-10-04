@@ -1,0 +1,26 @@
+21 events over 39.0s
+  row   2  item  1     0.00-  20.44  hud_title     i1_hud_title1      on "kenya has 47"
+  row   4  item  1     0.00-  20.44  fill          kenya_fill         on "kenya has"
+  row   5  item  1     0.50-   5.00  stat          pop                on "47 million"
+  row   6  item  1     3.76-  13.76  dots          pop_dots           on "most of them live"
+  row   7  item  1     5.80-   9.80  marker        nbo                on "around nairobi"
+  row   8  item  1     7.30-  10.80  marker        vic                on "lake victoria"
+  row   9  item  1     8.38-  10.88  caption       north              on "the north is another story"
+  row  10  item  1     9.98-  12.98  zone_label    z1                 on "turkana"
+  row  11  item  1    11.18-  14.18  zone_label    z2                 on "home to a tiny"
+  row  12  item  1    12.88-  17.88  pip           view               on "here is what that looks like"
+  row  13  item  1    14.48-  20.44  line          rail               on "from mombasa"
+  row  14  item  1    14.48-  20.44  marker        mba                on "from mombasa"
+  row  15  item  1    19.56-  20.44  marker        lod                on "no road or rail"
+  row  16  item  2    20.94-  39.02  hud_title     i2_hud_title1      on "the equator runs straight"
+  row  17  item  2    21.08-  39.02  line          eq                 on "the equator runs"
+  row  18  item  2    25.26-  39.02  value_overlay rain               on "yet the north gets less"
+  row  19  item  2    26.56-  31.06  stat          dry                on "250"
+  row  20  item  2    30.16-  34.66  stat          wet                on "up to 2000"
+  row  21  item  2    31.54-  39.02  ghost_shape   pol                on "poland is as big"
+  row  22  item  2    33.90-  38.90  streak        wind               on "something you cannot see"
+  row  23  item  2    33.90-  37.90  caption       wind_cap           on "something you cannot see"
+1 camera moves
+     8.38  fly_to     2.2s  -> {'zoom': 5.288, 'lon': 37.8875, 'lat': 0.1766}
+WARNING: row 15: marker 'lod' would run to 21.3s but item 1 ends at 20.4s (0.5 s clear beat); it ends with the item
+WARNING: row 21: ghost_shape 'pol' would run to 39.5s but item 2 ends at 39.0s (0.5 s clear beat); it ends with the item

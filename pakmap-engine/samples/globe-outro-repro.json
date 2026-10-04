@@ -1,0 +1,34 @@
+{
+  "_note": "Was the repro of the globe zoom-out defect (rippled bands at the globe's edge). Fixed: the 2D compositing canvas is now cleared each frame. Kept as a sample of a clean zoom-out into the globe; render it and look at the last second.",
+  "width": 960,
+  "height": 540,
+  "fps": 10,
+  "duration": 4,
+  "output": "OUTPUT.mp4",
+  "cache_dir": "CACHE_DIR",
+  "debug_hud": true,
+  "overlays": {
+    "borders": true,
+    "fills": []
+  },
+  "camera": {
+    "start": {
+      "lon": -150,
+      "lat": 55,
+      "zoom": 3.0
+    },
+    "drift": {
+      "pct_per_s": 0
+    },
+    "moves": [
+      {
+        "type": "pull_back",
+        "t": 0.0,
+        "dur": 3.5,
+        "to": {
+          "zoom": 1.9
+        }
+      }
+    ]
+  }
+}

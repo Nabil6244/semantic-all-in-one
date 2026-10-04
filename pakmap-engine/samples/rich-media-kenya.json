@@ -1,0 +1,183 @@
+{
+  "_note": "Phase 4 demo: photo card with a crossfade and a leader line, a filmstrip, a sticker, and a full-screen interlude with the camera holding still under it. All pictures are synthetic placeholders (tools/make_demo_media.py).",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 34,
+  "output": "OUTPUT.mp4",
+  "cache_dir": "CACHE_DIR",
+  "ffmpeg": "ffmpeg",
+  "watermark": {
+    "text": "Your Channel"
+  },
+  "tokens": {
+    "region_primary_red": "#8A2A20"
+  },
+  "overlays": {
+    "borders": true,
+    "fills": [
+      {
+        "iso": [
+          "KEN"
+        ],
+        "color": "region_primary_red",
+        "opacity": 0.4,
+        "t": 0.3,
+        "dur": 0.4
+      }
+    ]
+  },
+  "camera": {
+    "start": {
+      "lon": 37.8,
+      "lat": 0.8,
+      "zoom": 5.9
+    },
+    "drift": {
+      "pct_per_s": 0.4,
+      "heading_deg": 60
+    },
+    "moves": [
+      {
+        "type": "push_in",
+        "t": 19.0,
+        "dur": 5.0,
+        "to": {
+          "lon": 37.0,
+          "lat": 0.0,
+          "zoom": 6.5
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "hud",
+      "type": "hud_title",
+      "t_in": 1.0,
+      "t_out": 33.0,
+      "label": "PART 1",
+      "sub": "THE EMPTY HALF"
+    },
+    {
+      "id": "nbo",
+      "type": "marker",
+      "t_in": 2.0,
+      "t_out": 9.0,
+      "lon": 36.82,
+      "lat": -1.29,
+      "label": "NAIROBI",
+      "value": "4.4 MILLION"
+    },
+    {
+      "id": "pip",
+      "type": "pip",
+      "t_in": 3.0,
+      "t_out": 10.0,
+      "anchor": "tr",
+      "shape": "landscape",
+      "images": [
+        "media/city.jpg",
+        "media/highlands.jpg"
+      ],
+      "every_s": 3.0,
+      "label": "NAIROBI",
+      "leader": {
+        "lon": 36.82,
+        "lat": -1.29
+      }
+    },
+    {
+      "id": "strip",
+      "type": "filmstrip",
+      "t_in": 11.0,
+      "t_out": 18.0,
+      "align": "center",
+      "cards": [
+        {
+          "media": "media/highlands.jpg",
+          "label": "HIGHLANDS"
+        },
+        {
+          "media": "media/city.jpg",
+          "label": "NAIROBI"
+        },
+        {
+          "media": "media/lake.jpg",
+          "label": "LAKE VICTORIA"
+        },
+        {
+          "media": "media/desert.jpg",
+          "label": "TURKANA"
+        },
+        {
+          "media": "media/coast.jpg",
+          "label": "MOMBASA"
+        },
+        {
+          "media": "media/market.jpg",
+          "label": "GARISSA"
+        }
+      ]
+    },
+    {
+      "id": "zone1",
+      "type": "marker",
+      "dot": false,
+      "role": "neutral",
+      "t_in": 11.5,
+      "t_out": 18.0,
+      "lon": 35.6,
+      "lat": 3.1,
+      "label": "TURKANA"
+    },
+    {
+      "id": "zone2",
+      "type": "marker",
+      "dot": false,
+      "role": "featured",
+      "t_in": 12.0,
+      "t_out": 18.0,
+      "lon": 38.3,
+      "lat": 2.4,
+      "label": "MARSABIT"
+    },
+    {
+      "id": "stk",
+      "type": "sticker",
+      "t_in": 18.5,
+      "t_out": 24.0,
+      "media": "media/sticker.png",
+      "lon": 37.6,
+      "lat": 0.2,
+      "height_frac": 0.4
+    },
+    {
+      "id": "interlude",
+      "type": "media_full",
+      "t_in": 24.5,
+      "t_out": 29.5,
+      "media": "media/clip.mp4",
+      "dissolve_s": 0.5
+    },
+    {
+      "id": "over",
+      "type": "stat",
+      "anchor": "bc",
+      "t_in": 25.5,
+      "t_out": 29.0,
+      "value_from": 0,
+      "value_to": 8,
+      "format": "0 TIME ZONES",
+      "sub": "OVER THE FOOTAGE"
+    },
+    {
+      "id": "cap",
+      "type": "caption",
+      "anchor": "bc",
+      "t_in": 30.5,
+      "t_out": 33.0,
+      "text": "BACK ON THE MAP"
+    }
+  ]
+}

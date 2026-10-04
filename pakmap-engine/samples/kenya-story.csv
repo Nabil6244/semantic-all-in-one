@@ -1,0 +1,23 @@
+item_no,vo_anchor,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,data_source,camera_action,frame,line_kind,hold,params
+1,Kenya has forty seven,hud_title,,,PART 1,THE EMPTY HALF,,,,,,,,,,,,
+1,Kenya has,camera,cam0,Kenya,,,,,,,,,,start,country,,,
+1,Kenya has,fill,kenya_fill,Kenya,,,subject,,,,,,,,,,,
+1,forty seven million,stat,pop,,,KENYA,,40,47,0 MILLION PEOPLE,br,,,,,,,
+1,Most of them live,dots,pop_dots,Kenya,,,,,,,,,bundled:populated_places,,,,,"{""per_million"": 160, ""seed"": 3}"
+1,around Nairobi,marker,nbo,Nairobi,NAIROBI,,,,,,,,,,,,4,"{""value"": ""4.4 MILLION""}"
+1,Lake Victoria,marker,vic,"-0.4,34.0",LAKE VICTORIA,,featured,,,,,,,,,,3.5,
+1,The north is another story,caption,north,Kenya,THE NORTH IS ANOTHER STORY,,,,,,bc,,,fly_to,region,,2.5,
+1,Turkana,zone_label,z1,"3.1,35.6",TURKANA,,neutral,,,,,,,,,,3,
+1,home to a tiny,zone_label,z2,"2.4,38.3",MARSABIT,,featured,,,,,,,,,,3,
+1,Here is what that looks like,pip,view,Nairobi,NAIROBI,,,,,,tr,media/city.jpg|media/highlands.jpg,,,,,5,
+1,From Mombasa,line,rail,Mombasa;Nairobi,,,,,,,,,,,,rail,,
+1,From Mombasa,marker,mba,Mombasa,MOMBASA,,featured,,,,,,,,,,,
+1,no road or rail,marker,lod,Lodwar,LODWAR,NO ROAD · NO RAIL,subject,,,,,,,,,,1.7,"{""value"": ""83,000""}"
+2,The equator runs straight,hud_title,,,PART 2,THE EQUATOR PARADOX,,,,,,,,,,,,
+2,The equator runs,line,eq,,,,,,,,,,,,,reference,,"{""coords"": [[33.0, 0.0], [42.5, 0.0]]}"
+2,Yet the north gets less,value_overlay,rain,Kenya,,,,,,,,,bundled:rainfall_chirps,,,,,
+2,two hundred and fifty,stat,dry,,,THE NORTH,,400,250,< 0 MM,br,,,,,,,
+2,up to two thousand,stat,wet,,,THE WESTERN HIGHLANDS,,1500,2000,"UP TO #,##0 MM",bl,,,,,,,
+2,Poland is as big,ghost_shape,pol,Poland,,,compare,,,,,,,,,,8,"{""to"": {""lon"": 37.6, ""lat"": 2.6}}"
+2,something you cannot see,streak,wind,Kenya,,,,,,,,,,,,,,"{""n"": 40, ""seed"": 4}"
+2,something you cannot see,caption,wind_cap,,SOMETHING YOU CAN'T SEE,,,,,,bc,,,,,,4,

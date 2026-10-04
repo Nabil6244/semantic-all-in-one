@@ -1,0 +1,5 @@
+Credits to include in the video description or end card:
+
+- We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).
+- Populated places: Natural Earth (public domain). Dot positions are generated around these places, not a measured population grid.
+- Rainfall: CHIRPS v2.0, Climate Hazards Center, UC Santa Barbara (public domain); 2016-2020 mean, 0.1 degree.

@@ -1,0 +1,280 @@
+{
+  "_note": "Phase 2 demo: every overlay type on one Kenya shot. Times are explicit; narration anchoring comes in a later phase. Dots are generated demo data, not real population.",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 26,
+  "output": "OUTPUT.mp4",
+  "cache_dir": "CACHE_DIR",
+  "ffmpeg": "ffmpeg",
+  "watermark": {
+    "text": "EXPLAINS-IT"
+  },
+  "tokens": {
+    "region_primary_red": "#8A2A20"
+  },
+  "overlays": {
+    "borders": true,
+    "fills": [
+      {
+        "iso": [
+          "KEN"
+        ],
+        "color": "region_primary_red",
+        "opacity": 0.45,
+        "t": 0.3,
+        "dur": 0.4
+      }
+    ]
+  },
+  "camera": {
+    "start": {
+      "lon": 37.8,
+      "lat": 0.6,
+      "zoom": 5.6
+    },
+    "drift": {
+      "pct_per_s": 0.5,
+      "heading_deg": 60
+    },
+    "moves": [
+      {
+        "type": "push_in",
+        "t": 14.0,
+        "dur": 8.0,
+        "to": {
+          "lon": 37.0,
+          "lat": 0.2,
+          "zoom": 6.3
+        }
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "hud",
+      "type": "hud_title",
+      "t_in": 1.0,
+      "t_out": 25.0,
+      "label": "PART 1",
+      "sub": "THE EMPTY HALF"
+    },
+    {
+      "id": "pop",
+      "type": "stat",
+      "anchor": "br",
+      "t_in": 1.6,
+      "t_out": 6.5,
+      "value_from": 40,
+      "value_to": 47,
+      "format": "0 MILLION PEOPLE",
+      "sub": "KENYA"
+    },
+    {
+      "id": "dots",
+      "type": "dots",
+      "t_in": 3.0,
+      "t_out": 14.0,
+      "seed": 7,
+      "random": {
+        "bbox": [
+          33.9,
+          -4.7,
+          41.9,
+          5.0
+        ],
+        "n": 2600,
+        "seed": 3,
+        "uniform": 0.12,
+        "hotspots": [
+          {
+            "lon": 36.82,
+            "lat": -1.29,
+            "spread": 0.55,
+            "weight": 4
+          },
+          {
+            "lon": 34.8,
+            "lat": -0.1,
+            "spread": 0.5,
+            "weight": 4
+          },
+          {
+            "lon": 39.66,
+            "lat": -4.05,
+            "spread": 0.3,
+            "weight": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "nbo",
+      "type": "marker",
+      "t_in": 5.0,
+      "t_out": 14.0,
+      "lon": 36.82,
+      "lat": -1.29,
+      "label": "NAIROBI",
+      "value": "4.4 MILLION"
+    },
+    {
+      "id": "share",
+      "type": "stat",
+      "anchor": "bl",
+      "t_in": 6.8,
+      "t_out": 12.5,
+      "value_from": 0,
+      "value_to": 54,
+      "format": "0% OF THE LAND",
+      "sub": "KENYA'S 7 NORTHERN COUNTIES"
+    },
+    {
+      "id": "cap",
+      "type": "caption",
+      "anchor": "bc",
+      "t_in": 12.8,
+      "t_out": 15.0,
+      "text": "SOMETHING YOU CAN'T SEE",
+      "sub": "SOURCE: DEMO DATA"
+    },
+    {
+      "id": "rail",
+      "type": "line",
+      "kind": "rail",
+      "t_in": 14.2,
+      "t_out": 24.0,
+      "coords": [
+        [
+          39.66,
+          -4.05
+        ],
+        [
+          38.5,
+          -3.2
+        ],
+        [
+          37.6,
+          -2.3
+        ],
+        [
+          36.82,
+          -1.29
+        ]
+      ]
+    },
+    {
+      "id": "mba",
+      "type": "marker",
+      "t_in": 14.6,
+      "t_out": 18.5,
+      "lon": 39.66,
+      "lat": -4.05,
+      "label": "MOMBASA",
+      "role": "featured"
+    },
+    {
+      "id": "lod",
+      "type": "marker",
+      "t_in": 15.4,
+      "t_out": 24.0,
+      "lon": 35.6,
+      "lat": 3.12,
+      "label": "LODWAR",
+      "value": "83,000",
+      "role": "subject",
+      "sub": "NO ROAD · NO RAIL"
+    },
+    {
+      "id": "flow",
+      "type": "line",
+      "kind": "flow",
+      "t_in": 16.0,
+      "t_out": 24.0,
+      "coords": [
+        [
+          35.6,
+          3.12
+        ],
+        [
+          36.2,
+          1.8
+        ],
+        [
+          36.7,
+          0.5
+        ],
+        [
+          36.82,
+          -1.29
+        ]
+      ]
+    },
+    {
+      "id": "ref",
+      "type": "line",
+      "kind": "reference",
+      "t_in": 17.0,
+      "t_out": 24.0,
+      "coords": [
+        [
+          33.0,
+          0.0
+        ],
+        [
+          42.5,
+          0.0
+        ]
+      ]
+    },
+    {
+      "id": "clu",
+      "type": "cluster",
+      "t_in": 18.0,
+      "t_out": 24.0,
+      "color": "#F09030",
+      "size": 11,
+      "points": [
+        [
+          36.1,
+          0.9
+        ],
+        [
+          36.5,
+          0.6
+        ],
+        [
+          36.0,
+          0.2
+        ],
+        [
+          36.4,
+          -0.1
+        ],
+        [
+          35.7,
+          -0.3
+        ],
+        [
+          37.1,
+          0.4
+        ],
+        [
+          37.4,
+          0.0
+        ]
+      ]
+    },
+    {
+      "id": "cmp",
+      "type": "stat",
+      "anchor": "tr",
+      "t_in": 19.0,
+      "t_out": 24.0,
+      "value_from": 365,
+      "value_to": 445,
+      "format": "0× SMALLER",
+      "sub": "SAME NUMBER OF PEOPLE"
+    }
+  ]
+}

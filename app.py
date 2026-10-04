@@ -1005,6 +1005,7 @@ class VideoGeneratorApp(ctk.CTk):
         # grid_remove()'d) per spec — only its CSV picker/Generate button
         # are gated behind the switch.
         self._build_overscaled_section(self._view_visual_director.content, row=0)
+        self._build_pakmap_section(self._view_visual_director.content, row=1)
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
         self._shell.navigate("script")
@@ -2174,6 +2175,7 @@ class VideoGeneratorApp(ctk.CTk):
         if self._overscaled_enabled_var.get():
             self._overscaled_controls.grid()
             self.generation_mode = "overscaled"
+            self._pakmap_deactivate()
         else:
             self._overscaled_controls.grid_remove()
             self.generation_mode = "normal"
@@ -2313,6 +2315,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         self._overscaled_scene_graph = result.scene_graph
         self.generation_mode = "overscaled"
+        self._pakmap_deactivate()
         self._overscaled_enabled_var.set(True)
         self._overscaled_controls.grid()
 
@@ -2387,7 +2390,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_primary_cta()
         return True
 
-    def _hydrate_overscaled_assets_from_manifest(self) -> None:
+    def _hydrate_overscaled_assets_from_manifest(self, images_dir: "Path | None" = None) -> None:
         """Restore Success/Needs-action into self._asset_results for
         Overscaled/Exp Solar rows from the SAME AssetManifest class and the
         SAME on-disk manifest.json format the normal CSV workflow's own
@@ -2413,7 +2416,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self._asset_results.pop(key, None)
         if self._workspace is None:
             return
-        images_dir = self._workspace.overscaled_images_dir
+        images_dir = images_dir or self._workspace.overscaled_images_dir  # pakMap passes its own folder; Overscaled/Exp Solar do not
         manifest_path = images_dir / ".asset_manifest.json"
         if not manifest_path.is_file():
             return
@@ -2789,6 +2792,570 @@ class VideoGeneratorApp(ctk.CTk):
                     "Generation failed", overscaled_failure_summary(result.errors),
                     "\n".join(result.errors) or "Unknown error",
                 )
+            self._sync_primary_cta()
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    # ---------- pakMap (a third, independent video style) ----------
+
+    def _build_pakmap_section(self, parent, *, row: int) -> None:
+        """pakMap: continuous satellite-map videos from a one-row-per-event CSV.
+
+        Same shape as the Overscaled block above and for the same reason: no second Generate button and no second
+        voiceover importer. Turning the switch on sets self.generation_mode = "pakmap"; the SHARED Generate button
+        (_on_primary_cta -> _on_generate, see _sync_primary_cta_pakmap) drives it. It is independent of the
+        Visual Plan table (pakMap layers are not scenes with acquired assets); its own "plan" box shows what the
+        compiler understood, row by row, before any rendering starts."""
+        self._pakmap_csv_var = ctk.StringVar()
+        self._pakmap_status_var = ctk.StringVar(value="")
+        self._pakmap_enabled_var = ctk.BooleanVar(value=False)
+        self._pakmap_channel_var = ctk.StringVar(value=str(self._settings.get("pakmap_channel_name", "") or ""))
+        self._pakmap_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+        self._pakmap_running = False
+        self._pakmap_cancel = threading.Event()
+        self._pakmap_base_dir: str = ""  # the folder the CSV was picked from: its media paths are relative to it
+        self._pakmap_words = None  # (audio path, mtime, words) of the last transcription done for a plan check
+        self._pakmap_checking = False
+        self._pakmap_tracking = None
+
+        block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
+        block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+        block.grid_columnconfigure(0, weight=1)
+        self._pakmap_block = block
+
+        ctk.CTkLabel(
+            block, text="pakMap (satellite-map videos)",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(14, 0))
+        ctk.CTkSwitch(
+            block, text="Use pakMap for this generation",
+            variable=self._pakmap_enabled_var, onvalue=True, offvalue=False,
+            font=ctk.CTkFont(size=12), command=self._on_pakmap_toggle,
+        ).grid(row=1, column=0, sticky="w", padx=16, pady=(12, 0))
+
+        controls = ctk.CTkFrame(block, fg_color="transparent")
+        controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
+        controls.grid_columnconfigure(0, weight=1)
+        self._pakmap_controls = controls
+
+        self._path_row(
+            0, "CSV", self._pakmap_csv_var, self._browse_pakmap_csv,
+            parent=controls, placeholder_text="Choose a pakMap script CSV (item_no, vo_anchor, layer_type, ...)",
+        )
+        name_row = ctk.CTkFrame(controls, fg_color="transparent")
+        name_row.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        name_row.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED, anchor="w").grid(
+            row=0, column=0, sticky="w", padx=(0, 10))
+        self._pakmap_channel_entry = ctk.CTkEntry(name_row, textvariable=self._pakmap_channel_var, height=32,
+                                                  placeholder_text="Shown bottom right of the video (leave empty for none)")
+        self._pakmap_channel_entry.grid(row=0, column=1, sticky="ew")
+        self._pakmap_channel_var.trace_add("write", lambda *_: self._on_pakmap_channel_changed())
+
+        self._pakmap_check_btn = ctk.CTkButton(
+            controls, text="Check plan", width=110, height=30, corner_radius=4,
+            fg_color="transparent", border_width=1, border_color=_BORDER, text_color=_ACCENT, hover_color=_ACCENT_SEL,
+            font=ctk.CTkFont(size=11), command=self._check_pakmap_plan,
+        )
+        self._pakmap_check_btn.grid(row=2, column=0, sticky="w", pady=(10, 0))
+        self._pakmap_sound_switch = ctk.CTkSwitch(
+            controls, text="pakMap sound design (effects + ambience)", variable=self._pakmap_sound_var,
+            font=ctk.CTkFont(size=11), command=self._on_pakmap_sound_changed,
+        )
+        self._pakmap_sound_switch.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        self._pakmap_hint_label = ctk.CTkLabel(
+            controls,
+            text="Uses the voiceover chosen on the Script page. Check plan reads the narration and shows where every layer "
+                 "lands before anything is drawn; the main action button then renders the video.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
+        )
+        self._pakmap_hint_label.grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self._pakmap_plan_box = ctk.CTkTextbox(controls, height=220, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+        self._pakmap_plan_box.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+        self._pakmap_plan_box.configure(state="disabled")
+        self._pakmap_status_label = ctk.CTkLabel(
+            controls, textvariable=self._pakmap_status_var,
+            font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
+        )
+        self._pakmap_status_label.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        controls.grid_remove()
+
+    def _set_pakmap_plan_text(self, text: str) -> None:
+        box = self._pakmap_plan_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        box.insert("1.0", text)
+        box.configure(state="disabled")
+
+    def _pakmap_deactivate(self) -> None:
+        """Called when another style takes over (Overscaled/Exp Solar): pakMap steps aside, its CSV stays."""
+        if not hasattr(self, "_pakmap_enabled_var"):
+            return
+        self._pakmap_enabled_var.set(False)
+        self._pakmap_controls.grid_remove()
+        if self.generation_mode == "pakmap":
+            self.generation_mode = "normal"
+        self._clear_pakmap_visual_plan()
+
+    def _on_pakmap_toggle(self) -> None:
+        if self._pakmap_running:
+            self._pakmap_enabled_var.set(True)
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            return
+        if self._pakmap_enabled_var.get():
+            self._pakmap_controls.grid()
+            self.generation_mode = "pakmap"
+            if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+            csv_now = self._pakmap_csv_var.get().strip()
+            if csv_now and Path(csv_now).is_file():
+                self._populate_pakmap_visual_plan(csv_now)
+        else:
+            self._pakmap_controls.grid_remove()
+            self.generation_mode = "normal"
+            self._clear_pakmap_visual_plan()
+        self._sync_primary_cta()
+
+    def _on_pakmap_channel_changed(self) -> None:
+        name = self._pakmap_channel_var.get().strip()
+        self._settings["pakmap_channel_name"] = name
+        try:
+            self._persist_global_settings()
+        except Exception:
+            pass
+        self._save_pakmap_settings()
+
+    def _on_pakmap_sound_changed(self) -> None:
+        self._settings["pakmap_sound_design"] = bool(self._pakmap_sound_var.get())
+        try:
+            self._persist_global_settings()
+        except Exception:
+            pass
+        self._save_pakmap_settings()
+
+    def _save_pakmap_settings(self) -> None:
+        if self._workspace is None:
+            return
+        try:
+            self._workspace.set_pakmap_settings(channel_name=self._pakmap_channel_var.get().strip(), base_dir=self._pakmap_base_dir or None,
+                                                sound_design=bool(self._pakmap_sound_var.get()))
+        except OSError as exc:
+            self._append_log(f"[PAKMAP] Could not save the channel name: {exc}\n")
+
+    def _restore_pakmap_settings(self) -> None:
+        saved = self._workspace.pakmap_settings() if self._workspace is not None else {}
+        if "channel_name" in saved:
+            self._pakmap_channel_var.set(str(saved.get("channel_name") or ""))
+        else:  # a project that never chose one starts from the last name used
+            self._pakmap_channel_var.set(str(self._settings.get("pakmap_channel_name", "") or ""))
+        self._pakmap_sound_var.set(bool(saved["sound_design"]) if "sound_design" in saved else bool(self._settings.get("pakmap_sound_design", True)))
+        self._pakmap_base_dir = str(saved.get("base_dir") or "")
+
+    def _pakmap_watermark(self) -> "dict | None":
+        name = self._pakmap_channel_var.get().strip()
+        return {"text": name} if name else None
+
+    def _browse_pakmap_csv(self) -> None:
+        if self._pakmap_running:
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before changing the CSV.")
+            return
+        path = filedialog.askopenfilename(
+            title="Select pakMap CSV", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir=str(_browse_start_dir()),
+        )
+        if not path:
+            return
+        self._pakmap_base_dir = str(Path(path).resolve().parent)
+        self._pakmap_csv_var.set(path)
+        if self._load_pakmap_csv(path):
+            self._pakmap_enabled_var.set(True)
+            self._on_pakmap_toggle()
+
+    def _load_pakmap_csv(self, path: str) -> bool:
+        """Read the script (fast, no narration needed) and say what is in it. Timing and places are checked by
+        Check plan / Generate, which need the voiceover."""
+        from collections import Counter
+
+        from pakmap.schema import CsvError, parse_csv
+
+        try:
+            rows, warns = parse_csv(path)
+        except CsvError as exc:
+            self._set_pakmap_plan_text("The CSV has problems:\n\n" + "\n".join(f"  {p}" for p in exc.problems))
+            self._pakmap_status_var.set("Fix the CSV and choose it again.")
+            self._sync_primary_cta()
+            return False
+        except OSError as exc:
+            messagebox.showerror("Cannot read CSV", str(exc))
+            return False
+        items = sorted({r.item_no for r in rows})
+        kinds = Counter(r.layer_type for r in rows)
+        lines = [f"{len(rows)} rows in {len(items)} item(s): " + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())), ""]
+        lines += [f"WARNING: {w}" for w in warns]
+        lines += ["", "Click Check plan to see where each layer lands in the narration."]
+        self._set_pakmap_plan_text("\n".join(lines))
+        self._pakmap_status_var.set(f"Loaded {Path(path).name}")
+        self._populate_pakmap_visual_plan(path)
+        self._sync_primary_cta()
+        return True
+
+    def _populate_pakmap_visual_plan(self, path: str) -> None:
+        """Feed the EXISTING Visual Plan table with the pictures this script asks for (stock / Flow / YouTube references),
+        one row per use, so they are inspected and changed with the table's own Retry / Change source / Skip / Local clip
+        actions. Map layers (fills, markers, lines) are not rows: they have nothing to replace and stay in the plan text.
+        Asset state comes back from the project's manifest, like the other styles."""
+        from providers.base import SceneRow
+
+        try:
+            from pakmap.app_integration import visual_plan_dicts
+
+            dicts = visual_plan_dicts(path)
+        except Exception as exc:
+            self._append_log(f"[PAKMAP] Could not list the script's pictures for the Visual Plan: {exc}\n")
+            dicts = []
+        self._scene_rows = [SceneRow.from_csv_row(d) for d in dicts]
+        self._scene_rows_owner = "pakmap"
+        self._pakmap_row_text = {str(d["scene_number"]): d["script_segment"] for d in dicts}
+        self._scene_preview_cache_sig = None
+        self._asset_results = {k: v for k, v in self._asset_results.items() if k in {_scene_key(r.scene_number) for r in self._scene_rows}}
+        if self._workspace is not None:
+            self._hydrate_overscaled_assets_from_manifest(self._workspace.pakmap_images_dir)
+        self._render_scene_rows()
+        self._refresh_assets_cta()
+
+    def _clear_pakmap_visual_plan(self) -> None:
+        """pakMap steps aside: take its pictures out of the shared table (the next style fills it itself)."""
+        if getattr(self, "_scene_rows_owner", None) != "pakmap":
+            return
+        self._scene_rows_owner = None
+        self._scene_rows = []
+        self._scene_preview_cache_sig = None
+        self._render_scene_rows()
+
+    def _label_pakmap_rows(self, times: dict, lines: dict) -> None:
+        """After Check plan: put the second each picture appears at the front of its Visual Plan row."""
+        if getattr(self, "_scene_rows_owner", None) != "pakmap":
+            return
+        for scene in self._scene_rows:
+            line = lines.get(str(scene.scene_number))
+            base = self._pakmap_row_text.get(str(scene.scene_number), scene.script_segment)
+            t = times.get(line)
+            scene.script_segment = f"{int(t // 60)}:{int(t % 60):02d}  {base}" if t is not None else base
+        self._render_scene_rows()
+
+    def _pakmap_get_words(self, voiceover_path: Path, whisper_model: str, whisper_state_dir, log) -> list:
+        """The narration's word times: the project's cached alignment when there is one, else Whisper (the same
+        cache and call the other styles use). Raises RuntimeError with a plain message when there are none."""
+        try:
+            mtime = Path(voiceover_path).stat().st_mtime
+        except OSError:
+            mtime = 0
+        if self._pakmap_words and self._pakmap_words[0] == str(voiceover_path) and self._pakmap_words[1] == mtime:
+            return self._pakmap_words[2]
+        words = None
+        if whisper_state_dir is not None:
+            cached = get_cached_whisper_words(whisper_state_dir, voiceover_path)
+            if cached:
+                words = [(w, float(s), float(e)) for w, s, e in cached]
+                log("[pakMap] Reusing cached word alignment for narration timing.")
+        if words is None:
+            words = vg.transcribe_audio(str(voiceover_path), whisper_model)
+        if not words:
+            raise RuntimeError("the narration produced no words to anchor the script to")
+        self._pakmap_words = (str(voiceover_path), mtime, words)
+        return words
+
+    def _check_pakmap_plan(self) -> None:
+        """Compile the script against the narration and show the plan report (no rendering)."""
+        if self._pakmap_running or self._pakmap_checking:
+            return
+        csv_path = self._pakmap_csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            messagebox.showinfo("Check plan", "Choose a pakMap CSV first.")
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showinfo("Check plan", "Select or import a voiceover first (the same voiceover control as the other styles).")
+            return
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None) if self._workspace is not None else None
+        base_dir = self._pakmap_base_dir or str(Path(csv_path).resolve().parent)
+        watermark = self._pakmap_watermark()
+        sound_design = bool(self._pakmap_sound_var.get())
+        check_images_dir = self._workspace.pakmap_images_dir if self._workspace is not None else None
+        self._pakmap_checking = True
+        self._pakmap_check_btn.configure(state="disabled")
+        self._pakmap_status_var.set("Reading the narration…")
+
+        def post(fn) -> None:
+            self.after(0, fn)
+
+        def worker() -> None:
+            from pakmap.app_integration import check_pakmap_plan, plan_pakmap_sound, voiceover_duration
+
+            try:
+                words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
+                res, report, problems = check_pakmap_plan(csv_path, words, duration=voiceover_duration(voiceover_path), base_dir=base_dir, watermark=watermark, images_dir=check_images_dir)
+                if report is not None:
+                    text = report.to_text()
+                else:
+                    from pakmap.app_integration import friendly_problems
+
+                    nice = friendly_problems(csv_path, problems)
+                    text = "\n".join(f"ERROR: {p}" for p in nice) + "\n\nTechnical details:\n" + "\n".join(f"  {p}" for p in problems)
+                if res is not None:
+                    try:
+                        text += "\n\n" + plan_pakmap_sound(res, enabled=sound_design).to_text()
+                    except Exception as exc:
+                        text += f"\n\nSound design could not be planned: {exc}"
+                status = "Plan is ready." if res is not None else "The plan has problems: fix the CSV."
+                if report is not None:
+                    from pakmap.app_integration import row_times
+                    from pakmap.schema import parse_csv as _pcsv
+                    from pakmap.sourcing import find_occurrences as _focc
+
+                    _occ = _focc(_pcsv(csv_path)[0])
+                    post(lambda t=row_times(report), ln={str(o.scene_number): o.line for o in _occ}: self._label_pakmap_rows(t, ln))
+            except Exception as exc:
+                text, status = f"Could not check the plan: {exc}", "Could not check the plan."
+            post(lambda: finish(text, status))
+
+        def finish(text: str, status: str) -> None:
+            self._pakmap_checking = False
+            self._pakmap_check_btn.configure(state="normal")
+            self._set_pakmap_plan_text(text)
+            self._pakmap_status_var.set(status)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _sync_primary_cta_pakmap(self) -> None:
+        if self._pakmap_running:
+            if self._pakmap_cancel.is_set():
+                self._cta_action = "pakmap_cancel"
+                self.stage_var.set("GENERATING")
+                self.hint_var.set("Stopping…")
+                self._set_generate_btn(state="disabled", text="Stopping…")
+                return
+            self._cta_action = "pakmap_cancel"
+            self.stage_var.set("GENERATING")
+            self.hint_var.set("Generating — the CSV and style are locked until it finishes. Click Stop to cancel.")
+            self._set_generate_btn(state="normal", text="Stop")
+            return
+        if self._workspace is None:
+            self._cta_action = "picker"
+            self.stage_var.set("SETUP")
+            self.hint_var.set("Choose a project to get started.")
+            self._set_generate_btn(state="normal", text="Choose project")
+            return
+        csv_path = self._pakmap_csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            self._cta_action = "pakmap_import_csv"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Import a pakMap CSV to load the plan.")
+            self._set_generate_btn(state="normal", text="Import pakMap CSV")
+            return
+        if self._current_voiceover_path() is None:
+            self._cta_action = "import_audio"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Select or import a voiceover to continue.")
+            self._set_generate_btn(state="normal", text="Import Voiceover")
+            return
+        self._cta_action = "generate"
+        self.stage_var.set("GENERATE")
+        self.hint_var.set("Ready — click Generate to render the pakMap video.")
+        self._set_generate_btn(state="normal", text="Generate")
+
+    def _on_pakmap_cancel(self) -> None:
+        if not self._pakmap_running or self._pakmap_cancel.is_set():
+            return
+        self._pakmap_cancel.set()
+        self._append_log("[PAKMAP] Stop requested — cancelling the current step…\n")
+        run_manager = getattr(self, "_pakmap_run_manager", None)
+        if run_manager is not None:  # a picture batch in progress stops now, not at the next stage boundary
+            try:
+                run_manager.request_cancel()
+            except Exception as exc:
+                self._append_log(f"[PAKMAP] Could not signal the picture batch to stop: {exc}\n")
+        try:
+            from hardware.process_registry import get_registry
+
+            get_registry().terminate_owned(owner="pakmap_render")
+            get_registry().terminate_owned(owner="overscaled_render")  # the shared encoder step that adds the narration
+        except Exception as exc:
+            self._append_log(f"[PAKMAP] Could not stop the running renderer: {exc}\n")
+        self._sync_primary_cta()
+
+    def _run_pakmap_generation(self) -> None:
+        """The pakMap branch of the SHARED _on_generate() entry point (generation_mode == "pakmap")."""
+        if self._pakmap_running:
+            return
+        csv_path = self._pakmap_csv_var.get().strip()
+        if not csv_path or not Path(csv_path).is_file():
+            messagebox.showerror("Cannot start", "Choose a valid pakMap CSV file first.")
+            return
+        if self._workspace is None:
+            messagebox.showerror("Cannot start", "Create or choose a project first.")
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showerror("Cannot start", "Select or import a voiceover first (same voiceover control used for the other styles).")
+            return
+        # The script lives in the project (like the Overscaled CSV), and so does the folder its pictures are relative to.
+        base_dir = self._pakmap_base_dir or str(Path(csv_path).resolve().parent)
+        try:
+            persisted = self._workspace.copy_pakmap_csv_in(Path(csv_path))
+        except OSError as exc:
+            messagebox.showerror("Cannot start", f"Could not save the pakMap CSV into the project:\n{exc}")
+            return
+        self._pakmap_base_dir = base_dir
+        self._pakmap_csv_var.set(str(persisted))
+        self._save_pakmap_settings()
+
+        output_path = self._workspace.next_pakmap_final_path()
+        self.output_var.set(str(output_path))
+        work_dir = self._workspace.pakmap_work_dir
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(self._workspace, "state_dir", None)
+        watermark = self._pakmap_watermark()
+        sound_design = bool(self._pakmap_sound_var.get())
+        title = getattr(self._workspace, "title", "") or ""
+
+        # Pictures named by source in the script are the Visual Plan table's rows and go through the existing providers. Read the
+        # stock key and start Flow here on the main thread, and only when something would be generated with Flow (credits): ask
+        # first. Pictures already saved, including the ones the user replaced in the table, are reused and cost nothing.
+        pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+        flow_engine_manager = None
+        flow_video_account_ids = None
+        plan_rows = list(self._scene_rows) if getattr(self, "_scene_rows_owner", None) == "pakmap" else None
+        images_dir = self._workspace.pakmap_images_dir
+        try:
+            from asset_manager import AssetManifest as _PmManifest
+
+            _man = _PmManifest(images_dir) if images_dir.is_dir() else None
+            _new_flow = [
+                r for r in (plan_rows or [])
+                if (SceneAssetRouter.classify(r) in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO))
+                and not (_man is not None and (_man.get(r.scene_number) or {}).get("status") == "complete")
+            ]
+        except Exception:
+            _new_flow = []
+        if _new_flow:
+            if not messagebox.askyesno(
+                "Generate pictures with Flow?",
+                f"{len(_new_flow)} picture(s)/clip(s) in this script will be generated with Flow, which uses Flow credits:\n\n"
+                + "\n".join(f"- {(r.prompt or r.stock)[:70]}" for r in _new_flow[:6]) + ("\n- ..." if len(_new_flow) > 6 else "")
+                + "\n\nPictures already saved (or replaced in the Visual Plan) are reused. Continue?",
+            ):
+                return
+            flow_engine_manager = self._get_flow_engine_manager()
+            flow_video_account_ids = self._video_account_ids()
+
+        self._pakmap_cancel.clear()
+        self._pakmap_running = True
+        self._pakmap_tracking = self._track_generation_start("pakmap")
+        self._sync_primary_cta()
+        self._pakmap_status_var.set("Starting pakMap generation…")
+        self._append_log("Starting pakMap generation…\n")
+
+        def progress_cb(message: str, fraction: float) -> None:
+            def apply() -> None:
+                self._pakmap_status_var.set(f"{message} ({int(fraction * 100)}%)")
+                self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+            self.after(0, apply)
+
+        def thread_safe_log(message: str) -> None:
+            self.after(0, lambda: self._append_log(f"{message}\n"))
+
+        # The Visual Plan rows update live, through the same queue messages the other styles' asset steps use.
+        def _pm_scene_start(scene, source) -> None:
+            if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
+                self._ui_queue.put(("scene_busy", (scene.scene_number, "waiting")))
+            else:
+                self._ui_queue.put(("scene_busy", (scene.scene_number, _scene_busy_kind(source))))
+
+        def _pm_scene_generating(scene) -> None:
+            self._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
+
+        def _pm_scene_complete(scene, result) -> None:
+            self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+        def _pm_manager_ready(manager) -> None:
+            # per-picture actions taken in the table while this run is going reach this real manager
+            self._asset_manager = manager
+            self._pakmap_run_manager = manager
+
+        self._pakmap_run_manager = None
+
+        def worker() -> None:
+            from pakmap.app_integration import PakmapResult, generate_pakmap_video
+
+            try:
+                try:
+                    words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
+                except Exception as exc:
+                    result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
+                else:
+                    result = generate_pakmap_video(
+                        persisted, voiceover_path, output_path, work_dir=work_dir, whisper_words=words, base_dir=base_dir,
+                        watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log,
+                        cancel_check=self._pakmap_cancel.is_set, sound_design=sound_design,
+                        pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
+                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir,
+                        media_callbacks=dict(on_scene_start=_pm_scene_start, on_scene_complete=_pm_scene_complete,
+                                             on_scene_generating=_pm_scene_generating, on_manager_ready=_pm_manager_ready),
+                    )
+            except Exception as exc:
+                result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+            self.after(0, lambda: finish(result))
+
+        def finish(result) -> None:
+            self._pakmap_running = False
+            cancelled = bool(getattr(result, "cancelled", False)) or self._pakmap_cancel.is_set()
+            self._pakmap_cancel.clear()
+            tracking_run, self._pakmap_tracking = self._pakmap_tracking, None
+            self._track_generation_end(
+                tracking_run, "cancelled" if (cancelled and not result.ok) else ("completed" if result.ok else "failed"),
+                output_path=result.output_path, validated=True, message="\n".join(str(e) for e in (result.errors or [])),
+            )
+            if result.report is not None:
+                self._set_pakmap_plan_text(result.report.to_text())
+            if cancelled and not result.ok:
+                self._pakmap_status_var.set("Cancelled")
+                self._append_log("[PAKMAP] Generation cancelled. Nothing was exported; Generate again to restart.\n")
+                self._sync_primary_cta()
+                return
+            if result.ok:
+                self._pakmap_status_var.set(f"Done: {result.output_path}")
+                self._append_log(f"[PAKMAP] Final video: {result.output_path}\n")
+                for credit in result.credits:
+                    self._append_log(f"[PAKMAP] Credit to include: {credit}\n")
+                plan = getattr(result, "audio", None)
+                for sid, what in sorted((getattr(plan, "missing", None) or {}).items()):
+                    self._append_log(f"[PAKMAP] Missing sound {sid}: {what}\n")
+                self._last_output = str(result.output_path)
+                try:
+                    self._show_preview(str(result.output_path))
+                except Exception:
+                    pass
+                messagebox.showinfo(
+                    "pakMap video ready",
+                    f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').",
+                )
+            else:
+                self._append_log("[PAKMAP] Generation failed:\n" + "\n".join(result.errors) + "\n")
+                if getattr(result, "unresolved", None):
+                    # pictures that could not be found: fix them where every style fixes them, in the Visual Plan table
+                    n = len(result.unresolved)
+                    self._pakmap_status_var.set(f"{n} picture(s) need attention — fix them in the Visual Plan tab, then Generate again")
+                    self._refresh_qa_ui(immediate=True)
+                    self._goto_workflow_view("visual_plan")
+                else:
+                    self._pakmap_status_var.set("Failed — see the plan box and the log")
+                from pakmap.app_integration import friendly_problems
+
+                nice = friendly_problems(persisted, result.errors)
+                self._show_error_dialog("Generation failed", overscaled_failure_summary(nice), "\n".join(result.errors) or "Unknown error")
             self._sync_primary_cta()
 
         threading.Thread(target=worker, daemon=True).start()
@@ -3399,6 +3966,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_cancel()
         elif action == "overscaled_cancel":
             self._on_overscaled_cancel()
+        elif action == "pakmap_import_csv":
+            self._browse_pakmap_csv()
+        elif action == "pakmap_cancel":
+            self._on_pakmap_cancel()
         else:
             self._on_generate()
 
@@ -4101,6 +4672,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "overscaled":
             self._sync_primary_cta_overscaled()
             return
+        if self.generation_mode == "pakmap":
+            self._sync_primary_cta_pakmap()
+            return
 
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
         audio_ok = bool(self.audio_var.get().strip()) and Path(self.audio_var.get().strip()).is_file()
@@ -4633,6 +5207,17 @@ class VideoGeneratorApp(ctk.CTk):
                 self._overscaled_controls.grid_remove()
                 if self.generation_mode == "overscaled":
                     self.generation_mode = "normal"
+        if hasattr(self, "_pakmap_csv_var"):
+            self._restore_pakmap_settings()
+            if ws.pakmap_csv_path.is_file():
+                self._pakmap_csv_var.set(str(ws.pakmap_csv_path))
+                if self.generation_mode != "overscaled" and self._load_pakmap_csv(str(ws.pakmap_csv_path)):
+                    self._pakmap_enabled_var.set(True)
+                    self._pakmap_controls.grid()
+                    self.generation_mode = "pakmap"
+            else:
+                self._pakmap_csv_var.set("")
+                self._pakmap_deactivate()
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -6082,6 +6667,8 @@ class VideoGeneratorApp(ctk.CTk):
         skips redundant re-parses on a plain, idle tab revisit."""
         if self.generation_mode == "overscaled":
             return
+        if self.generation_mode == "pakmap":
+            return  # pakMap owns self._scene_rows too (its pictures); see _populate_pakmap_visual_plan
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -7307,6 +7894,8 @@ class VideoGeneratorApp(ctk.CTk):
         and asked Flow for it again, discarding the user's choice."""
         if self.generation_mode == "overscaled" and self._workspace is not None:
             return self._workspace.overscaled_images_dir
+        if self.generation_mode == "pakmap" and self._workspace is not None:
+            return self._workspace.pakmap_images_dir
         return self._workspace.assets_dir
 
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
@@ -9736,6 +10325,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "overscaled":
             self._run_overscaled_generation()
             return
+        if self.generation_mode == "pakmap":
+            self._run_pakmap_generation()
+            return
 
         if self._running:
             self._on_cancel()
@@ -10773,6 +11365,12 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_fix_all_visual_issues(self) -> None:
         if not self._scene_rows:
+            return
+        if self.generation_mode == "pakmap":
+            messagebox.showinfo(
+                "Fix All Issues",
+                "Not available for pakMap. Use Retry or Change source on the affected picture(s) instead.",
+            )
             return
         if self.generation_mode == "overscaled":
             # This button's VQA/report system (visual_qa.build_project_report

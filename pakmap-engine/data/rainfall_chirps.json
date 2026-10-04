@@ -1,0 +1,19 @@
+{
+  "id": "rainfall_chirps",
+  "title": "Annual rainfall, mean of 2016-2020 (CHIRPS v2.0)",
+  "kind": "grid",
+  "file": "rainfall_chirps_2016_2020_0p1.i16.gz",
+  "dtype": "int16",
+  "nodata": -32768,
+  "cols": 3600,
+  "rows": 1000,
+  "west": -180.0,
+  "east": 180.0,
+  "north": 50.0,
+  "south": -50.0,
+  "unit": "mm/year",
+  "ramp": "rainfall",
+  "licence": "Public domain (CHIRPS, Climate Hazards Center). Cite: Funk et al. 2015, Scientific Data 2:150066.",
+  "attribution": "Rainfall: CHIRPS v2.0, Climate Hazards Center, UC Santa Barbara (public domain); 2016-2020 mean, 0.1 degree.",
+  "coverage": "land between 50 N and 50 S"
+}
