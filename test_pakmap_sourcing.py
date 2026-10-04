@@ -225,6 +225,51 @@ class TestCompile(unittest.TestCase):
         self.assertIn("row 3", " ".join(cm.exception.report.errors))
         self.assertIn("PNG with transparency", " ".join(cm.exception.report.errors))
 
+    def build_hold(self, body, media_map=None):
+        return compile_csv(text="item_no,vo_anchor,layer_type,layer_id,label_text,geo_ref,asset_path,anchor,hold\n" + body, words=WORDS, validate=False, media_map=media_map)
+
+    def test_several_full_screen_clips_play_in_turn_and_never_become_one_path_with_a_pipe(self):
+        # the failure seen in the app: media_full "finale" got "…/014.mp4|…/015.mp4" and the renderer could not find that file
+        body = '1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,media_full,finale,,,stock_video:aerial one|stock_video:aerial two,,6\n'
+        events = [e for e in self.build_hold(body, {(3, 0): "/m/014.mp4", (3, 1): "/m/015.mp4"}).spec["events"] if e["type"] == "media_full"]
+        self.assertEqual([e["media"] for e in events], ["/m/014.mp4", "/m/015.mp4"])
+        self.assertFalse(any("|" in e["media"] for e in events))
+        a, b = events
+        self.assertEqual((a["id"], b["id"]), ("finale", "finale_2"))
+        self.assertAlmostEqual(a["t_out"] - b["t_in"], 0.5, places=3)         # the second dissolves in over the first
+        self.assertTrue(b["xfade_prev"] and "xfade_prev" not in a)
+        self.assertAlmostEqual(b["t_out"] - a["t_in"], 6.0, places=3)         # together they fill the row's time on screen
+
+    def test_three_clips_and_a_plan_check_before_anything_is_fetched(self):
+        body = '1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,media_full,finale,,,a.mp4|b.mp4|c.mp4,,6\n'
+        ev = [e for e in self.build_hold(body).spec["events"] if e["type"] == "media_full"]
+        self.assertEqual([e["media"] for e in ev], ["a.mp4", "b.mp4", "c.mp4"])
+        self.assertEqual([bool(e.get("xfade_prev")) for e in ev], [False, True, True])
+        for p, n in zip(ev, ev[1:]):
+            self.assertAlmostEqual(p["t_out"] - n["t_in"], 0.5, places=3)
+
+    def test_too_many_clips_for_the_time_is_an_error_that_names_the_row(self):
+        with self.assertRaises(CompileError) as cm:
+            self.build_hold('1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,media_full,finale,,,a.mp4|b.mp4|c.mp4|d.mp4,,2\n')
+        self.assertIn("row 3", " ".join(cm.exception.report.errors))
+        self.assertIn("too short", " ".join(cm.exception.report.errors))
+
+    def test_one_clip_is_exactly_as_before(self):
+        ev = [e for e in self.build_hold('1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,media_full,finale,,,a.mp4,,6\n').spec["events"] if e["type"] == "media_full"]
+        self.assertEqual(len(ev), 1)
+        self.assertNotIn("xfade_prev", ev[0])
+
+    def test_a_pipe_on_a_filmstrip_card_or_a_sticker_is_refused_at_load_with_the_row(self):
+        for layer in ("filmstrip", "sticker"):
+            with self.assertRaises(CsvError) as cm:
+                parse_csv("x.csv", text=HEAD + f"1,Kenya,{layer},a,ONE,Nairobi,a.jpg|b.jpg,center,\n")
+            self.assertIn("row 2", cm.exception.problems[0])
+            self.assertIn("takes one picture", cm.exception.problems[0])
+
+    def test_a_photo_card_crossfade_still_works(self):
+        ev = {e["id"]: e for e in self.build('1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,pip,p,,Nairobi,a.jpg|b.jpg,tr,\n').spec["events"]}
+        self.assertEqual(ev["p"]["images"], ["a.jpg", "b.jpg"])
+
     def test_local_files_are_unchanged_by_the_map(self):
         spec = self.build('1,Kenya,hud_title,t,PART 1,,,,\n1,Nairobi,pip,p,,Nairobi,media/city.jpg,tr,\n', {(99, 0): "/m/x.jpg"}).spec
         self.assertEqual({e["id"]: e for e in spec["events"]}["p"]["media"], "media/city.jpg")

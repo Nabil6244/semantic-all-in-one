@@ -33,7 +33,7 @@ Rules the compiler applies for you:
 | `pip` | `asset_path` | A photo or clip card. `a.jpg|b.jpg` crossfades. `anchor`: tl tr ml mr bl br center. `label_text` = yellow label. `geo_ref` = leader line to that place. `params`: `{"shape": "square"}`. |
 | `filmstrip` | 3-7 rows with the same `layer_id` | One row per card: `asset_path` + `label_text`. `anchor`: center, left or right. |
 | `sticker` | `asset_path` (PNG with transparency), `geo_ref` | Stands on the place. `params`: `{"height_frac": 0.4}` or `{"at": {"x": 960, "y": 700}}`. Never together with a photo card. |
-| `media_full` | `asset_path` | Photo or clip covering the screen with a 0.5 s dissolve; the HUD, stat chips and cards stay on top; the map holds still and returns where it left. |
+| `media_full` | `asset_path` | Photo or clip covering the screen with a 0.5 s dissolve; the HUD, stat chips and cards stay on top; the map holds still and returns where it left. Use one clip per row. (If a row does list several with `|`, they play in turn inside its time on screen, each dissolving into the next, so a render never fails on it; the CSV prompt does not ask for this.) |
 | `dots` | `data_source`, `geo_ref` | `bundled:populated_places` (approximate) or `file:points.csv` (`lat,lon`). `params`: `{"per_million": 150}`. |
 | `cluster` | `geo_ref` = `A;B;C` | A few dots popping in one after another. |
 | `value_overlay` | `data_source`, `geo_ref` (a country) | Colour map from data: `bundled:rainfall_chirps` or your own `file:grid.tif` (.tif in lon/lat, .asc, or `lon,lat,value` .csv). |
@@ -47,7 +47,7 @@ Rules the compiler applies for you:
 
     stock_image:Nairobi skyline at dusk
     flow_video:aerial of Lake Victoria at sunrise
-    stock_image:Nairobi skyline|stock_image:Kenyan highlands      (a cross-fade is still a|b; files and sources can be mixed)
+    stock_image:Nairobi skyline|stock_image:Kenyan highlands      (a|b is a cross-fade inside a photo card, `pip`; other layers take one picture or clip; files and sources can be mixed)
 
 Works on `pip`, every `filmstrip` card and `media_full`. A `sticker` must be a transparent PNG file (no provider can supply one). **You do not edit these in the CSV after the AI has written them.** Loading the script puts every such picture in the app's **Visual Plan** tab as its own row (numbered in script order, one per use), with the source (Stock / Flow / YouTube) and what it is for. There you use the normal Retry, Change source (another stock result, Flow, YouTube, a local file), Skip and Local clip actions. Generate then fetches only what is missing through the app's existing providers, reuses everything saved (including your replacements, so no picture is fetched or generated twice), and renders from the files in the Visual Plan's folder. Flow generation costs credits, so the app asks before generating anything new with Flow. If a picture cannot be found the run stops before drawing, names the picture, and opens the Visual Plan tab; Skip leaves that layer out. Local-file pictures are your own choice and are not rows. **Check plan** lists which pictures will be fetched, generated with Flow, or are already saved, and puts the second each one appears in front of its Visual Plan row.
 

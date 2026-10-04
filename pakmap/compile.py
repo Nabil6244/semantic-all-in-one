@@ -29,6 +29,7 @@ from .schema import CsvError, Row, parse_csv
 LEAD_S = 0.14  # the title chip lands this long before the narrator starts the item
 CLEAR_S = 0.5  # fixed gap between one item's layers and the next item's first event
 MIN_VISIBLE_S = 0.4
+DISSOLVE_S = 0.5  # pakmap-engine TIMING.dissolve: the cross-dissolve at either end of full-screen media
 
 # how long a layer stays when the row gives neither t_end nor hold (None = until the item ends)
 DEFAULT_HOLD = {
@@ -164,7 +165,7 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
     # pictures named by source (stock_image:..., flow_image:...): a sticker needs a transparent PNG, which no provider can supply;
     # everything else is swapped for the fetched file when the caller has fetched them (media_map), else left as written (a plan check)
     import dataclasses
-    from .sourcing import find_occurrences, media_for
+    from .sourcing import find_occurrences, media_for, split_parts
 
     for row in rows:
         if row.layer_type == "sticker" and find_occurrences([row]):
@@ -316,12 +317,30 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             rep.warnings.append(f"row {row.line}: {ev['id']!r} is on screen for only {max(0.0, t_out - t):.2f}s because the next item starts at {end + CLEAR_S:.1f}s")
             t_out = t + MIN_VISIBLE_S
         ev["t_in"], ev["t_out"] = _num(t), _num(t_out)
-        events.append(ev); by_id[ev["id"]] = ev
-        if row.sfx:
-            hints["events"][ev["id"]] = row.sfx
-        if ev["id"] in info:
-            err(f"row {row.line}: duplicate layer_id {ev['id']!r}")
-        info[ev["id"]] = EventReport(ev["id"], row.layer_type, row.item_no, ev["t_in"], ev["t_out"], timing, row.line, anchor, matched)
+        pieces = [ev]
+        clips = split_parts(str(ev.get("media", ""))) if row.layer_type == "media_full" else []
+        if len(clips) > 1:
+            # Several full-screen clips in one row (a|b|c) play one after another inside the row's time on screen, each dissolving into
+            # the next (the engine's xfade_prev keeps the first opaque until the second is fully in). One path with "|" in it is not a file.
+            n, span = len(clips), t_out - t
+            each = (span + (n - 1) * DISSOLVE_S) / n
+            if each < 2 * DISSOLVE_S:
+                err(f"row {row.line}: {n} clips in {span:.1f}s is too short: each clip needs more than {2 * DISSOLVE_S:g}s to dissolve in and out. Give the row a longer hold or fewer clips")
+            pieces = []
+            for k, clip in enumerate(clips):
+                piece = {**ev, "id": ev["id"] if k == 0 else f"{ev['id']}_{k + 1}", "media": clip, "t_in": _num(t + k * (each - DISSOLVE_S))}
+                piece["t_out"] = _num(t_out if k == n - 1 else t + k * (each - DISSOLVE_S) + each)
+                if k:
+                    piece["xfade_prev"] = True
+                pieces.append(piece)
+        for piece in pieces:
+            events.append(piece); by_id[piece["id"]] = piece
+            if row.sfx:
+                hints["events"][piece["id"]] = row.sfx
+            if piece["id"] in info:
+                err(f"row {row.line}: duplicate layer_id {piece['id']!r}")
+            info[piece["id"]] = EventReport(piece["id"], row.layer_type, row.item_no, piece["t_in"], piece["t_out"], timing, row.line, anchor, matched)
+        ev = pieces[0]
         if row.layer_type == "filmstrip":
             last_strip[row.item_no] = ev
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)

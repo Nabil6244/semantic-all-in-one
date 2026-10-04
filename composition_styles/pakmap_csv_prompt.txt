@@ -89,7 +89,9 @@ PICTURES (asset_path)
   stock_video:<specific description of the clip>
   A description is concrete: "stock_image:Nairobi skyline at dusk", not
   "stock_image:city". Use stock_image for people, places, wildlife, buildings,
-  objects. Cross-fade two photos with a pipe: stock_image:A|stock_image:B.
+  objects. Only a photo card (pip) may cross-fade two pictures, with a pipe:
+  stock_image:A|stock_image:B. Every other layer (media_full, filmstrip card)
+  takes exactly ONE picture or clip: never put a pipe in it.
 - Never use a sticker row.
 - Use at most one photo card (pip or filmstrip) per item, and not more than one
   full-screen media_full in the whole video unless the script clearly calls for it.

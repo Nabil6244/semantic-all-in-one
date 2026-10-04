@@ -167,6 +167,9 @@ def parse_csv(source: "str | Path", *, text: Optional[str] = None) -> Tuple[List
                 hint = misspelled_source(part)
                 if hint:
                     problems.append(f"row {n}: asset_path {part!r} looks like a picture source but {part.split(':')[0]!r} is not one (did you mean {hint!r}?)")
+        if row.asset_path and "|" in row.asset_path and row.layer_type in ("filmstrip", "sticker"):
+            problems.append(f"row {n}: a {row.layer_type} {'card ' if row.layer_type == 'filmstrip' else ''}takes one picture; a|b cross-fades belong on a photo card (pip) or a full-screen clip (media_full). "
+                            f"For a filmstrip give one row per card")
         row.sfx = _check_sound(n, "sfx", row.sfx, problems)
         row.ambience = _check_sound(n, "ambience", row.ambience, problems)
         if row.layer_type == "sound" and not (row.sfx or row.ambience):
