@@ -36,6 +36,7 @@ DEFAULT_SETTINGS = {
     "return_grace_s": 0.8,      # a layer whose planned end fell under footage is held this long after the map returns, then leaves
     "pause_overlays": True,     # freeze the map layers' animations under footage and resume them on return
     "globe_hop_km": 1800,       # a camera jump at least this long pulls out to the globe and back in
+    "idle_motion_min_s": 0.0,   # > 0: a map beat this long with no camera move gets a slow push in, and the next eases back (0 = off; a CSV import turns it on at 6)
     "globe_opening": True,      # a Director-made plan opens on the whole planet for ~1.4 s, then flies in and stays close
     "cover_ui": True,           # footage covers chips, cards, captions and the title
     "drift_pct_per_s": 0.5,     # the always-on camera drift (the same default as pakMap)
@@ -97,6 +98,11 @@ class Support:
     place: str = ""  # draws a leader line to this place
     label: str = ""
     hold: Optional[float] = None
+    anchor: str = ""  # the corner or side of the screen (tr, tl, br, bl, ml, mr, center); empty = the next free one
+
+
+MAX_CARDS = 3
+CARD_ANCHORS = ("tr", "tl", "br", "bl", "ml", "mr", "center")
 
 
 @dataclass
@@ -111,6 +117,7 @@ class Beat:
     layers: List[Layer] = field(default_factory=list)
     clips: List[Clip] = field(default_factory=list)
     support: Optional[Support] = None
+    more_cards: List[Support] = field(default_factory=list)  # a beat may show up to MAX_CARDS photo cards, together or one after the other
     # the editorial record of the beat (what the Director decided and why)
     geo_intent: str = ""        # map beats: what the map explains
     footage_intent: str = ""    # footage beats: what the viewer should experience
@@ -125,6 +132,11 @@ class Beat:
     cam_frame: str = ""
     cam_move: str = ""
     chapter: int = 0            # long-form: the planning chapter this beat belongs to (0 = the plan has no chapters)
+
+    @property
+    def cards(self) -> List[Support]:
+        """Every photo card of the beat, the first one first."""
+        return ([self.support] if self.support is not None else []) + list(self.more_cards)
 
 
 @dataclass
@@ -220,6 +232,11 @@ class HybridPlan:
         Path(path).write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _support(sp: dict) -> Support:
+    return Support(asset=str(sp["asset"]), t=None if sp.get("t") is None else float(sp["t"]), place=str(sp.get("place", "")), label=str(sp.get("label", "")),
+                   hold=None if sp.get("hold") is None else float(sp["hold"]), anchor=str(sp.get("anchor", "")))
+
+
 def _beat(raw: dict) -> Beat:
     if raw.get("mode") not in MODES:
         raise ValueError(f"mode must be 'map' or 'footage' (got {raw.get('mode')!r})")
@@ -230,8 +247,8 @@ def _beat(raw: dict) -> Beat:
              cam_place=str(raw.get("cam_place", "")), cam_frame=str(raw.get("cam_frame", "")), cam_move=str(raw.get("cam_move", "")), chapter=int(raw.get("chapter", 0) or 0))
     if raw.get("support"):
         sp = raw["support"]
-        b.support = Support(asset=str(sp["asset"]), t=None if sp.get("t") is None else float(sp["t"]), place=str(sp.get("place", "")), label=str(sp.get("label", "")),
-                            hold=None if sp.get("hold") is None else float(sp["hold"]))
+        b.support = _support(sp)
+    b.more_cards = [_support(sp) for sp in raw.get("more_cards") or []]
     for c in raw.get("camera") or []:
         b.camera.append(CameraStep(action=str(c["action"]), place=str(c.get("place", "")), frame=str(c.get("frame", "")), t=float(c.get("t", b.start)),
                                    dur=None if c.get("dur") is None else float(c["dur"]), zoom_delta=None if c.get("zoom_delta") is None else float(c["zoom_delta"])))
@@ -306,7 +323,7 @@ def validate_plan(plan: HybridPlan) -> List[str]:
     layer_ids: List[str] = []
     for i, b in enumerate(plan.beats):
         if b.mode == "footage":
-            if b.camera or b.layers or b.support:
+            if b.camera or b.layers or b.support or b.more_cards:
                 out.append(f"beat {b.id}: a footage beat cannot hold map camera moves, layers or a supporting card (they belong to a map beat)")
             if not b.clips:
                 out.append(f"beat {b.id}: a footage beat needs at least one clip")
@@ -317,17 +334,22 @@ def validate_plan(plan: HybridPlan) -> List[str]:
             continue
         if b.clips:
             out.append(f"beat {b.id}: a map beat cannot hold footage clips")
-        if b.mode == "map" and b.support:
+        if b.mode == "map" and b.cards:
             out.append(f"beat {b.id}: a plain map beat has no supporting card (use mode map_footage)")
         if b.mode == "map_footage":
             if b.support is None:
                 out.append(f"beat {b.id}: a map_footage beat needs a supporting card (what the footage shows)")
-            else:
-                why = asset_problem(b.support.asset)
+            if len(b.cards) > MAX_CARDS:
+                out.append(f"beat {b.id}: a beat shows at most {MAX_CARDS} photo cards (it has {len(b.cards)})")
+            for k, card in enumerate(b.cards, 1):
+                which = "supporting card" if len(b.cards) == 1 else f"photo card {k}"
+                why = asset_problem(card.asset)
                 if why:
-                    out.append(f"beat {b.id}: supporting card: {why}")
-                if b.support.t is not None and not (b.start - EPS <= b.support.t < b.end - EPS):
-                    out.append(f"beat {b.id}: the supporting card appears at {b.support.t:g}s, outside its beat")
+                    out.append(f"beat {b.id}: {which}: {why}")
+                if card.t is not None and not (b.start - EPS <= card.t < b.end - EPS):
+                    out.append(f"beat {b.id}: the {which} appears at {card.t:g}s, outside its beat")
+                if card.anchor and card.anchor not in CARD_ANCHORS:
+                    out.append(f"beat {b.id}: the {which} anchor {card.anchor!r} must be one of {', '.join(CARD_ANCHORS)}")
         lo, hi = free_interval(plan, i)
         for c in b.camera:
             if c.action not in CAMERA_ACTIONS:

@@ -314,6 +314,7 @@ def derive_cameras(plan: HybridPlan) -> None:
 
     current: Optional[Tuple[str, str]] = None
     started = any(c.action == "start" for b in plan.beats if not b.cam_place for c in b.camera)
+    pushed = False
     for i, b in enumerate(plan.beats):
         if not plan.is_map_mode(b) or not b.cam_place:
             continue
@@ -345,6 +346,30 @@ def derive_cameras(plan: HybridPlan) -> None:
             dur = round(min(8.0, hi - t0 - 0.2), 2)
             if dur >= 1.0:
                 b.camera.append(CameraStep(action="push_in", t=t0, dur=dur, zoom_delta=0.6))
+        # a long stretch of map that would otherwise sit still gets a slow push in, and the next such stretch eases back out
+        # (a viewer feels a map that never moves as a slide)
+        if any(c.action == "fly_to" for c in b.camera):
+            pushed = any(c.action == "push_in" for c in b.camera)
+        elif any(c.action == "push_in" for c in b.camera):
+            pushed = True
+        elif b.cam_move != "hold" and hi - lo >= float(plan.setting("idle_motion_min_s")) > 0 and started:
+            t0 = round(lo + 0.3, 2)
+            if pushed:
+                b.camera.append(CameraStep(action="fly_to", place=target[0], frame=target[1], t=t0, dur=round(min(2.0, hi - t0 - 0.2), 2)))
+                pushed = False
+            else:
+                b.camera.append(CameraStep(action="push_in", t=t0, dur=round(min(8.0, hi - t0 - 0.2), 2), zoom_delta=0.45))
+                pushed = True
+        flights = [c for c in b.camera if c.action == "fly_to"]
+        min_still = float(plan.setting("idle_motion_min_s"))
+        if min_still <= 0:
+            continue
+        if flights and not any(c.action == "push_in" for c in b.camera) and b.cam_move != "hold":
+            land = max(c.t + (c.dur or 0.0) for c in flights)
+            if hi - land >= 2 * min_still - 2.0:
+                # a long beat that flew in (or eased back) early keeps moving after it lands
+                b.camera.append(CameraStep(action="push_in", t=round(land + 1.0, 2), dur=round(min(8.0, hi - land - 1.4), 2), zoom_delta=0.4))
+                pushed = True
     if not any(c.action == "start" for b in plan.beats for c in b.camera):  # the video never shows a map target: give the camera one anyway
         for b in plan.beats:
             if plan.is_map_mode(b):

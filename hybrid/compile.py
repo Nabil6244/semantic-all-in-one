@@ -24,6 +24,8 @@ from pakmap.schema import COLUMNS, Row
 
 from .plan import EPS, Beat, HybridPlan, Layer, validate_plan
 
+CARD_DEFAULT_ANCHORS = ("tr", "ml", "br")  # where a beat's 1st, 2nd and 3rd card sit when the plan does not say (the title owns the top-left)
+
 
 @dataclass
 class HybridCompile:
@@ -113,6 +115,37 @@ def _clip_spans(plan: HybridPlan, beat: Beat) -> List[Tuple[float, float]]:
     return [(start + i * (L - x), start + i * (L - x) + L) for i in range(n - 1)] + [(start + (n - 1) * (L - x), end)]
 
 
+def _bottom_band(lay: Layer) -> bool:
+    """A caption (centred along the bottom) and a stat chip in a bottom corner share the same strip of the screen."""
+    return lay.type == "caption" or (lay.type == "stat" and (lay.anchor or "br") in ("br", "bl"))
+
+
+def text_collisions(plan: HybridPlan, beat: Beat, notes: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
+    """Layers that would be drawn on top of each other: {layer id: {"end": seconds} or {"anchor": "tr"}}. The earlier one leaves just before
+    the later one arrives when it has had time to be read; otherwise a stat chip moves to the top-right corner."""
+    spans = sorted(((lay, layer_end(plan, beat, lay)) for lay in beat.layers if lay.type in ("stat", "caption") and _bottom_band(lay)),
+                   key=lambda p: p[0].t)
+    out: Dict[str, Dict[str, Any]] = {}
+    for i, (first, f_end) in enumerate(spans):
+        for second, _s_end in spans[i + 1:]:
+            if second.t >= out.get(first.id, {}).get("end", f_end) - EPS:
+                continue
+            if first.type == "stat" and second.type == "stat" and (first.anchor or "br") != (second.anchor or "br"):
+                continue  # one in each corner: they sit side by side
+            end = out.get(first.id, {}).get("end", f_end)
+            if second.t - first.t >= 2.0:
+                out[first.id] = {"end": round(second.t - 0.25, 3)}
+                if notes is not None:
+                    notes.append(f"layer {first.id} leaves {end - second.t + 0.25:g}s early so it does not sit on top of {second.id}")
+            else:
+                mover = first if first.type == "stat" else second if second.type == "stat" else None
+                if mover is not None and mover.id not in out:
+                    out[mover.id] = {"anchor": "tr"}
+                    if notes is not None:
+                        notes.append(f"layer {mover.id} moves to the top-right corner so it does not sit on top of {(second if mover is first else first).id}")
+    return out
+
+
 def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]]:
     problems = validate_plan(plan)
     if problems:
@@ -136,8 +169,9 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                 params = {"zoom_delta": c.zoom_delta} if c.zoom_delta is not None else {}
                 add(f"beat {beat.id} · camera {c.action}", layer_type="camera", layer_id=f"{beat.id}_cam_{c.action}_{len(rows)}", camera_action=c.action,
                     t_start=0.0 if c.action == "start" else c.t, geo_ref=c.place, frame=c.frame, camera_dur=c.dur, params=params)
+            clash = text_collisions(plan, beat, notes)
             for lay in beat.layers:
-                end = layer_end(plan, beat, lay, notes)
+                end = clash.get(lay.id, {}).get("end") or layer_end(plan, beat, lay, notes)
                 kw: Dict[str, Any] = dict(layer_type=lay.type, layer_id=lay.id, t_start=lay.t, t_end=end, params=dict(lay.params))
                 label = f"beat {beat.id} · {lay.type} {lay.id}"
                 if lay.type == "hud_title":
@@ -149,24 +183,35 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                 elif lay.type == "line":
                     kw.update(geo_ref=";".join(lay.places), line_kind=lay.kind)
                 elif lay.type == "stat":
-                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format or "#,##0", sub_text=lay.sub, anchor=lay.anchor or "br")
+                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format or "#,##0", sub_text=lay.sub, anchor=clash.get(lay.id, {}).get("anchor") or lay.anchor or "br")
                 elif lay.type == "caption":
                     kw.update(label_text=lay.text, sub_text=lay.sub, anchor=lay.anchor or "bc")
                 add(label, **kw)
-            if beat.support is not None:  # MAP+FOOTAGE: the map says where, a photo card shows what it looks like
-                sp = beat.support
-                t0 = sp.t if sp.t is not None else min(beat.start + 1.0, beat.end - 2.0)
+            cards = beat.cards  # MAP+FOOTAGE: the map says where, photo cards show what it looks like (up to MAX_CARDS, in different corners)
+            landed = max([c.t + (c.dur or 0.0) for c in beat.camera if c.action == "fly_to"] or [0.0]) + 0.25
+            for k, sp in enumerate(cards):
                 # a card follows the map from the place it first appears: born during a camera fly-in it is dragged off the screen,
                 # so it waits for the camera to arrive (unless that would leave it no time to be read)
-                landed = max([c.t + (c.dur or 0.0) for c in beat.camera if c.action == "fly_to"] or [0.0]) + 0.25
+                if sp.t is not None:
+                    t0 = sp.t
+                elif k == 0:
+                    t0 = min(beat.start + 1.0, beat.end - 2.0)
+                else:
+                    t0 = beat.start + (beat.end - beat.start) * k / len(cards)  # the others are spread over the beat
                 if t0 < landed and beat.end - landed - 0.4 >= 1.5:
                     t0 = landed
                 room = beat.end - t0 - 0.4
+                if room < 2.0 and beat.end - beat.start - 0.4 >= 2.0:
+                    # spoken in the last words of its beat: it comes up a little earlier so it can be seen, not refused
+                    t0 = max(beat.start + 0.2, beat.end - 0.4 - 2.0)
+                    notes.append(f"beat {beat.id}: photo card {k + 1} was brought forward to {t0:.1f}s so it stays on screen for at least 2 seconds")
+                    room = beat.end - t0 - 0.4
                 hold = min(sp.hold if sp.hold else 6.0, room)
                 if hold < 1.0:
-                    raise HybridCompileError([f"beat {beat.id}: no room for its supporting card ({room:.1f}s left after it would appear)"])
-                add(f"beat {beat.id} · supporting card", layer_type="pip", layer_id=f"{beat.id}_support", t_start=t0, t_end=t0 + hold, asset_path=sp.asset,
-                    geo_ref=sp.place, label_text=sp.label, anchor="tr", params={})
+                    raise HybridCompileError([f"beat {beat.id}: no room for its " + (f"photo card {k + 1}" if len(cards) > 1 else "supporting card") + f" ({room:.1f}s left after it would appear)"])
+                anchor = sp.anchor or CARD_DEFAULT_ANCHORS[k % len(CARD_DEFAULT_ANCHORS)]
+                add(f"beat {beat.id} · supporting card" + (f" {k + 1}" if k else ""), layer_type="pip", layer_id=f"{beat.id}_support" + (f"{k + 1}" if k else ""),
+                    t_start=t0, t_end=t0 + hold, asset_path=sp.asset, geo_ref=sp.place, label_text=sp.label, anchor=anchor, params={})
         else:
             spans = _clip_spans(plan, beat)
             if prev_footage_end is not None:  # footage straight after footage: the first clip dissolves in over the last one, never over the map

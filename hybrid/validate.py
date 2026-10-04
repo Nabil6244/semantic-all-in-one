@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 from .plan import EPS, HybridPlan, validate_plan
 
@@ -17,6 +17,9 @@ LONG_MAP_S = 16.0              # a map run this long should change something
 LONG_FOOTAGE_S = 18.0          # footage this long with one clip is a still holding the screen
 MAX_CAPTION_CHARS = 44         # the engine does not wrap a caption: longer text runs off both edges of the frame
 MIN_READABLE_S = 2.5           # a number chip, caption or title needs this long on screen to be read
+FIRST_CARD_WARN_S = 15.0      # the first photo card should be on screen by now
+QUIET_MAP_WARN_S = 7.0        # a stretch of one map beat with nothing new appearing
+BARE_MAP_WARN_S = 20.0        # the map alone for longer than this feels like a slide
 SWITCHES_PER_MIN_WARN = 6.0    # visual churn
 MIN_SWITCHES_FOR_CHURN = 4
 
@@ -62,7 +65,7 @@ def validate(plan: HybridPlan) -> List[Finding]:
     for i, b in enumerate(plan.beats):
         dur = b.end - b.start
         if b.mode in ("map", "map_footage"):
-            targets = [c.place for c in b.camera if c.place] + [l.place for l in b.layers if l.place] + [p for l in b.layers for p in l.places]
+            targets = [c.place for c in b.camera if c.place] + [l.place for l in b.layers if l.place] + [p for l in b.layers for p in l.places] + ([b.cam_place] if b.cam_place else [])
             if not targets and not b.geo_intent:
                 err("map_no_geography", b.id, f"beat {b.id}: a map beat with no place, no layer and no stated geographic intent has no reason to be on the map")
             elif not b.geo_intent:
@@ -94,7 +97,7 @@ def validate(plan: HybridPlan) -> List[Finding]:
     # duplicates and repetition
     seen: dict = {}
     for b in plan.beats:
-        assets = [c.asset.strip().lower() for c in b.clips] + ([b.support.asset.strip().lower()] if b.support else [])
+        assets = [c.asset.strip().lower() for c in b.clips] + [card.asset.strip().lower() for card in b.cards]
         for a in assets:
             if a in seen and seen[a] != b.id:
                 warn("repeated_footage", b.id, f"beat {b.id}: the same footage ({a[:60]}) is already used in beat {seen[a]}")
@@ -115,6 +118,42 @@ def validate(plan: HybridPlan) -> List[Finding]:
         warn("no_map", "", "the plan never shows the map: that is footage with no geography (use PakMap or Fact Map for that)")
     if all(b.mode != "footage" for b in plan.beats) and not any(b.support for b in plan.beats) and plan.duration > 30:
         warn("no_footage", "", "the plan has no footage at all: the viewer never sees the place, only the map")
+
+    # when does the viewer first see a picture, and how long does the map run bare?
+    pic_times = []
+    for b in plan.beats:
+        if b.mode == "footage":
+            pic_times.append((b.start, b.end))
+        for card in b.cards:
+            t0 = card.t if card.t is not None else min(b.start + 1.0, b.end - 2.0)
+            pic_times.append((t0, min(b.end, t0 + (card.hold or 6.0))))
+    pic_times.sort()
+    card_starts = [(card.t if card.t is not None else min(b.start + 1.0, b.end - 2.0)) for b in plan.beats for card in b.cards]
+    if plan.duration > 40 and (not card_starts or min(card_starts) > FIRST_CARD_WARN_S):
+        warn("late_first_card", "", f"the first photo card appears at {min(card_starts) if card_starts else plan.duration:.0f}s: open with a card inside the first {FIRST_CARD_WARN_S:.0f} seconds so the picture work starts early")
+    cursor = 0.0
+    for a, z in pic_times + [(plan.duration, plan.duration)]:
+        if a - cursor > BARE_MAP_WARN_S:
+            warn("bare_map", "", f"{cursor:.0f}s to {a:.0f}s ({a - cursor:.0f}s) has no photo card or footage: add a card to a beat in that stretch")
+        cursor = max(cursor, z)
+
+    # a map that has nothing new for a while, or says the same thing twice, feels still
+    seen_fill: Dict[str, str] = {}
+    for b in plan.beats:
+        for l in b.layers:
+            if l.type == "fill" and l.place:
+                k = l.place.strip().lower()
+                if k in seen_fill and seen_fill[k] != b.id:
+                    warn("repeat_fill", b.id, f"beat {b.id}: {l.place} is filled again (beat {seen_fill[k]} already did): fill the specific part the narrator is on, or leave it out")
+                seen_fill.setdefault(k, b.id)
+        if b.mode != "footage":
+            moments = sorted([l.t for l in b.layers] + [c.t for c in b.cards if c.t is not None] + [c.t for c in b.camera if c.action != "start"] + [b.start, b.end])
+            for a, z in zip(moments, moments[1:]):
+                if z - a > QUIET_MAP_WARN_S and not b.cards:
+                    warn("quiet_map", b.id, f"beat {b.id}: {a:.0f}s to {z:.0f}s has nothing new on the map: add a marker, a line, a label, a number or a card there")
+                    break
+    if plan.duration > 90 and not any(l.type == "line" for b in plan.beats for l in b.layers):
+        warn("no_lines", "", "the plan draws no route, river or border line: a flow, a trade route or a boundary mentioned in the story is worth drawing")
 
     # overlays that cannot coexist (the renderer enforces these; saying so here names the beat)
     from .compile import layer_end
@@ -169,8 +208,9 @@ def validate(plan: HybridPlan) -> List[Finding]:
                 wanted.append((l.place, "point", l.type))
             elif l.type == "line":
                 wanted += [(p, "point", "line point") for p in l.places]
-        if b.support and b.support.place:
-            wanted.append((b.support.place, "point", "supporting card"))
+        for card in b.cards:
+            if card.place:
+                wanted.append((card.place, "point", "supporting card"))
         for ref, prefer, what in wanted:
             r = find(ref, prefer)
             if isinstance(r, GeoError):

@@ -477,12 +477,12 @@ class TestCentredDissolveAndCards(unittest.TestCase):
         rows, _, _ = plan_to_rows(HybridPlan.from_dict(d))
         self.assertAlmostEqual(next(r for r in rows if r.layer_id == "b3_support").t_start, 17.0, places=2)
 
-    def test_a_card_that_cannot_fit_or_a_card_on_a_plain_map_beat_is_refused(self):
+    def test_a_late_card_is_brought_forward_and_a_card_on_a_plain_map_beat_is_refused(self):
         d = copy.deepcopy(CENTERED)
         d["beats"][2]["support"]["t"] = 23.2
-        with self.assertRaises(HybridCompileError) as cm:
-            plan_to_rows(HybridPlan.from_dict(d))
-        self.assertIn("no room for its supporting card", cm.exception.problems[0])
+        rows, _, notes = plan_to_rows(HybridPlan.from_dict(d))  # spoken in the last words of its beat: brought forward, not refused
+        self.assertLess(next(r for r in rows if r.layer_id == "b3_support").t_start, 23.2)
+        self.assertTrue(any("brought forward" in n for n in notes))
         d = copy.deepcopy(CENTERED)
         d["beats"][2]["mode"] = "map"
         self.assertTrue(any("plain map beat has no supporting card" in x for x in validate_plan(HybridPlan.from_dict(d))))

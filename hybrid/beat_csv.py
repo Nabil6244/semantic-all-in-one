@@ -29,7 +29,7 @@ import io
 import json
 from typing import Any, Dict, List, Optional
 
-from .plan import MODES, Beat, CameraStep, Clip, HybridPlan, Layer, PlanError, Support
+from .plan import MAX_CARDS, MODES, Beat, CameraStep, Clip, HybridPlan, Layer, PlanError, Support
 
 COLUMNS = ("beat", "row", "vo_anchor", "mode", "start", "end", "t", "dur", "id", "type", "place", "frame", "label", "sub", "text", "role", "kind",
            "value_from", "value_to", "format", "anchor", "until", "hold", "asset", "why", "extra")
@@ -37,6 +37,11 @@ ROWS = ("plan", "chapter", "beat", "camera", "layer", "clip", "card")
 # beat fields kept in `extra` (with their defaults: a default is not written)
 BEAT_EXTRA = {"geo_intent": "", "footage_intent": "", "overlay_intent": "", "transition": "dissolve", "keep_overlays": False,
               "transition_sound": "", "confidence": 1.0, "validation": "", "findings": [], "chapter": 0}
+
+
+# How long a layer stays when the CSV says neither `hold` nor `until` (the lengths composition_styles/hybrid_beats_prompt.txt promises).
+# Titles, fills and lines stay until their beat ends.
+DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "marker": 9.0}
 
 
 def is_beat_csv(text: str) -> bool:
@@ -81,9 +86,8 @@ def plan_to_csv(plan: HybridPlan) -> str:
         for c in b.clips:
             put(beat=b.id, row="clip", asset=c.asset, dur=_num(c.dur), why=c.reason,
                 extra=_extra({k: True for k in ("kenburns", "loop") if getattr(c, k)}))
-        if b.support is not None:
-            s = b.support
-            put(beat=b.id, row="card", asset=s.asset, t=_num(s.t), place=s.place, label=s.label, hold=_num(s.hold))
+        for s in b.cards:
+            put(beat=b.id, row="card", asset=s.asset, t=_num(s.t), place=s.place, label=s.label, hold=_num(s.hold), anchor=s.anchor)
     return buf.getvalue()
 
 
@@ -117,11 +121,44 @@ def needs_words(text: str) -> bool:
 class _Clock:
     """The narrator's words -> seconds, in script order (pakMap's matcher: "47 million" finds "forty seven million")."""
 
-    def __init__(self, words):
+    def __init__(self, words, notes: Optional[List[str]] = None):
         from pakmap.anchor import Transcript
 
         self.tr = Transcript(list(words)) if words else None
         self.cursor = 0
+        self.notes = notes if notes is not None else []
+
+    def _find(self, words: str):
+        """The narration's own spelling can differ from the script's: Whisper writes 1.3 as "1 3" and hears a name its own way
+        ("Hardee" -> "hardy"). Try the decimal split, then the closest spoken phrase when it is nearly the same word."""
+        import difflib
+        import re
+
+        hit = self.tr.find(words, self.cursor)
+        if hit is not None:
+            return hit
+        split = re.sub(r"(?<=\d)\.(?=\d)", " ", words)
+        if split != words:
+            hit = self.tr.find(split, self.cursor)
+            if hit is not None:
+                return hit
+        near = self.tr.nearest(words)
+        # one word only (a name): a longer phrase must be spoken as written, or a wrong place could be matched silently
+        if (near and len(words.split()) == 1 and len(near[0].split()) == 1 and words[:1].lower() == near[0][:1].lower()
+                and difflib.SequenceMatcher(None, words.lower(), near[0].lower()).ratio() >= 0.72):
+            hit = self.tr.find(near[0], self.cursor)
+            if hit is not None:
+                self.notes.append(f"vo_anchor {words!r} was matched to {near[0]!r} at {near[1]:.1f}s (how the narration spells it)")
+                return hit
+        # a longer phrase with one wrong word: the same start with fewer words, then the same end
+        parts = words.split()
+        for size in range(len(parts) - 1, 1, -1):
+            for label, sub in (("start", parts[:size]), ("end", parts[-size:])):
+                hit = self.tr.find(" ".join(sub), self.cursor)
+                if hit is not None:
+                    self.notes.append(f"vo_anchor {words!r}: not spoken exactly; its {label} words {' '.join(sub)!r} were found at {hit[0].t_start:.1f}s")
+                    return hit
+        return None
 
     def at(self, phrase: str) -> float:
         from pakmap.compile import hit_first
@@ -129,7 +166,7 @@ class _Clock:
         if self.tr is None or not len(self.tr):
             raise ValueError("vo_anchor needs the narration: choose the voiceover first, then load the CSV")
         words, _, mod = phrase.partition("|")
-        hit = self.tr.find(words.strip(), self.cursor)
+        hit = self._find(words.strip())
         if hit is None:
             near = self.tr.nearest(words.strip())
             raise ValueError(f"vo_anchor {words.strip()!r} is not in the narration" + (f" (closest: {near[0]!r} at {near[1]:.1f}s)" if near else ""))
@@ -153,8 +190,9 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
     """Read a beat CSV into a plan. Every problem names its row (as a spreadsheet numbers it: the header is row 1). `words`
     (the voiceover's transcript) and `duration` are needed only when rows are timed by vo_anchor."""
     notes = notes if notes is not None else []
-    clock = _Clock(words)
+    clock = _Clock(words, notes)
     open_ends: Dict[int, int] = {}          # beat index -> its CSV row (end to be filled from the next beat)
+    timed_by_words: List[tuple] = []        # (beat index, layer) with no hold or until: gets its usual hold once the beat's end is known
     anchored: List[tuple] = []              # (beat index, row number, what, time) to check against the beat's span
     any_camera = False
     failed_beats = set()                    # a beat row with a problem: its own rows are not reported again
@@ -228,13 +266,21 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                 b = beats[-1]
                 if r.get("beat") and r["beat"] != b.id:
                     raise ValueError(f"says beat {r['beat']!r} but follows beat {b.id!r}: keep each beat's rows under its beat row")
-                t = when("t")
+                try:
+                    t = when("t")
+                except ValueError as exc:
+                    # a layer, card or camera step whose words are not found is not worth stopping for: it appears with its beat
+                    notes.append(f"row {n}: {exc}; it was placed at the start of beat {b.id}")
+                    t = None
+                    anchor = ""
                 if t is not None and anchor and not r.get("t"):
-                    anchored.append((len(beats) - 1, n, f"{kind} {r.get('id') or r.get('type') or ''}".strip(), t))
+                    anchored.append([len(beats) - 1, n, f"{kind} {r.get('id') or r.get('type') or ''}".strip(), t, None])
                 if kind == "camera":
                     any_camera = True
                     b.camera.append(CameraStep(action=r.get("type", ""), place=r.get("place", ""), frame=r.get("frame", ""),
                                                t=t if t is not None else b.start, dur=_f(r, "dur"), zoom_delta=_opt(extra.pop("zoom_delta", None))))
+                    if anchored and anchored[-1][4] is None and anchored[-1][1] == n:
+                        anchored[-1][4] = b.camera[-1]
                 elif kind == "layer":
                     places = [p.strip() for p in r.get("place", "").split(";") if p.strip()]
                     is_line = r.get("type") == "line" or len(places) > 1
@@ -249,13 +295,23 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                         label=r.get("label", ""), sub=r.get("sub", ""), text=r.get("text", ""), role=r.get("role", ""), kind=r.get("kind", ""),
                         value_from=_f(r, "value_from"), value_to=_f(r, "value_to"), format=r.get("format", ""), anchor=r.get("anchor", ""),
                         until=until, hold=_f(r, "hold"), params=dict(extra.pop("params", {}) or {})))
+                    if anchor and not r.get("t") and not r.get("hold") and not r.get("until") and r.get("type") in DEFAULT_HOLD:
+                        timed_by_words.append((len(beats) - 1, b.layers[-1]))  # written by hand or by an AI: it stays the usual time, not a whole beat
+                    if anchored and anchored[-1][4] is None and anchored[-1][1] == n:
+                        anchored[-1][4] = b.layers[-1]
                 elif kind == "clip":
                     b.clips.append(Clip(asset=r.get("asset", ""), dur=_f(r, "dur"), reason=r.get("why", ""),
                                         kenburns=bool(extra.pop("kenburns", False)), loop=bool(extra.pop("loop", False))))
                 else:
-                    if b.support is not None:
-                        raise ValueError(f"beat {b.id} already has a photo card (a map_footage beat has one)")
-                    b.support = Support(asset=r.get("asset", ""), t=t, place=r.get("place", ""), label=r.get("label", ""), hold=_f(r, "hold"))
+                    if len(b.cards) >= MAX_CARDS:
+                        raise ValueError(f"beat {b.id} already has {MAX_CARDS} photo cards (the most a beat shows)")
+                    card = Support(asset=r.get("asset", ""), t=t, place=r.get("place", ""), label=r.get("label", ""), hold=_f(r, "hold"), anchor=r.get("anchor", ""))
+                    if b.support is None:
+                        b.support = card
+                    else:
+                        b.more_cards.append(card)
+                    if anchored and anchored[-1][4] is None and anchored[-1][1] == n:
+                        anchored[-1][4] = b.cards[-1]
                 _no_more(extra)
             else:
                 raise ValueError(f"row must be one of {', '.join(ROWS)} (got {kind!r})")
@@ -279,12 +335,20 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
         if beats[i].end <= beats[i].start:
             problems.append(f"row {n}: beat {beats[i].id} would end at {beats[i].end:.1f}s, not after it starts ({beats[i].start:.1f}s): "
                             f"the next beat's words come too soon, or are earlier in the script")
-    for i, n, what, t in anchored:
+    for i, lay in timed_by_words:
+        lay.hold = round(max(0.5, min(DEFAULT_HOLD[lay.type], beats[i].end - lay.t)), 3)  # and never past its beat
+    for i, n, what, t, obj in anchored:
         b = beats[i]
         if not (b.start - 1e-6 <= t < b.end - 1e-6):
-            problems.append(f"row {n}: the {what} words are spoken at {t:.1f}s, outside beat {b.id} ({b.start:.1f}-{b.end:.1f}s): put the row under the beat it belongs to")
+            if obj is not None:
+                obj.t = b.start  # spoken outside its beat: it appears with its beat instead of stopping the import
+                notes.append(f"row {n}: the {what} words are spoken at {t:.1f}s, outside beat {b.id} ({b.start:.1f}-{b.end:.1f}s); it was placed at the start of the beat")
+            else:
+                problems.append(f"row {n}: the {what} words are spoken at {t:.1f}s, outside beat {b.id} ({b.start:.1f}-{b.end:.1f}s): put the row under the beat it belongs to")
     if problems:
         raise PlanError(problems)
+    if not settings and timed_by_words:
+        settings = {"idle_motion_min_s": 6.0}  # a hand-written or AI-written CSV: long map beats keep moving (a saved plan keeps its own settings)
     plan = HybridPlan(duration=total if total is not None else beats[-1].end, beats=beats, settings=settings, version=version, chapters=chapters)
     if not any_camera and any(b.cam_place for b in beats):
         from .director import derive_cameras

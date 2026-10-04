@@ -27,7 +27,7 @@ def plan_with_ai(words: Sequence, script: Optional[str], settings: Dict[str, Any
     return plan_hybrid(words, llm, script=script, duration=duration, style_guidance=style_guidance, on_progress=on_progress, checkpoint_dir=checkpoint_dir)
 
 
-_LABEL = re.compile(r"^beat (\S+) · (?:footage clip (\d+)|(supporting card))")
+_LABEL = re.compile(r"^beat (\S+) · (?:footage clip (\d+)|(supporting card)(?: (\d+))?)")
 
 
 def _scene_map(plan: HybridPlan) -> List[dict]:
@@ -38,7 +38,8 @@ def _scene_map(plan: HybridPlan) -> List[dict]:
     out = []
     for o in find_occurrences(rows):
         m = _LABEL.match(line_map.get(o.line, ""))
-        out.append({"occ": o, "beat": m.group(1) if m else "", "clip": int(m.group(2)) if m and m.group(2) else 0, "card": bool(m and m.group(3))})
+        out.append({"occ": o, "beat": m.group(1) if m else "", "clip": int(m.group(2)) if m and m.group(2) else 0, "card": bool(m and m.group(3)),
+                    "card_no": int(m.group(4)) if m and m.group(4) else 1})
     return out
 
 
@@ -51,8 +52,10 @@ def visual_dicts(plan: HybridPlan) -> List[dict]:
     for item in _scene_map(plan):
         o, b = item["occ"], beats.get(item["beat"])
         n = order.index(item["beat"]) + 1 if b else 0
-        what = "supporting card" if item["card"] else (f"footage, clip {item['clip']}/{len(b.clips)}" if b and len(b.clips) > 1 else "footage")
-        why = ((b.support.label if item["card"] and b.support and b.support.label else "") or b.footage_intent or b.purpose) if b else ""
+        cards = b.cards if b else []
+        card = cards[item["card_no"] - 1] if item["card"] and 0 < item["card_no"] <= len(cards) else None
+        what = ("supporting card" if len(cards) < 2 else f"photo card {item['card_no']}/{len(cards)}") if item["card"] else (f"footage, clip {item['clip']}/{len(b.clips)}" if b and len(b.clips) > 1 else "footage")
+        why = ((card.label if card is not None and card.label else "") or b.footage_intent or b.purpose) if b else ""
         ch = f"Ch {b.chapter} · " if b and b.chapter else ""
         out.append({"scene_number": str(o.scene_number), "script_segment": f"{_span(b.start) if b else ''}  {ch}Hybrid beat {n:02d} · {what} — {why}".strip(),
                     "asset_type": o.kind, "prompt": o.prompt})
@@ -95,8 +98,8 @@ def plan_text(plan: HybridPlan, findings: Optional[Sequence[Finding]] = None, *,
                 lines.append("       layers: " + ", ".join(f"{l.type} {l.label or l.place or l.text or ''}".strip() + f" @{_span(l.t)}" for l in b.layers))
         for c in b.clips:
             lines.append(f"       clip: {c.asset}" + (f"  — {c.reason}" if c.reason else ""))
-        if b.support:
-            lines.append(f"       card: {b.support.asset}" + (f"  — {b.support.label}" if b.support.label else ""))
+        for card in b.cards:
+            lines.append(f"       card: {card.asset}" + (f"  — {card.label}" if card.label else ""))
         for sid in scenes.get(b.id, []):
             status = (scene_status or {}).get(sid)
             lines.append(f"       Visual Plan scene {sid}" + (f": {status}" if status else ""))

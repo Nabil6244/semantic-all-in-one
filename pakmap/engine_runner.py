@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -113,9 +114,12 @@ def render_spec(spec: dict, output: Path, *, progress: Optional[Callable[[int, i
                         proc.wait(timeout=10)
                     except Exception:
                         pass
-                    # The engine may already have started the file: never leave it behind.
+                    # The engine (and the ffmpeg it started) may already be writing the file: remove it, and again once they have stopped.
+                    for _ in range(6):
+                        tmp_out.unlink(missing_ok=True)
+                        Path(str(tmp_out) + ".pakmap.json").unlink(missing_ok=True)
+                        time.sleep(0.25)
                     tmp_out.unlink(missing_ok=True)
-                    Path(str(tmp_out) + ".pakmap.json").unlink(missing_ok=True)
                     raise PakmapRenderCancelled("pakMap render cancelled.")
                 try:
                     event = json.loads(raw)

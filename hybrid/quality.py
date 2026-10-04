@@ -56,7 +56,7 @@ def global_flags(plan: HybridPlan) -> List[str]:
     seen: Dict[str, str] = {}
     dup = []
     for b in plan.beats:
-        for q in [c.asset for c in b.clips] + ([b.support.asset] if b.support else []):
+        for q in [c.asset for c in b.clips] + [card.asset for card in b.cards]:
             k = _norm(q)
             if k in seen and seen[k] != b.id:
                 dup.append(q)
