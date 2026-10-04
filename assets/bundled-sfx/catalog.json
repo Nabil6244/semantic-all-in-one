@@ -3740,6 +3740,728 @@
       "license": "Sonniss #GameAudioGDC Bundle License",
       "commercial_use": true,
       "attribution": ""
+    },
+    {
+      "id": "ambience_06",
+      "file": "ambience/ambience_06.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "nature",
+        "forest",
+        "wind",
+        "wilderness",
+        "outdoor"
+      ],
+      "audio_type": "ambience",
+      "duration": 115.283,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_19",
+      "file": "ambience/ambience_19.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "technology",
+        "lab",
+        "digital",
+        "machine",
+        "electronic"
+      ],
+      "audio_type": "ambience",
+      "duration": 72.691,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_20",
+      "file": "ambience/ambience_20.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "technology",
+        "lab",
+        "digital",
+        "machine",
+        "electronic",
+        "loop"
+      ],
+      "audio_type": "ambience",
+      "duration": 59.974,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_26",
+      "file": "ambience/ambience_26.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "water",
+        "ocean",
+        "river",
+        "shore",
+        "waves"
+      ],
+      "audio_type": "ambience",
+      "duration": 110.377,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_27",
+      "file": "ambience/ambience_27.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "water",
+        "ocean",
+        "river",
+        "shore",
+        "waves",
+        "distant",
+        "gentle"
+      ],
+      "audio_type": "ambience",
+      "duration": 102.976,
+      "intensity": "low",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_32",
+      "file": "ambience/ambience_32.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "transport",
+        "train",
+        "subway",
+        "airport",
+        "station"
+      ],
+      "audio_type": "ambience",
+      "duration": 12.379,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_33",
+      "file": "ambience/ambience_33.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "transport",
+        "train",
+        "subway",
+        "airport",
+        "station"
+      ],
+      "audio_type": "ambience",
+      "duration": 45.483,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_39",
+      "file": "ambience/ambience_39.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "atmospheric",
+        "dark",
+        "tension",
+        "drone",
+        "mysterious"
+      ],
+      "audio_type": "ambience",
+      "duration": 180.027,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_43",
+      "file": "ambience/ambience_43.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "atmospheric",
+        "dark",
+        "tension",
+        "drone",
+        "mysterious",
+        "loop"
+      ],
+      "audio_type": "ambience",
+      "duration": 59.657,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_52",
+      "file": "ambience/ambience_52.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "atmospheric",
+        "dark",
+        "tension",
+        "drone",
+        "mysterious"
+      ],
+      "audio_type": "ambience",
+      "duration": 63.978,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_55",
+      "file": "ambience/ambience_55.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "room",
+        "indoor",
+        "office",
+        "quiet",
+        "subtle",
+        "loop"
+      ],
+      "audio_type": "ambience",
+      "duration": 44.498,
+      "intensity": "low",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ambience_wind_01",
+      "file": "ambience/ambience_wind_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ambience",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "nature",
+        "forest",
+        "wind",
+        "wilderness",
+        "outdoor",
+        "night",
+        "loop"
+      ],
+      "audio_type": "ambience",
+      "duration": 41.574,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "impact_01",
+      "file": "impact/impact_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "impact",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "soft",
+        "emphasis"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.332,
+      "intensity": "low",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "impact_03",
+      "file": "impact/impact_03.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "impact",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "deep",
+        "heavy",
+        "punch"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.469,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "impact_10",
+      "file": "impact/impact_10.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "impact",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "medium",
+        "punch"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.083,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "riser_01",
+      "file": "riser/riser_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "riser",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "short",
+        "tension"
+      ],
+      "audio_type": "sfx",
+      "duration": 4.538,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "riser_05",
+      "file": "riser/riser_05.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "riser",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "short",
+        "cinematic"
+      ],
+      "audio_type": "sfx",
+      "duration": 5.59,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "tech_activation_01",
+      "file": "technology/tech_activation_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "technology",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "electronic_activation",
+        "digital"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.167,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "tech_click_01",
+      "file": "technology/tech_click_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "technology",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "mechanical_click",
+        "computer_interface",
+        "sweep"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.31,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "technology_06",
+      "file": "technology/technology_06.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "technology",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "mechanical_click",
+        "computer_interface",
+        "falling"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.255,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "text_pop_01",
+      "file": "text/text_pop_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "text",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "text_pop",
+        "emphasis"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.538,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "transition_01",
+      "file": "transition/transition_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "transition",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "soft",
+        "sweep"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.458,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_07",
+      "file": "ui/ui_07.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "click",
+        "tick",
+        "select"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.167,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_08",
+      "file": "ui/ui_08.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "pop",
+        "confirm",
+        "digital"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.553,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_click_01",
+      "file": "ui/ui_click_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "click",
+        "tick",
+        "select"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.167,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_confirm_01",
+      "file": "ui/ui_confirm_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "confirm",
+        "select"
+      ],
+      "audio_type": "sfx",
+      "duration": 2.447,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_ping_01",
+      "file": "ui/ui_ping_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "ping",
+        "beep",
+        "blip"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.812,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_pop_01",
+      "file": "ui/ui_pop_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "pop",
+        "confirm",
+        "digital",
+        "deep",
+        "click"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.379,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "ui_tick_01",
+      "file": "ui/ui_tick_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "ui",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "tick",
+        "digital",
+        "short",
+        "pop"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.646,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_01",
+      "file": "whoosh/whoosh_01.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "short",
+        "fast",
+        "transition"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.049,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_02",
+      "file": "whoosh/whoosh_02.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "soft",
+        "sweep",
+        "movement"
+      ],
+      "audio_type": "sfx",
+      "duration": 1.214,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_04",
+      "file": "whoosh/whoosh_04.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "falling",
+        "movement"
+      ],
+      "audio_type": "sfx",
+      "duration": 2.536,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_05",
+      "file": "whoosh/whoosh_05.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "fast",
+        "sweep"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.5,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_06",
+      "file": "whoosh/whoosh_06.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "soft",
+        "transition"
+      ],
+      "audio_type": "sfx",
+      "duration": 5.21,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
+    },
+    {
+      "id": "whoosh_07",
+      "file": "whoosh/whoosh_07.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "whoosh",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "deep",
+        "movement"
+      ],
+      "audio_type": "sfx",
+      "duration": 2.633,
+      "intensity": "high",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
     }
   ]
 }

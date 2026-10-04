@@ -124,6 +124,11 @@ jobs:
           cd map-engine
           npm ci --omit=dev
 
+      - name: Install pakmap-engine dependencies
+        run: |
+          cd pakmap-engine
+          npm ci --omit=dev
+
       - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
         # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.
         env:
@@ -332,6 +337,11 @@ jobs:
       - name: Install map-engine dependencies
         run: |
           cd map-engine
+          npm ci --omit=dev
+
+      - name: Install pakmap-engine dependencies
+        run: |
+          cd pakmap-engine
           npm ci --omit=dev
 
       - name: Bundle portable Node.js runtime (Windows x64)
