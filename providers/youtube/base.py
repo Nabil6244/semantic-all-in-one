@@ -106,6 +106,16 @@ class YouTubeSearchBackend:
 _LONG_FORM_THRESHOLD = 20 * 60  # 20 minutes — beyond this, "midpoint" stops being a meaningful guess
 
 
+def _downloaded_seconds(path: Path) -> Optional[float]:
+    """The real length of a downloaded clip, or None when it cannot be read (then the clip is trusted, as before)."""
+    try:
+        from ..media_clip.ffmpeg_clip import probe_duration
+
+        return probe_duration(path)
+    except Exception:
+        return None
+
+
 def compute_fallback_timestamp(video_duration: Optional[float], clip_duration: float) -> float:
     """Fallback target timestamp when no transcript match exists. Short
     videos: duration/2 (a single-topic video's middle is a reasonable
@@ -434,6 +444,16 @@ class YouTubeProvider(AssetProvider):
             return AssetResult(
                 scene.scene_number, None, None, source, SceneStatus.FAILED,
                 error=f"YouTube segment extraction returned a {actual}, not a video — not using it.",
+            )
+
+        got = _downloaded_seconds(path)
+        if got is not None and got < 0.5 * duration:
+            # yt-dlp can hand back a truncated cut (observed: 1.0 s for an 8 s request); used as is, the video loops that second again
+            # and again. Treat it like any other failed extraction so the next candidate gets its turn.
+            path.unlink(missing_ok=True)
+            return AssetResult(
+                scene.scene_number, None, None, source, SceneStatus.FAILED,
+                error=f"YouTube returned only {got:.1f}s of the {duration:.1f}s asked for — not using a clip that would loop.",
             )
 
         log(f"[YOUTUBE] Scene {scene.scene_number} -> downloaded {path.name}")
