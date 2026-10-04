@@ -4462,6 +4462,26 @@
       "license": "Sonniss #GameAudioGDC Bundle License",
       "commercial_use": true,
       "attribution": ""
+    },
+    {
+      "id": "cinematic_06",
+      "file": "cinematic/cinematic_06.opus",
+      "format": "opus",
+      "codec": "opus",
+      "category": "cinematic",
+      "semantic_category": "uncategorized",
+      "tags": [
+        "hit",
+        "emphasis",
+        "boom"
+      ],
+      "audio_type": "sfx",
+      "duration": 0.688,
+      "intensity": "low",
+      "source": "Sonniss GDC",
+      "license": "Sonniss #GameAudioGDC Bundle License",
+      "commercial_use": true,
+      "attribution": ""
     }
   ]
 }

@@ -731,6 +731,49 @@ def _pick_sfx_entry(
         return None
 
 
+# Fact Map's hand-picked sounds (auditioned by ear). Text effect -> (library id,
+# longest play in seconds); None means "no sound for this moment". When a pick is
+# missing from the installed library the generic tag matcher below still runs.
+_CURATED_TEXT_SFX: Dict[str, Optional[Tuple[str, float]]] = {
+    "pop": ("ui_click_01", 0.5),
+    "punch": ("impact_03", 0.70),
+    "impact": ("cinematic_06", 0.80),
+    "rise": None,
+    "fade": ("whoosh_05", 0.70),
+    "highlight": ("ui_click_01", 0.45),
+    "scale": ("whoosh_05", 0.65),
+    "word_reveal": ("text_pop_01", 0.90),
+}
+# Same, per _TRANSITION_SFX_VARIANTS index. The riser variant has no sound, so it
+# takes the next variant's pick.
+_CURATED_TRANSITION_SFX: Tuple[Optional[Tuple[str, float]], ...] = (
+    ("whoosh_06", 1.0),
+    ("whoosh_05", 0.85),
+    ("whoosh_05", 0.85),
+    ("whoosh_06", 1.0),
+    None,
+    ("cinematic_06", 0.95),
+    ("whoosh_05", 0.85),
+    ("impact_01", 0.5),
+)
+
+
+def _curated_transition_pick(index: int) -> Optional[Tuple[str, float]]:
+    n = len(_CURATED_TRANSITION_SFX)
+    for step in range(n):
+        pick = _CURATED_TRANSITION_SFX[(index + step) % n]
+        if pick is not None:
+            return pick
+    return None
+
+
+def _curated_entry(catalog: "SfxCatalog", sfx_id: str) -> Optional["SfxEntry"]:
+    for entry in catalog.entries:
+        if entry.id == sfx_id and entry.resolved_path(catalog.root).is_file():
+            return entry
+    return None
+
+
 def _entry_to_event(
     entry: SfxEntry,
     request: SfxRequest,
@@ -738,13 +781,16 @@ def _entry_to_event(
     start: float,
     volume: float,
     scene_number: Optional[str] = None,
+    play_s: Optional[float] = None,
 ) -> dict:
-    return {
+    # play_s trims a longer sound to the moment it is for, with a short fade-out.
+    dur = min(entry.duration, play_s) if play_s else entry.duration
+    ev = {
         "type": request.event_type,
         "category": entry.category,
         "sfx_id": entry.id,
         "start": round(start, 3),
-        "duration": round(entry.duration, 3),
+        "duration": round(dur, 3),
         "volume": round(volume, 3),
         "file": entry.file,
         "source": entry.source,
@@ -753,6 +799,9 @@ def _entry_to_event(
         "attribution_required": entry.attribution_required,
         "scene_number": scene_number,
     }
+    if play_s and entry.duration > dur + 0.01:
+        ev["fade_out"] = round(min(0.15, dur / 3.0), 3)
+    return ev
 
 
 _TRANSITION_STYLES = ("fade", "dissolve", "flash", "soft", "cut")
@@ -1877,8 +1926,20 @@ def plan_sfx_events(
             del recent_ids[0]
 
     for fx in text_effects:
-        request = _sfx_request_for_text_effect(str(fx.get("effect") or ""), settings)
-        entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
+        effect_key = str(fx.get("effect") or "").lower()
+        request = _sfx_request_for_text_effect(effect_key, settings)
+        play_s = None
+        if effect_key in _CURATED_TEXT_SFX:
+            curated = _CURATED_TEXT_SFX[effect_key]
+            if curated is None:
+                continue
+            entry = _curated_entry(cat, curated[0])
+            if entry is not None:
+                play_s = curated[1]
+        else:
+            entry = None
+        if entry is None:
+            entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
         if entry is None:
             continue
         fx_w = float(fx.get("intensity") or 0.65)
@@ -1890,6 +1951,7 @@ def plan_sfx_events(
                 start=float(fx["start"]),
                 volume=round(vol, 3),
                 scene_number=str(fx.get("scene_number") or ""),
+                play_s=play_s,
             )
         )
         _remember(entry)
@@ -1923,13 +1985,20 @@ def plan_sfx_events(
                 events.append(zb[0])
                 zb_recent = [zb[0]["sfx_id"]]
                 continue
-        hit = cat.match_any(
-            _transition_sfx_fallback_chain(settings, i - 1),
-            avoid_ids=recent_ids,
-        )
-        if hit is None:
-            continue
-        entry, request = hit
+        play_s = None
+        curated = _curated_transition_pick(i - 1)
+        entry = _curated_entry(cat, curated[0]) if curated else None
+        if entry is not None:
+            request = _sfx_request_for_transition(settings, i - 1)
+            play_s = curated[1]
+        else:
+            hit = cat.match_any(
+                _transition_sfx_fallback_chain(settings, i - 1),
+                avoid_ids=recent_ids,
+            )
+            if hit is None:
+                continue
+            entry, request = hit
         events.append(
             _entry_to_event(
                 entry,
@@ -1937,6 +2006,7 @@ def plan_sfx_events(
                 start=max(0.0, start - 0.08),
                 volume=round(min(0.42, base_vol * 0.88), 3),
                 scene_number=sn,
+                play_s=play_s,
             )
         )
         _remember(entry)
@@ -2595,6 +2665,9 @@ def _ffmpeg_mix_layers(
             label = f"x{input_idx}"
             # A zoom-blur whoosh may be a trimmed longer sweep: fade its tail.
             tail = (f"afade=t=out:st={max(0.0, dur - 0.25):.3f}:d=0.25," if zoom and dur > 0.5 else "")
+            fo = float(ev.get("fade_out") or 0.0)
+            if fo > 0 and not tail:
+                tail = f"afade=t=out:st={max(0.0, dur - fo):.3f}:d={fo:.3f},"
             filter_parts.append(
                 f"[{input_idx}:a]atrim=0:{dur:.3f},asetpts=PTS-STARTPTS,"
                 f"volume={vol:.4f},{tail}adelay={delay_ms}|{delay_ms}[{label}]"
