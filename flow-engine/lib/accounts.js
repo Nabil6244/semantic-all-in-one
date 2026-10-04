@@ -128,6 +128,11 @@ export async function closeAccountBrowser(accountId) {
   pages.delete(accountId);
 }
 
+/** How many account browsers are open right now. */
+export function openBrowserCount() {
+  return contexts.size;
+}
+
 export async function closeAllBrowsers() {
   const ids = [...contexts.keys()];
   for (const id of ids) await closeAccountBrowser(id);

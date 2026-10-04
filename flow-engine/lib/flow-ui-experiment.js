@@ -58,6 +58,16 @@ const MEDIA_HOST = "flow-content.google";
  * "=mm,22,15" URL returns the full video/mp4 with the account's session.
  */
 const ASB_VIDEO_SUFFIX = "=mm,22,15";
+/**
+ * Flow's Agent view (the toolbar variant with no Image/Video switch, see
+ * runUiGeneration) shows a finished still as <img alt="Option N"> in the chat
+ * and as <img alt="Tile displaying a user's image"> in the grid, both on
+ * flow.google.com/asb/<token>=s1600-rw (confirmed live 2026-10-03: 80 of 81
+ * Agent-view image generations timed out while those tiles sat on the page,
+ * because only flow-content.google/image URLs were recognised). GET on
+ * "<token>=s0" returns the original JPEG (the "=s1600-rw" form is WebP).
+ */
+const ASB_IMAGE_SUFFIX = "=s0";
 const ASB_TOKEN_RE = /\/asb\/([^=?&#]+)/;
 
 /**
@@ -72,6 +82,16 @@ export function resolveAsbVideo(url) {
   return {
     mediaId: `asb-${createHash("sha256").update(m[1]).digest("hex").slice(0, 16)}`,
     fifeUrl: `${base}${ASB_VIDEO_SUFFIX}`,
+  };
+}
+/** Image counterpart of resolveAsbVideo: {mediaId, fifeUrl} for an asb still. */
+export function resolveAsbImage(url) {
+  const m = ASB_TOKEN_RE.exec(url || "");
+  if (!m) return null;
+  const base = String(url).split(/[=?&#]/)[0];
+  return {
+    mediaId: `asb-${createHash("sha256").update(m[1]).digest("hex").slice(0, 16)}`,
+    fifeUrl: `${base}${ASB_IMAGE_SUFFIX}`,
   };
 }
 /** Any radio in the mode-toggle group is a reliable "settings panel is open"
@@ -379,19 +399,25 @@ async function runUiGeneration(page, prompt, opts = {}) {
                 (!wantVideo || el.src.includes("/video/")),
             );
             if (hit) return hit.src;
-            if (!wantVideo) return null;
-            // flow.google.com/asb/<token> video tiles (see ASB_VIDEO_SUFFIX):
-            // a thumbnail <img> while idle, a <video> once hovered. Compared
-            // by token, since the thumbnail and video URLs differ by suffix.
+            // flow.google.com/asb/<token> tiles (see ASB_VIDEO_SUFFIX /
+            // ASB_IMAGE_SUFFIX). Compared by token, since the thumbnail, the
+            // hovered <video> and the full-size URLs differ only by suffix.
             const tokenOf = (u) => {
               const m = /\/asb\/([^=?&#]+)/.exec(u || "");
               return m ? m[1] : null;
             };
             const knownTokens = new Set(known.map(tokenOf).filter(Boolean));
-            const tile = els.find((el) => {
+            const isNew = (el) => {
               const t = tokenOf(el.src);
-              if (!t || knownTokens.has(t)) return false;
-              return el.tagName === "VIDEO" || /video thumbnail/i.test(el.alt || "");
+              return Boolean(t) && !knownTokens.has(t);
+            };
+            const tile = els.find((el) => {
+              if (!isNew(el)) return false;
+              if (wantVideo) return el.tagName === "VIDEO" || /video thumbnail/i.test(el.alt || "");
+              // Image mode: only a still's own tiles. A "Generated video
+              // thumbnail" here means the Agent made a video instead; it is
+              // never taken for an image.
+              return el.tagName === "IMG" && /^option \d+$|user's image/i.test((el.alt || "").trim());
             });
             return tile ? tile.src : null;
           },
@@ -434,8 +460,8 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.mediaUrlDetected = true;
     diag.outcome = "success";
 
-    if (opts.mode === "video" && !mediaUrl.includes(MEDIA_HOST)) {
-      const asb = resolveAsbVideo(mediaUrl);
+    if (!mediaUrl.includes(MEDIA_HOST)) {
+      const asb = opts.mode === "video" ? resolveAsbVideo(mediaUrl) : resolveAsbImage(mediaUrl);
       if (asb) {
         diag.mediaUrlKind = "asb";
         return { mediaId: asb.mediaId, fifeUrl: asb.fifeUrl, diag };
@@ -482,6 +508,7 @@ export async function generateOneImageViaUI(page, projectId, prompt, settings, p
   const { mediaId, fifeUrl, diag } = await runUiGeneration(page, prompt, {
     outputDir: settings?.outputDir,
     mode: "image",
+    generationTimeoutMs: settings?.generationTimeoutMs,
   });
   if (!mediaId) {
     throw new MissingMediaIdError(

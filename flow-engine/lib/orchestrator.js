@@ -12,6 +12,7 @@ import {
   closeAccountBrowser,
   gotoFlow,
   closeAllBrowsers,
+  openBrowserCount,
   inspectAccountPage,
 } from "./accounts.js";
 import {
@@ -766,7 +767,7 @@ export function resetGenerateState() {
 }
 
 export async function closeBrowsers() {
-  const before = contexts.size;
+  const before = openBrowserCount();
   stopAll = true;
   await closeAllBrowsers();
   pushState({ browsersClosed: before });
