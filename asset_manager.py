@@ -471,14 +471,24 @@ class AssetManager:
         for this scene (e.g. an old 001.jpg lingering next to a fresh 001.mp4) so the
         renderer's extension-priority lookup can't pick up the wrong one.
 
-        Never deletes complementary assets (``001_b``, ``001_c``, …).
+        Every file the renderer could take as this scene's source (``1``/``01``/``001``/``0001`` + a media extension, any
+        case) other than ``keep`` is removed, so the new file is the only candidate whatever its extension. Never deletes
+        complementary assets (``001_b``, ``001_c``, …) or archived copies (``001_manual``, ``001_replaced``): the renderer
+        never takes those as the scene's source.
         """
-        existing = vg.find_image_for_scene(self.images_dir, scene_number)
-        if existing and existing.resolve() != keep.resolve() and existing.is_file():
-            stem = existing.stem.lower()
-            if "_" in stem and stem.rsplit("_", 1)[-1] in ("b", "c", "d", "e"):
-                return
-            existing.unlink()
+        keep = Path(keep)
+        if not keep.is_file() or keep.resolve().parent != self.images_dir.resolve():
+            return  # the new file is not where the renderer looks: deleting the others would leave the scene with nothing
+        try:
+            n = int(str(scene_number).strip())
+        except ValueError:
+            return
+        stems = {f"{n}", f"{n:02d}", f"{n:03d}", f"{n:04d}"}
+        keep_res = keep.resolve()
+        for p in list(self.images_dir.iterdir()):
+            if p.stem in stems and p.suffix.lower() in vg.MEDIA_EXTS and p.is_file() and p.resolve() != keep_res:
+                p.unlink()
+                self.log(f"[ASSET] Scene {scene_number}: removed old source {p.name} (now {keep.name})")
 
     def _complement_letter(self, index: int) -> str:
         letters = "bcdef"
