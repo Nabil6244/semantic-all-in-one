@@ -391,7 +391,7 @@ class TestHybridInTheApp(unittest.TestCase):
         script = Path(tempfile.mkdtemp()) / "_hybrid_app_check.py"
         script.write_text(_SCRIPT, encoding="utf-8")
         env = dict(os.environ, HYBRID_PLAN_JSON=str(PLAN_JSON))
-        proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, timeout=300, cwd=Path(__file__).resolve().parent, env=env)
+        proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, cwd=Path(__file__).resolve().parent, env=env)
         cls._stdout, cls._stderr, cls._results = proc.stdout, proc.stderr, {}
         for line in proc.stdout.splitlines():
             if line.startswith("SKIP:"):
