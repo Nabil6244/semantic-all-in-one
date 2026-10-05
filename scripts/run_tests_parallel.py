@@ -14,8 +14,10 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import signal
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -52,18 +54,44 @@ SLOW_FIRST = [
 ]
 
 
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Stop the module and everything it started (an app, ffmpeg, Node, a browser), not only the module itself."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True, timeout=60)
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+    except Exception:
+        pass
+    try:
+        proc.kill()
+        proc.wait(timeout=30)
+    except Exception:
+        pass
+
+
 def _run(module: str) -> tuple[str, int, str, float, int]:
     env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
     start = time.monotonic()
-    try:
-        proc = subprocess.run(
+    print(f"  start  {module}", flush=True)
+    # Output goes to a file, not a pipe: on Windows, subprocess.run(timeout=...) kills only the module and then waits for its
+    # pipes to close, which never happens while a program the module started is still running, so the whole job hung.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as log:
+        proc = subprocess.Popen(
             [sys.executable, "-m", "unittest", module],
-            cwd=ROOT, env=env, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=_TIMEOUT_S,
+            cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True,
+            start_new_session=(os.name != "nt"),
         )
-        code, out = proc.returncode, (proc.stdout or "") + (proc.stderr or "")
-    except subprocess.TimeoutExpired as exc:
-        code, out = 1, f"TIMEOUT after {_TIMEOUT_S}s\n{exc.stdout or ''}{exc.stderr or ''}"
+        try:
+            code = proc.wait(timeout=_TIMEOUT_S)
+            timed_out = False
+        except subprocess.TimeoutExpired:
+            _kill_tree(proc)
+            code, timed_out = 1, True
+        log.seek(0)
+        out = log.read()
+    if timed_out:
+        out = f"TIMEOUT after {_TIMEOUT_S}s (the module and the programs it started were stopped)\n{out}"
     match = _SUMMARY_RE.search(out)
     return module, code, out, time.monotonic() - start, int(match.group(1)) if match else 0
 
@@ -88,8 +116,8 @@ def main() -> int:
         nonlocal total
         module, code, out, secs, ran = result
         total += ran
-        status = "ok" if code == 0 else "FAILED"
-        print(f"  {status:6} {module} ({ran} tests, {secs:.0f}s)", flush=True)
+        status = "ok" if code == 0 else ("TIMEOUT" if out.startswith("TIMEOUT") else "FAILED")
+        print(f"  {status:7} {module} ({ran} tests, {secs:.0f}s)", flush=True)
         if code != 0:
             failed.append((module, out))
 
