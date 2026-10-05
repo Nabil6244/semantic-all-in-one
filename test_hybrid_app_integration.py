@@ -305,6 +305,45 @@ def scenario():
     inst._bind_workspace_paths()
     emit("and_coming_back_restores_it_again", inst.generation_mode == "hybrid" and inst._hybrid_plan is not None)
 
+    # ---- fixing one CSV cell inside the app ------------------------------------------------------------------------------------------
+    csvp = tmp / "cells.csv"
+    csvp.write_text("beat,row,start,end,mode,place,frame,asset,t,label,why\n"
+                    "b1,beat,0,10,map_footage,Pennsylvania,region,,,,a full state\n"
+                    "b1,card,,,,,,stock_image:a steel mill at night,2,STEEL,\n"
+                    "b2,beat,10,24,map,Great Lakez,region,,,,the lakes\n", encoding="utf-8")
+    inst._hybrid_load_plan_file(str(csvp))
+    def chip_texts():
+        out = []
+        for line in inst._hybrid_chips.winfo_children():
+            for w in line.winfo_children():
+                try:
+                    out.append(w.cget("text"))
+                except Exception:
+                    pass
+        return out
+    texts = chip_texts()
+    emit("an_error_names_its_row_and_column_and_offers_fix", any("Row 4" in t and "place" in t for t in texts) and "Fix" in texts, str(texts)[:300])
+    from hybrid import cell_fix
+    from hybrid.validate import validate as _v
+    f = next(x for x in _v(inst._hybrid_plan) if x.code == "unresolved_place")
+    cell = cell_fix.cell_for_finding(csvp.read_text(), inst._hybrid_plan, f)
+    inst._hybrid_open_cell_editor(str(csvp), cell)
+    win = inst._hybrid_cell_win
+    def walk(w):
+        yield w
+        for c in w.winfo_children():
+            yield from walk(c)
+    widgets = list(walk(win))
+    tips = [w for w in widgets if w.__class__.__name__ == "CTkButton" and w.cget("text") == "Great Lakes"]
+    emit("the_editor_suggests_a_place_the_atlas_knows", bool(tips), str([w.cget("text") for w in widgets if w.__class__.__name__ == "CTkButton"]))
+    if tips:
+        tips[0].invoke()
+    apply_btn = next(w for w in widgets if w.__class__.__name__ == "CTkButton" and w.cget("text") == "Apply")
+    apply_btn.invoke()
+    emit("apply_fixes_the_plan_and_writes_the_file_keeping_the_original",
+         "Great Lakes," in csvp.read_text() and (tmp / "cells.original.csv").is_file() and not [x for x in _v(inst._hybrid_plan) if x.severity == "error"]
+         and not getattr(inst, "_hybrid_cell_editor_open", True), inst._hybrid_status_var.get())
+
 def _write(d):
     p = tmp / f"p_{abs(hash(json.dumps(d, sort_keys=True)))}.json"
     p.write_text(json.dumps(d)); return p
@@ -410,6 +449,10 @@ class TestHybridInTheApp(unittest.TestCase):
     def test_persistence_and_reopening(self):
         self._all("active_style_and_plan_are_saved", "reopening_restores_plan_style_footage_rows_and_sound_switch", "a_replacement_made_before_survives_the_reopen",
                   "another_project_starts_clean_and_the_first_keeps_its_flag", "and_coming_back_restores_it_again")
+
+    def test_fixing_one_csv_cell_in_the_app(self):
+        self._all("an_error_names_its_row_and_column_and_offers_fix", "the_editor_suggests_a_place_the_atlas_knows",
+                  "apply_fixes_the_plan_and_writes_the_file_keeping_the_original")
 
 
 if __name__ == "__main__":

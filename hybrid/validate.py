@@ -68,7 +68,7 @@ def validate(plan: HybridPlan) -> List[Finding]:
             targets = [c.place for c in b.camera if c.place] + [l.place for l in b.layers if l.place] + [p for l in b.layers for p in l.places] + ([b.cam_place] if b.cam_place else [])
             if not targets and not b.geo_intent:
                 err("map_no_geography", b.id, f"beat {b.id}: a map beat with no place, no layer and no stated geographic intent has no reason to be on the map")
-            elif not b.geo_intent:
+            elif not b.geo_intent and not b.purpose:   # a CSV's `why` says what the beat is for
                 warn("map_no_intent", b.id, f"beat {b.id}: no geographic intent is stated (what should the map explain?)")
             elif not b.layers and not any(c.action != "start" for c in b.camera) and i > 0 and plan.beats[i - 1].mode in ("map", "map_footage"):
                 prev_targets = {c.place for c in plan.beats[i - 1].camera if c.place}

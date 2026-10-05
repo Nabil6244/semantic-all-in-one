@@ -3507,13 +3507,33 @@ class VideoGeneratorApp(ctk.CTk):
             bits.append(f"{len(b.clips)} clip(s)")
         self._hybrid_beat_label.configure(text="\n".join(bits))
 
-    def _hybrid_refresh_chips(self) -> None:
-        """Short, readable chips for what needs attention, with one button to fix the errors."""
+    def _hybrid_csv_path(self) -> "Path | None":
+        p = Path(self._hybrid_file_var.get().strip()) if self._hybrid_file_var.get().strip() else None
+        return p if p is not None and p.suffix.lower() == ".csv" and p.is_file() else None
+
+    def _hybrid_refresh_chips(self, import_problems: "tuple | None" = None) -> None:
+        """What needs attention. Errors first, each naming its CSV row and column and opening that cell when clicked; warnings
+        grouped (one line per kind) behind a toggle."""
         frame = getattr(self, "_hybrid_chips", None)
         if frame is None:
             return
         for child in frame.winfo_children():
             child.destroy()
+        from hybrid import cell_fix
+
+        if import_problems is not None:
+            path, problems = import_problems
+            try:
+                text = Path(path).read_text(encoding="utf-8-sig")
+            except OSError:
+                text = ""
+            for msg in problems[:8]:
+                cell = cell_fix.cell_for_problem(text, msg) if text else None
+                self._hybrid_chip(frame, msg, self._HY_ERR, cell, path)
+            if len(problems) > 8:
+                ctk.CTkLabel(frame, text=f"+ {len(problems) - 8} more: fix these first, the rest appear after.", font=ctk.CTkFont(size=11),
+                             text_color=_MUTED).pack(anchor="w")
+            return
         plan = getattr(self, "_hybrid_plan", None)
         if plan is None:
             return
@@ -3522,23 +3542,53 @@ class VideoGeneratorApp(ctk.CTk):
         findings = _val(plan)
         errs = [f for f in findings if f.severity == "error"]
         warns = [f for f in findings if f.severity != "error"]
-        shown = (errs + warns)[:5]
-        if not shown:
-            ctk.CTkLabel(frame, text="\u2713  The plan looks good: nothing needs attention.", font=ctk.CTkFont(size=11), text_color=self._HY_DONE, anchor="w").pack(anchor="w")
-            return
-        for f in shown:
-            colour = self._HY_ERR if f.severity == "error" else self._HY_WARN
-            text = (f.message[:95] + "\u2026") if len(f.message) > 96 else f.message
-            ctk.CTkButton(frame, text=("\u25CF  " + text), anchor="w", height=24, corner_radius=4, fg_color="transparent", hover_color=_ACCENT_SEL,
-                          text_color=colour, font=ctk.CTkFont(size=11), command=lambda m=f.message, b=f.beat: self._hybrid_chip_click(m, b)).pack(fill="x", pady=1)
-        extra = len(errs) + len(warns) - len(shown)
+        path = self._hybrid_csv_path()
+        text = ""
+        if path is not None:
+            try:
+                text = path.read_text(encoding="utf-8-sig")
+            except OSError:
+                text = ""
+        if not errs:
+            ctk.CTkLabel(frame, text="\u2713  No errors: the plan can be rendered.", font=ctk.CTkFont(size=11, weight="bold"),
+                         text_color=self._HY_DONE, anchor="w").pack(anchor="w")
+        for f in errs[:8]:
+            cell = cell_fix.cell_for_finding(text, plan, f) if text else None
+            self._hybrid_chip(frame, f.message, self._HY_ERR, cell, str(path) if path else "", beat=f.beat)
         row = ctk.CTkFrame(frame, fg_color="transparent")
         row.pack(fill="x", pady=(4, 0))
-        if extra > 0:
-            ctk.CTkLabel(row, text=f"+ {extra} more (see Details below)", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(side="left")
+        groups: dict = {}
+        for f in warns:
+            groups.setdefault(f.code, []).append(f)
+        if groups:
+            label = ("Hide suggestions" if getattr(self, "_hybrid_show_warnings", False) else f"Show {len(groups)} suggestion(s)")
+            ctk.CTkButton(row, text=label, width=140, height=24, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
+                          text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=self._hybrid_toggle_warnings).pack(side="left")
         if errs:
-            ctk.CTkButton(row, text=f"Fix {len(errs)} error(s) for me", width=150, height=26, corner_radius=4, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
-                          font=ctk.CTkFont(size=11, weight="bold"), command=self._hybrid_repair_errors).pack(side="right")
+            ctk.CTkButton(row, text="Fix with AI", width=110, height=24, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
+                          text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=self._hybrid_repair_errors).pack(side="right")
+        if getattr(self, "_hybrid_show_warnings", False):
+            for code, items in groups.items():
+                more = f"   (and {len(items) - 1} more like this)" if len(items) > 1 else ""
+                self._hybrid_chip(frame, items[0].message + more, self._HY_WARN, None, "", beat=items[0].beat)
+
+    def _hybrid_toggle_warnings(self) -> None:
+        self._hybrid_show_warnings = not getattr(self, "_hybrid_show_warnings", False)
+        self._hybrid_refresh_chips()
+
+    def _hybrid_chip(self, frame, message: str, colour: str, cell, path: str, beat: str = "") -> None:
+        where = f"Row {cell.row}" + (f" \u00B7 {cell.column}" if cell.column else "") + "  \u2014  " if cell is not None else ""
+        text = where + message
+        text = (text[:118] + "\u2026") if len(text) > 120 else text
+        line = ctk.CTkFrame(frame, fg_color="transparent")
+        line.pack(fill="x", pady=1)
+        ctk.CTkButton(line, text="\u25CF  " + text, anchor="w", height=24, corner_radius=4, fg_color="transparent", hover_color=_ACCENT_SEL,
+                      text_color=colour, font=ctk.CTkFont(size=11),
+                      command=(lambda: self._hybrid_open_cell_editor(path, cell)) if cell is not None else (lambda: self._hybrid_chip_click(message, beat))
+                      ).pack(side="left", fill="x", expand=True)
+        if cell is not None:
+            ctk.CTkButton(line, text="Fix", width=52, height=22, corner_radius=4, fg_color=_ACCENT, hover_color=_ACCENT_HOV,
+                          font=ctk.CTkFont(size=11, weight="bold"), command=lambda: self._hybrid_open_cell_editor(path, cell)).pack(side="right")
 
     def _hybrid_chip_click(self, message: str, beat_id: str) -> None:
         self._hybrid_status_var.set(message)
@@ -3548,6 +3598,159 @@ class VideoGeneratorApp(ctk.CTk):
                 if b.id == beat_id:
                     self._hybrid_select_beat(idx)
                     return
+
+    # ---- fix one CSV cell inside the app ---------------------------------------------------------------------------------------------
+
+    def _hybrid_cached_words(self):
+        """The narration's words when they are already known (no new transcription), else None."""
+        vo = self._current_voiceover_path()
+        cached = getattr(self, "_pakmap_words", None)
+        if vo is None or not cached or cached[0] != str(vo):
+            return None
+        try:
+            if cached[1] != Path(vo).stat().st_mtime:
+                return None
+        except OSError:
+            return None
+        return cached[2]
+
+    def _hybrid_try_text(self, text: str):
+        """Read a changed CSV now (the narration is already known): (import result or None, problems). None, None when the narration's
+        words are not known yet (the file is then loaded the usual way)."""
+        from hybrid.beat_csv import import_beats, is_beat_csv, needs_words, plan_from_csv as beats_from_csv
+
+        try:
+            if is_beat_csv(text) and not needs_words(text):
+                from hybrid.csv_import import CsvImport
+
+                return CsvImport(plan=beats_from_csv(text), notes=[]), []
+            words = self._hybrid_cached_words()
+            if words is None:
+                return None, None
+            from hybrid.csv_import import plan_from_csv
+            from pakmap.app_integration import voiceover_duration
+
+            importer = import_beats if is_beat_csv(text) else plan_from_csv
+            return importer(text, words, voiceover_duration(self._current_voiceover_path())), []
+        except Exception as exc:  # a PlanError or the Hybrid CSV importer's error: both list their problems by row
+            return None, list(getattr(exc, "problems", None) or [str(exc) or type(exc).__name__])
+
+    def _hybrid_open_cell_editor(self, path: str, cell) -> None:
+        from hybrid import cell_fix
+
+        if not path or not Path(path).is_file():
+            messagebox.showinfo("Fix this cell", "The CSV this plan came from is not available any more; load it again to fix it here.")
+            return
+        try:
+            text = Path(path).read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            messagebox.showerror("Fix this cell", f"The CSV could not be read: {exc}")
+            return
+        cols = [c for c in cell_fix.header(text) if c]
+        win = ctk.CTkToplevel(self)
+        win.title(f"Fix row {cell.row}")
+        win.geometry("640x430")
+        win.transient(self)
+        win.grid_columnconfigure(0, weight=1)
+        self._hybrid_cell_editor_open = True
+        self._hybrid_cell_win = win
+
+        def closed() -> None:
+            self._hybrid_cell_editor_open = False
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", closed)
+        ctk.CTkLabel(win, text=f"Row {cell.row} of {Path(path).name}", font=ctk.CTkFont(size=15, weight="bold"), anchor="w").grid(
+            row=0, column=0, sticky="ew", padx=18, pady=(16, 0))
+        problem = ctk.CTkLabel(win, text=cell.message, font=ctk.CTkFont(size=12), text_color=self._HY_ERR, anchor="w", justify="left", wraplength=600)
+        problem.grid(row=1, column=0, sticky="ew", padx=18, pady=(6, 0))
+        context = "   ".join(f"{k}: {v}" for k, v in cell.cells.items() if v and k in ("beat", "row", "vo_anchor", "mode", "type", "place", "label", "text", "asset"))
+        ctk.CTkLabel(win, text=context, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left", wraplength=600).grid(
+            row=2, column=0, sticky="ew", padx=18, pady=(6, 0))
+        pick = ctk.CTkFrame(win, fg_color="transparent")
+        pick.grid(row=3, column=0, sticky="ew", padx=18, pady=(14, 0))
+        pick.grid_columnconfigure(1, weight=1)
+        col_var = ctk.StringVar(value=cell.column or (cols[0] if cols else ""))
+        val_var = ctk.StringVar(value=cell.cells.get(col_var.get(), ""))
+        ctk.CTkOptionMenu(pick, values=cols, variable=col_var, width=130,
+                          command=lambda c: (val_var.set(cell_fix.row_cells(Path(path).read_text(encoding="utf-8-sig"), cell.row).get(c, "")), fill_tips())).grid(
+            row=0, column=0, padx=(0, 8))
+        entry = ctk.CTkEntry(pick, textvariable=val_var, height=34, font=ctk.CTkFont(size=13))
+        entry.grid(row=0, column=1, sticky="ew")
+        tips = ctk.CTkFrame(win, fg_color="transparent")
+        tips.grid(row=4, column=0, sticky="ew", padx=18, pady=(10, 0))
+        result = ctk.CTkLabel(win, text="", font=ctk.CTkFont(size=12), text_color=self._HY_ERR, anchor="w", justify="left", wraplength=600)
+        result.grid(row=5, column=0, sticky="ew", padx=18, pady=(10, 0))
+
+        def fill_tips() -> None:
+            for c in tips.winfo_children():
+                c.destroy()
+            current = cell_fix.Cell(row=cell.row, column=col_var.get(), value=val_var.get(), cells=cell.cells, message=cell.message)
+            try:
+                options = cell_fix.suggestions(Path(path).read_text(encoding="utf-8-sig"), current, self._hybrid_cached_words() or ())
+            except Exception:
+                options = []
+            if options:
+                ctk.CTkLabel(tips, text="Try:", font=ctk.CTkFont(size=11), text_color=_MUTED).pack(side="left", padx=(0, 6))
+            for o in options:
+                ctk.CTkButton(tips, text=o, height=26, corner_radius=12, fg_color=_ACCENT_SEL, hover_color=_ACCENT_HOV, text_color=_TEXT,
+                              font=ctk.CTkFont(size=11), command=lambda v=o: val_var.set(v)).pack(side="left", padx=(0, 6))
+
+        def run(new_text: str, done_msg: str) -> None:
+            cell_fix.backup(path)
+            Path(path).write_text(new_text, encoding="utf-8")
+            got, problems = self._hybrid_try_text(new_text)
+            if got is None and problems is None:   # the narration is not transcribed yet: load the file the usual way
+                closed()
+                self._hybrid_import_csv_file(path)
+                return
+            if got is None:
+                self._hybrid_show_import_problems(path, type("P", (), {"problems": problems})())
+                same = [p for p in problems if p.startswith(f"row {cell.row}:")]
+                if same:
+                    result.configure(text="Still a problem: " + same[0])
+                    return
+                closed()
+                self._hybrid_status_var.set(done_msg + " Another row needs fixing: see the list.")
+                return
+            self._hybrid_accept_import(got, path)
+            from hybrid.validate import validate as _val
+
+            left = [f for f in _val(got.plan) if f.severity == "error"]
+            still = [f for f in left if (lambda c: c is not None and c.row == cell.row)(cell_fix.cell_for_finding(new_text, got.plan, f))]
+            if still:
+                result.configure(text="Still a problem: " + still[0].message)
+                return
+            closed()
+            self._hybrid_status_var.set(done_msg + (f" {len(left)} error(s) left." if left else " No errors left."))
+
+        def apply() -> None:
+            try:
+                new_text = cell_fix.set_cell(Path(path).read_text(encoding="utf-8-sig"), cell.row, col_var.get(), val_var.get().strip())
+            except (OSError, ValueError) as exc:
+                result.configure(text=str(exc))
+                return
+            run(new_text, f"Row {cell.row} updated in {Path(path).name} (the original is kept as a .original.csv).")
+
+        def remove() -> None:
+            try:
+                new_text = cell_fix.remove_row(Path(path).read_text(encoding="utf-8-sig"), cell.row)
+            except (OSError, ValueError) as exc:
+                result.configure(text=str(exc))
+                return
+            run(new_text, f"Row {cell.row} removed from {Path(path).name} (the original is kept as a .original.csv).")
+
+        buttons = ctk.CTkFrame(win, fg_color="transparent")
+        buttons.grid(row=6, column=0, sticky="ew", padx=18, pady=(18, 16))
+        ctk.CTkButton(buttons, text="Apply", width=110, height=34, fg_color=_ACCENT, hover_color=_ACCENT_HOV, font=ctk.CTkFont(size=12, weight="bold"),
+                      command=apply).pack(side="left")
+        ctk.CTkButton(buttons, text="Remove this row", width=140, height=34, fg_color="transparent", border_width=1, border_color=_BORDER,
+                      text_color=self._HY_ERR, hover_color=_ACCENT_SEL, command=remove).pack(side="left", padx=(8, 0))
+        ctk.CTkButton(buttons, text="Cancel", width=90, height=34, fg_color="transparent", border_width=1, border_color=_BORDER,
+                      text_color=_MUTED, hover_color=_ACCENT_SEL, command=closed).pack(side="right")
+        fill_tips()
+        entry.bind("<Return>", lambda _e: apply())
+        win.after(100, lambda: (win.lift(), entry.focus_set()))
 
     def _hybrid_deactivate(self) -> None:
         """Another style takes over: Hybrid steps aside (its plan stays in the project)."""
@@ -3799,27 +4002,39 @@ class VideoGeneratorApp(ctk.CTk):
                 return   # stopped by the user
             self._hybrid_busy = False
             if exc is not None:
-                detail = "\n".join(getattr(exc, "problems", [])) or str(exc) or type(exc).__name__
-                self._set_hybrid_text(f"{name} has problems:\n\n{detail}")
-                self._hybrid_progress_done(work, "The CSV could not be read. The problems are listed under Details; fix the CSV and load it again.")
+                self._hybrid_progress_done(work)
+                self._hybrid_show_import_problems(path, exc)
                 return
             self._hybrid_progress_done(work)
-            self._hybrid_set_plan(got.plan, None)
-            self._hybrid_file_var.set(str(path))
-            extra = [f"note: {n}" for n in got.notes] + [f"warning: {w}" for w in got.warnings]
-            if extra:
-                self._hybrid_plan_box.configure(state="normal")
-                self._hybrid_plan_box.insert("end", f"\n\nImported from {name}:\n" + "\n".join(extra))
-                self._hybrid_plan_box.configure(state="disabled")
-                for line in extra:
-                    self._append_log(f"[HYBRID] {line}\n")
-            ne = sum(1 for f in self._hybrid_validate_now() if f.severity == "error")
-            self._hybrid_status_var.set(f"Imported {name}: {len(got.plan.beats)} beats." + (f" {ne} error(s) must be fixed before rendering." if ne else " Open the Visual Plan tab to review the footage."))
-            self._append_log(f"[HYBRID] Imported {name}: {len(got.plan.beats)} beats\n")
-            if not ne and any(b.mode != "map" for b in got.plan.beats):
-                self._goto_workflow_view("visual_plan")
+            self._hybrid_accept_import(got, path)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _hybrid_show_import_problems(self, path, exc) -> None:
+        """A CSV that cannot be loaded: list its problems as clickable rows (each opens that cell), keep the current plan."""
+        problems = list(getattr(exc, "problems", [])) or [str(exc) or type(exc).__name__]
+        self._set_hybrid_text(f"{Path(path).name} has problems:\n\n" + "\n".join(problems))
+        self._hybrid_status_var.set("The CSV could not be loaded. Click a problem to fix that cell here; the file is updated for you.")
+        self._hybrid_refresh_chips(import_problems=(str(path), problems))
+
+    def _hybrid_accept_import(self, got, path) -> None:
+        """A CSV read without problems becomes the plan; its notes go under the plan."""
+        name = Path(path).name
+        self._hybrid_set_plan(got.plan, None)
+        self._hybrid_file_var.set(str(path))
+        self._hybrid_refresh_chips()
+        extra = [f"note: {n}" for n in got.notes] + [f"warning: {w}" for w in got.warnings]
+        if extra:
+            self._hybrid_plan_box.configure(state="normal")
+            self._hybrid_plan_box.insert("end", f"\n\nImported from {name}:\n" + "\n".join(extra))
+            self._hybrid_plan_box.configure(state="disabled")
+            for line in extra:
+                self._append_log(f"[HYBRID] {line}\n")
+        ne = sum(1 for f in self._hybrid_validate_now() if f.severity == "error")
+        self._hybrid_status_var.set(f"Imported {name}: {len(got.plan.beats)} beats." + (f" {ne} error(s) must be fixed before rendering." if ne else " Open the Visual Plan tab to review the footage."))
+        self._append_log(f"[HYBRID] Imported {name}: {len(got.plan.beats)} beats\n")
+        if not ne and any(b.mode != "map" for b in got.plan.beats) and not getattr(self, "_hybrid_cell_editor_open", False):
+            self._goto_workflow_view("visual_plan")
 
     def _hybrid_validate_now(self) -> list:
         from hybrid.validate import validate as _val
@@ -3837,12 +4052,16 @@ class VideoGeneratorApp(ctk.CTk):
             else:
                 plan = HybridPlan.load(path)
         except (PlanError, OSError, ValueError) as exc:
+            if Path(path).suffix.lower() == ".csv" and isinstance(exc, PlanError):
+                self._hybrid_show_import_problems(path, exc)
+                return False
             detail = "\n".join(getattr(exc, "problems", [])) or str(exc)
             self._set_hybrid_text("The plan file has problems:\n\n" + detail)
             self._hybrid_status_var.set("Fix the plan file and load it again.")
             return False
         self._hybrid_set_plan(plan, None)
         self._hybrid_file_var.set(str(path))
+        self._hybrid_refresh_chips()
         self._hybrid_status_var.set(f"Loaded {Path(path).name}")
         return True
 

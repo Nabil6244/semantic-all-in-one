@@ -111,6 +111,10 @@ CAMERA
   place changes, never while footage is on screen.
 - place must be a NAME the atlas knows (a country, province, big city, or a region like
   Sahel), never a coordinate. Use frame=country or region; local for a city or site.
+- Named regions the atlas knows: Sahel, Sahara, Amazon, Alps, Himalayas, Great Lakes, Rust
+  Belt, Midwest, New England, Appalachia, Pacific Northwest, Deep South, Gulf Coast, Sun
+  Belt, Middle East, Balkans, Scandinavia, Horn of Africa and the continents. For any other
+  lake, desert, mountain range or sea, point the camera at the state or country around it.
 - Keep the same place for beats that stay in the same area, so the camera does not move
   for nothing.
 

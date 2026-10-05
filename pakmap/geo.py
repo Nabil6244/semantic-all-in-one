@@ -183,3 +183,26 @@ def view_for(loc: Located, frame: str = "", width: int = 1920, height: int = 108
     pad = 0.25 if frame == "region" else 0.18
     cx, cy, z = fit(loc.bbox, width, height, pad)
     return cx, cy, (max(z, 5.0) if frame == "region" else z)
+
+
+def suggest_names(query: str, n: int = 3) -> List[str]:
+    """Names the atlas knows that look like `query`: countries, states and provinces and named regions first, then cities."""
+    from map_scene.places import _dataset as _places, _named_regions, _norm
+
+    key = _norm(query)
+    if not key:
+        return []
+    pool = {}
+    for ds in ("countries", "admin1"):
+        try:
+            for f in _places(ds):
+                pool.setdefault(_norm(f["n"]), f["n"])
+        except Exception:
+            pass
+    for v in _named_regions().values():
+        pool.setdefault(_norm(v["name"]), v["name"])
+    out = [pool[h] for h in difflib.get_close_matches(key, list(pool), n=n, cutoff=0.6)]
+    out += [pool[k] for k in pool if key in k and pool[k] not in out][: max(0, n - len(out))]
+    if len(out) < n:
+        out += [c for c in _suggest_city(query) if c not in out]
+    return out[:n]
