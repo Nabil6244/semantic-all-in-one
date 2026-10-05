@@ -2,6 +2,7 @@
  * Flow page helpers — ported from extension background.js patterns.
  * Runs inside Playwright page.evaluate / page context.
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +19,20 @@ import {
   videoAspectRatios,
   resolveVideoModelKey,
 } from "../config.js";
+import { batchexecute, resolveImageAspectWireValue } from "./batchexecute-config.js";
+import {
+  mintCaptchaWithFallback,
+  BATCHEXECUTE_HEADERS,
+  extensionHl,
+  extensionReqId,
+} from "./extension-captcha.js";
+import {
+  Submission,
+  tagSubmission,
+  AccountRestrictedError,
+  RESTRICTION_REASONS,
+  QUOTA_REASONS,
+} from "./generation-state.js";
 
 export { api, secrets, urls, models, aspectRatios, timing, videoModels, videoDurations, videoResolutions, videoAspectRatios, resolveVideoModelKey };
 
@@ -107,6 +122,47 @@ export class VideoGenerationFailedError extends FatalError {
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * 4xx answers that do NOT prove the request was refused before anything was created: the server may have been working on it
+ * when it gave up (408 Request Timeout, 499 Client Closed Request) or reports a conflict with work in progress (409).
+ */
+const AMBIGUOUS_4XX = new Set([408, 409, 499]);
+
+/**
+ * A generation request that came back with an HTTP or transport error (out.error set by the in-page fetch). A 4xx refusal
+ * means nothing was created; a 5xx, an ambiguous 4xx, a timeout or a lost connection after sending may have been accepted.
+ */
+function transportSubmission(out) {
+  if (out?.status >= 400 && out.status < 500 && !AMBIGUOUS_4XX.has(out.status)) return Submission.REJECTED;
+  return Submission.UNKNOWN;
+}
+
+/**
+ * gRPC codes that mean the request was refused as such (bad argument, not found, no permission, quota, precondition,
+ * signed out). Any other code — CANCELLED, UNKNOWN, DEADLINE_EXCEEDED, ABORTED, INTERNAL, UNAVAILABLE, DATA_LOSS — or no
+ * code at all can be raised after the job was created, so it does not prove that nothing exists.
+ */
+const REFUSAL_GRPC_CODES = new Set([3, 5, 7, 8, 9, 11, 12, 16]);
+
+/**
+ * A 200 answer that carried no result. The account-restriction and quota reasons (confirmed live, gRPC 7 / 8) are refusals.
+ * Another ErrorInfo reason is a refusal only with a refusal gRPC code; otherwise the outcome is unknown (returned as UNKNOWN,
+ * never resubmitted automatically). No reason at all returns null (the caller reports it as unknown).
+ */
+function noResultError(reason, rpc, { grpcCode = null, MissingMediaIdErrorClass = null } = {}) {
+  if (reason && RESTRICTION_REASONS.has(reason)) return new AccountRestrictedError(reason);
+  if (reason && QUOTA_REASONS.has(reason)) return tagSubmission(new QuotaError(`Flow RPC rejected: ${reason}`), Submission.REJECTED);
+  if (reason) {
+    const Cls = MissingMediaIdErrorClass || Error;
+    const refused = REFUSAL_GRPC_CODES.has(grpcCode);
+    return tagSubmission(
+      new Cls(`Flow RPC ${refused ? "rejected" : "returned an error that may follow creation"}: ${reason}${grpcCode != null ? ` (code ${grpcCode})` : ""}`),
+      refused ? Submission.REJECTED : Submission.UNKNOWN,
+    );
+  }
+  return null;
 }
 
 /**
@@ -409,7 +465,7 @@ export async function createFlowProject(page) {
       try {
         const resp = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "X-Same-Domain": "1" },
           body: bodyStr,
           credentials: "include",
           signal: ac.signal,
@@ -460,7 +516,7 @@ export async function openOrCreateProject(page) {
   const token = await waitForSessionToken(page);
   if (!token) {
     throw new FatalError(
-      "Not signed in to labs.google — open this account and sign in once",
+      "Not signed in to Flow — open this account and sign in once",
       false,
     );
   }
@@ -525,7 +581,7 @@ export async function getFlowProject(page, projectId) {
       try {
         const resp = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "X-Same-Domain": "1" },
           body: bodyStr,
           credentials: "include",
           signal: ac.signal,
@@ -969,8 +1025,8 @@ function findErrorInfoReason(node, depth = 0) {
  * the exact envelope shape — this reads entry[5][0], the same position that
  * was 7 for PUBLIC_ERROR_UNUSUAL_ACTIVITY and 8 for
  * PUBLIC_ERROR_USER_QUOTA_REACHED in the real captures this file already
- * cites). Diagnostic-only: never used by any control-flow/error-message
- * decision, only by writeGenerationDiagnostic below.
+ * cites). Recorded in the diagnostics, and used by noResultError to decide
+ * whether an ErrorInfo answer proves the request was refused.
  */
 export function extractRpcErrorGrpcCode(text, rpcid) {
   const entry = findWrbFrEntry(text, rpcid);
@@ -1279,6 +1335,9 @@ export async function generateOneImage(page, projectId, prompt, settings, prompt
 
   try {
     return await generateOneImageInner(page, projectId, prompt, settings, promptIndex, diag);
+  } catch (err) {
+    // Anything not classified where it was thrown: before the request left, nothing exists; after, it may.
+    throw tagSubmission(err, diag.sendStarted ? Submission.UNKNOWN : Submission.NOT_SUBMITTED);
   } finally {
     diag.ts = new Date().toISOString();
     diag.totalElapsedMs = Date.now() - callStartedAt;
@@ -1305,20 +1364,42 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
       ? settings.seedValue
       : randomImageSeed();
   const model = settings.model || models.default;
+  const aspectWire = resolveImageAspectWireValue(settings.aspectRatio || aspectRatios.default);
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
-  const reqId = nextReqId(page);
-  const hl = currentHl(page);
+  // Extension adapter: hl fixed "en", _reqid random 1e5–1e6 (not Flow SPA hq/Kb).
+  const reqId = extensionReqId();
+  const hl = extensionHl();
+
+  const captchaAction = api.recaptchaAction;
+  const captchaMintStartedAt = Date.now();
+  let captchaMint;
+  try {
+    captchaMint = await mintCaptchaWithFallback(page, captchaAction);
+  } catch (e) {
+    diag.outcome = "recaptcha_failed";
+    diag.recaptchaExecuteStartedAt = new Date(captchaMintStartedAt).toISOString();
+    diag.recaptchaExecuteEndedAt = new Date().toISOString();
+    throw new FatalError(`reCAPTCHA mint failed: ${e?.message || e}`, true);
+  }
+  const captchaMintEndedAt = Date.now();
+  diag.recaptchaExecuteStartedAt = new Date(captchaMintStartedAt).toISOString();
+  diag.recaptchaExecuteEndedAt = new Date(captchaMintEndedAt).toISOString();
+  diag.recaptchaExecuteDurationMs = captchaMint.durationMs ?? captchaMintEndedAt - captchaMintStartedAt;
+  diag.captchaMintedOn = captchaMint.mintedOn;
 
   // TEMPORARY — see the request-capture block above this function. Passive
   // only; does not affect the request below in any way.
   const requestCreatedAt = Date.now();
   const captureP = captureNextRequest(page, "ogiZ0b");
 
+  // The send boundary: from here on the request may reach Google, so the call is never re-run (a page navigation during it
+  // is an unknown outcome, not a reason to send it again).
+  diag.sendStarted = true;
   const out = await safeEvaluate(
     page,
-    async ({ projectId, model, prompt, seed, siteKey, recaptchaAction, uuidA, uuidB, uuidC, reqId, hl, timeoutMs }) => {
+    async ({ projectId, model, prompt, seed, aspectWire, imageRpcId, batchexecutePath, captcha, uuidA, uuidB, uuidC, reqId, hl, timeoutMs, batchHeaders }) => {
       // WIZ_global_data carries the page's own CSRF/session state — same
       // mechanism getSessionToken()/checkAuthStatus() already read from
       // (SNlM0e), plus the batchexecute query params (cfb2h -> bl,
@@ -1331,17 +1412,8 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
       if (!hasWizState) {
         return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true, hasWizState };
       }
-
-      const grec = window.grecaptcha?.enterprise;
-      if (!grec) return { error: "No reCAPTCHA", recoverable: true, hasWizState };
-      const recaptchaExecuteStartedAt = Date.now();
-      const captcha = await grec.execute(siteKey, { action: recaptchaAction });
-      const recaptchaExecuteEndedAt = Date.now();
       if (!captcha) {
-        return {
-          error: "reCAPTCHA execute failed", recoverable: true, hasWizState,
-          recaptchaExecuteStartedAt, recaptchaExecuteEndedAt,
-        };
+        return { error: "reCAPTCHA token missing", recoverable: true, hasWizState };
       }
 
       // Positional structure reproduced exactly as captured live — see
@@ -1354,7 +1426,7 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
         null, null, null,
         seed,              // field 4 — confirmed via static trace of the
                             // real Flow client (see investigation notes)
-        3,
+        aspectWire,
         model,
         null,
         context,
@@ -1366,8 +1438,8 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
       const args = [null, [request], 1, context, [uuidC]];
 
       const url =
-        "https://flow.google.com/_/AiSandboxAngularFrontend/data/batchexecute" +
-        "?rpcids=ogiZ0b" +
+        "https://flow.google.com" + batchexecutePath +
+        "?rpcids=" + encodeURIComponent(imageRpcId) +
         "&source-path=" + encodeURIComponent("/project/" + projectId) +
         "&bl=" + encodeURIComponent(bl) +
         "&f.sid=" + encodeURIComponent(fsid) +
@@ -1376,7 +1448,7 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
         "&rt=c";
 
       const bodyStr =
-        "f.req=" + encodeURIComponent(JSON.stringify([[["ogiZ0b", JSON.stringify(args), null, "generic"]]])) +
+        "f.req=" + encodeURIComponent(JSON.stringify([[ [imageRpcId, JSON.stringify(args), null, "generic"] ]])) +
         "&at=" + encodeURIComponent(at);
 
       const ac = new AbortController();
@@ -1385,7 +1457,7 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
       try {
         const resp = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          headers: batchHeaders,
           body: bodyStr,
           credentials: "include",
           signal: ac.signal,
@@ -1393,7 +1465,7 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
         clearTimeout(tm);
         const text = await resp.text();
         const rpcRespondedAt = Date.now();
-        const timing_ = { hasWizState, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt, rpcRespondedAt };
+        const timing_ = { hasWizState, rpcSentAt, rpcRespondedAt };
         if (!resp.ok) {
           return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), ...timing_ };
         }
@@ -1403,15 +1475,28 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
         return {
           error: e.name === "AbortError" ? "Request timed out" : e.message,
           isTimeout: e.name === "AbortError",
-          hasWizState, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt,
+          hasWizState, rpcSentAt,
         };
       }
     },
     {
-      projectId, model, prompt, seed,
-      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.recaptchaAction,
-      uuidA, uuidB, uuidC, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs,
+      projectId,
+      model,
+      prompt,
+      seed,
+      aspectWire,
+      imageRpcId: batchexecute.rpcids.imageGenerate,
+      batchexecutePath: batchexecute.path,
+      captcha: captchaMint.token,
+      uuidA,
+      uuidB,
+      uuidC,
+      reqId,
+      hl,
+      timeoutMs: timing.apiRequestTimeoutMs,
+      batchHeaders: BATCHEXECUTE_HEADERS,
     },
+    { retries: 0 },
   );
 
   // TEMPORARY — resolve/write the passive capture. Read-only observation of
@@ -1452,21 +1537,18 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
 
   if (!out) {
     diag.outcome = "evaluate_failed";
-    throw new FatalError("Page evaluate failed", true);
+    throw tagSubmission(new FatalError("Page evaluate failed", true), Submission.UNKNOWN);
   }
   diag.hasWizState = out.hasWizState ?? diag.hasWizState;
-  diag.recaptchaExecuteStartedAt = out.recaptchaExecuteStartedAt ? new Date(out.recaptchaExecuteStartedAt).toISOString() : null;
-  diag.recaptchaExecuteEndedAt = out.recaptchaExecuteEndedAt ? new Date(out.recaptchaExecuteEndedAt).toISOString() : null;
-  diag.recaptchaExecuteDurationMs =
-    out.recaptchaExecuteStartedAt && out.recaptchaExecuteEndedAt
-      ? out.recaptchaExecuteEndedAt - out.recaptchaExecuteStartedAt
-      : null;
+  // recaptcha* fields already set from /about mint above — do not clobber.
   diag.rpcSentAt = out.rpcSentAt ? new Date(out.rpcSentAt).toISOString() : null;
   diag.rpcRespondedAt = out.rpcRespondedAt ? new Date(out.rpcRespondedAt).toISOString() : null;
   if (out.error) {
     diag.outcome = "rpc_error";
     diag.httpStatus = out.status ?? null;
-    if (out.status === 429) throw new RateLimitError("Rate limited by Google");
+    // out.recoverable: the in-page check failed before fetch() was called, so nothing was sent.
+    const sub = out.recoverable ? Submission.NOT_SUBMITTED : transportSubmission(out);
+    if (out.status === 429) throw tagSubmission(new RateLimitError("Rate limited by Google"), sub);
     if (out.status === 401 || out.recoverable) {
       // Same race apiPost() already documents: the session can be a few
       // seconds from warm right after navigation. One re-check + retry,
@@ -1474,13 +1556,13 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
       await waitForFlowReady(page).catch(() => {});
       const stillSignedIn = await getSessionToken(page).catch(() => null);
       if (!stillSignedIn) {
-        throw new AuthExpiredError("Flow account is signed out — open Accounts and sign in again");
+        throw tagSubmission(new AuthExpiredError("Flow account is signed out — open Accounts and sign in again"), sub);
       }
-      throw new EndpointRejectedError(
+      throw tagSubmission(new EndpointRejectedError(
         `Google rejected the image generation request (${out.status || out.error}) while the account is still signed in`,
-      );
+      ), sub);
     }
-    throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
+    throw tagSubmission(new Error(out.error + (out.errText ? ": " + out.errText : "")), sub);
   }
   diag.httpStatus = 200;
   diag.responseLength = out.text.length;
@@ -1523,8 +1605,10 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
         `[ogiz0b-diagnostic] failed to write diagnostic: ${writeErr?.code || "?"} ${writeErr?.message || writeErr}`,
       );
     }
-    if (reason) throw new MissingMediaIdError(`Flow RPC rejected: ${reason}`);
-    throw new MissingMediaIdError("No mediaId in generation response");
+    const refused = noResultError(reason, "ogiZ0b", { grpcCode: diag.grpcCode, MissingMediaIdErrorClass: MissingMediaIdError });
+    if (refused) throw refused;
+    // A 200 we could not read: the image may exist.
+    throw tagSubmission(new MissingMediaIdError("No mediaId in generation response"), Submission.UNKNOWN);
   }
   diag.outcome = "success";
   diag.mediaId = mediaId;
@@ -1573,13 +1657,25 @@ export async function syncFlowVideoDuration(page, seconds) {
  * "search, don't assume a fixed index" approach extractOgiZ0bImageResult
  * already uses for response-shape drift.
  */
+function looksLikeUuid(s) {
+  return typeof s === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+/**
+ * Workflow row shape: [workflowId, projectId, mediaId, marker, null, DETAIL, ...].
+ * Older captures used marker === "CAE"; current Omni/abra YhhmEf responses
+ * use null in that slot (confirmed live 2026-10-05) but keep the same
+ * three leading UUIDs. Accept either so start/poll/final extraction still
+ * finds the row after Google drops the literal.
+ */
 function findVideoWorkflowEntry(node, depth = 0) {
   if (!Array.isArray(node) || depth > 6) return null;
   if (
-    typeof node[0] === "string" &&
-    typeof node[1] === "string" &&
-    typeof node[2] === "string" &&
-    node[3] === "CAE"
+    looksLikeUuid(node[0]) &&
+    looksLikeUuid(node[1]) &&
+    looksLikeUuid(node[2]) &&
+    (node[3] === "CAE" || node[3] == null)
   ) {
     return node;
   }
@@ -1771,7 +1867,7 @@ export async function pollVideoStatus(page, workflowId, projectId) {
         try {
           const resp = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "X-Same-Domain": "1" },
             body: bodyStr,
             credentials: "include",
             signal: ac.signal,
@@ -1851,7 +1947,7 @@ export async function pollVideoStatus(page, workflowId, projectId) {
  * and poll it to completion. Same {mediaId, fifeUrl} return contract
  * batch-runner.js already destructures, so callers are unchanged.
  */
-export async function generateOneVideo(page, projectId, prompt, settings, promptIndex) {
+export async function generateOneVideo(page, projectId, prompt, settings, promptIndex, { onAccepted } = {}) {
   // Symmetric per-attempt diagnostic — same convention as generateOneImage's
   // (see writeGenerationDiagnostic's doc comment). "stage" tracks how far
   // the lifecycle (YhhmEf start -> poll -> as29s final) got before the
@@ -1886,7 +1982,12 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   const videoCallStartedAt = Date.now();
 
   try {
-    return await generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag);
+    return await generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag, onAccepted);
+  } catch (err) {
+    // Once a workflow id came back the video exists on Flow: whatever failed after that (polling, the final fetch) is only
+    // ever retried by resuming THIS workflow. Before the send boundary nothing exists; between the two it may.
+    if (videoDiag.workflowId) throw tagSubmission(err, Submission.ACCEPTED, { workflowId: videoDiag.workflowId, stage: videoDiag.stage });
+    throw tagSubmission(err, videoDiag.sendStarted ? Submission.UNKNOWN : Submission.NOT_SUBMITTED);
   } finally {
     videoDiag.ts = new Date().toISOString();
     videoDiag.totalElapsedMs = Date.now() - videoCallStartedAt;
@@ -1894,7 +1995,7 @@ export async function generateOneVideo(page, projectId, prompt, settings, prompt
   }
 }
 
-async function generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag) {
+async function generateOneVideoInner(page, projectId, prompt, settings, promptIndex, videoDiag, onAccepted) {
   // Never fire the API call while Flow's SPA is still navigating — same
   // reason generateOneImage waits (see its comment).
   await waitForFlowReady(page);
@@ -1904,26 +2005,41 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
-  const reqId = nextReqId(page);
-  const hl = currentHl(page);
+  // Extension adapter: hl fixed "en", _reqid random 1e5–1e6.
+  const reqId = extensionReqId();
+  const hl = extensionHl();
 
+  const captchaAction = api.videoRecaptchaAction;
+  const captchaMintStartedAt = Date.now();
+  let captchaMint;
+  try {
+    captchaMint = await mintCaptchaWithFallback(page, captchaAction);
+  } catch (e) {
+    videoDiag.outcome = "recaptcha_failed";
+    videoDiag.recaptchaExecuteStartedAt = new Date(captchaMintStartedAt).toISOString();
+    videoDiag.recaptchaExecuteEndedAt = new Date().toISOString();
+    throw new FatalError(`reCAPTCHA mint failed: ${e?.message || e}`, true);
+  }
+  videoDiag.recaptchaExecuteStartedAt = new Date(captchaMintStartedAt).toISOString();
+  videoDiag.recaptchaExecuteEndedAt = new Date().toISOString();
+  videoDiag.recaptchaExecuteDurationMs =
+    captchaMint.durationMs ?? Date.now() - captchaMintStartedAt;
+  videoDiag.captchaMintedOn = captchaMint.mintedOn;
+
+  // The send boundary (see generateOneImageInner): never re-run, a navigation during it is an unknown outcome.
+  videoDiag.sendStarted = true;
   const out = await safeEvaluate(
     page,
-    async ({ projectId, mode, prompt, siteKey, recaptchaAction, uuidA, uuidB, uuidC, reqId, hl, timeoutMs }) => {
+    async ({ projectId, mode, prompt, captcha, uuidA, uuidB, uuidC, reqId, hl, timeoutMs, batchHeaders }) => {
       // Safe, non-secret diagnostic snapshot — never includes cookies, the
       // WIZ token itself, or the reCAPTCHA token, only presence/shape facts.
-      // Attached to every return path below so a failure at ANY stage
-      // (WIZ missing, reCAPTCHA missing/failed, HTTP error, or a parsed-but-
-      // empty result) carries the same context.
       const diag = {
         url: location.href,
         userAgent: navigator.userAgent,
-        recaptchaAction,
         hasAt: false,
         hasBl: false,
         hasFsid: false,
-        executeIsFunction: false,
-        tokenLength: null,
+        tokenLength: captcha ? String(captcha).length : 0,
       };
 
       const wiz = window.WIZ_global_data || {};
@@ -1936,19 +2052,8 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
       if (!at || !bl || !fsid) {
         return { error: "Missing WIZ session state (at/bl/f.sid)", recoverable: true, diag };
       }
-
-      const grec = window.grecaptcha?.enterprise;
-      diag.executeIsFunction = typeof grec?.execute === "function";
-      if (!grec) return { error: "No reCAPTCHA", recoverable: true, diag };
-      const recaptchaExecuteStartedAt = Date.now();
-      const captcha = await grec.execute(siteKey, { action: recaptchaAction });
-      const recaptchaExecuteEndedAt = Date.now();
-      diag.tokenLength = captcha ? String(captcha).length : 0;
       if (!captcha) {
-        return {
-          error: "reCAPTCHA execute failed", recoverable: true, diag,
-          recaptchaExecuteStartedAt, recaptchaExecuteEndedAt,
-        };
+        return { error: "reCAPTCHA token missing", recoverable: true, diag };
       }
 
       // Positional structure reproduced exactly as captured live for
@@ -1956,13 +2061,7 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
       // investigation notes. Same context object shape as ogiZ0b's image
       // path, confirmed byte-identical.
       const context = [null, 22, null, null, null, projectId, null, null, null, null, [captcha, 1]];
-      // FIVE elements, matching a live-captured successful generation. The
-      // trailing `null, null, [4]` this used to append is no longer accepted:
-      // Google rejects the 8-element form with an application-level
-      // INVALID_ARGUMENT (wrb.fr status 3) and returns a null payload, so no
-      // workflow ever starts. Verified by isolating this single variable —
-      // the identical request with those three positions removed returns a
-      // populated payload with workflow and media ids.
+      // FIVE elements, matching a live-captured successful generation.
       const request = [
         [null, null, [[[prompt]]]],
         mode,
@@ -1992,7 +2091,7 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
       try {
         const resp = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          headers: batchHeaders,
           body: bodyStr,
           credentials: "include",
           signal: ac.signal,
@@ -2000,7 +2099,7 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
         clearTimeout(tm);
         const text = await resp.text();
         const rpcRespondedAt = Date.now();
-        const timing_ = { recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt, rpcRespondedAt };
+        const timing_ = { rpcSentAt, rpcRespondedAt };
         if (!resp.ok) {
           return { error: "HTTP " + resp.status, status: resp.status, errText: text.slice(0, 500), diag, ...timing_ };
         }
@@ -2010,15 +2109,24 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
         return {
           error: e.name === "AbortError" ? "Request timed out" : e.message,
           isTimeout: e.name === "AbortError",
-          diag, recaptchaExecuteStartedAt, recaptchaExecuteEndedAt, rpcSentAt,
+          diag, rpcSentAt,
         };
       }
     },
     {
-      projectId, mode, prompt,
-      siteKey: secrets.recaptchaSiteKey, recaptchaAction: api.videoRecaptchaAction,
-      uuidA, uuidB, uuidC, reqId, hl, timeoutMs: timing.apiRequestTimeoutMs,
+      projectId,
+      mode,
+      prompt,
+      captcha: captchaMint.token,
+      uuidA,
+      uuidB,
+      uuidC,
+      reqId,
+      hl,
+      timeoutMs: timing.apiRequestTimeoutMs,
+      batchHeaders: BATCHEXECUTE_HEADERS,
     },
+    { retries: 0 },
   );
 
   // TEMPORARY diagnostic capture (see project notes) — passive only, never
@@ -2055,35 +2163,31 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
   };
 
   videoDiag.hasWizState = out ? !!(out.diag?.hasAt && out.diag?.hasBl && out.diag?.hasFsid) : null;
-  videoDiag.recaptchaExecuteStartedAt = out?.recaptchaExecuteStartedAt ? new Date(out.recaptchaExecuteStartedAt).toISOString() : null;
-  videoDiag.recaptchaExecuteEndedAt = out?.recaptchaExecuteEndedAt ? new Date(out.recaptchaExecuteEndedAt).toISOString() : null;
-  videoDiag.recaptchaExecuteDurationMs =
-    out?.recaptchaExecuteStartedAt && out?.recaptchaExecuteEndedAt
-      ? out.recaptchaExecuteEndedAt - out.recaptchaExecuteStartedAt
-      : null;
+  // recaptcha* already set from /about mint — do not clobber with missing out fields.
   videoDiag.rpcSentAt = out?.rpcSentAt ? new Date(out.rpcSentAt).toISOString() : null;
   videoDiag.rpcRespondedAt = out?.rpcRespondedAt ? new Date(out.rpcRespondedAt).toISOString() : null;
 
   if (!out) {
     videoDiag.outcome = "evaluate_failed";
-    throw new FatalError("Page evaluate failed", true);
+    throw tagSubmission(new FatalError("Page evaluate failed", true), Submission.UNKNOWN);
   }
   if (out.error) {
     videoDiag.outcome = "rpc_error";
     videoDiag.httpStatus = out.status ?? null;
     writeYhhmEfDiagnostic({ stage: "pre-YhhmEf", error: out.error, status: out.status ?? null, errText: out.errText ?? null });
-    if (out.status === 429) throw new RateLimitError("Rate limited by Google");
+    const sub = out.recoverable ? Submission.NOT_SUBMITTED : transportSubmission(out);
+    if (out.status === 429) throw tagSubmission(new RateLimitError("Rate limited by Google"), sub);
     if (out.status === 401 || out.recoverable) {
       await waitForFlowReady(page).catch(() => {});
       const stillSignedIn = await getSessionToken(page).catch(() => null);
       if (!stillSignedIn) {
-        throw new AuthExpiredError("Flow account is signed out — open Accounts and sign in again");
+        throw tagSubmission(new AuthExpiredError("Flow account is signed out — open Accounts and sign in again"), sub);
       }
-      throw new EndpointRejectedError(
+      throw tagSubmission(new EndpointRejectedError(
         `Google rejected the video generation request (${out.status || out.error}) while the account is still signed in`,
-      );
+      ), sub);
     }
-    throw new Error(out.error + (out.errText ? ": " + out.errText : ""));
+    throw tagSubmission(new Error(out.error + (out.errText ? ": " + out.errText : "")), sub);
   }
 
   videoDiag.httpStatus = 200;
@@ -2110,14 +2214,22 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
     videoDiag.outcome = "no_workflow_id";
     videoDiag.errorInfoReason = reason;
     videoDiag.grpcCode = extractRpcErrorGrpcCode(out.text, "YhhmEf");
-    if (reason) {
-      throw new Error(`Flow RPC rejected: ${reason}`);
-    }
-    throw new Error("Video generation did not start — no media returned");
+    const refused = noResultError(reason, "YhhmEf", { grpcCode: videoDiag.grpcCode });
+    if (refused) throw refused;
+    // A 200 we could not read (for example Google changed the response shape): the job may have been created.
+    throw tagSubmission(new Error("Video generation did not start — no media returned"), Submission.UNKNOWN);
   }
   videoDiag.workflowId = workflowId;
-  videoDiag.stage = "poll";
+  if (onAccepted) onAccepted(workflowId);   // recorded before polling, so a crash from here on resumes instead of resubmitting
+  return finishVideoJob(page, workflowId, projectId, videoDiag);
+}
 
+/**
+ * Poll an accepted video workflow to completion and fetch its final media (jwpduf, then as29s). Read-only: never creates
+ * anything, so it is safe to repeat for the same workflow.
+ */
+async function finishVideoJob(page, workflowId, projectId, videoDiag) {
+  videoDiag.stage = "poll";
   await pollVideoStatus(page, workflowId, projectId);
   videoDiag.stage = "final";
 
@@ -2151,7 +2263,7 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
       try {
         const resp = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", "X-Same-Domain": "1" },
           body: bodyStr,
           credentials: "include",
           signal: ac.signal,
@@ -2199,17 +2311,48 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
   return { mediaId, fifeUrl };
 }
 
-function _looksLikeMedia(buf) {
-  if (!buf || buf.length < 32) return false;
+/**
+ * Resume a video Flow already accepted (after a poll/final-fetch failure, a stop, or a restart): poll + final fetch only.
+ * Errors are tagged ACCEPTED with the workflow id, so a caller can never mistake them for "not created".
+ */
+export async function resumeVideo(page, workflowId, projectId, settings = {}) {
+  const videoDiag = { ts: null, rpc: "resume", workflowId, stage: "poll", outcome: "unknown", ...pageLifecycleFields(page) };
+  const started = Date.now();
+  try {
+    await waitForFlowReady(page);
+    return await finishVideoJob(page, workflowId, projectId, videoDiag);
+  } catch (err) {
+    throw tagSubmission(err, Submission.ACCEPTED, { workflowId, stage: videoDiag.stage });
+  } finally {
+    videoDiag.ts = new Date().toISOString();
+    videoDiag.totalElapsedMs = Date.now() - started;
+    writeGenerationDiagnostic(settings, videoDiag);
+  }
+}
+
+/** What kind of media the bytes are: "image", "video" or null (HTML, JSON, an error page, a truncated body). */
+export function mediaKindOf(buf) {
+  if (!buf || buf.length < 32) return null;
   const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
-  // PNG / JPEG / GIF / WEBP(RIFF) / MP4(ftyp) / WebM
-  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return true;
-  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return true;
-  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return true;
-  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return true;
-  if (b.includes(Buffer.from("ftyp"))) return true;
-  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return true;
-  return false;
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image";            // PNG
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image";                              // JPEG
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "image";                              // GIF
+  if (b.slice(0, 4).toString("latin1") === "RIFF" && b.slice(8, 12).toString("latin1") === "WEBP") return "image";
+  if (b.slice(4, 8).toString("latin1") === "ftyp") return "video";                                  // MP4 / MOV
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "video";            // WebM / Matroska
+  return null;
+}
+
+function _looksLikeMedia(buf, kind = null) {
+  const got = mediaKindOf(buf);
+  return got != null && (!kind || got === kind);
+}
+
+function _kindForPath(p) {
+  const ext = String(p).toLowerCase().split(".").pop();
+  if (["mp4", "mov", "webm", "m4v"].includes(ext)) return "video";
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "image";
+  return null;
 }
 
 /**
@@ -2218,7 +2361,9 @@ function _looksLikeMedia(buf) {
  * Retries briefly — Flow often returns a mediaId before the CDN object is ready,
  * which previously looked like "generated in browser but never downloaded".
  */
-export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
+export async function downloadMedia(page, mediaId, destPath, directUrl = null, { kind = null } = {}) {
+  // The bytes must be the kind the file is named for: an image poster saved as a scene's .mp4 is a broken scene.
+  const wantKind = kind || _kindForPath(destPath);
   const { mkdirSync, writeFileSync, renameSync, rmSync } = await import("node:fs");
   const pathMod = await import("node:path");
   mkdirSync(pathMod.dirname(destPath), { recursive: true });
@@ -2226,7 +2371,8 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
   // as a complete file. The Python side picks up <run>/**/NNN.mp4 straight
   // off disk (e.g. after a STOP/timeout), and a direct write let it copy a
   // half-written video into the project as a READY asset.
-  const partPath = `${destPath}.part`;
+  // Unique per call, so two downloads aimed at the same name can never write into each other's temp file.
+  const partPath = `${destPath}.${process.pid}.${crypto.randomUUID().slice(0, 8)}.part`;
 
   const tryWrite = async (label, getter) => {
     try {
@@ -2234,7 +2380,10 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
       if (!body || body.length < 64) {
         return { ok: false, error: `${label}: empty body`, retryable: true };
       }
-      if (!_looksLikeMedia(body)) {
+      if (!_looksLikeMedia(body, wantKind)) {
+        if (mediaKindOf(body)) {
+          return { ok: false, error: `${label}: got ${mediaKindOf(body)} bytes, expected ${wantKind}`, retryable: true };
+        }
         const head = Buffer.from(body).slice(0, 80).toString("utf8").replace(/\s+/g, " ");
         const retryable =
           /not ready|pending|404|403|429|empty|json|html|<!doctype/i.test(head) ||
@@ -2254,7 +2403,7 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null) {
         rmSync(partPath, { force: true });
       } catch {}
       const msg = String(e.message || e);
-      const retryable = /HTTP 404|HTTP 403|HTTP 429|timeout|ECONN|not ready/i.test(msg);
+      const retryable = /HTTP 404|HTTP 403|HTTP 429|HTTP 5\d\d|timeout|ECONN|socket|not ready/i.test(msg);
       return { ok: false, error: `${label}: ${msg}`, retryable };
     }
   };

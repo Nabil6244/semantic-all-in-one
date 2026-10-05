@@ -29,7 +29,9 @@ export function ensureDirs() {
 }
 
 export function profileDir(accountId) {
-  return path.join(PROFILES_DIR, accountId);
+  // Persistent per-account Chrome user-data-dir. Same path the app has always
+  // used — accounts are already signed in here; do not invent a second tree.
+  return path.join(PROFILES_DIR, String(accountId));
 }
 
 export function accountDownloadDir(labelOrIndex, root = DOWNLOADS_ROOT) {

@@ -1032,3 +1032,76 @@ class TestDeadOrSilentEngineFailsFast(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOnlyAnExplicitRetryConfirmsResubmission(unittest.TestCase):
+    """The Flow engine refuses to generate a scene again when an earlier request for it may already exist on Flow, unless
+    the GENERATE carries confirmResubmitKeys. Only the user's own Retry / Regenerate may send them."""
+
+    def _settings_sent(self, call):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = _make_client(root)
+            done_png = root / "001.png"
+            _png(done_png)
+            sent = {}
+
+            def fake_subscribe(fn):
+                def generate(prompts, settings=None, **_k):
+                    sent.update(settings or {})
+                    fn({"type": "BATCH_PROGRESS", "index": 0, "status": "done", "path": str(done_png)})
+                    fn({"type": "GENERATE_DONE"})
+                client.generate.side_effect = generate
+                return lambda: None
+            client.subscribe.side_effect = fake_subscribe
+            fp = FlowProvider(_FakeEngineManager(client))
+            call(fp, SceneRow(scene_number="7", script_segment="a", prompt="p"), root)
+            return sent
+
+    def test_an_automatic_batch_never_confirms(self):
+        sent = self._settings_sent(lambda fp, s, root: fp.resolve_batch([s], root, log=lambda *_: None))
+        self.assertNotIn("confirmResubmitKeys", sent)
+
+    def test_regenerate_confirms_exactly_its_scene(self):
+        sent = self._settings_sent(lambda fp, s, root: fp.regenerate(s, root, log=lambda *_: None))
+        self.assertEqual(sent.get("confirmResubmitKeys"), ["7"])
+
+    def test_the_confirmation_does_not_outlive_the_explicit_request(self):
+        holder = {}
+
+        def call(fp, s, root):
+            fp.regenerate(s, root, log=lambda *_: None)
+            holder["after"] = fp.confirm_resubmit
+
+        self._settings_sent(call)
+        self.assertFalse(holder["after"])
+
+    def test_a_manual_batch_retry_confirms_while_running_and_not_after(self):
+        import contextlib
+
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+            flow.confirm_resubmit = False
+            seen = []
+
+            @contextlib.contextmanager
+            def confirming():
+                flow.confirm_resubmit = True
+                try:
+                    yield
+                finally:
+                    flow.confirm_resubmit = False
+
+            flow.confirming_resubmit = confirming
+            orig = flow.resolve_batch
+
+            def spy(*a, **k):
+                seen.append(flow.confirm_resubmit)
+                return orig(*a, **k)
+
+            flow.resolve_batch = spy
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            mgr.retry_flow_batch([SceneRow(scene_number="1", script_segment="x", prompt="p")])
+            self.assertTrue(seen and all(seen), "every call made by the manual Retry carries the explicit request")
+            self.assertFalse(flow.confirm_resubmit)

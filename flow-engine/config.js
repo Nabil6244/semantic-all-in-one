@@ -31,24 +31,30 @@ export const urls = {
   flowProject: (projectId) => `https://flow.google.com/project/${projectId}`,
 };
 
+import { batchexecute } from "./lib/batchexecute-config.js";
+
+export { batchexecute };
+
 export const api = {
   toolName: "PINHOLE",
-  sessionPath: "/fx/api/auth/session",
-  createProjectPath: "/fx/api/trpc/project.createProject",
-  mediaRedirectPath: "/fx/api/trpc/media.getMediaUrlRedirect",
-  batchGenerateImages: (projectId) =>
-    `https://aisandbox-pa.googleapis.com/v1/projects/${projectId}/flowMedia:batchGenerateImages`,
-  recaptchaAction: "IMAGE_GENERATION",
+  recaptchaAction: batchexecute.captchaActions.image,
   recaptchaApplicationType: "RECAPTCHA_APPLICATION_TYPE_WEB",
   paygateTier: "PAYGATE_TIER_NOT_PAID",
+  videoRecaptchaAction: batchexecute.captchaActions.video,
+  /** Still used by downloadMedia redirect fallback (not for generate). */
+  mediaRedirectPath: "/fx/api/trpc/media.getMediaUrlRedirect",
 
-  // ─── Video (text → video) — restored verbatim from semantic-automator-main's
-  // root config.js / background.js (EtVideo/pollVideo) ───────────────────────
-  batchAsyncGenerateVideoText:
-    "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText",
-  batchCheckAsyncVideoGenerationStatus:
-    "https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus",
-  videoRecaptchaAction: "VIDEO_GENERATION",
+  /** Obsolete — generation uses flow.google.com batchexecute (see lib/flow-api.js). */
+  legacyRest: {
+    sessionPath: "/fx/api/auth/session",
+    createProjectPath: "/fx/api/trpc/project.createProject",
+    batchGenerateImages: (projectId) =>
+      `https://aisandbox-pa.googleapis.com/v1/projects/${projectId}/flowMedia:batchGenerateImages`,
+    batchAsyncGenerateVideoText:
+      "https://aisandbox-pa.googleapis.com/v1/video:batchAsyncGenerateVideoText",
+    batchCheckAsyncVideoGenerationStatus:
+      "https://aisandbox-pa.googleapis.com/v1/video:batchCheckAsyncVideoGenerationStatus",
+  },
 };
 
 export const models = {
@@ -175,6 +181,21 @@ export const timing = {
   videoPollTimeoutMs: 6 * 60 * 1000,
 };
 
+/**
+ * How Flow assets are generated — the ONE source of truth (settings.generationMode may choose another for a run):
+ *   rpc          batchexecute only (default)
+ *   ui           the Flow web UI only
+ *   rpc_then_ui  RPC; the UI only when the RPC request could not be sent at all (see generation-dispatch.js)
+ * FLOW_GENERATION_MODE overrides the default.
+ */
+export const GENERATION_MODES = new Set(["rpc", "ui", "rpc_then_ui"]);
+export const DEFAULT_GENERATION_MODE = "rpc";
+
+export function resolveGenerationMode() {
+  const fromEnv = String(process.env.FLOW_GENERATION_MODE || "").trim().toLowerCase();
+  return GENERATION_MODES.has(fromEnv) ? fromEnv : DEFAULT_GENERATION_MODE;
+}
+
 export const defaults = {
   flowSettings: {
     model: models.default,
@@ -190,9 +211,8 @@ export const defaults = {
     delayMax: 8,
     seedMode: "random",
     seedValue: 42000,
-    // Mid-batch page reload interval (completed prompts). Higher default
-    // reduces synchronized reCAPTCHA reinits across parallel accounts.
-    // Per-account stagger is applied in account-lifecycle.js.
+    // rpc | ui | rpc_then_ui — env FLOW_GENERATION_MODE overrides default
+    generationMode: resolveGenerationMode(),
     refreshFrequency: 20,
   },
 };

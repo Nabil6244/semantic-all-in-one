@@ -1,3 +1,11 @@
+/**
+ * Per-account Google Chrome via Playwright persistent context.
+ *
+ * Uses channel:"chrome" + the existing ~/.semantic-automator-desktop/profiles/<id>
+ * dirs where Semantic YT Studio accounts are already signed in. CDP-only launch
+ * was tried for anti-automation, but it opened those same profiles as signed-out
+ * (/about) — so this path keeps the working signed-in workflow.
+ */
 import { chromium } from "playwright";
 import fs from "node:fs";
 import { profileDir, ensureDirs } from "./paths.js";
@@ -20,7 +28,6 @@ function tagPage(page, accountId) {
 }
 
 function launchOpts(headed) {
-  // Prefer installed Google Chrome (looks more like a normal user).
   const opts = {
     headless: !headed,
     viewport: { width: 1280, height: 900 },
@@ -31,7 +38,6 @@ function launchOpts(headed) {
     ],
     ignoreDefaultArgs: ["--enable-automation"],
   };
-  // channel chrome if present on macOS/Windows; fall back to bundled Chromium
   if (process.platform === "darwin" || process.platform === "win32") {
     opts.channel = "chrome";
   }
@@ -45,7 +51,7 @@ function launchOpts(headed) {
  */
 export async function openAccountBrowser(accountId, opts = {}) {
   ensureDirs();
-  const headed = opts.headed !== false; // default headed for reliability / login
+  const headed = opts.headed !== false;
   if (contexts.has(accountId)) {
     const ctx = contexts.get(accountId);
     let page = pages.get(accountId);
@@ -66,12 +72,8 @@ export async function openAccountBrowser(accountId, opts = {}) {
 
   let context;
   try {
-    context = await chromium.launchPersistentContext(
-      userDataDir,
-      launchOpts(headed),
-    );
+    context = await chromium.launchPersistentContext(userDataDir, launchOpts(headed));
   } catch (e) {
-    // No Chrome channel — use Playwright Chromium
     if (String(e.message || e).includes("channel")) {
       const fallback = launchOpts(headed);
       delete fallback.channel;
@@ -97,15 +99,6 @@ export async function openAccountBrowser(accountId, opts = {}) {
 }
 
 export async function gotoFlow(page) {
-  // Flow moved off labs.google (where every URL had a "/tools/flow" path
-  // segment) onto flow.google.com (which never does) — the old check below
-  // was therefore ALWAYS true post-migration, forcing a fresh navigation to
-  // flowHome on every single call even when the page was already sitting on
-  // a perfectly good, already-open project. That's what caused the visible
-  // "refreshing" loop: gotoFlow() throwing away an open project every time
-  // prepareAccount() ran, which then had to fall through to creating a new
-  // one. Skip navigating away from any URL that's already on the current
-  // Flow domain — a project page included.
   const url = page.url();
   if (!url.includes("flow.google.com") && !url.includes("labs.google")) {
     await flowGoto(page, urls.flowHome, "gotoFlow:not-on-flow-domain", {
@@ -128,7 +121,6 @@ export async function closeAccountBrowser(accountId) {
   pages.delete(accountId);
 }
 
-/** How many account browsers are open right now. */
 export function openBrowserCount() {
   return contexts.size;
 }
@@ -146,21 +138,6 @@ export function getPage(accountId) {
   return pages.get(accountId) || null;
 }
 
-/**
- * TEMPORARY read-only diagnostic — measures browser runtime state (navigator/
- * WebGL/service-worker/location facts) on an account's Flow page, for a
- * one-off differential audit against a normal Chrome session. Never touches
- * Flow RPCs, reCAPTCHA, generation, or browser launch configuration; never
- * reads cookies, WIZ values, or any query parameter besides `hl`.
- *
- * Reuses the existing page if the account's browser is already open (no new
- * browser, no new page, no reload); only opens/navigates if nothing is open
- * yet for this account, since there is otherwise nothing to measure.
- *
- * Remove this function (and its server.js/orchestrator.js wiring) once the
- * one-off measurement it exists for is done — it is not part of normal
- * account/generation behavior.
- */
 export async function inspectAccountPage(accountId) {
   let page = getPage(accountId);
   let openedFresh = false;
@@ -185,7 +162,6 @@ export async function inspectAccountPage(accountId) {
       pathname: location.pathname,
       hl: null,
     };
-
     try {
       if (navigator.userAgentData) {
         out.userAgentData = {
@@ -195,7 +171,6 @@ export async function inspectAccountPage(accountId) {
         };
       }
     } catch {}
-
     try {
       const canvas = document.createElement("canvas");
       const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
@@ -207,27 +182,20 @@ export async function inspectAccountPage(accountId) {
         }
       }
     } catch {}
-
     try {
-      const u = new URL(location.href);
-      out.hl = u.searchParams.get("hl");
+      out.hl = new URL(location.href).searchParams.get("hl");
     } catch {}
-
     return out;
   });
 
-  // Separate evaluate: getRegistrations() is async and awaiting it inline
-  // above would need top-level await inside the sync evaluate callback.
   const scopes = await page.evaluate(async () => {
     try {
-      if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) return null;
-      const regs = await navigator.serviceWorker.getRegistrations();
-      return regs.map((r) => r.scope);
+      if (!navigator.serviceWorker?.getRegistrations) return null;
+      return (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope);
     } catch {
       return null;
     }
   });
   data.serviceWorkerScopes = scopes;
-
   return { data, openedFresh };
 }

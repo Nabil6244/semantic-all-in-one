@@ -147,12 +147,19 @@ export async function startServer(port = DEFAULT_PORT) {
         } else if (t === "DELETE") {
           await deleteAccount(msg.accountId);
         } else if (t === "GENERATE") {
-          const prompts = String(msg.prompts || "")
-            .split(/\r?\n/)
-            .map((s) => s.trim())
-            .filter(Boolean);
+          // promptList keeps one entry per scene (index = scene position) even when a prompt is empty or spans lines;
+          // the newline-joined `prompts` string is the older form (empty lines dropped, so indices can shift).
+          const prompts = Array.isArray(msg.promptList)
+            ? msg.promptList.map((p) => String(p ?? "").replace(/\s+/g, " ").trim())
+            : String(msg.prompts || "")
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+          const promptKeys =
+            Array.isArray(msg.promptKeys) && msg.promptKeys.length === prompts.length ? msg.promptKeys.map((k) => (k == null ? null : String(k))) : null;
           generate({
             prompts,
+            promptKeys,
             settings: { ...defaults.flowSettings, ...(msg.settings || {}) },
             accountIds: msg.accountIds || null,
           }).catch((e) => pushState({ generateError: e.message }));

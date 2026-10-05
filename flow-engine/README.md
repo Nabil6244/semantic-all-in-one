@@ -9,10 +9,13 @@ Firebase/Stripe/licensing/admin code left out:
 | Kept (copied verbatim) | Left out |
 |---|---|
 | `server.js` — WS+HTTP server, `127.0.0.1` only | `electron-main.js` |
-| `lib/flow-api.js` — Flow REST calls, reCAPTCHA, retry error types | `desktop/public/` (HUD GUI) |
+| `lib/flow-api.js` — Flow batchexecute RPC (`ogiZ0b` / `YhhmEf`), reCAPTCHA, retry error types | `desktop/public/` (HUD GUI) |
+| `lib/generation-dispatch.js` — RPC vs UI (`generationMode`) | |
+| `lib/generation-ledger.js`, `lib/generation-state.js` — submission states, crash-safe ledger | |
+| `lib/batchexecute-config.js` — rpcids / aspect wire values (parity with Chrome extension) | |
 | `lib/batch-runner.js` — per-account prompt loop, retry/backoff/model-fallback | `electron-builder` packaging config |
 | `lib/orchestrator.js` — multi-account concurrency, prompt slicing | |
-| `lib/accounts.js` — Playwright persistent browser contexts | |
+| `lib/accounts.js` — per-account persistent Chrome profile (Playwright) | |
 | `lib/paths.js`, `lib/store.js` — on-disk account registry (plaintext, no secrets) | |
 | `config.js` — trimmed to only the constants these files use | Firebase config, Stripe URLs, admin emails, access/quota |
 
@@ -28,6 +31,26 @@ instead of reimplementing it. It runs as a plain background Node process
 `providers/flow/client.py` in the Python app is a client for that exact
 protocol — see `GENERATE`/`STATE`/`BATCH_PROGRESS`/`BATCH_DONE` in
 `server.js`.
+
+**Generation path:** each account runs in its own persistent Chrome profile (Playwright `launchPersistentContext`, Chrome
+channel where installed, Playwright Chromium otherwise). Generation is the in-page batchexecute RPC (`ogiZ0b` image,
+`YhhmEf` video, polled with `jwpduf`, fetched with `as29s`). The mode lives in `config.js` (`resolveGenerationMode`, default
+**`rpc`**; `FLOW_GENERATION_MODE=rpc|ui|rpc_then_ui` overrides it):
+
+| Mode | Behavior |
+|------|----------|
+| `rpc` | batchexecute only (**default**) |
+| `ui` | Flow web UI only |
+| `rpc_then_ui` | RPC; the UI only when the RPC request could not be sent at all |
+
+**No duplicate paid generations.** Every generation is recorded in `~/.semantic-automator-desktop/flow-generation-ledger.json`
+before it is sent (see `lib/generation-ledger.js` and `lib/generation-state.js`). A request whose outcome is unknown is never
+sent again automatically; a job Flow accepted is only ever resumed (poll, final fetch, download), also after a crash or an
+app-level Retry. An anti-abuse answer (`PUBLIC_ERROR_UNUSUAL_ACTIVITY`) stops that account: nothing is retried, sent through
+the UI, or handed to another account. Audit and state machine: `docs/AUDIT-2026-10-05.md`.
+
+**Scripts that spend real credits** (`scripts/*.mjs`, `_scratch-*.mjs`) refuse to run unless `FLOW_ALLOW_REAL_CREDITS=1`.
+Automated tests (`node --test test/*.test.js`) use fakes only.
 
 **Setup (development):**
 

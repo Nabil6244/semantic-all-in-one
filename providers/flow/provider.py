@@ -17,6 +17,8 @@ mixed into one GENERATE call.
 
 from __future__ import annotations
 
+import contextlib
+
 import shutil
 import sys
 import threading
@@ -85,6 +87,19 @@ class FlowProvider(AssetProvider):
         # the engine ignores unrelated ones.
         self.flow_settings = flow_settings or {}
         self.should_stop_scene = None
+        # True only while the user's explicit Retry / Regenerate runs (see confirm_resubmit()): the engine then may generate a
+        # scene again even if an earlier request for it may already exist on Flow. Automatic runs never set it.
+        self.confirm_resubmit = False
+
+    @contextlib.contextmanager
+    def confirming_resubmit(self):
+        """The user explicitly asked for these scenes again: allow the engine to generate over a possibly-existing request."""
+        prev = self.confirm_resubmit
+        self.confirm_resubmit = True
+        try:
+            yield
+        finally:
+            self.confirm_resubmit = prev
 
     def _scene_stopped(self, scene_number: str) -> bool:
         cb = getattr(self, "should_stop_scene", None)
@@ -111,8 +126,9 @@ class FlowProvider(AssetProvider):
         self, scene: SceneRow, images_dir: Path, exclude: Optional[dict] = None, log: LogFn = print
     ) -> AssetResult:
         # Flow has no "asset id" to exclude like stock does — regenerating just
-        # means resubmitting the same prompt for a fresh result.
-        return self.resolve(scene, images_dir, log=log)
+        # means resubmitting the same prompt for a fresh result. This is the user's explicit request for the scene.
+        with self.confirming_resubmit():
+            return self.resolve(scene, images_dir, log=log)
 
     def resolve_batch(
         self,
@@ -376,7 +392,9 @@ class FlowProvider(AssetProvider):
                 # cwd differs (common in the Windows packaged .exe layout).
                 "outputDir": str(run_dir.resolve()),
             }
-            client.generate(prompts, settings=settings, account_ids=self.account_ids)
+            if self.confirm_resubmit:
+                settings["confirmResubmitKeys"] = [str(s.scene_number) for s in scenes]
+            client.generate(prompts, settings=settings, account_ids=self.account_ids, prompt_keys=[str(s.scene_number) for s in scenes])
 
             timeout_seconds = self._generate_timeout_seconds(len(scenes))
             deadline = time.monotonic() + timeout_seconds

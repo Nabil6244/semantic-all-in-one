@@ -26,6 +26,7 @@ import { runBatchSlice } from "./batch-runner.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
 import { timing } from "../config.js";
 import fs from "node:fs";
+import { defaultLedger, generationKey, scopeOf, LedgerState } from "./generation-ledger.js";
 
 /** @type {Set<(msg: object) => void>} */
 const listeners = new Set();
@@ -37,6 +38,27 @@ let generateChain = Promise.resolve();
 const accountProgress = new Map();
 /** Throttle full STATE broadcasts during high-frequency BATCH_PROGRESS. */
 let lastProgressStateAt = 0;
+
+/** True when preparation failed because the Google session is gone (not a transient SPA glitch). */
+export function isSignedOutPrepareError(err) {
+  const msg = String(err?.message || err || "");
+  return /not signed in/i.test(msg);
+}
+
+/** Honest failure text after rotation — do not blame rate limit/quota when accounts were signed out. */
+export function failMessageForPending(item, selected = [], exhaustedAccounts = new Set()) {
+  const reason = String(item?.reason || "");
+  if (reason === "prepare_failed" || isSignedOutPrepareError(item)) {
+    return "No signed-in Flow accounts could open for this scene. Open Accounts, sign in again, then Retry.";
+  }
+  if (reason === "auth_expired") {
+    return "Flow signed out during generation. Sign in again in Accounts, then Retry this scene.";
+  }
+  if (reason === "quota") {
+    return "Flow quota reached on every available account — skipping";
+  }
+  return "Rate limit / quota persists after account rotation — skipping";
+}
 
 /**
  * Cap simultaneous Chrome/Flow workers.
@@ -238,6 +260,19 @@ async function prepareAccount(accountId, label) {
     st = await checkAuthStatus(page);
   }
   if (!st.authenticated) {
+    // Keep the registry honest: a single-prompt batch only opens the first
+    // "authenticated" account, then rotates. Leaving a signed-out account marked
+    // signed-in made every Generate burn ~60s×3 retries on dead profiles before
+    // the Python idle timeout killed the batch (Accounts 2–4 on 2026-10-05).
+    updateAccount(accountId, { authenticated: false, lastChecked: Date.now() });
+    try {
+      await closeAccountBrowser(accountId);
+    } catch {}
+    accountProgress.set(accountId, {
+      status: "error",
+      message: "Signed out — open Accounts and sign in again",
+    });
+    pushState();
     throw new Error(`Account "${label}" is not signed in`);
   }
   updateAccount(accountId, {
@@ -286,10 +321,11 @@ export function orderWorkersByVideoLoad(workers, isVideo, loadsOverride) {
     .map((e) => e.a);
 }
 
-export function splitPrompts(prompts, n) {
+export function splitPrompts(prompts, n, keys = null) {
   const slices = Array.from({ length: n }, () => ({
     prompts: [],
     indices: [],
+    keys: [],
   }));
   if (n === 0) return slices;
   const base = Math.floor(prompts.length / n);
@@ -301,6 +337,7 @@ export function splitPrompts(prompts, n) {
     for (let j = 0; j < size; j++) {
       slices[i].prompts.push(prompts[offset]);
       slices[i].indices.push(offset);
+      slices[i].keys.push(keys ? keys[offset] ?? null : null);
       offset++;
     }
   }
@@ -320,7 +357,36 @@ export function generate(opts) {
   return run;
 }
 
-async function runGenerate({ prompts, settings, accountIds }) {
+/**
+ * Prompts whose generation Flow already accepted on a specific account (ledger state ACCEPTED / MEDIA_ID_KNOWN /
+ * DOWNLOAD_FAILED) can only be resumed from that account. Move each into its owner's slice when the owner is a worker,
+ * or add the owner as a worker when it is a signed-in standby. Returns the (possibly extended) worker list and slices.
+ */
+export function routeToOwners(workers, slices, selected, ownerOf) {
+  const outWorkers = [...workers];
+  const outSlices = slices.map((sl) => ({ prompts: [...sl.prompts], indices: [...sl.indices], keys: [...(sl.keys || [])] }));
+  for (let w = 0; w < outSlices.length; w++) {
+    for (let j = outSlices[w].indices.length - 1; j >= 0; j--) {
+      const owner = ownerOf(outSlices[w].indices[j]);
+      if (!owner || owner === outWorkers[w].id) continue;
+      let target = outWorkers.findIndex((a) => a.id === owner);
+      if (target < 0) {
+        const standby = selected.find((a) => a.id === owner);
+        if (!standby) continue;             // owner not available: the batch runner reports it, never resubmits
+        outWorkers.push(standby);
+        outSlices.push({ prompts: [], indices: [], keys: [] });
+        target = outWorkers.length - 1;
+      }
+      for (const field of ["prompts", "indices", "keys"]) {
+        const [v] = outSlices[w][field].splice(j, 1);
+        outSlices[target][field].push(v);
+      }
+    }
+  }
+  return { workers: outWorkers, slices: outSlices };
+}
+
+async function runGenerate({ prompts, settings, accountIds, promptKeys = null }) {
   // Wait for a live batch; if the flag is stuck with no work, force-clear it.
   const waitDeadline = Date.now() + 15_000;
   while (running) {
@@ -356,6 +422,8 @@ async function runGenerate({ prompts, settings, accountIds }) {
 
   stopAll = false;
   running = true;
+  // One id per run: the ledger uses it to tell "the user was told in an earlier run and asked again" from "this run".
+  settings = { ...settings, _runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
 
   // Bounded Chrome fan-out — never open every signed-in account at once.
   // Unused authenticated accounts remain on standby for rate-limit rotation.
@@ -432,6 +500,20 @@ async function runGenerate({ prompts, settings, accountIds }) {
         return page;
       } catch (e) {
         lastErr = e;
+        // Signed-out is permanent for this run: do not sleep/retry on the same
+        // dead /about tab (that used to consume the whole 180s idle budget).
+        if (isSignedOutPrepareError(e)) {
+          updateAccount(account.id, { authenticated: false, lastChecked: Date.now() });
+          try {
+            await closeAccountBrowser(account.id);
+          } catch {}
+          accountProgress.set(account.id, {
+            status: "error",
+            message: "Signed out — open Accounts and sign in again",
+          });
+          pushState();
+          break;
+        }
         if (stopAll || attempt >= attempts) break;
         accountProgress.set(account.id, {
           status: "checking",
@@ -487,6 +569,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
             reassign.push({
               index: slice.indices[j],
               prompt: slice.prompts[j],
+              promptKey: slice.keys?.[j] ?? null,
               reason: "prepare_failed",
               fromAccountId: a.id,
             });
@@ -509,9 +592,11 @@ async function runGenerate({ prompts, settings, accountIds }) {
           page,
           prompts: slice.prompts,
           promptIndices: slice.indices,
+          promptKeys: slice.keys,
           totalAbsolute: total,
           settings: { ...settings, folder: a.label },
-          folderLabel: a.label,
+          // label + short id: two accounts whose labels read alike never share a folder
+          folderLabel: `${a.label}-${String(a.id).slice(0, 6)}`,
           accountId: a.id,
           accountLabel: a.label,
           workerIndex: i,
@@ -548,7 +633,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
               // A "rate_limited" result with reassign:true never ran here —
               // it is handed to another account — so counting it would
               // penalize an account for work it did not do.
-              if (isVideoBatch && !evt.reassign && evt.status !== "rate_limited") {
+              if (isVideoBatch && evt.submitted) {
                 sliceVideoJobs += 1;
               }
               broadcast({
@@ -636,7 +721,19 @@ async function runGenerate({ prompts, settings, accountIds }) {
     // double-initialized every account: openOrCreateProject / waitForFlowReady
     // ran twice before the first generation, which could surface as a second
     // navigation shortly after the page appeared ready.
-    let pending = await runPass(workers, splitPrompts(prompts, workers.length));
+    // Jobs Flow already accepted go back to the account that owns them (only it can poll and download them).
+    const ledger = await defaultLedger();
+    const scope = scopeOf(settings?.outputDir);
+    const mediaKind = isVideoBatch ? "video" : "image";
+    const ownerOf = (index) => {
+      const p = prompts[index];
+      const pk = promptKeys?.[index];
+      const key = generationKey({ mediaKind, prompt: pk != null ? `${pk}\u0000${p}` : `#${index}\u0000${p}`, settings, slot: 0, scope });
+      const e = ledger.get(key);
+      return e && [LedgerState.ACCEPTED, LedgerState.MEDIA_ID_KNOWN, LedgerState.DOWNLOAD_FAILED].includes(e.state) ? e.accountId : null;
+    };
+    const routed = routeToOwners(workers, splitPrompts(prompts, workers.length, promptKeys), selected, ownerOf);
+    let pending = await runPass(routed.workers, routed.slices);
     let passesRun = 1;
 
     // Rotate: reassign rate-limited / quota-handed prompts to other accounts.
@@ -673,18 +770,19 @@ async function runGenerate({ prompts, settings, accountIds }) {
         });
         const pick = candidates[0];
         if (!byAccount.has(pick.id)) {
-          byAccount.set(pick.id, { prompts: [], indices: [] });
+          byAccount.set(pick.id, { prompts: [], indices: [], keys: [] });
         }
         const bucket = byAccount.get(pick.id);
         bucket.prompts.push(item.prompt);
         bucket.indices.push(item.index);
+        bucket.keys.push(item.promptKey ?? null);
       }
 
       for (const item of noAccountLeft) {
         emitFinalFail(
           item.index,
           item.prompt,
-          "Rate limit / quota persists on all signed-in accounts — skipping",
+          failMessageForPending(item, selected, exhaustedAccounts),
         );
       }
 
@@ -722,7 +820,7 @@ async function runGenerate({ prompts, settings, accountIds }) {
       emitFinalFail(
         item.index,
         item.prompt,
-        "Rate limit / quota persists after account rotation — skipping",
+        failMessageForPending(item, selected, exhaustedAccounts),
       );
     }
 

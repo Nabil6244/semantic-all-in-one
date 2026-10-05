@@ -434,9 +434,22 @@ class TestFlowClientProtocol(unittest.TestCase):
         client.send = MagicMock()
         client.generate(["prompt one", "prompt two"], settings={"imageCount": 1}, account_ids=["a", "b"])
         client.send.assert_called_once_with(
-            {"type": "GENERATE", "prompts": "prompt one\nprompt two",
+            {"type": "GENERATE", "prompts": "prompt one\nprompt two", "promptList": ["prompt one", "prompt two"],
              "settings": {"imageCount": 1}, "accountIds": ["a", "b"]}
         )
+
+    def test_generate_keeps_one_entry_per_scene_with_stable_keys(self):
+        """An empty or multi-line prompt must not shift later scenes onto the wrong results."""
+        from unittest.mock import MagicMock
+
+        from providers.flow.client import FlowClient
+
+        client = FlowClient.__new__(FlowClient)
+        client.send = MagicMock()
+        client.generate(["first\nline two", "", "third"], prompt_keys=["1", "2", "3"])
+        msg = client.send.call_args[0][0]
+        self.assertEqual(msg["promptList"], ["first line two", "", "third"])
+        self.assertEqual(msg["promptKeys"], ["1", "2", "3"])
 
     def test_stop_message_shape(self):
         from unittest.mock import MagicMock

@@ -52,3 +52,4 @@ bench_performance_last.json
 
 # pakMap engine (Node deps installed locally, not committed)
 pakmap-engine/node_modules/
+flow-engine/_scratch-*

@@ -234,23 +234,10 @@ test("image mode still accepts the new /image/ result", async () => {
   assert.equal(result.mediaId, "img-789");
 });
 
-test("batch-runner.js no longer uses the old direct-RPC generateOneVideo for video generation", async () => {
-  const src = fs.readFileSync(
-    new URL("../lib/batch-runner.js", import.meta.url),
-    "utf8",
-  );
-  assert.ok(
-    !/\bgenerateOneVideo\(/.test(src),
-    "batch-runner.js must call generateOneVideoViaUI, not the old direct-RPC generateOneVideo",
-  );
-  assert.ok(
-    src.includes("generateOneVideoViaUI"),
-    "batch-runner.js must import/call generateOneVideoViaUI",
-  );
-  assert.ok(
-    src.includes('from "./flow-ui-experiment.js"'),
-    "video generation must come from the same UI infrastructure as images",
-  );
+test("batch-runner.js generates only through the one dispatcher (mode, fallback and billing rules live there)", async () => {
+  const src = fs.readFileSync(new URL("../lib/batch-runner.js", import.meta.url), "utf8");
+  assert.ok(!/\bgenerateOneVideo\(|\bgenerateOneImage\(|ViaUI\(/.test(src), "batch-runner.js must not call a generation path directly");
+  assert.ok(src.includes('from "./generation-dispatch.js"'), "batch-runner.js must generate through generation-dispatch.js");
 });
 
 test("video detection waits well past 3 minutes by default (Flow videos finish late under load)", () => {

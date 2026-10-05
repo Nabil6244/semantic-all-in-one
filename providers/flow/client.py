@@ -201,14 +201,19 @@ class FlowClient:
         prompts: List[str],
         settings: Optional[dict] = None,
         account_ids: Optional[List[str]] = None,
+        prompt_keys: Optional[List[str]] = None,
     ) -> None:
-        """`prompts` is newline-joined — server.js splits on \\r?\\n, matching the
-        original HUD's textarea input exactly (see flow-engine/server.js GENERATE)."""
-        self.send(
-            {
-                "type": "GENERATE",
-                "prompts": "\n".join(prompts),
-                "settings": settings or {},
-                "accountIds": account_ids,
-            }
-        )
+        """`promptList` keeps one entry per scene, so result indices always match scenes even when a prompt is empty or spans
+        lines; `promptKeys` (scene numbers) let the engine recognise the same scene across runs (no duplicate paid generation
+        after a crash or a Retry). The newline-joined `prompts` is kept for older engines."""
+        flat = [" ".join(str(p or "").split()) for p in prompts]
+        msg = {
+            "type": "GENERATE",
+            "prompts": "\n".join(flat),
+            "promptList": flat,
+            "settings": settings or {},
+            "accountIds": account_ids,
+        }
+        if prompt_keys is not None and len(prompt_keys) == len(flat):
+            msg["promptKeys"] = [None if k is None else str(k) for k in prompt_keys]
+        self.send(msg)

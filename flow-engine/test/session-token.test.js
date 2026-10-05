@@ -122,7 +122,7 @@ test("the signed-out message is still reachable for a real sign-out", async () =
   const src = await import("node:fs").then((fs) =>
     fs.readFileSync(new URL("../lib/flow-api.js", import.meta.url), "utf8"),
   );
-  assert.match(src, /Not signed in to labs\.google/);
+  assert.match(src, /Not signed in to Flow/);
   // ...but only after polling, never off a single immediate read.
   assert.match(src, /await waitForSessionToken\(page\);\s*\n\s*if \(!token\)/);
 });

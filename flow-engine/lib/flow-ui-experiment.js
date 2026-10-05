@@ -27,6 +27,21 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
+import { Submission, tagSubmission } from "./generation-state.js";
+
+/**
+ * A UI generation that produced nothing: if Generate was clicked (or the click was attempted) the job may still finish on
+ * Flow, so the outcome is UNKNOWN and the page may later show this job's tile; otherwise nothing was submitted.
+ */
+function uiFailure(kind, diag) {
+  const clicked = Boolean(diag.generationClickedAt);
+  const err = new MissingMediaIdError(
+    `Flow UI generation did not produce ${kind === "video" ? "a video" : "an image"} (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
+  );
+  err.generateClicked = clicked;
+  err.pageMayShowLateResult = clicked;
+  return tagSubmission(err, clicked ? Submission.UNKNOWN : Submission.NOT_SUBMITTED);
+}
 
 const PROMPT_EDITOR_SELECTOR = "div.ProseMirror";
 const GENERATE_BUTTON_SELECTOR = 'button[aria-label="Start generation"]';
@@ -510,12 +525,8 @@ export async function generateOneImageViaUI(page, projectId, prompt, settings, p
     mode: "image",
     generationTimeoutMs: settings?.generationTimeoutMs,
   });
-  if (!mediaId) {
-    throw new MissingMediaIdError(
-      `Flow UI generation did not produce an image (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
-    );
-  }
-  return { mediaId, fifeUrl, width: null, height: null };
+  if (!mediaId) throw uiFailure("image", diag);
+  return { mediaId, fifeUrl, width: null, height: null, generateClicked: true };
 }
 
 /**
@@ -551,17 +562,10 @@ export async function generateOneVideoViaUI(page, projectId, prompt, settings, p
     // and stays under the app's 12-minute per-scene watchdog.
     generationTimeoutMs: settings?.generationTimeoutMs || 540000,
   });
-  if (!mediaId) {
-    const err = new MissingMediaIdError(
-      `Flow UI generation did not produce a video (outcome: ${diag.outcome}${diag.error ? `, ${diag.error}` : ""})`,
-    );
-    // Whether Flow's paid "Start generation" was actually clicked before
-    // detection gave up -- batch-runner.js must not re-click it then, since
-    // the first request may still complete (and bill) on Google's side.
-    err.generateClicked = Boolean(diag.generationClickedAt);
-    throw err;
-  }
-  return { mediaId, fifeUrl, width: null, height: null };
+  // Whether Flow's paid "Start generation" was clicked before detection gave up decides the outcome: the first request may
+  // still complete (and bill) on Google's side, so it is never clicked again automatically.
+  if (!mediaId) throw uiFailure("video", diag);
+  return { mediaId, fifeUrl, width: null, height: null, generateClicked: true };
 }
 
 /**

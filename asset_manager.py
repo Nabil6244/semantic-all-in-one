@@ -8,6 +8,8 @@ provider produced which scene's asset.
 
 from __future__ import annotations
 
+import contextlib
+
 import dataclasses
 import json
 import os
@@ -1766,12 +1768,16 @@ class AssetManager:
         for source, group in by_source.items():
             provider = self._provider_for(source)
             results: Dict[str, AssetResult] = {}
-            self._resolve_flow_batch(
-                source, provider, group, results,
-                on_scene_start=on_scene_start,
-                on_scene_complete=on_scene_complete,
-                on_scene_generating=on_scene_generating,
-            )
+            # A manual Retry is the user's explicit request for these scenes: the Flow engine may generate them again even
+            # if an earlier request may already exist on Flow (automatic runs never may).
+            confirming = getattr(provider, "confirming_resubmit", None)
+            with (confirming() if callable(confirming) else contextlib.nullcontext()):
+                self._resolve_flow_batch(
+                    source, provider, group, results,
+                    on_scene_start=on_scene_start,
+                    on_scene_complete=on_scene_complete,
+                    on_scene_generating=on_scene_generating,
+                )
             out.update(results)
         return out
 
