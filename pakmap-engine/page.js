@@ -71,6 +71,8 @@ async function setup() {
     container: 'map',
     style: {
       version: 8, sources, layers,
+      // every value is set per frame from t; MapLibre's default 300 ms paint transition only delayed 'idle', never changed the frame
+      transition: { duration: 0, delay: 0 },
       // globe when far out, ordinary flat map when close, blended in between
       projection: spec.flat_only ? { type: 'mercator' }
         : { type: ['interpolate', ['linear'], ['zoom'], 4, 'vertical-perspective', 6, 'mercator'] },
