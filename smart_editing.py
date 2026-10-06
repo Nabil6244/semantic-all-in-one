@@ -289,7 +289,10 @@ def _repo_root() -> Path:
 
 
 def sfx_library_root() -> Path:
-    return Path.home() / ".videogen" / "sfx"
+    # VIDEOGEN_SFX_ROOT moves the library (the test runner points it at a temporary folder, so tests that open the app
+    # never install into the user's real library).
+    override = os.environ.get("VIDEOGEN_SFX_ROOT", "").strip()
+    return Path(override) if override else Path.home() / ".videogen" / "sfx"
 
 
 def sfx_catalog_path(root: Optional[Path] = None) -> Path:
@@ -1802,6 +1805,38 @@ def _resolve_ambience_beds(
     return beds
 
 
+def refresh_stale_ambience(
+    beds: Sequence[dict],
+    catalog: SfxCatalog,
+    settings: SmartEditingSettings,
+) -> Tuple[List[dict], bool]:
+    """Re-pick beds whose sound is no longer in the ambience library (a library update removed or replaced it), from
+    the scene profile the plan already holds: timing, volume and profile are kept, nothing is re-planned and no AI is
+    called. With no ambience in the catalog (e.g. not installed yet) the beds are left as they are."""
+    pool = {e.id: e for e in catalog._by_category.get("ambience", [])}
+    if not pool:
+        return list(beds), False
+    out: List[dict] = []
+    recent: List[str] = []
+    changed = False
+    for bed in beds:
+        bed = dict(bed)
+        entry = pool.get(str(bed.get("sfx_id") or ""))
+        if entry is None or not entry.resolved_path(catalog.root).is_file():
+            pick = _pick_ambience_entry(
+                catalog, _normalize_ambience_profile(str(bed.get("profile") or "room")), settings,
+                scene_number=str(bed.get("scene_number") or ""), avoid_ids=recent,
+            )
+            if pick is not None:
+                bed["sfx_id"], bed["file"] = pick.id, pick.file
+                changed = True
+        if bed.get("sfx_id"):
+            recent.append(str(bed["sfx_id"]))
+            del recent[:-12]
+        out.append(bed)
+    return out, changed
+
+
 def _apply_editorial_ambience_hints(
     profiles: List[dict],
     editorial_plan: Any,
@@ -2101,6 +2136,11 @@ def build_plan(
         ):
             plan = SmartEditingPlan.from_dict(cached["plan"])
             if plan.whisper_words or not settings.text_effects:
+                beds, changed = refresh_stale_ambience(plan.scene_ambience, get_sfx_catalog(), settings)
+                if changed:
+                    plan.scene_ambience = beds
+                    if audio_key:
+                        save_cache(state_dir, {"audio_key": audio_key, "settings_key": settings_key, "plan": plan.to_dict()})
                 return plan
 
     whisper_list = [[w, s, e] for w, s, e in whisper_words]

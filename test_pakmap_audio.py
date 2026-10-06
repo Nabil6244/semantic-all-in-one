@@ -167,7 +167,7 @@ class TestEventMapping(unittest.TestCase):
             self.assertEqual(ap.plan_audio(spec(moves=[tiny])).cues, [], tiny["type"])
 
     def test_the_desert_wind_bed_is_a_low_rumble_not_a_hiss(self):
-        self.assertEqual([c for c, _ in sd.SOUNDS["desert_wind"].candidates], ["ambience_06"])
+        self.assertEqual([c for c, _ in sd.SOUNDS["desert_wind"].candidates], ["amb_atmospheric_05"])
 
     def test_camera_drift_alone_is_never_a_sound(self):
         self.assertEqual(ap.plan_audio(spec(duration=60)).cues, [])
@@ -310,10 +310,10 @@ class TestAmbience(unittest.TestCase):
         self.assertEqual([b.sound for b in busy.beds], ["desert_wind"])
 
     def test_explicit_ambience_catalog_entry(self):
-        plan = ap.plan_audio(spec(), {"ambience": [{"t": 1.0, "ambience": "catalog:ambience_43"}]})
+        plan = ap.plan_audio(spec(), {"ambience": [{"t": 1.0, "ambience": "catalog:amb_atmospheric_01"}]})
         with tempfile.TemporaryDirectory() as d:
             am.resolve_assets(plan, make_catalog(Path(d)))
-        self.assertEqual(plan.beds[0].asset, "ambience_43")
+        self.assertEqual(plan.beds[0].asset, "amb_atmospheric_01")
 
 
 # ---- 7. missing / approximate assets -------------------------------------------------------------------
@@ -340,7 +340,7 @@ class TestMissingAssets(unittest.TestCase):
     def test_a_missing_ambience_is_skipped_with_a_warning(self):
         plan = ap.plan_audio(spec(), {"ambience": [{"t": 1.0, "ambience": "desert_wind"}]})
         with tempfile.TemporaryDirectory() as d:
-            am.resolve_assets(plan, make_catalog(Path(d), skip={"ambience_wind_01", "ambience_06"}))
+            am.resolve_assets(plan, make_catalog(Path(d), skip={"amb_atmospheric_05"}))
         self.assertEqual(plan.beds, [])
         self.assertIn("desert_wind", plan.missing)
         self.assertTrue(plan.warnings)
@@ -451,7 +451,7 @@ class TestMixer(unittest.TestCase):
             d = Path(d)
             lib = d / "lib"
             ents = []
-            for cid, amp in (("ui_pop_01", 0.02), ("ambience_06", 0.01)):
+            for cid, amp in (("ui_pop_01", 0.02), ("amb_atmospheric_05", 0.01)):
                 _write_wav(lib / f"{cid}.wav", _tone(400, 3.0, amp) if cid.startswith("ui") else (amp * np.random.default_rng(1).uniform(-1, 1, 3 * SR)).astype(np.float32))
                 ents.append(se.SfxEntry(id=cid, file=f"{cid}.wav", category="ui", tags=(), intensity="low", duration=3.0))
             plan = am.resolve_assets(ap.plan_audio(spec(), {"cues": [{"t": 1.0, "sfx": "marker_pop"}], "ambience": [{"t": 4.0, "ambience": "desert_wind"}]}), se.SfxCatalog(lib, ents))

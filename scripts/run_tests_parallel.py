@@ -100,6 +100,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=max(2, (os.cpu_count() or 2)))
     args = parser.parse_args()
+    # Tests that open the app also install the sound library: keep that out of the user's real ~/.videogen/sfx.
+    os.environ.setdefault("VIDEOGEN_SFX_ROOT", tempfile.mkdtemp(prefix="videogen-test-sfx-"))
 
     modules = sorted(p.stem for p in ROOT.glob("test_*.py"))
     slow_rank = {m: i for i, m in enumerate(SLOW_FIRST)}

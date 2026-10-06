@@ -74,6 +74,15 @@ def bundled_sfx_inventory(src: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
+def _catalog_version(root: Path) -> int:
+    """The `version` of a library's catalog.json (0 when missing or unreadable)."""
+    try:
+        data = json.loads((Path(root) / "catalog.json").read_text(encoding="utf-8"))
+        return int(data.get("version") or 0) if isinstance(data, dict) else 0
+    except (OSError, ValueError, TypeError):
+        return 0
+
+
 def count_resolvable_sfx(root: Optional[Path] = None) -> int:
     catalog = SfxCatalog.load(root)
     if not catalog.entries:
@@ -116,7 +125,10 @@ def ensure_sfx_library(*, force: bool = False) -> Path:
         return dest
 
     existing = count_resolvable_sfx(dest)
-    need_catalog = force or not (dest / "catalog.json").is_file()
+    # A newer bundled catalog replaces the installed one (e.g. the 2026-10-06 ambience relabel): without this an
+    # installed library kept its first catalog forever, so fixes to labels or picks never reached existing users.
+    upgrade = (dest / "catalog.json").is_file() and _catalog_version(src) > _catalog_version(dest)
+    need_catalog = force or upgrade or not (dest / "catalog.json").is_file()
     # Repair when empty OR clearly incomplete vs bundled inventory
     inv = bundled_sfx_inventory(src)
     bundled_n = int(inv.get("wav_count") or 0)
@@ -140,5 +152,6 @@ def ensure_sfx_library(*, force: bool = False) -> Path:
                 encoding="utf-8",
             )
 
-    _copy_category_wavs(src, dest, force=force)
+    # An upgrade also replaces files whose name stayed the same but whose sound changed (e.g. re-levelled beds).
+    _copy_category_wavs(src, dest, force=force or upgrade)
     return dest
