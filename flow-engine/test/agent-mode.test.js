@@ -439,3 +439,24 @@ test("scenes an image could not be told apart by never share a request", () => {
   assert.equal(batches.flat().length, 6);
   assert.equal(batches.length, 3, "the three city scenes need three requests; the others fill in");
 });
+
+test("the agent tidying punctuation, quotes or dashes still matches; a changed word does not", () => {
+  const scenes = ["A soldier’s “last stand” — at the old fort", "A general’s map, torn in half"];
+  const calls = [
+    { placeholderId: "a", prompt: "Painterly style. A soldier's \"last stand\" - at the old fort.", fields: {} },
+    { placeholderId: "b", prompt: "Painterly style. A general's map torn into half", fields: {} },
+  ];
+  const m = mapCallsToScenes(scenes, calls, {});
+  assert.equal(m.mapping.get(0).call.placeholderId, "a");
+  assert.equal(m.mapping.has(1), false, "'in' became 'into': not the same words");
+  assert.equal(textsClash("A dog!", "a dog, running"), true);
+});
+
+test("an unmatched image's prompt is kept with the scene for auditing", async () => {
+  const { out, ledger } = setup();
+  const reply = agentReply([SCENES[0], SCENES[1]], { extraPrompts: ["a red bus in London"], named: false });
+  const flow = fakeFlow({ replies: [reply] });
+  const { results } = await run({ flow, ledger, prompts: SCENES, out });
+  const third = results.find((r) => r.index === 2);
+  assert.match(third.agentUnmatched[0].prompt, /a red bus in London/);
+});

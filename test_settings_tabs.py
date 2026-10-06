@@ -79,7 +79,7 @@ try:
          ("APPEARANCE" in sections["General"] and "CAPTIONS & NARRATION TIMING" in sections["General"]), sections["General"])
     emit("keys", sections["Keys & AI"][:3] == ["STOCK PROVIDERS", "AI SCRIPT (GEMINI)", "AI PROVIDERS"], sections["Keys & AI"])
     emit("flow", sections["Flow"][:3] == ["FLOW SETTINGS", "AI / FLOW ACCOUNTS", "FLOW VIDEO PROFILES"], sections["Flow"])
-    emit("project", sections["This project"][:4] == ["VIDEO QUALITY", "AI IMAGES", "CACHE & STORAGE", "PRODUCTION"], sections["This project"])
+    emit("project", sections["This project"][:3] == ["VIDEO QUALITY", "CACHE & STORAGE", "PRODUCTION"], sections["This project"])
     emit("scopes", all("Applies to the whole app" in scopes[n] for n in ("General", "Keys & AI", "Flow"))
          and "project" in scopes["This project"].lower(), scopes)
     inst.captions_var.set(True); inst.model_var.set("medium")

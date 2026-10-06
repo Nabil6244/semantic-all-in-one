@@ -33,6 +33,7 @@ import {
   parseAgentStream,
   sendAgentMessage as realSendAgentMessage,
   splitSharedStyle,
+  wordsOf,
 } from "./agent-api.js";
 import { isValidOutput, runBatchSlice as realRunBatchSlice, withAccountLock } from "./batch-runner.js";
 import {
@@ -72,9 +73,9 @@ function placeExisting(src, dest) {
 
 /** Two scene texts an image could not be told apart by: identical, or one inside the other (case and spaces ignored). */
 export function textsClash(a, b) {
-  const x = String(a || "").replace(/\s+/g, " ").trim().toLowerCase();
-  const y = String(b || "").replace(/\s+/g, " ").trim().toLowerCase();
-  return !!x && !!y && (x.includes(y) || y.includes(x));
+  const x = wordsOf(a);
+  const y = wordsOf(b);
+  return !!x && !!y && (` ${x} `.includes(` ${y} `) || ` ${y} `.includes(` ${x} `));
 }
 
 /**
@@ -295,8 +296,12 @@ export async function runAgentSlice(params) {
         if (!call) {
           if (extraCalls.length) {
             // The agent made images we could not tie to one scene: one of them may be this scene's. Never guess.
-            ledger.put(it.key, { state: LedgerState.SUBMITTED_UNKNOWN, error: "agent image could not be matched to this scene" });
-            fail(it, "Not resubmitted: the Flow agent made an image that could not be matched to this scene. Check the Flow project; click Retry on this scene to generate it again.", { needsAction: true, submitted: true });
+            // Keep what the agent actually asked for, so a mismatch can be audited later.
+            const unmatched = extraCalls.map((c) => ({ placeholderId: c.placeholderId, prompt: c.prompt.slice(0, 500), mediaId: parsed.results[c.placeholderId]?.mediaId || null }));
+            ledger.put(it.key, { state: LedgerState.SUBMITTED_UNKNOWN, error: "agent image could not be matched to this scene", agentChatId: chatId,
+              sceneText: String(it.text || "").slice(0, 300), agentUnmatched: unmatched });
+            fail(it, "Not resubmitted: the Flow agent made an image that could not be matched to this scene. Check the Flow project; click Retry on this scene to generate it again.",
+              { needsAction: true, submitted: true, agentUnmatched: unmatched });
           } else {
             ledger.put(it.key, { state: LedgerState.REJECTED, error: "the agent made no image for this scene" });
             fallback.push(it);

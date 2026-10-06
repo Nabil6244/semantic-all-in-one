@@ -288,6 +288,12 @@ export function parseAgentStream(text) {
   return { calls, results, text: texts.join(""), error, refused: !!(error && REFUSAL_GRPC_CODES.has(error.grpcCode)) };
 }
 
+/** A text as its words only: lower case, accents/quotes/dashes/punctuation dropped, single spaces ("Don’t—stop!" -> "don t stop"). */
+export function wordsOf(text) {
+  return String(text || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
 /** The scene IDs (of this batch) found in a string: "S07" -> 6. */
 function sceneIdsIn(text, count) {
   const out = new Set();
@@ -326,7 +332,9 @@ export function mapCallsToScenes(sceneTexts, calls, results = {}) {
     mapping.set(i, { call: c, method: "id" });
     usedCalls.add(c.placeholderId);
   }
-  const lower = (t) => norm(t).toLowerCase();
+  // Exact words in the same order; only letter case, punctuation, quote and dash styles may differ (the agent was seen to
+  // tidy those). Never a partial or reordered match.
+  const lower = (t) => ` ${wordsOf(t)} `;
   // Calls with no usable ID — including two images claiming the same ID — can still be settled by exact text.
   const free = calls.filter((c) => !usedCalls.has(c.placeholderId));
   const openScenes = sceneTexts.map((_, i) => i).filter((i) => !mapping.has(i) && lower(sceneTexts[i]));

@@ -9396,11 +9396,8 @@ class VideoGeneratorApp(ctk.CTk):
         }
 
     def _flow_agent_images_on(self) -> bool:
-        """This project's "Fast Flow images (agent mode)" switch (off with no project)."""
-        try:
-            return bool(self._workspace is not None and self._workspace.quality_settings().get("flow_agent_images"))
-        except Exception:
-            return False
+        """The app-wide "Fast Flow images (agent mode)" switch (Settings → Flow), saved in settings.json."""
+        return bool(self._settings.get("flow_agent_images"))
 
     def _image_flow_run_settings(self) -> tuple[dict, list[str] | None]:
         """Settings + accounts for Flow image runs. With agent mode on, images are asked for in batches through
@@ -11722,31 +11719,9 @@ class VideoGeneratorApp(ctk.CTk):
                  "and files are about 3-4x bigger.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 6))
-        ctk.CTkLabel(
-            body, text="AI IMAGES", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
-        ).pack(anchor="w", padx=20, pady=(12, 4))
-        agent_var = ctk.BooleanVar(value=bool(quality.get("flow_agent_images")))
-
-        def _toggle_agent() -> None:
-            if self._workspace is not None:
-                self._workspace.set_quality_settings(flow_agent_images=agent_var.get())
-
-        agent_switch = ctk.CTkSwitch(
-            body, text="Fast Flow images (agent mode)", variable=agent_var,
-            onvalue=True, offvalue=False, command=_toggle_agent, font=ctk.CTkFont(size=12),
-        )
-        agent_switch.pack(anchor="w", padx=20, pady=(2, 2))
-        ctk.CTkLabel(
-            body,
-            text="Flow's agent makes up to 24 scene images per request, much faster than one at a time. It uses "
-                 "Nano Banana 2 Lite and the accounts checked in the default Video Profile. Scenes the agent can't make "
-                 "are made the normal way.",
-            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
-        ).pack(anchor="w", padx=20, pady=(0, 6))
         if self._workspace is None:
             uhd_switch.configure(state="disabled")
             export_switch.configure(state="disabled")
-            agent_switch.configure(state="disabled")
             ctk.CTkLabel(
                 body, text="Open a project to change these.", font=ctk.CTkFont(size=11), text_color=_MUTED,
             ).pack(anchor="w", padx=20, pady=(0, 6))
@@ -11922,6 +11897,25 @@ class VideoGeneratorApp(ctk.CTk):
             body,
             text="Image model & dimension save automatically when you change them.",
             font=ctk.CTkFont(size=11), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(0, 8))
+
+        agent_var = ctk.BooleanVar(value=self._flow_agent_images_on())
+
+        def _toggle_agent() -> None:
+            # App-wide and saved at once: it stays on for every project until switched off.
+            self._settings["flow_agent_images"] = bool(agent_var.get())
+            save_settings(self._settings)
+
+        ctk.CTkSwitch(
+            body, text="Fast Flow images (agent mode)", variable=agent_var,
+            onvalue=True, offvalue=False, command=_toggle_agent, font=ctk.CTkFont(size=12),
+        ).pack(anchor="w", padx=20, pady=(2, 2))
+        ctk.CTkLabel(
+            body,
+            text="Flow's agent makes up to 24 scene images per request, much faster than one at a time. It uses "
+                 "Nano Banana 2 Lite and the accounts checked in the default Video Profile. Scenes the agent can't make "
+                 "are made the normal way. Applies to every project and is remembered.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 16))
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
