@@ -212,7 +212,9 @@ _SETTINGS_CACHE: dict = {}
 # videoDurations) — the ONLY Flow options this GUI offers, per the original
 # Semantic Automator implementation. Do not add options that aren't actually
 # supported there.
-FLOW_IMAGE_MODELS = [("HARBOR_SEAL", "NB Lite"), ("NARWHAL", "NB 2"), ("GEM_PIX_2", "NB Pro")]
+FLOW_IMAGE_MODELS = [("HARBOR_SEAL", "NB 2 Lite"), ("BELUGA", "NB 2"), ("GEM_PIX_2", "NB Pro")]
+# Flow image ids Google has retired, and what replaced them (NARWHAL stopped working 2026-10-06; Nano Banana 2 is BELUGA).
+RETIRED_FLOW_IMAGE_MODELS = {"NARWHAL": "BELUGA"}
 FLOW_IMAGE_ASPECT_RATIOS = [
     ("IMAGE_ASPECT_RATIO_LANDSCAPE", "16:9"),
     ("IMAGE_ASPECT_RATIO_SQUARE", "1:1"),
@@ -1427,7 +1429,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.voiceover_active_var = ctk.StringVar(value="No voiceover yet — needed to render")
         self.voice_play_progress_var = ctk.StringVar(value="")
         flow_saved = self._settings.get("flow_settings", {})
-        self.flow_image_model_var = ctk.StringVar(value=flow_saved.get("model", FLOW_IMAGE_MODELS[1][0]))
+        _saved_model = flow_saved.get("model", FLOW_IMAGE_MODELS[1][0])
+        self.flow_image_model_var = ctk.StringVar(value=RETIRED_FLOW_IMAGE_MODELS.get(_saved_model, _saved_model))
         self.flow_image_aspect_var = ctk.StringVar(
             value=flow_saved.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0])
         )
@@ -9392,6 +9395,20 @@ class VideoGeneratorApp(ctk.CTk):
             "aspectRatio": self.flow_image_aspect_var.get(),
         }
 
+    def _flow_agent_images_on(self) -> bool:
+        """This project's "Fast Flow images (agent mode)" switch (off with no project)."""
+        try:
+            return bool(self._workspace is not None and self._workspace.quality_settings().get("flow_agent_images"))
+        except Exception:
+            return False
+
+    def _image_flow_run_settings(self) -> tuple[dict, list[str] | None]:
+        """Settings + accounts for Flow image runs. With agent mode on, images are asked for in batches through
+        Flow's agent, on the Video Profile's accounts; off, the normal per-image path on all signed-in accounts."""
+        if self._flow_agent_images_on():
+            return {**self._current_image_flow_settings(), "generationMode": "agent"}, self._video_account_ids()
+        return self._current_image_flow_settings(), None
+
     # ---------- video profiles ----------
     # A Video Profile bundles the account/browser pool + model/dimension/duration
     # that AI VIDEO scenes use — kept separate from image settings since video is
@@ -9616,9 +9633,10 @@ class VideoGeneratorApp(ctk.CTk):
             from providers.flow.provider import FlowProvider
 
             if needs_flow_image:
+                image_settings, image_accounts = self._image_flow_run_settings()
                 flow_image_provider = FlowProvider(
                     self._flow_engine_manager, media_kind="image",
-                    flow_settings=self._current_image_flow_settings(),
+                    account_ids=image_accounts, flow_settings=image_settings,
                 )
             if needs_flow_video:
                 # Video scenes always use the default Video Profile's account
@@ -9751,6 +9769,10 @@ class VideoGeneratorApp(ctk.CTk):
         video_provider = getattr(self._asset_manager, "flow_video_provider", None)
         if video_provider is not None and hasattr(video_provider, "account_ids"):
             video_provider.account_ids = self._video_account_ids()
+        # Same for images: the project's agent-mode switch and the image model may have changed since it was built.
+        image_provider = getattr(self._asset_manager, "flow_image_provider", None)
+        if image_provider is not None and hasattr(image_provider, "flow_settings"):
+            image_provider.flow_settings, image_provider.account_ids = self._image_flow_run_settings()
         self._asset_manager.recovery.skipped |= set(self._hydrated_skipped)
         # The cached manager's stock provider may predate a flip of this project's 4K switch (or another project).
         self._apply_footage_quality(self._asset_manager)
@@ -11700,9 +11722,31 @@ class VideoGeneratorApp(ctk.CTk):
                  "and files are about 3-4x bigger.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 6))
+        ctk.CTkLabel(
+            body, text="AI IMAGES", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(12, 4))
+        agent_var = ctk.BooleanVar(value=bool(quality.get("flow_agent_images")))
+
+        def _toggle_agent() -> None:
+            if self._workspace is not None:
+                self._workspace.set_quality_settings(flow_agent_images=agent_var.get())
+
+        agent_switch = ctk.CTkSwitch(
+            body, text="Fast Flow images (agent mode)", variable=agent_var,
+            onvalue=True, offvalue=False, command=_toggle_agent, font=ctk.CTkFont(size=12),
+        )
+        agent_switch.pack(anchor="w", padx=20, pady=(2, 2))
+        ctk.CTkLabel(
+            body,
+            text="Flow's agent makes up to 24 scene images per request, much faster than one at a time. It uses "
+                 "Nano Banana 2 Lite and the accounts checked in the default Video Profile. Scenes the agent can't make "
+                 "are made the normal way.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 6))
         if self._workspace is None:
             uhd_switch.configure(state="disabled")
             export_switch.configure(state="disabled")
+            agent_switch.configure(state="disabled")
             ctk.CTkLabel(
                 body, text="Open a project to change these.", font=ctk.CTkFont(size=11), text_color=_MUTED,
             ).pack(anchor="w", padx=20, pady=(0, 6))
@@ -11828,7 +11872,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         def _option_row(parent, label_text, var, options, on_change=None):
             """options: list[(value, label)]. The OptionMenu shows/edits labels;
-            `var` (the real backing StringVar, e.g. holding "NARWHAL") is updated
+            `var` (the real backing StringVar, e.g. holding "BELUGA") is updated
             via `command` whenever the user picks a different label. Optional
             `on_change` runs after the value is set (used to auto-persist)."""
             row = ctk.CTkFrame(parent, fg_color="transparent")

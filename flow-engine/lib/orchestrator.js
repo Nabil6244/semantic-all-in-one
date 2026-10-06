@@ -23,9 +23,10 @@ import {
   logFlowNav,
 } from "./flow-api.js";
 import { runBatchSlice } from "./batch-runner.js";
+import { runAgentSlice } from "./agent-runner.js";
 import { accountIdentity } from "./profile-identity.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
-import { timing } from "../config.js";
+import { agent as agentConfig, timing } from "../config.js";
 import fs from "node:fs";
 import { defaultLedger, generationKey, scopeOf, LedgerState } from "./generation-ledger.js";
 
@@ -435,11 +436,11 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
 
   // Bounded Chrome fan-out — never open every signed-in account at once.
   // Unused authenticated accounts remain on standby for rate-limit rotation.
-  const workerCount = computeFlowWorkerCount(
-    prompts.length,
-    selected.length,
-    timing.maxParallelAccounts,
-  );
+  // Agent mode (images only): one request makes up to agent.maxBatch images, so use as few accounts as fill those batches.
+  const agentImages = String(settings?.generationMode || "").toLowerCase() === "agent" && String(settings?.mediaKind || "").toLowerCase() !== "video";
+  const workerCount = agentImages
+    ? Math.max(1, Math.min(selected.length, timing.maxParallelAccounts, Math.ceil(prompts.length / agentConfig.maxBatch)))
+    : computeFlowWorkerCount(prompts.length, selected.length, timing.maxParallelAccounts);
   // Only VIDEO consumes Flow credits; IMAGE is free and keeps existing order.
   const isVideoBatch = String(settings?.mediaKind || "").toLowerCase() === "video";
   // Order BEFORE truncating: slicing first would pick the first `workerCount`
@@ -596,7 +597,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         pushState();
 
         let sliceVideoJobs = 0;
-        const result = await runBatchSlice({
+        const result = await (agentImages ? runAgentSlice : runBatchSlice)({
           page,
           prompts: slice.prompts,
           promptIndices: slice.indices,

@@ -22,7 +22,7 @@ import {
   mediaKindOf,
 } from "./flow-api.js";
 import { generateOneMedia as realGenerateOneMedia, resolveGenerationMode } from "./generation-dispatch.js";
-import { defaults } from "../config.js";
+import { canonicalImageModel, defaults } from "../config.js";
 import { AccountLifecycle, isMissingMediaIdError, logFlowAccount } from "./account-lifecycle.js";
 import { accountDownloadDir } from "./paths.js";
 import {
@@ -35,7 +35,7 @@ import {
 } from "./generation-state.js";
 import { LedgerState, defaultLedger, generationKey, scopeOf } from "./generation-ledger.js";
 
-const MODEL_FALLBACK = models.fallbackOrder || ["NARWHAL", "GEM_PIX_2", "HARBOR_SEAL"];
+const MODEL_FALLBACK = models.fallbackOrder || ["BELUGA", "GEM_PIX_2", "HARBOR_SEAL"];
 const DEFAULT_REFRESH = defaults?.flowSettings?.refreshFrequency ?? 20;
 /** Attempts to finish an accepted video (poll + final fetch) within one run, and the waits between them. */
 const RESUME_WAITS_S = [0, 10, 30];
@@ -160,6 +160,7 @@ export async function runBatchSlice({
   const emit = (type, payload) => onProgress?.({ type, ...payload });
   const outDir = accountDownloadDir(folderLabel, settings.outputDir || undefined);
   const settingsLocal = { ...settings };
+  if (settingsLocal.model) settingsLocal.model = canonicalImageModel(settingsLocal.model);  // a saved retired id (NARWHAL)
   const runId = settingsLocal._runId || `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const scope = scopeOf(settingsLocal.outputDir);
   const owner = accountId || page?.__flowAccountId || "";
@@ -613,7 +614,7 @@ export async function runBatchSlice({
               }
             }
           }
-          // Live Oct 6: NARWHAL returns bare gRPC 5 with no media on every account; GEM_PIX_2 still works.
+          // Live Oct 6: the retired NARWHAL id returned bare gRPC 5 with no media on every account (now mapped to BELUGA).
           // After same-model retries are exhausted, step to the next model (same as QuotaError) rather than failing the scene.
           if (activeErr instanceof MissingMediaIdError || isMissingMediaIdError(activeErr)) {
             const nxt = nextModel(settingsLocal.model);

@@ -74,7 +74,7 @@ ws.send(
     accountIds,
     settings: {
       mediaKind: "image",
-      model: "NARWHAL",
+      model: "BELUGA",
       aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE",
       imageCount: 1,
       autoDownload: true,

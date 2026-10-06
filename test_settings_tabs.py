@@ -32,7 +32,8 @@ try:
     inst._open_settings()
     # Windows CTk can insert intermediate frames / extra toplevels, so do not
     # assume Settings is "the last new child" or that CTkTabview is a direct child.
-    inst.update_idletasks(); inst.update()
+    # update_idletasks only: a full update() runs the app's own handlers and never returns on macOS.
+    inst.update_idletasks()
     def find_tabview(widget):
         if isinstance(widget, ctk.CTkTabview):
             return widget
@@ -55,7 +56,7 @@ try:
     if not wins:
         raise RuntimeError("Settings window not found after _open_settings()")
     win = wins[-1]
-    win.update_idletasks(); win.update()
+    win.update_idletasks()
     tabview = find_tabview(win)
     if tabview is None:
         raise RuntimeError("CTkTabview not found under Settings window")
@@ -78,7 +79,7 @@ try:
          ("APPEARANCE" in sections["General"] and "CAPTIONS & NARRATION TIMING" in sections["General"]), sections["General"])
     emit("keys", sections["Keys & AI"][:3] == ["STOCK PROVIDERS", "AI SCRIPT (GEMINI)", "AI PROVIDERS"], sections["Keys & AI"])
     emit("flow", sections["Flow"][:3] == ["FLOW SETTINGS", "AI / FLOW ACCOUNTS", "FLOW VIDEO PROFILES"], sections["Flow"])
-    emit("project", sections["This project"][:3] == ["VIDEO QUALITY", "CACHE & STORAGE", "PRODUCTION"], sections["This project"])
+    emit("project", sections["This project"][:4] == ["VIDEO QUALITY", "AI IMAGES", "CACHE & STORAGE", "PRODUCTION"], sections["This project"])
     emit("scopes", all("Applies to the whole app" in scopes[n] for n in ("General", "Keys & AI", "Flow"))
          and "project" in scopes["This project"].lower(), scopes)
     inst.captions_var.set(True); inst.model_var.set("medium")

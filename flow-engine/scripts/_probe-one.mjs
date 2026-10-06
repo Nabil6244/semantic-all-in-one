@@ -4,7 +4,7 @@ import fs from "node:fs";
 
 const outDir = process.env.FLOW_OUT;
 const accountId = process.env.FLOW_ACCOUNT;
-const model = process.env.FLOW_MODEL || "NARWHAL";
+const model = process.env.FLOW_MODEL || "BELUGA";
 const mediaKind = process.env.FLOW_KIND || "image";
 const prompt = process.env.FLOW_PROMPT || "A single red apple on a wooden table, soft daylight, simple still photo";
 fs.mkdirSync(outDir, { recursive: true });

@@ -58,22 +58,29 @@ export const api = {
 };
 
 export const models = {
-  // NARWHAL (NB 2) started returning bare ogiZ0b gRPC 5 / no media on 2026-10-06 across accounts;
-  // GEM_PIX_2 (NB Pro) still succeeds — default to the working model.
-  // Keep NARWHAL first in fallbackOrder so an explicit NARWHAL selection still steps to GEM_PIX_2 on refusal.
-  default: "GEM_PIX_2",
-  fallbackOrder: ["NARWHAL", "GEM_PIX_2", "HARBOR_SEAL"],
+  // Image model ids as Flow sends them (captured live 2026-10-06 from Flow's own ogiZ0b requests):
+  //   Nano Banana 2 = BELUGA, Nano Banana 2 Lite = HARBOR_SEAL, Nano Banana Pro = GEM_PIX_2.
+  // Nano Banana 2 used to be NARWHAL; Google retired that id overnight (every NARWHAL request got a bare gRPC 5 /
+  // NOT_FOUND), so retired ids are mapped to their replacement before a batch runs (see canonicalImageModel).
+  default: "BELUGA",
+  fallbackOrder: ["BELUGA", "GEM_PIX_2", "HARBOR_SEAL"],
+  retired: { NARWHAL: "BELUGA" },
   labels: {
-    HARBOR_SEAL: "NB Lite",
-    NARWHAL: "NB 2",
+    HARBOR_SEAL: "NB 2 Lite",
+    BELUGA: "NB 2",
     GEM_PIX_2: "NB Pro",
   },
   options: [
-    { value: "HARBOR_SEAL", label: "NB Lite" },
-    { value: "NARWHAL", label: "NB 2" },
+    { value: "HARBOR_SEAL", label: "NB 2 Lite" },
+    { value: "BELUGA", label: "NB 2" },
     { value: "GEM_PIX_2", label: "NB Pro" },
   ],
 };
+
+/** The current id for an image model setting: a retired id (a saved NARWHAL) becomes its replacement. */
+export function canonicalImageModel(id) {
+  return (id && models.retired[id]) || id;
+}
 
 export const aspectRatios = {
   default: "IMAGE_ASPECT_RATIO_LANDSCAPE",
@@ -182,6 +189,20 @@ export const timing = {
   imageSlotStaggerMs: 250,
   videoPollIntervalMs: 8000,
   videoPollTimeoutMs: 6 * 60 * 1000,
+};
+
+/**
+ * Flow agent mode for images (settings.generationMode = "agent"; see lib/agent-api.js and lib/agent-runner.js).
+ * Live tests (2026-10-06): 6 / 12 / 24 scenes per request all came back one image per scene in ~22-32 s.
+ */
+export const agent = {
+  maxBatch: 24,             // scenes per agent request (tested up to 24)
+  maxMessageChars: 12000,   // a batch is also cut short when its scene list would make the message longer than this
+  batchGapMs: 20000,        // pause between two agent requests on the same account
+  streamTimeoutMs: 240000,  // a 24-scene reply took ~30 s; this is the give-up point (after which the outcome is unknown)
+  // An agent request costs ~40-60 s however small; one scene takes ~17 s on the standard path (live 2026-10-06).
+  // Fewer pending scenes than this on an account use the standard path.
+  minScenes: 4,
 };
 
 /**
