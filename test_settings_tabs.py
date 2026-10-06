@@ -29,10 +29,36 @@ try:
         inst = _app.VideoGeneratorApp(); inst.withdraw()
     except Exception as exc:
         real_stdout.write(f"SKIP:{exc}\n"); os._exit(0)
-    before = set(inst.winfo_children())
     inst._open_settings()
-    win = [w for w in inst.winfo_children() if w not in before][-1]
-    tabview = [c for c in win.winfo_children() if isinstance(c, ctk.CTkTabview)][0]
+    # Windows CTk can insert intermediate frames / extra toplevels, so do not
+    # assume Settings is "the last new child" or that CTkTabview is a direct child.
+    inst.update_idletasks(); inst.update()
+    def find_tabview(widget):
+        if isinstance(widget, ctk.CTkTabview):
+            return widget
+        for c in widget.winfo_children():
+            found = find_tabview(c)
+            if found is not None:
+                return found
+        return None
+    wins = []
+    for w in inst.winfo_children():
+        try:
+            title = str(w.title() if hasattr(w, "title") else w.wm_title())
+        except Exception:
+            title = ""
+        if "Settings" in title:
+            wins.append(w)
+    if not wins:
+        # Last resort: any new CTkToplevel (same as the old heuristic, but typed).
+        wins = [w for w in inst.winfo_children() if isinstance(w, ctk.CTkToplevel)]
+    if not wins:
+        raise RuntimeError("Settings window not found after _open_settings()")
+    win = wins[-1]
+    win.update_idletasks(); win.update()
+    tabview = find_tabview(win)
+    if tabview is None:
+        raise RuntimeError("CTkTabview not found under Settings window")
     def labels(widget):
         out = []
         for c in widget.winfo_children():
