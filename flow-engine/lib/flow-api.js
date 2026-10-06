@@ -149,7 +149,12 @@ const REFUSAL_GRPC_CODES = new Set([3, 5, 7, 8, 9, 11, 12, 16]);
 /**
  * A 200 answer that carried no result. The account-restriction and quota reasons (confirmed live, gRPC 7 / 8) are refusals.
  * Another ErrorInfo reason is a refusal only with a refusal gRPC code; otherwise the outcome is unknown (returned as UNKNOWN,
- * never resubmitted automatically). No reason at all returns null (the caller reports it as unknown).
+ * never resubmitted automatically).
+ *
+ * A bare refusal gRPC code with no ErrorInfo (live Oct 6: ogiZ0b returned
+ * wrb.fr detail `[5]` / NOT_FOUND and empty body in ~0.4s) also proves nothing
+ * was created — tag REJECTED so the ledger can auto-resubmit / fall back models
+ * instead of trapping the scene in SUBMITTED_UNKNOWN.
  */
 function noResultError(reason, rpc, { grpcCode = null, MissingMediaIdErrorClass = null } = {}) {
   if (reason && RESTRICTION_REASONS.has(reason)) return new AccountRestrictedError(reason);
@@ -160,6 +165,13 @@ function noResultError(reason, rpc, { grpcCode = null, MissingMediaIdErrorClass 
     return tagSubmission(
       new Cls(`Flow RPC ${refused ? "rejected" : "returned an error that may follow creation"}: ${reason}${grpcCode != null ? ` (code ${grpcCode})` : ""}`),
       refused ? Submission.REJECTED : Submission.UNKNOWN,
+    );
+  }
+  if (REFUSAL_GRPC_CODES.has(grpcCode)) {
+    const Cls = MissingMediaIdErrorClass || Error;
+    return tagSubmission(
+      new Cls(`Flow RPC rejected with no media (code ${grpcCode})`),
+      Submission.REJECTED,
     );
   }
   return null;

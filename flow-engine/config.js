@@ -58,7 +58,10 @@ export const api = {
 };
 
 export const models = {
-  default: "NARWHAL",
+  // NARWHAL (NB 2) started returning bare ogiZ0b gRPC 5 / no media on 2026-10-06 across accounts;
+  // GEM_PIX_2 (NB Pro) still succeeds — default to the working model.
+  // Keep NARWHAL first in fallbackOrder so an explicit NARWHAL selection still steps to GEM_PIX_2 on refusal.
+  default: "GEM_PIX_2",
   fallbackOrder: ["NARWHAL", "GEM_PIX_2", "HARBOR_SEAL"],
   labels: {
     HARBOR_SEAL: "NB Lite",

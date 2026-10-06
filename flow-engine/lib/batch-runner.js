@@ -613,6 +613,18 @@ export async function runBatchSlice({
               }
             }
           }
+          // Live Oct 6: NARWHAL returns bare gRPC 5 with no media on every account; GEM_PIX_2 still works.
+          // After same-model retries are exhausted, step to the next model (same as QuotaError) rather than failing the scene.
+          if (activeErr instanceof MissingMediaIdError || isMissingMediaIdError(activeErr)) {
+            const nxt = nextModel(settingsLocal.model);
+            if (nxt) {
+              settingsLocal.model = nxt;
+              sessAttempt = 0;
+              life.resetRecoveryBudget();
+              emit("BATCH_PROGRESS", { index: abs, total: totalAbsolute, status: "waiting", message: `Switching model to ${nxt}` });
+              continue;
+            }
+          }
         } else {
           const recoverable =
             (activeErr instanceof FatalError && activeErr.recoverable) ||

@@ -56,6 +56,10 @@ function errorInfo(rpcid, reason) {
   const detail = [3, null, [["type.googleapis.com/google.rpc.ErrorInfo", [reason, "aisandbox"]]]];
   return ")]}'\n\n" + chunkOf([["wrb.fr", rpcid, null, null, null, detail, "generic"]]) + chunkOf([["e", 4, null, null, 143]]);
 }
+/** Live Oct 6 shape: wrb.fr detail is bare `[5]` (NOT_FOUND) with no ErrorInfo reason. */
+function bareGrpc(rpcid, code) {
+  return ")]}'\n\n" + chunkOf([["wrb.fr", rpcid, null, null, null, [code], "generic"]]) + chunkOf([["e", 4, null, null, 142]]);
+}
 const ok = (text) => ({ ok: true, status: 200, text: async () => text });
 const http = (status) => ({ ok: false, status, text: async () => "error" });
 const otherRpc = (url) => !/rpcids=(ogiZ0b|YhhmEf|jwpduf|as29s)/.test(url);
@@ -99,6 +103,20 @@ test("image: a 200 with nothing readable is UNKNOWN; a 200 with an ErrorInfo rea
   assert.equal((await failureOf(generateOneImage(page, PROJECT_ID, "p", {}, 0))).submission, Submission.UNKNOWN);
   page = fakePage({ fetchImpl: async (url) => (otherRpc(url) ? ok(canned("x", [])) : ok(errorInfo("ogiZ0b", "PUBLIC_ERROR_SOMETHING"))) });
   assert.equal((await failureOf(generateOneImage(page, PROJECT_ID, "p", {}, 0))).submission, Submission.REJECTED);
+});
+
+test("image: bare gRPC 5 (NOT_FOUND) with no ErrorInfo is REJECTED, not UNKNOWN", async () => {
+  const page = fakePage({ fetchImpl: async (url) => (otherRpc(url) ? ok(canned("x", [])) : ok(bareGrpc("ogiZ0b", 5))) });
+  const err = await failureOf(generateOneImage(page, PROJECT_ID, "p", {}, 0));
+  assert.equal(err.submission, Submission.REJECTED);
+  assert.match(String(err.message), /code 5/);
+});
+
+test("video: bare gRPC 5 with no ErrorInfo is REJECTED, not UNKNOWN", async () => {
+  const page = fakePage({ fetchImpl: async (url) => (otherRpc(url) ? ok(canned("x", [])) : ok(bareGrpc("YhhmEf", 5))) });
+  const err = await failureOf(generateOneVideo(page, PROJECT_ID, "p", { videoModel: "abra" }, 0));
+  assert.equal(err.submission, Submission.REJECTED);
+  assert.match(String(err.message), /code 5/);
 });
 
 test("image: the page navigating during the send is UNKNOWN and the request is NOT sent again", async () => {
