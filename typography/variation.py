@@ -141,11 +141,10 @@ def classify_semantic(text: str, effect: str = "") -> str:
     return "narration"
 
 
-# The Smart Text styles a video may use. The others (kinetic_punch,
-# keyword_highlight, minimal_caption, fact_number, word_reveal, proof_modern)
-# were removed from videos; their definitions stay so an older saved plan
-# still renders, but they are never chosen.
-SMART_TEXT_STYLES = ("statement", "question", "quote")
+# The Smart Text style a video may use: quote, for every line (2026-10-06; statement and question went too).
+# The other definitions stay: an older saved plan still renders, and lower thirds and statistic cards
+# (graphics/) draw with minimal_caption and fact_number directly. They are never chosen for Smart Text.
+SMART_TEXT_STYLES = ("quote",)
 
 
 def style_candidates(semantic: str, effect: str, text: str) -> List[Tuple[str, float]]:
@@ -182,13 +181,9 @@ def style_candidates(semantic: str, effect: str, text: str) -> List[Tuple[str, f
     for sid, score in out:
         if sid not in SMART_TEXT_STYLES:
             continue
-        # Quote is for real quotes, Question for questions — never a stand-in
-        # for plain narration; everything else reads as a Statement.
-        if (sid == "quote" and semantic != "quote") or (sid == "question" and semantic != "question"):
-            continue
         best[sid] = max(best.get(sid, -1e9), score)
     if not best:
-        best["statement"] = 50.0  # whatever the line, it reads as a statement
+        best["quote"] = 50.0  # whatever the line, it is drawn in the quote style
     return sorted(best.items(), key=lambda x: -x[1])
 
 

@@ -1307,6 +1307,9 @@ class VideoGeneratorApp(ctk.CTk):
         self.output_var = ctk.StringVar()
         self.model_var = ctk.StringVar(value="small")
         self.captions_var = ctk.BooleanVar(value=False)
+        # How the Captions switch draws them: "Classic" white outline, or "PakMap" (the map videos' yellow caption). Saved.
+        self.caption_style_var = ctk.StringVar(value="PakMap" if self._settings.get("caption_style") == "pakmap" else "Classic")
+        self.caption_style_var.trace_add("write", lambda *_: self._persist_caption_style())
         # Ken Burns zoom on still images (Smart Editing panel + Settings) —
         # saved like the other Smart Editing switches.
         self.zoom_var = ctk.BooleanVar(value=bool(self._settings.get("ken_burns", True)))
@@ -4897,19 +4900,20 @@ class VideoGeneratorApp(ctk.CTk):
         # Compact production toolbar — one line, no duplicate titles.
         act_header = ctk.CTkFrame(right, fg_color="transparent", height=44)
         act_header.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 6))
-        act_header.grid_propagate(False)
+        # grows when the summary wraps to a third line (minsize keeps the usual 44 px)
         act_header.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(
+        act_header.grid_rowconfigure(0, minsize=44)
+        visuals_title = ctk.CTkLabel(
             act_header, text="Visuals",
             font=ctk.CTkFont(size=22, weight="bold"), text_color=_TEXT,
-        ).grid(row=0, column=0, sticky="w")
+        )
+        visuals_title.grid(row=0, column=0, sticky="w")
         self._scenes_counts_label = ctk.CTkLabel(
             act_header, textvariable=self.scenes_summary_var,
             font=ctk.CTkFont(size=11), text_color=_MUTED,
             wraplength=520, justify="left", anchor="w",
         )
         self._scenes_counts_label.grid(row=0, column=1, sticky="ew", padx=(10, 6))
-        self._bind_responsive_wrap(self._scenes_counts_label, pad=16)
         self._error_nav = ctk.CTkFrame(act_header, fg_color="transparent")
         self._error_nav.grid(row=0, column=2, sticky="e", padx=(0, 4))
         self.goto_error_btn = ctk.CTkButton(
@@ -4954,6 +4958,35 @@ class VideoGeneratorApp(ctk.CTk):
             command=self._open_workspace_overflow,
         )
         self._overflow_btn.grid(row=0, column=4, sticky="e")
+
+        # The summary wraps to the space left beside the title and buttons. Measuring the label itself does not work:
+        # its column is squeezed under the buttons, so it never learns it is too wide and the text runs behind them.
+        def _fit_summary(_event=None) -> None:
+            label = self._scenes_counts_label
+            try:
+                taken = visuals_title.winfo_reqwidth() + self._select_by_source_btn.winfo_reqwidth() + self._overflow_btn.winfo_reqwidth()
+                if self._error_nav.winfo_ismapped():
+                    taken += self._error_nav.winfo_reqwidth() + 4
+                width = act_header.winfo_width()
+                if width <= 1:
+                    return   # not laid out yet
+                scale = label._get_widget_scaling()   # CTk scales wraplength itself
+                free = (width - taken - 10 - 6 - 4 - 8) / scale   # paddings of columns 1 and 3, plus a margin
+                below = free < 160   # too narrow beside the buttons (small window, "Go to error" showing): own line under the title
+                if below:
+                    label.grid(row=1, column=0, columnspan=5, sticky="ew", padx=(0, 6), pady=(2, 0))
+                    wrap = max(120, int((width - 8) / scale))
+                else:
+                    label.grid(row=0, column=1, columnspan=1, sticky="ew", padx=(10, 6), pady=0)
+                    wrap = int(free)
+                if int(label.cget("wraplength") or 0) != wrap:
+                    label.configure(wraplength=wrap)
+            except Exception:
+                pass
+
+        act_header.bind("<Configure>", _fit_summary, add="+")
+        self._error_nav.bind("<Map>", _fit_summary, add="+")
+        self._error_nav.bind("<Unmap>", _fit_summary, add="+")
 
         # Hidden compatibility widgets (state still updated by existing helpers).
         self.cleanup_assets_btn = ctk.CTkButton(
@@ -6597,6 +6630,14 @@ class VideoGeneratorApp(ctk.CTk):
         payload["ken_burns"] = bool(self.zoom_var.get())
         payload["ken_burns_intensity"] = self.ken_burns_intensity_var.get().lower()
         return payload
+
+    def caption_style(self) -> str:
+        """The render's caption style id (video_generator.CAPTION_STYLES)."""
+        return "pakmap" if self.caption_style_var.get() == "PakMap" else "classic"
+
+    def _persist_caption_style(self) -> None:
+        self._settings["caption_style"] = self.caption_style()
+        save_settings(self._settings)
 
     def _persist_ken_burns(self) -> None:
         """Every Ken Burns switch (Smart Editing panel, Settings, Render
@@ -11378,11 +11419,16 @@ class VideoGeneratorApp(ctk.CTk):
             width=130, 
         ).pack(side="left", padx=10)
 
+        cap_row = ctk.CTkFrame(body, fg_color="transparent")
+        cap_row.pack(fill="x", padx=20, pady=(2, 8))
         ctk.CTkSwitch(
-            body, text="Captions", variable=self.captions_var,
+            cap_row, text="Captions", variable=self.captions_var,
             onvalue=True, offvalue=False, 
             font=ctk.CTkFont(size=12),
-        ).pack(anchor="w", padx=20, pady=(2, 8))
+        ).pack(side="left")
+        ctk.CTkSegmentedButton(
+            cap_row, values=["Classic", "PakMap"], variable=self.caption_style_var, font=ctk.CTkFont(size=11),
+        ).pack(side="left", padx=(12, 0))
         ctk.CTkLabel(
             body,
             text="Text styles, graphics, Ken Burns zoom, transitions, sound effects and ambience "
@@ -11664,6 +11710,11 @@ class VideoGeneratorApp(ctk.CTk):
                     text_color=_MUTED, font=ctk.CTkFont(size=11),
                 ).pack(anchor="w", padx=8, pady=8)
                 return
+            # Two profiles signed into one Gmail share its quota (the second adds no capacity): say so on those rows.
+            gmail_owners: dict = {}
+            for a in accounts:
+                if a.get("email"):
+                    gmail_owners.setdefault(str(a["email"]).lower(), []).append(a.get("label", "?"))
             for a in accounts:
                 row = ctk.CTkFrame(accounts_list, fg_color="transparent")
                 row.pack(fill="x", pady=3, padx=4)
@@ -11680,15 +11731,7 @@ class VideoGeneratorApp(ctk.CTk):
                 ctk.CTkLabel(row, text="●", text_color=dot_color, font=ctk.CTkFont(size=13)).pack(
                     side="left", padx=(4, 4)
                 )
-                label = a.get("label", "?")
-                detail = progress.get("message") or ("Signed in" if signed_in else "Not signed in")
-                ctk.CTkLabel(
-                    row, text=f"{label}", font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
-                ).pack(side="left")
-                ctk.CTkLabel(
-                    row, text=f"  {detail}{scene_hint}", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
-                ).pack(side="left", fill="x", expand=True)
-
+                # Buttons are packed before the text so a long address is cut short instead of pushing them off the row.
                 ctk.CTkButton(
                     row, text="Remove", width=64, height=22, font=ctk.CTkFont(size=10),
                     fg_color="transparent", border_width=1, border_color=_BORDER,
@@ -11701,6 +11744,28 @@ class VideoGeneratorApp(ctk.CTk):
                         fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
                         command=lambda aid=a["id"]: connect_and(lambda c: c.login(aid)),
                     ).pack(side="right", padx=4)
+
+                label = a.get("label", "?")
+                detail = progress.get("message") or ("Signed in" if signed_in else "Not signed in")
+                email = str(a.get("email") or "")
+                ctk.CTkLabel(
+                    row, text=f"{label}", font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT, anchor="w",
+                ).pack(side="left")
+                if email:
+                    # signed out: the last Gmail this profile used, so you know which address to sign back in with
+                    ctk.CTkLabel(
+                        row, text=f"  ·  {email}" if signed_in else f"  ·  was {email}", font=ctk.CTkFont(size=12),
+                        text_color=_TEXT if signed_in else _MUTED, anchor="w",
+                    ).pack(side="left")
+                ctk.CTkLabel(
+                    row, text=f"  {detail}{scene_hint}", font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w",
+                ).pack(side="left")
+                others = [n for n in gmail_owners.get(email.lower(), []) if n != label] if email else []
+                if others:
+                    ctk.CTkLabel(
+                        row, text=f"  ⚠ same Gmail as {', '.join(others)}", font=ctk.CTkFont(size=11),
+                        text_color=_WARNING, anchor="w",
+                    ).pack(side="left")
 
         _state_unsubscribers: list = []
         _state_subscribed = [False]
@@ -12131,6 +12196,7 @@ class VideoGeneratorApp(ctk.CTk):
             "rows": rows,
             "model": self.model_var.get().strip() or "small",
             "captions": bool(self.captions_var.get()),
+            "caption_style": self.caption_style(),
             "zoom": bool(self.zoom_var.get()),
             "zoom_amount": self.ken_burns_zoom_amount(),
             "smart_editing": self._smart_editing_settings(),
@@ -12327,7 +12393,7 @@ class VideoGeneratorApp(ctk.CTk):
                 print(f"BG:     {config['bg_path']}")
             print(f"Model:  {config['model']}")
             print(f"Zoom:     {'ON' if config['zoom'] else 'OFF'}")
-            print(f"Captions: {'ON' if config['captions'] else 'OFF'}")
+            print(f"Captions: {'ON (' + config['caption_style'] + ')' if config['captions'] else 'OFF'}")
             smart_cfg: SmartEditingSettings = config.get("smart_editing") or SmartEditingSettings()
             print(
                 f"Smart Editing: text={'ON' if smart_cfg.text_effects else 'OFF'} "
@@ -12897,6 +12963,7 @@ class VideoGeneratorApp(ctk.CTk):
                 bg_audio=str(bg_path) if bg_path else None,
                 bg_volume=bg_volume,
                 captions=config["captions"],
+                caption_style=config.get("caption_style", "classic"),
                 scene_text_effects=scene_text_fx,
                 visual_transitions=bool(transition_map),
                 transition_by_scene=transition_map if transition_map else None,

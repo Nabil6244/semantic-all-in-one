@@ -175,6 +175,43 @@ class TestCaptions(unittest.TestCase):
             self.assertTrue(any(p > 0 for p in alphas))
             img.close()
 
+    def test_pakmap_caption_is_the_map_caption_chip(self):
+        """Captions in the PakMap style: yellow upper-case text on the dark navy panel, bottom centre."""
+        import tempfile
+        from pathlib import Path
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as d:
+            path = render_caption_overlay("Phosphate built this valley", Path(d) / "cap.png", 1920, 1080, style="pakmap")
+            img = Image.open(path).convert("RGBA")
+            x0, y0, x1, y1 = img.getbbox()
+            self.assertLess(abs((x0 + x1) / 2 - 960), 20)   # centred
+            self.assertGreater(y0, 1080 * 0.7)               # in the bottom band
+            colours = {c for _, c in img.crop((x0, y0, x1, y1)).getcolors(1_000_000)}
+            self.assertTrue(any(r > 230 and g > 200 and b < 110 and a > 240 for r, g, b, a in colours))   # the yellow text
+            self.assertTrue(any(abs(r - 8) < 6 and abs(g - 19) < 6 and abs(b - 32) < 6 and a > 230 for r, g, b, a in colours))   # the panel
+            img.close()
+            # the classic look is unchanged: white text, no panel
+            classic = Image.open(render_caption_overlay("Phosphate built this valley", Path(d) / "c.png", 1920, 1080)).convert("RGBA")
+            self.assertFalse(any(abs(r - 8) < 6 and abs(g - 19) < 6 and abs(b - 32) < 6 and a > 230
+                                 for _, (r, g, b, a) in classic.getcolors(1_000_000)))
+            classic.close()
+
+    def test_pakmap_caption_keeps_long_lines_short(self):
+        """A long scene line wraps and steps the type down rather than covering the picture."""
+        import tempfile
+        from pathlib import Path
+        from PIL import Image
+
+        long_line = ("For nearly a century, phosphate miners in central Florida dug through layers of ancient sea bed, "
+                     "moving whole hillsides to reach the rock that fertilises half the world's farms.")
+        with tempfile.TemporaryDirectory() as d:
+            img = Image.open(render_caption_overlay(long_line, Path(d) / "cap.png", 1920, 1080, style="pakmap"))
+            x0, y0, x1, y1 = img.getbbox()
+            self.assertLess(y1 - y0, 1080 * 0.35)
+            self.assertLess(x1 - x0, 1920 * 0.9)
+            img.close()
+
     def test_empty_caption_returns_none(self):
         import tempfile
         from pathlib import Path

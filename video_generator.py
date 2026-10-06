@@ -832,21 +832,87 @@ def _wrap_caption_lines(text: str, font, max_width: int, draw) -> list[str]:
     return wrapped
 
 
+CAPTION_STYLES = ("classic", "pakmap")   # classic: white outlined subtitle; pakmap: the map videos' yellow caption chip
+
+
+def _pakmap_caption_font(size: int):
+    """Montserrat ExtraBold (weight 800) — the font the pakMap renderer draws its captions with."""
+    from PIL import ImageFont
+
+    path = None
+    try:
+        from map_scene.render import _find   # finds bundled engine files in a packaged app too
+
+        path = _find("pakmap-engine/assets/fonts/Montserrat-VF.ttf")
+    except Exception:
+        pass
+    path = path or Path(__file__).resolve().parent / "pakmap-engine" / "assets" / "fonts" / "Montserrat-VF.ttf"
+    try:
+        font = ImageFont.truetype(str(path), size=size)
+        try:
+            font.set_variation_by_axes([800])
+        except Exception:
+            pass
+        return font
+    except OSError:
+        return _load_caption_font(size)
+
+
+def _render_pakmap_caption(text: str, out_path: Path, width: int, height: int) -> Path | None:
+    """The pakMap caption chip (pakmap-engine lib/draw.mjs drawCaption + lib/layout.mjs captionLayout): yellow
+    upper-case Montserrat on a dark navy rounded panel with a soft shadow, bottom centre. Same numbers, scaled from
+    its 1080 px design. A long scene line wraps and steps the type down, so it never covers the picture."""
+    from PIL import Image, ImageDraw, ImageFilter
+
+    k = min(width, height) / 1080.0
+    pad_x, pad_y, radius, line_gap, bottom = 30 * k, 32 * k, 16 * k, 16 * k, 66 * k
+    max_text_w = width * 0.84 - 2 * pad_x
+    text = " ".join(text.upper().split())
+    probe = ImageDraw.Draw(Image.new("RGBA", (8, 8)))
+    for px in (63, 56, 50, 44):   # the chip's own size first; smaller only when the line needs more than 3 rows
+        font = _pakmap_caption_font(max(10, round(px * k)))
+        lines = _wrap_caption_lines(text, font, int(max_text_w), probe)
+        if len(lines) <= 3:
+            break
+    size = font.size
+    cap = round(size * 0.7)   # cap height, as in captionLayout
+    gap = line_gap * size / (63 * k)
+    text_w = max(probe.textlength(line, font=font) for line in lines)
+    w, h = text_w + 2 * pad_x, 2 * pad_y + cap * len(lines) + gap * (len(lines) - 1)
+    x, y = (width - w) / 2, height - bottom - h
+    box = [round(x), round(y), round(x + w), round(y + h)]
+
+    shadow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle(box, radius=round(radius), fill=(0, 0, 0, 128))
+    img = shadow.filter(ImageFilter.GaussianBlur(max(1, 14 * k / 2)))   # canvas shadowBlur 14 ~ Gaussian sigma 7
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle(box, radius=round(radius), fill=(8, 19, 32, 240))   # rgba(8,19,32,0.94)
+    for i, line in enumerate(lines):
+        baseline = y + pad_y + cap * (i + 1) + gap * i
+        draw.text((width / 2, baseline), line, font=font, fill=(0xFB, 0xE0, 0x40, 255), anchor="ms")   # COLORS.yellow
+    out_path = Path(out_path)
+    img.save(out_path, format="PNG")
+    return out_path
+
+
 def render_caption_overlay(
     text: str,
     out_path: Path,
     width: int,
     height: int,
+    style: str = "classic",
 ) -> Path | None:
     """
-    Transparent PNG with white outlined text near the bottom.
-    Returns None if text is empty.
+    Transparent PNG with the scene's caption near the bottom: white outlined text ("classic") or the pakMap
+    caption chip ("pakmap"). Returns None if text is empty.
     """
     from PIL import Image, ImageDraw
 
     text = (text or "").strip()
     if not text:
         return None
+    if style == "pakmap":
+        return _render_pakmap_caption(text, out_path, width, height)
 
     # Sizes are designed for a 1080-pixel short side; a 4K frame (2160) draws them twice as big, same look.
     k = min(width, height) / 1080.0
@@ -2395,6 +2461,7 @@ def render_video(
     bg_audio: str | None = None,
     bg_volume: float = 0.15,
     captions: bool = False,
+    caption_style: str = "classic",
     scene_text_effects: list | None = None,
     visual_transitions: bool = True,
     transition_by_scene: dict | None = None,
@@ -2465,7 +2532,7 @@ def render_video(
             )
         captions_dir = clips_dir / "_captions"
         captions_dir.mkdir()
-        print("[3/4] Captions ON — rendering text overlays per scene...")
+        print(f"[3/4] Captions ON ({caption_style}) — rendering text overlays per scene...")
 
     n = len(image_paths)
     smart_fx = any(per_scene_fx)
@@ -2567,6 +2634,7 @@ def render_video(
                 captions_dir / f"cap_{i:04d}.png",
                 width,
                 height,
+                style=caption_style,
             )
 
         fx_filters = ""
@@ -3126,6 +3194,8 @@ def main():
                         help="Background bed volume 0–1 (default 0.15)")
     parser.add_argument("--captions", action="store_true",
                         help="Burn in scene script_segment text as subtitles")
+    parser.add_argument("--caption-style", choices=CAPTION_STYLES, default="classic",
+                        help="classic: white outlined subtitle; pakmap: yellow caption on a dark panel (as in map videos)")
     parser.add_argument("--pexels-api-key", default=None,
                         help="Pexels API key for 'stock' scenes (falls back to PEXELS_API_KEY env var)")
     parser.add_argument("--flow-engine-port", type=int, default=8787,
@@ -3206,6 +3276,7 @@ def main():
         bg_audio=args.bg_audio,
         bg_volume=args.bg_volume,
         captions=args.captions,
+        caption_style=args.caption_style,
     )
 
     if flow_engine_manager is not None:

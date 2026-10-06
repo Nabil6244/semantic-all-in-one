@@ -23,6 +23,7 @@ import {
   logFlowNav,
 } from "./flow-api.js";
 import { runBatchSlice } from "./batch-runner.js";
+import { accountIdentity } from "./profile-identity.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
 import { timing } from "../config.js";
 import fs from "node:fs";
@@ -91,6 +92,13 @@ export function onHudMessage(fn) {
   return () => listeners.delete(fn);
 }
 
+/** The Google address this account's profile is signed into. The profile's own record wins over the page scan, which
+ *  finds nothing on today's Flow page (only an avatar) and could pick up an unrelated address; the saved one is the last
+ *  known, so a signed-out row still says which Gmail to sign back in with. */
+function knownEmail(a, st = null) {
+  return accountIdentity(a.id)?.email || st?.email || a.email || null;
+}
+
 function accountPublic(a) {
   const prog = accountProgress.get(a.id) || {
     status: "idle",
@@ -102,7 +110,7 @@ function accountPublic(a) {
   return {
     id: a.id,
     label: a.label,
-    email: a.email || null,
+    email: knownEmail(a),
     authenticated: !!a.authenticated,
     lastChecked: a.lastChecked || 0,
     progress: prog,
@@ -154,12 +162,12 @@ export async function loginAccount(accountId, { timeoutMs = 10 * 60 * 1000 } = {
     if (st.authenticated) {
       updateAccount(accountId, {
         authenticated: true,
-        email: st.email || a.email,
+        email: knownEmail(a, st),
         lastChecked: Date.now(),
       });
       accountProgress.set(accountId, {
         status: "idle",
-        message: "Signed in" + (st.email ? ` (${st.email})` : ""),
+        message: "Signed in",   // the address has its own place in the Accounts row
       });
       pushState();
       return getAccount(accountId);
@@ -193,13 +201,13 @@ export async function refreshAccount(accountId) {
     const st = await checkAuthStatus(page);
     updateAccount(accountId, {
       authenticated: !!st.authenticated,
-      email: st.email || a.email,
+      email: knownEmail(a, st),
       lastChecked: Date.now(),
     });
     accountProgress.set(accountId, {
       status: st.authenticated ? "idle" : "error",
       message: st.authenticated
-        ? "OK" + (st.email ? ` · ${st.email}` : "")
+        ? "OK"
         : "Not signed in — click Sign in",
     });
   } catch (e) {
@@ -277,7 +285,7 @@ async function prepareAccount(accountId, label) {
   }
   updateAccount(accountId, {
     authenticated: true,
-    email: st.email,
+    email: knownEmail(getAccount(accountId) || { id: accountId }, st),   // st.email alone was null and wiped the saved address
     lastChecked: Date.now(),
   });
 

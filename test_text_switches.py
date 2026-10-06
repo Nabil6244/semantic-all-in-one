@@ -81,7 +81,7 @@ class TestSettings(unittest.TestCase):
 
 
 class TestRemovedEffects(unittest.TestCase):
-    def test_only_statement_question_quote_are_ever_chosen(self):
+    def test_only_quote_is_ever_chosen(self):
         from typography.variation import plan_typography_decision, reset_variation_history
 
         reset_variation_history()
@@ -90,7 +90,7 @@ class TestRemovedEffects(unittest.TestCase):
                  ("What happens next?", "highlight"), ("“The largest dam on Earth.”", "fade"),
                  ("Verified by engineers", "fade")]
         chosen = {plan_typography_decision(t, e).style_id for t, e in cases}
-        self.assertEqual(chosen, {"statement", "question", "quote"})
+        self.assertEqual(chosen, {"quote"})   # Smart Text has one look since 2026-10-06
 
     def test_location_and_date_labels_are_never_planned(self):
         from graphics.engine import REMOVED_GRAPHIC_ROLES, plan_graphics
