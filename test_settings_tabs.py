@@ -7,12 +7,13 @@ captions / Whisper choices persist (they used to reset on every launch). setting
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
 _LIVE = r'''
-import os, sys, json, shutil, time
+import os, sys, json, shutil, time, traceback
 from pathlib import Path
 real_stdout = sys.stdout
 sys.path.insert(0, os.getcwd())
@@ -58,6 +59,9 @@ try:
     saved = json.loads(Path("settings.json").read_text())
     emit("persisted", saved.get("captions") is True and saved.get("whisper_model") == "medium",
          {k: saved.get(k) for k in ("captions", "whisper_model")})
+except BaseException:
+    # os._exit below would discard the traceback: report it so a failure (e.g. only on Windows) says what broke.
+    real_stdout.write("ERROR:" + traceback.format_exc().replace("\n", " | ") + "\n"); real_stdout.flush()
 finally:
     if backup.is_file():
         shutil.copy2(backup, "settings.json")
@@ -74,10 +78,14 @@ class TestSettingsTabs(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp())
         script = tmp / "_settings_tabs_live.py"
         script.write_text(_LIVE, encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")
         proc = subprocess.run([sys.executable, str(script), str(tmp / "settings.backup.json")], capture_output=True,
-                              text=True, timeout=180, cwd=Path(__file__).resolve().parent)
-        cls._out, cls._err, cls._res = proc.stdout, proc.stderr, {}
+                              text=True, encoding="utf-8", errors="replace", timeout=180,
+                              cwd=Path(__file__).resolve().parent, env=env)
+        cls._out, cls._err, cls._res, cls._error = proc.stdout, proc.stderr, {}, ""
         for line in proc.stdout.splitlines():
+            if line.startswith("ERROR:"):
+                cls._error = line[6:]
             if line.startswith("SKIP:"):
                 raise unittest.SkipTest(line[5:])
             if line.startswith(("PASS:", "FAIL:")):
@@ -87,7 +95,8 @@ class TestSettingsTabs(unittest.TestCase):
 
     def _check(self, name):
         if name not in self._res:
-            self.fail(f"never reported {name}\n{self._out}\n{self._err[-2000:]}")
+            why = f"the Settings window raised: {self._error}" if self._error else "no output from the live check"
+            self.fail(f"never reported {name}: {why}\n{self._out[-2000:]}\n{self._err[-2000:]}")
         ok, detail = self._res[name]
         self.assertTrue(ok, f"{name}: {detail}")
 
