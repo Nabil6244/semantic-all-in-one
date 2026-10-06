@@ -17,8 +17,8 @@ names the row.
     card     a map_footage beat's photo card    asset, t, place, label, hold
 Times are narration seconds, OR the narrator's own words in vo_anchor (a CSV written by an AI from the script with
 composition_styles/hybrid_beats_prompt.txt): a beat starts where its words are spoken and ends where the next beat starts; a
-layer, card or camera step appears on its words. The words are found with pakMap's matcher in the voiceover's transcript, in
-order. A beat with a camera target (place/frame) and no camera rows gets its moves from hybrid.director.derive_cameras, exactly
+layer, card or camera step appears on its words. The words are found with pakMap's matcher in the voiceover's transcript: beats
+in order, each beat's own rows searched from its first words (they never move the search on). A beat with a camera target (place/frame) and no camera rows gets its moves from hybrid.director.derive_cameras, exactly
 like a Director plan. Anything rarely edited (a beat's intents, confidence, findings; a layer's params; a clip's kenburns)
 sits in the row's `extra` cell as JSON."""
 
@@ -160,7 +160,10 @@ class _Clock:
                     return hit
         return None
 
-    def at(self, phrase: str) -> float:
+    def at(self, phrase: str, *, advance: bool = True) -> float:
+        """The time of `phrase`, searched from the current beat's first words. Only a beat row (advance=True) moves the
+        search on: a layer, card or camera row is looked up inside its beat and never moves it, so one row whose words are
+        spoken later (an AI often anchors a label on the next sentence) cannot push every following beat "out of order"."""
         from pakmap.compile import hit_first
 
         if self.tr is None or not len(self.tr):
@@ -173,7 +176,8 @@ class _Clock:
         m, _nxt = hit
         if m.out_of_order:
             raise ValueError(f"vo_anchor {words.strip()!r} is only spoken before the previous row's words ({m.t_start:.1f}s): rows must follow the script in order")
-        self.cursor = hit_first(self.tr, m)  # the next row may reuse the same words
+        if advance:
+            self.cursor = hit_first(self.tr, m)  # the beat's own rows (and the next beat) search from here
         return round(m.t_end if mod.strip().lower() == "end" else m.t_start, 3)
 
 
@@ -226,7 +230,7 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
             anchor = r.get("vo_anchor", "")
 
             def when(col: str) -> Optional[float]:
-                return _f(r, col) if r.get(col) else (clock.at(anchor) if anchor else None)
+                return _f(r, col) if r.get(col) else (clock.at(anchor, advance=kind == "beat") if anchor else None)
 
             if kind == "plan":
                 plan_duration = _f(r, "end", required=True)

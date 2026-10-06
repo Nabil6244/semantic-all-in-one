@@ -387,5 +387,61 @@ class TestThePrompt(unittest.TestCase):
     def test_the_rules_that_matter_are_in_the_prompt(self):
         t = self.PROMPT.read_text(encoding="utf-8")
         for rule in ("copied EXACTLY from the script", "You do not write camera moves", "one to three card rows", "one to three clips",
-                     "NEVER type the number itself", "Never use Flow sources", "Output ONLY the CSV"):
+                     "NEVER type the number itself", "Never use Flow sources", "Output ONLY the CSV",
+                     "THE BEATS COVER THE SCRIPT EXACTLY", "copied from ITS OWN BEAT'S text cell"):
             self.assertIn(rule, t)
+
+
+class TestRowsInsideABeatNeverPushTheNextBeat(unittest.TestCase):
+    """The Hudson Bay CSV (2026-10-06): a label anchored on words of the NEXT sentence used to move the search past the next
+    beat's first words, so almost every beat row failed with "only spoken before the previous row's words"."""
+
+    def test_a_label_on_the_next_beats_words_is_kept_with_its_beat(self):
+        csv_text = (HEAD
+                    + R(beat="b1", row="beat", vo_anchor="Lesotho is", mode="map", place="Lesotho", frame="country")
+                    # spoken in b2's sentence ("Its capital Maseru sits on the western border"), not in b1's
+                    + R(beat="b1", row="layer", vo_anchor="western border", type="caption", text="THE BORDER")
+                    + R(beat="b2", row="beat", vo_anchor="Its capital", mode="map", place="Maseru", frame="region")
+                    + R(beat="b2", row="layer", vo_anchor="Maseru", type="marker", place="Maseru", label="MASERU")
+                    + R(beat="b3", row="beat", vo_anchor="Up in the highlands", mode="footage")
+                    + R(beat="b3", row="clip", asset="stock_video:snow on mountain grassland")
+                    + R(beat="b4", row="beat", vo_anchor="Back on the map", mode="map", place="Lesotho", frame="country"))
+        got = import_beats(csv_text, WORDS, DURATION)
+        b1, b2, b3, b4 = got.plan.beats
+        self.assertEqual((b2.start, b3.start, b4.start), (at("Its"), at("Up"), at("Back")))
+        self.assertEqual(b1.layers[0].t, b1.start, "a label spoken outside its beat appears with its beat")
+        self.assertTrue(any("outside beat b1" in n for n in got.notes))
+        self.assertEqual(b2.layers[0].t, at("Maseru"))
+
+    def test_rows_of_one_beat_may_come_in_any_order(self):
+        csv_text = (HEAD
+                    + R(beat="b1", row="beat", vo_anchor="Lesotho is", mode="map", place="Lesotho", frame="country")
+                    + R(beat="b1", row="layer", vo_anchor="inside South Africa", type="fill", place="Lesotho", role="subject")
+                    + R(beat="b1", row="layer", vo_anchor="Lesotho is", type="hud_title", label="PART 1")
+                    + R(beat="b2", row="beat", vo_anchor="Its capital", mode="map", place="Maseru", frame="region"))
+        b1, b2 = import_beats(csv_text, WORDS, DURATION).plan.beats
+        self.assertEqual(b1.layers[1].t, 0.0)
+        self.assertEqual(b2.start, at("Its"))
+
+
+class TestThePromptsOwnExampleLoads(unittest.TestCase):
+    """composition_styles/hybrid_beats_prompt.txt teaches by example: that example must load without a problem, with every
+    beat's text joining back into the script and every layer and card spoken inside its own beat."""
+
+    def test_example(self):
+        import csv
+        import io
+        from pathlib import Path
+
+        prompt = (Path(__file__).resolve().parent / "composition_styles" / "hybrid_beats_prompt.txt").read_text(encoding="utf-8")
+        example = prompt.split("EXAMPLE", 1)[1]
+        script = example.split("Script:", 1)[1].split("CSV:", 1)[0].strip()
+        csv_text = example.split("CSV:", 1)[1].split("NOW WRITE", 1)[0].strip() + "\n"
+        rows = list(csv.reader(io.StringIO(csv_text)))
+        self.assertTrue(all(len(r) == len(rows[0]) for r in rows), "every row has as many cells as the header")
+        beat_texts = [r[rows[0].index("text")] for r in rows[1:] if r[1] == "beat"]
+        self.assertEqual(" ".join(beat_texts), script, "the beats' text cells join back into the script")
+        words = words_for(script)
+        got = import_beats(csv_text, words, words[-1][2] + 0.5)
+        self.assertEqual(len(got.plan.beats), 5)
+        self.assertFalse([n for n in got.notes if "outside beat" in n], got.notes)
