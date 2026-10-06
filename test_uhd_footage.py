@@ -215,6 +215,76 @@ class TestDownloaderCap(unittest.TestCase):
         self.assertEqual(seen, ["https://x/uhd.mp4", "https://x/hd.mp4"])
 
 
+class TestDownloaderCleansUpLikeWindows(unittest.TestCase):
+    """Windows cannot delete a file that is still open. The downloader must close the .part file before deleting it, or a
+    cap / stop / dropped connection leaves it behind (this failed on the Windows CI before the fix)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run(self, chunks, **kw):
+        import builtins
+        import pathlib
+
+        open_paths = set()
+        real_open, real_unlink = builtins.open, pathlib.Path.unlink
+
+        class Tracked:
+            def __init__(self, path, *a, **k):
+                self.path, self.f = str(Path(path)), real_open(path, *a, **k)
+                open_paths.add(self.path)
+
+            def __enter__(self):
+                return self.f
+
+            def __exit__(self, *exc):
+                self.f.close()
+                open_paths.discard(self.path)
+
+        def windows_unlink(path, missing_ok=False):
+            if str(path) in open_paths:
+                raise PermissionError(f"[WinError 32] The process cannot access the file: {path}")
+            return real_unlink(path, missing_ok=missing_ok)
+
+        def get(url, stream, timeout):
+            r = mock.MagicMock()
+            r.__enter__.return_value = r
+            r.headers = {"Content-Type": "video/mp4"}
+            r.raise_for_status = lambda: None
+            r.iter_content = lambda chunk_size: iter(chunks)
+            return r
+
+        with mock.patch.object(downloader.requests, "get", get), mock.patch("providers.stock.downloader.open", Tracked, create=True), \
+                mock.patch.object(pathlib.Path, "unlink", windows_unlink):
+            return downloader.download_candidate(_candidate(), self.tmp, "2", **kw)
+
+    def test_over_the_cap(self):
+        with self.assertRaises(IOError) as ctx:
+            self._run([b"x" * 1024] * 8, max_bytes=4 * 1024)
+        self.assertIn("exceeded", str(ctx.exception), "the real reason, not a file-in-use error")
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_stopped(self):
+        with self.assertRaises(downloader.DownloadCancelled):
+            self._run([b"x" * 1024] * 8, should_stop=lambda: True)
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_connection_dropped_mid_download(self):
+        def chunks():
+            yield b"x" * 1024
+            raise ConnectionError("connection reset")
+
+        with self.assertRaises(ConnectionError):
+            self._run(chunks())
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_a_good_download_still_lands(self):
+        self.assertEqual(self._run([b"x" * 1024] * 2).name, "002.mp4")
+
+
 class TestSwitchPropagation(unittest.TestCase):
     def test_set_uhd_reaches_every_backend_and_forgets_old_searches(self):
         cache = StockCache()

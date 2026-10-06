@@ -79,18 +79,27 @@ def download_candidate(
         target = Path(images_dir) / f"{n:03d}{ext}"
         written = 0
         tmp_target = target.with_suffix(target.suffix + ".part")
-        with open(tmp_target, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1 << 16):
-                if should_stop and should_stop():
-                    tmp_target.unlink(missing_ok=True)
-                    raise DownloadCancelled("download cancelled")
-                if not chunk:
-                    continue
-                written += len(chunk)
-                if written > max_bytes:
-                    tmp_target.unlink(missing_ok=True)
-                    raise IOError(f"stock asset exceeded {max_bytes // (1024*1024)}MB, aborted")
-                f.write(chunk)
+        problem = None
+        try:
+            with open(tmp_target, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1 << 16):
+                    if should_stop and should_stop():
+                        problem = DownloadCancelled("download cancelled")
+                        break
+                    if not chunk:
+                        continue
+                    written += len(chunk)
+                    if written > max_bytes:
+                        problem = IOError(f"stock asset exceeded {max_bytes // (1024*1024)}MB, aborted")
+                        break
+                    f.write(chunk)
+        except BaseException:
+            tmp_target.unlink(missing_ok=True)
+            raise
+        if problem is not None:
+            # Deleted only after the file is closed: Windows cannot delete a file that is still open.
+            tmp_target.unlink(missing_ok=True)
+            raise problem
         tmp_target.replace(target)
     return target
 
