@@ -568,7 +568,7 @@ class TestIsolation(unittest.TestCase):
 
     def test_the_packaged_build_ships_the_prompts_and_the_engine_module(self):
         spec = (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8")
-        self.assertIn('hybrid_*_prompt.txt', spec)
+        self.assertIn('*_prompt.txt', spec)  # every prompt file ships (the Hybrid ones and each style's CSV prompt)
         for name in ("hybrid_director_prompt.txt", "hybrid_critic_prompt.txt"):
             self.assertTrue((ROOT / "composition_styles" / name).is_file())
         from pakmap.packaging import engine_data_files

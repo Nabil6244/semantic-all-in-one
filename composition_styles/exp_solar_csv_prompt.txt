@@ -1,0 +1,118 @@
+You are writing a visual-plan CSV for the "Exp Solar" style of Semantic YT Studio.
+
+THE LOOK
+A plain white whiteboard canvas, like a reference documentary: photo and video cards
+appear while the narrator speaks. Most moments show one strong HERO card; some show two
+cards side by side, a reaction next to what it reacts to, four cards in a row, or a grid
+of up to 15 small cards. A chapter title stays in the header while its subject is
+discussed, and a short checklist can stay at the top of the screen. Arrows are rare.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any field that contains a comma.
+
+COLUMNS (exactly these, in this order)
+scene_number,script_segment,node_id,beat,role,asset_type,prompt,caption,highlight,chapter,node_label,relationship_to,relationship_type,relationship_label
+
+- scene_number: 1, 2, 3 ... one per row, no gaps.
+- script_segment: the narration for this row, copied WORD FOR WORD from the script.
+- node_id: the card this row adds: write n followed by the scene_number (row 7 -> n7).
+  Leave it empty on a narration-only row.
+- beat: how the card is shown (see BEATS). Empty means hero.
+- role: leave empty (the beat sets it).
+- asset_type: where the card's media comes from:
+    commons_image  real named things: a specific person, place, building, event, species
+    stock_image    generic photos (money, hands, a skyline, a silhouette)
+    stock_video    generic footage (driving, engines, crowds, nature)
+    youtube_video, archive_video, nasa_video, commons_video   real footage
+    image / video  AI-generated, only when nothing real exists (costs Flow credits)
+    map            an animated map; the prompt is the place, big to small: "Italy > Modena"
+- prompt: a short, specific search (6 to 12 words for stock) or a generation prompt.
+  Never a person's name in a stock search, never a brand, never a file name.
+- caption: the spoken words of THIS row, trimmed to 10 words or fewer. Copy the words;
+  do not paraphrase or summarize. Leave empty on narration-only rows.
+- highlight: one or two key names, numbers or terms from the caption, separated by a
+  comma. Each must appear EXACTLY (same letters, same capitals) inside the caption.
+- chapter: the title of a NEW subject, only on that subject's first row (see CHAPTERS).
+- node_label: a 1 to 3 word tag shown above the card (optional); required on a
+  checklist row (the item's name).
+- relationship_to, relationship_type, relationship_label: link this card to a card
+  already on screen (see LINKS). Usually empty.
+
+HOW TIME WORKS (the most important rule)
+- THE ROWS COVER THE SCRIPT EXACTLY. Put the script_segment cells one after another and
+  you get the script, word for word: nothing skipped, nothing repeated, nothing reworded,
+  nothing added. Use the script exactly as the narrator recorded it.
+- One row is about 2.5 to 3.5 seconds of speech (roughly 7 to 10 words). Split long
+  sentences at natural pauses.
+
+NARRATION-ONLY ROWS (holding a card)
+When the narration keeps talking about what is already on screen, write a row with ONLY
+scene_number and script_segment filled and every other column empty. The cards on
+screen stay. Use these freely to keep every row at 2.5 to 3.5 seconds.
+
+BEATS
+- hero        (default) one strong card on its own. Most rows.
+- title       the opening card of a subject: a clean, recognizable picture of the
+              subject itself. Put the subject's chapter on this row.
+- two_panel   two cards side by side: write TWO two_panel rows in a row; they pair up.
+              For a comparison, before/after, two views of one thing.
+- reaction    a reaction picture (a face, a crowd, a gesture) beside what it reacts to:
+              set relationship_to to that card's node_id.
+- four_row    two to four cards in a row: write two to four four_row rows in a row.
+              For a short list or a quick transition through examples.
+- index_grid  a grid of up to 15 small cards: write up to 15 index_grid rows in a row.
+              Only for a long list the narrator names item by item.
+- checklist   one item of a checklist that stays at the top of the screen for the whole
+              video (at most 15 items in all). Fill node_label with the item's name.
+              Usually the first row of each new part of a list-style video.
+- cta         the closing card that asks the viewer to act (subscribe, watch next).
+
+CHAPTERS
+- A subject is the thing being explained; most videos have 1 to 4 subjects.
+- Put chapter (a short title) on the subject's FIRST row only, usually a title beat.
+  It stays in the header until the next chapter. Never repeat a chapter.
+
+LINKS (use sparingly: most rows have none)
+- relationship_to = the node_id of a card that is still on screen, so the two show
+  together.
+- relationship_type: leave EMPTY for a simple pairing (a reaction, a supporting
+  detail). Fill it only for a real cause and effect: causation, dependency,
+  consequence, transformation, mechanism or process. That draws an arrow: at most one
+  arrow in every five or six cards.
+- relationship_label: 1 or 2 words on the arrow, only when they add meaning.
+- two_panel, four_row and index_grid rows are joined automatically: leave their links
+  empty.
+
+CHECK BEFORE ANSWERING
+1. Joining every script_segment in order gives back the script exactly.
+2. Every card row has node_id n<scene_number>; narration-only rows have only
+   scene_number and script_segment.
+3. beat is one of: hero, title, two_panel, reaction, four_row, index_grid, checklist,
+   cta (or empty). two_panel rows come in pairs; four_row in runs of 2 to 4;
+   index_grid in runs of up to 15.
+4. relationship_type is empty or one of: causation, dependency, consequence,
+   transformation, mechanism, process; relationship_to names a card already on screen.
+5. chapter only on each subject's first row; every checklist row has a node_label.
+6. Every highlight appears exactly inside its caption.
+7. Rows average about 2.5 to 3.5 seconds of speech (7 to 10 words).
+8. Output is the CSV only.
+
+EXAMPLE
+Script:
+In 1977, two small probes left Earth on the longest journey ever made. Voyager 1 and Voyager 2 were built to visit Jupiter and Saturn. Engineers expected them to last five years. Instead, they are still sending signals today, from beyond the edge of the solar system.
+
+CSV:
+scene_number,script_segment,node_id,beat,role,asset_type,prompt,caption,highlight,chapter,node_label,relationship_to,relationship_type,relationship_label
+1,"In 1977, two small probes left Earth",n1,title,,nasa_video,voyager launch 1977 titan rocket,"In 1977, two small probes left Earth",1977,THE VOYAGER PROBES,,,,
+2,on the longest journey ever made.,,,,,,,,,,,,
+3,Voyager 1 and,n3,two_panel,,commons_image,Voyager 1 spacecraft,Voyager 1,Voyager 1,,,,,
+4,Voyager 2 were built,n4,two_panel,,commons_image,Voyager 2 spacecraft assembly,Voyager 2 were built,Voyager 2,,,,,
+5,to visit Jupiter,n5,four_row,,nasa_video,Jupiter Great Red Spot Voyager images,to visit Jupiter,Jupiter,,,,,
+6,and Saturn.,n6,four_row,,nasa_video,Saturn rings Voyager flyby,and Saturn,Saturn,,,,,
+7,Engineers expected them to last five years.,n7,hero,,archive_video,NASA engineers mission control 1970s||Jet Propulsion Laboratory 1977,Engineers expected them to last five years.,five years,,,,,
+8,"Instead, they are still sending signals today,",n8,hero,,stock_video,large radio telescope dish turning toward the night sky,still sending signals today,today,,,,,
+9,from beyond the edge of the solar system.,n9,hero,,video,"a tiny spacecraft drifting past the faint boundary of the solar system, deep space, cinematic",beyond the edge of the solar system,solar system,,,n8,consequence,
+
+NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

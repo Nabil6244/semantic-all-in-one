@@ -1602,17 +1602,15 @@ class VideoGeneratorApp(ctk.CTk):
         self._csv_helper_label = ctk.CTkLabel(
             self._csv_block,
             text=(
-                "One row per scene: scene_number, script_segment, asset_type, prompt, "
-                "and a caption. For the Overscaled style, also see chapter_title, "
-                "highlight (comma-separated), edge_from/edge_to, edge_label and "
-                "edge_style (\"group\" joins cards without an arrow). "
-                "See composition_styles/overscaled_csv_rules.md."
+                "One row per shot: scene_number, script_segment, asset_type, prompt. "
+                "Copy the CSV prompt below, paste it into any AI, and load the CSV it writes."
             ),
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=220,
             justify="left", anchor="w",
         )
-        self._csv_helper_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 10))
+        self._csv_helper_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 4))
         self._bind_responsive_wrap(self._csv_helper_label, pad=24)
+        self._build_csv_prompt_bar(self._csv_block, style="normal", status_var=None, row=3, padx=12, pady=(4, 12))
         self._csv_block.grid_remove()
 
         self._ai_block = ctk.CTkFrame(
@@ -1649,6 +1647,7 @@ class VideoGeneratorApp(ctk.CTk):
         self.script_box.bind("<ButtonRelease-1>", lambda _e: self._sync_script_watermark())
         self.script_box.bind("<FocusIn>", lambda _e: self._sync_script_watermark())
         self.script_box.bind("<FocusOut>", lambda _e: self._sync_script_watermark())
+        self.script_box.bind("<FocusOut>", lambda _e: self._refresh_csv_prompt_script_boxes())
 
         ai_btns = ctk.CTkFrame(self._ai_block, fg_color="transparent")
         ai_btns.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
@@ -2122,6 +2121,8 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
         self._overscaled_status_label.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+        # Copies the Overscaled or the Exp Solar prompt, whichever look is chosen above.
+        self._build_csv_prompt_bar(controls, style="overscaled", status_var=self._overscaled_status_var, row=4)
 
         controls.grid_remove()
 
@@ -3042,7 +3043,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         self._style_card_header(block, "pakMap (satellite-map videos)",
                                 "One continuous satellite-map camera with titles, markers, numbers and photo cards. "
-                                "Load a CSV written with composition_styles/pakmap_csv_prompt.txt.")
+                                "Load a CSV written by any AI with Copy the CSV prompt (below).")
         self._pakmap_switch = ctk.CTkSwitch(
             block, text="Use pakMap for this generation",
             variable=self._pakmap_enabled_var, onvalue=True, offvalue=False,
@@ -3095,6 +3096,7 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
         self._pakmap_status_label.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        self._build_csv_prompt_bar(controls, style="pakmap", status_var=self._pakmap_status_var, row=6)
         controls.grid_remove()
 
     def _set_pakmap_plan_text(self, text: str) -> None:
@@ -3187,6 +3189,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_file_var = ctk.StringVar(value="")     # the CSV or plan file the plan came from (shown like pakMap's CSV row)
         self._hybrid_running = False
         self._hybrid_busy = False
+        self._hybrid_pending_csv = None   # a CSV chosen before the voiceover existed; loads once a voiceover is set
         self._hybrid_cancel = threading.Event()
         self._hybrid_plan = None
         self._hybrid_report = None
@@ -3198,8 +3201,8 @@ class VideoGeneratorApp(ctk.CTk):
         block.grid_columnconfigure(0, weight=1)
         self._hybrid_block = block
         self._style_card_header(block, "Hybrid Map (map + footage)",
-                                "The map explains where, full-screen footage shows what it is like. Load a beat CSV written with "
-                                "composition_styles/hybrid_beats_prompt.txt, or let the app write the plan with AI.")
+                                "The map explains where, full-screen footage shows what it is like. Load a beat CSV written by any AI "
+                                "with Copy the CSV prompt, or let the app write the plan with AI.")
         self._hybrid_switch = ctk.CTkSwitch(
             block, text="Use Hybrid Map for this project", variable=self._hybrid_enabled_var, command=self._on_hybrid_toggle,
             font=ctk.CTkFont(size=12), text_color=_TEXT,
@@ -3231,6 +3234,7 @@ class VideoGeneratorApp(ctk.CTk):
             actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1, border_color=_BORDER,
             text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12), command=self._hybrid_copy_prompt,
         ).grid(row=0, column=2)
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=3)
         ctk.CTkLabel(
             controls, text="Load beat CSV: your own plan, written by any AI with the CSV prompt.   Write plan with AI: the app plans it from your narration.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left",
@@ -3447,17 +3451,120 @@ class VideoGeneratorApp(ctk.CTk):
             label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, load your beat CSV (or write a plan with AI).\nEvery photo card and footage clip then appears here, ready to replace or retry.")
 
     def _hybrid_copy_prompt(self) -> None:
-        """Copy the beat-CSV prompt: paste it into any AI, put your script at the end, and load the CSV it gives back."""
-        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-        path = base / "composition_styles" / "hybrid_beats_prompt.txt"
+        """Copy the beat-CSV prompt (with the script in it): paste it into any AI and load the CSV it gives back."""
+        self._copy_csv_prompt("hybrid", self._hybrid_status_var)
+
+    # ---- "Copy the CSV prompt" and the script, in every style's panel ----------------------------------------------------
+    # Every style that loads a CSV has the same button: it copies that style's prompt (app_csv_prompts.py) with the
+    # project's script already in it. The script box under it IS the Script page's script (one script per project): typing
+    # in any of them updates the others and is saved with the project.
+
+    def _main_script_text(self) -> str:
+        box = getattr(self, "script_box", None)
+        text = box.get("1.0", "end").strip() if box is not None else ""
+        if not text and self._workspace is not None:
+            try:
+                if self._workspace.script_path.is_file():
+                    text = self._workspace.script_path.read_text(encoding="utf-8").strip()
+            except OSError:
+                pass
+        return text
+
+    def _refresh_csv_prompt_script_boxes(self) -> None:
+        """Show the project's script in every style panel's script box (the one being typed in is left alone)."""
+        text = self._main_script_text()
+        focused = self.focus_get() if hasattr(self, "focus_get") else None
+        for box in getattr(self, "_csv_prompt_script_boxes", []):
+            try:
+                if getattr(box, "_textbox", None) is focused and box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None):
+                    continue   # being typed in right now: never overwrite the user's typing
+                if box.get("1.0", "end").strip() != text:
+                    box.delete("1.0", "end")
+                    box.insert("1.0", text)
+                box._csv_synced = text
+            except Exception:
+                pass
+
+    def _on_csv_prompt_script_edited(self, box) -> None:
+        """A script typed or pasted into a style panel becomes the project's script (the Script page shows it too). A box the
+        user did not edit is only out of date, and is refreshed instead: it never overwrites a newer script."""
+        text = box.get("1.0", "end").strip()
+        if text == getattr(box, "_csv_synced", None):
+            self._refresh_csv_prompt_script_boxes()
+            return
+        main = getattr(self, "script_box", None)
+        current = main.get("1.0", "end").strip() if main is not None else ""
+        box._csv_synced = text
+        if text == current:
+            return
+        if main is not None:
+            main.delete("1.0", "end")
+            main.insert("1.0", text)
+            self._sync_script_watermark()
+        if self._workspace is not None and text:
+            try:
+                self._workspace.save_script(text)
+            except OSError:
+                pass
+        self._refresh_csv_prompt_script_boxes()
+
+    def _build_csv_prompt_script_box(self, parent, *, row: int, column: int = 0, columnspan: int = 1, pady=(8, 0)):
+        wrap = ctk.CTkFrame(parent, fg_color="transparent")
+        wrap.grid(row=row, column=column, columnspan=columnspan, sticky="ew", pady=pady)
+        wrap.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(wrap, text="Your script (it goes into the copied prompt)", font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_MUTED, anchor="w").grid(row=0, column=0, sticky="w")
+        box = ctk.CTkTextbox(wrap, height=84, wrap="word", font=ctk.CTkFont(size=11), border_width=1, border_color=_BORDER)
+        box.grid(row=1, column=0, sticky="ew", pady=(4, 0))
+        box.insert("1.0", self._main_script_text())
+        box._csv_synced = self._main_script_text()
+        box.bind("<FocusOut>", lambda _e, b=box: self._on_csv_prompt_script_edited(b))
+        if not hasattr(self, "_csv_prompt_script_boxes"):
+            self._csv_prompt_script_boxes = []
+        self._csv_prompt_script_boxes.append(box)
+        return box
+
+    def _build_csv_prompt_bar(self, parent, *, style: str, status_var, row: int, column: int = 0, columnspan: int = 1,
+                              padx=0, pady=(10, 0)):
+        """The button and the script box, for a style panel that does not have the button yet."""
+        bar = ctk.CTkFrame(parent, fg_color="transparent")
+        bar.grid(row=row, column=column, columnspan=columnspan, sticky="ew", padx=padx, pady=pady)
+        bar.grid_columnconfigure(1, weight=1)
+        ctk.CTkButton(
+            bar, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1,
+            border_color=_BORDER, text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
+            command=lambda: self._copy_csv_prompt(style, status_var),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(bar, text="Paste it into any AI, then load the CSV it writes.", font=ctk.CTkFont(size=11), text_color=_MUTED,
+                     anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
+        self._build_csv_prompt_script_box(bar, row=1, columnspan=2)
+        return bar
+
+    def _copy_csv_prompt(self, style: str, status_var=None) -> None:
+        """Copy a style's CSV prompt with the project's script in it (Overscaled copies Exp Solar's when that look is chosen)."""
+        from app_csv_prompts import STYLE_NAMES, build_prompt
+
+        for box in getattr(self, "_csv_prompt_script_boxes", []):
+            try:
+                if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None):
+                    self._on_csv_prompt_script_edited(box)   # typed in but not yet left: the button click must not lose it
+                    break
+            except Exception:
+                pass
+        if style == "overscaled" and getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar":
+            style = "exp_solar"
+        script = self._main_script_text()
         try:
-            text = path.read_text(encoding="utf-8")
+            text = build_prompt(style, script)
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
         self.clipboard_clear()
         self.clipboard_append(text)
-        self._hybrid_status_var.set("Prompt copied. Paste it into your AI, replace the last line with your script, then load the CSV it writes.")
+        name = STYLE_NAMES.get(style, style)
+        msg = (f"{name} prompt copied with your script. Paste it into any AI, then load the CSV it writes." if script else
+               f"{name} prompt copied. Paste it into any AI, replace its last line with your script, then load the CSV it writes.")
+        (status_var or self.status_var).set(msg)
 
     def _hybrid_draw_timeline(self) -> None:
         cv = getattr(self, "_hybrid_timeline", None)
@@ -3907,6 +4014,7 @@ class VideoGeneratorApp(ctk.CTk):
         """Reopening a project: the saved plan, the sound switch and (if Hybrid was the active style) the style itself."""
         if not hasattr(self, "_hybrid_enabled_var"):
             return
+        self._hybrid_pending_csv = None   # a CSV waiting for another project's voiceover never loads into this one
         saved = ws.hybrid_settings()
         self._hybrid_for_project = ws.project_id
         if "sound_design" in saved:
@@ -3972,8 +4080,17 @@ class VideoGeneratorApp(ctk.CTk):
         """A Hybrid CSV (see composition_styles/hybrid_csv_prompt.txt) read against this project's narration and loaded as the plan."""
         voiceover_path = self._current_voiceover_path()
         if voiceover_path is None:
-            messagebox.showinfo("Load CSV", "Select or import the voiceover first: the CSV rows are tied to the narrator's own words and times.")
-            return
+            # The rows are timed by the narrator's words, so the voiceover comes first. Never make the user pick the CSV twice:
+            # choose the voiceover now and carry on with this CSV, or keep it waiting until a voiceover is set another way.
+            if messagebox.askyesno("Load CSV", f"{Path(path).name} is timed by the narrator's words, so it needs the voiceover.\n\n"
+                                               "Choose the voiceover file now? This CSV loads straight after."):
+                if self._browse_audio(stay=True):
+                    voiceover_path = self._current_voiceover_path()
+            if voiceover_path is None:
+                self._hybrid_pending_csv = str(path)
+                self._hybrid_status_var.set(f"{Path(path).name} is waiting for the voiceover: it loads as soon as a voiceover is set.")
+                return
+        self._hybrid_pending_csv = None
         try:
             text = Path(path).read_text(encoding="utf-8-sig")
         except OSError as exc:
@@ -6950,6 +7067,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.script_box.delete("1.0", "end")
             self.script_box.insert("1.0", text)
             self._sync_script_watermark()
+        self._refresh_csv_prompt_script_boxes()
         if hasattr(self, "_overscaled_csv_var"):
             if ws.overscaled_csv_path.is_file():
                 self._overscaled_csv_var.set(str(ws.overscaled_csv_path))
@@ -7512,7 +7630,7 @@ class VideoGeneratorApp(ctk.CTk):
             initialdir=str(_browse_start_dir()),
         )
         if not path:
-            return
+            return False
         src = Path(path)
         dest = src
         if self._workspace is not None:
@@ -7975,6 +8093,11 @@ class VideoGeneratorApp(ctk.CTk):
         # path/duration from a previous longer voiceover.
         self._bind_voice_player_to(p)
         self._sync_primary_cta()
+        pending = getattr(self, "_hybrid_pending_csv", None)
+        if pending and p.is_file():
+            # A Hybrid CSV chosen before the voiceover existed: load it now (after this call returns, on the UI thread).
+            self._hybrid_pending_csv = None
+            self.after(0, lambda: self._hybrid_import_csv_file(pending) if Path(pending).is_file() else None)
 
     def _bind_voice_player_to(self, path: Path | str | None) -> None:
         """Stop playback and lock the panel player to this file (or clear it)."""
@@ -8040,7 +8163,8 @@ class VideoGeneratorApp(ctk.CTk):
             )
         )
 
-    def _browse_audio(self) -> None:
+    def _browse_audio(self, *, stay: bool = False) -> bool:
+        """Choose the voiceover file. True when one was set. `stay` keeps the current screen (Hybrid's CSV flow)."""
         path = filedialog.askopenfilename(
             title="Select voiceover audio (this file is used for the video)",
             filetypes=[
@@ -8062,12 +8186,14 @@ class VideoGeneratorApp(ctk.CTk):
             except OSError:
                 dest = src
         if not self._confirm_voiceover_switch(dest, source="imported"):
-            return
+            return False
         self._set_active_voiceover(dest, source="imported")
         self.status_var.set(f"Voiceover set: {dest.name} (imported file)")
         self._append_log(f"[AUDIO] Video will use imported voiceover: {dest.name}\n")
         self._sync_primary_cta()
-        self._goto_workflow_view("music")
+        if not stay:
+            self._goto_workflow_view("music")
+        return True
 
     def _current_voiceover_path(self) -> Path | None:
         """Return the bound voiceover path if the file exists."""

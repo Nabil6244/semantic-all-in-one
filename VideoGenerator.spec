@@ -193,8 +193,9 @@ _COMPOSITION_STYLES_DIR = ROOT / "composition_styles"
 if _COMPOSITION_STYLES_DIR.is_dir():
     for f in _COMPOSITION_STYLES_DIR.glob("*.json"):
         datas.append((str(f), "composition_styles"))
-    # Hybrid Map: the Director's and the critic's prompts (hybrid/director.py reads them at runtime, never imports them)
-    for f in sorted(_COMPOSITION_STYLES_DIR.glob("hybrid_*_prompt.txt")):
+    # Every prompt read at runtime (never imported): the Hybrid Director's and critic's prompts, and each style's
+    # "Copy the CSV prompt" text (app_csv_prompts.py).
+    for f in sorted(_COMPOSITION_STYLES_DIR.glob("*_prompt.txt")):
         datas.append((str(f), "composition_styles"))
 else:
     raise SystemExit(
@@ -328,6 +329,7 @@ a = Analysis(
     hiddenimports=hiddenimports + [
         "video_generator",
         "app_version",
+        "app_csv_prompts",
         "licensing.generation_tracking",
         "map_scene",
         "map_scene.render",

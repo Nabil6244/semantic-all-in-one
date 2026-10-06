@@ -1,0 +1,104 @@
+You are writing the VISUAL PLAN CSV for a narrated documentary made with Semantic YT
+Studio (the "Normal" style): full-screen footage and pictures that change with the
+narration, one row per shot. The app finds every row's words in the recorded
+narration, so each row is shown exactly while its words are spoken.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma.
+
+HEADER (exactly this, in this order)
+scene_number,script_segment,asset_type,prompt
+
+COLUMNS
+- scene_number   1, 2, 3 ... one per row, in order, no gaps, never repeated.
+- script_segment the narration this shot covers, copied EXACTLY from the script.
+- asset_type     where the shot comes from (see MEDIA). Exactly one of:
+                 stock_video, stock_image, youtube_video, archive_video, nasa_video,
+                 commons_image, commons_video, flow_video, flow_image, map
+- prompt         what to find or make (see PROMPTS). Never empty.
+
+HOW TIME WORKS (the most important rule: a CSV that breaks it lands on the wrong words)
+- THE ROWS COVER THE SCRIPT EXACTLY. Put the script_segment cells one after another and
+  you get the script, word for word: nothing skipped, nothing repeated, nothing
+  reworded, nothing added. Use the script exactly as the narrator recorded it.
+- Keep the script's own spelling, numbers and punctuation inside each segment.
+- A row may end in the middle of a sentence; the next row continues with the very next
+  word.
+- Spoken pace is about 2.5 words per second. A shot of 6 to 12 words lasts 2.5 to 5
+  seconds. Keep rows between 5 and 15 words: a still image 5 to 8 words (at most about
+  3 seconds), a video 6 to 15 words (at most about 6 seconds). A longer sentence gets
+  two or three rows, each with its own shot.
+
+RHYTHM
+- A new shot about every 2 to 5 seconds. Split when the subject, action, place, scale
+  or idea changes. Never split one idea into identical shots.
+- Vary the shots: establishing, close-up, detail, aerial, people, place, concept.
+  Never three similar shots in a row (city, city, city or phone, phone, phone).
+- Show the MEANING, not just the words: "social jet lag" is two clocks that do not line
+  up, not a tired person.
+
+MEDIA (pick the strongest source for each shot)
+- stock_video   DEFAULT for ordinary real-world footage: people, cities, nature,
+                traffic, work, daily life, weather, animals, machines.
+- stock_image   when motion adds nothing: an object, a building, a landscape still.
+- archive_video historical public-domain film: old newsreels, events before about 2000.
+- nasa_video    space and science footage: launches, planets, the ISS, mission control.
+- youtube_video only for a recent real event that stock and archives cannot show.
+                At most a few per video.
+- commons_image a real, specific thing with a known name: a famous building, a
+                historical photo, a named animal species, a map or diagram.
+- commons_video a real, specific thing on Wikimedia Commons (rarely needed).
+- flow_video    AI-generated motion for what cannot be filmed: a process inside the
+                body, an impossible camera move, a concept, a reconstruction. Costs
+                Flow credits: use only where nothing real exists.
+- flow_image    an AI-generated still for an abstract idea or a reconstruction.
+- map           an animated satellite map, when the narration is about WHERE: a
+                country, a region, a route, a border.
+Show only what the narration says. Never add facts, places or people it does not name.
+
+PROMPTS
+- stock_video / stock_image: 6 to 12 words: subject + action + setting + time of day.
+  "aerial view of container ships waiting outside a busy port at sunset", not "ships".
+  Never generic ("busy city", "man thinking", "people walking") and never the narration
+  copied word for word.
+- archive_video / nasa_video / youtube_video / commons_*: 3 to 8 searchable words. Give
+  two or three searches from specific to broader, separated by ||:
+  "apollo 11 launch 1969||saturn v liftoff||moon rocket launch".
+- flow_video / flow_image: a full visual description: subject, setting, lighting,
+  camera, style ("macro shot of red blood cells flowing through a narrow vein, soft
+  light, cinematic, photorealistic"). No text or logos in the picture.
+- map: the place, big to small, separated by >, then options after |:
+  "Canada > Hudson Bay | camera: zoom_in". Up to three levels (parent > focus >
+  inner). Options: camera (zoom_in, zoom_out or drift), label (a short name in
+  capitals), style (dark or natural). Use real names an atlas knows.
+- Never a person's name in a stock search, never a brand, never a file name.
+- Never repeat the same search twice in the video.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly: scene_number,script_segment,asset_type,prompt
+2. scene_number runs 1, 2, 3 ... with no gaps.
+3. TIME: joining every script_segment gives the script word for word. Check it.
+4. Every row has an asset_type from the list and a prompt that is not empty.
+5. Rows are 5 to 15 words; still images are short (5 to 8 words).
+6. Map prompts use "place > place | camera: ..."; searches use || between options.
+7. No two similar shots in a row; no repeated search; no invented facts.
+8. Output is the CSV only.
+
+EXAMPLE
+Script:
+Hudson Bay is one of the largest inland seas on Earth. In winter, its surface freezes almost completely, and polar bears walk out onto the ice to hunt seals. In 1610, the explorer Henry Hudson sailed into the bay looking for a passage to Asia. Today, the town of Churchill sits on its western shore.
+
+CSV:
+scene_number,script_segment,asset_type,prompt
+1,Hudson Bay is one of the largest inland seas on Earth.,map,Canada > Hudson Bay | camera: zoom_in | label: HUDSON BAY
+2,"In winter, its surface freezes almost completely,",stock_video,aerial view of a vast frozen sea covered in cracked white ice under a pale winter sky
+3,and polar bears walk out onto the ice,stock_video,polar bear walking slowly across flat sea ice in soft arctic daylight
+4,to hunt seals.,stock_image,ringed seal resting beside a breathing hole in arctic sea ice
+5,"In 1610, the explorer Henry Hudson",commons_image,Henry Hudson explorer portrait||Henry Hudson 1610 voyage painting
+6,sailed into the bay looking for a passage to Asia.,flow_video,"a seventeenth-century wooden sailing ship entering a misty icy bay at dawn, cold light, cinematic, photorealistic"
+7,"Today, the town of Churchill",map,Canada > Manitoba > Churchill | camera: zoom_in | label: CHURCHILL
+8,sits on its western shore.,stock_video,small arctic town with low houses on a rocky shoreline beside a frozen bay
+
+NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

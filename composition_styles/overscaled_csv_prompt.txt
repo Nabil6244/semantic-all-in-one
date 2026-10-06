@@ -120,5 +120,5 @@ scene_number,script_segment,node_id,node_type,role,asset_type,prompt,caption,hig
 15,"They bought the final chapter of the Zonda story,",n11,image,,commons_image,Pagani Zonda,the final chapter of the Zonda story,final chapter,,,n10,n11,,,,
 16,a design Pagani had refined for nearly two decades.,,,,,,,,,,,,,,,
 
-SCRIPT
-<paste the narration script here>
+NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

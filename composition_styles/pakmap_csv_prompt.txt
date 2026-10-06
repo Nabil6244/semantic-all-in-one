@@ -15,16 +15,19 @@ item_no,vo_anchor,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,val
 
 HOW TIME WORKS (the most important rule)
 - vo_anchor = the narrator's own words, copied EXACTLY from the script, where the
-  layer should appear. Use the first 1 to 4 words of the moment ("Nairobi",
-  "forty seven million", "the railway runs"). The layer appears on the first of
-  those words.
-- Every vo_anchor must be words that really appear in the script, in the order
-  you write the rows. Never invent or reword. If a phrase repeats in the script,
-  use enough words to make it unique.
-- Numbers may be written as digits or words ("47 million" matches "forty seven
-  million").
+  layer should appear: 2 to 5 words of that moment ("the railway runs", "forty seven
+  million", "Nairobi"). The layer appears on the first of those words.
+- Rows follow the script from start to finish; never go back in time. Write the rows
+  in the order their words are spoken: a row's words come at or after the previous
+  row's words, never before them.
+- Copy the words exactly as the script writes them: same spelling, same numbers
+  (digits or words, as the script has them). Never invent, reword or shorten a name.
+- Make each anchor unique from where you are: if the same words were already spoken
+  earlier, add words until the phrase is new ("the railway reached Kisumu", not "the
+  railway"). Never anchor on very common words alone ("the bay", "and", "it is").
 - Add |end to anchor on the LAST word of the phrase ("Nairobi|end").
-- Rows must follow the script from start to finish; never go back in time.
+- For a long script written in parts, each part continues with the very next words of
+  the script: never skip or repeat a passage.
 
 ITEMS
 - item_no groups rows into one idea: a numbered fact, a "part", or one location
@@ -156,7 +159,8 @@ SOUND (optional columns, keep them empty by default)
 
 CHECKLIST BEFORE YOU ANSWER
 1. The header is exactly as given and every row has the same number of cells.
-2. Every vo_anchor is copied from the script, in order, and is unique.
+2. Every vo_anchor is 2 to 5 words copied exactly from the script, in the order they are
+   spoken, and unique from where it is used.
 3. Every item starts with a hud_title; the first row of the video is a camera start.
 4. Every number comes from the script. Every place is a real place.
 5. No file names invented; pictures are stock_image:/stock_video: descriptions.
