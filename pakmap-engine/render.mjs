@@ -127,7 +127,8 @@ async function main() {
   const browser = await chromium.launch(launchOpts);
   let ffmpeg = null;
   try {
-    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+    // pixel_scale 2 = 4K export: the same 1920x1080 layout drawn with twice the pixels (see page.js).
+    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: spec.pixel_scale || 1 });
     const pageErrors = [];
     page.on('pageerror', (e) => pageErrors.push(String(e)));
     page.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });

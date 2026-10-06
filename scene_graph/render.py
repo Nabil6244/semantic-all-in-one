@@ -365,7 +365,7 @@ def _title_reveal_layers(
     # Pushed down below Exp Solar's checklist strip when one is reserved
     # (layout.checklist_band_px is 0 for Overscaled and for every
     # non-checklist Exp Solar segment, so this is MARGIN_PX unchanged then).
-    top_margin = MARGIN_PX + layout.checklist_band_px
+    top_margin = MARGIN_PX * layout.ui_scale + layout.checklist_band_px
 
     title_dir = work_dir / f"title_{index}"
     reveal_count = max(1, round(reveal_duration * fps))
@@ -420,7 +420,7 @@ def _checklist_strip_layers(
         if total <= 0:
             continue
         frame = render_checklist_strip_frame(
-            labels, i, canvas_size=canvas_size, band_height=layout.checklist_band_px, margin_px=MARGIN_PX,
+            labels, i, canvas_size=canvas_size, band_height=layout.checklist_band_px, margin_px=MARGIN_PX * layout.ui_scale,
         )
         frame_path = strip_dir / f"state_{i:02d}.png"
         frame_path.parent.mkdir(parents=True, exist_ok=True)
@@ -569,7 +569,7 @@ def render_overscaled_segment(
     the layer graph fits the per-process budget, otherwise in bounded time
     segments joined by stream copy (see _plan_segments)."""
 
-    from .composition import load_media_image  # local import: avoids a cycle at module load
+    from .composition import load_media_image, ui_scale  # local import: avoids a cycle at module load
 
     out_width, out_height = (int(v) for v in resolution.lower().split("x"))
     out_path = Path(out_path)
@@ -588,10 +588,11 @@ def render_overscaled_segment(
             raise RenderCancelled("render cancelled")
 
     try:
-        layers = _collect_layers(
-            scene_graph, layout, style, resolved_media=resolved_media, fps=fps, work_dir=work_dir,
-            load_media_image=load_media_image, on_progress=on_progress, cancel_check=_stop_if_cancelled,
-        )
+        with ui_scale(layout.ui_scale):   # a 4K export draws every fixed size of the 1080p design twice as big
+            layers = _collect_layers(
+                scene_graph, layout, style, resolved_media=resolved_media, fps=fps, work_dir=work_dir,
+                load_media_image=load_media_image, on_progress=on_progress, cancel_check=_stop_if_cancelled,
+            )
         segments = _plan_segments(layers, duration=duration, fps=fps)
 
         if on_progress:

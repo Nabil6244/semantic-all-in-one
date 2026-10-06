@@ -194,6 +194,28 @@ class TestRealExistingFFmpegExport(unittest.TestCase):
         os.chdir(cls.old_cwd)
         cls._tmpdir.cleanup()
 
+    def test_4k_export_draws_the_same_layout_with_twice_the_pixels(self):
+        rows = _fixture_rows()
+        probe_sg = compile_overscaled_csv(rows, segment_id="aurora_4k").scene_graph
+        voiceover = self.root / "voiceover_4k.wav"
+        _make_sine_wav(voiceover, probe_sg.duration)
+        media_dir = self.root / "media_4k"
+        media_dir.mkdir()
+        resolved_media = {}
+        for i, node in enumerate(probe_sg.nodes):
+            p = media_dir / f"{node.id}.png"
+            Image.new("RGB", (640, 360), ((i * 47) % 255, (i * 91) % 255, (i * 137) % 255)).save(p)
+            resolved_media[node.id] = str(p)
+        result = run_overscaled_pipeline(
+            rows, segment_id="aurora_4k", title="The Aurora Bridge", voiceover_path=str(voiceover),
+            out_dir=self.root / "overscaled_4k", resolved_media=resolved_media,
+            canvas_width=640, canvas_height=360, resolution="640x360", fps=15, pixel_scale=2,
+        )
+        self.assertTrue(result.ok, result.errors)
+        size = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                               "-of", "csv=p=0", str(result.segment_clip_path)], capture_output=True, text=True).stdout.strip()
+        self.assertEqual(size.split(",")[:2], ["1280", "720"])
+
     def test_overscaled_csv_plus_voiceover_yields_real_final_mp4(self):
         import video_generator as vg
 

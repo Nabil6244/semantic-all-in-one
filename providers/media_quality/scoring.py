@@ -197,13 +197,24 @@ def quality_score(
     media_type: str = "video",
     duration: Optional[float] = None,
     is_archival: Optional[bool] = None,
+    uhd: bool = False,
 ) -> float:
+    """`uhd`: the project accepts Ultra HD (4K) footage — more pixels score higher up to 4K instead of being penalised past
+    1080p. Worth at most ~0.25 between a 1080p and a 4K file, so it only breaks ties: relevance (up to 3.0) still decides."""
     archival = is_archival if is_archival is not None else is_archival_provider(provider)
     ew, eh = effective_dimensions(width, height, download_url, provider)
     if ew <= 0 or eh <= 0:
         return 0.15 if archival else 0.0
     pixels = ew * eh
     hd = 1920 * 1080
+    if uhd and not archival:
+        uhd_px = 3840 * 2160
+        score = 0.75 * min(pixels, hd) / hd + 0.25 * max(0.0, min(1.0, (pixels - hd) / (uhd_px - hd)))
+        if media_type == "video" and duration and duration >= 2:
+            score += 0.08
+        if "~orig" in (download_url or "").lower():
+            score += 0.12
+        return max(0.0, min(1.2, score))
     if archival:
         # Authentic 480p–720p archival can score well; don't punish age/resolution alone.
         if pixels >= hd:
@@ -305,6 +316,7 @@ def selection_score(
     provider_use_counts: Optional[dict[str, int]] = None,
     is_archival: Optional[bool] = None,
     style_id: str = "",
+    uhd: bool = False,
 ) -> ScoreBreakdown:
     ok, reason = passes_quality_floor(
         width=width,
@@ -334,6 +346,7 @@ def selection_score(
         media_type=media_type,
         duration=duration,
         is_archival=is_archival,
+        uhd=uhd,
     )
     risk = 0.0
     if is_preview_or_derivative_url(download_url):

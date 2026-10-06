@@ -23,12 +23,12 @@ export const mimeOf = (file) => MIME[path.extname(file).toLowerCase()] || 'appli
  */
 export function prepareMedia(spec, { baseDir = '.', ffmpeg = 'ffmpeg', workDir = null, lazy = false, ffprobe = 'ffprobe' } = {}) {
   const fps = spec.fps, index = {}, files = {};
-  const uses = new Map(); // key -> { path, start_s, maxW, seconds, who, lastUse }
+  const uses = new Map(); // key -> { path, start_s, maxW, seconds, who, lastUse }; maxW doubles at pixel_scale 2 (4K export)
   for (const e of spec.events || []) {
     for (const ref of mediaRefs(e)) {
       const key = mediaKey(ref.path, ref.start_s);
       const u = uses.get(key) || { path: ref.path, start_s: ref.start_s, maxW: 0, seconds: 0, who: e, lastUse: 0 };
-      u.maxW = Math.max(u.maxW, ref.maxW); u.seconds = Math.max(u.seconds, e.t_out - e.t_in); u.lastUse = Math.max(u.lastUse, e.t_out); u.fit = u.fit || !!ref.fit;
+      u.maxW = Math.max(u.maxW, ref.maxW * (spec.pixel_scale || 1)); u.seconds = Math.max(u.seconds, e.t_out - e.t_in); u.lastUse = Math.max(u.lastUse, e.t_out); u.fit = u.fit || !!ref.fit;
       uses.set(key, u);
     }
   }

@@ -228,6 +228,7 @@ def run_overscaled_pipeline(
     progress_cb: Optional[Callable[[str, float], None]] = None,
     use_local_planner: bool = False,
     cancel_check: Optional[Callable[[], bool]] = None,
+    pixel_scale: int = 1,
 ) -> OverscaledPipelineResult:
     """``progress_cb(message, fraction)`` is optional and best-effort —
     scene_graph.render does the whole segment in ONE ffmpeg encode (no
@@ -316,6 +317,14 @@ def run_overscaled_pipeline(
 
         if write_debug_files:
             (out_dir / "overscaled_layout.json").write_text(json.dumps(layout.to_dict(), indent=2), encoding="utf-8")
+
+        if int(pixel_scale or 1) > 1:
+            # 4K export: the layout above (and its debug file) is the 1080p one; it is drawn pixel_scale times bigger.
+            from .app_integration import _scaled_resolution
+            from .layout import scale_layout
+
+            layout = scale_layout(layout, float(int(pixel_scale)))
+            resolution = _scaled_resolution(resolution, pixel_scale)
 
         clip_path = out_dir / "overscaled_segment.mp4"
         render_overscaled_segment(

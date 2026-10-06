@@ -363,6 +363,7 @@ def smart_selection_score(
     is_archival: Optional[bool] = None,
     context: Optional[SelectionContext] = None,
     required_duration: Optional[float] = None,
+    uhd: bool = False,
 ) -> ScoreBreakdown:
     base = selection_score(
         query=query,
@@ -381,6 +382,7 @@ def smart_selection_score(
         asset_id=asset_id,
         provider_use_counts=provider_use_counts,
         is_archival=is_archival,
+        uhd=uhd,
     )
     if base.reject_reason or context is None:
         return base

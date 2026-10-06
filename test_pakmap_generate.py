@@ -47,7 +47,9 @@ class TestGenerate(unittest.TestCase):
         if progress:
             for i in (1, 5, 10):
                 progress(i, 10)
-        _ffmpeg("-f", "lavfi", "-i", f"color=c=0x285ac8:size=640x360:rate=30:duration={spec['duration']}", "-pix_fmt", "yuv420p", str(output))
+        k = spec.get("pixel_scale", 1)   # the engine draws pixel_scale times the layout size
+        size = f"{spec['width'] * k}x{spec['height'] * k}"
+        _ffmpeg("-f", "lavfi", "-i", f"color=c=0x285ac8:size={size}:rate=30:duration={spec['duration']}", "-pix_fmt", "yuv420p", str(output))
         return RenderOutcome(pathlib.Path(output), 10, {
             "credits": {"attribution": ["We acknowledge the use of imagery provided by NASA GIBS.", "Rainfall: CHIRPS"], "notes": ["Historical Landsat imagery, not current."]},
             "warnings": [{"message": "Frame is narrower than the soft limit"}],
@@ -74,6 +76,23 @@ class TestGenerate(unittest.TestCase):
         self.assertEqual(spec["watermark"], {"text": "My Channel"})
         self.assertEqual(spec["base_dir"], str(self.d))
         self.assertEqual({e["type"] for e in spec["events"]}, {"hud_title", "stat", "marker"})
+
+    def _size(self):
+        out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0",
+                              str(self.out)], capture_output=True, text=True).stdout.strip()
+        return tuple(int(v) for v in out.split(",")[:2])
+
+    def test_default_export_is_the_layout_size(self):
+        self.assertTrue(self.run_gen().ok)
+        self.assertNotIn("pixel_scale", self.specs[0])
+        self.assertEqual(self._size(), (640, 360))
+
+    def test_4k_export_keeps_the_layout_and_doubles_the_pixels(self):
+        r = self.run_gen(pixel_scale=2)
+        self.assertTrue(r.ok, r.errors)
+        spec = self.specs[0]
+        self.assertEqual((spec["width"], spec["height"], spec["pixel_scale"]), (640, 360, 2), "camera and cards are laid out as before")
+        self.assertEqual(self._size(), (1280, 720), "the final video has twice the pixels each way")
 
     def test_plan_and_spec_are_kept_with_the_project_and_credits_sit_next_to_the_video(self):
         self.run_gen()

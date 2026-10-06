@@ -17,6 +17,8 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 async function setup() {
   const spec = await (await fetch('/spec.json')).json();
   const W = spec.width, H = spec.height;
+  // 4K export: the layout stays W x H (camera, zoom, card positions are unchanged); every frame has R times the pixels.
+  const R = spec.pixel_scale || 1;
   const providers = spec.providers; // coarse -> fine, resolved by the renderer
   const byId = Object.fromEntries(providers.map((p) => [p.id, p]));
   const imagery = spec.imagery;
@@ -59,7 +61,8 @@ async function setup() {
   const sources = {}, layers = [{ id: 'space', type: 'background', paint: { 'background-color': offline ? '#3b5d3a' : '#03070d' } }];
   if (!offline) {
     for (const p of providers) {
-      sources[p.id] = { type: 'raster', tiles: [`pkt://${p.id}/{z}/{x}/{y}`], tileSize: p.tileSize, minzoom: 0, maxzoom: p.maxNativeZoom };
+      // tileSize / R: at pixel_scale 2 MapLibre fetches tiles one zoom level finer, so the imagery is sharper, not just enlarged
+      sources[p.id] = { type: 'raster', tiles: [`pkt://${p.id}/{z}/{x}/{y}`], tileSize: p.tileSize / R, minzoom: 0, maxzoom: p.maxNativeZoom };
       layers.push({ id: `img-${p.id}`, type: 'raster', source: p.id, layout: { visibility: 'none' }, paint: {
         'raster-fade-duration': 0, 'raster-opacity': 1,
         'raster-saturation': g.saturation ?? 0, 'raster-contrast': g.contrast ?? 0,
@@ -119,7 +122,7 @@ async function setup() {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const values = g.type === 'i16' ? new Int16Array(bytes.buffer) : new Float32Array(bytes.buffer);
     const grid = new Grid({ west: g.west, south: g.south, east: g.east, north: g.north, cols: g.cols, rows: g.rows, values, nodata: g.nodata });
-    const [w, s, ee, n] = e.bbox, size = imageSize(e.bbox, e.max_px ?? 1800), cv = document.createElement('canvas');
+    const [w, s, ee, n] = e.bbox, size = imageSize(e.bbox, (e.max_px ?? 1800) * R), cv = document.createElement('canvas');
     cv.width = size.width; cv.height = size.height;
     const cx = cv.getContext('2d'), img = cx.createImageData(size.width, size.height);
     img.data.set(renderGridRGBA(grid, e.bbox, resolveRamp(e.ramp, e.min, e.max), size));
@@ -139,14 +142,16 @@ async function setup() {
 
   // ---- 2D compositing canvas: map -> ocean lift -> (debug HUD) -> JPEG ----
   const out = document.createElement('canvas');
-  out.width = W; out.height = H;
+  const OW = W * R, OH = H * R;   // the output frame in pixels
+  out.width = OW; out.height = OH;
   const ctx = out.getContext('2d');
   const mapCanvas = map.getCanvas();
-  const hudFont = `600 ${Math.round(H * 0.022)}px monospace`;
+  const hudFont = `600 ${Math.round(OH * 0.022)}px monospace`;
+  // The overlay works in output pixels (it scales its 1920x1080 design by height / 1080 itself); map points are in layout px.
   const overlay = createOverlay({
-    spec, ctx,
-    project: (lon, lat) => { const p = map.project([lon, lat]); return p ? { x: p.x, y: p.y } : null; },
-    unproject: (x, y) => map.unproject([x, y]),
+    spec: R === 1 ? spec : { ...spec, width: OW, height: OH }, ctx,
+    project: (lon, lat) => { const p = map.project([lon, lat]); return p ? { x: p.x * R, y: p.y * R } : null; },
+    unproject: (x, y) => map.unproject([x / R, y / R]),
     fetchMedia: async (id, frame) => createImageBitmap(await (await fetch(frame == null ? `/media/${id}` : `/media/${id}/${frame}`)).blob()),
   });
 
@@ -192,12 +197,12 @@ async function setup() {
     // The globe leaves the sky around it transparent, and this canvas keeps the previous frame. Clear it first, or a zoom-out
     // (smaller globe each frame) shows the earlier, larger globes through the gap as rippled bands.
     ctx.fillStyle = '#03070d';
-    ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(mapCanvas, 0, 0, W, H);
+    ctx.fillRect(0, 0, OW, OH);
+    ctx.drawImage(mapCanvas, 0, 0, OW, OH);
     if (imagery.ocean_lift && !offline) {
       ctx.globalCompositeOperation = 'lighten';
       ctx.fillStyle = imagery.ocean_lift;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, OW, OH);
       ctx.globalCompositeOperation = 'source-over';
     }
     await overlay.prepare(t);
@@ -206,7 +211,7 @@ async function setup() {
       ctx.font = hudFont; ctx.textBaseline = 'top';
       const lines = [`t ${t.toFixed(2)}s  zoom ${c.zoom.toFixed(2)}  frame ${frameWidthKm(c.lat, c.zoom, W).toFixed(0)} km`,
         sel.map((s) => `${s.id.replace('nasa_', '')} ${(s.opacity * 100).toFixed(0)}%`).join('  ')];
-      lines.forEach((ln, i) => { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 10 + i * H * 0.03, ctx.measureText(ln).width + 12, H * 0.03); ctx.fillStyle = '#fff'; ctx.fillText(ln, 16, 12 + i * H * 0.03); });
+      lines.forEach((ln, i) => { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 10 + i * OH * 0.03, ctx.measureText(ln).width + 12, OH * 0.03); ctx.fillStyle = '#fff'; ctx.fillText(ln, 16, 12 + i * OH * 0.03); });
     }
     return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
   };

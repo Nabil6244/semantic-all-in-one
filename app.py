@@ -2630,6 +2630,7 @@ class VideoGeneratorApp(ctk.CTk):
         # to match the same main-thread-read convention as the values above.
         style_preset_id = self._overscaled_style_preset_id
         use_local_planner = self._overscaled_use_local_planner_var.get()
+        pixel_scale = self._export_pixel_scale()
 
         self._overscaled_cancel.clear()
         self._overscaled_run_manager = None
@@ -2755,7 +2756,7 @@ class VideoGeneratorApp(ctk.CTk):
 
                 result = generate_overscaled_video(
                     csv_path, str(voiceover_path), str(output_path),
-                    resolution="1920x1080", fps=30,
+                    resolution="1920x1080", fps=30, pixel_scale=pixel_scale,
                     segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
                     style_preset_id=style_preset_id,
                     pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
@@ -4349,6 +4350,7 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(ws, "state_dir", None)
         watermark = self._pakmap_watermark()
         sound_design = bool(self._hybrid_sound_var.get())
+        pixel_scale = self._export_pixel_scale()
         title = getattr(ws, "title", "") or ""
         pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
         flow_engine_manager = None
@@ -4425,7 +4427,7 @@ class VideoGeneratorApp(ctk.CTk):
                         plan, voiceover_path, output_path, work_dir=ws.hybrid_work_dir, whisper_words=words, base_dir=str(ws.hybrid_dir),
                         watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log, cancel_check=self._hybrid_cancel.is_set,
                         sound_design=sound_design, pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
-                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir,
+                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir, pixel_scale=pixel_scale,
                         media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                              on_manager_ready=_manager_ready),
                     )
@@ -4740,6 +4742,7 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(self._workspace, "state_dir", None)
         watermark = self._pakmap_watermark()
         sound_design = bool(self._pakmap_sound_var.get())
+        pixel_scale = self._export_pixel_scale()
         title = getattr(self._workspace, "title", "") or ""
 
         # Pictures named by source in the script are the Visual Plan table's rows and go through the existing providers. Read the
@@ -4823,7 +4826,7 @@ class VideoGeneratorApp(ctk.CTk):
                         watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log,
                         cancel_check=self._pakmap_cancel.is_set, sound_design=sound_design,
                         pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
-                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir,
+                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir, pixel_scale=pixel_scale,
                         media_callbacks=dict(on_scene_start=_pm_scene_start, on_scene_complete=_pm_scene_complete,
                                              on_scene_generating=_pm_scene_generating, on_manager_ready=_pm_manager_ready),
                     )
@@ -8810,7 +8813,7 @@ class VideoGeneratorApp(ctk.CTk):
             ("Cam", 52),
             ("Tr", 40),
             ("Amb", 48),
-            ("Status", 90),
+            ("Status", 118),
             ("", 44),
         )
         for i, (title, width) in enumerate(cols):
@@ -8966,7 +8969,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         status_label = ctk.CTkLabel(
             row, text="◌ QUEUED", font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=_QUEUED, width=90, anchor="w",
+            text_color=_QUEUED, width=118, anchor="w",   # room for "✓ READY · 1080p"
         )
         status_label.grid(row=0, column=9, sticky="w", padx=2)
 
@@ -9053,6 +9056,8 @@ class VideoGeneratorApp(ctk.CTk):
             return
         label, color = _status_display(status)
         widgets["status_label"].configure(text=label, text_color=color)
+        if status in ("ready", "success"):
+            self._show_scene_resolution(scene_number, label)
         time_lbl = widgets.get("time_label")
         if time_lbl is not None:
             time_lbl.configure(text=self._scene_time_label(scene_number))
@@ -9074,6 +9079,39 @@ class VideoGeneratorApp(ctk.CTk):
             if widgets.get("error_label") is not None:
                 widgets["error_label"].configure(text=err)
         self._paint_row_highlight(key)
+
+    def _show_scene_resolution(self, scene_number, ready_text: str) -> None:
+        """Append the scene file's real size to its READY status ("✓ READY · 720p ⚠"), measured off the UI thread."""
+        key = _scene_key(scene_number)
+        result = self._asset_results.get(key)
+        path = getattr(result, "path", None) if result is not None and getattr(result, "ok", False) else None
+        if path is None:
+            return
+        gen = self._scene_render_gen
+        # The ⚠ marks a file smaller than the video it goes into: 4K when this project exports in 4K.
+        export_height = 2160 if self._export_pixel_scale() == 2 else 1080
+
+        def work() -> None:
+            import media_size
+
+            size = media_size.probe_size(path)
+            if size is None:
+                return
+
+            def apply() -> None:
+                widgets = self._scene_row_widgets.get(key)
+                # The list was rebuilt, or the scene's status changed while measuring: leave it alone.
+                if gen != self._scene_render_gen or not widgets or widgets["status_label"].cget("text") != ready_text:
+                    return
+                widgets["status_label"].configure(text=f"{ready_text} · {media_size.resolution_tag(*size, export_height=export_height)}")
+
+            self.after(0, apply)
+
+        if getattr(self, "_size_probe_pool", None) is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            self._size_probe_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="size-probe")
+        self._size_probe_pool.submit(work)
 
     def _paint_row_highlight(self, key: str) -> None:
         widgets = self._scene_row_widgets.get(key)
@@ -9501,6 +9539,31 @@ class VideoGeneratorApp(ctk.CTk):
             return bool(self._workspace is not None and self._workspace.quality_settings().get("uhd_footage"))
         except Exception:
             return False
+
+    def _export_pixel_scale(self) -> int:
+        """2 when this project's "Export in 4K" switch is on (every style renders 3840x2160), else 1."""
+        try:
+            return 2 if self._workspace is not None and self._workspace.quality_settings().get("export_4k") else 1
+        except Exception:
+            return 1
+
+    def _uhd_disk_ok(self) -> bool:
+        """With 4K footage on, warn before a run when the project's disk looks too small for it. True = go ahead."""
+        if self._workspace is None or not self._uhd_footage_on():
+            return True
+        from providers.stock.downloader import free_bytes, uhd_space_needed
+
+        clips = sum(1 for r in (self._scene_rows or []) if r.wants_stock and r.stock_media_type != "image")
+        need, free = uhd_space_needed(clips), free_bytes(self._workspace.root)
+        if free >= need:
+            return True
+        gb = lambda n: f"{n / 2**30:.1f} GB"  # noqa: E731
+        return messagebox.askyesno(
+            "Low disk space for 4K footage",
+            f"This project accepts Ultra HD (4K) footage. Its {clips} stock video clip(s) and the render may need about "
+            f"{gb(need)}, but only {gb(free)} is free.\n\nWhen space runs low, clips are downloaded in 1080p instead.\n\n"
+            "Continue anyway?",
+        )
 
     def _apply_footage_quality(self, manager) -> None:
         """Push the project's 4K footage switch into a manager's stock provider (4K files, 1 GB cap, HD fallback)."""
@@ -11352,15 +11415,26 @@ class VideoGeneratorApp(ctk.CTk):
                  "the same clip's 1080p file is used. Downloads are bigger and slower. Scenes already saved are kept.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 6))
-        ctk.CTkSwitch(
-            body, text="Export in 4K", variable=ctk.BooleanVar(value=False), state="disabled", font=ctk.CTkFont(size=12),
-        ).pack(anchor="w", padx=20, pady=(2, 2))
+        export_var = ctk.BooleanVar(value=bool(quality.get("export_4k")))
+
+        def _toggle_export() -> None:
+            if self._workspace is not None:
+                self._workspace.set_quality_settings(export_4k=export_var.get())
+
+        export_switch = ctk.CTkSwitch(
+            body, text="Export in 4K", variable=export_var,
+            onvalue=True, offvalue=False, command=_toggle_export, font=ctk.CTkFont(size=12),
+        )
+        export_switch.pack(anchor="w", padx=20, pady=(2, 2))
         ctk.CTkLabel(
-            body, text="Coming in a later update — videos export in 1080p for now.",
+            body,
+            text="Videos render at 3840x2160 with the same layout as 1080p (every style). Renders take about 3-4x longer "
+                 "and files are about 3-4x bigger.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 6))
         if self._workspace is None:
             uhd_switch.configure(state="disabled")
+            export_switch.configure(state="disabled")
             ctk.CTkLabel(
                 body, text="Open a project to change these.", font=ctk.CTkFont(size=11), text_color=_MUTED,
             ).pack(anchor="w", padx=20, pady=(0, 6))
@@ -12060,11 +12134,14 @@ class VideoGeneratorApp(ctk.CTk):
             "zoom": bool(self.zoom_var.get()),
             "zoom_amount": self.ken_burns_zoom_amount(),
             "smart_editing": self._smart_editing_settings(),
+            "resolution": "3840x2160" if self._export_pixel_scale() == 2 else "1920x1080",
         }, None
 
     # ---------- generate ----------
 
     def _on_generate(self) -> None:
+        if not self._uhd_disk_ok():
+            return
         if self.generation_mode == "overscaled":
             self._run_overscaled_generation()
             return
@@ -12813,7 +12890,7 @@ class VideoGeneratorApp(ctk.CTk):
                 config["images_dir"],
                 render_audio,
                 str(config["output_path"]),
-                resolution="1920x1080",
+                resolution=config.get("resolution") or "1920x1080",
                 fps=30,
                 zoom=config["zoom"],
                 zoom_amount=float(config.get("zoom_amount") or 0.10),

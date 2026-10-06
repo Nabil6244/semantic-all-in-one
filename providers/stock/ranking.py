@@ -99,6 +99,7 @@ def rank_candidates(
     required_duration: Optional[float] = None,
     min_relevance: float = 0.0,
     log=None,
+    uhd: bool = False,
 ) -> List["Candidate"]:
     """`min_relevance` (0.0 = off, the default, so existing callers are
     completely unaffected) gates candidates on *candidate-side* relevance
@@ -158,6 +159,7 @@ def rank_candidates(
                 is_archival=False,
                 context=selection_context,
                 required_duration=required_duration,
+                uhd=uhd,
             )
         else:
             breakdown = selection_score(
@@ -178,6 +180,7 @@ def rank_candidates(
                 provider_use_counts=provider_use_counts,
                 is_archival=False,
                 style_id=style_id,
+                uhd=uhd,
             )
         if breakdown.reject_reason:
             if log:

@@ -51,6 +51,13 @@ class PexelsBackend(StockBackend):
             url = src.get("large2x") or src.get("original") or src.get("large")
             if not url:
                 continue
+            extra = {"alt": p.get("alt", "") or ""}
+            if self.uhd and src.get("original") and src.get("large2x"):
+                # Ultra HD project: the full-size photo (large2x is resized to fit 1880x1300), large2x kept as the fallback.
+                w, h = int(p.get("width") or 0), int(p.get("height") or 0)
+                fit = min(1.0, 1880 / w, 1300 / h) if w and h else 1.0
+                extra["hd_fallback"] = {"url": src["large2x"], "width": round(w * fit), "height": round(h * fit)}
+                url = src["original"]
             out.append(
                 Candidate(
                     provider=self.name,
@@ -62,7 +69,7 @@ class PexelsBackend(StockBackend):
                     author=p.get("photographer", ""),
                     source_url=p.get("url", ""),
                     thumbnail_url=src.get("tiny", ""),
-                    extra={"alt": p.get("alt", "") or ""},
+                    extra=extra,
                 )
             )
         return out

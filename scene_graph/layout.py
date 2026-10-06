@@ -313,6 +313,9 @@ class SceneGraphLayout:
     # Left x of the persistent title when it's placed next to an inline
     # anchor photo; None keeps the title centered (every other case).
     title_x_px: Optional[float] = None
+    # How many output pixels one layout pixel covers: 1.0 normally, 2.0 for a 4K export of a layout computed at 1920x1080
+    # (see scale_layout). The renderer multiplies every fixed pixel size it draws (fonts, borders, arrows) by it.
+    ui_scale: float = 1.0
 
     def to_dict(self) -> dict:
         return {
@@ -330,6 +333,7 @@ class SceneGraphLayout:
             "node_ken_burns": {nid: dict(p) for nid, p in self.node_ken_burns.items()},
             "caption_positions": {nid: list(p) for nid, p in self.caption_positions.items()},
             "title_x_px": self.title_x_px,
+            **({"ui_scale": self.ui_scale} if self.ui_scale != 1.0 else {}),
         }
 
     @classmethod
@@ -381,6 +385,7 @@ class SceneGraphLayout:
             node_ken_burns=node_ken_burns,
             caption_positions=caption_positions,
             title_x_px=(float(data["title_x_px"]) if data.get("title_x_px") is not None else None),
+            ui_scale=float(data.get("ui_scale") or 1.0),
         )
 
     def bounds_for(self, node_ids: List[str]) -> Optional[Tuple[float, float, float, float]]:
@@ -1122,3 +1127,24 @@ def find_overlaps(layout: SceneGraphLayout, *, tolerance: float = 0.5) -> List[T
             if a_window is None or b_window is None or _windows_overlap(a_window, b_window):
                 pairs.append((a_id, b_id))
     return pairs
+
+
+def scale_layout(layout: SceneGraphLayout, k: float) -> SceneGraphLayout:
+    """The same layout drawn k times bigger (k=2: a 1920x1080 layout exported in 4K). Every position and size is multiplied;
+    timing, chapters and the Ken Burns fractions are unchanged, so the arrangement is exactly the one computed at 1080p."""
+    if k == 1.0:
+        return layout
+    pt = lambda p: (p[0] * k, p[1] * k)  # noqa: E731
+    return dataclasses.replace(
+        layout,
+        canvas_width=int(round(layout.canvas_width * k)),
+        canvas_height=int(round(layout.canvas_height * k)),
+        node_rects={nid: NodeRect(node_id=r.node_id, x=r.x * k, y=r.y * k, width=r.width * k, height=r.height * k)
+                    for nid, r in layout.node_rects.items()},
+        checklist_band_px=layout.checklist_band_px * k,
+        edge_routes={eid: [pt(p) for p in pts] for eid, pts in layout.edge_routes.items()},
+        edge_label_positions={eid: pt(p) for eid, p in layout.edge_label_positions.items()},
+        caption_positions={nid: pt(p) for nid, p in layout.caption_positions.items()},
+        title_x_px=None if layout.title_x_px is None else layout.title_x_px * k,
+        ui_scale=layout.ui_scale * k,
+    )

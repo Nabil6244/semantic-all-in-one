@@ -848,7 +848,10 @@ def render_caption_overlay(
     if not text:
         return None
 
-    font_size = 42 if height >= width else 52
+    # Sizes are designed for a 1080-pixel short side; a 4K frame (2160) draws them twice as big, same look.
+    k = min(width, height) / 1080.0
+    font_size = round((42 if height >= width else 52) * k)
+    stroke = max(1, round(3 * k))
     font = _load_caption_font(font_size)
     margin_x = int(width * 0.08)
     max_text_w = width - 2 * margin_x
@@ -863,13 +866,13 @@ def render_caption_overlay(
     line_gap = int(font_size * 0.25)
     heights = []
     for line in lines:
-        bbox = draw.textbbox((0, 0), line, font=font, stroke_width=3)
+        bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
         heights.append(bbox[3] - bbox[1])
     block_h = sum(heights) + line_gap * (len(lines) - 1)
     y = height - bottom_margin - block_h
 
     for line, lh in zip(lines, heights):
-        bbox = draw.textbbox((0, 0), line, font=font, stroke_width=3)
+        bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
         lw = bbox[2] - bbox[0]
         x = (width - lw) // 2
         draw.text(
@@ -877,7 +880,7 @@ def render_caption_overlay(
             line,
             font=font,
             fill=(255, 255, 255, 255),
-            stroke_width=3,
+            stroke_width=stroke,
             stroke_fill=(0, 0, 0, 220),
         )
         y += lh + line_gap

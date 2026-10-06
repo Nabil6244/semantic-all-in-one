@@ -70,6 +70,14 @@ def _report(progress_cb: Optional[ProgressCallback], message: str, fraction: flo
             pass  # a broken progress callback must never abort generation
 
 
+def _scaled_resolution(resolution: str, pixel_scale: int) -> str:
+    """"1920x1080" at pixel_scale 2 -> "3840x2160"."""
+    if int(pixel_scale or 1) <= 1:
+        return resolution
+    w, h = (int(v) for v in resolution.lower().split("x"))
+    return f"{w * int(pixel_scale)}x{h * int(pixel_scale)}"
+
+
 def generate_overscaled_video(
     overscaled_csv_path: str,
     voiceover_path: str,
@@ -94,8 +102,11 @@ def generate_overscaled_video(
     on_manager_ready=None,
     use_local_planner: bool = False,
     cancel_check: Optional[Callable[[], bool]] = None,
+    pixel_scale: int = 1,
 ) -> OverscaledGenerationResult:
     """Overscaled CSV + real voiceover -> a real, final MP4.
+
+    ``pixel_scale`` 2 exports in 4K: laid out at ``resolution`` exactly as before, drawn with twice the pixels.
 
     Requires neither Gemini nor an API key for the deterministic parts
     (CSV compile / layout / composition / camera / retiming); real network
@@ -244,7 +255,7 @@ def generate_overscaled_video(
         voiceover_path=voiceover_path, out_dir=work_dir_path / "overscaled",
         resolved_media=resolved_media, resolution=resolution, fps=fps,
         whisper_words=whisper_words, progress_cb=progress_cb,
-        use_local_planner=use_local_planner, cancel_check=cancel_check,
+        use_local_planner=use_local_planner, cancel_check=cancel_check, pixel_scale=pixel_scale,
     )
     if pipeline_result.cancelled or _cancelled():
         return OverscaledGenerationResult(ok=False, errors=["Cancelled"], cancelled=True)
@@ -278,7 +289,7 @@ def generate_overscaled_video(
         _export_via_existing_renderer(
             pipeline_result.scene_graph, pipeline_result.segment_clip_path,
             voiceover_path=final_audio_path, output_path=Path(output_path),
-            resolution=resolution, fps=fps, work_dir=work_dir_path,
+            resolution=_scaled_resolution(resolution, pixel_scale), fps=fps, work_dir=work_dir_path,
         )
     except Exception as exc:
         return _fail([f"final export failed: {exc}"])

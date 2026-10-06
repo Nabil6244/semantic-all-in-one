@@ -23,6 +23,8 @@ asset is ever missing.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import dataclasses
 import shutil
 import subprocess
@@ -36,6 +38,25 @@ from .layout import NodeRect, SceneGraphLayout
 from .routing import ObstacleRect, keep_out_exit_point
 from .schema import CaptionSpec, SceneEdge, SceneGraph, SceneNode
 from .style_presets import StylePreset
+
+# Every fixed pixel size below (fonts, borders, shadows, arrows, padding) is designed for a 1080-pixel-tall layout. A 4K
+# export draws the same layout twice as big (SceneGraphLayout.ui_scale): scene_graph.render sets this scale while it draws
+# a segment's layers, and _u() applies it. 1.0 (the default) leaves every size exactly as it was.
+_UI_SCALE: contextvars.ContextVar = contextvars.ContextVar("scene_graph_ui_scale", default=1.0)
+
+
+def _u(px: float) -> float:
+    return px * _UI_SCALE.get()
+
+
+@contextlib.contextmanager
+def ui_scale(k: float):
+    """Draw everything inside this block `k` times bigger (see _UI_SCALE)."""
+    token = _UI_SCALE.set(float(k or 1.0))
+    try:
+        yield
+    finally:
+        _UI_SCALE.reset(token)
 
 _FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 # Chalkboard SE (bundled, see assets/fonts/ChalkboardSE.ttc) is a real
@@ -185,7 +206,7 @@ def _draw_node_media(
     if shadow_cfg.get("enabled", True):
         _draw_shadow(
             canvas, rect,
-            blur_px=int(shadow_cfg.get("blur_px", 18)),
+            blur_px=int(_u(shadow_cfg.get("blur_px", 18))),
             opacity=float(shadow_cfg.get("opacity", 0.25)),
         )
 
@@ -199,13 +220,13 @@ def _draw_node_media(
             placeholder = Image.new("RGBA", (int(rect.width), int(rect.height)), _PLACEHOLDER_FILL)
             pd = ImageDraw.Draw(placeholder)
             label = f"[{node.type}]\n{node.id}"
-            font = _load_font(_CAPTION_FONT_CANDIDATES, max(12, int(rect.height * 0.12)))
-            pd.multiline_text((10, 10), label, fill=(90, 90, 90, 255), font=font)
+            font = _load_font(_CAPTION_FONT_CANDIDATES, max(int(_u(12)), int(rect.height * 0.12)))
+            pd.multiline_text((_u(10), _u(10)), label, fill=(90, 90, 90, 255), font=font)
             canvas.alpha_composite(placeholder, (int(rect.x), int(rect.y)))
 
     if border_cfg.get("enabled", True):
         d = ImageDraw.Draw(canvas)
-        width_px = int(border_cfg.get("width_px", 3))
+        width_px = int(round(_u(border_cfg.get("width_px", 3))))
         color = border_cfg.get("color", "#1a1a1a")
         d.rectangle([rect.x, rect.y, rect.x2, rect.y2], outline=color, width=max(1, width_px))
 
@@ -220,10 +241,10 @@ def _draw_node_label(canvas: Image.Image, node: SceneNode, rect: NodeRect) -> No
     label = str(node.label or "").strip()
     if not label:
         return
-    font = _load_font(_LABEL_FONT_CANDIDATES, max(20, min(32, int(rect.height * 0.09))))
+    font = _load_font(_LABEL_FONT_CANDIDATES, max(int(_u(20)), min(int(_u(32)), int(rect.height * 0.09))))
     draw = ImageDraw.Draw(canvas)
     bbox = draw.textbbox((0, 0), label, font=font)
-    y = rect.y - (bbox[3] - bbox[1]) - 28
+    y = rect.y - (bbox[3] - bbox[1]) - _u(28)
     draw.text((rect.x, y), label, font=font, fill=_LABEL_COLOR)
 
 
@@ -321,14 +342,14 @@ def _draw_caption(
     # pixel caption clearance (CAPTION_RESERVE_PX in scene_graph/layout.py),
     # and an uncapped font would keep growing with a bigger card and could
     # outgrow that reserved band.
-    font = _load_font(_CAPTION_FONT_CANDIDATES, min(34, max(14, int(rect.height * 0.09))))
+    font = _load_font(_CAPTION_FONT_CANDIDATES, min(int(_u(34)), max(int(_u(14)), int(rect.height * 0.09))))
     draw = ImageDraw.Draw(canvas)
 
     terms = _highlight_terms(caption.highlight)
     lines = _wrap_caption_lines(draw, caption.text, font, rect.width, _CAPTION_MAX_LINES)
-    line_height = draw.textbbox((0, 0), "Ag", font=font)[3] + 6
+    line_height = draw.textbbox((0, 0), "Ag", font=font)[3] + _u(6)
     x = rect.x + offset[0]
-    y = rect.y2 + 10 + offset[1]
+    y = rect.y2 + _u(10) + offset[1]
 
     for line in lines:
         cursor_x = x
@@ -357,7 +378,7 @@ def _draw_anchor(
             )
         return
     d = ImageDraw.Draw(canvas)
-    d.ellipse([rect.x, rect.y, rect.x2, rect.y2], outline="#1a1a1a", width=4)
+    d.ellipse([rect.x, rect.y, rect.x2, rect.y2], outline="#1a1a1a", width=int(round(_u(4))))
     if media_image is not None:
         inset = int(rect.width * 0.12)
         fitted = _resize_to_fit(media_image, int(rect.width) - 2 * inset, int(rect.height) - 2 * inset)
@@ -449,7 +470,7 @@ def _rect_keep_out_box(rect: NodeRect) -> ObstacleRect:
     scene_graph.layout's one-time route solve — obstacle avoidance)."""
     from .layout import CAPTION_RESERVE_PX
 
-    return ObstacleRect(rect.x, rect.y, rect.x2, rect.y2 + CAPTION_RESERVE_PX)
+    return ObstacleRect(rect.x, rect.y, rect.x2, rect.y2 + _u(CAPTION_RESERVE_PX))
 
 
 def _keep_out_exit_point(cx: float, cy: float, tx: float, ty: float, rect: NodeRect, *, pad: float) -> Tuple[float, float]:
@@ -525,11 +546,11 @@ def _draw_arrow(
     # arrows); absent keys keep the original values for every other style.
     if is_callout:
         color = edge.color or arrow_cfg.get("default_color", "#c0392b")
-        line_width = int(arrow_cfg.get("callout_line_width", 11))
+        line_width = int(round(_u(arrow_cfg.get("callout_line_width", 11))))
     else:
         color = edge.color or arrow_cfg.get("alt_color", "#1a1a1a")
-        line_width = int(arrow_cfg.get("line_width", 6))
-    jitter = float(arrow_cfg.get("jitter_px", 10.0)) if arrow_cfg.get("organic_jitter", True) else 0.0
+        line_width = int(round(_u(arrow_cfg.get("line_width", 6))))
+    jitter = _u(float(arrow_cfg.get("jitter_px", 10.0))) if arrow_cfg.get("organic_jitter", True) else 0.0
 
     if route_points is not None:
         full_points = _jitter_polyline(list(route_points), jitter=jitter, seed=edge.id)
@@ -541,8 +562,8 @@ def _draw_arrow(
         # cached route_points and never reaches this branch.
         from_cx, from_cy = from_rect.center
         to_cx, to_cy = to_rect.center
-        x0, y0 = _keep_out_exit_point(from_cx, from_cy, to_cx, to_cy, from_rect, pad=16)
-        x1, y1 = _keep_out_exit_point(to_cx, to_cy, from_cx, from_cy, to_rect, pad=16)
+        x0, y0 = _keep_out_exit_point(from_cx, from_cy, to_cx, to_cy, from_rect, pad=_u(16))
+        x1, y1 = _keep_out_exit_point(to_cx, to_cy, from_cx, from_cy, to_rect, pad=_u(16))
         full_points = _hand_drawn_curve(x0, y0, x1, y1, jitter=jitter, seed=edge.id)
 
     points = _truncate_polyline(full_points, progress)
@@ -558,7 +579,7 @@ def _draw_arrow(
         ax, ay = points[-2]
         bx, by = points[-1]
         angle = math.atan2(by - ay, bx - ax)
-        head_len, head_w = (34, 20) if is_callout else (int(arrow_cfg.get("head_len", 28)), 16)
+        head_len, head_w = (_u(34), _u(20)) if is_callout else (int(_u(arrow_cfg.get("head_len", 28))), _u(16))
         left = (bx - head_len * math.cos(angle - math.radians(25)), by - head_len * math.sin(angle - math.radians(25)))
         right = (bx - head_len * math.cos(angle + math.radians(25)), by - head_len * math.sin(angle + math.radians(25)))
         d.polygon([(bx, by), left, right], fill=color)
@@ -576,7 +597,7 @@ def _draw_arrow(
                 # never reaches this branch.
                 from .routing import solve_label_position
 
-                font = _load_font(_CAPTION_FONT_CANDIDATES, 26)
+                font = _load_font(_CAPTION_FONT_CANDIDATES, int(_u(26)))
                 bbox = ImageDraw.Draw(canvas).textbbox((0, 0), label, font=font)
                 half_w, half_h = (bbox[2] - bbox[0]) / 2.0, (bbox[3] - bbox[1]) / 2.0
                 pos = solve_label_position(
@@ -591,7 +612,7 @@ def _draw_edge_label_at(canvas: Image.Image, position: Tuple[float, float], labe
     routing.solve_label_position, cached once per edge onto
     SceneGraphLayout) — the reference "Overscaled" style's inline arrow
     annotations (e.g. "In 1628"). No search happens here."""
-    font = _load_font(_CAPTION_FONT_CANDIDATES, 26)
+    font = _load_font(_CAPTION_FONT_CANDIDATES, int(_u(26)))
     draw = ImageDraw.Draw(canvas)
     bbox = draw.textbbox((0, 0), label, font=font)
     half_w, half_h = (bbox[2] - bbox[0]) / 2.0, (bbox[3] - bbox[1]) / 2.0
@@ -656,17 +677,17 @@ def render_node_reveal_frame(
     # cover the caption offset ladder's worst case (_CAPTION_OFFSET_MARGIN_PX)
     # so a solved alternate position never clips against this sub-canvas's
     # own edge, whether or not THIS particular node actually got nudged.
-    pad = 24
+    pad = int(_u(24))
     side_pad = pad
     bottom_pad = pad
     if node.type != "anchor" and node.caption and node.caption.text:
         # Up to 3 lines at the caption's own font-size cap (see
         # _draw_caption), plus the leading gap — with a safety margin.
-        bottom_pad = max(pad, 200) + _CAPTION_OFFSET_MARGIN_PX
-        side_pad = pad + _CAPTION_OFFSET_MARGIN_PX
+        bottom_pad = max(pad, int(_u(200))) + int(_u(_CAPTION_OFFSET_MARGIN_PX))
+        side_pad = pad + int(_u(_CAPTION_OFFSET_MARGIN_PX))
     top_pad = pad
     if node.type != "anchor" and node.label:
-        top_pad = max(pad, _LABEL_RESERVE_PX + pad)
+        top_pad = max(pad, int(_u(_LABEL_RESERVE_PX)) + pad)
     # The full-size card (media fit, shadow, border, label, caption) is
     # identical for every frame of one node's reveal — only the scale/alpha
     # applied below changes — so it is built once per node, not once per
@@ -764,7 +785,7 @@ def render_title_reveal_frame(
     if progress <= 0.0 or not text:
         return frame
 
-    font = _load_font(_TITLE_FONT_CANDIDATES, max(36, int(canvas_size[1] * 0.07)))
+    font = _load_font(_TITLE_FONT_CANDIDATES, max(int(_u(36)), int(canvas_size[1] * 0.07)))
     draw = ImageDraw.Draw(frame)
     bbox = draw.textbbox((0, 0), text, font=font)
     # x_px: left-aligned next to an inline anchor photo (Overscaled);
@@ -809,9 +830,10 @@ def render_checklist_strip_frame(
     draw = ImageDraw.Draw(frame)
     stage_w = canvas_size[0] - 2 * margin_px
     cell_w = stage_w / n
-    cell_h = max(24.0, band_height - _CHECKLIST_CELL_TOP_PX - 10)
-    number_font = _load_font(_LABEL_FONT_CANDIDATES, max(14, min(22, int(cell_h * 0.42))))
-    label_font = _load_font(_CAPTION_FONT_CANDIDATES, max(10, min(18, int(cell_h * 0.24))))
+    cell_top, gutter = _u(_CHECKLIST_CELL_TOP_PX), _u(_CHECKLIST_CELL_GUTTER_PX)
+    cell_h = max(_u(24.0), band_height - cell_top - _u(10))
+    number_font = _load_font(_LABEL_FONT_CANDIDATES, max(int(_u(14)), min(int(_u(22)), int(cell_h * 0.42))))
+    label_font = _load_font(_CAPTION_FONT_CANDIDATES, max(int(_u(10)), min(int(_u(18)), int(cell_h * 0.24))))
 
     for i, label in enumerate(labels):
         text_fill = (255, 255, 255, 255)
@@ -825,10 +847,10 @@ def render_checklist_strip_frame(
 
         cell_x = margin_px + i * cell_w
         box = [
-            cell_x + _CHECKLIST_CELL_GUTTER_PX / 2, _CHECKLIST_CELL_TOP_PX,
-            cell_x + cell_w - _CHECKLIST_CELL_GUTTER_PX / 2, _CHECKLIST_CELL_TOP_PX + cell_h,
+            cell_x + gutter / 2, cell_top,
+            cell_x + cell_w - gutter / 2, cell_top + cell_h,
         ]
-        radius = min(10.0, cell_h * 0.2, cell_w * 0.2)
+        radius = min(_u(10.0), cell_h * 0.2, cell_w * 0.2)
         draw.rounded_rectangle(box, radius=radius, fill=fill)
 
         number_text = str(i + 1)
@@ -842,7 +864,7 @@ def render_checklist_strip_frame(
             # Shorten only when the text really doesn't fit its own tab (it
             # used to cut every label at 10 characters regardless of width,
             # so "Construction" read "Construct…" in a 300 px tab).
-            max_w = (box[2] - box[0]) - 12
+            max_w = (box[2] - box[0]) - _u(12)
             if draw.textbbox((0, 0), short_label, font=label_font)[2] > max_w:
                 while len(short_label) > 1 and draw.textbbox((0, 0), short_label + "…", font=label_font)[2] > max_w:
                     short_label = short_label[:-1].rstrip()

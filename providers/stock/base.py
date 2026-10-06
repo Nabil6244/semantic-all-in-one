@@ -23,7 +23,8 @@ from ..base import (
     sniff_media_kind,
 )
 from .cache import StockCache
-from .downloader import MAX_BYTES, UHD_MAX_BYTES, DownloadCancelled, download_candidate
+from . import downloader as _dl
+from .downloader import MAX_BYTES, UHD_MAX_BYTES, DownloadCancelled, download_candidate, download_first_seconds
 from .query import build_queries
 from .ranking import filter_candidates, rank_candidates
 
@@ -143,6 +144,7 @@ class StockProvider(AssetProvider):
                 provider_use_counts=self.cache.provider_use_counts(),
                 selection_context=ctx,
                 required_duration=getattr(self, "required_duration", None),
+                uhd=self.uhd,
                 # Opt-in only (0.0 = off): set by the Property Video
                 # workflow, where an unrelated clip is worse than none.
                 # The normal YouTube workflow never sets this, so its
@@ -187,16 +189,27 @@ class StockProvider(AssetProvider):
         source = scene.stock_source
         log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id} ({candidate.width}x{candidate.height})")
         stopped = lambda: self._scene_stopped(scene.scene_number)  # noqa: E731
-        width, height = candidate.width, candidate.height
+        width, height, duration = candidate.width, candidate.height, candidate.duration
+        fallback = candidate.extra.get("hd_fallback") or {}
         try:
-            path = download_candidate(
-                candidate,
-                images_dir,
-                scene.scene_number,
-                log=log,
-                should_stop=stopped,
-                max_bytes=UHD_MAX_BYTES if self.uhd else MAX_BYTES,
-            )
+            if self.uhd and fallback.get("url") and _dl.free_bytes(images_dir) < UHD_MAX_BYTES + _dl.RENDER_MARGIN_BYTES:
+                raise IOError(f"less than {(UHD_MAX_BYTES + _dl.RENDER_MARGIN_BYTES) // 2**30} GB free on the disk")
+            keep = _dl.UHD_KEEP_SECONDS
+            if self.uhd and candidate.media_type == MediaType.VIDEO and (candidate.duration or 0) > keep + 1:
+                log(f"[STOCK] Scene {scene.scene_number} -> keeping the first {keep:.0f}s of a {candidate.duration:.0f}s clip")
+                path = download_first_seconds(
+                    candidate, images_dir, scene.scene_number, keep, max_bytes=UHD_MAX_BYTES, should_stop=stopped,
+                )
+                duration = keep
+            else:
+                path = download_candidate(
+                    candidate,
+                    images_dir,
+                    scene.scene_number,
+                    log=log,
+                    should_stop=stopped,
+                    max_bytes=UHD_MAX_BYTES if self.uhd else MAX_BYTES,
+                )
         except DownloadCancelled as exc:
             return AssetResult(
                 scene.scene_number, None, None, source, SceneStatus.FAILED,
@@ -204,7 +217,6 @@ class StockProvider(AssetProvider):
             )
         except Exception as exc:
             # A large (4K) file that was too big, too slow or broken: take the same clip's HD file instead of failing the scene.
-            fallback = candidate.extra.get("hd_fallback") or {}
             if not fallback.get("url"):
                 return AssetResult(
                     scene.scene_number, None, None, source, SceneStatus.FAILED,
@@ -222,6 +234,7 @@ class StockProvider(AssetProvider):
                     error=f"Download failed: {exc}; the HD fallback failed too: {exc2}",
                 )
             width, height = int(fallback.get("width") or 0), int(fallback.get("height") or 0)
+            duration = candidate.duration
 
         # Hard content check — don't trust the candidate's advertised media_type
         # or the downloaded filename's extension alone. If asset_type explicitly
@@ -255,6 +268,6 @@ class StockProvider(AssetProvider):
                 "source_url": candidate.source_url,
                 "width": width,
                 "height": height,
-                "duration": candidate.duration,
+                "duration": duration,
             },
         )

@@ -160,8 +160,10 @@ def generate_pakmap_video(
     flow_video_account_ids: Optional[list] = None, media_callbacks: Optional[dict] = None, media_resolver: Optional[Callable[..., object]] = None,
     media_find_file: Optional[Callable[..., object]] = None, scene_rows: Optional[Sequence[object]] = None,
     media_dir: "str | Path | None" = None, media_manifest_cls: object = None, spec_extra: Optional[dict] = None,
-    media_options: Optional[dict] = None,
+    media_options: Optional[dict] = None, pixel_scale: int = 1,
 ) -> PakmapResult:
+    """`pixel_scale` 2 exports in 4K: the script is laid out at `resolution` (cards, camera and zoom are unchanged) and every
+    frame is drawn with twice the pixels, so a 1920x1080 layout comes out 3840x2160."""
     csv_path, voiceover_path, output_path = Path(csv_path), Path(voiceover_path), Path(output_path)
     if not csv_path.is_file():
         return PakmapResult(False, [f"pakMap CSV not found: {csv_path}"])
@@ -229,6 +231,9 @@ def generate_pakmap_video(
     except Exception as exc:
         return PakmapResult(False, [f"unexpected error while compiling the script: {exc!r}"])
     spec = res.spec
+    pixel_scale = 2 if int(pixel_scale or 1) >= 2 else 1
+    if pixel_scale > 1:
+        spec["pixel_scale"] = pixel_scale
     for w in res.report.warnings:
         log(f"[pakMap] {w}")
     (work / "pakmap_spec.json").write_text(json.dumps(spec, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -284,7 +289,8 @@ def generate_pakmap_video(
 
         _export_via_existing_renderer(
             SimpleNamespace(duration=spec["duration"], title=title or csv_path.stem, segment_id="pakmap"), silent,
-            voiceover_path=str(narration_for_export), output_path=output_path, resolution=resolution, fps=fps, work_dir=work,
+            voiceover_path=str(narration_for_export), output_path=output_path, resolution=f"{width * pixel_scale}x{height * pixel_scale}",
+            fps=fps, work_dir=work,
         )
     except Exception as exc:
         return PakmapResult(False, [f"final export failed: {exc}"], report=res.report)
