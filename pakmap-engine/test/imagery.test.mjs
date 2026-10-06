@@ -6,7 +6,7 @@ import path from 'node:path';
 import { PROVIDERS, DEFAULT_IMAGERY, resolveProviders, selectLayers, softnessWarning, creditsFor, EQUATOR_M_PER_PX_Z0 } from '../lib/imagery.mjs';
 import { metersPerPixel, frameWidthKm, createCamera } from '../lib/camera.mjs';
 import { planRender } from '../lib/plan.mjs';
-import { fetchTile, cachePath } from '../lib/tiles.mjs';
+import { fetchTile, cachePath, retryDelayMs } from '../lib/tiles.mjs';
 
 const list = resolveProviders();
 const sel = (frameKm, lat = 45, cfg = DEFAULT_IMAGERY, l = list) => {
@@ -115,4 +115,24 @@ test('tile cache: a tile is fetched once, a missing tile (404) is remembered, er
   const boom = async () => { throw new Error('offline'); };
   await assert.rejects(() => fetchTile(p, 3, 7, 7, dir, boom), /offline/);
   assert.equal(fs.existsSync(cachePath(dir, p, 3, 7, 7)), false);
+});
+
+test('tile download: "too many requests" (429) is retried, other refusals are failures, never "no imagery"', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pakmap-tiles-'));
+  const p = list[0];
+  let calls = 0;
+  const busyThenOk = async () => (++calls === 1 ? { status: 429, body: null, retryAfter: '0' } : { status: 200, body: Buffer.from('jpeg-bytes') });
+  assert.equal((await fetchTile(p, 4, 1, 1, dir, busyThenOk)).toString(), 'jpeg-bytes');
+  assert.equal(calls, 2);
+  let refused = 0;
+  const forbidden = async () => { refused++; return { status: 403, body: null }; };
+  await assert.rejects(() => fetchTile(p, 4, 2, 2, dir, forbidden), /HTTP 403/);   // a failure, not null ("no imagery")
+  assert.equal(refused, 1);
+  assert.equal(fs.existsSync(`${cachePath(dir, p, 4, 2, 2)}.none`), false);   // and not remembered as "no imagery"
+});
+
+test('tile download: the wait before a retry follows Retry-After, capped at 10 s', () => {
+  assert.equal(retryDelayMs(0, '2'), 2000);
+  assert.equal(retryDelayMs(0, '600'), 10000);
+  assert.equal(retryDelayMs(2, undefined), 1200);
 });

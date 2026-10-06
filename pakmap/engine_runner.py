@@ -131,6 +131,12 @@ def render_spec(spec: dict, output: Path, *, progress: Optional[Callable[[int, i
                 elif kind == "warning":
                     warnings.append(str(event.get("message")))
                     log(f"[pakMap] {event.get('message')}")
+                elif kind == "tiles":   # map imagery health, every render: failed downloads and what stood in for them
+                    log(f"[pakMap] Map imagery: {int(event.get('failed') or 0)} map tile(s) failed to download; "
+                        f"{int(event.get('drawn_from_coarser_zoom') or 0)} drawn from a coarser zoom, "
+                        f"{int(event.get('drawn_from_coarser_layer') or 0)} from a coarser imagery layer "
+                        f"({int(event.get('download_failures') or 0)} failed download(s) and "
+                        f"{int(event.get('invalid') or 0)} unreadable or blank tile(s) in all).")
                 elif kind == "done":
                     done = event
                 elif kind == "error":

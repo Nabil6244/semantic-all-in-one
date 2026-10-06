@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { planRender } from './lib/plan.mjs';
 import { resolveSpecData } from './lib/datasets.mjs';
 import { prepareMedia, materializeClip, releaseClips, disposeMedia } from './lib/media.mjs';
-import { fetchTile } from './lib/tiles.mjs';
+import { fetchTile, cachePath } from './lib/tiles.mjs';
 import { parsePointsCsv } from './lib/points.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -46,6 +46,10 @@ function countriesGeoJSON(spec) {
   return countriesCache;
 }
 
+// Tiles the renderer could not download (after fetchTile's retries), keyed "provider z/x/y". The page draws them from
+// lower-resolution imagery instead (page.js); the counts go to the render log and the sidecar.
+const tileFailures = new Map();
+
 function startServer(spec, plan, media) {
   const types = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf' };
   const byId = Object.fromEntries(plan.providers.map((p) => [p.id, p]));
@@ -62,8 +66,23 @@ function startServer(spec, plan, media) {
       if (tile) {
         const provider = byId[tile[1]];
         if (!provider) { res.writeHead(404); return res.end(); }
-        const buf = await fetchTile(provider, tile[2], tile[3], tile[4], spec.cache_dir);
-        if (!buf) { res.writeHead(404); return res.end(); }
+        const key = `${tile[1]} ${tile[2]}/${tile[3]}/${tile[4]}`;
+        // already failed in this render (after its retries): answer at once, or every child tile falling back to it
+        // would sit through the same retries again
+        if (tileFailures.has(key)) { res.writeHead(503); return res.end(); }
+        if (url.searchParams.get('refetch')) {
+          // the page found the cached copy unreadable or blank: drop it and download the tile again
+          try { fs.unlinkSync(cachePath(spec.cache_dir, provider, tile[2], tile[3], tile[4])); } catch { /* not cached, or cannot remove */ }
+        }
+        let buf;
+        try {
+          buf = await fetchTile(provider, tile[2], tile[3], tile[4], spec.cache_dir);
+        } catch (err) {
+          // a download failure is 503, never 404: the page must not mistake it for "no imagery here"
+          tileFailures.set(key, String((err && err.message) || err));
+          res.writeHead(503); return res.end();
+        }
+        if (!buf) { res.writeHead(404); return res.end(); }   // legitimately no imagery at this tile
         res.writeHead(200, { 'Content-Type': provider.format === 'png' ? 'image/png' : 'image/jpeg' });
         return res.end(buf);
       }
@@ -131,7 +150,8 @@ async function main() {
     const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: spec.pixel_scale || 1 });
     const pageErrors = [];
     page.on('pageerror', (e) => pageErrors.push(String(e)));
-    page.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
+    // a failed tile (503) is reported with the tile counts below, not as a page error
+    page.on('console', (m) => { if (m.type() === 'error' && !/status of 503/.test(m.text())) pageErrors.push(m.text()); });
     await page.goto(`${origin}/index.html`);
     try {
       await page.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: 90000 });
@@ -149,7 +169,14 @@ async function main() {
     const ffDone = new Promise((resolve) => ffmpeg.on('close', resolve));
 
     for (let i = 0; i < total; i++) {
-      const b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
+      let b64;
+      try {
+        b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
+      } catch (err) {
+        const why = tileFailures.size ? ` Last download error: ${[...tileFailures.values()].pop()}` : '';
+        const msg = String((err && err.message) || err).replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];   // no page stack trace in the message
+        throw new Error(`${msg}${why}`);
+      }
       const jpg = Buffer.from(b64, 'base64');
       if (!ffmpeg.stdin.write(jpg)) await new Promise((r) => ffmpeg.stdin.once('drain', r));
       if (i % 15 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total });
@@ -159,8 +186,20 @@ async function main() {
     const code = await ffDone;
     if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${ffErr.trim().slice(-500)}`);
     if (pageErrors.length) emit({ event: 'warning', message: pageErrors.slice(0, 3).join(' | ') });
+    // Map imagery health for the render log: failed downloads and what stood in for them (never black land).
+    const ts = await page.evaluate(() => window.__tileStats || {}).catch(() => ({}));
+    // failed: map tiles whose own download failed or came back unreadable/blank (each was drawn from a stand-in,
+    // counted in the next two); invalid: tiles that downloaded but stayed unreadable/blank after a fresh download;
+    // download_failures: every failed download, including coarser tiles tried as stand-ins
+    const tiles = { failed: ts.failed || 0, drawn_from_coarser_zoom: ts.fromParent || 0, drawn_from_coarser_layer: ts.fromCoarserLayer || 0,
+      invalid: ts.invalid || 0, download_failures: tileFailures.size };
+    emit({ event: 'tiles', ...tiles });
+    if (tiles.failed) {
+      const last = tileFailures.size ? ` (last download error: ${[...tileFailures.values()].pop()})` : '';
+      emit({ event: 'warning', message: `map imagery: ${tiles.failed} map tile(s) could not be used (failed downloads, or ${tiles.invalid} unreadable or blank tile(s)); ${tiles.drawn_from_coarser_zoom} were drawn from the same imagery at a coarser zoom and ${tiles.drawn_from_coarser_layer} from a coarser imagery layer, so those areas look softer${last}` });
+    }
     const sidecar = `${spec.output}.pakmap.json`;
-    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total }, null, 2));
+    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total, tiles }, null, 2));
     emit({ event: 'done', output: spec.output, sidecar, frames: total });
   } finally {
     disposeMedia(media.files);   // the frame folders are this render's own: they never outlive it

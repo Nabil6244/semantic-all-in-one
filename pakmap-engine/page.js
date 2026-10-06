@@ -47,13 +47,77 @@ async function setup() {
     g.putImageData(img, 0, 0);
     return (await c.convertToBlob({ type: 'image/png' })).arrayBuffer();
   }
+  // A tile is one of three things: imagery, legitimately none (404: outside the layer's coverage, drawn transparent as
+  // before), or a download that failed (503). A failed tile is never drawn transparent -- that left black land in the
+  // video. It is drawn from the best lower-resolution imagery there is: the same layer one zoom level coarser (and
+  // so on), else a coarser layer. Only when nothing at all can be shown does the render stop (renderFrame).
+  const tileStats = { failed: 0, invalid: 0, fromParent: 0, fromCoarserLayer: 0, missing: [] };
+  window.__tileStats = tileStats;
+  // A downloaded tile that cannot be decoded is not imagery. Nor is an all-black tile from a layer with no "no data"
+  // black (Blue Marble covers the whole globe; its darkest real tiles, deep ocean, never go below r+g+b of about 24, so
+  // "every pixel under 12" leaves a wide margin). A layer whose black means "no data" (Landsat) keeps its black tiles:
+  // they are legitimate and keyed out as before.
+  async function validTile(blob, provider) {
+    let bmp;
+    try { bmp = await createImageBitmap(blob); } catch { return false; }
+    if (provider?.blackIsNodata) return true;
+    const c = new OffscreenCanvas(32, 32), g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(bmp, 0, 0, 32, 32);
+    const d = g.getImageData(0, 0, 32, 32).data;
+    for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] >= 12) return true;
+    return false;
+  }
+  const invalidTiles = new Set();   // tiles that stayed invalid after a fresh download: failed for the rest of the render
+  async function getTile(id, z, x, y) {
+    const key = `${id} ${z}/${x}/${y}`;
+    if (invalidTiles.has(key)) return { failed: true };
+    for (const refetch of [false, true]) {   // an invalid tile is downloaded once more, bypassing the cached copy
+      const res = await fetch(`/tile/${id}/${z}/${x}/${y}${refetch ? '?refetch=1' : ''}`).catch(() => null);
+      if (!res || !res.ok) return res && res.status === 404 ? { none: true } : { failed: true };
+      const blob = await res.blob();
+      if (await validTile(blob, byId[id])) return { blob };
+    }
+    invalidTiles.add(key);
+    tileStats.invalid++;
+    return { failed: true };
+  }
+  // The part of an ancestor tile (k levels up) that covers tile x/y, enlarged to a full tile.
+  async function cropAncestor(blob, k, x, y) {
+    const bmp = await createImageBitmap(blob), n = 1 << k, s = bmp.width / n;
+    const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(bmp, (x % n) * s, (y % n) * s, s, s, 0, 0, bmp.width, bmp.height);
+    return c.convertToBlob({ type: 'image/png' });
+  }
+  async function fallbackTile(p, z, x, y) {
+    for (let k = 1; k <= z; k++) {   // same layer, coarser zoom
+      const r = await getTile(p.id, z - k, x >> k, y >> k);
+      if (r.blob) { tileStats.fromParent++; return { blob: await cropAncestor(r.blob, k, x, y), from: p }; }
+      if (r.none) break;   // the layer has nothing here at all: try a coarser layer
+    }
+    for (let i = providers.findIndex((q) => q.id === p.id) - 1; i >= 0; i--) {   // providers run coarse -> fine
+      const q = providers[i];
+      for (let k = Math.max(0, z - q.maxNativeZoom); k <= z; k++) {
+        const r = await getTile(q.id, z - k, x >> k, y >> k);
+        if (r.blob) { tileStats.fromCoarserLayer++; return { blob: k ? await cropAncestor(r.blob, k, x, y) : r.blob, from: q }; }
+        if (r.none) break;
+      }
+    }
+    return null;
+  }
   maplibregl.addProtocol('pkt', async (params) => {
     const m = params.url.match(/^pkt:\/\/([\w-]+)\/(\d+)\/(\d+)\/(\d+)/);
     if (!m) return { data: clearPng };
-    const res = await fetch(`/tile/${m[1]}/${m[2]}/${m[3]}/${m[4]}`);
-    if (!res.ok) return { data: clearPng };
-    const blob = await res.blob();
-    return { data: byId[m[1]]?.blackIsNodata ? await keyBlack(blob) : await blob.arrayBuffer() };
+    const [id, z, x, y] = [m[1], Number(m[2]), Number(m[3]), Number(m[4])];
+    let tile = await getTile(id, z, x, y), from = byId[id];
+    if (tile.none) return { data: clearPng };
+    if (tile.failed) {
+      tileStats.failed++;
+      tile = byId[id] ? await fallbackTile(byId[id], z, x, y) : null;
+      if (!tile) { tileStats.missing.push(`${id} ${z}/${x}/${y}`); return { data: clearPng }; }
+      from = tile.from;
+    }
+    return { data: from?.blackIsNodata ? await keyBlack(tile.blob) : await tile.blob.arrayBuffer() };
   });
 
   // ---- style: one raster layer per provider, graded the same way ----
@@ -182,9 +246,26 @@ async function setup() {
     return { sel, mpp };
   }
 
-  const waitDrawn = () => new Promise((resolve) => {
-    const timer = setTimeout(resolve, 45000);
-    map.once('idle', () => { clearTimeout(timer); resolve(); });
+  // The frame is captured when the map is idle (every tile drawn). The 45 s check no longer captures whatever is on
+  // screen: a slow tile (retries, then fallbacks) can take longer than that, and capturing then left an empty area.
+  // Past 45 s the frame waits on while tiles are still loading, and the render stops with a clear error after
+  // map_ready_timeout_s (default 10 min) rather than capture a half-drawn map.
+  const READY_LIMIT_MS = (spec.map_ready_timeout_s ?? 600) * 1000;
+  const waitDrawn = () => new Promise((resolve, reject) => {
+    const started = performance.now();
+    let timer;
+    const onIdle = () => { clearTimeout(timer); resolve(); };
+    const check = () => {
+      if (map.areTilesLoaded()) { map.off('idle', onIdle); resolve(); return; }   // drawable: every tile is in
+      if (performance.now() - started >= READY_LIMIT_MS) {
+        map.off('idle', onIdle);
+        reject(new Error(`the map imagery for this frame was still loading after ${Math.round(READY_LIMIT_MS / 1000)} s, so the render stopped rather than capture a half-drawn map. Check the internet connection and render again.`));
+        return;
+      }
+      timer = setTimeout(check, Math.min(45000, Math.max(1000, READY_LIMIT_MS - (performance.now() - started))));
+    };
+    timer = setTimeout(check, Math.min(45000, READY_LIMIT_MS));
+    map.once('idle', onIdle);
     map.triggerRepaint();
   });
 
@@ -193,6 +274,9 @@ async function setup() {
     map.jumpTo({ center: [((c.lon + 540) % 360) - 180, c.lat], zoom: c.zoom, pitch: 0, bearing: 0 });
     const { sel } = applyState(t, c);
     await waitDrawn();
+    if (tileStats.missing.length) {
+      throw new Error(`map imagery could not be downloaded for ${tileStats.missing.length} tile(s) (e.g. ${tileStats.missing[0]}) and no lower-resolution imagery was available to stand in, so the render stopped rather than draw black land. Check the internet connection and render again.`);
+    }
     ctx.globalCompositeOperation = 'source-over';
     // The globe leaves the sky around it transparent, and this canvas keeps the previous frame. Clear it first, or a zoom-out
     // (smaller globe each frame) shows the earlier, larger globes through the gap as rippled bands.
