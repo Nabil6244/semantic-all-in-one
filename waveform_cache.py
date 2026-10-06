@@ -115,12 +115,3 @@ def get_or_build_waveform(
     except OSError:
         pass  # caching is best-effort; the computed peaks are still returned
     return peaks
-
-
-def clear_waveform_cache(state_dir: Path) -> None:
-    import shutil
-
-    try:
-        shutil.rmtree(Path(state_dir) / WAVEFORM_DIRNAME, ignore_errors=True)
-    except OSError:
-        pass

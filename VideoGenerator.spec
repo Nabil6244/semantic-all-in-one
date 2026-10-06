@@ -165,9 +165,9 @@ datas += engine_data_files(ROOT)
 
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
-# logo_wordmark.png = full lockup (login dialog, About & Ownership)
-# Both must ship, or those surfaces silently fall back to plain text.
-for _brand_asset in ("logo.png", "logo_wordmark.png"):
+# logo_wordmark.png = full lockup (login dialog, About & Ownership); _light = the light-theme lettering
+# They must ship, or those surfaces silently fall back to plain text.
+for _brand_asset in ("logo.png", "logo_wordmark.png", "logo_wordmark_light.png"):
     _p = ROOT / "assets" / _brand_asset
     if _p.is_file():
         datas += [(str(_p), "assets")]
@@ -435,6 +435,15 @@ a = Analysis(
         "graphics.semantics",
         "graphics.statistic",
         "graphics.text_overlay",
+        "graphics.dataviz",
+        "production",
+        "production.analytics",
+        "production.events",
+        "production.graph",
+        "production.jobs",
+        "production.map_director",
+        "production.recovery",
+        "production.regeneration",
         "media_duration",
         "media_metadata_cache",
         "perf_instrumentation",

@@ -507,29 +507,6 @@ def reset_sfx_catalog_cache() -> None:
     _catalog_cache_key = ("", 0.0)
 
 
-def load_sfx_catalog(path: Optional[Path] = None) -> List[dict]:
-    """Backward-compatible raw catalog loader (tests / legacy callers)."""
-    if path is not None:
-        catalog = SfxCatalog.load(root=Path(path).parent, catalog_path=Path(path))
-    else:
-        catalog = get_sfx_catalog()
-    return [
-        {
-            "id": e.id,
-            "file": e.file,
-            "category": e.category,
-            "tags": list(e.tags),
-            "intensity": e.intensity,
-            "duration": e.duration,
-            "source": e.source,
-            "license": e.license,
-            "commercial_use": e.commercial_use,
-            "attribution_required": e.attribution_required,
-        }
-        for e in catalog.entries
-    ]
-
-
 def _intensity_scale(intensity: str) -> float:
     return {"low": 0.35, "medium": 0.65, "high": 0.85}.get(intensity, 0.65)
 

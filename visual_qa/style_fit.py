@@ -59,15 +59,6 @@ def style_quality_expectation(resolved: Optional[ResolvedStyle]) -> float:
     return 0.6
 
 
-def adjust_technical_penalty(base_penalty: float, resolved: Optional[ResolvedStyle], is_archival: bool) -> float:
-    if is_archival:
-        return base_penalty * 0.35
-    sid = style_id_from_resolved(resolved)
-    if sid in PREMIUM_STYLE_IDS:
-        return base_penalty * 1.1
-    return base_penalty
-
-
 def score_style_fit(
     semantic: float,
     technical: float,

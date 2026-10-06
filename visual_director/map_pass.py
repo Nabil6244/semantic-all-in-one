@@ -6,6 +6,10 @@ shots — the same conservative detector as the Local Visual Planner
 (map_scene.detect: bundled borders only, the name must be used as a place).
 At most one map per ~30 s of narration and never two scenes in a row.
 
+Whether a qualifying line actually EARNS a map is the Map Director's call (production.map_director): a place the film
+already showed gets another map only when the line adds geographic information (where, how far, how big, which
+border, a route), and the line's intent picks the camera (scale/distance pull out).
+
 In a countdown script ("35. The Roof of Florida. ..."), each fact opens on
 a map of the place that fact is about, like the reference style — when any
 line of the fact names one.
@@ -33,6 +37,12 @@ def add_map_scenes(plan, *, detect: Optional[Callable] = None, min_gap_s: float 
 
         detect = (lambda text, _p=_plain: _p(text, context=context))
     fact_maps = _fact_opening_maps(scenes, detect, context)
+    from production.map_director import MapDirector
+
+    director = MapDirector(detect=detect)
+    for scene in scenes:
+        if (scene.asset_type or "").lower() == "map":
+            director.note_shown(scene.visual_description or "")
     t, last_map_at, prev_map, added = 0.0, None, False, 0
     for index, scene in enumerate(scenes):
         narration = (scene.narration or "").strip()
@@ -44,20 +54,22 @@ def add_map_scenes(plan, *, detect: Optional[Callable] = None, min_gap_s: float 
             last_map_at = start if prev_map else last_map_at
             continue
         pick = fact_maps.get(index) if not prev_map else None
-        if pick is None:
+        prompt = pick.prompt if pick is not None else ""
+        if pick is not None:
+            director.note_shown(prompt)
+        else:
             if prev_map or (last_map_at is not None and start - last_map_at < min_gap_s):
                 prev_map = False
                 continue
-            try:
-                pick = detect(narration)
-            except Exception:
-                pick = None
+            decision = director.decide(narration)
+            pick = decision.pick if decision.use_map else None
+            prompt = decision.prompt
         if pick is None:
             prev_map = False
             continue
         scene.asset_type = "map"
         scene.provider_preference = "map"
-        scene.visual_description = pick.prompt
+        scene.visual_description = prompt
         scene.visual_goal = f"Map of {pick.name}"
         scene.search_queries = []
         scene.fallbacks = []

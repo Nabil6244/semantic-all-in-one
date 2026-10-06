@@ -110,10 +110,6 @@ def sentences_message(sentences: Sequence[Sentence], *, duration: float, style_g
 
 # ---- payload -> plan ----------------------------------------------------------------------------------------------
 
-def _norm_words(text: str) -> List[str]:
-    return re.findall(r"[0-9a-z]+", text.lower())
-
-
 def anchor_time(words: Sequence[Word], phrase: str, lo: float, hi: float, after: float = 0.0) -> Optional[float]:
     """When `phrase` is first spoken inside [lo, hi], preferring a place after `after`; None when it is not found. Uses pakMap's
     matcher, so "240 million" finds the spoken "two hundred and forty million" and a split name still matches."""

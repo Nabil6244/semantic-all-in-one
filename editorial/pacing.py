@@ -190,18 +190,3 @@ def apply_pacing_camera_energy(plan: EditorialPlan) -> EditorialPlan:
         elif scene.attention_score >= 0.85 and scene.camera_style == "static":
             scene.camera_style = "push_in"
     return plan
-
-
-def scene_split_suggestions(plan: EditorialPlan) -> List[dict]:
-    """Optional soft suggestions only — never applied automatically to CSV."""
-    out: List[dict] = []
-    for scene in plan.scenes:
-        if scene.duration >= 7.5 and scene.attention_score >= 0.7:
-            out.append(
-                {
-                    "scene_number": scene.scene_number,
-                    "reason": "long high-attention beat",
-                    "suggested_split_at": round(scene.start + scene.duration * 0.5, 2),
-                }
-            )
-    return out

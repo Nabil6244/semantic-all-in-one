@@ -55,19 +55,6 @@ def score_repetition(
     return max(0.0, min(1.0, score)), warnings
 
 
-def collect_project_asset_ids(results: Dict[str, AssetResult]) -> Dict[str, str]:
-    """Map asset_id -> first scene key."""
-    seen: Dict[str, str] = {}
-    for key, result in results.items():
-        if not getattr(result, "ok", False):
-            continue
-        meta = getattr(result, "metadata", None) or {}
-        aid = str(meta.get("provider_asset_id") or meta.get("asset_id") or "")
-        if aid and aid not in seen:
-            seen[aid] = key
-    return seen
-
-
 def detect_project_repetition_issues(
     results: Dict[str, AssetResult],
 ) -> List[str]:

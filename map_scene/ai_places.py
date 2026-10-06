@@ -42,6 +42,12 @@ def cached_resolver(ask: Callable[[str, Optional[str]], Optional[dict]], path: O
                 cache = json.loads(store.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 cache = {}
+        try:
+            from production import events as _pevents
+
+            _pevents.emit("cache", cache="map_place", hit=key in cache)
+        except Exception:
+            pass
         if key in cache:
             return cache[key]
         answer = ask(name, parent)

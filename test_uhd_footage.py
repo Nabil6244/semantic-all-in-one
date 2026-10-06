@@ -310,7 +310,9 @@ class TestAppWiring(unittest.TestCase):
 
     def test_settings_has_both_switches_per_project(self):
         src = inspect.getsource(self.App._open_settings)
-        self.assertIn("VIDEO QUALITY (THIS PROJECT)", src)
+        # The section lives in the "This project" tab (saved with the project, not app-wide).
+        self.assertIn('body = tab_bodies["This project"]', src)
+        self.assertLess(src.index('body = tab_bodies["This project"]'), src.index('text="VIDEO QUALITY"'))
         self.assertIn("Accept Ultra HD (4K) footage", src)
         self.assertIn('text="Export in 4K"', src)
         self.assertIn("set_quality_settings(uhd_footage=", src)

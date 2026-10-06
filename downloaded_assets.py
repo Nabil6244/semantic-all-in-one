@@ -324,19 +324,3 @@ def delete_downloaded_assets(
         bytes_freed=freed,
         confirmed=True,
     )
-
-
-def protected_project_paths(workspace: ProjectWorkspace) -> List[Path]:
-    """Paths that cleanup must never remove (for tests / audits)."""
-    out = [
-        workspace.root / "project.json",
-        workspace.script_dir,
-        workspace.csv_dir,
-        workspace.audio_dir,
-        workspace.final_dir,
-        workspace.logs_dir,
-        workspace.state_dir,
-        workspace.assets_dir / _MANIFEST_NAME,
-        workspace.assets_dir / _QA_NAME,
-    ]
-    return out

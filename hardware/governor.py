@@ -29,16 +29,6 @@ def _env_int(name: str, default: int, *, lo: int, hi: int) -> int:
         return max(lo, min(hi, default))
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name, "").strip()
-    if not raw:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default
-
-
 @dataclass(frozen=True)
 class PlatformProfile:
     """Static host facts (platform ≠ architecture)."""

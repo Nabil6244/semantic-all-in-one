@@ -22,12 +22,6 @@ def create_no_window_flag() -> int:
     return int(getattr(subprocess, "CREATE_NO_WINDOW", _CREATE_NO_WINDOW))
 
 
-def hidden_kwargs() -> dict[str, Any]:
-    if sys.platform != "win32":
-        return {}
-    return {"creationflags": create_no_window_flag()}
-
-
 def _merge_creationflags(kwargs: dict[str, Any]) -> dict[str, Any]:
     if sys.platform != "win32":
         return kwargs

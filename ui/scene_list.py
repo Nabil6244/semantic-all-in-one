@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence, Tuple
+from typing import Tuple
 
 # Keep in sync with app.py batching / windowing constants.
 SCENE_ROW_SYNC_LIMIT = 24
@@ -11,21 +11,6 @@ SCENE_ROW_BATCH = 20
 SCENE_WINDOW_THRESHOLD = 200  # effectively disable spacer-windowing for typical plans
 SCENE_ROW_HEIGHT = 28
 SCENE_WINDOW_BUFFER = 12
-
-
-def scene_signature(rows: Sequence) -> Tuple:
-    """Cheap identity for skip-rebuild (scene number + asset type + prompt head)."""
-    out = []
-    for r in rows or ():
-        sn = str(getattr(r, "scene_number", "") or "")
-        at = str(getattr(r, "asset_type", "") or "")
-        prompt = str(getattr(r, "prompt", "") or getattr(r, "stock", "") or "")[:40]
-        out.append((sn, at, prompt))
-    return tuple(out)
-
-
-def should_batch(n: int) -> bool:
-    return n > SCENE_ROW_SYNC_LIMIT
 
 
 def should_window(n: int) -> bool:

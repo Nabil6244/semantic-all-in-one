@@ -116,15 +116,6 @@ def allocation_settings_from_mix(
     )
 
 
-def mix_handoff_note(mix: AssetMixPreferences) -> dict:
-    """Explicit targets-only contract for Claude / allocation consumers."""
-    data = mix.normalized().to_dict()
-    data["targets_only"] = True
-    data["quality_protection"] = True
-    data["rule"] = "never_sacrifice_critical_visual_for_provider_pct"
-    return data
-
-
 def mix_flow_video_target(scene_count: int, mix: AssetMixPreferences) -> int:
     """Paid Flow-video scene count implied by mix % (quality-protection aside)."""
     mix = mix.normalized()

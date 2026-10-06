@@ -197,24 +197,39 @@ def vision_semantic_score(
             # that is the prompt-vs-prompt tautology wearing a vision label.
             return None, []
 
+        import os
+        import time
+
+        from visual_director.llm import DEFAULT_GEMINI_MODEL, _record_ai_call
+
+        # The same model and header authentication as every other Gemini call (the key never goes in the URL, where
+        # proxies and logs keep it). Thinking stays low so the short JSON answer is not crowded out.
+        model = (
+            str(((settings or {}).get("ai_models") or {}).get("gemini_vision") or "").strip()
+            or os.environ.get("GEMINI_VISION_MODEL") or os.environ.get("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
+        )
         body = {
             "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 256},
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "maxOutputTokens": 2048,
+                "thinkingConfig": {"thinkingLevel": "low"},
+            },
         }
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"gemini-2.0-flash:generateContent?key={api_key}"
-        )
-        resp = requests.post(url, json=body, timeout=45)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        started = time.monotonic()
+        try:
+            resp = requests.post(url, json=body, timeout=45, headers={"x-goog-api-key": api_key})
+        except Exception as exc:
+            _record_ai_call(model, started, ok=False, error=exc, task="vision_qa")
+            raise
         if resp.status_code != 200:
+            _record_ai_call(model, started, ok=False, error=f"HTTP {resp.status_code}", task="vision_qa")
             return None, []
-        text = (
-            resp.json()
-            .get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
-        )
+        _record_ai_call(model, started, ok=True, task="vision_qa")
+        from visual_director.llm import extract_gemini_text
+
+        text = extract_gemini_text(resp.json())  # skips the model's thought parts
         start = text.find("{")
         end = text.rfind("}") + 1
         if start < 0 or end <= start:

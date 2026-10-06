@@ -37,6 +37,10 @@ def render_graphic_overlay(
         text = TextOverlaySpec(role=spec.role, text=hint)
 
     template = str((spec.payload or {}).get("template") or "")
+    if template.startswith("dataviz_") and (spec.payload or {}).get("dataviz"):
+        from .dataviz import DataViz, render_dataviz
+
+        return render_dataviz(DataViz.from_dict(spec.payload["dataviz"]), out_path, width, height, design=design)
     if template == "countdown_tag":
         return _render_countdown_tag(text.text, out_path, width, height)
     if template == "countdown_hook":

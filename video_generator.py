@@ -35,6 +35,8 @@ import json
 import os
 import re
 import shutil
+import time
+from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import sys
 import textwrap
@@ -703,19 +705,6 @@ def missing_images_for_scenes(rows, images_dir: Path):
     return missing
 
 
-def count_image_files(images_dir: Path) -> int:
-    """Count image files in images_dir including one level of subfolders."""
-    images_dir = Path(images_dir)
-    n = 0
-    for p in images_dir.rglob("*"):
-        if p.is_file() and p.suffix.lower() in MEDIA_EXTS and not p.name.startswith("."):
-            # Ignore staging leftovers if any
-            if "_arrange_staging" in p.parts:
-                continue
-            n += 1
-    return n
-
-
 def validate_prerequisites(
     rows,
     images_dir: Path,
@@ -954,39 +943,6 @@ def render_caption_overlay(
     out_path = Path(out_path)
     img.save(out_path, format="PNG")
     return out_path
-
-
-def render_smart_text_overlay(
-    text: str,
-    out_path: Path,
-    width: int,
-    height: int,
-    *,
-    intensity: float = 0.65,
-    effect: str = "highlight",
-    local_start: float = 0.0,
-    local_end: float | None = None,
-    fx: dict | None = None,
-) -> Path | None:
-    """Transparent full-frame PNG via typography theme (Pillow — no drawtext needed).
-
-    Never falls back to the old Arial caption renderer — that produced the
-    "subtitle" look users report as broken typography.
-    """
-    from typography import render_style_overlay
-
-    t1 = float(local_end) if local_end is not None else float(local_start) + 0.35
-    payload = {
-        "text": text,
-        "effect": effect,
-        "intensity": intensity,
-        "local_start": float(local_start),
-        "local_end": t1,
-    }
-    if isinstance(fx, dict):
-        # Preserve scene metadata (composition hints, etc.) from Smart Editing.
-        payload = {**fx, **payload}
-    return render_style_overlay(payload, out_path, width, height)
 
 
 def _zoompan_filter(
@@ -2448,6 +2404,31 @@ def _render_scene_clip(
     _run_ffmpeg_encode(cmd, img_path.name)
 
 
+def _scene_loop_guard(iterable, pool):
+    """Iterate the scene loop; if it stops early (an exception — a failed render, a cancel), stop the render workers
+    instead of leaving them encoding scenes nobody will use. A loop that runs to the end leaves them working."""
+    completed = False
+    try:
+        yield from iterable
+        completed = True
+    finally:
+        if pool is not None and not completed:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+
+def _scene_render_workers(n_scenes: int) -> int:
+    """How many scene clips to encode at once: the resource governor's ffmpeg budget (VIDEOGEN_FFMPEG_WORKERS
+    overrides it), never more than there are scenes. 1 = the original one-at-a-time loop."""
+    if n_scenes < 2:
+        return 1
+    try:
+        from hardware.governor import get_governor
+
+        return max(1, min(int(get_governor().recommend_ffmpeg_workers()), n_scenes, 4))
+    except Exception:
+        return 1
+
+
 def render_video(
     aligned_rows,
     audio_end,
@@ -2615,7 +2596,42 @@ def render_video(
     # transition_in/transition_duration (see build_xfade_filter_complex).
     real_transition_into_scene: list[tuple[str, float] | None] = [None] * n
     coverage_flags = manifest_coverage_flags(images_dir)
-    for i, (img, dur, row) in enumerate(zip(image_paths, durations, aligned_rows)):
+
+    # Scene clips are independent: while one is encoding, the next is prepared (overlays, frame analysis) and up to
+    # the resource governor's ffmpeg budget encode at once (2 on most machines, 1 under memory pressure — the ffmpeg
+    # runner also holds a governor lease per encode). Clip order, cache keys and output are unchanged.
+    render_workers = _scene_render_workers(n)
+    _render_wall_start = time.monotonic()
+    render_pool = ThreadPoolExecutor(max_workers=render_workers, thread_name_prefix="scene-render") if render_workers > 1 else None
+    pending: list = []
+    done_count = [0]
+
+    def _finish_scene(i, sn_key, future, cache_hit=None):
+        if future is not None:
+            cache_hit = future.result()  # re-raises a render failure here, on the calling thread
+        done_count[0] += 1
+        if perf is not None:
+            perf.note_cache(bool(cache_hit))
+        if progress_cb is not None:
+            try:
+                from progress_events import make_event
+
+                progress_cb(
+                    make_event(
+                        "rendering",
+                        done_count[0],
+                        n,
+                        scene_id=sn_key,
+                        message=f"Scene {sn_key}" + (" (cached)" if cache_hit else ""),
+                        eta=scene_eta,
+                    )
+                )
+            except Exception:
+                pass
+
+    if render_workers > 1:
+        print(f"[3/4] Rendering scene clips {render_workers} at a time.")
+    for i, (img, dur, row) in _scene_loop_guard(enumerate(zip(image_paths, durations, aligned_rows)), render_pool):
         out_clip = scene_clip_path(clips_dir, scene_clip_filename(i))
         sn = str(row.get("scene_number") or "")
         style_key = (camera_by_scene or {}).get(sn)
@@ -2863,105 +2879,103 @@ def render_video(
             edit_decision=edit_dec if isinstance(edit_dec, dict) else None,
         )
 
-        cache_hit = False
-        _perf_ctx = perf.timer("scene_render", scene_id=sn_key) if perf is not None else contextlib.nullcontext()
-        with _perf_ctx:
-            if render_cache is not None:
-                try:
-                    from render_cache import build_scene_cache_key
-
-                    cache_key = build_scene_cache_key(
-                        scene_number=sn_key,
-                        encode_args=_cpu_encode_argv(),
-                        **{k: v for k, v in _scene_clip_kwargs.items() if k != "out_path"},
-                    )
-                    cached_clip = render_cache.get(sn_key, cache_key)
-                except Exception as exc:
-                    # Any failure building/looking up the key is a miss —
-                    # never let cache-layer trouble block a render.
-                    print(f"[3/4] Render cache lookup skipped for scene {sn_key}: {exc}")
-                    cache_key = None
-                    cached_clip = None
-                if cached_clip is not None and render_cache.reuse(cached_clip, out_clip):
-                    cache_hit = True
-
-            if not cache_hit:
-                _render_scene_clip(**_scene_clip_kwargs)
-                if render_cache is not None and cache_key is not None:
+        def _encode_scene(sn_key=sn_key, out_clip=out_clip, _scene_clip_kwargs=_scene_clip_kwargs, edit_dec=edit_dec,
+                          zoom_blur_in=zoom_blur_in, zoom_blur_out=zoom_blur_out):
+            """Encode this scene's clip (render cache, B-roll and zoom-blur passes included). Runs on a render worker."""
+            cache_hit = False
+            _perf_ctx = perf.timer("scene_render", scene_id=sn_key) if perf is not None else contextlib.nullcontext()
+            with _perf_ctx:
+                if render_cache is not None:
                     try:
-                        render_cache.put(sn_key, cache_key, out_clip)
+                        from render_cache import build_scene_cache_key
+
+                        cache_key = build_scene_cache_key(
+                            scene_number=sn_key,
+                            encode_args=_cpu_encode_argv(),
+                            **{k: v for k, v in _scene_clip_kwargs.items() if k != "out_path"},
+                        )
+                        cached_clip = render_cache.get(sn_key, cache_key)
                     except Exception as exc:
-                        print(f"[3/4] Render cache store skipped for scene {sn_key}: {exc}")
+                        # Any failure building/looking up the key is a miss —
+                        # never let cache-layer trouble block a render.
+                        print(f"[3/4] Render cache lookup skipped for scene {sn_key}: {exc}")
+                        cache_key = None
+                        cached_clip = None
+                    if cached_clip is not None and render_cache.reuse(cached_clip, out_clip):
+                        cache_hit = True
 
-        # Real B-roll overlay: composite any genuinely-overlapping VIDEO_2
-        # clip(s) (see reconcile_timeline_into_decisions) onto the just-
-        # rendered scene clip. Applied AFTER cache lookup/render (a cache
-        # hit's stored clip never has broll baked in — the cache key
-        # doesn't cover it) so it always reflects the current broll state;
-        # cheap in practice since most scenes have no broll entries at all.
-        broll_entries = edit_dec.get("broll") if isinstance(edit_dec, dict) else None
-        if broll_entries:
-            for b_i, broll in enumerate(broll_entries):
-                broll_src = broll.get("source_path")
-                if not broll_src or not Path(broll_src).is_file():
-                    continue
-                composited = out_clip.parent / f"{out_clip.stem}_broll{b_i}{out_clip.suffix}"
-                ok = composite_broll_overlay(
-                    out_clip, Path(broll_src), composited,
-                    overlay_start=float(broll.get("overlay_start") or 0.0),
-                    overlay_duration=float(broll.get("overlay_duration") or 0.0),
-                    width=width, height=height, fps=fps,
-                    broll_source_start=float(broll.get("source_start") or 0.0),
-                    broll_speed=float(broll.get("speed") or 1.0),
-                    scale=float(broll.get("scale") or 0.4),
-                    position=str(broll.get("position") or "bottom_right"),
-                )
-                if ok:
-                    try:
-                        composited.replace(out_clip)
-                    except OSError:
-                        pass
-                else:
-                    print(f"[3/4] B-roll overlay failed for scene {sn_key} — kept base clip without it.")
-                    try:
-                        composited.unlink(missing_ok=True)
-                    except OSError:
-                        pass
+                if not cache_hit:
+                    _render_scene_clip(**_scene_clip_kwargs)
+                    if render_cache is not None and cache_key is not None:
+                        try:
+                            render_cache.put(sn_key, cache_key, out_clip)
+                        except Exception as exc:
+                            print(f"[3/4] Render cache store skipped for scene {sn_key}: {exc}")
 
-        # Zoom-blur transition (maps / countdown facts): a pass on the finished
-        # clip, after cache + B-roll, like the B-roll overlay above — a cached
-        # clip never has it baked in. Failure leaves a plain cut.
-        if zoom_blur_in or zoom_blur_out:
-            try:
-                from editorial.zoom_blur import apply_zoom_blur
-
-                if not apply_zoom_blur(out_clip, head=zoom_blur_in, tail=zoom_blur_out, width=width,
-                                       height=height, fps=fps, encode_args=_cpu_encode_argv()):
-                    print(f"[3/4] Zoom-blur transition skipped for scene {sn_key} (plain cut).")
-            except Exception as exc:
-                print(f"[3/4] Zoom-blur transition skipped for scene {sn_key}: {exc}")
-
-        if perf is not None:
-            perf.note_cache(cache_hit)
-        if progress_cb is not None:
-            try:
-                from progress_events import make_event
-
-                progress_cb(
-                    make_event(
-                        "rendering",
-                        i + 1,
-                        n,
-                        scene_id=sn_key,
-                        message=f"Scene {sn_key}" + (" (cached)" if cache_hit else ""),
-                        eta=scene_eta,
+            # Real B-roll overlay: composite any genuinely-overlapping VIDEO_2
+            # clip(s) (see reconcile_timeline_into_decisions) onto the just-
+            # rendered scene clip. Applied AFTER cache lookup/render (a cache
+            # hit's stored clip never has broll baked in — the cache key
+            # doesn't cover it) so it always reflects the current broll state;
+            # cheap in practice since most scenes have no broll entries at all.
+            broll_entries = edit_dec.get("broll") if isinstance(edit_dec, dict) else None
+            if broll_entries:
+                for b_i, broll in enumerate(broll_entries):
+                    broll_src = broll.get("source_path")
+                    if not broll_src or not Path(broll_src).is_file():
+                        continue
+                    composited = out_clip.parent / f"{out_clip.stem}_broll{b_i}{out_clip.suffix}"
+                    ok = composite_broll_overlay(
+                        out_clip, Path(broll_src), composited,
+                        overlay_start=float(broll.get("overlay_start") or 0.0),
+                        overlay_duration=float(broll.get("overlay_duration") or 0.0),
+                        width=width, height=height, fps=fps,
+                        broll_source_start=float(broll.get("source_start") or 0.0),
+                        broll_speed=float(broll.get("speed") or 1.0),
+                        scale=float(broll.get("scale") or 0.4),
+                        position=str(broll.get("position") or "bottom_right"),
                     )
-                )
-            except Exception:
-                pass
+                    if ok:
+                        try:
+                            composited.replace(out_clip)
+                        except OSError:
+                            pass
+                    else:
+                        print(f"[3/4] B-roll overlay failed for scene {sn_key} — kept base clip without it.")
+                        try:
+                            composited.unlink(missing_ok=True)
+                        except OSError:
+                            pass
+
+            # Zoom-blur transition (maps / countdown facts): a pass on the finished
+            # clip, after cache + B-roll, like the B-roll overlay above — a cached
+            # clip never has it baked in. Failure leaves a plain cut.
+            if zoom_blur_in or zoom_blur_out:
+                try:
+                    from editorial.zoom_blur import apply_zoom_blur
+
+                    if not apply_zoom_blur(out_clip, head=zoom_blur_in, tail=zoom_blur_out, width=width,
+                                           height=height, fps=fps, encode_args=_cpu_encode_argv()):
+                        print(f"[3/4] Zoom-blur transition skipped for scene {sn_key} (plain cut).")
+                except Exception as exc:
+                    print(f"[3/4] Zoom-blur transition skipped for scene {sn_key}: {exc}")
+
+            return cache_hit
 
         clip_files.append(out_clip)
+        if render_pool is not None:
+            pending.append((i, sn_key, render_pool.submit(_encode_scene)))
+            while len(pending) > render_workers * 2:  # bounded: prepared overlays never pile up on disk/in memory
+                _finish_scene(*pending.pop(0))
+        else:
+            _finish_scene(i, sn_key, None, _encode_scene())
 
+    try:
+        for item in pending:
+            _finish_scene(*item)
+    finally:
+        if render_pool is not None:
+            render_pool.shutdown(wait=True, cancel_futures=True)
     missing_after_render = [p for p in clip_files if not Path(p).is_file()]
     if missing_after_render:
         sample = missing_after_render[0]
@@ -3003,6 +3017,9 @@ def render_video(
         except Exception:
             pass
 
+    if perf is not None:
+        # Wall-clock time of scene rendering + mux: scene_render spans overlap when clips render in parallel.
+        perf.record("render_wall", time.monotonic() - _render_wall_start, workers=render_workers)
     shutil.rmtree(clips_dir, ignore_errors=True)
     print(f"[4/4] Done. Output: {output_path}")
 

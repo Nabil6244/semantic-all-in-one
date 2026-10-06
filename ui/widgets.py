@@ -8,7 +8,7 @@ switch repaint them.
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional
 
 import customtkinter as ctk
 
@@ -386,14 +386,3 @@ def segmented_style() -> dict:
         unselected_color=T.CARD, unselected_hover_color=T.CARD_HOVER,
         text_color=T.TEXT, text_color_disabled=T.TEXT_TERTIARY, corner_radius=T.RADIUS,
     )
-
-
-def pack_buttons(master, specs: Sequence[tuple], *, side: str = "left", gap: int = 8) -> list:
-    """Build a row of buttons from (text, command, variant) tuples."""
-    out = []
-    for i, spec in enumerate(specs):
-        text, command, variant = (tuple(spec) + ("secondary",))[:3]
-        btn = make_button(master, text, command, variant=variant)
-        btn.pack(side=side, padx=(0 if i == 0 else gap, 0) if side == "left" else (gap, 0))
-        out.append(btn)
-    return out

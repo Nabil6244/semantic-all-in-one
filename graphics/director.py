@@ -108,8 +108,33 @@ def decide_graphic(
 
     candidates: List[GraphicDirective] = []
 
+    # --- DATA VISUALIZATION (several spoken values, a change, a share, dated events) ---
+    # Only from numbers the line actually says (graphics.dataviz never fabricates); when a chart applies it replaces
+    # the single-number statistic card for the same line.
+    viz = None
+    if len(text.split()) >= 8 and not (intent_conf >= 0.55 and intent_graphic == "none"):
+        try:
+            from .dataviz import DECISION_FOR_KIND, detect_dataviz
+
+            viz = detect_dataviz(text)
+        except Exception:
+            viz = None
+    if viz is not None:
+        role = {"ranking": "RANKING", "share": "PROGRESS", "timeline": "TIMELINE"}.get(viz.kind, "COMPARISON")
+        candidates.append(
+            GraphicDirective(
+                decision=DECISION_FOR_KIND[viz.kind],
+                role=role,
+                reason=f"Narration states data a {viz.kind} chart shows at a glance ({len(viz.points)} value(s))",
+                confidence=max(viz.confidence, intent_conf),
+                priority=_PRIORITY["STATISTIC"],
+                text_hint=viz.title,
+                payload={"template": f"dataviz_{viz.kind}", "dataviz": viz.to_dict()},
+            )
+        )
+
     # --- STATISTIC (meaningful numbers only) ---
-    stats = extract_statistics(text)
+    stats = extract_statistics(text) if viz is None else []
     want_stat = bool(stats) and (
         purpose_l in ("evidence", "scale", "comparison")
         or intent_text in ("statistic", "data_graphic")
@@ -307,7 +332,7 @@ def decide_graphic(
 
     # If Smart Editing already punches text, skip generic TEXT/EMPHASIS/CALLOUT
     # but keep STATISTIC / LOWER_THIRD / LOCATION / MAP.
-    keep_always = {"STATISTIC", "LOWER_THIRD", "LOCATION", "MAP", "PROCESS", "TIMELINE", "CHART", "PROGRESS"}
+    keep_always = {"STATISTIC", "LOWER_THIRD", "LOCATION", "MAP", "PROCESS", "TIMELINE", "CHART", "PROGRESS", "COMPARISON", "RANKING"}
     if existing_smart_text:
         candidates = [
             c for c in candidates

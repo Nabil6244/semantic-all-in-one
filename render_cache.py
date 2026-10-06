@@ -23,10 +23,21 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
-RENDER_CACHE_SCHEMA_VERSION = 1
+# 2: overlay PNGs are identified by their content (they are re-drawn into each run's temporary folder, so their path
+#    and mtime changed every run and no scene with an overlay could ever hit). Old entries simply miss once.
+# 3: descriptive-only EditDecision fields (reason, notes, confidence, ...) are left out of the key and its numbers are
+#    rounded. A freshly built plan carries shot reasons the saved plan does not, and float noise after the JSON round
+#    trip, so every rebuild/reload flip missed every clip.
+RENDER_CACHE_SCHEMA_VERSION = 3
+# EditDecision / ShotSpec fields that describe WHY, never WHAT is drawn: the renderer (video_generator._render_scene_clip)
+# reads none of them.
+_DESCRIPTIVE_FIELDS = frozenset({"reason", "notes", "confidence", "editorial_purpose", "visual_role",
+                                 "attention_state", "reveal_phase"})
+_CONTENT_HASH_MAX_BYTES = 16 * 1024 * 1024
 CACHE_INDEX_NAME = "render_cache.json"
 CACHE_CLIPS_DIRNAME = "render_cache"
 
@@ -53,6 +64,33 @@ def _file_identity(path: Any) -> Optional[list]:
         return [str(p.resolve()), st.st_size, st.st_mtime_ns]
     except OSError:
         return [str(path), None, None]
+
+
+def _content_identity(path: Any) -> Optional[list]:
+    """["sha256:<digest>", size] for a small generated file (overlay PNGs): the same picture gives the same identity
+    wherever and whenever it was drawn. Falls back to _file_identity for large or unreadable files."""
+    if not path:
+        return None
+    try:
+        p = Path(path)
+        size = p.stat().st_size
+        if size > _CONTENT_HASH_MAX_BYTES:
+            return _file_identity(path)
+        return ["sha256:" + hashlib.sha256(p.read_bytes()).hexdigest(), size]
+    except OSError:
+        return [str(path), None, None]
+
+
+def _render_relevant(value: Any) -> Any:
+    """The edit decision without its descriptive-only fields (recursively), numbers rounded like every other timing
+    in the key: a plan saved to JSON and loaded back carries 3.879999999999999 where the freshly built one had 3.88."""
+    if isinstance(value, dict):
+        return {k: _render_relevant(v) for k, v in value.items() if k not in _DESCRIPTIVE_FIELDS}
+    if isinstance(value, list):
+        return [_render_relevant(v) for v in value]
+    if isinstance(value, float):
+        return round(value, 4)
+    return value
 
 
 def build_scene_cache_key(
@@ -91,7 +129,7 @@ def build_scene_cache_key(
         center = item[4] if len(item) > 4 else None
         overlays_sig.append(
             [
-                _file_identity(png),
+                _content_identity(png),
                 round(float(t0), 4) if t0 is not None else None,
                 round(float(t1), 4) if t1 is not None else None,
                 anim,
@@ -116,7 +154,7 @@ def build_scene_cache_key(
         "zoom": bool(zoom),
         "zoom_in": bool(zoom_in),
         "zoom_amount": round(float(zoom_amount), 4),
-        "caption_overlay": _file_identity(caption_overlay),
+        "caption_overlay": _content_identity(caption_overlay),
         "text_effect_filters": text_effect_filters or "",
         "timed_overlays": overlays_sig,
         "fade_in": round(float(fade_in), 4),
@@ -124,7 +162,7 @@ def build_scene_cache_key(
         "fade_color": fade_color or "black",
         "camera_style": camera_style,
         "avoid_blind_loop": bool(avoid_blind_loop),
-        "edit_decision": edit_decision,
+        "edit_decision": _render_relevant(edit_decision),
         "edit_decision_sources": edit_decision_sources,
         "encode_args": list(encode_args) if encode_args else [],
     }
@@ -148,7 +186,22 @@ class RenderCache:
         self._index_path = cache_index_path(self.state_dir)
         self._clips_dir = cache_clips_dir(self.state_dir)
         self._entries: dict[str, dict] = {}
+        self._lock = threading.RLock()  # scene clips may be rendered (and stored) by several workers at once
         self._load()
+        self._prune_orphans()
+
+    def _prune_orphans(self) -> None:
+        """Delete clip files no index entry points at (superseded keys, an older cache schema): they can never be hit
+        and are a full clip each. Only this cache's own folder is touched. Never raises."""
+        try:
+            if not self._clips_dir.is_dir():
+                return
+            live = {str((e or {}).get("clip_file") or "") for e in self._entries.values() if isinstance(e, dict)}
+            for f in self._clips_dir.iterdir():
+                if f.is_file() and f.name.startswith("scene_") and f.name not in live:
+                    f.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def _load(self) -> None:
         try:
@@ -191,7 +244,8 @@ class RenderCache:
         miss — scene number matching or filename matching alone is never
         sufficient (PHASE 4's explicit requirement).
         """
-        entry = self._entries.get(str(scene_key))
+        with self._lock:
+            entry = self._entries.get(str(scene_key))
         if not isinstance(entry, dict):
             return None
         if entry.get("cache_key") != cache_key:
@@ -219,8 +273,17 @@ class RenderCache:
             clip_name = f"scene_{str(scene_key)}_{cache_key[:16]}{Path(rendered_clip).suffix}"
             dest = self._clips_dir / clip_name
             shutil.copy2(rendered_clip, dest)
-            self._entries[str(scene_key)] = {"cache_key": cache_key, "clip_file": clip_name}
-            self._save()
+            with self._lock:
+                previous = (self._entries.get(str(scene_key)) or {}).get("clip_file")
+                self._entries[str(scene_key)] = {"cache_key": cache_key, "clip_file": clip_name}
+                self._save()
+            # One cached clip per scene: the superseded one can never hit again (its key is gone from the index), and
+            # keeping it made the cache grow by a full clip for every scene on every changed render.
+            if previous and previous != clip_name:
+                try:
+                    (self._clips_dir / previous).unlink(missing_ok=True)
+                except OSError:
+                    pass
         except (OSError, shutil.Error):
             pass
 

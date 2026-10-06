@@ -301,7 +301,7 @@ def _logo_path() -> Path | None:
 
 
 def _logo_ctk_image(diameter: int, *, circular: bool = True):
-    """Load branding asset; UI uses a centered circular crop (no stretch)."""
+    """Load branding asset; UI uses a centered square crop of the rounded-square mark (no stretch)."""
     size = max(1, int(diameter))
     cache_key = (size, bool(circular))
     hit = _LOGO_CTK_CACHE.get(cache_key)
@@ -312,7 +312,7 @@ def _logo_ctk_image(diameter: int, *, circular: bool = True):
         _LOGO_CTK_CACHE[cache_key] = (None, None)
         return None, None
     try:
-        from PIL import Image, ImageDraw
+        from PIL import Image
 
         img = Image.open(logo_path).convert("RGBA")
         w, h = img.size
@@ -320,16 +320,12 @@ def _logo_ctk_image(diameter: int, *, circular: bool = True):
             _LOGO_CTK_CACHE[cache_key] = (None, None)
             return None, None
         if circular:
+            # The mark is a rounded square with its own transparent corners: centre-crop to a square, no extra mask.
             side = min(w, h)
             left = (w - side) // 2
             top = (h - side) // 2
             img = img.crop((left, top, left + side, top + side))
             img = img.resize((size, size), Image.Resampling.LANCZOS)
-            mask = Image.new("L", (size, size), 0)
-            ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
-            out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-            out.paste(img, mask=mask)
-            img = out
         else:
             scale = size / h
             disp_w = max(1, int(w * scale))
@@ -344,7 +340,7 @@ def _logo_ctk_image(diameter: int, *, circular: bool = True):
 
 
 def _logo_icon_photo(size: int = 64):
-    """Window/dock icon — same centered circular crop as the header."""
+    """Window/dock icon — same centered square crop as the header."""
     size = max(1, int(size))
     if size in _LOGO_ICON_CACHE:
         return _LOGO_ICON_CACHE[size]
@@ -353,7 +349,7 @@ def _logo_icon_photo(size: int = 64):
         _LOGO_ICON_CACHE[size] = None
         return None
     try:
-        from PIL import Image, ImageDraw, ImageTk
+        from PIL import Image, ImageTk
 
         img = Image.open(logo_path).convert("RGBA")
         w, h = img.size
@@ -365,11 +361,7 @@ def _logo_icon_photo(size: int = 64):
         top = (h - side) // 2
         img = img.crop((left, top, left + side, top + side))
         img = img.resize((size, size), Image.Resampling.LANCZOS)
-        mask = Image.new("L", (size, size), 0)
-        ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
-        out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        out.paste(img, mask=mask)
-        photo = ImageTk.PhotoImage(out)
+        photo = ImageTk.PhotoImage(img)
         _LOGO_ICON_CACHE[size] = photo
         return photo
     except Exception:
@@ -1305,8 +1297,12 @@ class VideoGeneratorApp(ctk.CTk):
         self._local_check_var = ctk.StringVar(value="Select a CSV and local assets folder to check.")
         self.bg_var = ctk.StringVar()
         self.output_var = ctk.StringVar()
-        self.model_var = ctk.StringVar(value="small")
-        self.captions_var = ctk.BooleanVar(value=False)
+        # Remembered app-wide (they used to reset on every launch, so they were asked again every session).
+        _whisper = str(self._settings.get("whisper_model") or "small")
+        self.model_var = ctk.StringVar(value=_whisper if _whisper in ("tiny", "base", "small", "medium", "large-v3") else "small")
+        self.model_var.trace_add("write", lambda *_: self._persist_setting("whisper_model", self.model_var.get()))
+        self.captions_var = ctk.BooleanVar(value=bool(self._settings.get("captions", False)))
+        self.captions_var.trace_add("write", lambda *_: self._persist_setting("captions", bool(self.captions_var.get())))
         # How the Captions switch draws them: "Classic" white outline, or "PakMap" (the map videos' yellow caption). Saved.
         self.caption_style_var = ctk.StringVar(value="PakMap" if self._settings.get("caption_style") == "pakmap" else "Classic")
         self.caption_style_var.trace_add("write", lambda *_: self._persist_caption_style())
@@ -2730,6 +2726,8 @@ class VideoGeneratorApp(ctk.CTk):
             from scene_graph.app_integration import generate_overscaled_video
             from scene_graph.app_integration import OverscaledGenerationResult
 
+            prun = self._production_begin(style_preset_id or "overscaled")
+
             # A raise anywhere in here (planner, style preset, Whisper import,
             # an unguarded provider path) previously escaped the thread before
             # finish() ran — _overscaled_running stayed True and the Generate
@@ -2776,6 +2774,7 @@ class VideoGeneratorApp(ctk.CTk):
 
             except Exception as exc:
                 result = OverscaledGenerationResult(ok=False, errors=[f"Unexpected error: {exc!r}"])
+            self._production_end(prun, result, self._overscaled_cancel.is_set())
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
@@ -4420,6 +4419,8 @@ class VideoGeneratorApp(ctk.CTk):
             from hybrid.generate import generate_hybrid_video
             from pakmap.app_integration import PakmapResult
 
+            prun = self._production_begin("hybrid")
+
             try:
                 try:
                     words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
@@ -4436,6 +4437,7 @@ class VideoGeneratorApp(ctk.CTk):
                     )
             except Exception as exc:
                 result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+            self._production_end(prun, result, self._hybrid_cancel.is_set())
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
@@ -4818,6 +4820,8 @@ class VideoGeneratorApp(ctk.CTk):
         def worker() -> None:
             from pakmap.app_integration import PakmapResult, generate_pakmap_video
 
+            prun = self._production_begin("pakmap")
+
             try:
                 try:
                     words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
@@ -4835,6 +4839,7 @@ class VideoGeneratorApp(ctk.CTk):
                     )
             except Exception as exc:
                 result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+            self._production_end(prun, result, self._pakmap_cancel.is_set())
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
@@ -6463,6 +6468,70 @@ class VideoGeneratorApp(ctk.CTk):
             self._refresh_cache_status()
         except Exception:
             pass
+        self._bind_production_layer(ws)
+
+    def _bind_production_layer(self, ws) -> None:
+        """Point the production event log and job ledger at this project, then (in the background) clean up what an
+        interrupted session left behind: half-written downloads and broken render-cache entries. Missing scene files
+        and interrupted jobs are only reported — Generate / Retry fetch them through the usual providers."""
+        try:
+            from production import events as _pevents
+            from production import jobs as _pjobs
+
+            _pevents.bind_project(ws.state_dir)
+            ledger = _pjobs.bind_project(ws.state_dir, ws.project_id)
+        except Exception:
+            return
+        images_dir = Path(self.images_var.get().strip()) if self.images_var.get().strip() else ws.assets_dir
+
+        def worker() -> None:
+            try:
+                from production import recovery as _precovery
+
+                report = _precovery.scan_project(ws, images_dir=images_dir, ledger=ledger)
+                if report.needs_attention:
+                    _precovery.apply(report, ws)
+                    self._ui_queue.put(("log", f"[RECOVERY] {report.summary()}\n"))
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, daemon=True, name="production-recovery-scan").start()
+
+    def _production_begin(self, mode: str) -> dict:
+        """Start a run in the production event log + a job for the whole render (Overscaled, Exp Solar, Hybrid, pakMap:
+        their own engines render, the ledger only records). Never raises."""
+        try:
+            from production import events as _pevents
+            from production import jobs as _pjobs
+
+            token = _pevents.start_run(mode)
+            job = _pjobs.current().create(f"{mode}_render", reuse_active=False)
+            _pjobs.current().start(job.id)
+            token["job"] = job.id
+            return token
+        except Exception:
+            return {}
+
+    def _production_end(self, token: dict, result, cancelled: bool) -> None:
+        try:
+            from production import events as _pevents
+            from production import jobs as _pjobs
+
+            ledger = _pjobs.current()
+            ok = bool(getattr(result, "ok", False))
+            job_id = (token or {}).get("job")
+            if job_id:
+                if ok:
+                    out = getattr(result, "output_path", None) or getattr(result, "video_path", None)
+                    ledger.complete(job_id, outputs=[out] if out else [])
+                elif cancelled or getattr(result, "cancelled", False):
+                    ledger.cancel(job_id)
+                else:
+                    errors = getattr(result, "errors", None) or []
+                    ledger.fail(job_id, "; ".join(str(e) for e in errors)[:800] or "failed")
+            _pevents.end_run(token, "ok" if ok else ("cancelled" if cancelled else "error"))
+        except Exception:
+            pass
 
     def _refresh_cleanup_button(self, *, defer: bool = False) -> None:
         """Update Cleanup button label from a downloaded-assets scan.
@@ -6638,6 +6707,112 @@ class VideoGeneratorApp(ctk.CTk):
     def _persist_caption_style(self) -> None:
         self._settings["caption_style"] = self.caption_style()
         save_settings(self._settings)
+
+    def _persist_setting(self, key: str, value) -> None:
+        """Save one app-wide choice (only when it actually changed)."""
+        if self._settings.get(key) == value:
+            return
+        self._settings[key] = value
+        try:
+            save_settings(self._settings)
+        except Exception:
+            pass
+
+    def _build_production_panel(self, parent) -> None:
+        """Settings → This project → PRODUCTION: what is running, what failed and why, and what this project's
+        production has cost and saved — computed from the project's production event log (production.analytics)."""
+        ctk.CTkFrame(parent, fg_color=_BORDER, height=1).pack(fill="x", padx=20, pady=(8, 0))
+        ctk.CTkLabel(
+            parent, text="PRODUCTION", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(16, 4))
+        status_var = ctk.StringVar(value="")
+        ctk.CTkLabel(
+            parent, textvariable=status_var, font=ctk.CTkFont(size=12), text_color=_TEXT, anchor="w",
+            justify="left", wraplength=430,
+        ).pack(anchor="w", padx=20, pady=(0, 6))
+        report_box = ctk.CTkTextbox(parent, height=260, wrap="word", font=ctk.CTkFont(family="Menlo", size=11))
+        report_box.pack(fill="x", padx=20, pady=(0, 6))
+        report_box.insert("1.0", "Open a project to see its production report." if self._workspace is None else "Loading…")
+        report_box.configure(state="disabled")
+        buttons = ctk.CTkFrame(parent, fg_color="transparent")
+        buttons.pack(fill="x", padx=20, pady=(0, 16))
+        report_text = {"text": ""}
+
+        def show(text: str, status: str) -> None:
+            try:
+                report_text["text"] = text
+                status_var.set(status)
+                report_box.configure(state="normal")
+                report_box.delete("1.0", "end")
+                report_box.insert("1.0", text)
+                report_box.configure(state="disabled")
+            except Exception:
+                pass  # the Settings window was closed meanwhile
+
+        def refresh() -> None:
+            ws = self._workspace
+            if ws is None:
+                return
+
+            def worker() -> None:
+                try:
+                    from production import analytics as _pa
+                    from production import jobs as _pj
+
+                    st = _pj.current().status()
+                    parts = []
+                    if st["active"]:
+                        parts.append(f"{st['active']} job(s) in progress")
+                    if st["failed"]:
+                        why = ", ".join(f"{k} {v}" for k, v in st["failed_by_class"].items())
+                        parts.append(f"{st['failed']} failed ({why})" + (f" — {st['retryable']} can simply be retried" if st["retryable"] else ""))
+                    status = "; ".join(parts) or "Nothing running and nothing failed."
+                    text = _pa.format_report(_pa.project_report(ws))
+                except Exception as exc:
+                    status, text = "", f"The report could not be built: {exc}"
+                self.after(0, lambda: show(text, status))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        def copy_report() -> None:
+            if report_text["text"]:
+                self.clipboard_clear()
+                self.clipboard_append(report_text["text"])
+                self._notify_saved("Production report copied", button=copy_btn)
+
+        def recover() -> None:
+            ws = self._workspace
+            if ws is None:
+                return
+
+            def worker() -> None:
+                try:
+                    from production import jobs as _pj
+                    from production import recovery as _pr
+
+                    images = Path(self.images_var.get().strip()) if self.images_var.get().strip() else ws.assets_dir
+                    report = _pr.apply(_pr.scan_project(ws, images_dir=images, ledger=_pj.current()), ws)
+                    msg = report.summary()
+                except Exception as exc:
+                    msg = f"Recovery could not run: {exc}"
+                self.after(0, lambda: (messagebox.showinfo("Clean up interrupted work", msg), refresh()))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        ctk.CTkButton(buttons, text="Refresh", width=90, height=30, fg_color="transparent", border_width=1,
+                      border_color=_BORDER, text_color=_TEXT, command=refresh).pack(side="left", padx=(0, 8))
+        copy_btn = ctk.CTkButton(buttons, text="Copy report", width=110, height=30, fg_color="transparent", border_width=1,
+                                 border_color=_BORDER, text_color=_TEXT, command=copy_report)
+        copy_btn.pack(side="left", padx=(0, 8))
+        ctk.CTkButton(buttons, text="Clean up interrupted work", height=30, fg_color="transparent", border_width=1,
+                      border_color=_BORDER, text_color=_TEXT, command=recover).pack(side="left")
+        ctk.CTkLabel(
+            parent,
+            text="Half-finished downloads and broken render-cache entries are also cleaned automatically when a "
+                 "project opens. Finished media, CSVs, narration and final videos are never touched.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=430, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 16))
+        refresh()
 
     def _persist_ken_burns(self) -> None:
         """Every Ken Burns switch (Smart Editing panel, Settings, Render
@@ -11131,10 +11306,45 @@ class VideoGeneratorApp(ctk.CTk):
         # compressed to ~1px when content exceeded the window's fixed size). A
         # scrollable outer frame makes this correct regardless of content length,
         # font size, or OS display scaling.
-        body = ctk.CTkScrollableFrame(
-            win, fg_color=_BG, scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
+        # One tab per SCOPE, so it is always clear where a choice is saved: General and Keys & AI and Flow apply to
+        # the whole app, "This project" only to the open project (saved in its project.json).
+        tabview = ctk.CTkTabview(
+            win, fg_color=_BG, segmented_button_selected_color=_ACCENT,
+            segmented_button_selected_hover_color=_ACCENT_HOV, text_color=_TEXT,
         )
-        body.pack(fill="both", expand=True)
+        tabview.pack(fill="both", expand=True, padx=8, pady=(4, 8))
+        tab_scope = {
+            "General": "Applies to the whole app.",
+            "Keys & AI": "Applies to the whole app. Keys are stored on this computer only.",
+            "Flow": "Applies to the whole app: every project uses these Flow accounts and options.",
+            "This project": (f"Saved with the open project ({self._workspace.title})." if self._workspace is not None
+                             else "Open a project to see its settings."),
+        }
+        tab_bodies: dict = {}
+        for _tab_name, _scope in tab_scope.items():
+            _tab = tabview.add(_tab_name)
+            _scroll = ctk.CTkScrollableFrame(
+                _tab, fg_color=_BG, scrollbar_button_color=_BORDER, scrollbar_button_hover_color=_ACCENT,
+            )
+            _scroll.pack(fill="both", expand=True)
+            ctk.CTkLabel(
+                _scroll, text=_scope, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left",
+                wraplength=430,
+            ).pack(anchor="w", padx=20, pady=(8, 0))
+            tab_bodies[_tab_name] = _scroll
+        _last_tab = str(self._settings.get("settings_tab") or "")
+        if _last_tab in tab_bodies:
+            tabview.set(_last_tab)
+
+        def _remember_tab(*_a) -> None:
+            try:
+                self._settings["settings_tab"] = tabview.get()
+                save_settings(self._settings)
+            except Exception:
+                pass
+
+        win.bind("<Destroy>", lambda e: _remember_tab() if e.widget is win else None, add="+")
+        body = tab_bodies["General"]
 
         ctk.CTkLabel(
             body, text="APPEARANCE", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
@@ -11198,6 +11408,7 @@ class VideoGeneratorApp(ctk.CTk):
                 command=do_sign_out,
             ).pack(anchor="w", padx=20, pady=(0, 16))
 
+        body = tab_bodies["Keys & AI"]
         ctk.CTkLabel(
             body, text="STOCK PROVIDERS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(20, 4))
@@ -11407,12 +11618,13 @@ class VideoGeneratorApp(ctk.CTk):
         )
         gemini_save_btn.pack(anchor="w", padx=20, pady=(10, 16))
 
+        body = tab_bodies["General"]
         ctk.CTkLabel(
-            body, text="OUTPUT", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
-        ).pack(anchor="w", padx=20, pady=(8, 4))
+            body, text="CAPTIONS & NARRATION TIMING", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(16, 4))
         out_row = ctk.CTkFrame(body, fg_color="transparent")
         out_row.pack(fill="x", padx=20, pady=(0, 8))
-        ctk.CTkLabel(out_row, text="Whisper", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
+        ctk.CTkLabel(out_row, text="Timing model", font=ctk.CTkFont(size=12), text_color=_TEXT).pack(side="left")
         ctk.CTkOptionMenu(
             out_row, variable=self.model_var,
             values=["tiny", "base", "small", "medium", "large-v3"],
@@ -11431,15 +11643,18 @@ class VideoGeneratorApp(ctk.CTk):
         ).pack(side="left", padx=(12, 0))
         ctk.CTkLabel(
             body,
-            text="Text styles, graphics, Ken Burns zoom, transitions, sound effects and ambience "
-                 "are on the Audio & Effects page.",
+            text="The timing model (Whisper) lines the narration up with the scenes: larger models are more accurate "
+                 "and slower; an alignment is reused until the narration changes. Both choices are remembered. "
+                 "Text styles, graphics, Ken Burns zoom, transitions, sound effects and ambience are on the "
+                 "Audio & Effects page.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 12))
 
         # ── Video quality — saved with the open project (ProjectWorkspace.quality_settings), not app-wide.
+        body = tab_bodies["This project"]
         ctk.CTkLabel(
-            body, text="VIDEO QUALITY (THIS PROJECT)", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
-        ).pack(anchor="w", padx=20, pady=(4, 4))
+            body, text="VIDEO QUALITY", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(16, 4))
         quality = self._workspace.quality_settings() if self._workspace is not None else {}
         uhd_var = ctk.BooleanVar(value=bool(quality.get("uhd_footage")))
 
@@ -11596,7 +11811,10 @@ class VideoGeneratorApp(ctk.CTk):
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
 
+        self._build_production_panel(tab_bodies["This project"])
+
         # ── Flow Settings — Image + Video (exact options flow-engine supports) ──
+        body = tab_bodies["Flow"]
         ctk.CTkLabel(
             body, text="FLOW SETTINGS", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(16, 8))
@@ -12378,6 +12596,21 @@ class VideoGeneratorApp(ctk.CTk):
             self._ui_queue.put(("error", f"Could not prepare the render: {exc}"))
             return
         old_cwd = os.getcwd()
+        from production import events as _pevents
+        from production import jobs as _pjobs
+        from production import regeneration as _pregen
+
+        prun = _pevents.start_run(mode, scenes=len(config.get("rows") or []))
+        poutcome = "error"
+        ledger = _pjobs.current()
+        state_dir_p = self._workspace.state_dir if self._workspace is not None else None
+        prod_settings = None
+        try:
+            from production.graph import settings_fingerprint
+
+            prod_settings = settings_fingerprint(config)
+        except Exception:
+            pass
 
         try:
             os.chdir(work_dir)
@@ -12422,6 +12655,15 @@ class VideoGeneratorApp(ctk.CTk):
             scene_rows = [SceneRow.from_csv_row(r) for r in config["rows"]]
             if getattr(self, "_visual_plan", None) is not None:
                 scene_rows = self._visual_plan.to_scene_rows()
+            # Surgical regeneration: what this run has to rebuild, from the dependency graph (narration timing is only
+            # known after alignment — refined below before rendering).
+            _pgraph, _pplan = _pregen.prepare(
+                config["rows"], images_dir=config["images_dir"], state_dir=state_dir_p,
+                audio_key=_audio_fingerprint(config["audio_path"]), settings=prod_settings,
+            )
+            if _pplan is not None:
+                for _line in _pplan.lines():
+                    print(f"[PLAN] {_line}")
             wants_numbered_local = any(s.wants_local_numbered for s in scene_rows)
             needs_asset_resolve = any(
                 s.wants_flow or s.wants_stock or s.wants_youtube
@@ -12478,6 +12720,7 @@ class VideoGeneratorApp(ctk.CTk):
                         and (not record or _manifest_record_matches_row(record, scene))
                     ):
                         pre_resolved[str(scene.scene_number)] = existing
+                        self._asset_manager._note_reused(scene, existing)
                         print(
                             f"[ASSET] Scene {scene.scene_number} -> already ready "
                             f"(reusing {Path(path).name})"
@@ -12488,6 +12731,7 @@ class VideoGeneratorApp(ctk.CTk):
                     cached = self._asset_manager._cache_hit(scene, source)
                     if cached is not None:
                         pre_resolved[str(scene.scene_number)] = cached
+                        self._asset_manager._note_reused(scene, cached)
                         self._asset_results[key] = cached
                         print(
                             f"[ASSET] Scene {scene.scene_number} -> {source.value.upper()} "
@@ -12566,14 +12810,17 @@ class VideoGeneratorApp(ctk.CTk):
                 )
                 print(f"[ASSET] {stats['ready']}/{stats['total']} scenes ready.")
                 if not stats["allow_render"]:
+                    poutcome = "partial"
                     self._ui_queue.put(("assets_partial", stats))
                     return
                 if mode == "assets":
+                    poutcome = "ok"
                     self._ui_queue.put(("assets_complete", stats))
                     return
                 print("")
             elif mode == "assets":
                 # No remote providers — local/manual assets already on disk.
+                poutcome = "ok"
                 self._ui_queue.put(("assets_complete", {"ready": len(scene_rows), "total": len(scene_rows)}))
                 return
 
@@ -12591,8 +12838,9 @@ class VideoGeneratorApp(ctk.CTk):
                 if cached:
                     whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
                     print("[SMART] Reusing cached word alignment.")
+                _pevents.emit("cache", cache="whisper", hit=bool(cached))
             if whisper_words is None:
-                with perf.timer("whisper") if perf is not None else contextlib.nullcontext():
+                with ledger.track("align"), (perf.timer("whisper") if perf is not None else contextlib.nullcontext()):
                     whisper_words = vg.transcribe_audio(
                         str(config["audio_path"]),
                         config["model"],
@@ -12620,8 +12868,9 @@ class VideoGeneratorApp(ctk.CTk):
                     audio_key=audio_key,
                     settings_key=editorial_settings_key,
                 )
+            _pevents.emit("cache", cache="editorial", hit=editorial_plan is not None)
             if editorial_plan is None:
-                with perf.timer("editorial") if perf is not None else contextlib.nullcontext():
+                with ledger.track("editorial"), (perf.timer("editorial") if perf is not None else contextlib.nullcontext()):
                     editorial_plan = build_editorial_plan(
                         config["rows"],
                         aligned,
@@ -12950,6 +13199,24 @@ class VideoGeneratorApp(ctk.CTk):
                         "(visual map owned by Editorial Pacing)."
                     )
 
+            # Alignment is known now: re-plan with every scene's real length, so only scenes whose length (or inputs)
+            # changed are counted as re-rendered.
+            try:
+                from production.graph import timings_from_editorial_plan
+
+                _pgraph, _pplan = _pregen.prepare(
+                    config["rows"], images_dir=config["images_dir"], state_dir=state_dir_p,
+                    audio_key=audio_key, settings=prod_settings, timings=timings_from_editorial_plan(editorial_plan),
+                )
+                if _pplan is not None:
+                    _pregen.emit_plan(_pplan)
+                    if not _pplan.changes.first_run and not _pplan.nothing_changed:
+                        print(f"[PLAN] Rendering: {len(_pplan.clips_render)} clip(s) to render, "
+                              f"{len(_pplan.clips_reuse)} expected from the render cache.")
+            except Exception as exc:
+                print(f"[PLAN] Skipped ({exc})")
+            _render_job = ledger.create("render", reuse_active=False)
+            ledger.start(_render_job.id)
             vg.render_video(
                 aligned,
                 audio_end,
@@ -12976,6 +13243,11 @@ class VideoGeneratorApp(ctk.CTk):
                 perf=perf,
                 progress_cb=_progress_cb,
             )
+            ledger.complete(_render_job.id, outputs=[config["output_path"]])
+            if perf is not None:
+                _pevents.emit("render", **_pregen.render_stats(perf, video_s=float(audio_end), fps=30,
+                                                                 clips_total=len(aligned)))
+            _pregen.commit(_pgraph, state_dir_p)
 
             if perf is not None:
                 try:
@@ -13008,6 +13280,7 @@ class VideoGeneratorApp(ctk.CTk):
                     print(f"[EDITORIAL QA] Skipped ({exc})")
 
             self._ui_queue.put(("done", str(config["output_path"])))
+            poutcome = "ok"
         except SystemExit as exc:
             # video_generator uses sys.exit("ERROR: ...") on failures
             msg = str(exc) if exc.code not in (0, None) else "Pipeline aborted."
@@ -13015,6 +13288,7 @@ class VideoGeneratorApp(ctk.CTk):
                 msg = exc.code
             self._ui_queue.put(("error", msg))
         except _PipelineCancelled as exc:
+            poutcome = "cancelled"
             self._ui_queue.put(("cancelled", str(exc)))
         except RuntimeError as exc:
             # Asset-resolution failures (Pexels/Flow) — a clean message, not a traceback.
@@ -13022,6 +13296,14 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             self._ui_queue.put(("error", traceback.format_exc()))
         finally:
+            try:
+                for _job in ledger.jobs(state="running"):
+                    if _job.type in ("render", "align", "editorial"):
+                        ledger.fail(_job.id, "Cancelled." if poutcome == "cancelled" else "The run stopped before this finished.")
+                ledger.flush()
+            except Exception:
+                pass
+            _pevents.end_run(prun, poutcome)
             try:
                 prev = getattr(self, "_pipeline_prev_theme", None)
                 if prev is not None:

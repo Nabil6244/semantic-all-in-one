@@ -6,8 +6,7 @@ Maps onto existing FFmpeg overlay motion where possible.
 
 from __future__ import annotations
 
-import math
-from typing import Iterable, List, Sequence
+from typing import Sequence
 
 from .schema import ANIMATION_TO_OVERLAY, EasingKind, Keyframe
 
@@ -51,50 +50,6 @@ def sample_keyframes(keyframes: Sequence[Keyframe], t: float) -> float:
     return kfs[-1].value
 
 
-def lifecycle_opacity_keyframes(enter: float, hold: float, exit_s: float) -> List[Keyframe]:
-    """Standard ENTER/HOLD/EXIT opacity curve."""
-    t_hold = enter
-    t_exit = enter + hold
-    t_end = enter + hold + exit_s
-    return [
-        Keyframe(0.0, 0.0, "ease_out"),
-        Keyframe(t_hold, 1.0, "ease_out"),
-        Keyframe(t_exit, 1.0, "linear"),
-        Keyframe(t_end, 0.0, "ease_in"),
-    ]
-
-
-def lifecycle_scale_keyframes(
-    enter: float, hold: float, exit_s: float, *, from_scale: float = 0.92
-) -> List[Keyframe]:
-    t_hold = enter
-    t_exit = enter + hold
-    t_end = enter + hold + exit_s
-    return [
-        Keyframe(0.0, from_scale, "ease_out"),
-        Keyframe(t_hold, 1.0, "ease_out"),
-        Keyframe(t_exit, 1.0, "linear"),
-        Keyframe(t_end, 0.98, "ease_in"),
-    ]
-
-
-def count_up_value(
-    target: float,
-    t: float,
-    *,
-    enter: float,
-    decimals: int = 0,
-) -> float:
-    """Animate a number from 0 → target over ENTER."""
-    if enter <= 0:
-        return target
-    u = ease(max(0.0, min(1.0, t / enter)), "ease_out")
-    val = target * u
-    if decimals <= 0:
-        return float(math.floor(val + 0.5))
-    return round(val, decimals)
-
-
 # Named primitives (documentation + dispatch keys)
 MOTION_PRIMITIVES = frozenset(
     {
@@ -116,22 +71,3 @@ MOTION_PRIMITIVES = frozenset(
         "CHART_GROW",
     }
 )
-
-
-def primitives_for_role(role: str) -> Iterable[str]:
-    r = (role or "").upper()
-    if r == "STATISTIC":
-        return ("TEXT_SCALE", "NUMBER_COUNT", "PANEL_REVEAL")
-    if r == "LOCATION":
-        return ("TEXT_SLIDE", "TEXT_FADE")
-    if r in ("LOWER_THIRD", "NAME"):
-        return ("TEXT_SLIDE", "PANEL_REVEAL")
-    if r == "PROGRESS":
-        return ("PROGRESS_FILL", "NUMBER_COUNT", "TEXT_FADE")
-    if r == "MAP":
-        return ("MAP_ZOOM", "MARKER_POP", "ROUTE_DRAW")
-    if r == "PROCESS":
-        return ("PANEL_REVEAL", "LINE_DRAW", "TEXT_FADE")
-    if r == "CHART":
-        return ("CHART_GROW", "NUMBER_COUNT", "TEXT_FADE")
-    return ("TEXT_FADE",)

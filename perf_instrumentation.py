@@ -125,6 +125,12 @@ class PerfRecorder:
             # Anything recorded outside the known phase_order still counts
             # toward the grand total so "Total" is never an undercount.
             named = set(phases)
+            # When scene clips render in parallel their spans overlap: the measured wall time of the render
+            # ("render_wall") replaces the per-clip and mux spans it contains.
+            if self.count_for("render_wall"):
+                named |= {"scene_render", "mux"}
+                if "render_wall" not in phases:
+                    lines.append(f"  Rendering (wall clock): {_fmt_seconds(self.total_for('render_wall'))}")
             for e in self.events:
                 if e.name not in named:
                     grand_total += e.duration_s

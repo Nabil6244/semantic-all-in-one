@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from .design_system import DocumentaryDesignSystem, get_design_system
 from .schema import GraphicLifecycle, TextOverlaySpec
@@ -54,17 +54,3 @@ def build_statistic_overlay(
             "underline": True,
         },
     )
-
-
-def statistic_render_payload(spec: TextOverlaySpec) -> Dict[str, Any]:
-    """Extra draw instructions for the renderer."""
-    meta = spec.metadata or {}
-    return {
-        "primary": spec.text,
-        "label": spec.secondary_text,
-        "context": spec.tertiary_text,
-        "count_up": bool(meta.get("count_up")),
-        "value": meta.get("value"),
-        "unit": meta.get("unit") or "",
-        "underline": bool(meta.get("underline", True)),
-    }

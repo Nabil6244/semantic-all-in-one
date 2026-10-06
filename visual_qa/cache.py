@@ -91,13 +91,3 @@ def store_cached(
     )
     cache[fp] = result.to_dict()
     save_cache(images_dir, cache)
-
-
-def invalidate_scene(images_dir: Path, scene_number: str) -> None:
-    cache = load_cache(images_dir)
-    suffix = f"|{scene_number}|"
-    keys = [k for k, v in cache.items() if isinstance(v, dict) and suffix in json.dumps(v)]
-    for k in keys:
-        cache.pop(k, None)
-    if keys:
-        save_cache(images_dir, cache)

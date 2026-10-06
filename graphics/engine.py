@@ -354,6 +354,19 @@ def _materialize_directive(
         spec.decision = d.decision
         spec.role = d.role
         spec.payload = dict(d.payload or {})
+        if str(spec.payload.get("template") or "").startswith("dataviz_"):
+            # A chart has a dedicated renderer (graphics.dataviz) and needs reading time: at least ~3.5 s on screen,
+            # never past its own scene.
+            if scene_duration < 2.5:
+                return None
+            spec.start = max(float(spec.start), scene_start + 0.25)
+            spec.end = min(scene_end - 0.15, max(float(spec.end), spec.start + min(5.5, max(3.5, scene_duration * 0.7))))
+            if spec.end - spec.start < 2.0:
+                return None
+            spec.animation = "MASK_REVEAL"
+            if spec.text is not None:
+                spec.text.start, spec.text.end = spec.start, spec.end
+            return spec
         spec.payload["pending_renderer"] = d.decision
         return spec
 

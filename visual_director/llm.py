@@ -256,6 +256,53 @@ def extract_gemini_text(payload: dict) -> str:
     return text
 
 
+_TASK_BY_MODULE = {
+    "visual_director.director": "script_analysis",
+    "editorial.reasoner": "editorial_reasoner",
+    "smart_editing": "smart_editing",
+    "map_scene.ai_places": "map_place_lookup",
+    "hybrid.director": "hybrid_director",
+    "hybrid.critic": "hybrid_critic",
+    "hybrid.pipeline": "hybrid_director",
+    "scene_graph.generator": "overscaled_planner",
+    "style_engine.detect": "style_detect",
+    "visual_qa.semantic": "vision_qa",
+}
+
+
+def _calling_module() -> str:
+    """Which part of the app asked (the first caller outside the LLM plumbing), as a short task name."""
+    import sys
+
+    try:
+        frame = sys._getframe(2)
+    except ValueError:
+        return "gemini"
+    for _ in range(12):
+        if frame is None:
+            break
+        mod = str(frame.f_globals.get("__name__") or "")
+        if mod and not mod.startswith(("visual_director.llm", "ai_router", "production.")):
+            return _TASK_BY_MODULE.get(mod, mod.rsplit(".", 1)[-1])
+        frame = frame.f_back
+    return "gemini"
+
+
+def _record_ai_call(model: str, started: float, *, ok: bool, usage: Optional[dict] = None, error: Any = None,
+                    task: str = "") -> None:
+    try:
+        from production import events
+        from production.recovery import classify_failure
+
+        usage = usage or {}
+        events.emit("ai_call", task=task or _calling_module(), model=model,
+                    duration_s=round(time.monotonic() - started, 3), ok=ok, cached=False,
+                    tokens_in=usage.get("input"), tokens_out=usage.get("output"),
+                    error_class=None if ok else classify_failure(error).kind)
+    except Exception:
+        pass
+
+
 class GeminiLLM:
     """Gemini generateContent over HTTP. Default model: gemini-3.6-flash."""
 
@@ -281,6 +328,25 @@ class GeminiLLM:
         self.last_usage: dict = {}
 
     def complete(
+        self,
+        system: str,
+        user: str,
+        *,
+        thinking_level: str = "medium",
+        max_output_tokens: int = 65536,
+    ) -> str:
+        """One Gemini call. Every call is recorded as a production ``ai_call`` event (task, model, time, tokens, outcome)
+        so analytics can show what AI was used for — the request itself is unchanged."""
+        started = time.monotonic()
+        try:
+            text = self._complete(system, user, thinking_level=thinking_level, max_output_tokens=max_output_tokens)
+        except BaseException as exc:
+            _record_ai_call(self.model, started, ok=False, error=exc)
+            raise
+        _record_ai_call(self.model, started, ok=True, usage=self.last_usage)
+        return text
+
+    def _complete(
         self,
         system: str,
         user: str,

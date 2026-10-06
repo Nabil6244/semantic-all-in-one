@@ -36,6 +36,9 @@ from providers.base import (
     SceneRow,
     SceneStatus,
 )
+from production import events as production_events
+from production import jobs as production_jobs
+from production.recovery import RetryPolicy, classify_failure, should_auto_retry
 from scene_recovery import PLACEHOLDER_PNG, SceneRecoveryTracker, mark_needs_action, scene_key
 from providers.local_provider import LocalProvider
 from providers.router import SceneAssetRouter
@@ -88,6 +91,56 @@ _FALLBACK_ELIGIBLE_SOURCES = frozenset({
 # "reloaded" and generated again) before it is left at NEEDS_ACTION for the
 # operator to review or manually change source.
 _FLOW_RETRY_SOURCES = frozenset({AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO})
+
+# Every other source (stock, YouTube, Archive, NASA, map, research) is retried automatically when the failure is
+# transient — a dropped connection, a timeout, a 5xx, a rate limit (production.recovery decides). A permanent failure
+# (no results, a bad key, a full disk) is never retried blindly. Flow keeps exactly its own rules above.
+TRANSIENT_RETRY_POLICY = RetryPolicy(max_attempts=3, base_delay_s=2.0, max_delay_s=30.0)
+
+
+def _norm_text(value) -> str:
+    return ("" if value is None else str(value)).strip()
+
+
+def asset_record_matches(record: Optional[dict], scene: SceneRow, source: AssetSource) -> bool:
+    """Was this manifest record produced for what ``scene`` asks for NOW (so its file may be reused)?
+
+    The one reuse rule: AssetManager's cache and the production dependency graph both call it, so they can never
+    disagree about which media Generate keeps. (Whether the file still exists is checked by the caller.)"""
+    if not record or record.get("status") != "complete":
+        return False
+    if record.get("source") == AssetSource.MANUAL.value:
+        # A file the user picked with "Local clip" is their explicit choice:
+        # always use it, whatever the row's prompt text says now. Matching it
+        # against the prompt (as below) silently discarded it whenever that
+        # text changed between attaching and Generate, and Flow generated a
+        # (paid) video for a scene that already had one. Only a deliberate
+        # action (Change Source / Retry / Alternative / Reset) replaces it.
+        return True
+    # Change Source (e.g. YouTube → Flow image) leaves a complete file whose
+    # recorded source no longer matches the CSV. Reuse it for final render
+    # unless the CSV text itself changed (stock → a new Flow prompt).
+    if record.get("source") != source.value:
+        new_text = _norm_text(scene.prompt or scene.stock)
+        old_prompt = _norm_text(record.get("prompt"))
+        old_stock = _norm_text(record.get("stock_query"))
+        return not (new_text and new_text not in (old_prompt, old_stock))
+    if (
+        source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO, AssetSource.YOUTUBE_VIDEO)
+        and _norm_text(record.get("prompt")) != _norm_text(scene.prompt)
+    ):
+        return False
+    if (
+        source in (AssetSource.ARCHIVE_VIDEO, AssetSource.NASA_VIDEO, AssetSource.MAP)
+        and _norm_text(record.get("prompt")) != _norm_text(scene.prompt)
+    ):
+        return False
+    if (
+        source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
+        and _norm_text(record.get("stock_query")) != _norm_text(scene.stock)
+    ):
+        return False
+    return True
 
 
 def _key(scene_number: str) -> str:
@@ -387,10 +440,6 @@ class AssetManager:
             metadata=record,
         )
 
-    @staticmethod
-    def _norm_text(value) -> str:
-        return ("" if value is None else str(value)).strip()
-
     def _cache_hit(self, scene: SceneRow, source: AssetSource) -> Optional[AssetResult]:
         """LOCAL is never cache-shortcut (it's a free lookup and must never be treated
         as something we could delete/replace); STOCK/FLOW are cached against the
@@ -398,40 +447,7 @@ class AssetManager:
         if source == AssetSource.LOCAL:
             return None
         record = self.manifest.get(scene.scene_number)
-        if not record or record.get("status") != "complete":
-            return None
-        if record.get("source") == AssetSource.MANUAL.value:
-            # A file the user picked with "Local clip" is their explicit choice:
-            # always use it, whatever the row's prompt text says now. Matching it
-            # against the prompt (as below) silently discarded it whenever that
-            # text changed between attaching and Generate, and Flow generated a
-            # (paid) video for a scene that already had one. Only a deliberate
-            # action (Change Source / Retry / Alternative / Reset) replaces it.
-            return self._result_from_complete_record(scene, record)
-        # Change Source (e.g. YouTube → Flow image) leaves a complete file whose
-        # recorded source no longer matches the CSV. Reuse it for final render
-        # unless the CSV text itself changed (stock → a new Flow prompt).
-        if record.get("source") != source.value:
-            new_text = self._norm_text(scene.prompt or scene.stock)
-            old_prompt = self._norm_text(record.get("prompt"))
-            old_stock = self._norm_text(record.get("stock_query"))
-            if new_text and new_text not in (old_prompt, old_stock):
-                return None
-            return self._result_from_complete_record(scene, record)
-        if (
-            source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO, AssetSource.YOUTUBE_VIDEO)
-            and self._norm_text(record.get("prompt")) != self._norm_text(scene.prompt)
-        ):
-            return None
-        if (
-            source in (AssetSource.ARCHIVE_VIDEO, AssetSource.NASA_VIDEO, AssetSource.MAP)
-            and self._norm_text(record.get("prompt")) != self._norm_text(scene.prompt)
-        ):
-            return None
-        if (
-            source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO)
-            and self._norm_text(record.get("stock_query")) != self._norm_text(scene.stock)
-        ):
+        if not asset_record_matches(record, scene, source):
             return None
         return self._result_from_complete_record(scene, record)
 
@@ -782,6 +798,7 @@ class AssetManager:
 
     def _finalize(self, scene: SceneRow, result: AssetResult) -> None:
         self._annotate_actual_duration(result)
+        self._job_end(scene, result, create_if_missing=True)
         if result.ok and result.source != AssetSource.LOCAL:
             self._remove_stale_file(scene.scene_number, keep=result.path)
             meta = result.metadata or {}
@@ -896,6 +913,114 @@ class AssetManager:
         except (TypeError, ValueError):
             provider.required_duration = None
 
+    # ---------- production job ledger / recovery ----------
+
+    def _job_begin(self, scene: SceneRow, source: AssetSource, *, queued: bool = False) -> None:
+        """Record that work on this scene's asset began (``queued``: waiting in a batch). Never raises."""
+        try:
+            ledger = production_jobs.current()
+            job = ledger.create("asset", scene=scene.scene_number, source=source.value)
+            if not queued:
+                ledger.start(job.id, source=source.value)
+        except Exception:
+            pass
+
+    def _job_end(self, scene: SceneRow, result: AssetResult, *, create_if_missing: bool = False) -> None:
+        """Close this scene's asset job from its final result and record the asset outcome. Never raises."""
+        try:
+            ledger = production_jobs.current()
+            job = None
+            for j in reversed(ledger.jobs(type="asset", scene=scene.scene_number)):
+                if j.state in production_jobs.ACTIVE:
+                    job = j
+                    break
+            if job is None:
+                if not create_if_missing:
+                    return
+                job = ledger.create("asset", scene=scene.scene_number, source=result.source.value, reuse_active=False)
+                ledger.start(job.id, source=result.source.value)
+            elif job.state != "running":
+                ledger.start(job.id, source=result.source.value)
+            source = result.source.value if result.source is not None else ""
+            if result.ok:
+                prior = self.manifest.get(scene.scene_number) or {}
+                replaced = prior.get("status") == "complete" and str(prior.get("local_path") or "") not in ("", str(result.path))
+                outcome = "replaced" if replaced else "generated"
+                ledger.complete(job.id, outputs=[result.path], meta={"outcome": outcome})
+            elif result.status == SceneStatus.CANCELLED:
+                outcome = "cancelled"
+                ledger.cancel(job.id, result.error or "Cancelled.")
+            elif result.status == SceneStatus.SKIPPED:
+                outcome = "skipped"
+                ledger.complete(job.id, meta={"outcome": outcome})
+            else:
+                outcome = "failed"
+                ledger.fail(job.id, result.error or "failed")
+            production_events.emit("asset", scene=scene_key(scene.scene_number), source=source, outcome=outcome,
+                                   duration_s=round(job.exec_s, 3))
+        except Exception:
+            pass
+
+    def _note_reused(self, scene: SceneRow, cached: AssetResult) -> None:
+        try:
+            production_events.emit("asset", scene=scene_key(scene.scene_number),
+                                   source=cached.source.value if cached.source is not None else "", outcome="reused")
+            production_events.emit("cache", cache="asset", hit=True)
+        except Exception:
+            pass
+
+    def _retry_transient(self, scene: SceneRow, source: AssetSource, provider, result: AssetResult) -> AssetResult:
+        """Retry a non-Flow source while its failure is transient (production.recovery), with backoff that stops the
+        moment the scene or the run is cancelled. Permanent failures and cancellations return unchanged."""
+        attempt = 1
+        while (
+            result is not None
+            and not result.ok
+            and result.status != SceneStatus.CANCELLED
+            and not self.is_scene_cancelled(scene.scene_number)
+        ):
+            failure = classify_failure(result.error, source.value)
+            if not should_auto_retry(failure, source=source.value, attempt=attempt, policy=TRANSIENT_RETRY_POLICY):
+                break
+            delay = TRANSIENT_RETRY_POLICY.delay(attempt, failure)
+            self.log(
+                f"[ASSET] Scene {scene.scene_number} -> {source.value} failed ({failure.kind}): {result.error}; "
+                f"retrying in {delay:.0f}s (attempt {attempt + 1}/{TRANSIENT_RETRY_POLICY.max_attempts})"
+            )
+            try:
+                ledger = production_jobs.current()
+                active = [j for j in ledger.jobs(type="asset", scene=scene.scene_number) if j.state in production_jobs.ACTIVE]
+                if active:
+                    ledger.fail(active[-1].id, result.error or "failed", will_retry=True)
+            except Exception:
+                active = []
+            deadline = time.monotonic() + delay
+            while time.monotonic() < deadline:
+                if self.is_scene_cancelled(scene.scene_number):
+                    return result
+                time.sleep(min(0.25, max(0.0, deadline - time.monotonic())))
+            if active:
+                try:
+                    production_jobs.current().start(active[-1].id)
+                except Exception:
+                    pass
+            attempt += 1
+            try:
+                result = provider.resolve(scene, self.images_dir, log=self.log)
+            except AssetError as exc:
+                result = AssetResult(
+                    scene_number=scene.scene_number, path=None, media_type=None,
+                    source=source, status=SceneStatus.FAILED, error=exc.reason,
+                )
+            except Exception as exc:  # a provider bug must not abort the whole run
+                result = AssetResult(
+                    scene_number=scene.scene_number, path=None, media_type=None,
+                    source=source, status=SceneStatus.FAILED, error=f"unexpected error: {exc}",
+                )
+            if result.ok:
+                self.log(f"[ASSET] Scene {scene.scene_number} -> recovered on automatic retry {attempt - 1}")
+        return result
+
     def _resolve_one(self, scene: SceneRow, source: AssetSource, *, try_declared_fallbacks: bool = True) -> AssetResult:
         if self.is_scene_cancelled(scene.scene_number):
             return self._cancelled_result(scene, source)
@@ -916,6 +1041,7 @@ class AssetManager:
         ):
             if p is not None:
                 p.should_stop_scene = self.is_scene_cancelled
+        self._job_begin(scene, source)
         max_attempts = 2 if source in _FLOW_RETRY_SOURCES else 1
         result: Optional[AssetResult] = None
         for attempt in range(1, max_attempts + 1):
@@ -957,6 +1083,8 @@ class AssetManager:
                     f"[ASSET] Scene {scene.scene_number} -> {source.value} failed "
                     f"(attempt {attempt}/{max_attempts}): {result.error}; retrying once"
                 )
+        if source not in _FLOW_RETRY_SOURCES:
+            result = self._retry_transient(scene, source, provider, result)
         if self.is_scene_cancelled(scene.scene_number):
             if result.ok and result.path:
                 result.path.unlink(missing_ok=True)
@@ -1576,6 +1704,36 @@ class AssetManager:
             for source, scene in drain_cancelled():
                 publish(source, scene, self._cancelled_result(scene, source))
 
+    def _tracked_callbacks(self, on_start, on_generating, on_complete):
+        """Wrap the caller's callbacks so every scene of a run is in the job ledger (Flow batches included) without
+        touching how any provider schedules its work: a Flow scene is "pending" while queued in its batch and
+        "running" once Flow reports it generating; every other source starts in _resolve_one."""
+
+        def start(scene, source):
+            if source in _FLOW_RETRY_SOURCES:
+                self._job_begin(scene, source, queued=True)
+            if on_start:
+                on_start(scene, source)
+
+        def generating(scene):
+            try:
+                ledger = production_jobs.current()
+                for j in reversed(ledger.jobs(type="asset", scene=scene.scene_number)):
+                    if j.state == "pending":
+                        ledger.start(j.id)
+                        break
+            except Exception:
+                pass
+            if on_generating:
+                on_generating(scene)
+
+        def complete(scene, result):
+            self._job_end(scene, result, create_if_missing=False)
+            if on_complete:
+                on_complete(scene, result)
+
+        return start, generating, complete
+
     def resolve_all(
         self,
         rows: List[SceneRow],
@@ -1589,6 +1747,8 @@ class AssetManager:
         if errors:
             raise AssetError("validation", "; ".join(errors))
         self.reset_cancel()
+        on_scene_start, on_scene_generating, on_scene_complete = self._tracked_callbacks(
+            on_scene_start, on_scene_generating, on_scene_complete)
         if max_parallel is not None:
             parallel_limit = max(1, min(8, int(max_parallel)))
         else:
@@ -1631,6 +1791,7 @@ class AssetManager:
                 )
                 cached = self._ensure_complements_for_cached(scene, cached)
                 results[scene.scene_number] = cached
+                self._note_reused(scene, cached)
                 if on_scene_complete:
                     on_scene_complete(scene, cached)
                 continue

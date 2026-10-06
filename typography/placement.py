@@ -88,15 +88,6 @@ def _stable_bucket(seed: str, n: int) -> int:
     return int(digest[:8], 16) % n
 
 
-def _force_center_column(placement: str) -> str:
-    row = "bottom"
-    if placement.startswith("top"):
-        row = "top"
-    elif placement.startswith("center"):
-        row = "center"
-    return f"{row}_center" if row != "center" else "center"
-
-
 def resolve_placement(
     style_id: str,
     text: str,

@@ -481,7 +481,14 @@ def enrich_plan_with_editorial_ai(
     fp = intent_fingerprint(plan, candidates_by_scene=candidates_by_scene)
     cached_fp = str(getattr(plan, "editorial_intent_fingerprint", "") or "")
     cached = intents_from_plan(plan)
-    if not force and cached and cached_fp == fp:
+    hit = bool(not force and cached and cached_fp == fp)
+    try:
+        from production import events as _pevents
+
+        _pevents.emit("cache", cache="editorial_ai", hit=hit)
+    except Exception:
+        pass
+    if hit:
         apply_intents_to_scenes(plan, cached)
         return cached
 

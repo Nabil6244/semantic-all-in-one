@@ -58,6 +58,12 @@ def evaluate_scene_asset(
     path = Path(result.path)
     if images_dir is not None:
         cached = get_cached(images_dir, path, key, style_id=style_id)
+        try:
+            from production import events as _events
+
+            _events.emit("cache", cache="visual_qa", hit=cached is not None)
+        except Exception:
+            pass
         if cached is not None:
             return cached
 

@@ -407,8 +407,3 @@ def render_ducked_music(
     ]
     result = hidden_subprocess.run(cmd_flat, capture_output=True, text=True)
     return result.returncode == 0 and output_path.is_file()
-
-
-def flat_bg_volume_fallback() -> float:
-    """Legacy flat bed level when no EditorialPlan music data exists."""
-    return 0.15

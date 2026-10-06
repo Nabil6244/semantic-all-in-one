@@ -54,10 +54,6 @@ def proxy_cache_bytes(ws: ProjectWorkspace) -> int:
     return _dir_size(ws.state_dir / PROXY_DIRNAME)
 
 
-def temp_cache_bytes(ws: ProjectWorkspace) -> int:
-    return _dir_size(ws.tmp_dir)
-
-
 def generated_asset_cache_bytes(ws: ProjectWorkspace) -> int:
     return downloaded_assets.scan_downloaded_assets(ws).total_bytes
 

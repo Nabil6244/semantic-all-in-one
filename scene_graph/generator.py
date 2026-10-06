@@ -1461,14 +1461,6 @@ def _split_compound_visual_ideas(script_segment: str) -> Optional[List[str]]:
     return parts
 
 
-def _chapter_label_for_segment(text: str, *, max_chars: int = 48) -> str:
-    """Short label for a persistent chapter TitleCue — reuses the same
-    abbreviation-safe first-sentence helper as the fallback prompt (PART 1),
-    just truncated tighter to read as a title band, not a caption."""
-
-    return _planner_first_sentence(text, max_chars=max_chars)
-
-
 def generate_scene_graph_local_planner(
     segment_id: str,
     rows: Sequence[SceneRow],
@@ -1555,6 +1547,10 @@ def generate_scene_graph_local_planner(
     prev_node_id: Optional[str] = None
     last_map_at: Optional[float] = None
     prev_was_map = False
+    from production.map_director import MapDirector
+
+    # Looked up through the module each time so a test (or caller) replacing _detect_map_place is honoured.
+    map_director = MapDirector(detect=lambda text: _detect_map_place(text))
 
     for index, row in enumerate(rows):
         script_segment = (row.script_segment or "").strip()
@@ -1608,7 +1604,13 @@ def generate_scene_graph_local_planner(
             group_info is None and not has_explicit_asset and not visual_hint and not is_continuation
             and not prev_was_map and (last_map_at is None or start - last_map_at >= _MAP_MIN_GAP_S)
         ):
-            map_pick = _detect_map_place(script_segment)
+            decision = map_director.decide(script_segment)
+            map_pick = decision.pick if decision.use_map else None
+            if map_pick is not None and decision.prompt != map_pick.prompt:
+                # The Map Director picked a camera for what the line is about (e.g. pull out for "stretches across").
+                from map_scene.detect import MapPick
+
+                map_pick = MapPick(prompt=decision.prompt, name=map_pick.name)
 
         compound_parts: Optional[List[str]] = None
         if (

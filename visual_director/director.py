@@ -602,6 +602,12 @@ class VisualDirector:
             cached = load_cached_plan(
                 cache_dir, cache_key, analyzer_version=ANALYZER_VERSION
             )
+            try:
+                from production import events as _pevents
+
+                _pevents.emit("cache", cache="script_analysis", hit=cached is not None)
+            except Exception:
+                pass
             if cached is not None:
                 self._emit_progress(
                     on_progress,
