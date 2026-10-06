@@ -325,6 +325,20 @@ class ProjectWorkspace:
             data["overscaled_settings"] = merged
             self._write_meta(data)
 
+    def quality_settings(self) -> Dict[str, Any]:
+        """The project's footage/export quality switches: ``uhd_footage`` ("Accept Ultra HD (4K) footage") and
+        ``export_4k``. Absent = off; a new project starts with both off."""
+        data = self.read_meta().get("quality_settings")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_quality_settings(self, **values: Any) -> None:
+        data = self.read_meta()
+        current = data.get("quality_settings") if isinstance(data.get("quality_settings"), dict) else {}
+        merged = {**current, **{k: bool(v) for k, v in values.items() if v is not None}}
+        if merged != current:
+            data["quality_settings"] = merged
+            self._write_meta(data)
+
     def pakmap_settings(self) -> Dict[str, Any]:
         """The project's saved pakMap choices: ``channel_name`` (the watermark text, may be empty on
         purpose) and ``base_dir`` (the folder the CSV came from; its picture/clip paths are relative to it)."""

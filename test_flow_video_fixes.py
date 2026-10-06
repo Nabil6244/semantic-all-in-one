@@ -69,6 +69,7 @@ class TestVideoAccountSelection(unittest.TestCase):
                 _local_assets_dir=lambda: None,
                 _video_account_ids=lambda: ["a"],  # "b" and "c" unchecked since
                 _hydrated_skipped=set(),
+                _apply_footage_quality=lambda m: None,
             )
             out = _app_cls()._ensure_asset_manager(fake, images)
         self.assertIs(out, mgr)

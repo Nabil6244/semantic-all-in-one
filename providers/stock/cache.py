@@ -49,6 +49,10 @@ class StockCache:
     def set_search(self, backend: str, query: str, results: list, media_type: str = "all") -> None:
         self._search[self._key(backend, query, media_type)] = results
 
+    def clear_searches(self) -> None:
+        """Forget remembered search results (they were picked for another quality setting)."""
+        self._search.clear()
+
     def used_asset_ids(self) -> Set[str]:
         return set(self._used_ids)
 

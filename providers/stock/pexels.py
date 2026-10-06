@@ -82,7 +82,14 @@ class PexelsBackend(StockBackend):
             # Prefer the largest file at/under 1920w (avoids multi-GB 4K downloads);
             # fall back to the largest available if everything is smaller than that.
             under_hd = [f for f in files if f["width"] <= 1920]
-            best_file = max(under_hd or files, key=lambda f: f["width"])
+            hd_file = max(under_hd or files, key=lambda f: f["width"])
+            best_file, extra = hd_file, {}
+            if self.uhd:
+                # Ultra HD project: the largest file up to 4096w (DCI 4K), the HD file kept as the fallback.
+                uhd_files = [f for f in files if f["width"] <= 4096]
+                best_file = max(uhd_files or files, key=lambda f: f["width"])
+                if best_file is not hd_file:
+                    extra["hd_fallback"] = {"url": hd_file["link"], "width": hd_file.get("width", 0), "height": hd_file.get("height", 0)}
             pictures = v.get("video_pictures") or [{}]
             out.append(
                 Candidate(
@@ -96,7 +103,7 @@ class PexelsBackend(StockBackend):
                     author=(v.get("user") or {}).get("name", ""),
                     source_url=v.get("url", ""),
                     thumbnail_url=pictures[0].get("picture", ""),
-                    extra={},
+                    extra=extra,
                 )
             )
         return out

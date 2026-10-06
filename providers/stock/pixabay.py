@@ -107,6 +107,11 @@ class PixabayBackend(StockBackend):
                     break
             if not pick:
                 continue
+            extra = {"tags": hit.get("tags", "")}
+            medium = videos.get("medium") or {}
+            if self.uhd and pick is not medium and medium.get("url"):
+                # Ultra HD project: "large" is often the 4K file; keep the 1080p "medium" as the fallback.
+                extra["hd_fallback"] = {"url": medium["url"], "width": int(medium.get("width") or 0), "height": int(medium.get("height") or 0)}
             out.append(
                 Candidate(
                     provider=self.name,
@@ -119,7 +124,7 @@ class PixabayBackend(StockBackend):
                     author=hit.get("user", ""),
                     source_url=hit.get("pageURL", ""),
                     thumbnail_url=(hit.get("picture_id") and "") or "",
-                    extra={"tags": hit.get("tags", "")},
+                    extra=extra,
                 )
             )
         return out

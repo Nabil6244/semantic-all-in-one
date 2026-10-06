@@ -14,6 +14,11 @@ if TYPE_CHECKING:
 
 TIMEOUT = 30
 MAX_BYTES = 200 * 1024 * 1024  # 200MB safety cap against a runaway/huge response
+UHD_MAX_BYTES = 1024 * 1024 * 1024  # 1GB per clip when the project accepts Ultra HD (4K) footage
+
+
+class DownloadCancelled(IOError):
+    """The scene was stopped while downloading (never a reason to try another file)."""
 _OK_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
 
 
@@ -35,9 +40,13 @@ def download_candidate(
     scene_number: str,
     log=print,
     should_stop=None,
+    *,
+    max_bytes: int = MAX_BYTES,
+    url: str = "",
 ) -> Path:
+    """Download ``url`` (default: the candidate's own) to images_dir/00N.<ext>, aborting past ``max_bytes``."""
     n = int(str(scene_number).strip())
-    with requests.get(candidate.url, stream=True, timeout=(15, 60)) as resp:
+    with requests.get(url or candidate.url, stream=True, timeout=(15, 60)) as resp:
         resp.raise_for_status()
         ext = _extension_for(candidate, resp.headers.get("Content-Type", ""))
         target = Path(images_dir) / f"{n:03d}{ext}"
@@ -47,13 +56,13 @@ def download_candidate(
             for chunk in resp.iter_content(chunk_size=1 << 16):
                 if should_stop and should_stop():
                     tmp_target.unlink(missing_ok=True)
-                    raise IOError("download cancelled")
+                    raise DownloadCancelled("download cancelled")
                 if not chunk:
                     continue
                 written += len(chunk)
-                if written > MAX_BYTES:
+                if written > max_bytes:
                     tmp_target.unlink(missing_ok=True)
-                    raise IOError(f"stock asset exceeded {MAX_BYTES // (1024*1024)}MB, aborted")
+                    raise IOError(f"stock asset exceeded {max_bytes // (1024*1024)}MB, aborted")
                 f.write(chunk)
         tmp_target.replace(target)
     return target

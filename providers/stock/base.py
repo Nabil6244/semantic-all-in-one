@@ -23,7 +23,7 @@ from ..base import (
     sniff_media_kind,
 )
 from .cache import StockCache
-from .downloader import download_candidate
+from .downloader import MAX_BYTES, UHD_MAX_BYTES, DownloadCancelled, download_candidate
 from .query import build_queries
 from .ranking import filter_candidates, rank_candidates
 
@@ -56,6 +56,8 @@ class Candidate:
 
 class StockBackend:
     name = "base"
+    # Set by StockProvider.set_uhd: pick 4K files when the project accepts Ultra HD footage.
+    uhd = False
 
     def search(self, query: str, media_type: str = "all", per_page: int = 15) -> List[Candidate]:
         raise NotImplementedError
@@ -71,6 +73,18 @@ class StockProvider(AssetProvider):
         self.backends = backends
         self.cache = cache or StockCache()
         self.should_stop_scene = None
+        # The project's "Accept Ultra HD (4K) footage" switch (see set_uhd).
+        self.uhd = False
+
+    def set_uhd(self, on: bool) -> None:
+        """Pick 4K files when they exist (1 GB per clip cap, 1080p fallback) — or go back to HD-sized files."""
+        on = bool(on)
+        if on == self.uhd:
+            return
+        self.uhd = on
+        for backend in self.backends:
+            backend.uhd = on
+        self.cache.clear_searches()   # results picked under the other setting point at other files
 
     def _scene_stopped(self, scene_number: str) -> bool:
         cb = getattr(self, "should_stop_scene", None)
@@ -172,19 +186,42 @@ class StockProvider(AssetProvider):
     def _download(self, scene: SceneRow, candidate: Candidate, images_dir: Path, log: LogFn) -> AssetResult:
         source = scene.stock_source
         log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id} ({candidate.width}x{candidate.height})")
+        stopped = lambda: self._scene_stopped(scene.scene_number)  # noqa: E731
+        width, height = candidate.width, candidate.height
         try:
             path = download_candidate(
                 candidate,
                 images_dir,
                 scene.scene_number,
                 log=log,
-                should_stop=lambda: self._scene_stopped(scene.scene_number),
+                should_stop=stopped,
+                max_bytes=UHD_MAX_BYTES if self.uhd else MAX_BYTES,
             )
-        except Exception as exc:
+        except DownloadCancelled as exc:
             return AssetResult(
                 scene.scene_number, None, None, source, SceneStatus.FAILED,
                 error=f"Download failed: {exc}",
             )
+        except Exception as exc:
+            # A large (4K) file that was too big, too slow or broken: take the same clip's HD file instead of failing the scene.
+            fallback = candidate.extra.get("hd_fallback") or {}
+            if not fallback.get("url"):
+                return AssetResult(
+                    scene.scene_number, None, None, source, SceneStatus.FAILED,
+                    error=f"Download failed: {exc}",
+                )
+            log(f"[STOCK] Scene {scene.scene_number} -> {width}x{height} download failed ({exc}); using the {fallback.get('width')}x{fallback.get('height')} file instead")
+            try:
+                path = download_candidate(
+                    candidate, images_dir, scene.scene_number, log=log, should_stop=stopped,
+                    max_bytes=MAX_BYTES, url=fallback["url"],
+                )
+            except Exception as exc2:
+                return AssetResult(
+                    scene.scene_number, None, None, source, SceneStatus.FAILED,
+                    error=f"Download failed: {exc}; the HD fallback failed too: {exc2}",
+                )
+            width, height = int(fallback.get("width") or 0), int(fallback.get("height") or 0)
 
         # Hard content check — don't trust the candidate's advertised media_type
         # or the downloaded filename's extension alone. If asset_type explicitly
@@ -216,8 +253,8 @@ class StockProvider(AssetProvider):
                 "provider_asset_id": candidate.asset_id,
                 "author": candidate.author,
                 "source_url": candidate.source_url,
-                "width": candidate.width,
-                "height": candidate.height,
+                "width": width,
+                "height": height,
                 "duration": candidate.duration,
             },
         )

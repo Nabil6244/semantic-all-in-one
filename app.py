@@ -2718,6 +2718,7 @@ class VideoGeneratorApp(ctk.CTk):
             # then genuinely stops the real batch's work on that scene, and
             # the batch can no longer silently overwrite a manual override
             # by finishing later on a completely different object.
+            self._apply_footage_quality(manager)   # called before any scene is fetched
             self._asset_manager = manager
             self._overscaled_run_manager = manager
 
@@ -4406,6 +4407,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
         def _manager_ready(manager) -> None:
+            self._apply_footage_quality(manager)   # called before any scene is fetched
             self._asset_manager = manager
             self._hybrid_run_manager = manager
 
@@ -4801,6 +4803,7 @@ class VideoGeneratorApp(ctk.CTk):
 
         def _pm_manager_ready(manager) -> None:
             # per-picture actions taken in the table while this run is going reach this real manager
+            self._apply_footage_quality(manager)   # called before any scene is fetched
             self._asset_manager = manager
             self._pakmap_run_manager = manager
 
@@ -9405,6 +9408,8 @@ class VideoGeneratorApp(ctk.CTk):
                 raise RuntimeError(f"Documentary media providers failed to load: {exc}") from exc
             print(f"[ASSET] Archive/NASA providers unavailable: {exc}")
 
+        if stock_provider is not None:
+            stock_provider.set_uhd(self._uhd_footage_on())
         return AssetManager(
             images_dir,
             stock_provider=stock_provider,
@@ -9486,7 +9491,22 @@ class VideoGeneratorApp(ctk.CTk):
         if video_provider is not None and hasattr(video_provider, "account_ids"):
             video_provider.account_ids = self._video_account_ids()
         self._asset_manager.recovery.skipped |= set(self._hydrated_skipped)
+        # The cached manager's stock provider may predate a flip of this project's 4K switch (or another project).
+        self._apply_footage_quality(self._asset_manager)
         return self._asset_manager
+
+    def _uhd_footage_on(self) -> bool:
+        """This project's "Accept Ultra HD (4K) footage" switch (off with no project)."""
+        try:
+            return bool(self._workspace is not None and self._workspace.quality_settings().get("uhd_footage"))
+        except Exception:
+            return False
+
+    def _apply_footage_quality(self, manager) -> None:
+        """Push the project's 4K footage switch into a manager's stock provider (4K files, 1 GB cap, HD fallback)."""
+        stock = getattr(manager, "stock_provider", None)
+        if stock is not None and hasattr(stock, "set_uhd"):
+            stock.set_uhd(self._uhd_footage_on())
 
     def _scene_by_number(self, scene_row: SceneRow) -> SceneRow:
         for row in self._scene_rows:
@@ -11306,6 +11326,45 @@ class VideoGeneratorApp(ctk.CTk):
                  "are on the Audio & Effects page.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 12))
+
+        # ── Video quality — saved with the open project (ProjectWorkspace.quality_settings), not app-wide.
+        ctk.CTkLabel(
+            body, text="VIDEO QUALITY (THIS PROJECT)", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED,
+        ).pack(anchor="w", padx=20, pady=(4, 4))
+        quality = self._workspace.quality_settings() if self._workspace is not None else {}
+        uhd_var = ctk.BooleanVar(value=bool(quality.get("uhd_footage")))
+
+        def _toggle_uhd() -> None:
+            if self._workspace is None:
+                return
+            self._workspace.set_quality_settings(uhd_footage=uhd_var.get())
+            if self._asset_manager is not None:
+                self._apply_footage_quality(self._asset_manager)
+
+        uhd_switch = ctk.CTkSwitch(
+            body, text="Accept Ultra HD (4K) footage", variable=uhd_var,
+            onvalue=True, offvalue=False, command=_toggle_uhd, font=ctk.CTkFont(size=12),
+        )
+        uhd_switch.pack(anchor="w", padx=20, pady=(2, 2))
+        ctk.CTkLabel(
+            body,
+            text="Stock clips download in 4K when the site has them (up to 1 GB each). If a 4K file is too big or fails, "
+                 "the same clip's 1080p file is used. Downloads are bigger and slower. Scenes already saved are kept.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 6))
+        ctk.CTkSwitch(
+            body, text="Export in 4K", variable=ctk.BooleanVar(value=False), state="disabled", font=ctk.CTkFont(size=12),
+        ).pack(anchor="w", padx=20, pady=(2, 2))
+        ctk.CTkLabel(
+            body, text="Coming in a later update — videos export in 1080p for now.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 6))
+        if self._workspace is None:
+            uhd_switch.configure(state="disabled")
+            ctk.CTkLabel(
+                body, text="Open a project to change these.", font=ctk.CTkFont(size=11), text_color=_MUTED,
+            ).pack(anchor="w", padx=20, pady=(0, 6))
+        ctk.CTkFrame(body, fg_color="transparent", height=6).pack()
 
         ctk.CTkFrame(body, fg_color=_BORDER, height=1).pack(fill="x", padx=20)
 
