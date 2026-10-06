@@ -416,6 +416,11 @@ class AssetManager:
             scene = dataclasses.replace(scene, asset_type="map", prompt=str(record["requested_prompt"]), stock="")
         return scene.as_fallback(provider_name)
 
+    def with_source_override(self, scene: SceneRow) -> SceneRow:
+        """The scene as it is routed now: the CSV row with any saved Change Source choice applied (for callers that
+        decide how to retry a scene, such as the app's bulk Retry)."""
+        return self._apply_requested_provider(scene)
+
     # ---------- caching ----------
 
     def _result_from_complete_record(self, scene: SceneRow, record: dict) -> Optional[AssetResult]:
@@ -1878,6 +1883,9 @@ class AssetManager:
         return ResolveSummary(results=results, warnings=warnings)
 
     def regenerate_scene(self, scene: SceneRow) -> AssetResult:
+        # Retry / Regenerate keep the source the user chose with Change Source (saved in the manifest even when that
+        # attempt failed); routing by the CSV row alone sent a failed Flow image back to the CSV's stock source.
+        scene = self._apply_requested_provider(scene)
         source = self.classify(scene)
         provider = self._provider_for(source)
         if provider is None:
@@ -1930,6 +1938,7 @@ class AssetManager:
             self._cancelled_scenes.discard(scene_key(scene.scene_number))
             if self._was_skipped(scene):
                 self._clear_skip(scene)
+            scene = self._apply_requested_provider(scene)  # a Change Source to flow_video retries as video, not image
             source = self.classify(scene)
             if source not in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO):
                 source = AssetSource.FLOW_IMAGE

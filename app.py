@@ -8647,6 +8647,13 @@ class VideoGeneratorApp(ctk.CTk):
     def _scene_is_flow(self, scene: SceneRow) -> bool:
         from providers.router import SceneAssetRouter
 
+        # Route by the scene's current source: a saved Change Source choice wins over the CSV row (bulk Retry of a
+        # stock row changed to Flow belongs in the Flow retry batch).
+        if self._asset_manager is not None:
+            try:
+                scene = self._asset_manager.with_source_override(scene)
+            except Exception:
+                pass
         source = SceneAssetRouter.classify(scene)
         return source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO)
 
