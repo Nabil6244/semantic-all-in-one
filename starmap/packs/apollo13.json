@@ -1,0 +1,246 @@
+{
+ "id": "apollo13",
+ "name": "Apollo 13",
+ "_about": "Apollo 13: the oxygen tank failure on the way to the Moon, the loop around the far side and the return. Event times (GMT, from launch + GET) and the splashdown point are from NASA SP-4029; burns are ignition times. Fra Mauro is the PLANNED landing site (never reached; Apollo 14 later landed there). The trajectory is ILLUSTRATED (72.0 deg flight azimuth, ~100 nmi parking orbit, a ~250 km pass behind the Moon timed by the loss and return of signal); not flight data. 'stack' is Odyssey (CSM) docked with Aquarius (LM). The coast's pace is calibrated so the craft is about 322,000 km from Earth at the explosion (NASA: about 200,000 miles).",
+ "met_zero": "1970-04-11T19:13:00Z",
+ "events": {
+  "launch": "1970-04-11T19:13:00Z",
+  "orbit_insertion": "1970-04-11T19:25:40Z",
+  "tli": "1970-04-11T21:48:56Z",
+  "docking": "1970-04-11T22:32:09Z",
+  "explosion": "1970-04-14T03:07:53Z",
+  "free_return_burn": "1970-04-14T08:42:43Z",
+  "behind_the_moon": "1970-04-15T00:21:35Z",
+  "signal_back": "1970-04-15T00:46:10Z",
+  "pc2_burn": "1970-04-15T02:40:39Z",
+  "lm_jettison": "1970-04-17T16:43:00Z",
+  "splashdown": "1970-04-17T18:07:41Z"
+ },
+ "sites": {
+  "launch complex 39a": {
+   "body": "earth",
+   "lon": -80.604,
+   "lat": 28.608,
+   "label": "KENNEDY SPACE CENTER",
+   "aliases": [
+    "kennedy space center",
+    "cape canaveral",
+    "the launch pad",
+    "launch complex 39a"
+   ]
+  },
+  "fra mauro": {
+   "body": "moon",
+   "lon": -17.471,
+   "lat": -3.645,
+   "label": "FRA MAURO (PLANNED)",
+   "aliases": [
+    "the planned landing site",
+    "the fra mauro highlands",
+    "fra mauro formation"
+   ]
+  },
+  "apollo 13 splashdown": {
+   "body": "earth",
+   "lon": -165.37,
+   "lat": -21.63,
+   "label": "SPLASHDOWN",
+   "aliases": [
+    "the splashdown site",
+    "the south pacific",
+    "splashdown"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "apollo13_stack",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      -80.604,
+      28.608
+     ],
+     "site_at": "start",
+     "heading_deg": 72.0,
+     "arc_deg": 24,
+     "alt_far_km": 185,
+     "from_utc": "1970-04-11T19:13:00Z",
+     "to_utc": "1970-04-11T19:25:40Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "period_min": 88.2,
+     "to_utc": "1970-04-11T21:48:56Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 240,
+     "bulge": 0.45,
+     "arrive_bulge": 0.35,
+     "speed_curve": 1.4
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 254,
+     "period_min": 190,
+     "plane": {
+      "through": [
+       180,
+       -2
+      ],
+      "heading_deg": 270,
+      "epoch": "1970-04-15T00:34:00Z"
+     },
+     "from_utc": "1970-04-14T23:55:00Z",
+     "to_utc": "1970-04-15T01:13:00Z",
+     "samples_per_rev": 120
+    },
+    {
+     "kind": "transfer",
+     "from": "moon",
+     "to": "earth",
+     "continue": true,
+     "to_utc": "1970-04-17T18:07:41Z",
+     "samples": 240,
+     "bulge": 0.45,
+     "arrive_alt_km": 120,
+     "arrive_deg": 90
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "stack": {
+   "type": "spacecraft",
+   "label": "ODYSSEY + AQUARIUS",
+   "trajectory": "apollo13_stack",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -3.0,
+     "length_m": 3.0,
+     "radius_m": 1.25,
+     "radius_top_m": 0.55,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "cylinder",
+     "at_m": 0,
+     "length_m": 7.5,
+     "radius_m": 1.96,
+     "color": "#c4c7cc",
+     "metalness": 0.6,
+     "roughness": 0.4
+    },
+    {
+     "shape": "cone",
+     "at_m": 7.5,
+     "length_m": 3.23,
+     "radius_m": 1.96,
+     "radius_top_m": 0.35,
+     "color": "#e6e7ea",
+     "metalness": 0.55,
+     "roughness": 0.35
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      3.0,
+      3.0,
+      2.6
+     ],
+     "at_m": 10.8,
+     "color": "#a3a7ac",
+     "metalness": 0.4,
+     "roughness": 0.5
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      4.2,
+      4.2,
+      1.65
+     ],
+     "at_m": 13.4,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    }
+   ],
+   "min_px": 26
+  }
+ },
+ "paths": {
+  "earth_orbit": {
+   "of": "apollo13_stack",
+   "from": "launch",
+   "to": "tli",
+   "style": {
+    "future": "hidden",
+    "width": 5
+   }
+  },
+  "translunar_coast": {
+   "of": "apollo13_stack",
+   "from": "tli",
+   "to": "explosion",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "free_return": {
+   "of": "apollo13_stack",
+   "from": "explosion",
+   "to": "pc2_burn",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "return_coast": {
+   "of": "apollo13_stack",
+   "from": "pc2_burn",
+   "to": "splashdown",
+   "style": {
+    "future": "dashed"
+   }
+  }
+ },
+ "orbits": {
+  "parking_orbit": {
+   "body": "earth",
+   "trajectory": "apollo13_stack",
+   "at": "orbit_insertion+00:45",
+   "arrows": 4,
+   "style": {
+    "color": "#ffffff",
+    "width": 2.5,
+    "opacity": 0.7
+   }
+  }
+ },
+ "craft_aliases": {
+  "apollo 13": "stack",
+  "odyssey": "stack",
+  "aquarius": "stack",
+  "the spacecraft": "stack",
+  "the lifeboat": "stack",
+  "the crew": "stack",
+  "command module": "stack",
+  "lunar module": "stack"
+ }
+}

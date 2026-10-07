@@ -22,6 +22,14 @@ export function resolveMedia(file, mediaDir) {
   return path.isAbsolute(file) ? file : path.join(mediaDir, file);
 }
 
+/** Photo cards that play a video ("video" instead of "image"): which layer, which file, and what to cut. A card's clip plays
+ *  from in_s while the card is up (its frames at the video's frame rate, small enough for a card). */
+export function cardClips(spec = {}) {
+  const fps = spec.fps || 30;
+  return (spec.layers || []).map((L, i) => ({ L, i })).filter(({ L }) => L.type === 'photo_card' && L.video)
+    .map(({ L, i }) => ({ i, file: L.video, fromS: Math.max(0, L.in_s || 0), durS: Math.max(1, (L.end ?? (L.start ?? 0) + 6) - (L.start ?? 0) + 1), rate: fps }));
+}
+
 export function createCutter({ spec, mediaDir, ffmpeg = 'ffmpeg', tmpRoot = os.tmpdir() }) {
   const fp = planFootage(spec);
   const { width: W, height: H, fps } = spec;
@@ -33,6 +41,8 @@ export function createCutter({ spec, mediaDir, ffmpeg = 'ffmpeg', tmpRoot = os.t
     const f = resolveMedia(b.file, mediaDir);
     if (!fs.existsSync(f)) fp.problems.push(`footage ${b.id}: file not found: ${f}`);
   }
+  const cards = cardClips(spec), cardFrames = new Map();      // layer index -> { dir, count }
+  for (const c of cards) if (!fs.existsSync(resolveMedia(c.file, mediaDir))) fp.problems.push(`photo card video not found: ${resolveMedia(c.file, mediaDir)}`);
 
   async function cut(b) {
     const dir = path.join(root, String(b.i));
@@ -70,6 +80,27 @@ export function createCutter({ spec, mediaDir, ffmpeg = 'ffmpeg', tmpRoot = os.t
       const s = state.get(i);
       if (!s || !s.value) return null;
       return path.join(s.value.dir, `${Math.min(Math.max(0, k), s.value.count - 1)}.jpg`);
+    },
+    /** Cut every video card's frames once, before the first frame (cards are a few seconds each), and tell the page how
+     *  many each has (spec.layers[i].video_frames). */
+    async prepareCards() {
+      for (const c of cards) {
+        const dir = path.join(root, `card${c.i}`);
+        fs.mkdirSync(dir, { recursive: true });
+        await run(ffmpeg, ['-y', '-loglevel', 'error', '-ss', c.fromS.toFixed(3), '-i', resolveMedia(c.file, mediaDir), '-t', c.durS.toFixed(3), '-an',
+          '-vf', `fps=${c.rate},scale='min(960,iw)':-2,setsar=1`, '-q:v', '3', '-start_number', '0', path.join(dir, '%d.jpg')]);
+        const count = fs.readdirSync(dir).filter((n) => n.endsWith('.jpg')).length;
+        if (!count) throw new Error(`photo card video ${c.file}: no frames could be read at ${c.fromS.toFixed(2)} s`);
+        cardFrames.set(c.i, { dir, count });
+        spec.layers[c.i].video_frames = count;
+        spec.layers[c.i].card_index = c.i;                    // the page asks for /cardframe/<card_index>/<k>.jpg
+        stats.card_frames = (stats.card_frames || 0) + count;
+      }
+    },
+    /** The file for /cardframe/<layer>/<k>.jpg (the last frame is held if the clip is shorter than the card). */
+    cardFrameFile(i, k) {
+      const c = cardFrames.get(i);
+      return c ? path.join(c.dir, `${Math.min(Math.max(0, k), c.count - 1)}.jpg`) : null;
     },
     cleanup() { fs.rmSync(root, { recursive: true, force: true }); },
   };

@@ -18,7 +18,7 @@ export default {
       if (d.minus_radii) for (const id of d.between) { const n = f.world.get(id); if (n) km -= n.radiusKm; }
     }
     f.g.save(); f.g.globalAlpha = f.alpha;
-    f.u.panel(f.W - 63 * f.u.S, f.H - 66 * f.u.S - 150 * f.u.S, formatDistance(Math.max(0, km)), label);
+    f.u.panel(f.W - 52 * f.u.S, f.H - 56 * f.u.S - 104 * f.u.S, formatDistance(Math.max(0, km)), label);
     f.g.restore();
   },
 };

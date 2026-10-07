@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { planFootage, clipFrameIndex, extractPlan, kenBurnsAt } from '../lib/footage.mjs';
 import { progressAt } from '../lib/timing.mjs';
 import { createClock } from '../lib/clock.mjs';
-import { createCutter } from '../cutter.mjs';
+import { createCutter, cardClips } from '../cutter.mjs';
 import { defaultLayers } from '../lib/layers.mjs';
 
 const SPEC = { fps: 30, width: 320, height: 180, footage: [
@@ -21,22 +21,26 @@ test('map time stops under footage and carries on after it', () => {
   const fp = planFootage(SPEC);
   assert.deepEqual(fp.problems, []);
   assert.equal(fp.mu(5), 5);
-  assert.equal(fp.mu(10), 10); assert.equal(fp.mu(13), 10); assert.equal(fp.mu(20), 10);   // a + b: one frozen span
-  assert.equal(fp.mu(25), 15); assert.equal(fp.mu(40), 26);
+  assert.equal(fp.mu(10), 10); assert.equal(fp.mu(13), 10); assert.equal(fp.mu(20), 10.001);   // a + b: one frozen span; exit state after its midpoint
+  assert.ok(Math.abs(fp.mu(25) - 15.001) < 1e-9); assert.ok(Math.abs(fp.mu(40) - 26.002) < 1e-9);
   // a universe fast-forward that spans the footage pauses and resumes: same date at entry and at return
   const keys = { keys: [{ t: 8, utc: '1969-07-16T16:00:00Z' }, { t: 24, utc: '1969-07-19T17:00:00Z' }] };
   const clock = createClock(fp.mapClock(keys)), at = (t) => +clock.utc(fp.mu(t));
-  assert.equal(at(10), at(20));
+  assert.ok(Math.abs(at(10) - at(20)) < 180e3, 'a few minutes of universe time at most (the 1 ms midpoint cut of a 3-day fast-forward)');
   assert.ok(at(20.5) > at(20));
   assert.equal(clock.utc(fp.mu(24)).toISOString(), '1969-07-19T17:00:00.000Z', 'keys still land at their narration time');
+  // a jump keyed at the footage's start and end happens at its midpoint, while the map is hidden
+  const jump = createClock(fp.mapClock({ keys: [{ t: 10, utc: '1969-07-16T00:00:00Z' }, { t: 20, utc: '1969-07-20T00:00:00Z' }] }));
+  assert.equal(jump.utc(fp.mu(14.9)).toISOString(), '1969-07-16T00:00:00.000Z');
+  assert.equal(jump.utc(fp.mu(15.1)).toISOString(), '1969-07-20T00:00:00.000Z');
   // a camera move spanning the footage is paused, not run under it
   const cam = fp.mapCamera({ moves: [{ t: 9, dur: 4, to: {} }, { t: 25, dur: 2, to: {} }] });
-  assert.deepEqual(cam.moves.map((m) => [m.t, m.dur]), [[9, 4], [15, 2]], '1 s before the footage, 3 s after it');
+  assert.deepEqual(cam.moves.map((m) => [m.t, m.dur]), [[9, 4], [15.001, 2]], '1 s before the footage, 3 s after it');
   const tight = planFootage({ ...SPEC, camera: { moves: [{ t: 9, dur: 4, to: {} }, { t: 22, dur: 2, to: {} }] } });
-  assert.deepEqual(tight.mapCamera({ moves: [{ t: 9, dur: 4 }, { t: 22, dur: 2 }] }).moves.map((m) => [m.t, m.dur]), [[9, 3], [12, 2]]);
+  assert.deepEqual(tight.mapCamera({ moves: [{ t: 9, dur: 4 }, { t: 22, dur: 2 }] }).moves.map((m) => [m.t, +m.dur.toFixed(3)]), [[9, 3.001], [12.001, 2]]);
   assert.match(tight.warnings.join(), /move at 9 s is cut short/);
   // a reveal that the footage interrupts is as far along on return as it was at entry
-  assert.equal(progressAt({ t0: 8, t1: 24 }, 10, fp.mu), progressAt({ t0: 8, t1: 24 }, 20, fp.mu));
+  assert.ok(Math.abs(progressAt({ t0: 8, t1: 24 }, 10, fp.mu) - progressAt({ t0: 8, t1: 24 }, 20, fp.mu)) < 1e-3);
 });
 
 test('dissolves are centred on the boundaries; footage after footage never shows the map', () => {
@@ -112,6 +116,28 @@ test('cutter: cuts a real clip only while its beat is near, holds the last frame
     assert.ok(!fs.existsSync(f0), 'deleted once the beat is over');
     assert.equal(cutter.stats.deleted, 1);
     assert.match(createCutter({ spec: { ...spec, footage: [{ file: 'missing.mp4', start: 0, end: 4 }] }, mediaDir: dir, tmpRoot: dir }).plan.problems.join(), /file not found/);
+  } finally {
+    cutter.cleanup(); fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('video cards: cut up front at the card size, frame k for each moment, the last frame held', async (t) => {
+  if (spawnSync('ffmpeg', ['-version']).status !== 0) return t.skip('ffmpeg not installed');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'starmap-test-'));
+  spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=size=1920x1080:rate=30:duration=3', '-pix_fmt', 'yuv420p', path.join(dir, 'card.mp4')]);
+  const spec = { fps: 30, width: 320, height: 180, footage: [],
+    layers: [{ type: 'photo_card', image: 'still.jpg', start: 0, end: 2 }, { type: 'photo_card', video: 'card.mp4', start: 1, end: 2, in_s: 0.5 }] };
+  assert.deepEqual(cardClips(spec), [{ i: 1, file: 'card.mp4', fromS: 0.5, durS: 2, rate: 30 }], 'only the clip card; card time plus a second');
+  const cutter = createCutter({ spec, mediaDir: dir, tmpRoot: dir });
+  try {
+    await cutter.prepareCards();
+    assert.equal(spec.layers[1].video_frames, 60, '2 s from 0.5 s at 30 fps');
+    assert.equal(spec.layers[1].card_index, 1);
+    const f0 = cutter.cardFrameFile(1, 0);
+    assert.ok(fs.existsSync(f0));
+    assert.equal(cutter.cardFrameFile(1, 999), cutter.cardFrameFile(1, 59), 'past the end: the last frame is held');
+    const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=width', '-of', 'csv=p=0', f0]).stdout.toString().trim();
+    assert.equal(probe, '960', 'small enough for a card');
   } finally {
     cutter.cleanup(); fs.rmSync(dir, { recursive: true, force: true });
   }

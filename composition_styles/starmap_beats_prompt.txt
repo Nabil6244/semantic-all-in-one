@@ -1,0 +1,231 @@
+You are writing the BEAT PLAN for the "StarMap" style of Semantic YT Studio: a space
+documentary that alternates between a real 3D MAP OF SPACE (the real Sun, planets, Moon and
+stars in their true positions for the date of the story, with one camera that glides from
+place to place, from a launch pad to a lunar landing site to the whole galaxy) and
+full-screen FOOTAGE (real NASA video and photographs). On the map the app draws titles,
+markers on surfaces, landing zones, spacecraft, their flight paths and orbits, number chips,
+distances, captions and photo cards. The map explains WHERE, WHEN and HOW FAR. Footage
+shows WHAT IT WAS LIKE.
+
+You cut the narration into BEATS. A beat is one stretch of the story, told one way:
+  map          the map of space, with its layers
+  map_footage  the map, with one to three PHOTO CARDS on it (the map says where, the cards show what)
+  footage      full-screen clips or photos (one to three), the map waits underneath
+Under each beat you list what appears in it. The app times everything from the
+narrator's own words, flies the camera for you, moves the universe to the right date, and
+renders the video.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma.
+
+HEADER (exactly this, in this order)
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+
+ROWS
+The FIRST row after the header is the plan row: beat=plan, row=plan, id = the mission pack
+(given at the end of this prompt; leave empty if there is none), label = the video's title.
+Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and what it is
+(row = beat, layer, card or clip). Write the beat row first, then that beat's rows.
+
+- row=beat: opens a beat.
+    text       the beat's narration, its whole sentence or sentences, copied EXACTLY from the
+               script (every word, in order). Beats start at the start of a sentence.
+    vo_anchor  the first 3 to 5 words of that text, copied exactly
+    mode       map, map_footage or footage
+    place      (map beats) what the camera looks at: a body (earth, moon, sun, mars, jupiter,
+               saturn, pluto, alpha centauri, sirius, barnard's star, wolf 359, milky way,
+               andromeda, large magellanic cloud, triangulum), a pair (earth+moon,
+               sun+alpha centauri, milky way+andromeda), or a SITE from the mission pack or the
+               sites list below
+    frame      (map beats) how much we see:
+                 surface  low over a site, its craters and the horizon (place = a site)
+                 close    a large part of the body, or a site from high up
+                 body     the whole body (a site then faces the camera)
+                 system   a body with its moon, e.g. place=earth+moon or moon
+                 inner    the inner planets around the Sun
+                 solar    the whole solar system
+                 galaxy   the Milky Way from outside (its centre, arms and "you are here"
+                          are labelled by themselves); with milky way+andromeda, both
+                 universe the whole observable universe, galaxies by the thousand
+    type       (map beats, optional) push_in (slow zoom in), pull_out, orbit (the camera
+               circles), hold
+    date       (map beats) the moment in time the beat shows: an EVENT of the mission pack
+               (launch, landing ...), an event plus or minus time (landing-00:12:40,
+               tli+02:00), mission time (T+102:45:40), or a date like 1969-07-20T20:17:40Z.
+               The universe moves to it: when two beats have dates, time runs smoothly from one
+               to the next, so the spacecraft flies along its path between them. Give a date
+               whenever the story's moment changes; leave it empty to keep time running.
+    why        one short phrase: what this beat does ("where they launched", "the long coast")
+  A beat ends where the next beat starts. The first beat starts the video.
+
+- row=layer: something drawn on the map (map and map_footage beats only).
+    vo_anchor  the words it appears on: 2 to 5 words copied from ITS OWN BEAT'S text cell
+    type       title, marker, zone, craft, path, orbit, stat, caption, distance, line,
+               rings or pointer
+    and what that type needs (see LAYERS)
+    until      leave empty (it leaves with its beat), after_footage (still there when the
+               map comes back after the next footage), end (until the video ends), or a beat
+               id such as b7 (until that beat ends)
+    hold       seconds, only to make it leave sooner
+
+- row=card: a photo card of a map_footage beat (one to three per beat).
+    vo_anchor  the words it appears on, from ITS OWN BEAT'S text cell
+    anchor     where on the screen: tr (default for the first), ml, mr, bl. Cards on screen
+               together get DIFFERENT places
+    hold       seconds on screen (default 6)
+    asset      nasa_image:<specific description> or stock_image:<specific description> for a photo;
+               nasa_video:<...> or stock_video:<...> for a card that plays a short clip (a turning planet,
+               a flare, a flyover) while the map stays up
+    label      a short name in capitals shown under the card; sub: an optional second line
+
+- row=clip: a clip of a footage beat (one to three per footage beat, in order).
+    asset      nasa_video:<description>, stock_video:<description>, nasa_image: or
+               stock_image: for a still
+    why        what this clip shows that the map cannot
+    dur        optional seconds; leave empty and the beat's time is shared between its clips
+
+HOW TIME WORKS (the most important rule: a CSV that breaks it does not load)
+The app finds every vo_anchor in the recorded narration, beat by beat, in order. So:
+- THE BEATS COVER THE SCRIPT EXACTLY. Put the text cells of all beats one after another
+  and you get the script, word for word: nothing skipped, repeated, reworded or added.
+- A beat's vo_anchor is the FIRST 3 to 5 words of its own text. If those words also appear
+  earlier in the script, take more words until the phrase is unique.
+- A layer's or card's vo_anchor is copied from ITS OWN BEAT'S text cell, nowhere else. When
+  a thing is first named in the NEXT beat's text, put its row under the next beat.
+- Copy words exactly as the script writes them: same spelling, same numbers (digits or
+  words, as the script has them). Never paraphrase or shorten a name.
+- Avoid anchoring on common short words alone ("the Moon", "and then"): use 3 or more words,
+  or a name spoken only once in that beat.
+- Spoken pace is about 2.5 words per second, so a beat of 25 words lasts about 10 s.
+
+THE STARMAP RHYTHM
+- Alternate: map, footage, map again. Footage is usually 25 to 45 percent of the running
+  time. Do not leave the map up for more than about 25 seconds without a card or footage.
+- MAP when the narration is about where, when or how far: a launch site, an orbit, a
+  journey, a distance, a date, a landing site, the scale of space. FOOTAGE when it
+  describes something filmed or photographed: a launch, the crew, a cabin, a moonwalk,
+  a splashdown. MAP_FOOTAGE when a named thing needs a picture but where it is still matters.
+- A footage beat is 5 to 12 seconds, one to three clips. A map beat is usually 8 to 20
+  seconds. Do not switch mode every sentence.
+- THE MAP MUST KEEP BUILDING: something new appears at least every 5 seconds of map
+  narration (a craft, a path, an orbit, a marker, a zone, a number, a card, a caption).
+- Show the journey: when the narration follows a spacecraft, give the beat the craft and
+  its path, and a date, so the viewer watches it travel. When it reaches a place (orbit, a
+  landing site), switch place and frame in a new beat.
+- Use a stat chip for each real number the narrator says (a distance, an altitude, a
+  speed, a count). When that number is a distance or a light travel time between two
+  things, ALSO draw it with a line row (light for light travel times, measure otherwise),
+  so the map shows what the number means. Use a caption for a short key phrase (at most 44
+  characters), rarely.
+- Do not put two stats in the same corner at once; a stat and a caption not within 4 s.
+
+CAMERA
+- You do not write camera moves. Give each map or map_footage beat its place, frame and
+  date; the app flies the camera between beats (never under footage) and lights every
+  body from the Sun's side.
+- Keep the same place and frame for beats that stay in the same view, so the camera does
+  not move for nothing.
+
+LAYERS
+- title: label (the video or part title), sub optional. One per part; never repeat.
+- marker: place = a SITE (from the lists below, or body@longitude,latitude such as
+  moon@23.47,0.67), label = its name in capitals (optional: the site's own name is used),
+  sub = a short second line.
+- zone: place = a SITE; value_to = the radius in km (default 25); label (e.g. LANDING ZONE).
+- craft: id = a CRAFT of the mission pack; label = the name to show (optional).
+- path: id = a PATH of the mission pack (a stretch of a flight, drawn as the craft flies it;
+  give the craft too).
+- orbit: id = an ORBIT of the mission pack (the ring the craft circles on).
+- stat: value_to (the number stated in the script), value_from (optional), format with ONE
+  number placeholder written with 0 or # and the unit after it ("#,##0 KM", "0.0 KM/S").
+  NEVER type the number itself in the format. sub = the small caption. anchor: bl, br, tl.
+- caption: text, at most 44 characters.
+- distance: place = two things separated by ; (a body, a site or a craft, e.g. earth;csm),
+  sub = what it measures (FROM EARTH). It counts live as the craft moves, and a dashed line
+  joins the two.
+- line: SHOWS a distance on the map. place = two things separated by ; (moon;earth), or one
+  body to measure across (milky way). id = light (a glowing line with light running from the
+  first thing to the second: use it whenever the script says how long light takes) or
+  measure (a dashed measuring line). label = what it says (1.3 LIGHT-SECONDS, 2.5 MILLION
+  LIGHT-YEARS). One line at a time is the focus: give each its own moment.
+- rings: scale rings around a body, so the viewer feels a jump in scale. place = the body
+  (sun), text = the sizes separated by ; (1 light-hour; 1 light-day; 1 light-year), each
+  optionally size=LABEL. Give them until = the next beat when the camera flies outwards
+  through them.
+- pointer: a pin with a label on a thing (place = sun, label = YOU ARE HERE), for a view
+  from far away.
+
+PICTURES AND CLIPS (asset)
+- Do NOT invent file names. Describe what to find: nasa_image:<description>,
+  nasa_video:<description>, stock_image: or stock_video:. Concrete and visual ("Saturn V
+  lifting off from the launch pad", not "rocket"). Prefer nasa_ for real missions, and name the
+  mission in the description ("Apollo 11 astronaut beside the flag on the Moon") so the picture is
+  from the right one.
+- Do not repeat the same description or idea twice.
+
+ACCURACY
+- Show only what the narrator says. Never add facts, numbers, places or dates that are not
+  in the script or in the mission pack below.
+- Use only the events, sites, craft, paths and orbits listed below (or the bodies named in
+  this prompt). Anything else cannot be drawn.
+
+LONG SCRIPTS
+For a long script, write it in parts if you must: continue the beat numbers (b41, b42 ...)
+and do not repeat the header or the plan row. Each part starts with the sentence right after
+the last beat's text of the part before. The parts are pasted together into one file.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly as given, then the plan row; every row has the same number of cells.
+2. Beats are numbered b1, b2, b3 ... in order; each beat row comes before its rows.
+3. TIME: joining every beat's text gives the script word for word. Every beat's vo_anchor
+   is the first 3 to 5 words of its own text and unique so far. Every layer's and card's
+   vo_anchor is found, word for word, in its own beat's text cell.
+4. Every map and map_footage beat has a place and frame, and a date when the moment changes.
+5. Every map_footage beat has one to three cards in different places; every footage beat one
+   to three clips and nothing else.
+6. Every event, site, craft, path and orbit is one listed below; every number is from the script.
+7. Pictures are nasa_/stock_ descriptions, never file names.
+8. Output is the CSV only.
+
+EXAMPLE
+Script:
+In July 1969, three astronauts set out from Florida to land on the Moon. A Saturn V rocket lifted them off the pad with the force of a small earthquake. Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up. Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space. On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit. The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility. With seconds of fuel to spare, Eagle touched down. Six hours later, Armstrong stepped onto the Moon.
+
+CSV:
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,apollo11,,,,APOLLO 11,,,,,,,,,,,
+b1,beat,"In July 1969, three",map,,,launch complex 39a,body,launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began
+b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,
+b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,
+b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch
+b3,beat,Within twelve minutes Apollo,map,,,earth,body,orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit
+b3,layer,Apollo 11 was circling,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
+b3,layer,circling the Earth,,path,earth_orbit,,,,,,,,,,,,,,,
+b3,layer,circling the Earth,,orbit,parking_orbit,,,,,,,,,,,,,,,
+b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,
+b4,beat,Then the third stage,map,,,earth+moon,system,tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon
+b4,layer,pushed the spacecraft out,,path,translunar_coast,,,,,,,,,,,,,,,
+b4,layer,pushed the spacecraft out,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
+b4,layer,For three days the,,distance,,earth;csm,,,,FROM EARTH,,,,,,,,,,
+b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,
+b5,beat,On the nineteenth of,map_footage,,,moon,body,loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon
+b5,layer,slipped behind the Moon,,craft,csm,,,,COLUMBIA,,,,,,,,,,,
+b5,layer,enter lunar orbit,,orbit,lunar_orbit,,,,,,,,,,,,,,,
+b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,
+b6,beat,The next day Eagle,map,,,tranquility base,surface,pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent
+b6,layer,Eagle separated from Columbia,,craft,lm,,,,EAGLE,,,,,,,b7,,,,
+b6,layer,dropped toward the Sea,,path,descent,,,,,,,,,,,b7,,,,
+b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,
+b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,
+b7,beat,With seconds of fuel,map,,,tranquility base,surface,landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing
+b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,
+b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface
+b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk
+
+THE MISSION PACK AND PLACES YOU MAY USE
+<<<MISSION PACK>>>
+
+NOW WRITE THE BEAT PLAN FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

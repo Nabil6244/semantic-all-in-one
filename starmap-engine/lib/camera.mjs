@@ -2,7 +2,8 @@
 //
 // A shot: { target, distance | fill, az_deg, el_deg, light, orbit_deg_per_s }
 //   target   "moon", "moon@23.47,0.67" (a surface point), "earth+moon" (a midpoint)
-//   distance {"km": 900} / {"au": 5} / {"ly": 1e5}, or fill: 0.5 = the body spans half the frame height
+//   distance {"km": 900} / {"au": 5} / {"ly": 1e5}, or fill: 0.5 = the body spans half the frame height, or for a pair
+//            ("earth+moon") fit: 1.6 = the pair spans 1/1.6 of the frame
 //   az/el    the viewing direction: from the ground for a surface target (el = degrees above the local horizon), else in
 //            space; with "light": "front" | "side" | "back" | "rim" the direction is measured from the Sun instead, so
 //            a shot never lands on a body's night side by accident
@@ -44,7 +45,13 @@ function dirIn(up, ref, az, el) {
 function shotState(world, shot, tanHalf, sunId) {
   const at = anchorTarget(world, shot.target);
   const body = world.get(at.anchor);
-  const dist = shot.fill ? (body.radiusKm / tanHalf) / shot.fill : toKm(shot.distance);
+  let dist;
+  if (shot.fill) dist = (body.radiusKm / tanHalf) / shot.fill;
+  else if (shot.fit && String(shot.target).includes('+')) {
+    // "earth+moon" with fit: 1.6 -> far enough that the pair spans 1/1.6 of the frame height (at the shot's own date)
+    const ids = String(shot.target).split('+').map((x) => x.trim()), span = Math.hypot(...world.vec(ids[0], ids[ids.length - 1]));
+    dist = (span / 2 / tanHalf) * shot.fit;
+  } else dist = toKm(shot.distance);
   const sf = surfaceFrame(world, shot.target);
   const up = sf ? sf.normal : [0, 1, 0];
   let dir;
@@ -60,6 +67,16 @@ function shotState(world, shot, tanHalf, sunId) {
     // in the target's own frame: el = degrees above ITS equator or plane (a galaxy's disk, a planet's equator), and the
     // camera's up is its north, so "55 degrees above the Milky Way" means above the galactic plane
     const B = world.orientation(at.anchor);
+    if (shot.fit && String(shot.target).includes('+') && shot.az_deg == null) {
+      // a pair framed by its separation is seen side-on (perpendicular to the line between them), el above that side
+      const ids = String(shot.target).split('+').map((x) => x.trim());
+      const sep = norm(world.vec(ids[0], ids[ids.length - 1]));
+      let side = cross(sep, B.y);
+      if (Math.hypot(...side) < 1e-6) side = cross(sep, [1, 0, 0]);
+      side = norm(side);
+      const up = norm(cross(side, sep)), e = (shot.el_deg || 0) * RAD;
+      return { ...at, dist, dir: norm(side.map((c, i) => c * Math.cos(e) + up[i] * Math.sin(e))), up, orbit: shot.orbit_deg_per_s || 0 };
+    }
     return { ...at, dist, dir: dirIn(B.y, B.z, shot.az_deg || 0, shot.el_deg || 0), up: B.y, orbit: shot.orbit_deg_per_s || 0 };
   }
   return { ...at, dist, dir, up, orbit: shot.orbit_deg_per_s || 0 };

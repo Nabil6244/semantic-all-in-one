@@ -8,7 +8,8 @@
 // samples) replaces an illustrated one without any renderer change.
 //
 // GENERATORS build illustrated samples from a few numbers; they are explicitly not flight data:
-//   orbit_arc      a circular orbit around a body (plane by inclination/node, or "over this site with this heading")
+//   orbit_arc      a circular orbit around a body (plane by inclination/node, or "over this site with this heading");
+//                  with to_altitude_km it widens or shrinks smoothly (orbit raising/lowering, a coast out to a distant orbit)
 //   surface_track  a launch or a landing: along a great circle from/to a surface site, climbing or descending
 //   transfer       a coast from one body to another (a smooth curve from a parking orbit to an arrival orbit)
 import { toKm } from './units.mjs';
@@ -92,9 +93,32 @@ function genOrbitArc(world, g, { prev } = {}) {
   }
   const period = (g.period_min || 120) * 60000;
   const angle = (t) => (end ? 0 : (g.phase_deg || 0)) + 360 * (t - P.epochMs) / period;
+  if (g.to_altitude_km != null || g.to_radius != null) return widening(world, g, P, r, t0, t1, period, angle(t0));
   const n = Math.max(2, Math.ceil(Math.abs(angle(t1) - angle(t0)) / 360 * (g.samples_per_rev || 96)) + 1);
   const out = [];
   for (let i = 0; i < n; i++) { const t = t0 + (t1 - t0) * (i / (n - 1)); out.push({ utc: t, anchor: g.body, km: orbitPoint(P, r, angle(t)) }); }
+  return out;
+}
+
+/** An orbit_arc with to_altitude_km (or to_radius): the orbit widens or shrinks smoothly from its starting radius to the
+ *  target over the arc (orbit raising or lowering, or a coast out to a distant orbit), and its period runs from period_min
+ *  to to_period_min. Illustrated: a series of burns on elliptical orbits is drawn as one smooth spiral in the same plane. */
+function widening(world, g, P, r0, t0, t1, period0, a0) {
+  const r1 = g.to_radius != null ? toKm(g.to_radius) : world.get(g.body).radiusKm + g.to_altitude_km;
+  const period1 = g.to_period_min != null ? g.to_period_min * 60000 : period0;
+  const ease = (s) => s * s * (3 - 2 * s);                                       // no kink where it joins the orbits either side
+  const revs = Math.abs(t1 - t0) / Math.min(period0, period1);                    // enough samples for the fastest part
+  const n = Math.max(2, Math.ceil(revs * (g.samples_per_rev || 96)) + 1, g.samples || 0);
+  const out = [];
+  let a = a0;
+  for (let i = 0; i < n; i++) {
+    const s = i / (n - 1), t = t0 + (t1 - t0) * s;
+    if (i) {   // advance the angle by this step at the period in the middle of the step
+      const mid = ease((i - 0.5) / (n - 1));
+      a += 360 * ((t1 - t0) / (n - 1)) / (period0 + (period1 - period0) * mid);
+    }
+    out.push({ utc: t, anchor: g.body, km: orbitPoint(P, r0 + (r1 - r0) * ease(s), a) });
+  }
   return out;
 }
 

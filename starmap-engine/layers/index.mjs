@@ -14,8 +14,12 @@ import distance from './distance.mjs';
 import photo_card from './photo_card.mjs';
 import caption from './caption.mjs';
 import channel_name from './channel_name.mjs';
+import link from './link.mjs';
+import rings from './rings.mjs';
+import pointer from './pointer.mjs';
+import galaxy_guide from './galaxy_guide.mjs';
 
-export const BUILTIN_LAYERS = [body_labels, marker, region, orbit, trajectory, spacecraft, atmosphere,
+export const BUILTIN_LAYERS = [body_labels, marker, region, orbit, trajectory, spacecraft, atmosphere, link, rings, pointer, galaxy_guide,
   title, stat_chip, mission_clock, distance, photo_card, caption, channel_name];
 
 export function registerBuiltins(registry) {

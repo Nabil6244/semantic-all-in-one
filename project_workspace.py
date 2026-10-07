@@ -503,6 +503,44 @@ class ProjectWorkspace:
             data["hybrid_settings"] = merged
             self._write_meta(data)
 
+    # ---- StarMap: the beat CSV is the source of truth; its pictures and clips live in the Visual Plan's folder like every other style's ----
+    @property
+    def starmap_dir(self) -> Path:
+        return self.root / "starmap"
+
+    @property
+    def starmap_csv_path(self) -> Path:
+        return self.starmap_dir / "beats.csv"
+
+    @property
+    def starmap_work_dir(self) -> Path:
+        """Render scratch (the compiled spec, the silent video, the sound plan); the finished video goes to final/."""
+        return self.starmap_dir / "_work"
+
+    @property
+    def starmap_images_dir(self) -> Path:
+        return self.starmap_work_dir / "media"
+
+    def copy_starmap_csv_in(self, src: Path) -> Path:
+        """The StarMap beat CSV gets its own slot, so it never collides with the other styles' CSVs."""
+        self.starmap_dir.mkdir(parents=True, exist_ok=True)
+        src = Path(src)
+        if src.resolve() != self.starmap_csv_path.resolve():
+            shutil.copy2(src, self.starmap_csv_path)
+        return self.starmap_csv_path
+
+    def starmap_settings(self) -> Dict[str, Any]:
+        data = self.read_meta().get("starmap_settings")
+        return dict(data) if isinstance(data, dict) else {}
+
+    def set_starmap_settings(self, **values: Any) -> None:
+        data = self.read_meta()
+        current = data.get("starmap_settings") if isinstance(data.get("starmap_settings"), dict) else {}
+        merged = {**current, **{k: v for k, v in values.items() if v is not None}}
+        if merged != current:
+            data["starmap_settings"] = merged
+            self._write_meta(data)
+
     @property
     def pakmap_images_dir(self) -> Path:
         """Where the Visual Plan's pictures for pakMap live (numbered 001.jpg ... and .asset_manifest.json), resolved by the same

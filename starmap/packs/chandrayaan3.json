@@ -1,0 +1,315 @@
+{
+ "id": "chandrayaan3",
+ "name": "Chandrayaan-3",
+ "_about": "Chandrayaan-3 (ISRO): the first landing near the Moon's south pole. Launch 14:35:17 IST (09:05:17 UTC) on LVM3-M4 from Sriharikota; lunar orbit insertion began 19:12 IST Aug 5 (ISRO press release); landing 18:03 IST Aug 23 at Statio Shiv Shakti (69.373 S, 32.319 E). APPROXIMATE times (ISRO gave the day and an approximate hour): trans-lunar injection 'around midnight' IST Aug 1, lander separation ~13:00 IST Aug 17, powered descent ~17:44 IST Aug 23. The trajectory is ILLUSTRATED: five Earth-bound orbit raisings drawn as one widening orbit, and the lunar orbit lowering (164 x 18,074 km down to 153 x 163 km) as one shrinking orbit over the pole; not flight data.",
+ "met_zero": "2023-07-14T09:05:17Z",
+ "events": {
+  "launch": "2023-07-14T09:05:17Z",
+  "spacecraft_separation": "2023-07-14T09:21:00Z",
+  "tli": "2023-07-31T18:30:00Z",
+  "loi": "2023-08-05T13:42:00Z",
+  "lander_separation": "2023-08-17T07:30:00Z",
+  "powered_descent": "2023-08-23T12:14:00Z",
+  "landing": "2023-08-23T12:33:00Z"
+ },
+ "sites": {
+  "sriharikota": {
+   "body": "earth",
+   "lon": 80.23,
+   "lat": 13.72,
+   "label": "SRIHARIKOTA",
+   "aliases": [
+    "satish dhawan space centre",
+    "the launch pad",
+    "india"
+   ]
+  },
+  "shiv shakti point": {
+   "body": "moon",
+   "lon": 32.319,
+   "lat": -69.373,
+   "label": "SHIV SHAKTI POINT",
+   "aliases": [
+    "statio shiv shakti",
+    "the landing site",
+    "the south pole",
+    "the lunar south pole",
+    "chandrayaan-3 landing site"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "chandrayaan3_craft",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      80.23,
+      13.72
+     ],
+     "site_at": "start",
+     "heading_deg": 105,
+     "arc_deg": 40,
+     "alt_far_km": 170,
+     "from_utc": "2023-07-14T09:05:17Z",
+     "to_utc": "2023-07-14T09:21:00Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "to_altitude_km": 60000,
+     "period_min": 640,
+     "to_period_min": 2600,
+     "to_utc": "2023-07-31T18:30:00Z",
+     "samples_per_rev": 48
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 260,
+     "bulge": 0.4,
+     "arrive_bulge": 0.35
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 9100,
+     "period_min": 270,
+     "plane": {
+      "through": [
+       32.32,
+       -69.37
+      ],
+      "heading_deg": 0,
+      "epoch": "2023-08-23T12:33:00Z"
+     },
+     "phase_deg": 200,
+     "from_utc": "2023-08-05T13:42:00Z",
+     "to_utc": "2023-08-06T12:00:00Z",
+     "samples_per_rev": 72
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "continue": true,
+     "to_altitude_km": 158,
+     "period_min": 270,
+     "to_period_min": 120,
+     "to_utc": "2023-08-17T07:30:00Z",
+     "samples_per_rev": 48
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "chandrayaan3_vikram",
+   "frame": "moon",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "moon",
+     "site": [
+      32.319,
+      -69.373
+     ],
+     "site_at": "end",
+     "heading_deg": 180,
+     "arc_deg": 22,
+     "alt_far_km": 30,
+     "from_utc": "2023-08-23T12:14:00Z",
+     "to_utc": "2023-08-23T12:33:00Z",
+     "samples": 90,
+     "track": "surface"
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "spacecraft": {
+   "type": "spacecraft",
+   "label": "CHANDRAYAAN-3",
+   "trajectory": "chandrayaan3_craft",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -0.9,
+     "length_m": 0.9,
+     "radius_m": 0.45,
+     "radius_top_m": 0.25,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      2.2,
+      2.2,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "panel",
+     "at_m": 0.4,
+     "width_m": 1.6,
+     "span_m": 4.5,
+     "gap_m": 1.1,
+     "color": "#1d2a4a",
+     "metalness": 0.6,
+     "roughness": 0.35
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      1.2
+     ],
+     "at_m": 2.0,
+     "color": "#d7b84a",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      1.6,
+      1.6,
+      0.6
+     ],
+     "at_m": 3.2,
+     "color": "#cfd2d6",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "min_px": 26
+  },
+  "vikram": {
+   "type": "spacecraft",
+   "label": "VIKRAM",
+   "trajectory": "chandrayaan3_vikram",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 4,
+     "radius_m": 1.2,
+     "at_m": 1.2,
+     "length_m": 1.6,
+     "splay_deg": 32,
+     "thickness_m": 0.07,
+     "foot_m": 0.3,
+     "color": "#b8a46a"
+    },
+    {
+     "shape": "nozzle",
+     "at_m": 0.1,
+     "length_m": 0.45,
+     "radius_m": 0.35,
+     "radius_top_m": 0.2,
+     "color": "#3b3b3d"
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      1.2
+     ],
+     "at_m": 0.5,
+     "color": "#d7b84a",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      1.6,
+      1.6,
+      0.5
+     ],
+     "at_m": 1.7,
+     "color": "#cfd2d6",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "orientation": "radial",
+   "min_px": 30
+  }
+ },
+ "paths": {
+  "earth_orbits": {
+   "of": "chandrayaan3_craft",
+   "from": "spacecraft_separation",
+   "to": "tli",
+   "style": {
+    "future": "hidden",
+    "width": 2
+   }
+  },
+  "translunar_coast": {
+   "of": "chandrayaan3_craft",
+   "from": "tli",
+   "to": "loi",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "lunar_orbits": {
+   "of": "chandrayaan3_craft",
+   "from": "loi",
+   "to": "lander_separation",
+   "style": {
+    "future": "hidden",
+    "width": 2
+   }
+  },
+  "descent": {
+   "of": "chandrayaan3_vikram",
+   "from": "powered_descent",
+   "to": "landing",
+   "style": {
+    "future": "dashed",
+    "width": 5
+   }
+  }
+ },
+ "orbits": {
+  "final_lunar_orbit": {
+   "body": "moon",
+   "trajectory": "chandrayaan3_craft",
+   "at": "lander_separation-01:00",
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 3
+   }
+  }
+ },
+ "craft_aliases": {
+  "chandrayaan-3": "spacecraft",
+  "chandrayaan 3": "spacecraft",
+  "the spacecraft": "spacecraft",
+  "the propulsion module": "spacecraft",
+  "the lander": "vikram",
+  "vikram lander": "vikram",
+  "pragyan": "vikram",
+  "the rover": "vikram"
+ }
+}

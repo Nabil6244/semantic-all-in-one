@@ -3,3 +3,14 @@ Sample content photographs (public domain, NASA; not part of the engine):
   as11-44-6642.jpg   Apollo 11, Eagle's ascent stage approaching Columbia, 21 July 1969. NASA image AS11-44-6642.
 NASA material is not copyrighted; NASA asks for credit and that its insignia not imply endorsement.
   nasa-6900540.jpg   Apollo 11 launch, 16 July 1969. NASA image 6900540 (images.nasa.gov).
+  s68-56001.jpg      Apollo 8 launch, 21 December 1968. NASA image S68-56001.
+  as08-14-2383.jpg   Apollo 8 "Earthrise", 24 December 1968. NASA image AS08-14-2383.
+  s68-56304.jpg      Apollo 8 command module hoisted aboard USS Yorktown, 27 December 1968. NASA image S68-56304.
+  s70-35145.jpg      Mission Control at the Apollo 13 splashdown, 17 April 1970. NASA image S70-35145.
+  s70-15530.jpg      Apollo 13 command module recovery after splashdown, 17 April 1970. NASA image S70-15530.
+  nhq202211160030.jpg            Artemis I launch, 16 November 2022. NASA/Bill Ingalls, NASA image NHQ202211160030.
+  art001e001712.jpg              Artemis I: Orion's solar array with the Earth and the Moon (flight day 14). NASA image art001e001712.
+  ksc-20221211-ph-jnv01-0003.jpg Artemis I: Orion under its parachutes, 11 December 2022. NASA image KSC-20221211-PH-JNV01-0003.
+  pia13523.jpg                   The lunar south pole (LRO Wide Angle Camera mosaic). NASA/GSFC/Arizona State University, PIA13523.
+  change4-lro-closer-look.jpg    The Chang'e-4 lander seen by the Lunar Reconnaissance Orbiter. NASA/GSFC/Arizona State University
+                                 (NASA image 01_m1303619844lr_closC5A1C).

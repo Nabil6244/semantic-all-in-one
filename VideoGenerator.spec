@@ -163,6 +163,12 @@ from pakmap.packaging import engine_data_files  # noqa: E402
 
 datas += engine_data_files(ROOT)
 
+# StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the
+# files it loads, and the starmap package's catalogs and mission packs (see starmap/packaging.py, which is unit-tested).
+from starmap.packaging import engine_data_files as starmap_data_files  # noqa: E402
+
+datas += starmap_data_files(ROOT)
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership); _light = the light-theme lettering

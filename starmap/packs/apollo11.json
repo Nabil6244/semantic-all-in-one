@@ -1,0 +1,276 @@
+{
+ "id": "apollo11",
+ "name": "Apollo 11",
+ "_about": "Apollo 11 as a mission pack: real event times (UTC), the landing site, the two spacecraft and their ILLUSTRATED trajectories (built from the event times, launch azimuth, orbit altitudes and the landing site; not flight data).",
+ "met_zero": "1969-07-16T13:32:00Z",
+ "events": {
+  "launch": "1969-07-16T13:32:00Z",
+  "orbit_insertion": "1969-07-16T13:43:49Z",
+  "tli": "1969-07-16T16:16:16Z",
+  "loi": "1969-07-19T17:21:50Z",
+  "undocking": "1969-07-20T17:44:00Z",
+  "pdi": "1969-07-20T20:05:05Z",
+  "landing": "1969-07-20T20:17:40Z",
+  "first_step": "1969-07-21T02:56:15Z",
+  "lunar_liftoff": "1969-07-21T17:54:00Z",
+  "docking": "1969-07-21T21:35:00Z",
+  "tei": "1969-07-22T04:55:42Z",
+  "splashdown": "1969-07-24T16:50:35Z"
+ },
+ "sites": {
+  "tranquility base": {
+   "body": "moon",
+   "lon": 23.473,
+   "lat": 0.674,
+   "label": "TRANQUILITY BASE",
+   "aliases": [
+    "the landing site",
+    "the sea of tranquility"
+   ]
+  },
+  "launch complex 39a": {
+   "body": "earth",
+   "lon": -80.604,
+   "lat": 28.608,
+   "label": "KENNEDY SPACE CENTER",
+   "aliases": [
+    "kennedy space center",
+    "cape canaveral",
+    "the launch pad"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "apollo11_csm",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      -80.604,
+      28.608
+     ],
+     "site_at": "start",
+     "heading_deg": 72,
+     "arc_deg": 24,
+     "alt_far_km": 190,
+     "from_utc": "1969-07-16T13:32:00Z",
+     "to_utc": "1969-07-16T13:43:49Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "period_min": 88.2,
+     "to_utc": "1969-07-16T16:16:16Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 220,
+     "bulge": 0.45,
+     "arrive_bulge": 0.3
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 110,
+     "period_min": 118,
+     "plane": {
+      "through": [
+       23.47,
+       0.67
+      ],
+      "heading_deg": 268,
+      "epoch": "1969-07-20T20:17:40Z"
+     },
+     "phase_deg": 120,
+     "from_utc": "1969-07-19T17:21:50Z",
+     "to_utc": "1969-07-22T04:55:00Z",
+     "samples_per_rev": 96
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "apollo11_lm",
+   "frame": "moon",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "moon",
+     "site": [
+      23.47,
+      0.67
+     ],
+     "site_at": "end",
+     "heading_deg": 268,
+     "arc_deg": 15.8,
+     "alt_far_km": 15,
+     "from_utc": "1969-07-20T20:05:00Z",
+     "to_utc": "1969-07-20T20:17:40Z",
+     "samples": 90,
+     "track": "surface"
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "csm": {
+   "type": "spacecraft",
+   "label": "COLUMBIA",
+   "trajectory": "apollo11_csm",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -3.0,
+     "length_m": 3.0,
+     "radius_m": 1.25,
+     "radius_top_m": 0.55,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "cylinder",
+     "at_m": 0,
+     "length_m": 7.5,
+     "radius_m": 1.96,
+     "color": "#c4c7cc",
+     "metalness": 0.6,
+     "roughness": 0.4
+    },
+    {
+     "shape": "cone",
+     "at_m": 7.5,
+     "length_m": 3.23,
+     "radius_m": 1.96,
+     "radius_top_m": 0.35,
+     "color": "#e6e7ea",
+     "metalness": 0.55,
+     "roughness": 0.35
+    }
+   ],
+   "min_px": 26
+  },
+  "lm": {
+   "type": "spacecraft",
+   "label": "EAGLE",
+   "trajectory": "apollo11_lm",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 4,
+     "radius_m": 2.1,
+     "at_m": 2.6,
+     "length_m": 3.0,
+     "splay_deg": 30,
+     "thickness_m": 0.09,
+     "foot_m": 0.45,
+     "color": "#b8a46a"
+    },
+    {
+     "shape": "nozzle",
+     "at_m": 0.55,
+     "length_m": 0.65,
+     "radius_m": 0.7,
+     "radius_top_m": 0.4,
+     "color": "#3b3b3d"
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      4.2,
+      4.2,
+      1.65
+     ],
+     "at_m": 1.2,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      3.0,
+      3.0,
+      2.6
+     ],
+     "at_m": 2.85,
+     "color": "#a3a7ac",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "orientation": "radial",
+   "min_px": 30
+  }
+ },
+ "paths": {
+  "earth_orbit": {
+   "of": "apollo11_csm",
+   "from": "launch",
+   "to": "tli",
+   "style": {
+    "future": "hidden",
+    "width": 5
+   }
+  },
+  "translunar_coast": {
+   "of": "apollo11_csm",
+   "from": "tli",
+   "to": "loi",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "descent": {
+   "of": "apollo11_lm",
+   "from": "pdi",
+   "to": "landing",
+   "style": {
+    "future": "dashed",
+    "width": 5
+   }
+  }
+ },
+ "orbits": {
+  "parking_orbit": {
+   "body": "earth",
+   "trajectory": "apollo11_csm",
+   "at": "orbit_insertion+00:45",
+   "arrows": 4,
+   "style": {
+    "color": "#ffffff",
+    "width": 2.5,
+    "opacity": 0.7
+   }
+  },
+  "lunar_orbit": {
+   "body": "moon",
+   "trajectory": "apollo11_csm",
+   "at": "loi+01:30",
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 3
+   }
+  }
+ },
+ "craft_aliases": {
+  "columbia": "csm",
+  "command module": "csm",
+  "eagle": "lm",
+  "lunar module": "lm",
+  "the lander": "lm"
+ }
+}

@@ -1,0 +1,24 @@
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,change4,,,,CHANG'E-4,,,,,,,,,,,
+b1,beat,"In December 2018, China",map,,,xichang,body,launch-00:05,,,"In December 2018, China launched Chang'e-4 from Xichang,",,,,,,,,,where it began
+b1,layer,"In December 2018, China",,title,,,,,CHANG'E-4,THE FAR SIDE OF THE MOON,,,,,,,,,,
+b1,layer,launched Chang'e-4 from Xichang,,marker,,xichang,,,XICHANG,"SICHUAN, CHINA",,,,,,,,,,
+b1b,beat,aiming for a place,map,,,earth+moon,system,lunar_transfer,,,aiming for a place no spacecraft had ever landed: the far side of the Moon.,,,,,,,,,the way to the Moon
+b1b,layer,aiming for a place,,craft,spacecraft,,,,CHANG'E-4,,,,,,,,,,,
+b1b,layer,aiming for a place,,path,translunar_coast,,,,,,,,,,,,,,,
+b2,beat,Less than five days,map,,,moon,body,loi+06:00,,,"Less than five days later it was in orbit around the Moon, 100 kilometres up.",,,,,,,,,in lunar orbit
+b2,layer,Less than five days,,craft,spacecraft,,,,CHANG'E-4,,,,,,,,,,,
+b2,layer,in orbit around the,,orbit,lunar_orbit,,,,,,,,,,,,,,,
+b2,layer,100 kilometres up,,stat,,,,,,LUNAR ORBIT,,,100,0 KM,bl,,,,,
+b3,beat,The far side never,map,,,moon,body,loi+08:00,,,"The far side never faces the Earth, so a relay satellite called Queqiao waited 65,000 kilometres beyond the Moon to pass on its signals.",,,,,,,,,the relay
+b3,layer,a relay satellite called,,stat,,,,,,"QUEQIAO RELAY, BEYOND THE MOON",,,65000,"#,##0 KM",bl,,,,,
+b4,beat,On the third of,map,,,statio tianhe,surface,powered_descent,,,"On the third of January 2019, the lander dropped towards Von Karman crater.",,,,,,,,,the descent
+b4,layer,the lander dropped towards,,craft,lander,,,,CHANG'E-4,,,,,,,b5,,,,
+b4,layer,the lander dropped towards,,path,descent,,,,,,,,,,,b5,,,,
+b4,layer,Von Karman crater,,zone,,statio tianhe,,,VON KARMAN CRATER,,,,22,,,b5,,,,
+b5,beat,It touched down at,map,,,statio tianhe,surface,landing-00:00:03,,,"It touched down at 10:26 in the morning, Beijing time.",,,,,,,,,the landing
+b5,layer,It touched down at,,caption,,,,,,,FIRST LANDING ON THE FAR SIDE,,,,,,,,,
+b6,beat,A few weeks later,footage,,,,,,,,"A few weeks later, NASA's Lunar Reconnaissance Orbiter photographed the lander from above.",,,,,,,,,seen from orbit
+b6,clip,,,,,,,,,,,,,,,,,nasa_image:Chang'e 4 lander seen from the Lunar Reconnaissance Orbiter,,the lander from orbit
+b7,beat,On the night of,map,,,statio tianhe,close,rover_deployed,,,"On the night of the landing, its rover, Yutu-2, rolled onto the floor of the crater.",,,,,,,,,the rover
+b7,layer,"its rover, Yutu-2, rolled",,marker,,statio tianhe,,,STATIO TIANHE,YUTU-2 ROVER,,,,,,,,,,

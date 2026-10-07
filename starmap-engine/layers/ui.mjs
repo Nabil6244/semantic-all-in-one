@@ -20,8 +20,8 @@ export function ui(g, W) {
       return w;
     },
     /** A navy panel with a big yellow line and a small white line under it (numbers, clocks). */
-    panel(x, y, big, small, { bigPx = 64, smallPx = 22, minW = 300, h = 150, r = 26, align = 'right' } = {}) {
-      const w = Math.max(measure(big, bigPx), small ? measure(small, smallPx) : 0, minW * S) + 70 * S, hh = h * S;
+    panel(x, y, big, small, { bigPx = 50, smallPx = 17, minW = 190, h = 104, r = 18, align = 'right' } = {}) {
+      const w = Math.max(measure(big, bigPx), small ? measure(small, smallPx) : 0, minW * S) + 44 * S, hh = h * S;
       const bx = align === 'right' ? x - w : x;
       shadow(16, 0.5); box(bx, y, w, hh, r, PANEL); noShadow();
       g.textAlign = 'center'; g.textBaseline = 'middle';

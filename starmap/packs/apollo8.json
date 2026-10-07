@@ -1,0 +1,218 @@
+{
+ "id": "apollo8",
+ "name": "Apollo 8",
+ "_about": "Apollo 8, the first crewed flight to the Moon (10 lunar orbits, no landing). Event times (GMT) and the splashdown point are from NASA SP-4029 'Apollo by the Numbers'; TLI and the burns are ignition times. The trajectory is ILLUSTRATED: built from those times, the 72.1 deg flight azimuth, the ~100 nmi parking orbit and the 60 nmi lunar orbit; not flight data. 'earthrise' is when the Earthrise photo (AS08-14-2383) was taken.",
+ "met_zero": "1968-12-21T12:51:00Z",
+ "events": {
+  "launch": "1968-12-21T12:51:00Z",
+  "orbit_insertion": "1968-12-21T13:02:35Z",
+  "tli": "1968-12-21T15:41:37Z",
+  "loi": "1968-12-24T09:59:20Z",
+  "circularization": "1968-12-24T14:26:06Z",
+  "earthrise": "1968-12-24T16:40:00Z",
+  "christmas_eve_broadcast": "1968-12-25T02:34:03Z",
+  "tei": "1968-12-25T06:10:16Z",
+  "entry": "1968-12-27T15:37:12Z",
+  "splashdown": "1968-12-27T15:51:42Z"
+ },
+ "sites": {
+  "launch complex 39a": {
+   "body": "earth",
+   "lon": -80.604,
+   "lat": 28.608,
+   "label": "KENNEDY SPACE CENTER",
+   "aliases": [
+    "kennedy space center",
+    "cape canaveral",
+    "the launch pad",
+    "launch complex 39a"
+   ]
+  },
+  "apollo 8 splashdown": {
+   "body": "earth",
+   "lon": -165.0,
+   "lat": 8.1,
+   "label": "SPLASHDOWN",
+   "aliases": [
+    "the splashdown site",
+    "the pacific ocean",
+    "splashdown"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "apollo8_csm",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      -80.604,
+      28.608
+     ],
+     "site_at": "start",
+     "heading_deg": 72.1,
+     "arc_deg": 24,
+     "alt_far_km": 185,
+     "from_utc": "1968-12-21T12:51:00Z",
+     "to_utc": "1968-12-21T13:02:35Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "period_min": 88.2,
+     "to_utc": "1968-12-21T15:41:37Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 220,
+     "bulge": 0.45,
+     "arrive_bulge": 0.3
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 111,
+     "period_min": 128,
+     "plane": {
+      "through": [
+       34.03,
+       2.63
+      ],
+      "heading_deg": 268,
+      "epoch": "1968-12-24T14:26:06Z"
+     },
+     "phase_deg": 120,
+     "from_utc": "1968-12-24T09:59:20Z",
+     "to_utc": "1968-12-25T06:10:16Z",
+     "samples_per_rev": 96
+    },
+    {
+     "kind": "transfer",
+     "from": "moon",
+     "to": "earth",
+     "continue": true,
+     "to_utc": "1968-12-27T15:37:12Z",
+     "samples": 220,
+     "bulge": 0.45,
+     "arrive_alt_km": 120,
+     "arrive_deg": 90
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "csm": {
+   "type": "spacecraft",
+   "label": "APOLLO 8",
+   "trajectory": "apollo8_csm",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -3.0,
+     "length_m": 3.0,
+     "radius_m": 1.25,
+     "radius_top_m": 0.55,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "cylinder",
+     "at_m": 0,
+     "length_m": 7.5,
+     "radius_m": 1.96,
+     "color": "#c4c7cc",
+     "metalness": 0.6,
+     "roughness": 0.4
+    },
+    {
+     "shape": "cone",
+     "at_m": 7.5,
+     "length_m": 3.23,
+     "radius_m": 1.96,
+     "radius_top_m": 0.35,
+     "color": "#e6e7ea",
+     "metalness": 0.55,
+     "roughness": 0.35
+    }
+   ],
+   "min_px": 26
+  }
+ },
+ "paths": {
+  "earth_orbit": {
+   "of": "apollo8_csm",
+   "from": "launch",
+   "to": "tli",
+   "style": {
+    "future": "hidden",
+    "width": 5
+   }
+  },
+  "translunar_coast": {
+   "of": "apollo8_csm",
+   "from": "tli",
+   "to": "loi",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "lunar_orbits": {
+   "of": "apollo8_csm",
+   "from": "loi",
+   "to": "tei",
+   "style": {
+    "future": "hidden",
+    "width": 3
+   }
+  },
+  "return_coast": {
+   "of": "apollo8_csm",
+   "from": "tei",
+   "to": "entry",
+   "style": {
+    "future": "dashed"
+   }
+  }
+ },
+ "orbits": {
+  "parking_orbit": {
+   "body": "earth",
+   "trajectory": "apollo8_csm",
+   "at": "orbit_insertion+00:45",
+   "arrows": 4,
+   "style": {
+    "color": "#ffffff",
+    "width": 2.5,
+    "opacity": 0.7
+   }
+  },
+  "lunar_orbit": {
+   "body": "moon",
+   "trajectory": "apollo8_csm",
+   "at": "circularization+01:00",
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 3
+   }
+  }
+ },
+ "craft_aliases": {
+  "apollo 8": "csm",
+  "the spacecraft": "csm",
+  "command module": "csm",
+  "the command module": "csm",
+  "the crew": "csm"
+ }
+}

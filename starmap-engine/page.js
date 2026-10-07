@@ -16,7 +16,7 @@ import { registerBuiltins } from '/layers/index.mjs';
 import { ui } from '/layers/ui.mjs';
 import { createCamera } from '/lib/camera.mjs';
 import { createClock } from '/lib/clock.mjs';
-import { radecToEngine } from '/lib/ephemeris.mjs';
+import { radecToEngine, offsetOf } from '/lib/ephemeris.mjs';
 import { KM_PER_LY } from '/lib/units.mjs';
 
 const spec = await (await fetch('/spec.json')).json();
@@ -97,6 +97,28 @@ const band = (() => {
   const pts = new THREE.Points(geo, pointShader()); pts.renderOrder = -10; pts.frustumCulled = false; scene.add(pts); return pts;
 })();
 
+// ---- the universe at large: galaxies by the thousand, in clumps, out to where light has had 13.8 billion years to come from;
+// seen only once the camera is tens of millions of light-years out (positions are illustrative, the scale is real) ----------
+const COSMOS_LY = 13.8e9;
+const cosmos = (() => {
+  const N = 16000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), size = new Float32Array(N);
+  let s = 11; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const inBall = () => { for (;;) { const v = [rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]; if (Math.hypot(...v) <= 1) return v; } };
+  const clumps = Array.from({ length: 420 }, () => inBall().map((c) => c * COSMOS_LY));
+  for (let i = 0; i < N; i++) {
+    let v;
+    if (rnd() < 0.7) { const c = clumps[Math.floor(rnd() * clumps.length)], sp = 0.035 * COSMOS_LY; v = c.map((x) => x + (rnd() + rnd() + rnd() - 1.5) * sp); }
+    else v = inBall().map((c) => c * COSMOS_LY);
+    pos.set(v.map((c) => c * KM_PER_LY), i * 3);
+    const warm = rnd(), a = 0.35 + 0.65 * rnd();
+    col.set([a * (0.75 + 0.25 * warm), a * (0.78 + 0.1 * warm), a * (1 - 0.35 * warm)], i * 3);
+    size[i] = 1.6 + 2.6 * rnd() * rnd();
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
+  const pts = new THREE.Points(geo, pointShader()); pts.renderOrder = -8; pts.frustumCulled = false; pts.visible = false; scene.add(pts); return pts;
+})();
+
 // ---- bodies ------------------------------------------------------------------------------------------------------------
 const sunLight = new THREE.PointLight(0xffffff, 3.2, 0, 0); scene.add(sunLight);
 scene.add(new THREE.AmbientLight(0xffffff, 0.03));
@@ -125,7 +147,11 @@ for (const n of world.nodes.values()) {
     b.point = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(n.glow || n.color || '#cfd8ff'), sizeAttenuation: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
     g.add(b.point);
   }
-  if (n.kind === 'galaxy') {
+  if (n.kind === 'galaxy' && !n.texture) {
+    // a small galaxy without a picture of its own (the Magellanic Clouds, Triangulum): a soft glow its real size
+    b.mesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(n.glow || '#c9d4ff'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    b.mesh.scale.setScalar(2.2 * n.radiusKm); g.add(b.mesh);
+  } else if (n.kind === 'galaxy') {
     // the face-on disk: a NASA/JPL-Caltech illustration in the galactic plane, its Sun side (image bottom) towards the real Sun
     const half = n.image_half_width ? n.image_half_width.ly * KM_PER_LY : n.radiusKm;
     const disk = new THREE.Mesh(new THREE.PlaneGeometry(2 * half, 2 * half), new THREE.MeshBasicMaterial({ map: await tex(n.texture), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -134,6 +160,11 @@ for (const n of world.nodes.values()) {
     b.mesh = disk; g.add(disk);
   }
   if (n.parent && n.show_orbit) {
+    if (!n.orbit_normal && n.offset && n.offset.ephemeris) {
+      const d0 = clock.utc(fp.mu(0)), d1 = new Date(+d0 + (n.parent === 'sun' ? 20 : 1) * 86400e3);
+      const a = offsetOf(n.offset.ephemeris, d0), c = offsetOf(n.offset.ephemeris, d1);
+      b.orbitNormal = [a[1] * c[2] - a[2] * c[1], a[2] * c[0] - a[0] * c[2], a[0] * c[1] - a[1] * c[0]];
+    }
     const pts = []; for (let k = 0; k <= 256; k++) { const a = (k / 256) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a))); }
     b.orbit = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x9fb4d8, transparent: true, opacity: 0.35, depthWrite: false }));
     scene.add(b.orbit);
@@ -168,6 +199,8 @@ const layers = await registry.instantiate(layerDefs, layerCtx);
 const layerById = new Map(layers.filter((L) => L.def.id).map((L) => [L.def.id, L]));
 
 const sunId = [...world.nodes.values()].find((n) => n.kind === 'star')?.id;
+// in front of the camera, from camera space (the projected depth rounds to exactly 1 beyond a few light-years)
+const inFront = (p) => { const e = camera.matrixWorldInverse.elements; return e[2] * p[0] + e[6] * p[1] + e[10] * p[2] + e[14] < 0; };
 const Y = new THREE.Vector3(0, 1, 0), X = new THREE.Vector3(1, 0, 0);
 const screenFrame = (t, date) => ({ t, date, clock: storyClock, mu: fp.mu, spec, W, H, focalPx, THREE, g: ctx, u, claims: [],
   place: (x, y) => y, placeAny: (xs, y) => ({ x: xs[0], y }), claim() {}, locate: () => null, bodies: [], world });
@@ -185,6 +218,9 @@ function drawMap(t, date) {
   const fromSun = sunId ? Math.hypot(...relBody(sunId)) / KM_PER_LY : 0;
   const inside = 1 - ramp(fromSun, 800, 8000);                            // leaving the galaxy: the inside-view sky fades away
   sky.material.uniforms.opacity.value = inside; band.material.uniforms.opacity.value = inside;
+  const deep = ramp(fromSun, 2e7, 2e8);
+  cosmos.visible = deep > 0.002; cosmos.material.uniforms.opacity.value = deep;
+  if (cosmos.visible && sunId) { const sp = relBody(sunId); cosmos.position.set(sp[0], sp[1], sp[2]); }
   const info = [];                                                        // per body, for layers: where, how big, on screen?
   for (const b of bodies) {
     const p = relBody(b.n.id); b.g.position.set(p[0], p[1], p[2]);
@@ -192,10 +228,17 @@ function drawMap(t, date) {
     const B = world.orientation(b.n.id);
     if (b.n.kind === 'galaxy') {
       b.g.quaternion.copy(basisQuat(B));
-      b.mesh.material.opacity = 0.95 * ramp(fromSun, 500, 6000);           // the face-on view arrives as the inside view leaves
+      // the face-on view arrives as the inside view leaves, and only once the camera is far enough from the disk that the
+      // illustration is not magnified into a blur (a fast flight can pass close to its plane)
+      const half = b.n.image_half_width ? b.n.image_half_width.ly * KM_PER_LY : b.n.radiusKm;
+      b.mesh.material.opacity = 0.95 * ramp(fromSun, 500, 6000) * ramp(dist / half, 0.55, 1.0);
+      {   // a galaxy seen from outside can carry a label (the body_labels layer decides)
+        const v = new THREE.Vector3(p[0], p[1], p[2]).project(camera), px = (b.n.radiusKm / Math.max(dist, 1e-9)) * focalPx;
+        info.push({ id: b.n.id, n: b.n, p, dist, px, solid: false, ndc: [v.x, v.y], front: inFront(p), sx: (v.x + 1) / 2 * W, sy: (1 - v.y) / 2 * H });
+      }
       continue;
     }
-    if (b.n.kind === 'star') sunLight.position.set(p[0], p[1], p[2]);
+    if (b.n.id === sunId) sunLight.position.set(p[0], p[1], p[2]);       // the light comes from THE Sun, not any other star in the world
     if (b.mesh) {
       // the body's real orientation: its axes, then the prime meridian turned by W about its own north
       const q = basisQuat(B);
@@ -205,18 +248,20 @@ function drawMap(t, date) {
       b.mesh.visible = px >= 1.5; if (b.ring) b.ring.visible = px >= 1.5;
       b.point.visible = px < 6 && inside > 0.02;
       b.point.scale.setScalar((b.n.kind === 'star' ? 22 : 9) / H);
-      b.point.material.opacity = (1 - ramp(px, 3, 6)) * (b.n.kind === 'star' ? 1 : 0.9) * inside;
+      const away = b.n.show_from_ly ? ramp(fromSun, b.n.show_from_ly, b.n.show_from_ly * 4) : 1;   // a neighbour star: only from outside the solar system
+      b.point.material.opacity = (1 - ramp(px, 3, 6)) * (b.n.kind === 'star' ? 1 : 0.9) * inside * away;
+      b.point.visible = b.point.visible && away > 0.01; b.mesh.visible = b.mesh.visible && away > 0.01;
       const v = new THREE.Vector3(p[0], p[1], p[2]).project(camera);
-      info.push({ id: b.n.id, n: b.n, p, dist, px, solid: b.mesh.visible, ndc: [v.x, v.y], front: v.z < 1, sx: (v.x + 1) / 2 * W, sy: (1 - v.y) / 2 * H });
+      info.push({ id: b.n.id, n: b.n, p, dist, px, solid: b.mesh.visible, ndc: [v.x, v.y], front: inFront(p), sx: (v.x + 1) / 2 * W, sy: (1 - v.y) / 2 * H, away });
     }
     if (b.orbit) {
       // the orbit drawn as a circle through the body's current position, in the plane given by orbit_normal (Phase 1)
       const op = relBody(b.n.parent); b.orbit.position.set(op[0], op[1], op[2]);
       const r = Math.hypot(...world.vec(b.n.parent, b.n.id));
       b.orbit.scale.setScalar(r);
-      b.orbit.quaternion.setFromUnitVectors(Y, new THREE.Vector3(...(b.n.orbit_normal || [0, 1, 0])).normalize());
+      b.orbit.quaternion.setFromUnitVectors(Y, new THREE.Vector3(...(b.orbitNormal || b.n.orbit_normal || [0, 1, 0])).normalize());
       const ratio = c.distance / r;
-      b.orbit.material.opacity = 0.35 * ramp(ratio, 0.15, 0.6) * (1 - ramp(ratio, 40, 120)) * inside;
+      b.orbit.material.opacity = 0.3 * ramp(ratio, 0.15, 0.6) * (1 - ramp(ratio, 40, 120)) * inside;
       b.orbit.visible = b.orbit.material.opacity > 0.01;
     }
   }
@@ -272,6 +317,7 @@ function drawMap(t, date) {
       return L && L.impl.locate ? L.impl.locate(L.inst, frame) : null;
     },
   };
+  window.__lastInfo = info.map((b) => ({ id: b.id, sx: Math.round(b.sx), sy: Math.round(b.sy), px: +b.px.toFixed(2), front: b.front, ly: +(b.dist / 9.4607e12).toFixed(3) }));
   runLayers(layers, frame, 'update');
   renderer.render(scene, camera);
   ctx.drawImage(glCanvas, 0, 0);
@@ -304,13 +350,32 @@ async function drawFootage(b, t, alpha) {
   ctx.restore();
 }
 
+// photo cards that play a video: before each frame, the card gets the clip's frame for this moment (cut by the renderer)
+const videoCards = layers.filter((L) => L.def.type === 'photo_card' && L.def.video && L.def.video_frames);
+async function feedVideoCards(t) {
+  for (const L of videoCards) {
+    const s = L.def.start ?? 0, e = L.def.end ?? s;
+    if (t < s - 0.05 || t > e + 1) continue;
+    const k = Math.max(0, Math.min(L.def.video_frames - 1, Math.round((t - s) * spec.fps)));
+    if (L.inst.k === k) continue;
+    L.inst.img = await new Promise((ok, fail) => {
+      const im = new Image();
+      im.onload = () => ok(im);
+      im.onerror = () => fail(new Error(`photo card video: frame ${k} of ${L.def.video} is missing`));
+      im.src = `/cardframe/${L.def.card_index}/${k}.jpg`;
+    });
+    L.inst.k = k;
+  }
+}
+
 window.renderFrame = async (t) => {
   const date = storyClock.utc(t);
+  await feedVideoCards(t);
   // the map only when some of it shows (under full-screen footage the 3D render is skipped: those frames are cheap)
   const frame = fp.mapAlpha(t) > 0.001 ? drawMap(t, date) : (ctx.fillStyle = '#000', ctx.fillRect(0, 0, W, H), screenFrame(t, date));
   for (const { beat, alpha } of fp.coverage(t)) await drawFootage(beat, t, alpha);
   runLayers(layers, frame, 'draw', overFootage);
   return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
 };
-window.__starmap = { layers, world, camAt, footage: fp };     // for inspection tools and tests
+window.__starmap = { layers, world, camAt, footage: fp, lastInfo: () => window.__lastInfo };     // for inspection tools and tests
 window.__ready = true;

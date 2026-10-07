@@ -1,0 +1,26 @@
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,artemis1,,,,ARTEMIS I,,,,,,,,,,,
+b1,beat,"In November 2022, NASA's",map,,,launch pad 39b,body,launch-00:05,,,"In November 2022, NASA's new Moon rocket stood on Launch Pad 39B, ready for its first flight.",,,,,,,,,where it began
+b1,layer,"In November 2022, NASA's",,title,,,,,ARTEMIS I,NO CREW ON BOARD,,,,,,,,,,
+b1,layer,stood on Launch Pad,,marker,,launch pad 39b,,,LAUNCH PAD 39B,KENNEDY SPACE CENTER,,,,,,,,,,
+b2,beat,The Space Launch System,footage,,,,,,,,The Space Launch System lit up the night sky over Florida.,,,,,,,,,feel the launch
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Artemis I launch of the Space Launch System and Orion,,the launch
+b3,beat,"Ninety minutes later, the",map,,,earth+moon,system,tli,,,"Ninety minutes later, the upper stage sent the Orion spacecraft towards the Moon.",,,,,,,,,the way to the Moon
+b3,layer,sent the Orion spacecraft,,craft,orion,,,,ORION,,,,,,,,,,,
+b3,layer,sent the Orion spacecraft,,path,outbound_coast,,,,,,,,,,,,,,,
+b4,beat,"Five days out, Orion",map,,,moon,body,closest_approach-00:20,,,"Five days out, Orion skimmed just 130 kilometres above the lunar surface.",,,,,,,,,the close flyby
+b4,layer,"Five days out, Orion",,craft,orion,,,,ORION,,,,,,,,,,,
+b4,layer,just 130 kilometres above,,stat,,,,,,ABOVE THE MOON,,,130,0 KM,bl,,,,,
+b5,beat,Then it climbed into,map,,,earth+moon,system,farthest_point,,,"Then it climbed into a huge, distant orbit, and on the twenty-eighth of November it was 432,210 kilometres from Earth, farther than any spacecraft built for astronauts had ever gone.",,,,,,,,,the distant orbit
+b5,layer,Then it climbed into,,path,out_to_dro,,,,,,,,,,,,,,,
+b5,layer,"a huge, distant orbit",,orbit,dro,,,,,,,,,,,,,,,
+b5,layer,"a huge, distant orbit",,craft,orion,,,,ORION,,,,,,,,,,,
+b5,layer,"432,210 kilometres from Earth",,stat,,,,,,FROM EARTH,,,432210,"#,##0 KM",bl,,,,,
+b6,beat,"From there, its cameras",footage,,,,,,,,"From there, its cameras looked back at the Earth and the Moon together.",,,,,,,,,the view from Orion
+b6,clip,,,,,,,,,,,,,,,,,nasa_image:Artemis I Orion solar array with the Earth and the Moon,,Earth and Moon from Orion
+b7,beat,On the fifth of,map,,,moon,body,return_flyby-00:30,,,On the fifth of December Orion swung past the Moon one last time and headed home.,,,,,,,,,the way home
+b7,layer,swung past the Moon,,craft,orion,,,,ORION,,,,,,,,,,,
+b7,layer,and headed home,,path,return_coast,,,,,,,,,,,,,,,
+b8,beat,"Six days later, three",map_footage,,,artemis i splashdown,body,splashdown,,,"Six days later, three parachutes lowered Orion into the Pacific, off Baja California.",,,,,,,,,home
+b8,layer,lowered Orion into the,,marker,,artemis i splashdown,,,SPLASHDOWN,OFF BAJA CALIFORNIA,,,,,,,,,,
+b8,card,three parachutes lowered Orion,,,,,,,SPLASHDOWN,11 DECEMBER 2022,,,,,tr,,,nasa_image:Artemis I Orion descending under parachutes to splashdown,,

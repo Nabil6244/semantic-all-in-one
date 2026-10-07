@@ -1,0 +1,295 @@
+{
+ "id": "change4",
+ "name": "Chang'e-4",
+ "_about": "Chang'e-4 (CNSA): the first soft landing on the far side of the Moon, with the Yutu-2 rover; it talks to Earth through the Queqiao relay satellite, about 65,000 km beyond the Moon at the Earth-Moon L2 point. Launch 7 Dec 2018 18:23 UTC on a Long March 3B from Xichang; lunar orbit 12 Dec 08:45 UTC (100 km); perilune lowered to 15 km 30 Dec 00:55 UTC; landing 3 Jan 2019 02:26 UTC in Von Karman crater (Statio Tianhe). APPROXIMATE: powered descent start (~11 minutes before landing) and Yutu-2 rolling onto the surface (~22:22 Beijing time, about 12 hours after landing). The trajectory is ILLUSTRATED; not flight data.",
+ "met_zero": "2018-12-07T18:23:00Z",
+ "events": {
+  "launch": "2018-12-07T18:23:00Z",
+  "lunar_transfer": "2018-12-07T18:48:00Z",
+  "loi": "2018-12-12T08:45:00Z",
+  "orbit_lowering": "2018-12-30T00:55:00Z",
+  "powered_descent": "2019-01-03T02:15:00Z",
+  "landing": "2019-01-03T02:26:00Z",
+  "rover_deployed": "2019-01-03T14:22:00Z"
+ },
+ "sites": {
+  "xichang": {
+   "body": "earth",
+   "lon": 102.027,
+   "lat": 28.246,
+   "label": "XICHANG",
+   "aliases": [
+    "xichang satellite launch center",
+    "the launch pad",
+    "china"
+   ]
+  },
+  "statio tianhe": {
+   "body": "moon",
+   "lon": 177.588,
+   "lat": -45.457,
+   "label": "VON KARMAN CRATER",
+   "aliases": [
+    "von karman crater",
+    "von karman",
+    "the landing site",
+    "the far side",
+    "the far side of the moon",
+    "chang'e 4 landing site"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "change4_craft",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      102.027,
+      28.246
+     ],
+     "site_at": "start",
+     "heading_deg": 100,
+     "arc_deg": 60,
+     "alt_far_km": 200,
+     "from_utc": "2018-12-07T18:23:00Z",
+     "to_utc": "2018-12-07T18:48:00Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 260,
+     "bulge": 0.45,
+     "arrive_bulge": 0.35
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 100,
+     "period_min": 118,
+     "plane": {
+      "through": [
+       177.588,
+       -45.457
+      ],
+      "heading_deg": 0,
+      "epoch": "2019-01-03T02:26:00Z"
+     },
+     "phase_deg": 150,
+     "from_utc": "2018-12-12T08:45:00Z",
+     "to_utc": "2018-12-30T00:55:00Z",
+     "samples_per_rev": 24
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "change4_descent",
+   "frame": "moon",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "moon",
+     "site": [
+      177.588,
+      -45.457
+     ],
+     "site_at": "end",
+     "heading_deg": 180,
+     "arc_deg": 14,
+     "alt_far_km": 15,
+     "from_utc": "2019-01-03T02:15:00Z",
+     "to_utc": "2019-01-03T02:26:00Z",
+     "samples": 90,
+     "track": "surface"
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "spacecraft": {
+   "type": "spacecraft",
+   "label": "CHANG'E-4",
+   "trajectory": "change4_craft",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 4,
+     "radius_m": 1.3,
+     "at_m": 1.3,
+     "length_m": 1.7,
+     "splay_deg": 32,
+     "thickness_m": 0.08,
+     "foot_m": 0.35,
+     "color": "#b8a46a"
+    },
+    {
+     "shape": "nozzle",
+     "at_m": 0.15,
+     "length_m": 0.5,
+     "radius_m": 0.4,
+     "radius_top_m": 0.22,
+     "color": "#3b3b3d"
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      2.4,
+      2.4,
+      1.3
+     ],
+     "at_m": 0.6,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "panel",
+     "at_m": 1.2,
+     "width_m": 1.3,
+     "span_m": 2.2,
+     "gap_m": 1.2,
+     "color": "#1d2a4a",
+     "metalness": 0.6,
+     "roughness": 0.35
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      1.4,
+      1.0,
+      0.5
+     ],
+     "at_m": 1.9,
+     "color": "#cfd2d6",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "min_px": 26
+  },
+  "lander": {
+   "type": "spacecraft",
+   "label": "CHANG'E-4",
+   "trajectory": "change4_descent",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 4,
+     "radius_m": 1.3,
+     "at_m": 1.3,
+     "length_m": 1.7,
+     "splay_deg": 32,
+     "thickness_m": 0.08,
+     "foot_m": 0.35,
+     "color": "#b8a46a"
+    },
+    {
+     "shape": "nozzle",
+     "at_m": 0.15,
+     "length_m": 0.5,
+     "radius_m": 0.4,
+     "radius_top_m": 0.22,
+     "color": "#3b3b3d"
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      2.4,
+      2.4,
+      1.3
+     ],
+     "at_m": 0.6,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "panel",
+     "at_m": 1.2,
+     "width_m": 1.3,
+     "span_m": 2.2,
+     "gap_m": 1.2,
+     "color": "#1d2a4a",
+     "metalness": 0.6,
+     "roughness": 0.35
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      1.4,
+      1.0,
+      0.5
+     ],
+     "at_m": 1.9,
+     "color": "#cfd2d6",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "orientation": "radial",
+   "min_px": 30
+  }
+ },
+ "paths": {
+  "translunar_coast": {
+   "of": "change4_craft",
+   "from": "lunar_transfer",
+   "to": "loi",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "lunar_orbits": {
+   "of": "change4_craft",
+   "from": "loi",
+   "to": "orbit_lowering",
+   "style": {
+    "future": "hidden",
+    "width": 2
+   }
+  },
+  "descent": {
+   "of": "change4_descent",
+   "from": "powered_descent",
+   "to": "landing",
+   "style": {
+    "future": "dashed",
+    "width": 5
+   }
+  }
+ },
+ "orbits": {
+  "lunar_orbit": {
+   "body": "moon",
+   "trajectory": "change4_craft",
+   "at": "loi+12:00",
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 3
+   }
+  }
+ },
+ "craft_aliases": {
+  "chang'e-4": "spacecraft",
+  "chang'e 4": "spacecraft",
+  "change 4": "spacecraft",
+  "the spacecraft": "spacecraft",
+  "the probe": "spacecraft",
+  "the lander": "lander",
+  "yutu-2": "lander",
+  "the rover": "lander"
+ }
+}

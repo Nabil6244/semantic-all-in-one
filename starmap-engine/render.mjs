@@ -41,6 +41,7 @@ function startServer(spec, specDir, cutter) {
     else if (/^\/(lib|layers)\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(HERE, url.pathname);
     else if (url.pathname.startsWith('/three/addons/')) { const f = path.resolve(addons, decodeURIComponent(url.pathname.slice('/three/addons/'.length))); if (f.startsWith(addons + path.sep)) file = f; }
     else if (/^\/footage\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.frameFile(Number(i), parseInt(k, 10)); }
+    else if (/^\/cardframe\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.cardFrameFile(Number(i), parseInt(k, 10)); }
     else if (url.pathname.startsWith('/media/')) file = path.join(mediaDir, path.basename(decodeURIComponent(url.pathname)));
     else if (url.pathname === '/three/three.module.min.js') file = path.join(HERE, 'node_modules', 'three', 'build', 'three.module.min.js');
     else if (url.pathname === '/astronomy/astronomy.browser.min.js') file = path.join(HERE, 'node_modules', 'astronomy-engine', 'astronomy.browser.min.js');
@@ -64,15 +65,18 @@ async function main() {
   const cutter = createCutter({ spec, mediaDir: mediaDirOf(spec, specDir), ffmpeg: spec.ffmpeg || 'ffmpeg' });
   if (cutter.plan.problems.length) { cutter.cleanup(); throw new Error(`footage: ${cutter.plan.problems.join('; ')}`); }
   for (const w of cutter.plan.warnings) emit({ event: 'warning', message: w });
+  try { await cutter.prepareCards(); } catch (err) { cutter.cleanup(); throw err; }     // before the page gets the spec (frame counts)
   const server = await startServer(spec, specDir, cutter);
   const origin = `http://127.0.0.1:${server.address().port}`;
   const { chromium } = loadPlaywright(spec);
   const soft = process.env.STARMAP_GL === 'software';
-  const browser = await chromium.launch({
+  const launchOpts = {
     headless: true,
     args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars']
       : ['--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--hide-scrollbars'],
-  });
+  };
+  if (spec.browser_channel) launchOpts.channel = spec.browser_channel;   // the app's choice (e.g. an installed Chrome), as for pakMap
+  const browser = await chromium.launch(launchOpts);
   let ffmpeg = null;
   try {
     const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });

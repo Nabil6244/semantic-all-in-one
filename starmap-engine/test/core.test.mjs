@@ -110,6 +110,9 @@ test('shot options: surface shots from the ground, fill, light, and angles in th
   // a galaxy shot measures elevation from the galactic plane
   const g = createCamera(w, { fov_deg: 40, start: { target: 'milkyway', distance: { ly: 1e5 }, el_deg: 90 } })(0);
   assert.ok(angleDeg(g.position, w.orientation('milkyway').y) < 1e-6, 'el 90 = straight above the galactic plane');
+  // fit: a pair of bodies framed by their separation
+  const pair = createCamera(w, { fov_deg: 40, start: { target: 'earth+moon', fit: 2 } })(0);
+  assert.ok(Math.abs(pair.distance - Math.hypot(...w.vec('earth', 'moon')) / Math.tan(20 * Math.PI / 180)) < 1e-6);
   // orbit: the camera circles while the shot holds
   const o = createCamera(w, { fov_deg: 40, start: { target: 'moon', fill: 0.4, orbit_deg_per_s: 10 } });
   assert.ok(Math.abs(angleDeg(o(0).position, o(3).position) - 30) < 0.5);

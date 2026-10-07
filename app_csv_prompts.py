@@ -20,9 +20,10 @@ CSV_PROMPTS = {
     "exp_solar": "exp_solar_csv_prompt.txt",
     "pakmap": "pakmap_csv_prompt.txt",
     "hybrid": "hybrid_beats_prompt.txt",
+    "starmap": "starmap_beats_prompt.txt",
 }
 
-STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map"}
+STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}
 
 
 def prompt_path(style: str) -> Path:
@@ -31,9 +32,13 @@ def prompt_path(style: str) -> Path:
     return base / "composition_styles" / CSV_PROMPTS[style]
 
 
-def build_prompt(style: str, script: Optional[str] = None) -> str:
+def build_prompt(style: str, script: Optional[str] = None, *, pack: Optional[str] = None) -> str:
     """The prompt text, with the script in place of the placeholder when one is given (else the placeholder stays, for
-    the user to replace)."""
+    the user to replace). StarMap's prompt also lists what the chosen mission pack lets the CSV name (starmap/prompt.py)."""
+    if style == "starmap":
+        from starmap.prompt import build_prompt as starmap_prompt
+
+        return starmap_prompt(pack or None, (script or "").strip() or None)
     text = prompt_path(style).read_text(encoding="utf-8")
     script = (script or "").strip()
     if script:

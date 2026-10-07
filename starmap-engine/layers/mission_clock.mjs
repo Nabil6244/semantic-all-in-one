@@ -10,11 +10,11 @@ export default {
     const when = show.includes('utc') || !met ? f.date.toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : null;
     const big = met || when, small = met ? when : null;
     g.save(); g.globalAlpha = f.alpha;
-    const w = Math.max(u.measure(big, 40), 200 * u.S) + 48 * u.S, x = W - 63 * u.S - w, y = 37 * u.S, h = (small ? 100 : 70) * u.S;
-    u.shadow(12, 0.45); u.box(x, y, w, h, 14, 'rgba(8,19,32,0.92)'); u.noShadow();
+    const w = Math.max(u.measure(big, 28), 140 * u.S) + 34 * u.S, x = W - 52 * u.S - w, y = 37 * u.S, h = (small ? 72 : 50) * u.S;
+    u.shadow(12, 0.45); u.box(x, y, w, h, 10, 'rgba(8,19,32,0.92)'); u.noShadow();
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = u.font(40); g.fillStyle = '#FBE040'; g.fillText(big, x + w / 2, y + 37 * u.S);
-    if (small) { g.font = u.font(20); g.fillStyle = '#ffffff'; g.fillText(small, x + w / 2, y + 79 * u.S); }
+    g.font = u.font(28); g.fillStyle = '#FBE040'; g.fillText(big, x + w / 2, y + 26 * u.S);
+    if (small) { g.font = u.font(15); g.fillStyle = '#ffffff'; g.fillText(small, x + w / 2, y + 57 * u.S); }
     g.textAlign = 'left';
     g.restore();
   },

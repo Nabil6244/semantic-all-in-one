@@ -1,0 +1,7 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA photos).",
+ "nasa_image:The lunar south pole seen by the Lunar Reconnaissance Orbiter": {
+  "file": "pia13523.jpg",
+  "credit": "NASA/GSFC/Arizona State University PIA13523"
+ }
+}

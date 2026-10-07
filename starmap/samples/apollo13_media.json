@@ -1,0 +1,11 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA photos).",
+ "nasa_image:Mission Control Center view of the Apollo 13 splashdown": {
+  "file": "s70-35145.jpg",
+  "credit": "NASA S70-35145"
+ },
+ "nasa_image:Apollo 13 Command Module recovery after splashdown": {
+  "file": "s70-15530.jpg",
+  "credit": "NASA S70-15530"
+ }
+}

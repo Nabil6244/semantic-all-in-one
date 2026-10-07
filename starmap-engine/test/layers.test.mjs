@@ -19,8 +19,8 @@ const angleDeg = (a, b) => Math.acos(Math.min(1, Math.max(-1, a.reduce((s, x, i)
 
 test('registry: a new layer type is added by registering it, nothing else', async () => {
   const reg = registerBuiltins(createRegistry());
-  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'marker', 'mission_clock', 'orbit', 'photo_card',
-    'region', 'spacecraft', 'stat_chip', 'title', 'trajectory']);
+  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'galaxy_guide', 'link', 'marker', 'mission_clock',
+    'orbit', 'photo_card', 'pointer', 'region', 'rings', 'spacecraft', 'stat_chip', 'title', 'trajectory']);
   // a brand-new type, defined here, used by a spec: the renderer's frame loop runs it with timing applied
   const seen = [];
   reg.register({ type: 'comet_tail', space: 'world', create: (def) => ({ def }), update: (inst, f) => seen.push(['u', f.t, +f.alpha.toFixed(2)]), draw: (inst, f) => seen.push(['d', f.t]) });
@@ -72,6 +72,27 @@ test('trajectory: samples, Catmull-Rom through them, placed in time by their tim
   assert.equal(tr.at(Date.parse('2030-02-01T00:00:00Z')).phase, 'after');
   assert.throws(() => createTrajectory(w, { id: 'bad', samples: [{ utc: '2030-01-01T00:00:00Z', anchor: 'earth', km: [1, 0, 0] }, { utc: '2029-01-01T00:00:00Z', anchor: 'earth', km: [2, 0, 0] }] }), /must increase/);
   assert.throws(() => createTrajectory(w, { id: 'g', generate: [{ kind: 'warp' }] }), /unknown generator "warp"/);
+});
+
+test('orbit_arc to_altitude_km: an orbit widens or shrinks smoothly, joining the segment before it without a jump', () => {
+  const w = buildWorld([{ id: 'earth', radius: { km: 6371 } }]);
+  const tr = createTrajectory(w, { id: 'raise', generate: [
+    { kind: 'orbit_arc', body: 'earth', altitude_km: 200, period_min: 90, from_utc: '2030-01-01T00:00:00Z', to_utc: '2030-01-01T03:00:00Z' },
+    { kind: 'orbit_arc', body: 'earth', continue: true, to_altitude_km: 60000, period_min: 90, to_period_min: 2600, to_utc: '2030-01-10T00:00:00Z' },
+  ] });
+  const r = (p) => Math.hypot(...p);
+  const S = tr.samples, P = tr.points();
+  assert.ok(Math.abs(r(P[0]) - 6571) < 1e-6);
+  assert.ok(Math.abs(r(P[P.length - 1]) - 66371) < 1e-6);                                  // ends at the target radius
+  for (let i = 1; i < P.length; i++) assert.ok(r(P[i]) >= r(P[i - 1]) - 1e-6, `radius never shrinks while raising (${i})`);
+  const join = S.findIndex((s) => s.ms === Date.parse('2030-01-01T03:00:00Z'));
+  assert.ok(join > 0 && Math.abs(r(P[join + 1]) - 6571) < 5, 'no jump where the spiral leaves the circular orbit');
+  const steps = P.slice(1).map((p, i) => Math.hypot(...p.map((c, k) => c - P[i][k])));
+  assert.ok(Math.max(...steps) < 0.2 * 66371, 'no jump anywhere');
+  // the period slows towards to_period_min: the last day sweeps a smaller angle than the first
+  const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (r(a) * r(b)))));
+  const at = (iso) => tr.at(Date.parse(iso)).position;
+  assert.ok(ang(at('2030-01-09T00:00:00Z'), at('2030-01-09T01:00:00Z')) < ang(at('2030-01-01T04:00:00Z'), at('2030-01-01T05:00:00Z')));
 });
 
 test('generators: launch, orbit, transfer and lunar orbit join without jumps; landing ends on the site', () => {
@@ -148,4 +169,16 @@ test('the Mars test mission uses only the same generic layers and builds', () =>
   const lander = createTrajectory(w, MARS.layers.find((l) => l.id === 'lander_path'));
   w.setTime('2031-03-01T11:59:00Z');
   assert.ok(len(sub(lander.at(Date.parse('2031-03-01T11:59:00Z')).position, w.surfaceOffset('mars', 77.45, 18.44))) < 0.01);
+});
+
+test('overlay: a line is cut where it goes behind the camera and where it leaves the frame', async () => {
+  const { frontPart, clipToFrame } = await import('../lib/overlay.mjs');
+  // a camera looking down -z (identity view): z < 0 is in front
+  const f = { camera: { matrixWorldInverse: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } } };
+  assert.equal(frontPart(f, [0, 0, 5], [1, 1, 9]), null, 'all behind');
+  const [a, b] = frontPart(f, [0, 0, -10], [0, 0, 10]);
+  assert.deepEqual(a, [0, 0, -10]);
+  assert.ok(b[2] < 0 && b[2] > -0.01, 'cut just in front of the camera');
+  assert.deepEqual(clipToFrame([-100, 50], [300, 50], 200, 100), [[0, 50], [200, 50]]);
+  assert.equal(clipToFrame([-100, -50], [-10, -5], 200, 100), null, 'off screen');
 });

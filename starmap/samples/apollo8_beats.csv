@@ -1,0 +1,29 @@
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,apollo8,,,,APOLLO 8,,,,,,,,,,,
+b1,beat,"In December 1968, three",map,,,launch complex 39a,body,launch-00:05,,,"In December 1968, three astronauts left Florida on a mission no one had ever flown.",,,,,,,,,where it began
+b1,layer,"In December 1968, three",,title,,,,,APOLLO 8,FIRST CREW TO THE MOON,,,,,,,,,,
+b1,layer,left Florida on a,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,
+b2,beat,A Saturn V carried,footage,,,,,,,,"A Saturn V carried them off the pad, with the Moon already waiting in the sky.",,,,,,,,,feel the launch
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 8 launch of the lunar orbit mission,,the launch
+b3,beat,Within twelve minutes Apollo,map,,,earth,body,orbit_insertion,,,"Within twelve minutes Apollo 8 was circling the Earth, 185 kilometres up.",,,,,,,,,in Earth orbit
+b3,layer,Apollo 8 was circling,,craft,csm,,,,APOLLO 8,,,,,,,,,,,
+b3,layer,circling the Earth,,path,earth_orbit,,,,,,,,,,,,,,,
+b3,layer,circling the Earth,,orbit,parking_orbit,,,,,,,,,,,,,,,
+b3,layer,185 kilometres up,,stat,,,,,,PARKING ORBIT,,,185,0 KM,bl,,,,,
+b4,beat,Less than three hours,map,,,earth+moon,system,tli,,,"Less than three hours after launch, the third stage fired again and sent them out of orbit, towards the Moon. For almost three days they coasted across nearly 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon
+b4,layer,the third stage fired,,path,translunar_coast,,,,,,,,,,,,,,,
+b4,layer,the third stage fired,,craft,csm,,,,APOLLO 8,,,,,,,,,,,
+b4,layer,For almost three days,,distance,,earth;csm,,,,FROM EARTH,,,,,,,,,,
+b4,layer,"nearly 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,
+b5,beat,On Christmas Eve they,map,,,moon,body,loi,,,On Christmas Eve they slipped behind the Moon and fired their engine to stay in lunar orbit.,,,,,,,,,arriving at the Moon
+b5,layer,slipped behind the Moon,,craft,csm,,,,APOLLO 8,,,,,,,,,,,
+b5,layer,to stay in lunar,,orbit,lunar_orbit,,,,,,,,,,,,,,,
+b6,beat,On the fourth orbit,footage,,,,,,,,"On the fourth orbit, Bill Anders looked up and saw the Earth rising over the lunar horizon.",,,,,,,,,Earthrise
+b6,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 8 Earth over the horizon of the moon (Earthrise),,the Earthrise photograph
+b7,beat,After ten orbits they,map,,,earth+moon,system,tei,,,"After ten orbits they fired the engine once more, early on Christmas Day, and headed home.",,,,,,,,,the way home
+b7,layer,After ten orbits they,,stat,,,,,,LUNAR ORBITS,,,10,0,bl,,,,,
+b7,layer,and headed home,,path,return_coast,,,,,,,,,,,,,,,
+b7,layer,and headed home,,craft,csm,,,,APOLLO 8,,,,,,,,,,,
+b8,beat,Two days later Apollo,map_footage,,,apollo 8 splashdown,body,splashdown,,,"Two days later Apollo 8 splashed down in the Pacific, near the USS Yorktown.",,,,,,,,,home
+b8,layer,splashed down in the,,marker,,apollo 8 splashdown,,,SPLASHDOWN,PACIFIC OCEAN,,,,,,,,,,
+b8,card,near the USS Yorktown,,,,,,,USS YORKTOWN,27 DECEMBER 1968,,,,,tr,,,nasa_image:Apollo 8 capsule hoisted aboard USS Yorktown,,

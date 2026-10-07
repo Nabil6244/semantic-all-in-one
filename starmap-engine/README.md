@@ -41,6 +41,8 @@ mission are content in `samples/`.
 
 **Trajectories** are time-stamped samples relative to a body (`km` inertial, or `lla` on the turning surface). Real flight
 data replaces the illustrated `generate` blocks (`orbit_arc`, `surface_track`, `transfer`) without renderer changes.
+An `orbit_arc` with `to_altitude_km` (and optionally `to_period_min`) widens or shrinks smoothly from where the previous
+segment left off: orbit raising or lowering, or a coast out to a distant orbit, drawn as one spiral in the same plane.
 Illustrated paths say so (`"source": "illustrated"`).
 
 ## Footage

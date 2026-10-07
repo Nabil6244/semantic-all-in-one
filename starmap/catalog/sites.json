@@ -1,0 +1,129 @@
+{
+ "_about": "Starter surface sites (lon/lat in degrees, east positive). Mission packs add their own; a CSV may also give body@lon,lat.",
+ "sites": {
+  "tranquility base": {
+   "body": "moon",
+   "lon": 23.473,
+   "lat": 0.674,
+   "label": "TRANQUILITY BASE",
+   "aliases": [
+    "apollo 11 landing site",
+    "sea of tranquility landing site"
+   ]
+  },
+  "apollo 12 landing site": {
+   "body": "moon",
+   "lon": -23.422,
+   "lat": -3.012,
+   "label": "OCEAN OF STORMS"
+  },
+  "apollo 14 landing site": {
+   "body": "moon",
+   "lon": -17.471,
+   "lat": -3.645,
+   "label": "FRA MAURO"
+  },
+  "apollo 15 landing site": {
+   "body": "moon",
+   "lon": 3.634,
+   "lat": 26.132,
+   "label": "HADLEY-APENNINE"
+  },
+  "apollo 16 landing site": {
+   "body": "moon",
+   "lon": 15.5,
+   "lat": -8.973,
+   "label": "DESCARTES HIGHLANDS"
+  },
+  "apollo 17 landing site": {
+   "body": "moon",
+   "lon": 30.772,
+   "lat": 20.191,
+   "label": "TAURUS-LITTROW"
+  },
+  "chang'e 4 landing site": {
+   "body": "moon",
+   "lon": 177.588,
+   "lat": -45.457,
+   "label": "VON KARMAN CRATER"
+  },
+  "chandrayaan-3 landing site": {
+   "body": "moon",
+   "lon": 32.319,
+   "lat": -69.373,
+   "label": "SHIV SHAKTI POINT"
+  },
+  "kennedy space center": {
+   "body": "earth",
+   "lon": -80.604,
+   "lat": 28.608,
+   "label": "KENNEDY SPACE CENTER",
+   "aliases": [
+    "launch complex 39a",
+    "lc-39a",
+    "cape canaveral",
+    "kennedy"
+   ]
+  },
+  "baikonur cosmodrome": {
+   "body": "earth",
+   "lon": 63.305,
+   "lat": 45.965,
+   "label": "BAIKONUR",
+   "aliases": [
+    "baikonur"
+   ]
+  },
+  "satish dhawan space centre": {
+   "body": "earth",
+   "lon": 80.23,
+   "lat": 13.72,
+   "label": "SRIHARIKOTA",
+   "aliases": [
+    "sriharikota"
+   ]
+  },
+  "jiuquan satellite launch center": {
+   "body": "earth",
+   "lon": 100.291,
+   "lat": 40.958,
+   "label": "JIUQUAN",
+   "aliases": [
+    "jiuquan"
+   ]
+  },
+  "wenchang spacecraft launch site": {
+   "body": "earth",
+   "lon": 110.951,
+   "lat": 19.614,
+   "label": "WENCHANG",
+   "aliases": [
+    "wenchang"
+   ]
+  },
+  "jezero crater": {
+   "body": "mars",
+   "lon": 77.45,
+   "lat": 18.44,
+   "label": "JEZERO CRATER",
+   "aliases": [
+    "jezero"
+   ]
+  },
+  "gale crater": {
+   "body": "mars",
+   "lon": 137.44,
+   "lat": -4.59,
+   "label": "GALE CRATER",
+   "aliases": [
+    "gale"
+   ]
+  },
+  "olympus mons": {
+   "body": "mars",
+   "lon": -133.8,
+   "lat": 18.65,
+   "label": "OLYMPUS MONS"
+  }
+ }
+}

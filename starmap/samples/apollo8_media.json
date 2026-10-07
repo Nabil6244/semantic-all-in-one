@@ -1,0 +1,15 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA photos).",
+ "nasa_image:Apollo 8 launch of the lunar orbit mission": {
+  "file": "s68-56001.jpg",
+  "credit": "NASA S68-56001"
+ },
+ "nasa_image:Apollo 8 Earth over the horizon of the moon (Earthrise)": {
+  "file": "as08-14-2383.jpg",
+  "credit": "NASA AS08-14-2383"
+ },
+ "nasa_image:Apollo 8 capsule hoisted aboard USS Yorktown": {
+  "file": "s68-56304.jpg",
+  "credit": "NASA S68-56304"
+ }
+}

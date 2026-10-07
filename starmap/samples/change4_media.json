@@ -1,0 +1,7 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA photos).",
+ "nasa_image:Chang'e 4 lander seen from the Lunar Reconnaissance Orbiter": {
+  "file": "change4-lro-closer-look.jpg",
+  "credit": "NASA/GSFC/Arizona State University"
+ }
+}

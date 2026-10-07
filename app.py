@@ -1024,6 +1024,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._build_overscaled_section(self._view_visual_director.content, row=1)
         self._build_pakmap_section(self._view_visual_director.content, row=2)
         self._build_hybrid_section(self._view_visual_director.content, row=3)
+        self._build_starmap_section(self._view_visual_director.content, row=4)
         self._sync_style_picker()
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
@@ -2843,13 +2844,14 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map")
+    STYLE_CHOICES = ("Normal video", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap")
     STYLE_BLURBS = {
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
         "Overscaled": "Photo and video cards arranged around the narration, from a simple CSV.",
         "Exp Solar": "Overscaled's layout in the Exp Solar look (rows of cards), from the same CSV.",
         "pakMap": "One continuous satellite-map camera with titles, markers, numbers and photo cards.",
         "Hybrid Map": "The map explains where, full-screen footage shows what it is like.",
+        "StarMap": "Space documentaries: the real sky in 3D, spacecraft on their paths, NASA footage between.",
     }
 
     STYLE_CARDS = {
@@ -2859,6 +2861,7 @@ class VideoGeneratorApp(ctk.CTk):
         "Exp Solar": ("\u2630", "Rows of cards with a checklist strip", "The same simple CSV", "Step-by-step and survival topics"),
         "pakMap": ("\u25C9", "One continuous satellite map", "A pakMap CSV", "Geography, borders, routes"),
         "Hybrid Map": ("\u25D0", "Map and full-screen footage in turns", "A beat CSV, or AI", "Place-based documentaries"),
+        "StarMap": ("\u2737", "Space in 3D, spacecraft and NASA footage", "A StarMap beat CSV", "Space missions, planets, the universe"),
     }
 
     def _build_style_picker(self, parent, *, row: int) -> None:
@@ -2928,11 +2931,11 @@ class VideoGeneratorApp(ctk.CTk):
         return card
 
     def _layout_style_cards(self, width: int) -> None:
-        cols = 5 if width >= 1050 else 3 if width >= 620 else 2
+        cols = 6 if width >= 1250 else 3 if width >= 620 else 2
         if cols == self._style_grid_cols:
             return
         self._style_grid_cols = cols
-        for c in range(5):
+        for c in range(6):
             self._style_grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="style" if c < cols else "")
         for k, name in enumerate(self.STYLE_CHOICES):
             self._style_cards[name].grid(row=k // cols, column=k % cols, sticky="nsew", padx=4, pady=4)
@@ -2962,12 +2965,13 @@ class VideoGeneratorApp(ctk.CTk):
         mode = getattr(self, "generation_mode", "normal")
         if mode == "overscaled":
             return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
-        return {"pakmap": "pakMap", "hybrid": "Hybrid Map"}.get(mode, "Normal video")
+        return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}.get(mode, "Normal video")
 
     def _on_style_pick(self, choice: str) -> None:
         if choice == self._active_style():
             return
-        if getattr(self, "_overscaled_running", False) or getattr(self, "_pakmap_running", False) or getattr(self, "_hybrid_running", False):
+        if (getattr(self, "_overscaled_running", False) or getattr(self, "_pakmap_running", False) or getattr(self, "_hybrid_running", False)
+                or getattr(self, "_starmap_running", False)):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
@@ -2984,17 +2988,20 @@ class VideoGeneratorApp(ctk.CTk):
         elif choice == "Hybrid Map":
             self._hybrid_enabled_var.set(True)
             self._on_hybrid_toggle()
+        elif choice == "StarMap":
+            self._starmap_enabled_var.set(True)
+            self._on_starmap_toggle()
         else:  # Normal video: every style steps aside
             if self._overscaled_enabled_var.get():
                 self._overscaled_enabled_var.set(False)
                 self._on_overscaled_toggle()
-            self._pakmap_deactivate()  # also steps Hybrid aside
+            self._pakmap_deactivate()  # also steps Hybrid and StarMap aside
             self.generation_mode = "normal"
         self._sync_primary_cta()
 
     def _sync_style_picker(self) -> None:
         """Show the active style in the picker, and only that style's card (with its controls open)."""
-        if not hasattr(self, "_style_picker") or not hasattr(self, "_hybrid_block"):
+        if not hasattr(self, "_style_picker") or not hasattr(self, "_hybrid_block") or not hasattr(self, "_starmap_block"):
             return
         active = self._active_style()
         if self._style_picker.get() != active:
@@ -3002,10 +3009,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_blurb_var.set(self.STYLE_BLURBS[active])
         self._refresh_style_next()
         self._overscaled_title_var.set(active if active in ("Overscaled", "Exp Solar") else "Overscaled")
-        for w in (self._overscaled_style_segmented, self._overscaled_switch, self._pakmap_switch, self._hybrid_switch):
+        for w in (self._overscaled_style_segmented, self._overscaled_switch, self._pakmap_switch, self._hybrid_switch, self._starmap_switch):
             w.grid_remove()  # the picker replaces the per-card switches (their variables and handlers still run the styles)
         for block, on in ((self._overscaled_block, active in ("Overscaled", "Exp Solar")), (self._pakmap_block, active == "pakMap"),
-                          (self._hybrid_block, active == "Hybrid Map")):
+                          (self._hybrid_block, active == "Hybrid Map"), (self._starmap_block, active == "StarMap")):
             block.grid() if on else block.grid_remove()
 
     def _style_card_header(self, block, title: str, description: str) -> None:
@@ -3116,6 +3123,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.generation_mode = "normal"
         self._clear_pakmap_visual_plan()
         self._hybrid_deactivate()  # the styles are exclusive: whatever takes over from pakMap takes over from Hybrid too
+        self._starmap_deactivate()  # ... and from StarMap
 
     def _on_pakmap_toggle(self) -> None:
         if self._pakmap_running:
@@ -3172,6 +3180,20 @@ class VideoGeneratorApp(ctk.CTk):
             self._pakmap_channel_var.set(str(self._settings.get("pakmap_channel_name", "") or ""))
         self._pakmap_sound_var.set(bool(saved["sound_design"]) if "sound_design" in saved else bool(self._settings.get("pakmap_sound_design", True)))
         self._pakmap_base_dir = str(saved.get("base_dir") or "")
+
+    def _sound_failed_notice(self, tag: str, style: str, result) -> bool:
+        """pakMap / Hybrid: sound design was on but is not in the video (the mix failed; the video has the narration only).
+        Said in the log and in the finished-video dialog, never shown as a plain success. Returns True when it was said."""
+        reason = getattr(result, "sound_failed", None)
+        if not reason:
+            return False
+        self._append_log(f"[{tag}] WARNING: Video rendered, but sound design failed. The video contains narration only.\n[{tag}] Reason: {reason}\n")
+        messagebox.showwarning(
+            f"{style} video ready — without sound design",
+            "Video rendered, but sound design failed. The video contains narration only.\n\n"
+            f"Saved to:\n{result.output_path}\n\nReason: {reason}\n\nThe full message is in the log. Credits for the video description are saved next to it ('… - credits.txt').",
+        )
+        return True
 
     def _pakmap_watermark(self) -> "dict | None":
         name = self._pakmap_channel_var.get().strip()
@@ -3443,7 +3465,9 @@ class VideoGeneratorApp(ctk.CTk):
         label = getattr(self, "_scenes_empty_label", None)
         if label is None:
             return
-        if getattr(self, "generation_mode", "") != "hybrid":
+        if getattr(self, "generation_mode", "") == "starmap":
+            label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, load your StarMap beat CSV.\nEvery photo card and footage clip then appears here, ready to replace or retry.")
+        elif getattr(self, "generation_mode", "") != "hybrid":
             label.configure(text="\u25A6\n\nNo scenes yet\nAnalyze a script or import a visual-plan CSV on the Script page,\nand every scene appears here with its visual and status.")
         elif getattr(self, "_hybrid_busy", False):
             label.configure(text="\u25A6\n\nPlanning your Hybrid video\u2026\nThe progress is on the Visual Director page.\nThe footage and photo cards appear here when the plan is ready.")
@@ -3555,7 +3579,7 @@ class VideoGeneratorApp(ctk.CTk):
             style = "exp_solar"
         script = self._main_script_text()
         try:
-            text = build_prompt(style, script)
+            text = build_prompt(style, script, **({"pack": self._starmap_pack()} if style == "starmap" else {}))
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
@@ -4574,7 +4598,8 @@ class VideoGeneratorApp(ctk.CTk):
                 self._sync_primary_cta()
                 return
             if result.ok:
-                self._hybrid_status_var.set(f"Done: {result.output_path}")
+                self._hybrid_status_var.set(f"Done, but sound design failed (narration only): {result.output_path}" if getattr(result, "sound_failed", None)
+                                            else f"Done: {result.output_path}")
                 self._append_log(f"[HYBRID] Final video: {result.output_path}\n")
                 for credit in result.credits:
                     self._append_log(f"[HYBRID] Credit to include: {credit}\n")
@@ -4585,7 +4610,8 @@ class VideoGeneratorApp(ctk.CTk):
                     self._show_preview(str(result.output_path))
                 except Exception:
                     pass
-                messagebox.showinfo("Hybrid Map video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').")
+                if not self._sound_failed_notice("HYBRID", "Hybrid Map", result):
+                    messagebox.showinfo("Hybrid Map video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').")
             else:
                 self._append_log("[HYBRID] Generation failed:\n" + "\n".join(result.errors) + "\n")
                 if getattr(result, "unresolved", None):
@@ -4595,6 +4621,529 @@ class VideoGeneratorApp(ctk.CTk):
                     self._goto_workflow_view("visual_plan")
                 else:
                     self._hybrid_status_var.set("Failed — see the plan box and the log")
+                self._show_error_dialog("Generation failed", overscaled_failure_summary(result.errors), "\n".join(result.errors) or "Unknown error")
+            self._sync_primary_cta()
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    # ---------- StarMap (space documentaries: the real sky in 3D, spacecraft and their paths, NASA footage) ----------
+
+    def _build_starmap_section(self, parent, *, row: int) -> None:
+        """StarMap: a beat CSV (written by any AI with Copy the CSV prompt) is the plan. Its pictures and clips are rows of the
+        EXISTING Visual Plan table (replace, retry and skip there); the SHARED Generate button renders it (_sync_primary_cta_starmap)."""
+        self._starmap_enabled_var = ctk.BooleanVar(value=False)
+        self._starmap_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+        self._starmap_status_var = ctk.StringVar(value="")
+        self._starmap_file_var = ctk.StringVar(value="")
+        self._starmap_pack_var = ctk.StringVar(value="(from the CSV)")
+        self._starmap_running = False
+        self._starmap_busy = False
+        self._starmap_cancel = threading.Event()
+        self._starmap_ok = None               # the last Check plan's verdict for the loaded CSV (None = not checked yet)
+        self._starmap_tracking = None
+        self._starmap_run_manager = None
+
+        block = ctk.CTkFrame(parent, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
+        block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+        block.grid_columnconfigure(0, weight=1)
+        self._starmap_block = block
+        self._style_card_header(block, "StarMap (space documentaries)",
+                                "The real Sun, planets, Moon and stars for the story's dates, a camera that flies from a launch pad to the "
+                                "galaxy, spacecraft on their paths, and NASA footage between. Load a beat CSV written by any AI with Copy the CSV prompt.")
+        self._starmap_switch = ctk.CTkSwitch(block, text="Use StarMap for this project", variable=self._starmap_enabled_var,
+                                             command=self._on_starmap_toggle, font=ctk.CTkFont(size=12), text_color=_TEXT)
+        self._starmap_switch.grid(row=1, column=0, sticky="w", padx=16, pady=(12, 14))
+        controls = ctk.CTkFrame(block, fg_color="transparent")
+        controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
+        controls.grid_columnconfigure(0, weight=1)
+        self._starmap_controls = controls
+
+        actions = ctk.CTkFrame(controls, fg_color="transparent")
+        actions.grid(row=0, column=0, sticky="ew")
+        self._starmap_load_btn = ctk.CTkButton(actions, text="Load beat CSV…", width=150, height=36, corner_radius=6, fg_color=_ACCENT,
+                                               hover_color=_ACCENT_HOV, font=ctk.CTkFont(size=12, weight="bold"), command=self._starmap_browse_file)
+        self._starmap_load_btn.grid(row=0, column=0, padx=(0, 8))
+        ctk.CTkButton(actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1,
+                      border_color=_BORDER, text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
+                      command=lambda: self._copy_csv_prompt("starmap", self._starmap_status_var)).grid(row=0, column=1, padx=(0, 8))
+        try:
+            from starmap.catalog import available_packs
+
+            packs = ["(from the CSV)", "(none)"] + available_packs()
+        except Exception:
+            packs = ["(from the CSV)", "(none)"]
+        ctk.CTkLabel(actions, text="Mission pack", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED).grid(row=0, column=2, padx=(4, 6))
+        ctk.CTkOptionMenu(actions, variable=self._starmap_pack_var, values=packs, width=150, height=30,
+                          command=lambda _v: self._save_starmap_settings()).grid(row=0, column=3)
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=4)
+        ctk.CTkLabel(controls, text="The prompt lists what the mission pack lets the plan name (its events, sites, spacecraft, paths and orbits).",
+                     font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        self._path_row(2, "Loaded file", self._starmap_file_var, self._starmap_browse_file, parent=controls,
+                       placeholder_text="Nothing loaded yet: click Load beat CSV")
+        name_row = ctk.CTkFrame(controls, fg_color="transparent")
+        name_row.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        name_row.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED, anchor="w").grid(
+            row=0, column=0, sticky="w", padx=(0, 10))
+        ctk.CTkEntry(name_row, textvariable=self._pakmap_channel_var, height=32,
+                     placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")   # shared with pakMap and Hybrid
+
+        more = ctk.CTkFrame(controls, fg_color="transparent")
+        more.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        more.grid_columnconfigure(2, weight=1)
+        for col, (text, cmd) in enumerate((("Check plan", self._starmap_check_plan), ("Edit in spreadsheet", self._starmap_open_csv))):
+            ctk.CTkButton(more, text=text, width=110, height=26, corner_radius=4, fg_color="transparent", border_width=1, border_color=_BORDER,
+                          text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11), command=cmd).grid(row=0, column=col, padx=(0, 6))
+        ctk.CTkSwitch(more, text="Sound effects + ambience", variable=self._starmap_sound_var, command=self._save_starmap_settings,
+                      font=ctk.CTkFont(size=11)).grid(row=0, column=2, sticky="e")
+        self._starmap_plan_box = ctk.CTkTextbox(controls, height=190, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+        self._starmap_plan_box.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        self._starmap_plan_box.configure(state="disabled")
+        ctk.CTkLabel(controls, textvariable=self._starmap_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560,
+                     justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        controls.grid_remove()
+
+    def _set_starmap_text(self, text: str) -> None:
+        box = self._starmap_plan_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        box.insert("1.0", text)
+        box.configure(state="disabled")
+
+    def _starmap_pack(self) -> "str | None":
+        """The mission pack chosen in the panel; None = the CSV's own plan row decides."""
+        v = self._starmap_pack_var.get().strip() if hasattr(self, "_starmap_pack_var") else ""
+        return None if v in ("", "(from the CSV)") else ("" if v == "(none)" else v)
+
+    def _starmap_csv_path(self) -> "Path | None":
+        if self._workspace is not None and self._workspace.starmap_csv_path.is_file():
+            return self._workspace.starmap_csv_path
+        return None
+
+    def _starmap_show_intro(self) -> None:
+        self._set_starmap_text("No plan yet.\n\n1. Choose your voiceover on the Script page.\n2. Click Copy the CSV prompt, paste it with your script into any AI, "
+                               "save the CSV it writes.\n3. Click Load beat CSV, then Check plan.\n4. Find or replace pictures and clips in the Visual Plan, then Generate.")
+
+    def _starmap_deactivate(self) -> None:
+        """Another style takes over: StarMap steps aside (its CSV stays in the project)."""
+        if not hasattr(self, "_starmap_enabled_var"):
+            return
+        was = self._starmap_enabled_var.get()
+        self._starmap_enabled_var.set(False)
+        self._starmap_controls.grid_remove()
+        if self.generation_mode == "starmap":
+            self.generation_mode = "normal"
+        self._clear_starmap_visual_plan()
+        if was and self._workspace is not None and getattr(self, "_starmap_for_project", None) == self._workspace.project_id:
+            self._save_starmap_settings(active=False)
+
+    def _on_starmap_toggle(self) -> None:
+        if self._starmap_running:
+            self._starmap_enabled_var.set(True)
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            return
+        if self._starmap_enabled_var.get():
+            self._pakmap_deactivate()          # also steps Hybrid and StarMap aside and clears the shared table
+            if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+            self._starmap_enabled_var.set(True)
+            self._starmap_controls.grid()
+            self.generation_mode = "starmap"
+            self._populate_starmap_visual_plan()
+            self._set_scenes_empty_text()
+            path = self._starmap_csv_path()
+            if path is not None:
+                self._starmap_file_var.set(str(path))
+                if not self._starmap_plan_box.get("1.0", "end").strip():
+                    self._starmap_show_summary(path)
+            else:
+                self._starmap_show_intro()
+            self._save_starmap_settings(active=True)
+        else:
+            self._starmap_deactivate()
+        self._sync_primary_cta()
+
+    def _save_starmap_settings(self, active: "bool | None" = None) -> None:
+        if self._workspace is None or not hasattr(self, "_starmap_sound_var"):
+            return
+        self._starmap_for_project = self._workspace.project_id
+        try:
+            self._workspace.set_starmap_settings(sound_design=bool(self._starmap_sound_var.get()), pack=self._starmap_pack_var.get(), active=active)
+        except OSError as exc:
+            self._append_log(f"[STARMAP] Could not save the StarMap settings: {exc}\n")
+
+    def _restore_starmap(self, ws) -> None:
+        """Reopening a project: the CSV, the switches and (if StarMap was the active style) the style itself."""
+        if not hasattr(self, "_starmap_enabled_var"):
+            return
+        saved = ws.starmap_settings()
+        self._starmap_for_project = ws.project_id
+        self._starmap_ok = None
+        if "sound_design" in saved:
+            self._starmap_sound_var.set(bool(saved["sound_design"]))
+        self._starmap_pack_var.set(saved.get("pack") or "(from the CSV)")
+        path = ws.starmap_csv_path if ws.starmap_csv_path.is_file() else None
+        self._starmap_file_var.set(str(path) if path else "")
+        if path is not None and saved.get("active"):
+            self._pakmap_deactivate()
+            if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+                self._overscaled_enabled_var.set(False)
+                self._overscaled_controls.grid_remove()
+            self._starmap_enabled_var.set(True)
+            self._starmap_controls.grid()
+            self.generation_mode = "starmap"
+            self._populate_starmap_visual_plan()
+            self._starmap_show_summary(path)
+        else:
+            self._starmap_deactivate()
+            self._starmap_show_intro()
+
+    def _starmap_show_summary(self, path: Path) -> None:
+        try:
+            from starmap.app_integration import summary
+
+            text = summary(Path(path).read_text(encoding="utf-8"))
+        except Exception as exc:
+            text = f"The CSV could not be read: {exc}"
+        self._set_starmap_text(text + "\n\nClick Check plan to time it against the narration and check every row.")
+
+    def _populate_starmap_visual_plan(self) -> None:
+        """Put the plan's pictures and clips in the EXISTING Visual Plan table (one row per card / clip)."""
+        from providers.base import SceneRow
+
+        dicts = []
+        path = self._starmap_csv_path()
+        if path is not None:
+            try:
+                from starmap.app_integration import visual_dicts_from_csv
+
+                dicts = visual_dicts_from_csv(path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                self._append_log(f"[STARMAP] The plan's pictures cannot be listed yet: {exc}\n")
+        self._scene_rows = [SceneRow.from_csv_row(d) for d in dicts]
+        self._scene_rows_owner = "starmap"
+        self._scene_preview_cache_sig = None
+        keep = {_scene_key(r.scene_number) for r in self._scene_rows}
+        self._asset_results = {k: v for k, v in self._asset_results.items() if k in keep}
+        if self._workspace is not None:
+            self._hydrate_overscaled_assets_from_manifest(self._workspace.starmap_images_dir)
+        self._render_scene_rows()
+        self._refresh_assets_cta()
+
+    def _clear_starmap_visual_plan(self) -> None:
+        if getattr(self, "_scene_rows_owner", None) != "starmap":
+            return
+        self._scene_rows_owner = None
+        self._scene_rows = []
+        self._scene_preview_cache_sig = None
+        self._render_scene_rows()
+
+    def _starmap_browse_file(self) -> None:
+        if self._starmap_running or self._starmap_busy:
+            messagebox.showinfo("StarMap", "Still working: wait for the current step to finish.")
+            return
+        if not self._require_workspace("load a StarMap plan"):
+            return
+        path = filedialog.askopenfilename(title="Select a StarMap beat CSV", filetypes=[("StarMap beat CSV", "*.csv"), ("All files", "*.*")],
+                                          initialdir=str(_browse_start_dir()))
+        if path:
+            self._starmap_load_csv(path)
+
+    def _starmap_load_csv(self, path: str) -> bool:
+        """Copy the CSV into the project, list its pictures in the Visual Plan, and check it if the narration is ready."""
+        from starmap.beat_csv import is_starmap_csv
+
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            messagebox.showerror("Cannot read CSV", str(exc))
+            return False
+        if not is_starmap_csv(text):
+            messagebox.showerror("Not a StarMap beat CSV", "The first row must be the StarMap header (beat,row,vo_anchor,mode,...,date,...).\n\n"
+                                 "Use Copy the CSV prompt to have an AI write one.")
+            return False
+        try:
+            stored = self._workspace.copy_starmap_csv_in(Path(path))
+        except OSError as exc:
+            messagebox.showerror("StarMap", f"Could not save the CSV in the project: {exc}")
+            return False
+        self._starmap_file_var.set(str(stored))
+        self._starmap_ok = None
+        if not self._starmap_enabled_var.get():
+            self._starmap_enabled_var.set(True)
+            self._on_starmap_toggle()
+        self._populate_starmap_visual_plan()
+        self._starmap_show_summary(stored)
+        self._starmap_status_var.set(f"Loaded {Path(path).name}")
+        self._append_log(f"[STARMAP] Loaded {path}\n")
+        if self._current_voiceover_path() is not None:
+            self._starmap_check_plan()
+        self._sync_primary_cta()
+        return True
+
+    def _starmap_open_csv(self) -> None:
+        path = self._starmap_csv_path()
+        if path is None:
+            messagebox.showinfo("StarMap", "Load a beat CSV first.")
+            return
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
+            elif sys.platform == "win32":
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+            self._starmap_status_var.set("Edit and save the CSV, then click Load beat CSV again (or Check plan).")
+        except Exception as exc:
+            messagebox.showerror("StarMap", f"Could not open the CSV: {exc}")
+
+    def _starmap_scene_status(self) -> dict:
+        status = {}
+        for row in getattr(self, "_scene_rows", []) if getattr(self, "_scene_rows_owner", None) == "starmap" else []:
+            status[str(row.scene_number)] = self._row_status_from_result(row)
+        return status
+
+    def _starmap_check_plan(self) -> None:
+        """Time the CSV against the narration and report every problem by row (no rendering)."""
+        if self._starmap_busy or self._starmap_running:
+            return
+        path = self._starmap_csv_path()
+        if path is None:
+            messagebox.showinfo("StarMap", "Load a beat CSV first.")
+            return
+        voiceover = self._current_voiceover_path()
+        if voiceover is None:
+            messagebox.showinfo("StarMap", "Choose the voiceover first: the plan is timed by the narrator's words.")
+            return
+        ws = self._workspace
+        model, state_dir, pack, status = self.model_var.get().strip() or "base", getattr(ws, "state_dir", None), self._starmap_pack(), self._starmap_scene_status()
+        self._starmap_busy = True
+        self._starmap_status_var.set("Checking the plan against the narration…")
+        self._sync_primary_cta()
+        log = lambda m: self.after(0, lambda: self._append_log(f"{m}\n"))  # noqa: E731
+
+        def worker() -> None:
+            try:
+                from pakmap.app_integration import voiceover_duration
+                from starmap.app_integration import check_text
+
+                words = self._pakmap_get_words(voiceover, model, state_dir, log)
+                text, ok = check_text(path.read_text(encoding="utf-8"), words, voiceover_duration(voiceover), pack=pack, scene_status=status)
+            except Exception as exc:
+                text, ok = f"The plan could not be checked: {exc}", False
+            self.after(0, lambda: done(text, ok))
+
+        def done(text: str, ok: bool) -> None:
+            self._starmap_busy = False
+            self._starmap_ok = ok
+            self._set_starmap_text(text)
+            self._starmap_status_var.set("Plan OK: find the pictures in the Visual Plan (or let Generate find them), then Generate." if ok
+                                         else "The plan has errors (see above): fix the CSV, save it, and Load it again.")
+            self._sync_primary_cta()
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _sync_primary_cta_starmap(self) -> None:
+        if self._starmap_busy:
+            self._cta_action = "none"
+            self._set_generate_btn(state="disabled", text="Working…")
+            return
+        if self._starmap_running:
+            self._cta_action = "starmap_cancel"
+            self.stage_var.set("GENERATING")
+            if self._starmap_cancel.is_set():
+                self.hint_var.set("Stopping…")
+                self._set_generate_btn(state="disabled", text="Stopping…")
+            else:
+                self.hint_var.set("Generating — click Stop to cancel.")
+                self._set_generate_btn(state="normal", text="Stop")
+            return
+        if self._workspace is None:
+            self._cta_action = "picker"
+            self.stage_var.set("SETUP")
+            self.hint_var.set("Choose a project to get started.")
+            self._set_generate_btn(state="normal", text="Choose project")
+            return
+        if self._current_voiceover_path() is None:
+            self._cta_action = "import_audio"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Select or import a voiceover to continue.")
+            self._set_generate_btn(state="normal", text="Import Voiceover")
+            return
+        if self._starmap_csv_path() is None:
+            self._cta_action = "starmap_load_csv"
+            self.stage_var.set("PLAN")
+            self.hint_var.set("Load your StarMap beat CSV (Copy the CSV prompt in the StarMap panel gives any AI the instructions).")
+            self._set_generate_btn(state="normal", text="Load beat CSV")
+            return
+        self._cta_action = "generate"
+        self.stage_var.set("GENERATE")
+        self.hint_var.set("Ready — click Generate to render the StarMap video." if self._starmap_ok is not False
+                          else "The last Check plan found errors: fix the CSV first (Generate will stop on them).")
+        self._set_generate_btn(state="normal", text="Generate")
+
+    def _on_starmap_cancel(self) -> None:
+        if not self._starmap_running or self._starmap_cancel.is_set():
+            return
+        self._starmap_cancel.set()
+        self._append_log("[STARMAP] Stop requested — cancelling the current step…\n")
+        manager = getattr(self, "_starmap_run_manager", None)
+        if manager is not None:
+            try:
+                manager.request_cancel()
+            except Exception as exc:
+                self._append_log(f"[STARMAP] Could not signal the picture batch to stop: {exc}\n")
+        try:
+            from hardware.process_registry import get_registry
+
+            get_registry().terminate_owned(owner="starmap_render")
+        except Exception as exc:
+            self._append_log(f"[STARMAP] Could not stop the running renderer: {exc}\n")
+        self._sync_primary_cta()
+
+    def _run_starmap_generation(self) -> None:
+        """The StarMap branch of the SHARED _on_generate() entry point (generation_mode == "starmap")."""
+        if self._starmap_running or self._starmap_busy:
+            return
+        if self._workspace is None:
+            messagebox.showerror("Cannot start", "Create or choose a project first.")
+            return
+        csv_path = self._starmap_csv_path()
+        if csv_path is None:
+            messagebox.showerror("Cannot start", "There is no StarMap plan yet: click Load beat CSV.")
+            return
+        voiceover_path = self._current_voiceover_path()
+        if voiceover_path is None:
+            messagebox.showerror("Cannot start", "Select or import a voiceover first.")
+            return
+        ws = self._workspace
+        output_path = ws.next_final_path()
+        self.output_var.set(str(output_path))
+        whisper_model = self.model_var.get().strip() or "base"
+        whisper_state_dir = getattr(ws, "state_dir", None)
+        watermark = self._pakmap_watermark()
+        sound_design = bool(self._starmap_sound_var.get())
+        pixel_scale = self._export_pixel_scale()
+        title = getattr(ws, "title", "") or ""
+        pack = self._starmap_pack()
+        pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+        plan_rows = list(self._scene_rows) if getattr(self, "_scene_rows_owner", None) == "starmap" else None
+        images_dir = ws.starmap_images_dir
+        flow_engine_manager, flow_video_account_ids, flow_settings = None, None, None
+        try:
+            from asset_manager import AssetManifest as _SmManifest
+
+            _man = _SmManifest(images_dir) if images_dir.is_dir() else None
+            _new_flow = [r for r in (plan_rows or []) if SceneAssetRouter.classify(r) in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO)
+                         and not (_man is not None and (_man.get(r.scene_number) or {}).get("status") == "complete")]
+        except Exception:
+            _new_flow = []
+        if _new_flow:
+            if not messagebox.askyesno("Generate pictures with Flow?",
+                                       f"{len(_new_flow)} picture(s)/clip(s) in this plan will be generated with Flow, which uses Flow credits:\n\n"
+                                       + "\n".join(f"- {(r.prompt or r.stock)[:70]}" for r in _new_flow[:6]) + ("\n- ..." if len(_new_flow) > 6 else "")
+                                       + "\n\nPictures already saved (or replaced in the Visual Plan) are reused. Continue?"):
+                return
+            flow_engine_manager = self._get_flow_engine_manager()
+            flow_video_account_ids = self._video_account_ids()
+            try:
+                flow_settings, _accounts = self._image_flow_run_settings()
+            except Exception:
+                flow_settings = None
+
+        self._starmap_cancel.clear()
+        self._starmap_running = True
+        self._starmap_tracking = self._track_generation_start("starmap")
+        self._starmap_run_manager = None
+        self._sync_primary_cta()
+        self._starmap_status_var.set("Starting StarMap generation…")
+        self._append_log("Starting StarMap generation…\n")
+
+        def progress_cb(message: str, fraction: float) -> None:
+            def apply() -> None:
+                self._starmap_status_var.set(f"{message} ({int(fraction * 100)}%)")
+                self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+            self.after(0, apply)
+
+        def thread_safe_log(message: str) -> None:
+            self.after(0, lambda: self._append_log(f"{message}\n"))
+
+        def _scene_start(scene, source) -> None:
+            kind = "waiting" if source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO) else _scene_busy_kind(source)
+            self._ui_queue.put(("scene_busy", (scene.scene_number, kind)))
+
+        def _scene_generating(scene) -> None:
+            self._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
+
+        def _scene_complete(scene, result) -> None:
+            self._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+        def _manager_ready(manager) -> None:
+            self._apply_footage_quality(manager)
+            self._asset_manager = manager
+            self._starmap_run_manager = manager
+
+        def worker() -> None:
+            from pakmap.app_integration import PakmapResult
+            from starmap.app_integration import generate_starmap_video
+
+            prun = self._production_begin("starmap")
+            try:
+                try:
+                    words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
+                except Exception as exc:
+                    result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
+                else:
+                    result = generate_starmap_video(
+                        csv_path, voiceover_path, output_path, work_dir=ws.starmap_work_dir, whisper_words=words, images_dir=images_dir,
+                        scene_rows=plan_rows, pack=pack, watermark=watermark, title=title, sound_design=sound_design, pixel_scale=pixel_scale,
+                        progress_cb=progress_cb, log=thread_safe_log, cancel_check=self._starmap_cancel.is_set,
+                        media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
+                                             on_manager_ready=_manager_ready),
+                        pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager, flow_settings=flow_settings,
+                        flow_video_account_ids=flow_video_account_ids,
+                    )
+            except Exception as exc:
+                result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+            self._production_end(prun, result, self._starmap_cancel.is_set())
+            self.after(0, lambda: finish(result))
+
+        def finish(result) -> None:
+            self._starmap_running = False
+            cancelled = bool(getattr(result, "cancelled", False)) or self._starmap_cancel.is_set()
+            self._starmap_cancel.clear()
+            run, self._starmap_tracking = self._starmap_tracking, None
+            self._track_generation_end(run, "cancelled" if (cancelled and not result.ok) else ("completed" if result.ok else "failed"),
+                                       output_path=result.output_path, validated=True, message="\n".join(str(e) for e in (result.errors or [])))
+            if cancelled and not result.ok:
+                self._starmap_status_var.set("Cancelled")
+                self._append_log("[STARMAP] Generation cancelled. Nothing was exported; Generate again to restart.\n")
+                self._sync_primary_cta()
+                return
+            if result.ok:
+                self._starmap_status_var.set(f"Done: {result.output_path}")
+                self._append_log(f"[STARMAP] Final video: {result.output_path}\n")
+                for credit in result.credits:
+                    self._append_log(f"[STARMAP] Credit to include: {credit}\n")
+                for w in result.warnings:
+                    self._append_log(f"[STARMAP] note: {w}\n")
+                self._last_output = str(result.output_path)
+                try:
+                    self._show_preview(str(result.output_path))
+                except Exception:
+                    pass
+                messagebox.showinfo("StarMap video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').")
+            else:
+                self._append_log("[STARMAP] Generation failed:\n" + "\n".join(result.errors) + "\n")
+                self._set_starmap_text("Generation stopped:\n\n" + "\n".join(f"  {e}" for e in result.errors))
+                if getattr(result, "unresolved", None):
+                    self._starmap_status_var.set(f"{len(result.unresolved)} picture(s)/clip(s) need attention — fix them in the Visual Plan tab, then Generate again")
+                    self._refresh_qa_ui(immediate=True)
+                    self._goto_workflow_view("visual_plan")
+                else:
+                    self._starmap_status_var.set("Failed — see the plan box and the log")
                 self._show_error_dialog("Generation failed", overscaled_failure_summary(result.errors), "\n".join(result.errors) or "Unknown error")
             self._sync_primary_cta()
 
@@ -4979,7 +5528,8 @@ class VideoGeneratorApp(ctk.CTk):
                 self._sync_primary_cta()
                 return
             if result.ok:
-                self._pakmap_status_var.set(f"Done: {result.output_path}")
+                self._pakmap_status_var.set(f"Done, but sound design failed (narration only): {result.output_path}" if getattr(result, "sound_failed", None)
+                                            else f"Done: {result.output_path}")
                 self._append_log(f"[PAKMAP] Final video: {result.output_path}\n")
                 for credit in result.credits:
                     self._append_log(f"[PAKMAP] Credit to include: {credit}\n")
@@ -4991,10 +5541,11 @@ class VideoGeneratorApp(ctk.CTk):
                     self._show_preview(str(result.output_path))
                 except Exception:
                     pass
-                messagebox.showinfo(
-                    "pakMap video ready",
-                    f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').",
-                )
+                if not self._sound_failed_notice("PAKMAP", "pakMap", result):
+                    messagebox.showinfo(
+                        "pakMap video ready",
+                        f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').",
+                    )
             else:
                 self._append_log("[PAKMAP] Generation failed:\n" + "\n".join(result.errors) + "\n")
                 if getattr(result, "unresolved", None):
@@ -5659,6 +6210,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._hybrid_plan_with_ai()
         elif action == "hybrid_cancel":
             self._on_hybrid_cancel()
+        elif action == "starmap_load_csv":
+            self._starmap_browse_file()
+        elif action == "starmap_cancel":
+            self._on_starmap_cancel()
         else:
             self._on_generate()
 
@@ -6367,6 +6922,9 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "hybrid":
             self._sync_primary_cta_hybrid()
+            return
+        if self.generation_mode == "starmap":
+            self._sync_primary_cta_starmap()
             return
 
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
@@ -7092,6 +7650,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self._pakmap_csv_var.set("")
                 self._pakmap_deactivate()
         self._restore_hybrid(ws)
+        self._restore_starmap(ws)
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -8553,6 +9112,8 @@ class VideoGeneratorApp(ctk.CTk):
             return  # pakMap owns self._scene_rows too (its pictures); see _populate_pakmap_visual_plan
         if self.generation_mode == "hybrid":
             return  # so does Hybrid Map (its footage); see _populate_hybrid_visual_plan
+        if self.generation_mode == "starmap":
+            return  # and StarMap (its pictures and clips); see _populate_starmap_visual_plan
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -9858,6 +10419,8 @@ class VideoGeneratorApp(ctk.CTk):
             return self._workspace.pakmap_images_dir
         if self.generation_mode == "hybrid" and self._workspace is not None:
             return self._workspace.hybrid_images_dir
+        if self.generation_mode == "starmap" and self._workspace is not None:
+            return self._workspace.starmap_images_dir
         return self._workspace.assets_dir
 
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
@@ -12606,6 +13169,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "hybrid":
             self._run_hybrid_generation()
             return
+        if self.generation_mode == "starmap":
+            self._run_starmap_generation()
+            return
 
         if self._running:
             self._on_cancel()
@@ -13709,10 +14275,10 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_fix_all_visual_issues(self) -> None:
         if not self._scene_rows:
             return
-        if self.generation_mode in ("pakmap", "hybrid"):
+        if self.generation_mode in ("pakmap", "hybrid", "starmap"):
             messagebox.showinfo(
                 "Fix All Issues",
-                "Not available for pakMap or Hybrid Map. Use Retry or Change source on the affected picture(s) instead.",
+                "Not available for pakMap, Hybrid Map or StarMap. Use Retry or Change source on the affected picture(s) instead.",
             )
             return
         if self.generation_mode == "overscaled":

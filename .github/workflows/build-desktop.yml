@@ -122,6 +122,11 @@ jobs:
           cd pakmap-engine
           npm ci --omit=dev
 
+      - name: Install starmap-engine dependencies
+        run: |
+          cd starmap-engine
+          npm ci --omit=dev
+
       - name: Run unit tests
         if: ${{ matrix.run_tests }}
         # A normal run takes ~5-10 min. Fail (with the log kept) instead of GitHub's 6-hour default if something hangs.
@@ -338,6 +343,11 @@ jobs:
       - name: Install pakmap-engine dependencies
         run: |
           cd pakmap-engine
+          npm ci --omit=dev
+
+      - name: Install starmap-engine dependencies
+        run: |
+          cd starmap-engine
           npm ci --omit=dev
 
       - name: Run unit tests

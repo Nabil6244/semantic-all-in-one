@@ -1,0 +1,15 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA photos).",
+ "nasa_image:Artemis I launch of the Space Launch System and Orion": {
+  "file": "nhq202211160030.jpg",
+  "credit": "NASA/Bill Ingalls NHQ202211160030"
+ },
+ "nasa_image:Artemis I Orion solar array with the Earth and the Moon": {
+  "file": "art001e001712.jpg",
+  "credit": "NASA art001e001712"
+ },
+ "nasa_image:Artemis I Orion descending under parachutes to splashdown": {
+  "file": "ksc-20221211-ph-jnv01-0003.jpg",
+  "credit": "NASA KSC-20221211-PH-JNV01-0003"
+ }
+}

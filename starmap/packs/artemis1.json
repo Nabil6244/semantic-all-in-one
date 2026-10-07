@@ -1,0 +1,268 @@
+{
+ "id": "artemis1",
+ "name": "Artemis I",
+ "_about": "Artemis I, the uncrewed test flight of SLS and Orion: two close lunar flybys and a distant retrograde orbit (DRO). Times (UTC) are from NASA's Artemis I mission timeline and mission blog: launch 1:47:44 a.m. EST; trans-lunar injection at MET 1:29:27; outbound burn 7:44 a.m. EST Nov 21 (closest ~130 km just after); DRO insertion 4:52 p.m. CST Nov 25; farthest from Earth (432,210 km / 268,563 mi) 'just after 3 p.m. CST' Nov 28 (time approximate); DRO departure 3:53 p.m. CST Dec 1; return flyby closest approach 10:43 a.m. CST Dec 5 (~130 km); splashdown 12:40 p.m. EST Dec 11 off Baja California (the splashdown point here is approximate: near Guadalupe Island). The trajectory is ILLUSTRATED (the DRO is drawn as a large circle about 64,000 km above the Moon); not flight data.",
+ "met_zero": "2022-11-16T06:47:44Z",
+ "events": {
+  "launch": "2022-11-16T06:47:44Z",
+  "tli": "2022-11-16T08:17:11Z",
+  "outbound_flyby": "2022-11-21T12:44:00Z",
+  "closest_approach": "2022-11-21T12:57:00Z",
+  "dro_insertion": "2022-11-25T22:52:00Z",
+  "farthest_point": "2022-11-28T21:06:00Z",
+  "dro_departure": "2022-12-01T21:53:00Z",
+  "return_flyby": "2022-12-05T16:43:00Z",
+  "splashdown": "2022-12-11T17:40:00Z"
+ },
+ "sites": {
+  "launch pad 39b": {
+   "body": "earth",
+   "lon": -80.621,
+   "lat": 28.627,
+   "label": "LAUNCH PAD 39B",
+   "aliases": [
+    "kennedy space center",
+    "cape canaveral",
+    "the launch pad",
+    "launch complex 39b"
+   ]
+  },
+  "artemis i splashdown": {
+   "body": "earth",
+   "lon": -118.3,
+   "lat": 29.0,
+   "label": "SPLASHDOWN",
+   "aliases": [
+    "the splashdown site",
+    "off baja california",
+    "the pacific ocean",
+    "splashdown"
+   ]
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "artemis1_orion",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      -80.621,
+      28.627
+     ],
+     "site_at": "start",
+     "heading_deg": 80,
+     "arc_deg": 26,
+     "alt_far_km": 185,
+     "from_utc": "2022-11-16T06:47:44Z",
+     "to_utc": "2022-11-16T06:56:00Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "period_min": 88.5,
+     "to_utc": "2022-11-16T08:17:11Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 260,
+     "bulge": 0.45,
+     "arrive_bulge": 0.35
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 130,
+     "period_min": 160,
+     "plane": {
+      "through": [
+       180,
+       0
+      ],
+      "heading_deg": 270,
+      "epoch": "2022-11-21T12:57:00Z"
+     },
+     "from_utc": "2022-11-21T12:20:00Z",
+     "to_utc": "2022-11-21T13:35:00Z",
+     "samples_per_rev": 120
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "continue": true,
+     "to_altitude_km": 64000,
+     "period_min": 9000,
+     "to_period_min": 17280,
+     "to_utc": "2022-11-25T22:52:00Z",
+     "samples": 400
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "continue": true,
+     "period_min": 17280,
+     "to_utc": "2022-12-01T21:53:00Z",
+     "samples_per_rev": 240
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "continue": true,
+     "to_altitude_km": 130,
+     "period_min": 17280,
+     "to_period_min": 9000,
+     "to_utc": "2022-12-05T16:43:00Z",
+     "samples": 400
+    },
+    {
+     "kind": "transfer",
+     "from": "moon",
+     "to": "earth",
+     "continue": true,
+     "to_utc": "2022-12-11T17:20:00Z",
+     "samples": 260,
+     "bulge": 0.45,
+     "arrive_alt_km": 120,
+     "arrive_deg": 90
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "orion": {
+   "type": "spacecraft",
+   "label": "ORION",
+   "trajectory": "artemis1_orion",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -1.6,
+     "length_m": 1.6,
+     "radius_m": 0.75,
+     "radius_top_m": 0.35,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "cylinder",
+     "at_m": 0,
+     "length_m": 4.0,
+     "radius_m": 2.05,
+     "color": "#d9dadc",
+     "metalness": 0.45,
+     "roughness": 0.45
+    },
+    {
+     "shape": "panel",
+     "at_m": 0.6,
+     "width_m": 2.0,
+     "span_m": 7.0,
+     "gap_m": 2.1,
+     "color": "#1d2a4a",
+     "metalness": 0.6,
+     "roughness": 0.35
+    },
+    {
+     "shape": "panel",
+     "at_m": 0.6,
+     "width_m": 2.0,
+     "span_m": 7.0,
+     "gap_m": 2.1,
+     "color": "#1d2a4a",
+     "metalness": 0.6,
+     "roughness": 0.35,
+     "rotate_deg": [
+      0,
+      0,
+      90
+     ]
+    },
+    {
+     "shape": "cone",
+     "at_m": 4.0,
+     "length_m": 3.3,
+     "radius_m": 2.5,
+     "radius_top_m": 0.9,
+     "color": "#e9e9ea",
+     "metalness": 0.3,
+     "roughness": 0.5
+    }
+   ],
+   "min_px": 26
+  }
+ },
+ "paths": {
+  "earth_orbit": {
+   "of": "artemis1_orion",
+   "from": "launch",
+   "to": "tli",
+   "style": {
+    "future": "hidden",
+    "width": 5
+   }
+  },
+  "outbound_coast": {
+   "of": "artemis1_orion",
+   "from": "tli",
+   "to": "outbound_flyby",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "out_to_dro": {
+   "of": "artemis1_orion",
+   "from": "outbound_flyby",
+   "to": "dro_insertion",
+   "style": {
+    "future": "dashed"
+   }
+  },
+  "distant_retrograde_orbit": {
+   "of": "artemis1_orion",
+   "from": "dro_insertion",
+   "to": "dro_departure",
+   "style": {
+    "future": "dashed",
+    "width": 3
+   }
+  },
+  "return_coast": {
+   "of": "artemis1_orion",
+   "from": "return_flyby",
+   "to": "splashdown",
+   "style": {
+    "future": "dashed"
+   }
+  }
+ },
+ "orbits": {
+  "dro": {
+   "body": "moon",
+   "trajectory": "artemis1_orion",
+   "at": "dro_insertion+24:00",
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 2.5,
+    "opacity": 0.75
+   }
+  }
+ },
+ "craft_aliases": {
+  "artemis i": "orion",
+  "artemis 1": "orion",
+  "the capsule": "orion",
+  "the spacecraft": "orion",
+  "the orion spacecraft": "orion"
+ }
+}

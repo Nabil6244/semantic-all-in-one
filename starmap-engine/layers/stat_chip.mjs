@@ -19,10 +19,10 @@ export default {
     }
     if (d.unit) big += ` ${d.unit}`;
     const c = d.corner || 'bl', right = c.endsWith('r'), top = c.startsWith('t');
-    const x = d.x != null ? d.x * u.S : right ? W - 63 * u.S : 44 * u.S;
-    const y = d.y != null ? d.y * u.S : top ? 190 * u.S : H - 66 * u.S - 168 * u.S;
+    const x = d.x != null ? d.x * u.S : right ? W - 52 * u.S : 44 * u.S;
+    const y = d.y != null ? d.y * u.S : top ? 140 * u.S : H - 56 * u.S - 104 * u.S;
     f.g.save(); f.g.globalAlpha = f.alpha;
-    f.u.panel(x, y, big, d.label || '', { bigPx: 78, smallPx: 24, h: 168, minW: 260, align: d.x != null ? 'left' : right ? 'right' : 'left' });
+    f.u.panel(x, y, big, d.label || '', { align: d.x != null ? 'left' : right ? 'right' : 'left' });
     f.g.restore();
   },
 };

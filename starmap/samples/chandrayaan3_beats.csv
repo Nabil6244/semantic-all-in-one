@@ -1,0 +1,26 @@
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,chandrayaan3,,,,CHANDRAYAAN-3,,,,,,,,,,,
+b1,beat,On the fourteenth of,map,,,sriharikota,body,launch-00:05,,,"On the fourteenth of July 2023, India launched Chandrayaan-3 from Sriharikota.",,,,,,,,,where it began
+b1,layer,On the fourteenth of,,title,,,,,CHANDRAYAAN-3,INDIA TO THE MOON,,,,,,,,,,
+b1,layer,launched Chandrayaan-3 from Sriharikota,,marker,,sriharikota,,,SRIHARIKOTA,SATISH DHAWAN SPACE CENTRE,,,,,,,,,,
+b1,layer,launched Chandrayaan-3 from Sriharikota,,craft,spacecraft,,,,CHANDRAYAAN-3,,,,,,,b2,,,,
+b2,beat,Instead of flying straight,map,,,earth,body,spacecraft_separation,,,"Instead of flying straight to the Moon, it spent more than two weeks raising its orbit around the Earth, one burn at a time.",,,,,,,,,raising the orbit
+b2,layer,Instead of flying straight,,craft,spacecraft,,,,CHANDRAYAAN-3,,,,,,,,,,,
+b2,layer,raising its orbit around,,path,earth_orbits,,,,,,,,,,,,,,,
+b3,beat,On the first of,map,,,earth+moon,system,tli,,,"On the first of August it left Earth behind, and five days later it was captured by the Moon's gravity.",,,,,,,,,the way to the Moon
+b3,layer,it left Earth behind,,path,translunar_coast,,,,,,,,,,,,,,,
+b3,layer,it left Earth behind,,craft,spacecraft,,,,CHANDRAYAAN-3,,,,,,,,,,,
+b4,beat,Over the next eleven,map,,,moon,body,lander_separation-06:00,,,"Over the next eleven days its orbit was lowered, until it circled about 150 kilometres above the surface.",,,,,,,,,lowering the orbit
+b4,layer,its orbit was lowered,,orbit,final_lunar_orbit,,,,,,,,,,,,,,,
+b4,layer,its orbit was lowered,,craft,spacecraft,,,,CHANDRAYAAN-3,,,,,,,,,,,
+b4,layer,about 150 kilometres above,,stat,,,,,,LUNAR ORBIT,,,150,0 KM,bl,,,,,
+b5,beat,No spacecraft had ever,footage,,,,,,,,No spacecraft had ever landed so close to the Moon's south pole.,,,,,,,,,why the south pole
+b5,clip,,,,,,,,,,,,,,,,,nasa_image:The lunar south pole seen by the Lunar Reconnaissance Orbiter,,the lunar south pole
+b6,beat,Six days after separating,map,,,shiv shakti point,surface,powered_descent,,,"Six days after separating from its propulsion module, the Vikram lander began its descent.",,,,,,,,,the descent
+b6,layer,the Vikram lander began,,craft,vikram,,,,VIKRAM,,,,,,,b7,,,,
+b6,layer,the Vikram lander began,,path,descent,,,,,,,,,,,b7,,,,
+b6,layer,began its descent,,zone,,shiv shakti point,,,LANDING ZONE,,,,24,,,b7,,,,
+b7,beat,At three minutes past,map,,,shiv shakti point,surface,landing-00:00:03,,,"At three minutes past six in the evening, Indian time, on the twenty-third of August, Vikram touched down.",,,,,,,,,the landing
+b7,layer,Vikram touched down,,caption,,,,,,,VIKRAM HAS LANDED,,,,,,,,,
+b8,beat,India named the landing,map,,,shiv shakti point,close,landing+00:05,,,India named the landing site the Shiv Shakti point.,,,,,,,,,the name
+b8,layer,the Shiv Shakti point,,marker,,shiv shakti point,,,SHIV SHAKTI POINT,"69.37 S, 32.32 E",,,,,,,,,,

@@ -15,11 +15,13 @@
 //   * a layer's START and END stay in narration time. A layer whose end falls under the footage (after the map is gone) is
 //     held until the map returns plus return_grace_s, then leaves, so the viewer never loses a layer they did not see go; a
 //     layer whose start falls under the footage appears when the map returns.
+//   * a jump in time or place "under the footage" (keys at the footage's start and end) happens at its midpoint, while the
+//     map is fully hidden: the map leaves in its entry state and returns in its exit state.
 //   * transitions are dissolves centred on the beat boundary (so they do not eat the beat's own time); footage straight
 //     after footage dissolves over the previous clip, never over the map.
 const VIDEO = /\.(mp4|mov|m4v|webm|mkv)$/i, IMAGE = /\.(jpe?g|png|webp)$/i;
 const smooth = (x) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
-export const DISSOLVE_S = 0.5, RETURN_GRACE_S = 0.8, MIN_BEAT_S = 2, SHORT_BEAT_S = 3.5;
+export const CUT_S = 0.001, DISSOLVE_S = 0.5, RETURN_GRACE_S = 0.8, MIN_BEAT_S = 2, SHORT_BEAT_S = 3.5;
 
 /** spec -> the footage plan: { beats, problems, warnings, mu, coverage, mapAlpha, clipTime, adjustLayer, mapClock, mapCamera }. */
 export function planFootage(spec = {}) {
@@ -55,7 +57,17 @@ export function planFootage(spec = {}) {
     if (last && b.start <= last.end + 1e-6) { last.end = Math.max(last.end, b.end); last.dOut = b.dOut; }
     else spans.push({ start: b.start, end: b.end, dIn: b.dIn, dOut: b.dOut });
   }
-  const mu = (t) => { let m = t; for (const s of spans) m -= Math.max(0, Math.min(t, s.end) - s.start); return m; };
+  // Under a span the map shows its ENTRY state until the span's midpoint (the map is fully hidden there) and its EXIT state
+  // after it: CUT_S of map time apart, so anything keyed to happen "under the footage" (a jump in the universe date, a cut
+  // of the camera) happens at the midpoint, never during a dissolve.
+  const mu = (t) => {
+    let m = t;
+    for (const s of spans) {
+      m -= Math.max(0, Math.min(t, s.end) - s.start);
+      if (t >= (s.start + s.end) / 2) m += CUT_S;
+    }
+    return m;
+  };
 
   /** How opaque a beat's pictures are at t (0..1). */
   const beatAlpha = (b, t) => {

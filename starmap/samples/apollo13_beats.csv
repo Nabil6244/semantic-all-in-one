@@ -1,0 +1,28 @@
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+plan,plan,,,,apollo13,,,,APOLLO 13,,,,,,,,,,,
+b1,beat,"In April 1970, Apollo",map,,,launch complex 39a,body,launch-00:05,,,"In April 1970, Apollo 13 set out for the Fra Mauro highlands of the Moon.",,,,,,,,,where it began
+b1,layer,"In April 1970, Apollo",,title,,,,,APOLLO 13,A SUCCESSFUL FAILURE,,,,,,,,,,
+b1,layer,set out for the,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,
+b2,beat,Within twelve minutes the,map,,,earth,body,orbit_insertion,,,"Within twelve minutes the crew was circling the Earth, and less than three hours later they were on their way.",,,,,,,,,in Earth orbit
+b2,layer,the crew was circling,,craft,stack,,,,APOLLO 13,,,,,,,,,,,
+b2,layer,circling the Earth,,path,earth_orbit,,,,,,,,,,,,,,,
+b2,layer,circling the Earth,,orbit,parking_orbit,,,,,,,,,,,,,,,
+b3,beat,More than two days,map,,,earth+moon,system,explosion,,,"More than two days into the flight, over 300,000 kilometres from home, an oxygen tank exploded.",,,,,,,,,the accident
+b3,layer,More than two days,,path,translunar_coast,,,,,,,,,,,,,,,
+b3,layer,More than two days,,craft,stack,,,,APOLLO 13,,,,,,,,,,,
+b3,layer,"over 300,000 kilometres",,stat,,,,,,FROM EARTH,,,300000,"#,##0 KM",bl,,,,,
+b3,layer,an oxygen tank exploded,,caption,,,,,,,OXYGEN TANK 2 EXPLODES,,,,,,,,,
+b4,beat,The landing was off,map,,,earth+moon,system,free_return_burn,,,"The landing was off. Using the lunar module as a lifeboat, they fired its engine to swing back onto a path around the Moon.",,,,,,,,,the free-return burn
+b4,layer,The landing was off,,path,free_return,,,,,,,,,,,,,,,
+b4,layer,The landing was off,,craft,stack,,,,AQUARIUS + ODYSSEY,,,,,,,,,,,
+b5,beat,They looped behind the,map,,,moon,body,behind_the_moon,,,"They looped behind the far side, 254 kilometres above the surface, farther from Earth than any crew had ever travelled.",,,,,,,,,around the far side
+b5,layer,They looped behind the,,craft,stack,,,,APOLLO 13,,,,,,,,,,,
+b5,layer,254 kilometres above the,,stat,,,,,,ABOVE THE FAR SIDE,,,254,0 KM,bl,,,,,
+b6,beat,Two hours later they,map,,,earth+moon,system,pc2_burn,,,Two hours later they fired the lunar module's engine again to speed up the trip home.,,,,,,,,,the way home
+b6,layer,Two hours later they,,path,return_coast,,,,,,,,,,,,,,,
+b6,layer,Two hours later they,,craft,stack,,,,APOLLO 13,,,,,,,,,,,
+b7,beat,On the seventeenth of,footage,,,,,,,,"On the seventeenth of April, Mission Control watched the screens and waited.",,,,,,,,,Mission Control waits
+b7,clip,,,,,,,,,,,,,,,,,nasa_image:Mission Control Center view of the Apollo 13 splashdown,,Mission Control at splashdown
+b8,beat,Odyssey splashed down in,map_footage,,,apollo 13 splashdown,body,splashdown,,,"Odyssey splashed down in the Pacific near the USS Iwo Jima, and all three astronauts came home.",,,,,,,,,home
+b8,layer,Odyssey splashed down in,,marker,,apollo 13 splashdown,,,SPLASHDOWN,SOUTH PACIFIC,,,,,,,,,,
+b8,card,near the USS Iwo,,,,,,,USS IWO JIMA,17 APRIL 1970,,,,,tr,,,nasa_image:Apollo 13 Command Module recovery after splashdown,,

@@ -1,0 +1,444 @@
+{
+ "_about": "The bodies StarMap knows, as world entries for the engine (textures in starmap-engine/assets/textures). Aliases are what a script or CSV may call them; atmosphere adds the generic ATMOSPHERE layer whenever the body is in a video.",
+ "world": [
+  {
+   "id": "milkyway",
+   "kind": "galaxy",
+   "radius": {
+    "ly": 52000
+   },
+   "texture": "milkyway_pia10748_4096.jpg",
+   "image_half_width": {
+    "ly": 55000
+   },
+   "label": "MILKY WAY",
+   "features": [
+    {
+     "label": "YOU ARE HERE",
+     "sub": "THE SUN, IN THE ORION ARM",
+     "at": "sun"
+    },
+    {
+     "label": "GALACTIC CENTRE",
+     "at_ly": [
+      0,
+      0
+     ]
+    },
+    {
+     "label": "PERSEUS ARM",
+     "at_ly": [
+      -13750,
+      34375
+     ]
+    },
+    {
+     "label": "SAGITTARIUS ARM",
+     "at_ly": [
+      16500,
+      14440
+     ]
+    }
+   ],
+   "_features_note": "landmarks placed on the NASA/JPL-Caltech illustration (PIA10748): x right, z towards its bottom (the Sun's side), light-years"
+  },
+  {
+   "id": "sun",
+   "parent": "milkyway",
+   "kind": "star",
+   "label": "SUN",
+   "radius": {
+    "km": 696000
+   },
+   "texture": "2k_sun.jpg",
+   "glow": "#ffd27a",
+   "offset": {
+    "galactic": "sun"
+   }
+  },
+  {
+   "id": "mercury",
+   "parent": "sun",
+   "kind": "body",
+   "label": "MERCURY",
+   "radius": {
+    "km": 2440
+   },
+   "texture": "2k_mercury.jpg",
+   "offset": {
+    "ephemeris": "mercury"
+   },
+   "rotation": "iau",
+   "show_orbit": true
+  },
+  {
+   "id": "venus",
+   "parent": "sun",
+   "kind": "body",
+   "label": "VENUS",
+   "radius": {
+    "km": 6052
+   },
+   "texture": "2k_venus_atmosphere.jpg",
+   "offset": {
+    "ephemeris": "venus"
+   },
+   "rotation": "iau",
+   "show_orbit": true
+  },
+  {
+   "id": "earth",
+   "parent": "sun",
+   "kind": "body",
+   "label": "EARTH",
+   "radius": {
+    "km": 6371
+   },
+   "texture": "earth_bluemarble_5400.jpg",
+   "glow": "#7fb2ff",
+   "offset": {
+    "ephemeris": "earth"
+   },
+   "rotation": "iau",
+   "min_light": 0.006,
+   "show_orbit": true
+  },
+  {
+   "id": "moon",
+   "parent": "earth",
+   "kind": "body",
+   "label": "MOON",
+   "radius": {
+    "km": 1737.4
+   },
+   "texture": "moon_lroc_4096.jpg",
+   "offset": {
+    "ephemeris": "moon"
+   },
+   "rotation": "iau",
+   "bump": "moon_ldem_bump_4096.jpg",
+   "bump_scale": 0.6,
+   "min_light": 0.012,
+   "show_orbit": true
+  },
+  {
+   "id": "mars",
+   "parent": "sun",
+   "kind": "body",
+   "label": "MARS",
+   "radius": {
+    "km": 3390
+   },
+   "texture": "2k_mars.jpg",
+   "offset": {
+    "ephemeris": "mars"
+   },
+   "rotation": "iau",
+   "min_light": 0.01,
+   "show_orbit": true
+  },
+  {
+   "id": "jupiter",
+   "parent": "sun",
+   "kind": "body",
+   "label": "JUPITER",
+   "radius": {
+    "km": 69911
+   },
+   "texture": "2k_jupiter.jpg",
+   "offset": {
+    "ephemeris": "jupiter"
+   },
+   "rotation": "iau",
+   "show_orbit": true
+  },
+  {
+   "id": "saturn",
+   "parent": "sun",
+   "kind": "body",
+   "label": "SATURN",
+   "radius": {
+    "km": 58232
+   },
+   "texture": "2k_saturn.jpg",
+   "offset": {
+    "ephemeris": "saturn"
+   },
+   "rotation": "iau",
+   "rings": {
+    "inner": 1.24,
+    "outer": 2.27,
+    "texture": "2k_saturn_ring_alpha.png"
+   },
+   "show_orbit": true
+  },
+  {
+   "id": "uranus",
+   "parent": "sun",
+   "kind": "body",
+   "label": "URANUS",
+   "radius": {
+    "km": 25362
+   },
+   "texture": "2k_uranus.jpg",
+   "offset": {
+    "ephemeris": "uranus"
+   },
+   "rotation": "iau",
+   "show_orbit": true
+  },
+  {
+   "id": "neptune",
+   "parent": "sun",
+   "kind": "body",
+   "label": "NEPTUNE",
+   "radius": {
+    "km": 24622
+   },
+   "texture": "2k_neptune.jpg",
+   "offset": {
+    "ephemeris": "neptune"
+   },
+   "rotation": "iau",
+   "show_orbit": true
+  },
+  {
+   "id": "pluto",
+   "parent": "sun",
+   "kind": "body",
+   "label": "PLUTO",
+   "radius": {
+    "km": 1188.3
+   },
+   "color": "#c8b49c",
+   "offset": {
+    "ephemeris": "pluto"
+   },
+   "min_light": 0.01,
+   "show_orbit": true
+  },
+  {
+   "id": "alphacentauri",
+   "parent": "sun",
+   "kind": "star",
+   "label": "ALPHA CENTAURI",
+   "radius": {
+    "km": 850000
+   },
+   "texture": "2k_sun.jpg",
+   "glow": "#fff1d0",
+   "offset": {
+    "vector": [
+     -0.37386,
+     -0.873211,
+     0.312619
+    ],
+    "distance": {
+     "ly": 4.37
+    }
+   },
+   "_note": "Alpha Centauri A: RA 14h39m36s, Dec -60 50' (J2000), 4.37 ly"
+  },
+  {
+   "id": "andromeda",
+   "parent": "sun",
+   "kind": "galaxy",
+   "label": "ANDROMEDA",
+   "radius": {
+    "ly": 110000
+   },
+   "texture": "milkyway_pia10748_4096.jpg",
+   "image_half_width": {
+    "ly": 110000
+   },
+   "offset": {
+    "vector": [
+     0.73859,
+     0.659595,
+     -0.139354
+    ],
+    "distance": {
+     "ly": 2500000
+    }
+   },
+   "_note": "M31: real direction and distance; drawn with the Milky Way illustration in our galaxy's plane (illustrative look)"
+  },
+  {
+   "id": "barnardsstar",
+   "parent": "sun",
+   "kind": "star",
+   "label": "BARNARD'S STAR",
+   "radius": {
+    "km": 136000
+   },
+   "glow": "#ff9a6a",
+   "color": "#ff9a6a",
+   "show_from_ly": 0.05,
+   "offset": {
+    "vector": [
+     -0.009532,
+     0.081824,
+     0.996601
+    ],
+    "distance": {
+     "ly": 5.96
+    }
+   },
+   "_note": "RA 17h57m48.5s, Dec +04 41' 36\" (J2000), 5.96 ly"
+  },
+  {
+   "id": "wolf359",
+   "parent": "sun",
+   "kind": "star",
+   "label": "WOLF 359",
+   "radius": {
+    "km": 100000
+   },
+   "glow": "#ff8256",
+   "color": "#ff8256",
+   "show_from_ly": 0.05,
+   "offset": {
+    "vector": [
+     -0.954637,
+     0.122124,
+     -0.271575
+    ],
+    "distance": {
+     "ly": 7.86
+    }
+   },
+   "_note": "RA 10h56m28.9s, Dec +07 00' 53\" (J2000), 7.86 ly"
+  },
+  {
+   "id": "sirius",
+   "parent": "sun",
+   "kind": "star",
+   "label": "SIRIUS",
+   "radius": {
+    "km": 1190000
+   },
+   "glow": "#d6e4ff",
+   "color": "#eef3ff",
+   "show_from_ly": 0.05,
+   "offset": {
+    "vector": [
+     -0.187453,
+     -0.287628,
+     -0.939219
+    ],
+    "distance": {
+     "ly": 8.6
+    }
+   },
+   "_note": "RA 06h45m08.9s, Dec -16 42' 58\" (J2000), 8.60 ly"
+  },
+  {
+   "id": "lmc",
+   "parent": "sun",
+   "kind": "galaxy",
+   "label": "LARGE MAGELLANIC CLOUD",
+   "radius": {
+    "ly": 7000
+   },
+   "offset": {
+    "vector": [
+     0.054761,
+     -0.938228,
+     -0.341658
+    ],
+    "distance": {
+     "ly": 163000
+    }
+   },
+   "_note": "RA 05h23m34.5s, Dec -69 45' 22\" (J2000), 163,000 ly; a soft glow its size"
+  },
+  {
+   "id": "smc",
+   "parent": "sun",
+   "kind": "galaxy",
+   "label": "SMALL MAGELLANIC CLOUD",
+   "radius": {
+    "ly": 3500
+   },
+   "offset": {
+    "vector": [
+     0.28744,
+     -0.955428,
+     -0.06735
+    ],
+    "distance": {
+     "ly": 200000
+    }
+   },
+   "_note": "RA 00h52m44.8s, Dec -72 49' 43\" (J2000), 200,000 ly"
+  },
+  {
+   "id": "triangulum",
+   "parent": "sun",
+   "kind": "galaxy",
+   "label": "TRIANGULUM",
+   "radius": {
+    "ly": 30000
+   },
+   "offset": {
+    "vector": [
+     0.78909,
+     0.509943,
+     -0.342484
+    ],
+    "distance": {
+     "ly": 2730000
+    }
+   },
+   "_note": "M33: RA 01h33m50s, Dec +30 39' 37\" (J2000), 2.73 million ly"
+  }
+ ],
+ "aliases": {
+  "the sun": "sun",
+  "sol": "sun",
+  "the moon": "moon",
+  "luna": "moon",
+  "earth": "earth",
+  "the earth": "earth",
+  "milky way": "milkyway",
+  "the milky way": "milkyway",
+  "the galaxy": "milkyway",
+  "galaxy": "milkyway",
+  "alpha centauri": "alphacentauri",
+  "the andromeda galaxy": "andromeda",
+  "andromeda galaxy": "andromeda",
+  "m31": "andromeda",
+  "pluto": "pluto",
+  "barnard's star": "barnardsstar",
+  "barnards star": "barnardsstar",
+  "barnard star": "barnardsstar",
+  "wolf 359": "wolf359",
+  "sirius": "sirius",
+  "the dog star": "sirius",
+  "large magellanic cloud": "lmc",
+  "the large magellanic cloud": "lmc",
+  "lmc": "lmc",
+  "small magellanic cloud": "smc",
+  "the small magellanic cloud": "smc",
+  "smc": "smc",
+  "triangulum": "triangulum",
+  "triangulum galaxy": "triangulum",
+  "the triangulum galaxy": "triangulum",
+  "m33": "triangulum"
+ },
+ "atmosphere": {
+  "earth": {
+   "height_km": 160,
+   "color": "#6aa6ff",
+   "intensity": 1.0
+  },
+  "mars": {
+   "height_km": 70,
+   "color": "#e9a77a",
+   "intensity": 0.8
+  }
+ },
+ "parent_system": {
+  "moon": "earth"
+ }
+}
