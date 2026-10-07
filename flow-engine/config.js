@@ -199,10 +199,15 @@ export const agent = {
   maxBatch: 24,             // scenes per agent request (tested up to 24)
   maxMessageChars: 12000,   // a batch is also cut short when its scene list would make the message longer than this
   batchGapMs: 20000,        // pause between two agent requests on the same account
-  streamTimeoutMs: 240000,  // a 24-scene reply took ~30 s; this is the give-up point (after which the outcome is unknown)
-  // An agent request costs ~40-60 s however small; one scene takes ~17 s on the standard path (live 2026-10-06).
-  // Fewer pending scenes than this on an account use the standard path.
-  minScenes: 4,
+  // Give-up point for one agent reply (after which its outcome is unknown, never resent): grows with the batch. A 13-scene
+  // request under a 7-account load ran past a flat 240 s (2026-10-07).
+  streamTimeoutBaseMs: 120000,
+  streamTimeoutPerSceneMs: 15000,
+  streamTimeoutMaxMs: 600000,
+  // A job with fewer NEW images than this uses the standard path (an agent request costs ~40-60 s however small).
+  minScenes: 5,
+  stopGraceMs: 30000,       // after Stop, images already made are still downloaded for this long
+  coolDownMs: 600000,       // an account Flow asked to slow down gets no new agent batch for this long
 };
 
 /**

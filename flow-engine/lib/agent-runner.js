@@ -18,6 +18,7 @@
  * decision 2026-10-06): the ledger key is the standard path's, so switching agent mode off reuses them.
  * The account lock and the pause between requests keep one agent request per account at a time.
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { agent as agentConfig } from "../config.js";
@@ -69,6 +70,32 @@ function placeExisting(src, dest) {
   fs.copyFileSync(src, tmp);
   fs.renameSync(tmp, dest);
   return path.resolve(dest);
+}
+
+/**
+ * Scenes inside an agent request that has not returned yet (ledger key -> who is making it). A Retry of one of these
+ * scenes must not send a second request while the first may still produce its image (orchestrator.js checks this).
+ */
+export const activeAgentScenes = new Map();
+
+/** The ledger key of a scene on the agent path (the standard path's identity: generationMode is not part of it). */
+export function agentSceneKey({ prompt, promptKey = null, index = 0, settings = {} }) {
+  const standard = { ...settings };
+  delete standard.generationMode;
+  if (standard.model) standard.model = canonicalImageModel(standard.model);
+  return generationKey({
+    mediaKind: "image",
+    prompt: promptKey != null ? `${promptKey}\u0000${prompt}` : `#${index}\u0000${prompt}`,
+    settings: standard,
+    slot: 0,
+    scope: scopeOf(standard.outputDir),
+  });
+}
+
+/** How long to wait for an agent reply: grows with the batch (a 24-scene reply under load took several minutes). */
+export function agentReplyTimeoutMs(scenes) {
+  const n = Math.max(1, Number(scenes) || 1);
+  return Math.min(agentConfig.streamTimeoutMaxMs, agentConfig.streamTimeoutBaseMs + n * agentConfig.streamTimeoutPerSceneMs);
 }
 
 /** Two scene texts an image could not be told apart by: identical, or one inside the other (case and spaces ignored). */
@@ -172,13 +199,7 @@ export async function runAgentSlice(params) {
       fail(it, "The prompt is empty — nothing was sent to Flow.");
       continue;
     }
-    it.key = generationKey({
-      mediaKind: "image",
-      prompt: promptKey != null ? `${promptKey}\u0000${prompt}` : `#${abs}\u0000${prompt}`,
-      settings: standardSettings,
-      slot: 0,
-      scope,
-    });
+    it.key = agentSceneKey({ prompt, promptKey, index: abs, settings: standardSettings });
     it.confirmed = promptKey != null && confirmedKeys.has(String(promptKey));
     const decision = ledger.decide(it.key, { accountId: owner, runId, confirmed: it.confirmed, validFile: (p) => isValidOutput(p, "image") });
     if (decision.action === "block") {
@@ -223,12 +244,17 @@ export async function runAgentSlice(params) {
       await d.sleep(batchGapMs, shouldStop);
       if (shouldStop?.()) break;
     }
+    // One identity per agent request, kept on every scene of it (a reconnect or a restart never makes a new one).
+    const agentRequestId = `agentreq-${crypto.randomUUID()}`;
+    try {
     await withAccountLock(owner || label, async () => {
       for (const it of batch) {
+        activeAgentScenes.set(it.key, { accountId: owner, accountLabel: label, runId, agentRequestId, since: Date.now() });
         ledger.put(it.key, {
           state: LedgerState.SUBMITTING, accountId: owner, accountLabel: label, mediaKind: "image", slot: 0, runId, projectId,
           prompt: String(it.prompt).slice(0, 200), workflowId: null, mediaId: null, fifeUrl: null, dest: null, savedPath: null,
-          failedStage: null, confirmedResumeFailedRunId: null, error: null, via: "agent",
+          failedStage: null, confirmedResumeFailedRunId: null, error: null, via: "agent", agentRequestId, agentChatId: null,
+          sceneText: String(it.text || "").slice(0, 200),
         });
         emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `Agent generating (batch ${b + 1}/${batches.length}, ${batch.length} scenes)…` });
       }
@@ -245,12 +271,13 @@ export async function runAgentSlice(params) {
         notCreated(batch, LedgerState.FAILED_BEFORE_SUBMISSION, String(err?.message || err));
         return;
       }
+      for (const it of batch) ledger.put(it.key, { agentChatId: chatId });   // kept even if the reply never comes
       let reply;
       try {
         reply = await d.sendAgentMessage(page, {
           projectId, chatId, turn: 1,
           message: buildAgentMessage(batch.map((it) => it.text), { aspect: expectedAspect, opening: style.opening, ending: style.ending }),
-          timeoutMs: agentConfig.streamTimeoutMs,
+          timeoutMs: Number(standardSettings.agentReplyTimeoutMs) || agentReplyTimeoutMs(batch.length),
         });
       } catch (err) {
         const sub = submissionOf(err);
@@ -322,7 +349,7 @@ export async function runAgentSlice(params) {
         // The explicit IDs that tie this scene to its request and result, kept for audits.
         const agentInfo = {
           agentModel: call.modelKey || null, agentPrompt: call.prompt.slice(0, 400), agentAspect: call.aspect || null,
-          agentBatchId: res.batchId || null, agentChatId: chatId, agentSceneId: agentSceneId(j), agentPlaceholderId: call.placeholderId,
+          agentBatchId: res.batchId || null, agentChatId: chatId, agentRequestId, agentSceneId: agentSceneId(j), agentPlaceholderId: call.placeholderId,
           agentTitle: String(res.title || "").slice(0, 80), agentMatch: match.method, sceneText: String(it.text || "").slice(0, 200),
         };
         if (call.aspect && call.aspect !== expectedAspect) {
@@ -335,6 +362,10 @@ export async function runAgentSlice(params) {
         toDownload.push({ ...it, mediaId: res.mediaId, agentInfo });
       });
     });
+    } finally {
+      // The request has returned (or timed out): its scenes are no longer "being made right now".
+      for (const it of batch) activeAgentScenes.delete(it.key);
+    }
   }
 
   const unsent = batches.slice(b).flat();
@@ -346,17 +377,24 @@ export async function runAgentSlice(params) {
     for (const it of unsent) fail(it, restricted ? `Not run: Flow restricted account ${label}.` : "Stopped before it was sent to Flow — nothing was generated.");
   }
 
-  // ---- 3. Downloads (read-only: never generates).
+  // ---- 3. Downloads (read-only: never generates). After Stop, finished images are still collected for a short grace period.
+  const graceMs = Number(standardSettings.agentStopGraceMs ?? agentConfig.stopGraceMs);
+  let stopSeenAt = 0;
+  const downloadsStopped = () => {
+    if (!shouldStop?.()) return false;
+    stopSeenAt = stopSeenAt || Date.now();
+    return Date.now() - stopSeenAt >= graceMs;
+  };
   let downloaded = 0;
   for (const it of toDownload) {
-    if (shouldStop?.()) break;
+    if (downloadsStopped()) break;
     downloaded++;
     emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `Downloading ${path.basename(it.dest)}…` });
     ledger.put(it.key, { dest: path.resolve(it.dest) });
     let lastErr = null;
     let savedPath = null;
     for (const wait of DOWNLOAD_WAITS_S) {
-      if (shouldStop?.()) break;
+      if (downloadsStopped() || (wait && shouldStop?.())) break;
       if (wait) await d.sleep(wait * 1000, shouldStop);
       try {
         const url = await d.fetchImageUrl(page, it.mediaId);
@@ -384,7 +422,17 @@ export async function runAgentSlice(params) {
       { needsAction: true, resumable: true, ledgerState: LedgerState.MEDIA_ID_KNOWN, submitted: true });
   }
 
-  // ---- 4. The standard path for every scene the agent made nothing for (same ledger, so nothing is made twice).
+  // ---- 4. Scenes the agent made nothing for. In a pool run (agent-pool.js) they go back to the pool, which sends five or
+  // more as another agent request and fewer through the standard path; run on its own, they use the standard path here.
+  if (params.deferFallback) {
+    const back = shouldStop?.() || restricted ? [] : fallback.splice(0);
+    for (const it of fallback) fail(it, restricted ? `Not run: Flow restricted account ${label}.` : "Stopped before this scene could be made again — nothing was generated for it.");
+    emit("BATCH_DONE", { completed, failed, total: totalAbsolute, sliceTotal: prompts.length, folder: outDir, reassign });
+    return {
+      completed, failed, folder: outDir, reassign, authExpired: false, restricted, coolDown,
+      fallback: back.map((it) => ({ index: it.abs, prompt: it.prompt, promptKey: it.promptKey })),
+    };
+  }
   if (fallback.length && !shouldStop?.() && !restricted && standardSettings.agentFallback !== false) {
     emit("status", { message: `${fallback.length} scene(s) the agent did not make: using the standard Flow path` });
     const r = await d.runBatchSlice({

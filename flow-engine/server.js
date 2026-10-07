@@ -13,6 +13,7 @@ import { PUBLIC_DIR, ensureDirs, DOWNLOADS_ROOT, DATA_DIR } from "./lib/paths.js
 import {
   onHudMessage,
   getState,
+  agentRunEventsFor,
   pushState,
   addAccount,
   loginAccount,
@@ -169,6 +170,12 @@ export async function startServer(port = DEFAULT_PORT) {
           resetGenerateState();
         } else if (t === "CLOSE_BROWSERS") {
           await closeBrowsers();
+        } else if (t === "RUN_EVENTS") {
+          // An app that lost its connection during an agent run asks for the results it missed (read-only: nothing is sent
+          // to Flow). Replayed to this connection only, then RUN_EVENTS_END says whether the run is still going.
+          const events = agentRunEventsFor(msg.outputDir) || [];
+          for (const ev of events) send(ws, ev);
+          send(ws, { type: "RUN_EVENTS_END", outputDir: msg.outputDir || null, known: !!agentRunEventsFor(msg.outputDir), count: events.length, running: getState().running });
         } else if (t === "INSPECT_PAGE") {
           // TEMPORARY read-only diagnostic — see accounts.js's
           // inspectAccountPage doc comment. Never touches Flow RPCs,

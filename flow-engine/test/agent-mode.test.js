@@ -382,7 +382,7 @@ test("a few scenes use the standard path: an agent request would be slower", asy
   assert.deepEqual(flow.calls.standard, SCENES);
 });
 
-test("Stop during downloads: the images not yet saved are reported as resumable, and nothing is generated again", async () => {
+test("Stop during downloads, past the grace period: the images not yet saved are reported as resumable, nothing is generated again", async () => {
   const { out, ledger } = setup();
   let stop = false;
   const flow = fakeFlow({ replies: [agentReply(SCENES)] });
@@ -392,7 +392,7 @@ test("Stop during downloads: the images not yet saved are reported as resumable,
   await runAgentSlice({
     page: {}, prompts: SCENES, promptIndices: [0, 1, 2], promptKeys: ["1", "2", "3"], totalAbsolute: 3,
     settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
-      _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1 },
+      _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 0 },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => stop,
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
   });
@@ -459,4 +459,51 @@ test("an unmatched image's prompt is kept with the scene for auditing", async ()
   const { results } = await run({ flow, ledger, prompts: SCENES, out });
   const third = results.find((r) => r.index === 2);
   assert.match(third.agentUnmatched[0].prompt, /a red bus in London/);
+});
+
+test("Stop during downloads, within the grace period: images Flow already made are still saved", async () => {
+  const { out, ledger } = setup();
+  let stop = false;
+  const flow = fakeFlow({ replies: [agentReply(SCENES)] });
+  const real = flow.deps.downloadMedia;
+  flow.deps.downloadMedia = async (...a) => { await real(...a); stop = true; };
+  const events = [];
+  await runAgentSlice({
+    page: {}, prompts: SCENES, promptIndices: [0, 1, 2], promptKeys: ["1", "2", "3"], totalAbsolute: 3,
+    settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
+      _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 30000 },
+    folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => stop,
+    onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
+  });
+  const res = events.filter((e) => e.type === "PROMPT_RESULT");
+  assert.equal(res.filter((r) => r.status === "done").length, 3);
+});
+
+test("every scene of a request keeps the request and chat identity, even when the reply never comes", async () => {
+  const { out, ledger } = setup();
+  const flow = fakeFlow({ sendErrors: [tagSubmission(new Error("The agent did not finish in time"), Submission.UNKNOWN)] });
+  await run({ flow, ledger, prompts: SCENES, out });
+  const entries = Object.values(JSON.parse(fs.readFileSync(ledger.file, "utf8")).entries);
+  assert.equal(entries.length, 3);
+  assert.ok(entries.every((e) => e.state === "SUBMITTED_UNKNOWN" && e.agentChatId === "chat-1" && /^agentreq-/.test(e.agentRequestId)));
+  assert.equal(new Set(entries.map((e) => e.agentRequestId)).size, 1, "one request identity for the whole batch");
+});
+
+test("scenes are listed as being made only while their request is out", async () => {
+  const { activeAgentScenes } = await import("../lib/agent-runner.js");
+  const { out, ledger } = setup();
+  const seen = [];
+  const flow = fakeFlow({ replies: [agentReply(SCENES)] });
+  const send = flow.deps.sendAgentMessage;
+  flow.deps.sendAgentMessage = async (...a) => { seen.push(activeAgentScenes.size); return send(...a); };
+  await run({ flow, ledger, prompts: SCENES, out });
+  assert.deepEqual(seen, [3]);
+  assert.equal(activeAgentScenes.size, 0);
+});
+
+test("the reply timeout grows with the batch, within limits", async () => {
+  const { agentReplyTimeoutMs } = await import("../lib/agent-runner.js");
+  assert.ok(agentReplyTimeoutMs(1) < agentReplyTimeoutMs(13));
+  assert.ok(agentReplyTimeoutMs(13) > 240000, "a 13-scene batch gets more than the old flat 240 s");
+  assert.ok(agentReplyTimeoutMs(500) <= 600000);
 });

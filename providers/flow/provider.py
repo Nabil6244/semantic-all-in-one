@@ -21,6 +21,7 @@ import contextlib
 
 import shutil
 import sys
+import queue
 import threading
 import time
 import uuid
@@ -52,6 +53,12 @@ _IDLE_POLL_SECONDS = 0.45
 _SOFT_STOP_AFTER_SECONDS = 2.0
 _FORCE_RESET_AFTER_SECONDS = 6.0
 _IDLE_WAIT_TIMEOUT = 180.0
+# Agent batches only (see _is_agent_batch). A lost connection is never taken as a failed batch: the app reconnects to the
+# same engine and asks for what it missed. Waiting for an earlier agent batch never stops or resets it.
+_AGENT_IDLE_WAIT_TIMEOUT = 20 * 60.0
+_AGENT_STATUS_EVERY_SECONDS = 30.0
+_AGENT_STALE_FLAG_SECONDS = 30.0
+_AGENT_STOP_WAIT_SECONDS = 35.0   # the engine keeps saving finished agent images for 30 s after Stop
 # If the engine hasn't reported ANY prompt activity this long after GENERATE,
 # its browser/accounts never opened -- fail the batch instead of waiting for
 # the full generation timeout (an hour+ for a video batch).
@@ -148,6 +155,9 @@ class FlowProvider(AssetProvider):
             return {s.scene_number: self._fail(s, error) for s in scenes}
         try:
             client = self.engine_manager.ensure_running()
+            if self._is_agent_batch() and hasattr(client, "is_alive") and not client.is_alive():
+                # The process is up but this connection is dead: never hand the batch a dead socket.
+                client = self.engine_manager.reconnect() or self.engine_manager.start()
         except FlowEngineError as exc:
             return {s.scene_number: self._fail(s, str(exc)) for s in scenes}
 
@@ -180,6 +190,55 @@ class FlowProvider(AssetProvider):
             return base
         per = _SECONDS_PER_VIDEO if self.media_kind == "video" else _SECONDS_PER_IMAGE
         return min(6 * 3600.0, max(base, n * per))
+
+    def _is_agent_batch(self) -> bool:
+        """An image batch sent in Flow agent mode (the engine decides per job whether it really uses the agent)."""
+        return self.media_kind == "image" and str((self.flow_settings or {}).get("generationMode", "")).lower() == "agent"
+
+    def _wait_for_agent_engine_idle(self, client, log: LogFn, should_stop: Optional[Callable[[], bool]]):
+        """Agent batches: wait for an earlier batch to finish WITHOUT stopping or resetting it (it may still be making
+        images). Returns (error or None, client). A dead connection is reconnected first, so the state read is live; a
+        running flag with no account working for a while is a stale leftover and is cleared (nothing is in flight)."""
+        t0 = time.monotonic()
+        last_status = 0.0
+        stale_since = None
+        while True:
+            if hasattr(client, "is_alive") and not client.is_alive():
+                client = self.engine_manager.reconnect() or self.engine_manager.start()
+            try:
+                state = client.get_state()
+            except Exception:
+                state = {}
+            if not state.get("running"):
+                return None, client
+            if should_stop is not None and should_stop():
+                return "Cancelled.", client
+            working = any(
+                str(((a or {}).get("progress") or {}).get("status", "")) in ("running", "checking", "waiting", "login")
+                for a in state.get("accounts") or []
+            )
+            now = time.monotonic()
+            if not working:
+                stale_since = stale_since or now
+                if now - stale_since >= _AGENT_STALE_FLAG_SECONDS:
+                    log("[FLOW] The engine says it is busy but no account is working — clearing that stale flag.")
+                    try:
+                        client.reset_generate()
+                    except Exception:
+                        pass
+                    stale_since = None
+            else:
+                stale_since = None
+            waited = now - t0
+            if waited >= _AGENT_IDLE_WAIT_TIMEOUT:
+                return (
+                    "The Flow engine is still busy with an earlier Agent batch — nothing was sent for this scene. "
+                    "Try again when that batch finishes."
+                ), client
+            if now - last_status >= _AGENT_STATUS_EVERY_SECONDS:
+                log(f"[FLOW] Waiting for the earlier Agent batch to finish ({int(waited)}s) — it is not stopped or reset.")
+                last_status = now
+            time.sleep(1.0)
 
     def _wait_for_engine_idle(
         self,
@@ -247,7 +306,11 @@ class FlowProvider(AssetProvider):
         on_scene_ready: Optional[Callable[[SceneRow, AssetResult], None]] = None,
         on_scene_generating: Optional[Callable[[SceneRow], None]] = None,
     ) -> Dict[str, AssetResult]:
-        idle_error = self._wait_for_engine_idle(client, log, should_stop)
+        agent = self._is_agent_batch()
+        if agent:
+            idle_error, client = self._wait_for_agent_engine_idle(client, log, should_stop)
+        else:
+            idle_error = self._wait_for_engine_idle(client, log, should_stop)
         if idle_error:
             return {s.scene_number: self._fail(s, idle_error) for s in scenes}
 
@@ -267,6 +330,7 @@ class FlowProvider(AssetProvider):
         terminal_error: List[str] = []
         generating_reported: set = set()
         prompt_activity_seen = threading.Event()
+        replay_end: List[dict] = []
 
         def _try_place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
             """Copy into assets/ as soon as Node finishes a scene — otherwise the
@@ -299,6 +363,34 @@ class FlowProvider(AssetProvider):
                             log(f"[FLOW] Scene {scene.scene_number} ready callback failed: {exc}")
             except Exception as exc:
                 log(f"[FLOW] Scene {scene.scene_number} early copy failed: {exc}")
+
+        # Agent batches: placing a finished image runs the scene's finishing work (Visual QA can take tens of seconds). On the
+        # connection's own thread that blocks its keepalive replies until the socket drops (1011 keepalive ping timeout,
+        # reproduced), so for agent batches it runs on a worker thread instead.
+        place_queue: "queue.Queue" = queue.Queue()
+        place_worker: List[threading.Thread] = []
+
+        def _placer() -> None:
+            while True:
+                job = place_queue.get()
+                try:
+                    if job is None:
+                        return
+                    _try_place_early(*job)
+                except Exception as exc:
+                    log(f"[FLOW] Scene placement failed: {exc}")
+                finally:
+                    place_queue.task_done()
+
+        def place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
+            if not agent:
+                _try_place_early(idx, scene, progress_msg)
+                return
+            if not place_worker:
+                t = threading.Thread(target=_placer, daemon=True)
+                t.start()
+                place_worker.append(t)
+            place_queue.put((idx, scene, dict(progress_msg)))
 
         def on_message(msg: dict) -> None:
             mtype = msg.get("type")
@@ -334,7 +426,7 @@ class FlowProvider(AssetProvider):
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} failed: {msg.get('message')}")
                     else:
                         log(f"[FLOW] {worker} -> Scene {scene.scene_number} generated")
-                        _try_place_early(idx, scene, msg)
+                        place_early(idx, scene, msg)
                 elif status == "waiting":
                     body = (msg.get("message") or "")
                     if "rotat" in body.lower() or "rate" in body.lower() or "quota" in body.lower():
@@ -356,7 +448,7 @@ class FlowProvider(AssetProvider):
                             f"[FLOW] Scene {scenes[idx].scene_number}: rate limited — "
                             f"rotating account…"
                         )
-                    _try_place_early(idx, scenes[idx], prev)
+                    place_early(idx, scenes[idx], prev)
             elif mtype == "GENERATE_DONE":
                 # Ignore a leftover batch's DONE (previous STOP/reset) so we
                 # don't treat this run as finished before any prompt starts.
@@ -368,6 +460,8 @@ class FlowProvider(AssetProvider):
                     except OSError:
                         pass
                 done_event.set()
+            elif mtype == "RUN_EVENTS_END" and agent:
+                replay_end.append(msg)
             elif mtype == "STATE" and msg.get("generateError") and not msg.get("running"):
                 # orchestrator.js's generate() returns EARLY (no GENERATE_DONE broadcast
                 # at all) for "no signed-in accounts" / "no prompts" — this STATE push is
@@ -406,9 +500,35 @@ class FlowProvider(AssetProvider):
                     log("[FLOW] Cancelling — sending STOP to the engine...")
                     client.stop()
                     cancelled = True
-                    done_event.wait(timeout=15)  # give it a moment to wind down gracefully
+                    # Agent: requests already sent may still return and their images are saved for 30 s after Stop.
+                    done_event.wait(timeout=_AGENT_STOP_WAIT_SECONDS if agent else 15)  # give it a moment to wind down gracefully
                     break
                 is_alive = getattr(client, "is_alive", None)
+                if agent and callable(is_alive) and is_alive() is False:
+                    # A lost connection is not a failed batch. Reconnect to the same engine and ask for what was missed.
+                    fresh = self.engine_manager.reconnect()
+                    if fresh is not None:
+                        unsubscribe()
+                        client = fresh
+                        unsubscribe = client.subscribe(on_message)
+                        replay_end.clear()
+                        try:
+                            client.send({"type": "RUN_EVENTS", "outputDir": str(run_dir.resolve())})
+                            got = client.wait_for(lambda m: m.get("type") == "RUN_EVENTS_END", timeout=20)
+                            log(f"[FLOW] Caught up on {got.get('count', 0)} result(s) sent while disconnected.")
+                            if not got.get("running") and not done_event.is_set():
+                                # The run ended while we were away (or the engine has no record of it): what it made is on
+                                # disk and in the ledger; collect it below.
+                                done_event.set()
+                        except Exception as exc:
+                            log(f"[FLOW] Could not ask the engine for missed results ({exc or type(exc).__name__}); "
+                                "finished images are still collected from the run folder.")
+                        continue
+                    stall_error = (
+                        "The Flow engine process stopped before this scene finished. Nothing was sent again: "
+                        "Retry checks what Flow already made first."
+                    )
+                    break
                 if callable(is_alive) and is_alive() is False:
                     log("[FLOW] Lost connection to the Flow engine — it stopped unexpectedly.")
                     stall_error = "The Flow engine stopped unexpectedly before this scene finished."
@@ -455,6 +575,9 @@ class FlowProvider(AssetProvider):
                     break
                 done_event.wait(timeout=min(poll_seconds, remaining))
 
+            if agent and place_worker:
+                place_queue.join()      # every finished image placed before the batch is collected
+                place_queue.put(None)
             # Late flush: Node may still be writing the last file after DONE.
             if not cancelled:
                 time.sleep(_BATCH_SETTLE_SECONDS)

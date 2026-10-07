@@ -462,6 +462,30 @@ class FlowEngineManager:
         self._proc = None
         self.log("[FLOW] Engine stopped.")
 
+    def reconnect(self, attempts: int = 3, timeout: float = 5.0, wait: float = 2.0) -> Optional[FlowClient]:
+        """Agent runs only: the app's CONNECTION to the engine closed. Connect again to the SAME engine and touch nothing on
+        it (no stop, no reset: its batch keeps running). Returns the new client, or None when the engine itself is gone (our
+        process exited, or nothing answers on the port after a few tries)."""
+        old = self._client
+        reason = getattr(old, "_connect_error", None) if old is not None else None
+        self.log(f"[FLOW] Connection to the Flow engine closed ({reason or 'no close reason given'}) — reconnecting to it…")
+        for attempt in range(max(1, attempts)):
+            if self._proc is not None and self._proc.poll() is not None:
+                self.log(f"[FLOW] The Flow engine process has exited (code {self._proc.returncode}).")
+                return None
+            client = FlowClient(self.url, log=self.log)
+            try:
+                client.connect(timeout=timeout)
+            except FlowClientError:
+                if attempt + 1 < attempts:
+                    time.sleep(wait)
+                continue
+            self._client = client
+            self.log("[FLOW] Reconnected to the same Flow engine (it kept running); nothing was sent again.")
+            return client
+        self.log("[FLOW] No Flow engine answers any more — it has stopped.")
+        return None
+
     def ensure_running(self) -> FlowClient:
         if self._client is not None and self.health_check():
             return self._client

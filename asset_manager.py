@@ -1291,7 +1291,7 @@ class AssetManager:
             )
         except Exception as exc:
             batch_results = {}
-            self.log(f"[FLOW] batch failed: {exc}")
+            self.log(f"[FLOW] batch failed: {exc or type(exc).__name__ + ' (no message) — unknown failure reason, request state remains uncertain'}")
         for scene in scenes:
             if scene.scene_number in early_reported:
                 # Already finalized + UI-notified while the batch was still
@@ -1470,7 +1470,7 @@ class AssetManager:
             )
         except Exception as exc:
             retry_results = {}
-            self.log(f"[FLOW] retry batch failed: {exc}")
+            self.log(f"[FLOW] retry batch failed: {exc or type(exc).__name__ + ' (no message) — unknown failure reason, request state remains uncertain'}")
 
         for scene in to_retry:
             key = scene.scene_number
@@ -1603,7 +1603,7 @@ class AssetManager:
             )
         except Exception as exc:
             batch_results = {}
-            self.log(f"[FLOW] image fallback batch failed: {exc}")
+            self.log(f"[FLOW] image fallback batch failed: {exc or type(exc).__name__ + ' (no message) — unknown failure reason, request state remains uncertain'}")
 
         for scene in to_retry:
             if scene.scene_number in early_reported:

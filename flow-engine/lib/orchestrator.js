@@ -23,7 +23,8 @@ import {
   logFlowNav,
 } from "./flow-api.js";
 import { runBatchSlice } from "./batch-runner.js";
-import { runAgentSlice } from "./agent-runner.js";
+import { activeAgentScenes, agentSceneKey, runAgentSlice } from "./agent-runner.js";
+import { planImageJob, runAgentPool } from "./agent-pool.js";
 import { accountIdentity } from "./profile-identity.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
 import { agent as agentConfig, timing } from "../config.js";
@@ -80,7 +81,29 @@ export function computeFlowWorkerCount(promptCount, accountCount, maxParallel) {
   return Math.min(accounts, prompts, cap);
 }
 
+/**
+ * Results of recent agent runs, by output folder, so an app that lost its connection can ask for what it missed
+ * (server.js RUN_EVENTS) instead of treating the run as failed. Only agent runs are recorded; the last few are kept.
+ */
+const agentRunEvents = new Map();
+const AGENT_RUNS_KEPT = 4;
+let recordingAgentRun = null;   // output folder of the agent run in progress
+
+export function agentRunEventsFor(outputDir) {
+  return agentRunEvents.get(String(outputDir || "")) || null;
+}
+
+function recordAgentEvent(msg) {
+  if (!recordingAgentRun) return;
+  const t = msg?.type;
+  const terminal = t === "PROMPT_RESULT" || t === "GENERATE_DONE" || (t === "BATCH_PROGRESS" && (msg.status === "done" || msg.status === "failed"));
+  if (!terminal) return;
+  const list = agentRunEvents.get(recordingAgentRun);
+  if (list) list.push(msg);
+}
+
 function broadcast(msg) {
+  recordAgentEvent(msg);
   for (const fn of listeners) {
     try {
       fn(msg);
@@ -434,13 +457,32 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   // One id per run: the ledger uses it to tell "the user was told in an earlier run and asked again" from "this run".
   settings = { ...settings, _runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
 
+  const agentRequested = String(settings?.generationMode || "").toLowerCase() === "agent" && String(settings?.mediaKind || "").toLowerCase() !== "video";
+  // Scenes still inside an agent request that has not returned: a second request (Retry, a rerun, either path) could make
+  // the same image twice, so they are held back and told why. Checked for every image job.
+  const busyIndices = new Set();
+  let poolItems = [];
+  let agentPool = false;
+  if (String(settings?.mediaKind || "").toLowerCase() !== "video" && (agentRequested || activeAgentScenes.size)) {
+    const plan = planImageJob({ prompts, promptKeys, settings, ledger: await defaultLedger(), active: activeAgentScenes, keyOf: agentSceneKey, agentRequested });
+    for (const { index, prompt, by } of plan.busy) {
+      busyIndices.add(index);
+      broadcast({ type: "PROMPT_RESULT", index, prompt, status: "failed", needsAction: true,
+        error: `Still being made by the Flow agent on ${by.accountLabel || "another account"} — nothing was sent again. It appears when that request finishes.`,
+        message: `Still being made by the Flow agent on ${by.accountLabel || "another account"} — nothing was sent again.` });
+    }
+    poolItems = plan.poolItems;
+    // Agent mode for jobs of agent.minScenes or more NEW images (download-only and saved scenes do not count); smaller jobs
+    // take the standard path exactly as with agent mode off.
+    agentPool = plan.agentPool;
+  }
   // Bounded Chrome fan-out — never open every signed-in account at once.
   // Unused authenticated accounts remain on standby for rate-limit rotation.
-  // Agent mode (images only): one request makes up to agent.maxBatch images, so use as few accounts as fill those batches.
-  const agentImages = String(settings?.generationMode || "").toLowerCase() === "agent" && String(settings?.mediaKind || "").toLowerCase() !== "video";
-  const workerCount = agentImages
-    ? Math.max(1, Math.min(selected.length, timing.maxParallelAccounts, Math.ceil(prompts.length / agentConfig.maxBatch)))
-    : computeFlowWorkerCount(prompts.length, selected.length, timing.maxParallelAccounts);
+  const workerCount = computeFlowWorkerCount(
+    prompts.length,
+    selected.length,
+    timing.maxParallelAccounts,
+  );
   // Only VIDEO consumes Flow credits; IMAGE is free and keeps existing order.
   const isVideoBatch = String(settings?.mediaKind || "").toLowerCase() === "video";
   // Order BEFORE truncating: slicing first would pick the first `workerCount`
@@ -597,7 +639,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         pushState();
 
         let sliceVideoJobs = 0;
-        const result = await (agentImages ? runAgentSlice : runBatchSlice)({
+        const result = await runBatchSlice({
           page,
           prompts: slice.prompts,
           promptIndices: slice.indices,
@@ -706,6 +748,72 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
     return reassign;
   }
 
+  /** An agent job through the worker pool (agent-pool.js): every healthy selected account, one request each at a time. */
+  async function runAgentJob() {
+    const outKey = String(settings?.outputDir || "");
+    agentRunEvents.set(outKey, []);
+    while (agentRunEvents.size > AGENT_RUNS_KEPT) agentRunEvents.delete(agentRunEvents.keys().next().value);
+    recordingAgentRun = outKey;
+    const poolAccounts = selected.slice(0, Math.max(1, timing.maxParallelAccounts));
+    for (const a of poolAccounts) {
+      accountProgress.set(a.id, { status: "idle", message: "Agent: waiting for a batch", completed: 0, failed: 0, total: 0 });
+    }
+    pushState();
+    const forward = (a) => (evt) => {
+      const cur = accountProgress.get(a.id) || {};
+      if (evt.type === "BATCH_PROGRESS") {
+        accountProgress.set(a.id, { ...cur, status: evt.status === "failed" ? "running" : evt.status || "running",
+          message: evt.message || cur.message, completed: (cur.completed || 0) + (evt.status === "done" ? 1 : 0),
+          failed: (cur.failed || 0) + (evt.status === "failed" ? 1 : 0), index: evt.index });
+        broadcast({ type: "BATCH_PROGRESS", accountId: a.id, label: a.label, ...evt });
+      } else if (evt.type === "PROMPT_RESULT") {
+        broadcast({ type: "PROMPT_RESULT", accountId: a.id, label: a.label, ...evt });
+      } else if (evt.type === "status") {
+        accountProgress.set(a.id, { ...cur, message: evt.message || cur.message });
+      }
+      const now = Date.now();
+      const important = evt.type === "PROMPT_RESULT" || evt.status === "failed" || evt.status === "done";
+      if (important || now - lastProgressStateAt >= (Number(timing.progressStateThrottleMs) || 250)) {
+        lastProgressStateAt = now;
+        pushState();
+      }
+    };
+    const sliceArgs = (a, page, items, extra = {}) => {
+      // A Retry's permission is not carried to a batch handed on after an account broke mid-request.
+      const noConfirm = new Set(items.filter((it) => it.noConfirm && it.promptKey != null).map((it) => String(it.promptKey)));
+      const confirmResubmitKeys = (settings.confirmResubmitKeys || []).filter((k) => !noConfirm.has(String(k)));
+      return {
+        page, prompts: items.map((it) => it.prompt), promptIndices: items.map((it) => it.index), promptKeys: items.map((it) => it.promptKey),
+        totalAbsolute: total, settings: { ...settings, folder: a.label, confirmResubmitKeys, ...extra },
+        folderLabel: `${a.label}-${String(a.id).slice(0, 6)}`, accountId: a.id, accountLabel: a.label, workerIndex: 0,
+        shouldStop: () => stopAll, onProgress: forward(a),
+      };
+    };
+    {
+      const res = await runAgentPool({
+        items: poolItems,
+        accounts: poolAccounts,
+        isStopped: () => stopAll,
+        prepare: (a) => ensurePrepared(a),
+        runSlice: ({ account, page, items }) => runAgentSlice({ ...sliceArgs(account, page, items, { agentMinScenes: 0 }), deferFallback: true }),
+        runStandard: ({ account, page, items }) => runBatchSlice(sliceArgs(account, page, items)),
+        onAccountState: (a, status, message) => {
+          if (message === "Signed out") updateAccount(a.id, { authenticated: false, lastChecked: Date.now() });
+          accountProgress.set(a.id, { ...(accountProgress.get(a.id) || {}), status: status === "cooldown" ? "waiting" : status, message });
+          pushState();
+        },
+        batchGapMs: Number(settings.agentBatchGapMs ?? agentConfig.batchGapMs),
+      });
+      for (const { item, reason } of res.unrun) {
+        emitFinalFail(item.index, item.prompt, reason === "stopped"
+          ? "Stopped before it was sent to Flow — nothing was generated."
+          : "No healthy Flow account was left for this scene — nothing was generated. Use Retry.");
+      }
+      broadcast({ type: "status", message: `Agent job: ${res.batchesRun} request(s) on ${res.accountsUsed.size} account(s), up to ${res.maxConcurrent} at once` });
+      return res.batchesRun;
+    }
+  }
+
   function emitFinalFail(index, prompt, message) {
     broadcast({
       type: "PROMPT_RESULT",
@@ -741,7 +849,16 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
       const e = ledger.get(key);
       return e && [LedgerState.ACCEPTED, LedgerState.MEDIA_ID_KNOWN, LedgerState.DOWNLOAD_FAILED].includes(e.state) ? e.accountId : null;
     };
+    if (agentPool) {
+      const n = await runAgentJob();
+      accountProgress.set("__passes_run__", { completed: n, failed: 0, total: n });
+      return;   // finally below: running = false, final state, GENERATE_DONE
+    }
     const routed = routeToOwners(workers, splitPrompts(prompts, workers.length, promptKeys), selected, ownerOf);
+    if (busyIndices.size) {
+      // Held back above (still inside an agent request): never handed to the standard path.
+      routed.slices = routed.slices.map((sl) => dropIndices(sl, busyIndices));
+    }
     let pending = await runPass(routed.workers, routed.slices);
     let passesRun = 1;
 
@@ -854,6 +971,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
     }
     pushState(extra);
     broadcast(donePayload);
+    recordingAgentRun = null;   // an agent run's record ends with its GENERATE_DONE
   }
 }
 
@@ -889,4 +1007,16 @@ export async function shutdown() {
 /** TEMPORARY — see accounts.js's inspectAccountPage doc comment. */
 export async function inspectAccount(accountId) {
   return inspectAccountPage(accountId);
+}
+
+/** A slice without the given scene indices (scenes held back because an agent request is still making them). */
+function dropIndices(slice, drop) {
+  if (!slice?.indices) return slice;
+  const keep = slice.indices.map((idx, j) => (drop.has(idx) ? -1 : j)).filter((j) => j >= 0);
+  return {
+    ...slice,
+    prompts: keep.map((j) => slice.prompts[j]),
+    indices: keep.map((j) => slice.indices[j]),
+    keys: slice.keys ? keep.map((j) => slice.keys[j]) : slice.keys,
+  };
 }
