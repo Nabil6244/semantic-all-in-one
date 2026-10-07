@@ -353,6 +353,7 @@ def measure_mix(minutes: float, workdir: Path) -> dict:
     return stats
 
 
+@unittest.skipIf(sys.platform == "win32", "peak memory is read with the resource module, which Windows does not have")
 class TestMemoryStaysFlat(unittest.TestCase):
     def test_a_long_mix_needs_no_more_memory_than_a_short_one(self):
         with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:

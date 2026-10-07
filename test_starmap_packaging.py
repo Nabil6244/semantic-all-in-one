@@ -45,7 +45,7 @@ class StarmapPackaging(unittest.TestCase):
         self.assertFalse(any("/test/" in f or "/samples/" in f for f in self.files))
         self.assertIn("starmap/packs/apollo11.json", self.files)
         self.assertIn("starmap/catalog/bodies.json", self.files)
-        self.assertEqual(self.files["starmap/packs/apollo11.json"], "starmap/packs")
+        self.assertEqual(Path(self.files["starmap/packs/apollo11.json"]), Path("starmap/packs"))   # the OS separator either way
 
     def test_the_build_spec_uses_it(self):
         self.assertIn("starmap_data_files(ROOT)", (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"))
