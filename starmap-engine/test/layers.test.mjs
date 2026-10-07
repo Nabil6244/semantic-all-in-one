@@ -19,7 +19,7 @@ const angleDeg = (a, b) => Math.acos(Math.min(1, Math.max(-1, a.reduce((s, x, i)
 
 test('registry: a new layer type is added by registering it, nothing else', async () => {
   const reg = registerBuiltins(createRegistry());
-  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'distance', 'marker', 'mission_clock', 'orbit', 'photo_card',
+  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'marker', 'mission_clock', 'orbit', 'photo_card',
     'region', 'spacecraft', 'stat_chip', 'title', 'trajectory']);
   // a brand-new type, defined here, used by a spec: the renderer's frame loop runs it with timing applied
   const seen = [];

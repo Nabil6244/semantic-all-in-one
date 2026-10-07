@@ -14,7 +14,7 @@ export default {
     const d = inst.def, { u, W, H } = f;
     let big = String(d.value);
     if (typeof d.value === 'number') {
-      const from = d.count_up?.from ?? 0, k = d.count_up ? progressAt(d.count_up, f.t) : 1;
+      const from = d.count_up?.from ?? 0, k = d.count_up ? progressAt(d.count_up, f.t, f.mu) : 1;
       big = fmt(from + (d.value - from) * k, d.decimals ?? 0);
     }
     if (d.unit) big += ` ${d.unit}`;

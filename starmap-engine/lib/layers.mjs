@@ -52,9 +52,9 @@ export function createRegistry() {
 }
 
 /** Run one phase ("update" before the 3D render, "draw" after it) of every layer for this frame. */
-export function runLayers(layers, frame, phase) {
+export function runLayers(layers, frame, phase, only = null) {
   for (const L of layers) {
-    if (!L.impl[phase]) continue;
+    if (!L.impl[phase] || (only && !only(L))) continue;
     const alpha = opacityAt(L.def, frame.t) * (L.def.opacity ?? 1);
     if (phase === 'draw' && alpha <= 0.002) continue;
     L.impl[phase](L.inst, { ...frame, alpha, def: L.def });
@@ -63,8 +63,17 @@ export function runLayers(layers, frame, phase) {
 
 /** A spec written before layers existed (Phase 1) still shows what it showed: body labels, distance, clock, title. */
 export function defaultLayers(spec) {
-  if (Array.isArray(spec.layers)) return spec.layers;
-  const out = [{ type: 'body_labels' }, { type: 'distance' }, { type: 'mission_clock' }];
-  if (spec.title) out.push({ type: 'title', text: spec.title });
+  let out = spec.layers;
+  if (!Array.isArray(out)) {
+    out = [{ type: 'body_labels' }, { type: 'distance' }, { type: 'mission_clock' }];
+    if (spec.title) out.push({ type: 'title', text: spec.title });
+  }
+  // the app's channel-name setting (the same {"text": ...} PakMap takes) becomes a watermark layer
+  const wm = spec.watermark;
+  if (wm && wm.text && wm.enabled !== false && !out.some((l) => l.type === 'channel_name'))
+    out = out.concat([{ type: 'channel_name', text: wm.text, corner: wm.position || 'br', ...(wm.opacity != null ? { opacity_text: wm.opacity } : {}) }]);
   return out;
 }
+
+/** Does a layer stay on screen over footage? (its own "over_footage", else its type's default) */
+export const overFootage = (L) => L.def.over_footage ?? L.impl.over_footage ?? false;

@@ -13,6 +13,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { createCutter } from './cutter.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
@@ -25,8 +26,10 @@ function loadPlaywright(spec) {
   throw new Error('Playwright not found (expected in flow-engine/node_modules).');
 }
 
-function startServer(spec, specDir) {
-  const mediaDir = spec.media_dir ? path.resolve(specDir, spec.media_dir) : path.join(specDir, 'media');
+export const mediaDirOf = (spec, specDir) => (spec.media_dir ? path.resolve(specDir, spec.media_dir) : path.join(specDir, 'media'));
+
+function startServer(spec, specDir, cutter) {
+  const mediaDir = mediaDirOf(spec, specDir);
   const addons = path.join(HERE, 'node_modules', 'three', 'examples', 'jsm');
   const pageSpec = JSON.stringify(spec);
   const server = http.createServer((req, res) => {
@@ -37,6 +40,7 @@ function startServer(spec, specDir) {
     else if (url.pathname === '/page.js') file = path.join(HERE, 'page.js');
     else if (/^\/(lib|layers)\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(HERE, url.pathname);
     else if (url.pathname.startsWith('/three/addons/')) { const f = path.resolve(addons, decodeURIComponent(url.pathname.slice('/three/addons/'.length))); if (f.startsWith(addons + path.sep)) file = f; }
+    else if (/^\/footage\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.frameFile(Number(i), parseInt(k, 10)); }
     else if (url.pathname.startsWith('/media/')) file = path.join(mediaDir, path.basename(decodeURIComponent(url.pathname)));
     else if (url.pathname === '/three/three.module.min.js') file = path.join(HERE, 'node_modules', 'three', 'build', 'three.module.min.js');
     else if (url.pathname === '/astronomy/astronomy.browser.min.js') file = path.join(HERE, 'node_modules', 'astronomy-engine', 'astronomy.browser.min.js');
@@ -56,7 +60,11 @@ async function main() {
   spec.output = process.argv[3] || spec.output || path.join(path.dirname(path.resolve(specPath)), 'starmap.mp4');
   const { width, height, fps } = spec;
   const total = Math.round(spec.duration * fps);
-  const server = await startServer(spec, path.dirname(path.resolve(specPath)));
+  const specDir = path.dirname(path.resolve(specPath));
+  const cutter = createCutter({ spec, mediaDir: mediaDirOf(spec, specDir), ffmpeg: spec.ffmpeg || 'ffmpeg' });
+  if (cutter.plan.problems.length) { cutter.cleanup(); throw new Error(`footage: ${cutter.plan.problems.join('; ')}`); }
+  for (const w of cutter.plan.warnings) emit({ event: 'warning', message: w });
+  const server = await startServer(spec, specDir, cutter);
   const origin = `http://127.0.0.1:${server.address().port}`;
   const { chromium } = loadPlaywright(spec);
   const soft = process.env.STARMAP_GL === 'software';
@@ -86,6 +94,7 @@ async function main() {
     emit({ event: 'gpu', renderer: gl, mode: soft ? 'software' : 'hardware' });
     if (process.env.STARMAP_STILLS) {   // quick look: STARMAP_STILLS="0,4,12" writes those moments as JPEGs next to the output
       for (const t of process.env.STARMAP_STILLS.split(',').map(Number)) {
+        await cutter.ensure(t, { keepAll: true });
         const b64 = await page.evaluate((tt) => window.renderFrame(tt), t);
         fs.writeFileSync(`${spec.output}.t${t}.jpg`, Buffer.from(b64, 'base64'));
       }
@@ -103,6 +112,7 @@ async function main() {
     const t0 = Date.now();
     let peakHeap = 0;
     for (let i = 0; i < total; i++) {
+      await cutter.ensure(i / fps);
       const b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
       const jpg = Buffer.from(b64, 'base64');
       if (!ffmpeg.stdin.write(jpg)) await new Promise((r) => ffmpeg.stdin.once('drain', r));
@@ -117,11 +127,12 @@ async function main() {
     if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${ffErr.trim().slice(-500)}`);
     if (pageErrors.length) emit({ event: 'warning', message: pageErrors.slice(0, 3).join(' | ') });
     const secs = (Date.now() - t0) / 1000;
-    emit({ event: 'done', output: spec.output, frames: total, seconds: Math.round(secs * 10) / 10, x_realtime: Math.round(secs / spec.duration * 100) / 100, ms_per_frame: Math.round(secs * 1000 / total), peak_js_heap_mb: peakHeap });
+    emit({ event: 'done', output: spec.output, frames: total, seconds: Math.round(secs * 10) / 10, x_realtime: Math.round(secs / spec.duration * 100) / 100, ms_per_frame: Math.round(secs * 1000 / total), peak_js_heap_mb: peakHeap, footage: cutter.stats });
   } finally {
     if (ffmpeg && ffmpeg.exitCode === null) { try { ffmpeg.stdin.destroy(); ffmpeg.kill('SIGKILL'); } catch { /* gone */ } }
     await browser.close().catch(() => {});
     server.close();
+    cutter.cleanup();
   }
 }
 

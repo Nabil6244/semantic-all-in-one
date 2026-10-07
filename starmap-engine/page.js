@@ -1,5 +1,6 @@
 // StarMap page (runs in the headless browser): one three.js scene drawn with a floating origin, plus a 2D overlay.
-// window.renderFrame(t) -> JPEG (base64) of the frame at narration time t.
+// window.renderFrame(t) -> JPEG (base64) of the frame at narration time t: the map, any footage beat over it (lib/footage.mjs),
+// and the layers that stay over footage (a channel name).
 //
 // Every frame: the universe clock gives the date -> the world moves every body to that date and turns it (real
 // ephemerides and IAU rotation) -> the camera resolves its shot -> every body is placed RELATIVE TO THE CAMERA through the
@@ -9,7 +10,8 @@
 // registry (lib/layers.mjs, layers/*.mjs), configured by spec.layers; this file knows no mission and no place.
 import * as THREE from '/three/three.module.min.js';
 import { buildWorld, anchorTarget, galacticBasis } from '/lib/world.mjs';
-import { createRegistry, runLayers, defaultLayers } from '/lib/layers.mjs';
+import { createRegistry, runLayers, defaultLayers, overFootage } from '/lib/layers.mjs';
+import { planFootage, clipFrameIndex, kenBurnsAt } from '/lib/footage.mjs';
 import { registerBuiltins } from '/layers/index.mjs';
 import { ui } from '/layers/ui.mjs';
 import { createCamera } from '/lib/camera.mjs';
@@ -19,9 +21,13 @@ import { KM_PER_LY } from '/lib/units.mjs';
 
 const spec = await (await fetch('/spec.json')).json();
 const W = spec.width, H = spec.height, FOV = spec.fov_deg || 40;
-const clock = createClock(spec.clock);
-const world = buildWorld(spec.world, { date: clock.utc(0) });
-const camAt = createCamera(world, { fov_deg: FOV, ...spec.camera });
+// footage beats freeze MAP time (fp.mu): the universe clock, the camera and layer animations run on it
+const fp = planFootage(spec);
+if (fp.problems.length) throw new Error(`footage: ${fp.problems.join('; ')}`);
+const clock = createClock(fp.mapClock(spec.clock));
+const world = buildWorld(spec.world, { date: clock.utc(fp.mu(0)) });
+const camAt = createCamera(world, { fov_deg: FOV, ...fp.mapCamera(spec.camera) });
+const storyClock = { utc: (t) => clock.utc(fp.mu(t)), met: (t) => clock.met(fp.mu(t)) };   // what layers read, by narration t
 const focalPx = (H / 2) / Math.tan((FOV / 2) * Math.PI / 180);
 const ramp = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 
@@ -140,7 +146,7 @@ await document.fonts.load('800 30px StarMapSans');
 const u = ui(ctx, W);
 const imageCache = new Map();
 const layerCtx = {
-  THREE, scene, world, spec, clock, W, H, focalPx,
+  THREE, scene, world, spec, clock: storyClock, W, H, focalPx,
   tex,
   /** The sphere mesh of a body (turns with its surface): surface layers attach to it. */
   bodyMesh(id) { const b = bodies.find((x) => x.n.id === id); if (!b || !b.mesh) throw new Error(`no body mesh for ${id}`); return b.mesh; },
@@ -157,15 +163,20 @@ const layerCtx = {
   },
 };
 const registry = registerBuiltins(createRegistry());
-const layers = await registry.instantiate(defaultLayers(spec), layerCtx);
+const layerDefs = defaultLayers(spec).map((d) => ((d.over_footage ?? registry.get(d.type)?.over_footage) ? d : fp.adjustLayer(d)));
+const layers = await registry.instantiate(layerDefs, layerCtx);
 const layerById = new Map(layers.filter((L) => L.def.id).map((L) => [L.def.id, L]));
 
 const sunId = [...world.nodes.values()].find((n) => n.kind === 'star')?.id;
 const Y = new THREE.Vector3(0, 1, 0), X = new THREE.Vector3(1, 0, 0);
-window.renderFrame = async (t) => {
-  const date = clock.utc(t);
+const screenFrame = (t, date) => ({ t, date, clock: storyClock, mu: fp.mu, spec, W, H, focalPx, THREE, g: ctx, u, claims: [],
+  place: (x, y) => y, placeAny: (xs, y) => ({ x: xs[0], y }), claim() {}, locate: () => null, bodies: [], world });
+
+/** The universe and its layers at narration t (map time fp.mu(t)), onto the overlay canvas: everything except the layers
+ *  that stay over footage. Returns the frame for those. */
+function drawMap(t, date) {
   world.setTime(date);
-  const c = camAt(t), cp = c.position;
+  const c = camAt(fp.mu(t)), cp = c.position;
   // everything relative to the camera, via the frame tree from the camera's anchor body (never through the root)
   const relBody = (id) => { const v = world.vec(c.anchor, id); return [v[0] - cp[0], v[1] - cp[1], v[2] - cp[2]]; };
   camera.position.set(0, 0, 0);
@@ -212,7 +223,7 @@ window.renderFrame = async (t) => {
   camera.updateMatrixWorld();
   const view = camera.matrixWorldInverse.elements;
   const frame = {
-    t, date, cam: c, world, clock, spec, W, H, focalPx, THREE, camera, inside, g: ctx, u, bodies: info,
+    t, date, cam: c, world, clock: storyClock, mu: fp.mu, spec, W, H, focalPx, THREE, camera, inside, g: ctx, u, bodies: info,
     /** A point given relative to a body -> km relative to the camera (precise: through the frame tree). */
     toCam(anchor, local) { const v = world.vec(c.anchor, anchor); return [v[0] + local[0] - cp[0], v[1] + local[1] - cp[1], v[2] + local[2] - cp[2]]; },
     /** Camera-relative km -> screen pixels; front = in front of the camera. */
@@ -264,8 +275,42 @@ window.renderFrame = async (t) => {
   runLayers(layers, frame, 'update');
   renderer.render(scene, camera);
   ctx.drawImage(glCanvas, 0, 0);
-  runLayers(layers, frame, 'draw');
+  runLayers(layers, frame, 'draw', (L) => !overFootage(L));
+  return frame;
+}
+
+// ---- footage -----------------------------------------------------------------------------------------------------------------
+/** One beat's picture at narration t: a frame the Node renderer cut from the clip, or a still with a slow Ken Burns. */
+async function drawFootage(b, t, alpha) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  if (b.kind === 'video') {
+    const res = await fetch(`/footage/${b.i}/${clipFrameIndex(b, t, spec.fps)}.jpg`);
+    if (!res.ok) throw new Error(`footage ${b.id}: frame missing at ${t.toFixed(2)} s`);
+    const bmp = await createImageBitmap(await res.blob());
+    ctx.drawImage(bmp, 0, 0, W, H); bmp.close();
+  } else {
+    const img = await layerCtx.loadImage(b.file), [cx, cy, zoom] = kenBurnsAt(b, t);
+    const fit = b.fit === 'contain' ? Math.min(W / img.width, H / img.height) : Math.max(W / img.width, H / img.height);
+    const s = fit * Math.max(1, zoom), sw = Math.min(img.width, W / s), sh = Math.min(img.height, H / s);
+    const sx = Math.min(img.width - sw, Math.max(0, cx * img.width - sw / 2)), sy = Math.min(img.height - sh, Math.max(0, cy * img.height - sh / 2));
+    if (b.fit === 'contain') { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }
+    const dw = sw * s, dh = sh * s;
+    ctx.drawImage(img, sx, sy, sw, sh, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  }
+  if (b.credit) {
+    ctx.font = u.font(16, 700); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    u.shadow(4, 0.8); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillText(b.credit, 36 * u.S, H - 36 * u.S); u.noShadow();
+  }
+  ctx.restore();
+}
+
+window.renderFrame = async (t) => {
+  const date = storyClock.utc(t);
+  // the map only when some of it shows (under full-screen footage the 3D render is skipped: those frames are cheap)
+  const frame = fp.mapAlpha(t) > 0.001 ? drawMap(t, date) : (ctx.fillStyle = '#000', ctx.fillRect(0, 0, W, H), screenFrame(t, date));
+  for (const { beat, alpha } of fp.coverage(t)) await drawFootage(beat, t, alpha);
+  runLayers(layers, frame, 'draw', overFootage);
   return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
 };
-window.__starmap = { layers, world, camAt };     // for inspection tools and tests
+window.__starmap = { layers, world, camAt, footage: fp };     // for inspection tools and tests
 window.__ready = true;

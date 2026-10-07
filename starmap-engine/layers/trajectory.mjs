@@ -35,7 +35,7 @@ export default {
     const now = traj.indexAt(+f.date);
     let cut;                                           // index the solid (travelled / revealed) part runs to
     if (def.reveal === 'full') cut = inst.b;
-    else if (def.reveal && typeof def.reveal === 'object') cut = inst.a + (inst.b - inst.a) * progressAt(def.reveal, f.t);
+    else if (def.reveal && typeof def.reveal === 'object') cut = inst.a + (inst.b - inst.a) * progressAt(def.reveal, f.t, f.mu);
     else cut = Math.min(inst.b, Math.max(inst.a, now));
     const project = (pts) => pts.map((p) => { const q = f.toCam(traj.frame, p), s = f.project(q); return { x: s.x, y: s.y, ok: s.front && !f.hidden(q) }; });
     const per = st.points_per_sample ?? 3;

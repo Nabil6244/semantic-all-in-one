@@ -52,14 +52,14 @@ export default {
   },
   update(inst, f) {
     const st = inst.def.style || {};
-    const k = progressAt(inst.def.reveal, f.t);
+    const k = progressAt(inst.def.reveal, f.t, f.mu);
     inst.mesh.material.opacity = (st.fill_opacity ?? 0.28) * f.alpha * k;
     inst.mesh.visible = inst.mesh.material.opacity > 0.003;
   },
   draw(inst, f) {
     const d = inst.def, st = d.style || {};
     const pts = inst.ring.concat([inst.ring[0]]);
-    const k = progressAt(d.reveal, f.t), n = Math.max(2, Math.ceil(pts.length * k));
+    const k = progressAt(d.reveal, f.t, f.mu), n = Math.max(2, Math.ceil(pts.length * k));
     const proj = pts.slice(0, n).map(([lo, la]) => {
       const p = f.toCam(d.body, f.world.surfaceOffset(d.body, lo, la, 0));
       const s = f.project(p);

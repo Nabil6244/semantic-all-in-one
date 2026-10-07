@@ -22,7 +22,7 @@ export default {
     g.save(); g.globalAlpha = f.alpha;
     u.shadow(18, 0.55); u.box(x - 5 * u.S, y - 5 * u.S, w + 10 * u.S, h + 10 * u.S, 18, '#ffffff'); u.noShadow();
     // the photo: cover-cropped, pushing in slowly while the card is up
-    const life = d.end != null && d.start != null ? Math.min(1, Math.max(0, (f.t - d.start) / (d.end - d.start))) : 0;
+    const life = d.end != null && d.start != null ? Math.min(1, Math.max(0, (f.mu(f.t) - f.mu(d.start)) / Math.max(1e-6, f.mu(d.end) - f.mu(d.start)))) : 0;
     const zoom = 1 + (d.push_in ?? 0.06) * life;
     const s = Math.max(w / img.width, h / img.height) * zoom, sw = w / s, sh = h / s;
     g.save(); g.beginPath(); g.roundRect(x, y, w, h, 13 * u.S); g.clip();

@@ -13,9 +13,10 @@ import mission_clock from './mission_clock.mjs';
 import distance from './distance.mjs';
 import photo_card from './photo_card.mjs';
 import caption from './caption.mjs';
+import channel_name from './channel_name.mjs';
 
 export const BUILTIN_LAYERS = [body_labels, marker, region, orbit, trajectory, spacecraft, atmosphere,
-  title, stat_chip, mission_clock, distance, photo_card, caption];
+  title, stat_chip, mission_clock, distance, photo_card, caption, channel_name];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

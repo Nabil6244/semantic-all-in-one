@@ -17,12 +17,15 @@ export function opacityAt(def, t) {
   return Math.min(a, b);
 }
 
-/** 0..1 progress of a timed reveal { t0, t1 } (eased), for paths drawn on and numbers counting up. */
-export function progressAt(r, t) {
+/** 0..1 progress of a timed reveal { t0, t1 } (eased), for paths drawn on and numbers counting up. Animations run on MAP
+ *  time: pass the footage plan's mu and a reveal that a footage beat interrupts pauses and resumes (mu = identity without
+ *  footage). */
+export function progressAt(r, t, mu = (x) => x) {
   if (!r) return 1;
-  if (t <= r.t0) return 0;
-  if (t >= r.t1) return 1;
-  return smooth((t - r.t0) / (r.t1 - r.t0));
+  const a = mu(r.t0), b = mu(r.t1), m = mu(t);
+  if (m <= a) return 0;
+  if (m >= b) return 1;
+  return smooth((m - a) / (b - a));
 }
 
 /** Piecewise-linear keys [{t, v}] -> value at t (held before the first key and after the last). */
