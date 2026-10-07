@@ -598,6 +598,30 @@ class TestGenerateRun(unittest.TestCase):
         self.assertTrue(r.ok)
         self.assertEqual(Path(self.exported[0]), self.d / "vo.wav")
         self.assertTrue(any("sound design failed" in w and "disk full" in w for w in r.warnings))
+        self.assertEqual(r.sound_failed, "disk full")  # the app shows this: never a plain success
+
+    def test_running_out_of_memory_while_mixing_is_reported_as_a_sound_failure(self):
+        from unittest import mock
+        with mock.patch("pakmap.audio_mix.mix_pakmap_audio", side_effect=MemoryError()):
+            r = self.run_gen()
+        self.assertTrue(r.ok)
+        self.assertEqual(Path(self.exported[0]), self.d / "vo.wav")
+        self.assertIn("not enough memory", r.sound_failed)
+        self.assertTrue(any("not enough memory" in w for w in r.warnings))
+
+    def test_a_working_mix_or_sound_design_off_is_no_sound_failure(self):
+        self.assertIsNone(self.run_gen().sound_failed)
+        self.assertIsNone(self.run_gen(sound_design=False).sound_failed)
+
+    def test_a_narration_louder_than_the_limit_is_reported_because_it_mutes_the_bed(self):
+        loud = _tone(200, 12.0, 0.995)
+        with wave.open(str(self.d / "vo.wav"), "wb") as w:  # stereo, so the level is not lowered by an upmix
+            w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
+            w.writeframes((np.stack([loud, loud], axis=1) * 32767).astype("<i2").tobytes())
+        r = self.run_gen()
+        self.assertTrue(r.ok)
+        self.assertEqual(r.audio_mix.bus_scale, 0.0)  # unchanged mixer behaviour: the narration is never turned down
+        self.assertIn("narration itself peaks above", r.sound_failed)
 
     def test_missing_sounds_are_in_the_warnings(self):
         import smart_editing as se

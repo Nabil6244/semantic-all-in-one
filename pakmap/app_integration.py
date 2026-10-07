@@ -35,6 +35,8 @@ class PakmapResult:
     unresolved: List[str] = field(default_factory=list)  # Visual Plan scene numbers that still have no picture (fix them in the Visual tab)
     audio: Optional[object] = None  # pakmap.audio_plan.AudioPlan (cues, beds, missing/approximate sounds)
     audio_mix: Optional[object] = None  # pakmap.audio_mix.MixResult
+    # Sound design was asked for but is not in the video (the mix failed, so the video has the narration only): why.
+    sound_failed: Optional[str] = None
 
 
 def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> None:
@@ -263,7 +265,7 @@ def generate_pakmap_video(
         return PakmapResult(False, ["Cancelled"], report=res.report, cancelled=True)
 
     # ---- Phase 7: pakMap's own sound design (narration + SFX + ambience; generic SFX/ambience/zoom-blur are not used) ----
-    audio_plan, mix, narration_for_export, sound_notes = None, None, voiceover_path, []
+    audio_plan, mix, narration_for_export, sound_notes, sound_failed = None, None, voiceover_path, [], None
     _report(progress_cb, "Designing the sound…" if sound_design else "Adding the narration…", 0.90)
     try:
         audio_plan = plan_pakmap_sound(res, enabled=sound_design, catalog=sound_catalog)
@@ -278,9 +280,17 @@ def generate_pakmap_video(
             mix = mix_pakmap_audio(audio_plan, voiceover_path, work / "pakmap_audio.wav", duration=spec["duration"])
             narration_for_export = mix.path
             log(f"[pakMap] sound design: {len(audio_plan.cues)} effect(s), {len(audio_plan.beds)} ambience bed(s)" + (f", {len(audio_plan.missing)} sound(s) missing" if audio_plan.missing else ""))
-    except Exception as exc:  # the video is still made, with the narration alone, and the author is told
+            if mix.changed and mix.bus_scale == 0.0:  # the mixer never turns the narration down, so a too-loud voice mutes the bed
+                sound_failed = (f"the narration itself peaks above the mixer's limit ({mix.peak:.3f}), so the effects and ambience were turned "
+                                "all the way down to keep it from clipping. Lower the voiceover's level slightly and Generate again")
+                sound_notes.append(f"sound design is silent: {sound_failed}")
+    except Exception as exc:  # the video is still made, with the narration alone, and the author is told (warnings and sound_failed)
         narration_for_export, mix = voiceover_path, None
-        sound_notes.append(f"sound design failed, so the video has the narration only: {exc}")
+        reason = str(exc) or f"{type(exc).__name__} (no message)"
+        if isinstance(exc, MemoryError):
+            reason = f"not enough memory to mix the sound ({type(exc).__name__}) {exc}".rstrip()
+        sound_failed = reason
+        sound_notes.append(f"sound design failed, so the video has the narration only: {reason}")
     for note in sound_notes:
         log(f"[pakMap] {note}")
     _report(progress_cb, "Adding the narration…", 0.92)
@@ -310,4 +320,5 @@ def generate_pakmap_video(
     except OSError:
         pass
     _report(progress_cb, "Done.", 1.0)
-    return PakmapResult(True, [], output_path, res.report, credits, res.report.warnings + sound_notes + renderer_notes, audio=audio_plan, audio_mix=mix)
+    return PakmapResult(True, [], output_path, res.report, credits, res.report.warnings + sound_notes + renderer_notes, audio=audio_plan, audio_mix=mix,
+                        sound_failed=sound_failed if sound_design else None)
