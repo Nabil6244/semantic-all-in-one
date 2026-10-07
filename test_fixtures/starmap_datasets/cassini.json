@@ -1,0 +1,94 @@
+{
+ "id": "cassini",
+ "name": "Cassini",
+ "names": [
+  "cassini huygens",
+  "cassini-huygens"
+ ],
+ "kind": "orbiter",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day"
+ },
+ "events": {
+  "saturn_orbit_insertion": {
+   "utc": "2004-07-01T02:48:00Z",
+   "status": "historical"
+  },
+  "grand_finale": {
+   "utc": "2017-09-15T10:31:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "cassini_orbit",
+   "frame": "saturn",
+   "basis": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "orbit_arc",
+     "body": "saturn",
+     "period_min": 9360.0,
+     "from_utc": "2017-08-01T00:00:00Z",
+     "to_utc": "2017-09-15T10:31:00Z",
+     "samples_per_rev": 48,
+     "plane": {
+      "inclination_deg": 62,
+      "node_deg": 30,
+      "epoch": "2017-08-01T00:00:00Z"
+     },
+     "radius": {
+      "km": 1300000
+     }
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "cassini": {
+   "type": "spacecraft",
+   "label": "CASSINI",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#c7c2b5"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "cassini_orbit"
+  }
+ },
+ "orbits": {
+  "proximal_orbit": {
+   "body": "saturn",
+   "trajectory": "cassini_orbit",
+   "at": "grand_finale-10:00"
+  }
+ }
+}

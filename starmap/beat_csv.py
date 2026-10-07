@@ -4,7 +4,8 @@ Written by an AI from the script with composition_styles/starmap_beats_prompt.tx
 re-cut or guessed; a row the plan cannot hold is an error naming the row (as a spreadsheet numbers it: the header is row 1).
 
     row    what it is                      columns used
-    plan   the plan (optional, first row)  id = mission pack (e.g. apollo11), label = video title, end = duration
+    plan   the plan (optional, first row)  label = video title, date = the reference "now" (what today means), end = duration,
+                                           id = an optional starting context (a dataset id; nothing is selected by it)
     beat   opens a beat                    beat, vo_anchor | start, mode (map | map_footage | footage), place, frame, type,
                                            date, text (the narration), why
     layer  something on the map            type (title marker zone path craft orbit stat caption distance), vo_anchor | t,
@@ -30,7 +31,7 @@ COLUMNS = ("beat", "row", "vo_anchor", "start", "end", "t", "mode", "type", "id"
            "value_from", "value_to", "format", "anchor", "until", "hold", "asset", "dur", "why", "extra")
 ROWS = ("plan", "beat", "layer", "card", "clip")
 MODES = ("map", "map_footage", "footage")
-FRAMES = ("surface", "close", "body", "system", "inner", "solar", "galaxy", "universe")
+FRAMES = ("surface", "close", "body", "system", "inner", "solar", "heliosphere", "galaxy", "universe")
 MOVES = ("", "hold", "push_in", "pull_out", "orbit")
 LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "caption", "distance", "line", "rings", "pointer")
 CARD_ANCHORS = ("tr", "mr", "ml", "bl")
@@ -105,9 +106,10 @@ class Beat:
 class Plan:
     beats: List[Beat]
     duration: float
-    pack: str = ""
+    pack: str = ""                                # the plan row's id: an optional starting context, never a selection
     title: str = ""
     notes: List[str] = field(default_factory=list)
+    reference_now: str = ""                       # the plan row's date: what "now" and "today" mean for this video
 
 
 def is_starmap_csv(text: str) -> bool:
@@ -212,7 +214,7 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
     problems: List[str] = [f"unknown column {c!r}" for c in head if c and c not in COLUMNS]
     clock = WordClock(words, notes)
     beats: List[Beat] = []
-    pack, title, plan_end = "", "", None
+    pack, title, plan_end, ref_now = "", "", None, ""
     failed: set = set()
     for n, cells in enumerate(rows[1:], start=2):
         if not any(c.strip() for c in cells):
@@ -230,7 +232,7 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                 raise ValueError("extra must be a JSON object")
             anchor = r.get("vo_anchor", "")
             if kind == "plan":
-                pack, title, plan_end = r.get("id", ""), r.get("label", ""), _f(r, "end")
+                pack, title, plan_end, ref_now = r.get("id", ""), r.get("label", ""), _f(r, "end"), r.get("date", "")
             elif kind == "beat":
                 if not r.get("beat"):
                     raise ValueError("a beat row needs its beat id in the beat column (b1, b2 ...)")
@@ -337,4 +339,4 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                 it.t = b.start
     if problems:
         raise PlanError(problems)
-    return Plan(beats=beats, duration=float(total or beats[-1].end), pack=pack, title=title, notes=notes)
+    return Plan(beats=beats, duration=float(total or beats[-1].end), pack=pack, title=title, notes=notes, reference_now=ref_now)

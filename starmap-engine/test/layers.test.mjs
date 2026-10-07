@@ -19,8 +19,8 @@ const angleDeg = (a, b) => Math.acos(Math.min(1, Math.max(-1, a.reduce((s, x, i)
 
 test('registry: a new layer type is added by registering it, nothing else', async () => {
   const reg = registerBuiltins(createRegistry());
-  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'galaxy_guide', 'link', 'marker', 'mission_clock',
-    'orbit', 'photo_card', 'pointer', 'region', 'rings', 'spacecraft', 'stat_chip', 'title', 'trajectory']);
+  assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'footnote', 'galaxy_guide', 'link', 'marker',
+    'mission_clock', 'orbit', 'photo_card', 'pointer', 'region', 'rings', 'spacecraft', 'stat_chip', 'status_badge', 'time_jump', 'title', 'trajectory']);
   // a brand-new type, defined here, used by a spec: the renderer's frame loop runs it with timing applied
   const seen = [];
   reg.register({ type: 'comet_tail', space: 'world', create: (def) => ({ def }), update: (inst, f) => seen.push(['u', f.t, +f.alpha.toFixed(2)]), draw: (inst, f) => seen.push(['d', f.t]) });
@@ -181,4 +181,25 @@ test('overlay: a line is cut where it goes behind the camera and where it leaves
   assert.ok(b[2] < 0 && b[2] > -0.01, 'cut just in front of the camera');
   assert.deepEqual(clipToFrame([-100, 50], [300, 50], 200, 100), [[0, 50], [200, 50]]);
   assert.equal(clipToFrame([-100, -50], [-10, -5], 200, 100), null, 'off screen');
+});
+
+test('mission clock: its own T-zero, T- before it, a date only as precise as it is known', async () => {
+  const { metText, dateText } = await import('../layers/mission_clock.mjs');
+  const zero = Date.parse('2027-09-15T12:00:00Z');
+  assert.equal(metText(zero - 3600e3, zero), 'T− 01:00:00');
+  assert.equal(metText(zero + (102 * 3600 + 45 * 60 + 40) * 1000, zero), 'T+ 102:45:40');
+  const d = new Date('2027-09-15T12:00:00Z');
+  assert.equal(dateText(d, 'month'), 'SEP 2027');
+  assert.equal(dateText(d, 'year'), '2027');
+  assert.equal(dateText(d), '2027-09-15 12:00 UTC');
+});
+
+test('time jump: fully dark at the cut, clear before and after', async () => {
+  const { dipAt } = await import('../layers/time_jump.mjs');
+  const def = { at: 10, start: 9.55, end: 11.8 };
+  assert.equal(dipAt(def, 9.4), 0);
+  assert.equal(dipAt(def, 10), 1);
+  assert.equal(dipAt(def, 9.95), 1, 'dark for the frames either side of the cut');
+  assert.ok(dipAt(def, 10.3) > 0 && dipAt(def, 10.3) < 1);
+  assert.equal(dipAt(def, 11), 0);
 });

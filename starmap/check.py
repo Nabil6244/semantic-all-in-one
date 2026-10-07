@@ -1,7 +1,9 @@
 """Check plan: read a StarMap beat CSV against the narration and report, without rendering.
 
-    errors    stop the render: the CSV itself (a bad column, a phrase the narrator never says, an unknown place, event or
-              craft), beats that do not fit together, a footage clip under 2 s
+    errors    stop the render: the CSV itself (a bad column, a phrase the narrator never says, an unknown or ambiguous place,
+              event, craft or dataset, a status the data contradicts, a date past a dataset's data), beats that do not fit
+              together, a footage clip under 2 s
+    detected  the datasets the CSV uses, found automatically (nothing is selected): status, years, geometry, freshness, beats
     warnings  never block: the rhythm (footage share, a long still map, nothing new for a while), crowding (stat chips,
               cards in the same place), very short or long footage
     notes     what the loader adjusted (a row spoken outside its beat, a near-miss word match)
@@ -30,6 +32,8 @@ class Report:
     notes: List[str] = field(default_factory=list)
     to_find: List[Tuple[int, str]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
+    detected: List[str] = field(default_factory=list)
+    jumps: List[str] = field(default_factory=list)
     plan: Optional[Plan] = None
     compiled: Optional[Compiled] = None
 
@@ -43,7 +47,14 @@ class Report:
         if s:
             out.append(f"{s['beats']} beats, {s['duration']:.0f} s: map {s['map_s']:.0f} s, footage {s['footage_s']:.0f} s "
                        f"({s['footage_share'] * 100:.0f}%), {s['cards']} photo cards, {s['clips']} clips, {s['layers']} map layers"
-                       + (f"; mission pack {s['pack']}" if s.get("pack") else ""))
+                       )
+        if self.detected:
+            out.append("Detected (found from the CSV, nothing to select):")
+            out += self.detected
+        elif s:
+            out.append("Detected: no mission data (the sky, the planets and the stars only)")
+        if self.jumps:
+            out.append("Time jumps: " + "; ".join(self.jumps))
         out += [f"ERROR {e}" for e in self.errors]
         out += [f"WARNING {w}" for w in self.warnings]
         out += [f"NOTE {n}" for n in self.notes]
@@ -54,7 +65,9 @@ class Report:
 
 
 def check_csv(text: str, words: Sequence = (), duration: Optional[float] = None, *, pack: Optional[str] = None,
-              media: Optional[Dict[str, Any]] = None) -> Report:
+              media: Optional[Dict[str, Any]] = None, reference_now: Optional[str] = None, catalog: Optional[Catalog] = None) -> Report:
+    """`pack` is accepted for old callers and only starts the context (like the plan row's id); `reference_now` is the
+    project's saved "now" (the plan row's date wins). `catalog` lets a caller use another dataset library (tests)."""
     rep = Report()
     try:
         plan = read_plan(text, words, duration)
@@ -62,17 +75,26 @@ def check_csv(text: str, words: Sequence = (), duration: Optional[float] = None,
         rep.errors = list(exc.problems)
         return rep
     rep.plan = plan
+    if pack and not plan.pack:
+        plan.pack = pack
     try:
-        cat = Catalog(pack or plan.pack or None)
+        cat = catalog or Catalog()
     except CatalogError as exc:
         rep.errors.append(str(exc))
         return rep
+    from .resolve import resolve
+
+    res = resolve(plan, cat, reference_now=plan.reference_now or reference_now)
+    rep.detected = res.detected(cat)
+    rep.jumps = [f"{t.a}→{t.b} {t.label}" + (" (under footage)" if t.hidden_by_footage else "") for t in res.transitions if t.kind == "jump"]
+    rep.warnings += res.warnings
     try:
-        comp = compile_plan(plan, cat, media=media, resolve_media=False)
+        comp = compile_plan(plan, cat, media=media, resolve_media=False, resolution=res)
     except CompileError as exc:
         rep.errors = list(exc.problems)
         rep.notes = list(plan.notes)
         return rep
+    rep.detected = res.detected(cat)
     rep.compiled = comp
     rep.notes = comp.notes
     rep.to_find = comp.needs_media
@@ -86,7 +108,7 @@ def _rhythm(plan: Plan, comp: Compiled, rep: Report) -> None:
     foot_s = sum(b.end - b.start for b in beats if b.mode == "footage")
     rep.summary = {"beats": len(beats), "duration": total, "map_s": total - foot_s, "footage_s": foot_s, "footage_share": foot_s / total if total else 0,
                    "cards": sum(len(b.cards) for b in beats), "clips": sum(len(b.clips) for b in beats),
-                   "layers": sum(len(b.layers) for b in beats), "pack": spec.get("starmap", {}).get("pack", "")}
+                   "layers": sum(len(b.layers) for b in beats), "datasets": spec.get("starmap", {}).get("datasets", [])}
     W = rep.warnings
     share = rep.summary["footage_share"]
     if total >= 60 and not (FOOTAGE_SHARE[0] <= share <= FOOTAGE_SHARE[1]):

@@ -106,6 +106,11 @@ def render_spec(spec: dict, output: Path, *, progress: Optional[Callable[[int, i
                 elif kind == "warning":
                     warnings.append(str(event.get("message")))
                     log(f"[StarMap] {event.get('message')}")
+                elif kind == "cache":
+                    reused, chunks = int(event.get("reused") or 0), int(event.get("chunks") or 0)
+                    if reused:
+                        log(f"[StarMap] {reused} of {chunks} parts are unchanged since the last render and are reused; "
+                            f"drawing the other {chunks - reused}")
                 elif kind == "gpu":
                     log(f"[StarMap] Rendering with {event.get('renderer')} ({event.get('mode')})")
                 elif kind == "done":

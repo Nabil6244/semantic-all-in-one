@@ -1,0 +1,97 @@
+{
+ "id": "moon_base_2050",
+ "name": "Moon Base 2050",
+ "names": [
+  "moon base",
+  "lunar base"
+ ],
+ "kind": "hypothetical_scenario",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "hypothetical",
+  "source": "illustrative scenario (no real plan)",
+  "date_precision": "year",
+  "basis": "illustrative"
+ },
+ "events": {
+  "founding": {
+   "utc": "2050-07-01T00:00:00Z",
+   "status": "hypothetical",
+   "precision": "year"
+  },
+  "supply_run": {
+   "utc": "2050-07-10T00:00:00Z",
+   "status": "hypothetical",
+   "precision": "year"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "moonbase_supply",
+   "frame": "earth",
+   "basis": "illustrative",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "from_utc": "2050-07-05T00:00:00Z",
+     "to_utc": "2050-07-10T00:00:00Z",
+     "samples": 120
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "supply_ship": {
+   "type": "spacecraft",
+   "label": "SUPPLY SHIP",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#f4a261"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "moonbase_supply"
+  }
+ },
+ "paths": {
+  "supply_route": {
+   "of": "moonbase_supply",
+   "from": "supply_run-120:00",
+   "to": "supply_run"
+  }
+ },
+ "sites": {
+  "shackleton base": {
+   "body": "moon",
+   "lon": 0.0,
+   "lat": -89.5,
+   "label": "SHACKLETON BASE (HYPOTHETICAL)"
+  }
+ }
+}

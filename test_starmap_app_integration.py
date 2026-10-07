@@ -1,5 +1,5 @@
 """StarMap inside the real app: the sixth style card, the panel, loading a beat CSV into the project, its pictures and clips as
-rows of the EXISTING Visual Plan table, Check plan, the copied prompt with the mission pack, the main button, persistence and
+rows of the EXISTING Visual Plan table, Check plan, the copied prompt with every dataset (none selected), the main button, persistence and
 reopening, and generation (arguments, success, a picture that needs attention, Stop).
 
 Live VideoGeneratorApp in a subprocess (same convention as test_hybrid_app_integration.py). The narration, the providers and the
@@ -76,13 +76,12 @@ def scenario():
     inst._on_style_pick("StarMap")
 
     # ---- the prompt ---------------------------------------------------------------------------------------------
-    inst._starmap_pack_var.set("apollo11")
     inst._copy_csv_prompt("starmap", inst._starmap_status_var)
     clip = inst.clipboard_get()
-    emit("the_copied_prompt_lists_the_mission_pack", "translunar_coast" in clip and "<<<MISSION PACK>>>" not in clip and "StarMap" in inst._starmap_status_var.get(), inst._starmap_status_var.get())
+    emit("the_copied_prompt_lists_the_datasets", "apollo11.translunar_coast" in clip and "artemis1.orion" in clip and "<<<DATASETS>>>" not in clip
+         and "StarMap" in inst._starmap_status_var.get() and not hasattr(inst, "_starmap_pack_var"), inst._starmap_status_var.get())
 
     # ---- loading the CSV ------------------------------------------------------------------------------------------
-    inst._starmap_pack_var.set("(from the CSV)")
     ok = inst._starmap_load_csv(str(SAMPLE))
     emit("the_csv_is_kept_in_the_project", ok and ws.starmap_csv_path.is_file() and inst._starmap_file_var.get() == str(ws.starmap_csv_path), inst._starmap_file_var.get())
     emit("its_cards_and_clips_are_visual_plan_rows", inst._scene_rows_owner == "starmap" and [(r.scene_number, r.asset_type) for r in inst._scene_rows] == [("1", "stock_image"), ("2", "stock_image"), ("3", "stock_image")]
@@ -95,7 +94,7 @@ def scenario():
     emit("the_button_says_generate", inst._cta_action == "generate", inst._cta_action)
 
     bad = tmp / "bad.csv"
-    bad.write_text(SAMPLE.read_text().replace("tranquility base,surface,pdi", "tranquility bas,surface,pdi"), encoding="utf-8")
+    bad.write_text(SAMPLE.read_text().replace("tranquility base,surface,apollo11.pdi", "tranquility bas,surface,apollo11.pdi"), encoding="utf-8")
     inst._starmap_load_csv(str(bad))
     yield (lambda: not inst._starmap_busy)
     text = inst._starmap_plan_box.get("1.0", "end")
@@ -123,7 +122,8 @@ def scenario():
          [(r.scene_number, r.asset_type) for r in got["scene_rows"]] == [("1", "stock_image"), ("2", "stock_image"), ("3", "stock_video")]
          and got["images_dir"] == ws.starmap_images_dir and got["work_dir"] == ws.starmap_work_dir and got["csv"] == str(ws.starmap_csv_path)
          and sorted(got["media_callbacks"]) == ["on_manager_ready", "on_scene_complete", "on_scene_generating", "on_scene_start"]
-         and got["whisper_words"] == WORDS and got["sound_design"] is True, str(got.get("images_dir")))
+         and got["whisper_words"] == WORDS and got["sound_design"] is True and got["reference_now"] == ws.starmap_settings().get("reference_now")
+         and "pack" not in got, str(got.get("images_dir")))
     emit("no_flow_question_when_no_flow_rows", not _asked, str(_asked))
 
     sai.generate_starmap_video = lambda *a, **kw: PakmapResult(False, ["Visual Plan scene 2 (card in beat b5, CSV row 21): no result"], unresolved=["2"])
@@ -146,13 +146,15 @@ def scenario():
     emit("stop_cancels_the_run", inst._starmap_status_var.get() == "Cancelled", inst._starmap_status_var.get())
 
     # ---- persistence -------------------------------------------------------------------------------------------------------------------
-    inst._starmap_sound_var.set(False); inst._starmap_pack_var.set("apollo11"); inst._save_starmap_settings(active=True)
-    emit("settings_are_saved", ws.starmap_settings() == {"sound_design": False, "pack": "apollo11", "active": True}, str(ws.starmap_settings()))
-    inst._starmap_sound_var.set(True); inst._starmap_pack_var.set("(from the CSV)")
+    inst._starmap_sound_var.set(False); inst._save_starmap_settings(active=True)
+    saved = ws.starmap_settings()
+    emit("settings_are_saved", saved.get("sound_design") is False and saved.get("active") is True and "pack" not in saved
+         and len(saved.get("reference_now", "")) == 10, str(saved))
+    inst._starmap_sound_var.set(True)
     inst._starmap_enabled_var.set(False); inst._starmap_controls.grid_remove(); inst.generation_mode = "normal"; inst._scene_rows = []
     inst._bind_workspace_paths()
     emit("reopening_restores_style_rows_and_switches", inst.generation_mode == "starmap" and inst._starmap_enabled_var.get() and len(inst._scene_rows) == 3
-         and inst._starmap_sound_var.get() is False and inst._starmap_pack_var.get() == "apollo11", f"{inst.generation_mode} {len(inst._scene_rows)}")
+         and inst._starmap_sound_var.get() is False and inst._starmap_reference_now() == saved["reference_now"], f"{inst.generation_mode} {len(inst._scene_rows)}")
     ws2 = ProjectWorkspace(project_id="p2", title="Other", seq=2, root=tmp / "proj2")
     for d in ("csv", "assets", "audio", "logs", "final", "flow"):
         (ws2.root / d).mkdir(parents=True, exist_ok=True)
@@ -228,7 +230,7 @@ class TestStarmapInTheApp(unittest.TestCase):
                   "hybrid_takes_over_from_starmap", "overscaled_takes_over_from_starmap")
 
     def test_the_prompt_and_loading_a_csv(self):
-        self._all("the_copied_prompt_lists_the_mission_pack", "the_csv_is_kept_in_the_project", "its_cards_and_clips_are_visual_plan_rows",
+        self._all("the_copied_prompt_lists_the_datasets", "the_csv_is_kept_in_the_project", "its_cards_and_clips_are_visual_plan_rows",
                   "scene_actions_use_the_starmap_folder", "loading_checks_the_plan_in_the_background", "check_plan_shows_the_report_and_every_beat",
                   "the_button_says_generate", "a_csv_with_a_fault_names_its_row")
 

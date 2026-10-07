@@ -1,0 +1,97 @@
+{
+ "id": "jwst",
+ "name": "James Webb Space Telescope",
+ "names": [
+  "jwst",
+  "webb"
+ ],
+ "kind": "space_telescope",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "basis": "illustrated"
+ },
+ "events": {
+  "launch": {
+   "utc": "2021-12-25T12:20:00Z",
+   "status": "historical"
+  },
+  "l2_arrival": {
+   "utc": "2022-01-24T19:00:00Z",
+   "status": "historical"
+  },
+  "observed_pass": {
+   "utc": "2026-10-08T12:00:00Z",
+   "status": "current"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "jwst_l2",
+   "frame": "earth",
+   "basis": "illustrated",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "2022-01-24T19:00:00Z",
+     "anchor": "earth",
+     "km": [
+      1500000.0,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "2030-01-01T00:00:00Z",
+     "anchor": "earth",
+     "km": [
+      1500000.0,
+      0,
+      2000
+     ]
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "jwst": {
+   "type": "spacecraft",
+   "label": "JAMES WEBB",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#e9c46a"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "jwst_l2"
+  }
+ },
+ "craft_aliases": {
+  "webb": "jwst"
+ }
+}

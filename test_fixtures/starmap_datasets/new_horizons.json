@@ -1,0 +1,135 @@
+{
+ "id": "new_horizons",
+ "name": "New Horizons",
+ "names": [],
+ "kind": "robotic_spacecraft",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "as_of": "2026-06-01"
+ },
+ "events": {
+  "launch": {
+   "utc": "2006-01-19T19:00:00Z",
+   "status": "historical"
+  },
+  "jupiter_flyby": {
+   "utc": "2007-02-28T05:43:00Z",
+   "status": "historical"
+  },
+  "pluto_flyby": {
+   "utc": "2015-07-14T11:49:57Z",
+   "status": "historical"
+  },
+  "arrokoth_flyby": {
+   "utc": "2019-01-01T05:33:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "new_horizons_path",
+   "frame": "sun",
+   "basis": "observed",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "2006-01-19T19:00:00Z",
+     "anchor": "earth",
+     "km": [
+      7000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "2007-02-28T05:43:00Z",
+     "anchor": "jupiter",
+     "km": [
+      2300000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "2015-07-14T11:49:57Z",
+     "anchor": "pluto",
+     "km": [
+      12500,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "2019-01-01T05:33:00Z",
+     "anchor": "sun",
+     "km": [
+      1579077226.0585475,
+      -2220613663.3619695,
+      5893196436.725435
+     ]
+    },
+    {
+     "utc": "2026-06-01T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      2292208876.536601,
+      -3223471446.8157625,
+      8554639988.794988
+     ]
+    }
+   ],
+   "observed_until": "2026-06-01T00:00:00Z",
+   "extrapolate": {
+    "rule": "linear",
+    "max_days": 1825
+   }
+  }
+ ],
+ "craft": {
+  "new_horizons": {
+   "type": "spacecraft",
+   "label": "NEW HORIZONS",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#d7d2c4"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "new_horizons_path"
+  }
+ },
+ "met_zero": "2006-01-19T19:00:00Z",
+ "paths": {
+  "to_pluto": {
+   "of": "new_horizons_path",
+   "from": "launch",
+   "to": "pluto_flyby"
+  }
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "id": "europa_clipper",
+ "name": "Europa Clipper",
+ "names": [],
+ "kind": "orbiter",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "as_of": "2026-06-01",
+  "basis": "modelled",
+  "continuity_days": 3650
+ },
+ "events": {
+  "launch": {
+   "utc": "2024-10-14T16:06:00Z",
+   "status": "historical"
+  },
+  "jupiter_arrival": {
+   "utc": "2030-04-11T00:00:00Z",
+   "status": "planned",
+   "precision": "month",
+   "net": false
+  },
+  "cruise_check": {
+   "utc": "2026-10-08T12:00:00Z",
+   "status": "current"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "europa_clipper_cruise",
+   "frame": "earth",
+   "basis": "modelled",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "jupiter",
+     "from_utc": "2024-10-14T16:06:00Z",
+     "to_utc": "2030-04-11T00:00:00Z",
+     "samples": 120
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "europa_clipper": {
+   "type": "spacecraft",
+   "label": "EUROPA CLIPPER",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#cfd6e2"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "europa_clipper_cruise"
+  }
+ },
+ "met_zero": "2024-10-14T16:06:00Z",
+ "paths": {
+  "cruise": {
+   "of": "europa_clipper_cruise",
+   "from": "launch",
+   "to": "jupiter_arrival"
+  }
+ }
+}

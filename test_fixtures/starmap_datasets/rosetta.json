@@ -1,0 +1,113 @@
+{
+ "id": "rosetta",
+ "name": "Rosetta",
+ "names": [],
+ "kind": "comet_mission",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "basis": "illustrated",
+  "continuity_days": 4000
+ },
+ "events": {
+  "launch": {
+   "utc": "2004-03-02T07:17:00Z",
+   "status": "historical"
+  },
+  "arrival": {
+   "utc": "2014-08-06T00:00:00Z",
+   "status": "historical",
+   "precision": "day"
+  },
+  "philae_landing": {
+   "utc": "2014-11-12T15:34:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "rosetta_cruise",
+   "frame": "earth",
+   "basis": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "comet67p",
+     "from_utc": "2004-03-02T07:17:00Z",
+     "to_utc": "2014-08-06T00:00:00Z",
+     "samples": 120,
+     "arrive_alt_km": 5
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "rosetta": {
+   "type": "spacecraft",
+   "label": "ROSETTA",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#d8d2c2"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "rosetta_cruise"
+  }
+ },
+ "met_zero": "2004-03-02T07:17:00Z",
+ "paths": {
+  "cruise": {
+   "of": "rosetta_cruise",
+   "from": "launch",
+   "to": "arrival"
+  }
+ },
+ "world": [
+  {
+   "id": "comet67p",
+   "parent": "sun",
+   "kind": "body",
+   "label": "67P/CHURYUMOV-GERASIMENKO",
+   "radius": {
+    "km": 2.0
+   },
+   "color": "#8a8378",
+   "min_light": 0.02,
+   "offset": {
+    "orbit": {
+     "au": 3.46
+    },
+    "angle_deg": 95,
+    "incline_deg": 3
+   },
+   "aliases": []
+  }
+ ]
+}

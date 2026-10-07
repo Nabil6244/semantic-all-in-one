@@ -37,12 +37,26 @@ def _ffprobe() -> str:
     raise RuntimeError("ffprobe is not installed or not on PATH.")
 
 
+def _tls_opts(url: str | Path) -> list:
+    """For an https (or redirected http) source: the trusted certificates to check it against. The bundled static ffmpeg
+    has no certificate store of its own, so without this every https download fails with "certificate verify failed"."""
+    if not str(url).lower().startswith(("http://", "https://")):
+        return []
+    try:
+        import certifi
+    except ImportError:
+        return []
+    ca = certifi.where()
+    return ["-ca_file", ca] if ca and Path(ca).is_file() else []
+
+
 def probe_duration(url: str | Path) -> Optional[float]:
     try:
         proc = hidden_subprocess.run(
             [
                 _ffprobe(),
                 "-v", "error",
+                *_tls_opts(url),
                 "-show_entries", "format=duration",
                 "-of", "json",
                 str(url),
@@ -86,6 +100,7 @@ def download_clip(
         "-hide_banner",
         "-loglevel", "error",
         "-ss", f"{start:.3f}",
+        *_tls_opts(url),
         "-i", url,
         "-t", f"{duration:.3f}",
         "-c:v", "libx264",

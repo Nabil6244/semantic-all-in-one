@@ -18,9 +18,12 @@ import link from './link.mjs';
 import rings from './rings.mjs';
 import pointer from './pointer.mjs';
 import galaxy_guide from './galaxy_guide.mjs';
+import status_badge from './status_badge.mjs';
+import footnote from './footnote.mjs';
+import time_jump from './time_jump.mjs';
 
 export const BUILTIN_LAYERS = [body_labels, marker, region, orbit, trajectory, spacecraft, atmosphere, link, rings, pointer, galaxy_guide,
-  title, stat_chip, mission_clock, distance, photo_card, caption, channel_name];
+  title, stat_chip, mission_clock, distance, photo_card, caption, channel_name, status_badge, footnote, time_jump];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

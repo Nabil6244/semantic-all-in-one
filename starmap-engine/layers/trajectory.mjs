@@ -4,7 +4,8 @@
 //     "generate": [ {...}, ... ] | "samples": [ {...}, ... ],
 //     "reveal": "craft" | "full" | { "t0": 10, "t1": 18 },     craft: drawn up to where the craft is now (a trail)
 //     "draw_utc": ["1969-07-16T16:16:00Z", "1969-07-19T17:21:50Z"],   only this stretch of the path is drawn
-//     "style": { "color": "#FBE040", "width": 6, "glow": 10, "future": "dashed" | "faint" | "hidden", "arrow": false } }
+//     "style": { "color": "#FBE040", "width": 6, "glow": 10, "dash": null | [18, 12], "future": "dashed" | "faint" | "hidden",
+//                "arrow": false } }      dash: the drawn part too (a path that is planned, projected or hypothetical)
 //   { "type": "trajectory", "of": "apollo11_csm", "draw_utc": [...], "start": 10, "end": 24 }   another view of the same
 //     path (a different stretch, style or timing) without a second copy of the data
 import { createTrajectory } from '../lib/paths.mjs';
@@ -41,7 +42,7 @@ export default {
     const per = st.points_per_sample ?? 3;
     if (cut > inst.a) {
       const done = project(traj.polyline(inst.a, cut, per));
-      for (const r of runs(done)) f.u.line(r, { color, width: st.width ?? 6, glow: st.glow ?? 10, alpha: f.alpha });
+      for (const r of runs(done)) f.u.line(r, { color, width: st.width ?? 6, glow: st.glow ?? 10, alpha: f.alpha, dash: st.dash || null });
       if (st.arrow) {
         const r = runs(done).pop();
         if (r && r.length > 1) { const [x1, y1] = r[r.length - 1], [x0, y0] = r[Math.max(0, r.length - 4)]; f.g.save(); f.g.globalAlpha = f.alpha; f.u.arrow(x1, y1, x1 - x0, y1 - y0, 20, color); f.g.restore(); }

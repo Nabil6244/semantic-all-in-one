@@ -3579,7 +3579,7 @@ class VideoGeneratorApp(ctk.CTk):
             style = "exp_solar"
         script = self._main_script_text()
         try:
-            text = build_prompt(style, script, **({"pack": self._starmap_pack()} if style == "starmap" else {}))
+            text = build_prompt(style, script)
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
@@ -4635,7 +4635,6 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
         self._starmap_status_var = ctk.StringVar(value="")
         self._starmap_file_var = ctk.StringVar(value="")
-        self._starmap_pack_var = ctk.StringVar(value="(from the CSV)")
         self._starmap_running = False
         self._starmap_busy = False
         self._starmap_cancel = threading.Event()
@@ -4666,17 +4665,9 @@ class VideoGeneratorApp(ctk.CTk):
         ctk.CTkButton(actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1,
                       border_color=_BORDER, text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
                       command=lambda: self._copy_csv_prompt("starmap", self._starmap_status_var)).grid(row=0, column=1, padx=(0, 8))
-        try:
-            from starmap.catalog import available_packs
-
-            packs = ["(from the CSV)", "(none)"] + available_packs()
-        except Exception:
-            packs = ["(from the CSV)", "(none)"]
-        ctk.CTkLabel(actions, text="Mission pack", font=ctk.CTkFont(size=11, weight="bold"), text_color=_MUTED).grid(row=0, column=2, padx=(4, 6))
-        ctk.CTkOptionMenu(actions, variable=self._starmap_pack_var, values=packs, width=150, height=30,
-                          command=lambda _v: self._save_starmap_settings()).grid(row=0, column=3)
-        self._build_csv_prompt_script_box(actions, row=1, columnspan=4)
-        ctk.CTkLabel(controls, text="The prompt lists what the mission pack lets the plan name (its events, sites, spacecraft, paths and orbits).",
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=2)
+        ctk.CTkLabel(controls, text="Missions, spacecraft, planets and their dates are found from the CSV automatically (historical, current, "
+                                    "planned or hypothetical): nothing to select. Check plan lists what it found.",
                      font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
 
         self._path_row(2, "Loaded file", self._starmap_file_var, self._starmap_browse_file, parent=controls,
@@ -4711,10 +4702,24 @@ class VideoGeneratorApp(ctk.CTk):
         box.insert("1.0", text)
         box.configure(state="disabled")
 
-    def _starmap_pack(self) -> "str | None":
-        """The mission pack chosen in the panel; None = the CSV's own plan row decides."""
-        v = self._starmap_pack_var.get().strip() if hasattr(self, "_starmap_pack_var") else ""
-        return None if v in ("", "(from the CSV)") else ("" if v == "(none)" else v)
+    def _starmap_reference_now(self) -> "str | None":
+        """What "now" means for this project's StarMap video: fixed the first time the plan is checked (or generated) and
+        saved with the project, so the same project renders the same sky on any machine, any day after. The plan row's date
+        wins over it."""
+        ws = self._workspace
+        if ws is None:
+            return None
+        saved = ws.starmap_settings().get("reference_now")
+        if saved:
+            return saved
+        from datetime import datetime, timezone
+
+        today = datetime.now(timezone.utc).date().isoformat()
+        try:
+            ws.set_starmap_settings(reference_now=today)
+        except OSError as exc:
+            self._append_log(f"[STARMAP] Could not save the project's reference date: {exc}\n")
+        return today
 
     def _starmap_csv_path(self) -> "Path | None":
         if self._workspace is not None and self._workspace.starmap_csv_path.is_file():
@@ -4770,7 +4775,7 @@ class VideoGeneratorApp(ctk.CTk):
             return
         self._starmap_for_project = self._workspace.project_id
         try:
-            self._workspace.set_starmap_settings(sound_design=bool(self._starmap_sound_var.get()), pack=self._starmap_pack_var.get(), active=active)
+            self._workspace.set_starmap_settings(sound_design=bool(self._starmap_sound_var.get()), active=active)
         except OSError as exc:
             self._append_log(f"[STARMAP] Could not save the StarMap settings: {exc}\n")
 
@@ -4783,7 +4788,6 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_ok = None
         if "sound_design" in saved:
             self._starmap_sound_var.set(bool(saved["sound_design"]))
-        self._starmap_pack_var.set(saved.get("pack") or "(from the CSV)")
         path = ws.starmap_csv_path if ws.starmap_csv_path.is_file() else None
         self._starmap_file_var.set(str(path) if path else "")
         if path is not None and saved.get("active"):
@@ -4918,7 +4922,8 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("StarMap", "Choose the voiceover first: the plan is timed by the narrator's words.")
             return
         ws = self._workspace
-        model, state_dir, pack, status = self.model_var.get().strip() or "base", getattr(ws, "state_dir", None), self._starmap_pack(), self._starmap_scene_status()
+        model, state_dir, status = self.model_var.get().strip() or "base", getattr(ws, "state_dir", None), self._starmap_scene_status()
+        reference_now = self._starmap_reference_now()
         self._starmap_busy = True
         self._starmap_status_var.set("Checking the plan against the narration…")
         self._sync_primary_cta()
@@ -4930,7 +4935,8 @@ class VideoGeneratorApp(ctk.CTk):
                 from starmap.app_integration import check_text
 
                 words = self._pakmap_get_words(voiceover, model, state_dir, log)
-                text, ok = check_text(path.read_text(encoding="utf-8"), words, voiceover_duration(voiceover), pack=pack, scene_status=status)
+                text, ok = check_text(path.read_text(encoding="utf-8"), words, voiceover_duration(voiceover), scene_status=status,
+                                      reference_now=reference_now)
             except Exception as exc:
                 text, ok = f"The plan could not be checked: {exc}", False
             self.after(0, lambda: done(text, ok))
@@ -5027,7 +5033,7 @@ class VideoGeneratorApp(ctk.CTk):
         sound_design = bool(self._starmap_sound_var.get())
         pixel_scale = self._export_pixel_scale()
         title = getattr(ws, "title", "") or ""
-        pack = self._starmap_pack()
+        reference_now = self._starmap_reference_now()
         pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
         plan_rows = list(self._scene_rows) if getattr(self, "_scene_rows_owner", None) == "starmap" else None
         images_dir = ws.starmap_images_dir
@@ -5098,7 +5104,7 @@ class VideoGeneratorApp(ctk.CTk):
                 else:
                     result = generate_starmap_video(
                         csv_path, voiceover_path, output_path, work_dir=ws.starmap_work_dir, whisper_words=words, images_dir=images_dir,
-                        scene_rows=plan_rows, pack=pack, watermark=watermark, title=title, sound_design=sound_design, pixel_scale=pixel_scale,
+                        scene_rows=plan_rows, reference_now=reference_now, watermark=watermark, title=title, sound_design=sound_design, pixel_scale=pixel_scale,
                         progress_cb=progress_cb, log=thread_safe_log, cancel_check=self._starmap_cancel.is_set,
                         media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                              on_manager_ready=_manager_ready),

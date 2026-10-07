@@ -1,30 +1,30 @@
-beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
-plan,plan,,,,apollo11,,,,APOLLO 11,,,,,,,,,,,
-b1,beat,"In July 1969, three",map,,,launch complex 39a,body,launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began
-b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,
-b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,
-b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch
-b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch
-b3,beat,Within twelve minutes Apollo,map,,,earth,body,orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit
-b3,layer,Apollo 11 was circling,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
-b3,layer,circling the Earth,,path,earth_orbit,,,,,,,,,,,,,,,
-b3,layer,circling the Earth,,orbit,parking_orbit,,,,,,,,,,,,,,,
-b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,
-b4,beat,Then the third stage,map,,,earth+moon,system,tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon
-b4,layer,pushed the spacecraft out,,path,translunar_coast,,,,,,,,,,,,,,,
-b4,layer,pushed the spacecraft out,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
-b4,layer,For three days the,,distance,,earth;csm,,,,FROM EARTH,,,,,,,,,,
-b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,
-b5,beat,On the nineteenth of,map_footage,,,moon,body,loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon
-b5,layer,slipped behind the Moon,,craft,csm,,,,COLUMBIA,,,,,,,,,,,
-b5,layer,enter lunar orbit,,orbit,lunar_orbit,,,,,,,,,,,,,,,
-b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,
-b6,beat,The next day Eagle,map,,,tranquility base,surface,pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent
-b6,layer,Eagle separated from Columbia,,craft,lm,,,,EAGLE,,,,,,,b7,,,,
-b6,layer,dropped toward the Sea,,path,descent,,,,,,,,,,,b7,,,,
-b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,
-b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,
-b7,beat,With seconds of fuel,map,,,tranquility base,surface,landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing
-b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,
-b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface
-b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why,extra
+plan,plan,,,,,,,,APOLLO 11,,,,,,,,,,,,
+b1,beat,"In July 1969, three",map,,,launch complex 39a,body,apollo11.launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began,
+b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,,
+b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,,
+b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch,
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch,
+b3,beat,Within twelve minutes Apollo,map,,,earth,body,apollo11.orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit,
+b3,layer,Apollo 11 was circling,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b3,layer,circling the Earth,,path,apollo11.earth_orbit,,,,,,,,,,,,,,,,
+b3,layer,circling the Earth,,orbit,apollo11.parking_orbit,,,,,,,,,,,,,,,,
+b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,,
+b4,beat,Then the third stage,map,,,earth+moon,system,apollo11.tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon,
+b4,layer,pushed the spacecraft out,,path,apollo11.translunar_coast,,,,,,,,,,,,,,,,
+b4,layer,pushed the spacecraft out,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b4,layer,For three days the,,distance,,earth;apollo11.csm,,,,FROM EARTH,,,,,,,,,,,
+b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,,
+b5,beat,On the nineteenth of,map_footage,,,moon,body,apollo11.loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon,
+b5,layer,slipped behind the Moon,,craft,apollo11.csm,,,,COLUMBIA,,,,,,,,,,,,
+b5,layer,enter lunar orbit,,orbit,apollo11.lunar_orbit,,,,,,,,,,,,,,,,
+b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,,
+b6,beat,The next day Eagle,map,,,tranquility base,surface,apollo11.pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent,
+b6,layer,Eagle separated from Columbia,,craft,apollo11.lm,,,,EAGLE,,,,,,,b7,,,,,
+b6,layer,dropped toward the Sea,,path,apollo11.descent,,,,,,,,,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,,
+b7,beat,With seconds of fuel,map,,,tranquility base,surface,apollo11.landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing,
+b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,,
+b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface,
+b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk,

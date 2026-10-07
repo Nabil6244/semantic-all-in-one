@@ -57,20 +57,21 @@ def summary(csv_text: str) -> str:
     beats = [r for r in rows if (r.get("row") or "").lower() == "beat"]
     modes = Counter((r.get("mode") or "?").lower() for r in beats)
     kinds = Counter((r.get("type") or "?").lower() for r in rows if (r.get("row") or "").lower() == "layer")
-    pack = next(((r.get("id") or "").strip() for r in rows if (r.get("row") or "").lower() == "plan"), "")
     lines = [f"{len(beats)} beats: " + ", ".join(f"{n} {m}" for m, n in sorted(modes.items()))]
     if kinds:
         lines.append("layers: " + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())))
     media = visual_dicts_from_csv(csv_text)
-    lines.append(f"{len(media)} picture(s) and clip(s) for the Visual Plan" + (f"; mission pack {pack}" if pack else "; no mission pack"))
+    lines.append(f"{len(media)} picture(s) and clip(s) for the Visual Plan")
+    lines.append("Missions, spacecraft and their dates are found from the CSV when you click Check plan (nothing to select).")
     return "\n".join(lines)
 
 
 def check_text(csv_text: str, words: Sequence = (), duration: Optional[float] = None, *, pack: Optional[str] = None,
-               scene_status: Optional[Dict[str, str]] = None) -> "tuple[str, bool]":
-    """The Check plan view: the summary, every problem by row, the plan beat by beat, and the pictures still to find."""
+               scene_status: Optional[Dict[str, str]] = None, reference_now: Optional[str] = None) -> "tuple[str, bool]":
+    """The Check plan view: the summary, the datasets found, every problem by row, the plan beat by beat, and the pictures
+    still to find. `reference_now` is the project's saved "now" (the plan row's date wins)."""
     try:
-        rep = check_csv(csv_text, words, duration, pack=pack)
+        rep = check_csv(csv_text, words, duration, pack=pack, reference_now=reference_now)
     except Exception as exc:   # never escape into the UI thread
         return f"The plan could not be checked: {exc!r}", False
     lines = [rep.to_text()]
@@ -103,6 +104,41 @@ def plan_lines(plan: Plan, *, scene_status: Optional[Dict[str, str]] = None) -> 
         for n in scene_of.get(b.id, []):
             st = (scene_status or {}).get(n)
             out.append(f"      Visual Plan scene {n}" + (f": {st}" if st else ""))
+    return out
+
+
+BASIS_WORDS = {
+    "observed": "trajectory from observed data (telemetry / ephemeris samples)",
+    "modelled": "trajectory modelled from the published plan and orbits",
+    "illustrated": "flight paths are illustrated from the mission's published times and orbits, not flight data",
+    "illustrative": "illustrative geometry made for the story, not a real trajectory",
+}
+
+
+def dataset_credits(cat: Catalog, res: Any) -> List[str]:
+    """One line per dataset the video draws on: what it is, how certain, how its geometry is known, its source and date."""
+    out = []
+    for did in res.used:
+        ds = cat.index.datasets[did]
+        statuses = sorted({c.status for c in res.contexts.values() if did in c.datasets and c.status}) or [ds.status]
+        bases = sorted({b for c in res.contexts.values() if did in c.datasets for b in c.basis}) or sorted({t.basis for t in ds.trajectories.values()})
+        parts = [f"{ds.name}: " + "/".join(statuses)]
+        parts += [BASIS_WORDS[b] for b in bases]
+        for t in ds.trajectories.values():
+            if t.observed_until:
+                parts.append(f"observed through {t.observed_until[:10]}" + (f"; positions after that are estimated by linear extrapolation"
+                                                                         if t.extrapolate else ""))
+        if ds.source:
+            parts.append(f"source: {ds.source}")
+        if ds.as_of:
+            parts.append(f"as of {ds.as_of[:10]}")
+        if "planned" in statuses:
+            parts.append("a plan, not a completed mission; dates marked NET are no-earlier-than")
+        if "hypothetical" in statuses:
+            parts.append("a hypothetical scenario, not a real mission")
+        out.append("; ".join(parts))
+    if res.reference_now:
+        out.append(f"\"Now\" in this video means {res.reference_now[:10]} (the project's reference date)")
     return out
 
 
@@ -146,13 +182,15 @@ def gather_media(spec: Dict[str, Any], folder: Path) -> Path:
 def generate_starmap_video(
     csv_path: "str | Path", voiceover_path: "str | Path", output_path: "str | Path", *, work_dir: "str | Path",
     whisper_words: Sequence, images_dir: "str | Path", scene_rows: Optional[Sequence[Any]] = None, pack: Optional[str] = None,
+    reference_now: Optional[str] = None,
     watermark: Optional[dict] = None, title: str = "", sound_design: bool = True, pixel_scale: int = 1, fps: int = 30,
     progress_cb: Optional[ProgressCallback] = None, log: Callable[[str], None] = print, cancel_check: Optional[Callable[[], bool]] = None,
     media_callbacks: Optional[dict] = None, render: Optional[Callable[..., Any]] = None, fetch: Optional[Callable[..., Any]] = None,
     sound_catalog: Any = None, **provider_kwargs: Any,
 ):
     """`provider_kwargs` go to the shared media resolver (pexels_api_key, flow_engine_manager, flow_settings, flow_video_account_ids,
-    youtube_clip_duration ...). `render` / `fetch` are injectable for tests."""
+    youtube_clip_duration ...). `render` / `fetch` are injectable for tests. Datasets are found from the CSV (`pack` is only an
+    optional starting context for old callers); `reference_now` is the project's saved "now" (the plan row's date wins)."""
     from pakmap.app_integration import PakmapResult, credits_text, voiceover_duration
 
     csv_path, voiceover_path, output_path = Path(csv_path), Path(voiceover_path), Path(output_path)
@@ -169,7 +207,9 @@ def generate_starmap_video(
     duration = voiceover_duration(voiceover_path)
     try:
         plan = read_plan(csv_path.read_text(encoding="utf-8"), whisper_words, duration)
-        cat = Catalog(pack or plan.pack or None)
+        if pack and not plan.pack:
+            plan.pack = pack
+        cat = Catalog()
     except PlanError as exc:
         return PakmapResult(False, list(exc.problems))
     except CatalogError as exc:
@@ -182,13 +222,31 @@ def generate_starmap_video(
             plan.beats[-1].end = max(plan.beats[-1].start + 0.5, duration)
     for n in plan.notes:
         log(f"[StarMap] {n}")
+    from .resolve import resolve
+
+    res = resolve(plan, cat, reference_now=plan.reference_now or reference_now)
+    if res.errors:
+        return PakmapResult(False, list(res.errors))
+    for line in res.detected(cat):
+        log(f"[StarMap] dataset:{line}")
+    # NASA picture search: each row is matched against its own beat's mission (Apollo 8's photo, not Apollo 11's)
+    from .media import media_rows
+
+    mission_of = {}
+    for m in media_rows(plan):
+        c = res.contexts.get(m.beat)
+        if c is None:                                    # a footage beat: the mission of the map beat before it
+            prev = [b for b in plan.beats[:[x.id for x in plan.beats].index(m.beat)] if b.id in res.contexts]
+            c = res.contexts[prev[-1].id] if prev else None
+        if c is not None and len(c.datasets) == 1:
+            mission_of[m.scene_number] = cat.index.datasets[c.datasets[0]].name
 
     _report(progress_cb, "Getting the pictures and clips (NASA / stock / Flow)…", 0.05)
     try:
         from .media import fetch_media
 
         got = (fetch or fetch_media)(plan, Path(images_dir), scene_rows=scene_rows, log=log, cancel_check=cancel_check,
-                                     stills_dir=work / "stills", mission=cat.pack.get("name", ""), **(media_callbacks or {}), **provider_kwargs)
+                                     stills_dir=work / "stills", mission=mission_of, **(media_callbacks or {}), **provider_kwargs)
     except Exception as exc:
         return PakmapResult(False, [f"could not get the pictures and clips: {exc!r}"])
     if cancelled():
@@ -209,7 +267,7 @@ def generate_starmap_video(
                 media[f"row:{it.row}"] = {"file": str(f)}
     scale = 2 if int(pixel_scale or 1) >= 2 else 1
     try:
-        comp = compile_plan(plan, cat, media=media, width=1920 * scale, height=1080 * scale, fps=fps, watermark=watermark)
+        comp = compile_plan(plan, cat, media=media, width=1920 * scale, height=1080 * scale, fps=fps, watermark=watermark, resolution=res)
     except CompileError as exc:
         return PakmapResult(False, list(exc.problems))
     except Exception as exc:
@@ -219,6 +277,8 @@ def generate_starmap_video(
     spec["layers"] = [L for L in spec["layers"] if not (L["type"] == "photo_card" and not (L.get("image") or L.get("video")))]
     spec["footage"] = [f for f in spec["footage"] if f.get("file") or f.get("image")]
     spec["media_dir"] = str(gather_media(spec, work / "render_media"))
+    # chunks drawn before are reused when nothing that shows in them changed (an edit redraws only the seconds it touches)
+    spec["segment_cache"] = str(work / "render_chunks")
     if title:
         spec.setdefault("starmap", {})["title"] = title
     (work / "starmap_spec.json").write_text(json.dumps(spec, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -287,9 +347,7 @@ def generate_starmap_video(
     if problem:
         return PakmapResult(False, [f"final video failed validation: {problem}"])
 
-    credits = list(got.credits)
-    if cat.pack:
-        credits.append(f"{cat.pack.get('name', cat.pack.get('id'))}: flight paths are illustrated from the mission's published times and orbits, not flight data")
+    credits = list(got.credits) + dataset_credits(cat, res)
     credits.append("Star positions: Yale Bright Star Catalogue (via CDS). Planet positions: astronomy-engine (MIT). Textures: NASA, NASA/JPL-Caltech, Solar System Scope (CC BY 4.0)")
     try:
         output_path.with_name(output_path.stem + " - credits.txt").write_text(credits_text(credits, outcome.warnings), encoding="utf-8")

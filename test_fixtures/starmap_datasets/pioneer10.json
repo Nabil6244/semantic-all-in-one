@@ -1,0 +1,120 @@
+{
+ "id": "pioneer10",
+ "name": "Pioneer 10",
+ "names": [],
+ "kind": "robotic_spacecraft",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "NASA Ames mission records (fixture: approximate)",
+  "date_precision": "day"
+ },
+ "events": {
+  "launch": {
+   "utc": "1972-03-03T01:49:00Z",
+   "status": "historical"
+  },
+  "jupiter_flyby": {
+   "utc": "1973-12-04T02:26:00Z",
+   "status": "historical"
+  },
+  "last_contact": {
+   "utc": "2003-01-23T00:00:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "pioneer10_path",
+   "frame": "sun",
+   "basis": "observed",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "1972-03-03T01:49:00Z",
+     "anchor": "earth",
+     "km": [
+      7000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1973-12-04T02:26:00Z",
+     "anchor": "jupiter",
+     "km": [
+      200000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1993-01-25T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      1329623757.0943725,
+      3252784048.558441,
+      -6535309558.361716
+     ]
+    },
+    {
+     "utc": "2003-01-23T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      2144554446.9264073,
+      5246425884.77168,
+      -10540821868.325348
+     ]
+    }
+   ],
+   "observed_until": "2003-01-23T00:00:00Z"
+  }
+ ],
+ "craft": {
+  "pioneer10": {
+   "type": "spacecraft",
+   "label": "PIONEER 10",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#cbbf9a"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "pioneer10_path"
+  }
+ },
+ "met_zero": "1972-03-03T01:49:00Z",
+ "paths": {
+  "outbound": {
+   "of": "pioneer10_path",
+   "from": "launch",
+   "to": "last_contact"
+  }
+ },
+ "craft_aliases": {
+  "pioneer 10": "pioneer10"
+ }
+}

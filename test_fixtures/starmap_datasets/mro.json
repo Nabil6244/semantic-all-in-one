@@ -1,0 +1,87 @@
+{
+ "id": "mro",
+ "name": "Mars Reconnaissance Orbiter",
+ "names": [],
+ "kind": "orbiter",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "as_of": "2026-06-01",
+  "basis": "modelled"
+ },
+ "events": {
+  "observed_pass": {
+   "utc": "2026-10-08T12:00:00Z",
+   "status": "current"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "mro_orbit",
+   "frame": "mars",
+   "basis": "modelled",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "orbit_arc",
+     "body": "mars",
+     "period_min": 112,
+     "from_utc": "2026-10-08T08:00:00Z",
+     "to_utc": "2026-10-08T16:00:00Z",
+     "samples_per_rev": 48,
+     "plane": {
+      "inclination_deg": 93,
+      "node_deg": 30,
+      "epoch": "2026-10-08T08:00:00Z"
+     },
+     "altitude_km": 300
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "mro": {
+   "type": "spacecraft",
+   "label": "MARS RECONNAISSANCE ORBITER",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#d4d4d4"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "mro_orbit"
+  }
+ },
+ "orbits": {
+  "science_orbit": {
+   "body": "mars",
+   "trajectory": "mro_orbit",
+   "at": "observed_pass"
+  }
+ }
+}

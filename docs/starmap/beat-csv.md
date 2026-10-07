@@ -2,9 +2,10 @@
 
 `composition_styles/starmap_beats_prompt.txt`: give it, filled in, and your script to an AI (for example Claude):
 
-    python3 -m starmap prompt --pack apollo11 --script my_script.txt --out prompt.txt
+    python3 -m starmap prompt --script my_script.txt --out prompt.txt
 
-The filled prompt lists what the mission pack lets the CSV name (events, sites, craft, paths, orbits), and its worked
+The filled prompt lists every dataset in the library and what each lets the CSV name (events, sites, craft, paths, orbits,
+as qualified ids such as `apollo11.lm`), with its status (historical, current, planned, projected, hypothetical). Its worked
 example is the shipped sample (`starmap/samples/apollo11_beats.csv`), so the two never drift apart. The AI writes the
 plan: one row per beat, layer, photo card and clip, timed by the narrator's own words. Nothing is re-cut or guessed:
 a row the plan cannot hold is an error naming its row.
@@ -44,16 +45,37 @@ estimates one to try a script). `--media` maps each asset description to a file 
 Layers leave with their beat unless `until` says `after_footage`, `end`, or a beat id; `hold` only makes them leave
 sooner. Defaults: stat 4.5 s, caption 4 s, card 6 s.
 
-## Mission packs
+## Datasets: found, never selected
 
-`starmap/packs/<id>.json`: the mission's events (UTC), sites, craft (procedural parts), trajectories (illustrated
-generators or real flight samples), named paths (a trajectory between two events) and orbits. The CSV's plan row names
-the pack. Bodies and starter sites are in `starmap/catalog/`.
+Every `*.json` file in `starmap/packs/` is a dataset (`starmap/datasets.py` finds them; there is no list to keep). One CSV may
+use any number of them: Apollo 11 in 1969, Voyager 1 today, Artemis III planned for 2027 and a hypothetical Moon base in 2050
+can share one video. Adding a mission, spacecraft, telescope, rover, asteroid flyby or scenario is adding a file; the renderer
+never changes for it (`test_starmap_universal.py` proves it with a dataset written during the test).
 
-The **Moon Missions** packs, each with a sample script, beat CSV and media map in `starmap/samples/` (pictures in
+A dataset: `id`, `name`, optional `names` (how narration may say it), `kind`, `temporal` (`status`, `as_of`, `source`,
+`date_precision`, `basis`, `continuity_days`), `met_zero`, `events` (a plain UTC date, or `{utc, status, net, precision}`),
+`sites`, `craft`, `craft_aliases`, `paths`, `orbits`, `trajectories` (each with a `basis`, and for live spacecraft
+`observed_until` and an optional `extrapolate: {"rule": "linear", "max_days": N}`), and `world` (extra bodies: an asteroid, a
+comet, moons). The six original mission packs are valid datasets as they are: historical, illustrated geometry.
+
+**Resolving** (`starmap/resolve.py`, deterministic, local only, no network and no AI): a beat's datasets come from its extra
+(`{"mission": "artemis3"}`), qualified ids, names only one dataset has, then the previous beat, and only as a fallback the
+narration. A name several datasets share (`launch`, `csm`, `spacecraft`, `voyager`) is an error unless the context settles it;
+nothing is guessed. Qualified ids are `<dataset>.<name>` everywhere (`apollo11.landing-00:12:40`, `artemis3.T-01:00:00`).
+
+**Time and certainty**: STATUS (historical, current, planned, projected, hypothetical) and BASIS (observed, modelled,
+illustrated, illustrative) are separate. "now"/"today" is the project's reference date: the plan row's `date`, else the date
+Check plan first ran, saved with the project (never the clock of the rendering machine). A position past a dataset's observed
+data is drawn only under its extrapolation rule (labelled ESTIMATED), else Check plan reports it. A CSV may lower a beat's
+certainty (`extra {"status": "hypothetical"}`), never raise it. On screen: PLANNED / PROJECTED / HYPOTHETICAL / ESTIMATED
+badges, dashed coloured paths for uncertain things, a small FLIGHT PATH ILLUSTRATED line under illustrated history, and a
+mission clock per mission (its own T-zero, T- before launch). Between missions or eras time JUMPS (under footage, or behind a
+short time-jump card such as "1969 → 2026"); within one mission it runs on screen. `extra {"continuous": true|false}` overrides.
+
+The **Moon Missions** datasets, each with a sample script, beat CSV and media map in `starmap/samples/` (pictures in
 `starmap-engine/samples/media/`, credited in its `CREDITS.txt`):
 
-| pack | mission | what the trajectory shows |
+| dataset | mission | what the trajectory shows |
 |---|---|---|
 | `apollo8` | Apollo 8 (Dec 1968) | launch, parking orbit, coast, 10 lunar orbits, coast home |
 | `apollo11` | Apollo 11 (Jul 1969) | launch, parking orbit, coast, lunar orbit; Eagle's descent to Tranquility Base |
@@ -63,18 +85,19 @@ The **Moon Missions** packs, each with a sample script, beat CSV and media map i
 | `change4` | Chang'e-4 (Dec 2018-Jan 2019) | launch, coast, lunar orbit; the descent into Von Karman crater on the far side |
 
 Event times come from NASA (SP-4029 *Apollo by the Numbers*, the Artemis I timeline and mission blog), ISRO and published
-mission records; a time a source gives only approximately is marked approximate in the pack's `_about`. Every trajectory is
+mission records; a time a source gives only approximately is marked approximate in the dataset's `_about`. Every trajectory is
 **illustrated** (built from those times, orbit heights and sites), not flight data; real state vectors can replace any of them
-without a renderer change. `python3 -m starmap packs` lists the packs; `test_starmap_packs.py` and
-`starmap-engine/test/packs.test.mjs` check every pack and sample, including any new one.
+without a renderer change. `python3 -m starmap packs` lists the datasets. `test_fixtures/starmap_datasets/` holds about forty
+small ARCHITECTURAL fixtures (Voyager 1/2, Juno, Parker, JWST, ISS, Perseverance, OSIRIS-REx, Artemis III, a Moon base ...):
+approximate test data, not shipped.
 
 ## In the app
 
 **Visual Director > StarMap** (the sixth style card):
 
 1. Choose the voiceover on the Script page.
-2. Pick the **Mission pack** (or leave "(from the CSV)"), type or paste your script, click **Copy the CSV prompt**, paste it into
-   any AI, and save the CSV it writes.
+2. Type or paste your script, click **Copy the CSV prompt**, paste it into any AI, and save the CSV it writes. There is nothing
+   to select: Check plan lists the missions, spacecraft and scenarios it found, with their status and dates.
 3. **Load beat CSV…**: the CSV is kept in the project (`starmap/beats.csv`), its photo cards and clips appear in the Visual Plan
    table, and the plan is checked against the narration (**Check plan** runs it again; **Edit in spreadsheet** opens the file).
 4. In the Visual Plan, Retry, Change source, Skip or use a Local clip for any picture, like every other style. `nasa_image:` rows
@@ -85,9 +108,9 @@ without a renderer change. `python3 -m starmap packs` lists the packs; `test_sta
    search as before. `nasa_video:` rows use the app's NASA video provider.
 5. **Generate**: pictures and clips are found (nothing found twice; Flow asks before spending credits), space is drawn,
    the sound is designed (switch: Sound effects + ambience), the narration is added, and the video goes to `final/` with
-   `… - credits.txt` (NASA image ids, the illustrated-trajectory note, the catalogues).
+   `… - credits.txt` (NASA image ids; each dataset with its status, geometry basis, source and as-of date; the catalogues).
 
-The channel name is the same setting as pakMap's and Hybrid's. The style, sound switch and pack are saved with the project.
+The channel name is the same setting as pakMap's and Hybrid's. The style, the sound switch and the reference date are saved with the project.
 
 | sound | when |
 |---|---|

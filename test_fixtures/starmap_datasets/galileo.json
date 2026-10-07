@@ -1,0 +1,95 @@
+{
+ "id": "galileo",
+ "name": "Galileo",
+ "names": [],
+ "kind": "orbiter",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day"
+ },
+ "events": {
+  "jupiter_orbit_insertion": {
+   "utc": "1995-12-08T01:16:00Z",
+   "status": "historical"
+  },
+  "tour": {
+   "utc": "1997-06-01T00:00:00Z",
+   "status": "historical"
+  },
+  "end": {
+   "utc": "2003-09-21T18:57:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "galileo_orbit",
+   "frame": "jupiter",
+   "basis": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "orbit_arc",
+     "body": "jupiter",
+     "period_min": 86400,
+     "from_utc": "1997-05-01T00:00:00Z",
+     "to_utc": "1997-08-01T00:00:00Z",
+     "samples_per_rev": 48,
+     "plane": {
+      "inclination_deg": 5,
+      "node_deg": 30,
+      "epoch": "1997-05-01T00:00:00Z"
+     },
+     "radius": {
+      "km": 2500000
+     }
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "galileo": {
+   "type": "spacecraft",
+   "label": "GALILEO",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#c9c9c9"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "galileo_orbit"
+  }
+ },
+ "orbits": {
+  "tour_orbit": {
+   "body": "jupiter",
+   "trajectory": "galileo_orbit",
+   "at": "tour"
+  }
+ }
+}

@@ -37,7 +37,8 @@ def main(argv=None) -> int:
         p.add_argument("csv")
         p.add_argument("--words", help="word timestamps JSON (the voiceover's transcript)")
         p.add_argument("--duration", type=float)
-        p.add_argument("--pack", help="mission pack (else the CSV's plan row)")
+        p.add_argument("--pack", help="optional starting context (a dataset id); datasets are found from the CSV")
+        p.add_argument("--now", help="the reference date \"now\" means (YYYY-MM-DD; the plan row's date wins)")
         p.add_argument("--media", help="JSON: asset description -> file (or {file, credit})")
         if name != "check":
             p.add_argument("--out", required=True)
@@ -49,10 +50,10 @@ def main(argv=None) -> int:
     w.add_argument("--out", required=True)
     w.add_argument("--wps", type=float, default=2.5)
     pr = sub.add_parser("prompt")
-    pr.add_argument("--pack")
+    pr.add_argument("--pack", help="a dataset to list in full")
     pr.add_argument("--script")
     pr.add_argument("--out")
-    sub.add_parser("packs")
+    sub.add_parser("packs", help="the datasets in the library (found automatically)")
     a = ap.parse_args(argv)
     if a.cmd == "packs":
         print("\n".join(available_packs()))
@@ -74,13 +75,15 @@ def main(argv=None) -> int:
     text = Path(a.csv).read_text(encoding="utf-8")
     media = json.loads(Path(a.media).read_text(encoding="utf-8")) if a.media else None
     if a.cmd == "check":
-        rep = check_csv(text, _words(a.words), a.duration, pack=a.pack, media=media)
+        rep = check_csv(text, _words(a.words), a.duration, pack=a.pack, media=media, reference_now=a.now)
         print(rep.to_text())
         return 0 if rep.ok else 1
     try:
         plan = read_plan(text, _words(a.words), a.duration)
-        comp = compile_plan(plan, Catalog(a.pack or plan.pack or None), media=media, fps=a.fps,
-                            watermark={"text": a.channel} if a.channel else None)
+        if a.pack and not plan.pack:
+            plan.pack = a.pack
+        comp = compile_plan(plan, Catalog(), media=media, fps=a.fps, watermark={"text": a.channel} if a.channel else None,
+                            reference_now=plan.reference_now or a.now)
     except (PlanError, CompileError) as exc:
         print("\n".join(f"ERROR {p}" for p in exc.problems))
         return 1

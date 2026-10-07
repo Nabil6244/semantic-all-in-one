@@ -1,0 +1,87 @@
+{
+ "id": "lunar_cargo_2031",
+ "name": "Lunar cargo mission 2031",
+ "names": [],
+ "kind": "robotic_spacecraft",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "projected",
+  "source": "agency roadmaps (fixture)",
+  "date_precision": "year",
+  "as_of": "2026-06-01",
+  "basis": "illustrated"
+ },
+ "events": {
+  "launch": {
+   "utc": "2031-03-01T00:00:00Z",
+   "status": "projected",
+   "precision": "year"
+  },
+  "landing": {
+   "utc": "2031-03-06T00:00:00Z",
+   "status": "projected",
+   "precision": "year"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "cargo_2031",
+   "frame": "earth",
+   "basis": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "from_utc": "2031-03-01T00:00:00Z",
+     "to_utc": "2031-03-06T00:00:00Z",
+     "samples": 120
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "cargo_lander": {
+   "type": "spacecraft",
+   "label": "CARGO LANDER",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#cccccc"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "cargo_2031"
+  }
+ },
+ "paths": {
+  "to_the_moon": {
+   "of": "cargo_2031",
+   "from": "launch",
+   "to": "landing"
+  }
+ }
+}

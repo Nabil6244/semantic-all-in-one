@@ -138,8 +138,10 @@ def still_of(video: Path, out: Path) -> Path:
 
 def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[Any]] = None, log: Callable[[str], None] = print,
                 cancel_check: Optional[Callable[[], bool]] = None, stills_dir: Optional[Path] = None, nasa_get=None,
-                fetch_scenes: Optional[Callable[..., Any]] = None, manifest_cls: Any = None, mission: str = "", **provider_kwargs: Any) -> Fetched:
-    """Every row's file (or why not). `scene_rows` is the Visual Plan table as the user left it; without it the rows come from the plan."""
+                fetch_scenes: Optional[Callable[..., Any]] = None, manifest_cls: Any = None, mission: Any = "", **provider_kwargs: Any) -> Fetched:
+    """Every row's file (or why not). `scene_rows` is the Visual Plan table as the user left it; without it the rows come from the plan.
+    `mission` steers NASA picture search towards the story's own mission: one name, or {scene number: name} when the video
+    covers several missions (each row then prefers its own beat's mission)."""
     from providers.base import SceneRow
 
     from . import nasa_images

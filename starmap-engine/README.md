@@ -58,3 +58,18 @@ returns + 0.8 s; a start under footage waits for the map). Transitions are 0.5 s
 `"cut"`); footage after footage dissolves over the previous clip. Beats under 2 s, overlaps, missing files and unknown
 types stop the render; short beats and keys/moves under footage are warnings. Clips are cut to frames just before their
 beat and deleted after it; frames fully under footage skip the 3D render.
+
+## Re-rendering only what changed
+
+With `"segment_cache": "<folder>"` in the spec (the app sets it to the project's `starmap/_work/render_chunks`), the video is
+drawn in 4-second chunks. Each chunk has a fingerprint (lib/segments.mjs) of everything its pixels depend on: per frame the
+date, the camera and the footage showing; the layers on screen in it; the contents of its pictures and clips; the frame
+size, encoder settings, GPU mode and the renderer's own code. Chunks already in the folder are reused and joined without
+re-encoding; only the rest are drawn. The chunks of the previous render are kept too, so undoing an edit costs nothing.
+
+## Labels for time and certainty (generic)
+
+`mission_clock` takes its own `met_zero`, `prefix` and `date_precision` per layer (several missions in one video; T- before
+the T-zero). `status_badge` (a coloured chip under the clock), `footnote` (fine print at the bottom centre) and `time_jump` (the
+map dips dark while the universe date jumps, with a card such as "1969 → 2026") are plain screen layers: the words, colours and
+times come from the spec. A trajectory's `style.dash` dashes its drawn part too. The renderer knows no mission, dataset or status.

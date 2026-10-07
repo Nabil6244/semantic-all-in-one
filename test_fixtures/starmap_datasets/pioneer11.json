@@ -1,0 +1,129 @@
+{
+ "id": "pioneer11",
+ "name": "Pioneer 11",
+ "names": [],
+ "kind": "robotic_spacecraft",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "NASA Ames mission records (fixture: approximate)",
+  "date_precision": "day"
+ },
+ "events": {
+  "launch": {
+   "utc": "1973-04-06T02:11:00Z",
+   "status": "historical"
+  },
+  "jupiter_flyby": {
+   "utc": "1974-12-03T05:21:00Z",
+   "status": "historical"
+  },
+  "last_contact": {
+   "utc": "1995-09-30T00:00:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "pioneer11_path",
+   "frame": "sun",
+   "basis": "observed",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "1973-04-06T02:11:00Z",
+     "anchor": "earth",
+     "km": [
+      7000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1974-12-03T05:21:00Z",
+     "anchor": "jupiter",
+     "km": [
+      200000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1979-09-01T16:31:00Z",
+     "anchor": "saturn",
+     "km": [
+      80000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1985-10-02T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      834587002.5152944,
+      -627129538.9007823,
+      4012431741.684585
+     ]
+    },
+    {
+     "utc": "1995-09-30T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      1346108068.5730555,
+      -1011499256.2915846,
+      6471664099.491266
+     ]
+    }
+   ],
+   "observed_until": "1995-09-30T00:00:00Z"
+  }
+ ],
+ "craft": {
+  "pioneer11": {
+   "type": "spacecraft",
+   "label": "PIONEER 11",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#cbbf9a"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "pioneer11_path"
+  }
+ },
+ "met_zero": "1973-04-06T02:11:00Z",
+ "paths": {
+  "outbound": {
+   "of": "pioneer11_path",
+   "from": "launch",
+   "to": "last_contact"
+  }
+ },
+ "craft_aliases": {
+  "pioneer 11": "pioneer11"
+ }
+}

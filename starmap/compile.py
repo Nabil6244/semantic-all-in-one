@@ -3,12 +3,15 @@
 The CSV speaks in story terms; this turns them into the engine's generic layers:
   * a map beat's place + frame + type -> a camera shot, and a glide to it when the beat starts (moves happen on the map;
     after footage the camera glides from where it was, so the viewer always sees where they are);
-  * a beat's date (an event of the mission pack, an event +/- time, mission time, or an ISO date) -> a universe clock key;
+  * a beat's date (an event of a dataset, an event +/- time, mission time, now, or an ISO date) -> a universe clock key; between
+    two beats time runs on screen or jumps (resolve.py decides; a jump is hidden by footage or by a time-jump card);
   * layer rows -> title / marker / region / trajectory / spacecraft / orbit / stat_chip / caption / distance layers;
   * cards -> photo_card layers; clips -> footage beats (a beat's clips play one after another);
-  * automatic: atmospheres (bodies whose catalog entry has one), body labels, the mission clock (when the plan has dates),
-    the channel name (the app's watermark setting).
-Nothing here knows a mission: Apollo 11 is a pack (starmap/packs/apollo11.json).
+  * automatic: atmospheres (bodies whose catalog entry has one), body labels, a mission clock per mission (T+ / T-, its own
+    T-zero), status badges (PLANNED / PROJECTED / HYPOTHETICAL / ESTIMATED), the FLIGHT PATH ILLUSTRATED footnote, the
+    channel name (the app's watermark setting).
+Every name is resolved in its beat's context (resolve.py): a video may draw on any number of datasets at once. Nothing here
+knows a mission: Apollo 11 is a dataset (starmap/packs/apollo11.json).
 """
 
 from __future__ import annotations
@@ -18,10 +21,12 @@ import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .beat_csv import DEFAULT_HOLD, Beat, Item, Plan
 from .catalog import Catalog, CatalogError, Place, iso_seconds
+from .resolve import BeatContext, Resolution, resolve
+from .temporal import BADGE, CERTAINTY, iso, least_certain, parse_iso
 
 W, H, FOV = 1920, 1080, 40.0
 TAN_HALF = math.tan(math.radians(FOV / 2))
@@ -30,6 +35,10 @@ CARD_VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}     # a card with one
 CARD_XY = {"tr": (W - 63 - CARD_W, 170), "mr": (W - 63 - CARD_W, 520), "ml": (63, 330), "bl": (63, 560)}
 CARD_ORDER = ("tr", "ml", "mr", "bl")
 DEFAULT_DATE = "2025-01-01T00:00:00Z"
+# how uncertain things look: a generic palette by status (the engine only ever sees colours and dashes)
+STATUS_STYLE = {"planned": "#5fd3ff", "projected": "#c79bff", "hypothetical": "#ff9f5a"}
+ESTIMATED_COLOR = "#ffc857"
+JUMP_LEAD_S, JUMP_TAIL_S, JUMP_CUT_S = 0.45, 1.8, 0.02
 UNIVERSE_VIEW_LY = 4.2e10          # the universe frame: far enough out to see the 13.8-billion-light-year ball whole
 KM_PER_LY, KM_PER_AU, C_KM_S = 9.4607e12, 1.496e8, 299792.458
 _SCALE_WORDS = {"thousand": 1e3, "million": 1e6, "billion": 1e9}
@@ -55,6 +64,7 @@ class Compiled:
     spec: Dict[str, Any]
     notes: List[str] = field(default_factory=list)
     needs_media: List[Tuple[int, str]] = field(default_factory=list)      # (row, asset) still to be found
+    resolution: Optional[Any] = None                                       # resolve.Resolution: datasets, beat contexts, jumps
 
 
 class CompileError(ValueError):
@@ -76,9 +86,9 @@ def _approx_km(shot: Dict[str, Any], cat: Catalog, place: Place) -> float:
     return 1e4
 
 
-def shot_for(cat: Catalog, beat: Beat) -> Tuple[Dict[str, Any], Place]:
+def shot_for(cat: Catalog, beat: Beat, ctx: Sequence[str] = ()) -> Tuple[Dict[str, Any], Place]:
     """The camera shot for a map beat: what (place) at what size (frame), lit from the Sun's side."""
-    p = cat.place(beat.place)
+    p = cat.place(beat.place, ctx)
     f = beat.frame
     shot: Dict[str, Any]
     galaxy = lambda b: next((x.get("kind") for x in cat.world if x["id"] == b), "") == "galaxy"  # noqa: E731
@@ -89,8 +99,9 @@ def shot_for(cat: Catalog, beat: Beat) -> Tuple[Dict[str, Any], Place]:
     elif f == "galaxy" or galaxy(p.body):
         g = p.body if galaxy(p.body) else "milkyway"
         shot = {"target": g, "distance": {"ly": round(cat.body_radius_km(g) / 9.4607e12 * 3.1)}, "el_deg": 58}
-    elif f in ("solar", "inner") or (p.body == "sun" and p.kind == "body" and f not in ("body", "close", "surface")):
-        shot = {"target": "sun", "distance": {"au": 45 if f == "solar" else 3.2}, "el_deg": 35 if f == "solar" else 40}
+    elif f in ("solar", "inner", "heliosphere") or (p.body == "sun" and p.kind == "body" and f not in ("body", "close", "surface")):
+        au = {"solar": 45, "heliosphere": 420}.get(f, 3.2)          # heliosphere: out past the planets, where Voyager is now
+        shot = {"target": "sun", "distance": {"au": au}, "el_deg": 35 if f in ("solar", "heliosphere") else 40}
     elif p.kind == "pair":
         shot = {"target": p.ref, "fit": {"system": 1.5, "body": 1.3}.get(f, 1.15), "light": "front", "el_deg": 25}
     elif f == "system":
@@ -136,14 +147,14 @@ def _creep(length: float) -> float:
     return min(1.25, 1.0 + 0.035 * max(0.0, length))
 
 
-def build_camera(cat: Catalog, plan: Plan, notes: List[str]) -> Dict[str, Any]:
+def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resolution] = None) -> Dict[str, Any]:
     start: Optional[Dict[str, Any]] = None
     moves: List[Dict[str, Any]] = []
     prev_key, prev_km, cur = None, None, None
     for b in plan.beats:
         if b.mode == "footage":
             continue
-        shot, place = shot_for(cat, b)
+        shot, place = shot_for(cat, b, res.ctx(b.id) if res else ())
         km = _approx_km(shot, cat, place)
         key = (b.place.lower(), b.frame, b.move, tuple(sorted(b.extra.items())))
         length = b.end - b.start
@@ -184,10 +195,11 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str]) -> Dict[str, Any]:
 
 
 # ---- clock ------------------------------------------------------------------------------------------------------------
-def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str]) -> Dict[str, Any]:
-    """Dates -> universe clock keys. Between two dated map beats that follow each other (no footage between), time runs
-    smoothly from one date to the next: the craft flies its path on screen. When footage comes between them, the earlier
-    date runs in real time until the footage and the jump to the later date happens out of sight, under the footage."""
+def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str], res: Resolution) -> Dict[str, Any]:
+    """Resolved beat dates -> universe clock keys. Between two dated map beats time either runs on screen (continuous: the
+    spacecraft flies its path between them) or JUMPS: the earlier date runs in real time and the later one arrives in a
+    single frame -- under the footage when footage comes between them, else at the next beat's start, hidden by a
+    time-jump card (see the time_jump layers). Never a decade of planets spinning by on screen."""
     beats = plan.beats
     keys: List[Dict[str, Any]] = []
 
@@ -198,24 +210,21 @@ def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str])
             keys.append({"t": round(t, 3), "utc": utc})
 
     def shifted(utc: str, seconds: float) -> str:
-        from .catalog import _iso, _parse_iso
         from datetime import timedelta
 
-        return _iso(_parse_iso(utc) + timedelta(seconds=seconds))
+        return iso(parse_iso(utc) + timedelta(seconds=seconds))
 
-    dated: List[Tuple[int, str]] = []
-    for i, b in enumerate(beats):
-        if not b.date:
-            continue
-        if b.mode == "footage":
+    for b in beats:
+        if b.mode == "footage" and b.date:
             notes.append(f"row {b.row}: a footage beat's date is ignored (the map is hidden); give it to the next map beat")
-            continue
-        try:
-            dated.append((i, cat.date(b.date)))
-        except CatalogError as exc:
-            problems.append(f"row {b.row}: {exc}")
+    dated = [(beats.index(b), res.contexts[b.id].utc) for b in beats if b.mode != "footage" and res.contexts.get(b.id) and res.contexts[b.id].utc]
+    jumps = {t.b: t for t in res.transitions if t.kind == "jump" and not t.hidden_by_footage}
     for k, (i, utc) in enumerate(dated):
         b = beats[i]
+        tr = jumps.get(b.id)
+        if tr is not None and keys:
+            a = beats[dated[k - 1][0]]
+            add(b.start - JUMP_CUT_S, shifted(dated[k - 1][1], b.start - JUMP_CUT_S - a.start))   # the old date holds to the cut
         add(b.start, utc)
         nxt = dated[k + 1][0] if k + 1 < len(dated) else len(beats)
         cut = next((j for j in range(i + 1, nxt) if beats[j].mode == "footage"), None)
@@ -223,17 +232,18 @@ def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str])
             add(beats[cut].start, shifted(utc, beats[cut].start - b.start))   # hold (real time) until the footage
         if b.extra.get("date_end"):
             try:
-                add(b.end, cat.date(str(b.extra["date_end"])))
+                add(b.end, cat.date(str(b.extra["date_end"]), res.ctx(b.id), res.reference_now))
             except CatalogError as exc:
                 problems.append(f"row {b.row}: date_end: {exc}")
     keys.sort(key=lambda x: x["t"])
     for a, b2 in zip(keys, keys[1:]):
         if iso_seconds(a["utc"], b2["utc"]) < 0:
             notes.append(f"the universe clock runs backwards between {a['t']:.1f}s and {b2['t']:.1f}s ({a['utc']} -> {b2['utc']}): a flashback?")
-    clock: Dict[str, Any] = {"keys": keys} if keys else {"utc": (cat.date(next(iter(cat.events))) if cat.events else DEFAULT_DATE)}
-    if cat.pack.get("met_zero"):
-        clock["met_zero"] = cat.pack["met_zero"]
-    return clock
+    if keys:
+        return {"keys": keys}
+    if cat.default and cat.events:
+        return {"utc": cat.date(next(iter(cat.events)))}
+    return {"utc": res.reference_now or DEFAULT_DATE}
 
 
 # ---- layers -----------------------------------------------------------------------------------------------------------
@@ -249,7 +259,8 @@ def stat_parts(fmt: str) -> Tuple[int, str, str]:
 
 
 def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = None, resolve_media: bool = True,
-                 width: int = W, height: int = H, fps: int = 30, watermark: Optional[Dict[str, Any]] = None) -> Compiled:
+                 width: int = W, height: int = H, fps: int = 30, watermark: Optional[Dict[str, Any]] = None,
+                 reference_now: Optional[str] = None, resolution: Optional[Resolution] = None) -> Compiled:
     """Plan -> spec. media maps "row:<csv row>" or an asset string to a file (or {"file", "credit"}); "file:<name>" assets name a file in the
     spec's media folder directly. resolve_media=False (Check plan) lists what is still to be found instead of failing."""
     media = media or {}
@@ -297,14 +308,43 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
             end = min(end, it.t + hold)
         return round(max(end, it.t + 0.5), 3)
 
-    # the beats' own places and dates first, so one report lists every problem
+    # which datasets and which moment every beat is about (deterministic: the CSV, the local library, the reference date)
+    res = resolution if resolution is not None else resolve(plan, cat, reference_now=reference_now)
+    problems += res.errors
+    notes += res.notes
+    cat.used = set(res.used)
+    # the beats' own places first, so one report lists every problem
     for b in beats:
         if b.mode != "footage":
             try:
-                shot_for(cat, b)
+                p = shot_for(cat, b, res.ctx(b.id))[1]
+                if p.dataset:
+                    cat.used.add(p.dataset)
             except CatalogError as exc:
                 problems.append(f"row {b.row}: {exc}")
-    clock = build_clock(cat, plan, problems, notes)
+    clock = build_clock(cat, plan, problems, notes, res)
+    ctx_of = {b.id: res.ctx(b.id) for b in beats}
+    tctx = {b.id: res.contexts.get(b.id) for b in beats}
+
+    def entity_status(qid: str, tid: Optional[str], bc: Optional[BeatContext]) -> Optional[str]:
+        """How certain one drawn thing is: its dataset's and its trajectory's own status (only the uncertain ones count), made
+        less certain if the CSV lowered the whole beat."""
+        did = qid.split(".", 1)[0]
+        ds = cat.index.datasets[did]
+        st = [ds.status] if CERTAINTY[ds.status] > 0 else []
+        t = cat.index.trajectories.get(tid) if tid else None
+        if t is not None and CERTAINTY[t.status] > 0:
+            st.append(t.status)
+        if bc is not None and bc.lowered_by_csv:
+            st.append(bc.status)
+        return least_certain(st)
+
+    def styled(style: Optional[Dict[str, Any]], status: Optional[str]) -> Dict[str, Any]:
+        st = dict(style or {})
+        if status in STATUS_STYLE:
+            col = STATUS_STYLE[status]
+            st.update(color=col, future_color=col, dash=[18, 12], future="dashed", glow=0)
+        return st
 
     layers: List[Dict[str, Any]] = []
     used_trajectories: set = set()
@@ -328,14 +368,14 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     L = {"type": "title", "text": it.label.upper(), **({"subtitle": it.sub.upper()} if it.sub else {}), **timing}
                     title_layers.append(L)
                 elif ty == "marker":
-                    p = cat.place(it.place or b.place)
+                    p = cat.place(it.place or b.place, ctx_of[b.id])
                     if p.kind != "site":
                         raise CatalogError(f"a marker needs a surface site (a named site or body@lon,lat), not {p.kind} {it.place!r}")
                     L = {"type": "marker", "body": p.body, "lon": p.lon, "lat": p.lat, "label": (it.label or p.label).upper(), **timing}
                     if it.sub:
                         L["description"] = it.sub.upper()
                 elif ty == "zone":
-                    p = cat.place(it.place or b.place)
+                    p = cat.place(it.place or b.place, ctx_of[b.id])
                     if p.kind != "site":
                         raise CatalogError("a zone needs a surface site to draw around")
                     L = {"type": "region", "body": p.body, "geometry": {"circle": {"lon": p.lon, "lat": p.lat, "radius_km": it.value_to or 25}},
@@ -343,25 +383,41 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     if it.label:
                         L["label"] = it.label.upper()
                 elif ty == "path":
-                    path = cat.path(it.id)
+                    qid, path = cat.lookup("path", it.id, ctx_of[b.id])
+                    did = qid.split(".", 1)[0]
                     used_trajectories.add(path["of"])
-                    L = {"type": "trajectory", "of": path["of"], "draw_utc": [cat.date(path["from"]), cat.date(path["to"])], **timing}
-                    if path.get("style"):
-                        L["style"] = path["style"]
+                    status = entity_status(qid, path["of"], tctx[b.id])
+                    L = {"type": "trajectory", "of": path["of"], "draw_utc": [cat.date(path["from"], [did]), cat.date(path["to"], [did])], **timing,
+                         "_status": status, "_basis": cat.index.trajectories[path["of"]].basis}
+                    if path.get("style") or status in STATUS_STYLE:
+                        L["style"] = styled(path.get("style"), status)
                 elif ty == "craft":
-                    cid = cat.craft_id(it.id)
-                    base = copy.deepcopy(cat.craft[cid])
+                    cid = cat.craft_id(it.id, ctx_of[b.id])
+                    base = copy.deepcopy(cat.craft(cid))
                     used_trajectories.add(base.get("trajectory"))
                     n = len(craft_windows.setdefault(cid, []))
                     lid = cid if n == 0 else f"{cid}~{n + 1}"
                     craft_windows[cid].append((start, end, lid))
-                    L = {**base, "type": "spacecraft", "id": lid, **timing}
+                    status = entity_status(cid, base.get("trajectory"), tctx[b.id])
+                    L = {**base, "type": "spacecraft", "id": lid, **timing, "_status": status,
+                         "_basis": cat.index.trajectories[base["trajectory"]].basis if base.get("trajectory") else None}
                     if it.label:
                         L["label"] = it.label.upper()
+                    bc = tctx[b.id]
+                    estimated = bc is not None and bc.estimated_from and cat.index.trajectories.get(base.get("trajectory") or "") is not None \
+                        and cat.index.trajectories[base["trajectory"]].observed_until
+                    if L.get("label") and (status in BADGE or estimated):
+                        L["label"] = f"{L['label']} · {BADGE[status] if status in BADGE else 'ESTIMATED'}"
+                        L["label_bg"] = STATUS_STYLE.get(status, ESTIMATED_COLOR)
                 elif ty == "orbit":
-                    o = cat.orbit(it.id)
+                    qid, o = cat.lookup("orbit", it.id, ctx_of[b.id])
+                    did = qid.split(".", 1)[0]
                     used_trajectories.add(o["trajectory"])
-                    L = {"type": "orbit", **{k: v for k, v in o.items() if k != "at"}, "at_utc": cat.date(o["at"]), **timing}
+                    status = entity_status(qid, o["trajectory"], tctx[b.id])
+                    L = {"type": "orbit", **{k: v for k, v in o.items() if k != "at"}, "at_utc": cat.date(o["at"], [did]), **timing,
+                         "_status": status, "_basis": cat.index.trajectories[o["trajectory"]].basis}
+                    if status in STATUS_STYLE:
+                        L["style"] = {**(o.get("style") or {}), "color": STATUS_STYLE[status], "dash": [14, 10]}
                 elif ty == "stat":
                     if it.value_to is None:
                         raise CatalogError("a stat needs value_to (the number the narrator says)")
@@ -389,7 +445,7 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                         L["label"] = (it.label or it.text).upper()
                     distances.append((it, L))
                 elif ty == "rings":
-                    p = cat.place(it.place or b.place)
+                    p = cat.place(it.place or b.place, ctx_of[b.id])
                     parts = [x.strip() for x in (it.text or "").split(";") if x.strip()]
                     if not parts:
                         raise CatalogError("rings need text: the rings' sizes separated by ; (e.g. 1 light-hour; 1 light-day; 1 light-year)")
@@ -399,7 +455,7 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                         rings.append({"radius": ring_radius(size), "label": (label or size).strip().upper()})
                     L = {"type": "rings", "around": p.body, "rings": rings, **timing}
                 elif ty == "pointer":
-                    p = cat.place(it.place or b.place)
+                    p = cat.place(it.place or b.place, ctx_of[b.id])
                     L = {"type": "pointer", "at": p.ref, "label": (it.label or "YOU ARE HERE").upper(), **timing}
                     if it.sub:
                         L["sub"] = it.sub.upper()
@@ -429,13 +485,14 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     lines: List[Dict[str, Any]] = []
     for it, L in distances:
         refs = []
+        bid = next((b.id for b in beats if it in b.layers), "")
         for name in [x.strip() for x in it.place.split(";") if x.strip()]:
             try:
-                p = cat.place(name)
+                p = cat.place(name, ctx_of.get(bid, ()))
                 refs.append(p.ref)
             except CatalogError:
                 try:
-                    cid = cat.craft_id(name)
+                    cid = cat.craft_id(name, ctx_of.get(bid, ()))
                 except CatalogError as exc:
                     problems.append(f"row {it.row}: distance: {name!r} is neither a place nor a craft ({exc})")
                     continue
@@ -500,26 +557,144 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     for body, atm in cat.bodies.get("atmosphere", {}).items():
         if body in used_bodies:
             auto.append({"type": "atmosphere", "body": body, **atm})
-    trajectories = [dict(cat.trajectories[t], draw=False) for t in sorted(x for x in used_trajectories if x)]
+    last_utc = max((parse_iso(c.utc) for c in res.contexts.values() if c and c.utc), default=None)
+    trajectories = [_with_extrapolation(dict(cat.trajectories[t], draw=False), cat, last_utc) for t in sorted(x for x in used_trajectories if x)]
     tail = [{"type": "body_labels"}]
     if any(x.get("kind") == "galaxy" and x.get("features") for x in cat.world):
         tail.insert(0, {"type": "galaxy_guide"})               # a galaxy seen from outside: you are here, its centre, its arms
     if clock.get("keys"):
-        tail.append({"type": "mission_clock", "show": "met+utc" if clock.get("met_zero") else "utc"})
+        tail += _mission_clocks(plan, res)
+    tail += _badges(plan, res) + _footnotes(layers) + _time_jumps(plan, res)
+    for d in sorted(cat.used):
+        if d not in res.used:
+            res.used.append(d)
+    res.used.sort()
     spec: Dict[str, Any] = {
         "width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3),
-        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes),
+        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes, res),
         "layers": auto + trajectories + layers + tail, "footage": footage,
-        "starmap": {"pack": cat.pack.get("id", ""), "title": plan.title},
+        "starmap": {"pack": cat.default or "", "datasets": list(res.used), "title": plan.title, "reference_now": res.reference_now,
+                    "beats": {bid: {"status": c.status, "basis": c.basis, "utc": c.utc, "timeline": c.timeline, "badge": c.badge,
+                                    "datasets": c.datasets} for bid, c in res.contexts.items()}},
     }
     if watermark and watermark.get("text"):
         spec["watermark"] = watermark
-    return Compiled(spec=spec, notes=notes, needs_media=needs)
+    return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res)
+
+
+# ---- automatic temporal layers ------------------------------------------------------------------------------------------
+def _runs(plan: Plan, res: Resolution, key: Callable[[BeatContext], Any]) -> List[Tuple[Any, float, float]]:
+    """Consecutive beats with the same key -> (key, start, end); footage beats carry the run on (the map is hidden there)."""
+    out: List[List[Any]] = []
+    for b in plan.beats:
+        c = res.contexts.get(b.id)
+        if c is None:
+            if out:
+                out[-1][2] = b.end
+            continue
+        k = key(c)
+        if out and out[-1][0] == k:
+            out[-1][2] = b.end
+        else:
+            out.append([k, b.start, b.end])
+    return [(k, s, e) for k, s, e in out]
+
+
+def _edge(start: float, end: float, plan: Plan) -> Dict[str, Any]:
+    return {"start": round(start, 3), "end": round(end, 3), "fade_in": 0 if start <= 1e-6 else 0.3, "fade_out": 0 if end >= plan.duration - 1e-6 else 0.3}
+
+
+def _mission_clocks(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
+    """One mission clock per stretch of one mission (its own T-zero: T+ after, T- before) or of one date precision."""
+    out = []
+    for (met, prefix, prec), a, b in _runs(plan, res, lambda c: (c.met_zero, c.clock_prefix, c.precision if c.precision in ("day", "month", "year") else "minute")):
+        L = {"type": "mission_clock", "show": "met+utc" if met else "utc", **_edge(a, b, plan)}
+        if met:
+            L["met_zero"] = met
+        if prefix:
+            L["prefix"] = prefix
+        if prec != "minute":
+            L["date_precision"] = prec
+        out.append(L)
+    return out
+
+
+def _badges(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
+    out = []
+    for text, a, b in _runs(plan, res, lambda c: c.badge):
+        if not text:
+            continue
+        word = text.split(" · ")[0]
+        bg = {"PLANNED": STATUS_STYLE["planned"], "PROJECTED": STATUS_STYLE["projected"], "HYPOTHETICAL": STATUS_STYLE["hypothetical"]}.get(word, ESTIMATED_COLOR)
+        out.append({"type": "status_badge", "text": text, "bg": bg, "fg": "#06121d", **_edge(a, b, plan)})
+    return out
+
+
+def _footnotes(layers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """FLIGHT PATH ILLUSTRATED (small, bottom centre) while a drawn path or craft's geometry is illustrated or modelled and
+    the thing itself is not already labelled PLANNED / PROJECTED / HYPOTHETICAL."""
+    spans: Dict[str, List[List[float]]] = {}
+    for L in layers:
+        if L.get("_basis") in ("illustrated", "modelled") and L.get("_status") not in BADGE and L["type"] in ("trajectory", "spacecraft", "orbit"):
+            spans.setdefault(L["_basis"], []).append([L["start"], L["end"]])
+    out = []
+    for basis, ws in sorted(spans.items()):
+        ws.sort()
+        merged = [ws[0]]
+        for a, b in ws[1:]:
+            if a <= merged[-1][1] + 0.5:
+                merged[-1][1] = max(merged[-1][1], b)
+            else:
+                merged.append([a, b])
+        for a, b in merged:
+            out.append({"type": "footnote", "text": f"FLIGHT PATH {basis.upper()}", "start": round(a, 3), "end": round(b, 3)})
+    return out
+
+
+def _time_jumps(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
+    """A jump in time with no footage to hide it: the map dips dark for a moment and a card says where time went."""
+    out = []
+    start_of = {b.id: b.start for b in plan.beats}
+    for t in res.transitions:
+        if t.kind == "jump" and not t.hidden_by_footage:
+            at = start_of[t.b]
+            out.append({"type": "time_jump", "at": round(at, 3), "text": t.label, "start": round(max(0.0, at - JUMP_LEAD_S), 3),
+                        "end": round(min(plan.duration, at + JUMP_TAIL_S), 3), "fade_in": 0, "fade_out": 0, "z": 90})
+    return out
+
+
+def _with_extrapolation(t: Dict[str, Any], cat: Catalog, until) -> Dict[str, Any]:
+    """An observed trajectory whose dataset allows linear extrapolation, carried on past its last sample far enough for the
+    latest date the video shows (the beats that need it are labelled ESTIMATED; a date past the dataset's limit never gets here:
+    resolve.py reports it)."""
+    tr = cat.index.trajectories.get(t.get("id", ""))
+    if tr is None or not tr.extrapolate or until is None or not t.get("samples") or len(t["samples"]) < 2:
+        return t
+    a, b = t["samples"][-2], t["samples"][-1]
+    if a.get("anchor") != b.get("anchor") or not (a.get("km") and b.get("km")):
+        return t
+    ta, tb = parse_iso(a["utc"]), parse_iso(b["utc"])
+    if until <= tb:
+        return t
+    from datetime import timedelta
+
+    step = (tb - ta).total_seconds()
+    v = [(b["km"][i] - a["km"][i]) / step for i in range(3)]
+    end = until + timedelta(days=30)
+    out = dict(t, samples=list(t["samples"]))
+    when, k = tb, 1
+    while when < end:
+        when = min(end, tb + timedelta(seconds=step * k))
+        dt = (when - tb).total_seconds()
+        out["samples"].append({"utc": iso(when), "anchor": b["anchor"], "km": [b["km"][i] + v[i] * dt for i in range(3)], "estimated": True})
+        k += 1
+    return out
 
 
 def strip_private(spec: Dict[str, Any]) -> Dict[str, Any]:
     """The spec as the engine reads it (the _row bookkeeping removed)."""
     out = copy.deepcopy(spec)
     for L in out.get("layers", []):
-        L.pop("_row", None)
+        for k in [k for k in L if k.startswith("_")]:
+            L.pop(k)
     return out

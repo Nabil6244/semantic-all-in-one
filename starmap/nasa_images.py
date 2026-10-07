@@ -184,7 +184,7 @@ def fetch(query: str, target: Path, *, min_score: float = 0.4, min_width: int = 
 
 
 def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, manifest_cls=None, log: Callable[[str], None] = print,
-             get: Optional[Callable] = None, cancel_check: Optional[Callable[[], bool]] = None, context: str = "",
+             get: Optional[Callable] = None, cancel_check: Optional[Callable[[], bool]] = None, context: "str | Dict[str, str]" = "",
              unanswered: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """For each Visual Plan row that is still StarMap's own nasa_image row (scene number -> its description, unchanged by the
     user) and has no finished file yet, try NASA first. Returns {scene number: credit} for the ones found. A row NASA's
@@ -206,7 +206,7 @@ def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, man
         if rec.get("status") == "complete":
             continue
         try:
-            img = fetch(want, images_dir / f"{int(n):03d}", get=get, log=log, context=context)
+            img = fetch(want, images_dir / f"{int(n):03d}", get=get, log=log, context=context.get(n, "") if isinstance(context, dict) else context)
         except Exception as exc:
             if unanswered is not None:
                 unanswered[n] = str(exc)

@@ -5,7 +5,9 @@ place to place, from a launch pad to a lunar landing site to the whole galaxy) a
 full-screen FOOTAGE (real NASA video and photographs). On the map the app draws titles,
 markers on surfaces, landing zones, spacecraft, their flight paths and orbits, number chips,
 distances, captions and photo cards. The map explains WHERE, WHEN and HOW FAR. Footage
-shows WHAT IT WAS LIKE.
+shows WHAT IT WAS LIKE. A video may tell history (Apollo 11 in 1969), today's news (where a
+spacecraft is now), planned missions, projections or clearly hypothetical futures -- and mix
+them: the app labels each one honestly.
 
 You cut the narration into BEATS. A beat is one stretch of the story, told one way:
   map          the map of space, with its layers
@@ -20,11 +22,13 @@ Output ONLY the CSV, starting with the header row. No explanations, no code fenc
 blank lines. Quote any cell that contains a comma.
 
 HEADER (exactly this, in this order)
-beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why,extra
 
 ROWS
-The FIRST row after the header is the plan row: beat=plan, row=plan, id = the mission pack
-(given at the end of this prompt; leave empty if there is none), label = the video's title.
+The FIRST row after the header is the plan row: beat=plan, row=plan, label = the video's title,
+id empty, date = the day the video calls "now" (YYYY-MM-DD): give it when the script talks
+about today, the present position of a spacecraft, or "this year"; leave it empty for pure
+history. The app finds every mission and spacecraft from your rows by itself.
 Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and what it is
 (row = beat, layer, card or clip). Write the beat row first, then that beat's rows.
 
@@ -35,9 +39,9 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
     mode       map, map_footage or footage
     place      (map beats) what the camera looks at: a body (earth, moon, sun, mars, jupiter,
                saturn, pluto, alpha centauri, sirius, barnard's star, wolf 359, milky way,
-               andromeda, large magellanic cloud, triangulum), a pair (earth+moon,
-               sun+alpha centauri, milky way+andromeda), or a SITE from the mission pack or the
-               sites list below
+               andromeda, large magellanic cloud, triangulum, or a body a dataset adds), a pair
+               (earth+moon, sun+alpha centauri, milky way+andromeda), or a SITE from the
+               datasets (qualified, e.g. apollo13.fra mauro) or the shared sites list below
     frame      (map beats) how much we see:
                  surface  low over a site, its craters and the horizon (place = a site)
                  close    a large part of the body, or a site from high up
@@ -45,18 +49,25 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
                  system   a body with its moon, e.g. place=earth+moon or moon
                  inner    the inner planets around the Sun
                  solar    the whole solar system
+                 heliosphere far out past the planets, where Voyager is now
                  galaxy   the Milky Way from outside (its centre, arms and "you are here"
                           are labelled by themselves); with milky way+andromeda, both
                  universe the whole observable universe, galaxies by the thousand
     type       (map beats, optional) push_in (slow zoom in), pull_out, orbit (the camera
                circles), hold
-    date       (map beats) the moment in time the beat shows: an EVENT of the mission pack
-               (launch, landing ...), an event plus or minus time (landing-00:12:40,
-               tli+02:00), mission time (T+102:45:40), or a date like 1969-07-20T20:17:40Z.
-               The universe moves to it: when two beats have dates, time runs smoothly from one
-               to the next, so the spacecraft flies along its path between them. Give a date
-               whenever the story's moment changes; leave it empty to keep time running.
+    date       (map beats) the moment in time the beat shows: an EVENT of a dataset, written
+               qualified (apollo11.landing, artemis1.launch), an event plus or minus time
+               (apollo11.landing-00:12:40), mission time (apollo11.T+102:45:40, or T- before
+               launch), now (the plan row's date), or an ISO date like 1969-07-20T20:17:40Z.
+               The universe moves to it. Within one mission, time runs on screen from one
+               beat's date to the next, so the spacecraft flies its path; between missions or
+               eras the app jumps in time and shows the jump. Give a date whenever the
+               story's moment changes; leave it empty to keep time running.
     why        one short phrase: what this beat does ("where they launched", "the long coast")
+    extra      usually empty. A JSON object (in quotes) only when needed:
+               {"status": "hypothetical"} or {"status": "projected"} for a speculative beat
+               that no dataset describes; {"continuous": false} to force a jump in time;
+               {"mission": "artemis1"} to say which mission a beat is about
   A beat ends where the next beat starts. The first beat starts the video.
 
 - row=layer: something drawn on the map (map and map_footage beats only).
@@ -133,15 +144,15 @@ LAYERS
   moon@23.47,0.67), label = its name in capitals (optional: the site's own name is used),
   sub = a short second line.
 - zone: place = a SITE; value_to = the radius in km (default 25); label (e.g. LANDING ZONE).
-- craft: id = a CRAFT of the mission pack; label = the name to show (optional).
-- path: id = a PATH of the mission pack (a stretch of a flight, drawn as the craft flies it;
-  give the craft too).
-- orbit: id = an ORBIT of the mission pack (the ring the craft circles on).
+- craft: id = a CRAFT of a dataset, qualified (apollo11.lm); label = the name to show.
+- path: id = a PATH of a dataset, qualified (apollo11.descent): a stretch of a flight, drawn
+  as the craft flies it; give the craft too.
+- orbit: id = an ORBIT of a dataset, qualified (apollo11.lunar_orbit).
 - stat: value_to (the number stated in the script), value_from (optional), format with ONE
   number placeholder written with 0 or # and the unit after it ("#,##0 KM", "0.0 KM/S").
   NEVER type the number itself in the format. sub = the small caption. anchor: bl, br, tl.
 - caption: text, at most 44 characters.
-- distance: place = two things separated by ; (a body, a site or a craft, e.g. earth;csm),
+- distance: place = two things separated by ; (a body, a site or a craft, e.g. earth;apollo11.csm),
   sub = what it measures (FROM EARTH). It counts live as the craft moves, and a dashed line
   joins the two.
 - line: SHOWS a distance on the map. place = two things separated by ; (moon;earth), or one
@@ -162,13 +173,30 @@ PICTURES AND CLIPS (asset)
   lifting off from the launch pad", not "rocket"). Prefer nasa_ for real missions, and name the
   mission in the description ("Apollo 11 astronaut beside the flag on the Moon") so the picture is
   from the right one.
+- nasa_video only for real mission footage NASA filmed (a launch, a spacewalk, a landing, mission
+  control). For galaxies, nebulae, star fields or flights through space use stock_video: (or a
+  map beat: the map already shows them). NASA's video library has no such clips and returns
+  unrelated ones.
 - Do not repeat the same description or idea twice.
+
+TIME AND CERTAINTY
+- Each dataset below says whether it is historical, current, planned, projected or
+  hypothetical; the app labels planned, projected, hypothetical and estimated things on screen
+  and marks illustrated flight paths. You do not write those labels.
+- A speculative idea with no dataset (a city on Mars, a base in 2050): show the place and a
+  date, and give the beat extra {"status": "hypothetical"} (or "projected" for a forecast).
+- Never make anything sound more certain than its data: a planned mission is not history.
+
+QUALIFIED IDS
+- Write events, craft, paths, orbits and dataset sites qualified: dataset id, a dot, the name
+  (apollo11.lm, artemis1.launch, apollo13.fra mauro). Several datasets share names such as
+  launch, tli, csm or spacecraft; a bare shared name is an error, never a guess.
 
 ACCURACY
 - Show only what the narrator says. Never add facts, numbers, places or dates that are not
-  in the script or in the mission pack below.
-- Use only the events, sites, craft, paths and orbits listed below (or the bodies named in
-  this prompt). Anything else cannot be drawn.
+  in the script or in the datasets below.
+- Use only the datasets, events, sites, craft, paths and orbits listed below (or the bodies
+  named in this prompt). Anything else cannot be drawn.
 
 LONG SCRIPTS
 For a long script, write it in parts if you must: continue the beat numbers (b41, b42 ...)
@@ -184,7 +212,8 @@ CHECKLIST BEFORE YOU ANSWER
 4. Every map and map_footage beat has a place and frame, and a date when the moment changes.
 5. Every map_footage beat has one to three cards in different places; every footage beat one
    to three clips and nothing else.
-6. Every event, site, craft, path and orbit is one listed below; every number is from the script.
+6. Every event, site, craft, path and orbit is one listed below, written qualified; every
+   number is from the script; speculative beats carry their extra status.
 7. Pictures are nasa_/stock_ descriptions, never file names.
 8. Output is the CSV only.
 
@@ -193,39 +222,39 @@ Script:
 In July 1969, three astronauts set out from Florida to land on the Moon. A Saturn V rocket lifted them off the pad with the force of a small earthquake. Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up. Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space. On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit. The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility. With seconds of fuel to spare, Eagle touched down. Six hours later, Armstrong stepped onto the Moon.
 
 CSV:
-beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why
-plan,plan,,,,apollo11,,,,APOLLO 11,,,,,,,,,,,
-b1,beat,"In July 1969, three",map,,,launch complex 39a,body,launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began
-b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,
-b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,
-b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch
-b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch
-b3,beat,Within twelve minutes Apollo,map,,,earth,body,orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit
-b3,layer,Apollo 11 was circling,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
-b3,layer,circling the Earth,,path,earth_orbit,,,,,,,,,,,,,,,
-b3,layer,circling the Earth,,orbit,parking_orbit,,,,,,,,,,,,,,,
-b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,
-b4,beat,Then the third stage,map,,,earth+moon,system,tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon
-b4,layer,pushed the spacecraft out,,path,translunar_coast,,,,,,,,,,,,,,,
-b4,layer,pushed the spacecraft out,,craft,csm,,,,APOLLO 11,,,,,,,,,,,
-b4,layer,For three days the,,distance,,earth;csm,,,,FROM EARTH,,,,,,,,,,
-b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,
-b5,beat,On the nineteenth of,map_footage,,,moon,body,loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon
-b5,layer,slipped behind the Moon,,craft,csm,,,,COLUMBIA,,,,,,,,,,,
-b5,layer,enter lunar orbit,,orbit,lunar_orbit,,,,,,,,,,,,,,,
-b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,
-b6,beat,The next day Eagle,map,,,tranquility base,surface,pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent
-b6,layer,Eagle separated from Columbia,,craft,lm,,,,EAGLE,,,,,,,b7,,,,
-b6,layer,dropped toward the Sea,,path,descent,,,,,,,,,,,b7,,,,
-b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,
-b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,
-b7,beat,With seconds of fuel,map,,,tranquility base,surface,landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing
-b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,
-b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface
-b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why,extra
+plan,plan,,,,,,,,APOLLO 11,,,,,,,,,,,,
+b1,beat,"In July 1969, three",map,,,launch complex 39a,body,apollo11.launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began,
+b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,,
+b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,,
+b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch,
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch,
+b3,beat,Within twelve minutes Apollo,map,,,earth,body,apollo11.orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit,
+b3,layer,Apollo 11 was circling,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b3,layer,circling the Earth,,path,apollo11.earth_orbit,,,,,,,,,,,,,,,,
+b3,layer,circling the Earth,,orbit,apollo11.parking_orbit,,,,,,,,,,,,,,,,
+b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,,
+b4,beat,Then the third stage,map,,,earth+moon,system,apollo11.tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon,
+b4,layer,pushed the spacecraft out,,path,apollo11.translunar_coast,,,,,,,,,,,,,,,,
+b4,layer,pushed the spacecraft out,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b4,layer,For three days the,,distance,,earth;apollo11.csm,,,,FROM EARTH,,,,,,,,,,,
+b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,,
+b5,beat,On the nineteenth of,map_footage,,,moon,body,apollo11.loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon,
+b5,layer,slipped behind the Moon,,craft,apollo11.csm,,,,COLUMBIA,,,,,,,,,,,,
+b5,layer,enter lunar orbit,,orbit,apollo11.lunar_orbit,,,,,,,,,,,,,,,,
+b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,,
+b6,beat,The next day Eagle,map,,,tranquility base,surface,apollo11.pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent,
+b6,layer,Eagle separated from Columbia,,craft,apollo11.lm,,,,EAGLE,,,,,,,b7,,,,,
+b6,layer,dropped toward the Sea,,path,apollo11.descent,,,,,,,,,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,,
+b7,beat,With seconds of fuel,map,,,tranquility base,surface,apollo11.landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing,
+b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,,
+b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface,
+b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk,
 
-THE MISSION PACK AND PLACES YOU MAY USE
-<<<MISSION PACK>>>
+THE DATASETS AND PLACES YOU MAY USE
+<<<DATASETS>>>
 
 NOW WRITE THE BEAT PLAN FOR THIS SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>

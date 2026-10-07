@@ -1,0 +1,182 @@
+{
+ "id": "voyager2",
+ "name": "Voyager 2",
+ "names": [
+  "voyager two"
+ ],
+ "kind": "robotic_spacecraft",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "JPL Horizons, sampled (fixture: approximate)",
+  "date_precision": "day",
+  "as_of": "2026-06-01"
+ },
+ "events": {
+  "launch": {
+   "utc": "1977-08-20T14:29:00Z",
+   "status": "historical"
+  },
+  "jupiter_flyby": {
+   "utc": "1979-07-09T22:29:00Z",
+   "status": "historical"
+  },
+  "saturn_flyby": {
+   "utc": "1981-08-26T03:24:00Z",
+   "status": "historical"
+  },
+  "uranus_flyby": {
+   "utc": "1986-01-24T17:59:00Z",
+   "status": "historical"
+  },
+  "neptune_flyby": {
+   "utc": "1989-08-25T03:56:00Z",
+   "status": "historical"
+  },
+  "heliopause": {
+   "utc": "2018-11-05T00:00:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "voyager2_path",
+   "frame": "sun",
+   "basis": "observed",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "1977-08-20T14:29:00Z",
+     "anchor": "earth",
+     "km": [
+      7000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1979-07-09T22:29:00Z",
+     "anchor": "jupiter",
+     "km": [
+      570000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1981-08-26T03:24:00Z",
+     "anchor": "saturn",
+     "km": [
+      161000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1986-01-24T17:59:00Z",
+     "anchor": "uranus",
+     "km": [
+      107000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "1989-08-25T03:56:00Z",
+     "anchor": "neptune",
+     "km": [
+      29000,
+      0,
+      0
+     ]
+    },
+    {
+     "utc": "2000-01-01T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      2383618215.3266673,
+      -7687883594.128426,
+      4300161090.784148
+     ]
+    },
+    {
+     "utc": "2018-11-05T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      4650009305.3094,
+      -14997674552.480045,
+      8388838849.23465
+     ]
+    },
+    {
+     "utc": "2026-06-01T00:00:00Z",
+     "anchor": "sun",
+     "km": [
+      5509674891.164919,
+      -17770353881.509968,
+      9939716619.68139
+     ]
+    }
+   ],
+   "observed_until": "2026-06-01T00:00:00Z",
+   "extrapolate": {
+    "rule": "linear",
+    "max_days": 1825
+   }
+  }
+ ],
+ "craft": {
+  "voyager2": {
+   "type": "spacecraft",
+   "label": "VOYAGER 2",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#c8b98a"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "voyager2_path"
+  }
+ },
+ "met_zero": "1977-08-20T14:29:00Z",
+ "paths": {
+  "grand_tour": {
+   "of": "voyager2_path",
+   "from": "launch",
+   "to": "neptune_flyby"
+  },
+  "outbound": {
+   "of": "voyager2_path",
+   "from": "neptune_flyby",
+   "to": "heliopause"
+  }
+ },
+ "craft_aliases": {
+  "voyager 2": "voyager2",
+  "voyager": "voyager2",
+  "the probe": "voyager2"
+ }
+}

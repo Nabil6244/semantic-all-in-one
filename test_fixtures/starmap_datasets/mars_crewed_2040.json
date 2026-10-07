@@ -1,0 +1,97 @@
+{
+ "id": "mars_crewed_2040",
+ "name": "Crewed Mars mission 2040",
+ "names": [
+  "humans to mars"
+ ],
+ "kind": "hypothetical_scenario",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "hypothetical",
+  "source": "illustrative scenario (no real plan)",
+  "date_precision": "year",
+  "basis": "illustrative",
+  "continuity_days": 400
+ },
+ "events": {
+  "departure": {
+   "utc": "2039-11-01T00:00:00Z",
+   "status": "hypothetical",
+   "precision": "year"
+  },
+  "arrival": {
+   "utc": "2040-06-01T00:00:00Z",
+   "status": "hypothetical",
+   "precision": "year"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "mars_crewed_transfer",
+   "frame": "earth",
+   "basis": "illustrative",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "mars",
+     "from_utc": "2039-11-01T00:00:00Z",
+     "to_utc": "2040-06-01T00:00:00Z",
+     "samples": 120
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "crew_ship": {
+   "type": "spacecraft",
+   "label": "CREW SHIP",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#e76f51"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "mars_crewed_transfer"
+  }
+ },
+ "paths": {
+  "to_mars": {
+   "of": "mars_crewed_transfer",
+   "from": "departure",
+   "to": "arrival"
+  }
+ },
+ "sites": {
+  "mars colony": {
+   "body": "mars",
+   "lon": -40.0,
+   "lat": 20.0,
+   "label": "COLONY SITE (HYPOTHETICAL)"
+  }
+ }
+}

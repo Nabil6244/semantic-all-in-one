@@ -46,7 +46,8 @@ class SampleAndPrompt(unittest.TestCase):
             self.assertIn(t, types)
         self.assertEqual(len(spec["footage"]), 2)
         self.assertEqual(spec["footage"][0]["image"], "nasa-6900540.jpg")
-        self.assertEqual(spec["clock"]["met_zero"], "1969-07-16T13:32:00Z")
+        clocks = [L for L in spec["layers"] if L["type"] == "mission_clock"]
+        self.assertEqual([L.get("met_zero") for L in clocks], ["1969-07-16T13:32:00Z"], "Apollo 11's own mission clock")
         # every layer type the compiler writes is one the engine registers
         index = (HERE / "starmap-engine" / "layers" / "index.mjs").read_text(encoding="utf-8")
         engine_types = set(re.findall(r"import (\w+) from", index))
@@ -75,7 +76,10 @@ class SampleAndPrompt(unittest.TestCase):
         self.assertIn(HEAD, p, "the header the prompt asks for")
         for col in HEAD.split(","):
             self.assertIn(col, COLUMNS)
-        self.assertIn("No mission pack", build_prompt(None))
+        p0 = build_prompt(None)
+        self.assertIn("DATASETS (found by the app automatically; nothing is selected)", p0)
+        self.assertIn("apollo11.lm (EAGLE", p0, "every dataset's vocabulary, qualified, with no pack chosen")
+        self.assertNotIn("mission pack", p0.lower())
 
 
 class Catalogs(unittest.TestCase):
@@ -104,8 +108,8 @@ class Catalogs(unittest.TestCase):
             self.cat.place("tranquility bas")
         with self.assertRaisesRegex(CatalogError, "longitude,latitude"):
             self.cat.place("moon@north pole")
-        self.assertEqual(self.cat.craft_id("Eagle"), "lm")
-        with self.assertRaisesRegex(CatalogError, "unknown mission pack"):
+        self.assertEqual(self.cat.craft_id("Eagle"), "apollo11.lm")
+        with self.assertRaisesRegex(CatalogError, "unknown dataset .apollo99."):
             Catalog("apollo99")
 
     def test_stat_formats(self):
@@ -222,9 +226,9 @@ class Timing(unittest.TestCase):
         self.assertFalse(any("_row" in L for L in spec["layers"]))
         self.assertEqual(spec["watermark"], {"text": "My Channel"})
         crafts = [L["id"] for L in spec["layers"] if L["type"] == "spacecraft"]
-        self.assertEqual(crafts, ["csm", "csm~2", "csm~3", "lm"], "each appearance of a craft is its own layer")
+        self.assertEqual(crafts, ["apollo11.csm", "apollo11.csm~2", "apollo11.csm~3", "apollo11.lm"], "each appearance of a craft is its own layer")
         dist = next(L for L in spec["layers"] if L["type"] == "distance")
-        self.assertEqual(dist["between"], ["earth", "csm~2"], "the craft on screen at that moment")
+        self.assertEqual(dist["between"], ["earth", "apollo11.csm~2"], "the craft on screen at that moment")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,148 @@
+{
+ "id": "curiosity",
+ "name": "Curiosity",
+ "names": [
+  "mars science laboratory",
+  "msl"
+ ],
+ "kind": "rover",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "as_of": "2026-06-01"
+ },
+ "events": {
+  "launch": {
+   "utc": "2011-11-26T15:02:00Z",
+   "status": "historical"
+  },
+  "landing": {
+   "utc": "2012-08-06T05:17:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "curiosity_cruise",
+   "frame": "earth",
+   "basis": "modelled",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "mars",
+     "from_utc": "2011-11-26T15:02:00Z",
+     "to_utc": "2012-08-06T05:00:00Z",
+     "samples": 120
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "curiosity_edl",
+   "frame": "mars",
+   "basis": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "mars",
+     "site": [
+      137.4,
+      -4.6
+     ],
+     "site_at": "end",
+     "heading_deg": 90,
+     "arc_deg": 8,
+     "alt_far_km": 20,
+     "from_utc": "2012-08-06T05:10:00Z",
+     "to_utc": "2012-08-06T05:17:00Z",
+     "samples": 60,
+     "track": "surface"
+    }
+   ]
+  }
+ ],
+ "craft": {
+  "rover": {
+   "type": "spacecraft",
+   "label": "CURIOSITY",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#e8e4dc"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "curiosity_edl"
+  },
+  "cruise_stage": {
+   "type": "spacecraft",
+   "label": "CURIOSITY",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#e2d5c0"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "curiosity_cruise"
+  }
+ },
+ "met_zero": "2011-11-26T15:02:00Z",
+ "paths": {
+  "cruise": {
+   "of": "curiosity_cruise",
+   "from": "launch",
+   "to": "landing-00:17"
+  }
+ },
+ "craft_aliases": {
+  "curiosity": "rover"
+ }
+}

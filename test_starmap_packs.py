@@ -67,7 +67,8 @@ class EveryPack(unittest.TestCase):
             with self.subTest(pack=pid):
                 p = build_prompt(pid, "My script.")
                 self.assertNotIn("<<<", p)
-                self.assertIn(f"Put {pid} in the plan row's id", p)
+                self.assertIn(f"\n{pid} = ", p, "the dataset is listed in full")
+                self.assertIn(f"{pid}.launch (", p, "its events, qualified")
 
 
 class EverySample(unittest.TestCase):
@@ -82,13 +83,13 @@ class EverySample(unittest.TestCase):
 
     def test_each_sample_obeys_the_prompt_rules(self):
         """Joined beat texts are the script word for word; each beat's vo_anchor is its first words; every row's anchor is in
-        its own beat's text; the plan row names the pack."""
+        its own beat's text; the plan row's id is empty (datasets are found) or the dataset id as a starting context."""
         for pid in available_packs():
             with self.subTest(pack=pid):
                 script, beats_csv, _ = self.files(pid)
                 rows = list(csv.DictReader(io.StringIO(beats_csv.read_text(encoding="utf-8"))))
                 self.assertEqual(rows[0]["row"], "plan")
-                self.assertEqual(rows[0]["id"], pid)
+                self.assertIn(rows[0]["id"], ("", pid), "the plan row's id is empty or an optional starting context")
                 beats = [r for r in rows if r["row"] == "beat"]
                 self.assertEqual(" ".join(r["text"] for r in beats).split(), script.read_text(encoding="utf-8").split())
                 text = {r["beat"]: r["text"] for r in beats}

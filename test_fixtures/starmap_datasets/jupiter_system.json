@@ -1,0 +1,92 @@
+{
+ "id": "jupiter_system",
+ "name": "Jupiter system",
+ "names": [],
+ "kind": "planetary_system",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "current",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day",
+  "basis": "illustrated"
+ },
+ "events": {
+  "reference": {
+   "utc": "2026-10-08T12:00:00Z",
+   "status": "current"
+  }
+ },
+ "trajectories": [],
+ "craft": {},
+ "world": [
+  {
+   "id": "io",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "IO",
+   "radius": {
+    "km": 1821.6
+   },
+   "color": "#d9c27a",
+   "min_light": 0.02,
+   "offset": {
+    "orbit": {
+     "km": 421700
+    },
+    "angle_deg": 20
+   }
+  },
+  {
+   "id": "europa",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "EUROPA",
+   "radius": {
+    "km": 1560.8
+   },
+   "color": "#cfc3a8",
+   "min_light": 0.02,
+   "offset": {
+    "orbit": {
+     "km": 671034
+    },
+    "angle_deg": 110
+   }
+  },
+  {
+   "id": "ganymede",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "GANYMEDE",
+   "radius": {
+    "km": 2634.1
+   },
+   "color": "#a39b8f",
+   "min_light": 0.02,
+   "offset": {
+    "orbit": {
+     "km": 1070412
+    },
+    "angle_deg": 200
+   }
+  },
+  {
+   "id": "callisto",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "CALLISTO",
+   "radius": {
+    "km": 2410.3
+   },
+   "color": "#6f6658",
+   "min_light": 0.02,
+   "offset": {
+    "orbit": {
+     "km": 1882709
+    },
+    "angle_deg": 300
+   }
+  }
+ ]
+}

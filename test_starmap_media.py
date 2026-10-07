@@ -288,6 +288,7 @@ class Generate(unittest.TestCase):
         names = [L["image"] for L in spec["layers"] if L["type"] == "photo_card"] + [f.get("image") or f.get("file") for f in spec["footage"]]
         self.assertTrue(names and all((media_dir / n).is_file() for n in names))
         self.assertTrue(any(n.endswith("card.jpg") for n in names) and any(n.endswith("clip.jpg") for n in names))
+        self.assertEqual(Path(spec["segment_cache"]), tmp / "work" / "render_chunks", "a re-render reuses the unchanged parts")
 
     def test_a_card_given_a_clip_plays_the_clip(self):
         """A card's file:<name>.mp4 stays a clip: the spec card carries "video" (not "image") and Generate keeps it."""

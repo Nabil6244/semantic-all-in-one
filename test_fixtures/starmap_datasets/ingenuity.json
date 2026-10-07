@@ -1,0 +1,112 @@
+{
+ "id": "ingenuity",
+ "name": "Ingenuity",
+ "names": [],
+ "kind": "helicopter",
+ "_fixture": true,
+ "_about": "ARCHITECTURAL TEST FIXTURE: approximate numbers that exercise the generic StarMap pipeline. Not production data.",
+ "temporal": {
+  "status": "historical",
+  "source": "architectural test fixture (approximate)",
+  "date_precision": "day"
+ },
+ "events": {
+  "first_flight": {
+   "utc": "2021-04-19T07:34:00Z",
+   "status": "historical"
+  },
+  "last_flight": {
+   "utc": "2024-01-18T00:00:00Z",
+   "status": "historical"
+  }
+ },
+ "trajectories": [
+  {
+   "type": "trajectory",
+   "id": "ingenuity_flights",
+   "frame": "mars",
+   "basis": "observed",
+   "draw": false,
+   "samples": [
+    {
+     "utc": "2021-04-19T07:34:00Z",
+     "anchor": "mars",
+     "lla": [
+      77.45,
+      18.44,
+      0.0
+     ]
+    },
+    {
+     "utc": "2021-04-19T07:34:20Z",
+     "anchor": "mars",
+     "lla": [
+      77.45,
+      18.44,
+      0.003
+     ]
+    },
+    {
+     "utc": "2022-01-01T00:00:00Z",
+     "anchor": "mars",
+     "lla": [
+      77.55,
+      18.48,
+      0.0
+     ]
+    },
+    {
+     "utc": "2024-01-18T00:00:00Z",
+     "anchor": "mars",
+     "lla": [
+      77.8,
+      18.560000000000002,
+      0.0
+     ]
+    }
+   ],
+   "observed_until": "2024-01-18T00:00:00Z"
+  }
+ ],
+ "craft": {
+  "ingenuity": {
+   "type": "spacecraft",
+   "label": "INGENUITY",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2.0,
+      2.0,
+      2.0
+     ],
+     "at_m": 0,
+     "color": "#d0d0d0"
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.4,
+     "at_m": 2.1,
+     "color": "#eeeeee"
+    },
+    {
+     "shape": "panel",
+     "width_m": 1.2,
+     "span_m": 3.5,
+     "gap_m": 1.0,
+     "at_m": 0.4,
+     "color": "#2b3f66"
+    }
+   ],
+   "min_px": 22,
+   "trajectory": "ingenuity_flights"
+  }
+ },
+ "paths": {
+  "flights": {
+   "of": "ingenuity_flights",
+   "from": "first_flight",
+   "to": "last_flight"
+  }
+ }
+}
