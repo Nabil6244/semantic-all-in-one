@@ -1,0 +1,325 @@
+{
+ "_about": "Phase 2 architecture test: a made-up, non-Apollo mission built ONLY from the generic layers (no renderer change). Not a real mission; all numbers illustrative.",
+ "width": 1920,
+ "height": 1080,
+ "fps": 30,
+ "duration": 16,
+ "clock": {
+  "met_zero": "2031-03-01T00:00:00Z",
+  "keys": [
+   {
+    "t": 0,
+    "utc": "2031-03-01T06:00:00Z"
+   },
+   {
+    "t": 7,
+    "utc": "2031-03-01T09:30:00Z"
+   },
+   {
+    "t": 7.0333,
+    "utc": "2031-03-01T11:52:00Z"
+   },
+   {
+    "t": 15,
+    "utc": "2031-03-01T12:00:00Z"
+   }
+  ]
+ },
+ "world": [
+  {
+   "id": "sun",
+   "kind": "star",
+   "label": "SUN",
+   "radius": {
+    "km": 696000
+   },
+   "texture": "2k_sun.jpg",
+   "glow": "#ffd27a"
+  },
+  {
+   "id": "earth",
+   "parent": "sun",
+   "kind": "body",
+   "label": "EARTH",
+   "radius": {
+    "km": 6371
+   },
+   "texture": "earth_bluemarble_5400.jpg",
+   "offset": {
+    "ephemeris": "earth"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "mars",
+   "parent": "sun",
+   "kind": "body",
+   "label": "MARS",
+   "radius": {
+    "km": 3389.5
+   },
+   "texture": "2k_mars.jpg",
+   "offset": {
+    "ephemeris": "mars"
+   },
+   "rotation": "iau",
+   "min_light": 0.01
+  }
+ ],
+ "camera": {
+  "drift_deg_per_s": 0.4,
+  "start": {
+   "target": "mars",
+   "fill": 0.45,
+   "light": "front",
+   "az_deg": 10,
+   "el_deg": 40
+  },
+  "moves": [
+   {
+    "t": 7.0333,
+    "dur": 0,
+    "to": {
+     "target": "mars@77.45,18.44",
+     "distance": {
+      "km": 700
+     },
+     "az_deg": 180,
+     "el_deg": 24
+    }
+   },
+   {
+    "t": 7.5,
+    "dur": 7,
+    "to": {
+     "target": "mars@77.45,18.44",
+     "distance": {
+      "km": 300
+     },
+     "az_deg": 195,
+     "el_deg": 30
+    }
+   }
+  ]
+ },
+ "layers": [
+  {
+   "type": "atmosphere",
+   "body": "mars",
+   "height_km": 70,
+   "color": "#e9a77a",
+   "intensity": 0.8
+  },
+  {
+   "type": "trajectory",
+   "id": "orbiter_path",
+   "frame": "mars",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "orbit_arc",
+     "body": "mars",
+     "altitude_km": 400,
+     "period_min": 118,
+     "plane": {
+      "inclination_deg": 28,
+      "node_deg": 40
+     },
+     "from_utc": "2031-03-01T05:00:00Z",
+     "to_utc": "2031-03-01T13:00:00Z"
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "lander_path",
+   "frame": "mars",
+   "source": "illustrated",
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "mars",
+     "site": [
+      77.45,
+      18.44
+     ],
+     "site_at": "end",
+     "heading_deg": 95,
+     "arc_deg": 7,
+     "alt_far_km": 125,
+     "from_utc": "2031-03-01T11:52:00Z",
+     "to_utc": "2031-03-01T11:59:00Z",
+     "track": "surface"
+    }
+   ],
+   "start": 7.0333,
+   "fade_in": 0,
+   "style": {
+    "future": "dashed",
+    "width": 5
+   }
+  },
+  {
+   "type": "orbit",
+   "body": "mars",
+   "trajectory": "orbiter_path",
+   "at_utc": "2031-03-01T06:00:00Z",
+   "end": 7,
+   "fade_out": 0,
+   "arrows": 3,
+   "style": {
+    "color": "#9fe3ff",
+    "width": 3
+   }
+  },
+  {
+   "type": "spacecraft",
+   "id": "orbiter",
+   "label": "TEST ORBITER",
+   "trajectory": "orbiter_path",
+   "min_px": 28,
+   "end": 7,
+   "fade_out": 0,
+   "label_bg": "#9fe3ff",
+   "parts": [
+    {
+     "shape": "box",
+     "size_m": [
+      2,
+      2,
+      2.4
+     ],
+     "at_m": 0,
+     "color": "#d8b45a",
+     "metalness": 0.7
+    },
+    {
+     "shape": "panel",
+     "span_m": 5,
+     "width_m": 1.6,
+     "gap_m": 1,
+     "at_m": 0.4,
+     "color": "#26355c",
+     "metalness": 0.3
+    },
+    {
+     "shape": "dish",
+     "radius_m": 1.2,
+     "at_m": 2.4,
+     "color": "#eeeeee"
+    }
+   ]
+  },
+  {
+   "type": "spacecraft",
+   "id": "lander",
+   "label": "TEST LANDER",
+   "trajectory": "lander_path",
+   "orientation": "radial",
+   "min_px": 30,
+   "start": 7.0333,
+   "fade_in": 0,
+   "label_bg": "#9fe3ff",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 3,
+     "radius_m": 1.2,
+     "at_m": 1.5,
+     "length_m": 1.7,
+     "splay_deg": 30
+    },
+    {
+     "shape": "cylinder",
+     "radius_m": 1.4,
+     "length_m": 1.2,
+     "at_m": 1.2,
+     "color": "#e7e7e7"
+    },
+    {
+     "shape": "cone",
+     "radius_m": 1.4,
+     "radius_top_m": 0.5,
+     "length_m": 0.8,
+     "at_m": 2.4,
+     "color": "#c9ccd1"
+    }
+   ]
+  },
+  {
+   "type": "marker",
+   "body": "mars",
+   "lon": 77.45,
+   "lat": 18.44,
+   "label": "JEZERO CRATER",
+   "description": "TEST LANDING SITE",
+   "min_body_px": 40
+  },
+  {
+   "type": "region",
+   "body": "mars",
+   "geometry": {
+    "circle": {
+     "lon": 77.45,
+     "lat": 18.44,
+     "radius_km": 25
+    }
+   },
+   "label": "LANDING ELLIPSE",
+   "reveal": {
+    "t0": 8,
+    "t1": 9.5
+   },
+   "start": 7.5,
+   "style": {
+    "fill": "#9fe3ff",
+    "fill_opacity": 0.22,
+    "stroke": "#9fe3ff",
+    "stroke_width": 3,
+    "dash": [
+     12,
+     10
+    ]
+   },
+   "z": -1
+  },
+  {
+   "type": "distance",
+   "between": [
+    "lander",
+    "mars@77.45,18.44"
+   ],
+   "label": "TO TOUCHDOWN",
+   "start": 8,
+   "end": 14.5
+  },
+  {
+   "type": "stat_chip",
+   "value": 400,
+   "unit": "KM",
+   "label": "ORBIT ALTITUDE",
+   "corner": "bl",
+   "count_up": {
+    "t0": 1,
+    "t1": 2.5
+   },
+   "start": 1,
+   "end": 6.8
+  },
+  {
+   "type": "title",
+   "text": "MARS TEST MISSION",
+   "subtitle": "ARCHITECTURE CHECK, NOT A REAL MISSION",
+   "fade_in": 0
+  },
+  {
+   "type": "body_labels",
+   "end": 7,
+   "fade_out": 0
+  },
+  {
+   "type": "mission_clock"
+  }
+ ]
+}

@@ -1,0 +1,678 @@
+{
+ "_about": "Phase 2 validation: Apollo 11 as CONTENT for the generic layers (world, trajectories, spacecraft, markers, regions, cards). Trajectories here are ILLUSTRATED from a few mission numbers (times, launch azimuth, orbit altitudes, the landing site), not flight data; a real dataset would replace the 'generate' blocks with 'samples'.",
+ "width": 1920,
+ "height": 1080,
+ "fps": 30,
+ "duration": 60,
+ "clock": {
+  "met_zero": "1969-07-16T13:32:00Z",
+  "keys": [
+   {
+    "t": 0,
+    "utc": "1969-07-16T13:33:00Z"
+   },
+   {
+    "t": 2.5,
+    "utc": "1969-07-16T13:44:00Z"
+   },
+   {
+    "t": 10,
+    "utc": "1969-07-16T16:16:16Z"
+   },
+   {
+    "t": 24,
+    "utc": "1969-07-19T17:21:50Z"
+   },
+   {
+    "t": 35.5,
+    "utc": "1969-07-19T21:40:00Z"
+   },
+   {
+    "t": 35.5333,
+    "utc": "1969-07-20T20:05:00Z"
+   },
+   {
+    "t": 47,
+    "utc": "1969-07-20T20:17:40Z"
+   }
+  ]
+ },
+ "world": [
+  {
+   "id": "milkyway",
+   "kind": "galaxy",
+   "radius": {
+    "ly": 52000
+   },
+   "texture": "milkyway_pia10748_4096.jpg",
+   "image_half_width": {
+    "ly": 55000
+   }
+  },
+  {
+   "id": "sun",
+   "parent": "milkyway",
+   "kind": "star",
+   "label": "SUN",
+   "radius": {
+    "km": 696000
+   },
+   "texture": "2k_sun.jpg",
+   "glow": "#ffd27a",
+   "offset": {
+    "galactic": "sun"
+   }
+  },
+  {
+   "id": "mercury",
+   "parent": "sun",
+   "kind": "body",
+   "label": "MERCURY",
+   "radius": {
+    "km": 2440
+   },
+   "texture": "2k_mercury.jpg",
+   "offset": {
+    "ephemeris": "mercury"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "venus",
+   "parent": "sun",
+   "kind": "body",
+   "label": "VENUS",
+   "radius": {
+    "km": 6052
+   },
+   "texture": "2k_venus_atmosphere.jpg",
+   "offset": {
+    "ephemeris": "venus"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "earth",
+   "parent": "sun",
+   "kind": "body",
+   "label": "EARTH",
+   "radius": {
+    "km": 6371
+   },
+   "texture": "earth_bluemarble_5400.jpg",
+   "glow": "#7fb2ff",
+   "offset": {
+    "ephemeris": "earth"
+   },
+   "rotation": "iau",
+   "min_light": 0.006
+  },
+  {
+   "id": "moon",
+   "parent": "earth",
+   "kind": "body",
+   "label": "MOON",
+   "radius": {
+    "km": 1737.4
+   },
+   "texture": "moon_lroc_4096.jpg",
+   "offset": {
+    "ephemeris": "moon"
+   },
+   "rotation": "iau",
+   "bump": "moon_ldem_bump_4096.jpg",
+   "bump_scale": 0.6,
+   "min_light": 0.012
+  },
+  {
+   "id": "mars",
+   "parent": "sun",
+   "kind": "body",
+   "label": "MARS",
+   "radius": {
+    "km": 3390
+   },
+   "texture": "2k_mars.jpg",
+   "offset": {
+    "ephemeris": "mars"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "jupiter",
+   "parent": "sun",
+   "kind": "body",
+   "label": "JUPITER",
+   "radius": {
+    "km": 69911
+   },
+   "texture": "2k_jupiter.jpg",
+   "offset": {
+    "ephemeris": "jupiter"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "saturn",
+   "parent": "sun",
+   "kind": "body",
+   "label": "SATURN",
+   "radius": {
+    "km": 58232
+   },
+   "texture": "2k_saturn.jpg",
+   "offset": {
+    "ephemeris": "saturn"
+   },
+   "rotation": "iau",
+   "rings": {
+    "inner": 1.24,
+    "outer": 2.27,
+    "texture": "2k_saturn_ring_alpha.png"
+   }
+  },
+  {
+   "id": "uranus",
+   "parent": "sun",
+   "kind": "body",
+   "label": "URANUS",
+   "radius": {
+    "km": 25362
+   },
+   "texture": "2k_uranus.jpg",
+   "offset": {
+    "ephemeris": "uranus"
+   },
+   "rotation": "iau"
+  },
+  {
+   "id": "neptune",
+   "parent": "sun",
+   "kind": "body",
+   "label": "NEPTUNE",
+   "radius": {
+    "km": 24622
+   },
+   "texture": "2k_neptune.jpg",
+   "offset": {
+    "ephemeris": "neptune"
+   },
+   "rotation": "iau"
+  }
+ ],
+ "camera": {
+  "drift_deg_per_s": 0.35,
+  "start": {
+   "target": "earth",
+   "distance": {
+    "km": 24000
+   },
+   "light": "front",
+   "az_deg": -20,
+   "el_deg": 24
+  },
+  "moves": [
+   {
+    "t": 10.5,
+    "dur": 4.5,
+    "to": {
+     "target": "earth+moon",
+     "distance": {
+      "km": 1150000
+     },
+     "light": "front",
+     "el_deg": 62
+    }
+   },
+   {
+    "t": 21.5,
+    "dur": 4.5,
+    "to": {
+     "target": "moon",
+     "fill": 0.42,
+     "light": "side",
+     "az_deg": -35,
+     "el_deg": 50
+    }
+   },
+   {
+    "t": 35.5333,
+    "dur": 0,
+    "to": {
+     "target": "moon@23.47,0.67",
+     "distance": {
+      "km": 900
+     },
+     "az_deg": 200,
+     "el_deg": 22
+    }
+   },
+   {
+    "t": 36,
+    "dur": 11,
+    "to": {
+     "target": "moon@23.47,0.67",
+     "distance": {
+      "km": 330
+     },
+     "az_deg": 185,
+     "el_deg": 28
+    }
+   }
+  ]
+ },
+ "layers": [
+  {
+   "type": "atmosphere",
+   "body": "earth",
+   "height_km": 160,
+   "color": "#6aa6ff",
+   "intensity": 1.0
+  },
+  {
+   "type": "trajectory",
+   "id": "apollo11_csm",
+   "frame": "earth",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "earth",
+     "site": [
+      -80.604,
+      28.608
+     ],
+     "site_at": "start",
+     "heading_deg": 72,
+     "arc_deg": 24,
+     "alt_far_km": 190,
+     "from_utc": "1969-07-16T13:32:00Z",
+     "to_utc": "1969-07-16T13:43:49Z"
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "earth",
+     "continue": true,
+     "period_min": 88.2,
+     "to_utc": "1969-07-16T16:16:16Z"
+    },
+    {
+     "kind": "transfer",
+     "from": "earth",
+     "to": "moon",
+     "continue": true,
+     "arrive": "next",
+     "samples": 220,
+     "bulge": 0.45,
+     "arrive_bulge": 0.3
+    },
+    {
+     "kind": "orbit_arc",
+     "body": "moon",
+     "altitude_km": 110,
+     "period_min": 118,
+     "plane": {
+      "through": [
+       23.47,
+       0.67
+      ],
+      "heading_deg": 268,
+      "epoch": "1969-07-20T20:17:40Z"
+     },
+     "phase_deg": 120,
+     "from_utc": "1969-07-19T17:21:50Z",
+     "to_utc": "1969-07-22T04:55:00Z",
+     "samples_per_rev": 96
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "id": "apollo11_lm",
+   "frame": "moon",
+   "source": "illustrated",
+   "draw": false,
+   "generate": [
+    {
+     "kind": "surface_track",
+     "body": "moon",
+     "site": [
+      23.47,
+      0.67
+     ],
+     "site_at": "end",
+     "heading_deg": 268,
+     "arc_deg": 15.8,
+     "alt_far_km": 15,
+     "from_utc": "1969-07-20T20:05:00Z",
+     "to_utc": "1969-07-20T20:17:40Z",
+     "samples": 90,
+     "track": "surface"
+    }
+   ]
+  },
+  {
+   "type": "trajectory",
+   "of": "apollo11_csm",
+   "draw_utc": [
+    "1969-07-16T13:32:00Z",
+    "1969-07-16T16:16:16Z"
+   ],
+   "start": 0,
+   "end": 11,
+   "style": {
+    "future": "hidden",
+    "width": 5
+   }
+  },
+  {
+   "type": "orbit",
+   "body": "earth",
+   "trajectory": "apollo11_csm",
+   "at_utc": "1969-07-16T14:30:00Z",
+   "start": 1,
+   "end": 10.8,
+   "arrows": 4,
+   "style": {
+    "color": "#ffffff",
+    "width": 2.5,
+    "opacity": 0.7
+   }
+  },
+  {
+   "type": "marker",
+   "body": "earth",
+   "lon": -80.604,
+   "lat": 28.608,
+   "label": "KENNEDY SPACE CENTER",
+   "description": "LAUNCH COMPLEX 39A",
+   "start": 0,
+   "end": 4,
+   "fade_in": 0,
+   "min_body_px": 60
+  },
+  {
+   "type": "stat_chip",
+   "value": 190,
+   "unit": "KM",
+   "label": "PARKING ORBIT ALTITUDE",
+   "corner": "bl",
+   "count_up": {
+    "t0": 3.5,
+    "t1": 5.5
+   },
+   "start": 3.5,
+   "end": 9.5
+  },
+  {
+   "type": "title",
+   "text": "APOLLO 11",
+   "subtitle": "INTO EARTH ORBIT",
+   "start": 0,
+   "end": 10.2,
+   "fade_in": 0
+  },
+  {
+   "type": "trajectory",
+   "of": "apollo11_csm",
+   "draw_utc": [
+    "1969-07-16T16:16:16Z",
+    "1969-07-19T17:21:50Z"
+   ],
+   "start": 10,
+   "end": 25,
+   "style": {
+    "future": "dashed"
+   }
+  },
+  {
+   "type": "title",
+   "text": "APOLLO 11",
+   "subtitle": "THREE DAYS TO THE MOON",
+   "start": 10.2,
+   "end": 24.2
+  },
+  {
+   "type": "distance",
+   "between": [
+    "earth",
+    "csm"
+   ],
+   "label": "DISTANCE FROM EARTH",
+   "start": 11,
+   "end": 24
+  },
+  {
+   "type": "orbit",
+   "body": "moon",
+   "trajectory": "apollo11_csm",
+   "at_utc": "1969-07-19T19:00:00Z",
+   "start": 23.5,
+   "end": 35.5,
+   "fade_out": 0,
+   "arrows": 3,
+   "style": {
+    "color": "#ffffff",
+    "width": 3
+   }
+  },
+  {
+   "type": "title",
+   "text": "APOLLO 11",
+   "subtitle": "LUNAR ORBIT",
+   "start": 24.2,
+   "end": 35.5,
+   "fade_out": 0
+  },
+  {
+   "type": "stat_chip",
+   "value": 110,
+   "unit": "KM",
+   "label": "ABOVE THE MOON",
+   "corner": "bl",
+   "count_up": {
+    "t0": 26.5,
+    "t1": 28.5
+   },
+   "start": 26.5,
+   "end": 35.3
+  },
+  {
+   "type": "spacecraft",
+   "id": "csm",
+   "label": "APOLLO 11",
+   "trajectory": "apollo11_csm",
+   "parts": [
+    {
+     "shape": "nozzle",
+     "at_m": -3.0,
+     "length_m": 3.0,
+     "radius_m": 1.25,
+     "radius_top_m": 0.55,
+     "color": "#3b3b3d",
+     "metalness": 0.6
+    },
+    {
+     "shape": "cylinder",
+     "at_m": 0,
+     "length_m": 7.5,
+     "radius_m": 1.96,
+     "color": "#c4c7cc",
+     "metalness": 0.6,
+     "roughness": 0.4
+    },
+    {
+     "shape": "cone",
+     "at_m": 7.5,
+     "length_m": 3.23,
+     "radius_m": 1.96,
+     "radius_top_m": 0.35,
+     "color": "#e6e7ea",
+     "metalness": 0.55,
+     "roughness": 0.35
+    }
+   ],
+   "min_px": 26,
+   "start": 0,
+   "end": 35.5,
+   "fade_out": 0
+  },
+  {
+   "type": "spacecraft",
+   "id": "lm",
+   "label": "EAGLE",
+   "trajectory": "apollo11_lm",
+   "parts": [
+    {
+     "shape": "legs",
+     "count": 4,
+     "radius_m": 2.1,
+     "at_m": 2.6,
+     "length_m": 3.0,
+     "splay_deg": 30,
+     "thickness_m": 0.09,
+     "foot_m": 0.45,
+     "color": "#b8a46a"
+    },
+    {
+     "shape": "nozzle",
+     "at_m": 0.55,
+     "length_m": 0.65,
+     "radius_m": 0.7,
+     "radius_top_m": 0.4,
+     "color": "#3b3b3d"
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      4.2,
+      4.2,
+      1.65
+     ],
+     "at_m": 1.2,
+     "color": "#c9a227",
+     "metalness": 0.75,
+     "roughness": 0.3
+    },
+    {
+     "shape": "box",
+     "size_m": [
+      3.0,
+      3.0,
+      2.6
+     ],
+     "at_m": 2.85,
+     "color": "#a3a7ac",
+     "metalness": 0.4,
+     "roughness": 0.5
+    }
+   ],
+   "orientation": "radial",
+   "min_px": 30,
+   "start": 35.5,
+   "fade_in": 0.6
+  },
+  {
+   "type": "marker",
+   "body": "moon",
+   "lon": 23.47,
+   "lat": 0.67,
+   "label": "TRANQUILITY BASE",
+   "description": "SEA OF TRANQUILITY",
+   "start": 36,
+   "min_body_px": 40
+  },
+  {
+   "type": "region",
+   "body": "moon",
+   "geometry": {
+    "circle": {
+     "lon": 23.47,
+     "lat": 0.67,
+     "radius_km": 22
+    }
+   },
+   "label": "LANDING ZONE",
+   "reveal": {
+    "t0": 37,
+    "t1": 39
+   },
+   "start": 36.5,
+   "end": 49,
+   "style": {
+    "fill": "#FBE040",
+    "fill_opacity": 0.22,
+    "stroke": "#FBE040",
+    "stroke_width": 3,
+    "dash": [
+     14,
+     10
+    ]
+   },
+   "z": -1
+  },
+  {
+   "type": "trajectory",
+   "of": "apollo11_lm",
+   "start": 35.6,
+   "end": 49,
+   "style": {
+    "future": "dashed",
+    "width": 5
+   }
+  },
+  {
+   "type": "distance",
+   "between": [
+    "lm",
+    "moon@23.47,0.67"
+   ],
+   "label": "TO TOUCHDOWN",
+   "start": 36.5,
+   "end": 47.6
+  },
+  {
+   "type": "title",
+   "text": "APOLLO 11",
+   "subtitle": "THE LANDING",
+   "start": 35.5333,
+   "fade_in": 0.4
+  },
+  {
+   "type": "caption",
+   "text": "\"THE EAGLE HAS LANDED\"",
+   "sub": "20 JULY 1969, 20:17 UTC",
+   "start": 47.3,
+   "end": 51.5
+  },
+  {
+   "type": "photo_card",
+   "image": "as11-40-5875.jpg",
+   "title": "BUZZ ALDRIN ON THE MOON",
+   "caption": "PHOTO: NEIL ARMSTRONG",
+   "credit": "NASA AS11-40-5875",
+   "start": 50.5,
+   "end": 59.5,
+   "side": "right",
+   "y": 190
+  },
+  {
+   "type": "stat_chip",
+   "value": "2 H 31 MIN",
+   "label": "WALKING ON THE MOON",
+   "corner": "bl",
+   "start": 52,
+   "end": 59.5
+  },
+  {
+   "type": "body_labels",
+   "start": 0,
+   "end": 35.5,
+   "fade_out": 0
+  },
+  {
+   "type": "mission_clock"
+  }
+ ]
+}

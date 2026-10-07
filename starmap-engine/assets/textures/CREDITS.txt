@@ -1,0 +1,18 @@
+StarMap bundled textures (Phase 0 spike set)
+
+earth_bluemarble_5400.jpg  NASA Earth Observatory, Blue Marble Next Generation (world.topo.bathy.200412), Reto Stöckli, NASA GSFC.
+                           https://visibleearth.nasa.gov  Public domain (NASA); credit "NASA Earth Observatory".
+moon_lroc_4096.jpg         NASA Scientific Visualization Studio, CGI Moon Kit (lroc_color_poles_4k), LRO/LROC WAC mosaic.
+                           https://svs.gsfc.nasa.gov/4720  Credit "NASA's Scientific Visualization Studio".
+starmap_svs_1024.jpg       NASA Scientific Visualization Studio, Deep Star Maps 2020 (print preview).
+                           https://svs.gsfc.nasa.gov/4851  Credit "NASA/Goddard Space Flight Center Scientific Visualization Studio".
+NASA material is not copyrighted in the US; NASA logos/insignia are NOT used, and no endorsement is implied.
+
+Phase 1 additions
+2k_mercury.jpg 2k_venus_atmosphere.jpg 2k_mars.jpg 2k_jupiter.jpg 2k_saturn.jpg 2k_saturn_ring_alpha.png 2k_uranus.jpg 2k_neptune.jpg 2k_sun.jpg
+                           Solar System Scope, https://www.solarsystemscope.com/textures/  CC BY 4.0: credit "Solar System Scope (solarsystemscope.com)".
+milkyway_pia10748_4096.jpg NASA/JPL-Caltech/R. Hurt (SSC-Caltech), PIA10748 "Our Milky Way Gets a Makeover" (artist concept), resized.
+                           https://photojournal.jpl.nasa.gov/catalog/PIA10748  Credit "NASA/JPL-Caltech".
+../catalogs/bright_stars.json  Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit & Warren 1991), via CDS (V/50). Positions J2000.
+moon_ldem_bump_4096.jpg    NASA SVS CGI Moon Kit, LOLA elevation (ldem_16_uint), normalised to 8-bit and resized for relief shading.
+                           https://svs.gsfc.nasa.gov/4720  Credit "NASA's Scientific Visualization Studio".

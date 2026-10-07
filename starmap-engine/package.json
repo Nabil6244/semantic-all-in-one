@@ -1,0 +1,14 @@
+{
+  "name": "starmap-engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "StarMap: astronomical visualization renderer for space documentaries (Phase 0 spike).",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19",
+    "three": "^0.170.0"
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "_about": "Scale flight: Moon surface out to the whole Milky Way, one camera, the real sky (real positions for 20 July 1969, the real galactic orientation).",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 30,
+  "title": "STARMAP",
+  "clock": {
+    "utc": "1969-07-20T20:17:40Z"
+  },
+  "world": [
+    {
+      "id": "milkyway",
+      "kind": "galaxy",
+      "radius": {
+        "ly": 52000
+      },
+      "texture": "milkyway_pia10748_4096.jpg",
+      "image_half_width": {
+        "ly": 55000
+      }
+    },
+    {
+      "id": "sun",
+      "parent": "milkyway",
+      "kind": "star",
+      "label": "SUN",
+      "radius": {
+        "km": 696000
+      },
+      "texture": "2k_sun.jpg",
+      "glow": "#ffd27a",
+      "offset": {
+        "galactic": "sun"
+      }
+    },
+    {
+      "id": "mercury",
+      "parent": "sun",
+      "kind": "body",
+      "label": "MERCURY",
+      "radius": {
+        "km": 2440
+      },
+      "texture": "2k_mercury.jpg",
+      "offset": {
+        "ephemeris": "mercury"
+      },
+      "rotation": "iau"
+    },
+    {
+      "id": "venus",
+      "parent": "sun",
+      "kind": "body",
+      "label": "VENUS",
+      "radius": {
+        "km": 6052
+      },
+      "texture": "2k_venus_atmosphere.jpg",
+      "offset": {
+        "ephemeris": "venus"
+      },
+      "rotation": "iau"
+    },
+    {
+      "id": "earth",
+      "parent": "sun",
+      "kind": "body",
+      "label": "EARTH",
+      "radius": {
+        "km": 6371
+      },
+      "texture": "earth_bluemarble_5400.jpg",
+      "glow": "#7fb2ff",
+      "offset": {
+        "ephemeris": "earth"
+      },
+      "rotation": "iau",
+      "min_light": 0.006
+    },
+    {
+      "id": "moon",
+      "parent": "earth",
+      "kind": "body",
+      "label": "MOON",
+      "radius": {
+        "km": 1737.4
+      },
+      "texture": "moon_lroc_4096.jpg",
+      "offset": {
+        "ephemeris": "moon"
+      },
+      "rotation": "iau",
+      "bump": "moon_ldem_bump_4096.jpg",
+      "bump_scale": 0.6,
+      "min_light": 0.012
+    },
+    {
+      "id": "mars",
+      "parent": "sun",
+      "kind": "body",
+      "label": "MARS",
+      "radius": {
+        "km": 3390
+      },
+      "texture": "2k_mars.jpg",
+      "offset": {
+        "ephemeris": "mars"
+      },
+      "rotation": "iau"
+    },
+    {
+      "id": "jupiter",
+      "parent": "sun",
+      "kind": "body",
+      "label": "JUPITER",
+      "radius": {
+        "km": 69911
+      },
+      "texture": "2k_jupiter.jpg",
+      "offset": {
+        "ephemeris": "jupiter"
+      },
+      "rotation": "iau"
+    },
+    {
+      "id": "saturn",
+      "parent": "sun",
+      "kind": "body",
+      "label": "SATURN",
+      "radius": {
+        "km": 58232
+      },
+      "texture": "2k_saturn.jpg",
+      "offset": {
+        "ephemeris": "saturn"
+      },
+      "rotation": "iau",
+      "rings": {
+        "inner": 1.24,
+        "outer": 2.27,
+        "texture": "2k_saturn_ring_alpha.png"
+      }
+    },
+    {
+      "id": "uranus",
+      "parent": "sun",
+      "kind": "body",
+      "label": "URANUS",
+      "radius": {
+        "km": 25362
+      },
+      "texture": "2k_uranus.jpg",
+      "offset": {
+        "ephemeris": "uranus"
+      },
+      "rotation": "iau"
+    },
+    {
+      "id": "neptune",
+      "parent": "sun",
+      "kind": "body",
+      "label": "NEPTUNE",
+      "radius": {
+        "km": 24622
+      },
+      "texture": "2k_neptune.jpg",
+      "offset": {
+        "ephemeris": "neptune"
+      },
+      "rotation": "iau"
+    }
+  ],
+  "camera": {
+    "drift_deg_per_s": 0.5,
+    "start": {
+      "target": "moon@23.47,0.67",
+      "distance": {
+        "km": 700
+      },
+      "az_deg": 250,
+      "el_deg": 20
+    },
+    "moves": [
+      {
+        "t": 2,
+        "dur": 6,
+        "to": {
+          "target": "earth+moon",
+          "distance": {
+            "km": 1100000
+          },
+          "light": "front",
+          "el_deg": 20
+        }
+      },
+      {
+        "t": 10,
+        "dur": 7,
+        "to": {
+          "target": "sun",
+          "distance": {
+            "au": 40
+          },
+          "az_deg": 30,
+          "el_deg": 58
+        }
+      },
+      {
+        "t": 19,
+        "dur": 8.5,
+        "to": {
+          "target": "milkyway",
+          "distance": {
+            "ly": 160000
+          },
+          "az_deg": 15,
+          "el_deg": 55
+        }
+      }
+    ]
+  }
+}
