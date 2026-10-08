@@ -25,6 +25,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .beat_csv import DEFAULT_HOLD, Beat, Item, Plan
 from .catalog import Catalog, CatalogError, Place, iso_seconds
+from .actions import BeatAction, resolve_actions
 from .resolve import BeatContext, Resolution, resolve
 from .temporal import BADGE, CERTAINTY, iso, least_certain, parse_iso
 
@@ -65,6 +66,8 @@ class Compiled:
     notes: List[str] = field(default_factory=list)
     needs_media: List[Tuple[int, str]] = field(default_factory=list)      # (row, asset) still to be found
     resolution: Optional[Any] = None                                       # resolve.Resolution: datasets, beat contexts, jumps
+    actions: Dict[str, Any] = field(default_factory=dict)                  # actions.BeatAction by beat: how each event is shown
+    warnings: List[str] = field(default_factory=list)
 
 
 class CompileError(ValueError):
@@ -147,7 +150,19 @@ def _creep(length: float) -> float:
     return min(1.25, 1.0 + 0.035 * max(0.0, length))
 
 
-def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resolution] = None) -> Dict[str, Any]:
+def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: BeatAction, b: Beat) -> Dict[str, Any]:
+    """An action's camera intent as a shot of the existing camera (None = the beat's usual view; a motion placeholder gets the
+    beat's narration-paced motion)."""
+    s = copy.deepcopy(usual if shot is None else shot)
+    if s.get("follow") and s["follow"].get("motion") == "beat":
+        s["follow"]["motion"] = act.motion(b.start, b.end)
+        if s["follow"]["motion"] is None:
+            del s["follow"]["motion"]
+    return s
+
+
+def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resolution] = None,
+                 actions: Optional[Dict[str, BeatAction]] = None) -> Dict[str, Any]:
     start: Optional[Dict[str, Any]] = None
     moves: List[Dict[str, Any]] = []
     prev_key, prev_km, cur = None, None, None
@@ -156,6 +171,28 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             continue
         shot, place = shot_for(cat, b, res.ctx(b.id) if res else ())
         km = _approx_km(shot, cat, place)
+        act = (actions or {}).get(b.id)
+        if act is not None and (act.intro is not None or act.camera):
+            # a visual action: glide to its first view, then its camera intents (follow the craft, settle, pull back)
+            length = b.end - b.start
+            intro = _action_shot(act.intro, shot, act, b)
+            if start is None:
+                start, glide = intro, 0.0
+            else:
+                ikm = _approx_km(intro, cat, place)
+                glide = min(max(2.0, 2.0 + 0.5 * abs(math.log10(max(ikm, 1e-3) / max(prev_km, 1e-3)))), 4.5, max(1.0, 0.3 * length))
+                moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": intro})
+            last = b.start + glide
+            for frac, dfrac, s in act.camera:
+                t = max(b.start + frac * length, last)
+                d = max(0.5, min(dfrac * length, b.end - 0.2 - t))
+                if t >= b.end - 0.4:
+                    break
+                moves.append({"t": round(t, 3), "dur": round(d, 3), "to": _action_shot(s, shot, act, b)})
+                last = t + d
+            cur = moves[-1]["to"] if moves else start
+            prev_key, prev_km = ("action", b.id), _approx_km(cur, cat, place)
+            continue
         key = (b.place.lower(), b.frame, b.move, tuple(sorted(b.extra.items())))
         length = b.end - b.start
         creep = b.move == ""                                      # no move asked for: creep in slowly through the beat
@@ -195,7 +232,8 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
 
 
 # ---- clock ------------------------------------------------------------------------------------------------------------
-def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str], res: Resolution) -> Dict[str, Any]:
+def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str], res: Resolution,
+                actions: Optional[Dict[str, BeatAction]] = None) -> Dict[str, Any]:
     """Resolved beat dates -> universe clock keys. Between two dated map beats time either runs on screen (continuous: the
     spacecraft flies its path between them) or JUMPS: the earlier date runs in real time and the later one arrives in a
     single frame -- under the footage when footage comes between them, else at the next beat's start, hidden by a
@@ -219,13 +257,23 @@ def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str],
             notes.append(f"row {b.row}: a footage beat's date is ignored (the map is hidden); give it to the next map beat")
     dated = [(beats.index(b), res.contexts[b.id].utc) for b in beats if b.mode != "footage" and res.contexts.get(b.id) and res.contexts[b.id].utc]
     jumps = {t.b: t for t in res.transitions if t.kind == "jump" and not t.hidden_by_footage}
+    continuous_from = {t.a for t in res.transitions if t.kind == "continuous"}
+    acts = {k: v for k, v in (actions or {}).items() if v.strategy == "clock" and v.span}
+    held: Dict[str, Tuple[float, str]] = {}               # beat -> (narration t, utc) its action ends on, for the hold before a jump
     for k, (i, utc) in enumerate(dated):
         b = beats[i]
+        act = acts.get(b.id)
         tr = jumps.get(b.id)
         if tr is not None and keys:
             a = beats[dated[k - 1][0]]
-            add(b.start - JUMP_CUT_S, shifted(dated[k - 1][1], b.start - JUMP_CUT_S - a.start))   # the old date holds to the cut
-        add(b.start, utc)
+            t0, u0 = held.get(a.id, (a.start, dated[k - 1][1]))
+            add(b.start - JUMP_CUT_S, shifted(u0, b.start - JUMP_CUT_S - t0))   # the old date holds to the cut
+        # the beat's date is its first moment; an action the CSV asked for by name starts where the action starts
+        add(b.start, act.span[0] if act and act.source == "csv" else utc)
+        if act and b.id not in continuous_from:
+            # the action's own end (an ascent, a descent, a closest approach) when time does not run on into the next beat
+            add(b.end - 0.05, act.span[1])
+            held[b.id] = (b.end - 0.05, act.span[1])
         nxt = dated[k + 1][0] if k + 1 < len(dated) else len(beats)
         cut = next((j for j in range(i + 1, nxt) if beats[j].mode == "footage"), None)
         if cut is not None and k + 1 < len(dated):
@@ -237,7 +285,8 @@ def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str],
                 problems.append(f"row {b.row}: date_end: {exc}")
     keys.sort(key=lambda x: x["t"])
     for a, b2 in zip(keys, keys[1:]):
-        if iso_seconds(a["utc"], b2["utc"]) < 0:
+        if iso_seconds(a["utc"], b2["utc"]) < 0 and b2["t"] - a["t"] > JUMP_CUT_S + 1e-6 and \
+                not any(abs(beats[[x.id for x in beats].index(t.b)].start - b2["t"]) < 1e-6 for t in res.transitions if t.kind == "jump"):
             notes.append(f"the universe clock runs backwards between {a['t']:.1f}s and {b2['t']:.1f}s ({a['utc']} -> {b2['utc']}): a flashback?")
     if keys:
         return {"keys": keys}
@@ -322,7 +371,10 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     cat.used.add(p.dataset)
             except CatalogError as exc:
                 problems.append(f"row {b.row}: {exc}")
-    clock = build_clock(cat, plan, problems, notes, res)
+    actions, act_errors, act_warnings = resolve_actions(plan, cat, res)
+    problems += act_errors
+    _fit_actions_to_time(plan, res, actions, act_warnings)
+    clock = build_clock(cat, plan, problems, notes, res, actions)
     ctx_of = {b.id: res.ctx(b.id) for b in beats}
     tctx = {b.id: res.contexts.get(b.id) for b in beats}
 
@@ -391,6 +443,9 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                          "_status": status, "_basis": cat.index.trajectories[path["of"]].basis}
                     if path.get("style") or status in STATUS_STYLE:
                         L["style"] = styled(path.get("style"), status)
+                    act = actions.get(b.id)
+                    if act is not None and act.trajectory == path["of"] and act.motion(b.start, b.end):
+                        L["motion"] = act.motion(b.start, b.end)            # the trail keeps up with the narration-paced craft
                 elif ty == "craft":
                     cid = cat.craft_id(it.id, ctx_of[b.id])
                     base = copy.deepcopy(cat.craft(cid))
@@ -403,6 +458,14 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                          "_basis": cat.index.trajectories[base["trajectory"]].basis if base.get("trajectory") else None}
                     if it.label:
                         L["label"] = it.label.upper()
+                    act = actions.get(b.id)
+                    if act is not None and act.craft == cid:
+                        if act.show_on_pad:
+                            L["show"] = "always"                            # on its pad before the liftoff
+                        if act.burns:
+                            L["burns"] = [{"from_utc": x, "to_utc": y} for x, y in act.burns]
+                        if act.motion(b.start, b.end):
+                            L["motion"] = act.motion(b.start, b.end)
                     bc = tctx[b.id]
                     estimated = bc is not None and bc.estimated_from and cat.index.trajectories.get(base.get("trajectory") or "") is not None \
                         and cat.index.trajectories[base["trajectory"]].observed_until
@@ -571,7 +634,7 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     res.used.sort()
     spec: Dict[str, Any] = {
         "width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3),
-        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes, res),
+        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes, res, actions),
         "layers": auto + trajectories + layers + tail, "footage": footage,
         "starmap": {"pack": cat.default or "", "datasets": list(res.used), "title": plan.title, "reference_now": res.reference_now,
                     "beats": {bid: {"status": c.status, "basis": c.basis, "utc": c.utc, "timeline": c.timeline, "badge": c.badge,
@@ -579,7 +642,32 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     }
     if watermark and watermark.get("text"):
         spec["watermark"] = watermark
-    return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res)
+    spec["starmap"]["actions"] = {bid: {"action": a.action, "craft": a.craft, "strategy": a.strategy, "span": list(a.span) if a.span else None}
+                                  for bid, a in actions.items()}
+    return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res, actions=actions, warnings=act_warnings)
+
+
+def _fit_actions_to_time(plan: Plan, res: Resolution, actions: Dict[str, BeatAction], warnings: List[str]) -> None:
+    """When a beat's time runs on into the next beat's date (continuous) far beyond what its action shows -- an orbit insertion
+    in a beat whose clock races three days to the next event -- a close follow would look at empty space. The action keeps its
+    burn and span but shows in the beat's usual view; an action the CSV asked for by name says so."""
+    beats = plan.beats
+    nxt: Dict[str, str] = {}
+    for t in res.transitions:
+        if t.kind == "continuous":
+            nxt[t.a] = t.b_utc
+    for bid, a in actions.items():
+        if a.strategy != "clock" or not a.span or bid not in nxt or not a.camera:
+            continue
+        b = next(x for x in beats if x.id == bid)
+        start = a.span[0] if a.source == "csv" else res.contexts[bid].utc
+        runs, own = abs(iso_seconds(start, nxt[bid])), max(1.0, abs(iso_seconds(*a.span)))
+        if runs > 3 * own:
+            a.camera, a.intro = [], None
+            a.summary += " (shown in the beat's usual view: its time runs on to the next beat's date)"
+            if a.source == "csv":
+                warnings.append(f"row {b.row}: the {a.action} is shown in the usual view: this beat's time runs {runs / 3600:.1f} h on to the next "
+                                f"beat's date (the action itself covers {own / 3600:.1f} h); put a footage beat or a closer date after it to see it close up")
 
 
 # ---- automatic temporal layers ------------------------------------------------------------------------------------------
@@ -611,8 +699,8 @@ def _mission_clocks(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
         L = {"type": "mission_clock", "show": "met+utc" if met else "utc", **_edge(a, b, plan)}
         if met:
             L["met_zero"] = met
-        if prefix:
-            L["prefix"] = prefix
+        if prefix and met:
+            L["prefix"] = prefix                                 # a planned T+ clock says so; a date-only clock leaves it to the badge
         if prec != "minute":
             L["date_precision"] = prec
         out.append(L)

@@ -9,7 +9,7 @@
 //   { "type": "trajectory", "of": "apollo11_csm", "draw_utc": [...], "start": 10, "end": 24 }   another view of the same
 //     path (a different stretch, style or timing) without a second copy of the data
 import { createTrajectory } from '../lib/paths.mjs';
-import { progressAt } from '../lib/timing.mjs';
+import { progressAt, motionWhen } from '../lib/timing.mjs';
 import { runs, YELLOW } from './ui.mjs';
 
 function bind(inst, traj) {
@@ -33,7 +33,7 @@ export default {
     const { def, traj } = inst;
     if (def.draw === false) return;
     const st = def.style || {}, color = st.color || YELLOW;
-    const now = traj.indexAt(+f.date);
+    const now = traj.indexAt(def.motion ? motionWhen(def.motion, f.t, f.mu) : +f.date);   // a motion: the trail keeps up with its craft
     let cut;                                           // index the solid (travelled / revealed) part runs to
     if (def.reveal === 'full') cut = inst.b;
     else if (def.reveal && typeof def.reveal === 'object') cut = inst.a + (inst.b - inst.a) * progressAt(def.reveal, f.t, f.mu);

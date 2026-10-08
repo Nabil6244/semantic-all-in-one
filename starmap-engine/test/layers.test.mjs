@@ -203,3 +203,23 @@ test('time jump: fully dark at the cut, clear before and after', async () => {
   assert.ok(dipAt(def, 10.3) > 0 && dipAt(def, 10.3) < 1);
   assert.equal(dipAt(def, 11), 0);
 });
+
+test('camera follow: a shot on any trajectory looks at the craft, from outside it, and keeps up with a narration-paced motion', async () => {
+  const { buildWorld } = await import('../lib/world.mjs');
+  const { createCamera } = await import('../lib/camera.mjs');
+  const { trajectoryLookup } = await import('../lib/paths.mjs');
+  const { motionWhen } = await import('../lib/timing.mjs');
+  const world = buildWorld([{ id: 'earth', kind: 'body', radius: { km: 6371 } }], { date: new Date('2030-01-01T00:00:00Z') });
+  const traj = { type: 'trajectory', id: 'probe', frame: 'earth', samples: [
+    { utc: '2030-01-01T00:00:00Z', anchor: 'earth', km: [7000, 0, 0] }, { utc: '2030-01-01T01:00:00Z', anchor: 'earth', km: [0, 0, 9000] }] };
+  const look = trajectoryLookup(world, [traj]);
+  const motion = { t0: 0, t1: 10, from_utc: '2030-01-01T00:00:00Z', to_utc: '2030-01-01T01:00:00Z' };
+  const cam = createCamera(world, { start: { target: 'earth', follow: { trajectory: 'probe', motion }, distance: { km: 500 }, el_deg: 20 }, moves: [] }, { trajectory: look });
+  for (const t of [0, 5, 10]) {
+    const c = cam(t), want = look('probe').at(motionWhen(motion, t)).position;
+    assert.ok(c.target.every((v, i) => Math.abs(v - want[i]) < 1e-6), `looks at the craft at t=${t}`);
+    assert.ok(Math.abs(c.distance - 500) < 1e-6);
+    assert.ok(Math.hypot(...c.position) > Math.hypot(...c.target), 'the camera is outside the craft, the planet behind it');
+  }
+  assert.throws(() => createCamera(world, { start: { target: 'earth', follow: { trajectory: 'nope' }, distance: { km: 9 } } }, { trajectory: look })(0), /follow needs trajectory nope/);
+});

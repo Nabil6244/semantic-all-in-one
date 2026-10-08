@@ -8,6 +8,9 @@
 //            space; with "light": "front" | "side" | "back" | "rim" the direction is measured from the Sun instead, so
 //            a shot never lands on a body's night side by accident
 //   orbit_deg_per_s  the camera circles the target while the shot holds
+//   follow   { trajectory: id, motion?: {...} } instead of a target: the camera looks at a craft on its trajectory (where it
+//            is at the frame's universe date, or along its motion); distance in km. Any trajectory, any body: a launch, a
+//            landing, a flyby are the same follow shot (resolved from data by the compiler's visual actions)
 // A move: { t, dur, to: shot } glides there (dur 0 = a cut). Distance changes in log space (a steady feel across any
 // number of orders of magnitude) and the look-at point only moves as far as keeps the subject being left in frame -- the
 // motion the AstroMap demo clips proved out. Bodies move and turn with the universe clock, so every shot is re-resolved
@@ -16,6 +19,7 @@
 // Output positions are km from the ANCHOR body's centre (the body the camera is looking at), never from the root.
 import { toKm } from './units.mjs';
 import { anchorTarget, surfaceFrame } from './world.mjs';
+import { motionWhen } from './timing.mjs';
 
 const RAD = Math.PI / 180;
 export const smooth = (x) => { const k = Math.min(1, Math.max(0, x)); return k * k * k * (k * (6 * k - 15) + 10); };   // smootherstep
@@ -42,8 +46,14 @@ function dirIn(up, ref, az, el) {
   return norm(up.map((u, i) => u * Math.sin(e) + (north[i] * Math.cos(a) + east[i] * Math.sin(a)) * Math.cos(e)));
 }
 
-function shotState(world, shot, tanHalf, sunId) {
-  const at = anchorTarget(world, shot.target);
+function shotState(world, shot, tanHalf, sunId, ctx = {}) {
+  let at;
+  if (shot.follow) {
+    const traj = ctx.trajectory && ctx.trajectory(shot.follow.trajectory);
+    if (!traj) throw new Error(`camera: follow needs trajectory ${shot.follow.trajectory}`);
+    const when = shot.follow.motion ? motionWhen(shot.follow.motion, ctx.t ?? 0) : +world.date;
+    at = { anchor: traj.frame, local: traj.at(when).position };
+  } else at = anchorTarget(world, shot.target);
   const body = world.get(at.anchor);
   let dist;
   if (shot.fill) dist = (body.radiusKm / tanHalf) / shot.fill;
@@ -52,7 +62,21 @@ function shotState(world, shot, tanHalf, sunId) {
     const ids = String(shot.target).split('+').map((x) => x.trim()), span = Math.hypot(...world.vec(ids[0], ids[ids.length - 1]));
     dist = (span / 2 / tanHalf) * shot.fit;
   } else dist = toKm(shot.distance);
-  const sf = surfaceFrame(world, shot.target);
+  if (shot.follow && shot.look !== 'free') {
+    // following a craft: the camera stands OUTSIDE it, looking back towards the body it moves around (the planet, the Moon,
+    // the Sun), raised el_deg towards the Sun (so a craft over the night side still has the lit limb behind it; north when
+    // the body IS the Sun) -- the craft in front, the world behind it, whatever the orbit
+    const B = world.orientation(at.anchor), base = norm(at.local);
+    const toward = sunId && sunId !== at.anchor ? norm(world.vec(at.anchor, sunId).map((c, i) => c - at.local[i])) : B.y;
+    let lift = toward.map((c, i) => c - base[i] * dot(toward, base));
+    if (Math.hypot(...lift) < 1e-6) lift = Math.abs(base[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1];
+    lift = norm(lift);
+    const e = (shot.el_deg ?? 25) * RAD;
+    let dir = norm(base.map((c, i) => c * Math.cos(e) + lift[i] * Math.sin(e)));
+    if (shot.az_deg) dir = rotateAbout(dir, base, shot.az_deg);
+    return { ...at, dist, dir, up: lift, orbit: 0 };
+  }
+  const sf = shot.follow ? null : surfaceFrame(world, shot.target);
   const up = sf ? sf.normal : [0, 1, 0];
   let dir;
   if (shot.light && sunId && sunId !== at.anchor) {
@@ -91,7 +115,7 @@ function lookWeight(gap, from, to, d, k, tanHalf) {
 }
 
 /** spec.camera = { start: shot, moves: [{ t, dur, to: shot }] } -> camera(t) = { anchor, position, target, up, distance }. */
-export function createCamera(world, cam) {
+export function createCamera(world, cam, { trajectory } = {}) {
   const tanHalf = Math.tan(((cam.fov_deg || 40) / 2) * RAD);
   const sunId = cam.sun || [...world.nodes.values()].find((n) => n.kind === 'star')?.id;
   const sorted = (cam.moves || []).slice().sort((a, b) => a.t - b.t);
@@ -106,12 +130,13 @@ export function createCamera(world, cam) {
       break;
     }
     let s;
+    const ctx = { trajectory, t };
     if (!move) {
-      const st = shotState(world, shots[idx], tanHalf, sunId);
+      const st = shotState(world, shots[idx], tanHalf, sunId, ctx);
       s = { ...st, target: st.local };
       if (st.orbit) s.dir = rotateAbout(st.dir, st.up, st.orbit * (t - held));
     } else {
-      const from = shotState(world, shots[move.i], tanHalf, sunId), to = shotState(world, shots[move.i + 1], tanHalf, sunId);
+      const from = shotState(world, shots[move.i], tanHalf, sunId, ctx), to = shotState(world, shots[move.i + 1], tanHalf, sunId, ctx);
       const between = world.vec(from.anchor, to.anchor);
       const gapVec = [0, 1, 2].map((j) => between[j] + to.local[j] - from.local[j]);
       const k = move.t1 > move.t0 ? smooth((t - move.t0) / (move.t1 - move.t0)) : 1;

@@ -7,8 +7,12 @@
 //     "model": "csm.glb",                                               optional; parts are used if absent or it fails
 //     "parts": [ { "shape": "cylinder", "radius_m": 2, "length_m": 7.5, "at_m": 0, "color": "#c9ccd1" }, ... ],
 //     "min_px": 24,            real size is a few metres: shown at least this big (a documentary convention, not scale)
-//     "show": "flying" | "always", "label_side": "r" }
+//     "show": "flying" | "always", "label_side": "r",
+//     "motion": { "t0": 12, "t1": 20, "from_utc": "...", "to_utc": "..." },   optional: carried along by narration, not the clock
+//     "burns": [ { "from_utc": "...", "to_utc": "..." } ] }               optional: an engine burn glows on the craft then
 // Model axes: +Z forward (the nose), +Y up; parts are placed along Z by at_m.
+import { motionWhen } from '../lib/timing.mjs';
+
 const RAD = Math.PI / 180;
 
 function buildParts(THREE, parts) {
@@ -80,7 +84,7 @@ export default {
       const local = d.position.km || f.world.surfaceOffset(d.position.anchor, d.position.lon, d.position.lat, d.position.alt_km || 0);
       return { frame: d.position.anchor, position: local, direction: null };
     }
-    const traj = inst.ctx.layer(d.trajectory).traj, st = traj.at(f.date);
+    const traj = inst.ctx.layer(d.trajectory).traj, st = traj.at(d.motion ? motionWhen(d.motion, f.t, f.mu) : f.date);
     if (st.phase === 'before' && d.show !== 'always') return null;
     if (st.phase === 'after' && d.after === 'hide') return null;
     return { frame: traj.frame, ...st };
@@ -113,9 +117,17 @@ export default {
     inst.screenR = Math.max(px * k, 4) / 2;
   },
   draw(inst, f) {
-    if (!inst.rel || !inst.def.label) return;
+    if (!inst.rel) return;
     const s = f.project(inst.rel);
     if (!s.front || f.hidden(inst.rel)) return;
+    const when = +(inst.def.motion ? motionWhen(inst.def.motion, f.t, f.mu) : f.date);
+    if ((inst.def.burns || []).some((b) => when >= Date.parse(b.from_utc) && when <= Date.parse(b.to_utc))) {
+      // an engine burn: a warm pulsing glow on the craft (generic: any craft, any manoeuvre the data names)
+      const g = f.g, r = (inst.screenR + 16 * f.u.S) * (1 + 0.15 * Math.sin(f.t * 12)), grd = g.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+      grd.addColorStop(0, 'rgba(255,240,200,0.95)'); grd.addColorStop(0.35, 'rgba(255,170,60,0.7)'); grd.addColorStop(1, 'rgba(255,120,30,0)');
+      g.save(); g.globalAlpha = f.alpha; g.fillStyle = grd; g.beginPath(); g.arc(s.x, s.y, r, 0, Math.PI * 2); g.fill(); g.restore();
+    }
+    if (!inst.def.label) return;
     const { u, g } = f, left = inst.def.label_side === 'l', w = u.measure(inst.def.label, 24) + 28 * u.S;
     const x = left ? s.x - inst.screenR - 18 * u.S - w : s.x + inst.screenR + 18 * u.S;
     f.claim(s.x - inst.screenR, s.y - inst.screenR, 2 * inst.screenR, 2 * inst.screenR);

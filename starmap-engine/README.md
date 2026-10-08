@@ -73,3 +73,11 @@ re-encoding; only the rest are drawn. The chunks of the previous render are kept
 the T-zero). `status_badge` (a coloured chip under the clock), `footnote` (fine print at the bottom centre) and `time_jump` (the
 map dips dark while the universe date jumps, with a card such as "1969 → 2026") are plain screen layers: the words, colours and
 times come from the spec. A trajectory's `style.dash` dashes its drawn part too. The renderer knows no mission, dataset or status.
+
+## Following a craft
+
+A camera shot may `follow` a trajectory instead of a body (`{"follow": {"trajectory": id, "motion"?}, "distance": {"km": ...},
+"el_deg": ...}`): it looks at the craft where it is at the frame's universe date, from OUTSIDE it with the body it moves around
+behind it (raised towards the Sun so a lit limb stays in view). A spacecraft or trajectory layer with `motion` (`t0`, `t1`,
+`from_utc`, `to_utc`) moves its craft by narration instead of by the universe clock (a rover's years, an interstellar cruise);
+`burns` make an engine burn glow. The compiler's visual actions produce these; the renderer knows no mission.

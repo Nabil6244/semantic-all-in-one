@@ -99,10 +99,11 @@ export function planFootage(spec = {}) {
   const mapClock = (clock = {}) => (clock.keys ? { ...clock, keys: clock.keys.map((k) => ({ ...k, t: mu(k.t) })) } : clock);
   // a camera move keeps its own length in map time: one that runs into footage pauses and finishes after the map returns
   // (shortened only if it would then run into the next move)
+  const mapShot = (s) => (s && s.follow && s.follow.motion ? { ...s, follow: { ...s.follow, motion: { ...s.follow.motion, t0: mu(s.follow.motion.t0), t1: mu(s.follow.motion.t1) } } } : s);
   const mapCamera = (cam = {}) => {
-    const moves = (cam.moves || []).slice().sort((a, b) => a.t - b.t).map((m) => ({ ...m, t: mu(m.t), dur: m.dur ?? 4 }));
+    const moves = (cam.moves || []).slice().sort((a, b) => a.t - b.t).map((m) => ({ ...m, t: mu(m.t), dur: m.dur ?? 4, to: mapShot(m.to) }));
     for (let k = 0; k + 1 < moves.length; k++) if (moves[k].t + moves[k].dur > moves[k + 1].t) moves[k].dur = Math.max(0, moves[k + 1].t - moves[k].t);
-    return { ...cam, moves };
+    return { ...cam, start: mapShot(cam.start), moves };
   };
   // keys or moves authored under the footage are almost always a mistake: their effect happens at the map's return
   for (const s of spans) {

@@ -192,12 +192,15 @@ class Timing(unittest.TestCase):
         self.assertEqual([k["utc"] for k in keys[2:5]], ["1969-07-16T13:43:49Z", "1969-07-16T16:16:16Z", "1969-07-19T17:21:50Z"])
 
     def test_camera_glides_only_when_the_view_changes(self):
+        """Beat views in order (follow shots of a beat's visual action ride along a craft between them); b7 keeps b6's view."""
         spec = check_csv(SAMPLE, WORDS, media=MEDIA).compiled.spec
-        moves = spec["camera"]["moves"]
+        moves = [m for m in spec["camera"]["moves"] if not m["to"].get("follow")]
         seen = [spec["camera"]["start"]["target"]] + [m["to"]["target"] for m in moves]
         targets = [x for k, x in enumerate(seen) if k and x != seen[k - 1]]     # the views it glides to (creeping in keeps the view)
         self.assertEqual(spec["camera"]["start"]["target"], "earth@-80.604,28.608")
-        self.assertEqual(targets, ["earth", "earth+moon", "moon", "moon@23.473,0.674"])     # b7 keeps b6's view
+        self.assertEqual([t for t in targets if "@" not in t or t == "moon@23.473,0.674"], ["earth", "earth+moon", "moon", "moon@23.473,0.674"])
+        follows = [m for m in spec["camera"]["moves"] if m["to"].get("follow")]
+        self.assertTrue(follows and all(m["to"]["follow"]["trajectory"].startswith("apollo11_") for m in follows), "the camera follows the craft")
         orbit = next(m for m in moves if m["to"]["target"] == "moon")
         self.assertGreaterEqual(orbit["to"]["el_deg"], 45, "an orbit beat looks down on the orbit")
 

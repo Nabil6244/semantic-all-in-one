@@ -33,6 +33,7 @@ class Report:
     to_find: List[Tuple[int, str]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
     detected: List[str] = field(default_factory=list)
+    actions: List[str] = field(default_factory=list)
     jumps: List[str] = field(default_factory=list)
     plan: Optional[Plan] = None
     compiled: Optional[Compiled] = None
@@ -55,6 +56,9 @@ class Report:
             out.append("Detected: no mission data (the sky, the planets and the stars only)")
         if self.jumps:
             out.append("Time jumps: " + "; ".join(self.jumps))
+        if self.actions:
+            out.append("Visual actions:")
+            out += self.actions
         out += [f"ERROR {e}" for e in self.errors]
         out += [f"WARNING {w}" for w in self.warnings]
         out += [f"NOTE {n}" for n in self.notes]
@@ -97,6 +101,9 @@ def check_csv(text: str, words: Sequence = (), duration: Optional[float] = None,
     rep.detected = res.detected(cat)
     rep.compiled = comp
     rep.notes = comp.notes
+    rep.warnings += comp.warnings
+    rep.actions = [f"  {bid} → {a.action}" + (f" (asked: {a.asked})" if a.asked != a.action else "") + f": {a.summary}"
+                   + (" [narration-paced]" if a.strategy == "motion" else "") for bid, a in comp.actions.items()]
     rep.to_find = comp.needs_media
     _rhythm(plan, comp, rep)
     return rep

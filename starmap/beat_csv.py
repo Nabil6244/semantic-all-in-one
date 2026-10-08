@@ -33,6 +33,10 @@ ROWS = ("plan", "beat", "layer", "card", "clip")
 MODES = ("map", "map_footage", "footage")
 FRAMES = ("surface", "close", "body", "system", "inner", "solar", "heliosphere", "galaxy", "universe")
 MOVES = ("", "hold", "push_in", "pull_out", "orbit")
+# visual actions a beat's type may name instead of a camera move (starmap/actions.py shows them; generic, any mission)
+VISUAL_ACTIONS = ("liftoff", "launch", "ascent", "orbit_insert", "orbit", "orbit_raise", "orbit_lower", "departure", "transfer", "approach",
+                  "arrival", "flyby", "landing", "descent", "reentry", "docking", "undocking", "separation", "deployment", "impact",
+                  "surface_traverse", "rover_drive", "station_keep", "trajectory_follow", "deep_space_departure")
 LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "caption", "distance", "line", "rings", "pointer")
 CARD_ANCHORS = ("tr", "mr", "ml", "bl")
 DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "card": 6.0}
@@ -247,8 +251,9 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                         raise ValueError(f"a {mode} beat needs a place (what the camera looks at)")
                     if frame not in FRAMES:
                         raise ValueError(f"frame must be one of {', '.join(FRAMES)} (got {r.get('frame')!r})")
-                    if move not in MOVES:
-                        raise ValueError(f"type must be one of {', '.join(m for m in MOVES if m)} (got {r.get('type')!r})")
+                    if move not in MOVES and move not in VISUAL_ACTIONS:
+                        raise ValueError(f"type must be a camera move ({', '.join(m for m in MOVES if m)}) or a visual action "
+                                         f"({', '.join(VISUAL_ACTIONS)}) (got {r.get('type')!r})")
                 start = _f(r, "start")
                 if start is None and anchor:
                     start = clock.at(anchor, advance=True)

@@ -28,6 +28,14 @@ export function progressAt(r, t, mu = (x) => x) {
   return smooth((m - a) / (b - a));
 }
 
+/** A motion: narration [t0, t1] carries a craft along its trajectory from from_utc to to_utc (eased), independent of the
+ *  universe clock -- a rover's years of driving, a decades-long cruise -- so the planets do not spin while it moves.
+ *  -> the trajectory time (ms) at narration t (held before t0 and after t1). */
+export function motionWhen(m, t, mu = (x) => x) {
+  const a = Date.parse(m.from_utc), b = Date.parse(m.to_utc);
+  return a + (b - a) * progressAt(m, t, mu);
+}
+
 /** Piecewise-linear keys [{t, v}] -> value at t (held before the first key and after the last). */
 export function keyed(keys, t) {
   if (!keys || !keys.length) return null;

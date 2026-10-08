@@ -374,10 +374,10 @@ class FootageAndTime(Base):
                 beat("b2", 6, "footage"), clip("b2"),
                 beat("b3", 12, "map", "earth+moon", "system", "artemis1.launch"), layer("b3", 12.5, "craft", id="artemis1.orion")]
         spec = self.compiled(rows, duration=18).spec
-        keys = spec["clock"]["keys"]
-        self.assertEqual([k["t"] for k in keys], [0.0, 6.0, 12.0])
-        self.assertTrue(keys[1]["utc"].startswith("1969-07-20"), "the 1969 date holds in real time until the footage")
-        self.assertEqual(keys[2]["utc"], "2022-11-16T06:47:44Z", "the map comes back already in 2022")
+        keys = {k["t"]: k["utc"] for k in spec["clock"]["keys"]}
+        self.assertTrue(keys[6.0].startswith("1969-07-20"), "the 1969 date holds in real time until the footage")
+        self.assertEqual(keys[12.0], "2022-11-16T06:47:44Z", "the map comes back already in 2022")
+        self.assertTrue(all(u.startswith("1969") for t, u in keys.items() if t < 12) and all(u.startswith("2022") for t, u in keys.items() if t >= 12))
         self.assertFalse([L for L in spec["layers"] if L["type"] == "time_jump"], "footage hides the jump: no card")
         assert_no_visible_fast_forward(self, spec)
         clocks = [(L.get("met_zero"), L["start"], L["end"]) for L in spec["layers"] if L["type"] == "mission_clock"]

@@ -291,3 +291,14 @@ export function createTrajectory(world, def) {
     },
   };
 }
+
+/** The spec's trajectories by id, built on first use (for the camera's follow shots; the same pure function the trajectory
+ *  layers use, so the camera looks exactly where the craft is). */
+export function trajectoryLookup(world, layers = []) {
+  const defs = new Map(layers.filter((L) => L.type === 'trajectory' && L.id).map((L) => [L.id, L]));
+  const built = new Map();
+  return (id) => {
+    if (!built.has(id)) { const d = defs.get(id); built.set(id, d ? createTrajectory(world, d) : null); }
+    return built.get(id);
+  };
+}

@@ -72,6 +72,17 @@ badges, dashed coloured paths for uncertain things, a small FLIGHT PATH ILLUSTRA
 mission clock per mission (its own T-zero, T- before launch). Between missions or eras time JUMPS (under footage, or behind a
 short time-jump card such as "1969 → 2026"); within one mission it runs on screen. `extra {"continuous": true|false}` overrides.
 
+**Visual actions** (`starmap/actions.py`): the resolver says what happened; an action says how to SHOW it. A beat's `type`
+may name one (liftoff, landing, orbit_insert, orbit, departure, transfer, flyby, approach, docking, undocking, separation,
+impact, reentry, rover_drive, deep_space_departure ...), or `extra {"action": ...}`; left empty, a beat that shows a craft takes
+it from its date's event (launch → liftoff, loi → orbit_insert, pdi → descent ...; a dataset event may declare `"action"`). The
+action reads only the craft's trajectory data -- a surface track that starts at a site is the launch, one that ends at a site
+the landing, an orbit arc its period, a transfer its two bodies -- and becomes camera intents for the existing camera (frame the
+body or site, FOLLOW the craft on its trajectory, settle or pull back), a clock span (the ascent, the descent, the closest
+approach) or, for journeys of months to decades, a narration-paced motion that carries the craft without spinning the planets,
+plus an engine-burn glow for a manoeuvre. Check plan lists every beat's action; an action the data cannot support is an error
+when asked for ("Launch visual incomplete: no spacecraft resolved") and a warning when inferred. Labels and basis are unchanged.
+
 The **Moon Missions** datasets, each with a sample script, beat CSV and media map in `starmap/samples/` (pictures in
 `starmap-engine/samples/media/`, credited in its `CREDITS.txt`):
 
