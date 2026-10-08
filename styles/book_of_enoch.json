@@ -1,0 +1,399 @@
+{
+ "id": "book_of_enoch",
+ "version": 3,
+ "name": "Book of Enoch",
+ "identity": {
+  "description": "Book of Enoch documentary: Ethiopic and Dead Sea Scroll manuscripts, Romantic religious art, Mount Hermon, Qumran and Ethiopia as real evidence; painted reconstructions only for what no camera or painter ever captured.",
+  "tone": "reverent, mysterious, scholarly, grounded in evidence",
+  "best_for": [
+   "book of enoch"
+  ]
+ },
+ "visual": {
+  "treatment": "archival documentary",
+  "camera": {
+   "preferred": [
+    "push_in",
+    "subtle_drift",
+    "hold"
+   ],
+   "intensity": 0.35
+  },
+  "motion_rules": {
+   "deliberate_moves": true,
+   "avoid_static_runs": 2,
+   "avoid_mechanical_alternation": true,
+   "dramatic_push_on_evidence": true,
+   "prefer_still_plates": true
+  },
+  "variety": {
+   "high_visual_variety": true,
+   "min_unique_keys": 0.75,
+   "avoid_identical_compositions": true,
+   "avoid_repeated_archival_photo": true,
+   "prefer_documents_maps": true,
+   "avoid_generic_stock_repeats": true
+  }
+ },
+ "pacing": {
+  "default": "normal",
+  "hook": "fast",
+  "exposition": "normal",
+  "evidence": "normal",
+  "climax": "fast",
+  "reflection": "normal",
+  "transition_density": 0.12
+ },
+ "transitions": {
+  "default": "cut",
+  "preferred": [
+   "cut",
+   "flash"
+  ],
+  "avoid": [
+   "dissolve",
+   "fade",
+   "soft"
+  ]
+ },
+ "audio": {
+  "ambience_intensity": 0.6,
+  "sfx_intensity": 0.4,
+  "music_intensity": 0.5,
+  "music_duck_db": -11
+ },
+ "hook": {
+  "window_seconds": 30,
+  "attention_target": 0.8,
+  "prefer_visual_change": true
+ },
+ "assets": {
+  "preferred": [
+   "stock_image",
+   "stock_video",
+   "image",
+   "video",
+   "youtube_video"
+  ],
+  "avoid_repetition": true
+ },
+ "captions": {
+  "style": "premium_documentary",
+  "density": "medium",
+  "emphasis": "selective"
+ },
+ "ai_visual_prompt": {
+  "style": "real evidence first: ancient Ethiopic and Aramaic manuscripts, Dead Sea Scroll fragments, old printed Bibles, Romantic religious paintings and Gustave Doré engravings, Mount Hermon, the Qumran caves, Ethiopian monasteries. Only for scenes no camera or painter ever captured (the Watchers, the Nephilim, the house of crystal and fire, the abyss, the prison of the stars) use a reconstruction that looks like a lost 19th-century Romantic religious oil painting (dark chiaroscuro, storm light and firelight, muted umber, ochre and slate-blue palette, visible brushwork, fine craquelure, aged varnish) or a 19th-century Gustave Doré-style wood engraving (dense black-ink cross-hatching, aged cream paper); when a scene must feel photographic, a 35mm documentary film still with natural light, film grain, haze and muted colour. Dark, warm, desaturated documentary look throughout",
+  "realism": 0.85,
+  "composition": "wide environmental framing; supernatural figures small, from behind, in silhouette or with faces in shadow; slightly off-centre; aged historical texture",
+  "avoid": [
+   "close-up faces",
+   "hands",
+   "readable text inside the image",
+   "glossy fantasy art",
+   "neon or saturated colour",
+   "glowing halos everywhere",
+   "perfect symmetry",
+   "modern city",
+   "video game look",
+   "plastic skin"
+  ]
+ },
+ "intelligence": {
+  "weights": {},
+  "preview_visual": "Manuscripts • Religious art • Sacred places",
+  "preview_camera": "Push-in • Drift • Hold",
+  "preview_pacing": "3–5 s documentary rhythm",
+  "preview_audio": "Reverent • Atmospheric",
+  "variety_family": "archival",
+  "influences": [
+   "ancient",
+   "mystery"
+  ]
+ },
+ "visual_roles": {
+  "weights": {
+   "document": 0.95,
+   "archival_evidence": 0.95,
+   "location": 0.85,
+   "object": 0.75,
+   "map": 0.7,
+   "atmosphere": 0.6,
+   "timeline": 0.5,
+   "establishing": 0.5
+  },
+  "avoid": [
+   "generic stock"
+  ]
+ },
+ "source_preferences": {
+  "ranked": [
+   "archive",
+   "openverse",
+   "nasa",
+   "pexels",
+   "pixabay",
+   "flow",
+   "youtube"
+  ],
+  "avoid": []
+ },
+ "search_guidance": {
+  "prefer_terms": [
+   "Ethiopic manuscript",
+   "Ge'ez manuscript",
+   "Dead Sea Scrolls",
+   "Qumran caves",
+   "Mount Hermon",
+   "ancient scroll",
+   "illuminated manuscript",
+   "Gustave Doré engraving",
+   "William Blake",
+   "Ethiopian monastery",
+   "Lalibela",
+   "candlelit library",
+   "old Bible page",
+   "Judean desert"
+  ],
+  "avoid_terms": [
+   "fantasy castle",
+   "modern city",
+   "cartoon angel",
+   "video game",
+   "neon"
+  ],
+  "evidence_bias": "high",
+  "query_expansion": true
+ },
+ "selection_rules": {
+  "prefer_evidence_when_factual": true,
+  "avoid_generic_when_specific": true,
+  "repetition_penalty": 0.45,
+  "provider_repetition_penalty": 0.25,
+  "concept_repetition_penalty": 0.5,
+  "real_subjects": [
+   "manuscript",
+   "parchment",
+   "scroll",
+   "ge'ez",
+   "ethiopic",
+   "aramaic",
+   "dead sea",
+   "qumran",
+   "hermon",
+   "monastery",
+   "ethiopian church",
+   "lalibela",
+   "axum",
+   "aksum",
+   "lake tana",
+   "bible",
+   "library",
+   "museum",
+   "james bruce",
+   "judean desert",
+   "printed edition",
+   "translation"
+  ],
+  "max_ai_share": 0.25,
+  "max_ai_run": 2,
+  "artworks": [
+   {
+    "match": [
+     "watchers",
+     "daughters of men",
+     "semjaza",
+     "two hundred angels"
+    ],
+    "query": "William Blake Book of Enoch drawing"
+   },
+   {
+    "match": [
+     "fallen angel",
+     "rebel angels",
+     "cast down",
+     "cast him"
+    ],
+    "query": "Gustave Doré fall of the rebel angels engraving"
+   },
+   {
+    "match": [
+     "flood",
+     "deluge"
+    ],
+    "query": "Gustave Doré The Deluge engraving"
+   },
+   {
+    "match": [
+     "abyss",
+     "pillars of fire",
+     "columns of",
+     "prison for the stars",
+     "bottomless pit"
+    ],
+    "query": "John Martin Pandemonium painting"
+   },
+   {
+    "match": [
+     "archangel"
+    ],
+    "query": "Guido Reni Archangel Michael painting"
+   }
+  ]
+ },
+ "storytelling": {
+  "narrative": "Ancient text, then the evidence: what the Book of Enoch says, verse by verse, set against the manuscripts, the places and the history of its rediscovery.",
+  "hook_strategy": "Open on the oldest real manuscript evidence, then the claim",
+  "evidence_priority": "high"
+ },
+ "shot_selection": {
+  "establishing_weight": 0.5,
+  "evidence_weight": 0.85,
+  "atmosphere_weight": 0.5,
+  "process_weight": 0.3
+ },
+ "entities": [
+  {
+   "id": "semjaza",
+   "name": "Semjaza",
+   "aliases": [
+    "Shemihazah",
+    "Semyaza",
+    "Samyaza"
+   ],
+   "canonical_description": "the tallest of the Watchers, a towering winged figure in dark bronze-grey robes with great dark-feathered wings and a plain bronze circlet, standing apart at the front of the others",
+   "visual_rules": [
+    "wide environmental framing",
+    "silhouette or seen from below",
+    "face hidden in shadow",
+    "dark storm light",
+    "no glossy fantasy armour"
+   ],
+   "allowed_variations": [
+    "standing on the summit of Mount Hermon",
+    "at the head of the Watchers",
+    "silhouette against storm light"
+   ]
+  },
+  {
+   "id": "azazel",
+   "name": "Azazel",
+   "aliases": [
+    "Asael",
+    "Azael"
+   ],
+   "canonical_description": "a Watcher at a forge, a towering winged figure in dark bronze-grey robes teaching men to work metal and forge weapons, lit by forge fire with sparks and molten metal",
+   "visual_rules": [
+    "face hidden",
+    "lit only by forge light",
+    "wide framing",
+    "no glossy fantasy armour"
+   ],
+   "allowed_variations": [
+    "at the anvil",
+    "showing men swords and shields",
+    "bound under jagged rocks in darkness"
+   ]
+  },
+  {
+   "id": "watchers",
+   "name": "The Watchers",
+   "aliases": [
+    "Watchers",
+    "Watcher",
+    "two hundred angels",
+    "200 angels",
+    "fallen angels"
+   ],
+   "canonical_description": "towering winged beings in dark bronze-grey robes with great dark-feathered wings",
+   "visual_rules": [
+    "faces in shadow or turned away",
+    "seen from below or in silhouette",
+    "storm light",
+    "wide framing",
+    "no glowing halos"
+   ],
+   "allowed_variations": [
+    "descending on Mount Hermon",
+    "gathered on a mountain crag",
+    "among the daughters of men"
+   ]
+  },
+  {
+   "id": "nephilim",
+   "name": "The Nephilim",
+   "aliases": [
+    "Nephilim",
+    "giants"
+   ],
+   "canonical_description": "colossal human silhouettes in a storm, with tiny people and trees beside them for scale",
+   "visual_rules": [
+    "always distant",
+    "no visible face",
+    "storm environment"
+   ],
+   "allowed_variations": [
+    "walking over a plain",
+    "beside a ruined village",
+    "in the rain of the flood"
+   ]
+  },
+  {
+   "id": "uriel",
+   "name": "Uriel",
+   "aliases": [],
+   "canonical_description": "a tall figure of white light in a pale robe, Enoch's guide",
+   "visual_rules": [
+    "seen from behind",
+    "the light source of the scene",
+    "leading Enoch"
+   ],
+   "allowed_variations": [
+    "leading Enoch to the ends of the earth",
+    "standing at the edge of the abyss"
+   ]
+  },
+  {
+   "id": "archangels",
+   "name": "The archangels Michael, Raphael and Gabriel",
+   "aliases": [
+    "archangels",
+    "archangel",
+    "Michael",
+    "Raphael",
+    "Gabriel"
+   ],
+   "canonical_description": "armoured figures of light holding swords of light",
+   "visual_rules": [
+    "wide judgement scenes",
+    "no close-up faces",
+    "no glossy fantasy armour"
+   ],
+   "allowed_variations": [
+    "looking down from heaven",
+    "binding the Watchers",
+    "standing in judgement"
+   ]
+  },
+  {
+   "id": "enoch",
+   "name": "Enoch",
+   "aliases": [],
+   "not_when": [
+    "book of enoch",
+    "1 enoch"
+   ],
+   "canonical_description": "an elderly Near-Eastern patriarch with a long grey beard, a plain undyed wool robe and mantle, leather sandals and a wooden staff",
+   "visual_rules": [
+    "from behind or in profile",
+    "small in a vast landscape",
+    "never a close-up face"
+   ],
+   "allowed_variations": [
+    "walking with God into a misty valley",
+    "carried beyond the ends of the earth",
+    "before the house of crystal and fire"
+   ]
+  }
+ ]
+}

@@ -128,6 +128,79 @@ def _score_video_vs_image(
     return score >= 0.5, curve, curve_overridden
 
 
+ARTWORK_REASON = "real artwork: "
+
+
+def _apply_style_ai_limits(
+    prelim: List[dict],
+    video_selected: set,
+    image_selected: set,
+    resolved: Optional[ResolvedStyle],
+) -> dict:
+    """The style's opt-in AI limits (selection_rules.real_subjects / max_ai_share / max_ai_run / artworks), applied to
+    the selections in place. Returns {scene id: why it is not AI}. Visual correctness first:
+      - a scene naming a real thing (a manuscript, a place) is never made up: it goes to a real source;
+      - over the share cap or a long run, a reconstruction gives way only to a real artwork known to show its subject
+        (searched for by name); one with no such artwork stays AI -- the cap is a target, never a reason to show
+        unrelated stock.
+    A style without the rules: nothing happens."""
+    rules = resolved.style.selection_rules if resolved is not None and resolved.style is not None else None
+    if rules is None or not (rules.real_subjects or rules.max_ai_share is not None or rules.max_ai_run is not None):
+        return {}
+    why: dict = {}
+    ai = lambda sid: sid in video_selected or sid in image_selected  # noqa: E731
+
+    def text(item) -> str:
+        sc = item["scene"]
+        return f"{sc.narration} {sc.visual_goal} {sc.visual_description}".lower()
+
+    def artwork(item) -> Optional[str]:
+        t = item["scene"].narration.lower()                       # what the script says, not the AI's own description of it
+        for a in rules.artworks:
+            if any(str(m).lower() in t for m in (a.get("match") or [])):
+                return str(a["query"])
+        return None
+
+    def demote(sid, reason: str) -> None:
+        video_selected.discard(sid)
+        image_selected.discard(sid)
+        why[sid] = reason
+
+    terms = [t.lower() for t in rules.real_subjects]
+    for item in prelim:                                           # a real thing is filmed or photographed, never made up
+        sid = item["scene"].scene_id
+        hit = next((t for t in terms if t in text(item)), None)
+        if hit and ai(sid):
+            demote(sid, f"real subject '{hit}': real source")
+    if rules.max_ai_share is not None:                            # the lowest-scoring AI picks with a real artwork give way
+        cap = int(len(prelim) * max(0.0, float(rules.max_ai_share)))
+        over = sum(1 for it in prelim if ai(it["scene"].scene_id)) - cap
+        for it in sorted((it for it in prelim if ai(it["scene"].scene_id)), key=lambda it: it["flow_score"]):
+            if over <= 0:
+                break
+            q = artwork(it)
+            if q:
+                demote(it["scene"].scene_id, ARTWORK_REASON + q)
+                over -= 1
+    if rules.max_ai_run is not None:                              # a long run of AI scenes is broken by real artwork
+        limit, run = int(rules.max_ai_run), []
+        for item in prelim + [None]:
+            if item is not None and ai(item["scene"].scene_id):
+                run.append(item)
+                continue
+            while len(run) > limit:                               # break the run where an artwork exists, nearest the middle
+                options = [it for it in run if artwork(it)]
+                if not options:
+                    break                                         # no artwork for any of them: correctness first, they stay AI
+                pick = min(options, key=lambda it: abs(run.index(it) - len(run) / 2))
+                demote(pick["scene"].scene_id, ARTWORK_REASON + artwork(pick))
+                i = run.index(pick)
+                left, right = run[:i], run[i + 1:]
+                run = max(left, right, key=len) if len(max(left, right, key=len)) > limit else []
+            run = []
+    return why
+
+
 def allocate_visual_plan(
     plan: VisualPlan,
     settings: AllocationSettings,
@@ -188,6 +261,7 @@ def allocate_visual_plan(
         video_selected=flow_video_selected,
         soft_cap=image_soft_cap,
     )
+    held_real = _apply_style_ai_limits(prelim, flow_video_selected, flow_image_selected, resolved)
     opportunities = sum(1 for _, s in flow_scores if s >= 0.35)
 
     decisions: List[AllocationDecision] = []
@@ -231,6 +305,9 @@ def allocate_visual_plan(
                 f"flow image ({item['flow_score']:.2f})",
                 f"need={need}",
             ]
+        elif sid in held_real and held_real[sid].startswith(ARTWORK_REASON):
+            asset_type = "stock_image"                            # a real painting or engraving: a still, searched by name
+            reason_parts = [f"image ({item['curve_bias']:.2f})", f"need={need}"]
         elif prefer_video:
             asset_type = _documentary_asset_type(need, item["role"], style_id, True)
             reason_parts = [f"video bias ({item['curve_bias']:.2f})", f"need={need}"]
@@ -240,6 +317,8 @@ def allocate_visual_plan(
 
         if item["overridden"]:
             reason_parts.append("importance/style override")
+        if sid in held_real:
+            reason_parts.append(held_real[sid])
 
         provider = ASSET_TO_PROVIDER.get(asset_type, scene.provider_preference or "stock")
         visual_kind = "video" if asset_type in ASSET_TYPES_VIDEO else "image"
@@ -290,6 +369,9 @@ def apply_allocation_to_plan(
             continue
         scene.asset_type = dec.asset_type
         scene.provider_preference = dec.provider_preference
+        if ARTWORK_REASON in dec.reason:                           # search for the named artwork first
+            q = dec.reason.split(ARTWORK_REASON, 1)[1].split(";", 1)[0].strip()
+            scene.search_queries = [q] + [x for x in scene.search_queries if x != q]
     finalize_plan_prompts(plan)
     errors = assert_pipeline_compatible(plan)
     if errors:

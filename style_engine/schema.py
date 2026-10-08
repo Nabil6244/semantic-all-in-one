@@ -131,6 +131,15 @@ class StyleSelectionRules:
     repetition_penalty: float = 0.35
     provider_repetition_penalty: float = 0.25
     concept_repetition_penalty: float = 0.4
+    # Opt-in AI limits (empty / None = no limit, the behaviour every style had before them):
+    # scenes naming one of these real things (a manuscript, a place) never go to AI generation;
+    # at most this share of scenes is AI; never more than this many AI scenes in a row.
+    real_subjects: List[str] = dataclasses.field(default_factory=list)
+    max_ai_share: Optional[float] = None
+    max_ai_run: Optional[int] = None
+    # real artworks known to show a subject: [{"match": ["watchers", ...], "query": "William Blake Book of Enoch drawing"}].
+    # Over the AI limits, a reconstruction scene gives way only to such an artwork -- never to unrelated stock.
+    artworks: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -172,6 +181,9 @@ class VideoStyle:
     selection_rules: StyleSelectionRules = dataclasses.field(default_factory=StyleSelectionRules)
     storytelling: StyleStorytelling = dataclasses.field(default_factory=StyleStorytelling)
     shot_selection: StyleShotSelection = dataclasses.field(default_factory=StyleShotSelection)
+    # opt-in recurring figures (style_engine/entities.py): canonical descriptions added to the AI prompts of the CSV
+    # scenes that name them. Empty = no enrichment, the behaviour every style had before.
+    entities: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -339,6 +351,10 @@ class VideoStyle:
                     if srules.get("provider_repetition_penalty") is not None
                     else 0.25
                 ),
+                real_subjects=[str(x) for x in (srules.get("real_subjects") or []) if str(x).strip()],
+                max_ai_share=float(srules["max_ai_share"]) if srules.get("max_ai_share") is not None else None,
+                max_ai_run=int(srules["max_ai_run"]) if srules.get("max_ai_run") is not None else None,
+                artworks=[dict(a) for a in (srules.get("artworks") or []) if isinstance(a, dict) and a.get("query")],
                 concept_repetition_penalty=float(
                     srules.get("concept_repetition_penalty")
                     if srules.get("concept_repetition_penalty") is not None
@@ -356,6 +372,7 @@ class VideoStyle:
                 atmosphere_weight=float(shots.get("atmosphere_weight") if shots.get("atmosphere_weight") is not None else 0.3),
                 process_weight=float(shots.get("process_weight") if shots.get("process_weight") is not None else 0.4),
             ),
+            entities=[dict(e) for e in (data.get("entities") or []) if isinstance(e, dict) and e.get("id") and e.get("canonical_description")],
         )
 
 

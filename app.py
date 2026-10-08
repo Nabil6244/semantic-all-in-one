@@ -8027,6 +8027,7 @@ class VideoGeneratorApp(ctk.CTk):
                 mixed = apply_asset_mix_to_plan(plan, mix)
                 plan.scenes = list(mixed.scenes)
                 plan.warnings = list(mixed.warnings)
+                self._enrich_entity_prompts(plan)
                 n_flow_v = sum(
                     1
                     for s in plan.scenes
@@ -8539,6 +8540,27 @@ class VideoGeneratorApp(ctk.CTk):
             )
         return VisualPlan(topic="Claude CSV", scenes=scenes)
 
+    def _enrich_entity_prompts(self, plan) -> int:
+        """Recurring figures (style_engine/entities.py): only for a project whose chosen style defines them (Book of
+        Enoch); appends their canonical descriptions to the AI prompts of the scenes that name them, before the CSV is
+        written. Any other project: nothing happens."""
+        ws = self._workspace
+        if ws is None or plan is None:
+            return 0
+        try:
+            from style_engine.entities import enrich_plan
+            from style_engine.loader import load_style
+
+            sid = ws.video_style_settings().get("style_id")
+            style = load_style(sid) if sid else None
+            n = enrich_plan(plan, style.entities if style is not None else None)
+        except Exception as exc:  # enrichment is an extra: it never blocks a plan
+            self.after(0, lambda e=exc: self._append_log(f"[STYLE] Recurring figures skipped: {e}\n"))
+            return 0
+        if n:
+            self.after(0, lambda n=n: self._append_log(f"[STYLE] Recurring figures: {n} AI prompt(s) given their canonical description.\n"))
+        return n
+
     def _enforce_asset_mix_on_csv(self, csv_path: Path) -> int:
         """Rewrite CSV providers from current Asset mix preferences. Returns Flow video count."""
         from vo_planner.preferences import apply_asset_mix_to_plan
@@ -8572,6 +8594,7 @@ class VideoGeneratorApp(ctk.CTk):
                     scene.visual_description = prompt
 
         mixed = apply_asset_mix_to_plan(plan, mix)
+        self._enrich_entity_prompts(mixed)
         mixed.write_csv(csv_path)
         self._visual_plan = mixed
         n_flow_v = sum(
