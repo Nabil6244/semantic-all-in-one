@@ -514,7 +514,14 @@ class FlowProvider(AssetProvider):
                         replay_end.clear()
                         try:
                             client.send({"type": "RUN_EVENTS", "outputDir": str(run_dir.resolve())})
-                            got = client.wait_for(lambda m: m.get("type") == "RUN_EVENTS_END", timeout=20)
+                            # on_message (subscribed above, before the request) records the answer: a listener added only
+                            # after sending could miss a fast reply and wait the full 20 s for nothing.
+                            deadline = time.monotonic() + 20
+                            while not replay_end and time.monotonic() < deadline:
+                                time.sleep(0.05)
+                            if not replay_end:
+                                raise FlowClientError("Timed out waiting for the Flow engine to respond.")
+                            got = replay_end[-1]
                             log(f"[FLOW] Caught up on {got.get('count', 0)} result(s) sent while disconnected.")
                             if not got.get("running") and not done_event.is_set():
                                 # The run ended while we were away (or the engine has no record of it): what it made is on
