@@ -7,11 +7,20 @@
 //     "model": "csm.glb",                                               optional; parts are used if absent or it fails
 //     "parts": [ { "shape": "cylinder", "radius_m": 2, "length_m": 7.5, "at_m": 0, "color": "#c9ccd1" }, ... ],
 //     "min_px": 24,            real size is a few metres: shown at least this big (a documentary convention, not scale)
+//   Representation by projected size (never by moving or resizing it in the world): close, the model; from far away (its
+//   true size under MARKER_PX), a screen-space marker -- a bright core with a halo -- at the exact projected position, the
+//   model fading out over one decade of scale. The tracker and the camera do not know or care which is shown.
 //     "show": "flying" | "always", "label_side": "r",
 //     "motion": { "t0": 12, "t1": 20, "from_utc": "...", "to_utc": "..." },   optional: carried along by narration, not the clock
 //     "burns": [ { "from_utc": "...", "to_utc": "..." } ] }               optional: an engine burn glows on the craft then
 // Model axes: +Z forward (the nose), +Y up; parts are placed along Z by at_m.
 import { motionWhen } from '../lib/timing.mjs';
+
+const MARKER_PX = 1e-5;          // true size (px) below which the model gives way to the marker (fully by MARKER_PX / 10)
+export const markerShare = (truePx) => {
+  const k = Math.min(1, Math.max(0, Math.log10(MARKER_PX / Math.max(truePx, 1e-30))));
+  return k * k * (3 - 2 * k);
+};
 
 const RAD = Math.PI / 180;
 
@@ -112,14 +121,24 @@ export default {
       if (st.direction) inst.holder.up.set(...st.direction).normalize();
       inst.holder.lookAt(new T.Vector3(p[0] + radial[0], p[1] + radial[1], p[2] + radial[2]));
     }
-    for (const m of inst.mats) { m.transparent = f.alpha < 0.999; m.opacity = f.alpha; }
-    inst.holder.visible = true;
+    inst.marker = markerShare(px);
+    const modelA = f.alpha * (1 - inst.marker);
+    for (const m of inst.mats) { m.transparent = modelA < 0.999; m.opacity = modelA; }
+    inst.holder.visible = modelA > 0.002;
     inst.screenR = Math.max(px * k, 4) / 2;
   },
   draw(inst, f) {
     if (!inst.rel) return;
     const s = f.project(inst.rel);
     if (!s.front || f.hidden(inst.rel)) return;
+    if (inst.marker > 0) {
+      // the far-away representation: a small core (~5 px) in a soft halo (~14 px) at 1080p -- readable against the stars,
+      // never louder than the tracker that names it
+      const g = f.g, S = f.u.S, r = 7 * S, grd = g.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+      grd.addColorStop(0, 'rgba(255,255,250,0.92)'); grd.addColorStop(0.3, 'rgba(255,248,225,0.8)');
+      grd.addColorStop(0.45, 'rgba(255,238,190,0.22)'); grd.addColorStop(1, 'rgba(255,230,170,0)');
+      g.save(); g.globalAlpha = f.alpha * inst.marker; g.fillStyle = grd; g.beginPath(); g.arc(s.x, s.y, r, 0, Math.PI * 2); g.fill(); g.restore();
+    }
     const when = +(inst.def.motion ? motionWhen(inst.def.motion, f.t, f.mu) : f.date);
     if ((inst.def.burns || []).some((b) => when >= Date.parse(b.from_utc) && when <= Date.parse(b.to_utc))) {
       // an engine burn: a warm pulsing glow on the craft (generic: any craft, any manoeuvre the data names)

@@ -257,6 +257,8 @@ def generate_starmap_video(
 
     # the author's own files (file:<name>) sit next to the CSV
     media = dict(got.media)
+    for n in getattr(got, "notes", []):
+        log(f"[StarMap] {n}")
     for b in plan.beats:
         for it in b.cards + b.clips:
             if it.asset.lower().startswith("file:"):
@@ -309,6 +311,15 @@ def generate_starmap_video(
         return PakmapResult(False, ["Cancelled"], cancelled=True)
 
     audio_plan, mix, narration, sound_notes = None, None, voiceover_path, []
+    # render QC: a report only (frozen stretches, near-black footage), never a change to the video
+    if silent.is_file():
+        try:
+            from .qc import check_render
+
+            for q in check_render(silent, spec, plan.beats):
+                sound_notes.append(q.text())
+        except Exception as exc:
+            log(f"[StarMap] render QC skipped: {exc}")
     _report(progress_cb, "Designing the sound…" if sound_design else "Adding the narration…", 0.90)
     try:
         from .sound import plan_sound
@@ -354,4 +365,4 @@ def generate_starmap_video(
     except OSError:
         pass
     _report(progress_cb, "Done.", 1.0)
-    return PakmapResult(True, [], output_path, None, credits, comp.notes + sound_notes + list(outcome.warnings), audio=audio_plan, audio_mix=mix)
+    return PakmapResult(True, [], output_path, None, credits, list(getattr(got, "notes", [])) + comp.notes + sound_notes + list(outcome.warnings), audio=audio_plan, audio_mix=mix)

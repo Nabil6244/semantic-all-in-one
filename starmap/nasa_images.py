@@ -67,6 +67,30 @@ def score(query: str, title: str, description: str) -> float:
     return (2 * len(q & shows) + 0.5 * len((q & rest) - shows)) / (2 * len(q))
 
 
+_MISSION = re.compile(r"\b([A-Z][A-Za-z]+)[ -]?(\d{1,2}|I{1,3}|IV|V|VI{0,3})\b")
+
+
+def contradicts(query: str, title: str, description: str) -> Optional[str]:
+    """Why an item is NOT the picture asked for (None when it may be): it names another mission of the same name (Voyager 2's
+    photo for "Voyager 1 ..."), or it lacks most of the named things the description asks for ("Great Red Spot", "Titan").
+    The search ranks by shared words, so a caption about Io scored well for "the storms of Jupiter"; this check rejects it."""
+    text = f"{title} {description}"
+    low = text.lower()
+    for name, num in _MISSION.findall(query):
+        if name.lower() in STOP or name == "NASA":
+            continue
+        said = {n.upper() for n in re.findall(rf"\b{re.escape(name)}[ -]?(\d{{1,2}}|[IVX]{{1,4}})\b", text, flags=re.I)}
+        if said and num.upper() not in said:
+            return f"it is about {name} {'/'.join(sorted(said))}, not {name} {num}"
+    words = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", query)
+    named = [w for i, w in enumerate(words) if i > 0 and w[0].isupper() and w.lower() not in STOP and w != "NASA"]
+    have = {_stem(w) for w in _words(low)}
+    found = [w for w in named if _stem(w.lower()) in have or w.lower() in low]
+    if named and len(found) * 3 < len(named) * 2:
+        return f"it does not show {', '.join(w for w in named if w not in found)}"
+    return None
+
+
 def queries(description: str) -> List[str]:
     """NASA's search wants every word to match, so a long description finds nothing: try it whole, then its key words, then fewer."""
     keys = _words(description)
@@ -161,12 +185,19 @@ def fetch(query: str, target: Path, *, min_score: float = 0.4, min_width: int = 
     for img in search(query, get=get, context=context)[:5]:
         if img.score < min_score:
             break
+        why = contradicts(query, img.title, img.description)
+        if why:
+            log(f"[StarMap] NASA image {img.nasa_id} skipped: {why}")
+            continue
         url = file_url(img.nasa_id, get=get)
         if not url:
             continue
         r = get(url, headers={"User-Agent": USER_AGENT}, timeout=60)
         r.raise_for_status()
         out = target.with_suffix(".png" if url.lower().endswith(".png") else ".jpg")
+        for old in target.parent.glob(f"{target.stem}.*"):     # an earlier run's file for this scene must not be picked up instead
+            if old != out and old.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm"):
+                old.unlink(missing_ok=True)
         out.write_bytes(r.content)
         try:
             from PIL import Image
@@ -183,9 +214,18 @@ def fetch(query: str, target: Path, *, min_score: float = 0.4, min_width: int = 
     return None
 
 
+def _still_matches(rec: Dict[str, Any], row: Any) -> bool:
+    """The shared reuse rule: the stored file was found for this row's description (an edited CSV renumbers its scenes, and
+    scene 4's old picture is not the new scene 4's)."""
+    from asset_manager import asset_record_matches
+    from providers.base import AssetSource
+
+    return asset_record_matches(rec, row, AssetSource.STOCK_IMAGE)
+
+
 def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, manifest_cls=None, log: Callable[[str], None] = print,
              get: Optional[Callable] = None, cancel_check: Optional[Callable[[], bool]] = None, context: "str | Dict[str, str]" = "",
-             unanswered: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+             unanswered: Optional[Dict[str, str]] = None, no_match: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """For each Visual Plan row that is still StarMap's own nasa_image row (scene number -> its description, unchanged by the
     user) and has no finished file yet, try NASA first. Returns {scene number: credit} for the ones found. A row NASA's
     server never answered for (after `patient`'s retries) goes into `unanswered` (scene number -> why): the caller must not
@@ -203,8 +243,8 @@ def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, man
         if cancel_check is not None and cancel_check():
             break
         rec = manifest_cls(images_dir).get(n) or {}
-        if rec.get("status") == "complete":
-            continue
+        if rec.get("status") == "complete" and _still_matches(rec, row):
+            continue                                            # found before for this same row (a renumbered row's old file is not)
         try:
             img = fetch(want, images_dir / f"{int(n):03d}", get=get, log=log, context=context.get(n, "") if isinstance(context, dict) else context)
         except Exception as exc:
@@ -215,7 +255,11 @@ def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, man
                 log(f"[StarMap] NASA image search failed for scene {n} ({exc}); it goes to the stock search")
             continue
         if img is None:
-            log(f"[StarMap] No NASA image for scene {n} ({want!r}); it goes to the stock search")
+            if no_match is not None:                            # a modern stock photo would pass for the mission's own picture
+                no_match[n] = "no NASA picture matches it"
+                log(f"[StarMap] No NASA image for scene {n} ({want!r}); left out, not replaced by a stock picture")
+            else:
+                log(f"[StarMap] No NASA image for scene {n} ({want!r}); it goes to the stock search")
             continue
         path = next(images_dir.glob(f"{int(n):03d}.*"))
         manifest_cls(images_dir).set(n, {

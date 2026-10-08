@@ -20,6 +20,7 @@ import copy
 import math
 import re
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -79,6 +80,8 @@ class CompileError(ValueError):
 # ---- camera ---------------------------------------------------------------------------------------------------------
 def _approx_km(shot: Dict[str, Any], cat: Catalog, place: Place) -> float:
     """Rough camera distance of a shot (for choosing how long a glide between shots takes)."""
+    if "_km" in shot:                                          # an action's path frame says how big it is
+        return float(shot["_km"])
     if "distance" in shot:
         d = shot["distance"]
         return d.get("km") or d.get("au", 0) * 1.496e8 or d.get("ly", 0) * 9.4607e12
@@ -141,13 +144,25 @@ def _scaled(shot: Dict[str, Any], k: float) -> Dict[str, Any]:
         s["fill"] = s["fill"] / k
     elif "fit" in s:
         s["fit"] = s["fit"] * k
+    elif "path" in s:
+        s["path"]["fit"] = s["path"].get("fit", 1.3) * k      # a held stretch of a craft's path: framed a little wider
     return s
 
 
+OWN_MOVES = ("push_in", "pull_out", "orbit")              # a beat's own camera move; anything else (an action, hold) creeps
+
+
 def _creep(length: float) -> float:
-    """How much wider a beat with no move of its own starts than it ends: a slow push-in keeps every shot alive (a held
-    camera reads as stuck). Longer beats creep a little further, never more than a quarter."""
-    return min(1.25, 1.0 + 0.035 * max(0.0, length))
+    """push_in of a quiet beat (no move of its own, nothing travelling in it): how much wider it starts than it ends.
+    Restrained -- at most 6% over the whole beat; the always-on drift is what keeps a shot alive, not a zoom."""
+    return min(1.06, 1.0 + 0.006 * max(0.0, length))
+
+
+def _reveal_s(from_km: float, to_km: float, length: float) -> float:
+    """How long a pull_out / push_in between two scales takes: long enough to read as one deliberate camera move (about
+    2.2 s per factor of e in scale, so 35x takes about 8 s), never more than 85% of the beat."""
+    ratio = abs(math.log(max(to_km, 1e-3) / max(from_km, 1e-3)))
+    return min(max(4.5, 2.2 * ratio), 0.85 * length)
 
 
 def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: BeatAction, b: Beat) -> Dict[str, Any]:
@@ -158,6 +173,8 @@ def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: Bea
         s["follow"]["motion"] = act.motion(b.start, b.end)
         if s["follow"]["motion"] is None:
             del s["follow"]["motion"]
+    if s.get("keep") and act.motion(b.start, b.end):
+        s["keep"]["motion"] = act.motion(b.start, b.end)      # a narration-paced craft: keep it in frame where IT is
     return s
 
 
@@ -165,7 +182,10 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                  actions: Optional[Dict[str, BeatAction]] = None) -> Dict[str, Any]:
     start: Optional[Dict[str, Any]] = None
     moves: List[Dict[str, Any]] = []
-    prev_key, prev_km, cur = None, None, None
+    prev_key, prev_km, cur, prev_end = None, None, None, -1.0
+    # a jump in time between missions or eras: the map dips dark behind the time-jump card, and the camera CUTS there
+    # instead of sweeping across the solar system
+    cut_in = {t.b for t in (res.transitions if res else []) if t.kind == "jump" and not t.hidden_by_footage}
     for b in plan.beats:
         if b.mode == "footage":
             continue
@@ -176,12 +196,23 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             # a visual action: glide to its first view, then its camera intents (follow the craft, settle, pull back)
             length = b.end - b.start
             intro = _action_shot(act.intro, shot, act, b)
+            # an action beat: drift only, no push_in (the craft is what moves)
             if start is None:
                 start, glide = intro, 0.0
+            elif b.id in cut_in:
+                glide = 0.0
+                moves.append({"t": round(b.start, 3), "dur": 0.0, "to": intro})
             else:
                 ikm = _approx_km(intro, cat, place)
-                glide = min(max(2.0, 2.0 + 0.5 * abs(math.log10(max(ikm, 1e-3) / max(prev_km, 1e-3)))), 4.5, max(1.0, 0.3 * length))
-                moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": intro})
+                glide = max(1.5, _reveal_s(prev_km, ikm, length))  # one deliberate move into the action's view, never squeezed
+                t0 = b.start
+                if ikm > 3 * prev_km and b.start - prev_end < 0.5:
+                    # a pull_out straight on from the beat before starts a little early, so the wider view is already opening
+                    # when the craft leaves (its clock may carry it far in the first second); a cut never does
+                    busy = max([m["t"] + m["dur"] for m in moves] + [0.0])
+                    t0 = max(busy, b.start - min(3.0, 0.4 * glide))
+                    glide += b.start - t0
+                moves.append({"t": round(t0, 3), "dur": round(glide, 3), "to": intro})
             last = b.start + glide
             for frac, dfrac, s in act.camera:
                 t = max(b.start + frac * length, last)
@@ -190,12 +221,15 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                     break
                 moves.append({"t": round(t, 3), "dur": round(d, 3), "to": _action_shot(s, shot, act, b)})
                 last = t + d
+            # the composition stays stable (a slow creep, never frozen): the craft moves through the frame and the tracker
+            # follows it, not the camera
             cur = moves[-1]["to"] if moves else start
-            prev_key, prev_km = ("action", b.id), _approx_km(cur, cat, place)
+            prev_key, prev_km, prev_end = ("action", b.id), _approx_km(cur, cat, place), b.end
             continue
         key = (b.place.lower(), b.frame, b.move, tuple(sorted(b.extra.items())))
         length = b.end - b.start
-        creep = b.move == ""                                      # no move asked for: creep in slowly through the beat
+        # no move asked for: the beat creeps in slowly, whatever moves in it (the camera never reacts to the craft)
+        creep = b.move not in OWN_MOVES
         first = shot
         if b.move == "push_in":
             first = _scaled(shot, 1.6)
@@ -213,7 +247,7 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             prev_key, prev_km = key, km
             continue
         else:
-            glide = min(max(2.5, 2.5 + 0.55 * abs(math.log10(km / prev_km))), 6.0, max(1.0, 0.7 * length))
+            glide = 0.0 if b.id in cut_in else min(max(2.5, 2.5 + 0.55 * abs(math.log10(km / prev_km))), 6.0, max(1.0, 0.7 * length))
             if creep and length - glide - 0.3 < 1.0:
                 first = shot                                      # too short to creep: glide straight to the shot
             moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": first})
@@ -225,10 +259,15 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                 cur = shot
             elif not creep:
                 notes.append(f"row {b.row}: beat {b.id} is too short to {b.move.replace('_', ' ')}; the camera holds")
-        prev_key, prev_km = key, km
+        prev_key, prev_km, prev_end = key, km, b.end
     if start is None:
         start = {"target": "earth", "fill": 0.5, "light": "side", "el_deg": 20}
+    for sh in [start] + [m["to"] for m in moves]:
+        sh.pop("_km", None)
+    # the drift never rests: a stable shot is still alive (a frozen camera reads as a stuck video)
     return {"drift_deg_per_s": 0.35, "start": start, "moves": moves}
+
+
 
 
 # ---- clock ------------------------------------------------------------------------------------------------------------
@@ -260,24 +299,37 @@ def build_clock(cat: Catalog, plan: Plan, problems: List[str], notes: List[str],
     continuous_from = {t.a for t in res.transitions if t.kind == "continuous"}
     acts = {k: v for k, v in (actions or {}).items() if v.strategy == "clock" and v.span}
     held: Dict[str, Tuple[float, str]] = {}               # beat -> (narration t, utc) its action ends on, for the hold before a jump
+    pushed: Optional[str] = None                          # where a zero-length beat's action left time (never run back from it)
+    began: Dict[str, str] = {}                            # beat -> the date it starts at, where that is not its own date
     for k, (i, utc) in enumerate(dated):
         b = beats[i]
         act = acts.get(b.id)
         tr = jumps.get(b.id)
         if tr is not None and keys:
             a = beats[dated[k - 1][0]]
-            t0, u0 = held.get(a.id, (a.start, dated[k - 1][1]))
+            t0, u0 = held.get(a.id, (a.start, began.get(a.id, dated[k - 1][1])))
             add(b.start - JUMP_CUT_S, shifted(u0, b.start - JUMP_CUT_S - t0))   # the old date holds to the cut
         # the beat's date is its first moment; an action the CSV asked for by name starts where the action starts
-        add(b.start, act.span[0] if act and act.source == "csv" else utc)
-        if act and b.id not in continuous_from:
+        incoming = any(t.b == b.id and t.kind == "continuous" for t in res.transitions)
+        start_utc = act.span[0] if act and act.source == "csv" and not incoming else utc   # time already running in keeps running
+        if pushed is not None and incoming and iso_seconds(start_utc, pushed) > 0:
+            start_utc = began[b.id] = pushed                 # the beat before ran its action on past this beat's own date
+        pushed = None
+        add(b.start, start_utc)
+        nxt = dated[k + 1][0] if k + 1 < len(dated) else len(beats)
+        cut = next((j for j in range(i + 1, nxt) if beats[j].mode == "footage"), None)
+        # time "runs on" into a next beat at the very same date: nothing would move for the whole beat (the clock stood still
+        # at Saturn's closest approach). Then the action's own span end ends the beat, as when time does not run on
+        still = act is not None and b.id in continuous_from and cut is None and k + 1 < len(dated) \
+            and iso_seconds(start_utc, dated[k + 1][1]) <= 0 and iso_seconds(start_utc, act.span[1]) > 0
+        if act and (b.id not in continuous_from or still):
             # the action's own end (an ascent, a descent, a closest approach) when time does not run on into the next beat
             add(b.end - 0.05, act.span[1])
             held[b.id] = (b.end - 0.05, act.span[1])
-        nxt = dated[k + 1][0] if k + 1 < len(dated) else len(beats)
-        cut = next((j for j in range(i + 1, nxt) if beats[j].mode == "footage"), None)
+            if still:
+                pushed = act.span[1]
         if cut is not None and k + 1 < len(dated):
-            add(beats[cut].start, shifted(utc, beats[cut].start - b.start))   # hold (real time) until the footage
+            add(beats[cut].start, shifted(began.get(b.id, utc), beats[cut].start - b.start))   # hold (real time) until the footage
         if b.extra.get("date_end"):
             try:
                 add(b.end, cat.date(str(b.extra["date_end"]), res.ctx(b.id), res.reference_now))
@@ -373,8 +425,11 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                 problems.append(f"row {b.row}: {exc}")
     actions, act_errors, act_warnings = resolve_actions(plan, cat, res)
     problems += act_errors
-    _fit_actions_to_time(plan, res, actions, act_warnings)
-    clock = build_clock(cat, plan, problems, notes, res, actions)
+    # two clocks: the stage-free one decides every frame (staging changes pacing, never composition); the staged one is
+    # what the video shows -- the true date of where each craft is, with each action's phases given their narration time
+    free = build_clock(cat, plan, problems, notes, res, actions)
+    _frame_what_the_clock_shows(plan, free, actions, act_warnings)
+    clock = _with_stages(free, plan, actions)
     ctx_of = {b.id: res.ctx(b.id) for b in beats}
     tctx = {b.id: res.contexts.get(b.id) for b in beats}
 
@@ -399,6 +454,7 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
         return st
 
     layers: List[Dict[str, Any]] = []
+    trackers: List[Dict[str, Any]] = []
     used_trajectories: set = set()
     craft_windows: Dict[str, List[Tuple[float, float, str]]] = {}
     title_layers: List[Dict[str, Any]] = []
@@ -458,20 +514,43 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                          "_basis": cat.index.trajectories[base["trajectory"]].basis if base.get("trajectory") else None}
                     if it.label:
                         L["label"] = it.label.upper()
-                    act = actions.get(b.id)
-                    if act is not None and act.craft == cid:
-                        if act.show_on_pad:
-                            L["show"] = "always"                            # on its pad before the liftoff
-                        if act.burns:
-                            L["burns"] = [{"from_utc": x, "to_utc": y} for x, y in act.burns]
-                        if act.motion(b.start, b.end):
-                            L["motion"] = act.motion(b.start, b.end)
                     bc = tctx[b.id]
                     estimated = bc is not None and bc.estimated_from and cat.index.trajectories.get(base.get("trajectory") or "") is not None \
                         and cat.index.trajectories[base["trajectory"]].observed_until
                     if L.get("label") and (status in BADGE or estimated):
                         L["label"] = f"{L['label']} · {BADGE[status] if status in BADGE else 'ESTIMATED'}"
                         L["label_bg"] = STATUS_STYLE.get(status, ESTIMATED_COLOR)
+                    act = actions.get(b.id)
+                    mine = act is not None and act.craft == cid
+                    if mine:
+                        if act.show_on_pad:
+                            L["show"] = "always"                            # on its pad before the liftoff
+                        if act.burns:
+                            L["burns"] = [{"from_utc": x, "to_utc": y} for x, y in act.burns]
+                        if act.motion(b.start, b.end):
+                            L["motion"] = act.motion(b.start, b.end)
+                    traj = cat.index.trajectories.get(base.get("trajectory") or "")
+                    if traj is not None and L.get("label"):
+                        # TRACKING: the craft's name rides in a tracking box that follows it (the camera does not have to).
+                        # Live readouts only while it performs an action -- otherwise the box is just its name, no HUD for show
+                        drawn = traj.basis in ("illustrated", "illustrative")
+                        T = {"type": "tracker", "craft": lid, "trajectory": traj.id, "label": L["label"], "readouts": [],
+                             "start": L["start"], "end": L["end"], "_row": it.row}
+                        if mine:
+                            want = act.readouts or ["altitude", "speed"] + (["distance"] if act.dest else [])
+                            # speed only from real or modelled data: an illustrated path's timing is drawn, not flown
+                            T["readouts"] = [r for r in want if not (r == "speed" and drawn)]
+                            T.update(altitude_of=act.body or traj.data.get("frame"), approx=drawn)
+                            if act.dest:
+                                T["to"] = act.dest
+                            if "from" in T["readouts"]:
+                                T["from"] = act.body
+                            if L.get("motion"):
+                                T["motion"] = L["motion"]
+                        if L.get("label_bg"):
+                            T["color"] = L["label_bg"]
+                        trackers.append(T)
+                        L["label"] = ""                                 # the tracking box carries the name
                 elif ty == "orbit":
                     qid, o = cat.lookup("orbit", it.id, ctx_of[b.id])
                     did = qid.split(".", 1)[0]
@@ -626,8 +705,9 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     if any(x.get("kind") == "galaxy" and x.get("features") for x in cat.world):
         tail.insert(0, {"type": "galaxy_guide"})               # a galaxy seen from outside: you are here, its centre, its arms
     if clock.get("keys"):
-        tail += _mission_clocks(plan, res)
-    tail += _badges(plan, res) + _footnotes(layers) + _time_jumps(plan, res)
+        tail += _mission_clocks(plan, res, actions)
+    _hand_over(layers, trackers, craft_windows, plan)
+    tail += trackers + _badges(plan, res) + _footnotes(layers) + _time_jumps(plan, res)
     for d in sorted(cat.used):
         if d not in res.used:
             res.used.append(d)
@@ -647,27 +727,113 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
     return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res, actions=actions, warnings=act_warnings)
 
 
-def _fit_actions_to_time(plan: Plan, res: Resolution, actions: Dict[str, BeatAction], warnings: List[str]) -> None:
-    """When a beat's time runs on into the next beat's date (continuous) far beyond what its action shows -- an orbit insertion
-    in a beat whose clock races three days to the next event -- a close follow would look at empty space. The action keeps its
-    burn and span but shows in the beat's usual view; an action the CSV asked for by name says so."""
-    beats = plan.beats
-    nxt: Dict[str, str] = {}
-    for t in res.transitions:
-        if t.kind == "continuous":
-            nxt[t.a] = t.b_utc
-    for bid, a in actions.items():
-        if a.strategy != "clock" or not a.span or bid not in nxt or not a.camera:
+def _clock_utc(clock: Dict[str, Any], t: float) -> Optional[str]:
+    """The universe date at narration t, from the clock keys (exact at a key; between keys, where only the ends matter here,
+    a straight line, or real time when the clock runs at real time or slower)."""
+    keys = clock.get("keys") or []
+    if not keys:
+        return clock.get("utc")
+    if t <= keys[0]["t"]:
+        return iso(parse_iso(keys[0]["utc"]) - timedelta(seconds=keys[0]["t"] - t))
+    for a, b in zip(keys, keys[1:]):
+        if t <= b["t"]:
+            ua, ub = parse_iso(a["utc"]), parse_iso(b["utc"])
+            span = b["t"] - a["t"]
+            if span <= 0:
+                return b["utc"]
+            if (ub - ua).total_seconds() <= span * 1.01:
+                return iso(min(ua + timedelta(seconds=t - a["t"]), ub))
+            return iso(ua + (ub - ua) * ((t - a["t"]) / span))
+    return iso(parse_iso(keys[-1]["utc"]) + timedelta(seconds=t - keys[-1]["t"]))
+
+
+def _with_stages(clock: Dict[str, Any], plan: Plan, actions: Dict[str, BeatAction]) -> Dict[str, Any]:
+    """The rendered clock: the stage-free clock plus a key at each stage boundary of an action, inside the clock segment the
+    action owns -- from its beat's own start key to the next key (the next dated beat, or the hold before footage or a time
+    jump, which end continuous time). Undated beats in between are crossed; nothing before the action's own start key is
+    touched (that time belongs to the beat before); what is left of the segment after the last stage runs on as a
+    transit. Stage-free actions, and segments that hold at real time, are left exactly as they were."""
+    from .actions import TRANSIT
+
+    keys = [dict(k) for k in (clock.get("keys") or [])]
+    added: List[Dict[str, Any]] = []
+    for b in plan.beats:
+        a = actions.get(b.id)
+        if a is None or a.strategy != "clock" or not a.stages or not a.span:
             continue
-        b = next(x for x in beats if x.id == bid)
-        start = a.span[0] if a.source == "csv" else res.contexts[bid].utc
-        runs, own = abs(iso_seconds(start, nxt[bid])), max(1.0, abs(iso_seconds(*a.span)))
-        if runs > 3 * own:
-            a.camera, a.intro = [], None
-            a.summary += " (shown in the beat's usual view: its time runs on to the next beat's date)"
-            if a.source == "csv":
-                warnings.append(f"row {b.row}: the {a.action} is shown in the usual view: this beat's time runs {runs / 3600:.1f} h on to the next "
-                                f"beat's date (the action itself covers {own / 3600:.1f} h); put a footage beat or a closer date after it to see it close up")
+        i = next((j for j, k in enumerate(keys) if abs(k["t"] - b.start) < 1e-6), None)
+        if i is None or i + 1 >= len(keys):
+            continue
+        (t0, u0), (t1, u1) = (keys[i]["t"], keys[i]["utc"]), (keys[i + 1]["t"], keys[i + 1]["utc"])
+        if not a.stages_cross_beats and abs(t1 - round(b.end - 0.05, 3)) > 1e-6:
+            continue                                          # (a departure: only when it ends its own beat, as approved)
+        if t1 - t0 < 1.0 or iso_seconds(u0, u1) <= (t1 - t0) * 1.01:
+            continue                                          # a hold or a real-time stretch: nothing to pace
+        parts, lo = [], a.span[0]
+        for stg in a.stages:                                  # each stage clipped to the segment
+            x, y = (u0 if iso_seconds(lo, u0) > 0 else lo), (u1 if iso_seconds(u1, stg.until) > 0 else stg.until)
+            if iso_seconds(x, y) > 0:
+                parts.append((y, stg.weight))
+            lo = stg.until
+        if iso_seconds(parts[-1][0] if parts else u0, u1) > 0:
+            parts.append((u1, TRANSIT))                       # the rest of the segment runs on: the onward transit
+        if len(parts) < 2:
+            continue
+        total, done, t, prev, new = sum(w for _, w in parts), 0.0, t0, u0, []
+        for until, w in parts:
+            done += w
+            nt = t0 + round(done / total, 12) * (t1 - t0)       # (rounded: 7/13 of 20/13 is exactly the 35% it was)
+            if nt - t < 0.5 or iso_seconds(prev, until) <= (nt - t) * 1.01:
+                new = []                                      # a phase too short to show, or slower than real time: leave it
+                break
+            t = nt
+            new.append({"t": round(t, 3), "utc": until})
+            prev = until
+        added += new[:-1]                                     # the last one is the segment's own end key
+    if not added:
+        return clock
+    return {**clock, "keys": sorted(keys + added, key=lambda k: k["t"])}
+
+
+def _frame_what_the_clock_shows(plan: Plan, clock: Dict[str, Any], actions: Dict[str, BeatAction], warnings: List[str]) -> None:
+    """An action's held frame shows the stretch of path the clock actually runs through in its beat. The action proposes
+    its stretch (the ascent, the descent, the pass); when the beat's clock runs somewhere else (it holds at real time before
+    a footage cut, it starts late) the frame moves to what is on screen, keeping at least the action's own length so it is
+    never a close-up of a craft standing still; when the clock runs far longer (a separation in a beat whose clock races
+    seventeen days of widening orbits to the next event) the frame widens to all of it, seen from above the plane the craft
+    travels in, and an action the CSV asked for by name says so."""
+    for b in plan.beats:
+        a = actions.get(b.id)
+        if a is None or a.strategy != "clock":
+            continue
+        cut = [k["utc"] for k in clock.get("keys") or [] if b.end - 3 * JUMP_CUT_S < k["t"] < b.end - 1e-6]   # a jump at its end
+        u0, u1 = _clock_utc(clock, b.start), cut[0] if cut else _clock_utc(clock, b.end)
+        if not u0 or not u1:
+            continue
+        for sh in [a.intro] + [x[2] for x in a.camera]:
+            pth = (sh or {}).get("path")
+            if not pth:
+                continue
+            s0, s1 = parse_iso(pth["from_utc"]), parse_iso(pth["to_utc"])
+            v0, v1 = parse_iso(u0), parse_iso(u1)
+            slack = max(timedelta(seconds=10), (s1 - s0) * 0.1)  # a wait on the pad, a rest after touchdown
+            if v0 >= s0 - slack and v1 <= s1 + slack:
+                continue                                           # the clock stays inside the action's stretch
+            own, shown = s1 - s0, v1 - v0
+            if shown > 3 * own:
+                lo, hi = v0, v1
+                pth["up"] = "plane"
+                if sh is a.intro:
+                    a.camera = []                                  # one frame for all of it
+                    a.summary += " (framed whole: its time runs on to the next beat's date)"
+                    if a.source == "csv":
+                        warnings.append(f"row {b.row}: the {a.action} is framed with everything the beat's clock runs through "
+                                        f"({shown.total_seconds() / 3600:.1f} h; the action itself covers {own.total_seconds() / 3600:.1f} h); "
+                                        f"put a footage beat or a closer date after it to see it close up")
+            else:
+                half = max(own, shown) / 2
+                lo, hi = v0 + shown / 2 - half, v0 + shown / 2 + half
+            pth.update(from_utc=iso(lo), to_utc=iso(hi), ref_utc=iso(lo + (hi - lo) / 2))
 
 
 # ---- automatic temporal layers ------------------------------------------------------------------------------------------
@@ -688,13 +854,54 @@ def _runs(plan: Plan, res: Resolution, key: Callable[[BeatContext], Any]) -> Lis
     return [(k, s, e) for k, s, e in out]
 
 
+HAND_OVER_GAP_S = 1.0       # the same craft (or path) shown again within this many seconds, map to map, is one continuous thing
+PATH_CROSSFADE_S = 1.0
+
+
+def _hand_over(layers: List[Dict[str, Any]], trackers: List[Dict[str, Any]], craft_windows: Dict[str, List[Tuple[float, float, str]]],
+               plan: Plan) -> None:
+    """A craft that carries on into the next beat stays the same object on screen: its layer and tracker meet the next
+    beat's at one moment with no fade (no gap, no second copy fading in -- it used to vanish for 0.3 s in the middle of a
+    camera move). A path of the same flight cross-fades into the next beat's path instead of blinking out. Not across
+    footage (the map is hidden there anyway)."""
+    footage = [(b.start, b.end) for b in plan.beats if b.mode == "footage"]
+    covered = lambda a, b: any(fa < b + 1e-6 and fb > a - 1e-6 for fa, fb in footage)   # noqa: E731
+
+    def meet(first: Dict[str, Any], second: Dict[str, Any]) -> None:
+        at = min(first["end"], second["start"]) if first["end"] > second["start"] else first["end"]
+        first["end"], first["fade_out"] = round(at, 3), 0
+        second["start"], second["fade_in"] = round(at, 3), 0
+
+    by_id = {L.get("id"): L for L in layers if L["type"] == "spacecraft"}
+    track = {T["craft"]: T for T in trackers}
+    for wins in craft_windows.values():
+        for (_, e1, l1), (s2, _, l2) in zip(wins, wins[1:]):
+            if s2 - e1 > HAND_OVER_GAP_S or covered(min(e1, s2), max(e1, s2)) or l1 not in by_id or l2 not in by_id:
+                continue
+            meet(by_id[l1], by_id[l2])
+            if l1 in track and l2 in track:
+                meet(track[l1], track[l2])
+    paths = sorted((L for L in layers if L["type"] == "trajectory" and L.get("start") is not None and L.get("end") is not None),
+                   key=lambda L: L["start"])
+    for i, a in enumerate(paths):
+        b = next((x for x in paths[i + 1:] if x["of"] == a["of"] and x["start"] >= a["start"] + 1e-6), None)
+        if b is None or b["start"] - a["end"] > HAND_OVER_GAP_S or covered(min(a["end"], b["start"]), max(a["end"], b["start"])):
+            continue
+        at = min(a["end"], b["start"])
+        b["start"], b["fade_in"] = round(at, 3), 0.6
+        a["end"], a["fade_out"] = round(max(a["end"], at + PATH_CROSSFADE_S), 3), PATH_CROSSFADE_S
+
+
 def _edge(start: float, end: float, plan: Plan) -> Dict[str, Any]:
     return {"start": round(start, 3), "end": round(end, 3), "fade_in": 0 if start <= 1e-6 else 0.3, "fade_out": 0 if end >= plan.duration - 1e-6 else 0.3}
 
 
-def _mission_clocks(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
-    """One mission clock per stretch of one mission (its own T-zero: T+ after, T- before) or of one date precision."""
+def _mission_clocks(plan: Plan, res: Resolution, actions: Optional[Dict[str, BeatAction]] = None) -> List[Dict[str, Any]]:
+    """One mission clock per stretch of one mission (its own T-zero: T+ after, T- before) or of one date precision. Through a
+    narration-paced motion (a years-long cruise, where the planets hold still) the clock shows the craft's date, so it never
+    reads launch day while the craft arrives."""
     out = []
+    motions = [(b.start, b.end, m) for b in plan.beats for m in [(actions or {}).get(b.id) and actions[b.id].motion(b.start, b.end)] if m]
     for (met, prefix, prec), a, b in _runs(plan, res, lambda c: (c.met_zero, c.clock_prefix, c.precision if c.precision in ("day", "month", "year") else "minute")):
         L = {"type": "mission_clock", "show": "met+utc" if met else "utc", **_edge(a, b, plan)}
         if met:
@@ -703,6 +910,9 @@ def _mission_clocks(plan: Plan, res: Resolution) -> List[Dict[str, Any]]:
             L["prefix"] = prefix                                 # a planned T+ clock says so; a date-only clock leaves it to the badge
         if prec != "minute":
             L["date_precision"] = prec
+        own = [{"start": round(s, 3), "end": round(e, 3), **m} for s, e, m in motions if s >= a - 1e-6 and e <= b + 1e-6]
+        if own:
+            L["motions"] = own
         out.append(L)
     return out
 

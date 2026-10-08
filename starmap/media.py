@@ -121,6 +121,7 @@ class Fetched:
     missing: List[str] = field(default_factory=list)                   # messages, one per scene still without a file
     unresolved: List[str] = field(default_factory=list)                # their scene numbers
     credits: List[str] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)                     # rows left out on purpose, and why
 
 
 def still_of(video: Path, out: Path) -> Path:
@@ -155,10 +156,12 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
     table = [r for r in table if str(r.scene_number) in wanted]
     nasa_rows = {m.scene_number: m.prompt for m in rows_info if m.source == "nasa_image"}
     unanswered: Dict[str, str] = {}
+    no_match: Dict[str, str] = {}
     if nasa_rows:
         nasa_images.prefetch(table, nasa_rows, images_dir, manifest_cls=manifest_cls, log=log, get=nasa_get, cancel_check=cancel_check,
-                             context=mission, unanswered=unanswered)
-        table = [r for r in table if str(r.scene_number) not in unanswered]   # not to the stock search: NASA was just unreachable
+                             context=mission, unanswered=unanswered, no_match=no_match)
+        # not to the stock search: NASA was unreachable, or has no picture that is really this one
+        table = [r for r in table if str(r.scene_number) not in unanswered and str(r.scene_number) not in no_match]
     if fetch_scenes is None:
         from pakmap.sourcing import fetch_scenes
     got = fetch_scenes(table, images_dir, resolver=provider_kwargs.pop("resolver", None) or make_resolver(), manifest_cls=manifest_cls, log=log, dedupe=True,
@@ -174,6 +177,11 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
             continue
         if n in got.skipped:
             out.media[f"row:{m.row}"] = {"file": ""}
+            continue
+        if n in no_match:                                       # left out: a card goes, a clip leaves its time to the map
+            out.media[f"row:{m.row}"] = {"file": ""}
+            out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}: nasa_image:{m.prompt}): {no_match[n]}, "
+                             f"so it is left out. Describe it the way NASA titles it, or give it another source in the Visual Plan.")
             continue
         path = got.paths.get(n)
         if not path:

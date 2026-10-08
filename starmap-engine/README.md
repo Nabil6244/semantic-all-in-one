@@ -43,7 +43,15 @@ mission are content in `samples/`.
 data replaces the illustrated `generate` blocks (`orbit_arc`, `surface_track`, `transfer`) without renderer changes.
 An `orbit_arc` with `to_altitude_km` (and optionally `to_period_min`) widens or shrinks smoothly from where the previous
 segment left off: orbit raising or lowering, or a coast out to a distant orbit, drawn as one spiral in the same plane.
-Illustrated paths say so (`"source": "illustrated"`).
+A `surface_track` launch climbs nearly vertically, pitches over and is level (at orbital speed, where the numbers allow) when
+it reaches orbit height; a landing brakes high and fast, pitches up, hovers a few hundred metres up and comes straight down
+(`"profile": "simple"` keeps the old power curves). A `transfer` between two bodies that orbit the same parent (Earth to Mars,
+to an asteroid, to Jupiter) is, when its dates fit one direct coast, a two-body Kepler arc solved from their real positions
+(Lambert's problem); Earth to Moon, or years of gravity assists the data does not describe, stay a
+smooth illustrated curve (`"model": "curve" | "lambert"` overrides). A `flyby` is a hyperbola about its body (periapsis height
+and time, `v_inf_kms`, a plane). These are models from a few numbers, not flight data: the dataset still declares the
+trajectory's basis and the labels follow it. Illustrated paths say so (`"source": "illustrated"`). The stretch of a path or
+orbit ring behind a planet is drawn faint and dashed (`style.behind: "hidden"` drops it).
 
 ## Footage
 
@@ -74,7 +82,15 @@ the T-zero). `status_badge` (a coloured chip under the clock), `footnote` (fine 
 map dips dark while the universe date jumps, with a card such as "1969 → 2026") are plain screen layers: the words, colours and
 times come from the spec. A trajectory's `style.dash` dashes its drawn part too. The renderer knows no mission, dataset or status.
 
-## Following a craft
+## Holding on an action, tracking a craft
+
+The camera's `path` shot frames a stretch of a trajectory (`{"path": {"trajectory": id, "from_utc", "to_utc", "fit", "up":
+"radial" | "plane"}, "el_deg": ...}`) whole -- from the side, or from above the plane it bends in -- and HOLDS, so the craft
+crosses a still frame; `keep` turns the camera only if the craft would leave it (measured on the screen, wide frames let it go
+further sideways). `camera.still` lists narration windows where the always-on drift rests (something on screen moves by
+itself). A run of clock fast-forwards keeps its pace through the keys between them, so a craft never pauses at a beat
+boundary. The `tracker` layer locks corner brackets, the craft's name and optional live readouts (altitude, speed, distance
+to or from a body) on a craft, computed from its trajectory every frame.
 
 A camera shot may `follow` a trajectory instead of a body (`{"follow": {"trajectory": id, "motion"?}, "distance": {"km": ...},
 "el_deg": ...}`): it looks at the craft where it is at the frame's universe date, from OUTSIDE it with the body it moves around

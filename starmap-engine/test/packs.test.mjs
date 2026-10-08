@@ -1,5 +1,5 @@
 // Every mission pack's trajectories (starmap/packs/*.json) generate in the engine, never pass inside the Earth or the Moon,
-// never jump, and every landing ends on its site. A new pack is covered as soon as its file is added.
+// never jump, and every landing ends on its site. An observed (sampled, Sun-centred) path is held to a heliocentric limit. A new pack is covered as soon as its file is added.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -36,10 +36,10 @@ for (const pack of packs) {
         w.setTime(new Date(tr.samples[i].ms));
         const P = tr.points();
         const v = dist(P[i], P[i - 1]) / ((tr.samples[i].ms - tr.samples[i - 1].ms) / 1000);
-        assert.ok(v < 12, `${def.id} moves ${v.toFixed(1)} km/s at sample ${i} (${new Date(tr.samples[i].ms).toISOString()})`);
+        assert.ok(v < (frame === 'sun' ? 60 : 12), `${def.id} moves ${v.toFixed(1)} km/s at sample ${i} (${new Date(tr.samples[i].ms).toISOString()})`);
       }
       // a landing ends on its site
-      const landing = def.generate.find((g) => g.kind === 'surface_track' && g.site_at === 'end');
+      const landing = (def.generate || []).find((g) => g.kind === 'surface_track' && g.site_at === 'end');
       if (landing) {
         w.setTime(new Date(tr.t1));
         const [lon, lat] = landing.site;

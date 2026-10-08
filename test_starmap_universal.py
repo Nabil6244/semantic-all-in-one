@@ -282,11 +282,11 @@ class Temporal(Base):
         self.assertIn("ESTIMATED · DATA TO JUN 2026", badges)
         notes = [L["text"] for L in spec["layers"] if L["type"] == "footnote"]
         self.assertIn("FLIGHT PATH ILLUSTRATED", notes)
-        orion = next(L for L in spec["layers"] if L["type"] == "spacecraft" and L["id"] == "artemis3.orion")
-        self.assertEqual(orion["label"], "ORION · PLANNED")
+        orion = next(L for L in spec["layers"] if L["type"] == "tracker" and L["craft"] == "artemis3.orion")
+        self.assertEqual((orion["label"], orion["color"]), ("ORION · PLANNED", "#5fd3ff"), "the tracking box carries the status")
         path = next(L for L in spec["layers"] if L["type"] == "trajectory" and L.get("of") == "artemis3_orion")
         self.assertTrue(path["style"]["dash"], "a planned path is dashed")
-        lm = next(L for L in spec["layers"] if L["type"] == "spacecraft" and L["id"] == "apollo11.lm")
+        lm = next(L for L in spec["layers"] if L["type"] == "tracker" and L["craft"] == "apollo11.lm")
         self.assertEqual(lm["label"], "EAGLE", "history is not labelled")
         jumps = [L for L in spec["layers"] if L["type"] == "time_jump"]
         self.assertEqual({L["text"] for L in jumps} >= {"1969 → 2026 · TODAY", "2027 → 2050 · HYPOTHETICAL"}, True)

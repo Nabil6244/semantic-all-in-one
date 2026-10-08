@@ -2,7 +2,7 @@
 // trajectory at a moment ("the orbit the craft is on at 17:30"), so the ring and the craft always agree.
 //   { "type": "orbit", "body": "moon", "altitude_km": 110, "plane": { "through": [23.47, 0.67], "heading_deg": 270, "epoch": "..." } }
 //   { "type": "orbit", "body": "moon", "trajectory": "apollo11_csm", "at_utc": "1969-07-19T20:00:00Z" }
-//   "style": { "color": "#ffffff", "width": 3, "dash": null, "behind": "hide" | "faint" }, "arrows": 3, "min_px": 8
+//   "style": { "color": "#ffffff", "width": 3, "dash": null, "behind": "faint" (default) | "hidden" }, "arrows": 3, "min_px": 8
 import { orbitPlane, orbitPoint, orbitRadius } from '../lib/paths.mjs';
 
 const norm = (v) => { const l = Math.hypot(...v) || 1; return v.map((c) => c / l); };
@@ -47,7 +47,7 @@ export default {
     const color = st.color || '#ffffff', width = st.width ?? 3;
     const split = (want) => { const out = []; let cur = []; for (const p of pts) { if (p.front && p.hid === want) cur.push([p.x, p.y]); else if (cur.length) { out.push(cur); cur = []; } } if (cur.length) out.push(cur); return out.filter((x) => x.length > 1); };
     for (const run of split(false)) f.u.line(run, { color, width, dash: st.dash || null, alpha: f.alpha * (st.opacity ?? 0.85), glow: 6 });
-    if (st.behind === 'faint') for (const run of split(true)) f.u.line(run, { color, width: width * 0.7, dash: [10, 12], alpha: f.alpha * 0.25 });
+    if (st.behind !== 'hidden' && st.behind !== 'hide') for (const run of split(true)) f.u.line(run, { color, width: width * 0.7, dash: [10, 12], alpha: f.alpha * 0.25 });
     const arrows = d.arrows ?? 3;
     for (let k = 0; k < arrows; k++) {
       const i = Math.floor(((k + 0.5) / arrows) * N), a = pts[i], b = pts[Math.min(N, i + dir)], c = pts[Math.max(0, i - dir)];

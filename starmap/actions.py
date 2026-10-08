@@ -12,9 +12,13 @@ Each action becomes:
   * a universe-time span for the beat (the clock runs through the ascent, the descent, the closest approach ...), or, for
     journeys of months to decades (a rover's drive, an interstellar cruise), a MOTION: the craft is carried along its
     trajectory by narration while the planets stay put;
-  * camera intents as the existing camera's shots: frame the body or site, then FOLLOW the craft (a shot on its trajectory),
-    then settle or pull back -- glides, never cuts;
+  * ONE held frame: the stretch of the craft's path the beat shows (the camera's "path" shot, worked out in the engine from
+    the same trajectory), seen from the side -- or from above the plane it bends in, for an orbit, a flyby, a transfer -- so
+    the craft visibly crosses a still frame with its tracking box. The camera turns only if the craft would leave the frame,
+    and makes at most one move with a reason (a departure for another planet pulls back to the whole leg); never a chase;
   * an engine-burn glow on the craft for a manoeuvre, and the craft shown on its pad before a liftoff.
+Which of a few framings (heights of view, margins) an action uses is fixed by the beat and craft ids, so a video with two
+launches does not shoot them identically and the same CSV always gives the same video.
 An action the data cannot support is reported (an error when the CSV asked for it, a warning when it was inferred) instead
 of a misleading static shot. The trajectory's basis and status labels are untouched: an illustrated path stays labelled."""
 
@@ -50,6 +54,23 @@ MOTION_OVER_DAYS = 180.0            # a span longer than this runs as a motion (
 
 
 @dataclass
+class Stage:
+    """A named phase of an action, up to the mission moment it ends at (it starts where the stage before it ended; the
+    first at the action's span start; the last ends at the span end). `weight` is how much narration the phase deserves
+    relative to the others in the same clock segment. Presentation pacing only -- the clock still reads the true date of
+    where the craft is, frame by frame; a moment (closest approach) is the boundary between two stages."""
+    name: str
+    until: str
+    weight: float
+
+
+# named emphasis: a transit (a coast, the onward cruise) gets the most narration; a key phase (a burn, the pass itself)
+# gets 7/13 of a transit's -- so a burn followed by its coast takes the first 35% of the beat
+TRANSIT = 1.0
+KEY = 7 / 13
+
+
+@dataclass
 class BeatAction:
     beat: str
     action: str                                   # canonical action
@@ -65,7 +86,11 @@ class BeatAction:
     intro: Optional[Dict[str, Any]] = None        # the shot the beat glides to first (None: the beat's usual shot)
     burns: List[Tuple[str, str]] = field(default_factory=list)
     show_on_pad: bool = False
+    dest: Optional[str] = None                    # where the craft is heading (for the tracker's distance readout)
+    readouts: Optional[List[str]] = None          # the tracker's live numbers (None: altitude and speed, + distance with a dest)
     summary: str = ""
+    stages: List[Stage] = field(default_factory=list)   # optional phases across the span (none: one even span, as always)
+    stages_cross_beats: bool = False              # may its stages run on through undated beats to the next clock key?
 
     def motion(self, start: float, end: float) -> Optional[Dict[str, Any]]:
         if self.strategy != "motion" or not self.span:
@@ -188,9 +213,15 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
     e = cat.index.datasets[c.event.split(".", 1)[0]].events[c.event.split(".", 1)[1]].utc if c.event else when
     a = BeatAction(beat=b.id, action=action, asked=asked, source=source, craft=cq, trajectory=tid, body=frame)
     R = _radius(cat, frame)
-    follow = lambda dist_km, el=25, **k: {"target": frame, "follow": {"trajectory": tid}, "distance": {"km": round(dist_km)},  # noqa: E731
-                                          "light": "side", "el_deg": el, **k}
+    pick = _variant(b.id, cq)
     gens = _gens(data)
+
+    def hold(t0: str, t1: str, el: float, km: float, fit: float = 1.35, up: str = "radial") -> Dict[str, Any]:
+        """The action's frame: the stretch of the craft's path the beat shows, framed whole from the side and HELD -- the
+        craft visibly crosses it and the tracker goes with it; the camera only turns if the craft would leave the frame."""
+        path = {"trajectory": tid, "from_utc": t0, "to_utc": t1, "fit": fit, **({"up": up} if up != "radial" else {})}
+        return {"path": path, "el_deg": el, "keep": {"trajectory": tid, "within": 0.8}, "_km": round(km)}
+
     if action == "liftoff":
         g = next((x for x in gens if x.get("kind") == "surface_track" and x.get("site_at") != "end"), None)
         if g is None:
@@ -200,8 +231,9 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         a.body, a.site = body, (lon, lat)
         a.span = (_shift(g["from_utc"], -8), g["to_utc"])
         a.show_on_pad = True
-        a.intro = {"target": f"{body}@{lon},{lat}", "distance": {"km": round(0.22 * R)}, "light": "side", "el_deg": 28}
-        a.camera = [(0.30, 0.25, follow(0.06 * R, 22)), (0.60, 0.38, follow(0.6 * R, 30))]
+        # the whole climb in one held frame, seen low from the side: the rocket rises off its pad and arcs over into orbit
+        a.intro = hold(g["from_utc"], g["to_utc"], (14, 20, 27)[pick % 3], _arc_km(g, R))
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} lifts off from {body}@{lon},{lat}; ascent {a.span[0][11:16]}→{a.span[1][11:16]} UTC"
     elif action == "landing":
         g = next((x for x in reversed(gens) if x.get("kind") == "surface_track" and x.get("site_at") == "end"), None)
@@ -211,11 +243,10 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         R = _radius(cat, body)
         a.body, a.site = body, (lon, lat)
         a.span = (g["from_utc"], _shift(g["to_utc"], 5))
-        site = f"{body}@{lon},{lat}"
-        a.intro = {"target": site, "distance": {"km": round(0.5 * R)}, "light": "side", "el_deg": 50}
-        a.camera = [(0.20, 0.25, {"target": body, "follow": {"trajectory": tid}, "distance": {"km": round(0.05 * R)}, "light": "side", "el_deg": 30}),
-                    (0.65, 0.30, {"target": site, "distance": {"km": round(max(30, 0.08 * R))}, "light": "side", "el_deg": 22})]
-        a.summary = f"{cq} descends to {site}; {a.span[0][11:16]}→{a.span[1][11:16]} UTC"
+        # the whole descent held from the side: braking high and fast, then pitching up and coming straight down on the site
+        a.intro = hold(g["from_utc"], g["to_utc"], (10, 16, 24)[pick % 3], _arc_km(g, R), fit=1.3)
+        a.readouts = ["altitude", "speed"]
+        a.summary = f"{cq} descends to {body}@{lon},{lat}; {a.span[0][11:16]}→{a.span[1][11:16]} UTC"
     elif action in ("orbit_insert", "orbit", "approach"):
         g = _at(gens, "orbit_arc", e)
         body = (g or {}).get("body") or _place_body(b, cat, c)
@@ -224,75 +255,85 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         R = _radius(cat, body)
         P = float(g.get("period_min", 120)) * 60 if g else 3600.0
         a.body = body
-        r = _orbit_radius(g, R) if g else None
-        # the whole orbit in view (its real size from the data), looked down on
-        whole = {"target": body, "distance": {"km": round(3.4 * r)}, "light": "side", "el_deg": 40} if r else None
+        r = _orbit_radius(g, R, gens[gens.index(g) - 1] if g and gens.index(g) else None) if g else None
         if action == "orbit":
             a.span = (e, _shift(e, 0.6 * P))
-            a.intro = whole
-            a.summary = f"{cq} orbits {body} (period {P / 60:.0f} min)"
         else:
-            a.span = (_shift(e, -0.12 * P), _shift(e, 0.5 * P))
+            a.span = (_shift(e, -0.12 * P), _shift(e, 0.3 * P))     # the arrival and the first stretch of orbit
             if action == "orbit_insert":
                 half = max(120.0, 0.04 * P)
                 a.burns = [(_shift(e, -half), _shift(e, half))]
-            a.camera = [(0.15, 0.25, {"target": body, "follow": {"trajectory": tid}, "distance": {"km": round(1.2 * R)}, "light": "side", "el_deg": 55}),
-                        (0.55, 0.40, whole)]                                     # the orbit it settled into (None: the usual view)
-            a.summary = f"{cq} {'enters orbit around' if action == 'orbit_insert' else 'approaches'} {body} at {e[:16].replace('T', ' ')} UTC"
+        # the stretch of orbit the beat shows, seen from above its plane and held: going round is always across the screen,
+        # never towards the camera, and the body sits inside the curve
+        a.intro = hold(a.span[0], a.span[1], (38, 46, 32)[pick % 3], 3 * (r or 2 * R), fit=1.3, up="plane")
+        a.readouts = ["altitude", "speed"]
+        a.summary = f"{cq} " + {"orbit": "orbits", "orbit_insert": "enters orbit around", "approach": "approaches"}[action] + f" {body}" + \
+            (f" (period {P / 60:.0f} min)" if action == "orbit" else f" at {e[:16].replace('T', ' ')} UTC")
     elif action in ("departure", "transfer"):
         g = _at(gens, "transfer", e, slack_days=0.5)
         if g is None:
             raise _Incomplete(f"{word} visual incomplete: {cq}'s trajectory has no transfer leg at {e[:16].replace('T', ' ')} UTC")
         A, B = g.get("from"), g.get("to")
         RA = _radius(cat, A)
-        a.body = A
-        end = g.get("_t1") or _shift(e, 3 * 86400)
+        a.body, a.dest = A, B
+        t0, end = g.get("_t0") or e, g.get("_t1") or _shift(e, 3 * 86400)
+        far = bool(B) and not _local(cat, A, B)
+        leg_km = 1.5e8 if far else 4e5
         if action == "transfer":                                 # the whole leg (months or years: narration-paced, below)
-            a.span = (g.get("_t0") or e, end)
+            a.span = (t0, end)
+            a.intro = hold(t0, end, (70, 80, 62)[pick % 3], leg_km, fit=1.25, up="plane")
         else:                                                   # leaving: the burn and the first days away
             a.span = (_shift(e, -300), end if iso_days(e, end) <= 3 else _shift(e, 3 * 86400))
+            # seen from above the plane it leaves in, so the craft's climb away runs across the screen
+            a.intro = hold(a.span[0], a.span[1], (58, 66, 50)[pick % 3], 60 * RA, up="plane")
+            if far:
+                # one move, with a reason: once it is on its way, pull back to the whole leg -- where it is going
+                a.camera = [(0.5, 0.42, hold(t0, end, 72, leg_km, fit=1.25, up="plane"))]
         a.burns = [(_shift(e, -180), _shift(e, 360))]
-        wide = {"target": f"{A}+{B}", "fit": 1.4, "light": "front", "el_deg": 25} if B else follow(8 * RA, 30)
-        if action == "transfer":
-            a.intro = wide
-            a.camera = [(0.35, 0.3, follow(3 * RA, 25)), (0.7, 0.28, wide)]
-        else:
-            a.intro = {"target": A, "fill": 0.45, "light": "side", "el_deg": 25}
-            if B and not _local(cat, A, B):
-                a.camera = [(0.35, 0.5, wide)]                  # across the solar system: the whole leg, not a close follow
-            else:
-                a.camera = [(0.25, 0.3, {"target": A, "follow": {"trajectory": tid}, "distance": {"km": round(1.2 * RA)}, "light": "side", "el_deg": 25}),
-                            (0.6, 0.38, wide)]
+        if action == "departure":
+            # the burn gets narration time before the coast races: span start -> the burn's end, then on to the span's end
+            burn_end = a.burns[0][1]
+            if iso_days(a.span[0], burn_end) > 0 and iso_days(burn_end, a.span[1]) > 0:
+                a.stages = [Stage("burn", burn_end, KEY), Stage("coast", a.span[1], TRANSIT)]
+        a.readouts = ["distance", "speed"] if B else ["altitude", "speed"]
         a.summary = f"{cq} leaves {A}" + (f" for {B}" if B else "")
     elif action == "flyby":
-        body = _place_body(b, cat, c) or _sample_anchor(data, e)
+        fg = _at(gens, "flyby", e, slack_days=0.5)               # a modelled pass (a hyperbola) knows its own body and window
+        body = (fg or {}).get("body") or _place_body(b, cat, c) or _sample_anchor(data, e)
         if body is None:
             raise _Incomplete(f"Flyby visual incomplete: no body to fly past (give the beat a place)")
         Rb = _radius(cat, body)
         h = min(36.0, max(1.0, Rb / 2000.0)) * 3600
         a.body, a.span = body, (_shift(e, -h), _shift(e, h))
-        a.intro = {"target": body, "fill": 0.3, "light": "side", "el_deg": 15}
-        a.camera = [(0.30, 0.25, follow(4 * Rb, 20)), (0.62, 0.35, follow(12 * Rb, 25))]
+        if fg and fg.get("_t0") and fg.get("_t1"):
+            a.span = (max(fg["_t0"], a.span[0]), min(fg["_t1"], a.span[1]))
+        # the pass is the key phase on both sides of closest approach (a boundary, not a stage)
+        if iso_days(a.span[0], e) > 0 and iso_days(e, a.span[1]) > 0:
+            a.stages = [Stage("approach", e, KEY), Stage("departure", a.span[1], KEY)]
+            a.stages_cross_beats = True
+        # the bend of the flyby, seen from above its plane, held: the craft swings past the body and away
+        a.intro = hold(a.span[0], a.span[1], (62, 75, 50)[pick % 3], 8 * Rb, fit=1.3, up="plane")
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} flies past {body}, closest at {e[:16].replace('T', ' ')} UTC"
     elif action in ("docking", "undocking", "separation"):
         Rf = _radius(cat, frame)
         a.span = (_shift(e, -360), _shift(e, 600))
-        a.intro = follow(max(60.0, 0.03 * Rf), 30)
-        a.camera = [(0.5, 0.45, follow(max(200.0, 0.12 * Rf), 30))]
+        a.intro = hold(a.span[0], a.span[1], (25, 35)[pick % 2], max(200.0, 0.5 * Rf))
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq}: {action} at {e[:16].replace('T', ' ')} UTC"
     elif action == "impact":
         body = _place_body(b, cat, c)
         if body is None:
             raise _Incomplete("Impact visual incomplete: no target body (give the beat a place)")
-        Rb = max(0.05, _radius(cat, body))
         a.body, a.span = body, (_shift(e, -1800), _shift(e, 10))
-        a.intro = {"target": body, "distance": {"km": round(max(60.0, 40 * Rb))}, "light": "side", "el_deg": 20}
-        a.camera = [(0.2, 0.3, follow(max(25.0, 10 * Rb), 20)), (0.7, 0.28, {"target": body, "distance": {"km": round(max(12.0, 5 * Rb))}, "light": "side", "el_deg": 20})]
+        a.intro = hold(a.span[0], a.span[1], (18, 26)[pick % 2], 1e4)
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} strikes {body} at {e[:16].replace('T', ' ')} UTC"
     elif action == "reentry":
         Rf = _radius(cat, frame)
         a.span = (_shift(e, -900), e)
-        a.camera = [(0.2, 0.3, follow(0.1 * Rf, 25)), (0.65, 0.32, follow(0.25 * Rf, 35))]
+        a.intro = hold(a.span[0], a.span[1], (15, 24)[pick % 2], 0.6 * Rf)
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} returns through the atmosphere of {frame}"
     elif action == "surface_traverse":
         samples = [s for s in (data.get("samples") or []) if s.get("lla")]
@@ -302,26 +343,53 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         a.site, a.strategy = (lon, lat), "motion"
         end = T.observed_until or samples[-1]["utc"]
         a.span = (iso(parse_iso(samples[0]["utc"])), iso(parse_iso(end)))
-        a.intro = {"target": f"{frame}@{lon},{lat}", "distance": {"km": 60}, "light": "side", "el_deg": 40}
-        a.camera = [(0.15, 0.25, {"target": frame, "follow": {"trajectory": tid, "motion": "beat"}, "distance": {"km": 25}, "light": "side", "el_deg": 35})]
+        a.intro = hold(a.span[0], a.span[1], (55, 65)[pick % 2], 30, fit=1.4)
+        a.readouts = []
         a.summary = f"{cq} drives across {frame} ({a.span[0][:10]} → {a.span[1][:10]}, shown at the pace of the narration)"
     elif action == "deep_space_departure":
         a.strategy = "motion"
         end = T.observed_until or T.end
         a.span = (e, end)
-        a.intro = {"target": "sun", "distance": {"au": 300}, "el_deg": 30}
-        a.camera = [(0.3, 0.6, {"target": "sun", "follow": {"trajectory": tid, "motion": "beat"}, "distance": {"au": 90}, "el_deg": 30})]
+        a.body = "sun"
+        a.intro = hold(e, end, (55, 68)[pick % 2], 1.5e10, fit=1.3, up="plane")
+        a.readouts = ["from", "speed"]
         a.summary = f"{cq} heads out of the solar system ({e[:4]} → {end[:4]}, at the pace of the narration)"
-    else:                                                       # trajectory_follow: ride along
+    else:                                                       # trajectory_follow: its path for half an hour, held
         Rf = _radius(cat, frame)
         a.span = (e, _shift(e, 1800))
-        a.camera = [(0.2, 0.5, follow(max(300.0, 0.15 * Rf), 30))]
+        a.intro = hold(a.span[0], a.span[1], 28, max(300.0, Rf))
+        a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} on its path at {e[:16].replace('T', ' ')} UTC"
+    if any(t.b == b.id and t.kind == "continuous" for t in getattr(res, "transitions", [])):
+        # time runs in from the beat before: the beat shows the path from where the clock already is, so frame that
+        for sh in [a.intro] + [x[2] for x in a.camera]:
+            if sh and sh.get("path") and iso_days(sh["path"]["from_utc"], when) > 0 and iso_days(when, sh["path"]["to_utc"]) > 0:
+                sh["path"]["from_utc"] = when
     if c.event and "burn" in c.event.split(".", 1)[1] and not a.burns:
         a.burns = [(_shift(e, -180), _shift(e, 180))]              # a named burn glows on the craft
     if a.span and a.strategy == "clock" and iso_days(a.span[0], a.span[1]) > MOTION_OVER_DAYS:
         a.strategy = "motion"
+    for sh in [a.intro] + [x[2] for x in a.camera]:
+        if sh and sh.get("path"):
+            # the moment the frame is worked out for: the stretch's middle while the clock runs through it; the beat's own
+            # date (where the planets stay) for a narration-paced motion
+            pth = sh["path"]
+            pth["ref_utc"] = when if a.strategy == "motion" else _shift(pth["from_utc"], 0.5 * iso_days(pth["from_utc"], pth["to_utc"]) * 86400)
     return a
+
+
+def _variant(beat: str, craft: str) -> int:
+    """A stable small number per beat and craft: which of an action's framings to use (the same CSV always gives the same
+    video; two launches in one video are not shot identically)."""
+    import hashlib
+
+    return int(hashlib.sha1(f"{beat}|{craft}".encode()).hexdigest()[:8], 16)
+
+
+def _arc_km(g: Dict[str, Any], R: float) -> float:
+    import math
+
+    return math.radians(float(g.get("arc_deg", 10))) * R
 
 
 def _local(cat: Catalog, a: str, b: str) -> bool:
@@ -330,7 +398,9 @@ def _local(cat: Catalog, a: str, b: str) -> bool:
     return parent.get(a) == b or parent.get(b) == a
 
 
-def _orbit_radius(g: Dict[str, Any], R: float) -> Optional[float]:
+def _orbit_radius(g: Dict[str, Any], R: float, prev: Optional[Dict[str, Any]] = None) -> Optional[float]:
+    if g.get("continue") and prev is not None and prev.get("alt_far_km") is not None and g.get("altitude_km") is None and not g.get("radius"):
+        return R + float(prev["alt_far_km"])                    # an orbit that carries on from an ascent: its height is where the ascent ended
     if g.get("radius"):
         from .compile import KM_PER_AU, KM_PER_LY
 

@@ -77,10 +77,15 @@ may name one (liftoff, landing, orbit_insert, orbit, departure, transfer, flyby,
 impact, reentry, rover_drive, deep_space_departure ...), or `extra {"action": ...}`; left empty, a beat that shows a craft takes
 it from its date's event (launch → liftoff, loi → orbit_insert, pdi → descent ...; a dataset event may declare `"action"`). The
 action reads only the craft's trajectory data -- a surface track that starts at a site is the launch, one that ends at a site
-the landing, an orbit arc its period, a transfer its two bodies -- and becomes camera intents for the existing camera (frame the
-body or site, FOLLOW the craft on its trajectory, settle or pull back), a clock span (the ascent, the descent, the closest
-approach) or, for journeys of months to decades, a narration-paced motion that carries the craft without spinning the planets,
-plus an engine-burn glow for a manoeuvre. Check plan lists every beat's action; an action the data cannot support is an error
+the landing, an orbit arc its period, a transfer its two bodies -- and becomes ONE held frame (the stretch of the craft's path the
+beat shows, worked out from the data and seen from the side, or from above the plane of an orbit, flyby or transfer, so the
+craft crosses the screen while the camera stays still), a clock span (the ascent, the descent, the closest approach) or, for
+journeys of months to decades, a narration-paced motion that carries the craft without spinning the planets, plus an
+engine-burn glow for a manoeuvre. A tracking box rides on the craft (its name; during an action live altitude, distance and,
+for observed or modelled paths only, speed -- marked ≈ on an illustrated path). The camera itself moves only where the story
+needs it: a glide when the place or scale changes, and one pull-back when a craft leaves for another planet; never a chase.
+Wherever something moves by itself the always-on drift rests, and only a quiet beat creeps in slowly. Which of a few framings
+an action uses is fixed by the beat and craft (the same CSV always gives the same video). Check plan lists every beat's action; an action the data cannot support is an error
 when asked for ("Launch visual incomplete: no spacecraft resolved") and a warning when inferred. Labels and basis are unchanged.
 
 The **Moon Missions** datasets, each with a sample script, beat CSV and media map in `starmap/samples/` (pictures in

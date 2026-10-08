@@ -77,7 +77,7 @@ export function chunkFingerprints(spec, chunks, { mediaDir, extra = '' } = {}) {
   const fps = spec.fps, fp = planFootage(spec);
   const clock = createClock(fp.mapClock(spec.clock));
   const world = buildWorld(spec.world, { date: clock.utc(fp.mu(0)) });
-  const camAt = createCamera(world, { fov_deg: spec.fov_deg || 40, ...fp.mapCamera(spec.camera) }, { trajectory: trajectoryLookup(world, spec.layers || []) });
+  const camAt = createCamera(world, { fov_deg: spec.fov_deg || 40, aspect: (spec.width || 16) / (spec.height || 9), ...fp.mapCamera(spec.camera) }, { trajectory: trajectoryLookup(world, spec.layers || []), dateAt: (t) => clock.utc(t) });
   const registry = registerBuiltins(createRegistry());
   const media = (name) => (name ? fileFingerprint(path.isAbsolute(name) ? name : path.join(mediaDir || '', path.basename(name))) : null);
   const withMedia = (def) => {

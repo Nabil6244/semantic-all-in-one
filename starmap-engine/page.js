@@ -27,7 +27,7 @@ const fp = planFootage(spec);
 if (fp.problems.length) throw new Error(`footage: ${fp.problems.join('; ')}`);
 const clock = createClock(fp.mapClock(spec.clock));
 const world = buildWorld(spec.world, { date: clock.utc(fp.mu(0)) });
-const camAt = createCamera(world, { fov_deg: FOV, ...fp.mapCamera(spec.camera) }, { trajectory: trajectoryLookup(world, spec.layers || []) });
+const camAt = createCamera(world, { fov_deg: FOV, aspect: W / H, ...fp.mapCamera(spec.camera) }, { trajectory: trajectoryLookup(world, spec.layers || []), dateAt: (t) => clock.utc(t) });
 const storyClock = { utc: (t) => clock.utc(fp.mu(t)), met: (t) => clock.met(fp.mu(t)) };   // what layers read, by narration t
 const focalPx = (H / 2) / Math.tan((FOV / 2) * Math.PI / 180);
 const ramp = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a)));

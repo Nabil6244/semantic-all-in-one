@@ -56,8 +56,9 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
     type       (map beats, optional) a VISUAL ACTION when the beat shows a spacecraft DOING
                something -- liftoff, landing, orbit_insert, orbit, departure, transfer, flyby,
                approach, docking, undocking, separation, impact, reentry, rover_drive,
-               deep_space_departure -- and the app shows it: the craft rises off its pad and
-               the camera follows it, descends to its site, swings past a planet. Give the beat
+               deep_space_departure -- and the app shows it: it frames the whole stretch of the
+               flight and HOLDS the camera still while the tracked craft rises off its pad,
+               comes down on its site, swings past a planet. Give the beat
                the craft row and the event's date (apollo11.launch). Leave type empty and the
                action is read from the date's event; or a camera move: push_in (slow zoom in),
                pull_out, orbit (the camera circles), hold
@@ -143,8 +144,13 @@ CAMERA
 - You do not write camera moves. Give each map or map_footage beat its place, frame and
   date; the app flies the camera between beats (never under footage) and lights every
   body from the Sun's side.
+- The camera moves only when the story changes place or scale. Inside a beat the motion
+  comes from the map itself: a craft flying with its tracking box, a path drawing on, a line
+  lighting up, rings appearing. Like a cosmic-address video: one idea per beat, the camera
+  steady while it is explained, then one deliberate move to the next place.
 - Keep the same place and frame for beats that stay in the same view, so the camera does
-  not move for nothing.
+  not move for nothing. Do not add push_in, pull_out or orbit to make a beat look busy;
+  never on a beat with a visual action (the action already frames the shot).
 
 LAYERS
 - title: label (the video or part title), sub optional. One per part; never repeat.

@@ -1,0 +1,35 @@
+{
+ "_about": "What the Visual Plan would fill in: each asset description -> a file in starmap-engine/samples/media (public-domain NASA images).",
+ "nasa_image:Voyager Golden Record gold-plated disc carried on Voyager 1": {
+  "file": "pia14113.jpg",
+  "credit": "NASA/JPL (PIA14113)"
+ },
+ "nasa_image:Voyager 1 launch atop its Titan Centaur rocket in 1977": {
+  "file": "pia21747.jpg",
+  "credit": "NASA/JPL (PIA21747)"
+ },
+ "nasa_image:Voyager 1 view of the Jupiter Great Red Spot and its storms": {
+  "file": "pia01384.jpg",
+  "credit": "NASA/JPL (PIA01384)"
+ },
+ "nasa_image:Voyager 1 photograph of Titan and its orange haze": {
+  "file": "arc-1980-ac80-7007.jpg",
+  "credit": "NASA ARC-1980-AC80-7007"
+ },
+ "nasa_image:Voyager 1 Family Portrait mosaic of the planets taken from the edge of the Solar System in 1990": {
+  "file": "pia23681.jpg",
+  "credit": "NASA/JPL (PIA23681)"
+ },
+ "nasa_image:NASA illustration of the heliosphere bubble around the Sun with the heliosheath and heliopause": {
+  "file": "pia22835.jpg",
+  "credit": "NASA/JPL (PIA22835)"
+ },
+ "nasa_image:artist concept of Voyager 1 entering interstellar space beyond the heliopause": {
+  "file": "pia17462.jpg",
+  "credit": "NASA/JPL (PIA17462)"
+ },
+ "nasa_image:graphic of the Voyager 1 spacecraft and the location of its instrument": {
+  "file": "pia16484.jpg",
+  "credit": "NASA/JPL (PIA16484)"
+ }
+}

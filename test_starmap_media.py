@@ -98,6 +98,50 @@ class Nasa(unittest.TestCase):
         nasa_images.prefetch(rows, nasa_rows, d, get=get, log=lambda m: None)
         self.assertFalse(any(c[1].get("q", "").startswith("Saturn") for c in get.calls))
 
+    def test_a_renumbered_row_is_searched_on_nasa_not_skipped_for_its_old_file(self):
+        """An edited CSV renumbers its scenes: scene 1's finished stock file from the old CSV is not the new scene 1's
+        picture, so NASA is searched for it (it used to be skipped, and the stock search then found a Pexels photo)."""
+        from asset_manager import AssetManifest
+        from providers.base import SceneRow
+
+        d = Path(tempfile.mkdtemp())
+        rows = [SceneRow.from_csv_row(r) for r in visual_dicts_from_csv(SAMPLE)]
+        (d / "001.jpg").write_bytes(jpeg())
+        AssetManifest(d).set("1", {"source": "stock_image", "asset_type": "stock_image", "type": "image", "prompt": "an old scene's picture",
+                                   "stock_query": "an old scene's picture", "local_path": str(d / "001.jpg"), "status": "complete"})
+        get = fake_nasa({"Apollo 11 Saturn V lifting off from Launch Complex 39A": [("Apollo 11 Saturn V lifting off from Launch Complex 39A", "kscid")]}, {"kscid": jpeg()})
+        nasa_rows = {m.scene_number: m.prompt for m in media_rows(load_plan(SAMPLE, WORDS)) if m.source == "nasa_image"}
+        found = nasa_images.prefetch(rows, nasa_rows, d, get=get, log=lambda m: None)
+        self.assertIn("1", found)
+        self.assertEqual(AssetManifest(d).get("1")["provider_asset_id"], "kscid")
+
+    def test_a_picture_that_contradicts_the_description_is_rejected(self):
+        """Real NASA captions that once filled the wrong card (Voyager 1, project 082)."""
+        c = nasa_images.contradicts
+        self.assertIn("Voyager 2", c("Voyager 1 image of the faint thin ring of Jupiter", "ARC-1979-A79-7086",
+                                     "Jupiter's thin ring of particles was photographed by Voyager 2 on its approach to the giant planet."))
+        self.assertTrue(c("Voyager 1 close-up of the swirling storms and Great Red Spot of Jupiter", "ARC-1979-AC79-7112",
+                          "Voyager 1 close up image of Jupiter moon Io JPL ref. No. P-21277"))
+        self.assertTrue(c("Voyager 1 image of the hazy orange atmosphere of Titan", "Voyager 1 Explores the Magnetic",
+                          "This image from a set of animations show NASA Voyager 1 spacecraft exploring a new region in our solar system."))
+        # and the right ones pass
+        self.assertIsNone(c("Voyager 1 Great Red Spot of Jupiter", "Jupiter Great Red Spot",
+                            "This dramatic view of Jupiter Great Red Spot and its surroundings was obtained by NASA Voyager 1 on Feb. 25, 1979."))
+        self.assertIsNone(c("Voyager Golden Record gold-plated disc carried on Voyager 1", "Voyager Special Cargo: The Golden Record",
+                            "Each of the two Voyager spacecraft launched in 1977 carry a 12-inch gold-plated phonograph record."))
+        self.assertIsNone(c("Apollo 11 Saturn V lifting off from Launch Complex 39A", "Apollo 11 Launch",
+                            "The Apollo 11 Saturn V space vehicle lifts off from Pad A, Launch Complex 39, Kennedy Space Center."))
+
+    def test_no_nasa_match_leaves_the_row_out_instead_of_a_stock_photo(self):
+        from providers.base import SceneRow
+
+        d = Path(tempfile.mkdtemp())
+        rows = [SceneRow.from_csv_row(r) for r in visual_dicts_from_csv(SAMPLE)]
+        nasa_rows = {m.scene_number: m.prompt for m in media_rows(load_plan(SAMPLE, WORDS)) if m.source == "nasa_image"}
+        no_match = {}
+        nasa_images.prefetch(rows, nasa_rows, d, get=fake_nasa({}, {}), log=lambda m: None, no_match=no_match)
+        self.assertEqual(sorted(no_match), sorted(nasa_rows), "nothing found: every NASA row is left out, none goes to stock")
+
     def test_a_dropped_connection_is_tried_again_not_sent_to_stock(self):
         """NASA's server resets connections under load; one reset used to send the row to the stock search."""
         import requests
@@ -168,8 +212,10 @@ class Rows(unittest.TestCase):
         plan = load_plan(SAMPLE, WORDS)
         res = fetch_media(plan, Path(tempfile.mkdtemp()), log=lambda m: None, nasa_get=fake_nasa({}, {}),
                           fetch_scenes=lambda rows, d, **kw: FetchResult(paths={}, missing={"1": "no result", "2": "no result"}, skipped=["3"]))
-        self.assertEqual(res.unresolved, ["1", "2"])
-        self.assertIn("Visual Plan scene 1 (clip in beat b2, CSV row 7", res.missing[0])
+        # scenes 1 and 2 are nasa_image rows NASA has nothing for: left out with a note, never handed to the stock search
+        self.assertEqual(res.unresolved, [])
+        self.assertIn("Visual Plan scene 1 (clip in beat b2, CSV row 7", res.notes[0])
+        self.assertEqual(res.media["row:7"], {"file": ""})
         self.assertEqual(res.media["row:30"], {"file": ""}, "a skipped row is left out, not an error")
 
     def test_rows_nasa_never_answered_are_reported_not_given_to_stock(self):

@@ -35,13 +35,20 @@ class EveryPack(unittest.TestCase):
                 p = json.loads((PACKS / f"{pid}.json").read_text(encoding="utf-8"))
                 cat = Catalog(pid)
                 self.assertEqual(p["id"], pid)
-                self.assertIn("illustrated", p["_about"].lower(), "the pack says its trajectories are illustrated")
+                sampled = all(t.get("samples") and t.get("basis") == "observed" for t in p["trajectories"])
+                self.assertIn("horizons" if sampled else "illustrated", p["_about"].lower(),
+                              "the pack says where its trajectories come from: flight data (JPL Horizons) or illustrated")
                 events = p["events"]
-                self.assertEqual(p["met_zero"], events["launch"], "mission time starts at launch")
-                times = [iso(t) for t in events.values()]
+                utc = lambda e: e["utc"] if isinstance(e, dict) else e   # noqa: E731  (an event may carry its status and precision)
+                self.assertEqual(p["met_zero"], utc(events["launch"]), "mission time starts at launch")
+                times = [iso(utc(t)) for t in events.values()]
                 self.assertEqual(times, sorted(times), "events are listed in time order")
                 ids = {t["id"] for t in p["trajectories"]}
                 for t in p["trajectories"]:
+                    if sampled:
+                        times = [iso(x["utc"]) for x in t["samples"]]
+                        self.assertEqual(times, sorted(times), "samples in time order")
+                        continue
                     self.assertEqual(t.get("source"), "illustrated")
                     for g in t["generate"]:
                         for k in ("from_utc", "to_utc"):
@@ -54,10 +61,10 @@ class EveryPack(unittest.TestCase):
                 for name, path in p["paths"].items():
                     self.assertIn(path["of"], ids, f"path {name}")
                     self.assertLess(iso(cat.date(path["from"])), iso(cat.date(path["to"])), f"path {name} runs forwards")
-                for name, o in p["orbits"].items():
+                for name, o in p.get("orbits", {}).items():
                     self.assertIn(o["trajectory"], ids, f"orbit {name}")
                     cat.date(o["at"])
-                for name, s in p["sites"].items():
+                for name, s in p.get("sites", {}).items():
                     self.assertIn(s["body"], cat.body_ids, name)
                     self.assertTrue(-180 <= s["lon"] <= 180 and -90 <= s["lat"] <= 90, name)
                     self.assertTrue(s.get("label"), name)

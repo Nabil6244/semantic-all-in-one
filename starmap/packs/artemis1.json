@@ -80,10 +80,11 @@
      "arrive_bulge": 0.35
     },
     {
-     "kind": "orbit_arc",
+     "kind": "flyby",
      "body": "moon",
-     "altitude_km": 130,
-     "period_min": 160,
+     "periapsis_utc": "2022-11-21T12:57:00Z",
+     "periapsis_alt_km": 130,
+     "v_inf_kms": 0.8,
      "plane": {
       "through": [
        180,
@@ -94,7 +95,7 @@
      },
      "from_utc": "2022-11-21T12:20:00Z",
      "to_utc": "2022-11-21T13:35:00Z",
-     "samples_per_rev": 120
+     "samples": 160
     },
     {
      "kind": "orbit_arc",

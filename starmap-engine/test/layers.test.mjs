@@ -20,7 +20,7 @@ const angleDeg = (a, b) => Math.acos(Math.min(1, Math.max(-1, a.reduce((s, x, i)
 test('registry: a new layer type is added by registering it, nothing else', async () => {
   const reg = registerBuiltins(createRegistry());
   assert.deepEqual(reg.types(), ['atmosphere', 'body_labels', 'caption', 'channel_name', 'distance', 'footnote', 'galaxy_guide', 'link', 'marker',
-    'mission_clock', 'orbit', 'photo_card', 'pointer', 'region', 'rings', 'spacecraft', 'stat_chip', 'status_badge', 'time_jump', 'title', 'trajectory']);
+    'mission_clock', 'orbit', 'photo_card', 'pointer', 'region', 'rings', 'spacecraft', 'stat_chip', 'status_badge', 'time_jump', 'title', 'tracker', 'trajectory']);
   // a brand-new type, defined here, used by a spec: the renderer's frame loop runs it with timing applied
   const seen = [];
   reg.register({ type: 'comet_tail', space: 'world', create: (def) => ({ def }), update: (inst, f) => seen.push(['u', f.t, +f.alpha.toFixed(2)]), draw: (inst, f) => seen.push(['d', f.t]) });
@@ -188,10 +188,29 @@ test('mission clock: its own T-zero, T- before it, a date only as precise as it 
   const zero = Date.parse('2027-09-15T12:00:00Z');
   assert.equal(metText(zero - 3600e3, zero), 'T− 01:00:00');
   assert.equal(metText(zero + (102 * 3600 + 45 * 60 + 40) * 1000, zero), 'T+ 102:45:40');
+  const day = 86400e3;
+  assert.equal(metText(zero + 9.9 * day, zero), 'T+ 237:36:00', 'under ten days: hours, as a launch or Moon landing reads');
+  assert.equal(metText(zero + 547.4 * day, zero), 'T+ 547 DAYS', 'a cruise: whole days');
+  assert.equal(metText(zero + 12773 * day, zero), 'T+ 34 YEARS 354 DAYS', 'decades: years and days');
+  assert.equal(metText(zero + 730.2 * day, zero), 'T+ 730 DAYS', 'just under two years is still days');
+  assert.equal(metText(zero + 731 * day, zero), 'T+ 2 YEARS');
+  assert.equal(metText(zero - 20 * day, zero), 'T− 20 DAYS', 'a countdown reads the same way');
   const d = new Date('2027-09-15T12:00:00Z');
   assert.equal(dateText(d, 'month'), 'SEP 2027');
   assert.equal(dateText(d, 'year'), '2027');
   assert.equal(dateText(d), '2027-09-15 12:00 UTC');
+});
+
+test('mission_clock: through a narration-paced motion the date shown is the craft\'s, not the held universe date', async () => {
+  const clock = (await import('../layers/mission_clock.mjs')).default;
+  const shown = [];
+  const u = { S: 1, measure: () => 100, shadow() {}, noShadow() {}, box() {}, font: () => '' };
+  const g = { save() {}, restore() {}, fillText: (t) => shown.push(t) };
+  const def = { show: 'utc', date_precision: 'day', motions: [{ start: 80, end: 90, t0: 81.2, t1: 89.8, from_utc: '2016-09-08T23:05:00Z', to_utc: '2018-12-03T00:00:00Z' }] };
+  const inst = clock.create(def);
+  const frame = (t) => ({ t, date: new Date('2016-09-08T23:05:00Z'), u, g, W: 1920, alpha: 1, mu: (x) => x, claim() {}, clock: { met: () => null } });
+  for (const t of [79, 81, 89.9]) clock.draw(inst, frame(t));
+  assert.deepEqual(shown, ['8 SEP 2016', '8 SEP 2016', '3 DEC 2018']);
 });
 
 test('time jump: fully dark at the cut, clear before and after', async () => {

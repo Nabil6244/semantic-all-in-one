@@ -192,30 +192,34 @@ class Timing(unittest.TestCase):
         self.assertEqual([k["utc"] for k in keys[2:5]], ["1969-07-16T13:43:49Z", "1969-07-16T16:16:16Z", "1969-07-19T17:21:50Z"])
 
     def test_camera_glides_only_when_the_view_changes(self):
-        """Beat views in order (follow shots of a beat's visual action ride along a craft between them); b7 keeps b6's view."""
+        """Beat views in order (a beat's visual action holds on the stretch of its craft's path instead); b7 keeps b6's view."""
         spec = check_csv(SAMPLE, WORDS, media=MEDIA).compiled.spec
-        moves = [m for m in spec["camera"]["moves"] if not m["to"].get("follow")]
+        moves = [m for m in spec["camera"]["moves"] if not m["to"].get("path")]
         seen = [spec["camera"]["start"]["target"]] + [m["to"]["target"] for m in moves]
         targets = [x for k, x in enumerate(seen) if k and x != seen[k - 1]]     # the views it glides to (creeping in keeps the view)
         self.assertEqual(spec["camera"]["start"]["target"], "earth@-80.604,28.608")
-        self.assertEqual([t for t in targets if "@" not in t or t == "moon@23.473,0.674"], ["earth", "earth+moon", "moon", "moon@23.473,0.674"])
-        follows = [m for m in spec["camera"]["moves"] if m["to"].get("follow")]
-        self.assertTrue(follows and all(m["to"]["follow"]["trajectory"].startswith("apollo11_") for m in follows), "the camera follows the craft")
-        orbit = next(m for m in moves if m["to"]["target"] == "moon")
-        self.assertGreaterEqual(orbit["to"]["el_deg"], 45, "an orbit beat looks down on the orbit")
+        self.assertEqual(targets, ["moon@23.473,0.674"], "after the actions, back to the landing site's own view")
+        held = [m["to"] for m in spec["camera"]["moves"] if m["to"].get("path")]
+        same = lambda a, b: {**a["path"], "fit": 0} == {**b["path"], "fit": 0}       # noqa: E731  (a creep in keeps the frame)
+        held = [h for k, h in enumerate(held) if not (k and same(h, held[k - 1]))]
+        self.assertEqual([h["path"]["trajectory"] for h in held], ["apollo11_csm"] * 3 + ["apollo11_lm"], "each action holds on its craft's path")
+        self.assertEqual([h["path"].get("up") for h in held], ["plane", "plane", "plane", None], "orbits and departures from above their plane; a landing from the side")
+        self.assertFalse([m for m in spec["camera"]["moves"] if m["to"].get("follow")], "the camera never chases a craft")
 
-    def test_the_camera_never_sits_still_through_a_beat(self):
-        """A beat with no move of its own creeps in slowly (a held camera reads as stuck), the same view again included."""
-        spec = check_csv(SAMPLE, WORDS, media=MEDIA).compiled.spec
+    def test_the_camera_moves_only_where_needed(self):
+        """The camera is never frozen (the drift never rests) and an action beat makes at most one move after its glide in."""
+        comp = check_csv(SAMPLE, WORDS, media=MEDIA).compiled
+        spec = comp.spec
         moves = sorted(spec["camera"]["moves"], key=lambda m: m["t"])
         busy = [(m["t"], m["t"] + m["dur"]) for m in moves]
         footage = [(f["start"], f["end"]) for f in spec["footage"]]
-        t, still = 0.0, 0.0
-        while t < spec["duration"]:
-            if not any(a <= t < b for a, b in busy + footage):
-                still += 0.1
-            t += 0.1
-        self.assertLess(still, 0.15 * spec["duration"], "the camera is moving (or under footage) most of the time")
+        self.assertNotIn("still", spec["camera"], "the drift never rests")
+        self.assertGreater(spec["camera"]["drift_deg_per_s"], 0, "so the camera is never frozen")
+        plan = read_plan(SAMPLE, WORDS)
+        for b in plan.beats:
+            if b.id in comp.actions:
+                inside = [m for m in moves if b.start <= m["t"] < b.end]
+                self.assertLessEqual(len(inside), 2, f"{b.id}: a glide in and at most one move with a reason")
 
     def test_media_to_find_is_listed_not_fatal_in_check(self):
         rep = check_csv(SAMPLE, WORDS)
