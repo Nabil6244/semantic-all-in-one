@@ -613,15 +613,19 @@ class TestGenerateRun(unittest.TestCase):
         self.assertIsNone(self.run_gen().sound_failed)
         self.assertIsNone(self.run_gen(sound_design=False).sound_failed)
 
-    def test_a_narration_louder_than_the_limit_is_reported_because_it_mutes_the_bed(self):
-        loud = _tone(200, 12.0, 0.995)
+    def test_a_narration_peaking_above_full_scale_keeps_its_sound_design(self):
+        narr = _tone(200, 12.0, 0.2)
+        narr[int(5.0 * SR):int(5.2 * SR)] = _tone(200, 0.2, 1.0)  # one word louder than full scale (the reported 1.010 peak)
         with wave.open(str(self.d / "vo.wav"), "wb") as w:  # stereo, so the level is not lowered by an upmix
             w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
-            w.writeframes((np.stack([loud, loud], axis=1) * 32767).astype("<i2").tobytes())
+            w.writeframes((np.stack([narr, narr], axis=1) * 32767).astype("<i2").tobytes())
         r = self.run_gen()
         self.assertTrue(r.ok)
-        self.assertEqual(r.audio_mix.bus_scale, 0.0)  # unchanged mixer behaviour: the narration is never turned down
-        self.assertIn("narration itself peaks above", r.sound_failed)
+        self.assertIsNone(r.sound_failed)
+        self.assertGreater(r.audio_mix.clip_dip_s, 0.0)
+        self.assertLess(r.audio_mix.clip_dip_s, 1.0)  # the bed dips only around the loud word
+        mixed, vo = am.decode(r.audio_mix.path), am.decode(self.d / "vo.wav")
+        self.assertGreater(float(np.abs(mixed[: 4 * SR] - vo[: 4 * SR]).max()), 1e-3)  # effects and ambience are in the video
 
     def test_missing_sounds_are_in_the_warnings(self):
         import smart_editing as se

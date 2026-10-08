@@ -6,7 +6,8 @@ This is pakMap's own mixer; the generic mixers in smart_editing are not used or 
 Levels and ducking (priority: narration > major sfx > normal sfx > ambience):
   * effects sit at their vocabulary volume (all well below speech) and dip DUCK_SFX while the narrator speaks
   * ambience dips DUCK_AMBIENCE while the narrator speaks, and a further DUCK_AMBIENCE_BY_MAJOR under a major effect
-  * the narration is never gain-changed; if the sum would clip, only the sound bed is turned down
+  * the narration is never gain-changed; where the sum would clip, only the sound bed dips, only around that moment
+    (a short ramp down and back up, so no click; the rest of the video keeps its full effects and ambience)
 
 The mix is streamed in CHUNK_S windows (see "rendering"), so a 60-minute video needs no more memory than a 1-minute one.
 """
@@ -32,6 +33,7 @@ DUCK_AMBIENCE = 0.60
 DUCK_AMBIENCE_BY_MAJOR = 0.50
 SPEECH_RMS = 0.04  # RMS at which the narrator counts as fully speaking
 ATTACK_S, RELEASE_S = 0.05, 0.35
+CLIP_DIP_ATTACK_S, CLIP_DIP_RELEASE_S = 0.02, 0.25  # the bed's dip under a moment that would clip: down in 20 ms, back in 250 ms
 HOP = 480  # 10 ms envelope step
 PEAK_LIMIT = 0.97
 SFX_REF_PEAK = 1.0     # every effect is normalised to this peak before its vocabulary volume is applied
@@ -59,9 +61,10 @@ class MixResult:
     path: Path
     changed: bool  # False when the narration file is returned untouched
     peak: float = 0.0
-    bus_scale: float = 1.0
+    bus_scale: float = 1.0  # the lowest bed level used anywhere (1.0 = the bed never had to dip to avoid clipping)
     used: List[dict] = field(default_factory=list)
     narration_duck_depth: float = 0.0
+    clip_dip_s: float = 0.0  # seconds where the bed dipped below full level to keep the mix from clipping
 
 
 def _ffmpeg() -> str:
@@ -163,13 +166,13 @@ def _ambience_ids(plan: AudioPlan) -> set:
 #     any sample comes straight from the window's running sum (no full-length convolution);
 #   * effect hits and ambience loops are placed by sample index; a window adds just the part that falls inside it,
 #     in the same order as before (so every sample is summed exactly as the full-length mixer summed it);
-#   * the anti-clip bed scale needs the loudest moment of the whole mix: pass 2 writes the mix at full bed level and
-#     keeps the few samples that could reach PEAK_LIMIT; only if the mix would clip is the scale searched (over those
-#     samples, the same 14-step search as before) and the file written again at that scale (pass 3).
+#   * anti-clip: pass 2 writes the mix at full bed level and keeps, per envelope step (10 ms), the highest bed level
+#     that does not push the mix past PEAK_LIMIT (or past the narration's own peak, where the narration alone is already
+#     louder than that). Only if some step needs less than full level is a smooth gain curve made from those ~100 values
+#     per second (_clip_dip_curve) and the file written again with the bed following it (pass 3).
 
 CHUNK_S = 30.0
 CHUNK = int(CHUNK_S * SR) // HOP * HOP  # whole envelope steps per window
-_CRITICAL_MARGIN = 1e-5  # a sample whose |narration| + |bed| is below PEAK_LIMIT by this much can never clip at any scale <= 1
 
 
 def _hop_targets(mono: np.ndarray) -> np.ndarray:
@@ -499,34 +502,40 @@ class _Writer:
             raise AudioMixError(f"could not write the mixed audio: {err[-300:]}")
 
 
-class _Critical:
-    """The mix samples (narration b, bed u) that could reach PEAK_LIMIT at some bed scale; spilled to a temp file."""
+def _step_gains(base: np.ndarray, bed: np.ndarray) -> np.ndarray:
+    """Per 10 ms step (HOP samples, the window starts on a step): the highest bed level in 0..1 for which no sample of the
+    step goes past PEAK_LIMIT, or past the narration itself where the narration alone is already louder than that (there
+    the bed may not add to it; the narration is never changed)."""
+    limit = np.maximum(PEAK_LIMIT, np.abs(base))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        g = np.where(bed > 0, (limit - base) / bed, np.where(bed < 0, (-limit - base) / bed, 1.0))
+    g = np.clip(g, 0.0, 1.0).min(axis=1)
+    steps = -(-len(g) // HOP)
+    pad = np.ones(steps * HOP, dtype=np.float32)
+    pad[:len(g)] = g
+    return pad.reshape(steps, HOP).min(axis=1)
 
-    BLOCK = 1 << 22
 
-    def __init__(self) -> None:
-        self._file = tempfile.TemporaryFile()
-        self.count = 0
+def _clip_dip_curve(steps: np.ndarray) -> np.ndarray:
+    """The bed's level per 10 ms step: never above what each step allows, ramping down over CLIP_DIP_ATTACK_S before a
+    dip and back up over CLIP_DIP_RELEASE_S after it. The neighbour minimum first means that the per-sample line drawn
+    between step centres (_curve_samples) also stays under every sample's own limit."""
+    y = steps.astype(np.float64).copy()
+    if len(y) > 1:
+        y[1:] = np.minimum(y[1:], steps[:-1])
+        y[:-1] = np.minimum(y[:-1], steps[1:])
+    down = HOP / SR / CLIP_DIP_ATTACK_S
+    up = HOP / SR / CLIP_DIP_RELEASE_S
+    for j in range(len(y) - 2, -1, -1):  # ~100 values per second
+        y[j] = min(y[j], y[j + 1] + down)
+    for j in range(1, len(y)):
+        y[j] = min(y[j], y[j - 1] + up)
+    return y
 
-    def add(self, base: np.ndarray, bus: np.ndarray) -> None:
-        b, u = base.ravel(), bus.ravel()
-        keep = (np.abs(b) + np.abs(u)) > PEAK_LIMIT - _CRITICAL_MARGIN
-        if keep.any():
-            np.stack([b[keep], u[keep]], axis=1).astype(np.float32).tofile(self._file)
-            self.count += int(keep.sum())
 
-    def fits(self, scale: float) -> bool:
-        """The old check `max |narration + bed * scale| <= PEAK_LIMIT`, over the only samples that can fail it."""
-        self._file.seek(0)
-        while True:
-            pairs = np.fromfile(self._file, dtype=np.float32, count=2 * self.BLOCK).reshape(-1, 2)
-            if not len(pairs):
-                return True
-            if float(np.abs(pairs[:, 0] + pairs[:, 1] * scale).max()) > PEAK_LIMIT:
-                return False
-
-    def close(self) -> None:
-        self._file.close()
+def _curve_samples(curve: np.ndarray, a: int, b: int) -> np.ndarray:
+    centres = np.arange(len(curve)) * HOP + (HOP - 1) / 2
+    return np.interp(np.arange(a, b), centres, curve).astype(np.float32)
 
 
 def mix_pakmap_audio(plan: AudioPlan, voiceover: "str | Path", out_path: "str | Path", *, duration: Optional[float] = None) -> MixResult:
@@ -558,7 +567,8 @@ def mix_pakmap_audio(plan: AudioPlan, voiceover: "str | Path", out_path: "str | 
     bus = _Bus(plan, n)
     major = _MajorEnvelope(plan.majors(), n)
 
-    def write_mix(scale: float, critical: Optional[_Critical]) -> float:
+    def write_mix(curve: Optional[np.ndarray], steps: Optional[List[np.ndarray]]) -> float:
+        """curve None: the bed at full level (and `steps` collects what each 10 ms step allows); else the bed follows it."""
         reader = _Reader(voiceover)
         writer = _Writer(out_path)
         peak, ok = 0.0, False
@@ -574,9 +584,9 @@ def mix_pakmap_audio(plan: AudioPlan, voiceover: "str | Path", out_path: "str | 
                     base[:want] = got
                 sfx, amb = bus.render(a, b, env.samples(a, b), major.samples(a, b))
                 bed = sfx + amb
-                if critical is not None:
-                    critical.add(base, bed)
-                out = base + bed * scale
+                if steps is not None:
+                    steps.append(_step_gains(base, bed))
+                out = base + (bed if curve is None else bed * _curve_samples(curve, a, b)[:, None])
                 peak = max(peak, float(np.abs(out).max()) if len(out) else 0.0)
                 writer.write(out)
             ok = True
@@ -592,21 +602,12 @@ def mix_pakmap_audio(plan: AudioPlan, voiceover: "str | Path", out_path: "str | 
         return peak
 
     # pass 2: the mix at full bed level; most mixes never come near clipping and are done here
-    critical = _Critical()
-    try:
-        peak = write_mix(1.0, critical)
-        scale = 1.0
-        if peak > PEAK_LIMIT:  # turn down the bed only, never the narration (the same 14-step search as always)
-            lo, hi = 0.0, 1.0
-            for _ in range(14):
-                mid = (lo + hi) / 2
-                if critical.fits(mid):
-                    lo = mid
-                else:
-                    hi = mid
-            scale = lo
-    finally:
-        critical.close()
-    if scale != 1.0:  # pass 3: written again with the bed turned down
-        peak = write_mix(scale, None)
-    return MixResult(out_path, True, peak, scale, bus.used, DUCK_SFX)
+    steps: List[np.ndarray] = []
+    peak = write_mix(None, steps)
+    allowed = np.concatenate(steps) if steps else np.ones(0, dtype=np.float32)
+    if not len(allowed) or float(allowed.min()) >= 1.0:
+        return MixResult(out_path, True, peak, 1.0, bus.used, DUCK_SFX)
+    # pass 3: the bed dips only where it would clip (the narration is never turned down)
+    curve = _clip_dip_curve(allowed)
+    peak = write_mix(curve, None)
+    return MixResult(out_path, True, peak, float(curve.min()), bus.used, DUCK_SFX, clip_dip_s=float((curve < 0.999).sum()) * HOP / SR)

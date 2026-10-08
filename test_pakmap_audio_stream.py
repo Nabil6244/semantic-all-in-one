@@ -253,21 +253,63 @@ class TestTheSameMix(StreamingTestCase):
         for o in outs[1:]:
             np.testing.assert_array_equal(o, outs[0])
 
-    def test_a_mix_that_would_clip_turns_the_bed_down_by_the_same_amount(self):
+    def _loud_moment(self, peak_amp: float):
+        """Quiet speech with one very loud word at 6.0-6.3 s (peaks of peak_amp), and the full-level reference mix."""
+        narr = _speech(12.0, 0.2)
+        loud = slice(int(6.0 * SR), int(6.3 * SR))
+        narr[loud] = (peak_amp * np.sin(2 * np.pi * 190 * np.arange(loud.stop - loud.start) / SR)).astype(np.float32)
         plan = _plan(self.cat, 12.0, cues_every=0.9)
-        ref, ref_scale, _, res, out = self.mix_both(plan, _speech(12.0, 0.9), duration=12.0)
-        self.assertLess(ref_scale, 1.0)
-        self.assertGreater(ref_scale, 0.0)
-        self.assertEqual(res.bus_scale, ref_scale)
-        self.assertLess(float(np.abs(out - ref).max()), 1e-6)
-        self.assertLessEqual(res.peak, am.PEAK_LIMIT)
+        # a 32-bit float WAV, so the narration can be louder than full scale like the real voiceover (1.010)
+        subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-c:a", "pcm_f32le",
+                        str(self.d / "vo.wav")], input=np.stack([narr, narr], axis=1).astype(np.float32).tobytes(), check=True)
+        nd = am.decode(self.d / "vo.wav")
+        sfx, amb, _ = _ref_build_bus(plan, nd, 12.0)
+        with mock.patch.object(am, "CHUNK", int(0.73 * SR) // am.HOP * am.HOP):
+            res = am.mix_pakmap_audio(plan, self.d / "vo.wav", self.d / "o.wav", duration=12.0)
+        return res, am.decode(res.path), nd, sfx + amb
 
-    def test_a_narration_louder_than_the_limit_mutes_the_bed_as_before(self):
+    def _check_dip(self, res, out, base, bed):
+        limit = np.maximum(am.PEAK_LIMIT, np.abs(base))
+        self.assertTrue(np.all(np.abs(out) <= limit + 1e-6), "never past the limit, or past the narration's own peak")
+        added = out - base
+        self.assertTrue(np.all(np.abs(added) <= np.abs(bed) + 1e-6) and np.all(added * bed >= -1e-9), "only the bed is turned down")
+        live = np.abs(bed[:, 0]) > 1e-3
+        gain = added[live, 0] / bed[live, 0]
+        idx = np.nonzero(live)[0]
+        steps = np.abs(np.diff(gain))[np.diff(idx) == 1]
+        self.assertLess(float(steps.max()), 0.01, "the dip ramps smoothly: no click")
+        self.assertGreater(res.clip_dip_s, 0.0)
+        self.assertLess(res.clip_dip_s, 1.5, "the bed dips only around the loud moment")
+        for a, b in ((1.0, 5.5), (7.0, 11.5)):  # away from it, the bed plays at full level, exactly as before
+            np.testing.assert_allclose(out[int(a * SR):int(b * SR)], (base + bed)[int(a * SR):int(b * SR)], rtol=0, atol=1e-6)
+
+    def test_a_loud_moment_dips_the_bed_only_there(self):
+        res, out, base, bed = self._loud_moment(0.95)
+        self.assertLess(res.bus_scale, 1.0)
+        self._check_dip(res, out, base, bed)
+        self.assertLessEqual(res.peak, am.PEAK_LIMIT + 1e-6)
+
+    def test_a_narration_peaking_above_full_scale_keeps_its_effects(self):
+        """The reported case: a voiceover peaking at 1.010 used to turn every effect and ambience bed down to zero."""
+        res, out, base, bed = self._loud_moment(1.01)
+        self.assertGreater(float(np.abs(base).max()), 1.0)
+        self._check_dip(res, out, base, bed)
+        self.assertGreater(float(np.abs(out[int(2 * SR):int(5 * SR)] - base[int(2 * SR):int(5 * SR)]).max()), 0.01, "effects are in the mix")
+
+    def test_a_narration_louder_than_the_limit_all_the_way_through_leaves_no_room_for_the_bed(self):
         plan = _plan(self.cat, 6.0)
         narr = np.full(6 * SR, 0.985, np.float32)
         ref, ref_scale, _, res, out = self.mix_both(plan, narr)
         self.assertEqual((res.bus_scale, ref_scale), (0.0, 0.0))
         np.testing.assert_array_equal(out, ref)
+
+    def test_the_dip_curve_stays_under_every_samples_limit(self):
+        rng = np.random.default_rng(11)
+        steps = np.where(rng.uniform(size=400) < 0.05, rng.uniform(0, 1, 400), 1.0).astype(np.float32)
+        curve = am._clip_dip_curve(steps)
+        per_sample = am._curve_samples(curve, 0, len(steps) * am.HOP)
+        self.assertTrue(np.all(per_sample.reshape(-1, am.HOP).max(axis=1) <= steps + 1e-7))
+        self.assertTrue(np.all(np.diff(curve) <= am.HOP / SR / am.CLIP_DIP_RELEASE_S + 1e-9))
 
 
 class TestErrors(StreamingTestCase):

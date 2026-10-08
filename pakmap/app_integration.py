@@ -280,10 +280,9 @@ def generate_pakmap_video(
             mix = mix_pakmap_audio(audio_plan, voiceover_path, work / "pakmap_audio.wav", duration=spec["duration"])
             narration_for_export = mix.path
             log(f"[pakMap] sound design: {len(audio_plan.cues)} effect(s), {len(audio_plan.beds)} ambience bed(s)" + (f", {len(audio_plan.missing)} sound(s) missing" if audio_plan.missing else ""))
-            if mix.changed and mix.bus_scale == 0.0:  # the mixer never turns the narration down, so a too-loud voice mutes the bed
-                sound_failed = (f"the narration itself peaks above the mixer's limit ({mix.peak:.3f}), so the effects and ambience were turned "
-                                "all the way down to keep it from clipping. Lower the voiceover's level slightly and Generate again")
-                sound_notes.append(f"sound design is silent: {sound_failed}")
+            if mix.changed and getattr(mix, "clip_dip_s", 0.0) > 0:  # the narration is never turned down; the bed dips where the sum would clip
+                log(f"[pakMap] the narration is loud: effects and ambience dip briefly under its loudest moments ({mix.clip_dip_s:.1f}s in all) "
+                    f"so the mix does not clip; everywhere else they play at full level")
     except Exception as exc:  # the video is still made, with the narration alone, and the author is told (warnings and sound_failed)
         narration_for_export, mix = voiceover_path, None
         reason = str(exc) or f"{type(exc).__name__} (no message)"
