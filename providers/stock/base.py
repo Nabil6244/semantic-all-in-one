@@ -134,6 +134,10 @@ class StockProvider(AssetProvider):
             if media_type != "all":
                 candidates = [c for c in candidates if c.media_type.value == media_type]
             filtered = filter_candidates(candidates)
+            if resolved is not None:
+                from style_engine.visual_selection import style_candidate_gate
+
+                filtered = style_candidate_gate(filtered, resolved)
             if not filtered:
                 continue
             ranked = rank_candidates(

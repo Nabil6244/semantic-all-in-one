@@ -774,6 +774,8 @@ def _add_keyword_callouts(plan: EditorialPlan, graphics_plan) -> None:
         def replaced(spec) -> bool:
             if str((spec.payload or {}).get("template") or "").startswith("countdown_"):
                 return False
+            if ((getattr(spec, "text", None) and spec.text.metadata) or {}).get("big_number"):
+                return False                      # a style's big number (Book of Enoch) leads its moment
             role = str(getattr(spec, "role", "") or "").upper()
             decision = str(getattr(spec, "decision", "") or "").upper()
             if role not in _CALLOUT_REPLACES and decision not in ("STATISTIC", "LOWER_THIRD", "CALLOUT"):

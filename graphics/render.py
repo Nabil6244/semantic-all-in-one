@@ -421,11 +421,12 @@ def _render_statistic(
     if not primary:
         return None
     label = (spec.secondary_text or "").strip().upper()
+    big = bool((spec.metadata or {}).get("big_number"))        # a style's big centred number (Book of Enoch)
     size_vh = float((spec.metadata or {}).get("size_vh") or design.size_statistic)
-    size_vh = min(size_vh, 0.078)
+    size_vh = min(size_vh, 0.26 if big else 0.078)
     fontsize = max(22, int(height * size_vh))
-    max_width = int(width * 0.42)
-    max_height = int(height * 0.14)
+    max_width = int(width * (0.7 if big else 0.42))
+    max_height = int(height * (0.32 if big else 0.14))
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     fontsize, font, lines, tw, th = _fit_fontsize(
@@ -462,7 +463,7 @@ def _render_statistic(
     num_x = x + (block_w - tw) // 2
 
     bg_kind = spec.background or "PANEL"
-    if composition:
+    if composition and not big:
         bg_kind = choose_background(
             role="STATISTIC", text=primary, composition=composition,
             importance="high", design=design,

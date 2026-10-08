@@ -127,7 +127,8 @@ def qc_graphics_plan(
                 size_vh = float(spec.text.metadata.get("size_vh") or 0.0)
             except (TypeError, ValueError):
                 size_vh = 0.0
-        if size_vh > 0.078 and spec.text is not None:
+        big = bool(spec.text and isinstance(spec.text.metadata, dict) and spec.text.metadata.get("big_number"))
+        if size_vh > 0.078 and spec.text is not None and not big:   # a style's big number (Book of Enoch) keeps its size
             issues.append(
                 {
                     "severity": "WARN",

@@ -194,7 +194,7 @@ class TestDownloaderCap(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _get(self, size, seen):
-        def get(url, stream, timeout):
+        def get(url, stream, timeout, **_kw):
             seen.append(url)
             r = mock.MagicMock()
             r.__enter__.return_value = r
@@ -249,7 +249,7 @@ class TestDownloaderCleansUpLikeWindows(unittest.TestCase):
                 raise PermissionError(f"[WinError 32] The process cannot access the file: {path}")
             return real_unlink(path, missing_ok=missing_ok)
 
-        def get(url, stream, timeout):
+        def get(url, stream, timeout, **_kw):
             r = mock.MagicMock()
             r.__enter__.return_value = r
             r.headers = {"Content-Type": "video/mp4"}

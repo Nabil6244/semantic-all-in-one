@@ -233,6 +233,27 @@ def visual_role_score(role: str, candidate_text: str, style: Optional[VideoStyle
     return max(0.0, min(1.0, base))
 
 
+def style_candidate_gate(candidates: list, resolved: Optional[ResolvedStyle]) -> list:
+    """Opt-in hard gate for a style with selection_rules.real_subjects (Book of Enoch): a candidate whose text or page
+    URL names one of the style's avoid terms is dropped (a Qur'an page is never a stand-in for an Ethiopic manuscript),
+    and the style's avoided sources give way whenever another source has a candidate (archives first; stock only when
+    the archives have nothing, e.g. video). Any other style: the candidates are returned unchanged."""
+    style = resolved.style if resolved is not None else None
+    if style is None or not style.selection_rules.real_subjects:
+        return candidates
+    avoid = [t.lower() for t in style.search_guidance.avoid_terms if t.strip()]
+
+    def text(c) -> str:
+        extra = getattr(c, "extra", None) or {}
+        return " ".join([str(extra.get("alt", "")), str(extra.get("tags", "")), str(getattr(c, "url", "") or ""),
+                         str(getattr(c, "source_url", "") or "")]).lower()
+
+    kept = [c for c in candidates if not any(t in text(c) for t in avoid)]
+    bad = {str(p).lower() for p in style.source_preferences.avoid}
+    preferred = [c for c in kept if str(getattr(c, "provider", "")).lower() not in bad]
+    return preferred or kept
+
+
 def style_fit_score(
     candidate_text: str,
     style: Optional[VideoStyle],

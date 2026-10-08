@@ -136,19 +136,22 @@
    "flow",
    "youtube"
   ],
-  "avoid": []
+  "avoid": [
+   "pexels",
+   "pixabay"
+  ]
  },
  "search_guidance": {
   "prefer_terms": [
    "Ethiopic manuscript",
-   "Ge'ez manuscript",
+   "Ge'ez",
    "Dead Sea Scrolls",
    "Qumran caves",
    "Mount Hermon",
    "ancient scroll",
-   "illuminated manuscript",
    "Gustave Doré engraving",
    "William Blake",
+   "Ethiopian Orthodox church",
    "Ethiopian monastery",
    "Lalibela",
    "candlelit library",
@@ -160,7 +163,13 @@
    "modern city",
    "cartoon angel",
    "video game",
-   "neon"
+   "neon",
+   "arabic",
+   "quran",
+   "qur'an",
+   "koran",
+   "islamic",
+   "mosque"
   ],
   "evidence_bias": "high",
   "query_expansion": true
@@ -395,5 +404,11 @@
     "before the house of crystal and fire"
    ]
   }
- ]
+ ],
+ "graphics": {
+  "plain_numbers": true,
+  "short_names": true,
+  "numbers_first": true,
+  "big_numbers": true
+ }
 }

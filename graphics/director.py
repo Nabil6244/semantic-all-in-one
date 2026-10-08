@@ -77,6 +77,7 @@ def decide_graphic(
     intent: Any = None,
     design: DocumentaryDesignSystem | None = None,
     existing_smart_text: bool = False,
+    rules: Optional[Mapping[str, Any]] = None,
 ) -> List[GraphicDirective]:
     """Return 0–2 directives. Empty / NO_GRAPHIC means skip.
 
@@ -135,7 +136,14 @@ def decide_graphic(
 
     # --- STATISTIC (meaningful numbers only) ---
     stats = extract_statistics(text) if viz is None else []
+    plain = False
+    if not stats and viz is None and (rules or {}).get("plain_numbers"):    # opt-in style rule (e.g. Book of Enoch)
+        from .extract import extract_plain_numbers
+
+        stats = extract_plain_numbers(text)
+        plain = bool(stats)
     want_stat = bool(stats) and (
+        plain or
         purpose_l in ("evidence", "scale", "comparison")
         or intent_text in ("statistic", "data_graphic")
         or intent_graphic in ("chart", "data_graphic", "statistic")
@@ -165,6 +173,11 @@ def decide_graphic(
 
     # --- LOWER THIRD / NAME (preferred documentary text treatment) ---
     named = extract_name_title(text)
+    if named and (rules or {}).get("short_names"):                          # opt-in: the label is only the name
+        from .extract import ExtractedName, short_name
+
+        title = named.title if named.title[:1].isupper() or named.title.split(" ", 1)[0].lower() in ("the", "a", "an") else ""
+        named = ExtractedName(name=short_name(named.name, (rules or {}).get("entity_names") or ()), title=title)
     if named and (
         purpose_l in ("character", "historical", "context", "explanation", "hook")
         or intent_text in ("name", "emphasis", "callout", "lower_third")
@@ -328,7 +341,8 @@ def decide_graphic(
         return []
 
     # Prefer simplest: sort by priority then confidence.
-    candidates.sort(key=lambda c: (c.priority, -c.confidence))
+    first = "STATISTIC" if (rules or {}).get("numbers_first") else None     # opt-in: a big number leads its beat
+    candidates.sort(key=lambda c: (0 if first and c.decision == first else c.priority, -c.confidence))
 
     # If Smart Editing already punches text, skip generic TEXT/EMPHASIS/CALLOUT
     # but keep STATISTIC / LOWER_THIRD / LOCATION / MAP.
@@ -359,6 +373,7 @@ def decide_for_scenes(
     *,
     intents: Optional[Mapping[str, Any]] = None,
     design: DocumentaryDesignSystem | None = None,
+    rules: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, List[GraphicDirective]]:
     design = design or get_design_system()
     intents = intents or {}
@@ -375,12 +390,15 @@ def decide_for_scenes(
             purpose=purpose,
             intent=intent,
             design=design,
+            rules=rules,
         )
         # Density: skip low-priority if too many graphics recently.
         start = float(getattr(scene, "start", 0.0) or 0.0)
         recent = [t for t in recent if start - t < 30.0]
         if len(recent) >= design.max_graphics_per_30s:
-            directives = [d for d in directives if d.priority <= 3 and d.confidence >= 0.75]
+            keep_numbers = bool((rules or {}).get("numbers_first"))     # opt-in: a style's numbers always show
+            directives = [d for d in directives if (d.priority <= 3 and d.confidence >= 0.75)
+                          or (keep_numbers and d.decision == "STATISTIC")]
         if directives and recent and (start - recent[-1]) < design.min_gap_between_graphics:
             if directives[0].priority >= 4:
                 directives = []

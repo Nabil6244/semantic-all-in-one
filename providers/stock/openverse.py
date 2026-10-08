@@ -64,6 +64,11 @@ class OpenverseBackend(StockBackend):
                     extra={
                         "license": hit.get("license") or "",
                         "license_version": hit.get("license_version") or "",
+                        # the same text fields Pexels (alt) and Pixabay (tags) give, so ranking can judge relevance
+                        "alt": hit.get("title") or "",
+                        "tags": " ".join(
+                            str(t.get("name") or "") for t in (hit.get("tags") or []) if isinstance(t, dict)
+                        ),
                     },
                 )
             )

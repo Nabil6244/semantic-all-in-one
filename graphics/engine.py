@@ -24,6 +24,25 @@ from .text_overlay import apply_composition_to_text, build_text_overlay
 REMOVED_GRAPHIC_ROLES = frozenset({"LOCATION", "DATE"})
 
 
+def style_graphics_rules(plan: Any) -> dict:
+    """The project style's opt-in graphics rules (its "graphics" block, plus its figure names for short labels).
+    A style without the block -- every style but Book of Enoch -- gives {} and the graphics are planned as always."""
+    try:
+        sid = str((getattr(plan, "style", None) or {}).get("style_id") or "")
+        if not sid:
+            return {}
+        from style_engine.loader import load_style
+
+        style = load_style(sid)
+        rules = dict(getattr(style, "graphics", None) or {}) if style is not None else {}
+        if rules:
+            rules["entity_names"] = [str(e.get("name") or e.get("id") or "") for e in (style.entities or [])] + \
+                [str(a) for e in (style.entities or []) for a in (e.get("aliases") or [])]
+        return rules
+    except Exception:
+        return {}
+
+
 def plan_graphics(
     plan: Any,
     *,
@@ -35,7 +54,8 @@ def plan_graphics(
     """Run Graphics Director + composition intelligence across all scenes."""
     design = design or get_design_system()
     scenes = getattr(plan, "scenes", None) or []
-    directives_by_scene = decide_for_scenes(scenes, intents=intents, design=design)
+    rules = style_graphics_rules(plan)
+    directives_by_scene = decide_for_scenes(scenes, intents=intents, design=design, rules=rules)
     specs: List[GraphicSpec] = []
     memory = GraphicsMemory()
     scene_order: List[str] = []
@@ -122,6 +142,12 @@ def plan_graphics(
     # Location and Date labels were removed from videos.
     specs = [s for s in specs if str(s.role or "").upper() not in REMOVED_GRAPHIC_ROLES
              and str(s.decision or "").upper() not in REMOVED_GRAPHIC_ROLES]
+    if rules.get("big_numbers"):                                  # opt-in: the number drops in big, centred, no panel
+        for spec in specs:
+            text = getattr(spec, "text", None)
+            if text is not None and str(getattr(text, "role", "")).upper() == "STATISTIC":
+                text.position_x, text.position_y, text.background = 0.5, 0.46, "SHADOW"
+                text.metadata = {**(text.metadata or {}), "big_number": True, "size_vh": 0.22, "underline": False}
     gplan = GraphicsPlan(specs=specs, design_system=design.name)
     gplan.qc_issues = qc_graphics_plan(gplan, plan=plan, memory=memory)
     drop_ids = {

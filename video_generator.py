@@ -1375,20 +1375,21 @@ def _overlay_motion_chain(
     if t0 is None or t1 is None:
         return ",".join(chain)
 
-    # Scale punch is per-frame work at full resolution, so it is reserved for
-    # the hero animation rather than applied to every overlay in the scene.
-    if str(anim or "") == "scale_fade":
-        expr = _overlay_scale_expr(float(t0))
-        chain.append(
-            f"scale=w='{width}*({expr})':h='{height}*({expr})':eval=frame"
-        )
-
     span = float(t1) - float(t0)
     fi = min(_OV_FADE_IN, max(0.04, span * 0.35))
     fo = min(_OV_FADE_OUT, max(0.04, span * 0.30))
     fade_out_st = max(float(t0) + fi, float(t1) - fo)
     chain.append(f"fade=t=in:st={float(t0):.3f}:d={fi:.3f}:alpha=1")
     chain.append(f"fade=t=out:st={fade_out_st:.3f}:d={fo:.3f}:alpha=1")
+    # Scale punch is per-frame work at full resolution, so it is reserved for
+    # the hero animation rather than applied to every overlay in the scene.
+    # It comes AFTER the fades: a frame size that changes every frame makes
+    # any later fade fail ("Invalid argument", ffmpeg 8).
+    if str(anim or "") == "scale_fade":
+        expr = _overlay_scale_expr(float(t0))
+        chain.append(
+            f"scale=w='{width}*({expr})':h='{height}*({expr})':eval=frame"
+        )
     return ",".join(chain)
 
 

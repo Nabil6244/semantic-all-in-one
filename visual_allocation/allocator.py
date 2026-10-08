@@ -201,6 +201,47 @@ def _apply_style_ai_limits(
     return why
 
 
+STILL_WORDS = frozenset({"manuscript", "scroll", "scrolls", "engraving", "painting", "drawing", "page", "icon", "blake", "church", "monastery"})
+
+
+def _norm_words(text: str) -> List[str]:
+    import unicodedata
+
+    t = unicodedata.normalize("NFKD", (text or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c)).replace("'", "").replace("\u2019", "")
+    return [w for w in "".join(c if c.isalnum() else " " for c in t).split() if w]
+
+
+def _style_search_terms(plan: VisualPlan, resolved: Optional[ResolvedStyle]) -> int:
+    """Opt-in (a style with selection_rules.real_subjects): a real-source scene whose text names one of the style's
+    own search terms ("Ge'ez manuscript", "Gustave Doré engraving") searches for that short term first -- archives
+    and museum collections answer short keywords, not long descriptions -- and a manuscript, engraving or painting is
+    searched as a still. Returns how many scenes changed. Other styles: nothing happens."""
+    style = resolved.style if resolved is not None else None
+    if style is None or not style.selection_rules.real_subjects or not style.search_guidance.prefer_terms:
+        return 0
+    terms = list(style.search_guidance.prefer_terms)                # the style's own order is its priority
+    named = {str(a.get("query")) for a in style.selection_rules.artworks}    # a named artwork search stays as it is
+    changed, used = 0, set()
+    for scene in plan.scenes:
+        if scene.asset_type not in ("stock_image", "stock_video") or (scene.search_queries and scene.search_queries[0] in named):
+            continue
+        words = set(_norm_words(" ".join([scene.narration, scene.visual_description] + list(scene.search_queries))))
+        fits = [t for t in terms if set(_norm_words(t)) <= words]
+        term = next((t for t in fits if t not in used), fits[0] if fits else None)   # a fresh term per scene where one fits
+        if term is None:                                          # a real subject it names, in the style's own words
+            subject = next((r for r in style.selection_rules.real_subjects if set(_norm_words(r)) <= words), None)
+            term = next((t for t in terms if subject and set(_norm_words(subject)) <= set(_norm_words(t))), None)
+        if term is None:
+            continue
+        used.add(term)
+        scene.search_queries = [term] + [q for q in scene.search_queries if q != term]
+        if scene.asset_type == "stock_video" and STILL_WORDS & (set(_norm_words(term)) | words):   # the scene shows a still
+            scene.asset_type, scene.provider_preference = "stock_image", "stock_image"
+        changed += 1
+    return changed
+
+
 def allocate_visual_plan(
     plan: VisualPlan,
     settings: AllocationSettings,
@@ -372,6 +413,7 @@ def apply_allocation_to_plan(
         if ARTWORK_REASON in dec.reason:                           # search for the named artwork first
             q = dec.reason.split(ARTWORK_REASON, 1)[1].split(";", 1)[0].strip()
             scene.search_queries = [q] + [x for x in scene.search_queries if x != q]
+    _style_search_terms(plan, resolved)
     finalize_plan_prompts(plan)
     errors = assert_pipeline_compatible(plan)
     if errors:

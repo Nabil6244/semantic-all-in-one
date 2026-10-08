@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Sequence, List, Optional, Tuple
 
 # Meaningful statistic patterns — not every digit.
 _STAT_RE = re.compile(
@@ -366,3 +366,58 @@ def _stat_score(stat: ExtractedStat) -> float:
     if stat.label:
         score += 0.4
     return score
+
+
+# ---- opt-in style rules (a style's "graphics" block, e.g. Book of Enoch) -------------------------------------------
+_WORD_NUM = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+             "eleven": 11, "twelve": 12, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+             "seventy": 70, "eighty": 80, "ninety": 90, "a": 1, "one": 1}
+_SCALE = {"hundred": 100, "thousand": 1000}
+_NOT_NOUNS = {"of", "at", "in", "on", "the", "and", "or", "to", "for", "by", "with", "from", "more", "than", "times"}
+
+
+def extract_plain_numbers(narration: str) -> List[ExtractedStat]:
+    """Numbers a documentary shows as a big number card even without a unit: a count with its noun ("364 days",
+    "two hundred angels", "a thousand years") and a year the sentence dates ("In 1773"). Opt-in only -- the default
+    extract_statistics() keeps skipping these on purpose."""
+    text = (narration or "").strip()
+    out: List[ExtractedStat] = []
+    for m in re.finditer(r"\b(\d{1,3}(?:,\d{3})+|\d{2,4})\s+([a-z]+)", text):
+        num, noun = m.group(1), m.group(2)
+        if noun in _NOT_NOUNS or _YEAR_RE.fullmatch(num.replace(",", "")) and noun not in ("years", "days"):
+            continue
+        out.append(ExtractedStat(raw=m.group(0), value=float(num.replace(",", "")), display=num, unit=noun.upper(),
+                                 label=noun.upper(), meaningful=True))
+    for m in re.finditer(r"\b(?:in|by|until|since)\s+((?:1[0-9]|20)\d{2})\b", text, flags=re.IGNORECASE):
+        out.append(ExtractedStat(raw=m.group(0), value=float(m.group(1)), display=m.group(1), unit="", label="", meaningful=True))
+    for m in re.finditer(r"\b(a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|"
+                         r"sixty|seventy|eighty|ninety)(?:\s+(hundred|thousand))?\s+([a-z]+)", text):
+        word, scale, noun = m.group(1), m.group(2), m.group(3)
+        if noun in _NOT_NOUNS or noun in _SCALE or (word in ("a", "one") and not scale):
+            continue
+        value = _WORD_NUM[word] * (_SCALE[scale] if scale else 1)
+        if value < 2:
+            continue
+        out.append(ExtractedStat(raw=m.group(0), value=float(value), display=f"{value:,}", unit=noun.upper(),
+                                 label=noun.upper(), meaningful=True))
+    order = {s.raw: text.find(s.raw) for s in out}
+    return sorted(out, key=lambda s: order[s.raw])
+
+
+def short_name(name: str, entity_names: Sequence[str] = ()) -> str:
+    """A label that is only the name: "James Bruce returned from Ethiopia" -> "James Bruce"; and when a known figure
+    is named inside it ("Watcher Azazel") -> that figure ("Azazel")."""
+    words = (name or "").split()
+    kept = []
+    for w in words:
+        if not w[:1].isupper():
+            break
+        kept.append(w)
+    cut = " ".join(kept) or (name or "")
+    low = cut.lower()
+    hits = []                                                     # the figure named last is the person ("Watcher Azazel")
+    for n in entity_names:
+        m = re.search(r"(?<![\w'])" + re.escape(n.lower()) + r"(?![\w'])", low) if n else None
+        if m and n.lower() != low:
+            hits.append((m.start(), -len(n), n))
+    return max(hits)[2] if hits else cut

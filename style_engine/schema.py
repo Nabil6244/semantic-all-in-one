@@ -184,6 +184,8 @@ class VideoStyle:
     # opt-in recurring figures (style_engine/entities.py): canonical descriptions added to the AI prompts of the CSV
     # scenes that name them. Empty = no enrichment, the behaviour every style had before.
     entities: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
+    # opt-in graphics rules for graphics/director.py: {"plain_numbers": true, "short_names": true}. Empty = as always.
+    graphics: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)
@@ -373,6 +375,7 @@ class VideoStyle:
                 process_weight=float(shots.get("process_weight") if shots.get("process_weight") is not None else 0.4),
             ),
             entities=[dict(e) for e in (data.get("entities") or []) if isinstance(e, dict) and e.get("id") and e.get("canonical_description")],
+            graphics=dict(data.get("graphics") or {}) if isinstance(data.get("graphics"), dict) else {},
         )
 
 

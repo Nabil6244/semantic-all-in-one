@@ -12,6 +12,9 @@ from typing import TYPE_CHECKING
 
 import requests
 
+# Wikimedia (Openverse results) refuses the default python-requests agent with 403; an identifying agent is its policy
+USER_AGENT = "SemanticYTStudio/1.0 (https://github.com/Nabil6244/semantic-all-in-one)"
+
 if TYPE_CHECKING:
     from .base import Candidate
 
@@ -73,7 +76,7 @@ def download_candidate(
 ) -> Path:
     """Download ``url`` (default: the candidate's own) to images_dir/00N.<ext>, aborting past ``max_bytes``."""
     n = int(str(scene_number).strip())
-    with requests.get(url or candidate.url, stream=True, timeout=(15, 60)) as resp:
+    with requests.get(url or candidate.url, stream=True, timeout=(15, 60), headers={"User-Agent": USER_AGENT}) as resp:
         resp.raise_for_status()
         ext = _extension_for(candidate, resp.headers.get("Content-Type", ""))
         target = Path(images_dir) / f"{n:03d}{ext}"
