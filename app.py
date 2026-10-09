@@ -2933,11 +2933,11 @@ class VideoGeneratorApp(ctk.CTk):
         return card
 
     def _layout_style_cards(self, width: int) -> None:
-        cols = 7 if width >= 1400 else 4 if width >= 820 else 2
+        cols = 6 if width >= 1250 else 3 if width >= 620 else 2
         if cols == self._style_grid_cols:
             return
         self._style_grid_cols = cols
-        for c in range(7):
+        for c in range(6):
             self._style_grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="style" if c < cols else "")
         for k, name in enumerate(self.STYLE_CHOICES):
             self._style_cards[name].grid(row=k // cols, column=k % cols, sticky="nsew", padx=4, pady=4)
