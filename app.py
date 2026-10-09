@@ -3009,8 +3009,12 @@ class VideoGeneratorApp(ctk.CTk):
                 self._on_overscaled_toggle()
             self._pakmap_deactivate()  # also steps Hybrid and StarMap aside
             self.generation_mode = "normal"
-        if self._workspace is not None:
-            self._workspace.set_editing_system("modern_tech" if choice == "Modern Tech News" else "")
+        ws = getattr(self, "_workspace", None)
+        if ws is not None:
+            try:
+                ws.set_editing_system("modern_tech" if choice == "Modern Tech News" else "")
+            except Exception:
+                pass  # a project that can't save the choice keeps working as Normal
         self._sync_primary_cta()
 
     def _sync_style_picker(self) -> None:

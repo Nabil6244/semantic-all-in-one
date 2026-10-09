@@ -261,7 +261,8 @@ class NormalCsv(unittest.TestCase):
         refine_plan(p)
         out = Path(tempfile.mkdtemp()) / "plan.csv"
         p.write_csv(out)
-        rows = list(csv.DictReader(out.open(encoding="utf-8")))
+        with out.open(encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
         self.assertEqual(list(rows[0]), ["scene_number", "script_segment", "asset_type", "prompt"])
         self.assertEqual([r["scene_number"] for r in rows], [str(i) for i in range(1, len(rows) + 1)])
         self.assertEqual(" ".join(r["script_segment"] for r in rows), " ".join(n for n, _, _ in ROWS))
@@ -494,7 +495,7 @@ class MotionRouting(unittest.TestCase):
         self.assertNotIn(sc.asset_type, ("video", "image"))
 
     def test_routing_is_semantic_not_a_quota(self):
-        src = Path(__file__).with_name("modern_tech").joinpath("editorial.py").read_text()
+        src = Path(__file__).with_name("modern_tech").joinpath("editorial.py").read_text(encoding="utf-8")
         self.assertNotRegex(src, r"youtube_count|max_youtube|youtube_share")
 
 
