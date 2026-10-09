@@ -129,7 +129,9 @@ def main() -> int:
     for module in serial:
         record(_run(module))
     for module, out in failed:
-        print(f"\n{'=' * 70}\n{module} output:\n{out[-20000:]}", flush=True)
+        # the start too: a hang that repeats one error fills the tail, and the first traceback is what explains it
+        shown = out if len(out) <= 30000 else f"{out[:12000]}\n... ({len(out) - 30000} characters cut) ...\n{out[-18000:]}"
+        print(f"\n{'=' * 70}\n{module} output:\n{shown}", flush=True)
     print(f"\nRan {total} tests in {len(modules)} modules in {time.monotonic() - start:.0f}s - "
           f"{'FAILED: ' + ', '.join(m for m, _ in failed) if failed else 'OK'}", flush=True)
     return 1 if failed else 0

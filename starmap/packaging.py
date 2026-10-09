@@ -11,7 +11,9 @@ from typing import List, Tuple
 
 TOP_FILES = ("render.mjs", "cutter.mjs", "page.html", "page.js", "package.json")
 NODE_FILES = ("three/package.json", "three/build/three.module.min.js", "three/examples/jsm/loaders/GLTFLoader.js",
-              "three/examples/jsm/utils/BufferGeometryUtils.js", "astronomy-engine/package.json", "astronomy-engine/astronomy.browser.min.js")
+              "three/examples/jsm/utils/BufferGeometryUtils.js", "astronomy-engine/package.json", "astronomy-engine/astronomy.browser.min.js",
+              # Node imports it too (lib/ephemeris.mjs off the page): the package's `import` entry
+              "astronomy-engine/esm/astronomy.js")
 
 
 def engine_data_files(root: Path) -> List[Tuple[str, str]]:

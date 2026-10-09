@@ -37,9 +37,10 @@ class StarmapPackaging(unittest.TestCase):
 
     def test_the_runtime_node_files_ship_and_nothing_else_from_node_modules(self):
         nm = [f for f in self.files if "/node_modules/" in f]
-        self.assertEqual(len(nm), 6, nm)
+        self.assertEqual(len(nm), 7, nm)
         self.assertIn("starmap-engine/node_modules/three/build/three.module.min.js", self.files)
         self.assertIn("starmap-engine/node_modules/astronomy-engine/astronomy.browser.min.js", self.files)
+        self.assertIn("starmap-engine/node_modules/astronomy-engine/esm/astronomy.js", self.files, "Node imports it (ERR_MODULE_NOT_FOUND)")
 
     def test_tests_and_samples_stay_out_and_the_python_data_ships(self):
         self.assertFalse(any("/test/" in f or "/samples/" in f for f in self.files))
