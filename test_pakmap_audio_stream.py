@@ -107,7 +107,7 @@ def _ref_build_bus(plan, narr, total_s):
             clip = clip_for(sound, asset).copy()
             if sound.max_s:
                 clip = clip[:int(sound.max_s * SR)]
-            clip = am._fade(clip, sound.fade_in, sound.fade_out) * sound.volume
+            clip = am._fade(clip, sound.fade_in, sound.fade_out) * sound.volume * am.SFX_GAIN
             i = int(round(hit.t * SR))
             if i >= n:
                 continue

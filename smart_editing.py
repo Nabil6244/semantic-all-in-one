@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 # Reuse alignment tokenization from the existing renderer pipeline.
-from video_generator import _scene_display_timeline, is_distinctive, split_words, words_match
+from video_generator import _scene_display_timeline, is_distinctive, normalize_word, split_words, words_match
 from providers import hidden_subprocess
 from sfx.ambience_profiles import smart_editing_profile_tags
 from sfx.audio_probe import probe_audio
@@ -34,7 +34,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 14  # 14: transitions follow Visual Transitions Low/Medium/High
+SMART_EDITING_VERSION = 15  # 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -623,7 +623,14 @@ def plan_text_effects(
         budget = _max_text_effects(duration, settings.text_intensity())
         if budget <= 0:
             continue
-        phrases = _find_emphasis_phrases(str(row.get("script_segment") or ""))
+        segment = str(row.get("script_segment") or "")
+        phrases = _find_emphasis_phrases(segment)
+        # a single-word phrase is an alignment token (lowercase, accents folded): show the narration's own word instead
+        surface = {}
+        for raw in re.split(r"[\s\-–—/]+", segment):
+            word = raw.strip(".,;:!?¡¿\"'()[]«»“”‘’")
+            if word:
+                surface.setdefault(normalize_word(word), word)
         added = 0
         for phrase in phrases:
             if added >= budget:
@@ -637,7 +644,7 @@ def plan_text_effects(
             effects.append(
                 {
                     "scene_number": scene,
-                    "text": phrase,
+                    "text": surface.get(phrase, phrase) if " " not in phrase else phrase,
                     "start": round(start, 3),
                     "end": round(end, 3),
                     "effect": effect,
@@ -1055,11 +1062,11 @@ def _merge_transition_picks(
 
 ZOOM_BLUR_WHOOSH_WINDOW_S = 0.35
 ZOOM_BLUR_WHOOSH_MAX_S = 1.2
-ZOOM_BLUR_WHOOSH_VOLUME_CAP = 0.75  # the mixer's cap for these (other SFX stay capped at 0.40)
+ZOOM_BLUR_WHOOSH_VOLUME_CAP = 0.75  # the mixer's cap for these (other SFX stay capped at SFX_VOLUME_CAP)
 
 
 def _zoom_blur_volume(settings: "SmartEditingSettings") -> float:
-    return round(min(ZOOM_BLUR_WHOOSH_VOLUME_CAP, _sfx_base_volume(settings) * 2.4), 3)
+    return round(min(ZOOM_BLUR_WHOOSH_VOLUME_CAP, _sfx_ladder_volume(settings) * 2.4), 3)
 
 
 def _event_path(ev: dict) -> Optional[Path]:
@@ -1580,10 +1587,21 @@ def _heuristic_scene_ambience(
 # without a bundled catalog (CI has none) and stays a single source of truth.
 # Kept a notch under narration so transition / text ticks stay supportive.
 _SFX_INTENSITY_VOLUME: Dict[str, float] = {"low": 0.18, "medium": 0.28, "high": 0.40}
+# Effects were landing too quiet against the narration, so every planned effect level is the ladder above times this
+# (+3.5 dB). It is applied where the level is PLANNED (not only at the final mix) so the editorial timeline, the preview and
+# the export all carry the same number; the caps below rise with it so a boosted event is never clipped back down.
+SFX_GAIN = 1.5
+WHOOSH_TRIM = 0.75  # about -2.5 dB on every whoosh (transition and zoom-blur); other effects keep their level
+SFX_VOLUME_CAP = 0.40 * SFX_GAIN  # the old 0.40 ceiling on a planned/mixed effect
+
+
+def _sfx_ladder_volume(settings: SmartEditingSettings) -> float:
+    """The un-boosted intensity ladder (what the zoom-blur whoosh multiplies; it already has its own, louder level)."""
+    return _SFX_INTENSITY_VOLUME.get(settings.sfx_intensity(), 0.28)
 
 
 def _sfx_base_volume(settings: SmartEditingSettings) -> float:
-    return _SFX_INTENSITY_VOLUME.get(settings.sfx_intensity(), 0.28)
+    return _sfx_ladder_volume(settings) * SFX_GAIN
 
 
 def _ambience_volume(settings: SmartEditingSettings) -> float:
@@ -1955,7 +1973,7 @@ def plan_sfx_events(
         if entry is None:
             continue
         fx_w = float(fx.get("intensity") or 0.65)
-        vol = min(0.40, base_vol * (0.82 + 0.18 * fx_w))
+        vol = min(SFX_VOLUME_CAP, base_vol * (0.82 + 0.18 * fx_w))
         events.append(
             _entry_to_event(
                 entry,
@@ -2016,7 +2034,7 @@ def plan_sfx_events(
                 entry,
                 request,
                 start=max(0.0, start - 0.08),
-                volume=round(min(0.42, base_vol * 0.88), 3),
+                volume=round(min(0.42 * SFX_GAIN, base_vol * 0.88), 3),
                 scene_number=sn,
                 play_s=play_s,
             )
@@ -2074,7 +2092,7 @@ def plan_sfx_events(
             entry = _pick_sfx_entry(cat, request, avoid_ids=recent_ids)
             if entry is None:
                 continue
-            vol = min(0.32, base_vol * 0.62)
+            vol = min(0.32 * SFX_GAIN, base_vol * 0.62)
             events.append(
                 _entry_to_event(
                     entry,
@@ -2176,6 +2194,9 @@ def build_plan(
         if settings.sound_effects
         else []
     )
+    for event in sfx_events:  # whooshes read a little loud against the narration: every one sits WHOOSH_TRIM lower
+        if str(event.get("category") or "") == "whoosh" and event.get("volume") is not None:
+            event["volume"] = round(float(event["volume"]) * WHOOSH_TRIM, 3)
     plan = SmartEditingPlan(
         text_effects=text_effects,
         sfx_events=sfx_events,
@@ -2677,7 +2698,7 @@ def _ffmpeg_mix_layers(
             )
         else:
             zoom = bool(ev.get("zoom_blur"))
-            vol = min(ZOOM_BLUR_WHOOSH_VOLUME_CAP if zoom else 0.40, float(ev.get("volume") or 0.24))
+            vol = min(ZOOM_BLUR_WHOOSH_VOLUME_CAP if zoom else SFX_VOLUME_CAP, float(ev.get("volume") or 0.24))
             dur = float(ev.get("duration") or 0.4)
             label = f"x{input_idx}"
             # A zoom-blur whoosh may be a trimmed longer sweep: fade its tail.

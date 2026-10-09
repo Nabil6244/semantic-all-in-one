@@ -2844,9 +2844,10 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap")
     STYLE_BLURBS = {
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
+        "Modern Tech News": "Technology news: fast cuts, the real product, reports and UI footage, few effects. Same workflow as Normal.",
         "Overscaled": "Photo and video cards arranged around the narration, from a simple CSV.",
         "Exp Solar": "Overscaled's layout in the Exp Solar look (rows of cards), from the same CSV.",
         "pakMap": "One continuous satellite-map camera with titles, markers, numbers and photo cards.",
@@ -2857,6 +2858,7 @@ class VideoGeneratorApp(ctk.CTk):
     STYLE_CARDS = {
         # icon, one-line pitch, what it needs, what it suits
         "Normal video": ("\u25A4", "Scenes cut to your script", "Script + voiceover", "Explainers on any topic"),
+        "Modern Tech News": ("\u25A3", "Fast, product-first tech edit", "Script + voiceover", "Launches, leaks, specs, comparisons"),
         "Overscaled": ("\u25A6", "A collage of photo and video cards", "A simple CSV", "Lists, rankings, comparisons"),
         "Exp Solar": ("\u2630", "Rows of cards with a checklist strip", "The same simple CSV", "Step-by-step and survival topics"),
         "pakMap": ("\u25C9", "One continuous satellite map", "A pakMap CSV", "Geography, borders, routes"),
@@ -2931,11 +2933,11 @@ class VideoGeneratorApp(ctk.CTk):
         return card
 
     def _layout_style_cards(self, width: int) -> None:
-        cols = 6 if width >= 1250 else 3 if width >= 620 else 2
+        cols = 7 if width >= 1400 else 4 if width >= 820 else 2
         if cols == self._style_grid_cols:
             return
         self._style_grid_cols = cols
-        for c in range(6):
+        for c in range(7):
             self._style_grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="style" if c < cols else "")
         for k, name in enumerate(self.STYLE_CHOICES):
             self._style_cards[name].grid(row=k // cols, column=k % cols, sticky="nsew", padx=4, pady=4)
@@ -2965,7 +2967,17 @@ class VideoGeneratorApp(ctk.CTk):
         mode = getattr(self, "generation_mode", "normal")
         if mode == "overscaled":
             return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
+        if mode == "normal" and self._modern_tech_on():
+            return "Modern Tech News"
         return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}.get(mode, "Normal video")
+
+    def _modern_tech_on(self) -> bool:
+        """Modern Tech News is chosen for this project (explicit, per project; never auto-detected)."""
+        ws = getattr(self, "_workspace", None)
+        try:
+            return ws is not None and ws.editing_system() == "modern_tech"
+        except Exception:
+            return False
 
     def _on_style_pick(self, choice: str) -> None:
         if choice == self._active_style():
@@ -2997,6 +3009,8 @@ class VideoGeneratorApp(ctk.CTk):
                 self._on_overscaled_toggle()
             self._pakmap_deactivate()  # also steps Hybrid and StarMap aside
             self.generation_mode = "normal"
+        if self._workspace is not None:
+            self._workspace.set_editing_system("modern_tech" if choice == "Modern Tech News" else "")
         self._sync_primary_cta()
 
     def _sync_style_picker(self) -> None:
@@ -7378,6 +7392,15 @@ class VideoGeneratorApp(ctk.CTk):
             mode="automatic" if mode_raw.startswith("auto") else "smart",
         )
 
+    def _render_smart_editing_settings(self) -> SmartEditingSettings:
+        """The render's Smart Editing settings; Modern Tech News keeps VO + music first and hard cuts dominant."""
+        settings = self._smart_editing_settings()
+        if self._modern_tech_on():
+            from modern_tech import smart_editing_settings
+
+            settings = smart_editing_settings(settings)
+        return settings
+
     def _smart_editing_settings_dict(self) -> dict:
         payload = self._smart_editing_settings().to_settings_dict()
         payload["ken_burns"] = bool(self.zoom_var.get())
@@ -7989,6 +8012,12 @@ class VideoGeneratorApp(ctk.CTk):
 
                 resolved = self._resolve_project_style(script=script, persist=True)
                 guidance = style_prompt_adornment(resolved)
+                modern_tech = self._modern_tech_on()
+                if modern_tech:
+                    from modern_tech import editorial_guidance
+
+                    guidance = "\n".join(g for g in (guidance, editorial_guidance(script)) if g)
+                    self.after(0, lambda: self._append_log("[MODERN TECH] Editorial guidance added.\n"))
                 state_dir = (
                     self._workspace.state_dir if self._workspace is not None else None
                 )
@@ -8027,6 +8056,17 @@ class VideoGeneratorApp(ctk.CTk):
                 mixed = apply_asset_mix_to_plan(plan, mix)
                 plan.scenes = list(mixed.scenes)
                 plan.warnings = list(mixed.warnings)
+                if modern_tech:
+                    # last, after allocation and the asset mix (which reassign providers by quota): Modern Tech's
+                    # routing survives, and it cannot add Flow work, so the user's Flow budget stays the ceiling
+                    from modern_tech import refine_plan
+                    from modern_tech.editorial import flow_generations
+
+                    lines, flow_before = [], flow_generations(plan)
+                    refine_plan(plan, on_log=lines.append)
+                    self.after(0, lambda t="\n".join(lines), n=len(plan.scenes), b=flow_before, a=flow_generations(plan):
+                               self._append_log(f"{t}\n[MODERN TECH] Refined plan — {n} scene(s); Flow video {b['video']}"
+                                                f" -> {a['video']}, Flow image {b['image']} -> {a['image']}.\n"))
                 self._enrich_entity_prompts(plan)
                 n_flow_v = sum(
                     1
@@ -13180,7 +13220,7 @@ class VideoGeneratorApp(ctk.CTk):
             "caption_style": self.caption_style(),
             "zoom": bool(self.zoom_var.get()),
             "zoom_amount": self.ken_burns_zoom_amount(),
-            "smart_editing": self._smart_editing_settings(),
+            "smart_editing": self._render_smart_editing_settings(),
             "resolution": "3840x2160" if self._export_pixel_scale() == 2 else "1920x1080",
         }, None
 

@@ -34,6 +34,7 @@ import csv
 import json
 import os
 import re
+import unicodedata
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -81,8 +82,10 @@ _SCALES = {
 
 
 def normalize_word(w: str) -> str:
-    """Lowercase, strip punctuation/possessives. Keeps letters+digits only."""
-    w = w.lower().strip()
+    """Lowercase, strip punctuation/possessives. Keeps letters+digits only; accented letters fold to their base letter
+    (caminó -> camino, ángeles -> angeles) instead of being dropped, so non-English narration aligns and reads intact."""
+    w = unicodedata.normalize("NFKD", w.lower().strip())
+    w = "".join(ch for ch in w if not unicodedata.combining(ch))
     w = re.sub(r"[^a-z0-9']", "", w)
     if w.endswith("'s"):
         w = w[:-2]

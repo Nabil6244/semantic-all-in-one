@@ -1288,6 +1288,20 @@ class TestIntensityLevelsAreMonotonic(unittest.TestCase):
         self.assertLess(sfx[0], sfx[1])
         self.assertLess(sfx[1], sfx[2])
 
+    def test_sfx_levels_carry_the_shared_gain_and_the_export_cap_does_not_undo_it(self) -> None:
+        """Effects were landing too quiet: every planned effect level is the intensity ladder times SFX_GAIN,
+        and the export mixer's cap (and the plan-time caps) rise with it so a boosted event is never clipped back
+        down; the zoom-blur whoosh keeps its own, already louder, level."""
+        import smart_editing as se2
+        from smart_editing import SmartEditingSettings, _sfx_base_volume
+        self.assertGreater(se2.SFX_GAIN, 1.0)
+        for lvl, ladder in (("low", 0.18), ("medium", 0.28), ("high", 0.40)):
+            got = _sfx_base_volume(SmartEditingSettings.from_dict({"sound_effects_intensity": lvl}))
+            self.assertAlmostEqual(got, ladder * se2.SFX_GAIN, places=6, msg=lvl)
+        self.assertAlmostEqual(se2.SFX_VOLUME_CAP, 0.40 * se2.SFX_GAIN, places=6)
+        medium = SmartEditingSettings.from_dict({"sound_effects_intensity": "medium"})
+        self.assertEqual(se2._zoom_blur_volume(medium), 0.672)
+
     def test_each_intensity_moves_only_its_own_feature(self) -> None:
         """Turning one dial must not quietly change the others."""
         base = self._plan()

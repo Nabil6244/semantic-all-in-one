@@ -136,6 +136,10 @@ class SceneRow:
         ) and "||" in prompt:
             search_queries = [p.strip() for p in prompt.split("||") if p.strip()]
             prompt = search_queries[0] if search_queries else prompt
+        if asset_type in ("commons_image", "commons_video"):
+            # The Commons API is gone: the router sends these rows to the stock search (Openverse carries Wikimedia
+            # Commons), which reads `stock` — without it every commons row failed "No stock keywords given".
+            stock = stock or prompt
 
         return cls(
             scene_number=str(row.get("scene_number", "")).strip(),
@@ -351,17 +355,17 @@ class SceneRow:
         """What Pexels media type to search for: "image", "video", or "all"
         (legacy asset_type="stock" / old prompt-stock CSVs — search everything,
         same as always). Drives StockProvider's search — see providers/stock/base.py."""
-        if self.asset_type == "stock_image":
+        if self.asset_type in ("stock_image", "commons_image"):
             return "image"
-        if self.asset_type == "stock_video":
+        if self.asset_type in ("stock_video", "commons_video"):
             return "video"
         return "all"
 
     @property
     def stock_source(self) -> AssetSource:
-        if self.asset_type == "stock_image":
-            return AssetSource.STOCK_IMAGE
-        if self.asset_type == "stock_video":
+        if self.asset_type in ("stock_image", "commons_image"):
+            return AssetSource.STOCK_IMAGE  # commons rows are routed to the stock search (see router)
+        if self.asset_type in ("stock_video", "commons_video"):
             return AssetSource.STOCK_VIDEO
         return AssetSource.STOCK
 

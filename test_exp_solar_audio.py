@@ -170,7 +170,7 @@ class TestSfxPlacementAndRestraint(unittest.TestCase):
         sfx_events = build_exp_solar_sfx_events(sg, layout, sfx_root=self.sfx_root)
         self.assertTrue(sfx_events)
         for e in sfx_events:
-            self.assertLessEqual(e["volume"], 0.22)
+            self.assertLessEqual(e["volume"], 0.22 * se.SFX_GAIN)
 
 
 class TestAmbienceBehavior(unittest.TestCase):

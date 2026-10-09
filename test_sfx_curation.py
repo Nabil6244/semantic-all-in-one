@@ -220,7 +220,9 @@ class TestSmartEditingWithLibrary(unittest.TestCase):
         self.assertLess(volumes["low"], volumes["medium"])
         self.assertLess(volumes["medium"], volumes["high"])
         self.assertGreaterEqual(volumes["medium"], 0.20)
-        self.assertLessEqual(volumes["high"], 0.45)
+        from smart_editing import SFX_GAIN
+
+        self.assertLessEqual(volumes["high"], 0.45 * SFX_GAIN)
 
     def test_mix_preserves_narration_when_no_sfx(self) -> None:
         narration = Path(self.tmp.name) / "narration.wav"

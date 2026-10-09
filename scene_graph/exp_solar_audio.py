@@ -169,7 +169,7 @@ def build_exp_solar_sfx_events(
     # second voice or a music bed; reuses smart_editing's own tuned
     # intensity->volume table rather than inventing new numbers.
     settings = se.SmartEditingSettings(intensity="low")
-    volume = min(se._sfx_base_volume(settings), 0.22)
+    volume = min(se._sfx_base_volume(settings), 0.22 * se.SFX_GAIN)
 
     sfx_events: List[dict] = []
     avoid_ids: List[str] = []

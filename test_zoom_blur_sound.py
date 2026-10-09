@@ -191,7 +191,9 @@ class TestZoomBlurWhooshes(unittest.TestCase):
 
             normal, zoom = level(False), level(True)
             self.assertGreater(normal, 0)
-            self.assertGreater(zoom, normal * 1.5)  # 0.67 vs the 0.40 cap
+            # 0.67 vs the normal ceiling (0.40 x SFX_GAIN = 0.60 now that effects are boosted): the zoom whoosh keeps its own level and
+            # stays clearly the loudest effect, just by less than it was.
+            self.assertGreater(zoom, normal * 1.05)
 
 
 class TestSoundDensity(unittest.TestCase):

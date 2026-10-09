@@ -4,7 +4,7 @@ This is pakMap's own mixer; the generic mixers in smart_editing are not used or 
 (no randomness, fixed filters, fixed envelope maths). Decoding goes through ffmpeg; the mixing itself is plain numpy.
 
 Levels and ducking (priority: narration > major sfx > normal sfx > ambience):
-  * effects sit at their vocabulary volume (all well below speech) and dip DUCK_SFX while the narrator speaks
+  * effects sit at their vocabulary volume x SFX_GAIN (still well below speech) and dip DUCK_SFX while the narrator speaks
   * ambience dips DUCK_AMBIENCE while the narrator speaks, and a further DUCK_AMBIENCE_BY_MAJOR under a major effect
   * the narration is never gain-changed; where the sum would clip, only the sound bed dips, only around that moment
     (a short ramp down and back up, so no click; the rest of the video keeps its full effects and ambience)
@@ -37,6 +37,9 @@ CLIP_DIP_ATTACK_S, CLIP_DIP_RELEASE_S = 0.02, 0.25  # the bed's dip under a mome
 HOP = 480  # 10 ms envelope step
 PEAK_LIMIT = 0.97
 SFX_REF_PEAK = 1.0     # every effect is normalised to this peak before its vocabulary volume is applied
+SFX_GAIN = 1.5         # +3.5 dB on every effect, applied after its vocabulary volume (effects only, never ambience): the vocabulary
+                       # volumes plus the narration duck left them about 20 dB under the voice, which read as too quiet. One knob for
+                       # pakMap, Hybrid Map and StarMap, which all mix through here. Where the sum would clip, only the bed dips (see above).
 AMBIENCE_REF_RMS = 0.2  # every ambience bed is normalised to this RMS (about -14 dBFS) before its vocabulary volume
 MAX_NORMALISE_GAIN = 100.0  # never boost a near-silent file by more than 40 dB (it would only be noise)
 LOOP_FADE_S = 1.0
@@ -378,7 +381,7 @@ class _Bus:
                     clip = clip_for(sound, asset).copy()
                     if sound.max_s:
                         clip = clip[:int(sound.max_s * SR)]
-                    shaped[hit.sound] = _fade(clip, sound.fade_in, sound.fade_out) * sound.volume
+                    shaped[hit.sound] = _fade(clip, sound.fade_in, sound.fade_out) * sound.volume * SFX_GAIN
                 clip = shaped[hit.sound]
                 i = int(round(hit.t * SR))
                 if i >= n:

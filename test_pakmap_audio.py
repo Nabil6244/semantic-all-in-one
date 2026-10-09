@@ -456,7 +456,7 @@ class TestMixer(unittest.TestCase):
                 ents.append(se.SfxEntry(id=cid, file=f"{cid}.wav", category="ui", tags=(), intensity="low", duration=3.0))
             plan = am.resolve_assets(ap.plan_audio(spec(), {"cues": [{"t": 1.0, "sfx": "marker_pop"}], "ambience": [{"t": 4.0, "ambience": "desert_wind"}]}), se.SfxCatalog(lib, ents))
             sfx, amb, _ = am.build_bus(plan, np.zeros((8 * SR, 2), np.float32), 8.0)
-            self.assertAlmostEqual(float(np.abs(sfx).max()), sd.SOUNDS["marker_pop"].volume, delta=0.01)
+            self.assertAlmostEqual(float(np.abs(sfx).max()), sd.SOUNDS["marker_pop"].volume * am.SFX_GAIN, delta=0.01)
             mid = amb[int(5.3 * SR):int(6.1 * SR)]  # past the fade-in, before the loop join
             self.assertAlmostEqual(float(np.sqrt((mid ** 2).mean())) / sd.SOUNDS["desert_wind"].volume, am.AMBIENCE_REF_RMS, delta=0.08)
 
@@ -696,7 +696,7 @@ class TestSynthesizedSounds(unittest.TestCase):
             d = Path(d)
             plan = am.resolve_assets(ap.plan_audio(spec(duration=10), {"cues": [{"t": 2.0, "sfx": "deep_thud"}], "ambience": [{"t": 5.0, "ambience": "industrial_hum"}]}), make_catalog(d / "lib"))
             sfx, amb, used = am.build_bus(plan, np.zeros((10 * SR, 2), np.float32), 10.0)
-            self.assertAlmostEqual(float(np.abs(sfx).max()), sd.SOUNDS["deep_thud"].volume, delta=0.01)
+            self.assertAlmostEqual(float(np.abs(sfx).max()), sd.SOUNDS["deep_thud"].volume * am.SFX_GAIN, delta=0.01)
             self.assertGreater(float(np.abs(amb[int(7 * SR):int(9 * SR)]).max()), 0.005)
             self.assertEqual([u["asset"] for u in used], ["synth:deep_thud", "synth:industrial_hum"])
 

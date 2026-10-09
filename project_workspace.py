@@ -417,6 +417,21 @@ class ProjectWorkspace:
         }
         self._write_meta(data)
 
+    def editing_system(self) -> str:
+        """The project's opt-in editorial system ("modern_tech"), or "" for the Normal editing."""
+        return str(self.read_meta().get("editing_system") or "").strip().lower()
+
+    def set_editing_system(self, value: str) -> None:
+        data = self.read_meta()
+        if str(data.get("editing_system") or "") == (value or ""):
+            return
+        data.update(self.to_dict())
+        if value:
+            data["editing_system"] = value
+        else:
+            data.pop("editing_system", None)
+        self._write_meta(data)
+
     def style_resolution(self) -> dict:
         data = self.read_meta().get("style_resolution")
         return dict(data) if isinstance(data, dict) else {}

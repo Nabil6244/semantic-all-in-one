@@ -56,6 +56,17 @@ _AMBIENCE_REFERENCE_VOL = 0.30
 _SILENCE_DIP = 0.35  # multiply volume when allow_silence
 
 
+def _sfx_gain() -> float:
+    """smart_editing.SFX_GAIN — the shared effect-level boost. Looked up lazily (smart_editing is the heavier module and this
+    one stays importable without it); 1.0 (no change) if it can't be imported."""
+    try:
+        from smart_editing import SFX_GAIN
+
+        return float(SFX_GAIN)
+    except Exception:
+        return 1.0
+
+
 def ambience_intensity_for_scene(scene: EditorialScene) -> float:
     """Derive per-scene ambience intensity multiplier (0.35–1.35)."""
     base = float(scene.ambience_intensity or 1.0)
@@ -225,14 +236,14 @@ def filter_sfx_events(
                 kind = str(e.get("type") or e.get("kind") or "").lower()
                 if kind not in ("whoosh", "transition", "swoosh", "soft_whoosh"):
                     continue
-                e["volume"] = round(min(0.20, float(e.get("volume") or 0.22) * 0.55), 3)
+                e["volume"] = round(min(0.20 * _sfx_gain(), float(e.get("volume") or 0.22 * _sfx_gain()) * 0.55), 3)
 
             weight = _PURPOSE_SFX_WEIGHT.get(scene.purpose, 0.5)
             weight *= 0.7 + 0.5 * float(scene.attention_score or 0.5)
             if weight < 0.32 and str(e.get("type") or "") not in ("whoosh", "transition"):
                 continue
             e["volume"] = round(
-                min(0.40, float(e.get("volume") or 0.26) * (0.75 + 0.4 * weight)),
+                min(0.40 * _sfx_gain(), float(e.get("volume") or 0.26 * _sfx_gain()) * (0.75 + 0.4 * weight)),
                 3,
             )
 
