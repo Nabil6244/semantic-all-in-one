@@ -14,6 +14,7 @@ from .datasets import Dataset, DatasetIndex, norm
 from .temporal import show_date
 
 PACK_PLACEHOLDER = "<<<DATASETS>>>"
+BODIES_PLACEHOLDER = "<<<BODIES>>>"
 FULL_DETAIL_UP_TO = 12            # with more datasets than this, only the ones the script names are listed in full
 
 
@@ -65,6 +66,27 @@ def dataset_detail(ds: Dataset) -> List[str]:
     return lines
 
 
+def body_names(cat: Catalog) -> str:
+    """Every body the catalog knows, by its clearest name, wrapped for the prompt -- generated from the registry
+    (starmap/catalog/bodies.json), so a body added there is offered to the AI with no prompt edit. Moons say whose."""
+    aliases = cat.bodies.get("aliases", {})
+    parents = cat.bodies.get("parent_system", {})
+    names = []
+    for w in cat.world:
+        bid = w["id"]
+        cands = [k for k, v in aliases.items() if v == bid and not k.startswith("the ") and "'s moon" not in k and k.isascii()]
+        name = max([bid] + cands, key=len)
+        names.append(f"{name} (moon of {parents[bid]})" if bid in parents and w.get("kind") == "body" and name != "moon" else name)
+    lines, line = [], ""
+    for n in names:
+        if line and len(line) + len(n) + 2 > 78:
+            lines.append(line + ",")
+            line = n
+        else:
+            line = f"{line}, {n}" if line else n
+    return ("\n" + " " * 15).join(lines + [line])
+
+
 def pack_vocabulary(cat: Catalog, script: Optional[str] = None, *, force: Optional[List[str]] = None) -> str:
     """The library for the prompt: a line per dataset, and full detail for all of them (or, in a large library, for the ones
     the script names and any `force`d)."""
@@ -88,11 +110,23 @@ def pack_vocabulary(cat: Catalog, script: Optional[str] = None, *, force: Option
     return "\n".join(lines)
 
 
+def short_prompt_path() -> Path:
+    """composition_styles/starmap_short_prompt.txt (inside the packaged app when frozen)."""
+    return prompt_path().with_name("starmap_short_prompt.txt")
+
+
 def build_prompt(pack: Optional[str] = None, script: Optional[str] = None) -> str:
     """The prompt with the library's vocabulary and the script. `pack` (old callers) only makes sure that dataset is listed
     in full."""
+    cat = Catalog()
+    if script and script.strip() and not pack and not cat.index.narration_matches(script):
+        # a story about space itself (a moon, a planet, the scale of things) that names no built-in mission: the short
+        # prompt, with only the rows such a story needs, so the CSV it brings back loads without errors
+        text = short_prompt_path().read_text(encoding="utf-8")
+        return text.replace(BODIES_PLACEHOLDER, body_names(cat)).replace("<<<PASTE THE SCRIPT HERE>>>", script.strip())
     text = prompt_path().read_text(encoding="utf-8")
-    text = text.replace(PACK_PLACEHOLDER, pack_vocabulary(Catalog(), script, force=[pack] if pack else None))
+    text = text.replace(BODIES_PLACEHOLDER, body_names(cat))
+    text = text.replace(PACK_PLACEHOLDER, pack_vocabulary(cat, script, force=[pack] if pack else None))
     if script:
         text = text.replace("<<<PASTE THE SCRIPT HERE>>>", script.strip())
     return text

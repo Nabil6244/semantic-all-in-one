@@ -23,6 +23,8 @@ FOOTAGE_SHARE = (0.25, 0.45)
 MAX_STILL_MAP_S = 25.0        # a map stretch with no card and no footage
 MAX_QUIET_S = 6.0             # map time with nothing new appearing
 MIN_CLIP_S, SHORT_CLIP_S, LONG_FOOTAGE_S = 2.0, 3.5, 14.0
+REPEAT_SHOTS = 4              # map beats in a row on the same place and frame: the camera has nowhere to go
+SAME_SHOT_SHARE = 0.40        # one place+frame holding this much of the map time
 
 
 @dataclass
@@ -106,7 +108,66 @@ def check_csv(text: str, words: Sequence = (), duration: Optional[float] = None,
                    + (" [narration-paced]" if a.strategy == "motion" else "") for bid, a in comp.actions.items()]
     rep.to_find = comp.needs_media
     _rhythm(plan, comp, rep)
+    _shots(plan, cat, rep)
     return rep
+
+
+def _bodies_named(text: str, cat: Catalog) -> set:
+    """Catalog bodies the narration names (by any alias of at least 3 letters)."""
+    import re
+
+    low = (text or "").lower()
+    return {b for a, b in cat.aliases.items() if len(a) >= 3 and a not in ("galaxy", "the galaxy", "sol")
+            and re.search(rf"(?<![\w]){re.escape(a)}(?![\w])", low)}
+
+
+def _shots(plan: Plan, cat: Catalog, rep: Report) -> None:
+    """Warnings about what the camera is pointed at (never errors, never moves the camera):
+    * the same shot (place + frame) for REPEAT_SHOTS map beats in a row, or one shot holding most of the map time -- a still
+      view is fine while one idea is explained, but a whole stretch of it reads as a stuck camera. Beats marked
+      {"hold": true} in `extra` are intentional and not counted;
+    * the narration names a moon of the body on screen ("Europa" while the camera shows Jupiter): the subject can be shown
+      itself (place=europa, or jupiter+europa). A deliberate context shot says so with {"context": "europa"} in `extra`."""
+    W = rep.warnings
+    maps = [b for b in plan.beats if b.mode in ("map", "map_footage") and b.place]
+    key = lambda b: (b.place.strip().lower(), (b.frame or "").strip().lower())   # noqa: E731
+    run: list = []
+
+    def flush() -> None:
+        if len(run) >= REPEAT_SHOTS and not all(b.extra.get("hold") for b in run):
+            W.append(f"rows {run[0].row}-{run[-1].row}: {len(run)} map beats in a row show the same shot (place={run[0].place}, "
+                     f"frame={run[0].frame}); change the view (close / body / system), the place, or use footage")
+
+    for b in maps:
+        if run and key(b) != key(run[-1]):
+            flush()
+            run = []
+        run.append(b)
+    flush()
+    map_s = sum(b.end - b.start for b in maps)
+    if map_s >= 60 and len(maps) >= REPEAT_SHOTS:
+        held: Dict[Tuple[str, str], float] = {}
+        for b in maps:
+            held[key(b)] = held.get(key(b), 0.0) + (b.end - b.start)
+        (place, frame), s = max(held.items(), key=lambda kv: kv[1])
+        if s / map_s > SAME_SHOT_SHARE:
+            W.append(f"one shot (place={place}, frame={frame}) is {s / map_s * 100:.0f}% of the map time; vary the view or the place")
+    parent = {w["id"]: w.get("parent") for w in cat.world}
+    planet = {w["id"] for w in cat.world if w.get("kind") == "body"}     # a moon's PLANET on screen, not the Sun or a galaxy
+    for b in maps:
+        if b.extra.get("context"):
+            continue
+        try:
+            pl = cat.place(b.place)
+        except CatalogError:
+            continue
+        if pl.kind == "site" or any(L.type in ("craft", "path", "orbit") for L in b.layers):
+            continue   # a launch site, or a beat following a spacecraft's path, is about that place or motion, not a moon
+        shown = {pl.body, getattr(pl, "other", None)} - {None, ""}
+        for nb in sorted(_bodies_named(b.text, cat) - shown):
+            if parent.get(nb) in shown & planet:
+                W.append(f"row {b.row}: the narration names {nb.upper()} but the camera shows {pl.body.upper()}; use "
+                         f"place={nb} (or {parent[nb]}+{nb}), or add {{\"context\": \"{nb}\"}} to extra if the wider view is meant")
 
 
 def _rhythm(plan: Plan, comp: Compiled, rep: Report) -> None:

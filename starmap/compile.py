@@ -112,7 +112,9 @@ def shot_for(cat: Catalog, beat: Beat, ctx: Sequence[str] = ()) -> Tuple[Dict[st
         shot = {"target": p.ref, "fit": {"system": 1.5, "body": 1.3}.get(f, 1.15), "light": "front", "el_deg": 25}
     elif f == "system":
         parent = cat.bodies.get("parent_system", {}).get(p.body)
+        child = cat.bodies.get("system_view", {}).get(p.body)       # a planet's system: the planet with its main moon
         shot = ({"target": f"{parent}+{p.body}", "fit": 1.5, "light": "front", "el_deg": 25} if parent
+                else {"target": f"{p.body}+{child}", "fit": 1.5, "light": "front", "el_deg": 25} if child
                 else {"target": p.body, "fill": 0.12, "light": "side", "el_deg": 20})
     elif p.kind == "site":
         R = cat.body_radius_km(p.body)

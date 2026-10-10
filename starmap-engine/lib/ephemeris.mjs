@@ -15,13 +15,20 @@ export const radecToEngine = radec;
 
 const BODIES = { mercury: 'Mercury', venus: 'Venus', earth: 'Earth', moon: 'Moon', mars: 'Mars', jupiter: 'Jupiter', saturn: 'Saturn',
   uranus: 'Uranus', neptune: 'Neptune', pluto: 'Pluto', sun: 'Sun' };
-export const knownBody = (name) => !!BODIES[String(name).toLowerCase()];
+// Jupiter's four large moons: astronomy-engine's JupiterMoons (positions relative to Jupiter, J2000 equatorial).
+const JUPITER_MOONS = new Set(['io', 'europa', 'ganymede', 'callisto']);
+export const knownBody = (name) => !!BODIES[String(name).toLowerCase()] || JUPITER_MOONS.has(String(name).toLowerCase());
 
 const time = (date) => A.MakeTime(date instanceof Date ? date : new Date(date));
 
 /** Offset (km, engine axes) of a body from its parent at `date`: a planet from the Sun, the Moon from Earth. */
 export function offsetOf(name, date) {
-  const b = BODIES[name.toLowerCase()];
+  const key = name.toLowerCase();
+  if (JUPITER_MOONS.has(key)) {                                  // a Galilean moon, from Jupiter
+    const m = A.JupiterMoons(time(date))[key];
+    return eqjToEngine([m.x, m.y, m.z]).map((c) => c * KM_PER_AU);
+  }
+  const b = BODIES[key];
   if (!b) throw new Error(`no ephemeris for ${name}`);
   const t = time(date);
   const v = b === 'Moon' ? A.GeoMoon(t) : A.HelioVector(A.Body[b], t);

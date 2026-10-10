@@ -37,11 +37,11 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
                script (every word, in order). Beats start at the start of a sentence.
     vo_anchor  the first 3 to 5 words of that text, copied exactly
     mode       map, map_footage or footage
-    place      (map beats) what the camera looks at: a body (earth, moon, sun, mars, jupiter,
-               saturn, pluto, alpha centauri, sirius, barnard's star, wolf 359, milky way,
-               andromeda, large magellanic cloud, triangulum, or a body a dataset adds), a pair
-               (earth+moon, sun+alpha centauri, milky way+andromeda), or a SITE from the
-               datasets (qualified, e.g. apollo13.fra mauro) or the shared sites list below
+    place      (map beats) what the camera looks at: a body (<<<BODIES>>>,
+               or a body a dataset adds), a pair (earth+moon, jupiter+europa, sun+alpha centauri,
+               milky way+andromeda), or a SITE from the datasets (qualified, e.g. apollo13.fra mauro)
+               or the shared sites list below. A moon the story is about is its own place: write
+               place=europa, not jupiter (jupiter frame=system shows the planet with its moon)
     frame      (map beats) how much we see:
                  surface  low over a site, its craters and the horizon (place = a site)
                  close    a large part of the body, or a site from high up

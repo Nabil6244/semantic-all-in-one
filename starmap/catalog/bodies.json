@@ -1,5 +1,5 @@
 {
- "_about": "The bodies StarMap knows, as world entries for the engine (textures in starmap-engine/assets/textures). Aliases are what a script or CSV may call them; atmosphere adds the generic ATMOSPHERE layer whenever the body is in a video.",
+ "_about": "The bodies StarMap knows, as world entries for the engine (textures in starmap-engine/assets/textures). Aliases are what a script or CSV may call them; atmosphere adds the generic ATMOSPHERE layer whenever the body is in a video. parent_system: a moon's planet (place=europa frame=system shows jupiter+europa); system_view: the moon a planet's system view frames (place=jupiter frame=system).",
  "world": [
   {
    "id": "milkyway",
@@ -151,6 +151,70 @@
    },
    "rotation": "iau",
    "show_orbit": true
+  },
+  {
+   "id": "io",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "IO",
+   "radius": {
+    "km": 1821.6
+   },
+   "color": "#d8c25e",
+   "offset": {
+    "ephemeris": "io"
+   },
+   "min_light": 0.012,
+   "show_orbit": true,
+   "source": "position: astronomy-engine JupiterMoons (library model); surface: colour fallback until a texture is added"
+  },
+  {
+   "id": "europa",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "EUROPA",
+   "radius": {
+    "km": 1560.8
+   },
+   "color": "#cdbfa6",
+   "offset": {
+    "ephemeris": "europa"
+   },
+   "min_light": 0.012,
+   "show_orbit": true,
+   "source": "position: astronomy-engine JupiterMoons (library model); surface: colour fallback until a texture is added"
+  },
+  {
+   "id": "ganymede",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "GANYMEDE",
+   "radius": {
+    "km": 2634.1
+   },
+   "color": "#9a8e7d",
+   "offset": {
+    "ephemeris": "ganymede"
+   },
+   "min_light": 0.012,
+   "show_orbit": true,
+   "source": "position: astronomy-engine JupiterMoons (library model); surface: colour fallback until a texture is added"
+  },
+  {
+   "id": "callisto",
+   "parent": "jupiter",
+   "kind": "body",
+   "label": "CALLISTO",
+   "radius": {
+    "km": 2410.3
+   },
+   "color": "#62594e",
+   "offset": {
+    "ephemeris": "callisto"
+   },
+   "min_light": 0.012,
+   "show_orbit": true,
+   "source": "position: astronomy-engine JupiterMoons (library model); surface: colour fallback until a texture is added"
   },
   {
    "id": "saturn",
@@ -424,7 +488,12 @@
   "triangulum": "triangulum",
   "triangulum galaxy": "triangulum",
   "the triangulum galaxy": "triangulum",
-  "m33": "triangulum"
+  "m33": "triangulum",
+  "ío": "io",
+  "jupiter's moon io": "io",
+  "jupiter's moon europa": "europa",
+  "ganímedes": "ganymede",
+  "calisto": "callisto"
  },
  "atmosphere": {
   "earth": {
@@ -439,6 +508,13 @@
   }
  },
  "parent_system": {
-  "moon": "earth"
+  "moon": "earth",
+  "io": "jupiter",
+  "europa": "jupiter",
+  "ganymede": "jupiter",
+  "callisto": "jupiter"
+ },
+ "system_view": {
+  "jupiter": "europa"
  }
 }

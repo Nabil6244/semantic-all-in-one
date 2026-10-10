@@ -22,6 +22,26 @@ from .compile import CompileError, compile_plan, strip_private
 ProgressCallback = Callable[[str, float], None]
 
 
+def share_missing_clip_time(footage: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The footage entries that have a file. A footage beat that lost a clip (no picture found, or skipped) gives its time
+    to the clips it still has -- they share the beat's whole stretch in order -- so the map is not left frozen in the gap.
+    A beat with no clip at all is unchanged (its time goes to the map, as before)."""
+    beats: Dict[str, List[Dict[str, Any]]] = {}
+    for f in footage:
+        beats.setdefault(str(f.get("id", "")).rsplit("_", 1)[0], []).append(f)
+    out: List[Dict[str, Any]] = []
+    for fs in beats.values():
+        fs = sorted(fs, key=lambda f: f["start"])
+        have = [f for f in fs if f.get("file") or f.get("image")]
+        if have and len(have) < len(fs):
+            a, b = fs[0]["start"], fs[-1]["end"]
+            step = (b - a) / len(have)
+            for i, f in enumerate(have):
+                f["start"], f["end"] = round(a + i * step, 3), round(a + (i + 1) * step, 3)
+        out += have
+    return sorted(out, key=lambda f: f["start"])
+
+
 def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> None:
     if cb is not None:
         try:
@@ -277,7 +297,7 @@ def generate_starmap_video(
     # skipped pictures: a card without a file is left out, a clip without one leaves its time to the map
     spec = strip_private(comp.spec)
     spec["layers"] = [L for L in spec["layers"] if not (L["type"] == "photo_card" and not (L.get("image") or L.get("video")))]
-    spec["footage"] = [f for f in spec["footage"] if f.get("file") or f.get("image")]
+    spec["footage"] = share_missing_clip_time(spec["footage"])
     spec["media_dir"] = str(gather_media(spec, work / "render_media"))
     # chunks drawn before are reused when nothing that shows in them changed (an edit redraws only the seconds it touches)
     spec["segment_cache"] = str(work / "render_chunks")

@@ -137,6 +137,21 @@ def still_of(video: Path, out: Path) -> Path:
     raise RuntimeError(f"could not take a still from {video.name}")
 
 
+def _report_left_out(provider_kwargs: Dict[str, Any], table: Sequence[Any], n: str, why: str) -> None:
+    """Tell the Visual Plan table a row was left out (it would otherwise stay QUEUED): the app's own scene callback, with a
+    failed result carrying the reason, so the row shows NEEDS ACTION with Retry / Change source."""
+    done = provider_kwargs.get("on_scene_complete")
+    row = next((r for r in table if str(r.scene_number) == n), None)
+    if done is None or row is None:
+        return
+    try:
+        from providers.base import AssetResult, AssetSource, SceneStatus
+
+        done(row, AssetResult(scene_number=n, path=None, media_type=None, source=AssetSource.STOCK_IMAGE, status=SceneStatus.FAILED, error=why))
+    except Exception:
+        pass
+
+
 def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[Any]] = None, log: Callable[[str], None] = print,
                 cancel_check: Optional[Callable[[], bool]] = None, stills_dir: Optional[Path] = None, nasa_get=None,
                 fetch_scenes: Optional[Callable[..., Any]] = None, manifest_cls: Any = None, mission: Any = "", **provider_kwargs: Any) -> Fetched:
@@ -154,13 +169,23 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
     table = list(scene_rows) if scene_rows else [SceneRow.from_csv_row(m.as_dict()) for m in rows_info]
     wanted = {m.scene_number for m in rows_info}
     table = [r for r in table if str(r.scene_number) in wanted]
+    all_rows = list(table)                                     # before NASA's misses are taken out (to report them)
     nasa_rows = {m.scene_number: m.prompt for m in rows_info if m.source == "nasa_image"}
     unanswered: Dict[str, str] = {}
     no_match: Dict[str, str] = {}
     if nasa_rows:
         nasa_images.prefetch(table, nasa_rows, images_dir, manifest_cls=manifest_cls, log=log, get=nasa_get, cancel_check=cancel_check,
                              context=mission, unanswered=unanswered, no_match=no_match)
-        # not to the stock search: NASA was unreachable, or has no picture that is really this one
+        # A story about a mission keeps NASA's answer: no stock photo stands in for the mission's own picture. A story with no
+        # mission (a moon, a planet, the scale of space) lets a NASA miss try the stock search, which also reaches Wikimedia.
+        mission_story = (any(str(v).strip() for v in mission.values()) if isinstance(mission, dict) else bool(str(mission or "").strip())) \
+            or any("." in (b.date or "") or b.extra.get("mission") or any(L.type in ("craft", "path", "orbit") for L in b.layers)
+                   for b in plan.beats)
+        if not mission_story:
+            for n in list(no_match):
+                log(f"[StarMap] No NASA image for scene {n}; this story names no mission, so it tries the stock search")
+                del no_match[n]
+        # not to the stock search: NASA was unreachable, or (for a mission) has no picture that is really this one
         table = [r for r in table if str(r.scene_number) not in unanswered and str(r.scene_number) not in no_match]
     if fetch_scenes is None:
         from pakmap.sourcing import fetch_scenes
@@ -180,6 +205,8 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
             continue
         if n in no_match:                                       # left out: a card goes, a clip leaves its time to the map
             out.media[f"row:{m.row}"] = {"file": ""}
+            _report_left_out(provider_kwargs, all_rows, n, f"Left out: {no_match[n]} (nasa_image:{m.prompt}). Change source, "
+                                                         f"use a local clip, or describe it the way NASA titles it.")
             out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}: nasa_image:{m.prompt}): {no_match[n]}, "
                              f"so it is left out. Describe it the way NASA titles it, or give it another source in the Visual Plan.")
             continue
