@@ -47,7 +47,7 @@ class StyleGraphicsRules(unittest.TestCase):
     def test_other_styles_plan_exactly_as_before(self):
         before = roles(None)
         for st in list_builtin_styles():
-            if st.id == "book_of_enoch":
+            if st.id in {"book_of_enoch", "enoch_template"}:
                 continue
             rules = style_graphics_rules(NS(style={"style_id": st.id}))
             self.assertEqual(rules, {}, st.id)

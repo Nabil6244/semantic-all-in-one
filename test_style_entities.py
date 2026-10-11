@@ -101,7 +101,7 @@ class RecurringFigures(unittest.TestCase):
 
     def test_9_other_styles_have_no_figures_and_change_nothing(self):
         for st in list_builtin_styles():
-            if st.id == "book_of_enoch":
+            if st.id in {"book_of_enoch", "enoch_template"}:
                 continue
             self.assertEqual(st.entities, [], st.id)
             p = plan()

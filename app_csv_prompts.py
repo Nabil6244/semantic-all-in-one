@@ -21,9 +21,11 @@ CSV_PROMPTS = {
     "pakmap": "pakmap_csv_prompt.txt",
     "hybrid": "hybrid_beats_prompt.txt",
     "starmap": "starmap_beats_prompt.txt",
+    "enoch_template": "enoch_template_csv_prompt.txt",
 }
 
-STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}
+STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap",
+               "enoch_template": "Enoch Template"}
 
 
 def prompt_path(style: str) -> Path:

@@ -1,0 +1,78 @@
+You are writing the VISUAL PLAN CSV for a narrated documentary made with Semantic YT
+Studio in the "Enoch Template" style: an evidence-first documentary about an ancient
+text. Pictures change with the narration, one row per shot, and every picture must show
+what its words name. The app finds every row's words in the recorded narration, so each
+row is shown exactly while its words are spoken.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma.
+
+HEADER (exactly this, in this order)
+scene_number,script_segment,asset_type,prompt
+
+COLUMNS
+- scene_number   1, 2, 3 ... one per row, in order, no gaps, never repeated.
+- script_segment the narration this shot covers, copied EXACTLY from the script.
+- asset_type     exactly one of: stock_image, stock_video, archive_video, commons_image,
+                 youtube_video, map, flow_image, flow_video
+- prompt         what to find or make. Never empty.
+
+HOW TIME WORKS
+- THE ROWS COVER THE SCRIPT EXACTLY: joining every script_segment gives the script word
+  for word, in its own language, spelling and punctuation. Nothing skipped, repeated,
+  reworded or translated.
+- A row may end in the middle of a sentence; the next row continues with the next word.
+- Rhythm: steady, about one picture every 4 to 6 seconds (about 9 to 15 words per row).
+  Do not speed up at the opening or the climax. Split a row when the narration moves to a
+  different document, place, person or idea.
+
+WHAT EACH SHOT SHOWS (in this order of preference)
+1. The real thing the narration names: a manuscript, fragment, scroll, printed edition,
+   inscription, museum object -> stock_image or commons_image with a short archive search.
+2. The real place it names -> stock_video / stock_image, or map when the point is WHERE.
+3. A real work of art showing the subject (an engraving, a painting, an icon) -> stock_image
+   searching the artist and the work by name.
+4. Real people at work with the material (a scholar with a magnifying glass, a library
+   reading room) only when the narration is about research.
+5. flow_image / flow_video ONLY for what no camera or painter recorded (a vision, a heavenly
+   scene, a figure described in the text). Small figure, wide frame, seen from behind or in
+   shadow, painted look. At most about 1 shot in 8 (12%), and NEVER more than 2 in a row.
+Never a generic stock shot to fill time. Never a modern product (e-reader, tablet,
+paperback cover) for an ancient text. Never a different religion's or tradition's
+book as a stand-in.
+
+PROMPTS
+- stock_image / commons_image / archive_video: 2 to 6 searchable English words, from
+  specific to broader, separated by ||: "Ethiopic Enoch manuscript||Ge'ez manuscript".
+- stock_video: subject + setting, 5 to 10 words: "Judean desert cliffs at Qumran at dawn".
+- map: places big to small separated by >, options after |:
+  "Israel > Qumran | camera: zoom_in | label: QUMRAN".
+- flow_image / flow_video: the full picture: subject, setting, light, style ("a lone
+  robed figure seen from behind before a vast throne of white fire, wide frame, dark
+  chiaroscuro, 19th-century oil painting look"). No text or letters in the picture.
+- Never a person's name in a stock_video search. Never repeat a search, unless the same
+  document returns later in the story on purpose.
+
+CHECKLIST BEFORE YOU ANSWER
+1. Header exactly: scene_number,script_segment,asset_type,prompt
+2. scene_number 1, 2, 3 ... with no gaps.
+3. Joining every script_segment gives the script word for word.
+4. Every row has an allowed asset_type and a non-empty prompt.
+5. flow_* rows: about 12% at most, never 3 in a row, only for what no camera recorded.
+6. Output is the CSV only.
+
+EXAMPLE
+Script:
+The Book of Enoch survived in full only in Ethiopia, copied in Ge'ez for centuries. In 1947, shepherds found jars in a cave near the Dead Sea. Among the scrolls inside were Aramaic fragments of Enoch. In one vision, Enoch is taken before a throne of fire.
+
+CSV:
+scene_number,script_segment,asset_type,prompt
+1,"The Book of Enoch survived in full only in Ethiopia,",stock_image,Ethiopic Enoch manuscript||Ge'ez manuscript
+2,copied in Ge'ez for centuries.,stock_image,Ethiopian monastery manuscript||Ethiopian Orthodox church
+3,"In 1947, shepherds found jars in a cave near the Dead Sea.",map,Israel > Qumran | camera: zoom_in | label: QUMRAN
+4,Among the scrolls inside were Aramaic fragments of Enoch.,stock_image,Dead Sea Scrolls fragment||Qumran Cave 4 fragment
+5,"In one vision, Enoch is taken before a throne of fire.",flow_image,"a lone robed elder seen from behind before a vast throne of white fire in a dark hall, wide frame, dark chiaroscuro, 19th-century oil painting look"
+
+NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

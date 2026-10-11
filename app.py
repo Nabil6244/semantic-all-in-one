@@ -817,6 +817,25 @@ def _lazy_view(key: str) -> property:
     return property(lambda self: self._shell.view(key))
 
 
+def _enoch_template_timeline(app, config: dict, timeline):
+    """Enoch Template only: a card already IS the scene's text, so no lower third or callout is drawn over it."""
+    if not config.get("enoch_template") or not timeline:
+        return timeline
+    try:
+        from ancient_texts.integration import drop_graphics_on_cards
+
+        return drop_graphics_on_cards(timeline, getattr(app, "_workspace", None))
+    except Exception as exc:
+        print(f"[ENOCH TEMPLATE] Card overlay filter skipped ({exc})")
+        return timeline
+
+
+def _enoch_template_active(app) -> bool:
+    """Enoch Template is the open project's style. False for anything without the check (test doubles, other windows)."""
+    check = getattr(app, "_enoch_template_on", None)
+    return bool(check()) if callable(check) else False
+
+
 class _StylePickerState:
     """What the style cards show as chosen (get/set like the segmented button they replace)."""
 
@@ -1612,6 +1631,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._csv_helper_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 4))
         self._bind_responsive_wrap(self._csv_helper_label, pad=24)
         self._build_csv_prompt_bar(self._csv_block, style="normal", status_var=None, row=3, padx=12, pady=(4, 12))
+        self._build_enoch_template_bar(self._csv_block, row=4)
         self._csv_block.grid_remove()
 
         self._ai_block = ctk.CTkFrame(
@@ -2844,7 +2864,7 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template")
     STYLE_BLURBS = {
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
         "Modern Tech News": "Technology news: fast cuts, the real product, reports and UI footage, few effects. Same workflow as Normal.",
@@ -2853,6 +2873,8 @@ class VideoGeneratorApp(ctk.CTk):
         "pakMap": "One continuous satellite-map camera with titles, markers, numbers and photo cards.",
         "Hybrid Map": "The map explains where, full-screen footage shows what it is like.",
         "StarMap": "Space documentaries: the real sky in 3D, spacecraft on their paths, NASA footage between.",
+        "Enoch Template": "Evidence-first documentaries about ancient texts: real manuscripts and art, cards, few reconstructions, "
+                          "checked claims. Same workflow as Normal.",
     }
 
     STYLE_CARDS = {
@@ -2864,6 +2886,7 @@ class VideoGeneratorApp(ctk.CTk):
         "pakMap": ("\u25C9", "One continuous satellite map", "A pakMap CSV", "Geography, borders, routes"),
         "Hybrid Map": ("\u25D0", "Map and full-screen footage in turns", "A beat CSV, or AI", "Place-based documentaries"),
         "StarMap": ("\u2737", "Space in 3D, spacecraft and NASA footage", "A StarMap beat CSV", "Space missions, planets, the universe"),
+        "Enoch Template": ("\u2766", "Manuscripts, art and cards; checked claims", "Script + voiceover", "Ancient texts, hidden books"),
     }
 
     def _build_style_picker(self, parent, *, row: int) -> None:
@@ -2967,6 +2990,8 @@ class VideoGeneratorApp(ctk.CTk):
         mode = getattr(self, "generation_mode", "normal")
         if mode == "overscaled":
             return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
+        if mode == "normal" and _enoch_template_active(self):
+            return "Enoch Template"
         if mode == "normal" and self._modern_tech_on():
             return "Modern Tech News"
         return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}.get(mode, "Normal video")
@@ -2976,6 +3001,16 @@ class VideoGeneratorApp(ctk.CTk):
         ws = getattr(self, "_workspace", None)
         try:
             return ws is not None and ws.editing_system() == "modern_tech"
+        except Exception:
+            return False
+
+    def _enoch_template_on(self) -> bool:
+        """Enoch Template is this project's style (video_style.style_id == "enoch_template": chosen on its card or at project
+        creation; never auto-detected)."""
+        try:
+            from ancient_texts.integration import is_active
+
+            return is_active(getattr(self, "_workspace", None))
         except Exception:
             return False
 
@@ -3015,6 +3050,12 @@ class VideoGeneratorApp(ctk.CTk):
                 ws.set_editing_system("modern_tech" if choice == "Modern Tech News" else "")
             except Exception:
                 pass  # a project that can't save the choice keeps working as Normal
+            try:  # Enoch Template is the project's style; leaving its card puts back the style the project had before
+                from ancient_texts import integration as _enoch
+
+                _enoch.select(ws) if choice == "Enoch Template" else _enoch.deselect(ws)
+            except Exception as exc:
+                self._append_log(f"[ENOCH TEMPLATE] Style not saved ({exc})\n")
         self._sync_primary_cta()
 
     def _sync_style_picker(self) -> None:
@@ -3029,6 +3070,9 @@ class VideoGeneratorApp(ctk.CTk):
         self._overscaled_title_var.set(active if active in ("Overscaled", "Exp Solar") else "Overscaled")
         for w in (self._overscaled_style_segmented, self._overscaled_switch, self._pakmap_switch, self._hybrid_switch, self._starmap_switch):
             w.grid_remove()  # the picker replaces the per-card switches (their variables and handlers still run the styles)
+        bar = getattr(self, "_enoch_template_bar", None)
+        if bar is not None:
+            bar.grid() if active == "Enoch Template" else bar.grid_remove()
         for block, on in ((self._overscaled_block, active in ("Overscaled", "Exp Solar")), (self._pakmap_block, active == "pakMap"),
                           (self._hybrid_block, active == "Hybrid Map"), (self._starmap_block, active == "StarMap")):
             block.grid() if on else block.grid_remove()
@@ -3582,6 +3626,47 @@ class VideoGeneratorApp(ctk.CTk):
         self._build_csv_prompt_script_box(bar, row=1, columnspan=2)
         return bar
 
+    def _build_enoch_template_bar(self, parent, *, row: int) -> None:
+        """Enoch Template only: the two prompts that come before the CSV prompt (research -> claims ledger, script -> script
+        map). Text to paste into any AI; the app sends nothing anywhere."""
+        bar = ctk.CTkFrame(parent, fg_color="transparent")
+        bar.grid(row=row, column=0, sticky="ew", padx=12, pady=(0, 12))
+        bar.grid_columnconfigure(2, weight=1)
+        for col, (label, kind) in enumerate((("Copy research prompt", "research"), ("Copy script prompt", "script"))):
+            ctk.CTkButton(
+                bar, text=label, width=150, height=32, corner_radius=6, fg_color="transparent", border_width=1,
+                border_color=_BORDER, text_color=_MUTED, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=12),
+                command=lambda k=kind: self._copy_enoch_template_prompt(k),
+            ).grid(row=0, column=col, sticky="w", padx=(0, 8))
+        ctk.CTkLabel(bar, text="Save the AI's answers as claims.json and script_map.json in the project's state/enoch_template folder.",
+                     font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", justify="left", wraplength=360).grid(
+            row=1, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        self._enoch_template_bar = bar
+        bar.grid_remove()
+
+    def _copy_enoch_template_prompt(self, kind: str) -> None:
+        from ancient_texts import integration as _enoch
+        from ancient_texts.prompts import research_prompt, script_prompt
+        from ancient_texts.subjects import pack_for_style
+
+        ws = self._workspace
+        try:
+            if kind == "research":
+                topic = str((ws.read_meta() or {}).get("name") or "") if ws is not None else ""
+                text = research_prompt(topic, pack_for_style("enoch_template"))
+            else:
+                ledger = ""
+                if ws is not None and (_enoch.state_dir(ws) / "claims.json").is_file():
+                    ledger = (_enoch.state_dir(ws) / "claims.json").read_text(encoding="utf-8")
+                text = script_prompt(ledger)
+        except OSError as exc:
+            messagebox.showerror("Copy prompt", f"The prompt file could not be read: {exc}")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        where = str(_enoch.state_dir(ws)) if ws is not None else "state/enoch_template"
+        self.status_var.set(f"Enoch Template {kind} prompt copied. Paste it into any AI; save its answer in {where}.")
+
     def _copy_csv_prompt(self, style: str, status_var=None) -> None:
         """Copy a style's CSV prompt with the project's script in it (Overscaled copies Exp Solar's when that look is chosen)."""
         from app_csv_prompts import STYLE_NAMES, build_prompt
@@ -3595,6 +3680,8 @@ class VideoGeneratorApp(ctk.CTk):
                 pass
         if style == "overscaled" and getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar":
             style = "exp_solar"
+        if style == "normal" and _enoch_template_active(self):
+            style = "enoch_template"
         script = self._main_script_text()
         try:
             text = build_prompt(style, script)
@@ -7403,6 +7490,10 @@ class VideoGeneratorApp(ctk.CTk):
             from modern_tech import smart_editing_settings
 
             settings = smart_editing_settings(settings)
+        if _enoch_template_active(self):
+            from ancient_texts.integration import smart_editing_settings as enoch_settings
+
+            settings = enoch_settings(settings)
         return settings
 
     def _smart_editing_settings_dict(self) -> dict:
@@ -8022,6 +8113,11 @@ class VideoGeneratorApp(ctk.CTk):
 
                     guidance = "\n".join(g for g in (guidance, editorial_guidance(script)) if g)
                     self.after(0, lambda: self._append_log("[MODERN TECH] Editorial guidance added.\n"))
+                enoch_template = _enoch_template_active(self)
+                if enoch_template:
+                    from ancient_texts.integration import guidance as enoch_guidance
+
+                    guidance = "\n".join(g for g in (guidance, enoch_guidance(script)) if g)
                 state_dir = (
                     self._workspace.state_dir if self._workspace is not None else None
                 )
@@ -8071,6 +8167,8 @@ class VideoGeneratorApp(ctk.CTk):
                     self.after(0, lambda t="\n".join(lines), n=len(plan.scenes), b=flow_before, a=flow_generations(plan):
                                self._append_log(f"{t}\n[MODERN TECH] Refined plan — {n} scene(s); Flow video {b['video']}"
                                                 f" -> {a['video']}, Flow image {b['image']} -> {a['image']}.\n"))
+                if enoch_template:  # last, like Modern Tech's pass: it can only remove Flow work, never add it
+                    self._enoch_template_refine(plan, script)
                 self._enrich_entity_prompts(plan)
                 n_flow_v = sum(
                     1
@@ -8584,6 +8682,22 @@ class VideoGeneratorApp(ctk.CTk):
             )
         return VisualPlan(topic="Claude CSV", scenes=scenes)
 
+    def _enoch_template_refine(self, plan, script: str, csv_rows=None) -> None:
+        """Enoch Template's own pass on either planning path (VisualDirector plan or imported CSV): relevance reasons, the
+        AI ceiling and run limit, motifs, cards (installed in the project's Images folder), claim and structure checks.
+        Writes state/enoch_template/plan_report.json. It never adds Flow work; a failure leaves the plan as it was."""
+        ws = self._workspace
+        lines: list = []
+        try:
+            from ancient_texts.integration import refine
+
+            refine(plan, ws, script=script or "", images_dir=ws.assets_dir if ws is not None else None, csv_rows=csv_rows,
+                   log=lines.append)
+        except Exception as exc:
+            lines.append(f"[ENOCH TEMPLATE] Refine skipped ({exc})")
+        if lines:
+            self.after(0, lambda t="\n".join(lines): self._append_log(t + "\n"))
+
     def _enrich_entity_prompts(self, plan) -> int:
         """Recurring figures (style_engine/entities.py): only for a project whose chosen style defines them (Book of
         Enoch); appends their canonical descriptions to the AI prompts of the scenes that name them, before the CSV is
@@ -8638,6 +8752,8 @@ class VideoGeneratorApp(ctk.CTk):
                     scene.visual_description = prompt
 
         mixed = apply_asset_mix_to_plan(plan, mix)
+        if _enoch_template_active(self):
+            self._enoch_template_refine(mixed, self._main_script_text(), csv_rows=rows)
         self._enrich_entity_prompts(mixed)
         mixed.write_csv(csv_path)
         self._visual_plan = mixed
@@ -13226,6 +13342,7 @@ class VideoGeneratorApp(ctk.CTk):
             "zoom_amount": self.ken_burns_zoom_amount(),
             "smart_editing": self._render_smart_editing_settings(),
             "resolution": "3840x2160" if self._export_pixel_scale() == 2 else "1920x1080",
+            "enoch_template": _enoch_template_active(self),
         }, None
 
     # ---------- generate ----------
@@ -13465,6 +13582,10 @@ class VideoGeneratorApp(ctk.CTk):
             scene_rows = [SceneRow.from_csv_row(r) for r in config["rows"]]
             if getattr(self, "_visual_plan", None) is not None:
                 scene_rows = self._visual_plan.to_scene_rows()
+            if config.get("enoch_template"):  # a card is the scene's own numbered file: its CSV `local` row, never a stock search
+                from ancient_texts.integration import csv_local_rows_win
+
+                scene_rows = csv_local_rows_win(scene_rows, config["rows"])
             # Surgical regeneration: what this run has to rebuild, from the dependency graph (narration timing is only
             # known after alignment — refined below before rendering).
             _pgraph, _pplan = _pregen.prepare(
@@ -14046,14 +14167,21 @@ class VideoGeneratorApp(ctk.CTk):
                 transition_by_scene=transition_map if transition_map else None,
                 camera_by_scene=camera_map if camera_map else None,
                 edit_decisions_by_scene=edit_decision_map or None,
-                editorial_timeline=editorial_timeline_for_render(
+                editorial_timeline=_enoch_template_timeline(self, config, editorial_timeline_for_render(
                     editorial_plan, graphics=bool(smart_cfg.graphics), map_niche=bool(smart_cfg.map_niche),
-                ),
+                )),
                 render_cache_state_dir=state_dir,
                 perf=perf,
                 progress_cb=_progress_cb,
             )
             ledger.complete(_render_job.id, outputs=[config["output_path"]])
+            if config.get("enoch_template"):  # opt-in audio finishing + QC report, this style only
+                try:
+                    from ancient_texts.integration import finish_render as _enoch_finish
+
+                    _enoch_finish(config["output_path"], self._workspace, log=print)
+                except Exception as exc:
+                    print(f"[ENOCH TEMPLATE] Finishing skipped ({exc})")
             if perf is not None:
                 _pevents.emit("render", **_pregen.render_stats(perf, video_s=float(audio_end), fps=30,
                                                                  clips_total=len(aligned)))

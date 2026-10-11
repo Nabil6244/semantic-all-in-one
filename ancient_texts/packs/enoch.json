@@ -1,0 +1,130 @@
+{
+ "pack_id": "enoch",
+ "schema_version": 1,
+ "subject": "1 Enoch (the Book of Enoch)",
+ "style_id": "enoch_template",
+ "about": "Data for the Enoch subject of the ancient-texts production core. Data only: no claim in this file is asserted as fact. Figures, artwork searches and search terms that the style engine reads live in styles/enoch_template.json; this file holds the subject knowledge the later phases need (topic words, document and place words, scholars' names, anchor-image seeds, research watch-list) in a form a new subject pack (Jubilees, Dead Sea Scrolls, ...) can copy.",
+ "subject_terms": [
+  "enoch", "enoc", "henoc", "hénoc", "1 enoch", "book of enoch", "libro de enoc", "livre d'hénoch", "buch henoch", "ethiopic enoch", "enoc etiope"
+ ],
+ "document_terms": [
+  "manuscript", "manuscrito", "scroll", "rollo", "papyrus", "papiro", "fragment", "fragmento", "codex", "códice", "parchment",
+  "pergamino", "bible", "biblia", "edition", "edición", "translation", "traducción", "copy", "copias", "page", "página", "text", "texto"
+ ],
+ "place_terms": [
+  "mount hermon", "hermon", "qumran", "qumrán", "dead sea", "mar muerto", "judean desert", "desierto de judea", "axum", "aksum",
+  "lalibela", "lake tana", "ethiopia", "etiopía", "jerusalem", "jerusalén", "tigray"
+ ],
+ "scholars": [
+  {
+   "name": "John J. Collins",
+   "aliases": ["John Collins", "J. J. Collins"],
+   "credential": null,
+   "credential_source_id": null,
+   "note": "Name seen in the reference video. Credentials are deliberately not stored here: a card shows a credential only when a claims-ledger source backs it."
+  },
+  {
+   "name": "George W. E. Nickelsburg",
+   "aliases": ["George Nickelsburg", "Nickelsburg", "Nicholsburg", "Nickelsburgh"],
+   "credential": null,
+   "credential_source_id": null,
+   "note": "Name seen in the reference video (transcription variants listed as aliases). No credential stored."
+  },
+  {
+   "name": "James C. VanderKam",
+   "aliases": ["James VanderKam", "VanderKam", "Van Der Kam", "Vanderkam"],
+   "credential": null,
+   "credential_source_id": null,
+   "note": "Name seen in the reference video. No credential stored."
+  },
+  {
+   "name": "Margaret Barker",
+   "aliases": ["Barker"],
+   "credential": null,
+   "credential_source_id": null,
+   "note": "Name seen in the reference video. No credential stored."
+  },
+  {
+   "name": "Gabriele Boccaccini",
+   "aliases": ["Boccaccini", "Boccacini", "Boca Cini", "Bocaccini"],
+   "credential": null,
+   "credential_source_id": null,
+   "note": "Name seen in the reference video. No credential stored."
+  }
+ ],
+ "anchor_motifs": [
+  {
+   "id": "ethiopic_manuscript",
+   "concept_terms": ["ethiopic", "ge'ez", "geez", "etiope", "etiopía", "ethiopia"],
+   "query": "Ethiopic Enoch manuscript Ge'ez",
+   "kind": "document"
+  },
+  {
+   "id": "dead_sea_fragment",
+   "concept_terms": ["dead sea", "mar muerto", "qumran", "qumrán", "fragment", "fragmento", "scroll", "rollo"],
+   "query": "Dead Sea Scrolls fragment Qumran",
+   "kind": "document"
+  },
+  {
+   "id": "greek_text",
+   "concept_terms": ["greek", "griego", "septuagint", "septuaginta", "papyrus", "papiro"],
+   "query": "Greek papyrus manuscript",
+   "kind": "document"
+  },
+  {
+   "id": "isaiah_scroll",
+   "concept_terms": ["isaiah", "isaías", "isaias"],
+   "query": "Great Isaiah Scroll",
+   "kind": "document"
+  },
+  {
+   "id": "enoch_in_art",
+   "concept_terms": ["enoch", "enoc", "son of man", "hijo del hombre", "throne", "trono"],
+   "query": "William Blake Book of Enoch drawing",
+   "kind": "artwork"
+  }
+ ],
+ "source_notes": [
+  "Leon Levy Dead Sea Scrolls Digital Library (Israel Antiquities Authority) images need permission; use Wikimedia Commons or other open-access photographs instead (see docs/styles/book_of_enoch_visual_guide.md).",
+  "Check each Commons, museum and Internet Archive item's own rights statement before use; 'mostly public domain' is not a licence.",
+  "R. H. Charles' 1912 translation is public domain and is the usual source for on-screen quotations; any quotation must still be matched exactly against the edition cited."
+ ],
+ "research_watch_list": [
+  {
+   "id": "W-01",
+   "topic": "Which parts of 1 Enoch the Qumran copies contain",
+   "prompt": "Check which sections of 1 Enoch are attested among the Qumran Aramaic copies, and whether the Similitudes (chapters 37-71) are among them, before any script line links the Qumran copies to the Son of Man chapters.",
+   "status": "to_verify"
+  },
+  {
+   "id": "W-02",
+   "topic": "Dating of the Similitudes",
+   "prompt": "Find how scholars date the Similitudes of Enoch and which dates are disputed; state the range and the disagreement, not a single date.",
+   "status": "to_verify"
+  },
+  {
+   "id": "W-03",
+   "topic": "Chapter 71 and the identity of the Son of Man",
+   "prompt": "Check how scholars read 1 Enoch 71, including whether it is considered a later addition, before saying who the Son of Man is.",
+   "status": "to_verify"
+  },
+  {
+   "id": "W-04",
+   "topic": "4Q246 ('Son of God' fragment)",
+   "prompt": "Check the competing readings of 4Q246 (a messianic figure, a king, another figure) and how the text is dated; label the reading used as interpretation.",
+   "status": "to_verify"
+  },
+  {
+   "id": "W-05",
+   "topic": "Silence about the Temple's destruction as dating evidence",
+   "prompt": "Check who makes the argument that a text which never mentions the destruction of the Temple in 70 CE predates it, what it shows and what it does not, and the standard objections.",
+   "status": "to_verify"
+  },
+  {
+   "id": "W-06",
+   "topic": "Ethiopian church custody and canon history",
+   "prompt": "Find a source for any statement about how long a church has guarded a manuscript, when the book left other canons, or what the Ethiopian Orthodox canon contains; do not state durations or dates without a source and locator.",
+   "status": "to_verify"
+  }
+ ]
+}

@@ -1,0 +1,130 @@
+{
+ "profile_id": "enoch_ref_01",
+ "about": "Observations of one reference video (14:44, Spanish narration), measured locally on 2026-10-11. They DESCRIBE that video; they are not requirements. 'basis' says how each number was obtained: measured (script on the file), estimate (hand labelling of 167 mid-shot frames), hypothesis (not established).",
+ "observations": {
+  "shot_median_s": {
+   "value": 5.1,
+   "basis": "measured",
+   "note": "167 shots after merging changes under 0.6 s"
+  },
+  "shots_per_minute": {
+   "value": 11.3,
+   "basis": "measured"
+  },
+  "words_per_minute_speech": {
+   "value": 130,
+   "basis": "measured",
+   "note": "98 including pauses"
+  },
+  "cuts_in_phrase_gaps": {
+   "value": 0.8,
+   "basis": "measured",
+   "note": "Whisper word timings, ±0.1-0.3 s"
+  },
+  "cut_lead_before_word_s": {
+   "value": 0.48,
+   "basis": "measured"
+  },
+  "integrated_lufs": {
+   "value": -18.7,
+   "basis": "measured"
+  },
+  "loudness_range_lu": {
+   "value": 5.3,
+   "basis": "measured"
+  },
+  "true_peak_dbtp": {
+   "value": 0.7,
+   "basis": "measured",
+   "note": "over 0 dBTP: a defect, not a target"
+  },
+  "share_documents": {
+   "value": 0.36,
+   "basis": "estimate"
+  },
+  "share_cards": {
+   "value": 0.26,
+   "basis": "estimate"
+  },
+  "share_artwork": {
+   "value": 0.12,
+   "basis": "estimate"
+  },
+  "share_real_world": {
+   "value": 0.13,
+   "basis": "estimate"
+  },
+  "share_ai": {
+   "value": 0.08,
+   "basis": "estimate"
+  },
+  "still_zoom_percent_per_s": {
+   "value": 1.3,
+   "basis": "hypothesis"
+  },
+  "music_policy": {
+   "value": "unknown",
+   "basis": "hypothesis",
+   "note": "no listening pass yet; pauses fall to about -42 dB"
+  }
+ },
+ "style_targets": {
+  "shot_median_s": {
+   "band": [
+    4.0,
+    6.0
+   ],
+   "class": "soft"
+  },
+  "longest_shot_s": {
+   "max": 9.0,
+   "class": "soft"
+  },
+  "integrated_lufs": {
+   "band": [
+    -17.5,
+    -14.5
+   ],
+   "class": "soft"
+  },
+  "true_peak_dbtp": {
+   "max": -1.0,
+   "class": "hard"
+  },
+  "card_share": {
+   "band": [
+    0.08,
+    0.35
+   ],
+   "class": "soft"
+  },
+  "context_shot_share": {
+   "max": 0.15,
+   "class": "soft"
+  },
+  "av_duration_delta_s": {
+   "max": 0.15,
+   "class": "hard"
+  }
+ },
+ "visual_mix": {
+  "_about": "Soft, configurable balance targets for Enoch Template (ancient_texts/visual_mix.py). Shares are of all scenes; unresolved scenes are counted separately and never as visuals. Reported, never enforced by inserting pictures.",
+  "text_card": {
+   "target": [
+    0.15,
+    0.2
+   ],
+   "warn": [
+    0.25,
+    0.3
+   ]
+  },
+  "ai_reconstruction": {
+   "max": 0.12
+  },
+  "consecutive_text_cards": {
+   "warn_run": 2,
+   "strong_run": 3
+  }
+ }
+}

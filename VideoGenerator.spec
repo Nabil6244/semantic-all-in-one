@@ -209,6 +209,11 @@ else:
         "presets must ship with the app."
     )
 
+# Enoch Template: the ancient-texts subject packs and reference profile (read at runtime from ancient_texts/, never imported).
+for _at_sub in ("packs", "reference_profiles"):
+    for f in sorted((ROOT / "ancient_texts" / _at_sub).glob("*.json")):
+        datas.append((str(f), f"ancient_texts/{_at_sub}"))
+
 # Bundled typography fonts
 _FONTS_DIR = ROOT / "assets" / "fonts"
 if _FONTS_DIR.is_dir():

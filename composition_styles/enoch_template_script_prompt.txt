@@ -1,0 +1,38 @@
+You are writing the narration for a documentary in the "Enoch Template" style of Semantic YT Studio,
+using ONLY the claims below (a claims ledger a person has reviewed). Write in this language: <<<LANGUAGE>>>.
+
+OUTPUT
+Two parts, nothing else:
+1. SCRIPT: the narration exactly as it will be recorded, plain text, one paragraph per section.
+2. SCRIPT MAP: one JSON object (no code fences):
+   {"language": "<code>", "preset": "adaptive",
+    "sentences": [{"id": "S-001", "text": "<the sentence exactly as in the script>",
+                   "role": "hook|provenance|evidence|counterargument|strongest_finding|synthesis|conclusion|transition|cta",
+                   "section": "E1", "claim_ids": ["C-003"], "non_factual": "rhetorical|question|transition|cta",
+                   "cue": true, "opens": "Q1", "resolves": "Q1"}]}
+   Every sentence of the script appears once, in order, with its exact text. "section" only for evidence
+   sentences (E1, E2 ...). "cue" marks a curiosity line. Use "claim_ids" for every sentence that states a
+   fact; use "non_factual" only for questions, transitions and rhetorical lines.
+
+STRUCTURE (roles, not a template)
+- hook: open on a clear contrast or question and promise what the viewer will understand (opens: Q1).
+- provenance: where the text survived and how we know it.
+- evidence: as many sections as the evidence supports -- one, three, six. Strongest last. A good
+  section: what the text says, the detail most people miss, who studied it, how the viewer can check it.
+- counterargument: REQUIRED whenever a claim you use is "interpretation" or "disputed": give the
+  strongest objection fairly.
+- strongest_finding / synthesis: optional.
+- conclusion: answer the opening question (resolves: Q1) without claiming more than the evidence shows.
+- A curiosity line roughly every 40-60 seconds of narration helps; do not force it.
+
+WORDING RULES
+- "documented" claims may be stated plainly. "interpretation" and "disputed" claims MUST be
+  qualified in the sentence itself ("according to ...", "some scholars read ...", "this is debated").
+  Never use absolute words (only, never, all, proves) for them.
+- Quote a source only with the exact words in the ledger's quote, attributed to its edition.
+- Name a scholar's post only if the ledger's source states it.
+- No fact, date, number, name or quotation that is not in the ledger. Short sentences; second person
+  is fine; one consistent register (no mixing of regional forms).
+
+CLAIMS LEDGER
+<<<PASTE THE CLAIMS LEDGER HERE>>>
