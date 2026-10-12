@@ -500,6 +500,10 @@ def _manifest_record_matches_row(rec: dict, scene) -> bool:
     no recorded text (older manifests) is accepted, as before."""
     if rec.get("user_override"):
         return True  # the user's own Alternative/Change Source pick (see AssetManager._mark_user_override)
+    if (getattr(scene, "asset_type", "") or "").strip().lower() in ("local_video", "local_image"):
+        # A local row is READY only with the user's own file (attached, or from the
+        # Local Assets folder) — never a Flow/stock file made before the CSV changed.
+        return str(rec.get("source") or "local") in (AssetSource.LOCAL.value, AssetSource.MANUAL.value)
     recorded = {str(rec.get("prompt") or "").strip(), str(rec.get("stock_query") or "").strip()} - {""}
     wanted = (getattr(scene, "prompt", "") or getattr(scene, "stock", "") or "").strip()
     return not recorded or not wanted or wanted in recorded
@@ -1632,6 +1636,26 @@ class VideoGeneratorApp(ctk.CTk):
         self._bind_responsive_wrap(self._csv_helper_label, pad=24)
         self._build_csv_prompt_bar(self._csv_block, style="normal", status_var=None, row=3, padx=12, pady=(4, 12))
         self._build_enoch_template_bar(self._csv_block, row=4)
+        ctk.CTkLabel(
+            self._csv_block, text="Local video folder (optional)",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=_TEXT, anchor="w",
+        ).grid(row=5, column=0, sticky="w", padx=12, pady=(0, 0))
+        self._path_row(
+            6, "", self.local_assets_var, self._browse_csv_local_video_folder,
+            parent=self._csv_block,
+            placeholder_text="Folder with 001.mp4, 105.mp4, … for local_video rows",
+        )
+        local_folder_hint = ctk.CTkLabel(
+            self._csv_block,
+            text=(
+                "Files match the CSV scene number (105.mp4 → scene 105), only for local_video / "
+                "local_image rows. Clips you attached with Local clip are kept."
+            ),
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=220,
+            justify="left", anchor="w",
+        )
+        local_folder_hint.grid(row=7, column=0, sticky="ew", padx=12, pady=(2, 12))
+        self._bind_responsive_wrap(local_folder_hint, pad=24)
         self._csv_block.grid_remove()
 
         self._ai_block = ctk.CTkFrame(
@@ -7964,6 +7988,89 @@ class VideoGeneratorApp(ctk.CTk):
         self._refresh_local_asset_check()
         self._append_log(f"[LOCAL] Assets folder: {picked}\n")
 
+    def _browse_csv_local_video_folder(self) -> None:
+        """AI / Cloud → Import CSV: optional folder of numbered files for the CSV's local_video / local_image rows."""
+        if not self._require_workspace("choose a local video folder"):
+            return
+        initial = self.local_assets_var.get().strip() or str(self._workspace.root)
+        picked = filedialog.askdirectory(title="Choose local video folder", initialdir=initial or None)
+        if not picked:
+            return
+        self.local_assets_var.set(picked)
+        self._append_log(f"[LOCAL] Local video folder: {picked}\n")
+        self._match_local_video_folder()
+
+    def _match_local_video_folder(self) -> None:
+        """Match the folder's numbered files to this plan's local rows now, by each row's own scene number.
+
+        Only rows the CSV already marks local_video / local_image are touched; a clip attached with Local clip is kept
+        (AssetManager reuses MANUAL records), and a scene with no file in the folder shows NEEDS ACTION."""
+        if self._running:
+            self._append_log("[LOCAL] Folder will be used for local scenes when this run resolves them.\n")
+            return
+        scenes = [
+            s for s in self._scene_rows
+            if s.wants_local_numbered and _scene_key(s.scene_number) not in self._busy_scenes
+        ]
+        if not scenes:
+            return
+        if not self.images_var.get().strip():
+            self._sync_images_dir()
+        images_dir = self._scene_action_images_dir()
+        tokens: dict[str, int] = {}
+        for scene in scenes:
+            key = _scene_key(scene.scene_number)
+            tokens[key] = self._qa.begin_job(key, "adding_local")
+            self._busy_scenes.add(key)
+            self._set_scene_status(scene.scene_number, "adding_local")
+        self._paint_qa_chrome()
+        self._append_log(f"[LOCAL] Matching {len(scenes)} local scene(s) to the folder by scene number…\n")
+
+        def worker() -> None:
+            old_out, old_err = sys.stdout, sys.stderr
+            writer = _QueueWriter(self._ui_queue)
+            sys.stdout = writer
+            sys.stderr = writer
+            try:
+                try:
+                    mgr = self._ensure_asset_manager(images_dir)
+                except Exception as exc:
+                    mgr, setup_error = None, str(exc)
+                for scene in scenes:
+                    key = _scene_key(scene.scene_number)
+                    if mgr is None:
+                        result = AssetResult(
+                            scene.scene_number, None, None, AssetSource.LOCAL,
+                            SceneStatus.NEEDS_ACTION, error=setup_error,
+                        )
+                    elif not mgr.with_source_override(scene).wants_local_numbered:
+                        # Change Source moved this scene off local; leave it as it is.
+                        result = self._asset_results.get(key)
+                    else:
+                        try:
+                            result = mgr.resolve_scene(scene)
+                        except Exception as exc:
+                            result = AssetResult(
+                                scene.scene_number, None, None, AssetSource.LOCAL,
+                                SceneStatus.NEEDS_ACTION, error=str(exc),
+                            )
+                        try:
+                            self._mirror_result_into_workspace(result, sync_state=False)
+                        except Exception:
+                            pass
+                    self._ui_queue.put(("scene_result", (scene.scene_number, tokens.get(key, 0), result)))
+            finally:
+                writer.flush()
+                sys.stdout = old_out
+                sys.stderr = old_err
+                try:
+                    if self._workspace is not None:
+                        self._workspace.sync_state_copies()
+                except Exception:
+                    pass
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _refresh_local_asset_check(self) -> None:
         """Lightweight CSV ↔ folder status for the Local Assets panel."""
         if getattr(self, "_local_check_var", None) is None:
@@ -13300,7 +13407,13 @@ class VideoGeneratorApp(ctk.CTk):
         n_scenes = len(rows)
         scene_rows = [SceneRow.from_csv_row(r) for r in rows]
 
-        if any(s.wants_local_numbered for s in scene_rows) or self._production_mode_is_local():
+        # Local Assets production mode is built around the folder, so it stays
+        # required there. In AI / Cloud mode local_video rows are per scene: an
+        # attached clip (Local clip) already covers its scene, and a scene with no
+        # file yet becomes NEEDS ACTION when assets resolve — it must not stop
+        # the Flow / stock scenes from generating. Render still refuses to start
+        # until every scene is ready (summarize_assets → allow_render).
+        if self._production_mode_is_local():
             if self._local_assets_dir() is None:
                 return None, (
                     "Choose a Local Assets folder containing numbered files "

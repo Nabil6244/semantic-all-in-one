@@ -62,7 +62,10 @@ class LocalProvider(AssetProvider):
         kind = media_kind_for_asset_type(scene.asset_type)
         assert kind is not None
         search_dir = self.library_dir if self.library_dir is not None else Path(images_dir)
-        match, issue = find_numbered_asset(search_dir, scene.scene_number, kind)
+        # Images/ holds the app's own NNN_manual / NNN_replaced copies: exact names only there.
+        match, issue = find_numbered_asset(
+            search_dir, scene.scene_number, kind, allow_prefixed=self.library_dir is not None
+        )
         if issue is not None or match is None:
             err = issue.reason if issue is not None else "Local asset not found"
             return AssetResult(

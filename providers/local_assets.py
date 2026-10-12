@@ -147,6 +147,8 @@ def find_numbered_asset(
     folder: Path,
     scene_number: str,
     media_kind: str,
+    *,
+    allow_prefixed: bool = True,
 ) -> tuple[Optional[LocalAssetMatch], Optional[LocalAssetIssue]]:
     """Resolve Scene N to exactly one file of the requested media kind.
 
@@ -157,6 +159,10 @@ def find_numbered_asset(
     Extra files for other scene numbers are ignored. Wrong media type for this
     scene number is a typed error (never silently substituted). Multiple files
     of the same kind for the same numeric identity are ambiguous.
+
+    ``allow_prefixed=False`` matches exact stems only — for the project's own
+    Images/ folder, where ``001_manual`` / ``001_replaced`` / ``001_b`` are the
+    app's archive and complement copies, not scene 1's file.
     """
     folder = Path(folder)
     stem = expected_stem(scene_number)
@@ -203,7 +209,7 @@ def find_numbered_asset(
         other_kind.extend(ok)
 
     # Fall back to N_… prefixed exports only when no exact stem matched.
-    if not same_kind and not other_kind:
+    if allow_prefixed and not same_kind and not other_kind:
         prefixed: List[Path] = []
         for file_stem, paths in by_stem.items():
             if file_stem in exact_stems:

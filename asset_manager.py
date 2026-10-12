@@ -448,8 +448,22 @@ class AssetManager:
     def _cache_hit(self, scene: SceneRow, source: AssetSource) -> Optional[AssetResult]:
         """LOCAL is never cache-shortcut (it's a free lookup and must never be treated
         as something we could delete/replace); STOCK/FLOW are cached against the
-        prompt/query that produced them, and only count if the file is still there."""
+        prompt/query that produced them, and only count if the file is still there.
+
+        One LOCAL exception: on a local_video / local_image row, a file the user
+        attached with "Local clip" (a complete MANUAL record) is reused as-is.
+        Re-running the numbered lookup instead replaced it with the Local Assets
+        folder's NNN.mp4, or failed the scene when the folder had no file for it.
+        Legacy ``local`` rows keep their plain Images/ lookup."""
         if source == AssetSource.LOCAL:
+            record = self.manifest.get(scene.scene_number)
+            if (
+                scene.wants_local_numbered
+                and record
+                and record.get("status") == "complete"
+                and record.get("source") == AssetSource.MANUAL.value
+            ):
+                return self._result_from_complete_record(scene, record)
             return None
         record = self.manifest.get(scene.scene_number)
         if not asset_record_matches(record, scene, source):
@@ -1034,6 +1048,8 @@ class AssetManager:
             return self._store_failure(
                 scene, source, f"{source.value} provider is not configured for this run."
             )
+        if source == AssetSource.LOCAL:
+            self._set_aside_generated_media(scene)
         self._apply_coverage_context(scene, provider)
         for p in (
             self.youtube_provider,
@@ -1121,6 +1137,36 @@ class AssetManager:
         self._record_failed_approach(scene, source, result)
         self._finalize(scene, result)
         return result
+
+    def _set_aside_generated_media(self, scene: SceneRow) -> None:
+        """A local_video / local_image row must never be satisfied by media a cloud provider made for this scene
+        earlier (e.g. the CSV said flow_video before it was changed to local_video): with no Local Assets folder the
+        numbered lookup searches Images/ and would take that Flow clip as the "local" file and show READY.
+
+        The generated file is renamed to ``NNN_replaced.ext`` (kept, never deleted; the renderer ignores it) so the
+        scene resolves to the user's own file or to an accurate NEEDS ACTION."""
+        if not scene.wants_local_numbered:
+            return
+        record = self.manifest.get(scene.scene_number) or {}
+        prior = str(record.get("source") or "")
+        if not prior or prior in (AssetSource.LOCAL.value, AssetSource.MANUAL.value):
+            return
+        try:
+            n = int(str(scene.scene_number).strip())
+        except ValueError:
+            return
+        from manual_clip import _unique_name
+
+        while True:
+            existing = vg.find_image_for_scene(self.images_dir, scene.scene_number)
+            if existing is None:
+                break
+            backup = _unique_name(self.images_dir, f"{n:03d}_replaced", existing.suffix.lower())
+            existing.replace(backup)
+            self.log(
+                f"[ASSET] Scene {scene.scene_number}: {prior} file set aside as {backup.name} "
+                f"(this scene is {scene.asset_type}; it needs your own file)"
+            )
 
     # ---------- public API ----------
 
