@@ -80,6 +80,47 @@ def relevance_problems(plan) -> List[str]:
     return out
 
 
+PLACE_WORDS = {"on", "in", "over", "across", "along", "at", "near", "through", "by", "down", "into", "above", "under", "beside"}
+
+
+def _trimmed(req: str) -> str:
+    """The request without the setting it adds: cut before the place phrase that names it ("heavy rain falling on a quiet
+    residential street" -> "heavy rain falling"); '' when the setting is the subject itself ("palm trees ...")."""
+    marks = set().union(*(m for m, _a in SETTINGS.values()))
+    toks = str(req).split()
+    first = next((i for i, w in enumerate(toks) if w.lower().strip(".,;:!?\"'") in marks), None)
+    if first is None:
+        return req
+    cut = next((i for i in range(first - 1, -1, -1) if toks[i].lower() in PLACE_WORDS), None)
+    return " ".join(toks[:cut]) if cut is not None and cut >= 2 else ""
+
+
+def fix_relevance(plan, notes: Optional[List[str]] = None) -> int:
+    """Every stock clip or card that contradicts its beat's narration gets a request that does not (in place), so the render
+    never stops for it: the request without its setting, else one built from the beat's own words (cutaways.request_for), else
+    it is kept as written with a note. Returns how many were changed."""
+    from .cutaways import request_for
+
+    notes = notes if notes is not None else []
+    changed = 0
+    for b in plan.beats:
+        if not b.narration:
+            continue
+        for item in list(b.clips) + list(b.cards):
+            req = _request(item.asset)
+            if req is None or not conflicts(req, b.narration):
+                continue
+            kind = str(item.asset).partition(":")[0]
+            new = next((r for r in (_trimmed(req), request_for(b.narration)) if r and not conflicts(r, b.narration)), None)
+            if new is None:
+                notes.append(f"beat {b.id}: footage {req!r} may not match the narration; kept as written")
+                continue
+            item.asset = f"{kind}:{new}"
+            changed += 1
+            notes.append(f"beat {b.id}: footage {req!r} did not match the narration, so it asks for {new!r} instead")
+    return changed
+
+
 FRAMINGS = ("", "close up", "wide shot", "aerial view")
 
 

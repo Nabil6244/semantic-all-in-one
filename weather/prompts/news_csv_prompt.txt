@@ -7,20 +7,38 @@ Mesonet). YOU NEVER WRITE A WEATHER NUMBER: wind speeds, categories, counts and 
 (data_source), at render time.
 
 You will be given: the script (exactly as the narrator will read it), and the event's name, dates and places.
+If THE EVENT line is missing or not filled in, read the event from the script itself: its first sentences give the
+date (weekday, month, day, year) and the states and places. Turn the date into the UTC window yourself: a storm day is
+<date>T10:00Z..<next day>T04:00Z unless the script gives other times (Eastern time + 4 hours = UTC in summer, + 5 in winter).
 
-OUTPUT
-Exactly two CSV files, each introduced by its own marker line, nothing else: no explanations, no code fences,
-no blank lines. Quote any cell that contains a comma ("Fort Myers, FL") and double the quotes inside JSON cells.
+THE DATA IS THE POINT OF THIS VIDEO. Never leave the weather graphics out because a date or a window was not given:
+work it out from the script as above. Every News plan has at least:
+  - a radar loop AND a warnings_archive with the SAME window, on the map beat where the storm moves or warnings go out
+  - for tornadoes or severe storms: storm_reports and a counter (spc:reports@<date>#tornado) where reports or
+    surveys are mentioned
+  - for a hurricane: storm_track (best track) and storm_cone, from the storm id (AL + number + year, as AL092022)
+  - a satellite picture of the event day (gibs:geocolor@<date>T18:00Z), not "latest", unless the story is today
+  - a source_line in every beat that shows data, 2 to 4 place_labels, and headlines with "tone": "news"
 
-=== beats.csv ===
-(a Hybrid beat CSV: the header and rows below)
-=== weather_layers.csv ===
-(the weather layers: the header and rows below)
+OUTPUT: ONE CSV FILE, plan.csv (one table, one header)
+If you can create files, create plan.csv with the whole plan in it. Otherwise answer with the CSV only, inside one
+```csv block, with no words before or after it. No blank lines, no comments.
+Quote any cell that contains a comma ("Fort Myers, FL") and double the quotes inside JSON cells.
+
+HEADER (exactly this, 24 columns):
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why,data_source,extra
+
+The plan has two kinds of rows, written together in ONE table:
+  PART A  the story and the camera   row = beat, layer, clip (or camera)
+  PART B  the weather graphics       row = weather
+Each beat's row=beat comes first, then ITS OWN layer, clip and weather rows, then the next beat.
+Every row has exactly 24 cells. PART A rows leave the last two cells (data_source, extra) empty.
+A row=weather row fills ONLY beat, row, vo_anchor, type, id, place, until, hold, data_source and extra, every
+other cell is empty. Copy this pattern and replace the <...> parts (an unused one becomes empty):
+<beat>,weather,<vo_anchor>,,<type>,<id>,<place>,,,,,,,,,,,<until>,<hold>,,,,<data_source>,<extra>
 
 -------------------------------------------------------------------------------------------------------------
-FILE 1: beats.csv  (the story and the camera)
-HEADER (exactly this)
-beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+PART A: the story and the camera (row = beat, layer, clip)
 
 - row=beat opens a beat (b1, b2, b3 ... in order). One beat per part of the story:
     text       the beat's narration, copied EXACTLY from the script (every word, in order)
@@ -44,14 +62,12 @@ Keep beats 8 to 25 seconds. Typical order: the setup (outlook) -> the storm (tra
 (radar + warnings) -> what it brought (counters) -> what comes next.
 
 -------------------------------------------------------------------------------------------------------------
-FILE 2: weather_layers.csv  (the weather graphics)
-HEADER (exactly this)
-beat,vo_anchor,t,id,type,place,data_source,hold,until,extra
+PART B: the weather graphics (row = weather, in the same table)
 
 Every row:
-    beat         the beat it belongs to (b1, b2 ... from beats.csv)
+    beat         the beat it belongs to (b1, b2 ...); the row sits under that beat
+    row          weather
     vo_anchor    2 to 5 words copied from THAT BEAT'S text: the graphic appears when they are spoken
-    t            leave empty
     id           a short unique id (rad1, cone24, ew_count ...)
     place        the state or region the beat looks at (Florida, Kansas ...)
     hold, until  leave empty unless the graphic must leave sooner (hold = seconds)
@@ -94,3 +110,41 @@ RULES
   ("Ian" can come out as "iain"): anchor on other words.
 - Do not crowd the screen: one radar or satellite loop, one cone and track, one counter at a time.
 - Every beat that shows data also has a source_line.
+
+-------------------------------------------------------------------------------------------------------------
+BEFORE YOU ANSWER: CHECK EVERY ROW (the app refuses a plan that breaks any of these, and names the row)
+1. Output: ONE CSV (plan.csv): the 24-column header exactly as given, then every row. No other text in the
+   file, no blank lines, no comments.
+2. Every row has exactly as many cells as its header (count the commas). Empty cells stay empty: ,, .
+3. Quoting: a cell with a comma, a quote or JSON is wrapped in double quotes, and every double quote INSIDE it is
+   doubled. Right: "{""text"": ""Fort Myers""}"   Right: "Dallas, TX"   Wrong: {"text": "Fort Myers"}
+   The extra cell is one JSON object ({...}), with double-quoted keys and strings, or empty.
+4. Beat ids b1, b2, b3 ... in order. Each beat's row=beat comes first, then that beat's own
+   layer/clip/camera rows, before the next beat starts. row is one of: beat, layer, clip, camera, weather.
+   mode is map or footage. Every word of the script appears in exactly one beat's text, in order.
+5. vo_anchor (every row): 2 to 5 words copied CHARACTER FOR CHARACTER from that beat's own text, with the same
+   punctuation. Never put a number, a date, a time or a storm's name in a vo_anchor (the transcriber writes those
+   its own way): anchor on plain words next to them. Inside one beat, rows go in the order their words are spoken.
+6. weather rows: every id is unique in the file (short, letters/digits/underscores). Every beat named exists
+   and the row sits under it. hold is empty or a number of seconds; until is empty, beat_end or end.
+7. type is one of the types listed above, and its data_source is copied from the pattern shown for it (the same
+   provider:product@target#selector shape). Types listed with "no data_source" have that cell empty.
+8. extra holds ONLY the keys its type accepts (any other key is refused):
+     radar             date, frames, legend, opacity, provider, tz
+     satellite_loop    frames, opacity, tz
+     storm_cone        coast, legend, opacity, tz
+     storm_track       draw_s, label_times, labels, tz
+     spc_outlook       legend, opacity, tz
+     storm_reports     legend, tz
+     wpc_ero           legend, opacity, tz
+     warnings_archive  legend, opacity, states, tz
+     counter           anchor, count_s, label, states, sub, tz
+     headline          kicker, sub, title, tone
+     place_label       text
+     footage_credit    text
+     source_line       text, tz
+9. Weather layers never belong to a footage beat (only footage_credit does). source_line rows have no place and no
+   data_source. A place that names a city is written "City, ST" and must be the same city as its data_source.
+10. Never type a weather value (a temperature, rain total, wind speed, category, count, crest or record) in any
+   cell: those come from the data_source. Numbers that are settings (hold seconds, frames, bbox, switch) and dates
+   in a data_source, a headline sub or a credit text you were given are fine.

@@ -15,5 +15,5 @@ and full-screen footage carries the sentences that describe what the weather loo
   (file paths) are still preferred where the user gave them.
 - A footage beat of 9 seconds or more may have two clip rows (two angles of the same subject); the app also cuts a long
   single stock shot into ~5 s shots itself.
-- Weather layers (FILE 2) still never belong to a stock footage beat: move a layer's vo_anchor to its map beat.
+- Weather layers (row=weather) still never belong to a stock footage beat: move a layer's vo_anchor to its map beat.
 - The first beat (the title) stays a map beat.

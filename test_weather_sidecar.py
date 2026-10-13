@@ -104,6 +104,16 @@ class Timing(unittest.TestCase):
         self.assertEqual(w["c"], Window(0.5, 2.5))               # hold
         self.assertEqual(w["d"].t_out, plan.duration)            # until end
 
+    def test_a_word_the_transcriber_dropped_does_not_stop_the_plan(self):
+        plan = small_plan(WORDS)
+        rows = parse_sidecar(HEAD + "b1,A good morning everyone,,a,satellite,,gibs:geocolor@latest,,end,\n"   # "A" not heard
+                                    'b1,dallas stays very hot,,b,temp_marker,,"nws:forecast@Dallas,TX#day1",,,\n'   # "very" not heard
+                                    "b2,for the dallas,,c,source_line,,,,,\n")   # "the" not heard
+        w = layer_windows(rows, plan, WORDS)
+        self.assertEqual(w["a"].t_in, 0.0)
+        self.assertEqual(w["b"].t_in, 1.5)
+        self.assertEqual(w["c"].t_in, 6.0)          # the dallas inside b2, not the one in b1
+
     def test_words_not_spoken_in_the_beat_or_a_time_outside_it_name_the_row(self):
         plan = small_plan(WORDS)
         with self.assertRaises(SidecarError) as cm:

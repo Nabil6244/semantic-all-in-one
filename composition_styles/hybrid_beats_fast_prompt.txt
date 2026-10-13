@@ -1,0 +1,81 @@
+Write a Hybrid Map BEAT CSV for the script at the bottom. Output ONLY the CSV: no
+explanation, no code fences, no blank lines, no thinking out loud. Quote any cell with a
+comma. Keep asset descriptions short (4 to 10 words).
+
+HEADER (exactly):
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+
+ROW KINDS (beat = b1, b2, b3... ; write each beat row, then its own rows)
+beat   text = the beat's full sentence(s) copied EXACTLY; vo_anchor = first 3-5 words of
+       that text; mode = map | map_footage | footage; map/map_footage beats also need
+       place (country, province, big city or known region) and frame (country|region|local).
+layer  map and map_footage beats only. type = hud_title | marker | zone_label | fill |
+       line | stat | caption (fields below).
+card   map_footage beats only, 1-3 per beat. anchor = tr, ml, br (different for each card
+       in a beat). asset = stock_image:<what to show>. label = SHORT NAME IN CAPS.
+clip   footage beats only, 1-3 per beat. asset = stock_video:<what to show>. why = few words.
+
+LAYER FIELDS
+hud_title  label (PART 1), sub (SHORT SUBTITLE). Never repeat a title.
+marker     place, label (NAME IN CAPS), role = featured
+zone_label place, label
+fill       place must be a country/province/region (never a city, never lat,lon),
+           role = subject | featured | compare | green | water. Never fill the same area twice.
+line       kind = river | flow | rail | border_trace ; place = 2-5 points joined by ;
+           (Maseru;Bloemfontein)
+stat       value_to = the number from the script (digits only), format = text with 0 or #
+           as the number, e.g. "0 MILLION PEOPLE" or "#,##0 KM" (never type the number in
+           format), sub = SHORT LABEL, anchor = br
+caption    text (max 40 characters), anchor = bc
+
+ZERO-ERROR TIMING RULES (a CSV that breaks these does not load)
+1. Joining every beat's text in order must give the script word for word: nothing
+   skipped, repeated, reworded or added. Beats start at a sentence start.
+2. A beat's vo_anchor = the first 3-5 words of its own text. If that phrase appeared
+   earlier in the script, add words until it is unique.
+3. A layer or card vo_anchor = 2-5 words copied exactly from ITS OWN beat's text. If you
+   are not sure, use the beat's own vo_anchor (always safe). Never use words from another
+   beat. Never anchor on "the", "and", "it is" alone.
+4. Copy spelling and numbers exactly as the script writes them. Never cut a number in
+   half: "two thousand kilometres" is fine, "runs two" is not.
+
+PLACES (avoid "place not found")
+- Use only well-known atlas names: countries, provinces/states, capitals, big cities,
+  or these regions: Sahel, Sahara, Amazon, Alps, Himalayas, Great Lakes, Midwest,
+  Middle East, Balkans, Scandinavia, Horn of Africa, continents.
+- Small towns, rivers, mountains, seas: put the marker on the nearest big city or the
+  country instead. Use "lat,lon" only if you know the coordinates for certain.
+- Same area in back-to-back beats = same place, so the camera does not move for nothing.
+
+RHYTHM (keep it simple)
+- Pattern to repeat: map -> map_footage -> footage -> map_footage -> map ...
+- map beat 15-30 words, with 2-3 layers. map_footage beat 15-35 words, 1-3 cards plus
+  1 layer. footage beat 12-30 words, 1-2 clips.
+- First card within the first 2 beats. Footage about 30% of beats.
+- Use footage for things you could film; map for places, sizes, routes, numbers.
+- One hud_title per new part of the story (every 6-10 beats).
+- Only facts, numbers and places that are in the script. No person names or brands in
+  assets. Never invent file names.
+
+LONG SCRIPTS: if you cannot finish, stop at the end of a beat. When asked to continue,
+keep numbering (b41...), no header, start at the very next sentence.
+
+SELF-CHECK SILENTLY, THEN OUTPUT: header exact; every row has 22 cells; every anchor is
+inside its own beat's text; every map/map_footage beat has place + frame; every
+map_footage beat has a card; every footage beat has only clips; no fill on a city.
+
+EXAMPLE
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+b1,beat,Lesotho is a kingdom,map,,,Lesotho,country,,,Lesotho is a kingdom inside South Africa.,,,,,,,,,,,where it is
+b1,layer,Lesotho is a kingdom,,hud_title,,,,PART 1,THE KINGDOM IN THE SKY,,,,,,,,,,,,
+b1,layer,inside South Africa,,fill,,Lesotho,,,,,subject,,,,,,,,,,
+b2,beat,Its capital Maseru sits,map_footage,,,Maseru,region,,,"Its capital Maseru sits on the western border, right on the river.",,,,,,,,,,,the capital
+b2,layer,Its capital Maseru sits,,marker,,Maseru,,MASERU,,,featured,,,,,,,,,,
+b2,card,on the western border,,,,,,MASERU,,,,,,,,tr,,,stock_image:Maseru city view from a hill,,
+b3,beat,Up in the highlands,footage,,,,,,,"Up in the highlands, snow falls every winter.",,,,,,,,,,,feel the winter
+b3,clip,,,,,,,,,,,,,,,,,,stock_video:snow falling on mountain grassland,,the snow
+b4,beat,The river runs,map,,,Lesotho,country,,,The river runs two thousand kilometres to the sea.,,,,,,,,,,,the river
+b4,layer,two thousand kilometres,,stat,,,,,LENGTH,,,,,2000,"#,##0 KM",br,,,,,
+
+SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

@@ -32,6 +32,7 @@
   "composition_styles/enoch_template_script_prompt.txt": "dd7b3ca23fc516a23d391c5441f7f88b7018a82997b273ed615130df745baf65",
   "composition_styles/exp_solar.json": "ce73caeb5c680ee0f300fd935aca58a03948d987ed822a2e3320c612222bbc7d",
   "composition_styles/exp_solar_csv_prompt.txt": "2b9ea39e231b514cbd99d15cd201675aa36b2d20a1ff9dcd9751ea80ba4dcc25",
+  "composition_styles/hybrid_beats_fast_prompt.txt": "0fd9b3d7d9ec1d4e74cd94ae0651e25841e72c7f01781450f8b85793617c03b7",
   "composition_styles/hybrid_beats_prompt.txt": "8a80716f520bf6472ea7cecd32973553353e600e97e4a811e1cc8b99e002f727",
   "composition_styles/hybrid_critic_prompt.txt": "bc38fb7c7d1240906da7f3b57c3e7b56a6f7753920e48f044fac79bac96f65f8",
   "composition_styles/hybrid_csv_prompt.txt": "366c7638ea62e2e39cd2a5464945831016d4377fc996570b923c51309177ed1c",

@@ -100,30 +100,88 @@ def save_state(app, **changes) -> None:
 
 # ---- reading what an AI wrote ---------------------------------------------------------------------------------------------
 
+def _is_layers_csv(text: str) -> bool:
+    """True when `text` starts with a weather_layers.csv header (it names at least beat, id and type)."""
+    first = text.strip().splitlines()[0] if text.strip() else ""
+    return {"beat", "id", "type"} <= {c.strip().lower() for c in first.split(",")}
+
+
 def split_plan_text(text: str) -> Tuple[Optional[str], Optional[str]]:
-    """(beats.csv text, weather_layers.csv text) from what the CSV prompt asks an AI to write: both files, each after its marker
-    line (=== beats.csv === / === weather_layers.csv ===). A file that is only one of them is recognised by its header."""
+    """(beats.csv text, weather_layers.csv text) from what the CSV prompt asks an AI to write: the one-file plan (split_one_file),
+    or the older answer with both files, each after its marker line (=== beats.csv === / === weather_layers.csv ===, each on a
+    line of its own). A file that is only one of them is recognised by its header. A part whose header is not that file's is
+    None (a file that only mentions the markers, like code, is not a plan)."""
     from hybrid.beat_csv import is_beat_csv
 
     from .sidecar import COLUMNS
 
-    t = str(text).lstrip("﻿")
-    if "=== beats.csv ===" in t or "=== weather_layers.csv ===" in t:
-        beats = layers = None
-        part, _, rest = t.partition("=== beats.csv ===")
-        if rest:
-            beats, _, after = rest.partition("=== weather_layers.csv ===")
-            layers = after if after else None
-        else:
-            _, _, layers = part.partition("=== weather_layers.csv ===")
-        clean = lambda s: "\n".join(ln for ln in s.strip().splitlines() if ln.strip() and not ln.strip().startswith("```")) + "\n" if s and s.strip() else None  # noqa: E731
-        return clean(beats), clean(layers)
+    t = str(text).lstrip("\ufeff")
+    one = split_one_file(t)
+    if one is not None:
+        return one
+    lines = t.splitlines()
+    marks = [(i, ln.strip()) for i, ln in enumerate(lines) if ln.strip() in ("=== beats.csv ===", "=== weather_layers.csv ===")]
+    if marks:
+        parts: Dict[str, str] = {}
+        for k, (i, name) in enumerate(marks):
+            body = [ln for ln in lines[i + 1:marks[k + 1][0] if k + 1 < len(marks) else len(lines)]
+                    if ln.strip() and not ln.strip().startswith("```")]
+            if body:
+                parts[name] = "\n".join(body) + "\n"
+        beats, layers = parts.get("=== beats.csv ==="), parts.get("=== weather_layers.csv ===")
+        return (beats if beats and is_beat_csv(beats) else None), (layers if layers and _is_layers_csv(layers) else None)
     first = t.strip().splitlines()[0].strip().lower() if t.strip() else ""
     if is_beat_csv(t):
         return t, None
     if first.replace(" ", "").split(",")[:3] == list(COLUMNS[:3]):
         return None, t
     return None, None
+
+
+WEATHER_ROWS = ("weather", "weather_layer", "wx")   # the row kind of a weather layer in the one-file plan
+
+
+def split_one_file(text: str) -> Optional[Tuple[Optional[str], Optional[str]]]:
+    """The one-file plan: a beat CSV whose header also has data_source (and extra), with the weather layers as row=weather rows.
+    None when `text` is not one. Words around the CSV (a chat answer) and code fences are dropped. Each file keeps every row in
+    its place (the other file's rows left blank), so a problem's row number is that row in the one file."""
+    import csv
+    import io
+
+    from .sidecar import COLUMNS
+
+    lines = str(text).lstrip("﻿").splitlines()
+    start = next((i for i, ln in enumerate(lines) if ln.strip().lower().replace(" ", "").startswith("beat,row,")), None)
+    if start is None:
+        return None
+    body = []
+    for ln in lines[start:]:
+        if ln.strip().startswith("```"):
+            break   # the end of the fenced CSV: what follows is the chat's words
+        body.append(ln)
+    rows = list(csv.reader(io.StringIO("\n".join(body))))
+    head = [c.strip().lower() for c in rows[0]]
+    if "data_source" not in head:
+        return None
+    kind = head.index("row")
+    beat_cols = [i for i, h in enumerate(head) if h != "data_source"]
+
+    def write(out_rows) -> str:
+        buf = io.StringIO()
+        csv.writer(buf, lineterminator="\n").writerows(out_rows)
+        return buf.getvalue()
+
+    beats, layers, any_layer = [[head[i] for i in beat_cols]], [list(COLUMNS)], False
+    for cells in rows[1:]:
+        cell = {h: (cells[i].strip() if i < len(cells) else "") for i, h in enumerate(head) if h}
+        if (cells[kind].strip().lower() if kind < len(cells) else "") in WEATHER_ROWS:
+            layers.append([cell.get(c, "") for c in COLUMNS])
+            beats.append([])
+            any_layer = True
+        else:
+            beats.append([cells[i] if i < len(cells) else "" for i in beat_cols])
+            layers.append([])
+    return write(beats), (write(layers) if any_layer else None)
 
 
 # ---- the card -------------------------------------------------------------------------------------------------------------
@@ -167,10 +225,13 @@ def build(app, parent, *, row: int) -> None:
     ctk.CTkButton(actions, text="Fetch data", width=110, height=36, corner_radius=6, fg_color="transparent", border_width=1,
                   border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
                   command=lambda: fetch(app)).grid(row=0, column=2, padx=(0, 8))
-    app._build_csv_prompt_script_box(actions, row=1, columnspan=3)
+    ctk.CTkButton(actions, text="Copy the script prompt", width=160, height=36, corner_radius=6, fg_color="transparent", border_width=1,
+                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
+                  command=lambda: copy_script_prompt(app)).grid(row=0, column=3, padx=(0, 8))
+    app._build_csv_prompt_script_box(actions, row=1, columnspan=4)
     app._weather_format_var = ctk.StringVar(value=FORMATS["forecast"][0])
     fmt_row = ctk.CTkFrame(actions, fg_color="transparent")
-    fmt_row.grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    fmt_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
     ctk.CTkLabel(fmt_row, text="Format", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
     ctk.CTkSegmentedButton(fmt_row, values=[lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
                            command=lambda _v: on_format(app)).pack(side="left")
@@ -178,7 +239,7 @@ def build(app, parent, *, row: int) -> None:
 
     app._weather_style_var = ctk.StringVar(value=STYLES["classic"])
     style_row = ctk.CTkFrame(actions, fg_color="transparent")
-    style_row.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    style_row.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
     ctk.CTkLabel(style_row, text="Editing style", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
     ctk.CTkSegmentedButton(style_row, values=list(STYLES.values()), variable=app._weather_style_var,
                            command=lambda _v: on_style(app)).pack(side="left")
@@ -227,7 +288,7 @@ def set_text(app, text: str) -> None:
 
 def show_intro(app) -> None:
     set_text(app, "No plan yet.\n\n1. Record your voiceover and choose it on the Script page.\n2. Click Copy the CSV prompt, paste it with your "
-                  "script into any AI, save what it writes (both files) as one .txt or .csv.\n3. Click Load plan, then Fetch data.\n"
+                  "script into Claude (or any AI), save the one CSV it writes.\n3. Click Load plan, then Fetch data.\n"
                   "4. Check plan, find or replace the footage in the Visual Plan, then Generate.\n\nThe NWS asks every app for a contact: "
                   "set yours in Settings > General > Weather.")
 
@@ -241,9 +302,9 @@ def show_summary(app) -> None:
     p = project(app)
     lines = []
     try:
-        from .sidecar import parse_sidecar
+        from .autofix import repair_layers
 
-        rows = parse_sidecar(p.layers_csv.read_text(encoding="utf-8"))
+        rows = repair_layers(p.layers_csv.read_text(encoding="utf-8"), [])
         beats_text = p.beats_csv.read_text(encoding="utf-8")
         beats = [ln for ln in beats_text.splitlines()[1:] if ",beat," in ln]
         footage = sum(1 for ln in beats if ",footage," in ln)
@@ -378,6 +439,25 @@ def populate_visual_plan(app, plan=None) -> None:
     app._refresh_assets_cta()
 
 
+def footage_rows(app, p, words, voiceover_path, lib_dir, edit_style):
+    """Generate without Check plan first: the footage rows of the plan about to be rendered (the same plan the generator builds),
+    shown in the Visual Plan table so the clips appear there as they arrive. None when the plan cannot be built yet (the generator
+    then reports the plan's problems itself)."""
+    try:
+        from hybrid.app_integration import visual_dicts
+        from pakmap.app_integration import voiceover_duration
+        from providers.base import SceneRow
+
+        from .generate import plan_layers
+
+        plan = plan_layers(p, words, voiceover_duration(voiceover_path), library_dir=lib_dir, edit_style=edit_style)[0]
+        rows = [SceneRow.from_csv_row(d) for d in visual_dicts(plan)]
+    except Exception:
+        return None
+    app.after(0, lambda: populate_visual_plan(app, plan))
+    return rows or None
+
+
 def clear_visual_plan(app) -> None:
     if getattr(app, "_scene_rows_owner", None) != "weather":
         return
@@ -401,7 +481,7 @@ def browse(app) -> None:
         return
     if not app._require_workspace("load a Weather plan"):
         return
-    paths = M.filedialog.askopenfilenames(title="Select the Weather plan (one file with both parts, or beats.csv + weather_layers.csv)",
+    paths = M.filedialog.askopenfilenames(title="Select the Weather plan (the one CSV Claude wrote, or beats.csv + weather_layers.csv)",
                                           filetypes=[("Weather plan", "*.csv *.txt"), ("All files", "*.*")], initialdir=str(M._browse_start_dir()))
     if paths:
         load_plan(app, list(paths))
@@ -410,25 +490,39 @@ def browse(app) -> None:
 def load_plan(app, paths) -> bool:
     """Copy the plan into the project (<project>/weather/beats.csv and weather_layers.csv), then check it if the narration is ready."""
     M = _m(app)
-    beats = layers = None
+    beats = layers = one_file = None
     for path in paths:
         try:
-            text = Path(path).read_text(encoding="utf-8")
+            text = Path(path).read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            text = Path(path).read_text(encoding="cp1252", errors="replace")
         except OSError as exc:
             M.messagebox.showerror("Cannot read the plan", str(exc))
             return False
         b, lay = split_plan_text(text)
+        if split_one_file(text) is not None:
+            one_file = text
         beats, layers = b or beats, lay or layers
     if beats is None or layers is None:
-        missing = " and ".join(n for n, v in (("beats.csv", beats), ("weather_layers.csv", layers)) if v is None)
-        M.messagebox.showerror("Not a complete Weather plan", f"The {missing} part is missing.\n\nLoad the AI's whole answer (both parts, each after its "
-                               "=== marker line), or select beats.csv and weather_layers.csv together.")
+        if one_file is not None or (beats is not None and len(paths) == 1):
+            msg = ("This file has the story (beat rows) but no weather graphics: no row says weather in the row column.\n\n"
+                   "Use Copy the CSV prompt in the Weather panel (not the Hybrid Map prompt), give it to Claude, and load the CSV it writes.")
+        elif beats is None and layers is None:
+            msg = ("This is not a Weather plan: its first line must be the header that starts beat,row,vo_anchor.\n\n"
+                   "Use Copy the CSV prompt in the Weather panel, give it to Claude, and load the CSV it writes.")
+        else:
+            missing = " and ".join(n for n, v in (("beats.csv", beats), ("weather_layers.csv", layers)) if v is None)
+            msg = (f"The {missing} part is missing.\n\nLoad the whole plan: one CSV made with Copy the CSV prompt, "
+                   "or select beats.csv and weather_layers.csv together.")
+        M.messagebox.showerror("Not a complete Weather plan", msg)
         return False
     p = project(app)
     try:
         p.root.mkdir(parents=True, exist_ok=True)
         p.beats_csv.write_text(beats, encoding="utf-8")
         p.layers_csv.write_text(layers, encoding="utf-8")
+        if one_file is not None:
+            (p.root / "plan.csv").write_text(one_file, encoding="utf-8")
     except OSError as exc:
         M.messagebox.showerror(STYLE_NAME, f"Could not save the plan in the project: {exc}")
         return False
@@ -444,6 +538,29 @@ def load_plan(app, paths) -> bool:
         check_plan(app)
     app._sync_primary_cta()
     return True
+
+
+SCRIPT_FORMATS = {"forecast": "FORECAST", "news": "NEWS", "post": "POST-EVENT"}
+
+
+def script_prompt_text(fmt: str) -> str:
+    """weather/prompts/script_prompt.txt with the format filled in (the topic and length are the user's)."""
+    text = (Path(__file__).resolve().parent / "prompts" / "script_prompt.txt").read_text(encoding="utf-8")
+    return text.replace("<<<FORECAST, NEWS or POST-EVENT>>>", SCRIPT_FORMATS.get(fmt, "NEWS"))
+
+
+def copy_script_prompt(app) -> None:
+    """The prompt that makes Claude write a script this style can show (dates, states, places, data sentences)."""
+    M = _m(app)
+    try:
+        text = script_prompt_text(current_format(app))
+    except OSError as exc:
+        M.messagebox.showerror("Copy the script prompt", f"The prompt file could not be read: {exc}")
+        return
+    app.clipboard_clear()
+    app.clipboard_append(text)
+    app._weather_status_var.set("Script prompt copied. Paste it into Claude, add your topic and length at the end, then record the "
+                                "script it writes and use Copy the CSV prompt.")
 
 
 def copy_prompt(app, event: Optional[str] = None) -> None:
@@ -469,11 +586,11 @@ def copy_prompt(app, event: Optional[str] = None) -> None:
     script = app._main_script_text()
     names = ", ".join(c.key for c in cities().values())
     given = (f"CITIES YOU MAY USE: {names}" if fmt == "forecast"
-             else event or "THE EVENT: (its name, the dates in UTC, the states and places; for News, any approved clip paths and their credits)")
+             else event or "THE EVENT: (not given: read the event's name, date, states and places from the script's first sentences)")
     text = prompt.rstrip() + f"\n\n{given}\n\nSCRIPT:\n" + (script or "(paste the script here)") + "\n"
     app.clipboard_clear()
     app.clipboard_append(text)
-    app._weather_status_var.set("Weather prompt copied with your script. Paste it into any AI, save its whole answer, then Load plan."
+    app._weather_status_var.set("Weather prompt copied with your script. Paste it into Claude, save the CSV it writes, then Load plan."
                                 if script else "Weather prompt copied. Paste it into any AI, put your script after SCRIPT:, then Load plan.")
 
 
@@ -490,7 +607,8 @@ def open_folder(app) -> None:
             os.startfile(str(p.root))  # type: ignore[attr-defined]
         else:
             subprocess.Popen(["xdg-open", str(p.root)])
-        app._weather_status_var.set("Edit beats.csv / weather_layers.csv there and save; then click Check plan.")
+        app._weather_status_var.set("Edit plan.csv there and save, then Load plan and pick it again (or edit beats.csv / "
+                                    "weather_layers.csv and click Check plan).")
     except Exception as exc:
         M.messagebox.showerror(STYLE_NAME, f"Could not open the folder: {exc}")
 
@@ -542,6 +660,32 @@ def fetch(app) -> None:
     threading.Thread(target=worker, daemon=True).start()
 
 
+def refresh_data(p, contact: str, fmt: str, log) -> None:
+    """Fetch the weather data again when it is missing or too old to render from, so Check plan and Generate never stop for it.
+    Runs in a worker thread (the settings it needs are read before). Without a contact a Forecast cannot fetch: the render then
+    says so plainly."""
+    from datetime import datetime, timezone
+
+    from .generate import fetch as do_fetch, load_snapshot
+    from .resolve import check_fresh
+
+    try:
+        check_fresh(load_snapshot(p), datetime.now(timezone.utc))
+        return
+    except Exception:
+        pass
+    if not contact and fmt == "forecast":
+        return
+    log(f"{TAG} The weather data was missing or older than 6 hours: fetching it again…")
+    try:
+        snap = do_fetch(p, contact)
+        for n in snap.notes:
+            log(f"{TAG} {n}")
+        log(f"{TAG} Fresh weather data fetched. If a number you say in the narration changed a lot, re-record that line.")
+    except Exception as exc:
+        log(f"{TAG} Could not fetch the weather data again: {exc}")
+
+
 def check_plan(app) -> None:
     """Time the plan against the narration, check every row and the data's freshness, list the footage (no rendering)."""
     M = _m(app)
@@ -557,6 +701,7 @@ def check_plan(app) -> None:
     ws, p = app._workspace, project(app)
     model, state_dir = app.model_var.get().strip() or "base", getattr(ws, "state_dir", None)
     style = current_style(app)
+    contact, fmt, lib = str(app._settings.get(SETTING_CONTACT) or "").strip(), current_format(app), library_dir(app)
     app._weather_busy = True
     app._weather_status_var.set("Checking the plan against the narration…")
     app._sync_primary_cta()
@@ -571,14 +716,24 @@ def check_plan(app) -> None:
             from .generate import plan_layers
 
             words = app._pakmap_get_words(voiceover, model, state_dir, log)
-            plan, rows, snap, payload = plan_layers(p, words, voiceover_duration(voiceover), library_dir=library_dir(app), edit_style=style)
+            fixed: list = []
+            from .autodata import ensure_storm_data
+
+            ensure_storm_data(p, fmt, fixed)
+            refresh_data(p, contact, fmt, log)
+            plan, rows, snap, payload = plan_layers(p, words, voiceover_duration(voiceover), library_dir=lib, edit_style=style, notes=fixed)
+            from .autofix import fix_footage
+
+            fix_footage(plan, p.root, fixed)
             bad = footage_problems(plan, p.root)
             if style == "teamplate":
-                from .teamplate.footage import relevance_problems
+                from .teamplate.footage import fix_relevance
 
-                bad += relevance_problems(plan)
+                fix_relevance(plan, fixed)
             head = [f"Plan OK: {len(plan.beats)} beat(s) ({footage_beats(plan)} full-screen footage), {len(rows)} weather layer(s), "
                     f"{len(payload.report.lines)} number(s) on screen.", data_status(app), ""]
+            if fixed:
+                head += ["Fixed for you (nothing to do):"] + [f"  {x}" for x in fixed] + [""]
             if bad:
                 head = ["The plan uses footage Weather does not allow:"] + [f"  {b}" for b in bad] + [""]
             text, ok = "\n".join(head) + payload.report.to_text(), not bad
@@ -731,6 +886,8 @@ def run_generation(app) -> None:
         app._asset_manager = manager
         app._weather_run_manager = manager
 
+    gen_contact, gen_format = str(app._settings.get(SETTING_CONTACT) or "").strip(), current_format(app)
+
     def worker() -> None:
         from pakmap.app_integration import PakmapResult
 
@@ -743,10 +900,18 @@ def run_generation(app) -> None:
             except Exception as exc:
                 result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
             else:
+                from .autodata import ensure_storm_data
+
+                added: list = []
+                ensure_storm_data(p, gen_format, added)
+                for n in added:
+                    thread_safe_log(f"{TAG} {n}")
+                refresh_data(p, gen_contact, gen_format, thread_safe_log)
+                rows = plan_rows or footage_rows(app, p, words, voiceover_path, lib_dir, edit_style)
                 result = generate_forecast_video(
                     p, voiceover_path, output_path, whisper_words=words, log=thread_safe_log, watermark=watermark, title=title,
                     sound_design=sound_design, pixel_scale=pixel_scale, progress_cb=progress_cb, cancel_check=app._weather_cancel.is_set,
-                    pexels_api_key=pexels_api_key, scene_rows=plan_rows, media_dir=media_dir, library_dir=lib_dir, edit_style=edit_style,
+                    pexels_api_key=pexels_api_key, scene_rows=rows, media_dir=media_dir, library_dir=lib_dir, edit_style=edit_style,
                     media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                          on_manager_ready=_manager_ready),
                 )
@@ -900,6 +1065,8 @@ def on_style(app) -> None:
     style = current_style(app)
     save_state(app, edit_style=style)
     app._weather_ok = None
+    # the other style's footage list numbers its clips differently: never hand it to this style's render
+    clear_visual_plan(app)
     app._weather_status_var.set(
         f"{NAME}: hard cuts on a ~5 s shot rhythm, keyword title cards over a darkened frame, count-up numbers, orange place tags and a "
         "darker map. Same plan, data and narration; click Check plan to see the footage it will use." if style == "teamplate" else

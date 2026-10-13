@@ -50,6 +50,7 @@ class Generate(unittest.TestCase):
         client = NwsClient("me@example.com", cache=HttpCache(self.d / "cache", now=lambda: NOW), fetch=FakeNet(DALLAS_ROUTES))
         wgen.fetch(self.project, "me@example.com", now=NOW, client=client, gibs_get=lambda u: fixture("gibs_geocolor_domain.xml").decode())
         self.specs = []
+        self.logged = []
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -69,7 +70,7 @@ class Generate(unittest.TestCase):
              mock.patch.object(ai, "voiceover_duration", lambda path: 10.0), \
              mock.patch("pakmap.compile.check_with_engine", lambda s: ([], [], True)):
             return wgen.generate_forecast_video(self.project, self.d / "vo.wav", self.d / "out.mp4", whisper_words=WORDS, now=now,
-                                                sound_design=False, log=lambda m: None)
+                                                sound_design=False, log=self.logged.append)
 
     def test_the_weather_layers_reach_the_renderer_with_hybrids_spec(self):
         r = self.run_gen()
@@ -111,23 +112,22 @@ class Generate(unittest.TestCase):
         self.assertIn("not fresh enough to render", r.errors[0])
         self.assertEqual(self.specs, [])
 
-    def test_a_sidecar_problem_comes_back_with_its_row_and_nothing_renders(self):
+    def test_a_weather_row_for_a_beat_that_is_not_there_is_left_out_and_the_video_renders(self):
         self.project.layers_csv.write_text(LAYERS + "b9,,1,x,source_line,,,,,\n", encoding="utf-8")
         r = self.run_gen()
-        self.assertFalse(r.ok)
-        self.assertRegex(r.errors[0], r"row 7 \(x\): beat 'b9' is not in beats.csv")
-        self.assertEqual(self.specs, [])
+        self.assertTrue(r.ok, r.errors)
+        self.assertNotIn("wx_x", [e["id"] for e in self.specs[0]["weather"]["events"]])
+        self.assertTrue(any("x" in line and "left out" in line for line in self.logged), self.logged)
 
-    def test_a_flow_clip_stops_the_generator_before_anything_is_fetched_or_rendered(self):
+    def test_a_flow_clip_becomes_a_stock_request(self):
         beats = BEATS.replace('b2,beat,here is the outlook,map,hold,,Texas,region,', 'b2,beat,here is the outlook,footage,,,,,') + \
             "b2,clip,,,,,,,,,,,,,,,,,,flow_video:a tornado,,why\n"
         self.project.beats_csv.write_text(beats, encoding="utf-8")
         self.project.layers_csv.write_text(LAYERS.replace("b2,for dallas,,strip,", "b1,dallas stays hot,,strip,").replace("b2,for dallas,,src,", "b1,dallas stays hot,,src,"),
                                            encoding="utf-8")
         r = self.run_gen()
-        self.assertFalse(r.ok)
-        self.assertIn("generated (Flow) video is never used", r.errors[0])
-        self.assertEqual(self.specs, [])
+        self.assertFalse(any("Flow" in str(e) for e in r.errors), r.errors)   # never refused for it, never a Flow clip: it asks the stock providers (no key in tests)
+        self.assertTrue(any("flow_video:a tornado" in line and "stock footage" in line for line in self.logged), self.logged)
 
     def test_no_data_fetched_yet_is_said_plainly(self):
         self.project.resolved_json.unlink()

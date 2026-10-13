@@ -41,6 +41,8 @@ def layer_windows(rows: Sequence[WxRow], plan, words: Sequence = ()) -> Dict[str
             words_, _, mod = r.vo_anchor.partition("|")
             start_token = next((i for i, (f, _l) in enumerate(tr._spans) if tr.words[f][1] >= b.start - 0.05), len(tr._spans))
             hit = tr.find(words_.strip(), start_token)
+            if hit is None:
+                hit = _shorter_phrase_hit(tr, words_.strip(), start_token, b.start, b.end)
             if hit is None or hit[0].out_of_order:
                 near = tr.nearest(words_.strip())
                 problems.append(f"{at}: vo_anchor {words_.strip()!r} is not spoken in beat {r.beat}"
@@ -67,3 +69,22 @@ def layer_windows(rows: Sequence[WxRow], plan, words: Sequence = ()) -> Dict[str
     if problems:
         raise SidecarError(problems)
     return out
+
+
+def _shorter_phrase_hit(tr, phrase: str, start_token: int, b_start: float, b_end: float):
+    """The phrase with one word left out (then two ...), for a word the transcriber did not hear ("A tornado carrying" heard as
+    "tornado carrying"). At least two words are kept; one word only as a last resort, and only a word of 4 letters or more.
+    Only a match inside the beat counts."""
+    from itertools import combinations
+
+    words = phrase.split()
+    n = len(words)
+    tries = [" ".join(w for i, w in enumerate(words) if i not in drop)
+             for k in range(1, max(1, n - 1)) for drop in combinations(range(n), k)]
+    if n == 2:
+        tries += [w for w in words if len(w.strip(".,;:!?\"'")) >= 4]
+    for sub in tries:
+        hit = tr.find(sub, start_token)
+        if hit is not None and not hit[0].out_of_order and b_start - 0.05 <= hit[0].t_start < b_end:
+            return hit
+    return None

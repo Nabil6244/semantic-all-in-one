@@ -1,0 +1,72 @@
+You are writing the NARRATION SCRIPT for a weather video of Semantic YT Studio. A narrator will record it word for word.
+After that, another prompt turns the script into a plan: satellite maps, real radar, warnings, storm reports, forecasts,
+rain totals and river levels are drawn on a map, and each one appears on the narrator's own words. So the script decides
+what the video can show. Write it so every graphic has a clear sentence to appear on.
+
+FORMAT, TOPIC AND LENGTH are given at the end. FORMAT is one of:
+  FORECAST    a US weather forecast (cities covered: Dallas, Houston, Chicago, New York, Los Angeles, Miami)
+  NEWS        the story of one weather event as it happened (a tornado outbreak, a hurricane, a flood, a heat wave)
+  POST-EVENT  what an event left behind, measured after it was over (totals, records, rivers, before and after)
+
+OUTPUT
+The script only: plain sentences in paragraphs, nothing else. No title, no headings, no labels like "Narrator:", no
+stage directions, no notes, no lists, no emojis, no links. Everything you write will be read aloud.
+
+THE FIRST TWO SENTENCES (the app reads them to find the event's data)
+- Say WHAT happened, WHERE and WHEN, with the FULL DATE: weekday, month, day and year, in words. For example: "On Sunday,
+  October 11, 2026, a tornado tore through Newberry County, South Carolina." For a forecast: "Here is your forecast for
+  Tuesday, October 13, 2026."
+- Spell the state out in full ("South Carolina", never "SC"). Name every state the story covers somewhere in the script.
+- The event's date is the FIRST date in the script. Mention older events (an earlier storm, a record year) only later.
+- For an event that lasted several days, give the first and last day in full ("from Friday, August 25, to Tuesday,
+  August 29, 2017").
+- For a hurricane, say its name and the year ("Hurricane Ian in 2022").
+
+PLACES
+- Name places the way a map does: "Columbia, South Carolina", "Newberry County", "the Gulf Coast", "Lake Okeechobee".
+- Name each important town, county or river at least once in a full sentence, the first time the story reaches it.
+- For a FORECAST, use only the six cities covered, each with its state the first time ("Dallas, Texas").
+
+ORDER (each part becomes a section of the video; keep this order)
+  FORECAST    the national picture -> each region -> the covered cities -> the days ahead -> warnings to know
+  NEWS        what happened (date, place) -> the setup (the outlook that morning) -> the hours that mattered (the
+              storm moving, warnings going out) -> what was confirmed (reports, surveys, ratings) -> the damage and the
+              people -> what comes next and how to stay safe
+  POST-EVENT  what happened -> the timeline day by day -> how much rain fell and where -> records broken -> the rivers
+              and their crests -> before and after from space -> what it left behind
+
+SENTENCES THAT GIVE THE MAP SOMETHING TO SHOW
+- Radar and warnings: say the storm moving and warnings being issued ("Tornado warnings went out across the Midlands as
+  the line of storms crossed the state.").
+- Reports and counts: say what was reported or confirmed ("Survey teams confirmed several tornadoes across four
+  counties.").
+- Forecasts: say the city and the day ("Dallas stays hot through Thursday.").
+- Rain, records, rivers: say the place and what was measured ("Houston saw its wettest day on record.").
+- About every 30 to 45 seconds, add one or two sentences on how it LOOKED or FELT (wind bending trees, hail on cars,
+  floodwater in streets). The video shows full-screen footage on those sentences.
+
+NUMBERS
+- The app shows the exact numbers from official data on screen. In the narration, round them and say them in words
+  ("about a dozen tornadoes", "winds near one hundred fifteen miles per hour", "more than four feet of rain").
+- Only use numbers you are sure of from the topic you were given. Never invent a count, a speed, a total or a time. When a
+  number is not known, describe it without one ("several", "dozens").
+- Say counts of storm reports are preliminary ("early reports"), and give ratings as the survey gave them ("rated EF2").
+
+WORDS THE TRANSCRIBER HEARS WELL (the app finds each graphic by the narrator's exact words)
+- Write units and abbreviations out in full: "miles per hour" (not mph), "degrees" (not °), "National Weather Service"
+  (not NWS). Ratings stay as said: "EF2".
+- Sentences of 10 to 25 words. Avoid starting many sentences the same way ("The storm ..." five times in a row).
+- Do not start an important sentence with a single short word like "A" or "So": the transcriber often drops it.
+- No parentheses, slashes or symbols.
+
+LENGTH
+About 150 spoken words per minute: 2 minutes is about 300 words, 5 minutes about 750, 10 minutes about 1,500.
+
+FACTS
+Write only what the topic you were given supports. If it does not say something, do not add it. End NEWS and POST-EVENT
+scripts with what comes next or how to stay safe, and a FORECAST with the week ahead.
+
+FORMAT: <<<FORECAST, NEWS or POST-EVENT>>>
+LENGTH: <<<for example 5 minutes>>>
+TOPIC (what happened, with the date, the states and places, and any facts and sources you want used):
+<<<PASTE YOUR TOPIC, NOTES OR ARTICLE HERE>>>

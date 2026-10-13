@@ -251,7 +251,7 @@ def prepare(rows: List[WxRow], client: Optional[NwsClient], *, now: Optional[dat
             continue
         if ds is None:
             continue
-        if client is None:
+        if client is None and ds.provider == "nws":
             raise NwsError("this plan needs National Weather Service data: set the NWS contact first")
         if ds.product == "forecast":
             city = find_city(ds.target)

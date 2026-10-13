@@ -46,10 +46,16 @@ class WeatherProject:
         return self.root / "_work"
 
 
-def read_layers(project: WeatherProject) -> List[WxRow]:
+def read_layers(project: WeatherProject, *, strict: bool = False, notes: Optional[List[str]] = None) -> List[WxRow]:
+    """The weather rows; repaired the forgiving way (weather.autofix) unless `strict`."""
     if not project.layers_csv.is_file():
         raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
-    return parse_sidecar(project.layers_csv.read_text(encoding="utf-8"))
+    text = project.layers_csv.read_text(encoding="utf-8")
+    if strict:
+        return parse_sidecar(text)
+    from .autofix import repair_layers
+
+    return repair_layers(text, notes if notes is not None else [])
 
 
 def fetch(project: WeatherProject, contact: str, *, now: Optional[datetime] = None, client: Optional[NwsClient] = None, **kw) -> Snapshot:
@@ -67,10 +73,12 @@ def load_snapshot(project: WeatherProject) -> Snapshot:
 
 
 def plan_layers(project: WeatherProject, words: Sequence, duration: float, *, now: Optional[datetime] = None,
-                library_dir: "str | Path | None" = None, notes: Optional[List[str]] = None, edit_style: str = "classic"):
+                library_dir: "str | Path | None" = None, notes: Optional[List[str]] = None, edit_style: str = "classic",
+                autofix: bool = True):
     """(plan, rows, snapshot, payload): everything checked, nothing rendered. Raises with messages that name the row.
     With `library_dir`, stock footage requests are swapped for matching clips of yours (weather.footage_library).
-    `edit_style` "teamplate" applies Weather Teamplate's edit to the plan (weather.teamplate); the default leaves it as written."""
+    `edit_style` "teamplate" applies Weather Teamplate's edit to the plan (weather.teamplate); the default leaves it as written.
+    `autofix` (the default): small problems are repaired and described in `notes` (weather.autofix) instead of raised."""
     from . import teamplate
 
     tp = teamplate.normalize(edit_style) == teamplate.KEY
@@ -86,15 +94,32 @@ def plan_layers(project: WeatherProject, words: Sequence, duration: float, *, no
         beats_text, swapped = (prefer_library_strict if tp else prefer_library)(beats_text, library_dir)
         if notes is not None:
             notes += swapped
-    plan = plan_from_csv(beats_text, list(words), duration)
+    fixes: List[str] = notes if notes is not None else []
+    if autofix:
+        from .autofix import repair_beats
+
+        plan, aliases = repair_beats(beats_text, words, duration, fixes)
+    else:
+        plan = plan_from_csv(beats_text, list(words), duration)
     # a weather map must stay where the narration is: pakMap's always-on drift (0.5 % of the view a second) carried a 2-minute hold
     # from Houston to Mississippi. Idle beats still get Hybrid's slow push in. A plan that sets its own drift keeps it.
     plan.settings.setdefault("drift_pct_per_s", 0.0)
-    rows = read_layers(project)
+    if autofix:
+        from . import autofix as fix
+
+        if not project.layers_csv.is_file():
+            raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
+        rows = fix.repair_layers(project.layers_csv.read_text(encoding="utf-8"), fixes, aliases)
+    else:
+        rows = read_layers(project, strict=True)
     snap = load_snapshot(project)
     check_fresh(snap, now or datetime.now(timezone.utc))
-    windows = layer_windows(rows, plan, words)
-    payload = build(rows, snap, windows)
+    if autofix:
+        rows, windows = fix.windows(rows, plan, words, fixes)
+        rows, payload = fix.build(rows, snap, windows, fixes)
+    else:
+        windows = layer_windows(rows, plan, words)
+        payload = build(rows, snap, windows)
     if tp:   # after the windows: the sidecar's rows keep naming the beats as written
         from .teamplate.cutaways import add_cutaways
 
@@ -131,11 +156,14 @@ def generate_forecast_video(project: WeatherProject, voiceover_path: "str | Path
     from .footage import footage_problems
 
     style = teamplate.normalize(edit_style)
+    from .autofix import fix_footage
+
+    fix_footage(plan, project.root, lib_notes)   # a source Weather never uses becomes a stock request, never a reason to stop
     bad = footage_problems(plan, project.root)
     if style == teamplate.KEY:
-        from .teamplate.footage import relevance_problems
+        from .teamplate.footage import fix_relevance
 
-        bad += relevance_problems(plan)
+        fix_relevance(plan, lib_notes)   # footage that does not match its beat is re-asked for, never a reason to stop
     if bad:
         return PakmapResult(False, bad)
     if style == teamplate.KEY:

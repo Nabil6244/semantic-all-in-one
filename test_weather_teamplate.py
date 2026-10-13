@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from weather import teamplate as tp
-from weather.teamplate.footage import conflicts, prefer_library_strict, relevance_problems, split_long_shots
+from weather.teamplate.footage import conflicts, fix_relevance, prefer_library_strict, relevance_problems, split_long_shots
 
 import test_weather_render as twr
 from test_weather_render import WORDS
@@ -151,10 +151,10 @@ class Spec(unittest.TestCase):
 
 
 class FootageRules(unittest.TestCase):
-    def plan(self, rows, dur=20.0):
+    def plan(self, rows, dur=20.0, said="damaging winds swept across wyoming on tuesday and here is more"):
         from hybrid.beat_csv import plan_from_csv
 
-        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate("damaging winds swept across wyoming on tuesday and here is more".split())]
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate(said.split())]
         return plan_from_csv(HEAD + rows, words, dur)
 
     def test_tropical_footage_on_a_wyoming_wind_story_is_refused(self):
@@ -173,6 +173,20 @@ class FootageRules(unittest.TestCase):
         self.assertEqual(len(probs), 1)
         self.assertIn("beat b1", probs[0])
         self.assertIn("tropical", probs[0])
+
+    def test_a_clip_that_does_not_match_is_fixed_never_refused(self):
+        p = self.plan('b1,beat,heavy rain soaked,footage,,,,,,,"heavy rain soaked the plains overnight",,,,,,,,,,,one\n'
+                      "b1,clip,,,,,,,,,,,,,,,,,,stock_video:heavy rain falling on a quiet residential street,,why\n"
+                      'b2,beat,damaging winds swept,footage,,,,,,,"damaging winds swept across wyoming on tuesday",,,,,,,,,,,two\n'
+                      "b2,clip,,,,,,,,,,,,,,,,,,stock_video:palm trees bending in a tropical storm,,why\n",
+                      said="heavy rain soaked the plains overnight damaging winds swept across wyoming on tuesday")
+        notes = []
+        self.assertEqual(fix_relevance(p, notes), 2)
+        self.assertEqual(p.beats[0].clips[0].asset, "stock_video:heavy rain falling")       # the setting cut off
+        self.assertEqual(p.beats[1].clips[0].asset, "stock_video:strong wind bending trees")  # rebuilt from the beat's own words
+        self.assertEqual(relevance_problems(p), [])
+        self.assertEqual(len(notes), 2)
+        self.assertIn("b1", notes[0])
 
     def test_a_long_stock_shot_is_cut_into_five_second_shots_of_the_same_subject(self):
         p = self.plan('b1,beat,damaging winds,footage,,,,,,,"damaging winds swept across wyoming on tuesday",,,,,,,,,,,one\n'
