@@ -1,0 +1,1086 @@
+"""The Weather card in the app (phase 1B). app.py only delegates here, through methods that import this module when they run, so
+an app with Weather switched off never loads it (and a broken Weather install means "Weather is off", never a crashed app).
+
+The card works like StarMap's: the plan is loaded from files an AI wrote (Copy the CSV prompt); its full-screen footage is rows of
+the EXISTING Visual Plan table (replace, retry and skip there); the SHARED Generate button renders it. What Weather adds: Fetch data
+(the National Weather Service snapshot the video is built from, checked for freshness again right before the render).
+
+Per project, everything lives in <project>/weather/ (beats.csv, weather_layers.csv, resolved.json, weather.json, _work/)."""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import threading
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
+TAG = "[WEATHER]"
+SETTING_ON = "weather_enabled"
+SETTING_CONTACT = "weather_nws_contact"
+SETTING_LIBRARY = "weather_library_dir"   # your own footage folder, used before stock (weather.footage_library)
+STYLE_NAME = "Weather"
+SETTING_SCHEDULE_ROOT = "weather_schedule_root"   # where the daily prep writes <root>/<date>/ (only once the user switches it on)
+# the video formats: (label in the card, its CSV prompt in weather/prompts/)
+FORMATS = {"forecast": ("Forecast", "forecast_csv_prompt.txt"), "news": ("News", "news_csv_prompt.txt"),
+           "post": ("Post-Event", "post_event_csv_prompt.txt")}
+
+
+FORMAT_ACTIONS = {"forecast": "Prepare today's forecast", "news": "Event footage…", "post": "Suggested reports…"}
+SETTING_SUGGESTED = "weather_post_suggested"   # suggestion ids already taken (not offered again)
+
+
+def current_format(app) -> str:
+    label = app._weather_format_var.get() if hasattr(app, "_weather_format_var") else ""
+    return next((k for k, (lab, _f) in FORMATS.items() if lab == label), "forecast")
+
+
+def current_style(app) -> str:
+    """The editing style picked in the card: "classic" (Weather) or "teamplate" (Weather Teamplate, weather.teamplate)."""
+    from .teamplate import STYLES
+
+    label = app._weather_style_var.get() if hasattr(app, "_weather_style_var") else ""
+    return next((k for k, lab in STYLES.items() if lab == label), "classic")
+
+
+def library_dir(app) -> Optional[str]:
+    d = str((app._settings or {}).get(SETTING_LIBRARY) or "").strip()
+    return d if d and Path(d).is_dir() else None
+
+
+def enabled(settings: Dict[str, Any]) -> bool:
+    """Weather is off unless switched on in Settings with its password (weather/lock.py): the switch and the unlock token."""
+    from . import lock
+
+    return bool((settings or {}).get(SETTING_ON, False)) and lock.unlocked(settings)
+
+
+def _m(app):
+    """app.py's module (the theme colours, ctk, dialogs): found from the App class, so it works when app.py runs as __main__."""
+    return sys.modules[type(app).__module__]
+
+
+# ---- the project folder -------------------------------------------------------------------------------------------------
+
+def project(app):
+    from .generate import WeatherProject
+
+    ws = app._workspace
+    return WeatherProject(Path(ws.root) / "weather") if ws is not None else None
+
+
+def images_dir(ws) -> Path:
+    return Path(ws.root) / "weather" / "_work" / "media"
+
+
+def _state_path(ws) -> Path:
+    return Path(ws.root) / "weather" / "weather.json"
+
+
+def load_state(ws) -> Dict[str, Any]:
+    try:
+        return json.loads(_state_path(ws).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(app, **changes) -> None:
+    ws = app._workspace
+    if ws is None:
+        return
+    state = {**load_state(ws), **{k: v for k, v in changes.items() if v is not None}}
+    try:
+        _state_path(ws).parent.mkdir(parents=True, exist_ok=True)
+        _state_path(ws).write_text(json.dumps(state, indent=1), encoding="utf-8")
+    except OSError as exc:
+        app._append_log(f"{TAG} Could not save the Weather settings: {exc}\n")
+
+
+# ---- reading what an AI wrote ---------------------------------------------------------------------------------------------
+
+def split_plan_text(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """(beats.csv text, weather_layers.csv text) from what the CSV prompt asks an AI to write: both files, each after its marker
+    line (=== beats.csv === / === weather_layers.csv ===). A file that is only one of them is recognised by its header."""
+    from hybrid.beat_csv import is_beat_csv
+
+    from .sidecar import COLUMNS
+
+    t = str(text).lstrip("﻿")
+    if "=== beats.csv ===" in t or "=== weather_layers.csv ===" in t:
+        beats = layers = None
+        part, _, rest = t.partition("=== beats.csv ===")
+        if rest:
+            beats, _, after = rest.partition("=== weather_layers.csv ===")
+            layers = after if after else None
+        else:
+            _, _, layers = part.partition("=== weather_layers.csv ===")
+        clean = lambda s: "\n".join(ln for ln in s.strip().splitlines() if ln.strip() and not ln.strip().startswith("```")) + "\n" if s and s.strip() else None  # noqa: E731
+        return clean(beats), clean(layers)
+    first = t.strip().splitlines()[0].strip().lower() if t.strip() else ""
+    if is_beat_csv(t):
+        return t, None
+    if first.replace(" ", "").split(",")[:3] == list(COLUMNS[:3]):
+        return None, t
+    return None, None
+
+
+# ---- the card -------------------------------------------------------------------------------------------------------------
+
+def build(app, parent, *, row: int) -> None:
+    M = _m(app)
+    ctk = M.ctk
+    app._weather_enabled_var = ctk.BooleanVar(value=False)
+    app._weather_sound_var = ctk.BooleanVar(value=bool(app._settings.get("pakmap_sound_design", True)))
+    app._weather_status_var = ctk.StringVar(value="")
+    app._weather_file_var = ctk.StringVar(value="")
+    app._weather_running = False
+    app._weather_busy = False
+    app._weather_cancel = threading.Event()
+    app._weather_ok = None
+    app._weather_tracking = None
+    app._weather_run_manager = None
+
+    block = ctk.CTkFrame(parent, fg_color=M._CARD, corner_radius=10, border_width=1, border_color=M._BORDER)
+    block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+    block.grid_columnconfigure(0, weight=1)
+    app._weather_block = block
+    app._style_card_header(block, "Weather (US forecast)",
+                           "A US forecast over the satellite map: city temperatures, the 5-day strip, current conditions and warnings from the "
+                           "National Weather Service, with full-screen footage between. You record the voiceover; every number comes from the data.")
+    app._weather_switch = ctk.CTkSwitch(block, text="Use Weather for this project", variable=app._weather_enabled_var,
+                                        command=lambda: on_toggle(app), font=ctk.CTkFont(size=12), text_color=M._TEXT)
+    app._weather_switch.grid(row=1, column=0, sticky="w", padx=16, pady=(12, 14))
+    controls = ctk.CTkFrame(block, fg_color="transparent")
+    controls.grid(row=2, column=0, sticky="ew", padx=16, pady=(8, 12))
+    controls.grid_columnconfigure(0, weight=1)
+    app._weather_controls = controls
+
+    actions = ctk.CTkFrame(controls, fg_color="transparent")
+    actions.grid(row=0, column=0, sticky="ew")
+    ctk.CTkButton(actions, text="Load plan…", width=130, height=36, corner_radius=6, fg_color=M._ACCENT, hover_color=M._ACCENT_HOV,
+                  font=ctk.CTkFont(size=12, weight="bold"), command=lambda: browse(app)).grid(row=0, column=0, padx=(0, 8))
+    ctk.CTkButton(actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1,
+                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
+                  command=lambda: copy_prompt(app)).grid(row=0, column=1, padx=(0, 8))
+    ctk.CTkButton(actions, text="Fetch data", width=110, height=36, corner_radius=6, fg_color="transparent", border_width=1,
+                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
+                  command=lambda: fetch(app)).grid(row=0, column=2, padx=(0, 8))
+    app._build_csv_prompt_script_box(actions, row=1, columnspan=3)
+    app._weather_format_var = ctk.StringVar(value=FORMATS["forecast"][0])
+    fmt_row = ctk.CTkFrame(actions, fg_color="transparent")
+    fmt_row.grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    ctk.CTkLabel(fmt_row, text="Format", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
+    ctk.CTkSegmentedButton(fmt_row, values=[lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
+                           command=lambda _v: on_format(app)).pack(side="left")
+    from .teamplate import STYLES
+
+    app._weather_style_var = ctk.StringVar(value=STYLES["classic"])
+    style_row = ctk.CTkFrame(actions, fg_color="transparent")
+    style_row.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    ctk.CTkLabel(style_row, text="Editing style", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
+    ctk.CTkSegmentedButton(style_row, values=list(STYLES.values()), variable=app._weather_style_var,
+                           command=lambda _v: on_style(app)).pack(side="left")
+    # one button for what this format adds: Forecast writes today's plan, News finds event footage, Post-Event suggests reports
+    app._weather_format_btn = ctk.CTkButton(fmt_row, text=FORMAT_ACTIONS["forecast"], width=190, height=28, corner_radius=6,
+                                            fg_color="transparent", border_width=1, border_color=M._BORDER, text_color=M._MUTED,
+                                            hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=lambda: format_action(app))
+    app._weather_format_btn.pack(side="left", padx=(10, 0))
+    ctk.CTkLabel(controls, text="Cities: Dallas, Houston, Chicago, New York, Los Angeles, Miami. Fetch data gets the National Weather Service "
+                                "forecast for the plan; fetch again (and re-record any changed line) if it is more than 6 hours old at render time.",
+                 font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
+    app._path_row(2, "Loaded plan", app._weather_file_var, lambda: browse(app), parent=controls,
+                  placeholder_text="Nothing loaded yet: click Load plan")
+    name_row = ctk.CTkFrame(controls, fg_color="transparent")
+    name_row.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+    name_row.grid_columnconfigure(1, weight=1)
+    ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED, anchor="w").grid(
+        row=0, column=0, sticky="w", padx=(0, 10))
+    ctk.CTkEntry(name_row, textvariable=app._pakmap_channel_var, height=32,
+                 placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")
+    more = ctk.CTkFrame(controls, fg_color="transparent")
+    more.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+    more.grid_columnconfigure(3, weight=1)
+    for col, (text, cmd) in enumerate((("Check plan", lambda: check_plan(app)), ("Open plan folder", lambda: open_folder(app)),
+                                       )):
+        ctk.CTkButton(more, text=text, width=120, height=26, corner_radius=4, fg_color="transparent", border_width=1, border_color=M._BORDER,
+                      text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=cmd).grid(row=0, column=col, padx=(0, 6))
+    ctk.CTkSwitch(more, text="Sound effects + ambience", variable=app._weather_sound_var, command=lambda: save_state(app, sound_design=bool(app._weather_sound_var.get())),
+                  font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
+    app._weather_plan_box = ctk.CTkTextbox(controls, height=210, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+    app._weather_plan_box.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+    app._weather_plan_box.configure(state="disabled")
+    ctk.CTkLabel(controls, textvariable=app._weather_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
+                 justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+    controls.grid_remove()
+    app._weather_switch.grid_remove()   # the style picker replaces the per-card switches
+
+
+def set_text(app, text: str) -> None:
+    box = app._weather_plan_box
+    box.configure(state="normal")
+    box.delete("1.0", "end")
+    box.insert("1.0", text)
+    box.configure(state="disabled")
+
+
+def show_intro(app) -> None:
+    set_text(app, "No plan yet.\n\n1. Record your voiceover and choose it on the Script page.\n2. Click Copy the CSV prompt, paste it with your "
+                  "script into any AI, save what it writes (both files) as one .txt or .csv.\n3. Click Load plan, then Fetch data.\n"
+                  "4. Check plan, find or replace the footage in the Visual Plan, then Generate.\n\nThe NWS asks every app for a contact: "
+                  "set yours in Settings > General > Weather.")
+
+
+def has_plan(app) -> bool:
+    p = project(app)
+    return p is not None and p.beats_csv.is_file() and p.layers_csv.is_file()
+
+
+def show_summary(app) -> None:
+    p = project(app)
+    lines = []
+    try:
+        from .sidecar import parse_sidecar
+
+        rows = parse_sidecar(p.layers_csv.read_text(encoding="utf-8"))
+        beats_text = p.beats_csv.read_text(encoding="utf-8")
+        beats = [ln for ln in beats_text.splitlines()[1:] if ",beat," in ln]
+        footage = sum(1 for ln in beats if ",footage," in ln)
+        lines.append(f"Plan: {len(beats)} beat(s), {footage} of them full-screen footage; {len(rows)} weather layer(s).")
+        kinds: Dict[str, int] = {}
+        for r in rows:
+            kinds[r.type] = kinds.get(r.type, 0) + 1
+        lines.append("Weather layers: " + ", ".join(f"{n} {k}" for k, n in kinds.items()))
+    except Exception as exc:
+        lines.append(f"The plan could not be read: {exc}")
+    lines.append("")
+    lines.append(data_status(app))
+    lines.append("")
+    lines.append("Click Check plan to time it against the narration and check every row.")
+    set_text(app, "\n".join(lines))
+
+
+def data_status(app) -> str:
+    from datetime import datetime, timezone
+
+    p = project(app)
+    if p is None or not p.resolved_json.is_file():
+        return "Weather data: not fetched yet (click Fetch data)."
+    try:
+        from .resolve import Snapshot
+        from .tz import parse_iso
+
+        snap = Snapshot.from_json(p.resolved_json.read_text(encoding="utf-8"))
+        now = datetime.now(timezone.utc)
+        ages = [(k, (now - parse_iso(f["issued"])).total_seconds() / 3600) for k, f in snap.forecasts.items()]
+        oldest = max((a for _, a in ages), default=0.0)
+        state = "fresh" if oldest <= 6 else "TOO OLD to render: fetch again"
+        return (f"Weather data: fetched {snap.prepared[:16].replace('T', ' ')} UTC; {len(snap.forecasts)} forecast(s), {len(snap.observations)} "
+                f"observation(s), {len(snap.alerts)} alert area(s); oldest forecast {oldest:.1f} h ({state}).")
+    except Exception as exc:
+        return f"Weather data: could not be read ({exc}); fetch again."
+
+
+# ---- style switching ------------------------------------------------------------------------------------------------------
+
+def deactivate(app) -> None:
+    """Another style takes over: Weather steps aside (its plan stays in the project)."""
+    if not hasattr(app, "_weather_enabled_var"):
+        return
+    was = app._weather_enabled_var.get()
+    app._weather_enabled_var.set(False)
+    app._weather_controls.grid_remove()
+    if app.generation_mode == "weather":
+        app.generation_mode = "normal"
+    clear_visual_plan(app)
+    if was:
+        save_state(app, active=False)
+
+
+def activate(app) -> None:
+    if getattr(app, "_weather_running", False):
+        return
+    app._pakmap_deactivate()          # also steps Hybrid and StarMap aside and clears the shared table
+    if hasattr(app, "_overscaled_enabled_var") and app._overscaled_enabled_var.get():
+        app._overscaled_enabled_var.set(False)
+        app._overscaled_controls.grid_remove()
+    app._weather_enabled_var.set(True)
+    app._weather_controls.grid()
+    app.generation_mode = "weather"
+    app._set_scenes_empty_text()
+    if has_plan(app):
+        app._weather_file_var.set(str(project(app).root))
+        show_summary(app)
+    else:
+        show_intro(app)
+    save_state(app, active=True)
+    app._sync_primary_cta()
+
+
+def on_toggle(app) -> None:
+    if app._weather_running:
+        app._weather_enabled_var.set(True)
+        _m(app).messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+        return
+    if app._weather_enabled_var.get():
+        activate(app)
+    else:
+        deactivate(app)
+        app._sync_primary_cta()
+
+
+def restore(app, ws) -> None:
+    """Reopening a project: Weather's sound switch and (if Weather was the project's style) the style itself."""
+    if not hasattr(app, "_weather_enabled_var"):
+        return
+    app._weather_ok = None
+    state = load_state(ws)
+    if "sound_design" in state:
+        app._weather_sound_var.set(bool(state["sound_design"]))
+    app._weather_format_var.set(FORMATS.get(state.get("format") or "forecast", FORMATS["forecast"])[0])
+    if hasattr(app, "_weather_style_var"):
+        from .teamplate import STYLES, normalize
+
+        app._weather_style_var.set(STYLES[normalize(state.get("edit_style"))])
+    app._weather_format_btn.configure(text=FORMAT_ACTIONS[current_format(app)])
+    app._weather_file_var.set(str(project(app).root) if has_plan(app) else "")
+    if state.get("active"):
+        activate(app)
+    else:
+        deactivate(app)
+        show_intro(app)
+
+
+# ---- the Visual Plan table (the plan's footage) --------------------------------------------------------------------------
+
+def populate_visual_plan(app, plan=None) -> None:
+    """Put the plan's footage (Hybrid footage beats and cards) in the EXISTING Visual Plan table, one row per clip."""
+    from providers.base import SceneRow
+
+    M = _m(app)
+    dicts = []
+    if plan is not None:
+        try:
+            from hybrid.app_integration import visual_dicts
+
+            dicts = visual_dicts(plan)
+        except Exception as exc:
+            app._append_log(f"{TAG} The plan's footage cannot be listed yet: {exc}\n")
+    app._scene_rows = [SceneRow.from_csv_row(d) for d in dicts]
+    app._scene_rows_owner = "weather"
+    app._scene_preview_cache_sig = None
+    keep = {M._scene_key(r.scene_number) for r in app._scene_rows}
+    app._asset_results = {k: v for k, v in app._asset_results.items() if k in keep}
+    if app._workspace is not None:
+        app._hydrate_overscaled_assets_from_manifest(images_dir(app._workspace))
+    app._render_scene_rows()
+    app._refresh_assets_cta()
+
+
+def clear_visual_plan(app) -> None:
+    if getattr(app, "_scene_rows_owner", None) != "weather":
+        return
+    app._scene_rows_owner = None
+    app._scene_rows = []
+    app._scene_preview_cache_sig = None
+    app._render_scene_rows()
+
+
+def scene_status(app) -> dict:
+    return {str(r.scene_number): app._row_status_from_result(r) for r in getattr(app, "_scene_rows", [])
+            if getattr(app, "_scene_rows_owner", None) == "weather"}
+
+
+# ---- actions -----------------------------------------------------------------------------------------------------------------
+
+def browse(app) -> None:
+    M = _m(app)
+    if app._weather_running or app._weather_busy:
+        M.messagebox.showinfo(STYLE_NAME, "Still working: wait for the current step to finish.")
+        return
+    if not app._require_workspace("load a Weather plan"):
+        return
+    paths = M.filedialog.askopenfilenames(title="Select the Weather plan (one file with both parts, or beats.csv + weather_layers.csv)",
+                                          filetypes=[("Weather plan", "*.csv *.txt"), ("All files", "*.*")], initialdir=str(M._browse_start_dir()))
+    if paths:
+        load_plan(app, list(paths))
+
+
+def load_plan(app, paths) -> bool:
+    """Copy the plan into the project (<project>/weather/beats.csv and weather_layers.csv), then check it if the narration is ready."""
+    M = _m(app)
+    beats = layers = None
+    for path in paths:
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            M.messagebox.showerror("Cannot read the plan", str(exc))
+            return False
+        b, lay = split_plan_text(text)
+        beats, layers = b or beats, lay or layers
+    if beats is None or layers is None:
+        missing = " and ".join(n for n, v in (("beats.csv", beats), ("weather_layers.csv", layers)) if v is None)
+        M.messagebox.showerror("Not a complete Weather plan", f"The {missing} part is missing.\n\nLoad the AI's whole answer (both parts, each after its "
+                               "=== marker line), or select beats.csv and weather_layers.csv together.")
+        return False
+    p = project(app)
+    try:
+        p.root.mkdir(parents=True, exist_ok=True)
+        p.beats_csv.write_text(beats, encoding="utf-8")
+        p.layers_csv.write_text(layers, encoding="utf-8")
+    except OSError as exc:
+        M.messagebox.showerror(STYLE_NAME, f"Could not save the plan in the project: {exc}")
+        return False
+    app._weather_file_var.set(str(p.root))
+    app._weather_ok = None
+    if not app._weather_enabled_var.get():
+        app._weather_enabled_var.set(True)
+        activate(app)
+    show_summary(app)
+    app._weather_status_var.set("Plan loaded. Next: Fetch data, then Check plan.")
+    app._append_log(f"{TAG} Loaded the plan from {', '.join(Path(x).name for x in paths)}\n")
+    if app._current_voiceover_path() is not None and p.resolved_json.is_file():
+        check_plan(app)
+    app._sync_primary_cta()
+    return True
+
+
+def copy_prompt(app, event: Optional[str] = None) -> None:
+    """The Weather CSV prompt with the project's script (and the cities) in it."""
+    M = _m(app)
+    for box in getattr(app, "_csv_prompt_script_boxes", []):
+        try:
+            if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None):
+                app._on_csv_prompt_script_edited(box)
+                break
+        except Exception:
+            pass
+    from .cities import cities
+
+    fmt = current_format(app)
+    try:
+        prompt = (Path(__file__).resolve().parent / "prompts" / FORMATS[fmt][1]).read_text(encoding="utf-8")
+        if current_style(app) == "teamplate":   # Weather Teamplate: footage-first beats (same CSV columns)
+            prompt = prompt.rstrip() + "\n\n" + (Path(__file__).resolve().parent / "prompts" / "teamplate_csv_addendum.txt").read_text(encoding="utf-8")
+    except OSError as exc:
+        M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
+        return
+    script = app._main_script_text()
+    names = ", ".join(c.key for c in cities().values())
+    given = (f"CITIES YOU MAY USE: {names}" if fmt == "forecast"
+             else event or "THE EVENT: (its name, the dates in UTC, the states and places; for News, any approved clip paths and their credits)")
+    text = prompt.rstrip() + f"\n\n{given}\n\nSCRIPT:\n" + (script or "(paste the script here)") + "\n"
+    app.clipboard_clear()
+    app.clipboard_append(text)
+    app._weather_status_var.set("Weather prompt copied with your script. Paste it into any AI, save its whole answer, then Load plan."
+                                if script else "Weather prompt copied. Paste it into any AI, put your script after SCRIPT:, then Load plan.")
+
+
+def open_folder(app) -> None:
+    M = _m(app)
+    p = project(app)
+    if p is None:
+        return
+    p.root.mkdir(parents=True, exist_ok=True)
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(p.root)])
+        elif sys.platform == "win32":
+            os.startfile(str(p.root))  # type: ignore[attr-defined]
+        else:
+            subprocess.Popen(["xdg-open", str(p.root)])
+        app._weather_status_var.set("Edit beats.csv / weather_layers.csv there and save; then click Check plan.")
+    except Exception as exc:
+        M.messagebox.showerror(STYLE_NAME, f"Could not open the folder: {exc}")
+
+
+def fetch(app) -> None:
+    """Fetch the National Weather Service data the plan needs (resolved.json), in the background."""
+    M = _m(app)
+    if app._weather_busy or app._weather_running:
+        return
+    if not has_plan(app):
+        M.messagebox.showinfo(STYLE_NAME, "Load the plan first: the data fetched is what its weather layers need.")
+        return
+    contact = str(app._settings.get(SETTING_CONTACT) or "").strip()
+    if not contact and current_format(app) == "forecast":   # News / Post-Event archives need no NWS contact
+        M.messagebox.showinfo(STYLE_NAME, "The National Weather Service asks every app for a contact (your email address or website).\n\n"
+                                          "Type yours in Settings > General > Weather, then click Fetch data again.")
+        return
+    p = project(app)
+    app._weather_busy = True
+    app._weather_status_var.set("Fetching the National Weather Service data…")
+    app._sync_primary_cta()
+
+    def worker() -> None:
+        try:
+            from .generate import fetch as do_fetch
+
+            snap = do_fetch(p, contact)
+            msg, ok = None, True
+            notes = list(snap.notes)
+        except Exception as exc:
+            msg, ok, notes = str(getattr(exc, "problems", None) and "; ".join(exc.problems) or exc), False, []
+        app.after(0, lambda: done(ok, msg, notes))
+
+    def done(ok: bool, msg: Optional[str], notes) -> None:
+        app._weather_busy = False
+        app._weather_ok = None
+        for n in notes:
+            app._append_log(f"{TAG} {n}\n")
+        if ok:
+            show_summary(app)
+            app._weather_status_var.set("Data fetched. Next: Check plan (it needs the voiceover), then Generate.")
+            if app._current_voiceover_path() is not None:
+                check_plan(app)
+        else:
+            app._weather_status_var.set(f"Fetch failed: {msg}")
+            app._append_log(f"{TAG} Fetch failed: {msg}\n")
+        app._sync_primary_cta()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def check_plan(app) -> None:
+    """Time the plan against the narration, check every row and the data's freshness, list the footage (no rendering)."""
+    M = _m(app)
+    if app._weather_busy or app._weather_running:
+        return
+    if not has_plan(app):
+        M.messagebox.showinfo(STYLE_NAME, "Load the plan first.")
+        return
+    voiceover = app._current_voiceover_path()
+    if voiceover is None:
+        M.messagebox.showinfo(STYLE_NAME, "Choose the voiceover first: the plan is timed by your words.")
+        return
+    ws, p = app._workspace, project(app)
+    model, state_dir = app.model_var.get().strip() or "base", getattr(ws, "state_dir", None)
+    style = current_style(app)
+    app._weather_busy = True
+    app._weather_status_var.set("Checking the plan against the narration…")
+    app._sync_primary_cta()
+    log = lambda m: app.after(0, lambda: app._append_log(f"{m}\n"))  # noqa: E731
+
+    def worker() -> None:
+        plan, ok = None, False
+        try:
+            from pakmap.app_integration import voiceover_duration
+
+            from .footage import footage_beats, footage_problems
+            from .generate import plan_layers
+
+            words = app._pakmap_get_words(voiceover, model, state_dir, log)
+            plan, rows, snap, payload = plan_layers(p, words, voiceover_duration(voiceover), library_dir=library_dir(app), edit_style=style)
+            bad = footage_problems(plan, p.root)
+            if style == "teamplate":
+                from .teamplate.footage import relevance_problems
+
+                bad += relevance_problems(plan)
+            head = [f"Plan OK: {len(plan.beats)} beat(s) ({footage_beats(plan)} full-screen footage), {len(rows)} weather layer(s), "
+                    f"{len(payload.report.lines)} number(s) on screen.", data_status(app), ""]
+            if bad:
+                head = ["The plan uses footage Weather does not allow:"] + [f"  {b}" for b in bad] + [""]
+            text, ok = "\n".join(head) + payload.report.to_text(), not bad
+        except Exception as exc:
+            probs = getattr(exc, "problems", None) or [str(exc)]
+            text = "The plan has problems:\n\n" + "\n".join(f"  {x}" for x in probs)
+        app.after(0, lambda: done(text, ok, plan))
+
+    def done(text: str, ok: bool, plan) -> None:
+        app._weather_busy = False
+        app._weather_ok = ok
+        set_text(app, text)
+        if plan is not None:
+            populate_visual_plan(app, plan)
+        app._weather_status_var.set("Plan OK: find or replace the footage in the Visual Plan (or let Generate find it), then Generate." if ok
+                                    else "The plan has problems (see above): fix the files (Open plan folder), or Fetch data again.")
+        app._sync_primary_cta()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+# ---- the shared Generate button --------------------------------------------------------------------------------------------
+
+def sync_cta(app) -> None:
+    if app._weather_busy:
+        app._cta_action = "none"
+        app._set_generate_btn(state="disabled", text="Working…")
+        return
+    if app._weather_running:
+        app._cta_action = "weather_cancel"
+        app.stage_var.set("GENERATING")
+        if app._weather_cancel.is_set():
+            app.hint_var.set("Stopping…")
+            app._set_generate_btn(state="disabled", text="Stopping…")
+        else:
+            app.hint_var.set("Generating — click Stop to cancel.")
+            app._set_generate_btn(state="normal", text="Stop")
+        return
+    if app._workspace is None:
+        app._cta_action = "picker"
+        app.stage_var.set("SETUP")
+        app.hint_var.set("Choose a project to get started.")
+        app._set_generate_btn(state="normal", text="Choose project")
+        return
+    if app._current_voiceover_path() is None:
+        app._cta_action = "import_audio"
+        app.stage_var.set("PLAN")
+        app.hint_var.set("Record your voiceover, then select or import it to continue.")
+        app._set_generate_btn(state="normal", text="Import Voiceover")
+        return
+    if not has_plan(app):
+        app._cta_action = "weather_load"
+        app.stage_var.set("PLAN")
+        app.hint_var.set("Load your Weather plan (Copy the CSV prompt in the Weather panel gives any AI the instructions).")
+        app._set_generate_btn(state="normal", text="Load plan")
+        return
+    if not project(app).resolved_json.is_file():
+        app._cta_action = "weather_fetch"
+        app.stage_var.set("PLAN")
+        app.hint_var.set("Fetch the National Weather Service data for the plan.")
+        app._set_generate_btn(state="normal", text="Fetch data")
+        return
+    app._cta_action = "generate"
+    app.stage_var.set("GENERATE")
+    app.hint_var.set("Ready — click Generate to render the Weather video." if app._weather_ok is not False
+                     else "The last Check plan found problems: fix them first (Generate will stop on them).")
+    app._set_generate_btn(state="normal", text="Generate")
+
+
+def cancel(app) -> None:
+    if not app._weather_running or app._weather_cancel.is_set():
+        return
+    app._weather_cancel.set()
+    app._append_log(f"{TAG} Stop requested — cancelling the current step…\n")
+    manager = getattr(app, "_weather_run_manager", None)
+    if manager is not None:
+        try:
+            manager.request_cancel()
+        except Exception as exc:
+            app._append_log(f"{TAG} Could not signal the footage batch to stop: {exc}\n")
+    try:
+        from hardware.process_registry import get_registry
+
+        from .render import OWNER
+
+        get_registry().terminate_owned(owner=OWNER)
+    except Exception as exc:
+        app._append_log(f"{TAG} Could not stop the running renderer: {exc}\n")
+    app._sync_primary_cta()
+
+
+def run_generation(app) -> None:
+    """The Weather branch of the SHARED _on_generate() entry point (generation_mode == "weather")."""
+    M = _m(app)
+    if app._weather_running or app._weather_busy:
+        return
+    if app._workspace is None:
+        M.messagebox.showerror("Cannot start", "Create or choose a project first.")
+        return
+    if not has_plan(app):
+        M.messagebox.showerror("Cannot start", "There is no Weather plan yet: click Load plan.")
+        return
+    voiceover_path = app._current_voiceover_path()
+    if voiceover_path is None:
+        M.messagebox.showerror("Cannot start", "Select or import your voiceover first.")
+        return
+    ws, p = app._workspace, project(app)
+    output_path = ws.next_final_path()
+    app.output_var.set(str(output_path))
+    whisper_model = app.model_var.get().strip() or "base"
+    whisper_state_dir = getattr(ws, "state_dir", None)
+    watermark = app._pakmap_watermark()
+    sound_design = bool(app._weather_sound_var.get())
+    pixel_scale = app._export_pixel_scale()
+    title = getattr(ws, "title", "") or ""
+    pexels_api_key = app.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
+    plan_rows = list(app._scene_rows) if getattr(app, "_scene_rows_owner", None) == "weather" else None
+    media_dir = images_dir(ws)
+    lib_dir = library_dir(app)
+    edit_style = current_style(app)
+
+    app._weather_cancel.clear()
+    app._weather_running = True
+    app._weather_tracking = app._track_generation_start("weather")
+    app._weather_run_manager = None
+    app._sync_primary_cta()
+    app._weather_status_var.set("Starting Weather generation…")
+    app._append_log("Starting Weather generation…\n")
+
+    def progress_cb(message: str, fraction: float) -> None:
+        def apply() -> None:
+            app._weather_status_var.set(f"{message} ({int(fraction * 100)}%)")
+            app.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+        app.after(0, apply)
+
+    def thread_safe_log(message: str) -> None:
+        app.after(0, lambda: app._append_log(f"{message}\n"))
+
+    def _scene_start(scene, source) -> None:
+        app._ui_queue.put(("scene_busy", (scene.scene_number, M._scene_busy_kind(source))))
+
+    def _scene_generating(scene) -> None:
+        app._ui_queue.put(("scene_busy", (scene.scene_number, "generating")))
+
+    def _scene_complete(scene, result) -> None:
+        app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+    def _manager_ready(manager) -> None:
+        app._apply_footage_quality(manager)
+        app._asset_manager = manager
+        app._weather_run_manager = manager
+
+    def worker() -> None:
+        from pakmap.app_integration import PakmapResult
+
+        from .generate import generate_forecast_video
+
+        prun = app._production_begin("weather")
+        try:
+            try:
+                words = app._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
+            except Exception as exc:
+                result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
+            else:
+                result = generate_forecast_video(
+                    p, voiceover_path, output_path, whisper_words=words, log=thread_safe_log, watermark=watermark, title=title,
+                    sound_design=sound_design, pixel_scale=pixel_scale, progress_cb=progress_cb, cancel_check=app._weather_cancel.is_set,
+                    pexels_api_key=pexels_api_key, scene_rows=plan_rows, media_dir=media_dir, library_dir=lib_dir, edit_style=edit_style,
+                    media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
+                                         on_manager_ready=_manager_ready),
+                )
+        except Exception as exc:
+            result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
+        app._production_end(prun, result, app._weather_cancel.is_set())
+        app.after(0, lambda: finish(result))
+
+    def finish(result) -> None:
+        app._weather_running = False
+        cancelled = bool(getattr(result, "cancelled", False)) or app._weather_cancel.is_set()
+        app._weather_cancel.clear()
+        run, app._weather_tracking = app._weather_tracking, None
+        app._track_generation_end(run, "cancelled" if (cancelled and not result.ok) else ("completed" if result.ok else "failed"),
+                                  output_path=result.output_path, validated=True, message="\n".join(str(e) for e in (result.errors or [])))
+        if cancelled and not result.ok:
+            app._weather_status_var.set("Cancelled")
+            app._append_log(f"{TAG} Generation cancelled. Nothing was exported; Generate again to restart.\n")
+            app._sync_primary_cta()
+            return
+        if result.ok:
+            app._weather_status_var.set(f"Done: {result.output_path}")
+            app._append_log(f"{TAG} Final video: {result.output_path}\n")
+            for credit in result.credits:
+                app._append_log(f"{TAG} Credit to include: {credit}\n")
+            for w in result.warnings:
+                app._append_log(f"{TAG} note: {w}\n")
+            app._last_output = str(result.output_path)
+            try:
+                app._show_preview(str(result.output_path))
+            except Exception:
+                pass
+            M.messagebox.showinfo("Weather video ready", f"Saved to:\n{result.output_path}\n\nNext to it: the credits ('… - credits.txt') and every "
+                                                         "number on screen with its source ('….numbers.txt').")
+        else:
+            app._append_log(f"{TAG} Generation failed:\n" + "\n".join(result.errors) + "\n")
+            set_text(app, "Generation stopped:\n\n" + "\n".join(f"  {e}" for e in result.errors))
+            if getattr(result, "unresolved", None):
+                app._weather_status_var.set(f"{len(result.unresolved)} clip(s) need attention — fix them in the Visual Plan tab, then Generate again")
+                app._refresh_qa_ui(immediate=True)
+                app._goto_workflow_view("visual_plan")
+            elif any("not fresh enough" in str(e) for e in result.errors):
+                app._weather_status_var.set("The weather data is too old: click Fetch data, re-record any line whose numbers changed, then Generate.")
+            else:
+                app._weather_status_var.set("Failed — see the plan box and the log")
+            app._show_error_dialog("Generation failed", M.overscaled_failure_summary(result.errors), "\n".join(result.errors) or "Unknown error")
+        app._sync_primary_cta()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+# ---- Settings > General ---------------------------------------------------------------------------------------------------
+
+def on_format(app) -> None:
+    """Forecast / News / Post-Event: which CSV prompt the card copies (the plan files and the render are the same for all three)."""
+    fmt = current_format(app)
+    save_state(app, format=fmt)
+    if hasattr(app, "_weather_format_btn"):
+        app._weather_format_btn.configure(text=FORMAT_ACTIONS[fmt])
+    app._weather_status_var.set({
+        "forecast": "Forecast: Copy the CSV prompt (or Prepare today's forecast to have the app write the script and plan from the data).",
+        "news": "News: one event (a hurricane, an outbreak, a flood) with its radar, track, cone, warnings and counters. Copy the CSV prompt "
+                "and give the AI the event's name, dates and places with your script.",
+        "post": "Post-Event: what an event left behind (rain totals, records, river crests, before/after from space, a timeline). Copy the "
+                "CSV prompt and give the AI the event's name, dates and places with your script.",
+    }[fmt])
+
+
+def format_action(app) -> None:
+    {"forecast": prepare_today, "news": event_footage, "post": suggested_reports}[current_format(app)](app)
+
+
+def suggested_reports(app) -> None:
+    """Post-Event: events whose warnings are over and whose data is in (weather.post.feed + suggest), newest first. Picking one copies
+    the Post-Event prompt with the event filled in; nothing is fetched for the video until the user loads a plan."""
+    M = _m(app)
+    if app._weather_busy:
+        return
+    contact = str(app._settings.get(SETTING_CONTACT) or "").strip()
+    if not contact:
+        M.messagebox.showinfo(STYLE_NAME, "The suggestions read the National Weather Service's warnings, and it asks every app for a contact.\n\n"
+                                          "Type yours in Settings > General > Weather, then try again.")
+        return
+    app._weather_busy = True
+    app._weather_status_var.set("Looking for events that are over and whose data is in (NWS warnings, SPC storm reports)…")
+
+    def worker() -> None:
+        try:
+            from datetime import datetime, timezone
+
+            from .layers import http_text
+            from .nws import NwsClient
+            from .post.feed import suggestions
+
+            found, problems = suggestions(NwsClient(contact), http_text, datetime.now(timezone.utc),
+                                          already=list(app._settings.get(SETTING_SUGGESTED) or []))
+            out = (found, problems, None)
+        except Exception as exc:
+            out = ([], [], str(exc))
+        app.after(0, lambda: done(*out))
+
+    def done(found, problems, err) -> None:
+        app._weather_busy = False
+        if err:
+            app._weather_status_var.set(f"Suggestions failed: {err}")
+            return
+        for pr in problems:
+            app._append_log(f"{TAG} {pr}\n")
+        if not found:
+            app._weather_status_var.set("No event is ready for a post-event report right now (none over, big enough and not offered before).")
+            return
+        app._weather_status_var.set(f"{len(found)} event(s) ready for a post-event report.")
+        show_suggestions(app, found)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def show_suggestions(app, found) -> None:
+    from .post.feed import event_text
+
+    M = _m(app)
+    ctk = M.ctk
+    win = ctk.CTkToplevel(app)
+    win.title("Weather · Suggested post-event reports")
+    win.geometry("760x520")
+    body = ctk.CTkScrollableFrame(win, fg_color="transparent")
+    body.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def take(s) -> None:
+        app._settings[SETTING_SUGGESTED] = list(app._settings.get(SETTING_SUGGESTED) or []) + [s.id]
+        try:
+            M.save_settings(app._settings)
+        except Exception:
+            pass
+        copy_prompt(app, event=event_text(s))
+        win.destroy()
+
+    for s in found[:20]:
+        f = ctk.CTkFrame(body, fg_color=M._CARD, corner_radius=8, border_width=1, border_color=M._BORDER)
+        f.pack(fill="x", pady=4)
+        ctk.CTkLabel(f, text=s.title, font=ctk.CTkFont(size=12, weight="bold"), text_color=M._TEXT, anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        ctk.CTkLabel(f, text=f"{s.warnings} warning(s) · {s.reports} storm report(s) · " + "; ".join(s.why), font=ctk.CTkFont(size=11),
+                     text_color=M._MUTED, anchor="w", wraplength=680, justify="left").pack(anchor="w", padx=12)
+        ctk.CTkButton(f, text="Make this report (copy the prompt)", width=230, command=lambda s=s: take(s)).pack(anchor="w", padx=12, pady=(4, 8))
+
+
+def on_style(app) -> None:
+    """Weather / Weather Teamplate: how the same plan is edited (the plan files, the data and the narration are the same)."""
+    from .teamplate import NAME
+
+    style = current_style(app)
+    save_state(app, edit_style=style)
+    app._weather_ok = None
+    app._weather_status_var.set(
+        f"{NAME}: hard cuts on a ~5 s shot rhythm, keyword title cards over a darkened frame, count-up numbers, orange place tags and a "
+        "darker map. Same plan, data and narration; click Check plan to see the footage it will use." if style == "teamplate" else
+        "Weather: the map-first edit with the HUD title, dissolves between the map and footage, and camera flights between places.")
+
+
+def event_footage(app) -> None:
+    """News / Post-Event: the clip screen (find, check, approve, label, download, put in beats). Forecast uses stock b-roll instead."""
+    M = _m(app)
+    if app._workspace is None:
+        return
+    if current_format(app) == "forecast":
+        M.messagebox.showinfo(STYLE_NAME, "Event footage is for News and Post-Event videos. A forecast uses general weather b-roll "
+                                          "(your own footage folder first, then stock).")
+        return
+    from .clip_review import open_window
+
+    open_window(app)
+
+
+def prepare_today(app) -> None:
+    """Forecast only: the app writes today's script and plan from the National Weather Service data (weather.automation.prep) into the
+    project; the user records script.txt. A script.txt the user edited is never replaced."""
+    M = _m(app)
+    if app._weather_busy or app._weather_running:
+        return
+    if current_format(app) != "forecast":
+        M.messagebox.showinfo(STYLE_NAME, "Prepare today's forecast writes a Forecast. Pick the Forecast format first.")
+        return
+    contact = str(app._settings.get(SETTING_CONTACT) or "").strip()
+    if not contact:
+        M.messagebox.showinfo(STYLE_NAME, "The National Weather Service asks every app for a contact (your email address or website).\n\n"
+                                          "Type yours in Settings > General > Weather, then try again.")
+        return
+    p = project(app)
+    if p is None:
+        return
+    if p.beats_csv.is_file() and not M.messagebox.askyesno(STYLE_NAME, "This project already has a Weather plan. Replace it with today's "
+                                                                        "forecast? (A script.txt you edited is kept.)"):
+        return
+    app._weather_busy = True
+    app._weather_status_var.set("Preparing today's forecast from the National Weather Service data (about a minute)…")
+    app._sync_primary_cta()
+    log = lambda m: app.after(0, lambda: app._append_log(f"{TAG} {m}\n"))  # noqa: E731
+
+    def worker() -> None:
+        try:
+            from .automation.prep import prep
+
+            res = prep(p.root, contact, library_dir=library_dir(app), log=log)
+            out = (True, res.summary, list(res.notes))
+        except Exception as exc:
+            out = (False, str(exc), [])
+        app.after(0, lambda: done(*out))
+
+    def done(ok: bool, msg: str, notes) -> None:
+        app._weather_busy = False
+        app._weather_ok = None
+        for n in notes:
+            app._append_log(f"{TAG} {n}\n")
+        if ok:
+            app._weather_file_var.set(str(p.root))
+            box = getattr(app, "script_box", None)
+            script = p.root / "script.txt"
+            try:
+                if box is not None and not box.get("1.0", "end").strip() and script.is_file():
+                    box.insert("1.0", script.read_text(encoding="utf-8"))
+                    app._refresh_csv_prompt_script_boxes()
+            except Exception:
+                pass
+            show_summary(app)
+            app._weather_status_var.set(f"{msg} Record the script ({script}), add the voiceover, then Check plan and Generate.")
+            app._append_log(f"{TAG} {msg}\n")
+        else:
+            app._weather_status_var.set(f"Prepare failed: {msg}")
+            app._append_log(f"{TAG} Prepare failed: {msg}\n")
+        app._sync_primary_cta()
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def build_settings(app, body, save_settings) -> None:
+    """The Weather switch and the NWS contact, at the end of Settings > General (app-wide)."""
+    M = _m(app)
+    ctk = M.ctk
+    ctk.CTkLabel(body, text="WEATHER (BETA)", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(anchor="w", padx=20, pady=(20, 4))
+    on = ctk.BooleanVar(value=enabled(app._settings))
+    contact = ctk.StringVar(value=str(app._settings.get(SETTING_CONTACT) or ""))
+
+    def save(*_a) -> None:
+        app._settings[SETTING_CONTACT] = contact.get().strip()
+        try:
+            save_settings(app._settings)
+        except Exception:
+            pass
+
+    def toggle() -> None:
+        """On needs the password (weather/lock.py); off never does. The rest of the section shows only while Weather is on."""
+        from . import lock
+
+        if on.get():
+            if not lock.has_password():
+                on.set(False)
+                M.messagebox.showinfo(STYLE_NAME, "No Weather password is set yet. Set one in a terminal:\n\n.venv310/bin/python -m weather.lock")
+                return
+            from tkinter import simpledialog
+
+            pw = simpledialog.askstring(STYLE_NAME, "Password to show the Weather style:", show="*", parent=body.winfo_toplevel())
+            if pw is None or not lock.check(pw):
+                on.set(False)
+                if pw is not None:
+                    M.messagebox.showerror(STYLE_NAME, "Wrong password. Weather stays hidden.")
+                return
+            app._settings[SETTING_ON], app._settings[lock.SETTING_TOKEN] = True, lock.token()
+            rest.pack(anchor="w", fill="x", after=switch)
+        else:
+            app._settings[SETTING_ON] = False
+            app._settings.pop(lock.SETTING_TOKEN, None)
+            rest.pack_forget()
+        save()
+
+    switch = ctk.CTkSwitch(body, text="Show the Weather style (locked: asks for the password)", variable=on, command=toggle,
+                           font=ctk.CTkFont(size=12))
+    switch.pack(anchor="w", padx=20, pady=(0, 4))
+    rest = ctk.CTkFrame(body, fg_color="transparent")
+    if on.get():
+        rest.pack(anchor="w", fill="x")
+    row = ctk.CTkFrame(rest, fg_color="transparent")
+    row.pack(anchor="w", padx=20, pady=(4, 0), fill="x")
+    ctk.CTkLabel(row, text="NWS contact", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 8))
+    entry = ctk.CTkEntry(row, textvariable=contact, height=30, placeholder_text="your email or website (the NWS asks every app for one)")
+    entry.pack(side="left", fill="x", expand=True)
+    entry.bind("<FocusOut>", save)
+    contact.trace_add("write", save)
+    lib = ctk.StringVar(value=str(app._settings.get(SETTING_LIBRARY) or ""))
+
+    def save_lib(*_a) -> None:
+        app._settings[SETTING_LIBRARY] = lib.get().strip()
+        try:
+            save_settings(app._settings)
+        except Exception:
+            pass
+
+    def pick_lib() -> None:
+        d = M.filedialog.askdirectory(title="Your weather footage folder (clips named by what they show: rain, storm, snow, sunny…)")
+        if d:
+            lib.set(d)
+            save_lib()
+
+    lrow = ctk.CTkFrame(rest, fg_color="transparent")
+    lrow.pack(anchor="w", padx=20, pady=(6, 0), fill="x")
+    ctk.CTkLabel(lrow, text="Your footage", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 8))
+    lentry = ctk.CTkEntry(lrow, textvariable=lib, height=30, placeholder_text="optional: a folder of your own clips, used before stock")
+    lentry.pack(side="left", fill="x", expand=True)
+    lentry.bind("<FocusOut>", save_lib)
+    ctk.CTkButton(lrow, text="Choose…", width=80, height=30, command=pick_lib).pack(side="left", padx=(6, 0))
+    sched_root = str(app._settings.get(SETTING_SCHEDULE_ROOT) or (Path.home() / "Weather"))
+    sched = ctk.BooleanVar(value=bool(app._settings.get(SETTING_SCHEDULE_ROOT)))
+
+    def toggle_schedule() -> None:
+        """Installs or removes the OS task ONLY here, on the user's click."""
+        from .automation import schedule
+
+        try:
+            if sched.get():
+                if not contact.get().strip():
+                    sched.set(False)
+                    M.messagebox.showinfo(STYLE_NAME, "Type your NWS contact first: the daily prep sends it to the National Weather Service.")
+                    return
+                msg = schedule.install(sched_root, contact.get().strip())
+                app._settings[SETTING_SCHEDULE_ROOT] = sched_root
+            else:
+                msg = schedule.uninstall()
+                app._settings.pop(SETTING_SCHEDULE_ROOT, None)
+            save_settings(app._settings)
+            app._append_log(f"{TAG} {msg}\n")
+        except Exception as exc:
+            sched.set(not sched.get())
+            M.messagebox.showerror(STYLE_NAME, f"The daily prep could not be switched: {exc}")
+
+    ctk.CTkSwitch(rest, text=f"Prepare the forecast every morning (5:30 AM Central, into {sched_root})", variable=sched,
+                  command=toggle_schedule, font=ctk.CTkFont(size=12)).pack(anchor="w", padx=20, pady=(8, 0))
+    ctk.CTkLabel(body, text="Turning Weather on or off takes effect the next time the app starts. Off: the app is exactly as before.",
+                 font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", justify="left", wraplength=430).pack(anchor="w", padx=20, pady=(4, 0))

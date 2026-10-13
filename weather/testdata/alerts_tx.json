@@ -1,0 +1,337 @@
+{
+    "@context": [
+        "https://geojson.org/geojson-ld/geojson-context.jsonld",
+        {
+            "@version": "1.1",
+            "wx": "https://api.weather.gov/ontology#",
+            "@vocab": "https://api.weather.gov/ontology#"
+        }
+    ],
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cef649cc806246f28b00d72d90db85254de10f7e.001.1",
+            "type": "Feature",
+            "geometry": null,
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cef649cc806246f28b00d72d90db85254de10f7e.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.cef649cc806246f28b00d72d90db85254de10f7e.001.1",
+                "areaDesc": "Matagorda Islands; Brazoria Islands; Galveston Island; Bolivar Peninsula",
+                "geocode": {
+                    "SAME": [
+                        "048321",
+                        "048039",
+                        "048167"
+                    ],
+                    "UGC": [
+                        "TXZ436",
+                        "TXZ437",
+                        "TXZ438",
+                        "TXZ439"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/forecast/TXZ436",
+                    "https://api.weather.gov/zones/forecast/TXZ437",
+                    "https://api.weather.gov/zones/forecast/TXZ438",
+                    "https://api.weather.gov/zones/forecast/TXZ439"
+                ],
+                "references": [],
+                "sent": "2026-10-12T13:30:00-05:00",
+                "effective": "2026-10-12T13:30:00-05:00",
+                "onset": "2026-10-12T13:30:00-05:00",
+                "expires": "2026-10-12T19:00:00-05:00",
+                "ends": "2026-10-12T19:00:00-05:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Moderate",
+                "certainty": "Likely",
+                "urgency": "Expected",
+                "event": "Rip Current Statement",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Houston/Galveston TX",
+                "headline": "Rip Current Statement issued October 12 at 1:30PM CDT until October 12 at 7:00PM CDT by NWS Houston/Galveston TX",
+                "description": "* WHAT...Dangerous rip currents.\n\n* WHERE...Gulf-facing beaches, including the Matagorda\nPeninsula, Brazoria County beaches, Galveston Island and the\nBolivar Peninsula.\n\n* WHEN...Until 7 PM CDT this evening.\n\n* IMPACTS...Rip currents can sweep even the best swimmers away\nfrom shore into deeper water.",
+                "instruction": "Swim near a lifeguard and away from rocks, jetties, and piers. If\ncaught in a rip current, relax and float. Don't swim against the\ncurrent. If able, swim in a direction following the shoreline. If\nunable to escape, face the shore and call or wave for help.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "CFWHGX"
+                    ],
+                    "WMOidentifier": [
+                        "WHUS44 KHGX 121830"
+                    ],
+                    "NWSheadline": [
+                        "HIGH RIP CURRENT RISK REMAINS IN EFFECT UNTIL 7 PM CDT THIS EVENING"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KHGX.RP.S.0021.000000T0000Z-261013T0000Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-12T19:00:00-05:00"
+                    ],
+                    "expiredReferences": [
+                        "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.25b6e83dba95248bd880679b9a16bbc53d3c836e.001.1,2026-10-12T05:06:00-05:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "NWS"
+                    ],
+                    "NationalWeatherService": [
+                        "RPS"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f1538ea86fecb1810e6746fdff8521e0ac6e09e1.003.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -94.04,
+                            30.33
+                        ],
+                        [
+                            -94.02,
+                            30.18
+                        ],
+                        [
+                            -93.78,
+                            30.04
+                        ],
+                        [
+                            -93.87,
+                            29.92
+                        ],
+                        [
+                            -94.06,
+                            29.98
+                        ],
+                        [
+                            -94.13,
+                            30.08
+                        ],
+                        [
+                            -94.21,
+                            30.33
+                        ],
+                        [
+                            -94.04,
+                            30.33
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f1538ea86fecb1810e6746fdff8521e0ac6e09e1.003.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.f1538ea86fecb1810e6746fdff8521e0ac6e09e1.003.1",
+                "areaDesc": "Hardin, TX; Jasper, TX; Jefferson, TX; Orange, TX",
+                "geocode": {
+                    "SAME": [
+                        "048199",
+                        "048241",
+                        "048245",
+                        "048361"
+                    ],
+                    "UGC": [
+                        "TXC199",
+                        "TXC241",
+                        "TXC245",
+                        "TXC361"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/TXC199",
+                    "https://api.weather.gov/zones/county/TXC241",
+                    "https://api.weather.gov/zones/county/TXC245",
+                    "https://api.weather.gov/zones/county/TXC361"
+                ],
+                "references": [],
+                "sent": "2026-10-12T10:35:00-05:00",
+                "effective": "2026-10-12T10:35:00-05:00",
+                "onset": "2026-10-12T10:35:00-05:00",
+                "expires": "2026-10-13T01:00:00-05:00",
+                "ends": null,
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Observed",
+                "urgency": "Immediate",
+                "event": "Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Lake Charles LA",
+                "headline": "Flood Warning issued October 12 at 10:35AM CDT by NWS Lake Charles LA",
+                "description": "...The Flood Warning is extended for the following rivers in\nLouisiana...\n\nCalcasieu River near White Oak Park affecting Calcasieu Parish.\n\nCalcasieu River Near Salt Water Barrier affecting Calcasieu Parish.\n\n...The Flood Warning continues for the following rivers in Texas...\n\nNeches River at Neches River Saltwater Barrier affecting Orange,\nHardin, Jasper and Jefferson Counties.\n\nFor the Calcasieu River...including Glenmora, Oakdale, Oberlin,\nKinder, White Oak Park, Salt Water Barrier...Minor flooding is\nforecast.\nFor the Neches River...including Town Bluff, Evadale, Neches River\nSaltwater Barrier...Minor flooding is forecast.\n\n* WHAT...Minor flooding is forecast.\n\n* WHERE...Neches River at Neches River Saltwater Barrier.\n\n* WHEN...Until further notice.\n\n* IMPACTS...At 5.0 feet, Water is about two feet over portions of\nFour Oaks Ranch Road.\n\n* ADDITIONAL DETAILS...\n- At 10:15 AM CDT Monday the stage was 3.8 feet.\n- Forecast...The river is expected to rise above flood stage late\nthis afternoon and continue rising to 4.1 feet this evening.\nAdditional rises are possible thereafter.\n- Flood stage is 4.0 feet.\n- http://www.weather.gov/safety/flood",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nMotorists should not attempt to drive around barricades or drive cars\nthrough flooded areas.\n\nAdditional information is available at www.weather.gov.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FLSLCH"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS84 KLCH 121535"
+                    ],
+                    "NWSheadline": [
+                        "FLOOD WARNING REMAINS IN EFFECT UNTIL FURTHER NOTICE"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KLCH.FL.W.0044.000000T0000Z-000000T0000Z/"
+                    ],
+                    "expiredReferences": [
+                        "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.e53fa1f5dfc6f68e9ca6f3ddb8a2eb00eee8df96.003.1,2026-10-11T19:40:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.2d81358d17b6e4ec80f350dae147b48038dc5744.003.1,2026-10-11T09:46:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.f21da3b7b75728873df5c09e00796dfebda55c10.003.1,2026-10-10T21:53:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.c6d5ee01a1654399736d81fc90d997a270dea968.001.1,2026-10-10T09:07:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.585760b421d143570c5d59a3228f94871dfe2ed5.001.1,2026-10-09T22:02:00-05:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FLS"
+                    ],
+                    "NationalWeatherService": [
+                        "FLW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f1d0e5034a14bf9577ccf71c5946b386c50c4621.001.1",
+            "type": "Feature",
+            "geometry": null,
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f1d0e5034a14bf9577ccf71c5946b386c50c4621.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.f1d0e5034a14bf9577ccf71c5946b386c50c4621.001.1",
+                "areaDesc": "Coastal Aransas; Coastal Kleberg; Coastal Nueces; Coastal San Patricio; Aransas Islands; Coastal Refugio; Coastal Calhoun; Kleberg Islands; Nueces Islands; Calhoun Islands",
+                "geocode": {
+                    "SAME": [
+                        "048007",
+                        "048273",
+                        "048355",
+                        "048409",
+                        "048391",
+                        "048057"
+                    ],
+                    "UGC": [
+                        "TXZ245",
+                        "TXZ342",
+                        "TXZ343",
+                        "TXZ344",
+                        "TXZ345",
+                        "TXZ346",
+                        "TXZ347",
+                        "TXZ442",
+                        "TXZ443",
+                        "TXZ447"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/forecast/TXZ245",
+                    "https://api.weather.gov/zones/forecast/TXZ342",
+                    "https://api.weather.gov/zones/forecast/TXZ343",
+                    "https://api.weather.gov/zones/forecast/TXZ344",
+                    "https://api.weather.gov/zones/forecast/TXZ345",
+                    "https://api.weather.gov/zones/forecast/TXZ346",
+                    "https://api.weather.gov/zones/forecast/TXZ347",
+                    "https://api.weather.gov/zones/forecast/TXZ442",
+                    "https://api.weather.gov/zones/forecast/TXZ443",
+                    "https://api.weather.gov/zones/forecast/TXZ447"
+                ],
+                "references": [
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.73071356ab82ad15a806801a589977dc4281d740.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.73071356ab82ad15a806801a589977dc4281d740.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2026-10-12T01:24:00-05:00"
+                    }
+                ],
+                "sent": "2026-10-12T09:24:00-05:00",
+                "effective": "2026-10-12T09:24:00-05:00",
+                "onset": "2026-10-12T09:24:00-05:00",
+                "expires": "2026-10-12T17:30:00-05:00",
+                "ends": "2026-10-13T01:00:00-05:00",
+                "status": "Actual",
+                "messageType": "Update",
+                "category": "Met",
+                "severity": "Minor",
+                "certainty": "Likely",
+                "urgency": "Expected",
+                "event": "Coastal Flood Advisory",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Corpus Christi TX",
+                "headline": "Coastal Flood Advisory issued October 12 at 9:24AM CDT until October 13 at 1:00AM CDT by NWS Corpus Christi TX",
+                "description": "* WHAT...Minor coastal flooding.\n\n* WHERE...Coastal Aransas, Coastal Kleberg, Coastal Nueces,\nCoastal San Patricio, Aransas Islands, Coastal Refugio,\nCoastal Calhoun, Kleberg Islands, Nueces Islands and Calhoun\nIslands Counties.\n\n* WHEN...Until 1 AM CDT Tuesday.\n\n* IMPACTS...Flooding of lots, parks, and roads with only\nisolated road closures expected.",
+                "instruction": "If travel is required, allow extra time as some roads may be\nclosed. Do not drive around barricades or through water of\nunknown depth. Take the necessary actions to protect flood-prone\nproperty.",
+                "response": "Monitor",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "CFWCRP"
+                    ],
+                    "WMOidentifier": [
+                        "WHUS44 KCRP 121424"
+                    ],
+                    "NWSheadline": [
+                        "COASTAL FLOOD ADVISORY REMAINS IN EFFECT UNTIL 1 AM CDT TUESDAY"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KCRP.CF.Y.0021.000000T0000Z-261013T0600Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-13T01:00:00-05:00"
+                    ],
+                    "expiredReferences": [
+                        "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.c43442dab1db81a13109fcd468bd22c2e74de50d.001.1,2026-10-11T07:38:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.eeda3cbadea3be534025198dd53057c6daf4bf0e.002.1,2026-10-11T00:54:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.eeda3cbadea3be534025198dd53057c6daf4bf0e.001.1,2026-10-11T00:54:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.2d409dbe7a13b59ce58e0e00d95b08608f94d997.002.1,2026-10-10T12:54:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.2d409dbe7a13b59ce58e0e00d95b08608f94d997.001.1,2026-10-10T12:54:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.1eef41396553092200bc982ac38c7149fd53e69b.002.1,2026-10-09T23:56:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.1eef41396553092200bc982ac38c7149fd53e69b.001.2,2026-10-09T23:56:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.44037a526f08bf4793840009a52c2c2f34b7fb40.002.1,2026-10-09T12:50:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.44037a526f08bf4793840009a52c2c2f34b7fb40.001.1,2026-10-09T12:50:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.4d1ea5ba622cc2b3cd0549760f9f5e182749697d.002.1,2026-10-09T09:00:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.4d1ea5ba622cc2b3cd0549760f9f5e182749697d.001.1,2026-10-09T09:00:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.8b50271998a27aab1d5449c2383c627e76900db2.002.1,2026-10-09T00:32:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.8b50271998a27aab1d5449c2383c627e76900db2.001.1,2026-10-09T00:32:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.de1e39400eb82bc1d98d961be19fd2ce6555e58d.001.1,2026-10-08T10:24:00-05:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "NWS"
+                    ],
+                    "NationalWeatherService": [
+                        "CFY"
+                    ]
+                }
+            }
+        }
+    ],
+    "title": "Current watches, warnings, and advisories for Texas",
+    "updated": "2026-10-12T21:13:45+00:00"
+}

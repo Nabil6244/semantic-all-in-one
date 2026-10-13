@@ -1,0 +1,8 @@
+Credits to include in the video description or end card:
+
+- We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).
+- Weather data: National Weather Service (NOAA). Not an official NWS product; for warnings, follow your local NWS office.
+- We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS). GOES-East GeoColor: NOAA/NESDIS.
+
+Notes from the renderer:
+- nothing changes after 125.3s

@@ -1,0 +1,107 @@
+Weather numbers report: every number on screen and its source
+
+[dal_hi] Dallas, TX mon high: 90°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[hou_hi] Houston, TX mon high: 90°
+    NWS forecast at HGX 63,95, issued 2026-10-12T18:21:44+00:00, fetched 2026-10-12T22:09:36+00:00
+    https://api.weather.gov/gridpoints/HGX/63,95/forecast
+[tx_alerts] TX alert area: Coastal Flood Advisory
+    NWS alert at TX, issued 2026-10-12T17:21:00-05:00, fetched 2026-10-12T22:24:06+00:00
+    https://api.weather.gov/alerts/active?status=actual&area=TX
+[tx_alerts] TX alert area: Rip Current Statement
+    NWS alert at TX, issued 2026-10-12T13:30:00-05:00, fetched 2026-10-12T22:24:06+00:00
+    https://api.weather.gov/alerts/active?status=actual&area=TX
+[tx_alerts] TX alert area: Flood Warning
+    NWS alert at TX, issued 2026-10-12T10:35:00-05:00, fetched 2026-10-12T22:24:06+00:00
+    https://api.weather.gov/alerts/active?status=actual&area=TX
+[dal_strip] Dallas, TX MON high: 90°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX MON low: 77°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX TUE high: 92°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX TUE low: 78°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX WED high: 93°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX WED low: 72°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX WED chance of rain: 28%
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX THU high: 91°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX THU low: 67°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX FRI high: 78°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[dal_strip] Dallas, TX FRI low: 57°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[nyc_hi] New York, NY mon high: 71°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY MON high: 71°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY MON low: 61°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY TUE high: 72°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY TUE low: 69°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY WED high: 77°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY WED low: 61°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY THU high: 66°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY THU low: 57°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY THU chance of rain: 54%
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY FRI high: 70°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY FRI low: 49°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[nyc_strip] New York, NY FRI chance of rain: 74%
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[mia_now] Miami, FL now: 84°
+    NWS observation at KMIA, issued 2026-10-12T21:55:00+00:00, fetched 2026-10-12T22:24:07+00:00
+    https://api.weather.gov/stations/KMIA/observations/latest
+[mia_mk] Miami, FL now: 84°
+    NWS observation at KMIA, issued 2026-10-12T21:55:00+00:00, fetched 2026-10-12T22:24:07+00:00
+    https://api.weather.gov/stations/KMIA/observations/latest
+[f_dal] Dallas, TX mon high: 90°
+    NWS forecast at FWD 89,104, issued 2026-10-12T21:11:46+00:00, fetched 2026-10-12T21:41:25+00:00
+    https://api.weather.gov/gridpoints/FWD/89,104/forecast
+[f_chi] Chicago, IL mon high: 84°
+    NWS forecast at LOT 76,73, issued 2026-10-12T19:51:23+00:00, fetched 2026-10-12T21:49:18+00:00
+    https://api.weather.gov/gridpoints/LOT/76,73/forecast
+[f_nyc] New York, NY mon high: 71°
+    NWS forecast at OKX 33,42, issued 2026-10-12T18:47:38+00:00, fetched 2026-10-12T22:09:37+00:00
+    https://api.weather.gov/gridpoints/OKX/33,42/forecast
+[f_lax] Los Angeles, CA mon high: 65°
+    NWS forecast at LOX 155,45, issued 2026-10-12T20:02:26+00:00, fetched 2026-10-12T22:09:38+00:00
+    https://api.weather.gov/gridpoints/LOX/155,45/forecast

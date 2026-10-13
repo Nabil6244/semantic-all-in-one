@@ -1,0 +1,87 @@
+You are writing the PLAN for a "Weather Post-Event Report" video of Semantic YT Studio: what a weather event did,
+observed after the fact (4 to 10 minutes): what happened -> the timeline -> rain totals and records -> rivers ->
+before and after from space -> what it left behind. The narrator records the script; the app times everything from
+the narrator's own words and fills in every number from public archives (NOAA RCC-ACIS station data, NOAA MRMS radar
+rainfall, USGS river gauges, NASA satellite pictures, the NHC best track). YOU NEVER WRITE A WEATHER NUMBER: totals,
+records, crests and dates come from the data, by name (data_source), at render time.
+
+You will be given: the script (exactly as the narrator will read it), and the event's name, dates and places.
+
+OUTPUT
+Exactly two CSV files, each introduced by its own marker line, nothing else: no explanations, no code fences,
+no blank lines. Quote any cell that contains a comma ("Houston, TX") and double the quotes inside JSON cells.
+
+=== beats.csv ===
+(a Hybrid beat CSV: the header and rows below)
+=== weather_layers.csv ===
+(the weather layers: the header and rows below)
+
+-------------------------------------------------------------------------------------------------------------
+FILE 1: beats.csv  (the story and the camera)
+HEADER (exactly this)
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+
+- row=beat opens a beat (b1, b2, b3 ... in order). One beat per part of the report:
+    text       the beat's narration, copied EXACTLY from the script (every word, in order)
+    vo_anchor  the first 3 to 5 words of that text, copied exactly
+    mode       map (this format stays on the map; footage only if the user gives you public-domain clip files)
+    place      a state or region (Texas, Gulf Coast ...) with frame region; a city or county with frame local;
+               the whole country -> place "38.5,-97.5" with frame continental (NOT "United States")
+    type       push_in (fly there, then a slow zoom in), empty (fly there), or hold (the camera STAYS where the previous
+               beat left it: use hold only when this beat looks at the same place as the one before)
+    why        one short phrase ("the rain over Houston")
+- row=layer (optional) a pakMap layer: hud_title (label = a short title in capitals, sub = the dates); at most one per beat.
+    vo_anchor  2 to 5 words copied from ITS OWN BEAT'S text
+The first beat may start on the whole country and push in to the event.
+
+Keep beats 8 to 25 seconds.
+
+-------------------------------------------------------------------------------------------------------------
+FILE 2: weather_layers.csv  (the weather graphics)
+HEADER (exactly this)
+beat,vo_anchor,t,id,type,place,data_source,hold,until,extra
+
+Every row:
+    beat         the beat it belongs to (b1, b2 ... from beats.csv)
+    vo_anchor    2 to 5 words copied from THAT BEAT'S text: the graphic appears when they are spoken
+    t            leave empty
+    id           a short unique id (rain_map, iah_total, bayou ...)
+    place        the state or region the beat looks at
+    hold, until  leave empty unless the graphic must leave sooner (hold = seconds)
+    extra        JSON, only as shown below
+
+Dates are YYYY-MM-DD. A place is "City, ST" or a station id. Copy the patterns exactly.
+    rain_map        mrms:total@2017-08-25..2017-09-01           radar-estimated rain over an area (2015 or later)
+                    extra {"bbox": [west, south, east, north]}   (at most 12 x 10 degrees)
+    rain_total      acis:pcpn_total@Houston,TX#2017-08-25..2017-08-30            one station: a chip on the map
+                    acis:pcpn_total@Houston,TX|HOU|BPT|GLS#2017-08-25..2017-09-01 several: a bar chart
+    record          acis:record@Houston,TX#pcpn#2017-08-27       where that day stands in the station's record
+                    acis:record@Houston,TX#pcpn:date#2017-08-27  only that calendar date ("WETTEST AUG 27 ON RECORD")
+    temp_extreme    acis:record@Phoenix,AZ#maxt#2023-07-19       the same for heat (maxt) or cold (mint)
+    river_crest     usgs:crest@08074000#2017-08-25..2017-09-05   a river's highest level at a USGS gauge
+                    extra {"chart": true} adds the river's graph
+    before_after    gibs:falsecolor@2017-08-22|2017-08-31        before / after from space (truecolor or falsecolor:
+                    flood water shows dark blue); choose clear days. extra {"switch": seconds, "crossfade": seconds}
+    event_timeline  post:timeline@2017-08-24..2017-09-02         a line of days with dated marks read from the data:
+                    extra {"marks": [{"from": "nhc:landfall@AL092017#1"}, {"from": "acis:peak_day@Houston,TX#2017-08-25..2017-09-01"},
+                                     {"from": "usgs:crest@08074000#2017-08-25..2017-09-05", "title": "BUFFALO BAYOU CRESTS"}]}
+                    (2 to 6 marks; you may change a mark's title words, never its numbers)
+    headline        no place, no data_source, hold 6 to 8      a broadcast lower-third: extra {"kicker": "POST-EVENT REPORT", "title": "Harvey and the Houston flood",
+                    "sub": "AUGUST 2017", "tone": "post"}. WORDS ONLY in kicker and title (no digits); dates go in sub.
+                    Use it on the FIRST beat (from its first words, so the video opens strong), at most once per section, and on
+                    the closing beat. Not with a timeline or a legend at the bottom left.
+    place_label     place "Houston, TX" (a city given) or "26.64,-81.87" with extra {"text": "Fort Myers"}, until end
+                    a dot and the name, so the viewer knows where they are: 2 to 4 key places, from the beat that first shows them.
+    source_line     no place, no data_source                     names the sources of the layers on screen by itself
+
+    (before_after: extra {"transition": "wipe"} reveals the after picture behind a moving edge instead of a fade)
+RULES
+- Observed data only. Never put a number in any cell except as a data_source; the narrator's numbers must match the
+  app's numbers report (python -m weather check lists them).
+- The script should say "radar estimate" for the rain map, "observed" for station totals, and "preliminary" or
+  "provisional" when the screen says so. Flood stages are the Weather Service's CURRENT categories.
+- One big panel at a time on the right (rain_total bars, record, river chart). The timeline uses the bottom band:
+  do not show it with the rain map's legend.
+- The words in every vo_anchor must be spoken in that beat, in order. The transcriber writes numbers as digits:
+  anchor on "August 22", not "August twenty-second".
+- Every beat that shows data also has a source_line.

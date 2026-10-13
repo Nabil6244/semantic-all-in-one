@@ -1048,6 +1048,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._build_pakmap_section(self._view_visual_director.content, row=2)
         self._build_hybrid_section(self._view_visual_director.content, row=3)
         self._build_starmap_section(self._view_visual_director.content, row=4)
+        if self._weather_on():
+            self._build_weather_section(self._view_visual_director.content, row=5)
         self._sync_style_picker()
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
@@ -2899,6 +2901,7 @@ class VideoGeneratorApp(ctk.CTk):
         "StarMap": "Space documentaries: the real sky in 3D, spacecraft on their paths, NASA footage between.",
         "Enoch Template": "Evidence-first documentaries about ancient texts: real manuscripts and art, cards, few reconstructions, "
                           "checked claims. Same workflow as Normal.",
+        "Weather": "US forecasts over the satellite map: National Weather Service data, full-screen footage between, your own voiceover.",
     }
 
     STYLE_CARDS = {
@@ -2911,6 +2914,7 @@ class VideoGeneratorApp(ctk.CTk):
         "Hybrid Map": ("\u25D0", "Map and full-screen footage in turns", "A beat CSV, or AI", "Place-based documentaries"),
         "StarMap": ("\u2737", "Space in 3D, spacecraft and NASA footage", "A StarMap beat CSV", "Space missions, planets, the universe"),
         "Enoch Template": ("\u2766", "Manuscripts, art and cards; checked claims", "Script + voiceover", "Ancient texts, hidden books"),
+        "Weather": ("\u2601", "Forecast maps, real data, footage", "A Weather plan + your voiceover", "US forecasts, weather news"),
     }
 
     def _build_style_picker(self, parent, *, row: int) -> None:
@@ -2939,7 +2943,7 @@ class VideoGeneratorApp(ctk.CTk):
         grid.grid(row=3, column=0, sticky="ew", padx=12, pady=(10, 16))
         self._style_grid = grid
         self._style_cards = {}
-        for name in self.STYLE_CHOICES:
+        for name in self._style_choices():
             self._style_cards[name] = self._make_style_card(grid, name)
         self._style_grid_cols = 0
         grid.bind("<Configure>", lambda e: self._layout_style_cards(e.width))
@@ -2986,7 +2990,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_grid_cols = cols
         for c in range(6):
             self._style_grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="style" if c < cols else "")
-        for k, name in enumerate(self.STYLE_CHOICES):
+        for k, name in enumerate(self._style_choices()):
             self._style_cards[name].grid(row=k // cols, column=k % cols, sticky="nsew", padx=4, pady=4)
 
     def _paint_style_cards(self, active: str) -> None:
@@ -3018,6 +3022,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Enoch Template"
         if mode == "normal" and self._modern_tech_on():
             return "Modern Tech News"
+        if mode == "weather":
+            return "Weather"
         return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}.get(mode, "Normal video")
 
     def _modern_tech_on(self) -> bool:
@@ -3045,6 +3051,28 @@ class VideoGeneratorApp(ctk.CTk):
                 or getattr(self, "_starmap_running", False)):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
+            return
+        if getattr(self, "_weather_running", False):
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
+        if choice != "Weather":
+            self._weather_deactivate()
+        if choice == "Weather":   # its own branch: the chain below stays as it was
+            self._weather_activate()
+            ws = getattr(self, "_workspace", None)
+            if ws is not None:
+                try:
+                    ws.set_editing_system("")
+                except Exception:
+                    pass
+                try:
+                    from ancient_texts import integration as _enoch
+
+                    _enoch.deselect(ws)
+                except Exception as exc:
+                    self._append_log(f"[ENOCH TEMPLATE] Style not saved ({exc})\n")
+            self._sync_primary_cta()
             return
         if choice in ("Overscaled", "Exp Solar"):
             if self._overscaled_style_segmented.get() != choice:
@@ -3100,6 +3128,9 @@ class VideoGeneratorApp(ctk.CTk):
         for block, on in ((self._overscaled_block, active in ("Overscaled", "Exp Solar")), (self._pakmap_block, active == "pakMap"),
                           (self._hybrid_block, active == "Hybrid Map"), (self._starmap_block, active == "StarMap")):
             block.grid() if on else block.grid_remove()
+        weather_block = getattr(self, "_weather_block", None)
+        if weather_block is not None:
+            weather_block.grid() if active == "Weather" else weather_block.grid_remove()
 
     def _style_card_header(self, block, title: str, description: str) -> None:
         """A style card's title with a one-line description under it (row 0 of the card), so a collapsed card says what it is."""
@@ -3550,6 +3581,9 @@ class VideoGeneratorApp(ctk.CTk):
         """The Visuals page's empty message, in the words of the style in use."""
         label = getattr(self, "_scenes_empty_label", None)
         if label is None:
+            return
+        if getattr(self, "generation_mode", "") == "weather":
+            label.configure(text="\u25A6\n\nNo footage yet\nOn the Visual Director page, load your Weather plan and click Check plan.\nEvery full-screen clip then appears here, ready to replace or retry.")
             return
         if getattr(self, "generation_mode", "") == "starmap":
             label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, load your StarMap beat CSV.\nEvery photo card and footage clip then appears here, ready to replace or retry.")
@@ -5284,6 +5318,64 @@ class VideoGeneratorApp(ctk.CTk):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    # ---------- Weather (US forecasts; off unless switched on in Settings > General; all of it lives in weather/) ----------
+
+    def _weather_on(self) -> bool:
+        """Weather is switched on in Settings (absent = off), decided once per app start. A Weather install that cannot load counts as off."""
+        if not hasattr(self, "_weather_on_at_start"):
+            on = bool(self._settings.get("weather_enabled", False))
+            if on:
+                try:
+                    import weather.app_section  # noqa: F401
+                    if not weather.app_section.enabled(self._settings):  # switched on without the Weather password: stays off
+                        on = False
+                except Exception as exc:
+                    print(f"[WEATHER] Weather is switched on but could not load, so it stays off: {exc!r}")
+                    on = False
+            self._weather_on_at_start = on
+        return self._weather_on_at_start
+
+    def _style_choices(self) -> tuple:
+        return self.STYLE_CHOICES + (("Weather",) if self._weather_on() else ())
+
+    def _build_weather_section(self, parent, *, row: int) -> None:
+        from weather import app_section
+
+        app_section.build(self, parent, row=row)
+
+    def _weather_activate(self) -> None:
+        if getattr(self, "_weather_block", None) is not None:
+            from weather import app_section
+
+            app_section.activate(self)
+
+    def _weather_deactivate(self) -> None:
+        if getattr(self, "_weather_block", None) is not None:
+            from weather import app_section
+
+            app_section.deactivate(self)
+
+    def _restore_weather(self, ws) -> None:
+        if getattr(self, "_weather_block", None) is not None:
+            from weather import app_section
+
+            app_section.restore(self, ws)
+
+    def _sync_primary_cta_weather(self) -> None:
+        from weather import app_section
+
+        app_section.sync_cta(self)
+
+    def _weather_action(self, action: str) -> None:
+        from weather import app_section
+
+        {"weather_load": app_section.browse, "weather_fetch": app_section.fetch, "weather_cancel": app_section.cancel}[action](self)
+
+    def _run_weather_generation(self) -> None:
+        from weather import app_section
+
+        app_section.run_generation(self)
+
     def _browse_pakmap_csv(self) -> None:
         if self._pakmap_running:
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before changing the CSV.")
@@ -6349,6 +6441,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._starmap_browse_file()
         elif action == "starmap_cancel":
             self._on_starmap_cancel()
+        elif action in ("weather_load", "weather_fetch", "weather_cancel"):
+            self._weather_action(action)
         else:
             self._on_generate()
 
@@ -7060,6 +7154,9 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "starmap":
             self._sync_primary_cta_starmap()
+            return
+        if self.generation_mode == "weather":
+            self._sync_primary_cta_weather()
             return
 
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
@@ -7799,6 +7896,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self._pakmap_deactivate()
         self._restore_hybrid(ws)
         self._restore_starmap(ws)
+        self._restore_weather(ws)
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -9410,6 +9508,8 @@ class VideoGeneratorApp(ctk.CTk):
             return  # so does Hybrid Map (its footage); see _populate_hybrid_visual_plan
         if self.generation_mode == "starmap":
             return  # and StarMap (its pictures and clips); see _populate_starmap_visual_plan
+        if self.generation_mode == "weather":
+            return  # and Weather (its footage); see weather.app_section.populate_visual_plan
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -10717,6 +10817,10 @@ class VideoGeneratorApp(ctk.CTk):
             return self._workspace.hybrid_images_dir
         if self.generation_mode == "starmap" and self._workspace is not None:
             return self._workspace.starmap_images_dir
+        if self.generation_mode == "weather" and self._workspace is not None:
+            from weather.app_section import images_dir
+
+            return images_dir(self._workspace)
         return self._workspace.assets_dir
 
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
@@ -12660,6 +12764,12 @@ class VideoGeneratorApp(ctk.CTk):
                  "Audio & Effects page.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 12))
+        try:  # Weather's switch and NWS contact (app-wide); nothing is shown if the Weather files are missing
+            from weather.app_section import build_settings as _weather_settings
+
+            _weather_settings(self, body, save_settings)
+        except Exception as exc:
+            print(f"[WEATHER] Settings section not shown: {exc!r}")
 
         # ── Video quality — saved with the open project (ProjectWorkspace.quality_settings), not app-wide.
         body = tab_bodies["This project"]
@@ -13474,6 +13584,9 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "starmap":
             self._run_starmap_generation()
+            return
+        if self.generation_mode == "weather":
+            self._run_weather_generation()
             return
 
         if self._running:
@@ -14588,6 +14701,9 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _on_fix_all_visual_issues(self) -> None:
         if not self._scene_rows:
+            return
+        if self.generation_mode == "weather":
+            messagebox.showinfo("Fix All Issues", "Not available for Weather. Use Retry or Change source on the affected clip(s) instead.")
             return
         if self.generation_mode in ("pakmap", "hybrid", "starmap"):
             messagebox.showinfo(

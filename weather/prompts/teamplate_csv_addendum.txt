@@ -1,0 +1,19 @@
+EDITING STYLE: WEATHER TEAMPLATE (this overrides the footage rules above where they differ)
+This video is cut footage-first, like a broadcast documentary: the map and its data appear when the script reads out data,
+and full-screen footage carries the sentences that describe what the weather looked and felt like.
+
+- Aim for footage on about 40% of the narration (never more). Map beats stay for every sentence that names a number, a
+  time, a warning, a track, radar, a map or a source: those are the data moments, and weather graphics hide under footage.
+- A footage beat starts at a sentence (or clause) that DESCRIBES the weather or its effects: rain, flooding, surge, waves,
+  wind, snow, ice, heat, storm clouds, damage, recovery ("All that water had to go somewhere", "Streets turned to rivers").
+  It lasts 4 to 10 seconds, then the next map beat starts at the next data sentence.
+- Its clip rows use stock_video:<generic shot of exactly what that sentence describes>, worded from the sentence itself:
+  e.g. stock_video:aerial view of floodwater in city streets, stock_video:storm surge waves flooding the coast,
+  stock_video:strong wind bending trees, stock_video:heavy rain falling on a city street.
+  Never name a place, a storm or a date in the request (stock footage is generic, never "footage of" this event). Never
+  ask for a setting the narration does not have (no palm trees or beaches in a Wyoming wind story). Approved event clips
+  (file paths) are still preferred where the user gave them.
+- A footage beat of 9 seconds or more may have two clip rows (two angles of the same subject); the app also cuts a long
+  single stock shot into ~5 s shots itself.
+- Weather layers (FILE 2) still never belong to a stock footage beat: move a layer's vo_anchor to its map beat.
+- The first beat (the title) stays a map beat.

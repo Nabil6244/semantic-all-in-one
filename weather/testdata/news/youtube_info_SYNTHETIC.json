@@ -1,0 +1,7 @@
+{"cc": {"id": "AAAAAAAAAAA", "title": "Hurricane Ian eyewall at Fort Myers", "channel": "Example Weather Lab", "channel_id": "UCexample",
+        "upload_date": "20220929", "license": "Creative Commons Attribution license (reuse allowed)", "duration": 312,
+        "description": "Footage of Hurricane Ian making landfall near Fort Myers, Florida."},
+ "std": {"id": "BBBBBBBBBBB", "title": "Hurricane Ian LIVE coverage", "channel": "Some News Network", "upload_date": "20220928",
+         "license": null, "duration": 3600, "description": "Live coverage of Hurricane Ian."},
+ "gov": {"id": "CCCCCCCCCCC", "title": "Hurricane Ian from GOES-East", "channel": "NOAA Satellites", "upload_date": "20220929",
+         "license": null, "duration": 60, "description": "GOES-16 watched Hurricane Ian approach Florida."}}

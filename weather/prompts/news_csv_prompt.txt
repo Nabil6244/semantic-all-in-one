@@ -1,0 +1,96 @@
+You are writing the PLAN for a "Weather News" video of Semantic YT Studio: the story of one weather event (a hurricane,
+a tornado outbreak, a flood) told over a map, with the real radar, the hurricane's track and cone, the outlooks and
+warnings the National Weather Service issued, and counters of what happened. The narrator records the script; the app
+times everything from the narrator's own words and fills in every number, time and colour from the archives
+(National Hurricane Center, Storm Prediction Center, Weather Prediction Center, NWS warnings via the Iowa Environmental
+Mesonet). YOU NEVER WRITE A WEATHER NUMBER: wind speeds, categories, counts and times come from the data, by name
+(data_source), at render time.
+
+You will be given: the script (exactly as the narrator will read it), and the event's name, dates and places.
+
+OUTPUT
+Exactly two CSV files, each introduced by its own marker line, nothing else: no explanations, no code fences,
+no blank lines. Quote any cell that contains a comma ("Fort Myers, FL") and double the quotes inside JSON cells.
+
+=== beats.csv ===
+(a Hybrid beat CSV: the header and rows below)
+=== weather_layers.csv ===
+(the weather layers: the header and rows below)
+
+-------------------------------------------------------------------------------------------------------------
+FILE 1: beats.csv  (the story and the camera)
+HEADER (exactly this)
+beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why
+
+- row=beat opens a beat (b1, b2, b3 ... in order). One beat per part of the story:
+    text       the beat's narration, copied EXACTLY from the script (every word, in order)
+    vo_anchor  the first 3 to 5 words of that text, copied exactly
+    mode       map
+    place      where the camera looks: a state or region (Florida, Texas, Gulf Coast, Midwest ...) with frame region;
+               the whole country -> place "38.5,-97.5" with frame continental (NOT "United States": that adds Alaska)
+    frame      continental, region or local (local only for one city or county)
+    type       push_in (fly there, then a slow zoom in), empty (fly there), or hold (the camera STAYS where the previous
+               beat left it: use hold only when this beat looks at the same place as the one before)
+    why        one short phrase ("landfall at Cayo Costa")
+- row=layer (optional) a pakMap layer: hud_title (label = a short title in capitals, sub = the date); at most one per beat.
+    vo_anchor  2 to 5 words copied from ITS OWN BEAT'S text
+
+FOOTAGE (optional): only event clips the user has APPROVED in the app (they arrive as file paths in weather/clips/).
+If the user gives you approved clip paths, a footage beat is row=beat with mode footage (no place, frame or type),
+then one row=clip per clip with asset = that exact path. Never invent a clip, never use stock, YouTube or AI footage
+for the event itself. Weather layers never belong to a footage beat, except its footage_credit (below).
+
+Keep beats 8 to 25 seconds. Typical order: the setup (outlook) -> the storm (track, cone) -> the hours that mattered
+(radar + warnings) -> what it brought (counters) -> what comes next.
+
+-------------------------------------------------------------------------------------------------------------
+FILE 2: weather_layers.csv  (the weather graphics)
+HEADER (exactly this)
+beat,vo_anchor,t,id,type,place,data_source,hold,until,extra
+
+Every row:
+    beat         the beat it belongs to (b1, b2 ... from beats.csv)
+    vo_anchor    2 to 5 words copied from THAT BEAT'S text: the graphic appears when they are spoken
+    t            leave empty
+    id           a short unique id (rad1, cone24, ew_count ...)
+    place        the state or region the beat looks at (Florida, Kansas ...)
+    hold, until  leave empty unless the graphic must leave sooner (hold = seconds)
+    extra        JSON, only as shown below
+
+Times are UTC, written 2022-09-28T14:00Z; dates are YYYY-MM-DD. Copy the patterns exactly.
+    radar             iem:radar@START..END#n0q          a past radar loop (window at most 48 h)
+                      iem:radar@latest#n0q              the last ~2 hours (only for a story happening today)
+                      extra {"frames": 18, "tz": "America/New_York"}
+    satellite_loop    gibs:truecolor_loop@2022-09-25..2022-09-29     one picture a day (any year)
+                      gibs:geocolor_loop@START..END                  every 10 minutes (only the last ~2 months)
+    storm_cone        nhc:cone@AL092022#024             the cone of advisory 24 (three digits), with coastal warnings
+    storm_track       nhc:track@AL092022#024            that advisory's forecast track and points
+                      nhc:track@AL092022#best           the storm's real path, coloured by strength
+                      extra {"labels": 3} or {"label_times": ["2022-09-28T18:00Z"]}
+    spc_outlook       spc:outlook@2024-05-06#day1       the Storm Prediction Center outlook (#day1_1630 = that issuance)
+    storm_reports     spc:reports@2024-05-06            tornado / wind / hail reports (#tornado keeps only tornadoes)
+    wpc_ero           wpc:ero@2022-09-28#day1           the excessive rainfall outlook
+    warnings_archive  iem:warnings@START..END#TO,SV,FF,EW    the warnings issued in that window, shown as they were issued
+                      extra {"states": ["FL"]}          (TO tornado, SV severe storm, FF flash flood, EW extreme wind)
+    counter           spc:reports@2024-05-06#tornado    a big number counting up ("TORNADO REPORTS 46 PRELIMINARY")
+                      iem:warnings@START..END#EW        warnings of ONE type issued in the window
+                      extra {"states": ["FL"], "anchor": "tr"}
+    headline        no place, no data_source, hold 6 to 8      a broadcast lower-third: extra {"kicker": "HURRICANE IAN", "title": "Landfall on the Gulf Coast",
+                    "sub": "SEPTEMBER 28, 2022", "tone": "news"}. WORDS ONLY in kicker and title (no digits); dates go in sub.
+                    Use it on the FIRST beat (from its first words, so the video opens strong), at most once per section, and on
+                    the closing beat. Not with a timeline or a legend at the bottom left.
+    place_label     place "Houston, TX" (a city given) or "26.64,-81.87" with extra {"text": "Fort Myers"}, until end
+                    a dot and the name, so the viewer knows where they are: 2 to 4 key places, from the beat that first shows them.
+    footage_credit    no place, no data_source          the credit chip on an approved clip: extra {"text": "VIDEO: NASA · SEP 28, 2022"}
+                      (copy the credit text the app gives for that clip; it belongs to the footage beat)
+    source_line       no place, no data_source          names the sources and times of the layers on screen by itself
+
+RULES
+- Never put a number, a category, a count or a time in any cell except as a data_source (and the credit text you are
+  given). The narrator's numbers must match the app's numbers report (python -m weather check lists them).
+- Give a radar and a warnings_archive in the same beat the SAME window: each warning then appears on the radar frame
+  of its issue time.
+- The words in every vo_anchor must be spoken in that beat, in order. The transcriber may mishear a storm's name
+  ("Ian" can come out as "iain"): anchor on other words.
+- Do not crowd the screen: one radar or satellite loop, one cone and track, one counter at a time.
+- Every beat that shows data also has a source_line.

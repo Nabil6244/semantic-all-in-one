@@ -1,0 +1,15 @@
+{
+  "name": "video-generator-weather-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Weather renderer: a copy of pakmap-engine's render.mjs and page.js (see UPSTREAM.json) that imports pakmap-engine/lib, its MapLibre and font, and adds timed satellite layers and weather graphics. No npm dependencies of its own.",
+  "main": "render.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check-upstream": "node tools/check_upstream.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,19 @@
+{"batchcomplete": "", "query": {"pages": {
+ "101": {"pageid": 101, "ns": 6, "title": "File:Hurricane Ian storm surge Fort Myers Beach.webm", "imageinfo": [{"size": 1000, "mime": "video/webm",
+   "url": "https://upload.wikimedia.org/example/ian_surge.webm", "descriptionurl": "https://commons.wikimedia.org/wiki/File:Hurricane_Ian_storm_surge_Fort_Myers_Beach.webm",
+   "extmetadata": {"LicenseShortName": {"value": "CC BY 4.0"}, "LicenseUrl": {"value": "https://creativecommons.org/licenses/by/4.0"},
+     "Artist": {"value": "<a href=\"//commons.wikimedia.org/wiki/User:Example\">Jane Example</a>"}, "DateTimeOriginal": {"value": "2022-09-28 16:10"},
+     "ImageDescription": {"value": "Storm surge from Hurricane Ian in Fort Myers Beach, Florida"}}}]},
+ "102": {"pageid": 102, "ns": 6, "title": "File:Ian aftermath news clip.webm", "imageinfo": [{"size": 1000, "mime": "video/webm",
+   "url": "https://upload.wikimedia.org/example/ian_news.webm", "descriptionurl": "https://commons.wikimedia.org/wiki/File:Ian_aftermath_news_clip.webm",
+   "extmetadata": {"LicenseShortName": {"value": "CC BY-NC 4.0"}, "Artist": {"value": "Some Station"}, "DateTimeOriginal": {"value": "2022-09-30"},
+     "ImageDescription": {"value": "Hurricane Ian aftermath"}}}]},
+ "103": {"pageid": 103, "ns": 6, "title": "File:FEMA Hurricane Ian Sanibel causeway.webm", "imageinfo": [{"size": 1000, "mime": "video/webm",
+   "url": "https://upload.wikimedia.org/example/ian_fema.webm", "descriptionurl": "https://commons.wikimedia.org/wiki/File:FEMA_Hurricane_Ian_Sanibel_causeway.webm",
+   "extmetadata": {"LicenseShortName": {"value": "Public domain"}, "Artist": {"value": "FEMA"}, "DateTimeOriginal": {"value": "2022-10-03"},
+     "ImageDescription": {"value": "Damage to the Sanibel Causeway after Hurricane Ian"}}}]},
+ "104": {"pageid": 104, "ns": 6, "title": "File:Hurricane Irma Florida 2017.webm", "imageinfo": [{"size": 1000, "mime": "video/webm",
+   "url": "https://upload.wikimedia.org/example/irma.webm", "descriptionurl": "https://commons.wikimedia.org/wiki/File:Hurricane_Irma_Florida_2017.webm",
+   "extmetadata": {"LicenseShortName": {"value": "CC0"}, "Artist": {"value": "Someone"}, "DateTimeOriginal": {"value": "2017-09-10"},
+     "ImageDescription": {"value": "Hurricane Irma in Florida"}}}]}
+}}}

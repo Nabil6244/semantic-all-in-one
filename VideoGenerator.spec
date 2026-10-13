@@ -169,6 +169,13 @@ from starmap.packaging import engine_data_files as starmap_data_files  # noqa: E
 
 datas += starmap_data_files(ROOT)
 
+# Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the
+# weather package's data and prompts (see weather/packaging.py, which is unit-tested).
+from weather.packaging import data_files as weather_data_files, python_modules as weather_modules  # noqa: E402
+
+datas += weather_data_files(ROOT)
+hiddenimports += weather_modules(ROOT)   # app.py imports Weather only inside methods: name every module so none is missed
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership); _light = the light-theme lettering

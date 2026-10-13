@@ -1,0 +1,143 @@
+{
+ "_about": "Fork record of weather-engine. render.mjs, page.js and page.html are COPIES of pakmap-engine's files at fork_commit (changes listed in their headers). The other pakmap-engine modules are imported, never copied or edited. tools/check_upstream.mjs reports any difference from this record and never changes a file; porting an upstream change is a separate, approved step that refreshes this record deliberately.",
+ "fork_commit": "84700a7",
+ "copied": {
+  "render.mjs": "913dbff5192ae40571a484e060cc59032790b0d216deaf2ded3d75765c5994a2",
+  "page.js": "89a75de2fe444f011cac62681a4d5d290891a85a4bd80aeed0976b24d9865b60",
+  "page.html": "5c6af98e82f2104c14274a75490d56b0b93fe880f8e59245a5f4ac3fb265a274"
+ },
+ "pakmap_lib": {
+  "anim.mjs": "78c2550210765032734ec46491325cced1c82ab77dc606ad3fdc6f120bfd502b",
+  "camera.mjs": "ecb3112a898a85035bf123fc516fd863cc4bdeb23234ebe82ca4ba5519b99bd0",
+  "datasets.mjs": "02429d6d19dc0bdec726c618bd290c38180bd27dbed1f4a947dce596b2f30e94",
+  "draw.mjs": "d579c57a368f1d1085a74806b8c85556da9f8a6a31d9f267d11c375c54d45623",
+  "events.mjs": "f1838d628698c80f3b2f7b9b11e97ba6db7df06538d3e07fa5560bd101adc15e",
+  "format.mjs": "cc01a5dc1ede56ad54b3fd54ebe26a73180da6b1fb1cc2918cb8920c1e6c0790",
+  "geom.mjs": "13c520c23bfb775678c87a7849f6a4c1f3cd05cf313f87bd49552204c913d170",
+  "hybrid.mjs": "195e530f56ec0e5e94c726d8f86716dfb38099618124a057fe3791cabbb7a18e",
+  "imagery.mjs": "b93e2b25dd233198076614348a781c30984d83833256506f22d81cdc03bd7bfd",
+  "layout.mjs": "5f1fc00ba0f93a3b61eb2d6e4b4debda5c5fec3b4305c2c5800e4aa070d56e1a",
+  "media.mjs": "e8d9282e1d251186bcf9b92619f224154c4589a3035a8ab049c6e58c5c0c8aef",
+  "plan.mjs": "dbc8f4f08d01a0ea026496fb8effeb4c25daba8a0a0289e060016402ae9ccb01",
+  "points.mjs": "54b0be99f79c8670213d9b16ed01e88491aeb25a65fa84b3a3a190b3c3966089",
+  "raster.mjs": "ef55eca3e7902367b4c3b052a63459fc6425b897a34479a054ad47ffabef42ed",
+  "shapes.mjs": "dd8c9e7c01e6f13c87fa43419e79f1a3a7867130eeb86111e9368556cb9d822a",
+  "style.mjs": "f5a4741b4a1ca85dd0da5254dfaea839621bed9a21b2ef51c8a2d9904f0ef012",
+  "tiles.mjs": "e941af06ed81b95de314688d319ec23d5ed303631125f7a38dc37ec5bb197328"
+ },
+ "uses_exports": {
+  "anim.mjs": [
+   "clamp01",
+   "easeOut",
+   "lifeAlpha"
+  ],
+  "camera.mjs": [
+   "createCamera",
+   "easings",
+   "frameWidthKm",
+   "metersPerPixel"
+  ],
+  "datasets.mjs": [
+   "resolveSpecData"
+  ],
+  "draw.mjs": [
+   "createOverlay"
+  ],
+  "events.mjs": [
+   "activeAt",
+   "freezeWindows"
+  ],
+  "hybrid.mjs": [
+   "footageAlpha",
+   "footageWindows",
+   "shiftedEvent"
+  ],
+  "imagery.mjs": [
+   "selectLayers"
+  ],
+  "layout.mjs": [
+   "FRAME",
+   "pickSide"
+  ],
+  "media.mjs": [
+   "disposeMedia",
+   "materializeClip",
+   "prepareMedia",
+   "releaseClips"
+  ],
+  "plan.mjs": [
+   "planRender"
+  ],
+  "points.mjs": [
+   "parsePointsCsv"
+  ],
+  "raster.mjs": [
+   "Grid",
+   "imageSize",
+   "mercY",
+   "renderGridRGBA",
+   "resolveRamp"
+  ],
+  "style.mjs": [
+   "COLORS",
+   "FILL_ROLES",
+   "FONT",
+   "GEOM",
+   "TIMING"
+  ],
+  "tiles.mjs": [
+   "cachePath",
+   "fetchTile"
+  ]
+ },
+ "python_uses": {
+  "map_scene.render": [
+   "_find",
+   "_node",
+   "_ffmpeg",
+   "_ensure_browser",
+   "_browser_channel"
+  ],
+  "pakmap.engine_runner": [
+   "PakmapRenderError",
+   "PakmapRenderCancelled",
+   "RenderOutcome",
+   "cache_dir"
+  ],
+  "pakmap.anchor": [
+   "Transcript",
+   "Transcript.find",
+   "Transcript.nearest",
+   "Transcript._spans",
+   "Transcript.words"
+  ],
+  "pakmap.app_integration": [
+   "PakmapResult",
+   "voiceover_duration",
+   "generate_pakmap_video(render=)"
+  ],
+  "hybrid.beat_csv": [
+   "plan_from_csv"
+  ],
+  "hybrid.generate": [
+   "generate_hybrid_video"
+  ],
+  "hybrid.plan": [
+   "PlanError",
+   "HybridPlan",
+   "Beat"
+  ],
+  "providers.hidden_subprocess": [
+   "popen"
+  ],
+  "providers.flow.engine_manager": [
+   "_find_flow_engine_dir"
+  ],
+  "hardware.process_registry": [
+   "get_registry"
+  ],
+  "video_generator": [
+   "transcribe_audio"
+  ]
+ }
+}
