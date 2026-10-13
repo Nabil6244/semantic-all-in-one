@@ -32,8 +32,8 @@ class ClipReview(unittest.TestCase):
         self.file.write_bytes(b"x")
         self.store.set_local("nasa:1", self.file)
         self.beats, self.layers = self.root / "beats.csv", self.root / "weather_layers.csv"
-        self.beats.write_text(BEATS)
-        self.layers.write_text("beat,vo_anchor,t,id,type,place,data_source,hold,until,extra\n")
+        self.beats.write_text(BEATS, encoding="utf-8")
+        self.layers.write_text("beat,vo_anchor,t,id,type,place,data_source,hold,until,extra\n", encoding="utf-8")
 
     def test_labels_are_kept_and_shown_on_the_credit(self):
         c = set_labels(self.store, "nasa:1", use="historical", beat="b2")
@@ -53,11 +53,11 @@ class ClipReview(unittest.TestCase):
         set_labels(self.store, "nasa:1", beat="b2")
         use_in_beats(self.store, self.beats, self.layers)
         use_in_beats(self.store, self.beats, self.layers)   # twice: still one event clip
-        rows = list(csv.DictReader(io.StringIO(self.beats.read_text())))
+        rows = list(csv.DictReader(io.StringIO(self.beats.read_text(encoding="utf-8"))))
         self.assertEqual([(r["beat"], r["row"]) for r in rows], [("b1", "beat"), ("b2", "beat"), ("b2", "clip"), ("b2", "clip"), ("b3", "beat")])
         self.assertEqual(rows[2]["asset"], "stock_video:rain on a window")   # other clips are kept
         self.assertEqual(rows[3]["asset"], str(self.file))
-        credits = list(csv.DictReader(io.StringIO(self.layers.read_text())))
+        credits = list(csv.DictReader(io.StringIO(self.layers.read_text(encoding="utf-8"))))
         self.assertEqual(len(credits), 1)
         self.assertEqual((credits[0]["type"], credits[0]["vo_anchor"], json.loads(credits[0]["extra"])["text"]),
                          ("footage_credit", "NASA cameras on", "NASA · SEP 28, 2022"))
@@ -70,7 +70,7 @@ class ClipReview(unittest.TestCase):
         self.file.unlink()
         with self.assertRaisesRegex(ApprovalError, "not downloaded"):
             use_in_beats(self.store, self.beats, self.layers)
-        self.assertEqual(self.beats.read_text(), BEATS)
+        self.assertEqual(self.beats.read_text(encoding="utf-8"), BEATS)
 
     def test_no_beat_chosen_is_named(self):
         with self.assertRaisesRegex(ApprovalError, "pick the beat"):
