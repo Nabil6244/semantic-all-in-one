@@ -25,7 +25,7 @@ Pick it in the Weather card (**Editing style: Weather | Weather Teamplate**, sav
 | Reference trait | Teamplate | Where |
 |---|---|---|
 | Hard cuts | Hybrid's dissolve becomes 1 frame; footage `dissolve_s` = 1 frame | `weather/teamplate/__init__.py` `apply_plan`, `apply_spec` |
-| Map cuts, slow hold | every `fly_to` after the opening becomes a 1-frame move on a frame boundary + slow push-in (≤10 s, never under footage); the opening globe zoom is kept | `cut_camera` |
+| Map cuts, never a still frame | every `fly_to` after the opening becomes a 1-frame move on a frame boundary; every map hold with no move of its own creeps in (zoom only, ~0.03 zoom/s, ≤0.35 per hold, never under footage); the opening globe zoom is kept | `cut_camera` |
 | Cut first, then words | a keyword card that would start just before a cut waits for it | `apply_spec` `on_cut` |
 | ~5 s shots | a single stock shot ≥ 9 s → ~5 s shots of the same subject (`…`, `…, close up`, `…, wide shot`, `…, aerial view`); event footage and your own files are never split | `weather/teamplate/footage.py` `split_long_shots` |
 | Relevant footage only | a stock request contradicting its beat's narration (weather type, or a tropical/coast/desert/city setting it never mentions) stops the render, naming the beat; your-library swaps are checked against the narration too | `relevance_problems`, `prefer_library_strict` |

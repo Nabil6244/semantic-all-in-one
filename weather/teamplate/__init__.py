@@ -49,8 +49,9 @@ STAT_BIG_S = 6.0             # a counter's big count-up before it settles into a
 DIP_IN_S, DIP_OUT_S = 0.35, 0.45
 # Map look: the reference's maps are dark and muted, the colour kept for data. A raster grade on the base imagery only.
 MAP_GRADE = {"saturation": -0.30, "contrast": 0.10, "brightness_min": 0.0, "brightness_max": 0.84, "hue_rotate": 0}
-PUSH_ZOOM = 0.22             # the slow push-in after a map cut (zoom levels over the hold)
-PUSH_MIN_S = 4.0
+PUSH_RATE = 0.03             # the slow creep while the map holds: zoom levels a second (about 2 % closer a second) ...
+PUSH_MAX = 0.35              # ... and at most this much in one hold
+PUSH_MIN_S = 3.0
 
 
 # ---- the plan (before Hybrid compiles it) ----------------------------------------------------------------------------------
@@ -95,25 +96,46 @@ def _under_footage(t: float, windows) -> bool:
     return any(a - 1e-6 <= t <= b + 1e-6 for a, b in windows)
 
 
-def cut_camera(camera: Dict[str, Any], fps: float, duration: float, footage) -> Dict[str, Any]:
-    """The map cuts between beats: every fly_to after the opening becomes a one-frame move (no flight over the globe), followed by a
-    slow push-in while the map holds. The opening move (the establishing zoom from the globe, in the first 3 s) is kept."""
-    cam = copy.deepcopy(camera or {})
-    moves = sorted(cam.get("moves") or [], key=lambda m: m["t"])
-    out = []
-    for i, m in enumerate(moves):
-        if m.get("type") != "fly_to" or m["t"] < 3.0 or _under_footage(m["t"], footage):
-            out.append(m)
+def _outside(a: float, b: float, windows) -> List[List[float]]:
+    """[a, b] without the windows."""
+    out, cur = [], a
+    for wa, wb in windows:
+        if wb <= cur or wa >= b:
             continue
-        t = _frame_ceil(m["t"], fps)
-        cut = {"type": "push_in", "t": t, "dur": 0.5 / fps, "to": dict(m["to"]), "easing": "linear"}
-        out.append(cut)
-        # the hold after the cut gets a slow push-in, until the next move or the next footage
-        nxt = min([n["t"] for n in moves[i + 1:]] + [a for a, _b in footage if a > t] + [duration])
-        start = t + 1.0 / fps
-        dur = min(10.0, nxt - start - 0.2)
-        if dur >= PUSH_MIN_S:
-            out.append({"type": "push_in", "t": start, "dur": dur, "to": {"zoom": float(m["to"]["zoom"]) + PUSH_ZOOM}, "easing": "inOut"})
+        if wa > cur:
+            out.append([cur, wa])
+        cur = max(cur, wb)
+    if cur < b:
+        out.append([cur, b])
+    return out
+
+
+def cut_camera(camera: Dict[str, Any], fps: float, duration: float, footage) -> Dict[str, Any]:
+    """The map cuts between beats: every fly_to after the opening becomes a one-frame move (no flight over the globe). The opening
+    move (the establishing zoom from the globe, in the first 3 s) is kept. And the map is never a still picture: wherever it holds
+    with no move of its own (and no footage over it), it creeps in slowly, zoom only, so it stays on the same place."""
+    cam = copy.deepcopy(camera or {})
+    moves = []
+    for m in sorted(cam.get("moves") or [], key=lambda m: m["t"]):
+        if m.get("type") != "fly_to" or m["t"] < 3.0 or _under_footage(m["t"], footage):
+            moves.append(m)
+        else:
+            moves.append({"type": "push_in", "t": _frame_ceil(m["t"], fps), "dur": 0.5 / fps, "to": dict(m["to"]), "easing": "linear"})
+    zoom = float(((cam.get("start") or {}).get("zoom")) or 0.0)
+    out, t = [], 0.0
+    for m in moves + [None]:
+        end = m["t"] if m is not None else duration
+        # the still stretch [t, end], minus the footage over it (the map holds still under footage)
+        for a, b in _outside(t, end, footage):
+            if b - a - 0.25 >= PUSH_MIN_S:
+                dur = b - a - 0.25
+                zoom += min(PUSH_RATE * dur, PUSH_MAX)
+                out.append({"type": "push_in", "t": a + 0.05, "dur": dur, "to": {"zoom": round(zoom, 4)}, "easing": "inOut"})
+        if m is None:
+            break
+        out.append(m)
+        zoom = float((m.get("to") or {}).get("zoom", zoom))
+        t = m["t"] + m["dur"]
     cam["moves"] = out
     return cam
 

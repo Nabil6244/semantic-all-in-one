@@ -80,7 +80,7 @@ class Spec(unittest.TestCase):
     def test_the_map_cuts_between_beats_and_keeps_its_opening_move(self):
         moves = self.s["camera"]["moves"]
         self.assertEqual(moves[0]["type"], "fly_to")   # the establishing move from the globe
-        cut = moves[1]
+        cut = next(m for m in moves if m["t"] >= 20.0)
         self.assertEqual(cut["type"], "push_in")
         self.assertLess(cut["dur"], 1.0 / 30 + 1e-9)
         self.assertEqual((cut["to"]["lon"], cut["to"]["lat"]), (-83.8, 28.1))
@@ -90,6 +90,19 @@ class Spec(unittest.TestCase):
             self.assertGreaterEqual(m["t"], prev_end - 1e-9)
             prev_end = m["t"] + m["dur"]
             self.assertLessEqual(prev_end, 45.0)
+
+    def test_the_map_is_never_a_still_picture(self):
+        moves = sorted(self.s["camera"]["moves"], key=lambda m: m["t"])
+        t = 0.0
+        for m in moves:   # every gap between moves is shorter than a creep (or under footage, 45-60 s)
+            self.assertLess(m["t"] - t, tp.PUSH_MIN_S + 0.5, (t, m))
+            t = m["t"] + m["dur"]
+        self.assertGreaterEqual(t, 45.0 - tp.PUSH_MIN_S - 0.5)
+        zoom = 1.7
+        for m in moves:   # a creep is zoom only (same place), gently in
+            if "lon" not in m["to"]:
+                self.assertTrue(0 < m["to"]["zoom"] - zoom <= tp.PUSH_MAX + 1e-9, m)
+            zoom = m["to"]["zoom"]
 
     def test_a_keyword_card_waits_for_the_map_cut_it_belongs_to(self):
         sp = spec()
