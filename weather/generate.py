@@ -79,9 +79,22 @@ def layer_rows(project: WeatherProject, *, strict: bool = False, notes: Optional
 
 
 def fetch(project: WeatherProject, contact: str, *, now: Optional[datetime] = None, client: Optional[NwsClient] = None, **kw) -> Snapshot:
-    """Prep: fetch every product the layers need, check it is fresh, and write resolved.json."""
+    """Prep: fetch every product the layers need and write resolved.json. Each graphic is fetched on its own: one that cannot be
+    fetched (a server that does not answer, a blocked connection) is left out with the reason in snap.notes, and the others are
+    kept, so one download never stops the video. Only when NOTHING could be fetched does this raise."""
+    from .intel.engine import Net, acquire
+    from .intel.evidence import Evidence
+
     rows = layer_rows(project)
-    snap = prepare(rows, client or (NwsClient(contact) if contact else None), now=now, **kw)
+    now = now or datetime.now(timezone.utc)
+    net = Net(Evidence(), get_text=kw.get("get_text"), get_bytes=kw.get("get_bytes"), now=now)
+    snap, failed = acquire(rows, net, contact=contact, now=now, nws_client=client or (NwsClient(contact) if contact else None),
+                           gibs_get=kw.get("gibs_get"))
+    wanted = [r for r in rows if r.data_source is not None]
+    if wanted and len([r for r in wanted if r.id in failed]) == len(wanted):
+        raise RuntimeError("none of the weather data could be fetched: " + "; ".join(f"{k}: {v}" for k, v in list(failed.items())[:3]))
+    for rid, why in failed.items():
+        snap.notes.append(f"weather graphic {rid} is left out of this video: its data could not be fetched ({why})")
     project.resolved_json.write_text(snap.to_json(), encoding="utf-8")
     return snap
 

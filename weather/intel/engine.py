@@ -265,7 +265,7 @@ PHASE1 = ("temp_marker", "forecast_strip", "now_card", "alert_area", "satellite"
 
 
 def acquire(rows: Sequence[Any], net: Net, *, contact: str = "", previous=None, now: Optional[datetime] = None,
-            nws_client=None) -> Tuple[Any, Dict[str, str]]:
+            nws_client=None, gibs_get=None) -> Tuple[Any, Dict[str, str]]:
     """(snapshot, row id -> why its data could not be fetched). Every row is fetched on its own: one failure never stops the rest.
     Data still in `previous` (a fresh earlier snapshot) is reused instead of fetched again."""
     from ..layers import FetchContext, get as layer_type
@@ -300,7 +300,7 @@ def acquire(rows: Sequence[Any], net: Net, *, contact: str = "", previous=None, 
                     from ..nws import NwsClient
 
                     client = NwsClient(contact)
-                part = prepare([r], client, now=now, gibs_get=lambda u: net.text(u, source="gibs_geocolor", purpose="satellite times"))
+                part = prepare([r], client, now=now, gibs_get=gibs_get or (lambda u: net.text(u, source="gibs_geocolor", purpose="satellite times")))
                 snap.forecasts.update(part.forecasts)
                 snap.observations.update(part.observations)
                 snap.alerts.update(part.alerts)

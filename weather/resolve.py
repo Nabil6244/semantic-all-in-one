@@ -14,6 +14,8 @@ import json
 import math
 import re
 import urllib.request
+
+from .netssl import ssl_context
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional
@@ -176,7 +178,7 @@ def fetch_alerts(client: NwsClient, area: str) -> Dict[str, Any]:
 
 def _gibs_get(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "SemanticYTStudio-Weather/1.0"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=30, context=ssl_context()) as r:
         return r.read().decode("utf-8")
 
 

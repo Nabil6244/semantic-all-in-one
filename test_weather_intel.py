@@ -819,5 +819,38 @@ class ForecastHurricanePack(unittest.TestCase):
         self.assertFalse([d for d in res.added if d.spec.startswith("forecast.")])
 
 
+class FetchNeverStopsOnOneFile(unittest.TestCase):
+    """The app's Fetch data: a graphic whose server does not answer is left out with the reason; the others are fetched."""
+
+    LAYERS = ("beat,vo_anchor,t,id,type,place,data_source,hold,until,extra\n"
+              "b5,The report says the,,rad,radar,,iem:radar@2026-10-11T08:00Z..2026-10-11T13:00Z#n0q,,,\n"
+              'b6,The Newberry confirmation also,,rep,storm_reports,,spc:reports@2026-10-10#tornado,,,"{""states"": [""SC""]}"\n')
+
+    def test_one_failing_server(self):
+        from weather.generate import fetch as wfetch
+
+        p = project(TORNADO, self.LAYERS)
+        r = Replay(broken=("json/radar",))
+        snap = wfetch(p, "", now=NOW, get_text=r.text, get_bytes=r.bytes)
+        self.assertTrue(p.resolved_json.is_file())
+        self.assertTrue(any("rad is left out" in n and "could not be fetched" in n for n in snap.notes))
+        self.assertTrue(any(k.startswith("spc_reports:") for k in snap.extra))
+
+    def test_nothing_fetched_is_an_error(self):
+        from weather.generate import fetch as wfetch
+
+        p = project(TORNADO, self.LAYERS)
+        r = Replay(broken=("json/radar", "spc.noaa.gov"))
+        with self.assertRaises(RuntimeError):
+            wfetch(p, "", now=NOW, get_text=r.text, get_bytes=r.bytes)
+
+    def test_certificates_trust_the_system_and_the_bundle(self):
+        from weather.netssl import ssl_context
+
+        ctx = ssl_context()
+        self.assertTrue(ctx.check_hostname)          # still verified: nothing is turned off
+        self.assertGreater(len(ctx.get_ca_certs()) + ctx.cert_store_stats()["x509_ca"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

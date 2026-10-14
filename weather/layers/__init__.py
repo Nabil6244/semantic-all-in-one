@@ -92,23 +92,31 @@ def fresh_problems(snap, now: datetime) -> List[str]:
 UA = "SemanticYTStudio-Weather/1.0"
 
 
-def http_bytes(url: str, *, max_age_s: float = 6 * 3600.0, timeout: float = 60.0) -> bytes:
-    """GET through Weather's own HTTP cache (a public archive answer rarely changes: 6 h by default). Raises on HTTP errors."""
+ARCHIVE_PARTS = ("/archive/data/", "/gis/forecast/archive/al", "/gis/forecast/archive/ep", "/gis/best_track/", "/climo/reports/",
+                 "/data/hurdat/hurdat2")   # files that never change once published: kept for 30 days
+
+
+def http_bytes(url: str, *, max_age_s: float = 6 * 3600.0, timeout: float = 120.0, tries: int = 4) -> bytes:
+    """GET through Weather's own HTTP cache (6 h by default; published archive files 30 days). Big files get a long timeout and
+    several tries with growing pauses (a slow line or a busy server is the usual reason a download fails). Raises on HTTP errors."""
     import urllib.error
     import urllib.request
     from datetime import timezone
 
     from ..cache import HttpCache, Response
+    from ..netssl import ssl_context
 
+    if any(p in url for p in ARCHIVE_PARTS) and "latest" not in url:
+        max_age_s = max(max_age_s, 30 * 86400.0)
     cache = HttpCache()
     hit = cache.get(url)
     if hit is not None:
         return hit.body
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     last = None
-    for attempt in range(3):
+    for attempt in range(tries):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as r:
                 body = r.read()
                 cache.put(url, Response(r.status, body, {}, datetime.now(timezone.utc)), max_age_s)
                 return body
@@ -118,9 +126,15 @@ def http_bytes(url: str, *, max_age_s: float = 6 * 3600.0, timeout: float = 60.0
             last = exc
         except (urllib.error.URLError, OSError, TimeoutError) as exc:
             last = exc
+            import ssl
+
+            if isinstance(getattr(exc, "reason", exc), ssl.SSLCertVerificationError):
+                raise RuntimeError(f"{url} could not be fetched (certificate verify failed: an antivirus or network is inspecting "
+                                   "secure connections; allow this site or turn off HTTPS scanning)") from None
         import time
 
-        time.sleep(1.5 * (attempt + 1))
+        if attempt + 1 < tries:
+            time.sleep(2.0 * 2 ** attempt)   # 2, 4, 8 s
     raise RuntimeError(f"{url} could not be fetched ({last})")
 
 

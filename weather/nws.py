@@ -11,6 +11,8 @@ import re
 import time
 import urllib.error
 import urllib.request
+
+from .netssl import ssl_context
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
@@ -43,7 +45,7 @@ Fetcher = Callable[[str, Dict[str, str]], Response]
 def urllib_fetch(url: str, headers: Dict[str, str]) -> Response:
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=30, context=ssl_context()) as r:
             return Response(r.status, r.read(), {k.lower(): v for k, v in r.headers.items()}, datetime.now(timezone.utc))
     except urllib.error.HTTPError as e:
         return Response(e.code, e.read() or b"", {k.lower(): v for k, v in (e.headers or {}).items()}, datetime.now(timezone.utc))

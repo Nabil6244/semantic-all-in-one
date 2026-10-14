@@ -691,7 +691,10 @@ def fetch(app) -> None:
             app._append_log(f"{TAG} {n}\n")
         if ok:
             show_summary(app)
-            app._weather_status_var.set("Data fetched. Next: Check plan (it needs the voiceover), then Generate.")
+            left = sum(1 for n in notes if "is left out of this video" in n)
+            app._weather_status_var.set("Data fetched. Next: Check plan (it needs the voiceover), then Generate." if not left else
+                                        f"Data fetched; {left} graphic(s) could not be downloaded and are left out (see the log). "
+                                        "Fetch data again to retry them, or go on: Check plan, then Generate.")
             if app._current_voiceover_path() is not None:
                 check_plan(app)
         else:
