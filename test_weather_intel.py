@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 import tempfile
 import unittest
 import urllib.error
@@ -773,6 +774,49 @@ class WinterAndFloods(unittest.TestCase):
         from weather.layers import get
 
         self.assertIn("by_day", get("rain_map").extra_keys)
+
+
+class ForecastHurricanePack(unittest.TestCase):
+    """An ACTIVE storm (Hurricane Simon, EP202026, NHC's live index of 2026-10-14): the cone of the latest advisory, when the
+    winds arrive, the chance of tropical-storm winds, WPC's rain forecast, the countdown. (The town is a test place: the
+    plumbing, not Simon's real geography, is what is checked.)"""
+
+    SCRIPT = HEAD + "".join([
+        'b1,beat,Hurricane Simon is forecast,map,,,Florida,region,,,"Hurricane Simon is forecast to keep strengthening this week. '
+        'The latest forecast cone shows where the center could go.",,,,,,,,,,,open\n',
+        'b2,beat,Tropical storm force winds,map,,,Florida,region,,,"Tropical storm force winds could arrive by Thursday afternoon, '
+        'and the winds begin well before the center.",,,,,,,,,,,arrival\n',
+        'b3,beat,The chance of damaging,map,,,Florida,region,,,"The chance of damaging winds is highest near the coast, and the odds '
+        'drop farther inland.",,,,,,,,,,,odds\n',
+        'b4,beat,Heavy rain is forecast,map,,,Florida,region,,,"Heavy rain is forecast too, with several inches expected over the next '
+        'five days.",,,,,,,,,,,rain\n',
+        'b5,beat,The storm is expected,map,,,Florida,region,,,"The storm is expected to make landfall near Tampa, Florida, so the '
+        'forecast landfall time matters.",,,,,,,,,,,landfall\n'])
+
+    def test_the_pack_from_the_live_index(self):
+        p = project(self.SCRIPT)
+        res, words, dur = run(p, Replay())
+        by = {d.id: d for d in res.added}
+        self.assertEqual(res.event["storm"]["id"], "EP202026")
+        self.assertEqual(by["auto_cone"].data_source, "nhc:cone@EP202026#028A")            # the latest advisory
+        self.assertEqual(by["auto_wind_arrival"].data_source, "nhc:arrival@EP202026#028")  # arrival maps: full advisories only
+        self.assertEqual(by["auto_wind_arrival"].beat, "b2")
+        self.assertEqual(by["auto_wind_prob"].data_source, "nhc:wsp@2026101406#34")
+        self.assertEqual(by["auto_wind_prob"].beat, "b3")
+        self.assertEqual(by["auto_rain_forecast"].beat, "b4")
+        self.assertEqual(by["auto_countdown"].beat, "b5")
+        plan, rows, snap, payload = plan_layers(p, words, dur, now=NOW)
+        counter = next(e for e in payload.events if e["id"] == "wx_auto_countdown")
+        self.assertTrue(counter["label"].startswith("HOURS UNTIL CLOSEST TO"))
+        self.assertIn("NHC FORECAST", counter["sub"])
+        labels = [pt["label"] for e in payload.events if e["id"] == "wx_auto_wind_arrival_labels" for pt in e["points"]]
+        self.assertTrue(labels and all(re.match(r"^(MON|TUE|WED|THU|FRI|SAT|SUN) ", x) for x in labels))
+        self.assertTrue(any(ln["product"].endswith("(forecast)") or "forecast" in ln["product"] for ln in payload.report.lines))
+
+    def test_an_archived_storm_gets_no_forecast_maps(self):
+        extra = {"hurdat2-": (FIX / "hurdat2_al092022_only.txt").read_bytes(), "/data/hurdat/": (FIX / "hurdat_index.html").read_bytes()}
+        res, _w, _d = run(project(IAN), Replay(extra=extra), fetch=False)
+        self.assertFalse([d for d in res.added if d.spec.startswith("forecast.")])
 
 
 if __name__ == "__main__":

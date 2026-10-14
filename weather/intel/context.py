@@ -43,6 +43,7 @@ class EventContext:
     focus: Optional[Tuple[float, float]] = None
     focus_name: str = ""
     track: List[Tuple[float, float]] = field(default_factory=list)  # the storm's (lat, lon) fixes, HURDAT2
+    live: Dict[str, Any] = field(default_factory=dict)  # an active storm: its latest NHC products (CurrentStorms.json)
     recorded: Optional[date] = None
     historical: bool = True
     notes: List[str] = field(default_factory=list)
@@ -235,9 +236,38 @@ def storm_peak(rec, net, ev: Evidence) -> Optional[dict]:
     return {"wind_kt": top["wind_kt"], "time": top["time"], "source": "final" if final else "working, preliminary"}
 
 
+CURRENT = "https://www.nhc.noaa.gov/CurrentStorms.json"
+
+
+def live_products(rec, net, ev: Evidence) -> Dict[str, Any]:
+    """An active storm's latest advisory and forecast products from NHC's live index ({} when it is not active)."""
+    import json
+
+    try:
+        d = json.loads(net.text(CURRENT, source="nhc_storm_list", purpose="active storms", max_age_s=600.0))
+    except Exception:
+        return {}
+    s = next((x for x in d.get("activeStorms") or [] if str(x.get("id", "")).upper() == rec.id), None)
+    if s is None:
+        return {}
+    adv = str((s.get("trackCone") or {}).get("advNum") or "").upper()
+    adv = adv.zfill(3) if adv.isdigit() else adv[:-1].zfill(3) + adv[-1:] if adv else ""
+    toa = str((s.get("earliestArrivalTimeTSWindsGIS") or {}).get("advNum") or "")
+    wsp = (s.get("windSpeedProbabilitiesGIS") or {}).get("kmzFile34kt") or ""
+    out = {"adv": adv, "arrival_adv": toa.zfill(3) if toa.isdigit() else adv, "wsp": wsp.rsplit("/", 1)[-1][:10] if wsp else "",
+           "issued": (s.get("trackCone") or {}).get("issuance", ""), "classification": s.get("classification"), "intensity_kt": s.get("intensity")}
+    ev.add(kind="forecast", subject=f"{rec.name.title()} ({rec.id})", what="latest advisory", value=adv, source="nhc_gis_advisory", record=CURRENT,
+           retrieved=net.stamp, issued=out["issued"], timeframe="forecast", quality="final", method="NHC CurrentStorms.json")
+    return out
+
+
 def _storm_history(ctx: EventContext, rec: idn.StormRecord, net, ev: Evidence) -> None:
     """Landfalls and the peak from HURDAT2 (seasons before this one); a current storm has neither yet (said so)."""
     this_year = (ctx.recorded or date.today()).year
+    if rec.status != "ARCHIVE":
+        ctx.live = live_products(rec, net, ev)
+        if ctx.live:
+            ctx.historical = False
     if rec.year >= this_year:
         ctx.notes.append(f"{rec.name.title()} ({rec.id}) is from the current season: the final best track (HURDAT2, with landfalls) "
                          "is not published yet, so landfall times come from the script only")

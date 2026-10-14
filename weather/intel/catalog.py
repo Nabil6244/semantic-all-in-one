@@ -164,6 +164,50 @@ def b_storm_stats(p: "Planner", seg: Segment) -> List[Draft]:
                   why=f"the narration discusses {s.name.title()}'s strength; peak, lowest pressure and landfall from HURDAT2")]
 
 
+def need_live(p: "Planner") -> Dict[str, Any]:
+    need_storm(p)
+    if not p.ctx.live:
+        raise Skip("forecast maps are for a storm that is active now (this one is not in NHC's list of active storms)")
+    return p.ctx.live
+
+
+def b_arrival(p: "Planner", seg: Segment) -> List[Draft]:
+    live = need_live(p)
+    return [Draft("forecast.arrival", "auto_wind_arrival", "wind_arrival", f"nhc:arrival@{p.ctx.storm.id}#{live['arrival_adv']}",
+                  place=p.place_name(), extra={"tz": p.ctx.tz}, kind="data",
+                  why=f"the narration says when the winds arrive; NHC earliest reasonable arrival, advisory {live['arrival_adv']}")]
+
+
+def b_wind_prob(p: "Planner", seg: Segment) -> List[Draft]:
+    live = need_live(p)
+    if not live.get("wsp"):
+        raise Skip("NHC lists no wind speed probabilities for this storm right now")
+    return [Draft("forecast.wind_prob", "auto_wind_prob", "wind_prob", f"nhc:wsp@{live['wsp']}#34", place=p.place_name(),
+                  why=f"the narration talks about the chance of strong winds; NHC wind speed probabilities issued {live['wsp']}")]
+
+
+def b_rain_forecast(p: "Planner", seg: Segment) -> List[Draft]:
+    need_live(p)
+    if p.ctx.focus is None:
+        raise Skip("no place to centre the rain forecast on")
+    from .placegeo import bbox_around
+
+    return [Draft("forecast.rain", "auto_rain_forecast", "rain_forecast", "wpc:qpf@latest#day1-5", place=p.place_name(),
+                  extra={"bbox": bbox_around(*p.ctx.focus, half_w=7.0, half_h=5.0)},
+                  why="the narration talks about the rain to come; WPC 5-day rain forecast")]
+
+
+def b_countdown(p: "Planner", seg: Segment) -> List[Draft]:
+    live = need_live(p)
+    pl = next((x for x in p.ctx.u.places if x.seg == seg.id and x.kind in ("city", "county", "coords") and x.lat is not None), None) or \
+        next((x for x in p.ctx.u.places if x.kind in ("city", "county") and x.lat is not None), None)
+    if pl is None:
+        raise Skip("the story names no town to count down to", local=True)
+    return [Draft("forecast.countdown", "auto_countdown", "countdown", f"nhc:countdown@{p.ctx.storm.id}#{live['adv']}",
+                  place=f"{pl.lat:.2f},{pl.lon:.2f}", extra={"text": pl.name, "anchor": "tr", "tz": p.ctx.tz}, kind="counter",
+                  why=f"hours until the forecast centre is nearest {pl.name} (derived from NHC advisory {live['adv']})")]
+
+
 def card_side(p: "Planner", seg: Segment) -> str:
     """The side of the frame a side card goes on: away from the storm's track as the beat's camera sees it (more of the track west
     of the camera's centre -> the card goes right). With no camera or no track, the left."""
@@ -197,6 +241,13 @@ def b_cone(p: "Planner", seg: Segment) -> List[Draft]:
     if s.year < 2008:
         raise Skip(f"NHC's GIS advisory archive starts in 2008 ({s.id} is older)")
     said = times_in(p, seg)
+    if p.ctx.live.get("adv") and not said:   # an active storm: the latest advisory
+        adv = p.ctx.live["adv"]
+        cone = Draft("hurricane.cone", "auto_cone", "storm_cone", f"nhc:cone@{s.id}#{adv}", place=p.place_name(),
+                     why=f"the latest NHC advisory ({adv}) of the active storm {s.id}")
+        track = Draft("hurricane.cone", "auto_cone_track", "storm_track", f"nhc:track@{s.id}#{adv}", place=p.place_name(),
+                      extra={"labels": 4}, companion_of="auto_cone", why="the forecast track and points of the same advisory")
+        return [cone, track]
     if said:
         target, how = said[0], "the advisory time the beat says"
     elif p.ctx.moment is not None:
@@ -714,6 +765,15 @@ CATALOG: List[GraphicSpec] = [
                 must=("intensity",)),
     GraphicSpec("hurricane.landfall", "place_label", "Landfall marker", STORMY, {"landfall": 1.0}, "label", 3.0, b_landfall_marker,
                 "a landfall record in HURDAT2", "no marker", min_score=1.0, covers=(), priority=55, must=("landfall",)),
+    GraphicSpec("forecast.arrival", "wind_arrival", "When tropical-storm winds arrive", STORMY, {"arrival": 1.5}, "data", 5.0, b_arrival,
+                "an active storm", "none", min_score=1.4, covers=("wind_arrival",), priority=12, must=("arrival",)),
+    GraphicSpec("forecast.wind_prob", "wind_prob", "Chance of tropical-storm winds", STORMY, {"chance": 1.5, "arrival": 0.4}, "data", 5.0,
+                b_wind_prob, "an active storm", "none", min_score=1.4, covers=("wind_prob",), priority=13, must=("chance",)),
+    GraphicSpec("forecast.rain", "rain_forecast", "Rain forecast (next 5 days)", STORMY, {"rain": 1.0, "forecast": 0.8}, "data", 5.0,
+                b_rain_forecast, "an active storm", "none", min_score=1.4, covers=("rain_forecast",), priority=16, must=("forecast",)),
+    GraphicSpec("forecast.countdown", "countdown", "Countdown to the storm's closest pass", STORMY, {"landfall": 1.0, "forecast": 0.8},
+                "counter", 4.0, b_countdown, "an active storm and a named town", "none", min_score=1.4, covers=("countdown",), priority=29,
+                must=("landfall",)),
     GraphicSpec("hurricane.cone", "storm_cone", "Forecast cone, track and coastal warnings", STORMY, {"cone": 1.5}, "data", 5.0, b_cone,
                 "the storm's NHC id and an advisory issued near the narrated time", "the best track only", min_score=1.4,
                 covers=("storm_cone",), priority=11),

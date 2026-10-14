@@ -16,3 +16,5 @@ NOAA / NWS / NHC / SPC / WPC / IEM data are public domain (IEM asks for attribut
   al092026_best_track.zip NHC working best track of Isaias (AL092026), fetched 2026-10-14 while the storm is listed as active
   dat_tracks_sc_*         NWS Damage Assessment Toolkit tornado tracks (layer 1) in SC's envelope, Oct 10 12Z - Oct 12 12Z 2026
   tornado_warnings_1011T0905_1011T1105_SC.geojson  IEM warnings an hour either side of the Newberry touchdown (coverage check)
+  nhc_current_storms_20261014.json, ep202026_* , wsp34_2026101406.kmz   NHC live products of Hurricane Simon (EP202026), 2026-10-14
+  wpc_qpf5_trimmed.kml    WPC 5-day rain forecast of 2026-10-14, TRIMMED to one polygon per band (the real file is 5 MB)

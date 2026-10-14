@@ -21,5 +21,10 @@
  "https://www.nhc.noaa.gov/gis/best_track/al092026_best_track.zip": "al092026_best_track.zip",
  "https://services.dat.noaa.gov/arcgis/rest/services/nws_damageassessmenttoolkit/DamageViewer/FeatureServer/1/query?where=1%3D1&geometry=-83.353%2C32.034%2C-78.542%2C35.215&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&time=1791633600000%2C1791806400000&outFields=%2A&outSR=4326&f=geojson": "dat_tracks_sc_1010T12_1012T12.geojson",
  "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2026-10-11T09%3A05%3A00Z&ets=2026-10-11T11%3A05%3A00Z&states=SC": "tornado_warnings_1011T0905_1011T1105_SC.geojson",
- "https://data.rcc-acis.org/MultiStnData?params=%7B%22sids%22%3A%22DEN%22%2C%22sdate%22%3A%222024-03-13%22%2C%22edate%22%3A%222024-03-16%22%2C%22elems%22%3A%5B%7B%22name%22%3A%22snow%22%7D%5D%2C%22meta%22%3A%5B%22name%22%2C%22sids%22%2C%22ll%22%5D%7D": "acis_snow_den_20240313_16.json"
+ "https://data.rcc-acis.org/MultiStnData?params=%7B%22sids%22%3A%22DEN%22%2C%22sdate%22%3A%222024-03-13%22%2C%22edate%22%3A%222024-03-16%22%2C%22elems%22%3A%5B%7B%22name%22%3A%22snow%22%7D%5D%2C%22meta%22%3A%5B%22name%22%2C%22sids%22%2C%22ll%22%5D%7D": "acis_snow_den_20240313_16.json",
+ "https://www.nhc.noaa.gov/CurrentStorms.json": "nhc_current_storms_20261014.json",
+ "https://www.nhc.noaa.gov/storm_graphics/api/EP202026_028adv_earliest_reasonable_toa_34.kmz": "ep202026_028_toa34.kmz",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/2026101406_wsp34knt120hr_5km.kmz": "wsp34_2026101406.kmz",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/ep202026_5day_028A.zip": "ep202026_5day_028A.zip",
+ "https://www.wpc.ncep.noaa.gov/kml/qpf/QPF120hr_Day1-5_latest.kmz": "wpc_qpf5_trimmed.kml"
 }
