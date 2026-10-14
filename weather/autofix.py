@@ -69,10 +69,15 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
         me, into = get(rows[n], "beat"), get(rows[prev], "beat")
         put(rows[prev], "text", (get(rows[prev], "text") + " " + get(rows[n], "text")).strip())
         rows[n] = []
+        footage = get(rows[prev], "mode").lower() == "footage"
         for k in range(n + 1, len(rows)):
             if is_beat(rows[k]):
                 break
             if rows[k]:
+                if footage and get(rows[k], "row").lower() in ("layer", "camera", "card"):
+                    notes.append(f"beat {me}: its {get(rows[k], 'row')} row was left out (the beat it joined, {into}, is full-screen footage)")
+                    rows[k] = []
+                    continue
                 put(rows[k], "beat", into)
         aliases[me] = into
         for k, v in list(aliases.items()):
@@ -84,10 +89,42 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
     def first_words() -> str:
         return " ".join(str(w[0]) for w in list(words)[:3])
 
+    _straight_quotes(rows, get, put)
+    _normalize_layers(rows, get, put, notes)
+    tried: Dict[int, List[str]] = {}
+
+    def other_anchor(n: int) -> bool:
+        """A beat whose first words were not heard: start it on other words of its own text (each sentence's first words, then
+        three-word runs from its opening) before giving up on it."""
+        import re as _re
+
+        text = get(rows[n], "text").translate(QUOTES)
+        sents = [x for x in _re.split(r"(?<=[.!?])\s+", text) if x.strip()]
+        words_ = text.split()
+        cands = [" ".join(x.split()[:4]) for x in sents] + [" ".join(words_[k:k + 3]) for k in range(1, min(8, len(words_) - 2))]
+        seen = tried.setdefault(n, [get(rows[n], "vo_anchor")])
+        later = " ".join(get(x, "text").translate(QUOTES).lower() for x in rows[n + 1:] if x and is_beat(x))
+        for c in cands:
+            c = c.strip(" ,;:")
+            # never words a later beat also says: they could be heard THERE, and this beat would swallow the next one
+            if c and c not in seen and not _re.search(r"\d", c) and len(c.split()) >= 3 and c.lower() not in later:
+                seen.append(c)
+                old_a = get(rows[n], "vo_anchor")
+                put(rows[n], "vo_anchor", c)
+                for k in range(n + 1, len(rows)):   # its own rows that started on the same words follow it
+                    if is_beat(rows[k]):
+                        break
+                    if rows[k] and get(rows[k], "vo_anchor") == old_a:
+                        put(rows[k], "vo_anchor", c)
+                notes.append(f"beat {get(rows[n], 'beat')}: its first words ({old_a!r}) were not heard, so it starts on {c!r}")
+                return True
+        return False
     last_err = None
     for _ in range(passes):
         try:
-            return plan_from_csv(_csv_text(rows), list(words), duration), aliases
+            plan = plan_from_csv(_csv_text(rows), list(words), duration)
+            fix_places(plan, notes)
+            return plan, aliases
         except PlanError as exc:
             last_err = exc
             fixed = False
@@ -119,6 +156,8 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
                             put(r, "vo_anchor", first_words())
                             notes.append(f"beat {get(r, 'beat')}: starts on the first words of your recording")
                             fixed = True
+                    elif other_anchor(n):
+                        fixed = True
                     elif merge_into_previous(n):
                         fixed = True
                 else:
@@ -133,8 +172,138 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
                         rows[n] = []
                     fixed = True
             if not fixed:
-                raise
-    raise last_err
+                raise PlanError([plain_problem(x) for x in exc.problems]) from None
+    raise PlanError([plain_problem(x) for x in last_err.problems])
+
+
+PLACE_WORDS = re.compile(r"^(?:the|southern|northern|eastern|western|central|coastal|south|north|east|west|southeast|southwest|northeast|"
+                         r"northwest|upper|lower|inland|greater|downtown|metro|metropolitan|interior|far|deep)[\s-]+", re.I)
+
+
+def _place_ok(place: str, cache: Dict[str, bool]) -> bool:
+    from pakmap.geo import resolve
+
+    if place not in cache:
+        try:
+            resolve(place)
+            cache[place] = True
+        except Exception:
+            cache[place] = False
+    return cache[place]
+
+
+def _nearest_place(place: str, cache: Dict[str, bool]) -> Optional[str]:
+    """A place name the map knows for one it does not: 'Southern California' -> 'California', 'Miami, FL' -> 'Miami'."""
+    tries, p = [], place.strip()
+    while True:
+        q = PLACE_WORDS.sub("", p).strip()
+        if q == p:
+            break
+        tries.append(q)
+        p = q
+    for part in re.split(r"\s*[,/]\s*|\s+and\s+", place):
+        tries += [part.strip(), PLACE_WORDS.sub("", part).strip()]
+    tries += [f"city:{t}" for t in list(tries) if t]
+    return next((t for t in tries if t and t != place and _place_ok(t, cache)), None)
+
+
+def fix_places(plan, notes: List[str]) -> None:
+    """Every place the map cannot find is replaced by one it can (the same name without 'Southern', 'coastal'..., then the place the
+    camera was last at); a graphic with no usable place is left out. Never a reason to stop: each change is a note."""
+    cache: Dict[str, bool] = {}
+    said: Dict[str, str] = {}
+    last = ""
+
+    def fixed(place: str, where: str, fallback: str = "") -> str:
+        if not place or _place_ok(place, cache):
+            return place
+        new = _nearest_place(place, cache) or fallback
+        if new and said.get(place) != new:
+            said[place] = new
+            notes.append(f"{where}: the map does not know {place!r}, so it uses {new!r}" + (" (and everywhere else it is named)" if new != fallback else ""))
+        return new
+
+    for b in plan.beats:
+        keep = []
+        for c in b.camera:
+            if c.place:
+                c.place = fixed(c.place, f"beat {b.id}: camera {c.action}", last)
+                if not c.place:
+                    notes.append(f"beat {b.id}: a camera {c.action} was left out (the map does not know its place)")
+                    continue
+                last = c.place
+            keep.append(c)
+        b.camera = keep
+        if getattr(b, "cam_place", ""):
+            b.cam_place = fixed(b.cam_place, f"beat {b.id}: camera", last)
+        lays = []
+        for lay in b.layers:
+            if lay.place:
+                lay.place = fixed(lay.place, f"beat {b.id}: {lay.type} {lay.id}")
+                if not lay.place:
+                    notes.append(f"beat {b.id}: {lay.type} {lay.id} was left out (the map does not know its place)")
+                    continue
+            if lay.places:
+                lay.places = [q for q in (fixed(x, f"beat {b.id}: {lay.type} {lay.id}") for x in lay.places) if q]
+                if len(lay.places) < 2:
+                    notes.append(f"beat {b.id}: {lay.type} {lay.id} was left out (the map does not know its places)")
+                    continue
+            lays.append(lay)
+        b.layers = lays
+        for sp in getattr(b, "cards", []) or []:
+            if sp.place:
+                sp.place = fixed(sp.place, f"beat {b.id}: a photo card's pointer")
+
+
+LAYER_KINDS = ("hud_title", "marker", "zone_label", "fill", "line", "stat", "caption")
+LAYER_ALIASES = {"title": "hud_title", "hud": "hud_title", "headline": "hud_title", "heading": "hud_title", "label": "hud_title",
+                 "text": "caption", "subtitle": "caption", "pin": "marker", "point": "marker", "zone": "zone_label", "area": "fill",
+                 "route": "line", "path": "line", "number": "stat", "statistic": "stat"}
+
+
+QUOTES = str.maketrans({"\u2019": "'", "\u2018": "'", "\u201c": '"', "\u201d": '"', "\u2013": "-", "\u2014": "-"})
+
+
+def _straight_quotes(rows: List[List[str]], get, put) -> None:
+    """Curly quotes and dashes in vo_anchor cells become straight ones: the transcript writes them straight, so "it’s" in an
+    AI-written plan would never be heard."""
+    for r in rows[1:]:
+        if r and get(r, "vo_anchor"):
+            put(r, "vo_anchor", get(r, "vo_anchor").translate(QUOTES))
+
+
+def _normalize_layers(rows: List[List[str]], get, put, notes: List[str]) -> None:
+    """Before Hybrid reads the plan: every layer row gets a type it knows and an id. A title with no type is a title card
+    (hud_title); a type it does not know but can guess is renamed; a layer that is nothing it can show is left out. Each
+    change goes to the notes ("Fixed for you"), so an AI's small slip never stops a video."""
+    n_by_beat: Dict[str, int] = {}
+    for k in range(1, len(rows)):
+        r = rows[k]
+        if not r or get(r, "row").lower() != "layer":
+            continue
+        beat = get(r, "beat")
+        n_by_beat[beat] = n_by_beat.get(beat, 0) + 1
+        typ = get(r, "type").lower().strip()
+        what = get(r, "label") or get(r, "text") or get(r, "sub")
+        if typ not in LAYER_KINDS:
+            new = LAYER_ALIASES.get(typ) or ("hud_title" if get(r, "label") else "caption" if get(r, "text") else "")
+            if not new:
+                notes.append(f"beat {beat}: a layer row with no type and nothing to show was left out")
+                rows[k] = []
+                continue
+            put(r, "type", new)
+            notes.append(f"beat {beat}: the layer {what!r} had " + (f"the type {typ!r}" if typ else "no type") + f", so it is a {new} now")
+        if not get(r, "id"):
+            put(r, "id", f"{beat}_layer{n_by_beat[beat]}")
+
+
+def plain_problem(msg: str) -> str:
+    """Hybrid's short messages in plain words ("beat 2: type" -> which beat, which cell, what to do)."""
+    m = re.match(r"^beat (\d+): (\w+)$", str(msg).strip())
+    if m:
+        return (f"beat number {m.group(1)} of the plan has a row whose {m.group(2)!r} cell is missing or not readable: open the plan "
+                f"(Open plan folder), fill that cell, and load it again")
+    return str(msg)
 
 
 # ---- weather_layers.csv (the weather graphics) ---------------------------------------------------------------------------------

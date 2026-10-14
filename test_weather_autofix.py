@@ -47,15 +47,16 @@ class AFullyBrokenLookingPlanStillWorks(unittest.TestCase):
         notes = []
         plan, rows, snap, payload = wgen.plan_layers(self.project, WORDS, 10.0, now=NOW, notes=notes)
         said = "\n".join(notes)
-        self.assertEqual([b.id for b in plan.beats], ["b1", "b3"])                 # b2's words were never said: part of b1 now
-        self.assertEqual(plan.beats[1].mode, "map")                                 # "mapp"
+        self.assertEqual([b.id for b in plan.beats], ["b1", "b2", "b3"])           # b2's first words were wrong: it starts on its own words
+        self.assertTrue(any("b2" in n and "starts on" in n for n in notes))
+        self.assertEqual(plan.beats[2].mode, "map")                                 # "mapp"
         by_id = {r.id: r for r in rows}
         self.assertEqual(by_id["sat"].until, "end")
         self.assertEqual(by_id["sat"].data_source.text, "gibs:geocolor@latest")
         self.assertEqual(by_id["dal"].data_source.text, "nws:forecast@Dallas,TX#day1")
         self.assertIsNone(by_id["dal_2"].data_source)                              # the duplicate id renamed, its source dropped
         self.assertEqual(by_id["strip"].data_source.selector, "day1-5")
-        self.assertEqual(by_id["strip"].beat, "b1")                                 # followed its beat into b1
+        self.assertEqual(by_id["strip"].beat, "b2")                                 # its beat kept its place
         self.assertEqual(by_id["lbl"].extra, {"text": "Houston"})
         self.assertNotIn("bolt", by_id)
         self.assertNotIn("x", by_id)
@@ -78,3 +79,37 @@ class AFullyBrokenLookingPlanStillWorks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LayerRowsWithoutType(unittest.TestCase):
+    """An AI-written plan whose title rows have no type (project #005, 2026-10-14) loads: each becomes a title card, said in notes."""
+
+    def test_typeless_title_rows_are_title_cards(self):
+        from weather.autofix import repair_beats
+
+        text = ("beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why\n"
+                'b1,beat,It was the ocean,map,push_in,,Florida,region,,,"It was the ocean that came for the town.",,,,,,,,,,,open\n'
+                "b1,layer,It was the ocean,,,,,,THE PENINSULA,Long Beach,,,,,,,,,,,,\n"
+                "b1,layer,the ocean that,,,,,,,,,,,,,,,,,,,\n")
+        words = [(w, i * 0.4, i * 0.4 + 0.3) for i, w in enumerate("It was the ocean that came for the town.".split())]
+        notes = []
+        plan, _ = repair_beats(text, words, 6.0, notes)
+        self.assertEqual([l.type for l in plan.beats[0].layers], ["hud_title"])
+        self.assertTrue(any("THE PENINSULA" in n and "hud_title" in n for n in notes))
+        self.assertTrue(any("left out" in n for n in notes))
+
+
+class PlacesTheMapDoesNotKnow(unittest.TestCase):
+    """'Southern California' (project #005, 2026-10-14) stopped the video: now the map uses 'California', said in a note."""
+
+    def test_unknown_place_becomes_a_known_one(self):
+        from weather.autofix import repair_beats
+
+        text = ("beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why\n"
+                'b1,beat,It was the ocean,map,push_in,,Southern California,region,,,"It was the ocean that came for the town.",,,,,,,,,,,open\n'
+                "b1,camera,the ocean that,,fly_to,,Coastal Southern California,region,,,,,,,,,,,,,2,\n")
+        words = [(w, i * 0.4, i * 0.4 + 0.3) for i, w in enumerate("It was the ocean that came for the town.".split())]
+        notes = []
+        plan, _ = repair_beats(text, words, 6.0, notes)
+        self.assertTrue(all(c.place == "California" for c in plan.beats[0].camera if c.place))
+        self.assertTrue(any("Southern California" in n for n in notes))

@@ -47,6 +47,8 @@ PART A: the story and the camera (row = beat, layer, clip)
     why        one short phrase ("the rain over Houston")
 - row=layer (optional) a pakMap layer: hud_title (label = a short title in capitals, sub = the dates); at most one per beat.
     vo_anchor  2 to 5 words copied from ITS OWN BEAT'S text
+    EXACT pattern of a title row (type is ALWAYS hud_title, id is the beat id + _title):
+    <beat>,layer,<2-5 words of that beat>,,hud_title,<beat>_title,,,<TITLE IN CAPITALS>,<sub>,,,,,,,,,,,,,,
 The first beat may start on the whole country and push in to the event.
 
 Keep beats 8 to 25 seconds.
