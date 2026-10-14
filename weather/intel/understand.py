@@ -699,8 +699,8 @@ def _resolve_weekdays_from_story(u: Understanding) -> None:
             d.day, d.year_from = best[1].isoformat(), "story"
             if d.text not in done:
                 done.add(d.text)
-                u.assumptions.append(f"\"{d.text.title()}\" is read as {best[1]:%A %B %-d, %Y}, the {d.text.title()} nearest the date the "
-                                     f"script says ({best[2]:%B %-d, %Y})")
+                u.assumptions.append(f"\"{d.text.title()}\" is read as {best[1]:%A %B} {best[1].day}, {best[1].year}, the {d.text.title()} nearest the date the "
+                                     f"script says ({best[2]:%B} {best[2].day}, {best[2].year})")
 
 
 def _month_mentioned(text: str) -> bool:
