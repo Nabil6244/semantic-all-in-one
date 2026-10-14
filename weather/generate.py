@@ -58,9 +58,29 @@ def read_layers(project: WeatherProject, *, strict: bool = False, notes: Optiona
     return repair_layers(text, notes if notes is not None else [])
 
 
+def layer_rows(project: WeatherProject, *, strict: bool = False, notes: Optional[List[str]] = None, aliases=None) -> List[WxRow]:
+    """The user's weather rows (weather_layers.csv) followed by the Weather Intelligence engine's (intel/auto_plan.json, ids auto_*).
+    A project may have only the engine's rows (no weather_layers.csv: the engine found every graphic itself)."""
+    from .intel.engine import load_auto_plan, merge_rows
+
+    auto = load_auto_plan(project) is not None
+    if not project.layers_csv.is_file():
+        if not auto:
+            raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
+        return merge_rows(project, [], notes)
+    text = project.layers_csv.read_text(encoding="utf-8")
+    if strict:
+        rows = parse_sidecar(text)
+    else:
+        from .autofix import repair_layers
+
+        rows = repair_layers(text, notes if notes is not None else [], aliases)
+    return merge_rows(project, rows, notes) if auto else rows
+
+
 def fetch(project: WeatherProject, contact: str, *, now: Optional[datetime] = None, client: Optional[NwsClient] = None, **kw) -> Snapshot:
     """Prep: fetch every product the layers need, check it is fresh, and write resolved.json."""
-    rows = read_layers(project)
+    rows = layer_rows(project)
     snap = prepare(rows, client or (NwsClient(contact) if contact else None), now=now, **kw)
     project.resolved_json.write_text(snap.to_json(), encoding="utf-8")
     return snap
@@ -82,10 +102,28 @@ def plan_layers(project: WeatherProject, words: Sequence, duration: float, *, no
     from . import teamplate
 
     tp = teamplate.normalize(edit_style) == teamplate.KEY
+    if not project.beats_csv.is_file():
+        from .intel.engine import load_auto_plan
+
+        if load_auto_plan(project) is None:
+            raise FileNotFoundError(f"{project.beats_csv} is missing (the Hybrid beat CSV of this video)")
+        # no beat plan: Weather Intelligence made the beats from the narration (weather.intel.beats), the same way again here
+        from .intel.engine import _script_text
+        from .intel.beats import plan_from_narration
+
+        fixes: List[str] = notes if notes is not None else []
+        plan, aliases = plan_from_narration(words, duration, fixes, script=_script_text(project)), {}
+    else:
+        plan, aliases, fixes = _beat_plan(project, words, duration, notes, library_dir, tp, autofix)
+    # a weather map must stay where the narration is: pakMap's always-on drift (0.5 % of the view a second) carried a 2-minute hold
+    # from Houston to Mississippi. Idle beats still get Hybrid's slow push in. A plan that sets its own drift keeps it.
+    plan.settings.setdefault("drift_pct_per_s", 0.0)
+    return _finish_plan(project, plan, aliases, words, now, fixes, tp, autofix, notes)
+
+
+def _beat_plan(project: WeatherProject, words, duration, notes, library_dir, tp: bool, autofix: bool):
     from hybrid.beat_csv import plan_from_csv
 
-    if not project.beats_csv.is_file():
-        raise FileNotFoundError(f"{project.beats_csv} is missing (the Hybrid beat CSV of this video)")
     beats_text = project.beats_csv.read_text(encoding="utf-8")
     if library_dir:
         from .footage_library import prefer_library
@@ -100,18 +138,19 @@ def plan_layers(project: WeatherProject, words: Sequence, duration: float, *, no
 
         plan, aliases = repair_beats(beats_text, words, duration, fixes)
     else:
-        plan = plan_from_csv(beats_text, list(words), duration)
-    # a weather map must stay where the narration is: pakMap's always-on drift (0.5 % of the view a second) carried a 2-minute hold
-    # from Houston to Mississippi. Idle beats still get Hybrid's slow push in. A plan that sets its own drift keeps it.
-    plan.settings.setdefault("drift_pct_per_s", 0.0)
+        plan, aliases = plan_from_csv(beats_text, list(words), duration), {}
+    return plan, aliases, fixes
+
+
+def _finish_plan(project: WeatherProject, plan, aliases, words, now, fixes: List[str], tp: bool, autofix: bool, notes):
+    from . import teamplate
+
     if autofix:
         from . import autofix as fix
 
-        if not project.layers_csv.is_file():
-            raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
-        rows = fix.repair_layers(project.layers_csv.read_text(encoding="utf-8"), fixes, aliases)
+        rows = layer_rows(project, notes=fixes, aliases=aliases)
     else:
-        rows = read_layers(project, strict=True)
+        rows = layer_rows(project, strict=True)
     snap = load_snapshot(project)
     check_fresh(snap, now or datetime.now(timezone.utc))
     if autofix:

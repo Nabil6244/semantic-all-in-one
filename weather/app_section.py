@@ -294,8 +294,33 @@ def show_intro(app) -> None:
 
 
 def has_plan(app) -> bool:
+    """A beat plan, with weather layers — or without them when Weather Intelligence is on (it finds the data graphics itself)."""
     p = project(app)
-    return p is not None and p.beats_csv.is_file() and p.layers_csv.is_file()
+    if p is None or not p.beats_csv.is_file():
+        return False
+    from .intel.engine import enabled as intel_on
+
+    return p.layers_csv.is_file() or intel_on(p)
+
+
+def run_intelligence(p, words, voiceover, fmt: str, contact: str, log, fixed: list) -> None:
+    """Weather Intelligence before Check plan / Generate: it reads the story, finds the event and its data, and adds the graphics
+    the plan is missing (intel/auto_plan.json; the plan files are never changed). With the engine off (weather.json
+    "intelligence": false) the older automatic storm data (weather.autodata) runs instead."""
+    from pakmap.app_integration import voiceover_duration
+
+    from .intel.engine import enabled as intel_on, prepare_project
+
+    if not intel_on(p):
+        from .autodata import ensure_storm_data
+
+        ensure_storm_data(p, fmt, fixed)
+        return
+    res = prepare_project(p, words, voiceover_duration(voiceover), fmt=fmt, contact=contact, voiceover=Path(voiceover), log=log)
+    if res is not None:
+        from .intel.report import summary_lines
+
+        fixed += summary_lines(res)
 
 
 def show_summary(app) -> None:
@@ -304,7 +329,7 @@ def show_summary(app) -> None:
     try:
         from .autofix import repair_layers
 
-        rows = repair_layers(p.layers_csv.read_text(encoding="utf-8"), [])
+        rows = repair_layers(p.layers_csv.read_text(encoding="utf-8"), []) if p.layers_csv.is_file() else []
         beats_text = p.beats_csv.read_text(encoding="utf-8")
         beats = [ln for ln in beats_text.splitlines()[1:] if ",beat," in ln]
         footage = sum(1 for ln in beats if ",footage," in ln)
@@ -312,7 +337,8 @@ def show_summary(app) -> None:
         kinds: Dict[str, int] = {}
         for r in rows:
             kinds[r.type] = kinds.get(r.type, 0) + 1
-        lines.append("Weather layers: " + ", ".join(f"{n} {k}" for k, n in kinds.items()))
+        lines.append("Weather layers: " + (", ".join(f"{n} {k}" for k, n in kinds.items()) if kinds else
+                                           "none in the plan: Weather Intelligence finds the event's data graphics at Check plan"))
     except Exception as exc:
         lines.append(f"The plan could not be read: {exc}")
     lines.append("")
@@ -503,6 +529,11 @@ def load_plan(app, paths) -> bool:
         if split_one_file(text) is not None:
             one_file = text
         beats, layers = b or beats, lay or layers
+    from .intel.engine import enabled as intel_on
+
+    p = project(app)
+    if beats is not None and layers is None and p is not None and intel_on(p):
+        layers = ""   # no weather rows: Weather Intelligence finds the data graphics itself
     if beats is None or layers is None:
         if one_file is not None or (beats is not None and len(paths) == 1):
             msg = ("This file has the story (beat rows) but no weather graphics: no row says weather in the row column.\n\n"
@@ -516,11 +547,14 @@ def load_plan(app, paths) -> bool:
                    "or select beats.csv and weather_layers.csv together.")
         M.messagebox.showerror("Not a complete Weather plan", msg)
         return False
-    p = project(app)
     try:
         p.root.mkdir(parents=True, exist_ok=True)
         p.beats_csv.write_text(beats, encoding="utf-8")
-        p.layers_csv.write_text(layers, encoding="utf-8")
+        if layers:
+            p.layers_csv.write_text(layers, encoding="utf-8")
+        elif p.layers_csv.is_file():
+            # the previous plan's weather rows belong to that plan: kept beside it, never deleted
+            p.layers_csv.replace(p.root / "weather_layers.previous.csv")
         if one_file is not None:
             (p.root / "plan.csv").write_text(one_file, encoding="utf-8")
     except OSError as exc:
@@ -534,7 +568,7 @@ def load_plan(app, paths) -> bool:
     show_summary(app)
     app._weather_status_var.set("Plan loaded. Next: Fetch data, then Check plan.")
     app._append_log(f"{TAG} Loaded the plan from {', '.join(Path(x).name for x in paths)}\n")
-    if app._current_voiceover_path() is not None and p.resolved_json.is_file():
+    if app._current_voiceover_path() is not None and (p.resolved_json.is_file() or not p.layers_csv.is_file()):
         check_plan(app)
     app._sync_primary_cta()
     return True
@@ -627,6 +661,14 @@ def fetch(app) -> None:
                                           "Type yours in Settings > General > Weather, then click Fetch data again.")
         return
     p = project(app)
+    from .intel.engine import load_auto_plan
+
+    if not p.layers_csv.is_file() and load_auto_plan(p) is None:
+        app._weather_status_var.set("The plan has no weather rows: Check plan runs Weather Intelligence, which finds the event's data "
+                                    "and fetches it.")
+        if app._current_voiceover_path() is not None:
+            check_plan(app)
+        return
     app._weather_busy = True
     app._weather_status_var.set("Fetching the National Weather Service data…")
     app._sync_primary_cta()
@@ -717,9 +759,7 @@ def check_plan(app) -> None:
 
             words = app._pakmap_get_words(voiceover, model, state_dir, log)
             fixed: list = []
-            from .autodata import ensure_storm_data
-
-            ensure_storm_data(p, fmt, fixed)
+            run_intelligence(p, words, voiceover, fmt, contact, log, fixed)
             refresh_data(p, contact, fmt, log)
             plan, rows, snap, payload = plan_layers(p, words, voiceover_duration(voiceover), library_dir=lib, edit_style=style, notes=fixed)
             from .autofix import fix_footage
@@ -900,10 +940,8 @@ def run_generation(app) -> None:
             except Exception as exc:
                 result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
             else:
-                from .autodata import ensure_storm_data
-
                 added: list = []
-                ensure_storm_data(p, gen_format, added)
+                run_intelligence(p, words, voiceover_path, gen_format, gen_contact, thread_safe_log, added)
                 for n in added:
                     thread_safe_log(f"{TAG} {n}")
                 refresh_data(p, gen_contact, gen_format, thread_safe_log)

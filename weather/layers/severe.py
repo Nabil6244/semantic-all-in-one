@@ -152,6 +152,7 @@ def report_kinds(sel: str) -> List[str]:
 def check_reports(row) -> None:
     parse_day(row.data_source.target)
     report_kinds(row.data_source.selector)
+    report_states(row)
 
 
 def reports_key(day: str) -> str:
@@ -173,10 +174,18 @@ def fetch_reports(row, ctx) -> None:
     ctx.snap.extra[key] = {"url": url, "day": day, "start": iso(a), "end": iso(b), "fetched": iso(ctx.now), "reports": reps}
 
 
+def report_states(row) -> List[str]:
+    st = row.extra.get("states", [])
+    if not isinstance(st, list) or not all(isinstance(s, str) and len(s) == 2 for s in st):
+        raise ValueError('storm report extra states is a list of two-letter states, like ["SC"]')
+    return [s.upper() for s in st]
+
+
 def build_reports(row, snap, window, out) -> None:
     v = snap.extra[reports_key(row.data_source.target)]
     kinds = report_kinds(row.data_source.selector)
-    reps = [r for r in v["reports"] if r["kind"] in kinds]
+    states = report_states(row)
+    reps = [r for r in v["reports"] if r["kind"] in kinds and (not states or str(r.get("state", "")).upper() in states)]
     pts = []
     if reps:
         a, b = parse_iso(reps[0]["time"]), parse_iso(reps[-1]["time"])
@@ -185,15 +194,16 @@ def build_reports(row, snap, window, out) -> None:
     totals = {k: spc.count(reps, k) for k in kinds}
     legend = [{"kind": k, "label": REPORT_LABELS[k], "color": spc.REPORT_COLORS[k], "total": totals[k]} for k in kinds]
     out.events.append({"id": f"wx_{row.id}", "type": "storm_reports", "t_in": window.t_in, "t_out": window.t_out, "points": pts,
-                       "legend": legend if row.extra.get("legend", True) else [], "title": "STORM REPORTS", "sub": "PRELIMINARY"})
+                       "legend": legend if row.extra.get("legend", True) else [], "title": "STORM REPORTS",
+                       "sub": "PRELIMINARY" + (f" · {', '.join(states)}" if states else "")})
     for k in kinds:
-        out.report.add(row.id, f"{k} reports {v['day']} (preliminary)", str(totals[k]),
-                       Sourced(totals[k], "reports", "SPC storm reports (preliminary)", v["url"], "US", v["end"], v["fetched"]))
+        out.report.add(row.id, f"{k} reports {v['day']} (preliminary)" + (f" in {', '.join(states)}" if states else ""), str(totals[k]),
+                       Sourced(totals[k], "reports", "SPC storm reports (preliminary)", v["url"], ",".join(states) or "US", v["end"], v["fetched"]))
     out.credit(SPC_CREDIT)
     out.shown[row.id] = [{"kind": "text", "text": f"Storm reports: NOAA Storm Prediction Center, preliminary, {v['day']}"}]
 
 
-register(LayerType(name="storm_reports", products=[("spc", "reports")], extra_keys=frozenset({"legend", "tz"}),
+register(LayerType(name="storm_reports", products=[("spc", "reports")], extra_keys=frozenset({"legend", "tz", "states"}),
                    fetch=fetch_reports, build=build_reports, check=check_reports,
                    about="SPC tornado / wind / hail reports of a day, revealed in time order (preliminary)"))
 

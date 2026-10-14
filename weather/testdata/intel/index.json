@@ -1,0 +1,21 @@
+{
+ "https://ftp.nhc.noaa.gov/atcf/index/storm_list.txt": "storm_list_subset.txt",
+ "https://mesonet.agron.iastate.edu/json/radar?operation=list&product=N0Q&radar=USCOMP&start=2026-10-11T08:00Z&end=2026-10-11T13:01Z": "tornado_radar_list_1011T08_1011T13.json",
+ "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2026-10-11T08%3A00%3A00Z&ets=2026-10-11T13%3A00%3A00Z&states=SC": "tornado_warnings_1011T08_1011T13_SC.geojson",
+ "https://www.spc.noaa.gov/climo/reports/261010_rpts_filtered.csv": "spc_261010_rpts_filtered.csv",
+ "https://www.nhc.noaa.gov/data/hurdat/": "hurdat_index.html",
+ "https://www.nhc.noaa.gov/data/hurdat/hurdat2-1851-2025-092326.txt": "hurdat2_al092022_only.txt",
+ "https://www.nhc.noaa.gov/gis/archive_forecast_results.php?id=al09&year=2022": "ian_advisory_index_al09_2022.html",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_018A.zip": "al092022_5day_018A.zip",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_028.zip": "al092022_5day_028.zip",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_023A.zip": "al092022_5day_023A.zip",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_025A.zip": "al092022_5day_025A.zip",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_024A.zip": "al092022_5day_024A.zip",
+ "https://www.nhc.noaa.gov/gis/forecast/archive/al092022_5day_024.zip": "al092022_5day_024.zip",
+ "https://mesonet.agron.iastate.edu/json/radar?operation=list&product=N0Q&radar=USCOMP&start=2022-09-28T14:00Z&end=2022-09-28T22:01Z": "ian_radar_list_0928T14_0928T22.json",
+ "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2022-09-28T14%3A00%3A00Z&ets=2022-09-28T22%3A00%3A00Z&states=FL": "ian_warnings_0928T14_0928T22.geojson",
+ "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2022-09-28T12%3A00%3A00Z&ets=2022-09-29T00%3A00%3A00Z&states=FL": "ian_warnings_0928T12_0929T04.geojson",
+ "https://www.wpc.ncep.noaa.gov/archives/ero/20220928/shp_94e_2022092809.zip": "ian_wpc_ero_20220928_09.zip",
+ "https://mesonet.agron.iastate.edu/json/radar?operation=list&product=N0Q&radar=USCOMP&start=2026-10-11T09:55Z&end=2026-10-11T10:26Z": "tornado_radar_list_1011T0955_1011T1025.json",
+ "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2026-10-11T09%3A55%3A00Z&ets=2026-10-11T10%3A25%3A00Z&states=SC": "tornado_warnings_1011T0955_1011T1025_SC.geojson"
+}

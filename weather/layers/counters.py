@@ -46,12 +46,15 @@ def count(row, snap):
     ds = row.data_source
     if ds.provider == "spc":
         v = snap.extra[reports_key(ds.target)]
-        n = spc.count(v["reports"], ds.selector)
-        label = row.extra.get("label") or f"{ds.selector.upper()} REPORTS"
+        states = [s.upper() for s in row.extra.get("states", []) or []]
+        reps = [r for r in v["reports"] if not states or str(r.get("state", "")).upper() in states]
+        n = spc.count(reps, ds.selector)
+        label = row.extra.get("label") or f"{ds.selector.upper()} REPORTS" + (f" · {', '.join(states)}" if states else "")
         sub = row.extra.get("sub") or "PRELIMINARY · SPC"
         if "PRELIMINARY" not in sub.upper():
             sub = f"{sub} · PRELIMINARY"   # SPC reports are always labelled preliminary
-        return n, label, sub, Sourced(n, "reports", f"SPC storm reports, {ds.selector} (preliminary)", v["url"], "US", v["end"], v["fetched"])
+        return n, label, sub, Sourced(n, "reports", f"SPC storm reports, {ds.selector} (preliminary)", v["url"], ",".join(states) or "US",
+                                      v["end"], v["fetched"])
     v, ws = selected_warnings(snap, row)
     a, b = parse_iso(v["start"]), parse_iso(v["end"])
     n = sum(1 for w in ws if a <= parse_iso(w["issued"]) <= b)
