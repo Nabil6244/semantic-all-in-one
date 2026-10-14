@@ -269,10 +269,10 @@ def b_warning_counter(p: "Planner", seg: Segment) -> List[Draft]:
     if len(said) >= 2 and said[-1] > said[0]:
         a, b = said[0], said[-1]
     else:   # the whole local day the beat talks about
-        from zoneinfo import ZoneInfo
+        from .context import wall_to_utc
 
         day = date.fromisoformat(seg_day(p.ctx.u, p.seg_ids, seg.id, p.ctx.year) or need_day(p))
-        a = datetime(day.year, day.month, day.day, tzinfo=ZoneInfo(p.ctx.tz)).astimezone(UTC)
+        a = wall_to_utc(datetime(day.year, day.month, day.day), p.ctx.tz)
         b = a + timedelta(hours=24)
     st = {"states": p.ctx.states[:3]} if p.ctx.states else {}
     return [Draft("warnings.counter", "auto_warn_count", "counter", f"iem:warnings@{stamp(a)}..{stamp(b)}#{types[0]}", place=p.place_name(),
@@ -395,7 +395,11 @@ def b_rain_map(p: "Planner", seg: Segment) -> List[Draft]:
     from .placegeo import bbox_around
 
     bbox = bbox_around(*p.ctx.focus)
-    return [Draft("rain.map", "auto_rain_map", "rain_map", f"mrms:total@{a}..{b}", extra={"bbox": bbox, "peak": True, "opacity": 0.72},
+    extra = {"bbox": bbox, "peak": True, "opacity": 0.72}
+    walks = any(has_words(x, "day by day", "each day", "day after day", "one day at a time") for x in p.segments)
+    if (b - a).days >= 3 and walks:
+        extra["by_day"] = True   # the story walks through the days: the map fills in one day at a time
+    return [Draft("rain.map", "auto_rain_map", "rain_map", f"mrms:total@{a}..{b}", extra=extra,
                   why=f"MRMS radar-estimated rain {a} to {b} around {p.ctx.focus_name or 'the story'} (an estimate, labelled so)")]
 
 
@@ -570,7 +574,16 @@ def b_alerts_now(p: "Planner", seg: Segment) -> List[Draft]:
 
 
 def b_winter(p: "Planner", seg: Segment) -> List[Draft]:
-    raise Skip("snow, ice and wind-chill graphics are not built yet (planned for phase 5)")
+    sids = stations_said(seg)
+    if not sids:
+        raise Skip("the beat names no place with a known snow gauge", local=True)
+    said = sorted(dates_in(p, seg))
+    a, b = (date.fromisoformat(said[0]), date.fromisoformat(said[-1])) if len(said) >= 2 else _span(p)
+    if len(sids) == 1:
+        return [Draft("winter.snow", "auto_snow_total", "snow_total", f"acis:snow_total@{sids[0]}#{a}..{b}", extra={"side": "l"},
+                      why=f"observed snowfall at {sids[0]}, {a} to {b} (RCC-ACIS)")]
+    return [Draft("winter.snow", "auto_snow_totals", "snow_total", f"acis:snow_total@{'|'.join(sids[:6])}#{a}..{b}",
+                  why=f"observed snowfall at the stations the beat names ({', '.join(sids[:6])}), {a} to {b} (RCC-ACIS)")]
 
 
 # ---- broadcast compositions ----------------------------------------------------------------------------------------------------
@@ -750,8 +763,8 @@ CATALOG: List[GraphicSpec] = [
                 "a covered city and the NWS contact", "no card", min_score=1.5, covers=("now_card",), priority=23),
     GraphicSpec("forecast.alerts", "alert_area", "Active alerts", ("forecast", "heat", "winter") + SEVERE, {"warnings": 1.0}, "data", 4.0,
                 b_alerts_now, "a state and the NWS contact", "no alerts", min_score=1.5, covers=("alert_area",), priority=24),
-    GraphicSpec("winter.snow", "-", "Snow and ice totals", ("winter",), {}, "data", 4.0, b_winter, "snow data", "none", min_score=0.0,
-                priority=90),
+    GraphicSpec("winter.snow", "snow_total", "Snowfall totals", ("winter",), {"snow": 1.2, "gauge_totals": 0.6}, "data", 4.0, b_winter,
+                "stations the narration names", "none", min_score=1.2, covers=("snow_total",), priority=17, must=("snow",)),
     GraphicSpec("broadcast.place_label", "place_label", "County label", SEVERE + WET, {}, "label", 3.0, b_place_label,
                 "a county the narration names", "no label", min_score=0.0, covers=("place_label", "tp_place"), per_entity=counties, priority=60),
 ]

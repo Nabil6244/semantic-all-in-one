@@ -739,5 +739,41 @@ class NarrationNumbers(unittest.TestCase):
         self.assertFalse(got["450 yards"]["verified"])   # unverified, not "wrong"
 
 
+class WinterAndFloods(unittest.TestCase):
+    """Phase 4-5: snowfall totals from ACIS, the flood map filled in day by day."""
+
+    WINTER = HEAD + ('b1,beat,A late winter storm,map,,,Colorado,region,,,"A late winter storm buried Denver, Colorado, in snow between March 13, 2024 '
+                     'and March 16, 2024. The airport measured several inches of snow as the blizzard moved through.",,,,,,,,,,,open\n')
+
+    def test_a_winter_story_gets_observed_snowfall(self):
+        res, words, dur = run(project(self.WINTER), Replay())
+        d = next(x for x in res.added if x.id == "auto_snow_total")
+        self.assertEqual(d.data_source, "acis:snow_total@DEN#2024-03-13..2024-03-16")
+        line = next(ln for ln in res.evidence.facts if ln.what == "snow_total")
+        self.assertEqual(line.source, "acis")
+
+    def test_snow_layer_value(self):
+        from weather.events import WeatherPayload
+        from weather.layers import FetchContext, get
+        from weather.resolve import Snapshot
+        from weather.sidecar import WxRow, parse_data_source
+        from weather.timing import Window
+
+        snap = Snapshot("2026-10-14T08:00:00+00:00")
+        row = WxRow(line=2, beat="b1", id="sn", type="snow_total", data_source=parse_data_source("acis:snow_total@DEN#2024-03-13..2024-03-16"))
+        lt = get("snow_total")
+        lt.check(row)
+        lt.fetch(row, FetchContext(snap=snap, now=NOW, get_text=Replay().text, get_bytes=Replay().bytes))
+        out = WeatherPayload()
+        lt.build(row, snap, Window(0.0, 6.0), out)
+        self.assertEqual(out.events[0]["value"], "5.70 IN")
+        self.assertIn("snowfall", out.report.lines[0]["label"])
+
+    def test_the_flood_map_fills_in_day_by_day(self):
+        from weather.layers import get
+
+        self.assertIn("by_day", get("rain_map").extra_keys)
+
+
 if __name__ == "__main__":
     unittest.main()

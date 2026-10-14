@@ -77,9 +77,9 @@ class EventContext:
         return ds[0], ds[-1]
 
     def local(self, t: datetime) -> datetime:
-        from zoneinfo import ZoneInfo
+        from ..tz import to_local
 
-        return t.astimezone(ZoneInfo(self.tz))
+        return to_local(t, self.tz)[0]   # Weather's own US zone rules (Windows has no tz database)
 
     def to_dict(self) -> dict:
         return {"category": self.category, "states": self.states, "tz": self.tz, "year": self.year, "days": self.days, "main_day": self.main_day,
@@ -92,13 +92,20 @@ class EventContext:
 
 def local_to_utc(day: str, hour: int, minute: int, zone: str, tz: str) -> datetime:
     """A clock time on a day -> UTC: a said zone (EDT ...) wins; else the event's own zone (with its daylight saving)."""
-    from zoneinfo import ZoneInfo
-
     d = date.fromisoformat(day)
     if zone in ZONE_HOURS:
         return datetime(d.year, d.month, d.day, hour, minute, tzinfo=UTC) - timedelta(hours=ZONE_HOURS[zone])
     zname = {"ET": "America/New_York", "CT": "America/Chicago", "MT": "America/Denver", "PT": "America/Los_Angeles"}.get(zone, tz)
-    return datetime(d.year, d.month, d.day, hour, minute, tzinfo=ZoneInfo(zname)).astimezone(UTC)
+    return wall_to_utc(datetime(d.year, d.month, d.day, hour, minute), zname)
+
+
+def wall_to_utc(wall: datetime, tz: str) -> datetime:
+    """A local wall-clock time in a US zone -> UTC, with Weather's own zone rules (weather.tz; no system tz database needed)."""
+    from ..tz import is_dst, zone
+
+    z = zone(tz)
+    guess = wall.replace(tzinfo=UTC) - timedelta(hours=z.std_offset_h)
+    return guess - timedelta(hours=1) if is_dst(guess - timedelta(hours=1), z) else guess
 
 
 def seg_day(u: Understanding, seg_ids: List[str], seg: str, event_year: Optional[int]) -> Optional[str]:

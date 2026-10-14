@@ -109,7 +109,7 @@ SOURCES: Dict[str, Source] = {s.id: s for s in _S}
 PRODUCT_SOURCE = {
     ("nhc", "cone"): "nhc_gis_advisory", ("nhc", "track"): "nhc_gis_advisory", ("iem", "radar"): "iem_radar",
     ("iem", "warnings"): "iem_warnings", ("spc", "reports"): "spc_reports", ("spc", "outlook"): "spc_outlook", ("wpc", "ero"): "wpc_ero",
-    ("mrms", "total"): "mrms", ("acis", "pcpn_total"): "acis", ("acis", "record"): "acis", ("usgs", "crest"): "usgs_iv",
+    ("mrms", "total"): "mrms", ("acis", "pcpn_total"): "acis", ("acis", "snow_total"): "acis", ("acis", "record"): "acis", ("usgs", "crest"): "usgs_iv",
     ("gibs", "truecolor_loop"): "gibs_daily", ("gibs", "geocolor_loop"): "gibs_geocolor", ("gibs", "truecolor"): "gibs_daily",
     ("gibs", "falsecolor"): "gibs_daily", ("gibs", "geocolor"): "gibs_geocolor", ("nws", "forecast"): "nws_api", ("nws", "obs"): "nws_api",
     ("nws", "alerts"): "nws_api", ("post", "timeline"): "nhc_hurdat2",

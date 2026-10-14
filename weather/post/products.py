@@ -15,16 +15,16 @@ def _iso(t: datetime) -> str:
 
 # ---- ACIS ---------------------------------------------------------------------------------------------------------------
 
-def daily_key(sids: Sequence[str], a: date, b: date) -> str:
-    return f"post:acis:pcpn:{','.join(sids)}:{a}..{b}"
+def daily_key(sids: Sequence[str], a: date, b: date, elem: str = "pcpn") -> str:
+    return f"post:acis:{elem}:{','.join(sids)}:{a}..{b}"
 
 
-def fetch_daily(ctx, sids: Sequence[str], a: date, b: date) -> str:
-    """Daily precipitation for the stations (one ACIS request), with each station's location. Returns the snapshot key."""
-    key = daily_key(sids, a, b)
+def fetch_daily(ctx, sids: Sequence[str], a: date, b: date, elem: str = "pcpn") -> str:
+    """Daily precipitation (or snowfall, elem "snow") for the stations (one ACIS request), with each station's location."""
+    key = daily_key(sids, a, b, elem)
     if key in ctx.snap.extra:
         return key
-    url = acis.daily_url(sids, a, b)
+    url = acis.daily_url(sids, a, b, elem)
     stations = acis.parse_multi(ctx.get_text(url), sids, a, b)
     for st in stations:
         if not st.get("ll"):   # a threaded record has no location: its airport station's

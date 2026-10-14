@@ -7,7 +7,7 @@ It is drawn as a pakMap value_overlay (a colour grid under the borders and graph
 extra.min_in (1 inch by default) are left clear so the map shows through.
 
 extra: bbox [west, south, east, north] (degrees, at most 12 x 10), min_in, opacity (0.75), legend (true), peak (false: also name
-the wettest cell's estimate on the legend)."""
+the wettest cell's estimate on the legend), by_day (false: true shows the flood's progression — the running total day by day)."""
 
 from __future__ import annotations
 
@@ -48,6 +48,15 @@ def _fetch(row, ctx) -> None:
 
     a, b = date_range(row.data_source.target)
     fetch_rain_grid(ctx, a, b, _bbox(row))
+    if row.extra.get("by_day"):   # the flood's progression: the total so far, one more day each step
+        for d in _ends(a, b)[:-1]:
+            fetch_rain_grid(ctx, a, d, _bbox(row))
+
+
+def _ends(a, b):
+    from datetime import timedelta
+
+    return [a + timedelta(days=k) for k in range(1, (b - a).days + 1)]
 
 
 def _hour(d, tz: str) -> str:
@@ -67,43 +76,56 @@ def grid_folder():
 
 
 def _build(row, snap, window, out) -> None:
+    a, b = date_range(row.data_source.target)
+    if not row.extra.get("by_day"):
+        _overlay(row, snap, a, b, window.t_in, window.t_out, out, f"wx_{row.id}", last=True)
+        return
+    ends = _ends(a, b)
+    step = (window.t_out - window.t_in) / len(ends)
+    for k, d in enumerate(ends):   # each step holds the running total until the next one fades in over it
+        _overlay(row, snap, a, d, round(window.t_in + k * step, 3), window.t_out if k == len(ends) - 1 else round(window.t_in + (k + 1) * step + 0.4, 3),
+                 out, f"wx_{row.id}_d{k}", last=k == len(ends) - 1)
+
+
+def _overlay(row, snap, a, b, t_in, t_out, out, eid, *, last: bool) -> None:
     from ..post.products import grid_key
 
-    a, b = date_range(row.data_source.target)
     bbox = _bbox(row)
     entry = snap.extra[grid_key(a, b, bbox)]
     grid = mrms.RainGrid.from_dict(entry["grid"])
     min_in = float(row.extra.get("min_in", 1))
     share = grid.share_at_least(min_in)
-    if share < MIN_SHARE:
+    if last and share < MIN_SHARE:
         raise ValueError(f"only {share * 100:.0f}% of the box got {min_in:g} inch or more: draw a smaller bbox around the rain, or lower min_in")
     path = mrms.write_asc(grid, min_in, grid_folder())
     ramp = [[v, c] for v, c in mrms.RAMP_IN]
-    out.fills.append({"id": f"wx_{row.id}", "type": "value_overlay", "t_in": window.t_in, "t_out": window.t_out, "data": f"file:{path}",
+    out.fills.append({"id": eid, "type": "value_overlay", "t_in": t_in, "t_out": t_out, "data": f"file:{path}",
                       "bbox": [grid.west, grid.south, grid.east, grid.north], "ramp": ramp, "min": ramp[0][0], "max": ramp[-1][0],
-                      "opacity": float(row.extra.get("opacity", 0.75)), "fade_in": 1.2})
+                      "opacity": float(row.extra.get("opacity", 0.75)), "fade_in": 1.2 if eid == f"wx_{row.id}" else 0.4})
     when = span(a, b, year=True)
     src = lambda v, what: Sourced(v, "in", f"NOAA MRMS 24-hour radar estimates, {what}", entry["urls"][0], f"{len(entry['urls'])} grids ending 12 UTC {a}..{b}",  # noqa: E731
                                    entry["end"], entry["fetched"])
     tz = row.extra.get("tz", "America/Chicago")
     if row.extra.get("legend", True):
-        ev = {"id": f"wx_{row.id}_legend", "type": "post_rainlegend", "t_in": window.t_in, "t_out": window.t_out, "title": "RAINFALL",
+        ev = {"id": f"{eid}_legend", "type": "post_rainlegend", "t_in": t_in, "t_out": t_out, "title": "RAINFALL" if last else "RAINFALL SO FAR",
               "sub": f"{short(a)} {_hour(a, tz)} – {short(b)} {_hour(b, tz)}", "unit": "IN", "stops": [{"value": v, "color": c, "text": f"{v:g}"} for v, c in mrms.RAMP_IN],
               "foot": "MRMS radar estimate", "peak": ""}
-        out.report.add(row.id, "rain map colour scale (inches; a scale, not a measurement)", " ".join(s["text"] for s in ev["stops"]), src(min_in, "colour scale"))
-        if row.extra.get("peak"):
+        if last:
+            out.report.add(row.id, "rain map colour scale (inches; a scale, not a measurement)", " ".join(s["text"] for s in ev["stops"]), src(min_in, "colour scale"))
+        if last and row.extra.get("peak"):
             v, lon, lat, at_least = grid.peak()
             ev["peak"] = f"PEAK ESTIMATE AT LEAST {int(v)} IN" if at_least else f"PEAK ESTIMATE {v:.0f} IN"   # a lower bound is never rounded up
             out.report.add(row.id, f"wettest cell of the rain map at {lat:.2f}N {abs(lon):.2f}W"
                            + (" (a day there reached the top of MRMS's encoding: the total is at least this)" if at_least else ""),
                            ev["peak"], src(round(v, 2), "summed, wettest cell"))
         out.events.append(ev)
-    if grid.capped:
+    if last and grid.capped:
         snap.notes.append(f"rain map {row.id}: {grid.capped} cells reached MRMS's 495 mm daily cap; their totals are lower bounds")
-    out.credit(mrms.CREDIT)
-    out.shown[row.id] = [{"kind": "text", "text": f"{mrms.SOURCE_TEXT}, {when}"}]
+    if last:
+        out.credit(mrms.CREDIT)
+        out.shown[row.id] = [{"kind": "text", "text": f"{mrms.SOURCE_TEXT}, {when}"}]
 
 
-register(LayerType(name="rain_map", products=[("mrms", "total")], extra_keys=frozenset({"bbox", "min_in", "opacity", "legend", "peak", "tz"}),
+register(LayerType(name="rain_map", products=[("mrms", "total")], extra_keys=frozenset({"bbox", "min_in", "opacity", "legend", "peak", "tz", "by_day"}),
                    fetch=named(_fetch), build=named(_build), check=_check,
                    about="observed multi-day rainfall (NOAA MRMS radar estimates) as a colour map with a legend in inches"))

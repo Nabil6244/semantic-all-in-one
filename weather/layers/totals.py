@@ -62,11 +62,15 @@ def _check_total(row) -> None:
         raise ValueError("extra decimals must be 0, 1 or 2")
 
 
+def _elem(row) -> str:
+    return "snow" if row.type == "snow_total" else "pcpn"
+
+
 def _fetch_total(row, ctx) -> None:
     from ..post.products import fetch_daily
 
     a, b = date_range(row.data_source.selector)
-    fetch_daily(ctx, [acis.station_for(p) for p in _places(row)], a, b)
+    fetch_daily(ctx, [acis.station_for(p) for p in _places(row)], a, b, _elem(row))
 
 
 def _build_total(row, snap, window, out) -> None:
@@ -75,7 +79,9 @@ def _build_total(row, snap, window, out) -> None:
     a, b = date_range(row.data_source.selector)
     places = _places(row)
     sids = [acis.station_for(p) for p in places]
-    entry = snap.extra[daily_key(sids, a, b)]
+    snow = _elem(row) == "snow"
+    word = "snowfall" if snow else "rainfall"
+    entry = snap.extra[daily_key(sids, a, b, _elem(row))]
     labels = _labels(row, len(places))
     dec = int(row.extra.get("decimals", 2))
     prelim = _preliminary(b, entry["fetched"])
@@ -83,14 +89,14 @@ def _build_total(row, snap, window, out) -> None:
     for i, st in enumerate(entry["stations"]):
         tot = acis.total([tuple(v) for v in st["values"]])
         if tot.missing and len(tot.missing) == tot.days:
-            raise ValueError(f"ACIS has no rainfall at all for {st['sid']} between {a} and {b}")
+            raise ValueError(f"ACIS has no {word} at all for {st['sid']} between {a} and {b}")
         label = labels[i] if labels else acis.label_for(st["sid"], st["name"])
         note = f"{len(tot.missing)} DAY{'S' if len(tot.missing) > 1 else ''} MISSING" if tot.missing else ""
         value = round(tot.amount, dec)
         text = f"{value:.{dec}f}"
         items.append({"label": label, "value": value, "text": text, "note": note, "ll": st["ll"], "sid": st["sid"], "name": st["name"]})
-        out.report.add(row.id, f"{label} observed rainfall {span(a, b, True)}" + (f" ({note.lower()}: at least)" if note else ""),
-                       f"{text} IN", Sourced(tot.amount, "in", "RCC-ACIS daily precipitation, observed (trace = 0)", entry["url"],
+        out.report.add(row.id, f"{label} observed {word} {span(a, b, True)}" + (f" ({note.lower()}: at least)" if note else ""),
+                       f"{text} IN", Sourced(tot.amount, "in", f"RCC-ACIS daily {'snowfall' if snow else 'precipitation'}, observed (trace = 0)", entry["url"],
                                             f"{st['sid']} {st['name']}", b.isoformat(), entry["fetched"]))
     when = span(a, b, year=True)
     show = row.extra.get("show", "chip" if len(items) == 1 else "bars")
@@ -99,7 +105,7 @@ def _build_total(row, snap, window, out) -> None:
         if row.extra.get("sort", True):
             items.sort(key=lambda x: -x["value"])
         out.events.append({"id": f"wx_{row.id}", "type": "post_bars", "t_in": window.t_in, "t_out": window.t_out,
-                           "title": no_digits(str(row.extra.get("title", "RAINFALL TOTALS")).upper(), "the title"), "sub": f"{when} · OBSERVED",
+                           "title": no_digits(str(row.extra.get("title", "SNOWFALL TOTALS" if snow else "RAINFALL TOTALS")).upper(), "the title"), "sub": f"{when} · OBSERVED",
                            "unit": "IN", "decimals": dec, "tag": tag, "anchor": row.extra.get("anchor", "r"),
                            "bars": [{"label": x["label"], "value": x["value"], "text": x["text"], "note": x["note"]} for x in items],
                            "foot": "Station data: NOAA RCC-ACIS"})
@@ -109,11 +115,14 @@ def _build_total(row, snap, window, out) -> None:
             out.events.append({"id": f"wx_{row.id}" + (f"_{k}" if len(items) > 1 else ""), "type": "post_chip", "t_in": window.t_in + 0.25 * k,
                                "t_out": window.t_out, "lon": lon, "lat": lat, "label": x["label"], "value": f"{x['text']} IN", "count": True,
                                "decimals": dec, "sub": f"{span(a, b)} · OBSERVED", "tag": x["note"] or tag, "side": row.extra.get("side", "auto"),
-                               "kind": "rain"})
+                               "kind": "snow" if snow else "rain"})
     out.credit(acis.CREDIT)
     out.shown[row.id] = [{"kind": "text", "text": acis.SOURCE_TEXT + (" (preliminary)" if prelim else "")}]
 
 
+register(LayerType(name="snow_total", products=[("acis", "snow_total")], extra_keys=frozenset({"labels", "title", "show", "decimals", "sort", "anchor", "side"}),
+                   fetch=named(_fetch_total), build=named(_build_total), check=_check_total,
+                   about="observed station snowfall over a date range: a chip on the map, or a bar chart for several places"))
 register(LayerType(name="rain_total", products=[("acis", "pcpn_total")],
                    extra_keys=frozenset({"show", "labels", "title", "decimals", "sort", "anchor", "side"}),
                    fetch=named(_fetch_total), build=named(_build_total), check=_check_total,

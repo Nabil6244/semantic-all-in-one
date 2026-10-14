@@ -87,6 +87,7 @@ TOPIC_WORDS: Dict[str, Tuple[str, ...]] = {
     "before_after": ("before the storm", "before", "after", "change is clear", "compare"),
     "timeline": ("timeline", "chronology"),
     "heat": ("heat", "temperatures", "degrees", "heat index", "hottest"),
+    "snow": ("snow", "snowfall", "inches of snow", "blizzard", "snowstorm", "snowiest"),
     "forecast": ("forecast", "tomorrow", "tonight", "this week", "highs", "lows", "chance of", "next few days"),
     "wrap": ("thanks for watching", "follow your local", "for the latest", "stay safe", "subscribe"),
 }
