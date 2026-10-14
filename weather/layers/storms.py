@@ -124,8 +124,8 @@ def build_track(row, snap, window, out) -> None:
             out.fills.append({"id": f"wx_{row.id}_seg{i}", "type": "line", "kind": "border_trace", "coords": s["coords"],
                               "color": nhc.CAT_COLORS.get(s["cat"], "#FFFFFF"), "width": 6, "t_in": window.t_in, "t_out": window.t_out,
                               "t_draw": round(t0 + f0 * draw_s, 3), "draw_s": round(max(0.05, (f1 - f0) * draw_s), 3)})
-        wanted = {iso(parse_stamp(x)) for x in row.extra.get("label_times", [])}
-        if not wanted:
+        wanted = {iso(parse_stamp(x)) for x in row.extra.get("label_times", [])} & {p["time"] for p in v["points"]}
+        if not wanted:   # no times asked for, or none of them is a point of the track: the strongest point
             strongest = max(v["points"], key=lambda p: p["wind_kt"] or 0)
             wanted = {strongest["time"]}
         for p, f in zip(v["points"], frac):

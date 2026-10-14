@@ -243,3 +243,13 @@ def pick_gauge(river: str, sites: Sequence[Gauge], context: str, near: Optional[
     if len(pool) == 1:
         return pool[0], f"{pool[0].name} ({pool[0].site}): the only gauge on {river}"
     return None, f"{river} has {len(pool)} gauges and the narration does not say which place: set the gauge in the overrides"
+
+
+def hurdat_positions(text: str, storm_id: str) -> List[Tuple[float, float]]:
+    """(lat, lon) of every fix of the storm in HURDAT2 (empty when it is not there)."""
+    from ..post.besttrack import parse_block, storm_block
+
+    try:
+        return [(f.lat, f.lon) for f in parse_block(storm_block(text, storm_id))[1]]
+    except ValueError:
+        return []

@@ -455,6 +455,98 @@ class HurricaneIan(unittest.TestCase):
         self.assertEqual(by["auto_warn_count"].data_source, "iem:warnings@2022-09-28T12:00Z..2022-09-29T00:00Z#EW")
         self.assertEqual(by["auto_sat_loop"].beat, "b1")
         self.assertEqual(by["auto_ero"].data_source, "wpc:ero@2022-09-28#day1")
+        # phase 2: the record card, the landfall marker and best-track labels at the times the narration says
+        self.assertEqual(by["auto_storm_stats"].data_source, "nhc:stats@AL092022")
+        self.assertEqual(by["auto_storm_stats"].extra["landfall"], 3)            # the third L record: Cayo Costa, 19:05Z
+        self.assertEqual(by["auto_best_track"].extra["label_times"], ["2022-09-28T12:00Z"])   # "eight in the morning" (EDT)
+        self.assertEqual(by["auto_landfall"].place, "26.70,-82.20")
+        self.assertIn(by["auto_landfall"].beat, ("b4", "b1", "b2", "b3"))
+        self.assertNotIn(by["auto_landfall"].beat, ("b5",))
+
+
+class Composition(unittest.TestCase):
+    def test_the_side_card_goes_where_the_track_is_not(self):
+        from types import SimpleNamespace
+
+        from weather.intel.catalog import card_side
+
+        seg = Segment("b2", "map", "x", cam="Caribbean")                      # centre about 19N 71W
+        west = SimpleNamespace(ctx=SimpleNamespace(track=[(15.0, -78.0), (20.0, -82.0), (25.0, -83.0), (18.0, -70.0)]))
+        east = SimpleNamespace(ctx=SimpleNamespace(track=[(15.0, -62.0), (18.0, -65.0), (20.0, -60.0)]))
+        self.assertEqual(card_side(west, seg), "r")
+        self.assertEqual(card_side(east, seg), "l")
+        self.assertEqual(card_side(west, Segment("b3", "footage", "x")), "l")
+
+    def test_no_second_title_over_the_plans_own(self):
+        beats = IAN.replace("b1,beat,This is a look,map,,,Caribbean,region,,,", "b1,beat,This is a look,map,,,Caribbean,region,,,", 1)
+        beats = beats.replace("b2,beat,", "b1,layer,This is a look,,hud_title,t1,,,HURRICANE IAN,SEPTEMBER,,,,,,,,,,,,\nb2,beat,", 1)
+        p = project(beats)
+        extra = {"hurdat2-": (FIX / "hurdat2_al092022_only.txt").read_bytes(), "/data/hurdat/": (FIX / "hurdat_index.html").read_bytes()}
+        res, _w, _d = run(p, Replay(extra=extra), fetch=False)
+        self.assertNotIn("auto_headline", {d.id for d in res.added})
+        self.assertTrue(any(s.spec == "broadcast.headline" and "title card" in s.reason for s in res.skipped))
+        self.assertEqual(next(d for d in res.added if d.id == "auto_storm_stats").extra["anchor"], "r")
+
+
+class StormStatsLayer(unittest.TestCase):
+    """storm_stats (weather/layers/stormstats.py): every value from the HURDAT2 block, in the numbers report."""
+
+    def test_ian_record_card(self):
+        from weather.events import WeatherPayload
+        from weather.layers import get
+        from weather.resolve import Snapshot
+        from weather.sidecar import WxRow, parse_data_source
+        from weather.timing import Window
+
+        lines = (FIX / "hurdat2_al092022_only.txt").read_text(encoding="utf-8").splitlines()
+        snap = Snapshot("2026-10-14T08:00:00+00:00", extra={"post:nhc:best:AL092022": {"storm": "AL092022", "url": "https://x/hurdat2.txt",
+                                                                                          "fetched": "2026-10-14T08:00:00Z", "lines": lines}})
+        row = WxRow(line=2, beat="b2", id="st", type="storm_stats", place="Florida", data_source=parse_data_source("nhc:stats@AL092022"),
+                    extra={"landfall": 3})
+        lt = get("storm_stats")
+        lt.check(row)
+        out = WeatherPayload()
+        lt.build(row, snap, Window(10.0, 20.0), out)
+        e = out.events[0]
+        self.assertEqual(e["title"], "HURRICANE IAN")
+        self.assertEqual([r["value"] for r in e["rows"]], ["CAT 5 · 160 MPH", "937 MB", "CAT 4 · 150 MPH"])
+        self.assertEqual(e["rows"][2]["sub"], "SEP 28, 3:05 PM EDT")
+        self.assertEqual(len([ln for ln in out.report.lines if ln["layer"] == "st"]), 3)
+
+    def test_a_current_season_storm_is_left_out_with_the_reason(self):
+        p = project(IAN.replace("Hurricane Ian", "Hurricane Isaias").replace("twenty twenty two", "twenty twenty six"))
+        res, _w, _d = run(p, Replay(), fetch=False)
+        self.assertEqual(res.event["storm"]["id"], "AL092026")
+        by = {d.id: d for d in res.added}
+        self.assertEqual(by["auto_storm_stats"].data_source, "nhc:stats@AL092026#working")   # preliminary, from the working track
+        self.assertIn("WORKING", by["auto_storm_stats"].why)
+
+    def test_working_best_track_card_is_labelled_preliminary(self):
+        from weather.events import WeatherPayload
+        from weather.layers import FetchContext, get
+        from weather.resolve import Snapshot
+        from weather.sidecar import WxRow, parse_data_source
+        from weather.timing import Window
+
+        snap = Snapshot("2026-10-14T08:00:00+00:00")
+        row = WxRow(line=2, beat="b1", id="st", type="storm_stats", place="Florida", data_source=parse_data_source("nhc:stats@AL092026#working"))
+        lt = get("storm_stats")
+        lt.check(row)
+        lt.fetch(row, FetchContext(snap=snap, now=NOW, get_bytes=Replay().bytes, get_text=Replay().text))
+        out = WeatherPayload()
+        lt.build(row, snap, Window(0.0, 8.0), out)
+        e = out.events[0]
+        self.assertEqual(e["title"], "HURRICANE ISAIAS")
+        self.assertEqual(e["rows"][0]["value"], "CAT 3 · 120 MPH")
+        self.assertIn("PRELIMINARY", e["foot"])
+        self.assertTrue(all("preliminary" in ln["label"] for ln in out.report.lines))
+
+    def test_a_storm_named_in_passing_is_checked_against_its_best_track_not_the_list(self):
+        p = project(TORNADO)
+        res, _w, _d = run(p, Replay())
+        self.assertFalse(any("worth checking" in n for n in res.notes))   # Isaias peaked at 105 kt: the script's "hurricane" is right
+        self.assertTrue(any(f.subject.startswith("Isaias") and f.what == "peak sustained wind" and f.value == 120
+                            for f in res.evidence.facts))
 
 
 class NoBeatPlanAtAll(unittest.TestCase):
@@ -530,7 +622,12 @@ class NarrationNumbers(unittest.TestCase):
         shown = [{"layer": "t", "label": "PORT ARTHUR total", "shown": "47.48 IN", "product": "RCC-ACIS"},
                  {"layer": "k", "label": "track point", "shown": "CAT 4 · 130 MPH", "product": "NHC best track"},
                  {"layer": "x", "label": "a clock", "shown": "4:50 PM", "product": "IEM"}]
+        u.measurements.append(type(u.measurements[0])("b4", "five extreme wind warnings", 5.0, "count", "count_warnings"))
         got = {c["said"]: c for c in engine.check_claims(u, shown)}
+        self.assertFalse(got["five extreme wind warnings"]["verified"])   # "CAT 4 · 130" is not a count of warnings
+        got = {c["said"]: c for c in engine.check_claims(u, shown + [{"layer": "c", "label": "extreme wind warnings issued", "shown": "5",
+                                                                        "product": "IEM"}])}
+        self.assertTrue(got["five extreme wind warnings"]["verified"])
         self.assertTrue(got["forty seven point four eight inches"]["verified"])
         self.assertTrue(got["category 4"]["verified"])
         self.assertFalse(got["450 yards"]["verified"])   # unverified, not "wrong"

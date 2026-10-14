@@ -59,18 +59,20 @@ Mode: A — no weather layers file: every data graphic was found by the engine
 
 - IEM NEXRAD composite (N0Q): 2 request(s) ok
 - IEM storm-based warnings archive: 2 request(s) ok
+- NHC GIS best track: 1 request(s) ok
 - NHC ATCF storm list: 1 request(s) ok
 
 What each source is:
 
 - IEM NEXRAD composite (N0Q) (observed): base reflectivity mosaic of NWS radars. Times: scan time (UTC). Caveats: a mosaic made by IEM, not an official NWS product; since 2022 N0Q is a downscaled N0B. Credit: Radar: NOAA/NWS NEXRAD via Iowa Environmental Mesonet.
 - IEM storm-based warnings archive (warning): NWS warning polygons (tornado, severe thunderstorm, flash flood, extreme wind ...). Times: issue / expire (UTC). Caveats: a polygon may be re-issued (one warning, many polygons): counts use one per event id. Credit: National Weather Service via IEM.
+- NHC GIS best track (best_track): analysed positions and intensity every 6 h, track coloured by strength. Times: fix times (UTC). Caveats: the working best track of a current storm is revised after the season; no landfall flags. Credit: NOAA National Hurricane Center.
 - NHC ATCF storm list (index): identity of every numbered Atlantic / Pacific system: name, basin, number, year, first and last times, status (ARCHIVE / WARNING / GENESIS / METWATCH). Times: first / last fix times (UTC, YYYYMMDDHH). Caveats: a current-season storm has an open end time (9999999999) and its last status, not its peak. Credit: NOAA National Hurricane Center.
 
 ## Evidence
 
 - identity: Isaias (AL092026) — storm identity = AL092026 [PRELIMINARY] (issued 2026-09-30T00:00:00Z) · the storm is still listed as active: its record may change
-- identity: Isaias (AL092026) — storm type in the list = TS [PRELIMINARY]
+- best_track: Isaias (AL092026) — peak sustained wind = 120 mph [PRELIMINARY] (issued 2026-10-09T12:00:00+00:00) · working best track: revised after the season
 - observed: radar.loop — radar = iem:radar@2026-10-11T09:55Z..2026-10-11T10:25Z#n0q
 - warning: NWS warnings in the window — warning polygons = 1 · one warning can have several polygons (updates)
 - preliminary_report: tornado reports — count = 9 [PRELIMINARY] · reports are not tornado counts: one tornado can bring several reports
@@ -83,7 +85,3 @@ What each source is:
 - preliminary_report: tornado report — report = 5 SSW Elko [PRELIMINARY] (issued 2026-10-10T21:15:00+00:00)
 - preliminary_report: tornado report — report = 5 NNE Aiken State Park [PRELIMINARY] (issued 2026-10-10T21:58:00+00:00)
 - preliminary_report: tornado report — report = 2 WSW Blair [PRELIMINARY] (issued 2026-10-11T10:05:00+00:00)
-
-## Notes
-
-- the script calls Isaias a hurricane; NHC's storm list records its type as TS (AL092026) — worth checking before publishing

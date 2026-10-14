@@ -42,6 +42,7 @@ class EventContext:
     peak: Optional[dict] = None
     focus: Optional[Tuple[float, float]] = None
     focus_name: str = ""
+    track: List[Tuple[float, float]] = field(default_factory=list)  # the storm's (lat, lon) fixes, HURDAT2
     recorded: Optional[date] = None
     historical: bool = True
     notes: List[str] = field(default_factory=list)
@@ -197,13 +198,34 @@ def _resolve_storms(ctx: EventContext, u: Understanding, net, ev: Evidence, ov: 
         else:
             ctx.context_storms.append((rec.name.title(), note + f"; named {count} time(s) in a {ctx.category} story, so it is context, "
                                        "not the subject (no storm graphics)"))
-            ev.add(kind="identity", subject=f"{rec.name.title()} ({rec.id})", what="storm type in the list", value=rec.max_type,
-                   source="nhc_storm_list", record=idn.STORM_LIST, retrieved=net.stamp, quality="preliminary" if rec.status != "ARCHIVE" else "final")
-            for s in u.storms:
-                if s.name == rec.name and s.kind.lower() == "hurricane" and rec.max_type not in ("HU", "MH"):
-                    ctx.notes.append(f"the script calls {rec.name.title()} a hurricane; NHC's storm list records its type as "
-                                     f"{rec.max_type} ({rec.id}) — worth checking before publishing")
-                    break
+            peak = storm_peak(rec, net, ev)
+            called_hurricane = any(s.name == rec.name and s.kind.lower() == "hurricane" for s in u.storms)
+            if called_hurricane and peak is not None and peak["wind_kt"] < 64:
+                ctx.notes.append(f"the script calls {rec.name.title()} a hurricane; NHC's best track ({peak['source']}) has its peak at "
+                                 f"{peak['wind_kt']:g} kt, below hurricane strength — worth checking before publishing")
+
+
+def storm_peak(rec, net, ev: Evidence) -> Optional[dict]:
+    """The storm's peak from NHC's best track: the final one (HURDAT2) for past seasons, the working one (GIS) while the season is
+    on — never the storm list's type, which is the LAST status of an active storm, not its peak. Recorded as a fact."""
+    from ..news import nhc
+    from ..post.besttrack import mph
+
+    try:
+        url = nhc.BEST.format(id=rec.id.lower())
+        pts = nhc.best_track(net.bytes(url, source="nhc_gis_best_track", purpose=f"peak of {rec.id}"))["points"]
+    except Exception:
+        return None
+    pts = [p for p in pts if p.get("wind_kt") is not None]
+    if not pts:
+        return None
+    top = max(pts, key=lambda p: p["wind_kt"])
+    final = rec.status == "ARCHIVE"
+    ev.add(kind="best_track", subject=f"{rec.name.title()} ({rec.id})", what="peak sustained wind", value=mph(int(top["wind_kt"])), unit="mph",
+           where=f"{top['lat']},{top['lon']}", source="nhc_gis_best_track", record=url, retrieved=net.stamp, issued=top["time"],
+           quality="final" if final else "preliminary", caveats=[] if final else ["working best track: revised after the season"],
+           method=f"highest wind in the GIS best track ({top['wind_kt']:g} kt, {top.get('kind', '')})")
+    return {"wind_kt": top["wind_kt"], "time": top["time"], "source": "final" if final else "working, preliminary"}
 
 
 def _storm_history(ctx: EventContext, rec: idn.StormRecord, net, ev: Evidence) -> None:
@@ -223,6 +245,7 @@ def _storm_history(ctx: EventContext, rec: idn.StormRecord, net, ev: Evidence) -
         ctx.notes.append(f"HURDAT2 could not be read ({exc}); landfalls come from the script only")
         return
     ctx.landfalls = idn.hurdat_landfalls(text, rec.id)
+    ctx.track = idn.hurdat_positions(text, rec.id)
     ctx.peak = idn.hurdat_peak(text, rec.id)
     from ..post.besttrack import mph
 

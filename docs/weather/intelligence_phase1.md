@@ -52,7 +52,9 @@ script + voiceover + beats (optional) + weather_layers.csv (optional) + intel/ov
   request is logged as ok / unavailable / temporary / malformed / skipped / ambiguous.
 * **Identity rules.** A shared name is never guessed (Harvey without a year → ambiguous, listing AL091993 … AL092017); the year
   said, then the dates said, then the recording's season decide. A storm named once in a tornado story is context, not the
-  subject (Isaias → AL092026, no storm graphics; the report notes that NHC lists it as TS while the script says hurricane).
+  subject (Isaias → AL092026, no storm graphics). *Correction (phase 2): the phase-1 run noted "NHC lists it as TS while the script
+says hurricane"; that was wrong — the storm list's type is an active storm's LAST status. NHC's working best track has Isaias at
+105 kt (Category 3) on Oct 9, 2026, so the script is right. The check now reads the best track, never the list's type.*
 * **Dry run** (`--dry-run`): everything resolved and reported, nothing written.
 * **App.** The Weather card's Check plan and Generate run the engine first (`app_section.run_intelligence`); a plan with no
   weather rows now loads (the old rows are moved to `weather_layers.previous.csv`, never deleted); `weather.json`

@@ -13,3 +13,4 @@ NOAA / NWS / NHC / SPC / WPC / IEM data are public domain (IEM asks for attribut
   tornado_*_0955_1025*    the same, for the radar loop fitted to the warning (09:55-10:25 UTC)
   spc_261010_rpts_filtered.csv  SPC storm reports of the convective day 2026-10-10 (12 UTC Oct 10 to 12 UTC Oct 11), which
                           holds the 1005 UTC Newberry report
+  al092026_best_track.zip NHC working best track of Isaias (AL092026), fetched 2026-10-14 while the storm is listed as active

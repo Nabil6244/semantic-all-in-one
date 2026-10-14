@@ -173,7 +173,13 @@ def segments_from_plan(plan, beats_text: str = "") -> List[Segment]:
         for r in csv.DictReader(io.StringIO(beats_text.lstrip("﻿"))):
             if (r.get("row") or "").strip().lower() == "beat":
                 anchors[(r.get("beat") or "").strip()] = (r.get("vo_anchor") or "").strip()
-    return [Segment(b.id, b.mode, b.narration or "", b.start, b.end, anchors.get(b.id, "")) for b in plan.beats]
+    out, cam = [], ""
+    for b in plan.beats:
+        steps = [c.place for c in b.camera if c.action in ("start", "fly_to") and c.place]
+        cam = steps[-1] if steps else (b.cam_place or cam)
+        out.append(Segment(b.id, b.mode, b.narration or "", b.start, b.end, anchors.get(b.id, ""), cam if b.mode != "footage" else "",
+                           tuple(l.type for l in b.layers)))
+    return out
 
 
 def user_rows(project, notes: List[str]) -> List[Any]:
@@ -633,6 +639,10 @@ def check_claims(u, shown: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 continue
             if need and need not in text.upper():
                 continue
+            if m.unit == "count":   # a count matches only a line that counts the same thing (warnings, tornadoes, reports)
+                noun = {"count_warnings": "warning", "count_tornado": "tornado", "count_reports": "report"}.get(m.quantity, "")
+                if noun not in (str(ln.get("label", "")) + " " + text).lower():
+                    continue
             for x in NUM.findall(text):
                 v = float(x)
                 tol = 0.006 * max(abs(m.value), 1.0) if m.value != int(m.value) else 0.5

@@ -13,7 +13,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple  # noqa: F401
 
 from ..news.timeline import STATE_NAMES
 from .context import EventContext, local_to_utc, seg_day
@@ -123,13 +123,70 @@ def warn_types_said(seg: Segment, default: Sequence[str]) -> List[str]:
 
 # ---- hurricanes ----------------------------------------------------------------------------------------------------------------
 
+def synoptic(t: datetime) -> Optional[datetime]:
+    """A said time on a best-track step (00/06/12/18 UTC), when it is within 45 minutes of one."""
+    base = t.replace(minute=0, second=0, microsecond=0)
+    cand = min((base.replace(hour=h) + timedelta(days=d) for h in (0, 6, 12, 18) for d in (-1, 0, 1)), key=lambda c: abs(c - t))
+    return cand if abs(cand - t) <= timedelta(minutes=45) else None
+
+
 def b_best_track(p: "Planner", seg: Segment) -> List[Draft]:
     need_storm(p)
     s = p.ctx.storm
     if s.year < 2008 and s.basin != "AL":
         raise Skip(f"NHC's GIS best track archive does not hold {s.id}")
-    return [Draft("hurricane.best_track", "auto_best_track", "storm_track", f"nhc:track@{s.id}#best", place=p.place_name(),
-                  why=f"the narration describes {s.name.title()}'s path or strength; NHC best track of {s.id}")]
+    said = [x for x in (synoptic(t) for t in times_in(p, seg)) if x is not None]
+    extra = {"label_times": [stamp(t) for t in dict.fromkeys(said)][:3]} if said else {}
+    why = f"the narration describes {s.name.title()}'s path or strength; NHC best track of {s.id}"
+    if said:
+        why += f", labelled at the times the beat says ({', '.join(extra['label_times'])})"
+    return [Draft("hurricane.best_track", "auto_best_track", "storm_track", f"nhc:track@{s.id}#best", place=p.place_name(), extra=extra,
+                  why=why)]
+
+
+def b_storm_stats(p: "Planner", seg: Segment) -> List[Draft]:
+    need_storm(p)
+    s = p.ctx.storm
+    if not p.ctx.peak:
+        if s.status == "ARCHIVE":
+            raise Skip(f"{s.name.title()} ({s.id}) could not be read from NHC's final best track (HURDAT2)")
+        return [Draft("hurricane.stats", "auto_storm_stats", "storm_stats", f"nhc:stats@{s.id}#working", place=p.place_name(),
+                      extra={"anchor": "l"}, why=f"{s.name.title()} is from the current season: peak and lowest pressure from NHC's WORKING "
+                      "best track, labelled preliminary (HURDAT2 is published each spring; the working track marks no landfalls)")]
+    extra: Dict[str, Any] = {"anchor": card_side(p, seg)}
+    if p.ctx.moment is not None and p.ctx.landfalls:
+        n = next((i for i, lf in enumerate(p.ctx.landfalls, 1) if lf["time"].startswith(p.ctx.moment.strftime("%Y-%m-%dT%H:%M"))), None)
+        if n:
+            extra["landfall"] = n
+    return [Draft("hurricane.stats", "auto_storm_stats", "storm_stats", f"nhc:stats@{s.id}", place=p.place_name(), extra=extra,
+                  why=f"the narration discusses {s.name.title()}'s strength; peak, lowest pressure and landfall from HURDAT2")]
+
+
+def card_side(p: "Planner", seg: Segment) -> str:
+    """The side of the frame a side card goes on: away from the storm's track as the beat's camera sees it (more of the track west
+    of the camera's centre -> the card goes right). With no camera or no track, the left."""
+    if not seg.cam or not p.ctx.track:
+        return "l"
+    try:
+        from hybrid.geo import resolve as geo
+
+        c = geo(seg.cam)
+    except Exception:
+        return "l"
+    near = [(la, lo) for la, lo in p.ctx.track if abs(lo - c.lon) <= 22 and abs(la - c.lat) <= 14]
+    west = sum(1 for _la, lo in near if lo < c.lon)
+    return "r" if west > len(near) - west else "l"
+
+
+def b_landfall_marker(p: "Planner", seg: Segment) -> List[Draft]:
+    need_storm(p)
+    if p.ctx.moment is None or not p.ctx.landfalls:
+        raise Skip("no landfall in NHC's final best track to mark")
+    lf = next((x for x in p.ctx.landfalls if x["time"].startswith(p.ctx.moment.strftime("%Y-%m-%dT%H:%M"))), None)
+    if lf is None:
+        raise Skip("the story's landfall time is not a landfall record of the best track")
+    return [Draft("hurricane.landfall", "auto_landfall", "place_label", place=f"{lf['lat']:.2f},{lf['lon']:.2f}", extra={"text": "LANDFALL"},
+                  kind="label", why=f"the landfall the story is about: HURDAT2 {lf['time']} at {lf['lat']}, {lf['lon']}")]
 
 
 def b_cone(p: "Planner", seg: Segment) -> List[Draft]:
@@ -465,7 +522,12 @@ KICKERS = {"hurricane": "HURRICANE", "tropical_storm": "TROPICAL STORM", "tornad
            "flood": "FLOODING", "heavy_rain": "HEAVY RAIN", "heat": "HEAT", "winter": "WINTER STORM", "forecast": "FORECAST"}
 
 
+TITLE_LAYERS = ("hud_title", "tp_title", "title", "lower_third")
+
+
 def b_headline(p: "Planner", seg: Segment) -> List[Draft]:
+    if any(t in TITLE_LAYERS for t in seg.layers):
+        raise Skip("the beat plan already opens with its own title card on that beat")
     c = p.ctx
     kicker = f"{KICKERS.get(c.storm.max_type == 'TS' and 'tropical_storm' or 'hurricane')} {c.storm.name}" if c.storm and c.storm_role == "primary" \
         else KICKERS.get(c.category, "WEATHER")
@@ -577,6 +639,11 @@ CATALOG: List[GraphicSpec] = [
                 "the event, its place and day", "no headline", min_score=0.0, covers=("headline", "tp_title"), priority=1),
     GraphicSpec("hurricane.best_track", "storm_track", "Best track by intensity", STORMY + WET, {"track": 1.0, "intensity": 0.8, "landfall": 0.3},
                 "data", 5.0, b_best_track, "the storm's NHC id", "the map without the track", covers=("storm_track",), priority=10),
+    GraphicSpec("hurricane.stats", "storm_stats", "Storm statistics card", STORMY + WET, {"intensity": 1.2, "landfall": 0.4}, "data", 5.0,
+                b_storm_stats, "the storm in NHC's final best track", "no card", min_score=1.2, covers=("storm_stats",), priority=13,
+                must=("intensity",)),
+    GraphicSpec("hurricane.landfall", "place_label", "Landfall marker", STORMY, {"landfall": 1.0}, "label", 3.0, b_landfall_marker,
+                "a landfall record in HURDAT2", "no marker", min_score=1.0, covers=(), priority=55, must=("landfall",)),
     GraphicSpec("hurricane.cone", "storm_cone", "Forecast cone, track and coastal warnings", STORMY, {"cone": 1.5}, "data", 5.0, b_cone,
                 "the storm's NHC id and an advisory issued near the narrated time", "the best track only", min_score=1.4,
                 covers=("storm_cone",), priority=11),

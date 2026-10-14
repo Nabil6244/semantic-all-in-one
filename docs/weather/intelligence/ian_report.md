@@ -22,10 +22,8 @@ Mode: A — no weather layers file: every data graphic was found by the engine
 
 ## Added for you
 
-- **auto_headline** (headline) on beat b1 (0.0s), at the words "This is a look"
-  - why: the opening lower-third names the event, the place and the day
 - **auto_best_track** (storm_track) on beat b2 (24.0s), at the words "This is the storm's" — nhc:track@AL092022#best
-  - why: the narration describes Ian's path or strength; NHC best track of AL092022
+  - why: the narration describes Ian's path or strength; NHC best track of AL092022, labelled at the times the beat says (2022-09-28T12:00Z, 2022-09-28T18:00Z)
 - **auto_cone** (storm_cone) on beat b3 (50.9s), at the words "That morning, the hurricane" — nhc:cone@AL092022#024
   - why: advisory 024 of AL092022, issued 2022-09-28T15:00Z: the last one at or before 2022-09-28T15:00Z (the advisory time the beat says)
 - **auto_cone_track** (storm_track) on beat b3 (50.9s), at the words "That morning, the hurricane" — nhc:track@AL092022#024
@@ -34,16 +32,21 @@ Mode: A — no weather layers file: every data graphic was found by the engine
   - why: radar mosaic 2022-09-28T14:00Z..2022-09-28T22:00Z (the times the beat says)
 - **auto_warnings** (warnings_archive) on beat b4 (72.7s), at the words "Now the radar, from" — iem:warnings@2022-09-28T14:00Z..2022-09-28T22:00Z#EW,TO
   - why: NWS EW, TO warnings in the same window, each from its issue time
+- **auto_storm_stats** (storm_stats) on beat b2 (24.0s), at the words "At eight in the" — nhc:stats@AL092022
+  - why: the narration discusses Ian's strength; peak, lowest pressure and landfall from HURDAT2
 - **auto_sat_loop** (satellite_loop) on beat b1 (0.0s), at the words "Here is the storm" — gibs:truecolor_loop@2022-09-23..2022-09-28
   - why: one NASA true-colour picture a day, 2022-09-23 to 2022-09-28, as the narration describes the storm from space
 - **auto_warn_count** (counter) on beat b5 (93.7s), at the words "In all, the National" — iem:warnings@2022-09-28T12:00Z..2022-09-29T00:00Z#EW
   - why: the narration counts EW warnings; IEM archive 2022-09-28T12:00Z..2022-09-29T00:00Z
 - **auto_ero** (wpc_ero) on beat b5 (93.7s), at the words "The Weather Prediction Center's" — wpc:ero@2022-09-28#day1
   - why: the narration discusses the rain outlook; WPC day 1 excessive rainfall outlook of 2022-09-28
+- **auto_landfall** (place_label) on beat b4 (72.7s), at the words "The warnings appear as"
+  - why: the landfall the story is about: HURDAT2 2022-09-28T19:05:00Z at 26.7, -82.2
 - Source lines on beats b2, b3, b4, b1, b5 (they name the data on screen)
 
 ## Left out, and why
 
+- Opening lower-third: the beat plan already opens with its own title card on that beat (beat b1)
 - Rainfall (radar estimate) map: the narration never discusses it
 - Gauge rain totals: the narration never discusses it
 - Verified record: the narration never discusses it
@@ -56,9 +59,9 @@ Mode: A — no weather layers file: every data graphic was found by the engine
 
 - "category 5" (beat b2): matches [auto_best_track] AL092022 best track 2022-09-28T12:00:00+00:00: CAT 5 · 160 MPH · SEP 28 8 AM (NHC best track)
 - "one hundred sixty miles per hour" (beat b2): matches [auto_best_track] AL092022 best track 2022-09-28T12:00:00+00:00: CAT 5 · 160 MPH · SEP 28 8 AM (NHC best track)
-- "category 4" (beat b2): matches [auto_cone_track] AL092022 advisory 24 point 2022-09-28T12:00:00+00:00: CAT 4 · 155 MPH · WED 8 AM (NHC forecast point)
-- "one hundred fifty five miles per hour" (beat b3): matches [auto_cone_track] AL092022 advisory 24 point 2022-09-28T12:00:00+00:00: CAT 4 · 155 MPH · WED 8 AM (NHC forecast point)
-- "five extreme wind warnings" (beat b5): matches [auto_best_track] AL092022 best track 2022-09-28T12:00:00+00:00: CAT 5 · 160 MPH · SEP 28 8 AM (NHC best track)
+- "category 4" (beat b2): matches [auto_best_track] AL092022 best track 2022-09-28T18:00:00+00:00: CAT 4 · 155 MPH · SEP 28 2 PM (NHC best track)
+- "one hundred fifty five miles per hour" (beat b3): matches [auto_best_track] AL092022 best track 2022-09-28T18:00:00+00:00: CAT 4 · 155 MPH · SEP 28 2 PM (NHC best track)
+- "five extreme wind warnings" (beat b5): matches [auto_warn_count] extreme wind warnings issued: 5 (NWS Extreme Wind Warnings issued (IEM archive))
 - "two hundred sixty miles" (beat b6): not verified by a fetched source
 
 ## Sources
@@ -88,6 +91,7 @@ What each source is:
 - forecast: hurricane.cone — storm_track = nhc:track@AL092022#024
 - observed: radar.loop — radar = iem:radar@2022-09-28T14:00Z..2022-09-28T22:00Z#n0q
 - warning: NWS warnings in the window — warning polygons = 9 · one warning can have several polygons (updates)
+- observed: hurricane.stats — storm_stats = nhc:stats@AL092022
 - observed: hurricane.satellite_loop — satellite_loop = gibs:truecolor_loop@2022-09-23..2022-09-28
 - warning: Extreme Wind Warnings Issued — count = 5 (issued 2022-09-29T00:00:00+00:00)
 - forecast: rain.ero — wpc_ero = wpc:ero@2022-09-28#day1
