@@ -43,7 +43,7 @@ URL_SOURCES = (  # URL prefix -> source id (for the request log)
     ("https://mesonet.agron.iastate.edu", "iem_radar"), ("https://www.spc.noaa.gov/climo/reports", "spc_reports"),
     ("https://www.spc.noaa.gov/products/outlook", "spc_outlook"), ("https://www.wpc.ncep.noaa.gov", "wpc_ero"),
     ("https://data.rcc-acis.org", "acis"), ("https://nwis.waterservices.usgs.gov", "usgs_iv"), ("https://waterservices.usgs.gov/nwis/site", "usgs_site"),
-    ("https://api.water.noaa.gov", "nwps"), ("https://gibs.earthdata.nasa.gov", "gibs_daily"), ("https://api.weather.gov", "nws_api"),
+    ("https://api.water.noaa.gov", "nwps"), ("https://services.dat.noaa.gov", "nws_dat"), ("https://gibs.earthdata.nasa.gov", "gibs_daily"), ("https://api.weather.gov", "nws_api"),
 )
 
 
@@ -129,6 +129,7 @@ class IntelResult:
     mode: str = "A"
     paths: Dict[str, str] = field(default_factory=dict)
     claims: List[Dict[str, Any]] = field(default_factory=list)  # each number the narrator says, and the shown number that matches it
+    coverage: List[str] = field(default_factory=list)  # does each archive hold the event (severe weather)
 
 
 # ---- inputs -------------------------------------------------------------------------------------------------------------------
@@ -173,12 +174,15 @@ def segments_from_plan(plan, beats_text: str = "") -> List[Segment]:
         for r in csv.DictReader(io.StringIO(beats_text.lstrip("﻿"))):
             if (r.get("row") or "").strip().lower() == "beat":
                 anchors[(r.get("beat") or "").strip()] = (r.get("vo_anchor") or "").strip()
-    out, cam = [], ""
+    out, cam, frame = [], "", ""
     for b in plan.beats:
-        steps = [c.place for c in b.camera if c.action in ("start", "fly_to") and c.place]
-        cam = steps[-1] if steps else (b.cam_place or cam)
+        steps = [c for c in b.camera if c.action in ("start", "fly_to") and c.place]
+        if steps:
+            cam, frame = steps[-1].place, steps[-1].frame or frame
+        elif b.cam_place:
+            cam, frame = b.cam_place, b.cam_frame or frame
         out.append(Segment(b.id, b.mode, b.narration or "", b.start, b.end, anchors.get(b.id, ""), cam if b.mode != "footage" else "",
-                           tuple(l.type for l in b.layers)))
+                           frame if b.mode != "footage" else "", tuple(l.type for l in b.layers)))
     return out
 
 
@@ -405,9 +409,10 @@ def run(project, plan, words: Sequence = (), *, beats_text: str = "", fmt: str =
         added = [d for d in drafts if d.id not in bad]
         shown = []
     claims = check_claims(u, shown)
+    coverage = archive_coverage(ctx, net, ev, pl) if fetch_data else []
     res = IntelResult(event=ctx.to_dict(), drafts=drafts, added=added, dropped=dropped, skipped=pl.skipped, preserved=pl.preserved,
                       conflicts=conflicts, notes=notes, assumptions=ctx.assumptions, ambiguities=ctx.ambiguities, evidence=ev, snapshot=snap,
-                      beats=segs, dry_run=dry_run, mode=mode, claims=claims)
+                      beats=segs, dry_run=dry_run, mode=mode, claims=claims, coverage=coverage)
     from .report import report_text
 
     res.report = report_text(res, project, recorded_how=rec_how)
@@ -536,6 +541,29 @@ def _facts_from_snapshot(ev: Evidence, snap, added: Sequence[Draft], ctx) -> Non
                        valid=f"{v['start']}..{v['end']}", caveats=["one warning can have several polygons (updates)"])
             except Exception:
                 pass
+        elif d.type == "tornado_tracks":
+            from ..layers.survey import _key as survey_key, chosen
+            from ..news.dat import label
+            from ..sidecar import parse_data_source
+
+            class R3:
+                pass
+
+            r = R3()
+            r.data_source, r.extra = parse_data_source(d.data_source), d.extra
+            from ..layers.survey import in_states, _states
+
+            v = snap.extra.get(survey_key(r), {})
+            tracks = in_states(v.get("tracks", []), _states(r))
+            for i in chosen(r, tracks):
+                tr = tracks[i]
+                for what, val, unit in (("EF rating", tr["ef"], ""), ("peak wind", tr["wind_mph"], "mph"), ("path length", tr["length_mi"], "mi"),
+                                        ("maximum width", tr["width_yd"], "yd"), ("injuries", tr["injuries"], ""), ("fatalities", tr["fatalities"], "")):
+                    if val is not None and val != -99:
+                        ev.add(kind="official_record", subject=f"surveyed tornado {tr['name'] or tr['wfo']}", what=what, value=val, unit=unit,
+                               where=f"{tr['coords'][0][1]},{tr['coords'][0][0]}", source="nws_dat", record=v.get("url", ""), retrieved=v.get("fetched", ""),
+                               issued=tr["start"], valid=f"{tr['start']}..{tr['end']}", quality="preliminary",
+                               caveats=["NWS damage survey; official record: NCEI Storm Data"], method=label(tr))
         elif d.data_source:
             ev.add(kind={"nhc_gis_advisory": "forecast", "nhc_gis_best_track": "best_track", "mrms": "estimate", "acis": "observed",
                          "usgs_iv": "observed", "spc_outlook": "forecast", "wpc_ero": "forecast", "iem_radar": "observed",
@@ -716,3 +744,52 @@ def _fit_loop_to_warnings(drafts, rows, keep_ids, snap, net, ctx, contact, now, 
     why = f"fitted to the warnings it shows ({first:%H:%MZ} to {last:%H:%MZ}): {target}"
     radar.why = f"radar mosaic {why}"
     warn.why = f"NWS warnings, same window ({why})"
+
+
+# ---- archive coverage (severe weather) -------------------------------------------------------------------------------------------
+
+def archive_coverage(ctx, net, ev: Evidence, planner) -> List[str]:
+    """For a tornado / severe story with a known moment: does each archive hold the event? SPC's report file of the convective day
+    (a report within 30 minutes of the moment in the story's states), IEM's warnings (one issued within 30 minutes), the NWS
+    surveys (a track starting within 20 minutes). One line each, and a fact in the evidence."""
+    if ctx.category not in ("tornado", "severe") or ctx.moment is None or not ctx.states:
+        return []
+    from ..news import iem_warnings, spc
+    from ..tz import parse_iso
+
+    out: List[str] = []
+    m, states, day = ctx.moment, set(ctx.states[:3]), ctx.conv_day
+    near = timedelta(minutes=30)
+    try:
+        url = spc.REPORTS.format(yymmdd=datetime.strptime(day, "%Y-%m-%d").strftime("%y%m%d"))
+        reps = [r for r in spc.reports(net.text(url, purpose="coverage check"), day) if r.get("state") in states]
+        hit = [r for r in reps if abs(parse_iso(r["time"]) - m) <= near]
+        out.append(f"SPC storm reports, convective day {day}: {len(reps)} in {', '.join(sorted(states))}; "
+                   + (f"one at {hit[0]['time']} ({hit[0]['kind']}, {hit[0]['place']}, {hit[0]['county']} County)" if hit else "none within 30 minutes of the event"))
+        ev.add(kind="preliminary_report", subject="coverage", what="SPC report at the event's time", value=bool(hit), source="spc_reports", record=url,
+               retrieved=net.stamp, quality="preliminary")
+    except Exception as exc:
+        out.append(f"SPC storm reports, convective day {day}: could not be read ({str(exc)[:120]})")
+    try:
+        a, b = m - timedelta(hours=1), m + timedelta(hours=1)
+        url = iem_warnings.url(a, b, sorted(states))
+        ws = iem_warnings.warnings(net.text(url, purpose="coverage check"), list(iem_warnings.NAMES))
+        hit = [w for w in ws if abs(parse_iso(w["issued"]) - m) <= near]
+        out.append(f"NWS warnings (IEM archive) within an hour of {m:%Y-%m-%d %H:%MZ}: {len(ws)}; "
+                   + (f"{hit[0]['name']} {hit[0]['wfo']} #{hit[0]['eventid']} issued {hit[0]['issued']}" if hit else "none issued within 30 minutes"))
+        ev.add(kind="warning", subject="coverage", what="warning at the event's time", value=bool(hit), source="iem_warnings", record=url, retrieved=net.stamp)
+    except Exception as exc:
+        out.append(f"NWS warnings (IEM archive): could not be read ({str(exc)[:120]})")
+    try:
+        from ..news.dat import label
+
+        a = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC) + timedelta(hours=12)
+        tracks = planner.surveys(a, a + timedelta(hours=48))
+        hit = [t for t in tracks if t["start"] and abs(parse_iso(t["start"]) - m) <= timedelta(minutes=20)]
+        out.append(f"NWS damage surveys (DAT): {len(tracks)} track(s) in {', '.join(sorted(states))}; "
+                   + (f"the event's track {hit[0]['start']}..{hit[0]['end']}: {label(hit[0])} (preliminary)" if hit else "no track starts within 20 minutes of the event"))
+        ev.add(kind="official_record", subject="coverage", what="surveyed track at the event's time", value=bool(hit), source="nws_dat", retrieved=net.stamp,
+               quality="preliminary")
+    except Exception as exc:
+        out.append(f"NWS damage surveys (DAT): could not be read ({str(exc)[:120]})")
+    return out

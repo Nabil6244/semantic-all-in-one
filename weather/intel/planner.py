@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from .catalog import CATALOG, DATA_KINDS, Draft, GraphicSpec, Skip
+from .catalog import CATALOG, DATA_KINDS, Draft, GraphicSpec, Skip  # noqa: F401
 from .context import EventContext
 from .understand import Segment, split_sentences, topic_strengths
 
@@ -112,6 +112,26 @@ class Planner:
 
         return idn.pick_advisory(s.id, target, self.ctx._cache[key], issued)
 
+    def surveys(self, a: datetime, b: datetime) -> List[Dict[str, Any]]:
+        """The NWS-surveyed tornado tracks (DAT) in the story's states in [a, b], read once and cached; [] when there are none or the
+        service cannot be read (the reason goes to the notes)."""
+        from ..layers.survey import bbox_of
+        from ..news import dat
+
+        states = self.ctx.states[:3]
+        key = f"dat:{a:%Y%m%d%H}:{','.join(states)}"
+        if key not in self.ctx._cache:
+            try:
+                url = dat.lines_url(bbox_of(states), a, b)
+                from ..layers.survey import in_states
+
+                self.ctx._cache[key] = in_states(dat.parse_lines(self.net.text(url, source="nws_dat", purpose=f"tornado surveys in {', '.join(states)}")),
+                                                 states)
+            except Exception as exc:
+                self.ctx._cache[key] = []
+                self.notes.append(f"the NWS damage surveys could not be read ({exc})")
+        return self.ctx._cache[key]
+
     def gauge(self, river: str, context: str):
         from . import identity as idn
 
@@ -137,6 +157,20 @@ class Planner:
         return g, how
 
     # ---- placement ---------------------------------------------------------------------------------------------------------
+    def closeness(self, seg: Segment) -> float:
+        """A bonus for a beat whose camera is close in on the event (a local frame within ~30 km of the story's focus)."""
+        if not seg.cam or self.ctx.focus is None or seg.frame not in ("local", "city", "street", "close"):
+            return 0.0
+        try:
+            from hybrid.geo import resolve as geo
+
+            from .identity import _km
+
+            c = geo(seg.cam)
+            return 1.5 if _km((c.lat, c.lon), self.ctx.focus) <= 30 else 0.0
+        except Exception:
+            return 0.0
+
     def eligible(self, seg: Segment, spec: GraphicSpec) -> Optional[str]:
         if seg.mode not in MAP_MODES:
             return "it is a full-screen footage beat"
@@ -226,8 +260,71 @@ class Planner:
                     self._place(spec, entity=entity, only_segs=segs)
             else:
                 self._place(spec)
+        self._repeats()
+        self._fill_long_beats()
         self._source_lines()
         return self.drafts
+
+    # ---- spreading graphics over a long narration ---------------------------------------------------------------------------
+    FILL_MIN_S = 12.0   # a map beat this long with no graphic at all gets the place it names labelled
+
+    def _repeats(self) -> None:
+        """A graphic with repeat_after_s comes back (at most twice) on a later beat that discusses it at least as much as the
+        threshold, when enough narration has passed since it was last on screen (a recap of the track, a return to the path)."""
+        for spec in CATALOG:
+            if spec.repeat_after_s <= 0:
+                continue
+            placed = [d for d in self.drafts if d.spec == spec.key and not d.companion_of]
+            if not placed:
+                continue
+            last = max(self.by_id[d.beat].start or 0.0 for d in placed)
+            for n in (2, 3):
+                cands = []
+                for i, seg in enumerate(self.segments):
+                    if seg.start is None or seg.start < last + spec.repeat_after_s or self.eligible(seg, spec):
+                        continue
+                    sc = self.score(seg, spec) + (self.closeness(seg) if spec.local else 0.0)
+                    if sc >= max(spec.min_score, 1.0) and not self.occ[seg.id].room([spec.layer]):
+                        cands.append((sc, -i, seg))
+                if not cands:
+                    break
+                _sc, _i, seg = max(cands)
+                try:
+                    drafts = spec.build(self, seg)
+                except Skip:
+                    break
+                anchor = self.anchor(seg, spec)
+                for d in drafts:
+                    d.id = f"{d.id}_{n}"
+                    d.companion_of = f"{d.companion_of}_{n}" if d.companion_of else ""
+                    d.beat, d.vo_anchor, d.kind = seg.id, anchor, spec.kind if not d.companion_of else "data"
+                    d.why = f"shown again: the narration returns to it ({d.why})"
+                    self.occ[seg.id].add(d.type)
+                    self.drafts.append(d)
+                last = seg.start
+
+    def _fill_long_beats(self) -> None:
+        """A long map beat with nothing on it gets a label on the county or city it names (the viewer always knows where they are)."""
+        import re
+
+        from .catalog import SPECS
+
+        if self.wanted(SPECS["broadcast.place_label"]) and "not a" not in self.wanted(SPECS["broadcast.place_label"]):
+            return   # excluded (or not in "only") in the overrides
+        used = {d.beat for d in self.drafts} | {r.beat for r in self.user_rows}
+        for seg in self.segments:
+            if seg.mode not in MAP_MODES or seg.id in used or seg.start is None or (seg.end or 0) - seg.start < self.FILL_MIN_S:
+                continue
+            place = next((p for p in self.ctx.u.places if p.seg == seg.id and p.kind in ("county", "city") and p.lat is not None
+                          and (not self.ctx.states or p.state in self.ctx.states)), None)
+            if place is None:
+                continue
+            slug = re.sub(r"[^a-z0-9]+", "_", place.name.lower()).strip("_")
+            sent = next((x for x in split_sentences(seg.text) if place.name.split()[0].lower() in x.lower()), "")
+            anchor = seg.anchor if not sent or seg.text.startswith(sent) else " ".join(sent.split()[:4])
+            self.drafts.append(Draft("broadcast.place_label", f"auto_label_{slug}_{seg.id}", "place_label", beat=seg.id, vo_anchor=anchor,
+                                     place=f"{place.lat:.2f},{place.lon:.2f}", extra={"text": place.name}, kind="label",
+                                     why=f"a {seg.end - seg.start:.0f} s map beat with no graphic names {place.name}: it is labelled"))
 
     def _place(self, spec: GraphicSpec, entity: str = "", only_segs: Sequence[str] = ()) -> None:
         forced = (self.ov.get("place") or {}).get(spec.key)
@@ -246,6 +343,8 @@ class Planner:
             if spec.min_score > 0 and s < spec.min_score and not forced:
                 continue
             crowd = self.occ[seg.id].data
+            if spec.local:
+                s += self.closeness(seg)
             ranked.append((s - 0.35 * crowd - (0.02 * i if spec.key == "broadcast.headline" else 0), -i, seg))
         if spec.key == "broadcast.headline":   # the opening lower-third goes on the first map beat
             ranked = [r for r in ranked if r[2].id == next((x[2].id for x in sorted(ranked, key=lambda r: -r[1])), None)]

@@ -24,10 +24,14 @@ NOW = datetime(2026, 10, 14, 8, 0, tzinfo=timezone.utc)
 HEAD = "beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why\n"
 
 
+NO_DAT = ("services.dat.noaa.gov",)   # no NWS survey yet: the SPC preliminary reports are the evidence
+
+
 class Replay:
     """GETs answered from the recorded files; anything else is a 404 (not archived). `broken` URLs (substring) fail like the network."""
 
-    def __init__(self, extra=None, broken=(), malformed=(), missing=()):
+    def __init__(self, extra=None, broken=(), malformed=(), missing=(), surveys=False):
+        missing = tuple(missing) + (() if surveys else NO_DAT)
         self.index = json.loads((FIX / "index.json").read_text(encoding="utf-8"))
         self.extra = extra or {}
         self.broken, self.malformed, self.missing = broken, malformed, missing
@@ -295,7 +299,8 @@ class TornadoWithNoWeatherFile(unittest.TestCase):
         self.assertEqual(count["where"], "SC")
         self.assertEqual(count["quality"], "preliminary")
         self.assertGreaterEqual(count["value"], 1)
-        self.assertTrue(all(a["status"] == "ok" for a in ev["attempts"]))
+        self.assertTrue(all(a["status"] == "ok" for a in ev["attempts"] if a["source"] != "nws_dat"))
+        self.assertTrue(all(a["status"] == "unavailable" for a in ev["attempts"] if a["source"] == "nws_dat"))
 
     def test_a_second_run_adds_nothing_twice(self):
         first = json.loads((self.p.root / "intel" / "auto_plan.json").read_text(encoding="utf-8"))["rows"]
@@ -417,6 +422,74 @@ class WithTheUsersWeatherFile(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
 
 
+TORNADO_SURVEYED = TORNADO.replace(
+    'b4,beat,The tornado touched down,',
+    'b3b,beat,Its reported path stretched,map,hold,,South Carolina,region,,,"Its reported path stretched nearly a mile and a half, and its maximum '
+    'width reached 450 yards. It was on the ground for about four minutes.",,,,,,,,,,,path\nb4,beat,The tornado touched down,', 1)
+TORNADO_SURVEYED = TORNADO_SURVEYED.replace("b7,beat,In Allendale County the", "b7,beat,In Barnwell County the").replace(
+    '"In Allendale County the reported damage', '"In Barnwell County the Barnwell tornado left damage').replace("allendale\n", "barnwell\n")
+
+
+class SurveyedTornado(unittest.TestCase):
+    """Phase 3: the NWS damage surveys (DAT) are the evidence of a tornado's rating, path and width when they exist."""
+
+    def setUp(self):
+        self.p = project(TORNADO_SURVEYED)
+        self.res, self.words, self.dur = run(self.p, Replay(surveys=True))
+        self.by = {d.id: d for d in self.res.added}
+
+    def test_the_storys_track_is_labelled_with_the_survey(self):
+        d = self.by["auto_survey"]
+        self.assertEqual(d.beat, "b3b")                                    # the beat about its path and width
+        self.assertEqual(d.data_source, "dat:tracks@2026-10-10T12:00Z..2026-10-12T12:00Z#SC")
+        self.assertEqual(d.extra["focus"], "2026-10-11T10:05Z")
+        self.assertIn("EF2 · 115 MPH · 1.47 MI · 450 YD", d.why)
+
+    def test_other_named_tornadoes_and_reports_step_aside(self):
+        wide = self.by["auto_survey_wide"]
+        self.assertIn("Barnwell Tornado", wide.extra["labels"])
+        self.assertNotIn("auto_reports", self.by)
+        self.assertTrue(any(s.spec == "severe.reports" and "surveyed" in s.reason for s in self.res.skipped))
+
+    def test_survey_numbers_verify_the_narration_and_are_preliminary(self):
+        claims = {c["said"]: c["verified"] for c in self.res.claims}
+        self.assertTrue(claims["450 yards"])
+        self.assertTrue(claims["EF2"])
+        facts = [f for f in self.res.evidence.facts if f.source == "nws_dat" and f.what == "maximum width"]
+        self.assertTrue(facts and all(f.quality == "preliminary" for f in facts))
+
+    def test_archive_coverage_is_checked(self):
+        cov = " | ".join(self.res.coverage)
+        self.assertIn("convective day 2026-10-10", cov)
+        self.assertIn("Newberry County", cov)
+        self.assertIn("Tornado Warning CAE #16", cov)
+        self.assertIn("EF2 · 115 MPH", cov)
+        self.assertIn("## Archive coverage of the event", self.res.report)
+
+    def test_tracks_render_coloured_and_labelled(self):
+        plan, rows, snap, payload = plan_layers(self.p, self.words, self.dur, now=NOW)
+        lines = [f for f in payload.fills if f["id"].startswith("wx_auto_survey_t")]
+        self.assertEqual(len(lines), 6)                                    # the six tracks that begin in SC (not Georgia's)
+        labels = [p["label"] for e in payload.events if e["id"] == "wx_auto_survey_labels" for p in e["points"]]
+        self.assertEqual(labels, ["EF2 · 115 MPH · 1.47 MI · 450 YD"])
+        legend = next(e for e in payload.events if e["id"] == "wx_auto_survey_legend")
+        self.assertIn("SURVEYED · PRELIMINARY", [i["label"] for i in legend["items"]])
+
+    def test_a_small_track_prefers_a_beat_close_in_on_it(self):
+        beats = TORNADO_SURVEYED.replace('b6,beat,', 'b5b,beat,That figure describes the,map,hold,,"34.40,-81.42",local,,,"That figure describes the broadest '
+                                         'part of the surveyed path near Old Blair Road.",,,,,,,,,,,close\nb6,beat,', 1)
+        res, _w, _d = run(project(beats), Replay(surveys=True))
+        self.assertEqual(next(d for d in res.added if d.id == "auto_survey").beat, "b5b")   # not b3b, the state-wide beat
+
+    def test_a_watch_versus_warning_beat_gets_the_explainer(self):
+        p = project(TORNADO_SURVEYED.replace(
+            'b7,beat,', 'b6b,beat,A watch means,map,hold,,South Carolina,region,,,"A watch means conditions are favorable for tornadoes. '
+            'A warning means a tornado has been reported or indicated by radar.",,,,,,,,,,,safety\nb7,beat,', 1))
+        res, _w, _d = run(p, Replay(surveys=True))
+        d = next(x for x in res.added if x.id == "auto_watch_warning")
+        self.assertEqual((d.beat, d.extra["template"]), ("b6b", "watch_warning"))
+
+
 class Overrides(unittest.TestCase):
     def test_excluded_graphics_are_not_added(self):
         p = project(TORNADO)
@@ -462,6 +535,39 @@ class HurricaneIan(unittest.TestCase):
         self.assertEqual(by["auto_landfall"].place, "26.70,-82.20")
         self.assertIn(by["auto_landfall"].beat, ("b4", "b1", "b2", "b3"))
         self.assertNotIn(by["auto_landfall"].beat, ("b5",))
+
+
+class LongNarration(unittest.TestCase):
+    """A long video never stands still: graphics come back where the narration returns to them, long empty beats get their place
+    labelled, and the camera keeps moving through still stretches."""
+
+    def test_motion_pass_leaves_no_long_still_map(self):
+        from hybrid.plan import free_interval
+        from weather.motion import STILL_S, _busy, keep_moving
+
+        beats = TORNADO.replace("map,hold,", "map,,")   # even beats with no camera step at all
+        words, dur = words_for(beats)
+        plan, _t = engine.project_plan(project(beats), words, dur, [])
+        notes = []
+        self.assertGreater(keep_moving(plan, notes), 0)
+        for i, b in enumerate(plan.beats):
+            if not plan.is_map_mode(b) or not any(c.action == "start" for x in plan.beats[:i + 1] for c in x.camera):
+                continue
+            lo, hi = free_interval(plan, i)
+            cur = lo
+            for a, z in _busy(b) + [(hi, hi)]:
+                self.assertLessEqual(a - cur, STILL_S + 0.01, f"beat {b.id} is still from {cur:.1f} to {a:.1f}")
+                cur = max(cur, z)
+        pushes = sum(1 for b in plan.beats for c in b.camera if c.action == "push_in" and c.zoom_delta == 0.3)
+        backs = sum(1 for b in plan.beats for c in b.camera if c.action == "pull_back" and c.zoom_delta == 0.3)
+        self.assertLessEqual(abs(pushes - backs), 1)                        # the zoom stays bounded
+
+    def test_the_render_plan_moves(self):
+        p = project(TORNADO)
+        res, words, dur = run(p, Replay())
+        notes = []
+        plan, rows, snap, payload = plan_layers(p, words, dur, now=NOW, notes=notes)
+        self.assertTrue(any("camera move" in n for n in notes))
 
 
 class Composition(unittest.TestCase):

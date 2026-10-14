@@ -72,6 +72,8 @@ class GraphicSpec:
     verify: Optional[Callable[[Draft, Any], Optional[str]]] = None  # (draft, snapshot) -> reason to drop it
     priority: int = 50  # lower first (claims its beat first)
     must: Tuple[str, ...] = ()  # at least one of these topics must be in the beat's words (not only related ones)
+    local: bool = False  # a small-scale graphic (a 1-mile track): beats whose camera is close to the event are preferred
+    repeat_after_s: float = 0.0  # > 0: shown again (up to twice) on a later beat that discusses it as much, this long after the last time
 
 
 # ---- helpers the builders share ------------------------------------------------------------------------------------------------
@@ -284,6 +286,8 @@ def _report_kinds(p: "Planner") -> str:
 
 
 def b_reports(p: "Planner", seg: Segment) -> List[Draft]:
+    if any(d.spec in ("severe.survey", "severe.survey_overview") for d in p.drafts):
+        raise Skip("the NWS-surveyed tracks are shown instead (surveys rate each tornado; reports are preliminary and repeat)")
     day = p.ctx.conv_day or need_day(p)
     if day < "2004-01-01":
         raise Skip("SPC's filtered storm-report files start in 2004")
@@ -301,6 +305,59 @@ def b_report_counter(p: "Planner", seg: Segment) -> List[Draft]:
     extra = {"anchor": "tr", **({"states": p.ctx.states[:3]} if p.ctx.states else {})}
     return [Draft("severe.counter", "auto_report_count", "counter", f"spc:reports@{day}#{kind}", place=p.place_name(), extra=extra,
                   kind="counter", why=f"the narration counts {kind} reports; SPC preliminary reports of {day}")]
+
+
+def survey_window(p: "Planner") -> Tuple[datetime, datetime]:
+    """The DAT search window: the convective day of the event and the next one (surveys of a weekend's storms)."""
+    day = p.ctx.conv_day or need_day(p)
+    a = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=UTC) + timedelta(hours=12)
+    return a, a + timedelta(hours=48)
+
+
+def b_survey(p: "Planner", seg: Segment) -> List[Draft]:
+    if not p.ctx.states:
+        raise Skip("no state to search the NWS damage surveys in")
+    a, b = survey_window(p)
+    tracks = p.surveys(a, b)
+    if not tracks:
+        raise Skip(f"the NWS damage surveys (DAT) hold no tornado track in {', '.join(p.ctx.states[:3])} for {a:%Y-%m-%d}..{b:%Y-%m-%d}")
+    extra: Dict[str, Any] = {}
+    focus = None
+    if p.ctx.moment is not None:
+        from ..tz import parse_iso
+
+        focus = next((t for t in tracks if t["start"] and abs(parse_iso(t["start"]) - p.ctx.moment) <= timedelta(minutes=20)), None)
+        if focus is not None:
+            extra["focus"] = stamp(p.ctx.moment)
+    why = "NWS-surveyed tornado tracks (DAT, preliminary)"
+    if focus is not None:
+        from ..news.dat import label
+
+        why += f"; the story's tornado: {label(focus)}, {focus['start']}..{focus['end']}"
+    return [Draft("severe.survey", "auto_survey", "tornado_tracks", f"dat:tracks@{stamp(a)}..{stamp(b)}#{','.join(p.ctx.states[:3])}",
+                  place=p.place_name(), extra=extra, why=why)]
+
+
+def b_survey_overview(p: "Planner", seg: Segment) -> List[Draft]:
+    if not p.ctx.states:
+        raise Skip("no state to search the NWS damage surveys in")
+    a, b = survey_window(p)
+    tracks = p.surveys(a, b)
+    words = " ".join(tokens(seg.text))
+    named = [t["name"] for t in tracks if t["name"] and any(w in words for w in tokens(t["name"]) if len(w) > 3 and w not in ("tornado", "county", "northern",
+             "southern", "eastern", "western", "central"))]
+    if not named:
+        raise Skip("the beat names none of the surveyed tornadoes", local=True)
+    return [Draft("severe.survey_overview", "auto_survey_wide", "tornado_tracks", f"dat:tracks@{stamp(a)}..{stamp(b)}#{','.join(p.ctx.states[:3])}",
+                  place=p.place_name(), extra={"labels": named[:4]},
+                  why=f"the beat names other surveyed tornadoes ({', '.join(named[:4])}); NWS damage surveys (DAT, preliminary)")]
+
+
+def b_watch_warning(p: "Planner", seg: Segment) -> List[Draft]:
+    if not (has_words(seg, "watch") and has_words(seg, "warning")):
+        raise Skip("the beat does not compare a watch with a warning", local=True)
+    return [Draft("severe.watch_warning", "auto_watch_warning", "explainer", extra={"template": "watch_warning"},
+                  why="the narration explains a tornado watch versus a tornado warning; NWS definitions")]
 
 
 def b_outlook(p: "Planner", seg: Segment) -> List[Draft]:
@@ -656,8 +713,16 @@ CATALOG: List[GraphicSpec] = [
     GraphicSpec("warnings.counter", "counter", "Warnings issued (count)", STORMY + SEVERE + WET, {"count": 1.5, "warnings": 0.8}, "counter",
                 4.0, b_warning_counter, "the warning type the narration counts", "no counter", min_score=2.0, covers=(), priority=30,
                 must=("count",)),
+    GraphicSpec("severe.survey", "tornado_tracks", "Surveyed tornado track (NWS DAT)", SEVERE, {"track": 1.2, "reports": 0.4}, "data", 5.0,
+                b_survey, "the NWS damage surveys of the event's days", "storm reports", min_score=1.2, covers=("tornado_tracks",),
+                priority=13, must=("track",), local=True, repeat_after_s=120.0),
+    GraphicSpec("severe.survey_overview", "tornado_tracks", "Other surveyed tornadoes", SEVERE, {"reports": 1.0, "count": 0.5}, "data", 5.0,
+                b_survey_overview, "surveyed tornadoes the narration names", "storm reports", min_score=1.0, covers=(), priority=14),
+    GraphicSpec("severe.watch_warning", "explainer", "Watch vs warning explainer", SEVERE, {"warnings": 1.0}, "data", 5.0, b_watch_warning,
+                "the narration comparing a watch and a warning", "none", min_score=1.0, covers=("explainer",), priority=35,
+                must=("warnings",)),
     GraphicSpec("severe.reports", "storm_reports", "Storm reports (preliminary)", SEVERE, {"reports": 1.0, "count": 0.5}, "data", 5.0,
-                b_reports, "the SPC convective day", "no reports", min_score=2.0, covers=("storm_reports",), verify=v_reports, priority=14),
+                b_reports, "the SPC convective day", "no reports", min_score=2.0, covers=("storm_reports",), verify=v_reports, priority=15),
     GraphicSpec("severe.counter", "counter", "Report counter", SEVERE, {"count": 1.5, "reports": 0.6}, "counter", 4.0, b_report_counter,
                 "the SPC convective day", "no counter", min_score=2.2, covers=("counter",), verify=v_counter, priority=31, must=("count",)),
     GraphicSpec("severe.outlook", "spc_outlook", "SPC outlook", SEVERE, {"outlook": 1.5}, "data", 5.0, b_outlook, "the convective day",

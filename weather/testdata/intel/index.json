@@ -18,5 +18,7 @@
  "https://www.wpc.ncep.noaa.gov/archives/ero/20220928/shp_94e_2022092809.zip": "ian_wpc_ero_20220928_09.zip",
  "https://mesonet.agron.iastate.edu/json/radar?operation=list&product=N0Q&radar=USCOMP&start=2026-10-11T09:55Z&end=2026-10-11T10:26Z": "tornado_radar_list_1011T0955_1011T1025.json",
  "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2026-10-11T09%3A55%3A00Z&ets=2026-10-11T10%3A25%3A00Z&states=SC": "tornado_warnings_1011T0955_1011T1025_SC.geojson",
- "https://www.nhc.noaa.gov/gis/best_track/al092026_best_track.zip": "al092026_best_track.zip"
+ "https://www.nhc.noaa.gov/gis/best_track/al092026_best_track.zip": "al092026_best_track.zip",
+ "https://services.dat.noaa.gov/arcgis/rest/services/nws_damageassessmenttoolkit/DamageViewer/FeatureServer/1/query?where=1%3D1&geometry=-83.353%2C32.034%2C-78.542%2C35.215&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&time=1791633600000%2C1791806400000&outFields=%2A&outSR=4326&f=geojson": "dat_tracks_sc_1010T12_1012T12.geojson",
+ "https://mesonet.agron.iastate.edu/geojson/sbw.geojson?sts=2026-10-11T09%3A05%3A00Z&ets=2026-10-11T11%3A05%3A00Z&states=SC": "tornado_warnings_1011T0905_1011T1105_SC.geojson"
 }

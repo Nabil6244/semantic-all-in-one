@@ -142,6 +142,7 @@ class Segment:
     end: Optional[float] = None
     anchor: str = ""  # the beat's own vo_anchor (its first words), when it has one
     cam: str = ""  # where the map camera looks during the beat (a place name or "lat,lon"), when known
+    frame: str = ""  # how close (local, region, country, continental ...), when known
     layers: Tuple[str, ...] = ()  # the beat plan's own layer types on this beat (hud_title ...)
 
 

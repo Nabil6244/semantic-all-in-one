@@ -66,6 +66,11 @@ _S = [
            "hail inches, wind mph/kt", "public domain", "NOAA Storm Prediction Center", "one CSV per day; cached",
            "PRELIMINARY reports, not survey results; a report is not one tornado; a morning event (before 12 UTC) belongs to the "
            "previous day's file", "preliminary"),
+    Source("nws_dat", "NWS Damage Assessment Toolkit", "tornado tracks surveyed by NWS teams: EF rating, peak wind, path length and "
+           "width, start/end times, injuries and fatalities; damage points and EF swaths", "US", "surveys since about 2011",
+           "as surveys are entered (days after an event)", "start / end of each track (UTC)", "mph, miles, yards", "public domain",
+           "NOAA National Weather Service Damage Assessment Toolkit", "ArcGIS query per envelope and window; cached",
+           "PRELIMINARY by the service's own statement; the official record is NCEI Storm Data, months later", "official_record"),
     Source("spc_outlook", "SPC convective outlook", "categorical severe-weather risk areas", "CONUS", "archive by issuance",
            "day 1: 01, 12/13, 1630, 20 UTC", "issue and valid period", "category", "public domain", "NOAA Storm Prediction Center",
            "GeoJSON; cached", "a forecast of risk, not what happened", "forecast"),

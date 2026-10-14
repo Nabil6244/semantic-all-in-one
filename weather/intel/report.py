@@ -48,6 +48,9 @@ def report_text(res, project=None, *, recorded_how: str = "") -> str:
         out += [f"- Assumed: {a}" for a in res.assumptions]
         out += [f"- **Needs you:** {a}" for a in res.ambiguities]
 
+    if getattr(res, "coverage", None):
+        out += ["", "## Archive coverage of the event", ""]
+        out += [f"- {line}" for line in res.coverage]
     out += ["", "## Added for you", ""]
     data_added = [d for d in res.added if d.type != "source_line"]
     if not data_added:

@@ -164,6 +164,10 @@ def _finish_plan(project: WeatherProject, plan, aliases, words, now, fixes: List
 
         add_cutaways(plan, words, payload, notes)
         teamplate.apply_plan(plan, notes)
+    # after the cutaways (which already break up long maps in Weather Teamplate): what is still a still map gets slow motion
+    from .motion import keep_moving
+
+    keep_moving(plan, fixes)
     return plan, rows, snap, payload
 
 
