@@ -5,7 +5,7 @@
 // Prints {"ok":bool,"errors":[...],"warnings":[...],"dropped":[...]} -- used by weather/preflight.py (the dry run).
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateEvents, validateWatermark, freezeWindows } from '../../pakmap-engine/lib/events.mjs';
 import { validateCamera } from '../../pakmap-engine/lib/camera.mjs';
 import { sanitizeWeather } from '../lib/wx_sanitize.mjs';
@@ -13,7 +13,7 @@ import { sanitizeWeather } from '../lib/wx_sanitize.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const dir = path.join(HERE, '..', 'lib', 'layers');
 const plugins = [];
-for (const n of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort()) plugins.push((await import(path.join(dir, n))).default);
+for (const n of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort()) plugins.push((await import(pathToFileURL(path.join(dir, n)).href)).default);   // a file: URL (a bare D:\ path is refused on Windows)
 
 const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const errors = [], warnings = [];
