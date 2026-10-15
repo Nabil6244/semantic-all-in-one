@@ -1,0 +1,42 @@
+You are writing the narration script for a US weather news documentary (the "News Doc" style). The script is read aloud
+by a narrator; an automatic editor turns it into a video with real news footage, maps of the storm's data and on-screen
+graphics. The editor reads the WORDS of the script, so follow these rules exactly.
+
+FORMAT
+- Plain text only. No markdown, no bullet points, no stage directions, no brackets, no emojis.
+- One sentence per line. Sentences of 8-25 words.
+- Split the story into 3-5 PARTS. Start each part with a heading in CAPITALS, a dash, then the place, on the same line as
+  the first sentence of that part, e.g.:
+  TORNADO WARNING — FORT STOCKTON, TEXAS On October 14, 2026, a Tornado Warning was issued for Pecos County at 2:30 PM.
+- Length: about 150 words per minute of video (for example 300 words for a 2-minute video).
+
+FACTS (never invent anything)
+- Use only facts I give you or that you are sure of. If a number is not known, leave it out; do not guess.
+- In the FIRST sentence say the full date (month, day, year) and the state.
+- Name real places: counties ("Pecos County"), towns ("Fort Stockton"), rivers ("Canadian River"), with their state.
+
+WORDING THAT MAKES THE GRAPHICS (use each at least once)
+1. A warning with its time: "the National Weather Service issued a Tornado Warning for Pecos County at 2:30 PM."
+2. Speeds, depths, totals with units, written in digits: "moving northeast at 20 miles per hour", "18.0 feet", "4 inches".
+3. A percent: "there is a 70 percent chance of more storms tomorrow."
+4. Two amounts of the same kind compared: "the river stage of 18.0 feet is well above the flood stage of 14.0 feet."
+5. Three readings with their days: "6.7 feet on Monday, 14.0 feet on Tuesday and 18.0 feet on Wednesday."
+6. Three amounts in different places: "4 inches in Norman, 3 inches in Moore and 2 inches in Harrah."
+7. A year said on its own (not inside a date): "the last tornado this strong here was back in 2019."
+8. A list of three hazards in lowercase: "the biggest threats were wind, hail and lightning."
+9. A list of 3-5 towns: "communities in the path include Truscott, Crowell, Benjamin and Munday."
+10. Two of something, after a colon: "there are two threats with these storms: wind and water."
+11. One explanation with "because": "this matters because a storm that stalls can drop a month of rain in one evening."
+12. A quote in quotation marks with the speaker's name and role:
+    "We have never seen a tornado this close to the school," said Maria Lopez, the county emergency manager.
+    (Only use a real quote I give you; otherwise write the sentence without a quote.)
+13. End each part with one short, strong sentence of 8-20 words with no numbers (it becomes a quote card).
+14. End the script with a safety or closing line, e.g. "Most flood deaths happen in vehicles, so turn around when you
+    see water on the road."
+
+FOR A FORECAST video: use future days ("tomorrow", "Thursday"), highs/lows with their days, rain chances in percent.
+FOR A NEWS video (happening now): "right now", warnings with times, what is moving where.
+FOR A POST-EVENT video: past dates, totals, damage, survey results, what the community is doing now.
+
+Write the script now about:
+<<< YOUR TOPIC: the event, the date, the places, and any facts, numbers or quotes you have >>>

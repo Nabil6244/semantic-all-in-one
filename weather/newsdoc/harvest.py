@@ -106,7 +106,7 @@ def towns(lines) -> List[str]:
     return sorted(found, key=lambda n: -found[n])
 
 
-def queries(story, event: Dict) -> List[Dict]:
+def queries(story, event: Dict, extra: Optional[Dict[int, List[str]]] = None) -> List[Dict]:
     """Searches per part: [{part, queries, place, words, state, hazard, month, year}] — a local search first (a town or county with
     the hazard), then the state with the month; `words` are the local names a title may share."""
     day = str((event or {}).get("main_day") or "")
@@ -121,7 +121,7 @@ def queries(story, event: Dict) -> List[Dict]:
         topic = TOPIC.get(hz, "storm")
         local = town or county
         qs = [q for q in (f"{local} {state} {topic}".strip() if local else "", " ".join(x for x in (state, topic, month, year) if x)) if q]
-        qs = [q for q in qs if q.lower() not in seen]
+        qs = [q for q in list((extra or {}).get(k, [])) + qs if q.lower() not in seen]   # the story CSV's own searches first
         if not qs:
             continue
         seen.update(q.lower() for q in qs)
@@ -375,12 +375,13 @@ def _download_all(chosen, cache: Path, root: Path, backend, out: "Harvest", max_
 
 
 def harvest(project_root: "str | Path", story, event: Dict, *, backend=None, pause: float = 3.0, max_downloads: int = MAX_DOWNLOADS,
+            extra: Optional[Dict[int, List[str]]] = None,
             log: Callable[[str], None] = print, today: Optional[date] = None) -> Harvest:
     root = Path(project_root)
     cache = root / "_work" / "news_cache"
     cache.mkdir(parents=True, exist_ok=True)
     index_path = cache / "index.json"
-    qs = queries(story, event)
+    qs = queries(story, event, extra)
     key = CACHE_VERSION + "|" + "|".join(q["query"] for q in qs)
     try:
         index = json.loads(index_path.read_text(encoding="utf-8"))

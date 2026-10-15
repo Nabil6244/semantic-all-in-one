@@ -171,7 +171,7 @@ def stock_request(text: str, category: str) -> str:
     return DEFAULT_STOCK.get(category, "dark storm clouds time lapse")
 
 
-def fill_footage(story: Story, gaps: List[tuple], runs: Sequence, notes: List[str]) -> List[Shot]:
+def fill_footage(story: Story, gaps: List[tuple], runs: Sequence, notes: List[str], csv: Optional[Dict[int, Any]] = None) -> List[Shot]:
     """Footage shots for the stretches between map shots: news runs of the part first, then stock of what the line says."""
     from .harvest import _part_hazard
 
@@ -190,7 +190,12 @@ def fill_footage(story: Story, gaps: List[tuple], runs: Sequence, notes: List[st
             pool = [r for r in by_part.get(line.part, []) if r.path not in used] or \
                    [r for r in spare if r.path not in used and (not line.states or r.place in line.states or r.part == line.part)]
             want = _target(story, t, line)
+            row = (csv or {}).get(line.i)
             run = pool[0] if pool and line.i > 0 else None   # the very first line opens on b-roll / the region, like the reference
+            if row is not None and row.shot in ("broll", "card"):
+                run = None    # the CSV asks for b-roll here (a card covers it anyway)
+            elif row is not None and row.shot == "news" and pool:
+                run = pool[0]
             if run is not None:
                 length = min(run.dur, z - t, 12.0 if t >= OPENING_S else 5.0)
             else:
@@ -205,7 +210,9 @@ def fill_footage(story: Story, gaps: List[tuple], runs: Sequence, notes: List[st
                 shots.append(Shot(round(t, 3), round(t + length, 3), "news", run.path, line.i, run.place,
                                   meta={"title": run.title, "channel": run.channel, "url": run.url, "source_start": run.start}))
             else:
-                req = stock_request(line.text, hazard.get(line.part, story.category))
+                row = (csv or {}).get(line.i)
+                req = row.search if (row is not None and row.search and row.shot != "news") else \
+                    stock_request(line.text, hazard.get(line.part, story.category))
                 k = asked.get(req, 0)
                 asked[req] = k + 1
                 ask = req if k == 0 else f"{req}, {VARIANTS[(k - 1) % len(VARIANTS)]}"
@@ -526,7 +533,9 @@ def schedule(story: Story, words: Sequence, shots: List[Shot], notes: List[str])
 # ---- the plan for the renderer ---------------------------------------------------------------------------------------------
 
 def build(story: Story, words: Sequence, rows: List[Any], wins: Dict[str, Any], runs: Sequence, *, notes: Optional[List[str]] = None,
-          share: float = MAP_SHARE) -> NdPlan:
+          share: float = MAP_SHARE, csv: Optional[Dict[int, Any]] = None) -> NdPlan:
+    """`csv`: story line index -> its row of the optional story CSV (weather.newsdoc.story_csv); its cells override the automatic
+    choices for that sentence (shot, search, graphic), the rest stays automatic."""
     from hybrid.director import derive_cameras
     from hybrid.plan import Beat, Clip, HybridPlan
 
@@ -534,6 +543,17 @@ def build(story: Story, words: Sequence, rows: List[Any], wins: Dict[str, Any], 
     dur = story.duration
     picks = pick_map_shots(rows, wins, dur, share)
     region = story.states[0] if story.states else "United States"
+    csv = csv or {}
+    for i, r in sorted(csv.items()):   # map shots the CSV asks for (the place's map; the event's data rides along when it arrives then)
+        if r.shot != "map":
+            continue
+        x = story.lines[i]
+        t0, t1 = x.span_start, min(x.span_end, x.span_start + 8.0)
+        if t1 - t0 >= 2.5 and not any(p["t0"] < t1 and t0 < p["t1"] for p in picks):
+            picks.append({"t0": round(t0, 3), "t1": round(t1, 3),
+                          "rows": [rr.id for rr in rows if rr.id in wins and t0 - 0.5 <= wins[rr.id].t_in <= t1 - 1.0],
+                          "place": r.place or ((x.places[0][0]) if x.places else "")})
+    picks.sort(key=lambda p: p["t0"])
     if not picks:   # the renderer needs one map start: a short opening "where", the region
         picks = [{"t0": 0.0, "t1": min(3.5, dur), "rows": [], "place": region}]
         notes.append("News Doc: no data graphic was found for a map shot, so the map is only a 3.5 s opening of the region")
@@ -546,7 +566,7 @@ def build(story: Story, words: Sequence, rows: List[Any], wins: Dict[str, Any], 
     if dur - t > 0.05:
         gaps.append((t, dur))
     shots += [Shot(p["t0"], p["t1"], "map", line=_line_at(story, p["t0"]).i, place=p["place"], rows=list(p["rows"])) for p in picks]
-    shots += fill_footage(story, gaps, runs, notes)
+    shots += fill_footage(story, gaps, runs, notes, csv)
     shots.sort(key=lambda s: s.t0)
     # never a gap or an overlap: each shot ends where the next starts
     for k in range(len(shots) - 1):
@@ -589,7 +609,12 @@ def build(story: Story, words: Sequence, rows: List[Any], wins: Dict[str, Any], 
     # copied straight from the clip: pakmap-engine/lib/footage_pass.mjs)
     derive_cameras(plan)
     overlays = schedule(story, words, shots, notes)
-    overlays = ensure_all(story, words, shots, overlays, notes)
+    forced = csv_graphics(story, words, shots, csv, notes)
+    if forced:
+        small = {"place", "orange_place", "ytag", "glitch"}
+        overlays = [o for o in overlays if not any(f.t0 < o.t1 and o.t0 < f.t1 and not (o.kind in small and f.kind not in FULLSCREEN)
+                                                   for f in forced)] + forced
+    overlays = ensure_all(story, words, shots, sorted(overlays, key=lambda o: o.t0), notes)
     return NdPlan(shots, overlays, plan, final_rows, notes, story.category)
 
 
@@ -747,4 +772,29 @@ def ensure_all(story: Story, words: Sequence, shots: List[Shot], overlays: List[
                 placed = True
         if not placed:
             notes.append(f"News Doc: the {kind} graphic has nothing in this story to show (or no free moment), so it is not in this video")
+    return out
+
+
+def csv_graphics(story: Story, words: Sequence, shots: List[Shot], csv: Optional[Dict[int, Any]], notes: List[str]) -> List[Overlay]:
+    """The graphics the story CSV names, each at its sentence (on the words of its anchor when they are heard), off the map."""
+    from .story_csv import LENGTH as CSV_LENGTH, graphic_params
+
+    out: List[Overlay] = []
+    for i, r in sorted((csv or {}).items()):
+        if not r.graphic:
+            continue
+        x = story.lines[i]
+        params = graphic_params(r.graphic, r, x, story)
+        if params is None:
+            notes.append(f"story CSV line {r.line}: the {r.graphic} graphic has nothing to show (fill g_text / g_value / g_items); News Doc chooses")
+            continue
+        length = CSV_LENGTH.get(r.graphic, 4.0)
+        t0 = (word_time(words, x.span_start, x.span_end, r.vo_anchor) if r.vo_anchor else None) or x.span_start + 0.2
+        start = _slot(shots, t0, length, x.span_end + 3.0, x.span_start) if r.graphic not in ("place", "orange_place") else t0
+        if start is None or any(o.t0 < start + length and start < o.t1 for o in out):
+            notes.append(f"story CSV line {r.line}: no room for its {r.graphic} graphic at that sentence; News Doc places one elsewhere")
+            continue
+        if r.graphic in ("framed", "polaroids"):
+            params["still_t"] = _stills(shots, x.part, 2 if r.graphic == "polaroids" else 1)
+        out.append(Overlay(r.graphic, round(start, 3), round(start + length, 3), params))
     return out

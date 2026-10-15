@@ -5,6 +5,7 @@ data moments, at most 10 %, 40 s apart; news runs first; graphics never on the m
 pass, the app's picker, and the whole plan under NoPaidCalls (no AI provider, no network)."""
 
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -326,6 +327,79 @@ class EveryGraphicInEveryVideo(unittest.TestCase):
         self.assertEqual(sorted(set(REQUIRED) - have), [])
         self.assertIn("orange_place", have)   # adopted from Weather Teamplate
         self.assertIn("forecast", have)       # adopted from Weather's day-by-day strip
+
+
+class TheOptionalStoryCsv(unittest.TestCase):
+    CSV = """Here is your plan:
+```csv
+sentence,vo_anchor,part,shot,search,graphic,g_text,g_value,g_items,place,when
+s1,TORNADO WARNING — PECOS,,map,,,,,,"Pecos County, TX",2026-10-14
+s2,The National Weather Service issued,,news,Fort Stockton Texas tornado,headline,TORNADO WARNING ISSUED,,,"Pecos County, TX",2:30 PM
+s3,The storm was moving,,broll,storm clouds over a ranch,big_number,MPH,20,,,
+s5,Debris was scattered,,card,,horizontal_bars,DEBRIS,MILES,A=3;B=2;C=1,,
+s99,Nonexistent words here,,teleport,,sparkles,,,,,
+```
+Thanks!"""
+
+    def setUp(self):
+        from weather.newsdoc.story_csv import match, parse
+
+        self.st, self.words, self.dur = story()
+        self.notes = []
+        self.rows = parse(self.CSV, self.notes)
+        self.csv = match(self.rows, self.st, self.notes)
+
+    def test_a_chat_answer_is_read_and_bad_rows_are_named_not_fatal(self):
+        self.assertEqual(len(self.rows), 5)
+        self.assertTrue(any("teleport" in n for n in self.notes))
+        self.assertTrue(any("sparkles" in n for n in self.notes))
+        self.assertTrue(any("Nonexistent" in n for n in self.notes))   # no sentence starts so: left out, never a stop
+        self.assertEqual(sorted(self.csv), [0, 1, 2, 4])
+
+    def test_its_cells_set_the_shot_the_search_and_the_graphic(self):
+        from weather.newsdoc.plan import REQUIRED, build
+
+        nd = build(self.st, self.words, [], {}, [], notes=[], csv=self.csv)
+        line2 = self.st.lines[2]
+        here = [s for s in nd.shots if s.t0 < line2.span_end and line2.span_start < s.t1 and s.kind == "stock"]
+        self.assertTrue(any(s.asset == "stock_video:storm clouds over a ranch" for s in here))
+        self.assertTrue(any(s.kind == "map" and s.t0 <= self.st.lines[0].span_start + 0.01 for s in nd.shots))
+        num = next(o for o in nd.overlays if o.kind == "number" and o.params.get("shown") == "20")
+        self.assertEqual(num.params["label"], "MPH")
+        hb = next(o for o in nd.overlays if o.kind == "hbars" and o.params.get("labels") == ["A", "B", "C"])
+        self.assertEqual(hb.params["values"], [3.0, 2.0, 1.0])
+        self.assertEqual(validate_plan(nd.hybrid), [])
+
+    def test_the_weather_card_saves_it_for_news_doc(self):
+        from weather import app_section
+        from weather.newsdoc.story_csv import FILE
+
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "weather").mkdir()
+        box = NS(text="")
+
+        class FakeApp:   # the app's module is where the card finds its dialogs (this test module)
+            pass
+
+        app = FakeApp()
+        app.__dict__.update(_workspace=NS(root=str(tmp)), _weather_style_var=NS(get=lambda: "News Doc"),
+                            _weather_format_var=NS(get=lambda: "News"), _main_script_text=lambda: "",
+                            _weather_file_var=NS(set=lambda v: None), _weather_status_var=NS(set=lambda v: None),
+                            _sync_primary_cta=lambda: None, _weather_plan_box=NS(configure=lambda **k: None, delete=lambda *a: None,
+                                                                                  insert=lambda i, t: setattr(box, "text", t)))
+        self.assertTrue(app_section.load_newsdoc_csv(app, self.CSV))
+        self.assertTrue((tmp / "weather" / FILE).is_file())
+        self.assertIn("5 row(s)", box.text)
+
+    def test_the_prompts_name_every_column_and_every_graphic(self):
+        from weather.newsdoc.story_csv import COLUMNS, GRAPHICS
+
+        text = Path("weather/prompts/newsdoc_csv_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn(",".join(COLUMNS), text)
+        kinds = {v for v in GRAPHICS.values()}
+        named = {GRAPHICS[k] for k in GRAPHICS if re.search(r"\b" + k + r"\b", text)}
+        self.assertEqual(sorted(kinds - named), [])
+        self.assertTrue(Path("weather/prompts/newsdoc_script_prompt.txt").is_file())
 
 
 class NeverStopsForAMissingClip(unittest.TestCase):

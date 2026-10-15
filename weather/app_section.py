@@ -256,69 +256,162 @@ def build(app, parent, *, row: int) -> None:
     controls.grid_columnconfigure(0, weight=1)
     app._weather_controls = controls
 
-    actions = ctk.CTkFrame(controls, fg_color="transparent")
-    actions.grid(row=0, column=0, sticky="ew")
-    ctk.CTkButton(actions, text="Load plan…", width=130, height=36, corner_radius=6, fg_color=M._ACCENT, hover_color=M._ACCENT_HOV,
-                  font=ctk.CTkFont(size=12, weight="bold"), command=lambda: browse(app)).grid(row=0, column=0, padx=(0, 8))
-    ctk.CTkButton(actions, text="Copy the CSV prompt", width=150, height=36, corner_radius=6, fg_color="transparent", border_width=1,
-                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
-                  command=lambda: copy_prompt(app)).grid(row=0, column=1, padx=(0, 8))
-    ctk.CTkButton(actions, text="Fetch data", width=110, height=36, corner_radius=6, fg_color="transparent", border_width=1,
-                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
-                  command=lambda: fetch(app)).grid(row=0, column=2, padx=(0, 8))
-    ctk.CTkButton(actions, text="Copy the script prompt", width=160, height=36, corner_radius=6, fg_color="transparent", border_width=1,
-                  border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
-                  command=lambda: copy_script_prompt(app)).grid(row=0, column=3, padx=(0, 8))
-    app._build_csv_prompt_script_box(actions, row=1, columnspan=4)
-    app._weather_format_var = ctk.StringVar(value=AUTO_LABEL)
-    fmt_row = ctk.CTkFrame(actions, fg_color="transparent")
-    fmt_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
-    ctk.CTkLabel(fmt_row, text="Format", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
-    ctk.CTkSegmentedButton(fmt_row, values=[AUTO_LABEL] + [lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
-                           command=lambda _v: on_format(app)).pack(side="left")
-    from .teamplate import STYLES
+    def step(r: int, n: str, title: str) -> None:   # a numbered section heading: 1 Style, 2 Script and plan, 3 Check and make
+        head = ctk.CTkFrame(controls, fg_color="transparent")
+        head.grid(row=r, column=0, sticky="ew", pady=(14 if r else 0, 6))
+        head.grid_columnconfigure(2, weight=1)
+        ctk.CTkLabel(head, text=n, width=22, height=22, corner_radius=11, fg_color=M._ACCENT, text_color="white",
+                     font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=0, padx=(0, 8))
+        ctk.CTkLabel(head, text=title, font=ctk.CTkFont(size=12, weight="bold"), text_color=M._TEXT).grid(row=0, column=1, sticky="w")
+        ctk.CTkFrame(head, height=1, fg_color=M._BORDER).grid(row=0, column=2, sticky="ew", padx=(10, 0))
 
-    app._weather_style_var = ctk.StringVar(value=AUTO_LABEL)
-    style_row = ctk.CTkFrame(actions, fg_color="transparent")
-    style_row.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
-    ctk.CTkLabel(style_row, text="Editing style", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
+    def segment_row(r: int, label: str) -> Any:
+        f = ctk.CTkFrame(controls, fg_color="transparent")
+        f.grid(row=r, column=0, sticky="w", pady=(0, 6))
+        ctk.CTkLabel(f, text=label, width=96, anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left")
+        return f
+
+    def ghost(parent, text: str, cmd, width: int, height: int = 34) -> Any:
+        return ctk.CTkButton(parent, text=text, width=width, height=height, corner_radius=6, fg_color="transparent", border_width=1,
+                             border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12), command=cmd)
+
+    # 1  Style: decides what the buttons below do, so it comes first
+    step(0, "1", "Style")
+    from .teamplate import STYLES
     from .newsdoc import NAME as ND_NAME
 
+    app._weather_style_var = ctk.StringVar(value=AUTO_LABEL)
+    style_row = segment_row(1, "Editing style")
     ctk.CTkSegmentedButton(style_row, values=[AUTO_LABEL] + list(STYLES.values()) + [ND_NAME], variable=app._weather_style_var,
                            command=lambda _v: on_style(app)).pack(side="left")
+    app._weather_format_var = ctk.StringVar(value=AUTO_LABEL)
+    fmt_row = segment_row(2, "Format")
+    ctk.CTkSegmentedButton(fmt_row, values=[AUTO_LABEL] + [lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
+                           command=lambda _v: on_format(app)).pack(side="left")
     # one button for what this format adds: Forecast writes today's plan, News finds event footage, Post-Event suggests reports
-    app._weather_format_btn = ctk.CTkButton(fmt_row, text=FORMAT_ACTIONS[current_format(app)], width=190, height=28, corner_radius=6,
-                                            fg_color="transparent", border_width=1, border_color=M._BORDER, text_color=M._MUTED,
-                                            hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=lambda: format_action(app))
+    app._weather_format_btn = ghost(fmt_row, FORMAT_ACTIONS[current_format(app)], lambda: format_action(app), 190, 28)
+    app._weather_format_btn.configure(font=ctk.CTkFont(size=11))
     app._weather_format_btn.pack(side="left", padx=(10, 0))
-    ctk.CTkLabel(controls, text="Cities: Dallas, Houston, Chicago, New York, Los Angeles, Miami. Fetch data gets the National Weather Service "
-                                "forecast for the plan; fetch again (and re-record any changed line) if it is more than 6 hours old at render time.",
-                 font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
-    app._path_row(2, "Loaded plan", app._weather_file_var, lambda: browse(app), parent=controls,
+    app._weather_hint_var = ctk.StringVar(value="")
+    ctk.CTkLabel(controls, textvariable=app._weather_hint_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=640,
+                 justify="left").grid(row=3, column=0, sticky="w", pady=(2, 0))
+
+    # 2  Script and plan
+    step(4, "2", "Script and plan")
+    app._weather_method_var = ctk.StringVar(value=METHOD_SCRIPT)
+    app._weather_method_row = segment_row(5, "Plan from")
+    ctk.CTkSegmentedButton(app._weather_method_row, values=[METHOD_SCRIPT, METHOD_CSV], variable=app._weather_method_var,
+                           command=lambda _v: on_method(app)).pack(side="left")
+    app._build_csv_prompt_script_box(controls, row=6, pady=(0, 0))
+    actions = ctk.CTkFrame(controls, fg_color="transparent")
+    actions.grid(row=7, column=0, sticky="w", pady=(10, 0))
+    app._weather_load_btn = ctk.CTkButton(actions, text="Load plan…", width=140, height=34, corner_radius=6, fg_color=M._ACCENT,
+                                          hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=12, weight="bold"), command=lambda: browse(app))
+    app._weather_load_btn.grid(row=0, column=0, padx=(0, 8))
+    app._weather_csv_btn = ghost(actions, "Copy the CSV prompt", lambda: copy_prompt(app), 170)
+    app._weather_csv_btn.grid(row=0, column=1, padx=(0, 8))
+    app._weather_script_btn = ghost(actions, "Copy the script prompt", lambda: copy_script_prompt(app), 170)
+    app._weather_script_btn.grid(row=0, column=2, padx=(0, 8))
+    ghost(actions, "Fetch data", lambda: fetch(app), 110).grid(row=0, column=3, padx=(0, 8))
+    app._path_row(8, "Loaded plan", app._weather_file_var, lambda: browse(app), parent=controls,
                   placeholder_text="No CSV: the plan is made from your script and voiceover (or click Load plan)")
     name_row = ctk.CTkFrame(controls, fg_color="transparent")
-    name_row.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+    name_row.grid(row=9, column=0, sticky="ew", pady=(8, 0))
     name_row.grid_columnconfigure(1, weight=1)
-    ctk.CTkLabel(name_row, text="Channel name", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED, anchor="w").grid(
-        row=0, column=0, sticky="w", padx=(0, 10))
+    ctk.CTkLabel(name_row, text="Channel name", width=96, font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED, anchor="w").grid(
+        row=0, column=0, sticky="w")
     ctk.CTkEntry(name_row, textvariable=app._pakmap_channel_var, height=32,
                  placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")
+
+    # 3  Check and make
+    step(10, "3", "Check and make")
     more = ctk.CTkFrame(controls, fg_color="transparent")
-    more.grid(row=4, column=0, sticky="ew", pady=(10, 0))
-    more.grid_columnconfigure(4, weight=1)
+    more.grid(row=11, column=0, sticky="ew")
+    more.grid_columnconfigure(3, weight=1)
     for col, (text, cmd) in enumerate((("Check plan", lambda: check_plan(app)), ("Quick preview", lambda: run_generation(app, preview=True)),
                                        ("Open plan folder", lambda: open_folder(app)))):
-        ctk.CTkButton(more, text=text, width=120, height=26, corner_radius=4, fg_color="transparent", border_width=1, border_color=M._BORDER,
-                      text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=cmd).grid(row=0, column=col, padx=(0, 6))
+        ghost(more, text, cmd, 130, 30).grid(row=0, column=col, padx=(0, 6))
     ctk.CTkSwitch(more, text="Sound effects + ambience", variable=app._weather_sound_var, command=lambda: save_state(app, sound_design=bool(app._weather_sound_var.get())),
-                  font=ctk.CTkFont(size=11)).grid(row=0, column=4, sticky="e")
+                  font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
     app._weather_plan_box = ctk.CTkTextbox(controls, height=210, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
-    app._weather_plan_box.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+    app._weather_plan_box.grid(row=12, column=0, sticky="ew", pady=(10, 0))
     app._weather_plan_box.configure(state="disabled")
-    ctk.CTkLabel(controls, textvariable=app._weather_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
-                 justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+    ctk.CTkLabel(controls, textvariable=app._weather_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=640,
+                 justify="left").grid(row=13, column=0, sticky="ew", pady=(6, 0))
+    sync_style_ui(app)
     controls.grid_remove()
     app._weather_switch.grid_remove()   # the style picker replaces the per-card switches
+
+
+METHOD_SCRIPT, METHOD_CSV = "Script + voiceover", "Story CSV"
+HINTS = {
+    "newsdoc": "News Doc makes a graphics-heavy news documentary from your script and voiceover. Optional: switch Plan from to Story CSV "
+               "to choose each sentence's shot, footage search and graphic yourself (Copy the CSV prompt, then Load story CSV).",
+    "teamplate": "Weather Teamplate: footage-first, hard cuts every ~5 s. Cities: Dallas, Houston, Chicago, New York, Los Angeles, Miami. "
+                 "Fetch data gets the National Weather Service forecast; fetch again if it is more than 6 hours old at render time.",
+    "": "Cities: Dallas, Houston, Chicago, New York, Los Angeles, Miami. Fetch data gets the National Weather Service forecast for the "
+        "plan; fetch again (and re-record any changed line) if it is more than 6 hours old at render time.",
+}
+
+
+def _story_csv_paths(app):
+    from .newsdoc import story_csv
+
+    root = project(app).root
+    return root / story_csv.FILE, root / (story_csv.FILE + ".off")
+
+
+def sync_style_ui(app) -> None:
+    """Buttons, hint and the Plan from switch follow the editing style (News Doc has its own story CSV)."""
+    if not hasattr(app, "_weather_method_row"):
+        return
+    from .newsdoc import KEY as ND_KEY
+
+    nd = current_style(app) == ND_KEY
+    app._weather_hint_var.set(HINTS.get(current_style(app) if nd or current_style(app) == "teamplate" else "", HINTS[""]))
+    if nd:
+        app._weather_method_row.grid()
+        try:
+            on_file = _story_csv_paths(app)[0].is_file()
+        except Exception:
+            on_file = False
+        if on_file:
+            app._weather_method_var.set(METHOD_CSV)
+        csv_mode = app._weather_method_var.get() == METHOD_CSV
+        app._weather_load_btn.configure(text="Load story CSV…" if csv_mode else "Load plan…")
+        app._weather_csv_btn.configure(text="Copy the CSV prompt", state="normal" if csv_mode else "disabled")
+    else:
+        app._weather_method_row.grid_remove()
+        app._weather_load_btn.configure(text="Load plan…")
+        app._weather_csv_btn.configure(text="Copy the CSV prompt", state="normal")
+
+
+def on_method(app) -> None:
+    """News Doc: plan from the script + voiceover alone, or let a story CSV set each sentence. Switching back to the script keeps the
+    CSV aside (newsdoc_story.csv.off) so switching to Story CSV again brings it back."""
+    if project(app) is None:
+        app._weather_status_var.set("Open or create a project first.")
+        sync_style_ui(app)
+        return
+    try:
+        on, off = _story_csv_paths(app)
+        if app._weather_method_var.get() == METHOD_SCRIPT:
+            if on.is_file():
+                on.replace(off)
+                app._weather_file_var.set("")
+            app._weather_status_var.set("News Doc plans every sentence from your script and voiceover. Check plan, then Generate.")
+        else:
+            if not on.is_file() and off.is_file():
+                off.replace(on)
+                app._weather_file_var.set(str(on))
+                app._weather_status_var.set("Your earlier story CSV is back in use. Check plan, then Generate.")
+            elif not on.is_file():
+                app._weather_status_var.set("Story CSV: put your script in the box, Copy the CSV prompt, paste it into Claude, save the CSV it "
+                                            "writes, then Load story CSV.")
+    except OSError as exc:
+        app._weather_status_var.set(f"The story CSV could not be switched: {exc}")
+    app._weather_ok = None
+    sync_style_ui(app)
 
 
 def set_text(app, text: str) -> None:
@@ -565,6 +658,9 @@ def restore(app, ws) -> None:
         else:   # a CSV project saved before Auto existed keeps the style it had
             app._weather_style_var.set(STYLES["classic"])
     app._weather_format_btn.configure(text=FORMAT_ACTIONS[current_format(app)])
+    if hasattr(app, "_weather_method_var"):
+        app._weather_method_var.set(METHOD_SCRIPT)
+        sync_style_ui(app)
     app._weather_file_var.set(str(project(app).root) if has_plan(app) and not is_auto(project(app)) else "")
     if state.get("active"):
         activate(app)
@@ -647,6 +743,33 @@ def browse(app) -> None:
         load_plan(app, list(paths))
 
 
+def load_newsdoc_csv(app, text: str) -> bool:
+    """News Doc's story CSV: checked (rows it cannot read are named), saved as weather/newsdoc_story.csv. Optional: without it
+    News Doc plans everything itself; with it, what each row fills in is used for that sentence."""
+    M = _m(app)
+    from .newsdoc import story_csv
+
+    notes: list = []
+    rows = story_csv.parse(text, notes)
+    if not rows:
+        M.messagebox.showerror(STYLE_NAME, "This is not a News Doc story CSV (its header needs vo_anchor and shot).\n\n"
+                                           "With News Doc selected, Copy the CSV prompt gives Claude the format.")
+        return False
+    p = project(app)
+    p.root.mkdir(parents=True, exist_ok=True)
+    (p.root / story_csv.FILE).write_text(text, encoding="utf-8")
+    app._weather_file_var.set(str(p.root / story_csv.FILE))
+    set_text(app, f"News Doc story CSV loaded: {len(rows)} row(s).\n\n" + ("\n".join(f"  {n}" for n in notes) + "\n\n" if notes else "") +
+             "Each row's shot, search and graphic are used for its sentence; everything else is chosen automatically, and every News "
+             "Doc graphic is still in the video. Click Check plan to see it, then Generate.")
+    app._weather_status_var.set("News Doc story CSV loaded. Check plan or Generate.")
+    if hasattr(app, "_weather_method_var"):
+        app._weather_method_var.set(METHOD_CSV)
+        sync_style_ui(app)
+    app._sync_primary_cta()
+    return True
+
+
 def load_plan(app, paths) -> bool:
     """Copy the plan into the project (<project>/weather/beats.csv and weather_layers.csv), then check it if the narration is ready."""
     M = _m(app)
@@ -659,6 +782,11 @@ def load_plan(app, paths) -> bool:
         except OSError as exc:
             M.messagebox.showerror("Cannot read the plan", str(exc))
             return False
+        from .newsdoc import KEY as ND_KEY
+        from .newsdoc import story_csv
+
+        if current_style(app) == ND_KEY or (story_csv.is_story_csv(text) and split_one_file(text) is None):
+            return load_newsdoc_csv(app, text)   # News Doc's optional story CSV (weather/newsdoc_story.csv)
         b, lay = split_plan_text(text)
         if split_one_file(text) is not None:
             one_file = text
@@ -721,7 +849,10 @@ def copy_script_prompt(app) -> None:
     """The prompt that makes Claude write a script this style can show (dates, states, places, data sentences)."""
     M = _m(app)
     try:
-        text = script_prompt_text(current_format(app))
+        from .newsdoc import KEY as ND_KEY
+
+        text = (script_prompt_text(current_format(app)) if current_style(app) != ND_KEY else
+                (Path(__file__).resolve().parent / "prompts" / "newsdoc_script_prompt.txt").read_text(encoding="utf-8"))
     except OSError as exc:
         M.messagebox.showerror("Copy the script prompt", f"The prompt file could not be read: {exc}")
         return
@@ -744,6 +875,19 @@ def copy_prompt(app, event: Optional[str] = None) -> None:
     from .cities import cities
 
     fmt = current_format(app)
+    from .newsdoc import KEY as ND_KEY
+
+    if current_style(app) == ND_KEY:   # News Doc: its own story CSV (one row per sentence)
+        try:
+            prompt = (Path(__file__).resolve().parent / "prompts" / "newsdoc_csv_prompt.txt").read_text(encoding="utf-8")
+        except OSError as exc:
+            M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
+            return
+        script = app._main_script_text()
+        app.clipboard_clear()
+        app.clipboard_append(prompt.rstrip() + "\n\nSCRIPT:\n" + (script or "(paste the script here)") + "\n")
+        app._weather_status_var.set("News Doc CSV prompt copied with your script. Paste it into Claude, save the CSV it writes, then Load plan.")
+        return
     try:
         prompt = (Path(__file__).resolve().parent / "prompts" / FORMATS[fmt][1]).read_text(encoding="utf-8")
         if current_style(app) == "teamplate":   # Weather Teamplate: footage-first beats (same CSV columns)
@@ -1370,6 +1514,7 @@ def on_style(app) -> None:
     clear_visual_plan(app)
     from .newsdoc import KEY as ND_KEY
 
+    sync_style_ui(app)
     if style == ND_KEY:
         app._weather_status_var.set("News Doc: footage first, like a TV-news documentary — local news reports of the event, b-roll, place and "
                                     "yellow tags, big numbers, quote cards, checklists and charts; the satellite map with the storm's data "

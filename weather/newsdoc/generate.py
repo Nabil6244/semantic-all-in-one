@@ -19,7 +19,7 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from . import KEY, NAME
 
@@ -44,6 +44,15 @@ def plan_newsdoc(project, words: Sequence, duration: float, *, fmt: str = "news"
     notes: List[str] = []
     story = read(words, duration, _script(project))
     log(f"[Weather] {NAME}: {len(story.lines)} sentences, {len(story.parts)} part(s); reading the event and its data…")
+    from .story_csv import load as load_csv, match as match_csv
+
+    csv = match_csv(load_csv(project.root, notes), story, notes)   # the optional story CSV (weather/newsdoc_story.csv)
+    if csv:
+        notes.append(f"{NAME}: the story CSV sets {len(csv)} sentence(s); the rest is chosen automatically")
+    extra: Dict[int, list] = {}
+    for i, r in csv.items():
+        if r.shot == "news" and r.search:
+            extra.setdefault(story.lines[i].part, []).append(r.search)
     plan_a = discovery_plan(story)
     rows, wins, event = [], {}, {}
     try:
@@ -64,11 +73,11 @@ def plan_newsdoc(project, words: Sequence, duration: float, *, fmt: str = "news"
     got = Harvest()
     if news:
         try:
-            got = harvest(project.root, story, event, backend=backend, pause=pause, log=log)
+            got = harvest(project.root, story, event, backend=backend, pause=pause, log=log, extra=extra)
         except Exception as exc:
             got.notes.append(f"news footage could not be searched ({exc!r}); stock footage is used")
     notes += got.notes
-    nd = build(story, words, rows, wins, got.runs, notes=notes)
+    nd = build(story, words, rows, wins, got.runs, notes=notes, csv=csv)
     payload = WeatherPayload()
     if nd.rows:
         try:

@@ -1,0 +1,52 @@
+You are planning a US weather news documentary in the "News Doc" style. Read the SCRIPT at the end and write ONE CSV file,
+one row per sentence of the script, in the script's order. The editor uses each filled cell for that sentence and chooses
+everything you leave empty itself. Output only the CSV inside one ```csv code block, nothing else.
+
+HEADER (exactly this, in this order):
+sentence,vo_anchor,part,shot,search,graphic,g_text,g_value,g_items,place,when
+
+COLUMNS
+- sentence: s1, s2, s3 ... (the sentence's number in the script).
+- vo_anchor: the FIRST 3-5 WORDS of that sentence, copied exactly as written in the script.
+- part: the part's heading (e.g. MAJOR FLOODING) on the first sentence of each part; else empty.
+- shot: what is on screen for that sentence:
+    news   real local TV news / eyewitness footage of this event (most sentences: aim for 60 % or more)
+    broll  generic footage of what the sentence describes (only when news would not show it)
+    map    the satellite map of the place with the storm's data (warnings, radar, track, river levels): about 1 sentence in 5
+    card   a full-screen graphic carries the sentence (use with a full-screen graphic below)
+- search: for shot news, a YouTube search that finds a local news report of THIS event: "<town or county> <state> <hazard>"
+  (e.g. "Fort Stockton Texas tornado"); for shot broll, a short filmable description ("hail bouncing on a road").
+  Never put a different place or event in a search.
+- graphic: at most one per sentence, and about one every 2-3 sentences; use EVERY kind below at least once in the video:
+    place_tag       a place named for the first time                  g_text = PLACE NAME
+    orange_tag      a place, Teamplate style                          g_text = PLACE NAME
+    yellow_tag      a warning, an agency or a storm name              g_text = TORNADO WARNING
+    headline        a warning with its time                           g_text = TORNADO WARNING ISSUED   (place, when filled)
+    dossier         the event introduced (once, early)                g_text = EVENT NAME, g_value = status (e.g. WARNING ISSUED)
+    big_number      one number said                                   g_value = 18.0, g_text = FEET
+    big_year        a year said on its own                            g_value = 2019
+    ring            a percent                                         g_value = 70, g_text = CHANCE OF RAIN
+    bar_chart       two amounts of one kind compared                  g_items = RIVER STAGE=18.0;FLOOD STAGE=14.0, g_value = FEET
+    horizontal_bars three or more amounts compared                    g_items = NORMAN=4;MOORE=3;HARRAH=2, g_value = INCHES
+    line_chart      three or more readings over time                  g_items = MONDAY=6.7;TUESDAY=14.0;WEDNESDAY=18.0, g_value = FEET
+    forecast_strip  values by day                                     g_items = MON=81;TUE=88;WED=93, g_value = °F
+    checklist       a list of places or steps                         g_text = IN THE PATH, g_items = Truscott;Crowell;Benjamin
+    three_rings     a list of exactly three things                    g_items = WIND;HAIL;LIGHTNING
+    side_panel      an explanation                                    g_text = WHY IT MATTERS, g_items = point one;point two
+    pull_quote      a quoted person                                   g_text = the quote, g_value = SPEAKER NAME
+    name_tag        a person speaking or quoted                       g_text = NAME, g_value = ROLE
+    quote_card      the last, strongest line of a part                g_text = the line, g_value = 2-4 words to box in red
+    quote           the same, over the footage
+    chapter         the first sentence of a part (big word)           g_text = 1-3 WORDS
+    caption         the first sentence of a part (small caption)      g_text = the part's title
+    framed_picture  a place shown as a framed still                   g_text = PLACE NAME
+    polaroids       two sides / two kinds of something                g_text = TWO THREATS, g_items = WIND;WATER
+- g_text, g_value, g_items: as listed above; items separated by ";". Use ONLY numbers, names and quotes that are IN THE
+  SCRIPT. Never invent a number, a name or a quote.
+- place: the place the sentence is about ("Pecos County, TX"), when it names one.
+- when: the date or time the sentence gives ("2026-10-14", "2:30 PM"), when it gives one.
+
+RULES
+- One row for every sentence, even when every other cell is empty.
+- Quote every cell that contains a comma.
+- Keep the script's spelling of places.
