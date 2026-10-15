@@ -309,12 +309,27 @@ def build(app, parent, *, row: int) -> None:
                                           hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=12, weight="bold"), command=lambda: browse(app))
     app._weather_load_btn.grid(row=0, column=0, padx=(0, 8))
     app._weather_csv_btn = ghost(actions, "Copy the CSV prompt", lambda: copy_prompt(app), 170)
-    app._weather_csv_btn.grid(row=0, column=1, padx=(0, 8))
+    app._weather_csv_btn.grid(row=0, column=2, padx=(0, 8))
     app._weather_script_btn = ghost(actions, "Copy the script prompt", lambda: copy_script_prompt(app), 170)
-    app._weather_script_btn.grid(row=0, column=2, padx=(0, 8))
-    ghost(actions, "Fetch data", lambda: fetch(app), 110).grid(row=0, column=3, padx=(0, 8))
-    app._path_row(8, "Loaded plan", app._weather_file_var, lambda: browse(app), parent=controls,
-                  placeholder_text="No CSV: the plan is made from your script and voiceover (or click Load plan)")
+    app._weather_script_btn.grid(row=0, column=3, padx=(0, 8))
+    ghost(actions, "Upload voiceover…", app._browse_audio, 150).grid(row=0, column=1, padx=(0, 8))
+    ghost(actions, "Fetch data", lambda: fetch(app), 110).grid(row=0, column=4, padx=(0, 8))
+    # what is loaded (no second Browse: Load plan and Upload voiceover are the pickers)
+    loaded = ctk.CTkFrame(controls, fg_color="transparent")
+    loaded.grid(row=8, column=0, sticky="ew", pady=(8, 0))
+    plan_txt, vo_txt = ctk.StringVar(), ctk.StringVar()
+
+    def _show(*_):
+        f, a = app._weather_file_var.get().strip(), app.audio_var.get().strip()
+        plan_txt.set("Plan:  " + (Path(f).name if f else "none (made from your script and voiceover)"))
+        vo_txt.set("Voiceover:  " + (Path(a).name if a else "none yet"))
+
+    app._weather_file_var.trace_add("write", _show)
+    app.audio_var.trace_add("write", _show)
+    _show()
+    for col, var in enumerate((vo_txt, plan_txt)):
+        ctk.CTkLabel(loaded, textvariable=var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w").grid(
+            row=0, column=col, sticky="w", padx=(0, 24))
     name_row = ctk.CTkFrame(controls, fg_color="transparent")
     name_row.grid(row=9, column=0, sticky="ew", pady=(8, 0))
     name_row.grid_columnconfigure(1, weight=1)
@@ -1337,6 +1352,7 @@ def run_generation(app, preview: bool = False) -> None:
                         p, voiceover_path, output_path, whisper_words=words, log=thread_safe_log, fmt=gen_format, contact=gen_contact,
                         progress_cb=progress_cb, cancel_check=app._weather_cancel.is_set, watermark=watermark, title=title,
                         sound_design=sound_design, pixel_scale=pixel_scale, pexels_api_key=pexels_api_key, media_dir=media_dir,
+                        on_plan=lambda plan: app.after(0, lambda: populate_visual_plan(app, plan)),
                         media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                              on_manager_ready=_manager_ready), **speed)
                     app._production_end(prun, result, app._weather_cancel.is_set())

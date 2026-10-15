@@ -132,7 +132,9 @@ def _grab(video: Path, t: float, out_dir: Path) -> Optional[str]:
 def generate_newsdoc_video(project, voiceover_path: "str | Path", output_path: "str | Path", *, whisper_words: Sequence,
                            log: Callable[[str], None] = print, fmt: str = "news", contact: str = "", news: bool = True, backend=None,
                            pause: float = 3.0, engine_kw: Optional[dict] = None, progress_cb: Optional[Callable[[str, float], None]] = None,
-                           cancel_check: Optional[Callable[[], bool]] = None, **kw: Any):
+                           cancel_check: Optional[Callable[[], bool]] = None, on_plan: Optional[Callable[[Any], None]] = None,
+                           **kw: Any):
+    """`on_plan(hybrid_plan)`: called once the plan is final, before footage is fetched (the app lists its clips in Visuals)."""
     from hybrid.generate import generate_hybrid_video
     from hybrid.plan import validate_plan
     from pakmap.app_integration import PakmapResult, voiceover_duration
@@ -176,6 +178,11 @@ def generate_newsdoc_video(project, voiceover_path: "str | Path", output_path: "
         return PakmapResult(False, [f"{NAME} plan: {p}" for p in problems])
     if cancel_check is not None and cancel_check():
         return PakmapResult(False, ["Cancelled"], cancelled=True)
+    if on_plan is not None:
+        try:
+            on_plan(nd.hybrid)
+        except Exception as exc:
+            log(f"[Weather] {NAME}: the clips could not be listed in Visuals ({exc!r})")
     for n in notes:
         log(f"[Weather] {n}")
     sh = nd.shares()
