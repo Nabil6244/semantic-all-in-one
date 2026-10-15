@@ -118,6 +118,39 @@ b4,weather,Here is the outlook,,forecast_strip,strip_dal,"Dallas, TX",,,,,,,,,,,
 b4,weather,the rest of the week,,source_line,src4,,,,,,,,,,,,,,,,,,
 
 -------------------------------------------------------------------------------------------------------------
+MORE GRAPHICS YOU MUST USE (the video is a WEATHER video, not a map with names on it)
+    storm_stats     nhc:stats@EP182026                  a card: peak wind, lowest pressure, category, dates, from NHC best track
+                    nhc:stats@EP182026#working          a storm of the current season (preliminary)
+                    extra {"anchor": "l"} or {"anchor": "r"}
+    storm_track     nhc:track@EP182026#best             the storm's real path coloured by strength (one per named storm)
+    storm_cone      nhc:cone@EP182026#012               the forecast cone of that advisory
+    countdown       nhc:countdown@EP182026#012          hours until the storm passes nearest a place; place "lat,lon" extra {"text": "Long Beach"}
+    wind_arrival    nhc:arrival@EP182026#012            when tropical-storm winds arrive
+    wind_prob       nhc:wsp@latest#34                   chance of tropical-storm winds over 5 days
+    rain_forecast   wpc:qpf@latest#day1-5               the rain expected over the next days
+    satellite_loop  gibs:geocolor@2026-10-09T18:00Z     the satellite picture of THAT day (never "latest" for a past day)
+                    gibs:truecolor_loop@2026-10-05..2026-10-11   one picture a day, as the storm moves
+    before_after    gibs:truecolor@2026-09-06|2026-10-12         the place from space before and after
+    event_timeline  post:timeline@2026-09-01..2026-10-14         the days of the story with their marks
+    explainer       no data_source, extra {"template": "watch_warning"}   what a watch and a warning mean
+    alert_area      the warning / advisory area on the map (high surf, coastal flood, flood)
+    record          acis:record@City,ST#pcpn#<date>     where that day stands in the station's record
+    temp_trend      nws:forecast@City,ST#day1-7          a temperature line for the week (forecast stories)
+A BIG NUMBER the script says that is not a weather measurement (homes, dollars, people, feet of sand lost) is a
+row=layer stat card. Copy the digits exactly as the script says them, never a number the script does not say:
+    <beat>,layer,<2-5 words>,,stat,<beat>_stat,,,,<WHAT IT COUNTS>,,,,0,<number>,"#,##0",br,,,,,,,
+
+VARIETY RULES (the app's viewers leave when the screen repeats itself)
+- EVERY map beat has at least one DATA graphic: anything except place_label, headline, source_line, footage_credit.
+- Use MANY DIFFERENT types: at least 8 different graphic types in a video of 5 minutes or more, whenever the story has
+  the data for them. Every named storm gets its storm_track #best AND its storm_stats card, in different beats.
+- No type more than 3 times in the whole video (source_line excepted), and never the same type in two map beats in a row.
+- place_label: at most 2 per beat and at most 10 in the whole video. Never two places closer than about 30 km in the
+  same beat (their names pile on top of each other): show the one the beat is about.
+- Never a place far from the story (no Las Vegas in a Long Beach story).
+- Never the same footage clip twice.
+
+-------------------------------------------------------------------------------------------------------------
 BEFORE YOU ANSWER: CHECK EVERY ROW (the app refuses a plan that breaks any of these, and names the row)
 1. Output: ONE CSV (plan.csv): the 24-column header exactly as given, then every row. No other text in the
    file, no blank lines, no comments.

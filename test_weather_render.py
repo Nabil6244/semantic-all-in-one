@@ -106,11 +106,12 @@ class Generate(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(json.loads(r.stdout), [])
 
-    def test_stale_data_stops_before_anything_is_rendered(self):
+    def test_stale_data_is_left_out_and_the_video_is_still_made(self):
+        """Stale data used to stop the video (project #005, 2026-10-14): now what is too old is left out, said in the log."""
         r = self.run_gen(now=NOW + timedelta(hours=7))
-        self.assertFalse(r.ok)
-        self.assertIn("not fresh enough to render", r.errors[0])
-        self.assertEqual(self.specs, [])
+        self.assertTrue(r.ok, r.errors)
+        self.assertNotIn("wx_strip", [e["id"] for e in self.specs[0]["weather"]["events"]])   # its forecast is too old now
+        self.assertTrue(any("too old to show" in line for line in self.logged), self.logged)
 
     def test_a_weather_row_for_a_beat_that_is_not_there_is_left_out_and_the_video_renders(self):
         self.project.layers_csv.write_text(LAYERS + "b9,,1,x,source_line,,,,,\n", encoding="utf-8")
@@ -129,11 +130,11 @@ class Generate(unittest.TestCase):
         self.assertFalse(any("Flow" in str(e) for e in r.errors), r.errors)   # never refused for it, never a Flow clip: it asks the stock providers (no key in tests)
         self.assertTrue(any("flow_video:a tornado" in line and "stock footage" in line for line in self.logged), self.logged)
 
-    def test_no_data_fetched_yet_is_said_plainly(self):
+    def test_no_data_fetched_yet_is_said_plainly_and_the_video_is_still_made(self):
         self.project.resolved_json.unlink()
         r = self.run_gen()
-        self.assertFalse(r.ok)
-        self.assertIn("fetch it first", r.errors[0])
+        self.assertTrue(r.ok, r.errors)
+        self.assertTrue(any("no weather data has been fetched" in line for line in self.logged), self.logged)
 
 
 class Render(unittest.TestCase):

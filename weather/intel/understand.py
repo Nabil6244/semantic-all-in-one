@@ -161,6 +161,7 @@ class DateMention(Mention):
     day: str = ""  # ISO date
     relative: bool = False
     year_from: str = ""  # "said" | "context" | "recording" | "assumed"
+    reference: bool = False  # said only to compare with an earlier event (never the event's day, never a weekday's anchor)
 
 
 @dataclass
@@ -199,6 +200,7 @@ class Understanding:
     hazards: List[str]
     storms: List[StormMention] = field(default_factory=list)
     years: List[Tuple[int, str]] = field(default_factory=list)  # (year, seg)
+    reference: List[str] = field(default_factory=list)  # dates / years said only to compare ("a previous crest back on May 9, 2019")
     dates: List[DateMention] = field(default_factory=list)
     times: List[TimeMention] = field(default_factory=list)
     places: List[Place] = field(default_factory=list)
@@ -285,7 +287,9 @@ def find_years(seg: Segment) -> List[Tuple[int, int]]:
     i = 0
     while i < len(toks):
         if re.fullmatch(r"(18[5-9]\d|19\d\d|20\d\d)", toks[i]):
-            out.append((int(toks[i]), i))
+            # "the 1920s" is a decade (how old a boardwalk is), never the year the story happens
+            if not (i + 1 < len(toks) and toks[i + 1] == "s"):
+                out.append((int(toks[i]), i))
             i += 1
             continue
         prev = toks[i - 1] if i else ""
@@ -603,6 +607,16 @@ def phase_of(text: str, index: int, count: int) -> str:
 
 # ---- the whole story -----------------------------------------------------------------------------------------------------------
 
+# a sentence that compares the event with an earlier one: its years and dates are not the event's ("a previous crest of 17.6 feet back
+# on May 9th, 2019", "the old record, set in 1989", "the last time this happened, in 2015")
+REFERENCE = re.compile(r"\b(previous|prior|back (on|in)|compared (to|with)|the last time|years ago|old record|previous record|set in|"
+                       r"since (19|20)\d\d|record of|record set)\b", re.I)
+
+
+def is_reference(sentence: str) -> bool:
+    return bool(REFERENCE.search(str(sentence).replace("\u2019", "'")))
+
+
 def understand(segments: Sequence[Segment], recorded_at: Optional[datetime] = None, *, year_override: Optional[int] = None) -> Understanding:
     full = " ".join(s.text for s in segments)
     scores = score_categories(full)
@@ -610,8 +624,15 @@ def understand(segments: Sequence[Segment], recorded_at: Optional[datetime] = No
     category, hazards = pick_category(scores, storms)
     u = Understanding(category=category, scores=scores, hazards=hazards, storms=storms,
                       recorded_at=recorded_at.isoformat() if recorded_at else None)
-    years = [(y, s.id) for s in segments for y, _i in find_years(s)]
+    years, reference = [], []
+    for s in segments:
+        for sent in split_sentences(s.text):
+            found = [(y, s.id) for y, _i in find_years(Segment(s.id, s.mode, sent))]
+            (reference if found and is_reference(sent) else years).extend(found)
+    if not years and reference and not any(_present(s.text) for s in segments):
+        years, reference = reference, []   # a story told only in the past keeps its years, comparison words or not
     u.years = years
+    u.reference = [f"{y} ({seg})" for y, seg in reference]
     ref = recorded_at.date() if recorded_at else None
     if year_override:
         year_hint = year_override
@@ -635,7 +656,12 @@ def understand(segments: Sequence[Segment], recorded_at: Optional[datetime] = No
         for sent in split_sentences(s.text):
             part = Segment(s.id, s.mode, sent)
             said = [y for y, _i in find_years(part)]
-            u.dates += find_dates(part, said[0] if said else year_hint)
+            found = find_dates(part, said[0] if said else year_hint)
+            if found and u.reference and is_reference(sent):
+                for d in found:
+                    d.reference = True
+                u.reference += [f"{d.day} ({d.seg})" for d in found]
+            u.dates += found
         u.dates += find_relative(s, ref)
         u.times += find_times(s)
         u.measurements += find_measurements(s)
@@ -650,6 +676,14 @@ def understand(segments: Sequence[Segment], recorded_at: Optional[datetime] = No
                              "nor a nearby full date tells which day that is (set the recording date, or say the full date)")
     _check_weekdays(u, segments)
     return u
+
+
+PRESENT = re.compile(r"\b(right now|currently|unfolding|is occurring|are occurring|in effect|this (morning|afternoon|evening)|tonight|"
+                     r"is moving|are moving|on the ground)\b", re.I)
+
+
+def _present(text: str) -> bool:
+    return bool(PRESENT.search(str(text)))
 
 
 ABBREVIATIONS = ("U.S.", "U.K.", "Dr.", "St.", "Mt.", "Ft.", "a.m.", "p.m.", "No.", "Jan.", "Feb.", "Aug.", "Sept.", "Sep.", "Oct.",
@@ -686,7 +720,7 @@ def _resolve_weekdays_from_recording(u: Understanding, segments: Sequence[Segmen
 def _resolve_weekdays_from_story(u: Understanding) -> None:
     """A weekday with no recording date ("early Sunday morning") is the day with that name nearest a full date the story says,
     within three days of it; the choice is written to the assumptions."""
-    anchors = sorted({date.fromisoformat(d.day) for d in u.dates if d.day and not d.relative})
+    anchors = sorted({date.fromisoformat(d.day) for d in u.dates if d.day and not d.relative and not d.reference})
     if not anchors:
         return
     done = set()

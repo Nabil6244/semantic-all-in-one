@@ -66,7 +66,11 @@ def layer_rows(project: WeatherProject, *, strict: bool = False, notes: Optional
     auto = load_auto_plan(project) is not None
     if not project.layers_csv.is_file():
         if not auto:
-            raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
+            if strict:
+                raise FileNotFoundError(f"{project.layers_csv} is missing (the weather layers of this video)")
+            if notes is not None:   # never a reason to stop: the video is made without weather graphics
+                notes.append(f"there is no {project.layers_csv.name}: this video has no weather graphics (load a plan with them to add some)")
+            return []
         return merge_rows(project, [], notes)
     text = project.layers_csv.read_text(encoding="utf-8")
     if strict:
@@ -119,13 +123,17 @@ def plan_layers(project: WeatherProject, words: Sequence, duration: float, *, no
         from .intel.engine import load_auto_plan
 
         if load_auto_plan(project) is None:
-            raise FileNotFoundError(f"{project.beats_csv} is missing (the Hybrid beat CSV of this video)")
+            raise FileNotFoundError("Weather could not make a plan from your script and voiceover yet: Weather Intelligence has not run "
+                                    "on this project (see the log for why). Make sure the script names the date and the state in its first "
+                                    f"sentences and try again, or load a CSV plan ({project.beats_csv.name} is missing).")
         # no beat plan: Weather Intelligence made the beats from the narration (weather.intel.beats), the same way again here
         from .intel.engine import _script_text
-        from .intel.beats import plan_from_narration
+        from .intel.beats import plan_from_narration, use_library
 
         fixes: List[str] = notes if notes is not None else []
         plan, aliases = plan_from_narration(words, duration, fixes, script=_script_text(project)), {}
+        if library_dir:
+            use_library(plan, library_dir, fixes, strict=tp)
     else:
         plan, aliases, fixes = _beat_plan(project, words, duration, notes, library_dir, tp, autofix)
     # a weather map must stay where the narration is: pakMap's always-on drift (0.5 % of the view a second) carried a 2-minute hold
@@ -164,7 +172,15 @@ def _finish_plan(project: WeatherProject, plan, aliases, words, now, fixes: List
         rows = layer_rows(project, notes=fixes, aliases=aliases)
     else:
         rows = layer_rows(project, strict=True)
-    snap = load_snapshot(project)
+    if autofix and not project.resolved_json.is_file():
+        snap = Snapshot(prepared=(now or datetime.now(timezone.utc)).isoformat())   # no data fetched: the data graphics are left out
+        fixes.append("no weather data has been fetched for this project: the graphics that need data are left out (Fetch data to add them)")
+    else:
+        snap = load_snapshot(project)
+    if autofix:
+        from .resolve import prune_stale
+
+        prune_stale(snap, now or datetime.now(timezone.utc), fixes)   # data too old to show is left out, never a reason to stop
     check_fresh(snap, now or datetime.now(timezone.utc))
     if autofix:
         rows, windows = fix.windows(rows, plan, words, fixes)
@@ -178,9 +194,15 @@ def _finish_plan(project: WeatherProject, plan, aliases, words, now, fixes: List
         add_cutaways(plan, words, payload, notes)
         teamplate.apply_plan(plan, notes)
     # after the cutaways (which already break up long maps in Weather Teamplate): what is still a still map gets slow motion
-    from .motion import keep_moving
+    from .motion import keep_map_under, keep_moving, vary_repeats
 
+    keep_map_under(plan, words, payload, fixes)   # the map at most half the video (both Weather styles)
+    vary_repeats(plan, fixes)                      # no stock clip shown twice
     keep_moving(plan, fixes)
+    if autofix:   # the last repair: whatever Hybrid's own checks would still stop on is repaired (weather.guard)
+        from .guard import make_safe
+
+        make_safe(plan, fixes)
     return plan, rows, snap, payload
 
 
@@ -220,17 +242,40 @@ def generate_forecast_video(project: WeatherProject, voiceover_path: "str | Path
         from .teamplate.footage import fix_relevance
 
         fix_relevance(plan, lib_notes)   # footage that does not match its beat is re-asked for, never a reason to stop
-    if bad:
-        return PakmapResult(False, bad)
+    if bad:   # a clip Weather may not use that autofix could not turn into stock footage: left out, never a reason to stop
+        from .guard import drop_clips, make_safe
+
+        drop_clips(plan, bad, lib_notes)
+        make_safe(plan, lib_notes)
     if style == teamplate.KEY:
         log(f"[Weather] Editing style: {teamplate.NAME}")
     for n in snap.notes + lib_notes:
         log(f"[Weather] {n}")
+    from .selfcheck import checks
+
+    for ok, line in checks(plan, payload):
+        log(f"[Weather] check: {'ok' if ok else 'WARNING'} — {line}")
     project.work_dir.mkdir(parents=True, exist_ok=True)
     report = payload.report.to_text()
     (project.work_dir / "weather_numbers.txt").write_text(report, encoding="utf-8")
+    if kw.get("media_resolver") is None:   # every stock clip is checked for where it was filmed and what it shows (weather.footage_geo)
+        from .footage_geo import make_resolver
+
+        kw["media_resolver"] = make_resolver(log)
     result = generate_hybrid_video(plan, voiceover_path, output_path, work_dir=project.work_dir, whisper_words=list(whisper_words),
                                    base_dir=str(project.root), render=make_render(payload, look=style), log=log, **kw)
+    if not result.ok and result.unresolved and not result.cancelled and (project.work_dir / "hybrid_script.csv").is_file():
+        # some clips could not be found: the video is made without them (the clips that were found are reused, not fetched again)
+        from .guard import drop_unfound, make_safe
+
+        again: List[str] = []
+        if drop_unfound(plan, project.work_dir / "hybrid_script.csv", result.unresolved, again):
+            make_safe(plan, again, new_requests=False)
+            for n in again:
+                log(f"[Weather] {n}")
+            rest = {k: v for k, v in kw.items() if k != "scene_rows"}   # the clips are numbered again from the new script
+            result = generate_hybrid_video(plan, voiceover_path, output_path, work_dir=project.work_dir, whisper_words=list(whisper_words),
+                                           base_dir=str(project.root), render=make_render(payload, look=style), log=log, **rest)
     if result.ok:
         output_path.with_suffix(".numbers.txt").write_text(report, encoding="utf-8")
     return result

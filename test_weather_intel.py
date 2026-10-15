@@ -672,7 +672,7 @@ class NoBeatPlanAtAll(unittest.TestCase):
         (p.root / "script.txt").write_text(script, encoding="utf-8")
         plan, text = engine.project_plan(p, words, t + 1.0, notes := [])
         self.assertEqual(text, "")
-        self.assertTrue(all(b.mode == "map" for b in plan.beats))
+        self.assertTrue(all(b.mode == "map" or b.purpose == "cutaway" for b in plan.beats))   # the map is at most half the video
         self.assertTrue(any("no beat plan" in n for n in notes))
         res = engine.run(p, plan, words, now=NOW, get_text=Replay().text, get_bytes=Replay().bytes)
         ids = {d.id for d in res.added}
@@ -680,7 +680,10 @@ class NoBeatPlanAtAll(unittest.TestCase):
         self.assertIn("auto_reports", ids)
         self.assertFalse(p.beats_csv.exists() or p.layers_csv.exists())
         plan2, rows2, snap, payload = plan_layers(p, words, t + 1.0, now=NOW)
-        self.assertEqual([b.id for b in plan2.beats], [b.id for b in plan.beats])
+        ids2 = [b.id for b in plan2.beats]
+        self.assertEqual([i for i in ids2 if i in {b.id for b in plan.beats}], [b.id for b in plan.beats])   # every beat kept, in order
+        on_map = sum(b.end - b.start for b in plan2.beats if b.mode != "footage") / sum(b.end - b.start for b in plan2.beats)
+        self.assertLess(on_map, 1.0)   # quiet map stretches cut to footage; the map time left shows data being read
         self.assertTrue(payload.rasters)
 
 
@@ -854,3 +857,12 @@ class FetchNeverStopsOnOneFile(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ADecadeIsNotTheStorysYear(unittest.TestCase):
+    """'dating back to the 1920s' (project #005, 2026-10-14) made the engine search 1920 for every graphic."""
+
+    def test_decade_is_ignored(self):
+        from weather.intel.understand import Segment, find_years
+
+        self.assertEqual(find_years(Segment("b1", "map", "a bulkhead dating back to the 1920s, rebuilt in 2017")), [(2017, 11)])

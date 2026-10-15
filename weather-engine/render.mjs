@@ -4,7 +4,8 @@
 // the original, and nothing else: pakMap's modules, MapLibre and font are used from ../pakmap-engine (imported, never
 // edited); the page and the weather graphics are weather-engine's own; spec.weather adds timed satellite layers (served
 // through the same tile cache; a tile outside the satellite picture answers 204) and weather graphics (lib/wx_draw.mjs);
-// temperature markers whose city stays off screen are reported; the sidecar is <output>.weather.json.
+// temperature markers whose city stays off screen are reported; the sidecar is <output>.weather.json; frames that are only a
+// full-screen video clip skip the page (pakmap-engine/lib/footage_pass.mjs, shared with Hybrid's renderer).
 //
 // --- the original header follows ---
 // pakMap renderer: node render.mjs <spec.json>
@@ -31,7 +32,9 @@ import { resolveSpecData } from '../pakmap-engine/lib/datasets.mjs';
 import { prepareMedia, materializeClip, releaseClips, disposeMedia } from '../pakmap-engine/lib/media.mjs';
 import { fetchTile, cachePath } from '../pakmap-engine/lib/tiles.mjs';
 import { parsePointsCsv } from '../pakmap-engine/lib/points.mjs';
-import { validateWxEvents } from './lib/wx_draw.mjs';
+import { footageShortcut } from '../pakmap-engine/lib/footage_pass.mjs';
+import { activeAt } from '../pakmap-engine/lib/events.mjs';
+import { sanitizeWeather } from './lib/wx_sanitize.mjs';
 import { rasterProviders, validateRasters } from './lib/wx_raster.mjs';
 
 /** The graphics plugins in lib/layers/ (each: export default { type, draw, validate?, order? }). */
@@ -159,9 +162,12 @@ async function main() {
   // the MRMS rain grid is credited through spec.weather.credits, not as pakMap's 'supplied by the author' grid
   plan.credits.attribution.push(...resolved.credits.filter((c) => !/^Grid data: mrms_[0-9a-f]{16}\.asc \(supplied by the author\)$/.test(c)));
   const plugins = await loadPlugins();
-  const wxErrors = [...validateWxEvents((spec.weather && spec.weather.events) || [], spec.duration, plugins.map((p) => p.mod)),
-    ...validateRasters((spec.weather && spec.weather.rasters) || [], spec.duration)];
-  if (wxErrors.length) throw new Error(`weather layers: ${wxErrors.join('; ')}`);
+  // a weather graphic its own checks refuse is left out with a warning; the video is still made (lib/wx_sanitize.mjs)
+  if (spec.weather) {
+    const clean = sanitizeWeather(spec.weather, spec.duration, plugins.map((p) => p.mod));
+    spec.weather = { ...spec.weather, events: clean.events, rasters: clean.rasters };
+    clean.dropped.forEach((message) => emit({ event: 'warning', message }));
+  }
   for (const c of (spec.weather && spec.weather.credits) || []) if (!plan.credits.attribution.includes(c)) plan.credits.attribution.push(c);
   // numbers the author may want to quote in a chip (areas, data ranges, dot counts)
   plan.layer_facts = resolved.events.filter((e) => ['value_overlay', 'ghost_shape', 'dots', 'streak'].includes(e.type) && (e.data || e.type !== 'dots')).map((e) => ({
@@ -209,7 +215,21 @@ async function main() {
     ffmpeg.stderr.on('data', (d) => { ffErr += d; });
     const ffDone = new Promise((resolve) => ffmpeg.on('close', resolve));
 
+    // a frame that is only a full-screen video clip is that clip's frame (pakmap-engine/lib/footage_pass.mjs), unless a
+    // weather graphic is drawn on the footage then (credit chip, Teamplate titles ...)
+    const onFootage = new Set(plugins.filter((p) => p.mod && p.mod.overFootage).map((p) => p.mod.type));
+    const wxAll = (spec.weather && spec.weather.events) || [];
+    const clipOnly = footageShortcut(spec, spec.events, media, { busy: (t) => activeAt(wxAll, t).some((e) => onFootage.has(e.type)) });
+    let fromClips = 0;
     for (let i = 0; i < total; i++) {
+      const direct = clipOnly(i / fps);
+      if (direct) {
+        fromClips++;
+        if (!ffmpeg.stdin.write(fs.readFileSync(direct))) await new Promise((r) => ffmpeg.stdin.once('drain', r));
+        if (i % 15 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total });
+        if (i % 30 === 0 && spec.media_lazy === true) releaseClips(media.files, i / fps);
+        continue;
+      }
       let b64;
       try {
         b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
@@ -247,7 +267,7 @@ async function main() {
       emit({ event: 'warning', message: `map imagery: ${tiles.failed} map tile(s) could not be used (failed downloads, or ${tiles.invalid} unreadable or blank tile(s)); ${tiles.drawn_from_coarser_zoom} were drawn from the same imagery at a coarser zoom and ${tiles.drawn_from_coarser_layer} from a coarser imagery layer, so those areas look softer${last}` });
     }
     const sidecar = `${spec.output}.weather.json`;
-    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total, tiles }, null, 2));
+    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total, frames_from_clips: fromClips, tiles }, null, 2));
     emit({ event: 'done', output: spec.output, sidecar, frames: total });
   } finally {
     disposeMedia(media.files);   // the frame folders are this render's own: they never outlive it

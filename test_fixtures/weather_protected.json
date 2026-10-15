@@ -1,5 +1,5 @@
 {
- "_about": "Weather work: files that must not change (sha256 of the file with CRLF normalised to LF), recorded at base_commit from the clean tree. test_weather_isolation.py checks them. app.py and VideoGenerator.spec are not listed: Weather may only ADD lines to them (phase 1B, approved separately); the test checks that no line of theirs was removed or changed except the approved ones (phase 1B: the two STYLE_CHOICES loops in app.py, now _style_choices()). approved_importers: the only existing modules that may import Weather (app.py, inside its Weather methods). Refresh deliberately, never to hide a change.",
+ "_about": "Weather work: files that must not change (sha256 of the file with CRLF normalised to LF), recorded at base_commit from the clean tree. test_weather_isolation.py checks them. app.py and VideoGenerator.spec are not listed: Weather may only ADD lines to them (phase 1B, approved separately); the test checks that no line of theirs was removed or changed except the approved ones (phase 1B: the two STYLE_CHOICES loops in app.py, now _style_choices()). approved_importers: the only existing modules that may import Weather (app.py, inside its Weather methods). Refresh deliberately, never to hide a change. 2026-10-14 (approved by the owner): pakmap-engine/render.mjs and the new pakmap-engine/lib/footage_pass.mjs -- frames that are only a full-screen video clip skip the browser (Hybrid/Weather specs only; pakMap unchanged). 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style.",
  "base_commit": "84700a7",
  "protected_paths": [
   "pakmap",
@@ -26,7 +26,7 @@
  },
  "files": {
   "app_csv_prompts.py": "b177c0e3f52ff1798fa9ce3bc039ff182c06af778e92b950f4fffbd098321149",
-  "asset_manager.py": "6ad6cf3c68b13fd1fa51351840ea88bf1a818f4feabe43f6a7abe7a59f5bde78",
+  "asset_manager.py": "c0715c4ff706a55ca659deee21a2999a28dedbea11a18911439537c5528e2463",
   "composition_styles/enoch_template_csv_prompt.txt": "6e03a15143984d6e1fa7c7ce264d7b06b9434b1e9eb947e40bffd6c0e2f6f7bf",
   "composition_styles/enoch_template_research_prompt.txt": "fecd072e20a87c1f78c2f274aabeb62f59358d254d38284180b6882e82d7a38b",
   "composition_styles/enoch_template_script_prompt.txt": "dd7b3ca23fc516a23d391c5441f7f88b7018a82997b273ed615130df745baf65",
@@ -179,7 +179,7 @@
   "pakmap-engine/package.json": "1de7898415ef85d5cdff1476229b8b838b230b401c452456cd31ceb22ed7cc76",
   "pakmap-engine/page.html": "5c6af98e82f2104c14274a75490d56b0b93fe880f8e59245a5f4ac3fb265a274",
   "pakmap-engine/page.js": "89a75de2fe444f011cac62681a4d5d290891a85a4bd80aeed0976b24d9865b60",
-  "pakmap-engine/render.mjs": "913dbff5192ae40571a484e060cc59032790b0d216deaf2ded3d75765c5994a2",
+  "pakmap-engine/render.mjs": "1681bcb604f23f0227e86a92ce7a941f2251242e5b6611438efa38700b98a9a5",
   "pakmap-engine/samples/data-layers-kenya.json": "531de4b8ca98ab95ec0381cc0843ce21ba68df1c6962128dbf4e2577ae03bf94",
   "pakmap-engine/samples/globe-outro-repro.json": "d7d1bf844838e1337ae735e2a0bcbb12b27ea9c218319c5cb05c058c97b4055a",
   "pakmap-engine/samples/kenya-story.csv": "2afeb5b169ddafbc27767c4e708a199f2b8ec97be60b015471a84af04ba102b0",
@@ -422,7 +422,8 @@
   "starmap/samples/voyager1_script.txt": "a9d0c37563ad98b39534eefb3dc1fa56139113a9a63b28f7ceb27c363e75c06a",
   "starmap/sound.py": "8c4aaa915b8ca378c1de95f6b8fb2a4c91ee61e0f0ced87312d029f42fd3330d",
   "starmap/temporal.py": "a8b48198c8df7091515c523e14d016f7c0296a353f2f8b3f44171c5b24effd9e",
-  "video_generator.py": "0a9d720d2682324727c1448454dc4834e07012ccf235431032abdfa159f501b3"
+  "video_generator.py": "0a9d720d2682324727c1448454dc4834e07012ccf235431032abdfa159f501b3",
+  "pakmap-engine/lib/footage_pass.mjs": "c28d00bc04b5eae9f17937885cd442808518cecac538c10beb93f01b621b4886"
  },
  "approved_importers": [
   "app.py"

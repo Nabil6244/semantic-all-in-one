@@ -32,17 +32,57 @@ FORMAT_ACTIONS = {"forecast": "Prepare today's forecast", "news": "Event footage
 SETTING_SUGGESTED = "weather_post_suggested"   # suggestion ids already taken (not offered again)
 
 
-def current_format(app) -> str:
+AUTO_LABEL = "Auto"   # the format / editing style read from the script (weather.autopick); an explicit pick always wins
+
+
+def format_choice(app) -> str:
+    """What the card's Format picker says: "auto", or a key of FORMATS."""
     label = app._weather_format_var.get() if hasattr(app, "_weather_format_var") else ""
+    if label == AUTO_LABEL:
+        return "auto"
     return next((k for k, (lab, _f) in FORMATS.items() if lab == label), "forecast")
 
 
-def current_style(app) -> str:
-    """The editing style picked in the card: "classic" (Weather) or "teamplate" (Weather Teamplate, weather.teamplate)."""
+def _script(app) -> str:
+    try:
+        return app._main_script_text() or ""
+    except Exception:
+        return ""
+
+
+def current_format(app) -> str:
+    """The format in use: the one picked, or (Auto) the one the script reads as (weather.autopick.detect_format)."""
+    choice = format_choice(app)
+    if choice != "auto":
+        return choice
+    from .autopick import detect_format
+
+    return detect_format(_script(app))
+
+
+def style_choice(app) -> str:
+    """What the card's Editing style picker says: "auto", "classic" or "teamplate"."""
     from .teamplate import STYLES
 
     label = app._weather_style_var.get() if hasattr(app, "_weather_style_var") else ""
+    if label == AUTO_LABEL:
+        return "auto"
+    from .newsdoc import KEY as ND_KEY, NAME as ND_NAME
+
+    if label == ND_NAME:   # News Doc: its own footage-first edit (weather/newsdoc)
+        return ND_KEY
     return next((k for k, lab in STYLES.items() if lab == label), "classic")
+
+
+def current_style(app) -> str:
+    """The editing style in use: "classic" (Weather) or "teamplate" (Weather Teamplate, weather.teamplate); Auto picks Teamplate for
+    News and Post-Event, classic for a Forecast (weather.autopick.style_for)."""
+    choice = style_choice(app)
+    if choice != "auto":
+        return choice
+    from .autopick import style_for
+
+    return style_for(current_format(app))
 
 
 def library_dir(app) -> Optional[str]:
@@ -187,6 +227,7 @@ def split_one_file(text: str) -> Optional[Tuple[Optional[str], Optional[str]]]:
 # ---- the card -------------------------------------------------------------------------------------------------------------
 
 def build(app, parent, *, row: int) -> None:
+    code_is_old()   # remembers the code as it is now: a later update is reported (warn_if_old)
     M = _m(app)
     ctk = M.ctk
     app._weather_enabled_var = ctk.BooleanVar(value=False)
@@ -229,22 +270,24 @@ def build(app, parent, *, row: int) -> None:
                   border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12),
                   command=lambda: copy_script_prompt(app)).grid(row=0, column=3, padx=(0, 8))
     app._build_csv_prompt_script_box(actions, row=1, columnspan=4)
-    app._weather_format_var = ctk.StringVar(value=FORMATS["forecast"][0])
+    app._weather_format_var = ctk.StringVar(value=AUTO_LABEL)
     fmt_row = ctk.CTkFrame(actions, fg_color="transparent")
     fmt_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
     ctk.CTkLabel(fmt_row, text="Format", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
-    ctk.CTkSegmentedButton(fmt_row, values=[lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
+    ctk.CTkSegmentedButton(fmt_row, values=[AUTO_LABEL] + [lab for lab, _f in FORMATS.values()], variable=app._weather_format_var,
                            command=lambda _v: on_format(app)).pack(side="left")
     from .teamplate import STYLES
 
-    app._weather_style_var = ctk.StringVar(value=STYLES["classic"])
+    app._weather_style_var = ctk.StringVar(value=AUTO_LABEL)
     style_row = ctk.CTkFrame(actions, fg_color="transparent")
     style_row.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
     ctk.CTkLabel(style_row, text="Editing style", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).pack(side="left", padx=(0, 10))
-    ctk.CTkSegmentedButton(style_row, values=list(STYLES.values()), variable=app._weather_style_var,
+    from .newsdoc import NAME as ND_NAME
+
+    ctk.CTkSegmentedButton(style_row, values=[AUTO_LABEL] + list(STYLES.values()) + [ND_NAME], variable=app._weather_style_var,
                            command=lambda _v: on_style(app)).pack(side="left")
     # one button for what this format adds: Forecast writes today's plan, News finds event footage, Post-Event suggests reports
-    app._weather_format_btn = ctk.CTkButton(fmt_row, text=FORMAT_ACTIONS["forecast"], width=190, height=28, corner_radius=6,
+    app._weather_format_btn = ctk.CTkButton(fmt_row, text=FORMAT_ACTIONS[current_format(app)], width=190, height=28, corner_radius=6,
                                             fg_color="transparent", border_width=1, border_color=M._BORDER, text_color=M._MUTED,
                                             hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=lambda: format_action(app))
     app._weather_format_btn.pack(side="left", padx=(10, 0))
@@ -252,7 +295,7 @@ def build(app, parent, *, row: int) -> None:
                                 "forecast for the plan; fetch again (and re-record any changed line) if it is more than 6 hours old at render time.",
                  font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
     app._path_row(2, "Loaded plan", app._weather_file_var, lambda: browse(app), parent=controls,
-                  placeholder_text="Nothing loaded yet: click Load plan")
+                  placeholder_text="No CSV: the plan is made from your script and voiceover (or click Load plan)")
     name_row = ctk.CTkFrame(controls, fg_color="transparent")
     name_row.grid(row=3, column=0, sticky="ew", pady=(10, 0))
     name_row.grid_columnconfigure(1, weight=1)
@@ -262,13 +305,13 @@ def build(app, parent, *, row: int) -> None:
                  placeholder_text="Shown bottom right of the video (leave empty for none)").grid(row=0, column=1, sticky="ew")
     more = ctk.CTkFrame(controls, fg_color="transparent")
     more.grid(row=4, column=0, sticky="ew", pady=(10, 0))
-    more.grid_columnconfigure(3, weight=1)
-    for col, (text, cmd) in enumerate((("Check plan", lambda: check_plan(app)), ("Open plan folder", lambda: open_folder(app)),
-                                       )):
+    more.grid_columnconfigure(4, weight=1)
+    for col, (text, cmd) in enumerate((("Check plan", lambda: check_plan(app)), ("Quick preview", lambda: run_generation(app, preview=True)),
+                                       ("Open plan folder", lambda: open_folder(app)))):
         ctk.CTkButton(more, text=text, width=120, height=26, corner_radius=4, fg_color="transparent", border_width=1, border_color=M._BORDER,
                       text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=11), command=cmd).grid(row=0, column=col, padx=(0, 6))
     ctk.CTkSwitch(more, text="Sound effects + ambience", variable=app._weather_sound_var, command=lambda: save_state(app, sound_design=bool(app._weather_sound_var.get())),
-                  font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
+                  font=ctk.CTkFont(size=11)).grid(row=0, column=4, sticky="e")
     app._weather_plan_box = ctk.CTkTextbox(controls, height=210, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
     app._weather_plan_box.grid(row=5, column=0, sticky="ew", pady=(10, 0))
     app._weather_plan_box.configure(state="disabled")
@@ -293,14 +336,91 @@ def show_intro(app) -> None:
                   "set yours in Settings > General > Weather.")
 
 
+AUTO_PLAN_TEXT = ("No CSV: Weather makes the plan from your script and voiceover.\n\n"
+                  "1. Put your script on the Script page and choose your voiceover.\n"
+                  "2. Click Generate. Weather reads the story, picks the format and editing style (Auto), finds the event and its official "
+                  "data, makes the map and footage beats, checks them and renders.\n\n"
+                  "Check plan shows the plan first; Quick preview renders a fast low-quality copy. To use your own plan instead, click "
+                  "Load plan (a CSV always wins).\n\nThe script should say the full date and the state in its first sentences.")
+
+
+def is_auto(p) -> bool:
+    """A Weather project with no CSV plan: the plan is made from the script and the voiceover (weather.intel.beats)."""
+    return p is not None and not p.beats_csv.is_file()
+
+
 def has_plan(app) -> bool:
     """A beat plan, with weather layers — or without them when Weather Intelligence is on (it finds the data graphics itself)."""
     p = project(app)
-    if p is None or not p.beats_csv.is_file():
+    if p is None:
         return False
     from .intel.engine import enabled as intel_on
 
+    if not p.beats_csv.is_file():
+        return intel_on(p)   # no CSV: the plan is made from the script and the voiceover
     return p.layers_csv.is_file() or intel_on(p)
+
+
+def voiceover_words(app, p, voiceover, model: str, state_dir, log) -> list:
+    """The voiceover's word times, transcribed ONCE per recording: saved in the project (weather/_work/voiceover_words.json,
+    tied to the file's size, time and the Whisper model), so Check plan, Generate and Retry start in seconds, even after a
+    restart. A new or re-recorded voiceover is transcribed again."""
+    import json
+
+    vo = Path(voiceover)
+    try:
+        st = vo.stat()
+        key = f"{vo.name}:{st.st_size}:{st.st_mtime_ns}:{model}"
+    except OSError:
+        key = ""
+    cache = Path(p.root) / "_work" / "voiceover_words.json"
+    if key:
+        try:
+            data = json.loads(cache.read_text(encoding="utf-8"))
+            if data.get("key") == key and data.get("words"):
+                log(f"{TAG} Using the saved transcript of your voiceover (no need to transcribe it again).")
+                return [(str(w), float(a), float(b)) for w, a, b in data["words"]]
+        except (OSError, ValueError, TypeError):
+            pass
+    log(f"{TAG} Transcribing your voiceover with Whisper ({model})… this takes a few minutes, only the first time.")
+    words = app._pakmap_get_words(vo, model, state_dir, log)
+    if key and words:
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            tmp = cache.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"key": key, "words": [list(w) for w in words]}), encoding="utf-8")
+            tmp.replace(cache)
+            log(f"{TAG} Transcript saved: the next Check plan or Generate starts right away.")
+        except OSError:
+            pass
+    return words
+
+
+SCRIPT_MARK = "script_from_app.txt"   # in weather/_work: the script text the app last wrote to weather/script.txt
+
+
+def sync_script(app, p) -> Optional[str]:
+    """A project with no CSV is planned from weather/script.txt (weather.intel.beats): the Script page's text is written there.
+    A script.txt the user wrote (not the one the app wrote last) is never replaced. Returns a note, or None. Main thread only."""
+    if not is_auto(p):
+        return None
+    text = _script(app).strip()
+    if not text:
+        return None
+    path, mark = p.root / "script.txt", p.root / "_work" / SCRIPT_MARK
+    try:
+        current = path.read_text(encoding="utf-8").strip() if path.is_file() else None
+        if current == text:
+            return None
+        written = mark.read_text(encoding="utf-8").strip() if mark.is_file() else None
+        if current is not None and current != written:
+            return "weather/script.txt is your own file, so it is used instead of the Script page"
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text + "\n", encoding="utf-8")
+        mark.write_text(text + "\n", encoding="utf-8")
+    except OSError as exc:
+        return f"the script could not be saved for the plan ({exc}); the voiceover's words are used instead"
+    return None
 
 
 def run_intelligence(p, words, voiceover, fmt: str, contact: str, log, fixed: list) -> None:
@@ -325,6 +445,9 @@ def run_intelligence(p, words, voiceover, fmt: str, contact: str, log, fixed: li
 
 def show_summary(app) -> None:
     p = project(app)
+    if is_auto(p):
+        set_text(app, AUTO_PLAN_TEXT)
+        return
     lines = []
     try:
         from .autofix import repair_layers
@@ -397,7 +520,7 @@ def activate(app) -> None:
     app.generation_mode = "weather"
     app._set_scenes_empty_text()
     if has_plan(app):
-        app._weather_file_var.set(str(project(app).root))
+        app._weather_file_var.set("" if is_auto(project(app)) else str(project(app).root))
         show_summary(app)
     else:
         show_intro(app)
@@ -425,13 +548,24 @@ def restore(app, ws) -> None:
     state = load_state(ws)
     if "sound_design" in state:
         app._weather_sound_var.set(bool(state["sound_design"]))
-    app._weather_format_var.set(FORMATS.get(state.get("format") or "forecast", FORMATS["forecast"])[0])
+    saved_fmt = state.get("format")
+    app._weather_format_var.set(FORMATS[saved_fmt][0] if saved_fmt in FORMATS else AUTO_LABEL)
     if hasattr(app, "_weather_style_var"):
-        from .teamplate import STYLES, normalize
+        from .teamplate import STYLES
 
-        app._weather_style_var.set(STYLES[normalize(state.get("edit_style"))])
+        from .newsdoc import KEY as ND_KEY, NAME as ND_NAME
+
+        saved = str(state.get("edit_style") or "").strip().lower()
+        if saved in STYLES:
+            app._weather_style_var.set(STYLES[saved])
+        elif saved == ND_KEY:
+            app._weather_style_var.set(ND_NAME)
+        elif saved == "auto" or not project(app).beats_csv.is_file():
+            app._weather_style_var.set(AUTO_LABEL)
+        else:   # a CSV project saved before Auto existed keeps the style it had
+            app._weather_style_var.set(STYLES["classic"])
     app._weather_format_btn.configure(text=FORMAT_ACTIONS[current_format(app)])
-    app._weather_file_var.set(str(project(app).root) if has_plan(app) else "")
+    app._weather_file_var.set(str(project(app).root) if has_plan(app) and not is_auto(project(app)) else "")
     if state.get("active"):
         activate(app)
     else:
@@ -747,6 +881,7 @@ def check_plan(app) -> None:
     model, state_dir = app.model_var.get().strip() or "base", getattr(ws, "state_dir", None)
     style = current_style(app)
     contact, fmt, lib = str(app._settings.get(SETTING_CONTACT) or "").strip(), current_format(app), library_dir(app)
+    script_note = sync_script(app, p)
     app._weather_busy = True
     app._weather_status_var.set("Checking the plan against the narration…")
     app._sync_primary_cta()
@@ -754,31 +889,46 @@ def check_plan(app) -> None:
 
     def worker() -> None:
         plan, ok = None, False
+        warn_if_old(log)
+        from .newsdoc import KEY as ND_KEY
+
+        if style == ND_KEY:
+            plan, text, ok = newsdoc_check(app, p, voiceover, model, state_dir, fmt, contact, log, script_note)
+            app.after(0, lambda: done(text, ok, plan))
+            return
         try:
             from pakmap.app_integration import voiceover_duration
 
-            from .footage import footage_beats, footage_problems
-            from .generate import plan_layers
+            from .footage import footage_beats
 
-            words = app._pakmap_get_words(voiceover, model, state_dir, log)
-            fixed: list = []
+            words = voiceover_words(app, p, voiceover, model, state_dir, log)
+            fixed: list = [script_note] if script_note else []
             run_intelligence(p, words, voiceover, fmt, contact, log, fixed)
             refresh_data(p, contact, fmt, log)
-            plan, rows, snap, payload = plan_layers(p, words, voiceover_duration(voiceover), library_dir=lib, edit_style=style, notes=fixed)
-            from .autofix import fix_footage
+            # the dry run: every stage Generate runs before it fetches a clip or draws a frame (weather/preflight.py), so every
+            # reason Generate would stop is listed here at once, with every repair it made
+            from .preflight import preflight
 
-            fix_footage(plan, p.root, fixed)
-            bad = footage_problems(plan, p.root)
-            if style == "teamplate":
-                from .teamplate.footage import fix_relevance
-
-                fix_relevance(plan, fixed)
+            dry = preflight(p, words, voiceover_duration(voiceover), edit_style=style, library_dir=lib, voiceover_path=voiceover)
+            fixed += [n for n in dry.notes if n not in fixed]
+            if dry.plan is None:
+                raise PlanStops(dry)
+            plan, rows, payload = dry.plan, dry.rows, dry.payload
+            bad = [f"[{stage}] {m}" for stage, m in dry.stops]
             head = [f"Plan OK: {len(plan.beats)} beat(s) ({footage_beats(plan)} full-screen footage), {len(rows)} weather layer(s), "
                     f"{len(payload.report.lines)} number(s) on screen.", data_status(app), ""]
+            if is_auto(p):
+                from .teamplate import NAME
+
+                head = [f"Automatic plan (no CSV): format {FORMATS[fmt][0]}, editing style {NAME if style == 'teamplate' else 'Weather'}."] + head
+            from .selfcheck import as_text, checks
+
+            head += ["Checks before the render:", as_text(checks(plan, payload)), ""]
             if fixed:
                 head += ["Fixed for you (nothing to do):"] + [f"  {x}" for x in fixed] + [""]
             if bad:
-                head = ["The plan uses footage Weather does not allow:"] + [f"  {b}" for b in bad] + [""]
+                head = ["Generate would stop on these (the tool should have repaired them: report them so they get fixed):"] + \
+                       [f"  {b}" for b in bad] + [""] + head
             text, ok = "\n".join(head) + payload.report.to_text(), not bad
         except Exception as exc:
             probs = getattr(exc, "problems", None) or [str(exc)]
@@ -796,6 +946,90 @@ def check_plan(app) -> None:
         app._sync_primary_cta()
 
     threading.Thread(target=worker, daemon=True).start()
+
+
+def newsdoc_check(app, p, voiceover, model, state_dir, fmt, contact, log, script_note):
+    """Check plan for News Doc: its whole plan (story, event data, news footage, shots, graphics) without rendering."""
+    try:
+        from pakmap.app_integration import voiceover_duration
+
+        from .newsdoc import NAME
+        from .newsdoc.generate import plan_newsdoc
+
+        words = voiceover_words(app, p, voiceover, model, state_dir, log)
+        nd, payload, notes, got = plan_newsdoc(p, words, voiceover_duration(voiceover), fmt=fmt, contact=contact, voiceover=Path(voiceover), log=log)
+        sh = nd.shares()
+        from collections import Counter
+
+        kinds = Counter(o.kind for o in nd.overlays)
+        maps = [s for s in nd.shots if s.kind == "map"]
+        head = [f"{NAME} plan: {len(nd.shots)} shots — news {sh['news']:.0%}, b-roll {sh['stock']:.0%}, map {sh['map']:.0%} "
+                f"({sum(s.t1 - s.t0 for s in maps):.0f} s of {nd.hybrid.duration:.0f} s, limit 10 %), full-screen graphics {sh['fullscreen_graphics']:.0%}.",
+                "Graphics: " + (", ".join(f"{n} {k}" for k, n in kinds.most_common()) or "none"),
+                "Map shots: " + ("; ".join(f"{s.t0:.0f}-{s.t1:.0f}s ({', '.join(s.rows) or 'the region'})" for s in maps) or "none"), ""]
+        if got.searches:
+            head += ["News searches: " + "; ".join(got.searches), ""]
+        if script_note:
+            notes = [script_note] + list(notes)
+        if notes:
+            head += ["Notes (nothing to do):"] + [f"  {x}" for x in notes] + [""]
+        return nd.hybrid, "\n".join(head) + payload.report.to_text(), True
+    except Exception as exc:
+        return None, f"The News Doc plan could not be made: {exc}", False
+
+
+class PlanStops(Exception):
+    """Check plan: the dry run stopped before it had a plan (its stops are the problems)."""
+
+    def __init__(self, dry):
+        super().__init__("; ".join(m for _s, m in dry.stops))
+        self.problems = [m for _s, m in dry.stops] + ([""] + ["Fixed on the way:"] + [f"  {n}" for n in dry.notes] if dry.notes else [])
+
+
+
+# ---- old code: the app was started before the tool was updated ------------------------------------------------------------------
+
+_CODE_DIRS = ("weather", "hybrid", "pakmap", "weather-engine", "pakmap-engine", "providers")
+
+
+def _code_stamp() -> float:
+    """The newest change time of the tool's code (Python and the renderers)."""
+    root = Path(__file__).resolve().parent.parent
+    newest = 0.0
+    for d in _CODE_DIRS:
+        for f in (root / d).rglob("*"):
+            if f.suffix in (".py", ".mjs") and "node_modules" not in f.parts:
+                try:
+                    newest = max(newest, f.stat().st_mtime)
+                except OSError:
+                    pass
+    for f in ("asset_manager.py", "video_generator.py", "app.py"):
+        try:
+            newest = max(newest, (root / f).stat().st_mtime)
+        except OSError:
+            pass
+    return newest
+
+
+_STARTED_STAMP: Optional[float] = None
+
+
+def code_is_old() -> bool:
+    """True when the tool's code changed after this app started (its fixes are not loaded until the app is restarted)."""
+    global _STARTED_STAMP
+    try:
+        if _STARTED_STAMP is None:
+            _STARTED_STAMP = _code_stamp()
+            return False
+        return _code_stamp() > _STARTED_STAMP + 1.0
+    except Exception:
+        return False
+
+
+def warn_if_old(log) -> None:
+    if code_is_old():
+        log("[WEATHER] NOTE: the tool was updated after this app started; restart the app to use the latest fixes "
+            "(this run uses the code that was loaded when the app opened).")
 
 
 # ---- the shared Generate button --------------------------------------------------------------------------------------------
@@ -833,7 +1067,7 @@ def sync_cta(app) -> None:
         app.hint_var.set("Load your Weather plan (Copy the CSV prompt in the Weather panel gives any AI the instructions).")
         app._set_generate_btn(state="normal", text="Load plan")
         return
-    if not project(app).resolved_json.is_file():
+    if not is_auto(project(app)) and not project(app).resolved_json.is_file():
         app._cta_action = "weather_fetch"
         app.stage_var.set("PLAN")
         app.hint_var.set("Fetch the National Weather Service data for the plan.")
@@ -868,8 +1102,9 @@ def cancel(app) -> None:
     app._sync_primary_cta()
 
 
-def run_generation(app) -> None:
-    """The Weather branch of the SHARED _on_generate() entry point (generation_mode == "weather")."""
+def run_generation(app, preview: bool = False) -> None:
+    """The Weather branch of the SHARED _on_generate() entry point (generation_mode == "weather"). `preview`: Quick preview — the
+    same plan rendered fast (12 frames a second, no sound design) to weather/_work/preview.mp4, not to the project's final folder."""
     M = _m(app)
     if app._weather_running or app._weather_busy:
         return
@@ -884,13 +1119,16 @@ def run_generation(app) -> None:
         M.messagebox.showerror("Cannot start", "Select or import your voiceover first.")
         return
     ws, p = app._workspace, project(app)
-    output_path = ws.next_final_path()
-    app.output_var.set(str(output_path))
+    output_path = (p.work_dir / "preview.mp4") if preview else ws.next_final_path()
+    if not preview:
+        app.output_var.set(str(output_path))
+    script_note = sync_script(app, p)
     whisper_model = app.model_var.get().strip() or "base"
     whisper_state_dir = getattr(ws, "state_dir", None)
     watermark = app._pakmap_watermark()
-    sound_design = bool(app._weather_sound_var.get())
-    pixel_scale = app._export_pixel_scale()
+    sound_design = bool(app._weather_sound_var.get()) and not preview
+    pixel_scale = 1 if preview else app._export_pixel_scale()
+    speed = {"fps": 12} if preview else {}
     title = getattr(ws, "title", "") or ""
     pexels_api_key = app.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
     plan_rows = list(app._scene_rows) if getattr(app, "_scene_rows_owner", None) == "weather" else None
@@ -903,8 +1141,10 @@ def run_generation(app) -> None:
     app._weather_tracking = app._track_generation_start("weather")
     app._weather_run_manager = None
     app._sync_primary_cta()
-    app._weather_status_var.set("Starting Weather generation…")
-    app._append_log("Starting Weather generation…\n")
+    app._weather_status_var.set("Starting the quick preview…" if preview else "Starting Weather generation…")
+    app._append_log("Starting the Weather quick preview (12 fps, no sound design)…\n" if preview else "Starting Weather generation…\n")
+    if script_note:
+        app._append_log(f"{TAG} {script_note}\n")
 
     def progress_cb(message: str, fraction: float) -> None:
         def apply() -> None:
@@ -937,12 +1177,27 @@ def run_generation(app) -> None:
         from .generate import generate_forecast_video
 
         prun = app._production_begin("weather")
+        warn_if_old(thread_safe_log)
         try:
             try:
-                words = app._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
+                words = voiceover_words(app, p, voiceover_path, whisper_model, whisper_state_dir, thread_safe_log)
             except Exception as exc:
                 result = PakmapResult(False, [f"Could not transcribe the narration: {exc}"])
             else:
+                from .newsdoc import KEY as ND_KEY
+
+                if edit_style == ND_KEY:   # News Doc plans, fetches and draws on its own (weather/newsdoc)
+                    from .newsdoc.generate import generate_newsdoc_video
+
+                    result = generate_newsdoc_video(
+                        p, voiceover_path, output_path, whisper_words=words, log=thread_safe_log, fmt=gen_format, contact=gen_contact,
+                        progress_cb=progress_cb, cancel_check=app._weather_cancel.is_set, watermark=watermark, title=title,
+                        sound_design=sound_design, pixel_scale=pixel_scale, pexels_api_key=pexels_api_key, media_dir=media_dir,
+                        media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
+                                             on_manager_ready=_manager_ready), **speed)
+                    app._production_end(prun, result, app._weather_cancel.is_set())
+                    app.after(0, lambda: finish(result))
+                    return
                 added: list = []
                 run_intelligence(p, words, voiceover_path, gen_format, gen_contact, thread_safe_log, added)
                 for n in added:
@@ -954,7 +1209,7 @@ def run_generation(app) -> None:
                     sound_design=sound_design, pixel_scale=pixel_scale, progress_cb=progress_cb, cancel_check=app._weather_cancel.is_set,
                     pexels_api_key=pexels_api_key, scene_rows=rows, media_dir=media_dir, library_dir=lib_dir, edit_style=edit_style,
                     media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
-                                         on_manager_ready=_manager_ready),
+                                         on_manager_ready=_manager_ready), **speed,
                 )
         except Exception as exc:
             result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
@@ -985,8 +1240,12 @@ def run_generation(app) -> None:
                 app._show_preview(str(result.output_path))
             except Exception:
                 pass
-            M.messagebox.showinfo("Weather video ready", f"Saved to:\n{result.output_path}\n\nNext to it: the credits ('… - credits.txt') and every "
-                                                         "number on screen with its source ('….numbers.txt').")
+            if preview:
+                M.messagebox.showinfo("Quick preview ready", f"Saved to:\n{result.output_path}\n\nA fast, low-quality copy to check the plan "
+                                                             "(12 frames a second, no sound design). Click Generate for the real video.")
+            else:
+                M.messagebox.showinfo("Weather video ready", f"Saved to:\n{result.output_path}\n\nNext to it: the credits ('… - credits.txt') and every "
+                                                             "number on screen with its source ('….numbers.txt').")
         else:
             app._append_log(f"{TAG} Generation failed:\n" + "\n".join(result.errors) + "\n")
             set_text(app, "Generation stopped:\n\n" + "\n".join(f"  {e}" for e in result.errors))
@@ -1009,10 +1268,11 @@ def run_generation(app) -> None:
 def on_format(app) -> None:
     """Forecast / News / Post-Event: which CSV prompt the card copies (the plan files and the render are the same for all three)."""
     fmt = current_format(app)
-    save_state(app, format=fmt)
+    save_state(app, format=format_choice(app))
     if hasattr(app, "_weather_format_btn"):
         app._weather_format_btn.configure(text=FORMAT_ACTIONS[fmt])
-    app._weather_status_var.set({
+    auto = f"Auto: Weather reads your script and picks the format (now: {FORMATS[fmt][0]}). " if format_choice(app) == "auto" else ""
+    app._weather_status_var.set(auto + {
         "forecast": "Forecast: Copy the CSV prompt (or Prepare today's forecast to have the app write the script and plan from the data).",
         "news": "News: one event (a hurricane, an outbreak, a flood) with its radar, track, cone, warnings and counters. Copy the CSV prompt "
                 "and give the AI the event's name, dates and places with your script.",
@@ -1104,10 +1364,17 @@ def on_style(app) -> None:
     from .teamplate import NAME
 
     style = current_style(app)
-    save_state(app, edit_style=style)
+    save_state(app, edit_style=style_choice(app))
     app._weather_ok = None
     # the other style's footage list numbers its clips differently: never hand it to this style's render
     clear_visual_plan(app)
+    from .newsdoc import KEY as ND_KEY
+
+    if style == ND_KEY:
+        app._weather_status_var.set("News Doc: footage first, like a TV-news documentary — local news reports of the event, b-roll, place and "
+                                    "yellow tags, big numbers, quote cards, checklists and charts; the satellite map with the storm's data "
+                                    "only at its strongest moments (at most 10 % of the video). Click Check plan to see it, then Generate.")
+        return
     app._weather_status_var.set(
         f"{NAME}: hard cuts on a ~5 s shot rhythm, keyword title cards over a darkened frame, count-up numbers, orange place tags and a "
         "darker map. Same plan, data and narration; click Check plan to see the footage it will use." if style == "teamplate" else

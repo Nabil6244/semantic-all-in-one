@@ -88,7 +88,7 @@ def resolve_storm(name: str, records: Sequence[StormRecord], *, years: Sequence[
         if by_day:
             cands = by_day
             how.append("the dates the script says")
-    if len(cands) > 1 and recorded is not None and not years and not days:
+    if len(cands) > 1 and recorded is not None:   # still two or more: the one of the recording's season, when there is exactly one
         season = [r for r in cands if r.year == recorded.year]
         if len(season) == 1:
             cands = season

@@ -122,7 +122,8 @@ def _spoken(words: Sequence, a: float, b: float) -> str:
     return " ".join(str(w[0]) for w in words if float(w[1]) < b and float(w[2]) > a)
 
 
-def add_cutaways(plan, words: Sequence, payload, notes: Optional[List[str]] = None, *, max_share: float = MAX_SHARE) -> int:
+def add_cutaways(plan, words: Sequence, payload, notes: Optional[List[str]] = None, *, max_share: float = MAX_SHARE, fallback=None,
+                 label: str = "Weather Teamplate") -> int:
     """Insert the cutaways into `plan` (in place); returns how many. See the module notes."""
     from hybrid.plan import Beat, Clip
 
@@ -159,7 +160,7 @@ def add_cutaways(plan, words: Sequence, payload, notes: Optional[List[str]] = No
                 length = cur.end - a if z >= cur.end - 1e-6 and cur.end - a <= min(CUT_MAX_S + EDGE_S, budget) else cur.end - EDGE_S - a
             if length < CUT_MIN_S or (a <= cur.start + 1e-6 and any(c.t < a + 1e-6 for c in cur.camera)):
                 continue
-            req = request_for(_spoken(words, a, a + length))
+            req = request_for(_spoken(words, a, a + length)) or (fallback(_spoken(words, a, a + length), b) if fallback else None)
             if req is None:
                 if z - a >= CUT_MIN_S + 2.0:   # nothing to film here: look a little later in the same stretch
                     queue.insert(0, [a + 2.0, z])
@@ -171,7 +172,7 @@ def add_cutaways(plan, words: Sequence, payload, notes: Optional[List[str]] = No
             if head is not None:
                 head.layers = [replace(l, until=float(b.end)) if l.until == "beat_end" and l.hold is None else l for l in head.layers]
             cut = Beat(id=f"{b.id}_x{k}", mode="footage", start=c0, end=c1, purpose="cutaway", narration=_spoken(words, c0, c1),
-                       clips=[Clip(asset=f"stock_video:{req}", reason="Weather Teamplate cutaway: generic footage of what the narration describes")],
+                       clips=[Clip(asset=f"stock_video:{req}", reason=f"{label} cutaway: footage of what the narration describes")],
                        footage_intent="illustrate what is being said while the map holds")
             if head is not None:
                 pieces.append(head)
@@ -180,7 +181,7 @@ def add_cutaways(plan, words: Sequence, payload, notes: Optional[List[str]] = No
             budget -= length
             added += 1
             if notes is not None:
-                notes.append(f"beat {b.id}: {length:.1f}s cutaway at {c0:.1f}s to stock footage {req!r} (Weather Teamplate)")
+                notes.append(f"beat {b.id}: {length:.1f}s cutaway at {c0:.1f}s to stock footage {req!r} ({label})")
             if z - c1 >= MAP_BETWEEN_S + CUT_MIN_S:   # a long quiet stretch alternates: back to the map, then footage again
                 queue.insert(0, [c1 + MAP_BETWEEN_S, z])
         if cur.end - cur.start > 1e-6:

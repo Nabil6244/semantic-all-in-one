@@ -1,5 +1,5 @@
 {
- "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change.",
+ "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change. 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style.",
  "base_commit": "05cfb49",
  "files": {
   "ai_router/__init__.py": "16a26dc22b8b1eabe792edad17d330d319037714480e51eded13af55108bc8b5",
@@ -7,7 +7,7 @@
   "ai_router/errors.py": "6348bbc30569876e74aa2ceead8a8b8c8890a061de88731758e32fff70bb606e",
   "ai_router/providers.py": "7ef878a695d11c5a78837084bec94e0f02051da78f338fc164b7e96f16432b9d",
   "ai_router/router.py": "0c83aa4a8e1145b0e9abec19a6255a3e1a1baaa2c3828dbff5c3a950172fc7c9",
-  "asset_manager.py": "6ad6cf3c68b13fd1fa51351840ea88bf1a818f4feabe43f6a7abe7a59f5bde78",
+  "asset_manager.py": "c0715c4ff706a55ca659deee21a2999a28dedbea11a18911439537c5528e2463",
   "docs/styles/book_of_enoch_visual_guide.md": "d03c7fabb920a7d6f9f09a85ddbca5096e4ee15209827e41df39c732943d2190",
   "editorial/__init__.py": "2093185d8bb59f9d9b28127e21f49db3de35b7ed6fdc5c30ef39fa78b30086b5",
   "editorial/audio_director.py": "5e1f2b08fd6a693b94e6ab7186bc719e3da356748916ecebc6ea32d8d3e9a8fe",

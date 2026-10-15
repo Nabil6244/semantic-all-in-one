@@ -44,6 +44,14 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
     if not rows:
         return plan_from_csv(text, list(words), duration), aliases
     head = [c.strip().lower() for c in rows[0]]
+    from hybrid.beat_csv import COLUMNS as BEAT_COLUMNS
+
+    extra_cols = [i for i, h in enumerate(head) if h and h not in BEAT_COLUMNS]
+    if extra_cols:   # a column the plan does not have (an AI's "notes"): left out, never a reason to stop
+        notes.append(f"beats.csv: column(s) {', '.join(repr(head[i]) for i in extra_cols)} are not part of the plan, so they were ignored")
+        rows = [[c for i, c in enumerate(r) if i not in extra_cols] for r in rows]
+        head = [h for i, h in enumerate(head) if i not in extra_cols]
+    rows[0] = head
     col = {h: i for i, h in enumerate(head)}
 
     def get(r: List[str], name: str) -> str:
@@ -91,6 +99,11 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
 
     _straight_quotes(rows, get, put)
     _normalize_layers(rows, get, put, notes)
+    for k in range(1, len(rows)):   # a clip or photo card with no file named: nothing to show, left out
+        r = rows[k]
+        if r and get(r, "row").lower() in ("clip", "card") and not get(r, "asset"):
+            notes.append(f"beat {get(r, 'beat')}: a {get(r, 'row').lower()} row with no asset was left out")
+            rows[k] = []
     tried: Dict[int, List[str]] = {}
 
     def other_anchor(n: int) -> bool:
@@ -119,6 +132,31 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
                 notes.append(f"beat {get(rows[n], 'beat')}: its first words ({old_a!r}) were not heard, so it starts on {c!r}")
                 return True
         return False
+    realigned = [False]
+
+    def realign() -> bool:
+        """Every beat starts where the recording says its words, from one alignment of the whole script (once)."""
+        if realigned[0] or not words:
+            return False
+        realigned[0] = True
+        beat_rows = [k for k in range(1, len(rows)) if rows[k] and is_beat(rows[k])]
+        anchors = aligned_anchors([get(rows[k], "text") for k in beat_rows], words)
+        moved = []
+        for k, a in zip(beat_rows, anchors):
+            old_a = get(rows[k], "vo_anchor")
+            if not a or [_norm_word(x) for x in a.split()] == [_norm_word(x) for x in old_a.split()][:len(a.split())]:
+                continue
+            put(rows[k], "vo_anchor", a)
+            for q in range(k + 1, len(rows)):
+                if rows[q] and is_beat(rows[q]):
+                    break
+                if rows[q] and get(rows[q], "vo_anchor") == old_a:
+                    put(rows[q], "vo_anchor", a)
+            moved.append(get(rows[k], "beat"))
+        if moved:
+            notes.append(f"beats {', '.join(moved[:12])}{' and %d more' % (len(moved) - 12) if len(moved) > 12 else ''} now start on the words the recording says there (the script and the recording were lined up)")
+        return bool(moved)
+
     last_err = None
     for _ in range(passes):
         try:
@@ -149,6 +187,12 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
                 elif "extra cell" in msg:
                     put(r, "extra", "")
                     fixed = True
+                elif is_beat(r) and ("only spoken before" in msg or "not in the narration" in msg) and realign():
+                    fixed = True
+                    break
+                elif is_beat(r) and "would end at" in msg and (nxt := next((k for k in range(n + 1, len(rows)) if is_beat(rows[k])), None)) \
+                        and merge_into_previous(nxt):   # the next beat starts on words spoken before this one has any time
+                    fixed = True
                 elif is_beat(r):
                     first_beat = next(k for k in range(1, len(rows)) if is_beat(rows[k])) == n
                     if first_beat and words:
@@ -174,6 +218,53 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
             if not fixed:
                 raise PlanError([plain_problem(x) for x in exc.problems]) from None
     raise PlanError([plain_problem(x) for x in last_err.problems])
+
+
+def _norm_word(w: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(w).translate(QUOTES).lower().replace("'", ""))
+
+
+def aligned_anchors(texts: Sequence[str], words: Sequence) -> List[Optional[str]]:
+    """For each beat's text (in order): words of the RECORDING where that beat starts, found by lining up the whole script with
+    the whole transcript at once (so one misheard or repeated phrase cannot pull a beat to the wrong place). Each anchor is the
+    shortest run of the transcript's own words (3 to 8) that is first spoken there, after the previous beat. None: not found."""
+    import difflib
+
+    trans = [_norm_word(w[0]) for w in words]
+    raw = [str(w[0]).strip() for w in words]
+    script, starts = [], []
+    for t in texts:
+        starts.append(len(script))
+        script += [x for x in (_norm_word(w) for w in str(t).split()) if x]
+    starts.append(len(script))
+    sm = difflib.SequenceMatcher(None, script, trans, autojunk=False)
+    to_trans: Dict[int, int] = {}
+    for a, b, size in sm.get_matching_blocks():
+        for k in range(size):
+            to_trans[a + k] = b + k
+    out: List[Optional[str]] = []
+    floor = 0
+    for i in range(len(texts)):
+        a, z = starts[i], starts[i + 1]
+        hit = next(((k, to_trans[k]) for k in range(a, z) if k in to_trans), None)
+        if hit is None:
+            out.append(None)
+            continue
+        j = max(floor, hit[1] - (hit[0] - a))
+        while j < len(trans) and not trans[j]:
+            j += 1
+        phrase = None
+        for size in range(3, 9):
+            run = [x for x in trans[j:j + size]]
+            if len(run) < 3:
+                break
+            first = next((q for q in range(floor, len(trans) - len(run) + 1) if trans[q:q + len(run)] == run), None)
+            if first == j:
+                phrase = " ".join(raw[j:j + size])
+                break
+        out.append(phrase)
+        floor = j + 1
+    return out
 
 
 PLACE_WORDS = re.compile(r"^(?:the|southern|northern|eastern|western|central|coastal|south|north|east|west|southeast|southwest|northeast|"
@@ -209,10 +300,18 @@ def _nearest_place(place: str, cache: Dict[str, bool]) -> Optional[str]:
 
 def fix_places(plan, notes: List[str]) -> None:
     """Every place the map cannot find is replaced by one it can (the same name without 'Southern', 'coastal'..., then the place the
-    camera was last at); a graphic with no usable place is left out. Never a reason to stop: each change is a note."""
+    camera was last at, or for the opening camera the first place the story goes to); a graphic with no usable place is left out.
+    Never a reason to stop: each change is a note."""
     cache: Dict[str, bool] = {}
     said: Dict[str, str] = {}
-    last = ""
+    # the opening camera has no earlier place: it falls back to the first place the camera goes to later, preferring one with the
+    # same frame and a named place (a 'Southern Plains' region start opens on the first state the story names, not on a close-up)
+    ahead = [(c.frame, q) for b in plan.beats for c in b.camera if c.place
+             for q in [c.place if _place_ok(c.place, cache) else _nearest_place(c.place, cache)] if q]
+    first_frame = next((c.frame for b in plan.beats for c in b.camera if c.place), "")
+    named = lambda q: not re.fullmatch(r"\s*-?[\d.]+\s*,\s*-?[\d.]+\s*", q)  # noqa: E731
+    last = next((q for want in ((True, True), (False, True), (True, False), (False, False)) for f, q in ahead
+                 if (f == first_frame or not want[0]) and (named(q) or not want[1])), "")
 
     def fixed(place: str, where: str, fallback: str = "") -> str:
         if not place or _place_ok(place, cache):
@@ -253,6 +352,16 @@ def fix_places(plan, notes: List[str]) -> None:
         for sp in getattr(b, "cards", []) or []:
             if sp.place:
                 sp.place = fixed(sp.place, f"beat {b.id}: a photo card's pointer")
+    # the map needs exactly one opening camera: when every place of the opening was unknown (project #007, 2026-10-15), the map
+    # opens on the whole country instead of the video stopping
+    if not any(c.action == "start" for b in plan.beats for c in b.camera):
+        first = next((b for b in plan.beats if b.mode != "footage"), None)
+        if first is not None:
+            from hybrid.plan import CameraStep
+
+            first.camera.insert(0, CameraStep(action="start", place=last or "38.5,-97.5", frame="region" if last else "continental",
+                                              t=first.start))
+            notes.append(f"beat {first.id}: the map had no opening camera left, so it opens on {last or 'the whole country'}")
 
 
 LAYER_KINDS = ("hud_title", "marker", "zone_label", "fill", "line", "stat", "caption")
@@ -381,6 +490,9 @@ def _default_source(typ: str, place: str, old) -> Optional[str]:
     return None
 
 
+LABELS_PER_BEAT, LABELS_PER_VIDEO = 2, 12
+
+
 def repair_layers(text: str, notes: List[str], aliases: Optional[Dict[str, str]] = None):
     """weather_layers.csv read the forgiving way: every row is repaired where the intent is clear, else left out with a note.
     Only a file with no usable row at all raises."""
@@ -463,11 +575,22 @@ def repair_layers(text: str, notes: List[str], aliases: Optional[Dict[str, str]]
         if not ok:
             skip(why)
             continue
+        if typ == "place_label":
+            mine = [x for x in out if x.type == "place_label" and x.beat == beat]
+            if len(mine) >= LABELS_PER_BEAT or sum(x.type == "place_label" for x in out) >= LABELS_PER_VIDEO:
+                skip(f"place_label {rid}: at most {LABELS_PER_BEAT} place names a beat and {LABELS_PER_VIDEO} a video, so they never pile up")
+                continue
         ids[rid] = n
         out.append(row)
-    if not out:
-        raise SidecarError(["the plan has no weather graphics Weather can show (every weather row was left out: see the notes)"])
+    if not out and rows_seen(text):
+        notes.append("none of the weather graphics could be shown (every weather row was left out: see the notes above); "
+                     "the video is made without them")
     return out
+
+
+def rows_seen(text: str) -> bool:
+    """True when the layers CSV has at least one row under its header."""
+    return len([r for r in _csv_rows(text)[1:] if any(c.strip() for c in r)]) > 0
 
 
 def _settle(row, check, parse_data_source) -> Tuple[bool, str]:

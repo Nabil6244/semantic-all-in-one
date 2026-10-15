@@ -22,6 +22,7 @@ import { resolveSpecData } from './lib/datasets.mjs';
 import { prepareMedia, materializeClip, releaseClips, disposeMedia } from './lib/media.mjs';
 import { fetchTile, cachePath } from './lib/tiles.mjs';
 import { parsePointsCsv } from './lib/points.mjs';
+import { footageShortcut } from './lib/footage_pass.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAPLIBRE_DIST = path.join(HERE, 'node_modules', 'maplibre-gl', 'dist');
@@ -168,7 +169,18 @@ async function main() {
     ffmpeg.stderr.on('data', (d) => { ffErr += d; });
     const ffDone = new Promise((resolve) => ffmpeg.on('close', resolve));
 
+    // Hybrid: a frame that is only a full-screen video clip is that clip's frame (lib/footage_pass.mjs); pakMap: never
+    const clipOnly = footageShortcut(spec, spec.events, media);
+    let fromClips = 0;
     for (let i = 0; i < total; i++) {
+      const direct = clipOnly(i / fps);
+      if (direct) {
+        fromClips++;
+        if (!ffmpeg.stdin.write(fs.readFileSync(direct))) await new Promise((r) => ffmpeg.stdin.once('drain', r));
+        if (i % 15 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total });
+        if (i % 30 === 0 && spec.media_lazy === true) releaseClips(media.files, i / fps);
+        continue;
+      }
       let b64;
       try {
         b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
@@ -199,7 +211,7 @@ async function main() {
       emit({ event: 'warning', message: `map imagery: ${tiles.failed} map tile(s) could not be used (failed downloads, or ${tiles.invalid} unreadable or blank tile(s)); ${tiles.drawn_from_coarser_zoom} were drawn from the same imagery at a coarser zoom and ${tiles.drawn_from_coarser_layer} from a coarser imagery layer, so those areas look softer${last}` });
     }
     const sidecar = `${spec.output}.pakmap.json`;
-    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total, tiles }, null, 2));
+    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: total, frames_from_clips: fromClips, tiles }, null, 2));
     emit({ event: 'done', output: spec.output, sidecar, frames: total });
   } finally {
     disposeMedia(media.files);   // the frame folders are this render's own: they never outlive it

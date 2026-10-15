@@ -29,12 +29,39 @@ def _words(args) -> list:
     return []
 
 
-def _project_style(project) -> str:
-    """The editing style saved in the project's weather.json (the app's Weather card writes it), else classic."""
+def _state(project) -> dict:
     try:
-        return str(json.loads((project.root / "weather.json").read_text(encoding="utf-8")).get("edit_style") or "classic")
+        return json.loads((project.root / "weather.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return "classic"
+        return {}
+
+
+def _script(project) -> str:
+    p = project.root / "script.txt"
+    return p.read_text(encoding="utf-8") if p.is_file() else ""
+
+
+def _project_format(project, default: str = "news") -> str:
+    """The format saved in weather.json; "auto" (or none, for a project with no CSV) is read from weather/script.txt."""
+    saved = _state(project).get("format")
+    if saved in (None, "", "auto") and (saved == "auto" or not project.beats_csv.is_file()):
+        from .autopick import detect_format
+
+        return detect_format(_script(project))
+    return saved or default
+
+
+def _project_style(project) -> str:
+    """The editing style saved in the project's weather.json (the app's Weather card writes it), else classic. "auto" (or none, for a
+    project with no CSV) follows the format (weather.autopick.style_for)."""
+    saved = str(_state(project).get("edit_style") or "")
+    if saved in ("classic", "teamplate", "newsdoc"):
+        return saved
+    if saved == "auto" or not project.beats_csv.is_file():
+        from .autopick import style_for
+
+        return style_for(_project_format(project))
+    return "classic"
 
 
 def main(argv=None) -> int:
@@ -57,8 +84,9 @@ def main(argv=None) -> int:
     r.add_argument("--words")
     r.add_argument("--whisper", default="small")
     r.add_argument("--no-sound", action="store_true", help="narration only (no sound design)")
+    r.add_argument("--contact", default="", help="NWS contact (News Doc reads the event's data itself; only current forecasts need it)")
     r.add_argument("--pexels-key", default=None, help="for stock footage (default: the PEXELS_API_KEY environment variable)")
-    r.add_argument("--style", default=None, choices=["classic", "teamplate"],
+    r.add_argument("--style", default=None, choices=["classic", "teamplate", "newsdoc"],
                    help="editing style: classic (Weather) or teamplate (Weather Teamplate); default: the project's weather.json, else classic")
     au = sub.add_parser("auto")
     au.add_argument("--project", required=True)
@@ -106,12 +134,7 @@ def main(argv=None) -> int:
 
         words = _words(args)
         duration = voiceover_duration(Path(args.voiceover)) if args.voiceover else (words[-1][2] + 1.0 if words else 600.0)
-        fmt = args.format
-        if fmt is None:
-            try:
-                fmt = json.loads((project.root / "weather.json").read_text(encoding="utf-8")).get("format") or "news"
-            except (OSError, ValueError):
-                fmt = "news"
+        fmt = args.format or _project_format(project)
         notes: list = []
         plan, beats_text = project_plan(project, words, duration, notes)
         res = run(project, plan, words, beats_text=beats_text, fmt=fmt, contact=args.contact, voiceover=Path(args.voiceover) if args.voiceover else None,
@@ -152,6 +175,20 @@ def main(argv=None) -> int:
 
         import os
 
+        style = args.style or _project_style(project)
+        if style == "newsdoc":   # News Doc: its own footage-first edit (weather/newsdoc)
+            from .newsdoc.generate import generate_newsdoc_video
+
+            res = generate_newsdoc_video(project, Path(args.voiceover), Path(args.out), whisper_words=words, sound_design=not args.no_sound,
+                                         progress_cb=progress, pexels_api_key=args.pexels_key or os.environ.get("PEXELS_API_KEY", ""),
+                                         media_dir=project.work_dir / "media", fmt=_project_format(project), contact=args.contact or "",
+                                         log=print)
+            if not res.ok:
+                for e in res.errors:
+                    print(f"error: {e}")
+                return 1
+            print(f"wrote {args.out}")
+            return 0
         res = generate_forecast_video(project, Path(args.voiceover), Path(args.out), whisper_words=words, sound_design=not args.no_sound,
                                       progress_cb=progress, pexels_api_key=args.pexels_key or os.environ.get("PEXELS_API_KEY", ""),
                                       media_dir=project.work_dir / "media", edit_style=args.style or _project_style(project))

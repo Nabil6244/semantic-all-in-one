@@ -48,7 +48,7 @@ class AFullyBrokenLookingPlanStillWorks(unittest.TestCase):
         plan, rows, snap, payload = wgen.plan_layers(self.project, WORDS, 10.0, now=NOW, notes=notes)
         said = "\n".join(notes)
         self.assertEqual([b.id for b in plan.beats], ["b1", "b2", "b3"])           # b2's first words were wrong: it starts on its own words
-        self.assertTrue(any("b2" in n and "starts on" in n for n in notes))
+        self.assertTrue(any("lined up" in n for n in notes))                       # b2 starts where the recording says its words
         self.assertEqual(plan.beats[2].mode, "map")                                 # "mapp"
         by_id = {r.id: r for r in rows}
         self.assertEqual(by_id["sat"].until, "end")
@@ -113,3 +113,101 @@ class PlacesTheMapDoesNotKnow(unittest.TestCase):
         plan, _ = repair_beats(text, words, 6.0, notes)
         self.assertTrue(all(c.place == "California" for c in plan.beats[0].camera if c.place))
         self.assertTrue(any("Southern California" in n for n in notes))
+
+    def test_an_unknown_opening_place_never_loses_the_camera_start(self):
+        """'Southern Plains' on beat b1 (project #007, 2026-10-15) dropped the only camera start: 'the plan needs exactly one camera
+        'start''. With no earlier place, the opening uses the first state the story goes to (not a close-up's coordinates)."""
+        from hybrid.plan import validate_plan
+        from weather.autofix import repair_beats
+
+        head = "beat,row,vo_anchor,mode,type,id,place,frame,label,sub,text,role,kind,value_from,value_to,format,anchor,until,hold,asset,dur,why\n"
+        text = (head + 'b1,beat,Storms are unfolding,map,push_in,,Southern Plains,region,,,"Storms are unfolding across the plains.",,,,,,,,,,,open\n'
+                'b2,beat,A warning near,map,push_in,,"30.89,-102.88",local,,,"A warning near the town.",,,,,,,,,,,zoom\n'
+                'b3,beat,Over in Texas,map,push_in,,Texas,region,,,"Over in Texas it rained.",,,,,,,,,,,wide\n')
+        said = "Storms are unfolding across the plains. A warning near the town. Over in Texas it rained."
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate(said.split())]
+        notes = []
+        plan, _ = repair_beats(text, words, 9.0, notes)
+        self.assertEqual(validate_plan(plan), [])
+        start = [c for b in plan.beats for c in b.camera if c.action == "start"]
+        self.assertEqual([c.place for c in start], ["Texas"])
+        self.assertTrue(any("Southern Plains" in n and "'Texas'" in n for n in notes))
+
+
+class PlaceLabelsNeverPileUp(unittest.TestCase):
+    """48 place labels in project #005 piled up on one coast: at most 2 a beat."""
+
+    def test_third_label_in_a_beat_is_left_out(self):
+        from weather.autofix import repair_layers
+
+        text = "beat,vo_anchor,t,id,type,place,data_source,hold,until,extra\n" + "".join(
+            f'b1,good morning,,l{k},place_label,"{c}",,,,\n' for k, c in enumerate(["Dallas, TX", "Houston, TX", "Dallas, TX"]))
+        notes = []
+        rows = repair_layers(text, notes)
+        self.assertEqual([r.id for r in rows], ["l0", "l1"])
+        self.assertTrue(any("pile up" in n for n in notes))
+
+
+class TheVoiceoverIsTranscribedOnce(unittest.TestCase):
+    """A restart used to transcribe a 15-minute voiceover again (minutes): the transcript is saved in the project."""
+
+    def test_second_call_uses_the_saved_transcript(self):
+        from weather.app_section import voiceover_words
+
+        class App:
+            calls = 0
+
+            def _pakmap_get_words(self, vo, model, state, log):
+                App.calls += 1
+                return [("hello", 0.0, 0.4), ("there", 0.5, 0.9)]
+
+        with tempfile.TemporaryDirectory() as d:
+            p = wgen.WeatherProject(Path(d) / "weather")
+            vo = Path(d) / "vo.mp3"
+            vo.write_bytes(b"x")
+            log = []
+            first = voiceover_words(App(), p, vo, "small", None, log.append)
+            again = voiceover_words(App(), p, vo, "small", None, log.append)
+            self.assertEqual(first, again)
+            self.assertEqual(App.calls, 1)
+            vo.write_bytes(b"re-recorded")
+            voiceover_words(App(), p, vo, "small", None, log.append)
+            self.assertEqual(App.calls, 2)
+
+
+class NoStockClipShownTwice(unittest.TestCase):
+    """Project #006 (2026-10-15) asked for "concrete dam" 7 times: every repeat now asks for another framing of it."""
+
+    def test_repeats_get_other_framings(self):
+        from hybrid.plan import Beat, Clip, HybridPlan
+        from weather.motion import vary_repeats
+
+        beats = [Beat(id=f"b{i}", mode="footage", start=i * 5.0, end=i * 5.0 + 5, clips=[Clip(asset="stock_video:concrete dam")])
+                 for i in range(4)]
+        beats.append(Beat(id="b9", mode="footage", start=20.0, end=25.0, clips=[Clip(asset="weather/clips/a.mp4")]))
+        plan = HybridPlan(duration=25.0, beats=beats)
+        notes = []
+        self.assertEqual(vary_repeats(plan, notes), 3)
+        assets = [b.clips[0].asset for b in plan.beats]
+        self.assertEqual(assets[:4], ["stock_video:concrete dam", "stock_video:concrete dam, close up",
+                                      "stock_video:concrete dam, wide shot", "stock_video:concrete dam, aerial view"])
+        self.assertEqual(assets[4], "weather/clips/a.mp4")
+        self.assertTrue(any("shown twice" in n for n in notes))
+
+
+class TheMapAlwaysHasAnOpeningCamera(unittest.TestCase):
+    """Project #007 (2026-10-15): the opening camera's place was unknown and was left out, and the video stopped with "the plan
+    needs exactly one camera 'start'". Now the map opens somewhere it knows."""
+
+    def test_unknown_opening_place_still_opens_the_map(self):
+        from hybrid.plan import Beat, CameraStep, HybridPlan
+        from weather.autofix import fix_places
+
+        plan = HybridPlan(duration=10.0, beats=[Beat(id="b1", mode="map", start=0.0, end=10.0,
+                                                     camera=[CameraStep(action="start", place="Nowhere Plains Zzz", frame="region")])])
+        notes = []
+        fix_places(plan, notes)
+        starts = [c for b in plan.beats for c in b.camera if c.action == "start"]
+        self.assertEqual(len(starts), 1)
+        self.assertTrue(any("opening camera" in n or "opens on" in n for n in notes))
+        self.assertEqual(HybridPlan.from_dict(plan.to_dict()).validate() if hasattr(HybridPlan, "validate") else [], [])

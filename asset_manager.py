@@ -470,6 +470,97 @@ class AssetManager:
             return None
         return self._result_from_complete_record(scene, record)
 
+    def _reuse_by_content(self, rows: List[SceneRow]) -> int:
+        """Files are kept by scene number, but PakMap, Hybrid Map, Weather and StarMap number their scenes by their order in the
+        plan: one clip added near the start moved every later number, and every later clip was fetched (or for Flow, paid for)
+        again although its file was on disk under its old number (project #006, 2026-10-15: 72 of 79). Before anything is fetched,
+        a scene whose own record no longer matches takes the file of any finished scene that asked for the same thing (the same
+        source and the same prompt or search, by the one reuse rule, asset_record_matches). A file that is needed somewhere else is
+        moved aside before its number is reused. Returns how many scenes were filled this way; never raises."""
+        try:
+            return self._reuse_by_content_unsafe(rows)
+        except Exception as exc:   # a reuse that cannot be done only means the scene is fetched as before
+            self.log(f"[ASSET] Reusing saved files by content skipped: {exc}")
+            return 0
+
+    def _reuse_by_content_unsafe(self, rows: List[SceneRow]) -> int:
+        import shutil
+
+        own = {AssetSource.LOCAL, AssetSource.MANUAL}
+        wanted: List[Tuple[SceneRow, AssetSource]] = []
+        in_place = set()   # numbers whose own file is still the right one
+        for scene in rows:
+            scene = self._apply_requested_provider(scene)
+            source = self.classify(scene)
+            if source in own or self._cache_hit(scene, source) is not None:
+                in_place.add(scene_key(scene.scene_number))
+            else:
+                wanted.append((scene, source))
+        if not wanted:
+            return 0
+        records = self.manifest.all()
+        donors: Dict[str, Tuple[dict, Path]] = {}
+        for key, rec in records.items():
+            if rec.get("status") != "complete" or rec.get("source") in (AssetSource.MANUAL.value, AssetSource.LOCAL.value):
+                continue
+            raw = rec.get("local_path")
+            path = Path(raw) if raw else None
+            if path is None or not path.is_file():
+                path = vg.find_image_for_scene(self.images_dir, key)
+            if path is not None and path.is_file():
+                donors[key] = (rec, path)
+        plan: List[Tuple[SceneRow, str]] = []
+        for scene, source in wanted:
+            me, best = scene_key(scene.scene_number), None
+            for key, (rec, _path) in donors.items():
+                if key == me or rec.get("source") != source.value or not asset_record_matches(rec, scene, source):
+                    continue
+                if best is None or (best in in_place and key not in in_place):   # prefer a file nobody uses at its number now
+                    best = key
+            if best is not None:
+                plan.append((scene, best))
+        if not plan:
+            return 0
+        here = self.images_dir.resolve()
+        targets = {scene_key(s.scene_number) for s, _ in plan}
+        aside = self.images_dir / ".reuse_tmp"
+        source_of: Dict[str, Path] = {}
+        left: Dict[str, int] = {}
+        for _scene, key in plan:
+            left[key] = left.get(key, 0) + 1
+            if key in source_of:
+                continue
+            path = donors[key][1]
+            if key in targets and path.parent.resolve() == here:   # its number is about to hold another file: move it aside first
+                aside.mkdir(exist_ok=True)
+                moved = aside / path.name
+                os.replace(path, moved)
+                path = moved
+            source_of[key] = path
+        for scene, key in plan:
+            rec, src = donors[key][0], source_of[key]
+            target = self.images_dir / f"{int(str(scene.scene_number).strip()):03d}{src.suffix.lower()}"
+            if target.exists():
+                target.unlink()   # what this number held was asked for by nobody now (or was moved aside above)
+            left[key] -= 1
+            if left[key] == 0 and src.parent == aside:
+                os.replace(src, target)
+            else:
+                shutil.copy2(src, target)
+            self._remove_stale_file(scene.scene_number, keep=target)
+            prior = records.get(scene_key(scene.scene_number)) or {}
+            record = {k: v for k, v in rec.items() if k not in ("coverage_plan", "requested_provider", "requested_prompt")}
+            record.update(local_path=str(target), script_segment=scene.script_segment, reused_from=key)
+            for k in ("requested_provider", "requested_prompt"):
+                if prior.get(k):
+                    record[k] = prior[k]
+            self._manifest_write(scene, record)
+            self.log(f"[ASSET] Scene {scene.scene_number} -> the same {rec.get('source')} as saved scene {int(key)} "
+                     f"({target.name}): reused, nothing fetched")
+        with contextlib.suppress(OSError):
+            aside.rmdir()
+        return len(plan)
+
     def _record_from_result(self, scene: SceneRow, result: AssetResult) -> dict:
         record = {
             "source": result.source.value,
@@ -1798,6 +1889,7 @@ class AssetManager:
         if errors:
             raise AssetError("validation", "; ".join(errors))
         self.reset_cancel()
+        self._reuse_by_content(rows)   # a scene that only changed its number takes its saved file (nothing fetched twice)
         on_scene_start, on_scene_generating, on_scene_complete = self._tracked_callbacks(
             on_scene_start, on_scene_generating, on_scene_complete)
         if max_parallel is not None:

@@ -12,6 +12,8 @@ Every graphic not added has a reason in `skipped`."""
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -261,6 +263,7 @@ class Planner:
             else:
                 self._place(spec)
         self._repeats()
+        self._other_storms()
         self._fill_long_beats()
         self._source_lines()
         return self.drafts
@@ -302,6 +305,27 @@ class Planner:
                     self.occ[seg.id].add(d.type)
                     self.drafts.append(d)
                 last = seg.start
+
+    def _other_storms(self) -> None:
+        """Every other storm the story names gets its own best track (on the first map beat that names it) and its statistics card
+        (on the next one, or the same beat when it is named once): a story about three storms shows three storms."""
+        for rec in getattr(self.ctx, "context_records", []):
+            if rec.year < 2008 and rec.basin != "AL":
+                continue
+            segs = [x for x in self.segments if x.mode in MAP_MODES and re.search(rf"\b{re.escape(rec.name.lower())}\b", x.text.lower())]
+            if not segs:
+                continue
+            slug = rec.id.lower()
+            stats = f"nhc:stats@{rec.id}" + ("" if rec.status == "ARCHIVE" else "#working")
+            for seg, (typ, src, extra, what) in zip(segs[:1] + segs[1:2] if len(segs) > 1 else segs * 2,
+                                                    [("storm_track", f"nhc:track@{rec.id}#best", {}, "path"),
+                                                     ("storm_stats", stats, {"anchor": "l"}, "statistics")]):
+                if self.occ[seg.id].room([typ]):
+                    continue
+                self.occ[seg.id].add(typ)
+                self.drafts.append(Draft("hurricane.best_track" if typ == "storm_track" else "hurricane.stats", f"auto_{typ}_{slug}", typ, src,
+                                         place=self.place_name(), extra=extra, beat=seg.id, vo_anchor=seg.anchor, kind="data",
+                                         why=f"the story names {rec.name.title()} ({rec.id}): its {what} from NHC"))
 
     def _fill_long_beats(self) -> None:
         """A long map beat with nothing on it gets a label on the county or city it names (the viewer always knows where they are)."""

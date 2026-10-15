@@ -38,6 +38,7 @@ class EventContext:
     storm_role: str = ""  # "primary" | "context"
     storm_note: str = ""
     context_storms: List[Tuple[str, str]] = field(default_factory=list)  # (name, note) storms named in passing
+    context_records: List[Any] = field(default_factory=list)  # their NHC records: each gets its own track and card
     landfalls: List[dict] = field(default_factory=list)
     peak: Optional[dict] = None
     focus: Optional[Tuple[float, float]] = None
@@ -114,7 +115,7 @@ def seg_day(u: Understanding, seg_ids: List[str], seg: str, event_year: Optional
     i = seg_ids.index(seg) if seg in seg_ids else len(seg_ids)
     best = None
     for d in u.dates:
-        if not d.day or (event_year and int(d.day[:4]) != event_year) or d.seg not in seg_ids:
+        if not d.day or getattr(d, "reference", False) or (event_year and int(d.day[:4]) != event_year) or d.seg not in seg_ids:
             continue
         j = seg_ids.index(d.seg)
         if j == i:
@@ -145,7 +146,8 @@ def resolve(u: Understanding, net, ev: Evidence, overrides: Dict[str, Any], seg_
         ctx.year = next(y for y in years if c[y] == top)
     elif recorded:
         ctx.year = recorded.year
-    ctx.days = list(dict.fromkeys(d.day for d in u.dates if d.day and (not ctx.year or int(d.day[:4]) == ctx.year)))
+    ctx.days = list(dict.fromkeys(d.day for d in u.dates if d.day and not getattr(d, "reference", False)
+                                  and (not ctx.year or int(d.day[:4]) == ctx.year)))
     if ov.get("day"):
         ctx.main_day = ov["day"]
     elif ctx.days:
@@ -205,7 +207,8 @@ def _resolve_storms(ctx: EventContext, u: Understanding, net, ev: Evidence, ov: 
             _storm_history(ctx, rec, net, ev)
         else:
             ctx.context_storms.append((rec.name.title(), note + f"; named {count} time(s) in a {ctx.category} story, so it is context, "
-                                       "not the subject (no storm graphics)"))
+                                       "not the subject: its own track and card where the story names it"))
+            ctx.context_records.append(rec)
             peak = storm_peak(rec, net, ev)
             called_hurricane = any(s.name == rec.name and s.kind.lower() == "hurricane" for s in u.storms)
             if called_hurricane and peak is not None and peak["wind_kt"] < 64:

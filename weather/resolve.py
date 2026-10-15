@@ -276,6 +276,41 @@ def prepare(rows: List[WxRow], client: Optional[NwsClient], *, now: Optional[dat
     return snap
 
 
+def prune_stale(snap: Snapshot, now: datetime, notes: List[str]) -> int:
+    """Generate's way (check_fresh stays the strict check): what is too old to show now is taken out of the snapshot, so the graphics
+    that need it are left out (weather.autofix.build) and the video is still made. An alert that has ended is not drawn; a forecast,
+    observation or map older than its limit is not shown. Each is a note. Returns how many items were taken out (project #005,
+    2026-10-14: two California alerts had ended and the whole video stopped)."""
+    from .layers import fresh_problems
+
+    gone: List[str] = []
+    for key in [k for k, f in snap.forecasts.items() if now - parse_iso(f["issued"]) > MAX_FORECAST_AGE]:
+        del snap.forecasts[key]
+        gone.append(f"the {key} forecast (too old)")
+    for key in [k for k, o in snap.observations.items() if now - parse_iso(o["issued"]) > MAX_OBS_AGE]:
+        del snap.observations[key]
+        gone.append(f"the {key} observation (too old)")
+    for area, a in snap.alerts.items():
+        live = [x for x in a.get("areas", []) if not ((x.get("ends") or x.get("expires")) and parse_iso(x.get("ends") or x["expires"]) <= now)]
+        ended = len(a.get("areas", [])) - len(live)
+        if ended:
+            a["areas"] = live
+            gone.append(f"{ended} {area} alert(s) that have ended")
+    for key in list(snap.extra):
+        alone = Snapshot(snap.prepared, extra={key: snap.extra[key]})
+        try:
+            stale = fresh_problems(alone, now)
+        except Exception:
+            stale = []
+        if stale:
+            del snap.extra[key]
+            gone.append("; ".join(stale))
+    if gone:
+        notes.append("weather data too old to show now was left out, with the graphics that need it: " + "; ".join(gone)
+                     + " (fetch the data again to show them, and re-record any line whose numbers changed)")
+    return len(gone)
+
+
 def check_fresh(snap: Snapshot, now: datetime, *, when: str = "render") -> None:
     """Raise StaleDataError naming every product that is too old (or expired) to build a video from now."""
     problems = []
