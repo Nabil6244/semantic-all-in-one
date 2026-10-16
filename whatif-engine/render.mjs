@@ -8,7 +8,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { createCutter } from './cutter.mjs';
+import { createCutter, resolveMedia } from './cutter.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
@@ -56,6 +56,13 @@ async function main() {
   const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
   spec.output = process.argv[3] || spec.output || path.join(path.dirname(path.resolve(specPath)), 'whatif.mp4');
   const { width, height, fps } = spec, total = Math.round(spec.duration * fps), specDir = path.dirname(path.resolve(specPath));
+  // a picture or clip that is not on disk: that shot is drawn as a plate (reported), never a stop
+  for (const s of spec.shots || []) {
+    if (['image', 'video'].includes(s.kind) && s.file && !fs.existsSync(resolveMedia(s.file, mediaDirOf(spec, specDir)))) {
+      emit({ event: 'warning', message: `shot ${s.id}: ${s.file} is not on disk; drawn as a plate` });
+      s.kind = 'plate';
+    }
+  }
   const cutter = createCutter({ spec, mediaDir: mediaDirOf(spec, specDir), ffmpeg: spec.ffmpeg || 'ffmpeg' });
   if (cutter.problems.length) { cutter.cleanup(); throw new Error(`footage: ${cutter.problems.join('; ')}`); }
   const server = await startServer(spec, specDir, cutter);
@@ -93,9 +100,16 @@ async function main() {
     let err = ''; ffmpeg.stderr.on('data', (d) => { err += d; });
     const closed = new Promise((resolve) => ffmpeg.on('close', (code) => resolve(code)));
     const t0 = Date.now();
+    let last = null, reused = 0;
     for (let i = 0; i < total; i++) {
       await cutter.ensure(i / fps);
-      const b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
+      let b64 = null;
+      for (let k = 0; k < 2 && b64 === null; k++) {
+        try { b64 = await page.evaluate((t) => window.renderFrame(t), i / fps); }
+        catch (e) { if (k === 1 && last === null) throw e; if (k === 1) emit({ event: 'warning', message: `frame ${i} could not be drawn (${String(e.message || e).slice(0, 200)}); the frame before it is used` }); }
+      }
+      if (b64 === null) { b64 = last; reused++; }
+      last = b64;
       if (!ffmpeg.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => ffmpeg.stdin.once('drain', r));
       if (i % 30 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total, ms_per_frame: Math.round((Date.now() - t0) / (i + 1)) });
     }
@@ -103,6 +117,10 @@ async function main() {
     const code = await closed;
     if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${err.trim().slice(-500)}`);
     if (pageErrors.length) emit({ event: 'warning', message: pageErrors.slice(0, 3).join(' | ') });
+    const repairs = await page.evaluate(() => (window.__whatif && window.__whatif.warnings) || []).catch(() => []);
+    for (const m of repairs.slice(0, 40)) emit({ event: 'warning', message: m });
+    if (reused) emit({ event: 'warning', message: `${reused} frame(s) repeated the frame before them` });
+    for (const m of cutter.problems) emit({ event: 'warning', message: `${m}; that shot was drawn as a plate` });
     emit({ event: 'done', output: spec.output, frames: total, seconds: Math.round((Date.now() - t0) / 100) / 10 });
   } finally {
     if (ffmpeg && ffmpeg.exitCode === null) { try { ffmpeg.stdin.destroy(); ffmpeg.kill('SIGKILL'); } catch { /* gone */ } }

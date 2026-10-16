@@ -29,6 +29,32 @@ export function validateShots(spec) {
   return problems;
 }
 
+/** Repair a spec's shots in place so the page never stops on them: -> notes. Unknown kinds and shots missing what they need become plates;
+ *  a shot with no length is dropped; overlaps are trimmed; gaps are closed by the shot before; no shot at all -> one plate. */
+export function sanitizeShots(spec) {
+  const notes = [], out = [];
+  for (const [i, s] of (spec.shots || []).entries()) {
+    const id = s.id || `#${i}`;
+    if (!Number.isFinite(s.start) || !Number.isFinite(s.end) || !(s.end > s.start)) { notes.push(`shot ${id}: no length; left out`); continue; }
+    const why = !KINDS.includes(s.kind) ? `unknown kind ${s.kind}` : ['image', 'video'].includes(s.kind) && !s.file ? `${s.kind} without a file`
+      : s.kind === 'craft' && !s.model ? 'craft without a model' : s.kind === 'globe' && !s.texture ? 'globe without a texture'
+        : s.kind === 'hero' && !HERO_SCENES.includes(s.scene) ? `unknown hero scene ${s.scene}` : null;
+    if (why) { notes.push(`shot ${id}: ${why}; drawn as a plate`); s.kind = 'plate'; }
+    out.push(s);
+  }
+  out.sort((a, b) => a.start - b.start);
+  for (let i = 1; i < out.length; i++) {
+    if (out[i].start < out[i - 1].end) { out[i - 1].end = out[i].start; }
+    else if (out[i].start > out[i - 1].end + 1e-6) out[i - 1].end = out[i].start;
+  }
+  const kept = out.filter((s) => s.end > s.start + 1e-6);
+  if (!kept.length) { kept.push({ id: 'plate', start: 0, end: Math.max(1, spec.duration || 1), kind: 'plate' }); notes.push('no shot could be drawn; one plate for the whole video'); }
+  if (kept[0].start > 0) kept[0].start = 0;
+  if (spec.duration && kept[kept.length - 1].end < spec.duration) kept[kept.length - 1].end = spec.duration;
+  spec.shots = kept;
+  return notes;
+}
+
 export const shotAt = (shots, t) => {
   let lo = 0, hi = shots.length - 1, hit = null;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (t < shots[m].start) hi = m - 1; else if (t >= shots[m].end) lo = m + 1; else { hit = shots[m]; break; } }

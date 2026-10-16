@@ -753,5 +753,75 @@ class Templates(unittest.TestCase):
         self.assertTrue(any(s.endswith(os.path.join("lib", "blackhole.mjs")) for s in shipped))
 
 
+class NeverStops(unittest.TestCase):
+    """A bad shot CSV is repaired or its bad rows left out (whatif/heal.py); it never stops Generate (whatif/stress.py: 0 of 1,200)."""
+
+    def test_common_ai_mistakes_are_repaired(self):
+        from whatif.heal import heal
+        text = ("row;shot;vo_anchor;kind;asset;model;texture;label;sub;text;type;id;value_from;value_to;format;anchor;until;hold;why;extra;t;end\n"
+                "plan;;;;;;;T;;;;;;;;;;;;;;\n"
+                "Scene;1;The nearest star;photo;nasa:Alpha Centauri;;;;;;;;;;;;;;;;;\n"
+                "layer;1;hours on Earth;;;;;;;;visual;two_clock_ratio;2;100 hours;;;;;;{'tint': 'warm'};;\n"
+                "shot;2;But a light-year;scene;;black_hole_disc;;;;;;;;;;;;;;;;\n")
+        healed, notes = heal(text)
+        rows = list(__import__("csv").reader(__import__("io").StringIO(healed)))
+        self.assertEqual([r[0] for r in rows[1:]], ["plan", "shot", "layer", "shot"])
+        self.assertEqual(rows[2][3:5], ["image", "nasa_image:Alpha Centauri"])
+        self.assertEqual((rows[3][10], rows[3][11], rows[3][13]), ("template", "two_clocks_ratio", "100"))
+        self.assertEqual(json.loads(rows[3][19]), {"tint": "warm"})
+        self.assertEqual((rows[4][3], rows[4][5]), ("hero", "blackhole_disc"))
+        self.assertTrue(any("semicolons" in n for n in notes))
+
+    def test_bad_rows_are_left_out_and_the_rest_is_used(self):
+        from whatif.app_integration import plan_from
+        script = "The nearest star is far away. But a light-year is enormous. Nothing we built is that fast at all, not even close to it."
+        raw = timed(script)
+        text = ("row,shot,vo_anchor,kind,asset,label,type,id,text,extra\n"
+                "plan,,,,,,,,,\n"
+                "shot,1,The nearest star,image,nasa_image:Alpha Centauri,,,,,\n"
+                "layer,1,far away,,,,diagram,compare,ONLY ONE SIDE=1,\n"
+                "layer,1,far away,,,,sparkle,,,\n"
+                "shot,2,But a light-year,image,flow_image:a dark gulf,,,,,\n"
+                "shot,3,Nothing we built,craft,,,,,,\n")
+        p = plan_from(raw, script, raw[-1][2] + 1, "", text)
+        self.assertGreaterEqual(len([s for s in p.shots if s.kind in ("image", "video")]), 2)
+        self.assertTrue(any("left out" in n for n in p.notes), p.notes)
+
+    def test_a_csv_with_no_usable_shot_falls_back_to_the_narration(self):
+        from whatif.app_integration import plan_from
+        script = "The nearest star is far away from us. But a light-year is enormous and nothing we built is that fast."
+        raw = timed(script)
+        for text in ("", "hello world", "row,shot\nlayer,1\n", "\ufeffrow,kind\nshot,photo\n"):
+            p = plan_from(raw, script, raw[-1][2] + 1, "", text)
+            self.assertTrue(p.shots)
+
+    def test_stress_sample_never_stops(self):
+        from whatif import stress
+        base = stress.journey_base()
+        with __import__("tempfile").TemporaryDirectory() as tmp:
+            for seed in range(40):
+                r = stress.run_one((base, seed, tmp))
+                self.assertIsNone(r["stop"], (seed, r["what"], r["stop"]))
+
+    def test_any_saved_encoding_and_layout_is_accepted(self):
+        from whatif.heal import looks_usable, read_text
+        import tempfile
+        text = "row;shot;vo_anchor;kind;asset;label\nplan;;;;;Café\nshot;1;The nearest star;photo;nasa:Alpha Centauri;CAFÉ\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "shots.csv"
+            p.write_bytes(text.encode("cp1252"))
+            back = read_text(p)
+        self.assertIn("CAFÉ", back)
+        self.assertTrue(looks_usable(back))
+        self.assertFalse(looks_usable("hello world"))
+
+    def test_non_finite_numbers_never_reach_the_renderer(self):
+        from whatif.heal import _number
+        for bad in ("nan", "inf", "1e400", "-inf"):
+            self.assertEqual(_number(bad)[0], "")
+        self.assertEqual(_number("1,200")[0], "1200")
+        self.assertEqual(_number("4.2 km"), ("4.2", False))
+
+
 if __name__ == "__main__":
     unittest.main()

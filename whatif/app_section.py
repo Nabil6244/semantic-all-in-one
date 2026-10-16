@@ -344,15 +344,15 @@ def browse(app) -> None:
 
 
 def load_csv(app, path: str) -> bool:
-    from .shot_csv import is_whatif_csv
+    from .heal import looks_usable, read_text
 
     M = _m(app)
     try:
-        text = Path(path).read_text(encoding="utf-8")
+        text = read_text(path)
     except OSError as exc:
         M.messagebox.showerror("Cannot read CSV", str(exc))
         return False
-    if not is_whatif_csv(text):
+    if not looks_usable(text):          # a semicolon CSV, no header, typos: accepted and repaired at Generate (whatif/heal.py)
         M.messagebox.showerror("Not a What If shot CSV", "The first row must be the What If header (row,shot,vo_anchor,kind,asset,...).\n\n"
                                                          "Use Copy the CSV prompt to have an AI write one.")
         return False
@@ -427,7 +427,9 @@ def check_plan(app) -> None:
 
             words = app._pakmap_get_words(voiceover, model, state_dir, log)
             dur = voiceover_duration(voiceover)
-            csv_text = p.read_text(encoding="utf-8") if p else ""
+            from .heal import read_text
+
+            csv_text = read_text(p) if p else ""
             text, ok = check_text(words, script, dur, title, csv_text, flow_video=video)
             if ok:
                 plan = plan_from(words, script, dur, title, csv_text, flow_video=video)

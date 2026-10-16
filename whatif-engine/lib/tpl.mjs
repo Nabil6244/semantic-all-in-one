@@ -30,10 +30,13 @@ function lookup(vars, path) {
 /** Replace {name} in every string of a JSON value. A string that is exactly "{name}" takes the raw value. */
 export function fill(x, vars) {
   if (typeof x === 'string') {
+    // only the template's own strings may be formulas: a CSV value that starts with "=" ("= 1 HOUR") is shown as written
+    const guard = (v) => (typeof v === 'string' && v.startsWith('=') ? `\u2060${v}` : v);
     const whole = x.match(/^\{([a-zA-Z_][\w.]*)\}$/);
-    if (whole) { const v = lookup(vars, whole[1]); return v === undefined ? x : v; }
+    if (whole) { const v = lookup(vars, whole[1]); return v === undefined ? x : guard(v); }
     const formula = x.startsWith('=');      // a negative number in a formula is bracketed: "0.5-{it}" with -0.26 must not become "0.5--0.26"
-    return x.replace(SLOT_RE, (m, k) => { const v = lookup(vars, k); return v === undefined || v === null ? m : (typeof v === 'object' ? JSON.stringify(v) : formula && typeof v === 'number' ? `(${v})` : String(v)); });
+    const r = x.replace(SLOT_RE, (m, k) => { const v = lookup(vars, k); return v === undefined || v === null ? m : (typeof v === 'object' ? JSON.stringify(v) : formula && typeof v === 'number' ? `(${v})` : String(v)); });
+    return formula ? r : guard(r);
   }
   if (Array.isArray(x)) return x.map((e) => fill(e, vars));
   if (x && typeof x === 'object') { const o = {}; for (const [k, v] of Object.entries(x)) o[k] = k === 'each' ? v : fill(v, vars); return o; }

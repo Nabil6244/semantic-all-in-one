@@ -297,10 +297,11 @@ def _f(r: Dict[str, str], col: str) -> Optional[float]:
         raise ValueError(f"{col} must be a number (got {v!r})") from None
 
 
-def layers_from_rows(layer_rows: List[Tuple[Any, str, Any]], shots: List[Shot], words: Sequence[Any] = (), script: str = "") -> Tuple[List[Dict[str, Any]], List[Shot]]:
+def layers_from_rows(layer_rows: List[Tuple[Any, str, Any]], shots: List[Shot], words: Sequence[Any] = (), script: str = "",
+                    notes: Optional[List[str]] = None) -> Tuple[List[Dict[str, Any]], List[Shot]]:
     """Layer rows -> engine layers; a diagram row also brings its plate shot (carved into the timeline by the planner). A row whose
     words the anchor clock could not hear (a decimal the transcript split, a "percent" it dropped) is found again on the
-    script-aligned narration."""
+    script-aligned narration. With `notes`, a row that cannot be drawn is left out and named there instead of stopping the plan."""
     from . import narration as nr
 
     aligned = nr.words_of(words, script) if words else []
@@ -309,39 +310,46 @@ def layers_from_rows(layer_rows: List[Tuple[Any, str, Any]], shots: List[Shot], 
     layers: List[Dict[str, Any]] = []
     plates: List[Shot] = []
     for it, sid, end in layer_rows:
-        sh = by_id[sid]
-        if it.t is None and it.vo_anchor and aligned:
-            it.t = nr.find_anchor(aligned, it.vo_anchor, sh.start - 0.5, sh.end + 0.5)
-        start = it.t if it.t is not None else sh.start
-        stop = end or min(sh.end, start + (it.hold if it.hold else (5.5 if it.type == "diagram" else 3.5)))
-        timing = {"start": round(start, 3), "end": round(stop, 3)}
-        if it.type == "caption":
-            layers.append({"type": "tm_caption", "text": (it.label or it.text).upper(), **({"sub": it.sub.upper()} if it.sub else {}),
-                           "kicker": it.extra.get("kicker", ""), "size": it.extra.get("size", "small"), **timing, "fade_in": 0.05, "fade_out": 0.3, "z": 5})
-        elif it.type == "title":
-            layers.append({**nr._title_lines(it.label or it.text), **({"sub": it.sub} if it.sub else {}), "type": "tm_title", **timing,
-                           "fade_in": 0.05, "fade_out": 0.3, "z": 6})
-        elif it.type == "annotate":            # a ring and a label on the picture: extra {"x": 0.73, "y": 0.36, "r": 0.027}
-            if it.extra.get("x") is None or it.extra.get("y") is None:
-                raise ValueError("an annotate row needs extra {\"x\": ..., \"y\": ...} (fractions of the frame)")
-            layers.append({"type": "tm_annotate", "x": float(it.extra["x"]), "y": float(it.extra["y"]), "r": float(it.extra.get("r", 0.027)),
-                           "label": it.label or it.text, "sub": it.sub, **timing, "fade_in": 0.1, "fade_out": 0.3, "z": 6})
-        elif it.type == "fade":
-            layers.append({"type": "tm_fade", **timing, "fade_in": 0.6, "fade_out": 0.5, "z": 20})
-        elif it.type == "template":          # any visual of the template library (whatif/templates.py); a plate template brings its plate
-            from . import templates as tpl
-            L, pl = tpl.layer_for(it, start, end, aligned or words)
-            layers.append(L)
-            if pl:
-                plates.append(Shot(id="", start=L["start"], end=L["end"], kind="plate", tint=pl["tint"], cite=pl["cite"], asset=pl["asset"]))
-        else:
-            made = nr.layers_from_row(it, start, stop)
-            for L in made:
-                if L["type"] == "tm_plate":
-                    plates.append(Shot(id="", start=start, end=stop, kind="plate", tint=L.get("tint", "cool"), title=L.get("title", ""), sub=L.get("sub", ""),
-                                       cite=tuple(L.get("cite") or ("DIAGRAM", "")), asset=str(L.get("asset", ""))))
-                else:
-                    layers.append(L)
+        n_layers, n_plates = len(layers), len(plates)
+        try:
+            sh = by_id[sid]
+            if it.t is None and it.vo_anchor and aligned:
+                it.t = nr.find_anchor(aligned, it.vo_anchor, sh.start - 0.5, sh.end + 0.5)
+            start = it.t if it.t is not None else sh.start
+            stop = end or min(sh.end, start + (it.hold if it.hold else (5.5 if it.type == "diagram" else 3.5)))
+            timing = {"start": round(start, 3), "end": round(stop, 3)}
+            if it.type == "caption":
+                layers.append({"type": "tm_caption", "text": (it.label or it.text).upper(), **({"sub": it.sub.upper()} if it.sub else {}),
+                               "kicker": it.extra.get("kicker", ""), "size": it.extra.get("size", "small"), **timing, "fade_in": 0.05, "fade_out": 0.3, "z": 5})
+            elif it.type == "title":
+                layers.append({**nr._title_lines(it.label or it.text), **({"sub": it.sub} if it.sub else {}), "type": "tm_title", **timing,
+                               "fade_in": 0.05, "fade_out": 0.3, "z": 6})
+            elif it.type == "annotate":            # a ring and a label on the picture: extra {"x": 0.73, "y": 0.36, "r": 0.027}
+                if it.extra.get("x") is None or it.extra.get("y") is None:
+                    raise ValueError("an annotate row needs extra {\"x\": ..., \"y\": ...} (fractions of the frame)")
+                layers.append({"type": "tm_annotate", "x": float(it.extra["x"]), "y": float(it.extra["y"]), "r": float(it.extra.get("r", 0.027)),
+                               "label": it.label or it.text, "sub": it.sub, **timing, "fade_in": 0.1, "fade_out": 0.3, "z": 6})
+            elif it.type == "fade":
+                layers.append({"type": "tm_fade", **timing, "fade_in": 0.6, "fade_out": 0.5, "z": 20})
+            elif it.type == "template":          # any visual of the template library (whatif/templates.py); a plate template brings its plate
+                from . import templates as tpl
+                L, pl = tpl.layer_for(it, start, end, aligned or words)
+                layers.append(L)
+                if pl:
+                    plates.append(Shot(id="", start=L["start"], end=L["end"], kind="plate", tint=pl["tint"], cite=pl["cite"], asset=pl["asset"]))
+            else:
+                made = nr.layers_from_row(it, start, stop)
+                for L in made:
+                    if L["type"] == "tm_plate":
+                        plates.append(Shot(id="", start=start, end=stop, kind="plate", tint=L.get("tint", "cool"), title=L.get("title", ""), sub=L.get("sub", ""),
+                                           cite=tuple(L.get("cite") or ("DIAGRAM", "")), asset=str(L.get("asset", ""))))
+                    else:
+                        layers.append(L)
+        except Exception as exc:          # noqa: BLE001 -- one row never stops the video
+            if notes is None:
+                raise
+            del layers[n_layers:], plates[n_plates:]
+            notes.append(f"row {it.row}: {exc}; left out")
     return _merge_missions(layers), plates
 
 

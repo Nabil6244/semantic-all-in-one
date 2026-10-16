@@ -45,6 +45,27 @@ def _lockup(s: Shot) -> Optional[Dict[str, Any]]:
             "end": round(s.end - 0.2, 3), "fade_in": 0.1, "fade_out": 0.3, "z": 5}
 
 
+def _finite(v: Any) -> bool:
+    if isinstance(v, float):
+        return v == v and abs(v) != float("inf")
+    if isinstance(v, dict):
+        return all(_finite(x) for x in v.values())
+    if isinstance(v, (list, tuple)):
+        return all(_finite(x) for x in v)
+    return True
+
+
+def _finite_layers(layers: List[Dict[str, Any]], notes: List[str]) -> List[Dict[str, Any]]:
+    """A layer carrying NaN / infinity (a broken number from a CSV) cannot be written as JSON for the renderer: it is left out."""
+    out = []
+    for L in layers:
+        if _finite(L):
+            out.append(L)
+        else:
+            notes.append(f"a {L.get('type', 'layer')} graphic had a broken number and was left out")
+    return out
+
+
 def citation(shots: List[Shot]) -> Dict[str, Any]:
     segs = []
     for s in shots:
@@ -176,6 +197,7 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
             if v.lower().startswith("file:") and Path(v.split(":", 1)[1].strip()).is_file():
                 L["slots"][L["image_slot"]] = place(v.split(":", 1)[1].strip())
     layers.append(citation(shots))
+    layers = _finite_layers(layers, notes)
     spec = {"width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3), "look": dict(LOOK), "shots": out_shots,
             "layers": layers, "whatif": {"title": title or plan.title, "notes": notes}}
     if media_dir is not None:

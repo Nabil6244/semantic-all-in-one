@@ -32,18 +32,24 @@ export function createRegistry() {
     get: (type) => types.get(type),
     types: () => [...types.keys()].sort(),
     /** spec.layers -> live layers (in draw order). Unknown types fail loudly, naming the layer. */
-    async instantiate(defs, ctx) {
+    /** opts.lenient: a layer that cannot be made (unknown type, bad data) is left out and reported to opts.warn instead of stopping. */
+    async instantiate(defs, ctx, opts = {}) {
       const out = [];
       const byId = new Map();
       ctx.layer = (id) => { const L = byId.get(id); if (!L) throw new Error(`no layer with id ${id}`); return L.inst; };
       for (const [i, def] of (defs || []).entries()) {
-        const impl = types.get(def.type);
-        if (!impl) throw new Error(`layer ${def.id || i}: unknown type "${def.type}" (known: ${[...types.keys()].sort().join(', ')})`);
-        if (def.id && byId.has(def.id)) throw new Error(`layer id ${def.id} is used twice`);
-        const L = { def, impl, order: i, inst: null };
-        L.inst = await impl.create(def, ctx);
-        if (def.id) byId.set(def.id, L);
-        out.push(L);
+        try {
+          const impl = types.get(def.type);
+          if (!impl) throw new Error(`layer ${def.id || i}: unknown type "${def.type}" (known: ${[...types.keys()].sort().join(', ')})`);
+          if (def.id && byId.has(def.id)) throw new Error(`layer id ${def.id} is used twice`);
+          const L = { def, impl, order: i, inst: null };
+          L.inst = await impl.create(def, ctx);
+          if (def.id) byId.set(def.id, L);
+          out.push(L);
+        } catch (e) {
+          if (!opts.lenient) throw e;
+          (opts.warn || (() => {}))(`layer ${def.id || i} (${def.type}) left out: ${e.message}`);
+        }
       }
       const rank = (L) => (L.impl.space === 'world' ? 0 : 1e6) + (L.def.z ?? 0) * 1e3 + L.order;
       return out.sort((a, b) => rank(a) - rank(b));
@@ -52,12 +58,23 @@ export function createRegistry() {
 }
 
 /** Run one phase ("update" before the 3D render, "draw" after it) of every layer for this frame. */
-export function runLayers(layers, frame, phase, only = null) {
+export function runLayers(layers, frame, phase, only = null, warn = null) {
   for (const L of layers) {
-    if (!L.impl[phase] || (only && !only(L))) continue;
+    if (L.broken || !L.impl[phase] || (only && !only(L))) continue;
     const alpha = opacityAt(L.def, frame.t) * (L.def.opacity ?? 1);
     if (phase === 'draw' && alpha <= 0.002) continue;
-    L.impl[phase](L.inst, { ...frame, alpha, def: L.def });
+    if (!warn) { L.impl[phase](L.inst, { ...frame, alpha, def: L.def }); continue; }
+    const g = frame.g;
+    try {
+      g && g.save();
+      L.impl[phase](L.inst, { ...frame, alpha, def: L.def });
+    } catch (e) {
+      // a layer that throws is switched off for the rest of the video: one broken graphic never stops the render
+      L.broken = true;
+      warn(`layer ${L.def.id || L.def.type} switched off at ${frame.t.toFixed(2)} s: ${e.message}`);
+    } finally {
+      if (g) { g.restore(); g.globalAlpha = 1; g.filter = 'none'; g.setLineDash && g.setLineDash([]); }
+    }
   }
 }
 

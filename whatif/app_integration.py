@@ -34,24 +34,39 @@ def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> No
 
 
 def plan_from(words: Sequence[Any], script: str, duration: float, title: str = "", csv_text: str = "", *, flow_video: "bool | str" = "both") -> planner.ShotPlan:
-    """The shot plan: from the shot CSV as written when there is one, else built from the narration alone."""
-    if csv_text and csv_text.strip() and is_whatif_csv(csv_text):
-        shots, rows, info, notes = read_shots(csv_text, words, duration)
-        layers, plates = layers_from_rows(rows, shots, words, script)
-        p = planner.plan(words, script, duration, info.get("title") or title, shots=shots, extra_layers=layers, extra_plates=plates, auto=info.get("auto", True),
-                         flow_video=flow_video)
-        p.notes = notes + p.notes
-        return p
+    """The shot plan: from the shot CSV when there is one (repaired in memory first, whatif/heal.py: a bad row is fixed or left out,
+    never a stop), else built from the narration alone. A CSV that yields no usable shot at all falls back to the narration."""
+    if csv_text and csv_text.strip():
+        from .heal import read_healed
+
+        notes: List[str] = []
+        try:
+            shots, rows, info, notes = read_healed(csv_text, words, duration)
+            layers, plates = layers_from_rows(rows, shots, words, script, notes=notes)
+            p = planner.plan(words, script, duration, info.get("title") or title, shots=shots, extra_layers=layers, extra_plates=plates,
+                             auto=info.get("auto", True), flow_video=flow_video)
+            p.notes = notes + p.notes
+            return p
+        except Exception as exc:          # noqa: BLE001 -- the narration alone still makes a video
+            why = "; ".join(exc.problems[:3]) if isinstance(exc, PlanError) else repr(exc)
+            p = planner.plan(words, script, duration, title, flow_video=flow_video)
+            p.notes = notes + [f"the shot CSV could not be used ({why}); the shots were planned from the narration instead"] + p.notes
+            return p
     return planner.plan(words, script, duration, title, flow_video=flow_video)
 
 
 def check_text(words: Sequence[Any], script: str, duration: float, title: str = "", csv_text: str = "", *, flow_video: "bool | str" = "both") -> "tuple[str, bool]":
+    # the dry run (whatif/preflight.py): plan with the CSV repaired in memory, compile, and the renderer's own checks -- what Generate would
+    # repair is listed; only a real stop makes the check fail
+    from .preflight import dry_run
+
     try:
-        p = plan_from(words, script, duration, title, csv_text, flow_video=flow_video)
-    except PlanError as exc:
-        return "\n".join(f"ERROR {x}" for x in exc.problems), False
+        dr = dry_run(words, script, duration, title, csv_text, flow_video=flow_video)
     except Exception as exc:
         return f"The plan could not be checked: {exc!r}", False
+    if not dr.ok or dr.plan is None:
+        return "\n".join(f"ERROR {x}" for x in dr.stops), False
+    p = dr.plan
     rep = planner.report(p)
     lines = [f"{len(p.shots)} shots, median {rep['median_shot_s']} s, {rep['hard_cuts_per_min']} cuts/min, "
              f"{rep['visual_changes_per_min']} visual changes/min (longest gap {rep['max_gap_between_changes_s']} s), "
@@ -59,6 +74,7 @@ def check_text(words: Sequence[Any], script: str, duration: float, title: str = 
     if rep["cuts_inside_speech"]:
         lines.append(f"WARNING: {rep['cuts_inside_speech']} cut(s) land inside speech")
     lines += [f"note: {n}" for n in p.notes]
+    lines += [f"repaired: {r}" for r in dr.repairs if r.startswith("renderer:")]
     span = lambda t: f"{int(t // 60)}:{int(t % 60):02d}"      # noqa: E731
     for s in p.shots:
         what = s.model or s.texture or s.asset or s.title or ""
@@ -131,7 +147,12 @@ def generate_whatif_video(
     duration = voiceover_duration(voiceover_path)
     csv_text = ""
     if csv_path and Path(csv_path).is_file():
-        csv_text = Path(csv_path).read_text(encoding="utf-8")
+        from .heal import read_text
+
+        try:
+            csv_text = read_text(csv_path)
+        except OSError as exc:
+            log(f"[What If] the shot CSV could not be read ({exc}); the shots are planned from the narration")
     try:
         p = plan_from(whisper_words, script, duration, title, csv_text, flow_video=flow_video)
     except PlanError as exc:
@@ -181,11 +202,24 @@ def generate_whatif_video(
 
         shutil.rmtree(media_dir, ignore_errors=True)
     scale = 2 if int(pixel_scale or 1) >= 2 else 1
-    spec = wc.compile_spec(p, width=1920 * scale, height=1080 * scale, fps=fps, media_dir=media_dir, title=title)
+    try:
+        spec = wc.compile_spec(p, width=1920 * scale, height=1080 * scale, fps=fps, media_dir=media_dir, title=title)
+    except Exception as exc:      # noqa: BLE001 -- a layer the compiler cannot place is left out, never the video
+        log(f"[What If] compiling the plan hit {exc!r}; compiling again without the extra graphics")
+        p.layers = [L for L in p.layers if L.get("type") in ("tm_caption", "tm_title", "tm_metric")]
+        spec = wc.compile_spec(p, width=1920 * scale, height=1080 * scale, fps=fps, media_dir=media_dir, title=title)
     for n in spec["whatif"]["notes"]:
         if n not in p.notes:
             log(f"[What If] {n}")
     (work / "whatif_spec.json").write_text(json.dumps(spec, indent=1, ensure_ascii=False), encoding="utf-8")
+    try:                           # the renderer's dry run: what it will repair is logged now (it never stops the video)
+        from .preflight import check_specs
+
+        got = check_specs([work / "whatif_spec.json"], timeout=120).get(str(work / "whatif_spec.json"), {})
+        for m in got.get("repairs", [])[:20]:
+            log(f"[What If] the renderer will repair: {m}")
+    except Exception as exc:       # noqa: BLE001
+        log(f"[What If] renderer dry run skipped ({exc!r})")
 
     if render is None:
         from .engine_runner import render_spec as render
@@ -198,9 +232,13 @@ def generate_whatif_video(
         _report(progress_cb, f"Drawing the shots… frame {done}/{total}", 0.15 + 0.73 * (done / max(1, total)))
 
     outcome = None
-    for attempt in (1, 2):         # a browser or GPU hiccup: once more (no paid call is involved in rendering)
+    import inspect
+
+    can_soft = "software_gl" in inspect.signature(render).parameters
+    for attempt in (1, 2):         # a browser or GPU hiccup: once more, the second time with 3D on the CPU (no paid call is involved)
         try:
-            outcome = render(spec, silent, progress=on_frame, cancel_check=cancel_check, log=log)
+            soft = {"software_gl": True} if attempt == 2 and can_soft else {}
+            outcome = render(spec, silent, progress=on_frame, cancel_check=cancel_check, log=log, **soft)
             break
         except WhatifRenderCancelled:
             return PakmapResult(False, ["Cancelled"], cancelled=True)

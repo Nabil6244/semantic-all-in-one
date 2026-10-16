@@ -7,21 +7,7 @@ import { ICONS, ICON_NAMES, drawIcon } from '../lib/icons.mjs';
 import tmTemplate from '../layers/tm_template.mjs';
 import tmMission, { valueAt } from '../layers/tm_mission.mjs';
 
-// A 2D context that accepts every call and fails on a NaN/Infinity argument (a broken formula in a template shows up here).
-function mockCanvas(W = 1280, H = 720) {
-  const bad = [];
-  const grad = { addColorStop() {} };
-  const target = { canvas: { width: W, height: H }, globalAlpha: 1, lineWidth: 1, measureText: (s) => ({ width: String(s).length * 12 }), createRadialGradient: () => grad, createLinearGradient: () => grad,
-    createPattern: () => ({}), getLineDash: () => [] };
-  const g = new Proxy(target, {
-    get(o, k) {
-      if (k in o) return o[k];
-      return (...args) => { for (const a of args) if (typeof a === 'number' && !Number.isFinite(a)) bad.push(`${String(k)}(${args.join(', ')})`); };
-    },
-    set(o, k, v) { if (typeof v === 'number' && !Number.isFinite(v)) bad.push(`${String(k)} = ${v}`); o[k] = v; return true; },
-  });
-  return { g, bad };
-}
+import { mockCanvas } from '../lib/mockcanvas.mjs';
 
 const LIB = loadLibrary();
 
@@ -48,6 +34,8 @@ test('slots, arithmetic, times and cues', () => {
   assert.equal(fill('{a} AND {b}', { a: 'X', b: 2 }), 'X AND 2');
   assert.deepEqual(fill('{list}', { list: [1, 2] }), [1, 2]);
   assert.equal(fill('{missing}', {}), '{missing}');
+  const eq = build({ id: 'x', items: [{ p: 'text', text: '{label}', at: [0.5, 0.5] }], slots: { label: { default: '' } } }, { label: '= 1 HOUR' }, { len: 4 });
+  assert.equal(eq[0].text.replace('\u2060', ''), '= 1 HOUR');
   assert.equal(calc('=0.5+0.0422*4'), 0.5 + 0.0422 * 4);
   assert.equal(calc('=max(1,2)*cos(0)'), 2);
   assert.throws(() => calc('=alert(1)'), /unknown name/);

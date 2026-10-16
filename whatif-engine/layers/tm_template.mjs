@@ -15,7 +15,16 @@ export default {
     const tpl = def.template;
     if (!tpl || typeof tpl !== 'object') throw new Error('tm_template: "template" (the template JSON) is required');
     const len = def.end != null && def.start != null ? def.end - def.start : (tpl.hold ?? 6);
-    const items = build(tpl, def.slots || {}, { len, cues: def.cues || {} }).sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || a._n - b._n);
+    let items;
+    try { items = build(tpl, def.slots || {}, { len, cues: def.cues || {} }); }
+    catch (e) {
+      // a slot value the template cannot use (a word where a number belongs): the template's own defaults are kept for that slot
+      const ok = {};
+      for (const [k, v] of Object.entries(def.slots || {})) { try { build(tpl, { [k]: v }, { len, cues: def.cues || {} }); ok[k] = v; } catch { /* default kept */ } }
+      items = build(tpl, ok, { len, cues: def.cues || {} });
+      if (ctx.warn) ctx.warn(`tm_template ${tpl.id}: ${e.message}; the template's defaults were used for the bad values`);
+    }
+    items.sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || a._n - b._n);
     const images = new Map();
     for (const it of items) {
       if (it.p !== 'image' || !it.name || images.has(it.name) || !ctx.loadImage) continue;
@@ -28,7 +37,10 @@ export default {
     g.save();
     if (inst.tpl.plate !== false && inst.tpl.drift !== false) drift(g, f, d, 0.035);
     const c = { g, T, W, H, alpha: f.alpha, image: (n) => inst.images.get(n) || null };
-    for (const it of inst.items) drawItem(c, it, tr);
+    for (const it of inst.items) {
+      if (it._broken) continue;
+      try { g.save(); drawItem(c, it, tr); } catch (e) { it._broken = true; if (typeof console !== 'undefined') console.warn(`tm_template ${inst.tpl.id}: item ${it.p} off: ${e.message}`); } finally { g.restore(); }
+    }
     g.restore();
   },
 };

@@ -27,7 +27,7 @@ def data_files(root: Path) -> List[Tuple[str, str]]:
         if not (eng / name).is_file():
             raise FileNotFoundError(f"{eng / name} is missing: What If must ship with the app")
         add(eng / name)
-    for sub, pattern in (("lib", "*.mjs"), ("layers", "*.mjs"), ("assets/fonts", "*.ttf"), ("assets/models", "*.glb"), ("assets/textures", "*")):
+    for sub, pattern in (("lib", "*.mjs"), ("layers", "*.mjs"), ("tools", "*.mjs"), ("assets/fonts", "*.ttf"), ("assets/models", "*.glb"), ("assets/textures", "*")):
         files = sorted(f for f in (eng / sub).glob(pattern) if f.is_file())
         if not files:
             raise FileNotFoundError(f"{eng / sub} has no {pattern}: What If must ship with the app")

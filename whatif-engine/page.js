@@ -4,13 +4,15 @@
 // spec always gives the same video. This renderer shares no code with StarMap.
 import { createRegistry, runLayers } from '/lib/layers.mjs';
 import { registerBuiltins } from '/layers/index.mjs';
-import { shotAt, driftAt, clipFrameIndex, validateShots } from '/lib/shots.mjs';
+import { shotAt, driftAt, clipFrameIndex, sanitizeShots } from '/lib/shots.mjs';
 import { tm } from '/layers/tm_theme.mjs';
 
 const spec = await (await fetch('/spec.json')).json();
 const W = spec.width, H = spec.height;
-const problems = validateShots(spec);
-if (problems.length) throw new Error(`shots: ${problems.join('; ')}`);
+// never stop on a bad shot or layer: it is repaired or left out, and every repair is reported (render.mjs prints the warnings)
+const warnings = [];
+const warn = (m) => { if (warnings.length < 200) warnings.push(m); console.warn(`[whatif] ${m}`); };
+for (const m of sanitizeShots(spec)) warn(m);
 spec.shots.forEach((s, i) => { s.i = i; });   // a clip's frames are served as /footage/<its index in spec.shots>/<k>.jpg (cutter.mjs)
 await Promise.all(['900 30px StarMapSans', '700 30px TMSans', '600 30px TMSans', '600 30px WIMono', '700 30px WIMono'].map((f) => document.fonts.load(f)));
 
@@ -36,12 +38,14 @@ const loadModel = async (name) => {
 };
 let scene3d = null;
 if ((spec.shots || []).some((s) => ['craft', 'globe', 'hero'].includes(s.kind))) {
-  const { createScene3d } = await import('/lib/scene3d.mjs');
-  scene3d = await createScene3d({ W, H, loadModel, loadTexture });
+  try {
+    const { createScene3d } = await import('/lib/scene3d.mjs');
+    scene3d = await createScene3d({ W, H, loadModel, loadTexture });
+  } catch (e) { warn(`3D could not start (${e.message}); 3D shots are drawn as plates`); }
 }
 
 const registry = registerBuiltins(createRegistry());
-const layers = await registry.instantiate(spec.layers || [], { spec, W, H, loadImage });
+const layers = await registry.instantiate(spec.layers || [], { spec, W, H, loadImage, warn }, { lenient: true, warn });
 const gradeFilter = `saturate(${look.saturate}) contrast(${look.contrast})`;
 
 const TINTS = { cool: ['#0E131B', '#05070B'], warm: ['#24170F', '#0A0706'], blue: ['#0B2A4A', '#04101E'], dark: ['#0A0C11', '#040508'] };
@@ -71,6 +75,17 @@ const grainTile = (() => {
 })();
 
 async function drawShot(s, t) {
+  if (s.broken) { ctx.save(); drawPlate(s); ctx.restore(); return; }
+  try { await drawShotRaw(s, t); }
+  catch (e) {
+    // a picture, clip frame or 3D model that will not load: this shot becomes a plate for the rest of the video
+    s.broken = true;
+    warn(`shot ${s.id} (${s.kind}) drawn as a plate from ${t.toFixed(2)} s: ${e.message}`);
+    ctx.restore(); ctx.save(); ctx.filter = 'none'; ctx.globalAlpha = 1; drawPlate(s); ctx.restore();
+  }
+}
+
+async function drawShotRaw(s, t) {
   const g = s.grade || {}, filter = g.saturate != null || g.contrast != null
     ? `saturate(${g.saturate ?? look.saturate}) contrast(${g.contrast ?? look.contrast})` : gradeFilter;
   const d = driftAt(s, t);
@@ -92,6 +107,7 @@ async function drawShot(s, t) {
     // a clip drifts too (1.00 -> 1.03): never a frozen frame, never a hard crop of the picture
     const k = d.scale; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2); ctx.drawImage(bmp, 0, 0, W, H); bmp.close();
   } else {
+    if (!scene3d) throw new Error('3D is not available');
     const cv = await scene3d.draw(s, t);
     ctx.translate(W / 2, H / 2); ctx.scale(d.scale, d.scale); ctx.translate(-W / 2, -H / 2); ctx.drawImage(cv, 0, 0);
   }
@@ -116,10 +132,10 @@ function finish(t) {
 window.renderFrame = async (t) => {
   const s = shotAt(spec.shots, t);
   await drawShot(s, t);
-  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [] }, 'draw', (L) => L.def.type !== 'tm_fade');
+  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [] }, 'draw', (L) => L.def.type !== 'tm_fade', warn);
   finish(t);
-  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [] }, 'draw', (L) => L.def.type === 'tm_fade');   // a fade covers everything, grain too
+  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [] }, 'draw', (L) => L.def.type === 'tm_fade', warn);   // a fade covers everything, grain too
   return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
 };
-window.__whatif = { layers, shots: spec.shots };
+window.__whatif = { layers, shots: spec.shots, warnings };
 window.__ready = true;

@@ -42,7 +42,12 @@ export function createCutter({ spec, mediaDir, ffmpeg = 'ffmpeg', tmpRoot = os.t
           state.delete(v.i);
         }
       }
-      for (const v of vids) if (state.has(v.i) && t >= v.s.start - 0.5 && t <= v.s.end) state.get(v.i).value = await state.get(v.i).ready;
+      for (const v of vids) {
+        if (!state.has(v.i) || t < v.s.start - 0.5 || t > v.s.end) continue;
+        const st = state.get(v.i);
+        // a clip ffmpeg cannot read: no frames, so the page draws that shot as a plate (it reports it) -- never a stop
+        st.value = await st.ready.catch((e) => { if (!st.failed) { st.failed = true; problems.push(e.message); } return null; });
+      }
     },
     frameFile(i, k) { const s = state.get(i); return s && s.value ? path.join(s.value.dir, `${Math.min(Math.max(0, k), s.value.count - 1)}.jpg`) : null; },
     cleanup() { fs.rmSync(root, { recursive: true, force: true }); },
