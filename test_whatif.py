@@ -424,7 +424,7 @@ class Media(unittest.TestCase):
         passes = []
 
         def fake(plan, images_dir, **kw):
-            passes.append(([m.scene_number for m in media_rows(plan)], "scene_rows" in kw))
+            passes.append(([(str(images_dir), m.scene_number) for m in media_rows(plan)], "scene_rows" in kw))
             return SimpleNamespace(media={f"row:{b.clips[0].row}": {"file": f"/x/{b.clips[0].row}.jpg"} for b in plan.beats
                                           if b.clips[0].asset.startswith("nasa_image:Earth")}, unresolved=[], notes=[], credits=[])
 
@@ -435,7 +435,7 @@ class Media(unittest.TestCase):
         media.fetch(shots, Path("/tmp/x"), fetcher=fake, log=lambda m: None, scene_rows=["the Visual Plan"])
         numbers = [n for nums, _ in passes for n in nums]
         self.assertGreater(len(passes), 1)
-        self.assertEqual(len(numbers), len(set(numbers)), f"scene numbers reused across passes: {passes}")
+        self.assertEqual(len(numbers), len(set(numbers)), f"scene files reused across passes: {passes}")   # (folder, number) never repeats
         self.assertEqual([has for _, has in passes], [True] + [False] * (len(passes) - 1), "only the first pass reads the Visual Plan")
         self.assertEqual(shots[0].file, "/x/1.jpg")
 
@@ -603,10 +603,13 @@ class Engine(unittest.TestCase):
         self.assertRegex(page, r"spec\.shots\.forEach\(\(s, i\) => \{ s\.i = i; \}\)")
 
     def test_engine_unit_tests(self):
-        node = subprocess.run(["which", "node"], capture_output=True, text=True).stdout.strip()
+        import shutil
+
+        node = shutil.which("node")            # not `which`: Windows has no such command
         if not node:
             self.skipTest("no node")
-        r = subprocess.run([node, "--test", "test/shots.test.mjs"], cwd=ROOT / "whatif-engine", capture_output=True, text=True, timeout=120)
+        r = subprocess.run([node, "--test", "test/shots.test.mjs", "test/templates.test.mjs"], cwd=ROOT / "whatif-engine", capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=300)
         self.assertEqual(r.returncode, 0, r.stdout[-1500:] + r.stderr[-500:])
 
 

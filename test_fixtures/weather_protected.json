@@ -25,7 +25,7 @@
   "VideoGenerator.spec": []
  },
  "files": {
-  "app_csv_prompts.py": "b177c0e3f52ff1798fa9ce3bc039ff182c06af778e92b950f4fffbd098321149",
+  "app_csv_prompts.py": "ef7608b743a29e566259044e9cd374d6cc20f3ac393a735f55beb802fdd1538b",
   "asset_manager.py": "c0715c4ff706a55ca659deee21a2999a28dedbea11a18911439537c5528e2463",
   "composition_styles/enoch_template_csv_prompt.txt": "6e03a15143984d6e1fa7c7ce264d7b06b9434b1e9eb947e40bffd6c0e2f6f7bf",
   "composition_styles/enoch_template_research_prompt.txt": "fecd072e20a87c1f78c2f274aabeb62f59358d254d38284180b6882e82d7a38b",
@@ -423,7 +423,11 @@
   "starmap/sound.py": "8c4aaa915b8ca378c1de95f6b8fb2a4c91ee61e0f0ced87312d029f42fd3330d",
   "starmap/temporal.py": "a8b48198c8df7091515c523e14d016f7c0296a353f2f8b3f44171c5b24effd9e",
   "video_generator.py": "0a9d720d2682324727c1448454dc4834e07012ccf235431032abdfa159f501b3",
-  "pakmap-engine/lib/footage_pass.mjs": "c28d00bc04b5eae9f17937885cd442808518cecac538c10beb93f01b621b4886"
+  "pakmap-engine/lib/footage_pass.mjs": "c28d00bc04b5eae9f17937885cd442808518cecac538c10beb93f01b621b4886",
+  "composition_styles/whatif_csv_prompt.txt": "043a3777b0f847518d76567e577611d12737e0c6fdce6b15b5bf2cab13f5d841",
+  "starmap/heal.py": "b8e9ad4ed2e779e6fd760df8aa83f01bac861906d6c1a99b991f54b1d73f573c",
+  "starmap/music.py": "cba2b056ed18ca7ee5d3036ad249c4d887428f809f4645d6e2730faf7c1b6ad6",
+  "starmap/stress.py": "292cf294dc4ffc20d45e90b9455363baa8dc68066fcfd5926b25ffbb5de774f8"
  },
  "approved_importers": [
   "app.py"

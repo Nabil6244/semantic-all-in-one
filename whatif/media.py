@@ -111,6 +111,29 @@ def _merge(got: Any, more: Any) -> None:
     got.credits = have + [c for c in (getattr(more, "credits", []) or []) if c not in have]
 
 
+def _numbering_kept() -> bool:
+    """Does starmap.media number rows by plan.media_numbers? (Older StarMap numbered every pass 1, 2, 3 ...)"""
+    from starmap.media import media_rows
+
+    probe = SimpleNamespace(beats=[SimpleNamespace(id="b", start=0.0, cards=[], clips=[Item(row=7, kind="clip", asset="nasa_image:x", t=0.0)])],
+                            media_numbers={7: "7"})
+    try:
+        return media_rows(probe)[0].scene_number == "7"
+    except Exception:
+        return False
+
+
+def _caller(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """fn with ai_fallback passed only when fn names it (an older fetch_media would hand it on to the providers)."""
+    import inspect
+
+    try:
+        named = "ai_fallback" in inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        named = False
+    return lambda *a, **k: fn(*a, **({**k} if named else {x: v for x, v in k.items() if x != "ai_fallback"}))
+
+
 def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] = print, fetcher: Optional[Callable[..., Any]] = None,
           **kw: Any) -> Any:
     """Fetch every asset shot's file; sets shot.file / shot.credit. A real-picture request (nasa_image) that NASA cannot answer
@@ -124,9 +147,14 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     if kw.get("scene_rows"):
         realign_saved(Path(images_dir), [r for r in kw["scene_rows"] if hasattr(r, "scene_number")], log)
     plan = as_plan(shots)
+    call = _caller(fetcher or fetch_media)
+    # the extra passes number their rows after the first pass's; where StarMap cannot keep those numbers, each pass gets its own
+    # folder instead, so a later pass's 001.png can never replace the first pass's 001.jpg
+    kept = _numbering_kept()
+    pass_dir = lambda k: Path(images_dir) if kept else Path(images_dir) / f"whatif_pass{k}"  # noqa: E731
     # naming a mission keeps NASA's answer: no stock search stands in for it
     mission = {str(s.row): (s.name or s.place or "mission") for s in shots if s.row and s.asset.lower().startswith("nasa_")}
-    got = (fetcher or fetch_media)(plan, Path(images_dir), log=log, ai_fallback=False, mission=mission or "", **kw)
+    got = call(plan, Path(images_dir), log=log, ai_fallback=False, mission=mission or "", **kw)
     _apply(shots, got)
     kw.pop("scene_rows", None)         # the Visual Plan table holds the first pass's rows only; the extra passes use their own
     # a second real source for what NASA does not hold: Wikimedia Commons (only for a named craft or place, so a search cannot drift to
@@ -141,7 +169,7 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
             s.asset = "commons_image:" + s.asset.split(":", 1)[1].strip()[:90]
             s.cite = ("REAL IMAGE", "")
         log(f"[What If] NASA has no picture of {', '.join(s.name for s in named)}; trying Wikimedia Commons")
-        got2 = (fetcher or fetch_media)(as_plan(named, start_row=first), Path(images_dir), log=log, ai_fallback=False, mission=mission or "", **kw)
+        got2 = call(as_plan(named, start_row=first), pass_dir(2), log=log, ai_fallback=False, mission=mission or "", **kw)
         _apply(named, got2)
         _merge(got, got2)
         first = max(x.row for x in named) + 1
@@ -153,7 +181,7 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
             s.asset, s.cite = alt, ("AI ILLUSTRATION", "")
             redo.append(s)
     if redo:
-        got3 = (fetcher or fetch_media)(as_plan(redo, start_row=first), Path(images_dir), log=log, ai_fallback=False, **kw)
+        got3 = call(as_plan(redo, start_row=first), pass_dir(3), log=log, ai_fallback=False, **kw)
         _apply(redo, got3)
         _merge(got, got3)
     # a NASA miss that a later pass filled (Commons, or an AI illustration) is not left out: only shots still without a file are
