@@ -1,0 +1,52 @@
+{
+ "id": "big_number_lower",
+ "family": "scale",
+ "use": "A big counted number at the lower left over a picture, a small line under it (V4 '27,000 LIGHT-YEARS / FROM EARTH', '4.3 MILLION SUNS').",
+ "tags": [
+  "number",
+  "distance",
+  "scale"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "value_from": {
+   "default": 0,
+   "from": "value_from"
+  },
+  "value_to": {
+   "default": 27000,
+   "from": "value_to",
+   "required": true
+  },
+  "format": {
+   "default": "LIGHT-YEARS",
+   "from": "format"
+  },
+  "sub": {
+   "default": "FROM EARTH",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "number",
+   "at": [
+    0.03,
+    0.885
+   ],
+   "m": "count",
+   "from": "{value_from}",
+   "to": "{value_to}",
+   "dur": 1.6,
+   "unit": "{format}",
+   "size": 52,
+   "sub": "{sub}",
+   "in": 0.15,
+   "glow": true
+  }
+ ],
+ "source": "V4 1:00"
+}

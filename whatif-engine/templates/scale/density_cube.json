@@ -1,0 +1,70 @@
+{
+ "id": "density_cube",
+ "family": "scale",
+ "use": "How heavy a small amount is: a small cube, the mass counting up under it ('A TEASPOON WEIGHS 4 BILLION TONNES').",
+ "tags": [
+  "scale",
+  "mass",
+  "density"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "A TEASPOON WEIGHS",
+   "from": "label"
+  },
+  "value_to": {
+   "default": 4000000000,
+   "from": "value_to",
+   "required": true
+  },
+  "format": {
+   "default": "TONNES",
+   "from": "format"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "cube",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "size": 0.22,
+   "color": "#C9CED6",
+   "in": 0.1,
+   "m": "pop",
+   "dur": 0.6
+  },
+  {
+   "p": "number",
+   "at": [
+    0.5,
+    0.78
+   ],
+   "align": "center",
+   "m": "count",
+   "from": 0,
+   "to": "{value_to}",
+   "dur": 2.0,
+   "unit": "{format}",
+   "size": 60,
+   "kicker": "{label}",
+   "in": 1.0
+  }
+ ],
+ "triggers": "\\b(teaspoon|sugar cube|weighs?)\\b"
+}

@@ -1,0 +1,157 @@
+{
+ "id": "cosmic_calendar",
+ "family": "time",
+ "use": "All of history squeezed into one year: a 12-month ring, a marker sweeping to the last second, the event named ('HUMANS APPEAR AT 11:59 PM, 31 DECEMBER').",
+ "tags": [
+  "time",
+  "history",
+  "scale"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "title": {
+   "default": "THE WHOLE HISTORY AS ONE YEAR",
+   "from": "text"
+  },
+  "label": {
+   "default": "HUMANS APPEAR",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "11:59 PM · 31 DECEMBER",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "donut",
+   "at": [
+    0.36,
+    0.52
+   ],
+   "r": 0.27,
+   "width": 26,
+   "parts": [
+    {
+     "v": 1,
+     "label": "JAN",
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "color": "#20324A"
+    },
+    {
+     "v": 1,
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "label": "APR",
+     "color": "#20324A"
+    },
+    {
+     "v": 1,
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "color": "#20324A"
+    },
+    {
+     "v": 1,
+     "label": "JUL",
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "color": "#20324A"
+    },
+    {
+     "v": 1,
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "label": "OCT",
+     "color": "#20324A"
+    },
+    {
+     "v": 1,
+     "color": "#1B2A3A"
+    },
+    {
+     "v": 1,
+     "label": "DEC",
+     "color": "#FFB703"
+    }
+   ],
+   "m": "draw",
+   "dur": 1.6,
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "orbit": {
+    "c": [
+     0.36,
+     0.52
+    ],
+    "rx": 0.27,
+    "deg0": -90,
+    "turns": 0.999
+   },
+   "anim": {
+    "along": [
+     [
+      1.6,
+      0
+     ],
+     [
+      "75%",
+      1
+     ]
+    ]
+   },
+   "r": 7,
+   "color": "cyan",
+   "in": 1.6
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.68,
+    0.48
+   ],
+   "size": 26,
+   "sub": "{sub}",
+   "in": "75%"
+  },
+  {
+   "p": "text",
+   "text": "{title}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(one year|calendar|squeez\\w+ into a year)\\b"
+}

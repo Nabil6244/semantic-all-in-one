@@ -1,0 +1,43 @@
+{
+ "id": "dated_caption",
+ "family": "story",
+ "use": "A dated discovery line top-left: '1974 · STEPHEN HAWKING' with what was found under it (V4 8:00).",
+ "tags": [
+  "story",
+  "history",
+  "person"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "year": {
+   "default": "1974",
+   "from": "value_to"
+  },
+  "label": {
+   "default": "STEPHEN HAWKING",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "BLACK HOLES SHOULD GLOW, FAINTLY",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{year} · {label}",
+   "at": [
+    0.035,
+    0.105
+   ],
+   "size": 26,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "source": "V4 8:00"
+}

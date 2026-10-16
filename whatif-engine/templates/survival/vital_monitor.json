@@ -1,0 +1,114 @@
+{
+ "id": "vital_monitor",
+ "family": "survival",
+ "use": "A vital-signs monitor: the heartbeat line runs, then flattens as the readouts fall.",
+ "tags": [
+  "survival",
+  "body",
+  "danger"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "dark",
+ "slots": {
+  "label": {
+   "default": "VITAL SIGNS",
+   "from": "label"
+  },
+  "sub": {
+   "default": "HEART RATE",
+   "from": "sub"
+  },
+  "value_from": {
+   "default": 72,
+   "from": "value_from"
+  },
+  "value_to": {
+   "default": 0,
+   "from": "value_to"
+  },
+  "format": {
+   "default": "BPM",
+   "from": "format"
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.12,
+    0.2
+   ],
+   "w": 0.76,
+   "h": 0.6,
+   "accent": "green",
+   "title": "{label}",
+   "in": 0.05
+  },
+  {
+   "p": "wave",
+   "from": [
+    0.16,
+    0.48
+   ],
+   "to": [
+    0.84,
+    0.48
+   ],
+   "amp": 0.08,
+   "wavelength": 0.06,
+   "speed": 1.4,
+   "color": "green",
+   "width": 2.4,
+   "glow": true,
+   "in": 0.3,
+   "anim": {
+    "damp": [
+     [
+      "40%",
+      0
+     ],
+     [
+      "85%",
+      30
+     ]
+    ],
+    "color": [
+     [
+      "60%",
+      "#2EE6A8"
+     ],
+     [
+      "85%",
+      "#FF2A4B"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.16,
+    0.72
+   ],
+   "anim": {
+    "value": [
+     [
+      "35%",
+      "{value_from}"
+     ],
+     [
+      "85%",
+      "{value_to}"
+     ]
+    ]
+   },
+   "unit": "{format}",
+   "size": 40,
+   "kicker": "{sub}",
+   "in": 0.3
+  }
+ ],
+ "triggers": "\\b(heart (stops|rate)|pulse|blood oxygen)\\b"
+}

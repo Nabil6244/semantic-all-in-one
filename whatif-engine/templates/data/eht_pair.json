@@ -1,0 +1,109 @@
+{
+ "id": "eht_pair",
+ "family": "data",
+ "use": "Two real photographs side by side, then the second framed as the destination (V4 1:50 'M87* PHOTO RELEASED 2019' / 'SAGITTARIUS A* PHOTO RELEASED 2022 · OUR DESTINATION').",
+ "tags": [
+  "photo",
+  "real",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "REAL IMAGES · EHT COLLABORATION",
+ "tint": "cool",
+ "slots": {
+  "left": {
+   "default": "M87*",
+   "from": "text"
+  },
+  "left_sub": {
+   "default": "PHOTO RELEASED 2019"
+  },
+  "left_image": {
+   "default": ""
+  },
+  "label": {
+   "default": "SAGITTARIUS A*",
+   "from": "label"
+  },
+  "sub": {
+   "default": "PHOTO RELEASED 2022",
+   "from": "sub"
+  },
+  "photo": {
+   "default": "",
+   "kind": "image"
+  },
+  "focus": {
+   "default": "OUR DESTINATION"
+  }
+ },
+ "items": [
+  {
+   "p": "image",
+   "name": "{left_image}",
+   "at": [
+    0.27,
+    0.45
+   ],
+   "w": 0.3,
+   "in": 0.1,
+   "label": "{left}",
+   "sub": "{left_sub}",
+   "fallback": {
+    "p": "disc",
+    "style": "ring_photo",
+    "r": 0.16,
+    "bright_deg": 120
+   }
+  },
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.71,
+    0.45
+   ],
+   "w": 0.3,
+   "in": 0.6,
+   "label": "{label}",
+   "sub": "{sub}",
+   "fallback": {
+    "p": "disc",
+    "style": "ring_photo",
+    "r": 0.16,
+    "bright_deg": 230
+   }
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.71,
+    0.45
+   ],
+   "r": 0.25,
+   "color": "cyan",
+   "width": 1.6,
+   "m": "draw",
+   "dur": 1.0,
+   "in": "@destination",
+   "or": "55%"
+  },
+  {
+   "p": "text",
+   "text": "{focus}",
+   "at": [
+    0.71,
+    0.82
+   ],
+   "size": 15,
+   "font": "mono",
+   "align": "center",
+   "color": "cyan",
+   "in": "@destination+0.4",
+   "or": "60%"
+  }
+ ],
+ "source": "V4 1:50",
+ "image_slot": "photo"
+}

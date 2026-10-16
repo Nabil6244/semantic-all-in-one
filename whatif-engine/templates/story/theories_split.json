@@ -1,0 +1,86 @@
+{
+ "id": "theories_split",
+ "family": "story",
+ "use": "Two competing answers side by side, each with its name and one line.",
+ "tags": [
+  "story",
+  "debate"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "SCIENTISTS DISAGREE",
+   "from": "label"
+  },
+  "left": {
+   "default": "IT IS DESTROYED",
+   "from": "text"
+  },
+  "left_sub": {
+   "default": ""
+  },
+  "right": {
+   "default": "IT COMES BACK OUT",
+   "from": "sub"
+  },
+  "right_sub": {
+   "default": ""
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.075,
+    0.3
+   ],
+   "w": 0.4,
+   "h": 0.45,
+   "title": "{left}",
+   "sub": "{left_sub}",
+   "accent": "cyan",
+   "in": 0.2
+  },
+  {
+   "p": "panel",
+   "at": [
+    0.525,
+    0.3
+   ],
+   "w": 0.4,
+   "h": 0.45,
+   "title": "{right}",
+   "sub": "{right_sub}",
+   "accent": "amber",
+   "in": 0.8
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.2
+   ],
+   "size": 22,
+   "align": "center",
+   "in": 0.05
+  },
+  {
+   "p": "text",
+   "text": "VS",
+   "at": [
+    0.5,
+    0.54
+   ],
+   "size": 22,
+   "font": "display",
+   "align": "center",
+   "color": "grey",
+   "in": 0.9
+  }
+ ],
+ "triggers": "\\b(disagree|debate|two (camps|theories))\\b"
+}

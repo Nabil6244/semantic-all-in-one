@@ -1,0 +1,120 @@
+{
+ "id": "escape_speed",
+ "family": "forces",
+ "use": "The speed you need keeps rising as you go deeper: a bar climbs towards the speed-of-light line and the number counts.",
+ "tags": [
+  "forces",
+  "speed",
+  "gravity"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "SPEED NEEDED TO ESCAPE",
+   "from": "label"
+  },
+  "num_from": {
+   "default": 11.2
+  },
+  "num_to": {
+   "default": 299792,
+   "from": "value_to"
+  },
+  "format": {
+   "default": "KM/S",
+   "from": "format"
+  },
+  "value_from": {
+   "default": 0.05
+  },
+  "value_to": {
+   "default": 1.0
+  },
+  "limit": {
+   "default": "THE SPEED OF LIGHT",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "line",
+   "from": [
+    0.3,
+    0.2
+   ],
+   "to": [
+    0.7,
+    0.2
+   ],
+   "color": "red",
+   "dash": [
+    5,
+    5
+   ],
+   "width": 1.5,
+   "label": "{limit}",
+   "label_color": "red",
+   "in": 0.3
+  },
+  {
+   "p": "bar",
+   "at": [
+    0.5,
+    0.85
+   ],
+   "w": 0.65,
+   "h": 60,
+   "vertical": true,
+   "color": "cyan",
+   "in": 0.1,
+   "anim": {
+    "value": [
+     [
+      0.6,
+      "{value_from}"
+     ],
+     [
+      "end-0.6",
+      "{value_to}"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.58,
+    0.6
+   ],
+   "anim": {
+    "value": [
+     [
+      0.6,
+      "{num_from}"
+     ],
+     [
+      "end-0.6",
+      "{num_to}"
+     ]
+    ]
+   },
+   "unit": "{format}",
+   "size": 44,
+   "kicker": "{label}",
+   "in": 0.6
+  }
+ ],
+ "triggers": "\\bescape (velocity|speed)\\b"
+}

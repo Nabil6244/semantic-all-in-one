@@ -1,0 +1,29 @@
+{
+ "venus_survive": {
+  "duration_s": 646.4,
+  "hard_cuts": 81,
+  "hard_cuts_per_min": 7.5,
+  "median_hard_shot_s": 6.33,
+  "visual_changes": 104,
+  "visual_changes_per_min": 9.7,
+  "median_gap_between_changes_s": 5.0
+ },
+ "speed_of_light": {
+  "duration_s": 675.5,
+  "hard_cuts": 64,
+  "hard_cuts_per_min": 5.7,
+  "median_hard_shot_s": 8.88,
+  "visual_changes": 84,
+  "visual_changes_per_min": 7.5,
+  "median_gap_between_changes_s": 6.83
+ },
+ "one_light_year": {
+  "duration_s": 649.6,
+  "hard_cuts": 50,
+  "hard_cuts_per_min": 4.6,
+  "median_hard_shot_s": 9.75,
+  "visual_changes": 112,
+  "visual_changes_per_min": 10.3,
+  "median_gap_between_changes_s": 4.83
+ }
+}

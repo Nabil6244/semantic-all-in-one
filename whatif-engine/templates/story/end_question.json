@@ -1,0 +1,83 @@
+{
+ "id": "end_question",
+ "family": "story",
+ "use": "The closing question to the viewer over the hero picture: two centred lines (white, gold), 'TELL ME IN THE COMMENTS', the series footer (V4 9:40).",
+ "tags": [
+  "story",
+  "ending",
+  "question"
+ ],
+ "plate": false,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "line1": {
+   "default": "IF YOU COULD ASK A BLACK HOLE",
+   "from": "label",
+   "required": true
+  },
+  "line2": {
+   "default": "ONE QUESTION, WHAT WOULD IT BE?",
+   "from": "sub"
+  },
+  "footer": {
+   "default": "WHAT IF... · A SCIENCE SERIES"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{line1}",
+   "at": [
+    0.5,
+    0.11
+   ],
+   "size": 46,
+   "font": "display",
+   "align": "center",
+   "glow": true,
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{line2}",
+   "at": [
+    0.5,
+    0.185
+   ],
+   "size": 46,
+   "font": "display",
+   "align": "center",
+   "color": "gold",
+   "glow": true,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "TELL ME IN THE COMMENTS",
+   "at": [
+    0.5,
+    0.235
+   ],
+   "size": 14,
+   "font": "mono",
+   "align": "center",
+   "in": 1.2
+  },
+  {
+   "p": "text",
+   "text": "{footer}",
+   "at": [
+    0.5,
+    0.94
+   ],
+   "size": 13,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": 0.6
+  }
+ ],
+ "source": "V4 9:40"
+}

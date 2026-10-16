@@ -1,0 +1,104 @@
+{
+ "id": "limit_gauge",
+ "family": "survival",
+ "use": "A thermometer (or pressure gauge) rising past labelled human limits.",
+ "tags": [
+  "survival",
+  "temperature"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "level_from": {
+   "default": 0.2
+  },
+  "level_to": {
+   "default": 1.0
+  },
+  "limits": {
+   "default": [
+    {
+     "name": "YOU FAINT",
+     "value": "40 °C",
+     "num": 0.4
+    },
+    {
+     "name": "LEAD MELTS",
+     "value": "327 °C",
+     "num": 0.85
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "thermometer",
+   "at": [
+    0.4,
+    0.5
+   ],
+   "size": 0.6,
+   "in": 0.1,
+   "anim": {
+    "level": [
+     [
+      0.6,
+      "{level_from}"
+     ],
+     [
+      "end-0.6",
+      "{level_to}"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "line",
+   "each": "limits",
+   "from": [
+    0.44,
+    "=0.67-0.36*{it.num}"
+   ],
+   "to": [
+    0.6,
+    "=0.67-0.36*{it.num}"
+   ],
+   "color": "rgba(255,255,255,0.4)",
+   "dash": [
+    3,
+    4
+   ],
+   "width": 1.2,
+   "in": 0.5,
+   "stagger": 0.4
+  },
+  {
+   "p": "text",
+   "each": "limits",
+   "text": "{it.name}",
+   "at": [
+    0.62,
+    "=0.67-0.36*{it.num}+0.01"
+   ],
+   "size": 16,
+   "sub": "{it.value}",
+   "in": 0.5,
+   "stagger": 0.4
+  }
+ ],
+ "triggers": "\\b(degrees|°C|boil\\w*|melt\\w*)\\b"
+}

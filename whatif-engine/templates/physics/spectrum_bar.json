@@ -1,0 +1,125 @@
+{
+ "id": "spectrum_bar",
+ "family": "physics",
+ "use": "The spectrum as one bar from radio to gamma rays; a marker slides to the part the narration means.",
+ "tags": [
+  "light",
+  "spectrum"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE LIGHT WE CAN'T SEE",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "marker": {
+   "default": 0.45,
+   "from": "value_to"
+  },
+  "names": {
+   "default": [
+    "RADIO",
+    "MICROWAVE",
+    "INFRARED",
+    "VISIBLE",
+    "ULTRAVIOLET",
+    "X-RAY",
+    "GAMMA"
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "band",
+   "box": [
+    0.08,
+    0.5,
+    0.92,
+    0.56
+   ],
+   "colors": [
+    "#3A2A5A",
+    "#7A2AC0",
+    "#2F6BDF",
+    "#2EE6A8",
+    "#FFE04A",
+    "#FF7A1A",
+    "#FF2A4B",
+    "#3A0A0A"
+   ],
+   "opacity": 0.95,
+   "in": 0.2
+  },
+  {
+   "p": "text",
+   "each": "names",
+   "text": "{it}",
+   "at": [
+    "=0.08+0.84*({i}+0.5)/{n}",
+    0.62
+   ],
+   "size": 12,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": 0.5,
+   "stagger": 0.1
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.08,
+    0.53
+   ],
+   "r": 8,
+   "color": "white",
+   "in": 1.0,
+   "anim": {
+    "at": [
+     [
+      1.2,
+      [
+       0.08,
+       0.53
+      ]
+     ],
+     [
+      3.0,
+      [
+       "=0.08+0.84*{marker}",
+       0.53
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(infrared|ultraviolet|x-rays?|gamma rays?|wavelengths?)\\b"
+}

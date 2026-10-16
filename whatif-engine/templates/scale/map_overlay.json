@@ -1,0 +1,78 @@
+{
+ "id": "map_overlay",
+ "family": "scale",
+ "use": "A size laid over a familiar place: a ring the size of the object drawn on a map or photo of the place ('THE EVENT HORIZON OVER EUROPE'). photo = nasa_image:<the place>.",
+ "tags": [
+  "scale",
+  "size",
+  "map"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION · TO SCALE",
+ "tint": "cool",
+ "slots": {
+  "photo": {
+   "default": "",
+   "kind": "image"
+  },
+  "r": {
+   "default": 0.25
+  },
+  "label": {
+   "default": "THE EVENT HORIZON",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "TO SCALE OVER EUROPE",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "w": 1.0,
+   "in": 0,
+   "appear": "cut",
+   "fallback": {
+    "p": "disc",
+    "style": "earth",
+    "r": 0.42
+   }
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": "{r}",
+   "color": "gold",
+   "width": 3,
+   "glow": 12,
+   "fill": "rgba(0,0,0,0.35)",
+   "m": "draw",
+   "dur": 1.4,
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.9
+   ],
+   "size": 24,
+   "align": "center",
+   "sub": "{sub}",
+   "in": 1.4
+  }
+ ],
+ "image_slot": "photo"
+}

@@ -1,0 +1,85 @@
+{
+ "id": "layer_peel",
+ "family": "structure",
+ "use": "Layers peeled away from outside in, each one named as it lifts off.",
+ "tags": [
+  "structure",
+  "inside"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "layers": {
+   "default": [
+    {
+     "name": "ATMOSPHERE",
+     "color": "#2F6BDF"
+    },
+    {
+     "name": "CRUST",
+     "color": "#7A5A3C"
+    },
+    {
+     "name": "MANTLE",
+     "color": "#C0532C"
+    },
+    {
+     "name": "CORE",
+     "color": "#FFB703"
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "each": "layers",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "r": "=0.36-0.3*{i}/max(1,{n})",
+   "color": "{it.color}",
+   "in": 0.1,
+   "anim": {
+    "alpha": [
+     [
+      "=1+{i}*1.3",
+      1
+     ],
+     [
+      "=1.8+{i}*1.3",
+      "=min(1,max(0,{i}-{n}+2))"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "each": "layers",
+   "text": "{it.name}",
+   "at": [
+    0.5,
+    0.94
+   ],
+   "size": 22,
+   "align": "center",
+   "in": "=0.4+{i}*1.3",
+   "out": "=1.6+{i}*1.3"
+  }
+ ],
+ "triggers": "\\b(beneath|underneath|peel\\w*)\\b"
+}

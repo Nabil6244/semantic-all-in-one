@@ -1,0 +1,76 @@
+{
+ "id": "quote_card",
+ "family": "story",
+ "use": "A short quote from a real person: large quote mark, the words, the name and year under it.",
+ "tags": [
+  "story",
+  "person",
+  "quote"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "God does not play dice.",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "ALBERT EINSTEIN, 1926",
+   "from": "sub",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "text",
+   "text": "“",
+   "at": [
+    0.12,
+    0.42
+   ],
+   "size": 160,
+   "font": "display",
+   "color": "gold",
+   "case": "keep",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.2,
+    0.45
+   ],
+   "size": 30,
+   "case": "keep",
+   "in": 0.3,
+   "m": "typewriter",
+   "dur": 2.0
+  },
+  {
+   "p": "text",
+   "text": "— {sub}",
+   "at": [
+    0.2,
+    0.6
+   ],
+   "size": 18,
+   "font": "mono",
+   "color": "amber",
+   "in": 2.0
+  }
+ ],
+ "triggers": "\\b(once said|famously said|wrote)\\b"
+}

@@ -1,0 +1,174 @@
+{
+ "id": "two_clocks_ratio",
+ "family": "time",
+ "use": "Two clocks, one running slow, with the ratio banner that counts up and a small altitude marker above the edge (V4 2:30 '1 HOUR FOR YOU = 10 HOURS ON EARTH').",
+ "tags": [
+  "time",
+  "relativity",
+  "clocks"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION · CLOCKS HOVERING ABOVE A BLACK HOLE",
+ "tint": "cool",
+ "slots": {
+  "left": {
+   "default": "EARTH",
+   "from": "label"
+  },
+  "right": {
+   "default": "YOU",
+   "from": "sub"
+  },
+  "ratio_from": {
+   "default": 2,
+   "from": "value_from"
+  },
+  "ratio_to": {
+   "default": 10,
+   "from": "value_to",
+   "required": true
+  },
+  "unit": {
+   "default": "HOUR",
+   "from": "format"
+  },
+  "altitude": {
+   "default": "128,000 KM ABOVE",
+   "from": "text"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "clock",
+   "at": [
+    0.27,
+    0.43
+   ],
+   "r": 0.155,
+   "label": "{left}",
+   "in": 0.1,
+   "anim": {
+    "speed": [
+     [
+      "@ratio",
+      "={ratio_from}*6"
+     ],
+     [
+      "@ratio+2.5",
+      "={ratio_to}*6"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "clock",
+   "at": [
+    0.55,
+    0.43
+   ],
+   "r": 0.155,
+   "label": "{right}",
+   "label_color": "cyan",
+   "speed": 6,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "1 {unit} FOR YOU = # {unit}S ON {left}",
+   "at": [
+    0.012,
+    0.79
+   ],
+   "size": 42,
+   "font": "display",
+   "glow": true,
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       "@ratio",
+       "{ratio_from}"
+      ],
+      [
+       "@ratio+2.5",
+       "{ratio_to}"
+      ]
+     ],
+     "ease": "out"
+    }
+   },
+   "in": "@ratio",
+   "or": 1.2
+  },
+  {
+   "p": "line",
+   "from": [
+    0.76,
+    0.665
+   ],
+   "to": [
+    0.94,
+    0.665
+   ],
+   "color": "gold",
+   "width": 2.5,
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "THE EDGE",
+   "at": [
+    0.85,
+    0.705
+   ],
+   "size": 13,
+   "font": "mono",
+   "align": "center",
+   "color": "gold",
+   "in": 0.6
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.85,
+    0.55
+   ],
+   "to": [
+    0.85,
+    0.645
+   ],
+   "color": "cyan",
+   "width": 1.6,
+   "dash": [
+    3,
+    4
+   ],
+   "in": 0.8
+  },
+  {
+   "p": "text",
+   "text": "{altitude}",
+   "at": [
+    0.85,
+    0.535
+   ],
+   "size": 14,
+   "font": "mono",
+   "align": "center",
+   "color": "cream",
+   "in": 0.8
+  }
+ ],
+ "triggers": "\\b(time (slows|runs slower)|time dilation|hours? on earth)\\b",
+ "source": "V4 2:30"
+}

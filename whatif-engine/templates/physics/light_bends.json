@@ -1,0 +1,169 @@
+{
+ "id": "light_bends",
+ "family": "physics",
+ "use": "Parallel light rays sweep past a dark mass: the far ones bend, the near ones fall in (V4 1:40 'LIGHT BENDS AROUND IT / TOO CLOSE: EVEN LIGHT FALLS IN').",
+ "tags": [
+  "light",
+  "gravity",
+  "black hole",
+  "physics"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION · LIGHT PATHS COMPUTED WITH EINSTEIN'S EQUATIONS",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "LIGHT BENDS AROUND IT",
+   "from": "label"
+  },
+  "sub": {
+   "default": "TOO CLOSE: EVEN LIGHT FALLS IN",
+   "from": "sub"
+  },
+  "label2": {
+   "default": "EVENT HORIZON",
+   "from": "text"
+  },
+  "rays": {
+   "default": [
+    -0.26,
+    -0.19,
+    -0.13,
+    -0.08,
+    0.08,
+    0.13,
+    0.19,
+    0.26
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "path",
+   "each": "rays",
+   "points": [
+    [
+     0.06,
+     "=0.5+{it}"
+    ],
+    [
+     0.48,
+     "=0.5+{it}"
+    ],
+    [
+     0.66,
+     "=0.5+{it}*0.5"
+    ],
+    [
+     0.97,
+     "=0.5-{it}*0.9"
+    ]
+   ],
+   "color": "rgba(240,236,224,0.85)",
+   "width": 1.6,
+   "m": "draw",
+   "dur": 1.8,
+   "in": 0.6,
+   "stagger": 0.18
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.06,
+     0.475
+    ],
+    [
+     0.5,
+     0.475
+    ],
+    [
+     0.585,
+     0.49
+    ],
+    [
+     0.6,
+     0.5
+    ]
+   ],
+   "color": "gold",
+   "width": 1.8,
+   "m": "draw",
+   "dur": 1.6,
+   "in": "@close",
+   "or": "55%"
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.06,
+     0.525
+    ],
+    [
+     0.5,
+     0.525
+    ],
+    [
+     0.585,
+     0.51
+    ],
+    [
+     0.6,
+     0.5
+    ]
+   ],
+   "color": "gold",
+   "width": 1.8,
+   "m": "draw",
+   "dur": 1.6,
+   "in": "@close+0.2",
+   "or": "58%"
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.6,
+    0.5
+   ],
+   "r": 0.05,
+   "style": "shadow",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{label2}",
+   "at": [
+    0.66,
+    0.36
+   ],
+   "size": 20,
+   "in": "@horizon",
+   "or": "70%"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.11
+   ],
+   "size": 26,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\blight (bends|bent|curves)\\b|\\bbends? light\\b",
+ "source": "V4 1:40",
+ "auto": true
+}

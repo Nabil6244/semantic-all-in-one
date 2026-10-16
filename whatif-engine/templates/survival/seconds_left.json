@@ -1,0 +1,80 @@
+{
+ "id": "seconds_left",
+ "family": "survival",
+ "use": "A countdown: the number falls to zero, the cause under it.",
+ "tags": [
+  "survival",
+  "time",
+  "danger"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "warm",
+ "slots": {
+  "value_from": {
+   "default": 15,
+   "from": "value_from",
+   "required": true
+  },
+  "value_to": {
+   "default": 0,
+   "from": "value_to"
+  },
+  "format": {
+   "default": "SECONDS",
+   "from": "format"
+  },
+  "sub": {
+   "default": "UNTIL YOU BLACK OUT",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "glow",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.5,
+   "color": "rgba(255,42,75,0.5)",
+   "opacity": 0.25,
+   "pulse": {
+    "amp": 0.08,
+    "hz": 1
+   },
+   "in": 0
+  },
+  {
+   "p": "number",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "align": "center",
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       0.3,
+       "{value_from}"
+      ],
+      [
+       "end-0.4",
+       "{value_to}"
+      ]
+     ],
+     "ease": "linear"
+    }
+   },
+   "unit": "{format}",
+   "size": 110,
+   "color": "red",
+   "sub": "{sub}",
+   "decimals": 0,
+   "in": 0.2
+  }
+ ],
+ "triggers": "\\b(seconds? (left|before)|you have \\w+ seconds)\\b"
+}

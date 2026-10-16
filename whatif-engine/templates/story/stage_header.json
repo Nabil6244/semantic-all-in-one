@@ -1,0 +1,37 @@
+{
+ "id": "stage_header",
+ "family": "story",
+ "use": "A chapter starts: small cyan 'STAGE 2' kicker over a bold white heading, top-left, over whatever is on screen (V4 'STAGE 1 · THE APPROACH').",
+ "tags": [
+  "story",
+  "chapter"
+ ],
+ "plate": false,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE APPROACH",
+   "from": "label"
+  },
+  "sub": {
+   "default": "STAGE 1",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.125
+   ],
+   "size": 30,
+   "kicker": "{sub}",
+   "in": 0.05
+  }
+ ],
+ "source": "V4 1:20"
+}

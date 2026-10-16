@@ -1,0 +1,145 @@
+{
+ "id": "rules_change",
+ "family": "physics",
+ "use": "Outside: arrows in every direction. Inside: every arrow points to the centre (V4 5:00 'OUTSIDE · ANY DIRECTION' / 'INSIDE · EVERY PATH LEADS TO THE CENTRE').",
+ "tags": [
+  "physics",
+  "black hole",
+  "inside"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE RULES CHANGE",
+   "from": "label"
+  },
+  "angles": {
+   "default": [
+    0,
+    30,
+    60,
+    90,
+    120,
+    150,
+    180,
+    210,
+    240,
+    270,
+    300,
+    330
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "arrow",
+   "each": "angles",
+   "from": [
+    0.17,
+    0.5
+   ],
+   "to": [
+    "=0.17+0.062*cos({it}*PI/180)",
+    "=0.5+0.11*sin({it}*PI/180)"
+   ],
+   "color": "cyan",
+   "width": 2.4,
+   "head": 10,
+   "m": "draw",
+   "dur": 0.5,
+   "in": 0.4,
+   "stagger": 0.05
+  },
+  {
+   "p": "text",
+   "text": "OUTSIDE",
+   "at": [
+    0.17,
+    0.27
+   ],
+   "size": 16,
+   "align": "center",
+   "sub": "ANY DIRECTION",
+   "sub_color": "cream",
+   "in": 0.3
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.65,
+    0.5
+   ],
+   "r": 0.27,
+   "dash": [
+    4,
+    6
+   ],
+   "color": "gold",
+   "width": 1.6,
+   "in": "@inside",
+   "or": "40%"
+  },
+  {
+   "p": "arrow",
+   "each": "angles",
+   "from": [
+    "=0.65+0.14*cos({it}*PI/180)",
+    "=0.5+0.25*sin({it}*PI/180)"
+   ],
+   "to": [
+    "=0.65+0.04*cos({it}*PI/180)",
+    "=0.5+0.07*sin({it}*PI/180)"
+   ],
+   "color": "gold",
+   "width": 2,
+   "head": 9,
+   "m": "draw",
+   "dur": 0.6,
+   "in": "@inside+0.4",
+   "or": "45%",
+   "stagger": 0.04
+  },
+  {
+   "p": "text",
+   "text": "INSIDE",
+   "at": [
+    0.65,
+    0.84
+   ],
+   "size": 16,
+   "align": "center",
+   "color": "gold",
+   "sub": "EVERY PATH LEADS TO THE CENTRE",
+   "sub_color": "cream",
+   "in": "@inside+0.6",
+   "or": "48%"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.11
+   ],
+   "size": 34,
+   "font": "display",
+   "glow": true,
+   "in": 0.05
+  }
+ ],
+ "triggers": "\\b(every (path|direction)|no way out|all roads)\\b",
+ "source": "V4 5:00",
+ "auto": true
+}

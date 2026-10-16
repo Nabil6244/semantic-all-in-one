@@ -1,0 +1,102 @@
+{
+ "id": "galaxy_you_are_here",
+ "family": "space",
+ "use": "A galaxy seen from above, slowly turning: YOU marked, the target marked, a dashed line and the distance between.",
+ "tags": [
+  "space",
+  "galaxy",
+  "location",
+  "distance"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "target": {
+   "default": "SGR A*",
+   "from": "label"
+  },
+  "distance": {
+   "default": "27,000 LIGHT-YEARS",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "orbit",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "count": 900,
+   "r0": 0.03,
+   "r1": 0.42,
+   "flat": 0.62,
+   "speed": 0.15,
+   "color": "#C9D6F0",
+   "alpha": 0.55,
+   "in": 0
+  },
+  {
+   "p": "glow",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "r": 0.12,
+   "color": "rgba(255,220,170,0.8)",
+   "opacity": 0.5,
+   "in": 0
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.66,
+    0.6
+   ],
+   "r": 6,
+   "color": "cyan",
+   "label": "YOU",
+   "label_size": 14,
+   "in": 0.5
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "r": 6,
+   "color": "amber",
+   "label": "{target}",
+   "label_side": "top",
+   "label_size": 14,
+   "in": 1.0
+  },
+  {
+   "p": "line",
+   "from": [
+    0.66,
+    0.6
+   ],
+   "to": [
+    0.5,
+    0.52
+   ],
+   "dash": [
+    3,
+    5
+   ],
+   "color": "rgba(255,255,255,0.5)",
+   "width": 1.4,
+   "m": "draw",
+   "dur": 1.0,
+   "in": 1.4,
+   "label": "{distance}",
+   "label_size": 16
+  }
+ ],
+ "triggers": "\\b(milky way|our galaxy|galactic cent\\w+)\\b"
+}

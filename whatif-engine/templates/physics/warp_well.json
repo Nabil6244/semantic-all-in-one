@@ -1,0 +1,83 @@
+{
+ "id": "warp_well",
+ "family": "physics",
+ "use": "Spacetime as a wire sheet pulled into a well, slowly turning, with a bold statement and lines that build (V4 2:10 'GRAVITY SLOWS TIME / YOUR WATCH / YOUR HEARTBEAT / YOUR THOUGHTS').",
+ "tags": [
+  "gravity",
+  "spacetime",
+  "time"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION · THE SHAPE OF SPACE AROUND A MASS",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "GRAVITY SLOWS TIME",
+   "from": "label"
+  },
+  "lines": {
+   "default": [
+    "YOUR WATCH",
+    "YOUR HEARTBEAT",
+    "YOUR THOUGHTS"
+   ],
+   "from": "text",
+   "kind": "list"
+  }
+ },
+ "items": [
+  {
+   "p": "grid",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "size": 0.62,
+   "tilt": 64,
+   "spin": 5,
+   "anim": {
+    "well": [
+     [
+      0.2,
+      0.0
+     ],
+     [
+      2.4,
+      1.0
+     ]
+    ]
+   },
+   "in": 0.05
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.125
+   ],
+   "size": 34,
+   "font": "display",
+   "glow": true,
+   "in": 0.2
+  },
+  {
+   "p": "text",
+   "text": "{it}",
+   "at": [
+    0.035,
+    "=0.175+0.04*{i}"
+   ],
+   "size": 16,
+   "font": "mono",
+   "color": "amber",
+   "each": "lines",
+   "stagger": 0.7,
+   "in": 1.6
+  }
+ ],
+ "triggers": "\\b(spacetime|space-time|fabric of space|gravity slows time|warps? space)\\b",
+ "source": "V4 2:10",
+ "auto": true
+}

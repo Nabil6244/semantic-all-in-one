@@ -1,0 +1,158 @@
+{
+ "id": "route_line",
+ "family": "distance",
+ "use": "A route from A to B: a dashed line draws, a craft dot travels it, the trip time counts up.",
+ "tags": [
+  "distance",
+  "journey",
+  "travel"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "from_name": {
+   "default": "EARTH",
+   "from": "text"
+  },
+  "to_name": {
+   "default": "MARS",
+   "from": "sub"
+  },
+  "label": {
+   "default": "TRIP TIME",
+   "from": "label"
+  },
+  "value_to": {
+   "default": 7,
+   "from": "value_to",
+   "required": true
+  },
+  "format": {
+   "default": "MONTHS",
+   "from": "format"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.12,
+    0.55
+   ],
+   "r": 0.04,
+   "style": "earth",
+   "label": "{from_name}",
+   "label_side": "bottom",
+   "label_size": 16,
+   "in": 0.1
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.88,
+    0.55
+   ],
+   "r": 0.03,
+   "style": "planet",
+   "color": "#C9A36A",
+   "label": "{to_name}",
+   "label_side": "bottom",
+   "label_size": 16,
+   "in": 0.3
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.15,
+     0.55
+    ],
+    [
+     0.5,
+     0.42
+    ],
+    [
+     0.85,
+     0.55
+    ]
+   ],
+   "dash": [
+    4,
+    6
+   ],
+   "color": "rgba(220,230,240,0.6)",
+   "width": 1.6,
+   "m": "draw",
+   "dur": 1.2,
+   "in": 0.5
+  },
+  {
+   "p": "dot",
+   "path": [
+    [
+     0.15,
+     0.55
+    ],
+    [
+     0.5,
+     0.42
+    ],
+    [
+     0.85,
+     0.55
+    ]
+   ],
+   "r": 6,
+   "color": "cyan",
+   "in": 1.2,
+   "anim": {
+    "along": [
+     [
+      1.2,
+      0
+     ],
+     [
+      "end-0.6",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.5,
+    0.78
+   ],
+   "align": "center",
+   "anim": {
+    "value": [
+     [
+      1.2,
+      0
+     ],
+     [
+      "end-0.6",
+      "{value_to}"
+     ]
+    ]
+   },
+   "unit": "{format}",
+   "size": 44,
+   "kicker": "{label}",
+   "in": 1.2
+  }
+ ],
+ "triggers": "\\b(would take|the trip|journey to)\\b"
+}

@@ -1,0 +1,104 @@
+{
+ "id": "day_year_dials",
+ "family": "space",
+ "use": "A world's day and year as two dials with their lengths.",
+ "tags": [
+  "space",
+  "time",
+  "planets"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "day": {
+   "default": "243 EARTH DAYS",
+   "from": "label"
+  },
+  "year": {
+   "default": "225 EARTH DAYS",
+   "from": "sub"
+  },
+  "day_speed": {
+   "default": 1
+  },
+  "year_speed": {
+   "default": 30
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "clock",
+   "at": [
+    0.32,
+    0.48
+   ],
+   "r": 0.16,
+   "label": "DAY",
+   "speed": "{day_speed}",
+   "sub": "{day}",
+   "in": 0.2
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.68,
+    0.48
+   ],
+   "r": 0.16,
+   "color": "rgba(255,255,255,0.7)",
+   "width": 2.5,
+   "label": "",
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "orbit": {
+    "c": [
+     0.68,
+     0.48
+    ],
+    "rx": 0.16,
+    "spin": "{year_speed}"
+   },
+   "r": 7,
+   "color": "amber",
+   "in": 0.4
+  },
+  {
+   "p": "text",
+   "text": "YEAR",
+   "at": [
+    0.68,
+    0.28
+   ],
+   "size": 26,
+   "align": "center",
+   "in": 0.2
+  },
+  {
+   "p": "text",
+   "text": "{year}",
+   "at": [
+    0.68,
+    0.73
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": 0.4
+  }
+ ],
+ "triggers": "\\b(a day (on|lasts)|a year (on|lasts))\\b"
+}

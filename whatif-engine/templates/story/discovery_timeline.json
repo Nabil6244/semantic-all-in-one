@@ -1,0 +1,108 @@
+{
+ "id": "discovery_timeline",
+ "family": "story",
+ "use": "Years on a line with each discovery as a dot and a name. text = NAME=year.",
+ "tags": [
+  "story",
+  "history",
+  "timeline"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "HOW WE FOUND OUT",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "from_year": {
+   "default": 1900,
+   "from": "value_from"
+  },
+  "to_year": {
+   "default": 2030,
+   "from": "value_to"
+  },
+  "events": {
+   "default": [
+    {
+     "name": "EINSTEIN",
+     "value": "1915",
+     "num": 1915
+    },
+    {
+     "name": "HAWKING",
+     "value": "1974",
+     "num": 1974
+    },
+    {
+     "name": "FIRST PHOTO",
+     "value": "2019",
+     "num": 2019
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "axis",
+   "from": [
+    0.08,
+    0.58
+   ],
+   "to": [
+    0.92,
+    0.58
+   ],
+   "color": "rgba(200,210,220,0.5)",
+   "m": "draw",
+   "dur": 1.2,
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "each": "events",
+   "at": [
+    "=0.08+0.84*({it.num}-{from_year})/max(1,{to_year}-{from_year})",
+    0.58
+   ],
+   "r": 6,
+   "color": "gold",
+   "label": "{it.name}",
+   "label_side": "top",
+   "label_size": 14,
+   "sub": "{it.value}",
+   "label_gap": 22,
+   "in": 1.0,
+   "stagger": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\bin (19|20)\\d\\d\\b"
+}

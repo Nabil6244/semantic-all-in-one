@@ -1,0 +1,85 @@
+{
+ "id": "before_after",
+ "family": "data",
+ "use": "One picture before and after, a divider sweeping across with labels BEFORE / AFTER. photo = the 'after' picture; the 'before' is a file: name.",
+ "tags": [
+  "data",
+  "compare",
+  "photo"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "REAL IMAGES",
+ "tint": "cool",
+ "slots": {
+  "before": {
+   "default": ""
+  },
+  "photo": {
+   "default": "",
+   "kind": "image"
+  }
+ },
+ "items": [
+  {
+   "p": "image",
+   "name": "{before}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "w": 1.0,
+   "in": 0,
+   "appear": "cut"
+  },
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "w": 1.0,
+   "in": "50%",
+   "fade": 1.2
+  },
+  {
+   "p": "line",
+   "from": [
+    0.5,
+    0.0
+   ],
+   "to": [
+    0.5,
+    1.0
+   ],
+   "color": "white",
+   "width": 2,
+   "in": "40%",
+   "out": "60%"
+  },
+  {
+   "p": "text",
+   "text": "BEFORE",
+   "at": [
+    0.05,
+    0.92
+   ],
+   "size": 18,
+   "in": 0.2,
+   "out": "50%"
+  },
+  {
+   "p": "text",
+   "text": "AFTER",
+   "at": [
+    0.05,
+    0.92
+   ],
+   "size": 18,
+   "color": "cyan",
+   "in": "55%"
+  }
+ ],
+ "image_slot": "photo"
+}

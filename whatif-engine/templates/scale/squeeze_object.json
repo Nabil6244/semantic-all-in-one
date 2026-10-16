@@ -1,0 +1,118 @@
+{
+ "id": "squeeze_object",
+ "family": "scale",
+ "use": "An object squeezed smaller while its width counts down: 'THE SUN · 1,392,700 KM WIDE' -> 'SQUEEZING THE SUN' (V4 1:25). Works for any body (style sun / planet / earth).",
+ "tags": [
+  "scale",
+  "size",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE SUN",
+   "from": "label"
+  },
+  "value_from": {
+   "default": 1392700,
+   "from": "value_from",
+   "required": true
+  },
+  "value_to": {
+   "default": 24,
+   "from": "value_to",
+   "required": true
+  },
+  "format": {
+   "default": "KM WIDE",
+   "from": "format"
+  },
+  "sub": {
+   "default": "MASS: 1 SUN",
+   "from": "sub"
+  },
+  "style": {
+   "default": "sun"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "glow",
+   "at": [
+    0.5,
+    0.56
+   ],
+   "r": 0.42,
+   "color": "rgba(255,120,40,0.5)",
+   "opacity": 0.45,
+   "in": 0.05,
+   "m": "shrink",
+   "scale_to": "={value_to}/{value_from}",
+   "dur": "={len}*0.7",
+   "delay": 0.8
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.5,
+    0.56
+   ],
+   "r": 0.2,
+   "style": "{style}",
+   "in": 0.05,
+   "anim": {
+    "scale": [
+     [
+      0.8,
+      1
+     ],
+     [
+      "70%",
+      "=max(0.04,{value_to}/{value_from})"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.035,
+    0.155
+   ],
+   "size": 40,
+   "kicker": "{label}",
+   "unit": "{format}",
+   "sub": "{sub}",
+   "in": 0.1,
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       0.8,
+       "{value_from}"
+      ],
+      [
+       "70%",
+       "{value_to}"
+      ]
+     ],
+     "ease": "smooth"
+    }
+   }
+  }
+ ],
+ "triggers": "\\b(squeez\\w*|crush\\w* (the|it) (down|into)|compress\\w*)\\b",
+ "source": "V4 1:25"
+}

@@ -1,0 +1,61 @@
+{
+ "id": "annotated_photo_rings",
+ "family": "data",
+ "use": "A real photograph with up to three rings and labels drawn onto it in turn. text = LABEL=x,y (fractions of the frame).",
+ "tags": [
+  "photo",
+  "real",
+  "annotate"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "REAL IMAGE",
+ "tint": "cool",
+ "slots": {
+  "photo": {
+   "default": "",
+   "kind": "image"
+  },
+  "marks": {
+   "default": [
+    {
+     "name": "HERE",
+     "x": 0.5,
+     "y": 0.44
+    }
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.5,
+    0.44
+   ],
+   "w": 0.8,
+   "in": 0,
+   "appear": "cut"
+  },
+  {
+   "p": "ring",
+   "each": "marks",
+   "at": [
+    "{it.x}",
+    "{it.y}"
+   ],
+   "r": 0.04,
+   "color": "cyan",
+   "width": 2,
+   "m": "draw",
+   "dur": 0.6,
+   "in": 0.6,
+   "stagger": 1.2,
+   "label": "{it.name}",
+   "label_color": "gold",
+   "label_size": 18
+  }
+ ],
+ "image_slot": "photo"
+}

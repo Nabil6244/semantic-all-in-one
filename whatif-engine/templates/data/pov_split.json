@@ -1,0 +1,229 @@
+{
+ "id": "pov_split",
+ "family": "data",
+ "use": "One event from two points of view in two panels: YOU (watch ticks normally) and A FRIEND FAR AWAY (the watch slows, the figure turns red and fades) (V4 2:50 'ONE FALL · TWO POINTS OF VIEW').",
+ "tags": [
+  "compare",
+  "relativity",
+  "time",
+  "viewpoint"
+ ],
+ "plate": true,
+ "hold": 9,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "ONE FALL · TWO POINTS OF VIEW",
+   "from": "label"
+  },
+  "left": {
+   "default": "YOU"
+  },
+  "left_sub": {
+   "default": "YOUR WATCH TICKS NORMALLY"
+  },
+  "right": {
+   "default": "A FRIEND FAR AWAY SEES"
+  },
+  "right_sub": {
+   "default": "YOUR WATCH SLOWS TO A STOP"
+  },
+  "figure": {
+   "default": "astronaut"
+  },
+  "effects": {
+   "default": [
+    "SLOWS DOWN",
+    "TURNS RED",
+    "FADES TO BLACK"
+   ],
+   "from": "text",
+   "kind": "list"
+  },
+  "edges": {
+   "default": [
+    0.075,
+    0.525
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.075,
+    0.27
+   ],
+   "w": 0.4,
+   "h": 0.6,
+   "title": "{left}",
+   "sub": "{left_sub}",
+   "in": 0.2
+  },
+  {
+   "p": "panel",
+   "at": [
+    0.525,
+    0.27
+   ],
+   "w": 0.4,
+   "h": 0.6,
+   "title": "{right}",
+   "sub": "{right_sub}",
+   "in": 0.5
+  },
+  {
+   "p": "icon",
+   "name": "{figure}",
+   "at": [
+    0.24,
+    0.6
+   ],
+   "size": 0.13,
+   "bob": 0.01,
+   "in": 0.4
+  },
+  {
+   "p": "icon",
+   "name": "{figure}",
+   "at": [
+    0.69,
+    0.6
+   ],
+   "size": 0.13,
+   "in": 0.7,
+   "m": "colour",
+   "color": "#F2F4F7",
+   "color_to": "red",
+   "dur": 2.0,
+   "delay": "=max(0,{len}*0.35)",
+   "anim": {
+    "alpha": [
+     [
+      "70%",
+      1
+     ],
+     [
+      "92%",
+      0.08
+     ]
+    ]
+   }
+  },
+  {
+   "p": "clock",
+   "at": [
+    0.4,
+    0.42
+   ],
+   "r": 0.04,
+   "speed": 40,
+   "width": 2,
+   "in": 0.4
+  },
+  {
+   "p": "clock",
+   "at": [
+    0.85,
+    0.42
+   ],
+   "r": 0.04,
+   "width": 2,
+   "in": 0.7,
+   "anim": {
+    "speed": [
+     [
+      "30%",
+      40
+     ],
+     [
+      "75%",
+      0
+     ]
+    ],
+    "color": [
+     [
+      "45%",
+      "#FFFFFF"
+     ],
+     [
+      "75%",
+      "#FF2A4B"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "line",
+   "each": "edges",
+   "from": [
+    "={it}+0.02",
+    0.84
+   ],
+   "to": [
+    "={it}+0.38",
+    0.84
+   ],
+   "dash": [
+    3,
+    5
+   ],
+   "color": "gold",
+   "width": 1.5,
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "THE EDGE",
+   "at": [
+    0.095,
+    0.825
+   ],
+   "size": 12,
+   "font": "mono",
+   "color": "gold",
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "THE EDGE",
+   "at": [
+    0.545,
+    0.825
+   ],
+   "size": 12,
+   "font": "mono",
+   "color": "gold",
+   "in": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{it}",
+   "at": [
+    0.775,
+    "=0.66+0.035*{i}"
+   ],
+   "size": 13,
+   "font": "mono",
+   "color": "red",
+   "each": "effects",
+   "stagger": 0.6,
+   "in": "55%"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.2
+   ],
+   "size": 22,
+   "align": "center",
+   "color": "gold",
+   "in": 0.05
+  }
+ ],
+ "triggers": "\\b(far away|from outside|from your point of view|someone watching)\\b",
+ "source": "V4 2:50"
+}

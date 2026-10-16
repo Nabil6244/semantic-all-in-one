@@ -1,0 +1,11 @@
+row,shot,vo_anchor,kind,asset,model,texture,label,sub,text,type,id,value_from,value_to,format,anchor,until,hold,why,extra,t,end
+plan,,,,,,,,,,,,,,,,,,,"{""auto"": true}",,
+shot,s1,On the first of March,image,nasa_image:Venera 13 lander surface Venus 1982,,,VENERA 13,1 MARCH 1982,,,,,,,,,,the hook: the real craft,,,
+shot,s2,Two hours and seven,image,"flow_image:The Venera 13 lander alone on a flat dark basalt plain under a thick orange sky, silent and still",,,,,,,,,,,,,,the silence,,,
+shot,s3,So how long could,globe,,,venus,,,,,,,,,,,,the question,,,
+shot,s4,The ground is 464,image,"flow_image:A bleak rocky surface of Venus under dim orange haze and a low heavy sky, flat slabs of rock",,,,,,,,,,,,,,the surface,,,
+layer,,It's also 96.5 percent,,,,,VENUS'S AIR,,CARBON DIOXIDE=96.5; NITROGEN=3.5,diagram,composition,,,,,,6,,"{""note"": ""OXYGEN: NONE"", ""tint"": ""warm"", ""cite"": ""COMPOSITION OF THE LOWER ATMOSPHERE""}",,
+shot,s5,But 55 kilometres up,image,flow_image:A pale airship floating above a layer of cream-coloured clouds on Venus at sunrise,,,A CREWED AIRSHIP,,,,,,,,,,,the clouds,,,
+shot,s6,Venera 13 sent home,image,nasa_image:Venera 13 first colour photograph surface Venus,,,THE FIRST COLOUR PHOTOS FROM THE SURFACE OF VENUS,VENERA 13 · 1 MARCH 1982,,,,,,,,,,the proof,,,
+shot,s7,Every one of those,craft,,voyager,,YOUR SHIP,,,,,,,,,,,the signal,,,
+shot,s8,If you could live,globe,,,venus,,,,,,,,,,,,the outro,,,

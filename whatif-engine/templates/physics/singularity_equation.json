@@ -1,0 +1,102 @@
+{
+ "id": "singularity_equation",
+ "family": "physics",
+ "use": "Streaks rushing into one red point; Einstein's equation appears and runs to infinity; the open question under it (V4 7:20 'INFINITE DENSITY: THE THEORY HAS RUN OUT · GRAVITY + QUANTUM PHYSICS = ?').",
+ "tags": [
+  "physics",
+  "equation",
+  "singularity"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION · EINSTEIN'S FIELD EQUATIONS",
+ "tint": "warm",
+ "slots": {
+  "equation": {
+   "default": "G_{μν} = 8πG T_{μν} / c^{4}",
+   "from": "text"
+  },
+  "tail": {
+   "default": "→ ∞"
+  },
+  "sub": {
+   "default": "INFINITE DENSITY: THE THEORY HAS RUN OUT",
+   "from": "sub"
+  },
+  "question": {
+   "default": "GRAVITY + QUANTUM PHYSICS = ?",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "radial",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "count": 140,
+   "inward": true,
+   "color": "#E8A090",
+   "alpha": 0.55,
+   "length": 0.1,
+   "in": 0
+  },
+  {
+   "p": "glow",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "r": 0.12,
+   "color": "rgba(255,60,60,0.9)",
+   "opacity": 0.6,
+   "pulse": {
+    "amp": 0.15,
+    "hz": 0.6
+   },
+   "in": 0
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "r": 7,
+   "color": "red",
+   "ring": false,
+   "in": 0
+  },
+  {
+   "p": "equation",
+   "text": "{equation}",
+   "at": [
+    0.5,
+    0.74
+   ],
+   "size": 52,
+   "tail": "{tail}",
+   "sub": "{sub}",
+   "in": "@equation",
+   "or": 1.0
+  },
+  {
+   "p": "text",
+   "text": "{question}",
+   "at": [
+    0.5,
+    0.88
+   ],
+   "size": 16,
+   "align": "center",
+   "color": "cyan",
+   "in": "@quantum",
+   "or": "70%"
+  }
+ ],
+ "triggers": "\\b(singularity|infinite(ly)? dens\\w*|equations? break)\\b",
+ "source": "V4 7:20",
+ "auto": true
+}

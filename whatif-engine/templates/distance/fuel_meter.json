@@ -1,0 +1,102 @@
+{
+ "id": "fuel_meter",
+ "family": "distance",
+ "use": "A fuel or energy gauge draining as the journey goes on, the remaining share shown beside it.",
+ "tags": [
+  "distance",
+  "energy",
+  "gauge"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "FUEL",
+   "from": "label"
+  },
+  "value_from": {
+   "default": 1.0,
+   "from": "value_from"
+  },
+  "value_to": {
+   "default": 0.05,
+   "from": "value_to"
+  },
+  "sub": {
+   "default": "LEFT",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "bar",
+   "at": [
+    0.5,
+    0.82
+   ],
+   "w": 0.55,
+   "h": 46,
+   "vertical": true,
+   "color": "amber",
+   "label": "{label}",
+   "in": 0.1,
+   "anim": {
+    "value": [
+     [
+      0.6,
+      "{value_from}"
+     ],
+     [
+      "end-0.5",
+      "{value_to}"
+     ]
+    ],
+    "color": [
+     [
+      "40%",
+      "#FFB703"
+     ],
+     [
+      "end-0.5",
+      "#FF2A4B"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.56,
+    0.5
+   ],
+   "anim": {
+    "value": [
+     [
+      0.6,
+      "=100*{value_from}"
+     ],
+     [
+      "end-0.5",
+      "=100*{value_to}"
+     ]
+    ]
+   },
+   "unit": "%",
+   "size": 50,
+   "sub": "{sub}",
+   "in": 0.6
+  }
+ ],
+ "triggers": "\\b(fuel|propellant|battery|energy) (runs?|left|gone)\\b"
+}

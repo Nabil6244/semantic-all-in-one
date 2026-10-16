@@ -1,0 +1,112 @@
+{
+ "id": "orbit_trail",
+ "family": "space",
+ "use": "A body racing round a dark target on an elongated orbit, leaving a trail: STAR S2 around SGR A* (V4 1:10 'ONE ORBIT EVERY 16 YEARS').",
+ "tags": [
+  "orbit",
+  "space",
+  "gravity"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION · ORBIT SHAPE FROM ESO/GRAVITY",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "STAR S2",
+   "from": "label"
+  },
+  "sub": {
+   "default": "ONE ORBIT EVERY 16 YEARS",
+   "from": "sub"
+  },
+  "target": {
+   "default": "SGR A*",
+   "from": "text"
+  },
+  "body": {
+   "default": "S2"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.54,
+    0.5
+   ],
+   "rx": 0.48,
+   "ry": 0.24,
+   "dash": [
+    3,
+    6
+   ],
+   "color": "rgba(220,230,240,0.45)",
+   "width": 1.3,
+   "m": "draw",
+   "dur": 1.6,
+   "in": 0.2
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.805,
+    0.5
+   ],
+   "r": 0.016,
+   "color": "gold",
+   "width": 3,
+   "glow": 10,
+   "label": "{target}",
+   "label_size": 22,
+   "label_color": "gold",
+   "in": 0.1
+  },
+  {
+   "p": "dot",
+   "orbit": {
+    "c": [
+     0.54,
+     0.5
+    ],
+    "rx": 0.48,
+    "ry": 0.24,
+    "deg0": 250,
+    "spin": 22
+   },
+   "r": 6,
+   "color": "white",
+   "style": "plain",
+   "trail": {
+    "n": 18,
+    "dt": 0.09
+   },
+   "label": "{body}",
+   "label_side": "top",
+   "label_size": 16,
+   "in": 0.8
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\borbits? (it|the)\\b|\\bone orbit\\b",
+ "source": "V4 1:10"
+}

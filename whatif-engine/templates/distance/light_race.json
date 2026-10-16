@@ -1,0 +1,131 @@
+{
+ "id": "light_race",
+ "family": "distance",
+ "use": "A race on parallel lanes: light, a plane, a rocket ... each dot moves at its own speed; the slow ones barely leave the start. text = NAME=relative speed.",
+ "tags": [
+  "distance",
+  "speed",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE RACE",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "fastest": {
+   "default": 1
+  },
+  "lanes": {
+   "default": [
+    {
+     "name": "LIGHT",
+     "num": 1
+    },
+    {
+     "name": "PARKER PROBE",
+     "num": 0.00064
+    },
+    {
+     "name": "PLANE",
+     "num": 8e-07
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "line",
+   "each": "lanes",
+   "from": [
+    0.2,
+    "=0.3+0.14*{i}"
+   ],
+   "to": [
+    0.92,
+    "=0.3+0.14*{i}"
+   ],
+   "color": "rgba(255,255,255,0.15)",
+   "width": 1.2,
+   "in": 0.2
+  },
+  {
+   "p": "text",
+   "each": "lanes",
+   "text": "{it.name}",
+   "at": [
+    0.18,
+    "=0.3+0.14*{i}+0.008"
+   ],
+   "align": "right",
+   "size": 16,
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "each": "lanes",
+   "at": [
+    0.2,
+    "=0.3+0.14*{i}"
+   ],
+   "r": 6,
+   "color": "cyan",
+   "trail": {
+    "n": 10,
+    "dt": 0.05
+   },
+   "in": 0.6,
+   "anim": {
+    "at": {
+     "keys": [
+      [
+       0.8,
+       [
+        0.2,
+        "=0.3+0.14*{i}"
+       ]
+      ],
+      [
+       "end-0.5",
+       [
+        "=0.2+0.72*min(1,{it.num}/{fastest})",
+        "=0.3+0.14*{i}"
+       ]
+      ]
+     ],
+     "ease": "linear"
+    }
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(speed of light|faster than|race)\\b"
+}

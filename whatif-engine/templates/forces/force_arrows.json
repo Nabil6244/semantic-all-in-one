@@ -1,0 +1,141 @@
+{
+ "id": "force_arrows",
+ "family": "forces",
+ "use": "Forces on a body as arrows that grow and shrink: gravity down, thrust up, drag back -- whichever wins.",
+ "tags": [
+  "forces",
+  "gravity"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE FORCES ON YOU",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "figure": {
+   "default": "astronaut"
+  },
+  "down": {
+   "default": "GRAVITY",
+   "from": "text"
+  },
+  "up": {
+   "default": "THRUST"
+  },
+  "down_size": {
+   "default": 1.0
+  },
+  "up_size": {
+   "default": 0.6
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "{figure}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "size": 0.16,
+   "in": 0.1
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.5,
+    0.62
+   ],
+   "to": [
+    0.5,
+    0.62
+   ],
+   "color": "red",
+   "width": 4,
+   "label": "{down}",
+   "label_color": "red",
+   "label_offset": 28,
+   "in": 0.4,
+   "anim": {
+    "to": [
+     [
+      0.4,
+      [
+       0.5,
+       0.62
+      ]
+     ],
+     [
+      1.4,
+      [
+       0.5,
+       "=0.62+0.25*{down_size}"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.5,
+    0.38
+   ],
+   "to": [
+    0.5,
+    0.38
+   ],
+   "color": "cyan",
+   "width": 4,
+   "label": "{up}",
+   "label_color": "cyan",
+   "in": 1.0,
+   "anim": {
+    "to": [
+     [
+      1.0,
+      [
+       0.5,
+       0.38
+      ]
+     ],
+     [
+      2.0,
+      [
+       0.5,
+       "=0.38-0.25*{up_size}"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(pulls? you (down|in)|force of gravity|thrust)\\b"
+}

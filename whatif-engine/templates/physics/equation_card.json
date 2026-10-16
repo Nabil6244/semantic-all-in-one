@@ -1,0 +1,51 @@
+{
+ "id": "equation_card",
+ "family": "physics",
+ "use": "One formula on a plate in a serif face, with a mono line under it saying what it means.",
+ "tags": [
+  "physics",
+  "equation"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "equation": {
+   "default": "E = mc^{2}",
+   "from": "text",
+   "required": true
+  },
+  "tail": {
+   "default": ""
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "equation",
+   "text": "{equation}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "size": 64,
+   "tail": "{tail}",
+   "sub": "{sub}",
+   "in": 0.3
+  }
+ ],
+ "triggers": "\\bequation\\b|\\bE equals\\b"
+}

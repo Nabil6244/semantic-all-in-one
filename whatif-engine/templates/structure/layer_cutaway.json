@@ -1,0 +1,138 @@
+{
+ "id": "layer_cutaway",
+ "family": "structure",
+ "use": "The inside of a world as half-rings from the surface to the core, labelled, a YOU marker sinking. text = LAYER=depth.",
+ "tags": [
+  "structure",
+  "inside",
+  "depth"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE WAY DOWN",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "you_to": {
+   "default": 0.8,
+   "from": "value_to"
+  },
+  "layers": {
+   "default": [
+    {
+     "name": "CRUST",
+     "value": "35 KM",
+     "color": "#C9A36A"
+    },
+    {
+     "name": "MANTLE",
+     "value": "2,900 KM",
+     "color": "#FF7A1A"
+    },
+    {
+     "name": "OUTER CORE",
+     "value": "5,150 KM",
+     "color": "#FFB703"
+    },
+    {
+     "name": "INNER CORE",
+     "value": "6,371 KM",
+     "color": "#FFE04A"
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "each": "layers",
+   "at": [
+    0.5,
+    0.95
+   ],
+   "r": "=0.75-0.6*{i}/max(1,{n})",
+   "start_deg": 180,
+   "progress": 0.5,
+   "color": "{it.color}",
+   "width": 3,
+   "in": 0.3,
+   "stagger": 0.4
+  },
+  {
+   "p": "text",
+   "each": "layers",
+   "text": "{it.name}",
+   "at": [
+    0.5,
+    "=0.95-(0.75-0.6*{i}/max(1,{n}))+0.06"
+   ],
+   "size": 16,
+   "align": "center",
+   "sub": "{it.value}",
+   "sub_color": "cream",
+   "in": 0.5,
+   "stagger": 0.4
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.5,
+    0.2
+   ],
+   "r": 6,
+   "color": "cyan",
+   "label": "YOU",
+   "label_side": "right",
+   "label_size": 14,
+   "in": 1.0,
+   "anim": {
+    "at": [
+     [
+      "40%",
+      [
+       0.5,
+       0.2
+      ]
+     ],
+     [
+      "end-0.5",
+      [
+       0.5,
+       "{you_to}"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(crust|mantle|core|layers?)\\b"
+}

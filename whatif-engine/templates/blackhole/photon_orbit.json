@@ -1,0 +1,114 @@
+{
+ "id": "photon_orbit",
+ "family": "blackhole",
+ "use": "Light circling a black hole on the photon sphere, seen from above: the dark disc, a dashed orbit, a light pulse with a trail and a cyan arrow (V4 2:00 'PHOTON SPHERE · 1.5 × THE EDGE'S RADIUS').",
+ "tags": [
+  "black hole",
+  "light",
+  "orbit"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION · SEEN FROM ABOVE · LIGHT PATHS COMPUTED",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "PHOTON SPHERE",
+   "from": "label"
+  },
+  "sub": {
+   "default": "1.5 × THE EDGE'S RADIUS · LIGHT CAN ORBIT",
+   "from": "sub"
+  },
+  "caption": {
+   "default": "YOU SEE THE BACK OF YOUR OWN HEAD",
+   "from": "text"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.53,
+    0.5
+   ],
+   "r": 0.165,
+   "style": "shadow",
+   "in": 0.05
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.53,
+    0.5
+   ],
+   "r": 0.205,
+   "dash": [
+    5,
+    7
+   ],
+   "color": "rgba(220,230,240,0.55)",
+   "width": 1.6,
+   "spin": 6,
+   "m": "draw",
+   "dur": 1.4,
+   "in": 0.4
+  },
+  {
+   "p": "dot",
+   "orbit": {
+    "c": [
+     0.53,
+     0.5
+    ],
+    "rx": 0.205,
+    "deg0": 160,
+    "spin": 50
+   },
+   "r": 5,
+   "color": "#E8F4FF",
+   "style": "plain",
+   "trail": {
+    "n": 22,
+    "dt": 0.05
+   },
+   "in": 1.0
+  },
+  {
+   "p": "icon",
+   "name": "eye",
+   "at": [
+    0.53,
+    0.27
+   ],
+   "size": 0.05,
+   "in": "@back",
+   "or": "60%",
+   "label": "{caption}",
+   "label_size": 16
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.68,
+    0.5
+   ],
+   "size": 24,
+   "sub": "{sub}",
+   "in": 0.8
+  }
+ ],
+ "triggers": "\\bphoton sphere\\b",
+ "source": "V4 2:00",
+ "auto": true
+}

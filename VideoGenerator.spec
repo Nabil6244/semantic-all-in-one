@@ -169,11 +169,18 @@ from starmap.packaging import engine_data_files as starmap_data_files  # noqa: E
 
 datas += starmap_data_files(ROOT)
 
+# What If: whatif-engine/ (shot renderer: 2D canvas + three.js models, the NASA models and textures it draws) and the whatif package
+# (app.py imports it only inside methods, so every module is named; see whatif/packaging.py, which is unit-tested).
+from whatif.packaging import data_files as whatif_data_files, python_modules as whatif_modules  # noqa: E402
+
+datas += whatif_data_files(ROOT)
+
 # Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the
 # weather package's data and prompts (see weather/packaging.py, which is unit-tested).
 from weather.packaging import data_files as weather_data_files, python_modules as weather_modules  # noqa: E402
 
 datas += weather_data_files(ROOT)
+hiddenimports += whatif_modules(ROOT)
 hiddenimports += weather_modules(ROOT)   # app.py imports Weather only inside methods: name every module so none is missed
 
 # App logo (UI) + platform icons

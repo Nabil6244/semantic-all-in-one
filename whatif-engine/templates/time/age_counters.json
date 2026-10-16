@@ -1,0 +1,118 @@
+{
+ "id": "age_counters",
+ "family": "time",
+ "use": "Two counters running at different speeds: your years against Earth's years (or any two clocks as numbers).",
+ "tags": [
+  "time",
+  "relativity",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "left": {
+   "default": "YOU",
+   "from": "label"
+  },
+  "right": {
+   "default": "EARTH",
+   "from": "sub"
+  },
+  "left_to": {
+   "default": 1,
+   "from": "value_from"
+  },
+  "right_to": {
+   "default": 10,
+   "from": "value_to",
+   "required": true
+  },
+  "format": {
+   "default": "YEARS",
+   "from": "format"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "number",
+   "at": [
+    0.25,
+    0.52
+   ],
+   "align": "center",
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       0.5,
+       0
+      ],
+      [
+       "end-0.5",
+       "{left_to}"
+      ]
+     ],
+     "ease": "linear"
+    }
+   },
+   "unit": "{format}",
+   "size": 64,
+   "kicker": "{left}",
+   "in": 0.3
+  },
+  {
+   "p": "number",
+   "at": [
+    0.75,
+    0.52
+   ],
+   "align": "center",
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       0.5,
+       0
+      ],
+      [
+       "end-0.5",
+       "{right_to}"
+      ]
+     ],
+     "ease": "linear"
+    }
+   },
+   "unit": "{format}",
+   "size": 64,
+   "kicker": "{right}",
+   "kicker_color": "amber",
+   "in": 0.3
+  },
+  {
+   "p": "line",
+   "from": [
+    0.5,
+    0.35
+   ],
+   "to": [
+    0.5,
+    0.7
+   ],
+   "color": "rgba(255,255,255,0.15)",
+   "width": 1.2,
+   "in": 0.2
+  }
+ ],
+ "triggers": "\\b(you age|years pass|years on earth)\\b"
+}

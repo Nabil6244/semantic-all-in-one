@@ -1,0 +1,109 @@
+{
+ "id": "danger_rings",
+ "family": "survival",
+ "use": "Danger zones as rings round a source, lethal at the centre, safe at the edge, each labelled; a YOU marker sits in one. text = ZONE=distance.",
+ "tags": [
+  "survival",
+  "danger",
+  "radiation"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "zones": {
+   "default": [
+    {
+     "name": "LETHAL",
+     "value": "",
+     "color": "#FF2A4B",
+     "fill": "rgba(255,42,75,0.12)"
+    },
+    {
+     "name": "DANGEROUS",
+     "value": "",
+     "color": "#FFB703",
+     "fill": "rgba(255,183,3,0.06)"
+    },
+    {
+     "name": "SAFE",
+     "value": "",
+     "color": "#2EE6A8",
+     "fill": "rgba(0,0,0,0)"
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  },
+  "you_r": {
+   "default": 0.24
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "each": "zones",
+   "at": [
+    0.42,
+    0.52
+   ],
+   "r": "=0.08+0.1*{i}",
+   "color": "{it.color}",
+   "width": 2,
+   "fill": "{it.fill}",
+   "m": "draw",
+   "dur": 0.8,
+   "in": 0.3,
+   "stagger": 0.6
+  },
+  {
+   "p": "text",
+   "each": "zones",
+   "text": "{it.name}",
+   "at": [
+    0.7,
+    "=0.3+0.07*{i}"
+   ],
+   "size": 18,
+   "color": "{it.color}",
+   "sub": "{it.value}",
+   "sub_color": "cream",
+   "in": 0.6,
+   "stagger": 0.6
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.42,
+    0.52
+   ],
+   "r": 0.03,
+   "style": "sun",
+   "in": 0.1
+  },
+  {
+   "p": "dot",
+   "at": [
+    "=0.42+0.5625*{you_r}",
+    0.52
+   ],
+   "r": 6,
+   "color": "cyan",
+   "label": "YOU",
+   "label_side": "top",
+   "label_size": 14,
+   "in": "70%"
+  }
+ ],
+ "triggers": "\\b(lethal (dose|range)|safe distance|kill zone)\\b"
+}

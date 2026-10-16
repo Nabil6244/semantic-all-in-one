@@ -1,0 +1,45 @@
+{
+ "id": "recap_strip",
+ "family": "story",
+ "use": "The stages flash past one after another before the ending.",
+ "tags": [
+  "story",
+  "recap",
+  "ending"
+ ],
+ "plate": true,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "items": {
+   "default": [
+    "THE APPROACH",
+    "THE PHOTON SPHERE",
+    "THE EDGE",
+    "INSIDE",
+    "THE SINGULARITY"
+   ],
+   "from": "text",
+   "kind": "list"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "each": "items",
+   "text": "{it}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "size": 40,
+   "font": "display",
+   "align": "center",
+   "glow": true,
+   "in": "=0.2+{i}*({len}-0.6)/{n}",
+   "out": "=0.2+({i}+1)*({len}-0.6)/{n}-0.2",
+   "appear": "cut"
+  }
+ ]
+}

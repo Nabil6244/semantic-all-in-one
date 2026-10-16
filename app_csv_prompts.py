@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 SCRIPT_PLACEHOLDER = "<<<PASTE THE SCRIPT HERE>>>"
+TEMPLATE_PLACEHOLDER = "<<<TEMPLATE CATALOG>>>"      # What If: the template library, listed from whatif-engine/templates
 
 # style -> prompt file in composition_styles/
 CSV_PROMPTS = {
@@ -21,10 +22,11 @@ CSV_PROMPTS = {
     "pakmap": "pakmap_csv_prompt.txt",
     "hybrid": "hybrid_beats_prompt.txt",
     "starmap": "starmap_beats_prompt.txt",
+    "whatif": "whatif_csv_prompt.txt",
     "enoch_template": "enoch_template_csv_prompt.txt",
 }
 
-STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap",
+STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap", "whatif": "What If",
                "enoch_template": "Enoch Template"}
 
 
@@ -42,6 +44,10 @@ def build_prompt(style: str, script: Optional[str] = None, *, pack: Optional[str
 
         return starmap_prompt(pack or None, (script or "").strip() or None)
     text = prompt_path(style).read_text(encoding="utf-8")
+    if style == "whatif" and TEMPLATE_PLACEHOLDER in text:
+        from whatif.templates import catalog_text      # the template list comes from the template files, so it is never out of date
+
+        text = text.replace(TEMPLATE_PLACEHOLDER, catalog_text())
     script = (script or "").strip()
     if script:
         text = text.replace(SCRIPT_PLACEHOLDER, script)

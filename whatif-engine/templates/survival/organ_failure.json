@@ -1,0 +1,70 @@
+{
+ "id": "organ_failure",
+ "family": "survival",
+ "use": "A body and a list of what fails, item by item turning red beside it.",
+ "tags": [
+  "survival",
+  "body",
+  "danger"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "items": {
+   "default": [
+    "LUNGS",
+    "BLOOD",
+    "HEART",
+    "BRAIN"
+   ],
+   "from": "text",
+   "kind": "list"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "human",
+   "at": [
+    0.3,
+    0.52
+   ],
+   "size": 0.55,
+   "in": 0.1,
+   "m": "colour",
+   "color": "#F2F4F7",
+   "color_to": "#FF2A4B",
+   "dur": "={len}*0.7",
+   "delay": 0.6
+  },
+  {
+   "p": "text",
+   "each": "items",
+   "text": "{it}",
+   "at": [
+    0.55,
+    "=0.3+0.08*{i}"
+   ],
+   "size": 22,
+   "m": "colour",
+   "color": "#FFFFFF",
+   "color_to": "#FF2A4B",
+   "dur": 0.4,
+   "in": 0.6,
+   "stagger": 0.9,
+   "delay": 0.5
+  }
+ ],
+ "triggers": "\\b(your (lungs|blood|heart|brain)|organs?)\\b"
+}

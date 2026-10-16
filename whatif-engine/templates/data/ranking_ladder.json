@@ -1,0 +1,88 @@
+{
+ "id": "ranking_ladder",
+ "family": "data",
+ "use": "A top-N list revealed from the bottom up, rank numbers on the left. text = NAME=value (first = number 1).",
+ "tags": [
+  "data",
+  "list",
+  "ranking"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE MOST EXTREME",
+   "from": "label"
+  },
+  "rows": {
+   "default": [
+    {
+     "name": "FIRST",
+     "value": ""
+    },
+    {
+     "name": "SECOND",
+     "value": ""
+    },
+    {
+     "name": "THIRD",
+     "value": ""
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "text",
+   "each": "rows",
+   "text": "{it.name}",
+   "at": [
+    0.2,
+    "=0.25+0.11*{i}"
+   ],
+   "size": 26,
+   "kicker": "",
+   "sub": "{it.value}",
+   "in": "=0.6+({n}-1-{i})*0.9"
+  },
+  {
+   "p": "text",
+   "each": "rows",
+   "text": "=1+{i}",
+   "at": [
+    0.14,
+    "=0.25+0.11*{i}"
+   ],
+   "size": 40,
+   "font": "display",
+   "align": "right",
+   "color": "gold",
+   "in": "=0.6+({n}-1-{i})*0.9"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(top (three|five|ten)|ranked|the (biggest|largest|hottest)\\b)"
+}

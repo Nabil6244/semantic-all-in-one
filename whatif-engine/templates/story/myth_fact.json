@@ -1,0 +1,101 @@
+{
+ "id": "myth_fact",
+ "family": "story",
+ "use": "A common belief struck through, then the fact in its place.",
+ "tags": [
+  "story",
+  "myth"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "BLACK HOLES SUCK EVERYTHING IN",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "FROM FAR AWAY, THEY PULL LIKE ANY STAR",
+   "from": "sub",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "text",
+   "text": "MYTH",
+   "at": [
+    0.5,
+    0.33
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "red",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.42
+   ],
+   "size": 32,
+   "align": "center",
+   "in": 0.2,
+   "anim": {
+    "strike": [
+     [
+      "@fact-0.6",
+      0
+     ],
+     [
+      "@fact",
+      1
+     ]
+    ]
+   },
+   "or": 1.5
+  },
+  {
+   "p": "text",
+   "text": "FACT",
+   "at": [
+    0.5,
+    0.6
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "green",
+   "in": "@fact",
+   "or": "45%"
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.5,
+    0.69
+   ],
+   "size": 30,
+   "align": "center",
+   "color": "cyan",
+   "in": "@fact+0.3",
+   "or": "48%"
+  }
+ ],
+ "triggers": "\\b(myth|actually|contrary to|people think)\\b"
+}

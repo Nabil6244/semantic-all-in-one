@@ -1,0 +1,133 @@
+{
+ "id": "tidal_stretch",
+ "family": "forces",
+ "use": "A body stretched head to foot and squeezed round the middle by tides: spaghettification (V4 6:30 'SQUEEZED INTO A THIN BAND AROUND YOUR WAIST').",
+ "tags": [
+  "forces",
+  "tides",
+  "body",
+  "black hole"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "warm",
+ "slots": {
+  "label": {
+   "default": "SQUEEZED INTO A THIN BAND AROUND YOUR WAIST",
+   "from": "label"
+  },
+  "figure": {
+   "default": "astronaut"
+  }
+ },
+ "items": [
+  {
+   "p": "glow",
+   "at": [
+    0.5,
+    1.05
+   ],
+   "r": 0.5,
+   "color": "rgba(170,40,30,0.7)",
+   "opacity": 0.5,
+   "in": 0.05
+  },
+  {
+   "p": "icon",
+   "name": "{figure}",
+   "at": [
+    0.5,
+    0.45
+   ],
+   "size": 0.2,
+   "in": 0.1,
+   "m": "stretch",
+   "sx_to": 0.35,
+   "sy_to": 2.4,
+   "dur": "={len}*0.55",
+   "delay": 1.2
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.5,
+    0.25
+   ],
+   "to": [
+    0.5,
+    0.08
+   ],
+   "color": "red",
+   "width": 2.4,
+   "m": "draw",
+   "dur": 0.8,
+   "in": 1.0
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.5,
+    0.66
+   ],
+   "to": [
+    0.5,
+    0.86
+   ],
+   "color": "red",
+   "width": 2.4,
+   "m": "draw",
+   "dur": 0.8,
+   "in": 1.0
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.38,
+    0.45
+   ],
+   "to": [
+    0.45,
+    0.45
+   ],
+   "color": "cyan",
+   "width": 2,
+   "m": "draw",
+   "dur": 0.6,
+   "in": 1.6
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.62,
+    0.45
+   ],
+   "to": [
+    0.55,
+    0.45
+   ],
+   "color": "cyan",
+   "width": 2,
+   "m": "draw",
+   "dur": 0.6,
+   "in": 1.6
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.9
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": "@band",
+   "or": "50%"
+  }
+ ],
+ "triggers": "\\b(spaghetti\\w*|stretch\\w*|tidal|tides?)\\b",
+ "source": "V4 6:30",
+ "auto": true
+}

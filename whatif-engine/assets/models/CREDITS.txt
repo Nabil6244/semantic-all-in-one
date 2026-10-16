@@ -1,0 +1,5 @@
+3D models: NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources), public domain / NASA media usage guidelines.
+Files: voyager, voyager_simple, pioneer10, cassini, juno, galileo, magellan, parker, perseverance, viking_lander, jwst, hubble, apollo_lm,
+saturn_v, dsn_70m, dawn, messenger, rosetta, ulysses, ingenuity, insight, iss, deep_space_1, stardust.
+Fonts (assets/fonts): Montserrat, Inter, JetBrains Mono: SIL Open Font License 1.1.
+Textures: see CREDITS.txt in assets/textures (NASA, Solar System Scope CC BY 4.0).

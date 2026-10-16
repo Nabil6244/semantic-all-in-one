@@ -1,0 +1,77 @@
+{
+ "id": "sky_from_there",
+ "family": "space",
+ "use": "The sky seen from another world: our Sun's size next to theirs over a horizon.",
+ "tags": [
+  "space",
+  "sky",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "dark",
+ "slots": {
+  "left": {
+   "default": "OUR SUN FROM EARTH",
+   "from": "label"
+  },
+  "right": {
+   "default": "THEIR SUN FROM THERE",
+   "from": "sub"
+  },
+  "ratio": {
+   "default": 3,
+   "from": "value_to"
+  },
+  "color": {
+   "default": "#FF6A3A"
+  }
+ },
+ "items": [
+  {
+   "p": "band",
+   "box": [
+    0,
+    0.72,
+    1,
+    1
+   ],
+   "colors": [
+    "#2A1C14",
+    "#0B0806"
+   ],
+   "dir": "v",
+   "opacity": 1,
+   "in": 0
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.3,
+    0.45
+   ],
+   "r": 0.03,
+   "style": "sun",
+   "label": "{left}",
+   "label_side": "bottom",
+   "label_size": 16,
+   "in": 0.3
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.65,
+    0.45
+   ],
+   "r": "=0.03*{ratio}",
+   "style": "sun",
+   "color": "{color}",
+   "label": "{right}",
+   "label_side": "bottom",
+   "label_size": 16,
+   "in": 1.2
+  }
+ ],
+ "triggers": "\\b(in (the|its) sky|would look like|from the surface)\\b"
+}

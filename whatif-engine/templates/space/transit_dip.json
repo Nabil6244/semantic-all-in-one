@@ -1,0 +1,134 @@
+{
+ "id": "transit_dip",
+ "family": "space",
+ "use": "A planet crossing its star while the light curve below dips: how planets are found.",
+ "tags": [
+  "space",
+  "planets",
+  "method"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "STARLIGHT",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.5,
+    0.36
+   ],
+   "r": 0.2,
+   "style": "sun",
+   "in": 0.1
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.2,
+    0.36
+   ],
+   "r": 0.035,
+   "color": "#05070B",
+   "in": 0.5,
+   "anim": {
+    "at": {
+     "keys": [
+      [
+       0.8,
+       [
+        0.2,
+        0.36
+       ]
+      ],
+      [
+       "end-0.5",
+       [
+        0.8,
+        0.36
+       ]
+      ]
+     ],
+     "ease": "linear"
+    }
+   }
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.15,
+     0.78
+    ],
+    [
+     0.42,
+     0.78
+    ],
+    [
+     0.45,
+     0.83
+    ],
+    [
+     0.55,
+     0.83
+    ],
+    [
+     0.58,
+     0.78
+    ],
+    [
+     0.85,
+     0.78
+    ]
+   ],
+   "smooth": false,
+   "color": "cyan",
+   "width": 2,
+   "anim": {
+    "progress": {
+     "keys": [
+      [
+       0.8,
+       0
+      ],
+      [
+       "end-0.5",
+       1
+      ]
+     ],
+     "ease": "linear"
+    }
+   },
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.15,
+    0.73
+   ],
+   "size": 14,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.6
+  }
+ ],
+ "triggers": "\\b(transit|passes in front|dims?)\\b",
+ "auto": true
+}

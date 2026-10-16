@@ -1,0 +1,129 @@
+{
+ "id": "constellation_zoom",
+ "family": "space",
+ "use": "A constellation drawn star by star, then the target star ringed and named.",
+ "tags": [
+  "space",
+  "stars",
+  "location"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "BETELGEUSE",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "stars": {
+   "default": [
+    [
+     0.25,
+     0.3
+    ],
+    [
+     0.38,
+     0.38
+    ],
+    [
+     0.5,
+     0.33
+    ],
+    [
+     0.6,
+     0.48
+    ],
+    [
+     0.72,
+     0.42
+    ],
+    [
+     0.8,
+     0.6
+    ]
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.25,
+     0.3
+    ],
+    [
+     0.38,
+     0.38
+    ],
+    [
+     0.5,
+     0.33
+    ],
+    [
+     0.6,
+     0.48
+    ],
+    [
+     0.72,
+     0.42
+    ],
+    [
+     0.8,
+     0.6
+    ]
+   ],
+   "smooth": false,
+   "color": "rgba(150,190,255,0.5)",
+   "width": 1.2,
+   "m": "draw",
+   "dur": 2.0,
+   "in": 0.3
+  },
+  {
+   "p": "dot",
+   "each": "stars",
+   "at": "{it}",
+   "r": 4,
+   "color": "white",
+   "style": "plain",
+   "in": 0.3,
+   "stagger": 0.3
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.6,
+    0.48
+   ],
+   "r": 0.035,
+   "color": "gold",
+   "width": 2,
+   "pulse": {
+    "amp": 0.1,
+    "hz": 0.8
+   },
+   "m": "draw",
+   "dur": 0.8,
+   "in": "60%",
+   "label": "{label}",
+   "sub": "{sub}"
+  }
+ ],
+ "triggers": "\\bconstellation\\b"
+}

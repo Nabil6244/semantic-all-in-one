@@ -1,0 +1,71 @@
+{
+ "id": "info_letter",
+ "family": "story",
+ "use": "Information destroyed or not: a letter burns from the bottom up, the line beside it (V4 8:10 'BURN A LETTER...').",
+ "tags": [
+  "information",
+  "story"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "BURN A LETTER...",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "icon",
+   "name": "letter",
+   "at": [
+    0.42,
+    0.45
+   ],
+   "size": 0.3,
+   "in": 0.1,
+   "anim": {
+    "burn": [
+     [
+      "@burn",
+      0
+     ],
+     [
+      "@burn+3.5",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "p": "glow",
+   "at": [
+    0.42,
+    0.6
+   ],
+   "r": 0.16,
+   "color": "rgba(255,120,30,0.8)",
+   "opacity": 0.4,
+   "in": "@burn",
+   "or": "30%",
+   "pulse": {
+    "amp": 0.2,
+    "hz": 1.2
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.6,
+    0.47
+   ],
+   "size": 22,
+   "in": 0.5
+  }
+ ],
+ "triggers": "\\bburn (a|the) (letter|book|page)\\b",
+ "source": "V4 8:10"
+}

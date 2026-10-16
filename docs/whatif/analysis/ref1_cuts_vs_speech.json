@@ -1,0 +1,1 @@
+{"bed_db": -26.8, "speech_db_p70": -13.1, "bed_to_speech_db": 13.8, "pauses_ge_0.2s": {"n": 281, "median_len": 0.55, "per_min": 26.1}, "hard_cuts_in_pause": 0.82, "visual_changes_in_pause": 0.74, "baseline_random_in_pause": 0.42}

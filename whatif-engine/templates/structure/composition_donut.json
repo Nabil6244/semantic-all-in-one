@@ -1,0 +1,85 @@
+{
+ "id": "composition_donut",
+ "family": "structure",
+ "use": "What something is made of, as a ring of parts with names and shares. text = PART=percent.",
+ "tags": [
+  "structure",
+  "composition",
+  "data"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "WHAT IT IS MADE OF",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "center": {
+   "default": ""
+  },
+  "parts": {
+   "default": [
+    {
+     "label": "HYDROGEN",
+     "text": "73%",
+     "v": 73
+    },
+    {
+     "label": "HELIUM",
+     "text": "25%",
+     "v": 25
+    },
+    {
+     "label": "OTHER",
+     "text": "2%",
+     "v": 2
+    }
+   ],
+   "from": "text",
+   "kind": "parts"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "donut",
+   "at": [
+    0.42,
+    0.52
+   ],
+   "r": 0.22,
+   "width": 38,
+   "parts": "{parts}",
+   "center": "{center}",
+   "m": "draw",
+   "dur": 1.8,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(made (up )?of|percent)\\b"
+}

@@ -1,0 +1,89 @@
+{
+ "id": "hawking_glow",
+ "family": "blackhole",
+ "use": "A black hole glowing faintly: small wavy marks drift away from the dark disc while it slowly shrinks (V4 8:20 'HAWKING'S GLOW: PURE HEAT, NO RECORD').",
+ "tags": [
+  "black hole",
+  "radiation",
+  "quantum"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "HAWKING'S GLOW: PURE HEAT, NO RECORD",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "shrink": {
+   "default": 0.7
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "particles",
+   "mode": "squiggle",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "count": 30,
+   "r0": 0.15,
+   "color": "gold",
+   "color2": "cyan",
+   "speed": 1.2,
+   "in": 0.4
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "r": 0.13,
+   "style": "shadow",
+   "in": 0.05,
+   "anim": {
+    "scale": [
+     [
+      0.5,
+      1
+     ],
+     [
+      "end",
+      "{shrink}"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.11
+   ],
+   "size": 20,
+   "color": "gold",
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(hawking radiation|evaporat\\w*|glow faintly)\\b",
+ "source": "V4 8:20",
+ "auto": true
+}

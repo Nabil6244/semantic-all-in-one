@@ -1,0 +1,96 @@
+{
+ "id": "horizon_arc",
+ "family": "blackhole",
+ "use": "Black frame, one thin bright curve of light along the top: the edge seen from very close (V4 3:00 'HOVERING AT THE PHOTON SPHERE').",
+ "tags": [
+  "black hole",
+  "atmosphere",
+  "hero"
+ ],
+ "plate": true,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "dark",
+ "slots": {
+  "label": {
+   "default": "HOVERING AT THE PHOTON SPHERE",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "path",
+   "points": [
+    [
+     -0.05,
+     0.2
+    ],
+    [
+     0.25,
+     0.09
+    ],
+    [
+     0.5,
+     0.06
+    ],
+    [
+     0.75,
+     0.09
+    ],
+    [
+     1.05,
+     0.2
+    ]
+   ],
+   "color": "#F4E6CC",
+   "width": 3,
+   "glow": 18,
+   "m": "draw",
+   "dur": 2.0,
+   "in": 0.1
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     -0.05,
+     0.215
+    ],
+    [
+     0.25,
+     0.105
+    ],
+    [
+     0.5,
+     0.075
+    ],
+    [
+     0.75,
+     0.105
+    ],
+    [
+     1.05,
+     0.215
+    ]
+   ],
+   "color": "rgba(244,180,120,0.5)",
+   "width": 1.2,
+   "m": "draw",
+   "dur": 2.4,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.045
+   ],
+   "size": 15,
+   "align": "center",
+   "font": "mono",
+   "in": 0.5
+  }
+ ],
+ "source": "V4 3:00"
+}

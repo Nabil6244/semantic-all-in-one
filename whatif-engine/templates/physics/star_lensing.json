@@ -1,0 +1,130 @@
+{
+ "id": "star_lensing",
+ "family": "physics",
+ "use": "One star seen twice: two light paths from 'A STAR' curve round a dark mass to the eye marked YOU (V4 1:55).",
+ "tags": [
+  "light",
+  "gravity",
+  "lensing"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION · LIGHT PATHS COMPUTED WITH EINSTEIN'S EQUATIONS",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "A STAR",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.105,
+    0.42
+   ],
+   "r": 6,
+   "color": "white",
+   "style": "plain",
+   "label": "{label}",
+   "label_side": "top",
+   "label_size": 18,
+   "in": 0.1
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.47,
+    0.5
+   ],
+   "r": 0.055,
+   "style": "shadow",
+   "in": 0.1
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.105,
+     0.42
+    ],
+    [
+     0.3,
+     0.31
+    ],
+    [
+     0.47,
+     0.27
+    ],
+    [
+     0.66,
+     0.34
+    ],
+    [
+     0.86,
+     0.48
+    ]
+   ],
+   "color": "rgba(240,240,240,0.85)",
+   "width": 1.8,
+   "m": "draw",
+   "dur": 2.2,
+   "in": 0.6
+  },
+  {
+   "p": "path",
+   "points": [
+    [
+     0.105,
+     0.42
+    ],
+    [
+     0.3,
+     0.62
+    ],
+    [
+     0.47,
+     0.7
+    ],
+    [
+     0.66,
+     0.64
+    ],
+    [
+     0.86,
+     0.52
+    ]
+   ],
+   "color": "rgba(240,240,240,0.85)",
+   "width": 1.8,
+   "m": "draw",
+   "dur": 2.2,
+   "in": 1.0
+  },
+  {
+   "p": "icon",
+   "name": "eye",
+   "at": [
+    0.89,
+    0.5
+   ],
+   "size": 0.06,
+   "label": "YOU",
+   "label_size": 16,
+   "in": 0.3
+  }
+ ],
+ "triggers": "\\b(twice|two images|lens\\w*)\\b",
+ "source": "V4 1:55",
+ "auto": true
+}

@@ -1,0 +1,76 @@
+{
+ "id": "callout_object",
+ "family": "structure",
+ "use": "An object in the middle with labelled callouts around it, appearing one by one. text = LABEL=line under it.",
+ "tags": [
+  "structure",
+  "parts",
+  "craft"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "object": {
+   "default": "satellite"
+  },
+  "callouts": {
+   "default": [
+    {
+     "name": "SOLAR PANELS",
+     "value": "POWER"
+    },
+    {
+     "name": "DISH",
+     "value": "TALKS TO EARTH"
+    },
+    {
+     "name": "BODY",
+     "value": "INSTRUMENTS"
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "{object}",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "size": 0.36,
+   "in": 0.1
+  },
+  {
+   "p": "callout",
+   "each": "callouts",
+   "point": [
+    "=0.5+0.07*cos(({i}*2*PI/{n})-0.6)",
+    "=0.52+0.12*sin(({i}*2*PI/{n})-0.6)"
+   ],
+   "at": [
+    "=0.5+0.28*cos(({i}*2*PI/{n})-0.6)",
+    "=0.52+0.32*sin(({i}*2*PI/{n})-0.6)"
+   ],
+   "text": "{it.name}",
+   "sub": "{it.value}",
+   "m": "draw",
+   "dur": 0.6,
+   "in": 0.8,
+   "stagger": 0.8
+  }
+ ]
+}

@@ -1,0 +1,137 @@
+{
+ "id": "info_falls_in",
+ "family": "blackhole",
+ "use": "Symbols of information drifting into a dark disc (V4 8:05 'EVERYTHING THAT FALLS IN CARRIES INFORMATION').",
+ "tags": [
+  "information",
+  "black hole",
+  "quantum"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "EVERYTHING THAT FALLS IN CARRIES INFORMATION",
+   "from": "label"
+  },
+  "symbols": {
+   "default": [
+    {
+     "s": "1",
+     "x": 0.52,
+     "y": 0.2
+    },
+    {
+     "s": "Z",
+     "x": 0.41,
+     "y": 0.38
+    },
+    {
+     "s": "0",
+     "x": 0.33,
+     "y": 0.58
+    },
+    {
+     "s": "Σ",
+     "x": 0.4,
+     "y": 0.62
+    },
+    {
+     "s": "?",
+     "x": 0.62,
+     "y": 0.46
+    },
+    {
+     "s": "Z",
+     "x": 0.6,
+     "y": 0.82
+    },
+    {
+     "s": "·",
+     "x": 0.3,
+     "y": 0.5
+    }
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "r": 0.12,
+   "style": "shadow",
+   "in": 0.05
+  },
+  {
+   "p": "text",
+   "each": "symbols",
+   "text": "{it.s}",
+   "font": "mono",
+   "size": 20,
+   "case": "keep",
+   "at": [
+    "{it.x}",
+    "{it.y}"
+   ],
+   "color": "cream",
+   "in": 0.4,
+   "stagger": 0.3,
+   "anim": {
+    "at": [
+     [
+      0.4,
+      [
+       "{it.x}",
+       "{it.y}"
+      ]
+     ],
+     [
+      "90%",
+      [
+       0.5,
+       0.52
+      ]
+     ]
+    ],
+    "alpha": [
+     [
+      "70%",
+      1
+     ],
+     [
+      "92%",
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.11
+   ],
+   "size": 18,
+   "align": "center",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\binformation\\b",
+ "source": "V4 8:05",
+ "auto": true
+}

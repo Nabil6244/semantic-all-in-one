@@ -1,0 +1,244 @@
+{
+ "id": "river_walkway",
+ "family": "physics",
+ "use": "Space as a moving walkway flowing in: dashes stream faster towards the centre; three light tracers GET OUT, RUN ON THE SPOT, ARE CARRIED IN (V4 3:40, the river model).",
+ "tags": [
+  "physics",
+  "black hole",
+  "spacetime",
+  "flow"
+ ],
+ "plate": true,
+ "hold": 12,
+ "cite": "ILLUSTRATION · BASED ON THE RIVER MODEL (HAMILTON & LISLE)",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "SPACE: A WALKWAY MOVING IN ←",
+   "from": "label"
+  },
+  "sub": {
+   "default": "SLOW FAR OUT · FASTER CLOSER IN",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "band",
+   "box": [
+    0.035,
+    0.66,
+    0.985,
+    0.86
+   ],
+   "colors": [
+    "#7A2A1A",
+    "#2A1418",
+    "#0B0E14"
+   ],
+   "opacity": 0.75,
+   "feather": 24,
+   "in": 0.1
+  },
+  {
+   "p": "particles",
+   "mode": "flow",
+   "box": [
+    0.04,
+    0.67,
+    0.98,
+    0.85
+   ],
+   "count": 160,
+   "dir": -1,
+   "profile": "river",
+   "speed": 1.2,
+   "color": "#E8E0D0",
+   "alpha": 0.7,
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.045,
+    0.76
+   ],
+   "r": 6,
+   "color": "red",
+   "style": "plain",
+   "in": 0.2
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.12,
+    0.72
+   ],
+   "r": 5,
+   "color": "white",
+   "style": "plain",
+   "in": "@out",
+   "or": "35%",
+   "anim": {
+    "at": [
+     [
+      "@out",
+      [
+       0.12,
+       0.72
+      ]
+     ],
+     [
+      "@out+3",
+      [
+       0.47,
+       0.72
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.12,
+    0.76
+   ],
+   "r": 5,
+   "color": "white",
+   "style": "plain",
+   "in": "@spot",
+   "or": "50%"
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.2,
+    0.8
+   ],
+   "r": 5,
+   "color": "white",
+   "style": "plain",
+   "in": "@carried",
+   "or": "65%",
+   "anim": {
+    "at": [
+     [
+      "@carried",
+      [
+       0.2,
+       0.8
+      ]
+     ],
+     [
+      "@carried+3",
+      [
+       0.05,
+       0.8
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "LIGHT, RUNNING OUTWARD →",
+   "at": [
+    0.42,
+    0.668
+   ],
+   "size": 12,
+   "font": "mono",
+   "color": "grey",
+   "in": "@out",
+   "or": "35%"
+  },
+  {
+   "p": "text",
+   "text": "GETS OUT",
+   "at": [
+    0.42,
+    0.725
+   ],
+   "size": 15,
+   "font": "mono",
+   "in": "@out+0.5",
+   "or": "38%"
+  },
+  {
+   "p": "text",
+   "text": "RUNS ON THE SPOT",
+   "at": [
+    0.42,
+    0.765
+   ],
+   "size": 15,
+   "font": "mono",
+   "in": "@spot+0.5",
+   "or": "53%"
+  },
+  {
+   "p": "text",
+   "text": "CARRIED IN",
+   "at": [
+    0.42,
+    0.805
+   ],
+   "size": 15,
+   "font": "mono",
+   "in": "@carried+0.5",
+   "or": "68%"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.39,
+    0.6
+   ],
+   "size": 22,
+   "sub": "{sub}",
+   "in": 0.2
+  },
+  {
+   "p": "text",
+   "text": "EVENT HORIZON",
+   "at": [
+    0.19,
+    0.875
+   ],
+   "size": 18,
+   "color": "gold",
+   "sub": "THE WALKWAY MOVES AT LIGHT SPEED",
+   "sub_color": "cream",
+   "in": 1.0
+  },
+  {
+   "p": "text",
+   "text": "INSIDE",
+   "at": [
+    0.08,
+    0.62
+   ],
+   "size": 16,
+   "color": "amber",
+   "sub": "FASTER THAN LIGHT",
+   "sub_color": "cream",
+   "in": "@inside",
+   "or": "80%"
+  }
+ ],
+ "triggers": "\\b(walkway|river|space (itself )?(flows|falls|moves)|conveyor)\\b",
+ "max_s": 40,
+ "source": "V4 3:40",
+ "auto": true
+}

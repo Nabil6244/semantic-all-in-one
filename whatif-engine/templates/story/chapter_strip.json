@@ -1,0 +1,46 @@
+{
+ "id": "chapter_strip",
+ "family": "story",
+ "use": "A chapter strip along the top: every stage of the video on one rail, the current one lit (a recap of where we are).",
+ "tags": [
+  "story",
+  "chapter",
+  "progress"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "stages": {
+   "default": [
+    "APPROACH",
+    "PHOTON SPHERE",
+    "EDGE",
+    "INSIDE",
+    "SINGULARITY"
+   ],
+   "from": "text",
+   "kind": "list"
+  },
+  "current": {
+   "default": 0,
+   "from": "value_to"
+  }
+ },
+ "items": [
+  {
+   "p": "rail",
+   "at": [
+    0.2,
+    0.1
+   ],
+   "w": 0.6,
+   "nodes": "{stages}",
+   "current": "{current}",
+   "all_labels": true,
+   "label_size": 12,
+   "in": 0.1
+  }
+ ]
+}

@@ -1,0 +1,133 @@
+{
+ "id": "field_lines",
+ "family": "forces",
+ "use": "Field lines looping round a magnet, planet or star, drawn on one by one.",
+ "tags": [
+  "forces",
+  "magnetism",
+  "field"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "A MAGNETIC SHIELD",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "style": {
+   "default": "earth"
+  },
+  "loops": {
+   "default": [
+    0.12,
+    0.2,
+    0.3,
+    0.42
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "path",
+   "each": "loops",
+   "points": [
+    [
+     0.5,
+     0.45
+    ],
+    [
+     "=0.5+{it}*0.35",
+     "=0.45-{it}*0.5"
+    ],
+    [
+     "=0.5+{it}*0.7",
+     0.5
+    ],
+    [
+     "=0.5+{it}*0.35",
+     "=0.55+{it}*0.5"
+    ],
+    [
+     0.5,
+     0.55
+    ]
+   ],
+   "color": "rgba(0,229,255,0.55)",
+   "width": 1.5,
+   "m": "draw",
+   "dur": 1.2,
+   "in": 0.5,
+   "stagger": 0.25
+  },
+  {
+   "p": "path",
+   "each": "loops",
+   "points": [
+    [
+     0.5,
+     0.45
+    ],
+    [
+     "=0.5-{it}*0.35",
+     "=0.45-{it}*0.5"
+    ],
+    [
+     "=0.5-{it}*0.7",
+     0.5
+    ],
+    [
+     "=0.5-{it}*0.35",
+     "=0.55+{it}*0.5"
+    ],
+    [
+     0.5,
+     0.55
+    ]
+   ],
+   "color": "rgba(0,229,255,0.55)",
+   "width": 1.5,
+   "m": "draw",
+   "dur": 1.2,
+   "in": 0.5,
+   "stagger": 0.25
+  },
+  {
+   "p": "disc",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.09,
+   "style": "{style}",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\bmagnetic (field|shield)\\b|\\bmagnetosphere\\b",
+ "auto": true
+}

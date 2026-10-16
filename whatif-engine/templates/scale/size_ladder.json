@@ -1,0 +1,93 @@
+{
+ "id": "size_ladder",
+ "family": "scale",
+ "use": "Things in a row from small to huge, each disc sized on a powers-of-ten scale, labels under them (human -> city -> Earth -> Sun -> ...). text = NAME=size; NAME=size.",
+ "tags": [
+  "scale",
+  "size",
+  "compare"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION · SIZES ON A LOGARITHMIC SCALE",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "FROM YOU TO THE SUN",
+   "from": "label"
+  },
+  "sub": {
+   "default": "EACH STEP ON A POWERS-OF-TEN SCALE",
+   "from": "sub"
+  },
+  "base": {
+   "default": 1
+  },
+  "items": {
+   "default": [
+    {
+     "name": "YOU",
+     "value": "1.7 M",
+     "num": 1.7
+    },
+    {
+     "name": "EVEREST",
+     "value": "8.8 KM",
+     "num": 8800
+    },
+    {
+     "name": "EARTH",
+     "value": "12,742 KM",
+     "num": 12742000
+    },
+    {
+     "name": "SUN",
+     "value": "1.39 MILLION KM",
+     "num": 1390000000.0
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "disc",
+   "each": "items",
+   "at": [
+    "=0.1+0.8*{i}/max(1,{n}-1)",
+    0.52
+   ],
+   "r": "=clamp(0.012+0.035*log10(max(1,{it.num}/{base})),0.012,0.2)",
+   "style": "planet",
+   "color": "#9AA6B5",
+   "label": "{it.name}",
+   "label_side": "bottom",
+   "label_size": 15,
+   "sub": "{it.value}",
+   "in": 0.4,
+   "stagger": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.1
+   ],
+   "size": 30,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\b(bigger than|smaller than|times (larger|wider|bigger))\\b"
+}

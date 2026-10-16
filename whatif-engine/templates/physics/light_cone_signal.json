@@ -1,0 +1,94 @@
+{
+ "id": "light_cone_signal",
+ "family": "physics",
+ "use": "Light leaving a point in every direction as a growing ring, reaching a marker after the time the narration says.",
+ "tags": [
+  "light",
+  "distance"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "from_name": {
+   "default": "THE SUN",
+   "from": "label"
+  },
+  "to_name": {
+   "default": "EARTH",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.3,
+    0.5
+   ],
+   "r": 6,
+   "color": "amber",
+   "label": "{from_name}",
+   "label_side": "bottom",
+   "label_size": 14,
+   "in": 0.1
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.3,
+    0.5
+   ],
+   "r": 0.02,
+   "color": "rgba(255,214,160,0.7)",
+   "width": 2,
+   "in": 0.5,
+   "anim": {
+    "r": [
+     [
+      0.5,
+      0.02
+     ],
+     [
+      "end-0.5",
+      0.75
+     ]
+    ],
+    "alpha": [
+     [
+      "60%",
+      1
+     ],
+     [
+      "end",
+      0.2
+     ]
+    ]
+   }
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.75,
+    0.5
+   ],
+   "r": 6,
+   "color": "cyan",
+   "label": "{to_name}",
+   "label_side": "bottom",
+   "label_size": 14,
+   "in": 0.1
+  }
+ ],
+ "triggers": "\\blight (leaves|reaches|takes)\\b"
+}

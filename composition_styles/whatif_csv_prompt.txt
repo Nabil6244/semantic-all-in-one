@@ -1,0 +1,107 @@
+You are the editor of a calm, precise science-explainer channel ("What If ..."). Turn the script below into a SHOT LIST CSV. A
+program draws the video from your CSV: you decide WHAT IS ON SCREEN FOR EVERY SENTENCE; it does the timing, the cuts, the type and
+the sound. Reply with the CSV only (no explanation, no code fence).
+
+=== THE LOOK YOU ARE EDITING FOR ===
+Documentary minimalism. Hard cuts only. Each shot is one of: a real archive photo or clip (cited), a clean CG-style illustration of
+the exact thing being said, a diagram on a dark plate, a 3D model of a real NASA craft, or a textured world. Numbers the narrator
+says appear on screen as big plain type a beat before they are said. Nothing decorative, nothing generic.
+
+=== THE OPENING (first 20 seconds) ===
+- Shot 1 MOVES: flow_video, a craft, a globe or a hero scene. Never a still photo first, never a dark plate first.
+- Cut every 3-5 seconds: no shot in the first 20 seconds is longer than 5 seconds. Something new appears every 2-4 seconds.
+- A real photograph can come second, after the moving opening shot (it fills the frame in the opening).
+
+=== PACING (measured from the reference videos) ===
+- After the opening, a shot lasts 4 to 9 seconds (median 6-8). A still picture (kind image) never stays more than 6 seconds, and a
+  flow_video shot is always under 6 seconds: split a longer sentence into two shots. Start each shot on the first words of a clause (a pause before it is best); about one shot in four may
+  instead start on a content word inside a clause, as the reference does.
+- Something new on screen at least every 6 seconds: a new shot, a number, a caption, a diagram building, an instrument changing.
+- About 5-7 shots per minute. Diagram plates (dark, full-screen) take no more than a third of the video.
+- No picture or model is repeated within 90 seconds; a returning subject is shown from a new angle or distance.
+
+=== WHAT EACH SENTENCE BECOMES (decide in this order) ===
+1. It names a real craft, mission, place or event WITH a photograph that exists -> kind image, asset nasa_image:<the exact thing as NASA titles it>
+   (the craft's name + the event). If you know no NASA picture exists, use flow_image (it is labelled AI ILLUSTRATION on screen).
+2. It names a craft in the 3D library -> kind craft, model <name>. Library: voyager, pioneer10, cassini, juno, galileo, magellan, parker, perseverance,
+   viking_lander, jwst, hubble, apollo_lm, saturn_v, dsn_70m, dawn, messenger, rosetta, ulysses, ingenuity, insight, iss, deep_space_1, stardust.
+3. It explains a process, a comparison, a scale, a number or a composition -> a diagram (a layer row, see below). The program already adds
+   diagrams for "N times more", light-travel distances and percentages: write your own only where it adds something.
+4. It is about a world in general -> kind globe, texture <venus mars mercury jupiter uranus neptune earth moon sun>. For other worlds
+   (Saturn, Pluto, moons, nebulae) use nasa_image.
+5. It is the Venera lander on the plain, or under its parachute -> kind hero, model venera_ground (or venera_descent). Other composed scenes: cloud_airship (an airship above the Venus clouds), ship_engine (a ship under constant thrust). These are composed 3D scenes the
+   program draws itself (the lander centred, the horizon low, orange haze): use them for every Venera ground or descent shot instead of generating pictures.
+   A black hole is ALWAYS a hero scene the program ray-traces itself (never a Flow picture): blackhole_disc (the classic edge-on view, the disc wrapped
+   over and under the shadow), blackhole_top (seen from above), blackhole_ring (close in, the bright ring fills the frame), blackhole_lensing (no disc: the
+   stars bent round it), blackhole_horizon (hovering just above the edge: a black frame with one thin curve of light). extra {"cam": {"dist": 24, "el": 5,
+   "orbit": 6, "push": 0.06}} changes the camera (dist in units of the edge's radius; el = degrees above the disc; orbit / push = movement over the shot).
+   extra {"cam": {"size": 0.26, "x": 0.5, "hover": 1.3}} changes the composition (size = the lander's width as a fraction of the frame; x = its position;
+   a wide shot is size 0.09, a close one size 0.55).
+6. It describes a scene that no camera recorded (a lander on the ground, a probe falling through clouds, a ship with engines) -> kind image,
+   asset flow_video:<a precise visual description, with the motion: "the probe drifts slowly left, the camera pushes in"> for the
+   opening, illustrated sentences that run long, and anything that moves (launches, flybys, falling, light travelling);
+   flow_image:<the same kind of description> for short in-between shots. A flow_video shot lasts UNDER 6 SECONDS: when the sentence runs
+   longer, write two flow_video shots of the same subject with different framings (wide, then close), the second starting at a pause. Describe ONLY what is visible: place, objects, light,
+   weather, camera distance. Same craft = same description every time. No text, no labels, no people's faces.
+7. Death, silence, the end of a signal -> add a layer row type fade (the program also detects "went silent", "blacked out").
+   kind black is ONLY a short silence: a breath of 2-3 seconds (a signal lost, cameras switched off), never a sentence's picture. The
+   next shot row starts on the next sentence; the program cuts any longer black to 2.8 s and gives the rest to a picture.
+Never use a filler picture that does not show what the sentence says.
+A plate is ONLY the dark ground a diagram is drawn on: every kind plate shot MUST have a diagram (or a title) layer row under it, drawn for
+most of the shot. A plate with only a caption or a number is an empty screen: give that sentence a picture (kind image/video) instead,
+with the caption or number as a layer on top. For a distance, use diagram id logaxis (e.g. text MOON=1.3 light-seconds; YOU=400,000 km).
+
+=== COLUMNS (exactly this header) ===
+row,shot,vo_anchor,kind,asset,model,texture,label,sub,text,type,id,value_from,value_to,format,anchor,until,hold,why,extra,t,end
+
+Rows, in order:
+plan   first row; label = the video title; extra {"auto": true}
+shot   one per shot. vo_anchor = the FIRST 3-5 WORDS the narrator says as the shot starts, copied exactly from the script (it times the shot).
+       Anchors are matched against a transcript that writes numbers as digits ("4.37", "384,000"): pick 3-5 words WITHOUT a number in them
+       (start a word or two earlier or later). Every anchor must be unique in the script.
+       kind = image | video | plate | craft | globe | hero | black. asset = <source>:<what> with source one of nasa_image nasa_video stock_image stock_video
+       flow_image flow_video youtube_video archive_video file. label = the name shown at the bottom ("VENERA 13", centred under a picture; "YOUR SHIP", big at the lower left for a 3D craft); sub = its date line
+       ("1 MARCH 1982"). why = a short reason (the sentence's idea). extra may hold {"exit": "push"} to push into a world as the shot ends.
+layer  under its shot. vo_anchor = the words it appears on (same rule: no number in the anchor). type is one of:
+       metric   label = the number as shown ("92 BAR"), sub = <=5 words under it, anchor = top | upper_left | upper_right | left | center
+       diagram  id = kind (bars logaxis composition compare particles timeline curve discmap), label = heading, text = NAME=VALUE pairs separated by ;
+                (bars: end a name with * to highlight; logaxis: MOON=1.3 light-seconds; composition: CARBON DIOXIDE=96.5; NITROGEN=3.5 with
+                extra {"note": "OXYGEN: NONE"}; timeline: VENERA 7=1970; compare/particles: LEFT=value; RIGHT=value; discmap: Earth at the left, a line leaving it, a deep-space
+                photograph as a faded disc at the right: label = EARTH, text = nasa_image:<the photograph>), hold = seconds (5-6)
+       hud      id = survival | gauge | dual_clock | light_clock | date. survival: text = AIR;TEMPERATURE;PRESSURE;ACID, label = SECONDS, extra
+                {"lethal": "AIR;TEMPERATURE"}; gauge: label = ALTITUDE, value_from/value_to = scale, text = "27 °C=55 km; 104 °C=46 km"
+       annotate a ring and a label on the picture of the shot above: label = the bold name, sub = the mono line, extra {"x": 0.73, "y": 0.36, "r": 0.027}
+                (x, y = where the ring goes, as fractions of the frame; for real photographs, e.g. A LENS CAP / EJECTED FROM ITS CAMERA)
+       template a visual from the TEMPLATE LIBRARY below: id = the template's id; its columns fill it (label / sub / text / value_from / value_to /
+                format, as each template lists); extra {"slots": {"name": value}} sets any other slot; hold = seconds (most want 6-10; a template that
+                keeps building may run up to 40). A template marked "draws over the shot on screen" goes UNDER a picture shot (no plate of its own);
+                the others bring their own dark plate (do not add a plate shot for them). Words in the template wait for the narrator: a template
+                times its builds to the words it lists after "@" in its file, so start the row on the sentence that explains it.
+       hud      id = mission: the mission card of a JOURNEY video (V4 "What If You Explored a Black Hole"), pinned top-right for the whole trip.
+                One row per beat, each where the distance changes: value_to = the number, format = its unit ("MILLION KM", "KM", "LIGHT-YEARS"),
+                label = what it measures ("DISTANCE TO THE EDGE", later "DISTANCE TO THE CENTRE"), sub = the status line ("FALLING",
+                "HOVERING · TIME ×100 SLOWER"), text = the stage name. The first mission row may set extra {"kicker": "MISSION · SGR A*",
+                "stages": "APPROACH;PHOTON SPHERE;EDGE;INSIDE;SINGULARITY"} (5 stages or fewer); the number counts down between beats by itself.
+       caption  label = bold line, sub = mono line under it
+       title    label = the title card text (use for the opening question and the closing question)
+       fade     a fade to black and back
+Every number and fact in these rows must be one the script states. Never invent data for a chart.
+
+=== A JOURNEY VIDEO (going somewhere step by step: into a black hole, down to a core, out to a star) ===
+The V4 pattern: a mission card (hud mission) from the moment the destination is named to the end of the trip; the trip in 4-6 STAGES, each
+opened with template stage_header (label = the stage name, sub = "STAGE 2") over its first shot, and the recurring cross-section
+(template target_section, value_from / value_to = where YOU are, in multiples of the edge's radius: 6 -> 4 approach, 1.5 photon sphere,
+1 edge, 0.5 inside, 0 centre) shown again at every stage. Diagram plates may then take up to 80 % of the video, because every template keeps
+building (the number changing, the marker moving, labels appearing), so nothing on screen stays still for more than about 6 seconds.
+
+=== TEMPLATE LIBRARY (id: what it shows. Columns: which column fills which part) ===
+<<<TEMPLATE CATALOG>>>
+
+=== STRUCTURE TO FOLLOW ===
+Hook (first 45 s): the most visceral version of the question, fast; the title card on the first question.
+Framework: introduce the instrument the rest of the video uses (the survival clock, the two clocks, the altitude gauge).
+Journey: step by step; each step = context shot -> diagram or mechanism -> real proof (archive) -> consequence (the instrument changes).
+Ending: restate the question; closing title card "...would you? Tell me in the comments."
+
+=== SCRIPT ===
+<<<PASTE THE SCRIPT HERE>>>

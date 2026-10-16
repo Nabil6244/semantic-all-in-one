@@ -1,0 +1,85 @@
+{
+ "id": "looking_back",
+ "family": "blackhole",
+ "use": "Looking back out from inside: the outside universe squeezed into a red-shifted band at the bottom of a black frame (V4 4:55 'LOOKING BACK / THE UNIVERSE IS STILL THERE').",
+ "tags": [
+  "black hole",
+  "light",
+  "view"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "dark",
+ "slots": {
+  "label": {
+   "default": "LOOKING BACK",
+   "from": "label"
+  },
+  "sub": {
+   "default": "THE UNIVERSE IS STILL THERE",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "band",
+   "box": [
+    0,
+    0.82,
+    1,
+    1.0
+   ],
+   "colors": [
+    "#3A0806",
+    "#FF4A1A",
+    "#FFB070"
+   ],
+   "dir": "v",
+   "opacity": 0.95,
+   "in": 0.2
+  },
+  {
+   "p": "band",
+   "box": [
+    0,
+    0.84,
+    1,
+    0.98
+   ],
+   "colors": [
+    "#FF7A3A",
+    "#FF7A3A"
+   ],
+   "opacity": 0.25,
+   "lines": 7,
+   "line_color": "#FFD2A0",
+   "in": 0.4
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.14
+   ],
+   "size": 18,
+   "align": "center",
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.5,
+    0.955
+   ],
+   "size": 14,
+   "font": "mono",
+   "align": "center",
+   "color": "cream",
+   "in": 1.2
+  }
+ ],
+ "source": "V4 4:55"
+}

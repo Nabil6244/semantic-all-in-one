@@ -1,0 +1,78 @@
+{
+ "id": "odds_dial",
+ "family": "data",
+ "use": "Odds as a dial with a thin slice lit: '1 IN 10 MILLION'.",
+ "tags": [
+  "data",
+  "probability"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "1 IN 10 MILLION",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "share": {
+   "default": 0.004,
+   "from": "value_to"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.22,
+   "color": "rgba(255,255,255,0.15)",
+   "width": 24,
+   "in": 0.1
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.22,
+   "color": "cyan",
+   "width": 24,
+   "progress": "=max(0.004,{share})",
+   "in": 0.6,
+   "m": "draw",
+   "dur": 0.8
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.53
+   ],
+   "size": 34,
+   "font": "display",
+   "align": "center",
+   "sub": "{sub}",
+   "in": 0.8
+  }
+ ],
+ "triggers": "\\b(odds|chance|one in)\\b"
+}
