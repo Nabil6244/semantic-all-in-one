@@ -963,10 +963,17 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
                 t = ts0 + 0.01
                 continue
             subj = shot_at(ts0).place
-            layers.append({"type": "tm_caption", "text": " ".join(cut).upper(), **({"sub": subj.upper()} if subj and subj.upper() not in " ".join(cut).upper() else {}),
-                           "start": round(ts0 - LEAD_S, 3), "end": round(min(y - 0.2, ts0 + 4.2), 3), "fade_in": 0.05, "fade_out": 0.3, "z": 5})
+            layers.append({"type": "tm_caption", "auto": True, "text": " ".join(cut).upper(), **({"sub": subj.upper()} if subj and subj.upper() not in " ".join(cut).upper() else {}),
+                           "start": round(ts0 - LEAD_S, 3), "end": round(min(y - 0.2, ts0 + 5.5), 3), "fade_in": 0.05, "fade_out": 0.3, "z": 5})
             fills += 1
             t = ts0
+    # text on every picture: a picture shot still bare gets the narrator's key words (whatif/engage.py), held to its end
+    from .engage import direct, readout_card, count_up
+
+    if auto:
+        readout_card(layers, metrics, duration, notes, title=title)   # a card pinned top-right that updates as the narration gives values
+    count_up(layers)                                          # every number counts up to its value
+    direct(shots, layers, words, duration, notes)            # authored lines in varied text layouts, never the same layout within a minute
     # a world followed by something else: the camera pushes into its disc, once a minute at most
     last_push = -60.0
     for s, nx in zip(shots, shots[1:]):
@@ -993,6 +1000,8 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
                  f"{fills} context lockup(s), {changed} repeat(s) re-framed")
     for s in empty_plates(shots, layers):
         notes.append(f"WARNING shot {s.id} ({s.start:.1f}-{s.end:.1f}s) is an empty plate: nothing is drawn on most of it")
+    from .engage import coverage
+    notes.append(f"plan: text or graphics on screen {100 * coverage(shots, layers, duration):.0f}% of the video")
     return ShotPlan(shots=shots, layers=layers, duration=duration, title=title, notes=notes, words=words)
 
 

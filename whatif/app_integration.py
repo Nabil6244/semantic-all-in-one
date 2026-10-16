@@ -71,6 +71,17 @@ def check_text(words: Sequence[Any], script: str, duration: float, title: str = 
     lines = [f"{len(p.shots)} shots, median {rep['median_shot_s']} s, {rep['hard_cuts_per_min']} cuts/min, "
              f"{rep['visual_changes_per_min']} visual changes/min (longest gap {rep['max_gap_between_changes_s']} s), "
              f"diagram plates {int(rep['plate_share'] * 100)}% of the video"]
+    tl = [L for L in p.layers if L.get("type") == "tm_template"]
+    mins = max(1.0, duration / 60)
+    diff = len({L["template"]["id"] for L in tl})
+    lines.append(f"graphics: {len(tl)} templates ({len(tl) / mins:.1f} a minute), {diff} different (target: at least {int(mins)}, one a minute)"
+                 + ("" if diff >= int(mins) and len(tl) >= int(mins) else "  <- below target"))
+    inst = [L for L in p.layers if L.get("type") in ("tm_mission", "tm_survival", "tm_clock", "tm_gauge")]
+    lines.append(f"instruments: {len(inst)} ({', '.join(sorted({L['type'][3:] for L in inst})) or 'none'})" + ("" if inst else "  <- below target: add a readout card (hud mission)"))
+    texty = ("tm_caption", "tm_title", "tm_metric", "tm_annotate", "tm_template", "tm_mission", "tm_survival", "tm_clock", "tm_gauge")
+    bare = [s for s in p.shots if s.start >= 60 and s.kind != "plate" and not any(L.get("type") in texty and float(L.get("start", 0)) < s.end
+                                                                                  and s.start < float(L.get("end", 0)) for L in p.layers)]
+    lines.append(f"shots with no text or graphic after the opening: {len(bare)}" + ("  <- give each one a fact, a number or a template" if bare else ""))
     if rep["cuts_inside_speech"]:
         lines.append(f"WARNING: {rep['cuts_inside_speech']} cut(s) land inside speech")
     lines += [f"note: {n}" for n in p.notes]

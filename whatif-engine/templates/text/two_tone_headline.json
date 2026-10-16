@@ -1,0 +1,52 @@
+{
+ "id": "two_tone_headline",
+ "family": "text",
+ "use": "A line split in two at the top-left: the first half white, the second half gold and larger.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.11
+   ],
+   "size": 30,
+   "in": 0.1,
+   "maxw": 0.6
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.035,
+    0.17
+   ],
+   "size": 40,
+   "font": "display",
+   "color": "gold",
+   "glow": true,
+   "in": 0.4,
+   "maxw": 0.6
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

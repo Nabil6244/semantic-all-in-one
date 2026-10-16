@@ -71,7 +71,8 @@ shot   one per shot. vo_anchor = the FIRST 3-5 WORDS the narrator says as the sh
        flow_image flow_video youtube_video archive_video file. label = the name shown at the bottom ("VENERA 13", centred under a picture; "YOUR SHIP", big at the lower left for a 3D craft); sub = its date line
        ("1 MARCH 1982"). why = a short reason (the sentence's idea). extra may hold {"exit": "push"} to push into a world as the shot ends.
 layer  under its shot. vo_anchor = the words it appears on (same rule: no number in the anchor). type is one of:
-       metric   label = the number as shown ("92 BAR"), sub = <=5 words under it, anchor = top | upper_left | upper_right | left | center
+       metric   value_to = the number, format = its unit ("92" + "BAR"): it COUNTS UP on screen to that value; sub = <=5 words under it ("ABOUT 90 × EARTH");
+                anchor = top | upper_left | upper_right | left | center. Use label only for a value that is not a number.
        diagram  id = kind (bars logaxis composition compare particles timeline curve discmap), label = heading, text = NAME=VALUE pairs separated by ;
                 (bars: end a name with * to highlight; logaxis: MOON=1.3 light-seconds; composition: CARBON DIOXIDE=96.5; NITROGEN=3.5 with
                 extra {"note": "OXYGEN: NONE"}; timeline: VENERA 7=1970; compare/particles: LEFT=value; RIGHT=value; discmap: Earth at the left, a line leaving it, a deep-space
@@ -104,6 +105,27 @@ opened with template stage_header (label = the stage name, sub = "STAGE 2") over
 (template target_section, value_from / value_to = where YOU are, in multiples of the edge's radius: 6 -> 4 approach, 1.5 photon sphere,
 1 edge, 0.5 inside, 0 centre) shown again at every stage. Diagram plates may then take up to 80 % of the video, because every template keeps
 building (the number changing, the marker moving, labels appearing), so nothing on screen stays still for more than about 6 seconds.
+
+=== INSTRUMENTS (REQUIRED: the cards and counters that stay on screen) ===
+Every video pins at least ONE instrument for most of its length, like the references (V1 survival clock at the top-left, V2 two clocks,
+V4 "DISTANCE TO THE EDGE" card, V5 "YOUR WEIGHT 70 KG" card at the top-right):
+- the READOUT CARD: hud, id = mission, for the quantity the story follows (air pressure, temperature, distance, your weight, years ago,
+  speed ...): label = what it measures ("AIR PRESSURE"), value_to + format = the reading (6 + MBAR), sub = a second line ("1% OF EARTH"),
+  extra {"kicker": "<the video's subject>", "stages": ""}. Write ONE ROW EACH TIME THE READING CHANGES in the narration (at least 4 rows across
+  the video): the card counts from one value to the next by itself.
+- or, where it fits better: hud survival (how long you would last), dual_clock / light_clock (time), gauge (altitude, depth).
+- side cards for the viewpoint and facts: corner_tag (INSIDE / OUTSIDE / ON MARS / IN ORBIT) over picture shots, boxed_fact for a fact at the top-right,
+  photo_lockup for a real photograph with its name and date.
+
+=== TEXT ON SCREEN (REQUIRED) ===
+- After the opening, EVERY shot gets at least one layer row (metric, caption or template) unless it is a plate that carries its diagram.
+- Each piece of text is a COMPLETE short fact, a name, a date or a number: 2-7 words that make sense on their own.
+  GOOD: "MARS LOST MOST OF ITS AIR" · "VIKING 1 · 20 JULY 1976" · "6 MBAR · 1% OF EARTH" · "THE MAGNETIC FIELD SWITCHED OFF" · "SOLAR WIND STRIPS THE AIR"
+  BAD (never): "QUESTION IS NOT SIMPLY WHERE" · "FROM THAT AND OTHER MEASUREMENTS" · "LIKE A SLOW LEAK" · "SCIENTISTS ARE CAREFUL ABOUT THE PRECISE"
+  (half-sentences copied from the narration mean nothing on screen).
+- Show these facts with the text layouts, rotating them so no layout repeats within a minute: kicker_headline, lower_third, side_note,
+  boxed_fact, underline_title, two_tone_headline, key_word (1-3 words only), typewriter_line, statement. A plain caption only now and then.
+- Every number the narrator stresses is a metric row (value_to + format) or a big_number_lower: it counts up on screen.
 
 === FLOW BUDGET (AI pictures cost credits: use them where they matter) ===
 - Flow (flow_image / flow_video) is for the OPENING: the first 60 seconds may use it freely, so the video starts strong.
@@ -216,6 +238,15 @@ building (the number changing, the marker moving, labels appearing), so nothing 
   organ_failure: A body and a list of what fails, item by item turning red beside it. Columns: text=items as A; B; C.
   seconds_left: A countdown: the number falls to zero, the cause under it. Columns: value_from=value_from (required), value_to=value_to, format=format, sub=sub.
   vital_monitor: A vital-signs monitor: the heartbeat line runs, then flattens as the readouts fall. Columns: label=label, sub=sub, value_from=value_from, value_to=value_to, format=format.
+[text]
+  boxed_fact: A line from the narration in a frosted fact box at the top-right, with a cyan accent. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  key_word: The key words of the sentence huge and glowing in the lower middle (one to three words), the rest small under them. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  kicker_headline: A line from the narration as a headline at the top-left with a small cyan kicker above it (the subject). [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  lower_third: A line from the narration on a dark band sliding in at the lower left, the subject in mono under it. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  side_note: A line from the narration at the right edge, right-aligned, with a thin vertical rule beside it. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  two_tone_headline: A line split in two at the top-left: the first half white, the second half gold and larger. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  typewriter_line: A line from the narration typed out in mono across the lower middle, as a transcript line. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
+  underline_title: A line from the narration at the top-left with an amber underline drawing under it. [draws over the shot on screen, no plate] Columns: label=label (required), sub=sub.
 [time]
   age_counters: Two counters running at different speeds: your years against Earth's years (or any two clocks as numbers). Columns: label=left, sub=right, value_from=left_to, value_to=right_to (required), format=format.
   cosmic_calendar: All of history squeezed into one year: a 12-month ring, a marker sweeping to the last second, the event named ('HUMANS APPEAR AT 11:59 PM, 31 DECEMBER'). Columns: text=title, label=label (required), sub=sub.

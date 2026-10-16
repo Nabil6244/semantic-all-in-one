@@ -1,0 +1,70 @@
+{
+ "id": "lower_third",
+ "family": "text",
+ "use": "A line from the narration on a dark band sliding in at the lower left, the subject in mono under it.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.0,
+    0.78
+   ],
+   "w": 0.5,
+   "h": 0.12,
+   "fill": "rgba(8,10,15,0.72)",
+   "border": "rgba(0,0,0,0)",
+   "accent": "cyan",
+   "in": 0.05,
+   "anim": {
+    "at": [
+     [
+      0.05,
+      [
+       -0.5,
+       0.78
+      ]
+     ],
+     [
+      0.5,
+      [
+       0.0,
+       0.78
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.03,
+    0.835
+   ],
+   "size": 26,
+   "sub": "{sub}",
+   "in": 0.35,
+   "maxw": 0.46
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

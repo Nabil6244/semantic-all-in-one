@@ -1,0 +1,67 @@
+{
+ "id": "underline_title",
+ "family": "text",
+ "use": "A line from the narration at the top-left with an amber underline drawing under it.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.12
+   ],
+   "size": 30,
+   "in": 0.1,
+   "maxw": 0.6
+  },
+  {
+   "p": "line",
+   "from": [
+    0.035,
+    0.14
+   ],
+   "to": [
+    0.4,
+    0.14
+   ],
+   "color": "amber",
+   "width": 3,
+   "m": "draw",
+   "dur": 0.7,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.035,
+    0.175
+   ],
+   "size": 15,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.6,
+   "maxw": 0.6
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

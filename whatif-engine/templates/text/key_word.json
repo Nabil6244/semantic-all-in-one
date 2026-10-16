@@ -1,0 +1,57 @@
+{
+ "id": "key_word",
+ "family": "text",
+ "use": "The key words of the sentence huge and glowing in the lower middle (one to three words), the rest small under them.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.8
+   ],
+   "size": 72,
+   "font": "display",
+   "align": "center",
+   "glow": true,
+   "in": 0.1,
+   "m": "pop",
+   "dur": 0.5,
+   "maxw": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.5,
+    0.86
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "cream",
+   "in": 0.5,
+   "maxw": 0.9
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

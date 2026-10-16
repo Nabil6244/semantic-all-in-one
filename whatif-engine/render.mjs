@@ -56,6 +56,15 @@ async function main() {
   const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
   spec.output = process.argv[3] || spec.output || path.join(path.dirname(path.resolve(specPath)), 'whatif.mp4');
   const { width, height, fps } = spec, total = Math.round(spec.duration * fps), specDir = path.dirname(path.resolve(specPath));
+  // a video shot whose file is a still picture (a stock or Visual Plan choice that returned an image): drawn as a picture with the slow
+  // drift -- ffmpeg told to loop a single image as a clip never finishes (a still render hung 43 minutes on one)
+  for (const s of spec.shots || []) {
+    if (s.kind === 'video' && s.file && /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(s.file)) {
+      emit({ event: 'warning', message: `shot ${s.id}: ${s.file} is a picture, not a clip; drawn as a still` });
+      s.kind = 'image';
+      s.drift = s.drift || { from: 1.0, to: 1.04, fx: 0.5, fy: 0.5 };
+    }
+  }
   // a picture or clip that is not on disk: that shot is drawn as a plate (reported), never a stop
   for (const s of spec.shots || []) {
     if (['image', 'video'].includes(s.kind) && s.file && !fs.existsSync(resolveMedia(s.file, mediaDirOf(spec, specDir)))) {

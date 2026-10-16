@@ -169,7 +169,10 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
                 d["compose"] = "letterbox"            # a real photograph: the whole picture over a blurred copy of itself (V1 6:40)
             fx, fy = DRIFT_FOCUS[n % len(DRIFT_FOCUS)]
             d["drift"] = {"from": 1.0, "to": 1.04, "fx": fx, "fy": fy}
-            if s.kind == "video":
+            if s.kind == "video" and Path(s.file).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"):
+                d["kind"] = "image"                  # a clip row that got a still picture is drawn as a picture (never looped as a clip)
+                notes.append(f"shot {s.id}: its clip is a still picture ({Path(s.file).name}); shown as a picture")
+            elif s.kind == "video":
                 d["in_s"], d["loop"] = float(s.extra.get("in_s", 0)), True
         elif s.kind == "plate":
             d["tint"], d["title"], d["sub"] = s.tint, s.title, s.sub

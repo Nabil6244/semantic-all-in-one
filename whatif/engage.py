@@ -70,7 +70,7 @@ def engage(shots: List[Any], layers: List[Dict[str, Any]], words: Sequence[Any],
         tid = L["template"]["id"]
         added[tid] = added.get(tid, 0) + 1
 
-    last = {"dated": -1e9, "stage": -1e9, "question": -1e9}
+    last = {"dated": -1e9, "stage": -1e9, "question": -1e9, "ring": -1e9}
     for a, b in sn:
         sent = span_text(words, a, b)
         toks = sent.split()
@@ -112,6 +112,42 @@ def engage(shots: List[Any], layers: List[Dict[str, Any]], words: Sequence[Any],
                     plate_budget -= t1 - t0
                     last["question"] = t0
                 continue
+        free_plate = lambda a0, a1: plate_budget >= a1 - a0 and not any(x < a1 and a0 < y for x, y in plates())  # noqa: E731
+        # a percentage on its own: a ring filling to it ("about 1 percent of Earth's air")
+        m = re.search(r"\b(\d{1,3}(?:\.\d+)?)\s*(?:%|percent)\b", sent, re.I)
+        if m and t0 >= hook_s and added.get("ring_value", 0) < 3 and t0 - last.get("ring", -1e9) >= 90:
+            t1 = min(t0 + 5.0, duration - 0.5)
+            if free_plate(t0, t1) and 0 < float(m.group(1)) <= 100:
+                rest = _clean(sent[m.end():].split(), 5)
+                L, pl = _layer("ring_value", {"label": f"{m.group(1)}%", "sub": rest, "share": float(m.group(1)) / 100}, t0, t1, words)
+                carved = carve(shots, shot_cls(id="", start=t0, end=t1, kind="plate", tint="cool", text=sent, cite=pl["cite"]), force=True)
+                if carved:
+                    shots, plate_budget = carved, plate_budget - (t1 - t0)
+                    add(L); last["ring"] = t0
+                    continue
+        # "9 of the 17 astronauts" / "3 out of 4": a row of dots
+        m = re.search(r"\b(\d{1,2}) (?:out )?of (?:the |its |their )?(\d{1,2})\b\s*([A-Za-z]+)?", sent)
+        if m and t0 >= hook_s and 0 < int(m.group(1)) <= int(m.group(2)) <= 60 and added.get("dot_tally", 0) < 2:
+            t1 = min(t0 + 5.0, duration - 0.5)
+            if free_plate(t0, t1):
+                L, pl = _layer("dot_tally", {"value_to": int(m.group(1)), "total": int(m.group(2)), "label": (m.group(3) or "").upper(), "sub": ""}, t0, t1, words)
+                carved = carve(shots, shot_cls(id="", start=t0, end=t1, kind="plate", tint="cool", text=sent, cite=pl["cite"]), force=True)
+                if carved:
+                    shots, plate_budget = carved, plate_budget - (t1 - t0)
+                    add(L)
+                    continue
+        # a quotation with its speaker: "...," said Carl Sagan
+        m = re.search(r"[\"“]([^\"”]{8,110})[\"”]", sent)
+        who = re.search(r"\b([A-Z][a-z]+(?: [A-Z][a-z]+){1,2})\b(?=[^.]{0,30}\b(?:said|wrote|called|asked|put it|once))|(?:said|wrote|asked)\s+([A-Z][a-z]+(?: [A-Z][a-z]+){1,2})", sent)
+        if m and who and t0 >= hook_s and added.get("quote_person", 0) < 3:
+            t1 = min(max(t0 + 4.5, float(words[b].end) + 0.5), t0 + 7.0, duration - 0.5)
+            if free_plate(t0, t1):
+                L, pl = _layer("quote_person", {"label": m.group(1).strip().upper(), "person": (who.group(1) or who.group(2)).upper(), "year": ""}, t0, t1, words)
+                carved = carve(shots, shot_cls(id="", start=t0, end=t1, kind="plate", tint="cool", text=sent, cite=pl["cite"]), force=True)
+                if carved:
+                    shots, plate_budget = carved, plate_budget - (t1 - t0)
+                    add(L)
+                    continue
         # "one in a million" / "1 in 4"
         m = re.search(r"\b(?:one|1)\s+in\s+(?:a\s+|every\s+)?(\d[\d,]*|hundred|thousand|million|billion|trillion)\b", sent, re.I)
         if m and t0 >= hook_s and added.get("odds_dial", 0) < 2:
@@ -190,11 +226,243 @@ def vary_looks(shots: List[Any], layers: List[Dict[str, Any]], words: Sequence[A
                 ev = [{"name": str(e.get("label", "")).upper(), "value": str(e.get("year", "")), "num": float(e.get("year", 0))} for e in L["events"]]
                 swap(L, "discovery_timeline", {"events": ev, "from_year": L.get("from", min(e["num"] for e in ev) - 1),
                                                "to_year": L.get("to", max(e["num"] for e in ev) + 1), "label": "", "sub": ""})
-            elif ty == "tm_caption" and L.get("size", "small") == "small" and not L.get("anchor") and L.get("text"):
-                seen["caption"] += 1           # a context caption (a lockup under a named picture is anchored or large and stays)
-                if seen["caption"] % 3:
-                    continue
-                swap(L, "statement", {"label": str(L["text"]).upper(), "sub": str(L.get("sub", "")).upper()})
         except (ValueError, TypeError, KeyError):
             continue
     return shots
+
+
+COVER_MIN = 0.5               # a picture shot with graphics over less than half of it gets a line of its own
+COVER_TYPES = ("tm_caption", "tm_title", "tm_metric", "tm_annotate", "tm_survival", "tm_mission", "tm_clock", "tm_gauge")
+
+
+def _covered(s: Any, layers: Sequence[Dict[str, Any]]) -> float:
+    spans = sorted((max(s.start, float(L["start"])), min(s.end, float(L["end"]))) for L in layers
+                   if "start" in L and (L.get("type") in COVER_TYPES or (L.get("type") == "tm_template" and not L.get("plate", True)))
+                   and float(L["start"]) < s.end and s.start < float(L["end"]))
+    tot, cur = 0.0, None
+    for a, b in spans:
+        if cur and a <= cur[1]:
+            cur[1] = max(cur[1], b)
+        else:
+            if cur:
+                tot += cur[1] - cur[0]
+            cur = [a, b]
+    if cur:
+        tot += cur[1] - cur[0]
+    return tot / max(0.1, s.length)
+
+
+def cover_pictures(shots: Sequence[Any], layers: List[Dict[str, Any]], words: Sequence[Any], cl: Sequence[Tuple[int, int]], notes: List[str],
+                   *, filler: set, tail: set, lead: float = 0.1) -> int:
+    """Text on every picture (project 015 had 40 % of its runtime as pictures with nothing over them): a picture shot that graphics cover
+    for less than half its length gets the key words of what the narrator says over it -- a caption, or every third time a bold statement --
+    held to the shot's end (at most 6 s). Only the narration's own words are shown."""
+    added = 0
+    for s in shots:
+        if s.kind not in ("image", "video", "globe", "craft", "hero") or s.length < 3.0 or _covered(s, layers) >= COVER_MIN:
+            continue
+        starts = [(a, b) for a, b in cl if s.start - 0.2 <= float(words[a].start) <= s.end - 2.0]
+        if starts:
+            a, b = starts[0]
+        else:                   # no clause starts inside the shot: the words spoken while it is on screen
+            inside = [i for i, w in enumerate(words) if s.start <= float(w.start) <= s.end - 1.5]
+            if not inside:
+                continue
+            a, b = inside[0], inside[-1]
+        phrase = [re.sub(r"[^\w'°%.\-]", "", w.text).strip(".-") for w in words[a:b + 1]]
+        phrase = [p for p in phrase if p]
+        while phrase and phrase[0].lower() in filler:
+            phrase.pop(0)
+        cut = phrase[:6]
+        while len(cut) > 2 and (cut[-1].lower() in filler or cut[-1].lower() in tail):
+            cut.pop()
+        if len(cut) < 2:
+            continue
+        t0 = max(s.start + 0.25, float(words[a].start) - lead)
+        t1 = min(s.end - 0.15, t0 + 6.0)
+        if t1 - t0 < 2.2 or any(L.get("type") in ("tm_caption", "tm_title", "tm_metric", "tm_fade") and float(L["start"]) < t1 and t0 < float(L["end"]) for L in layers):
+            continue
+        text = " ".join(cut).upper()
+        subj = (s.name or s.place or "").upper()
+        if False:
+            pass
+        else:
+            L = {"type": "tm_caption", "text": text, **({"sub": subj} if subj and subj not in text else {}), "start": round(t0, 3), "end": round(t1, 3),
+                 "fade_in": 0.05, "fade_out": 0.3, "z": 5}
+        layers.append(L)
+        added += 1
+    if added:
+        notes.append(f"plan: {added} picture shot(s) with nothing over them got the narrator's key words on screen")
+    return added
+
+
+def coverage(shots: Sequence[Any], layers: Sequence[Dict[str, Any]], duration: float) -> float:
+    """Share of the video with a graphic or text on screen (a diagram plate counts as covered)."""
+    tot = 0.0
+    for s in shots:
+        tot += s.length if s.kind == "plate" else _covered(s, layers) * s.length
+    return tot / max(0.1, duration)
+
+
+
+# ---- the graphics director: every plan, CSV or not --------------------------------------------------------------------------------
+TEXT_LAYOUTS = ("kicker_headline", "lower_third", "side_note", "underline_title", "two_tone_headline", "key_word", "boxed_fact", "typewriter_line", "statement")
+REPEAT_GAP_S = 60.0           # never the same template twice within this
+PLAIN_EVERY = 3               # one context line in three stays a plain caption (the calm reference look)
+BOTTOM = ("lower_third", "key_word", "typewriter_line")
+TOP_LEFT = ("kicker_headline", "underline_title", "two_tone_headline", "statement", "stage_header", "dated_caption", "mission_intro")
+
+
+def _text_slots(tid: str, text: str, sub: str) -> Dict[str, str]:
+    words = text.split()
+    if tid == "two_tone_headline" and len(words) >= 3:
+        h = (len(words) + 1) // 2
+        return {"label": " ".join(words[:h]), "sub": " ".join(words[h:])}
+    if tid == "key_word":                  # only a short line is shown big: the whole of it, never words picked out of it
+        return {"label": text, "sub": sub}
+    return {"label": text, "sub": sub}
+
+
+def direct(shots: Sequence[Any], layers: List[Dict[str, Any]], words: Sequence[Any], duration: float, notes: List[str]) -> Dict[str, Any]:
+    """The program's guarantee, whatever the CSV did: context lines rotate through the text layouts (never the same template within
+    REPEAT_GAP_S, one in PLAIN_EVERY stays a plain caption), and every minute has at least one template. Same words, same timing."""
+    def used_near(tid: str, t: float) -> bool:
+        return any(L.get("type") == "tm_template" and L["template"]["id"] == tid and abs(float(L["start"]) - t) < REPEAT_GAP_S for L in layers)
+
+    def corner_busy(tid: str, t0: float, t1: float) -> bool:
+        if tid in TOP_LEFT:
+            return any(L.get("type") == "tm_template" and L["template"]["id"] in TOP_LEFT and float(L["start"]) < t1 and t0 < float(L["end"]) for L in layers)
+        if tid in BOTTOM:          # a photo's caption, a craft's name or a picture lockup already owns the bottom of the frame
+            return any((L.get("type") == "tm_caption" and (L.get("size") in ("photo", "large") or L.get("anchor")))
+                       or (L.get("type") == "tm_template" and L["template"]["id"] in BOTTOM + ("big_number_lower",))
+                       for L in layers if float(L.get("start", 0)) < t1 and t0 < float(L.get("end", 0)))
+        if tid == "boxed_fact":
+            return any(L.get("type") in ("tm_mission", "tm_clock", "tm_gauge") and float(L.get("start", 0)) < t1 and t0 < float(L.get("end", 1e9)) for L in layers)
+        return False
+
+    k = 0
+    swapped = 0
+    rot = 0
+    context = [L for L in sorted(layers, key=lambda L: float(L.get("start", 0)))
+               if L.get("type") == "tm_caption" and not L.get("auto") and L.get("size", "small") == "small" and not L.get("anchor") and L.get("text")]
+    fades = [(float(L["start"]), float(L["end"])) for L in layers if L.get("type") == "tm_fade"]
+    context = [L for L in context if not any(a < float(L["end"]) and float(L["start"]) < b for a, b in fades)]   # nobody sees text in a fade to black
+    for L in context:
+        k += 1
+        if k % PLAIN_EVERY == 0:
+            continue
+        t0, t1 = float(L["start"]), float(L["end"])
+        for n in range(len(TEXT_LAYOUTS)):
+            tid = TEXT_LAYOUTS[(rot + n) % len(TEXT_LAYOUTS)]
+            if tid == "key_word" and len(str(L["text"]).split()) > 3:
+                continue
+            if used_near(tid, t0) or corner_busy(tid, t0, t1):
+                continue
+            NL, _ = _layer(tid, _text_slots(tid, str(L["text"]).upper(), str(L.get("sub", "")).upper()), t0, max(t1, t0 + 3.5), words)
+            layers[layers.index(L)] = NL
+            rot = (rot + n + 1) % len(TEXT_LAYOUTS)
+            swapped += 1
+            break
+    # every minute at least one template: a minute without one turns its first remaining caption into a free layout
+    empty = []
+    for m0 in range(0, int(duration), 60):
+        m1 = min(duration, m0 + 60)
+        if any(L.get("type") == "tm_template" and m0 <= float(L["start"]) < m1 for L in layers):
+            continue
+        cap = next((L for L in layers if L.get("type") == "tm_caption" and not L.get("auto") and m0 <= float(L["start"]) < m1 and L.get("text")), None)
+        done = False
+        if cap is not None:
+            t0, t1 = float(cap["start"]), float(cap["end"])
+            for tid in TEXT_LAYOUTS:
+                if tid == "key_word" and len(str(cap["text"]).split()) > 3:
+                    continue
+                if not used_near(tid, t0) and not corner_busy(tid, t0, t1):
+                    NL, _ = _layer(tid, _text_slots(tid, str(cap["text"]).upper(), str(cap.get("sub", "")).upper()), t0, max(t1, t0 + 3.5), words)
+                    layers[layers.index(cap)] = NL
+                    swapped += 1
+                    done = True
+                    break
+        if not done:
+            empty.append(m0 // 60 + 1)
+    tl = [L for L in layers if L.get("type") == "tm_template"]
+    stats = {"templates": len(tl), "different": len({L["template"]["id"] for L in tl}), "per_min": round(len(tl) / max(1.0, duration / 60), 1),
+             "minutes_without": empty}
+    notes.append(f"plan: graphics director: {swapped} line(s) in varied text layouts; {stats['templates']} templates, {stats['different']} different, "
+                 f"{stats['per_min']} a minute" + (f"; minutes with none: {empty}" if empty else ""))
+    return stats
+
+
+
+# ---- the readout card and counting numbers ------------------------------------------------------------------------------------
+READOUT_NAMES = {"key": "KEY NUMBERS", "temperature": "TEMPERATURE", "pressure": "AIR PRESSURE", "distance": "DISTANCE", "speed": "SPEED", "duration": "TIME",
+                 "light": "LIGHT TRAVEL TIME", "mass": "MASS", "age": "YEARS AGO", "years": "YEARS", "percent": "SHARE", "count": "COUNT"}
+
+
+def readout_card(layers: List[Dict[str, Any]], metrics: Sequence[Any], duration: float, notes: List[str], *, title: str = "") -> bool:
+    """Every video gets the reference's pinned card (V4 'DISTANCE TO THE EDGE', V5 'YOUR WEIGHT') unless it already has an instrument:
+    the kind of number the narration keeps coming back to (3+ values of the same kind and unit) becomes a top-right card whose reading
+    updates -- and counts -- each time the narrator gives a new value. Every value is one the narration says."""
+    if any(L.get("type") in ("tm_mission", "tm_survival", "tm_clock", "tm_gauge") for L in layers):
+        return False
+    groups: Dict[Tuple[str, str], List[Any]] = {}
+    for m in metrics:
+        if m.kind in ("ratio",) or not re.fullmatch(r"-?\d[\d,]*(?:\.\d+)?", str(m.shown)):
+            continue
+        groups.setdefault((m.kind, m.unit), []).append(m)
+    best = max(groups.items(), key=lambda kv: (len({str(m.shown) for m in kv[1]}), len(kv[1])), default=None)
+    series = bool(best) and len(best[1]) >= 3 and len({str(m.shown) for m in best[1]}) >= 2
+    if series:
+        (kind, unit), ms = best
+    else:
+        # no single quantity the story follows: the KEY NUMBERS card -- each number the narrator gives, with its kind, in turn
+        ms = [m for m in metrics if m.kind != "ratio" and re.fullmatch(r"-?\d[\d,]*(?:\.\d+)?", str(m.shown))]
+        if len(ms) < 4:
+            return False
+        kind, unit = "key", ""
+    ms = sorted(ms, key=lambda m: m.t)
+    keys = []
+    for m in ms:
+        if not series:
+            v = float(str(m.shown).replace(",", ""))
+            if keys and abs(keys[-1]["value"] - v) < 1e-9 and keys[-1]["unit"] == m.unit.upper():
+                continue
+            keys.append({"t": round(max(0.0, m.t - 0.1), 3), "value": int(v) if v.is_integer() else v, "unit": m.unit.upper(),
+                         "label": READOUT_NAMES.get(m.kind, m.kind.upper()), "status": "", "stage": 0})
+            continue
+        v = float(str(m.shown).replace(",", ""))
+        if keys and abs(keys[-1]["value"] - v) < 1e-9:
+            continue
+        keys.append({"t": round(max(0.0, m.t - 0.1), 3), "value": int(v) if v.is_integer() else v, "unit": unit.upper(), "label": READOUT_NAMES.get(kind, kind.upper()),
+                     "status": "", "stage": 0})
+    if len(keys) < 2:          # three mentions, at least two different readings: the card changes at least once
+        return False
+    kicker = READOUT_NAMES.get(kind, kind.upper())          # never a cut-off title: the card says what it shows
+    keys = [k for k in keys if k["t"] >= 20.0] or keys[-2:]  # the opening (title card, hook) has the frame to itself
+    if len(keys) < 2:
+        return False
+    layers.append({"type": "tm_mission", "auto": True, "kicker": kicker, "stages": [], "keys": keys,
+                   "start": keys[0]["t"], "end": round(min(duration, keys[-1]["t"] + 45.0), 3), "z": 11})
+    notes.append(f"plan: readout card '{'KEY NUMBERS' if kind == 'key' else READOUT_NAMES.get(kind, kind.upper())}' pinned top-right with {len(keys)} readings from the narration")
+    return True
+
+
+def count_up(layers: List[Dict[str, Any]]) -> int:
+    """Every number on screen counts up to its value (the reference counters): an automatic callout's value, or a CSV number written as
+    text ("6 MBAR", "1.5×", "-63 °C") whose leading number can be read."""
+    n = 0
+    for L in layers:
+        if L.get("type") != "tm_metric" or L.get("count") or L.get("rows"):
+            continue
+        shown = str(L.get("value") if L.get("value") is not None else L.get("text") or "")
+        m = re.match(r"^\s*([≈~]?)\s*(-?\d[\d,]*(?:\.\d+)?)\s*(.*)$", shown)
+        if not m or re.match(r"^\s*(?:[-–—]|to\b)\s*\d", m.group(3)) or re.search(r"\d\s*[/:]\s*\d", shown):
+            continue                      # a range ("3–22 MIN"), a fraction or a time stays as written
+        num = float(m.group(2).replace(",", ""))
+        dec = len(m.group(2).split(".")[1]) if "." in m.group(2) else 0
+        unit = (m.group(3) + (" " + str(L.get("unit")) if L.get("value") is not None and L.get("unit") else "")).strip()
+        L["count"] = {"from": 0, "to": num, "decimals": dec, "s": 1.2}
+        L["unit"] = unit
+        L["value"] = m.group(1) + m.group(2)       # kept: the renderer needs a value; the count wins while it runs
+        L.pop("text", None)
+        n += 1
+    return n

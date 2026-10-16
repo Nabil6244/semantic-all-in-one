@@ -758,7 +758,7 @@ class Templates(unittest.TestCase):
         for tid in tpl.load_library():
             self.assertIn(f"  {tid}: ", text)
         for must in ("hud      id = mission", "blackhole_lensing", "A JOURNEY VIDEO", "type is one of", "GRAPHICS TARGETS", "At least ONE template row per minute", "FLOW BUDGET",
-                     "at most ONE Flow shot every 3 minutes"):
+                     "at most ONE Flow shot every 3 minutes", "INSTRUMENTS (REQUIRED", "TEXT ON SCREEN (REQUIRED)", "COUNTS UP"):
             self.assertIn(must, text)
 
     def test_the_templates_ship_with_the_app(self):
@@ -896,6 +896,55 @@ class Engage(unittest.TestCase):
         vary_looks([], layers, [], seen.append)
         self.assertEqual([L["type"] for L in layers], ["tm_compare", "tm_template", "tm_compare", "tm_template"])
         self.assertEqual(seen, ["theories_split", "theories_split"])
+
+    def test_bare_pictures_get_the_narrators_words(self):
+        from whatif.engage import coverage, cover_pictures
+        script = "The red dust rolls over the empty plains for miles. Far above, thin clouds drift slowly past the old craters in silence."
+        raw = timed(script)
+        words = nr.words_of(raw, script)
+        shots = [planner.Shot(id="s1", start=0, end=raw[9][2] + 0.4, kind="image", asset="nasa_image:x", name="MARS"),
+                 planner.Shot(id="s2", start=raw[9][2] + 0.4, end=raw[-1][2] + 1, kind="image", asset="nasa_image:y")]
+        layers, notes = [], []
+        self.assertEqual(coverage(shots, layers, raw[-1][2] + 1), 0)
+        n = cover_pictures(shots, layers, words, nr.clauses(words), notes, filler=nr.FILLER, tail=nr.TAIL_WORDS)
+        self.assertEqual(n, 2)
+        self.assertIn("RED DUST", layers[0]["text"])
+        self.assertGreater(coverage(shots, layers, raw[-1][2] + 1), 0.7)
+
+    def test_the_director_varies_text_and_fills_every_minute(self):
+        from whatif.engage import direct
+        layers = [{"type": "tm_caption", "text": f"THE AIR THINNED OUT {i}", "sub": "MARS", "start": i * 20.0, "end": i * 20.0 + 5} for i in range(9)]
+        notes = []
+        st = direct([], layers, [], 180.0, notes)
+        ids = [L["template"]["id"] for L in layers if L.get("type") == "tm_template"]
+        self.assertEqual(st["minutes_without"], [])
+        self.assertGreaterEqual(len(set(ids)), 5)
+        self.assertEqual(len(ids), len(set(ids)))                      # nothing repeats within a minute (3 minutes, 9 lines)
+        self.assertEqual(sum(1 for L in layers if L["type"] == "tm_caption"), 3)  # one in three stays a plain caption
+
+    def test_numbers_count_up_but_ranges_stay(self):
+        from whatif.engage import count_up
+        layers = [{"type": "tm_metric", "text": "6 MBAR", "start": 0, "end": 3}, {"type": "tm_metric", "text": "3–22 MIN", "start": 5, "end": 8},
+                  {"type": "tm_metric", "value": "1.5", "unit": "×", "start": 9, "end": 12}]
+        count_up(layers)
+        self.assertEqual((layers[0]["count"]["to"], layers[0]["unit"]), (6.0, "MBAR"))
+        self.assertNotIn("count", layers[1])
+        self.assertEqual(layers[2]["count"]["decimals"], 1)
+
+    def test_a_readout_card_follows_the_narrations_numbers(self):
+        from types import SimpleNamespace as N
+        from whatif.engage import readout_card
+        ms = [N(kind="pressure", shown=str(v), unit="MBAR", t=30.0 + 40 * i) for i, v in enumerate((1013, 600, 6))]
+        layers, notes = [], []
+        self.assertTrue(readout_card(layers, ms, 300.0, notes))
+        card = layers[0]
+        self.assertEqual((card["type"], [k["value"] for k in card["keys"]]), ("tm_mission", [1013, 600, 6]))
+        self.assertEqual(card["keys"][0]["label"], "AIR PRESSURE")
+        mixed = [N(kind=k, shown=str(v), unit=u, t=30.0 + 30 * i) for i, (k, v, u) in enumerate((("speed", 400, "KM/S"), ("distance", 55, "MILLION KM"), ("percent", 38, "%"), ("pressure", 6, "MBAR")))]
+        layers = []
+        self.assertTrue(readout_card(layers, mixed, 300.0, []))
+        self.assertEqual(layers[0]["kicker"], "KEY NUMBERS")
+        self.assertFalse(readout_card([{"type": "tm_survival"}], ms, 300.0, []))   # a video with an instrument keeps its own
 
     def test_v5_scenes_and_templates_exist(self):
         from whatif import templates as tpl

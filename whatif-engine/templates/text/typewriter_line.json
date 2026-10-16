@@ -1,0 +1,56 @@
+{
+ "id": "typewriter_line",
+ "family": "text",
+ "use": "A line from the narration typed out in mono across the lower middle, as a transcript line.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.86
+   ],
+   "size": 22,
+   "font": "mono",
+   "align": "center",
+   "in": 0.1,
+   "m": "typewriter",
+   "dur": 1.4,
+   "maxw": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.5,
+    0.9
+   ],
+   "size": 13,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": 1.2,
+   "maxw": 0.9
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

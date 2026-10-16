@@ -61,6 +61,10 @@ function label(c, it, tr, x, y, { text, sub, size = 26, align = 'left', color, s
   const { T } = c;
   if (it.kicker) T.text(up(it, it.kicker), x, y - size * 1.25 * T.S, { font: T.mono(Math.max(13, size * 0.5), 600), track: 3, color: hex(it.kicker_color || 'cyan'), align, shadow: 0 });
   let w = 0;
+  if (it.maxw && text != null && text !== '') {            // the line never runs out of its box or off the frame: smaller type instead
+    const lim = it.maxw * c.W;
+    while (size > 10 && T.measure(up(it, text), fontOf(T, font, size, it.weight), it.track ?? (font === 'mono' ? 1 : 2.5)) > lim) size -= 1;
+  }
   if (text != null && text !== '') w = T.text(up(it, text), x, y, { font: fontOf(T, font, size, it.weight), track: it.track ?? (font === 'mono' ? 1 : 2.5), color, align,
     glow: glow ? (typeof glow === 'string' ? glow : 'rgba(255,214,160,0.3)') : null, shadow: it.shadow ?? 0.6 });
   if (sub) T.text(up(it, sub), x, y + (size * 0.5 + 18) * T.S, { font: T.mono(it.sub_size || Math.max(14, size * 0.52), 600), track: 1.5, color: hex(subColor || it.sub_color || 'amber'), align, shadow: 0 });

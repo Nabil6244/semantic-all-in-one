@@ -1,0 +1,41 @@
+{
+ "id": "kicker_headline",
+ "family": "text",
+ "use": "A line from the narration as a headline at the top-left with a small cyan kicker above it (the subject).",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.035,
+    0.14
+   ],
+   "size": 36,
+   "font": "display",
+   "kicker": "{sub}",
+   "glow": true,
+   "in": 0.1,
+   "maxw": 0.6
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

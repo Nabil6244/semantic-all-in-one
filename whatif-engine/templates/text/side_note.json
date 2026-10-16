@@ -1,0 +1,57 @@
+{
+ "id": "side_note",
+ "family": "text",
+ "use": "A line from the narration at the right edge, right-aligned, with a thin vertical rule beside it.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "line",
+   "from": [
+    0.965,
+    0.32
+   ],
+   "to": [
+    0.965,
+    0.44
+   ],
+   "color": "cyan",
+   "width": 2,
+   "m": "draw",
+   "dur": 0.4,
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.95,
+    0.37
+   ],
+   "size": 24,
+   "align": "right",
+   "sub": "{sub}",
+   "sub_color": "grey",
+   "in": 0.3,
+   "maxw": 0.42
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}

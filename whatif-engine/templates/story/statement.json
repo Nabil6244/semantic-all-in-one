@@ -33,7 +33,8 @@
    "font": "display",
    "sub": "{sub}",
    "glow": true,
-   "in": 0.1
+   "in": 0.1,
+   "maxw": 0.62
   }
  ],
  "source": "V4 5:00"

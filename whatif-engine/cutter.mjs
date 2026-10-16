@@ -23,7 +23,8 @@ export function createCutter({ spec, mediaDir, ffmpeg = 'ffmpeg', tmpRoot = os.t
   async function cut({ s, i }) {
     const dir = path.join(root, String(i)); fs.mkdirSync(dir, { recursive: true });
     const sp = s.speed || 1, len = (s.end - s.start) * sp + 0.5;
-    await run(ffmpeg, ['-y', '-loglevel', 'error', ...(s.loop ? ['-stream_loop', '-1'] : []), '-ss', String(s.in_s || 0), '-i', resolveMedia(s.file, mediaDir), '-t', len.toFixed(3), '-an',
+    const still = /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(s.file);     // never loop a single image as a stream (it never ends)
+    await run(ffmpeg, ['-y', '-loglevel', 'error', ...(still ? ['-loop', '1'] : s.loop ? ['-stream_loop', '-1'] : []), '-ss', String(s.in_s || 0), '-i', resolveMedia(s.file, mediaDir), '-t', len.toFixed(3), '-an',
       '-vf', `fps=${fps},scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1`, '-q:v', '2', '-start_number', '0', path.join(dir, '%d.jpg')]);
     const count = fs.readdirSync(dir).filter((n) => n.endsWith('.jpg')).length;
     if (!count) throw new Error(`shot ${s.id}: no frames could be read from ${s.file}`);

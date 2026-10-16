@@ -316,7 +316,7 @@ def layers_from_rows(layer_rows: List[Tuple[Any, str, Any]], shots: List[Shot], 
             if it.t is None and it.vo_anchor and aligned:
                 it.t = nr.find_anchor(aligned, it.vo_anchor, sh.start - 0.5, sh.end + 0.5)
             start = it.t if it.t is not None else sh.start
-            stop = end or min(sh.end, start + (it.hold if it.hold else (5.5 if it.type == "diagram" else 3.5)))
+            stop = end or min(sh.end, start + (it.hold if it.hold else (5.5 if it.type == "diagram" else 5.0)))   # text stays long enough to read
             timing = {"start": round(start, 3), "end": round(stop, 3)}
             if it.type == "caption":
                 layers.append({"type": "tm_caption", "text": (it.label or it.text).upper(), **({"sub": it.sub.upper()} if it.sub else {}),

@@ -45,7 +45,8 @@
    "size": 52,
    "sub": "{sub}",
    "in": 0.15,
-   "glow": true
+   "glow": true,
+   "maxw": 0.6
   }
  ],
  "source": "V4 1:00"

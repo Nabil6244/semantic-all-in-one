@@ -13,7 +13,7 @@
  "tint": "cool",
  "slots": {
   "label": {
-   "default": "HOW THEY COMPARE",
+   "default": "",
    "from": "label"
   },
   "sub": {

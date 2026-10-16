@@ -1,0 +1,51 @@
+{
+ "id": "boxed_fact",
+ "family": "text",
+ "use": "A line from the narration in a frosted fact box at the top-right, with a cyan accent.",
+ "tags": [
+  "text",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "THE AIR THINNED OUT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.6,
+    0.06
+   ],
+   "w": 0.36,
+   "h": 0.13,
+   "accent": "cyan",
+   "in": 0.05
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.62,
+    0.115
+   ],
+   "size": 22,
+   "sub": "{sub}",
+   "sub_color": "grey",
+   "in": 0.25,
+   "maxw": 0.33
+  }
+ ],
+ "source": "text layouts (V1-V5 type styles)"
+}
