@@ -129,6 +129,7 @@
    "in": 0.6
   }
  ],
- "triggers": "\\b(transit|passes in front|dims?)\\b",
- "auto": true
+ "triggers": "\\b(transit\\w*|passes in front of (its|the) star)\\b",
+ "auto": true,
+ "context": "\\b(exoplanets?|another star|other stars|planet hunting|kepler|tess)\\b"
 }

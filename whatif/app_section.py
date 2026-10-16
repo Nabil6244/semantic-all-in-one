@@ -73,12 +73,11 @@ def save_state(app, active: Optional[bool] = None) -> None:
 
 
 def on_flow_mode(app) -> None:
-    """The Flow switch decides each illustrated shot's source in the plan: a Visual Plan already listed is planned again, so its rows show
-    the new Flow Image / Flow Video choices (each row can still be changed there one by one)."""
+    """The Flow switch decides each illustrated shot's source in the plan. It is only remembered: nothing is planned until Generate or Check
+    the plan."""
     save_state(app)
-    if getattr(app, "_scene_rows_owner", None) == MODE and not (app._whatif_busy or app._whatif_running):
-        app._append_log(f"{TAG} Flow pictures: {app._whatif_hero_var.get()}. Planning the shots again so the Visual Plan shows it.\n")
-        check_plan(app)
+    if not (app._whatif_busy or app._whatif_running):         # remembered only: Generate (or Check the plan) uses it
+        app._whatif_status_var.set(f"Flow pictures: {app._whatif_hero_var.get()}. Used when you press Generate.")
 
 
 def current_csv(app) -> Optional[Path]:
@@ -123,28 +122,38 @@ def build(app, parent, *, row: int) -> None:
     controls.grid_columnconfigure(0, weight=1)
     app._whatif_controls = controls
 
+    # choose the files, then Generate: choosing a file only remembers it (no planning, no transcribing, no screen change)
     actions = ctk.CTkFrame(controls, fg_color="transparent")
     actions.grid(row=0, column=0, sticky="ew")
-    ctk.CTkButton(actions, text="Plan the shots", width=130, height=36, corner_radius=6, fg_color=M._ACCENT, hover_color=M._ACCENT_HOV,
-                  font=ctk.CTkFont(size=12, weight="bold"), command=lambda: check_plan(app)).grid(row=0, column=0, padx=(0, 8))
-    for col, (text, cmd) in enumerate((("Load shot CSV (optional)…", lambda: browse(app)), ("Copy the CSV prompt", lambda: app._copy_csv_prompt("whatif", app._whatif_status_var)),
-                                       ("Edit CSV", lambda: open_csv(app)))):
-        ctk.CTkButton(actions, text=text, height=36, corner_radius=6, fg_color="transparent", border_width=1, border_color=M._BORDER, text_color=M._MUTED,
-                      hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12), command=cmd).grid(row=0, column=col + 1, padx=(0, 8))
-    app._path_row(1, "Shot CSV", app._whatif_file_var, lambda: browse(app), parent=controls, placeholder_text="None: the shots are planned from the narration")
+    ghost = lambda text, cmd: ctk.CTkButton(actions, text=text, height=36, corner_radius=6, fg_color="transparent", border_width=1,  # noqa: E731
+                                            border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12), command=cmd)
+    for col, (text, cmd) in enumerate((("Upload voiceover…", lambda: upload_voiceover(app)), ("Load shot CSV (optional)…", lambda: browse(app)),
+                                       ("Copy the CSV prompt", lambda: app._copy_csv_prompt("whatif", app._whatif_status_var)),
+                                       ("Edit CSV", lambda: open_csv(app)), ("Check the plan", lambda: check_plan(app)))):
+        ghost(text, cmd).grid(row=0, column=col, padx=(0, 8))
+    app._path_row(1, "Voiceover", app.audio_var, lambda: upload_voiceover(app), parent=controls, placeholder_text="None yet: Upload voiceover")
+    app._path_row(2, "Shot CSV", app._whatif_file_var, lambda: browse(app), parent=controls, placeholder_text="None: the shots are planned from the narration")
 
     opts = ctk.CTkFrame(controls, fg_color="transparent")
-    opts.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+    opts.grid(row=3, column=0, sticky="ew", pady=(10, 0))
     ctk.CTkLabel(opts, text="Pictures for illustrated shots", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 10))
     ctk.CTkSegmentedButton(opts, values=[HERO_IMAGE, HERO_BOTH, HERO_VIDEO], variable=app._whatif_hero_var, height=26, font=ctk.CTkFont(size=11),
                            command=lambda _v: on_flow_mode(app)).grid(row=0, column=1)
     ctk.CTkSwitch(opts, text="Sound effects + ambience", variable=app._whatif_sound_var, command=lambda: save_state(app),
                   font=ctk.CTkFont(size=11)).grid(row=0, column=2, padx=(18, 0))
+
+    go = ctk.CTkFrame(controls, fg_color="transparent")
+    go.grid(row=4, column=0, sticky="ew", pady=(14, 0))
+    app._whatif_generate_btn = ctk.CTkButton(go, text="Generate video", width=190, height=40, corner_radius=6, fg_color=M._ACCENT,
+                                             hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_generate_click(app))
+    app._whatif_generate_btn.grid(row=0, column=0, padx=(0, 12))
+    ctk.CTkLabel(go, text="Nothing starts until you press Generate.", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=1, sticky="w")
+
     app._whatif_plan_box = ctk.CTkTextbox(controls, height=210, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
-    app._whatif_plan_box.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+    app._whatif_plan_box.grid(row=5, column=0, sticky="ew", pady=(12, 0))
     app._whatif_plan_box.configure(state="disabled")
     ctk.CTkLabel(controls, textvariable=app._whatif_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
-                 justify="left").grid(row=4, column=0, sticky="ew", pady=(6, 0))
+                 justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
     controls.grid_remove()
     block.grid_remove()
     show_intro(app)
@@ -158,10 +167,32 @@ def set_text(app, text: str) -> None:
     box.configure(state="disabled")
 
 
+def upload_voiceover(app) -> None:
+    """Choose the voiceover from the What If card: it is only remembered (the app stays on this screen; nothing is transcribed yet)."""
+    if app._whatif_running or app._whatif_busy:
+        _m(app).messagebox.showinfo("What If", "Still working: wait for the current step to finish.")
+        return
+    if not app._require_workspace("choose a voiceover"):
+        return
+    if app._browse_audio(stay=True):
+        app._whatif_ok, app._whatif_plan = None, None
+        app._whatif_status_var.set(f"Voiceover chosen: {Path(app.audio_var.get()).name}. Press Generate when ready.")
+
+
+def on_generate_click(app) -> None:
+    """The card's own Generate button: the same as the app's main Generate (Stop while a What If video is being made)."""
+    if app._whatif_running:
+        cancel(app)
+        return
+    if app.generation_mode != MODE:
+        activate(app)
+    app._on_generate()
+
+
 def show_intro(app) -> None:
-    set_text(app, "No plan yet.\n\n1. Choose your voiceover and paste your script on the Script page.\n2. Click Plan the shots: the narration is cut into shots, "
-                  "diagrams and callouts, and every picture is listed in the Visual Plan.\n3. Optional: Copy the CSV prompt, paste it with your script into any AI, "
-                  "save the CSV it writes and Load it for a hand-directed shot list.\n4. Find or replace pictures in the Visual Plan, then Generate.")
+    set_text(app, "No plan yet.\n\n1. Upload voiceover (and paste your script on the Script page).\n2. Optional: Copy the CSV prompt, paste it with your script "
+                  "into any AI, save the CSV it writes and Load shot CSV.\n3. Press Generate video. Nothing starts before that: choosing files only "
+                  "remembers them.\n\nCheck the plan (optional) lists the shots and every picture in the Visual Plan first, without making the video.")
 
 
 # ---- switching ---------------------------------------------------------------------------------------------------------------
@@ -369,10 +400,9 @@ def load_csv(app, path: str) -> bool:
     if not app._whatif_enabled_var.get():
         app._whatif_enabled_var.set(True)
         on_toggle(app)
-    app._whatif_status_var.set(f"Loaded {Path(path).name}")
+    app._whatif_status_var.set(f"Shot CSV chosen: {Path(path).name}. Press Generate when ready.")
     app._append_log(f"{TAG} Loaded {path}\n")
-    if app._current_voiceover_path() is not None:
-        check_plan(app)
+    app._whatif_plan = None                # Generate plans from this CSV (nothing starts before Generate)
     app._sync_primary_cta()
     return True
 
@@ -390,7 +420,7 @@ def open_csv(app) -> None:
             os.startfile(str(p))  # type: ignore[attr-defined]
         else:
             subprocess.Popen(["xdg-open", str(p)])
-        app._whatif_status_var.set("Edit and save the CSV, then Plan the shots again.")
+        app._whatif_status_var.set("Edit and save the CSV, then press Generate (or Check the plan).")
     except Exception as exc:
         M.messagebox.showerror("What If", f"Could not open the CSV: {exc}")
 
@@ -405,8 +435,8 @@ def check_plan(app) -> None:
         M.messagebox.showinfo("What If", "Choose the voiceover first: the shots are timed by the narrator's words.")
         return
     script = app._main_script_text() or ""
-    if not script.strip():
-        M.messagebox.showinfo("What If", "Paste your script on the Script page first: the shots are planned from what the narrator says.")
+    if not script.strip() and current_csv(app) is None:
+        M.messagebox.showinfo("What If", "Load a shot CSV, or paste your script on the Script page: the shots are planned from what the narrator says.")
         return
     ws = app._workspace
     model, state_dir = app.model_var.get().strip() or "base", getattr(ws, "state_dir", None)
@@ -452,7 +482,20 @@ def check_plan(app) -> None:
 
 
 # ---- Generate ----------------------------------------------------------------------------------------------------------------
+def _sync_card_button(app) -> None:
+    btn = getattr(app, "_whatif_generate_btn", None)
+    if btn is None:
+        return
+    if app._whatif_busy:
+        btn.configure(state="disabled", text="Working…")
+    elif app._whatif_running:
+        btn.configure(state="disabled" if app._whatif_cancel.is_set() else "normal", text="Stopping…" if app._whatif_cancel.is_set() else "Stop")
+    else:
+        btn.configure(state="normal", text="Generate video")
+
+
 def sync_cta(app) -> None:
+    _sync_card_button(app)
     if app._whatif_busy:
         app._cta_action = "none"
         app._set_generate_btn(state="disabled", text="Working…")
@@ -482,7 +525,7 @@ def sync_cta(app) -> None:
     app._cta_action = "generate"
     app.stage_var.set("GENERATE")
     app.hint_var.set("Ready — click Generate to render the What If video." if app._whatif_ok is not False
-                     else "The last plan had problems: fix the CSV and Plan the shots again.")
+                     else "The last check found problems: see the What If card, then Generate.")
     app._set_generate_btn(state="normal", text="Generate")
 
 
@@ -521,8 +564,8 @@ def run_generation(app) -> None:
         M.messagebox.showerror("Cannot start", "Select or import a voiceover first.")
         return
     script = app._main_script_text() or ""
-    if not script.strip():
-        M.messagebox.showerror("Cannot start", "Paste your script on the Script page first: the shots are planned from what the narrator says.")
+    if not script.strip() and current_csv(app) is None:      # with a shot CSV the voiceover's transcript is enough
+        M.messagebox.showerror("Cannot start", "Load a shot CSV, or paste your script on the Script page: the shots are planned from what the narrator says.")
         return
     ws = app._workspace
     output_path = ws.next_final_path()

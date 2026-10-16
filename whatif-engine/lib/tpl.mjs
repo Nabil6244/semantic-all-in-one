@@ -111,7 +111,9 @@ export function build(template, slotValues = {}, { len = 6, cues = {} } = {}) {
   for (const [idx, raw] of template.items.entries()) {
     const copies = [];
     if (raw.each) {
-      const list = vars[raw.each];
+      let list = vars[raw.each];
+      // a number repeats the item that many times (a row of N dots); capped so a wrong value cannot draw thousands
+      if (typeof list === 'number' || (typeof list === 'string' && /^\d+$/.test(list))) list = Array.from({ length: Math.max(0, Math.min(200, Math.round(Number(list)))) }, (_, k) => k);
       if (!Array.isArray(list)) throw new Error(`template ${template.id}: item ${idx} repeats over "${raw.each}", which is not a list`);
       list.forEach((e, i) => copies.push({ item: raw, vars: { ...vars, it: e, i, n: list.length } }));
     } else copies.push({ item: raw, vars });

@@ -1,0 +1,114 @@
+{
+ "id": "photo_inset_diagram",
+ "family": "data",
+ "use": "A small real photo card at the left (with its caption) beside a ring diagram with a marker and a label: 'SKYLAB 1973 · RING OF LOCKERS' (V5 2:40). photo = nasa_image:<what>.",
+ "tags": [
+  "data",
+  "photo",
+  "history"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "REAL PHOTO + ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "photo": {
+   "default": "",
+   "kind": "image"
+  },
+  "caption": {
+   "default": "REAL PHOTO",
+   "from": "text"
+  },
+  "label": {
+   "default": "RING OF LOCKERS",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "year": {
+   "default": "",
+   "from": "value_to"
+  },
+  "spin": {
+   "default": 45
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.26,
+    0.45
+   ],
+   "w": 0.18,
+   "in": 0.1,
+   "border": "rgba(255,255,255,0.25)",
+   "label": "{caption}",
+   "label_size": 13
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.6,
+    0.47
+   ],
+   "r": 0.2,
+   "color": "#C9CED6",
+   "width": 5,
+   "in": 0.4
+  },
+  {
+   "p": "dot",
+   "orbit": {
+    "c": [
+     0.6,
+     0.47
+    ],
+    "rx": 0.2,
+    "deg0": -60,
+    "spin": "{spin}"
+   },
+   "r": 6,
+   "color": "cyan",
+   "in": 0.9
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.6,
+    0.78
+   ],
+   "size": 18,
+   "align": "center",
+   "sub": "{sub}",
+   "in": 1.2
+  },
+  {
+   "p": "text",
+   "text": "{year}",
+   "at": [
+    0.48,
+    0.2
+   ],
+   "size": 30,
+   "font": "display",
+   "in": 0.3
+  }
+ ],
+ "source": "V5",
+ "image_slot": "photo"
+}

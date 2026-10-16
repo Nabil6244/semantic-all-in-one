@@ -129,5 +129,6 @@
   }
  ],
  "triggers": "\\bmagnetic (field|shield)\\b|\\bmagnetosphere\\b",
- "auto": true
+ "auto": true,
+ "context": "\\bmagnetic\\b"
 }

@@ -1,0 +1,126 @@
+{
+ "id": "level_slider",
+ "family": "scale",
+ "use": "A level between two ends as a bar that fills, with named points on it: gravity from 0 G (weightless) to 1 G with the Moon at 1/6 (V5 9:30). text = NAME=fraction 0..1.",
+ "tags": [
+  "scale",
+  "gravity",
+  "level"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "EVERY LONG STAY IN SPACE",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "left": {
+   "default": "0 G"
+  },
+  "right": {
+   "default": "1 G"
+  },
+  "level": {
+   "default": 0.0,
+   "from": "value_to"
+  },
+  "color": {
+   "default": "cyan"
+  },
+  "marks": {
+   "default": [],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "bar",
+   "at": [
+    0.12,
+    0.6
+   ],
+   "w": 0.76,
+   "h": 14,
+   "color": "{color}",
+   "in": 0.2,
+   "anim": {
+    "value": [
+     [
+      0.4,
+      0
+     ],
+     [
+      2.4,
+      "{level}"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{left}",
+   "at": [
+    0.12,
+    0.66
+   ],
+   "size": 15,
+   "font": "mono",
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{right}",
+   "at": [
+    0.88,
+    0.66
+   ],
+   "size": 15,
+   "font": "mono",
+   "align": "right",
+   "in": 0.3
+  },
+  {
+   "p": "dot",
+   "each": "marks",
+   "at": [
+    "=0.12+0.76*{it.num}",
+    0.6
+   ],
+   "r": 6,
+   "color": "white",
+   "label": "{it.name}",
+   "label_side": "top",
+   "label_size": 14,
+   "in": 1.4,
+   "stagger": 0.6
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.12,
+    0.4
+   ],
+   "size": 22,
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ],
+ "source": "V5"
+}

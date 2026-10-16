@@ -277,6 +277,12 @@ def classify(text: str, *, flow_video: bool = False, topic: str = "", world_topi
             return {"kind": "hero", "scene": "venera_descent", "name": who.upper(), "place": who, "cite": ("ILLUSTRATION", ""), "cam": {}}
         if event or re.search(r"\b(lander|ground|surface|plain|silent|hot|melt\w*|pressure|hours?|minutes?)\b", text, re.I):
             return {"kind": "hero", "scene": "venera_ground", "name": who.upper(), "place": who, "cite": ("ILLUSTRATION", ""), "cam": {}}
+    if not flow_video and HABITAT.search(text) and not photo:
+        # a spinning settlement (V5): drawn by the engine (lib/habitat.mjs) -- inside the cylinder, the ring station, or the cylinders outside
+        low = text.lower()
+        scene = ("cylinder_interior" if re.search(r"\b(inside|above your head|overhead|look up|the land|ground)\b", low) and "cylind" in low or "o'neill" in low and "inside" in low
+                 else "cylinder_exterior" if "cylind" in low else "ring_station")
+        return {"kind": "hero", "scene": scene, "name": "", "place": "space settlement", "cite": ("ILLUSTRATION", "SPACE SETTLEMENT"), "cam": {}}
     if not flow_video and AIRSHIP.search(text):
         return {"kind": "hero", "scene": "cloud_airship", "name": "", "place": "airship", "cite": ("ILLUSTRATION", ""), "cam": {}}
     if not flow_video and DRIVE.search(text) and not photo:
@@ -295,6 +301,7 @@ def classify(text: str, *, flow_video: bool = False, topic: str = "", world_topi
 
 DEEP = re.compile(r"\b(galax(y|ies)|deep field|observable universe|edge of the universe)\b.{0,80}\b(away|never|reach|billion|far)\b|\b(never|billion).{0,60}\bgalax(y|ies)\b", re.I)
 BLACK_HOLE = re.compile(r"\b(black holes?|event horizon|accretion dis[ck]|photon sphere|sagittarius a\*?|sgr a\*?|singularity)\b", re.I)
+HABITAT = re.compile(r"\b(o'neill (cylinder|colony|habitat)s?|space (habitat|settlement|colony|city)|spinning (station|habitat|wheel)|rotating (station|habitat|wheel|cylinder)|stanford torus|wheel station)\b", re.I)
 AIRSHIP = re.compile(r"\b(airships?|dirigibles?|balloons?|floating (city|habitat|home)|float\w* (above|in|on) the clouds)\b", re.I)
 DRIVE = re.compile(r"\b(constant (acceleration|thrust)|never stops pushing|keeps? (accelerating|pushing|burning)|fusion (drive|engine)|engines? (burn|fire|push)\w*|"
                    r"accelerat\w+ at 1 ?g|1 ?g of acceleration|your ship'?s? engines?)\b", re.I)
@@ -356,6 +363,41 @@ def mix_flow(shots: List[Shot], mode: str, notes: List[str]) -> int:
     if moved:
         notes.append(f"plan: {len(moved)} illustrated shot(s) are Flow videos ({'all of them' if mode == 'videos' else 'the opening and the long holds'})")
     return len(moved)
+
+
+FLOW_OPEN_S = 60.0          # Flow (AI pictures and clips) is for the opening; after it, at most one Flow shot per FLOW_LATER_GAP_S
+FLOW_LATER_GAP_S = 180.0
+STOCK_STOP = {"the", "a", "an", "of", "to", "and", "in", "on", "at", "it", "its", "is", "was", "were", "be", "that", "this", "these", "those", "with",
+              "for", "from", "by", "as", "but", "so", "or", "if", "then", "than", "into", "over", "under", "you", "your", "we", "our", "they", "their",
+              "would", "could", "can", "will", "just", "only", "very", "much", "more", "most", "about", "there", "here", "what", "which", "who"}
+
+
+def stock_query(s: Shot) -> str:
+    """A short stock search for a shot: its subject, then the sentence's content words (no numbers)."""
+    words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]+", re.sub(r"\d[\d,.]*", " ", s.text or "")) if w.lower() not in STOCK_STOP and len(w) > 2]
+    head = (s.name or s.place or "").strip()
+    q = " ".join(dict.fromkeys(([head] if head else []) + words[:6]))
+    return q[:80] or "space"
+
+
+def limit_flow(shots: List[Shot], notes: List[str]) -> int:
+    """Flow mostly in the opening (the author's rule): every Flow shot in the first FLOW_OPEN_S stays; after it one Flow shot per
+    FLOW_LATER_GAP_S is kept (a scene no camera could film), the rest become stock searches of the same subject. The CSV's rows too."""
+    last, moved = -1e9, 0
+    for s in shots:
+        if not s.asset.lower().startswith(("flow_image:", "flow_video:")) or s.start < FLOW_OPEN_S:
+            continue
+        if s.start - last >= FLOW_LATER_GAP_S:
+            last = s.start
+            continue
+        src = "stock_video" if s.kind == "video" or s.asset.lower().startswith("flow_video:") else "stock_image"
+        s.kind = "video" if src == "stock_video" else "image"
+        s.asset, s.cite = f"{src}:{stock_query(s)}", ("IMAGE", "")
+        moved += 1
+    if moved:
+        notes.append(f"plan: Flow kept to the opening ({FLOW_OPEN_S:.0f} s) and one shot every {FLOW_LATER_GAP_S / 60:.0f} min after it; "
+                     f"{moved} later Flow shot(s) are stock searches instead")
+    return moved
 
 
 def split_long_videos(shots: List[Shot], words: Sequence[Word], layers: Sequence[Dict[str, Any]], notes: List[str]) -> List[Shot]:
@@ -734,7 +776,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
             plates.append((t0, t1))
             break
     # template visuals the narration asks for (whatif/templates.py: concept templates with a trigger -- light bending, a spacetime well, the
-    # river of space ...): one plate each, at most one a minute and never the same one twice, inside the plate budget
+    # river of space ...): one plate each, at most one every 40 s and never the same one twice, inside the plate budget
     if auto:
         from . import templates as tpl
         used: List[str] = [L["template"]["id"] for L in layers if L.get("type") == "tm_template"]
@@ -742,9 +784,9 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
         for a, b in sn:
             sent = nr.span_text(words, a, b)
             t0 = max(0.0, words[a].start - 0.06)
-            if t0 - last < 60.0 or t0 < HOOK_S:
+            if t0 - last < 40.0 or t0 < HOOK_S:
                 continue
-            t = tpl.match(sent, used)
+            t = tpl.match(sent, used, text_all)
             if t is None:
                 continue
             t1 = min(t0 + max(float(t.get("hold", 6)), words[b].end + 0.4 - t0), t0 + float(t.get("max_s", 12)), duration - 0.5)
@@ -867,6 +909,15 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
             continue
         if L.get("anchor") == "upper_right" and any(x["type"] == "tm_gauge" and x["start"] < L["end"] and L["start"] < x["end"] for x in survival + gauge):
             L["anchor"] = "mid"
+    # more graphics from the narration (whatif/engage.py): dated captions, part headers, question cards, odds dials, the counted number look
+    if auto:
+        from .engage import engage
+
+        shots, plate_budget = engage(shots, layers, words, sn, metrics, duration, notes, carve=carve, shot_cls=Shot, plate_budget=plate_budget,
+                                     span_text=nr.span_text, hook_s=HOOK_S)
+        for i, x in enumerate(shots, 1):
+            x.id = f"s{i}"
+            x.text = " ".join(w.text for w in words if x.start - 0.05 <= w.start < x.end - 0.05)
     # a death or a silence: into black in the pause, out when the next words start
     fades = 0
     for a, b in (sn if auto else []):
@@ -933,6 +984,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
         s.id = f"s{i}"
     mix_flow(shots, mode, notes)
     shots = split_long_videos(shots, words, layers, notes)
+    limit_flow(shots, notes)
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
     changed = vary(shots)

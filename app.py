@@ -6018,6 +6018,20 @@ class VideoGeneratorApp(ctk.CTk):
         self._issues_drawer = ctk.CTkFrame(right, fg_color=_CARD, corner_radius=10, border_width=1, border_color=_BORDER)
         qa_bulk = ctk.CTkFrame(self._issues_drawer, fg_color="transparent")
         qa_bulk.pack(fill="x", padx=10, pady=(8, 4))
+        # first in the row so it is always visible: select every scene that needs attention, then change all their sources at once
+        self.select_issues_btn = ctk.CTkButton(
+            qa_bulk, text="Select all issues", width=130, height=24,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
+            font=ctk.CTkFont(size=11, weight="bold"), corner_radius=4, command=self._select_all_failed,
+        )
+        self.select_issues_btn.pack(side="left", padx=(0, 4))
+        self.source_selected_btn = ctk.CTkButton(
+            qa_bulk, text="Change source…", width=130, height=24,
+            fg_color="transparent", border_width=1, border_color=_ACCENT,
+            text_color=_ACCENT, hover_color=_ACCENT_SEL, font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=4, command=self._change_source_for_focused, state="disabled",
+        )
+        self.source_selected_btn.pack(side="left", padx=(0, 4))
         self.retry_failed_btn = ctk.CTkButton(
             qa_bulk, text="Retry failed", width=110, height=24,
             fg_color="transparent", border_width=1, border_color=_BORDER,
@@ -11656,6 +11670,10 @@ class VideoGeneratorApp(ctk.CTk):
             self, tearoff=0, bg=_CARD, fg=_TEXT, activebackground=_CARD_HOVER,
             activeforeground=_TEXT, bd=0,
         )
+        issues = list(self._qa_snapshot().unresolved_keys)
+        if issues:            # every scene that needs attention, whatever its source (then Change source… for all of them)
+            menu.add_command(label=f"All issues ({len(issues)})", command=lambda ks=issues: self._select_scenes_by_source_bucket(ks))
+            menu.add_separator()
         for name in (*order, *sorted(extras)):
             keys = by_bucket.get(name)
             if not keys:
@@ -11804,6 +11822,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.skip_failed_btn.configure(text=f"Skip all ({n})" if n else "Skip all", state=bulk)
         sel = len(self._qa.selected_failed)
         sel_state = "normal" if sel else "disabled"
+        self.select_issues_btn.configure(text=f"Select all issues ({n})" if n else "Select all issues", state=bulk)
+        self.source_selected_btn.configure(text=f"Change source ({sel})…" if sel else "Change source…", state=sel_state)
         self.retry_selected_btn.configure(state=sel_state)
         self.alt_selected_btn.configure(state=sel_state)
         self.skip_selected_btn.configure(state=sel_state)

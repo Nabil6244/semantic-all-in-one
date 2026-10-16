@@ -127,7 +127,8 @@
    "or": "50%"
   }
  ],
- "triggers": "\\b(spaghetti\\w*|stretch\\w*|tidal|tides?)\\b",
+ "triggers": "\\b(spaghetti\\w*|tidal (forces?|stretch\\w*)|stretched (from )?head to (toe|foot))\\b",
  "source": "V4 6:30",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

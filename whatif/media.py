@@ -174,7 +174,10 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
         _merge(got, got2)
         first = max(x.row for x in named) + 1
     redo = []
+    from .planner import FLOW_OPEN_S
     for s in [s for s in missed if not s.file]:
+        if s.start >= FLOW_OPEN_S:          # Flow is for the opening: a later miss gets the compiler's own fallback (a globe or a typographic shot)
+            continue
         alt = _illustration_for(s)
         if alt:
             log(f"[What If] shot {s.id}: no real picture of {s.name or s.place or 'this'} was found; an AI illustration stands in (labelled on screen)")

@@ -139,7 +139,8 @@
    "in": 0.05
   }
  ],
- "triggers": "\\b(every (path|direction)|no way out|all roads)\\b",
+ "triggers": "\\b(every (path|direction) leads|no way out|all roads lead)\\b",
  "source": "V4 5:00",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

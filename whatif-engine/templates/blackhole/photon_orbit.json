@@ -110,5 +110,6 @@
  ],
  "triggers": "\\bphoton sphere\\b",
  "source": "V4 2:00",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

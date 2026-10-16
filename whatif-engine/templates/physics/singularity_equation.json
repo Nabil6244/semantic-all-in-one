@@ -96,7 +96,8 @@
    "or": "70%"
   }
  ],
- "triggers": "\\b(singularity|infinite(ly)? dens\\w*|equations? break)\\b",
+ "triggers": "\\b(singularity|infinite(ly)? dens\\w*|equations? (break|fail)\\w*)\\b",
  "source": "V4 7:20",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

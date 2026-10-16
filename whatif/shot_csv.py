@@ -32,7 +32,7 @@ COLUMNS = ("row", "shot", "vo_anchor", "kind", "asset", "model", "texture", "lab
            "format", "anchor", "until", "hold", "why", "extra", "t", "end")
 KINDS = ("image", "video", "plate", "craft", "globe", "hero", "black")
 HERO_SCENES = ("venera_ground", "venera_descent", "cloud_airship", "ship_engine", "blackhole_disc", "blackhole_top", "blackhole_ring", "blackhole_lensing",
-               "blackhole_horizon")
+               "blackhole_horizon", "ring_station", "cylinder_interior", "cylinder_exterior")
 LAYER_TYPES = ("metric", "diagram", "hud", "caption", "title", "fade", "annotate", "template")
 ASSET_SOURCES = ("nasa_image", "nasa_video", "stock_image", "stock_video", "flow_image", "flow_video", "youtube_video", "archive_video",
                  "commons_image", "commons_video", "file")

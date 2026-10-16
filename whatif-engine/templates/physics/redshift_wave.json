@@ -83,6 +83,7 @@
    "in": 0.1
   }
  ],
- "triggers": "\\b(red ?shift\\w*|stretched light|turns red)\\b",
- "auto": true
+ "triggers": "\\b(red ?shift\\w*|stretched light|light (is|gets) stretched)\\b",
+ "auto": true,
+ "context": "\\b(redshift|red-shift|expanding universe|doppler|wavelengths?|galax(y|ies))\\b"
 }

@@ -1,0 +1,143 @@
+{
+ "id": "number_line",
+ "family": "data",
+ "use": "Values on one straight scale with ticks, a marker sliding to the value and its name: 'PENSACOLA ROOM' on a turns-a-minute scale (V5 4:40). text = NAME=value; NAME=value.",
+ "tags": [
+  "data",
+  "scale"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "marks": {
+   "default": [
+    {
+     "name": "PENSACOLA ROOM",
+     "value": "10",
+     "num": 10
+    }
+   ],
+   "from": "text",
+   "kind": "pairs",
+   "required": true
+  },
+  "min": {
+   "default": 0,
+   "from": "value_from"
+  },
+  "max": {
+   "default": 12,
+   "from": "value_to"
+  },
+  "unit": {
+   "default": "TURNS A MINUTE",
+   "from": "format"
+  },
+  "label": {
+   "default": "",
+   "from": "label"
+  },
+  "ticks": {
+   "default": [
+    {
+     "at": 0
+    },
+    {
+     "at": 0.25
+    },
+    {
+     "at": 0.5
+    },
+    {
+     "at": 0.75
+    },
+    {
+     "at": 1
+    }
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "axis",
+   "from": [
+    0.1,
+    0.55
+   ],
+   "to": [
+    0.9,
+    0.55
+   ],
+   "color": "rgba(200,210,220,0.6)",
+   "ticks": "{ticks}",
+   "m": "draw",
+   "dur": 1.0,
+   "in": 0.2,
+   "label": "{unit}",
+   "label_at": "end",
+   "label_off": [
+    0,
+    40
+   ]
+  },
+  {
+   "p": "dot",
+   "each": "marks",
+   "at": [
+    0.1,
+    0.55
+   ],
+   "r": 7,
+   "color": "amber",
+   "label": "{it.name}",
+   "label_side": "top",
+   "label_size": 15,
+   "label_color": "amber",
+   "in": 1.0,
+   "stagger": 1.0,
+   "anim": {
+    "at": [
+     [
+      1.0,
+      [
+       0.1,
+       0.55
+      ]
+     ],
+     [
+      2.4,
+      [
+       "=0.1+0.8*clamp(({it.num}-{min})/max(0.001,{max}-{min}),0,1)",
+       0.55
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.75
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "cyan",
+   "in": "60%"
+  }
+ ],
+ "source": "V5"
+}

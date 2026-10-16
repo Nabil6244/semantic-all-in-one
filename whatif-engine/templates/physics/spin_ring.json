@@ -1,0 +1,149 @@
+{
+ "id": "spin_ring",
+ "family": "physics",
+ "use": "A spinning ring station seen end-on: the ring turns, YOU stand on the inside of the rim, the floor pushes up (arrow) and the axis is marked (V5 1:40 'A FLOOR THAT PUSHES').",
+ "tags": [
+  "physics",
+  "gravity",
+  "rotation",
+  "station"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "A FLOOR THAT PUSHES",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "spin": {
+   "default": 14
+  },
+  "spokes": {
+   "default": [
+    30,
+    90,
+    150,
+    210,
+    270,
+    330
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.36,
+   "color": "#C9CED6",
+   "width": 10,
+   "in": 0.1
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.36,
+   "color": "rgba(0,0,0,0.6)",
+   "width": 3,
+   "dash": [
+    10,
+    26
+   ],
+   "spin": "{spin}",
+   "in": 0.1
+  },
+  {
+   "p": "line",
+   "each": "spokes",
+   "from": [
+    0.5,
+    0.5
+   ],
+   "to": [
+    "=0.5+0.2*cos({it}*PI/180)",
+    "=0.5+0.355*sin({it}*PI/180)"
+   ],
+   "color": "rgba(201,206,214,0.35)",
+   "width": 2,
+   "in": 0.3
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 5,
+   "color": "white",
+   "style": "plain",
+   "label": "THE AXIS",
+   "label_side": "top",
+   "label_size": 13,
+   "in": 0.5
+  },
+  {
+   "p": "icon",
+   "name": "human",
+   "at": [
+    0.5,
+    0.79
+   ],
+   "size": 0.08,
+   "color": "cyan",
+   "label": "YOU",
+   "label_color": "cyan",
+   "label_size": 14,
+   "in": 0.8
+  },
+  {
+   "p": "arrow",
+   "from": [
+    0.53,
+    0.86
+   ],
+   "to": [
+    0.53,
+    0.74
+   ],
+   "color": "amber",
+   "width": 3,
+   "m": "draw",
+   "dur": 0.8,
+   "in": "@push",
+   "or": "40%"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.11
+   ],
+   "size": 26,
+   "align": "center",
+   "sub": "{sub}",
+   "in": 0.2
+  }
+ ],
+ "source": "V5"
+}

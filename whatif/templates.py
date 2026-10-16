@@ -149,7 +149,7 @@ def find_cues(t: Dict[str, Any], words: Sequence[Any], start: float, end: float)
 
 # ---- a row -> a layer (and its plate) -------------------------------------------------------------------------------------------
 def _public(t: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: v for k, v in t.items() if not k.startswith("_") and k not in ("triggers", "source")}
+    return {k: v for k, v in t.items() if not k.startswith("_") and k not in ("triggers", "source", "context")}
 
 
 def split_cite(cite: str) -> Tuple[str, str]:
@@ -202,10 +202,14 @@ def auto_candidates() -> List[Dict[str, Any]]:
     return out
 
 
-def match(sentence: str, used: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
-    """The first auto template whose trigger the sentence matches (not one already used in this video)."""
+def match(sentence: str, used: Sequence[str] = (), context: str = "") -> Optional[Dict[str, Any]]:
+    """The first auto template whose trigger the sentence matches (not one already used in this video). A template with a "context"
+    pattern is only placed in a video whose narration is about that subject: "a river delta" on Mars is not the river model of space,
+    and water that "evaporates" is not Hawking radiation."""
     for t in auto_candidates():
         if t["id"] in used:
+            continue
+        if t.get("context") and not re.search(t["context"], context or sentence, re.I):
             continue
         if re.search(t["triggers"], sentence, re.I):
             return t

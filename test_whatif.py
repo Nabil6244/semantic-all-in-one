@@ -724,7 +724,7 @@ class Templates(unittest.TestCase):
 
     def test_auto_mode_draws_concepts_and_never_template_data(self):
         from whatif import templates as tpl
-        self.assertIsNotNone(tpl.match("Gravity slows time, because mass warps the fabric of space."))
+        self.assertIsNotNone(tpl.match("Gravity slows time, because mass warps the fabric of space.", (), "a black hole bends spacetime"))
         for data_tpl in ("deep_time_axis", "size_ladder", "layer_cutaway", "discovery_timeline", "composition_donut"):
             self.assertNotIn(data_tpl, [t["id"] for t in tpl.auto_candidates()])
         script = ("Our journey begins far away from everything we know, out in the dark, quiet and cold, drifting for a long while. " * 3 +
@@ -739,6 +739,17 @@ class Templates(unittest.TestCase):
         self.assertTrue(plate)
         self.assertEqual(planner.empty_plates(p.shots, p.layers), [])
 
+    def test_auto_templates_need_their_subject(self):
+        """Project 015 (Mars): "a river delta" placed the river model of space. Black-hole concepts need a black-hole video."""
+        from whatif import templates as tpl
+        mars = ("Billions of years ago water may have flowed on Mars. From orbit Jezero shows a fan shaped deposit that looks like a river delta. "
+                "The water evaporated, the information in the rocks turns red, and stretched dunes cover your future landing site.")
+        for sent in mars.split(". "):
+            self.assertIsNone(tpl.match(sent, (), mars), sent)
+        bh = "Near a black hole, space itself flows inward like a river of space, faster than light at the event horizon."
+        self.assertEqual(tpl.match(bh, (), bh)["id"], "river_walkway")
+        self.assertEqual(tpl.match("Mars once had a magnetic field that shielded it.", (), "magnetic field")["id"], "field_lines")
+
     def test_the_prompt_lists_every_template_and_the_journey_pattern(self):
         import app_csv_prompts
         from whatif import templates as tpl
@@ -746,7 +757,8 @@ class Templates(unittest.TestCase):
         self.assertNotIn(app_csv_prompts.TEMPLATE_PLACEHOLDER, text)
         for tid in tpl.load_library():
             self.assertIn(f"  {tid}: ", text)
-        for must in ("hud      id = mission", "blackhole_lensing", "A JOURNEY VIDEO", "type is one of"):
+        for must in ("hud      id = mission", "blackhole_lensing", "A JOURNEY VIDEO", "type is one of", "GRAPHICS TARGETS", "At least ONE template row per minute", "FLOW BUDGET",
+                     "at most ONE Flow shot every 3 minutes"):
             self.assertIn(must, text)
 
     def test_the_templates_ship_with_the_app(self):
@@ -824,6 +836,75 @@ class NeverStops(unittest.TestCase):
             self.assertEqual(_number(bad)[0], "")
         self.assertEqual(_number("1,200")[0], "1200")
         self.assertEqual(_number("4.2 km"), ("4.2", False))
+
+
+class Sound(unittest.TestCase):
+    def test_templates_and_their_builds_make_sounds_and_the_bed_follows_the_story(self):
+        from whatif import templates as tpl
+        from whatif.sound import sound_hints
+        t = tpl.get("light_bends")
+        spec = {"duration": 60, "shots": [{"start": 0, "end": 20, "kind": "image", "text": "a calm view"}, {"start": 20, "end": 30, "kind": "plate"},
+                                         {"start": 30, "end": 60, "kind": "image", "text": "a dust storm and wind sweep the plains"}],
+                "layers": [{"type": "tm_template", "template": t, "slots": {}, "cues": {}, "start": 20, "end": 28}, {"type": "tm_caption", "text": "X", "start": 5, "end": 8}]}
+        h = sound_hints(spec)
+        sources = [c["source"] for c in h["cues"]]
+        self.assertTrue(any(x.startswith("template light_bends:") for x in sources), sources)
+        self.assertIn("draw_zap", [c["sfx"] for c in h["cues"]])
+        self.assertIn("ui_click", [c["sfx"] for c in h["cues"]])
+        self.assertEqual([a["ambience"] for a in h["ambience"]], ["space_drone", "desert_wind"])
+        ts = [c["t"] for c in h["cues"]]
+        self.assertTrue(all(b - a >= 0.39 for a, b in zip(ts, ts[1:])))
+
+
+class FlowBudget(unittest.TestCase):
+    def test_flow_stays_in_the_opening_and_later_rows_become_stock(self):
+        shots = [planner.Shot(id=f"s{i}", start=i * 20.0, end=i * 20.0 + 20, kind="image", asset=f"flow_image:a scene {i}", text=f"dust storms sweep the plains {i}")
+                 for i in range(15)]
+        notes = []
+        moved = planner.limit_flow(shots, notes)
+        flow = [s.start for s in shots if s.asset.startswith("flow_")]
+        self.assertTrue(all(t < planner.FLOW_OPEN_S or t in (60.0, 240.0) for t in flow), flow)
+        self.assertEqual(moved, len(shots) - len(flow))
+        later = next(s for s in shots if s.start == 80.0)
+        self.assertTrue(later.asset.startswith("stock_image:") and "dust" in later.asset)
+        self.assertTrue(any("Flow kept to the opening" in n for n in notes))
+
+
+class Engage(unittest.TestCase):
+    """More graphics from the narration (whatif/engage.py) and the V5 additions."""
+
+    def test_years_parts_questions_and_odds_become_graphics(self):
+        script = (("We begin far from home in the quiet dark between worlds, where the story of this long journey starts for all of us. " * 3) +
+                  "In 1976, NASA's Viking landers touched down on the red plains. First, the air was thin and cold everywhere on the planet. "
+                  "Then the scientists kept measuring for many more years and they kept finding new things in the rocks. "
+                  "So what happened to all the water that once flowed here? The odds were one in a million that it would survive the cold for long. "
+                  + ("That is where the story goes next, much further than anyone expected when the mission began long ago. " * 4))
+        raw = timed(script)
+        p = planner.plan(raw, script, raw[-1][2] + 1)
+        ids = [L["template"]["id"] for L in p.layers if L.get("type") == "tm_template"]
+        for want in ("dated_caption", "stage_header", "question_card", "odds_dial"):
+            self.assertIn(want, ids, (ids, [n for n in p.notes if "graphics" in n]))
+        dated = next(L for L in p.layers if L.get("template", {}).get("id") == "dated_caption")
+        self.assertEqual(dated["slots"]["year"], "1976")
+        self.assertEqual(planner.empty_plates(p.shots, p.layers), [])
+
+    def test_the_same_data_changes_look_every_other_time(self):
+        from whatif.engage import vary_looks
+        layers = [{"type": "tm_compare", "mode": "cards", "left": {"label": "A", "value": "x"}, "right": {"label": "B", "value": "y"}, "start": i * 10.0, "end": i * 10.0 + 5}
+                  for i in range(4)]
+        seen = []
+        vary_looks([], layers, [], seen.append)
+        self.assertEqual([L["type"] for L in layers], ["tm_compare", "tm_template", "tm_compare", "tm_template"])
+        self.assertEqual(seen, ["theories_split", "theories_split"])
+
+    def test_v5_scenes_and_templates_exist(self):
+        from whatif import templates as tpl
+        for t in ("corner_tag", "dot_tally", "ring_value", "spin_ring", "formula_rings", "number_line", "level_slider", "photo_lockup",
+                  "photo_inset_diagram", "trajectory_overlay", "quote_person", "fact_bullets", "end_card_sources"):
+            self.assertIn(t, tpl.load_library())
+        from whatif.shot_csv import HERO_SCENES
+        for sc in ("ring_station", "cylinder_interior", "cylinder_exterior"):
+            self.assertIn(sc, HERO_SCENES)
 
 
 if __name__ == "__main__":

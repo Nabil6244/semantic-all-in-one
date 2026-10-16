@@ -124,7 +124,8 @@
    "in": 0.3
   }
  ],
- "triggers": "\\b(twice|two images|lens\\w*)\\b",
+ "triggers": "\\b(two images|seen twice|gravitational lens\\w*|lensing)\\b",
  "source": "V4 1:55",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

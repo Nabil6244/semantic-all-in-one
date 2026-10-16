@@ -1,0 +1,94 @@
+{
+ "id": "trajectory_overlay",
+ "family": "physics",
+ "use": "A thrown or falling path drawn over the picture, the ball travelling it, with a label: 'STRAIGHT UP LANDS AHEAD' (V5 3:40, over the station corridor).",
+ "tags": [
+  "physics",
+  "motion",
+  "overlay"
+ ],
+ "plate": false,
+ "hold": 5,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "STRAIGHT UP LANDS AHEAD",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "path": {
+   "default": [
+    [
+     0.48,
+     0.82
+    ],
+    [
+     0.47,
+     0.45
+    ],
+    [
+     0.52,
+     0.3
+    ],
+    [
+     0.6,
+     0.5
+    ],
+    [
+     0.62,
+     0.84
+    ]
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "path",
+   "points": "{path}",
+   "color": "amber",
+   "width": 3,
+   "glow": 10,
+   "m": "draw",
+   "dur": 2.2,
+   "in": 0.4
+  },
+  {
+   "p": "dot",
+   "path": "{path}",
+   "r": 8,
+   "color": "white",
+   "style": "plain",
+   "in": 0.4,
+   "anim": {
+    "along": [
+     [
+      0.4,
+      0
+     ],
+     [
+      2.6,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.32,
+    0.13
+   ],
+   "size": 22,
+   "color": "amber",
+   "sub": "{sub}",
+   "in": 0.2
+  }
+ ],
+ "source": "V5"
+}

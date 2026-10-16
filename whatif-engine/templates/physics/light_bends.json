@@ -165,5 +165,6 @@
  ],
  "triggers": "\\blight (bends|bent|curves)\\b|\\bbends? light\\b",
  "source": "V4 1:40",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

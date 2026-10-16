@@ -237,8 +237,9 @@
    "or": "80%"
   }
  ],
- "triggers": "\\b(walkway|river|space (itself )?(flows|falls|moves)|conveyor)\\b",
+ "triggers": "\\b(walkway|river of space|space (itself )?(flows|falls|pours|moves) (in|inward|towards)|conveyor belt of space)\\b",
  "max_s": 40,
  "source": "V4 3:40",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

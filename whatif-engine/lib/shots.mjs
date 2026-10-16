@@ -8,7 +8,8 @@
 //   black   black (a death, a silence)
 // Every shot: { id, start, end, kind, credit?, exit?: "cut" | "push", grade?: {...} }. Pure functions of narration time t.
 export const KINDS = ['image', 'video', 'plate', 'craft', 'globe', 'hero', 'black'];
-export const HERO_SCENES = ['venera_ground', 'venera_descent', 'cloud_airship', 'ship_engine', 'blackhole_disc', 'blackhole_top', 'blackhole_ring', 'blackhole_lensing', 'blackhole_horizon'];
+export const HERO_SCENES = ['venera_ground', 'venera_descent', 'cloud_airship', 'ship_engine', 'blackhole_disc', 'blackhole_top', 'blackhole_ring', 'blackhole_lensing', 'blackhole_horizon',
+  'ring_station', 'cylinder_interior', 'cylinder_exterior'];
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 export const smooth = (x) => { const k = clamp01(x); return k * k * (3 - 2 * k); };
 

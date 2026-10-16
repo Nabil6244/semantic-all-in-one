@@ -1,0 +1,120 @@
+{
+ "id": "formula_rings",
+ "family": "physics",
+ "use": "A formula over three small diagrams that show what it means: 'PUSH = SPIN² × RADIUS' with a ring, SPIN FASTER, BUILD WIDER (V5 2:10).",
+ "tags": [
+  "physics",
+  "equation",
+  "rotation"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "equation": {
+   "default": "PUSH = SPIN^{2} × RADIUS",
+   "from": "text",
+   "required": true
+  },
+  "mid": {
+   "default": "SPIN FASTER",
+   "from": "label"
+  },
+  "right": {
+   "default": "BUILD WIDER",
+   "from": "sub"
+  },
+  "ups": {
+   "default": [
+    0.25,
+    0.5,
+    0.77
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "equation",
+   "text": "{equation}",
+   "at": [
+    0.5,
+    0.2
+   ],
+   "size": 52,
+   "in": 0.2
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.25,
+    0.55
+   ],
+   "r": 0.11,
+   "color": "#C9CED6",
+   "width": 3,
+   "in": 0.6
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.5,
+    0.55
+   ],
+   "r": 0.11,
+   "color": "cyan",
+   "width": 3,
+   "dash": [
+    6,
+    10
+   ],
+   "spin": 40,
+   "in": 1.4,
+   "label": "{mid}",
+   "label_side": "bottom",
+   "label_size": 16
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.77,
+    0.55
+   ],
+   "r": 0.16,
+   "color": "amber",
+   "width": 3,
+   "in": 2.2,
+   "label": "{right}",
+   "label_side": "bottom",
+   "label_size": 16
+  },
+  {
+   "p": "arrow",
+   "each": "ups",
+   "from": [
+    "{it}",
+    0.6
+   ],
+   "to": [
+    "{it}",
+    0.5
+   ],
+   "color": "amber",
+   "width": 2.5,
+   "m": "draw",
+   "dur": 0.6,
+   "in": 2.6,
+   "stagger": 0.3
+  }
+ ],
+ "source": "V5"
+}

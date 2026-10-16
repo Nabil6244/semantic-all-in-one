@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadLibrary } from './lib/library.mjs';
 import { BLACKHOLE_SCENES } from './lib/blackhole.mjs';
+import { HABITAT_SCENES } from './lib/habitat.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const out = path.resolve(process.argv[2] || 'catalog');
@@ -14,7 +15,7 @@ const only = process.argv[3] ? new Set(process.argv[3].split(',')) : null;
 fs.mkdirSync(out, { recursive: true });
 
 const lib = [...loadLibrary().values()].filter((t) => !only || only.has(t.id));
-const heroes = BLACKHOLE_SCENES.filter((s) => !only || only.has(s));
+const heroes = [...BLACKHOLE_SCENES, ...HABITAT_SCENES].filter((s) => !only || only.has(s));
 const shots = [], layers = [], stills = [];
 let t = 0;
 for (const tp of lib) {

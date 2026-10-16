@@ -194,8 +194,9 @@
    "in": 0.05
   }
  ],
- "triggers": "\\b(direction of time|your future|inside the (edge|event horizon))\\b",
+ "triggers": "\\b(direction of time|inside the (edge|event horizon)|(future|time) points (in|inward))\\b",
  "max_s": 30,
  "source": "V4 5:15",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

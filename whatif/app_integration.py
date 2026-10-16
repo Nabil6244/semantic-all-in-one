@@ -194,7 +194,7 @@ def generate_whatif_video(
     for s in p.shots:             # a row switched to Flow Video in the Visual Plan on a long shot: the planner could not split it
         if s.kind == "video" and s.file and s.length > planner.FLOW_VIDEO_MAX_S + 0.05 and s.asset.lower().startswith("flow_"):
             log(f"[What If] shot {s.id} is {s.length:.1f} s, longer than a Flow clip should run ({planner.FLOW_VIDEO_MAX_S:.0f} s): its clip loops. "
-                f"Plan the shots again with Flow videos chosen to split it, or keep it a Flow Image in the Visual Plan.")
+                f"Choose Flow videos and Generate again to split it, or keep it a Flow Image in the Visual Plan.")
 
     media_dir = work / "render_media"
     if media_dir.exists():

@@ -1,0 +1,125 @@
+{
+ "id": "end_card_sources",
+ "family": "story",
+ "use": "The closing card at the left: the series line, the question big (white), a second line, TELL ME IN THE COMMENTS, a SUBSCRIBE pill and the sources list (V5 12:20).",
+ "tags": [
+  "story",
+  "ending",
+  "question"
+ ],
+ "plate": true,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "series": {
+   "default": "THE CITY IN SPACE",
+   "from": "format"
+  },
+  "line1": {
+   "default": "WOULD YOU MOVE THERE?",
+   "from": "label",
+   "required": true
+  },
+  "line2": {
+   "default": "AND WHAT WOULD YOU MISS MOST ABOUT EARTH?",
+   "from": "sub"
+  },
+  "sources": {
+   "default": [
+    "Sources: NASA, ESA",
+    "Every source is listed in the description"
+   ],
+   "from": "text",
+   "kind": "list"
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{series}",
+   "at": [
+    0.12,
+    0.33
+   ],
+   "size": 13,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{line1}",
+   "at": [
+    0.12,
+    0.42
+   ],
+   "size": 54,
+   "font": "display",
+   "glow": true,
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{line2}",
+   "at": [
+    0.12,
+    0.5
+   ],
+   "size": 20,
+   "in": 0.7
+  },
+  {
+   "p": "text",
+   "text": "TELL ME IN THE COMMENTS",
+   "at": [
+    0.12,
+    0.57
+   ],
+   "size": 14,
+   "font": "mono",
+   "color": "cyan",
+   "in": 1.1
+  },
+  {
+   "p": "panel",
+   "at": [
+    0.12,
+    0.6
+   ],
+   "w": 0.075,
+   "h": 0.04,
+   "fill": "rgba(255,255,255,0.9)",
+   "border": "white",
+   "in": 1.6
+  },
+  {
+   "p": "text",
+   "text": "SUBSCRIBE",
+   "at": [
+    0.127,
+    0.628
+   ],
+   "size": 13,
+   "font": "mono",
+   "color": "black",
+   "in": 1.6
+  },
+  {
+   "p": "text",
+   "text": "{it}",
+   "at": [
+    0.12,
+    "=0.7+0.026*{i}"
+   ],
+   "size": 12,
+   "font": "mono",
+   "color": "grey",
+   "case": "keep",
+   "each": "sources",
+   "stagger": 0.15,
+   "in": 2.0
+  }
+ ],
+ "source": "V5"
+}

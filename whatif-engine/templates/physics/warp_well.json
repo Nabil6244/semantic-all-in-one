@@ -79,5 +79,6 @@
  ],
  "triggers": "\\b(spacetime|space-time|fabric of space|gravity slows time|warps? space)\\b",
  "source": "V4 2:10",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

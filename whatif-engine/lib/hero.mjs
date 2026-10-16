@@ -4,6 +4,7 @@
 // frame wide and centred, horizon at 70 % of the frame height, warm orange sky, dark ground with scattered thin slabs of rock).
 //   shot: { kind: "hero", scene: "venera_ground" | "venera_descent" | "cloud_airship" | "ship_engine" | "blackhole_*" (lib/blackhole.mjs), cam: { size, horizon, x, hover, fov, az, drift } }
 import { blackholeScene, BLACKHOLE_SCENES } from './blackhole.mjs';
+import { habitatScene, HABITAT_SCENES } from './habitat.mjs';
 const rnd = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 
 export function skyMaterial(THREE, top, horizon) {
@@ -147,6 +148,7 @@ export function driveShip(THREE) {
 /** -> { scene, place(camera, t01, W, H, shot) } for a hero scene. */
 export function buildHero(THREE, shot, { stars } = {}) {
   if (BLACKHOLE_SCENES.includes(shot.scene)) return blackholeScene(THREE, shot);
+  if (HABITAT_SCENES.includes(shot.scene)) return habitatScene(THREE, shot, { stars });
   const scene = new THREE.Scene(), cam = shot.cam || {};
   scene.background = new THREE.Color(0xe0a868);
   scene.fog = new THREE.Fog(cam.fog ?? 0xc8955a, cam.fog_near ?? 25, cam.fog_far ?? 170);

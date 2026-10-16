@@ -1,0 +1,100 @@
+{
+ "id": "ring_value",
+ "family": "data",
+ "use": "A ring that fills to a share with a big value in its middle and a line under it: '~2 H · OF EXERCISE A DAY (NASA)' (V5 1:15).",
+ "tags": [
+  "data",
+  "time",
+  "share"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "~2 H",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "share": {
+   "default": 0.1,
+   "from": "value_to"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.3,
+    0.45
+   ],
+   "r": 0.17,
+   "color": "rgba(255,255,255,0.12)",
+   "width": 6,
+   "in": 0.1
+  },
+  {
+   "p": "ring",
+   "at": [
+    0.3,
+    0.45
+   ],
+   "r": 0.17,
+   "color": "white",
+   "width": 6,
+   "in": 0.3,
+   "anim": {
+    "progress": [
+     [
+      0.3,
+      0
+     ],
+     [
+      2.0,
+      "{share}"
+     ]
+    ]
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.3,
+    0.47
+   ],
+   "size": 54,
+   "font": "display",
+   "align": "center",
+   "in": 0.6
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.3,
+    0.72
+   ],
+   "size": 15,
+   "font": "mono",
+   "align": "center",
+   "color": "grey",
+   "in": 1.2
+  }
+ ],
+ "source": "V5"
+}

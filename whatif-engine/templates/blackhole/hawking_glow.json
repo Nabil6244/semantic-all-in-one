@@ -83,7 +83,8 @@
    "in": 0.1
   }
  ],
- "triggers": "\\b(hawking radiation|evaporat\\w*|glow faintly)\\b",
+ "triggers": "\\b(hawking radiation|black holes? (evaporat\\w*|glow\\w*)|glow faintly)\\b",
  "source": "V4 8:20",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

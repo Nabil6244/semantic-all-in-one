@@ -1,0 +1,73 @@
+{
+ "id": "photo_lockup",
+ "family": "story",
+ "use": "A real photograph as a card on the left, the subject's name big on the right with its date under it: 'GEMINI 11 · 14 SEP 1966' (V5 2:20). photo = nasa_image:<what>.",
+ "tags": [
+  "story",
+  "photo",
+  "history"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "REAL PHOTO",
+ "tint": "cool",
+ "slots": {
+  "photo": {
+   "default": "",
+   "kind": "image"
+  },
+  "label": {
+   "default": "GEMINI 11",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "14 SEP 1966",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "image",
+   "name": "{photo}",
+   "at": [
+    0.33,
+    0.47
+   ],
+   "w": 0.36,
+   "in": 0.1,
+   "border": "rgba(255,255,255,0.25)",
+   "fallback": {
+    "p": "disc",
+    "style": "planet",
+    "r": 0.18
+   }
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.55,
+    0.46
+   ],
+   "size": 46,
+   "font": "display",
+   "glow": true,
+   "in": 0.4
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.55,
+    0.52
+   ],
+   "size": 18,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.8
+  }
+ ],
+ "source": "V5",
+ "image_slot": "photo"
+}

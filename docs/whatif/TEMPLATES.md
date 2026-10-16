@@ -17,12 +17,15 @@ CSV row: layer, template, id=two_clocks_ratio, label=EARTH, value_from=2, value_
 ## What is in it
 | Part | Where | What |
 |---|---|---|
-| 75 templates | `whatif-engine/templates/` | 27 from V4 (black hole) + 48 suggested, in 9 families: blackhole, physics, forces, time, scale, distance, space, structure, data, story, survival |
+| 88 templates | `whatif-engine/templates/` | 27 from V4 (black hole) + 13 from V5 (city in space) + 48 suggested, in 11 families |
 | 24 primitives | `lib/prims.mjs` | text, number, ring, disc, line/arrow, path, dot, icon, image, panel, grid (spacetime well), particles (stars, flow, radial, orbit, squiggle, pack, fall/rise, burst), clock, axis (incl. log), rail, bar, band, equation, glow, wave, donut, blackhole (side view), callout |
 | 13 motions | `lib/tpl.mjs` | draw, count, move, scale, grow, shrink, pop, fade_out, rotate, stretch, flash, colour, typewriter; plus `anim` keys on any parameter |
 | 34 icons | `lib/icons.mjs` | astronaut, human, eye, star, letter (burns), rocket, heart, skull, thermometer, hourglass, satellite, planet, sun, atom ... drawn with canvas paths: nothing to download |
 | Mission card | `layers/tm_mission.mjs` | V4's top-right card; CSV `hud` rows `id=mission`, one per beat, joined into one card that counts down |
 | Black hole hero shots | `lib/blackhole.mjs` | ray-traced in a shader: `blackhole_disc`, `blackhole_top`, `blackhole_ring`, `blackhole_lensing`, `blackhole_horizon` |
+| Space settlement hero shots (V5) | `lib/habitat.mjs` | `ring_station`, `cylinder_interior` (the ground above your head), `cylinder_exterior` |
+| More graphics from the narration | `whatif/engage.py` | dated captions, part headers, question cards, odds dials, the counted-number look, and the same data in a new template every other time |
+| Sound | `whatif/sound.py` | every template and its builds make the sound of what they do; shot-kind changes get a transition; the bed follows the story |
 
 ## Adding a visual
 1. Write `whatif-engine/templates/<family>/<id>.json`: `id`, `family`, `use` (one line: the CSV prompt shows it), `plate` (true = its own dark

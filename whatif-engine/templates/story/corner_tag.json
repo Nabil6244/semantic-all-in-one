@@ -1,0 +1,52 @@
+{
+ "id": "corner_tag",
+ "family": "story",
+ "use": "A small coloured tag in the top-left corner naming the point of view, over the picture: INSIDE / OUTSIDE (V5, all through the station shots).",
+ "tags": [
+  "story",
+  "viewpoint"
+ ],
+ "plate": false,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "INSIDE",
+   "from": "label",
+   "required": true
+  },
+  "color": {
+   "default": "cyan"
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "at": [
+    0.02,
+    0.025
+   ],
+   "w": 0.085,
+   "h": 0.045,
+   "fill": "rgba(10,13,18,0.55)",
+   "border": "{color}",
+   "in": 0.05,
+   "appear": "cut"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.03,
+    0.057
+   ],
+   "size": 17,
+   "font": "mono",
+   "color": "{color}",
+   "in": 0.05,
+   "appear": "cut"
+  }
+ ],
+ "source": "V5"
+}

@@ -1,0 +1,112 @@
+{
+ "id": "fact_bullets",
+ "family": "data",
+ "use": "A big headline number with a mono line, and two or three short facts as bullets beside a picture or icon on the left: '-1 TO 1.5 % · MINERAL DENSITY A MONTH' (V5 1:05). text = fact; fact; fact.",
+ "tags": [
+  "data",
+  "facts",
+  "body"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "kicker": {
+   "default": "",
+   "from": "format"
+  },
+  "label": {
+   "default": "-1 TO 1.5 %",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "icon": {
+   "default": "cube"
+  },
+  "facts": {
+   "default": [
+    "MUSCLES WASTE",
+    "FLUID DRIFTS TOWARD THE HEAD"
+   ],
+   "from": "text",
+   "kind": "list"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "icon",
+   "name": "{icon}",
+   "at": [
+    0.25,
+    0.47
+   ],
+   "size": 0.42,
+   "color": "#EFE6D2",
+   "in": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{kicker}",
+   "at": [
+    0.47,
+    0.3
+   ],
+   "size": 13,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.3
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.47,
+    0.38
+   ],
+   "size": 46,
+   "font": "display",
+   "glow": true,
+   "in": 0.4
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.47,
+    0.43
+   ],
+   "size": 15,
+   "font": "mono",
+   "color": "grey",
+   "in": 0.8
+  },
+  {
+   "p": "text",
+   "text": "— {it}",
+   "at": [
+    0.47,
+    "=0.53+0.05*{i}"
+   ],
+   "size": 16,
+   "font": "mono",
+   "each": "facts",
+   "stagger": 0.7,
+   "in": 1.4
+  }
+ ],
+ "source": "V5"
+}

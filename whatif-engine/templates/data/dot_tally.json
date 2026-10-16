@@ -1,0 +1,96 @@
+{
+ "id": "dot_tally",
+ "family": "data",
+ "use": "N of M as a row of dots, N of them lit, with the line under it: '9 OF 17 ASTRONAUTS · SHIN BONE NOT FULLY RECOVERED' (V5 1:20).",
+ "tags": [
+  "data",
+  "count",
+  "people"
+ ],
+ "plate": true,
+ "hold": 6,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "value_to": {
+   "default": 9,
+   "from": "value_to",
+   "required": true
+  },
+  "total": {
+   "default": 17,
+   "from": "value_from",
+   "required": true
+  },
+  "label": {
+   "default": "ASTRONAUTS",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 160,
+   "alpha": 0.5,
+   "in": 0,
+   "appear": "cut",
+   "seed": 5
+  },
+  {
+   "p": "dot",
+   "each": "total",
+   "at": [
+    "=0.5-0.022*({n}-1)/2+0.022*{i}",
+    0.42
+   ],
+   "r": 7,
+   "style": "plain",
+   "color": "rgba(255,255,255,0.25)",
+   "in": 0.3,
+   "stagger": 0.06
+  },
+  {
+   "p": "dot",
+   "each": "value_to",
+   "at": [
+    "=0.5-0.022*({total}-1)/2+0.022*{i}",
+    0.42
+   ],
+   "r": 8,
+   "color": "white",
+   "ring": false,
+   "in": 1.4,
+   "stagger": 0.1
+  },
+  {
+   "p": "text",
+   "text": "{value_to} OF {total} {label}",
+   "at": [
+    0.5,
+    0.53
+   ],
+   "size": 30,
+   "align": "center",
+   "in": 1.2
+  },
+  {
+   "p": "text",
+   "text": "{sub}",
+   "at": [
+    0.5,
+    0.585
+   ],
+   "size": 16,
+   "font": "mono",
+   "align": "center",
+   "color": "cyan",
+   "in": 2.0
+  }
+ ],
+ "source": "V5"
+}

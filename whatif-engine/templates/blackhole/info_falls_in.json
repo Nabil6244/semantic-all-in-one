@@ -131,7 +131,8 @@
    "in": 0.1
   }
  ],
- "triggers": "\\binformation\\b",
+ "triggers": "\\b(information (paradox|is lost|is destroyed|falls in)|carries information)\\b",
  "source": "V4 8:05",
- "auto": true
+ "auto": true,
+ "context": "\\b(black holes?|event horizon|space-?time|neutron stars?|general relativity|photon sphere|singularity)\\b"
 }

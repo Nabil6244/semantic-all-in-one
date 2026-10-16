@@ -22,7 +22,8 @@ says appear on screen as big plain type a beat before they are said. Nothing dec
 
 === WHAT EACH SENTENCE BECOMES (decide in this order) ===
 1. It names a real craft, mission, place or event WITH a photograph that exists -> kind image, asset nasa_image:<the exact thing as NASA titles it>
-   (the craft's name + the event). If you know no NASA picture exists, use flow_image (it is labelled AI ILLUSTRATION on screen).
+   (the craft's name + the event). If you know no NASA picture exists: archive_video / commons_image, or a stock_video / stock_image search of
+   the same subject (flow_image only inside the opening minute, see FLOW BUDGET).
 2. It names a craft in the 3D library -> kind craft, model <name>. Library: voyager, pioneer10, cassini, juno, galileo, magellan, parker, perseverance,
    viking_lander, jwst, hubble, apollo_lm, saturn_v, dsn_70m, dawn, messenger, rosetta, ulysses, ingenuity, insight, iss, deep_space_1, stardust.
 3. It explains a process, a comparison, a scale, a number or a composition -> a diagram (a layer row, see below). The program already adds
@@ -35,14 +36,21 @@ says appear on screen as big plain type a beat before they are said. Nothing dec
    over and under the shadow), blackhole_top (seen from above), blackhole_ring (close in, the bright ring fills the frame), blackhole_lensing (no disc: the
    stars bent round it), blackhole_horizon (hovering just above the edge: a black frame with one thin curve of light). extra {"cam": {"dist": 24, "el": 5,
    "orbit": 6, "push": 0.06}} changes the camera (dist in units of the edge's radius; el = degrees above the disc; orbit / push = movement over the shot).
+   A spinning space settlement is a hero scene too: ring_station (a wheel station turning against the stars), cylinder_interior (standing inside an
+   O'Neill cylinder: land and window strips curve up over your head, clouds float halfway to the axis), cylinder_exterior (the counter-turning
+   pair seen from outside). extra {"cam": {"spin": 6, "orbit": 8}} (spin in degrees a second: 6 = one turn a minute). These scenes are made to
+   be HELD: one long moving shot with the graphics changing over it (V5 holds a single 3D shot for minutes while its overlays change every
+   few seconds), so give them 20-60 s and put template / metric / caption rows over them.
    extra {"cam": {"size": 0.26, "x": 0.5, "hover": 1.3}} changes the composition (size = the lander's width as a fraction of the frame; x = its position;
    a wide shot is size 0.09, a close one size 0.55).
-6. It describes a scene that no camera recorded (a lander on the ground, a probe falling through clouds, a ship with engines) -> kind image,
-   asset flow_video:<a precise visual description, with the motion: "the probe drifts slowly left, the camera pushes in"> for the
-   opening, illustrated sentences that run long, and anything that moves (launches, flybys, falling, light travelling);
-   flow_image:<the same kind of description> for short in-between shots. A flow_video shot lasts UNDER 6 SECONDS: when the sentence runs
-   longer, write two flow_video shots of the same subject with different framings (wide, then close), the second starting at a pause. Describe ONLY what is visible: place, objects, light,
-   weather, camera distance. Same craft = same description every time. No text, no labels, no people's faces.
+6. It describes a scene that no camera recorded (a lander on the ground, a probe falling through clouds, a ship with engines):
+   - inside the opening minute -> flow_video:<a precise visual description, with the motion: "the probe drifts slowly left, the camera pushes in">
+     (or flow_image:<the same kind of description> for a short in-between shot). A flow_video shot lasts UNDER 6 SECONDS: split a longer sentence
+     into two shots of the same subject (wide, then close). Describe ONLY what is visible: place, objects, light, weather, camera distance. Same
+     craft = same description every time. No text, no labels, no people's faces.
+   - after the opening minute -> NOT Flow: a hero scene, a 3D craft, a globe, a template on a plate, or stock_video:<3-6 plain search words for real
+     footage of the subject> / stock_image:<the same>. Write stock searches as a person would type them ("dusty red desert time lapse",
+     "rocket launch night", "ice cracking close up"), never a long description.
 7. Death, silence, the end of a signal -> add a layer row type fade (the program also detects "went silent", "blacked out").
    kind black is ONLY a short silence: a breath of 2-3 seconds (a signal lost, cameras switched off), never a sentence's picture. The
    next shot row starts on the next sentence; the program cuts any longer black to 2.8 s and gives the rest to a picture.
@@ -82,6 +90,9 @@ layer  under its shot. vo_anchor = the words it appears on (same rule: no number
                 label = what it measures ("DISTANCE TO THE EDGE", later "DISTANCE TO THE CENTRE"), sub = the status line ("FALLING",
                 "HOVERING · TIME ×100 SLOWER"), text = the stage name. The first mission row may set extra {"kicker": "MISSION · SGR A*",
                 "stages": "APPROACH;PHOTON SPHERE;EDGE;INSIDE;SINGULARITY"} (5 stages or fewer); the number counts down between beats by itself.
+       hud      id = mission also makes any READOUT CARD that stays on screen and updates: label = what it measures ("YOUR WEIGHT"), value_to +
+                format = the reading (70 + KG), sub = the second line ("154 LB · ON EARTH"), extra {"kicker": "YOUR WEIGHT", "stages": ""} (no stages:
+                no rail). One row each time the reading changes (V5: 70 KG on Earth -> 0 KG in orbit -> 65 KG on the ring -> 48 KG near the axis).
        caption  label = bold line, sub = mono line under it
        title    label = the title card text (use for the opening question and the closing question)
        fade     a fade to black and back
@@ -93,6 +104,24 @@ opened with template stage_header (label = the stage name, sub = "STAGE 2") over
 (template target_section, value_from / value_to = where YOU are, in multiples of the edge's radius: 6 -> 4 approach, 1.5 photon sphere,
 1 edge, 0.5 inside, 0 centre) shown again at every stage. Diagram plates may then take up to 80 % of the video, because every template keeps
 building (the number changing, the marker moving, labels appearing), so nothing on screen stays still for more than about 6 seconds.
+
+=== FLOW BUDGET (AI pictures cost credits: use them where they matter) ===
+- Flow (flow_image / flow_video) is for the OPENING: the first 60 seconds may use it freely, so the video starts strong.
+- After 60 seconds: at most ONE Flow shot every 3 minutes, only for a scene no camera, archive, 3D model or diagram can show. Everything else is
+  a real picture (nasa_image, nasa_video, archive_video, commons_image), a stock search (stock_video, stock_image), a hero scene, a craft, a globe,
+  or a template on a plate. The program turns any extra later Flow row into a stock search of the same subject.
+- Prefer moving footage (stock_video, nasa_video, archive_video, hero scenes) over stills after the opening, so the video keeps moving.
+
+=== GRAPHICS TARGETS (an engaging video uses the library, not only captions) ===
+- At least ONE template row per minute of narration, and at least as many DIFFERENT templates as there are minutes (a 16-minute
+  video: 16+ template rows, 16+ different ids). Spread them evenly; never the same template twice within 60 seconds.
+- Use at least 6 families of the library below (story, scale, distance, time, physics, forces, structure, data, space, survival ...).
+- Every number the narrator stresses gets a graphic (metric, big_number_lower, bar_race, size_ladder, fits_inside, squeeze_object ...).
+- Every year or date at a sentence start: dated_caption. Every question the narrator asks: question_card. A list of 3+ things:
+  ranking_ladder or callout_object. Two sides or theories: theories_split or pov_split. A process: a diagram template, not a caption.
+- Open each section with stage_header (or chapter_strip); end with recap_strip before end_question.
+- A caption alone is the weakest graphic: use it only when no template fits.
+- Every value in a template row must be one the script states (the templates' sample values are never shown as facts).
 
 === TEMPLATE LIBRARY (id: what it shows. Columns: which column fills which part) ===
 <<<TEMPLATE CATALOG>>>
