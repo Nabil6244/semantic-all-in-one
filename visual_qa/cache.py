@@ -2,14 +2,25 @@
 
 from __future__ import annotations
 
+import atexit
 import hashlib
+import itertools
 import json
+import os
+import threading
+import time
 from pathlib import Path
 from typing import Optional
 
 from .models import QA_ENGINE_VERSION, VisualQAResult
 
 CACHE_FILE = ".visual_qa_cache.json"
+
+# Stores are coalesced: the first store writes at once, later ones within this
+# many seconds of the previous write are written together by a short timer
+# (and at interpreter exit / flush_cache()). The file on disk is therefore at
+# most this stale, and is always a complete JSON document (atomic replace).
+FLUSH_INTERVAL_S = 0.5
 
 
 def _file_identity(asset_path: Path) -> str:
@@ -53,9 +64,146 @@ def load_cache(images_dir: Path) -> dict:
         return {}
 
 
+_tmp_counter = itertools.count()
+
+
+def _atomic_write_json(path: Path, cache: dict) -> None:
+    """Write next to the target, then os.replace(): a reader (another
+    process, starmap.media) or a crash mid-write never sees a half file.
+    os.open with 0o666 keeps the umask-derived mode write_text produced."""
+    text = json.dumps(cache, indent=2)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{next(_tmp_counter)}.tmp")
+    try:
+        fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
 def save_cache(images_dir: Path, cache: dict) -> None:
     path = Path(images_dir) / CACHE_FILE
-    path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+    with _LOCK:
+        _atomic_write_json(path, cache)
+        st = _STATES.get(_state_key(path))
+        if st is not None:
+            # An explicit save replaces the file wholesale, exactly as before.
+            st.data = json.loads(json.dumps(cache))
+            st.dirty.clear()
+            st.sig = _disk_sig(path)
+            st.last_flush = time.monotonic()
+
+
+# ---------------------------------------------------------------------------
+# In-memory view of each cache file for the run.
+#
+# Before: every get_cached() parsed the whole JSON and every store_cached()
+# parsed + rewrote it, O(n^2) for an n-scene run (1200 rows: ~5 s). Now each
+# file is parsed once and kept in memory; it is re-read only when its on-disk
+# signature (mtime_ns, size, inode) changes, i.e. someone else wrote it, so a
+# second process or a direct writer is still seen. Writes are coalesced (see
+# FLUSH_INTERVAL_S) and atomic. When the file changed underneath us, a flush
+# re-reads it and re-applies only our pending entries on top (the old
+# read-modify-write merge); when it was deleted, our view is dropped, as the
+# deletion would have dropped those entries before.
+# ---------------------------------------------------------------------------
+
+_LOCK = threading.RLock()
+
+
+class _FileState:
+    __slots__ = ("path", "data", "sig", "dirty", "last_flush", "timer")
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.data: dict = {}
+        self.sig = False  # never synced
+        self.dirty: dict = {}
+        self.last_flush = float("-inf")
+        self.timer: Optional[threading.Timer] = None
+
+
+_STATES: dict = {}
+
+
+def _state_key(path: Path) -> str:
+    return os.path.abspath(str(path))
+
+
+def _disk_sig(path: Path):
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_mtime_ns, st.st_size, st.st_ino)
+
+
+def _state_for(path: Path) -> _FileState:
+    key = _state_key(path)
+    st = _STATES.get(key)
+    if st is None:
+        st = _STATES[key] = _FileState(path)
+    return st
+
+
+def _sync(st: _FileState) -> None:
+    """Bring st.data in line with the disk (call with _LOCK held)."""
+    cur = _disk_sig(st.path)
+    if cur == st.sig:
+        return
+    if cur is None and st.sig not in (False, None):
+        st.dirty.clear()  # file deleted since we last saw it
+    st.data = load_cache(st.path.parent)
+    st.data.update(st.dirty)
+    st.sig = cur
+
+
+def _flush_state(st: _FileState) -> None:
+    """Write pending entries (call with _LOCK held). Raises on I/O error,
+    leaving the entries pending."""
+    if st.timer is not None:
+        st.timer.cancel()
+        st.timer = None
+    if not st.dirty:
+        return
+    _sync(st)
+    _atomic_write_json(st.path, st.data)
+    st.sig = _disk_sig(st.path)
+    st.dirty.clear()
+    st.last_flush = time.monotonic()
+
+
+def _timer_flush(st: _FileState) -> None:
+    with _LOCK:
+        st.timer = None
+        try:
+            _flush_state(st)
+        except Exception:
+            pass  # retried on the next store / flush_cache() / exit
+
+
+def flush_cache(images_dir: Optional[Path] = None) -> None:
+    """Write pending cache entries now (one folder, or all). Errors are
+    swallowed for the all-folders form (used at exit)."""
+    with _LOCK:
+        if images_dir is not None:
+            st = _STATES.get(_state_key(Path(images_dir) / CACHE_FILE))
+            if st is not None:
+                _flush_state(st)
+            return
+        for st in list(_STATES.values()):
+            try:
+                _flush_state(st)
+            except Exception:
+                pass
+
+
+atexit.register(flush_cache)
 
 
 def get_cached(
@@ -65,12 +213,14 @@ def get_cached(
     *,
     style_id: str = "",
 ) -> Optional[VisualQAResult]:
-    cache = load_cache(images_dir)
     fp = _fingerprint(
         str(asset_path.resolve()), scene_number, style_id,
         file_identity=_file_identity(asset_path),
     )
-    raw = cache.get(fp)
+    with _LOCK:
+        st = _state_for(Path(images_dir) / CACHE_FILE)
+        _sync(st)
+        raw = st.data.get(fp)
     if not isinstance(raw, dict):
         return None
     return VisualQAResult.from_dict(raw)
@@ -84,10 +234,22 @@ def store_cached(
     *,
     style_id: str = "",
 ) -> None:
-    cache = load_cache(images_dir)
     fp = _fingerprint(
         str(Path(asset_path).resolve()), scene_number, style_id,
         file_identity=_file_identity(Path(asset_path)),
     )
-    cache[fp] = result.to_dict()
-    save_cache(images_dir, cache)
+    # JSON round trip: the in-memory entry is exactly what a re-read of the
+    # file would give (and a non-serialisable value fails here, as before).
+    entry = json.loads(json.dumps(result.to_dict()))
+    with _LOCK:
+        st = _state_for(Path(images_dir) / CACHE_FILE)
+        _sync(st)
+        st.data[fp] = entry
+        st.dirty[fp] = entry
+        wait = st.last_flush + FLUSH_INTERVAL_S - time.monotonic()
+        if wait <= 0:
+            _flush_state(st)
+        elif st.timer is None:
+            st.timer = threading.Timer(wait, _timer_flush, args=(st,))
+            st.timer.daemon = True
+            st.timer.start()

@@ -100,6 +100,60 @@ class SectionLabel(ctk.CTkLabel):
         super().__init__(master, text=text.upper(), font=font(T.FONT_SECTION_TITLE), anchor="w", **kwargs)
 
 
+class ElidingLabel(ctk.CTkLabel):
+    """One-line label that follows `source_var` but shortens it with "…" to the width the layout gives it,
+    instead of cutting the end off silently. Hovering a shortened label shows the whole text."""
+
+    _PAD = 6
+
+    def __init__(self, master, *, source_var, **kwargs):
+        self._source = source_var
+        self._shown = ctk.StringVar(master=master, value=source_var.get())
+        super().__init__(master, textvariable=self._shown, **kwargs)
+        from .tooltip import attach
+
+        self._tip = attach(self, "")
+        self._trace = source_var.trace_add("write", lambda *_a: self._refit())
+        self.bind("<Configure>", lambda _e: self._refit(), add="+")
+
+    @staticmethod
+    def elide(text: str, max_px: int, measure) -> str:
+        if max_px <= 0 or measure(text) <= max_px:
+            return text
+        lo, hi = 0, len(text)
+        while lo < hi:  # longest prefix that still fits with the ellipsis
+            mid = (lo + hi + 1) // 2
+            if measure(text[:mid].rstrip() + "…") <= max_px:
+                lo = mid
+            else:
+                hi = mid - 1
+        return text[:lo].rstrip() + "…"
+
+    def _refit(self) -> None:
+        try:
+            full = self._source.get()
+            width = self.winfo_width()
+        except Exception:
+            return
+        if width <= 1:  # not laid out yet: show it whole, the first <Configure> fits it
+            self._shown.set(full)
+            return
+        measure = getattr(self._font, "measure", None)
+        if measure is None:
+            return
+        shown = self.elide(full, width - self._PAD, measure)
+        if shown != self._shown.get():
+            self._shown.set(shown)
+        self._tip.set_text(full if shown != full else "")
+
+    def destroy(self):
+        try:
+            self._source.trace_remove("write", self._trace)
+        except Exception:
+            pass
+        super().destroy()
+
+
 class Divider(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color=T.BORDER, height=1, corner_radius=0, **kwargs)
@@ -175,7 +229,7 @@ class StatTile(ctk.CTkFrame):
         self._caption = ctk.CTkLabel(self, text=caption.upper(), font=font(T.FONT_SECTION_TITLE),
                                      text_color=T.TEXT_TERTIARY, anchor="w")
         self._caption.grid(row=0, column=0, sticky="w", padx=14, pady=(12, 0))
-        self._value = ctk.CTkLabel(self, text=value, font=ctk.CTkFont(size=20, weight="bold"),
+        self._value = ctk.CTkLabel(self, text=value, font=font(T.FONT_DISPLAY),
                                    text_color=T.TEXT, anchor="w")
         self._value.grid(row=1, column=0, sticky="w", padx=14, pady=(0, 2))
         self._detail = ctk.CTkLabel(self, text="", font=font(T.FONT_METADATA), text_color=T.MUTED,
@@ -246,10 +300,10 @@ class EmptyState(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             self, text=icon, width=48, height=48, corner_radius=24, fg_color=T.ACCENT_SEL,
-            text_color=T.ACCENT, font=ctk.CTkFont(size=20),
+            text_color=T.ACCENT_TEXT, font=font(T.FONT_EMPTY_ICON),
         ).grid(row=0, column=0, pady=(28, 10))
         self._title = ctk.CTkLabel(
-            self, text=title, font=ctk.CTkFont(size=16, weight="bold"), text_color=T.TEXT,
+            self, text=title, font=font(T.FONT_EMPTY_TITLE), text_color=T.TEXT,
         )
         self._title.grid(row=1, column=0, padx=T.PAD_LG)
         self._body = ctk.CTkLabel(
@@ -382,7 +436,7 @@ def switch_style() -> dict:
 def segmented_style() -> dict:
     """CTkSegmentedButton colours matching the rest of the controls."""
     return dict(
-        fg_color=T.PANEL_ALT, selected_color=T.ACCENT, selected_hover_color=T.ACCENT_HOV,
+        fg_color=T.PANEL_ALT, selected_color=T.ACCENT_BORDER, selected_hover_color=T.ACCENT_BORDER,  # one text colour: see ui.theme
         unselected_color=T.CARD, unselected_hover_color=T.CARD_HOVER,
         text_color=T.TEXT, text_color_disabled=T.TEXT_TERTIARY, corner_radius=T.RADIUS,
     )

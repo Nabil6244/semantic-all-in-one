@@ -34,7 +34,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 15  # 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
+SMART_EDITING_VERSION = 16  # 16: text pops dedupe on the spoken word ("1822," == "1822"); 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -534,7 +534,8 @@ def _find_emphasis_phrases(text: str) -> List[str]:
     for match in re.finditer(r"\b[A-Z]{2,}[A-Z0-9'\-]*\b", text):
         phrases.append(match.group())
     for match in re.finditer(r"[\$€£]?\d[\d,\.]*%?", text):
-        token = match.group().strip()
+        # "In 1759, John..." matches "1759," — sentence punctuation is not part of the number
+        token = match.group().strip().rstrip(",.")
         if len(token) >= 2:
             phrases.append(token)
     # Distinctive single words from the narration (semantic emphasis, no extra LLM call).
@@ -544,7 +545,11 @@ def _find_emphasis_phrases(text: str) -> List[str]:
     deduped: List[str] = []
     seen = set()
     for p in phrases:
-        key = p.lower()
+        p = p.strip().rstrip(".,;:!?")
+        if not p:
+            continue
+        # one key per spoken word(s): "1822," / "1822" / "$400" / "400" / "BC" / "bc" collapse together
+        key = " ".join(split_words(p)) or p.lower()
         if key in seen:
             continue
         seen.add(key)
@@ -612,6 +617,7 @@ def plan_text_effects(
     aligned_by_scene = {str(r["scene_number"]): r for r in aligned_rows}
     scale = _intensity_scale(settings.text_intensity())
     auto_idx = 0
+    placed: List[Tuple[str, float, float]] = []
     for row in rows:
         scene = str(row.get("scene_number", ""))
         aligned = aligned_by_scene.get(scene)
@@ -639,6 +645,14 @@ def plan_text_effects(
             if timing is None:
                 continue
             start, end = timing
+            # the same word/number never pops twice at overlapping times (scene windows overlap at the edges)
+            key = " ".join(split_words(phrase)) or phrase.lower()
+            if any(
+                prev_key == key and start < prev_end and prev_start < end
+                for prev_key, prev_start, prev_end in placed
+            ):
+                continue
+            placed.append((key, start, end))
             effect = _assign_effect(phrase, auto_idx, settings.mode)
             auto_idx += 1
             effects.append(

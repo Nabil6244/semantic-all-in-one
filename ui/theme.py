@@ -111,11 +111,12 @@ DARK = {
     "border": "#232833",
     "border_strong": "#323949",
     "text_primary": "#ECEEF3",
-    "text_secondary": "#8C95A7",
-    "text_tertiary": "#5D6576",
-    "accent": "#5B6CFF",
-    "accent_hover": "#4B5BF0",
+    "text_secondary": "#9CA4B5",
+    "text_tertiary": "#828B9E",
+    "accent": "#4E5EF5",
+    "accent_hover": "#3F4FE3",
     "accent_on_accent": "#FFFFFF",
+    "accent_text": "#8D99FF",
     "selected": "#1A1F3D",
     "accent_border": "#3B4586",
     "success": "#3DD68C",
@@ -154,20 +155,21 @@ LIGHT = {
     "border": "#DDE1E8",
     "border_strong": "#C5CBD6",
     "text_primary": "#151922",
-    "text_secondary": "#586072",
-    "text_tertiary": "#8A92A1",
+    "text_secondary": "#4A5162",
+    "text_tertiary": "#636B7A",
     "accent": "#4454EE",
     "accent_hover": "#3443D6",
     "accent_on_accent": "#FFFFFF",
+    "accent_text": "#3F4FE6",
     "selected": "#E7EAFF",
     "accent_border": "#AFB8F5",
-    "success": "#0E9F6E",
+    "success": "#0A7A55",
     "success_bg": "#E3F6EE",
     "processing": "#2F80D6",
     "queued": "#8891A0",
-    "warning": "#B7791F",
+    "warning": "#8F5D0E",
     "warning_bg": "#FBF1DF",
-    "error": "#D64545",
+    "error": "#BE3434",
     "error_bg": "#FBEAEA",
     "skipped": "#9AA1AD",
     "stepper_done": "#1F8F5E",
@@ -210,7 +212,7 @@ def _apply_active_tokens() -> None:
     global TEXT, MUTED, ACCENT, ACCENT_HOV, ACCENT_DARK, ACCENT_SEL, ACCENT_BORDER
     global SUCCESS, PROCESSING, QUEUED, WARNING, DANGER, DANGER_BG, SKIPPED, STEPPER_DONE
     global HOVER, DISABLED, BORDER_STRONG, TEXT_TERTIARY, SUCCESS_BG, WARNING_BG
-    global TIMELINE_BG, TRACK, TRACK_ALT, PLAYHEAD
+    global TIMELINE_BG, TRACK, TRACK_ALT, PLAYHEAD, ACCENT_TEXT
     global CLIP_VIDEO, CLIP_IMAGE, CLIP_TEXT, CLIP_GRAPHICS, CLIP_SFX, CLIP_AMBIENCE, CLIP_MUSIC, CLIP_VOICEOVER
 
     BG = _TOKENS["background"]
@@ -227,6 +229,9 @@ def _apply_active_tokens() -> None:
     ACCENT_DARK = _TOKENS["accent_on_accent"]
     ACCENT_SEL = _TOKENS["selected"]
     ACCENT_BORDER = _TOKENS["accent_border"]
+    # Accent-coloured TEXT (links, active labels): lighter than ACCENT in dark mode, which is a fill
+    # colour tuned for white text on it. One colour cannot pass 4.5:1 in both roles.
+    ACCENT_TEXT = _TOKENS["accent_text"]
     SUCCESS = _TOKENS["success"]
     PROCESSING = _TOKENS["processing"]
     QUEUED = _TOKENS["queued"]
@@ -489,7 +494,9 @@ def install_ctk_theme() -> None:
         button_hover_color=pair("accent"), text_color=pair("text_primary"))
     put("CTkScrollbar", button_color=pair("border"), button_hover_color=pair("border_strong"))
     put("CTkSegmentedButton", corner_radius=RADIUS, fg_color=pair("surface_alt"),
-        selected_color=pair("accent"), selected_hover_color=pair("accent_hover"),
+        # A segmented button has ONE text colour for every segment, so the selected segment uses the accent tint
+        # (primary text on it is 7.6:1 dark / 9.2:1 light) instead of the solid accent (3.1-3.6:1).
+        selected_color=pair("accent_border"), selected_hover_color=pair("accent_border"),
         unselected_color=pair("surface_elevated"), unselected_hover_color=pair("surface_elevated_hover"),
         text_color=pair("text_primary"), text_color_disabled=pair("text_tertiary"))
     put("CTkScrollableFrame", label_fg_color=pair("surface_elevated"))
@@ -541,6 +548,10 @@ FONT_SECONDARY_LABEL = (12, "normal")
 FONT_METADATA = (11, "normal")
 FONT_TIMELINE_LABEL = (9, "normal")
 FONT_STATUS = (11, "normal")
+# Display sizes used by shared components (EmptyState, StatTile); named so the scale is complete.
+FONT_EMPTY_TITLE = (16, "bold")
+FONT_DISPLAY = (20, "bold")
+FONT_EMPTY_ICON = (20, "normal")
 
 CONTROL_H_SM = 26
 CONTROL_H = 32

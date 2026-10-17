@@ -1669,7 +1669,10 @@ def build_settings(app, body, save_settings) -> None:
     entry = ctk.CTkEntry(row, textvariable=contact, height=30, placeholder_text="your email or website (the NWS asks every app for one)")
     entry.pack(side="left", fill="x", expand=True)
     entry.bind("<FocusOut>", save)
-    contact.trace_add("write", save)
+    _contact_trace = contact.trace_add("write", save)
+    # Settings is opened many times: drop this trace with the field, or every open leaked one.
+    entry.bind("<Destroy>", lambda _e: contact.trace_remove("write", _contact_trace) if _contact_trace in
+               {t[1] for t in contact.trace_info()} else None, add="+")
     lib = ctk.StringVar(value=str(app._settings.get(SETTING_LIBRARY) or ""))
 
     def save_lib(*_a) -> None:
@@ -1716,7 +1719,10 @@ def build_settings(app, body, save_settings) -> None:
             sched.set(not sched.get())
             M.messagebox.showerror(STYLE_NAME, f"The daily prep could not be switched: {exc}")
 
-    ctk.CTkSwitch(rest, text=f"Prepare the forecast every morning (5:30 AM Central, into {sched_root})", variable=sched,
+    ctk.CTkSwitch(rest, text="Prepare the forecast every morning (5:30 AM Central)", variable=sched,
                   command=toggle_schedule, font=ctk.CTkFont(size=12)).pack(anchor="w", padx=20, pady=(8, 0))
+    # The folder can be any length: on its own wrapping line it is never cut off at the window edge.
+    ctk.CTkLabel(rest, text=f"Saved into {sched_root}", font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w",
+                 justify="left", wraplength=430).pack(anchor="w", padx=(66, 20), pady=(2, 0))
     ctk.CTkLabel(body, text="Turning Weather on or off takes effect the next time the app starts. Off: the app is exactly as before.",
                  font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", justify="left", wraplength=430).pack(anchor="w", padx=20, pady=(4, 0))

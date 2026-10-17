@@ -488,6 +488,8 @@ a = Analysis(
         "ui.undo_stack",
         "ui.icons",
         "ui.tooltip",
+        "ui.a11y",  # imported inside VideoGeneratorApp.__init__
+        "ui.ctk_perf",
         "typography",
         "typography.fonts",
         "typography.render",

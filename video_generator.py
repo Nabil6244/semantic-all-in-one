@@ -320,6 +320,26 @@ def is_distinctive(word: str) -> bool:
     return len(word) >= 4 and word not in STOPWORDS
 
 
+_INFLECTION_SUFFIXES = ("ing", "es", "ed", "s", "d")
+
+
+def _inflection_stems(word: str):
+    """The word plus its forms with one simple inflection removed (stems of 4+ letters only)."""
+    stems = {word}
+    if word.isalpha():
+        for suf in _INFLECTION_SUFFIXES:
+            if word.endswith(suf) and len(word) - len(suf) >= 4:
+                stems.add(word[: -len(suf)])
+    return stems
+
+
+def _align_words_match(a: str, b: str) -> bool:
+    """words_match, plus simple inflection tolerance: Whisper hears "towers" where the script says "tower"."""
+    if words_match(a, b):
+        return True
+    return bool(_inflection_stems(a) & _inflection_stems(b))
+
+
 def align_rows(rows, whisper_words):
     """
     rows: list of dicts with 'scene_number' and 'script_segment'
@@ -363,23 +383,29 @@ def align_rows(rows, whisper_words):
             window_start = cursor
             window_end = min(n_whisper, cursor + horizon)
 
+            max_span = max(25, round(expected_span * 2.5 + 15))
             found_indices = []
+            last_target_found = False
             local_cursor = window_start
-            for target in distinctive:
+            for t_i, target in enumerate(distinctive):
                 idx = None
-                for j in range(local_cursor, window_end):
-                    if words_match(whisper_words[j][0], target):
+                # Once the row has a first hit, its later words must fall within the row's
+                # plausible span of it: a far-away duplicate (scene 9's "stone tower" while
+                # scene 2 says "tower") must not pull the search past this row's real words.
+                search_end = window_end if not found_indices else min(window_end, found_indices[0] + max_span + 1)
+                for j in range(local_cursor, search_end):
+                    if _align_words_match(whisper_words[j][0], target):
                         idx = j
                         break
                 if idx is not None:
                     found_indices.append(idx)
                     local_cursor = idx + 1
+                    last_target_found = t_i == len(distinctive) - 1
 
             # Quality gates — reject weak/spurious anchors that would advance the
             # cursor past later scenes (the other cascade mode).
             min_hits = 1 if len(distinctive) == 1 else min(2, len(distinctive))
             max_lead = max(55, expected_span * 3)
-            max_span = max(25, round(expected_span * 2.5 + 15))
             hit_rate = len(found_indices) / len(distinctive)
 
             ok = (
@@ -391,6 +417,16 @@ def align_rows(rows, whisper_words):
             if ok:
                 start_idx = found_indices[0]
                 end_idx = found_indices[-1]
+                # Short words after the row's last distinctive word ("... of the sea") are
+                # still this row's speech: when they follow in the transcript word for word,
+                # the row ends on them rather than on the distinctive word.
+                if last_target_found:
+                    last_pos = max(k for k, w in enumerate(words) if is_distinctive(w))
+                    trailing = words[last_pos + 1:]
+                    if trailing and end_idx + len(trailing) < n_whisper and all(
+                            _align_words_match(whisper_words[end_idx + 1 + k][0], w)
+                            for k, w in enumerate(trailing)):
+                        end_idx += len(trailing)
                 anchors[i] = (start_idx, end_idx)
                 cursor = end_idx + 1
 
@@ -981,6 +1017,16 @@ def _zoompan_filter(
         f"d={frames}:s={width}x{height}:fps={fps},"
         f"setsar=1,format=yuv420p"
     )
+
+
+def _zoompan_still_input_args(img_path) -> list[str]:
+    """Input args for a still image feeding ``_zoompan_filter``: the image ONCE, never ``-loop 1``.
+
+    zoompan's ``d=frames`` turns that single picture into every frame of the clip, so a looped input only made ffmpeg
+    decode and upscale a second copy to 4x output size (7680x4320 for 1080p, ~100 MB) that was then thrown away:
+    ~70-95 MB higher peak memory per encode for byte-identical output (measured 2026-10-17, perf pass).
+    """
+    return ["-i", str(img_path)]
 
 
 def _subtle_drift_filter(
@@ -2297,6 +2343,7 @@ def _render_scene_clip(
             if cam and not camera_style:
                 camera_style = str(cam)
 
+    zoompan_still = False
     if is_video_file(img_path):
         base_vf = f"{_video_fit_filter(width, height, fps)},setpts=PTS-STARTPTS"
         if hold_tail:
@@ -2325,6 +2372,7 @@ def _render_scene_clip(
             camera_style=camera_style,
         )
         input_args = ["-loop", "1", "-i", str(img_path)]
+        zoompan_still = True
     else:
         base_vf = _static_filter(width, height)
         input_args = ["-loop", "1", "-i", str(img_path)]
@@ -2345,6 +2393,10 @@ def _render_scene_clip(
         extra_inputs += ["-loop", "1", "-i", str(png)]
         layers.append((next_idx, float(t0), float(t1), anim, center))
         next_idx += 1
+    if zoompan_still and not extra_inputs:
+        # Overlay inputs keep the looped base: when the base ends, the overlay graph can emit one extra frame
+        # (measured: 225 instead of 224 frames at 30 fps), so only overlay-free clips read the still once.
+        input_args = _zoompan_still_input_args(img_path)
 
     if layers or text_effect_filters or fade_suffix:
         parts = [f"[0:v]{base_vf}[v0]"]

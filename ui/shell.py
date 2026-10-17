@@ -9,7 +9,7 @@ import customtkinter as ctk
 from . import icons as I
 from . import theme as T
 from . import tooltip as TT
-from .widgets import Toast, button_style
+from .widgets import ElidingLabel, Toast, button_style
 
 # Pages that show the right-hand scene inspector.
 INSPECTOR_VIEWS = frozenset({"visual_plan"})
@@ -128,11 +128,12 @@ class AppShell(ctk.CTkFrame):
         self.page_title.grid(row=0, column=0, sticky="w")
         self.stage_label = ctk.CTkLabel(
             mid, textvariable=kw["stage_var"], font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=T.ACCENT, fg_color=T.ACCENT_SEL, corner_radius=10, height=20, padx=8,
+            text_color=T.ACCENT_TEXT, fg_color=T.ACCENT_SEL, corner_radius=10, height=20, padx=8,
         )
         self.stage_label.grid(row=0, column=1, sticky="w", padx=(10, 8))
-        self.hint_label = ctk.CTkLabel(
-            mid, textvariable=kw["hint_var"], font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
+        # Shortens with "…" (full text on hover) instead of losing its end when the window is narrow.
+        self.hint_label = ElidingLabel(
+            mid, source_var=kw["hint_var"], font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
         )
         self.hint_label.grid(row=0, column=2, sticky="ew")
 

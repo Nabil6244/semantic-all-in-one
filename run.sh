@@ -18,9 +18,25 @@ else
 fi
 
 echo "==> Checking Python deps..."
+# The code needs Python 3.10+ (macOS's /usr/bin/python3 is 3.9). An old .venv
+# is set aside (renamed, not deleted) and rebuilt with a new enough Python.
+py_ok() { "$1" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; }
+if [[ -x .venv/bin/python ]] && ! py_ok .venv/bin/python; then
+  OLD=".venv-py-old-$(date +%Y%m%d%H%M%S)"
+  echo "    .venv uses Python < 3.10; moving it to $OLD"
+  mv .venv "$OLD"
+fi
 if [[ ! -x .venv/bin/python ]]; then
-  echo "    Creating .venv..."
-  python3 -m venv .venv
+  BASE=""
+  for cand in python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v "$cand" >/dev/null 2>&1 && py_ok "$(command -v "$cand")"; then BASE="$(command -v "$cand")"; break; fi
+  done
+  if [[ -z "$BASE" ]]; then
+    echo "ERROR: Python 3.10 or newer is required (found none on PATH)."
+    exit 1
+  fi
+  echo "    Creating .venv with $BASE..."
+  "$BASE" -m venv .venv
 fi
 PYTHON=".venv/bin/python"
 

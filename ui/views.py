@@ -100,7 +100,7 @@ class ProjectView(_BaseView):
                            border_width=1, border_color=T.ACCENT_BORDER)
         nxt.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         nxt.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(nxt, text="NEXT STEP", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.ACCENT,
+        ctk.CTkLabel(nxt, text="NEXT STEP", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.ACCENT_TEXT,
                      anchor="w").grid(row=0, column=0, sticky="w", padx=18, pady=(14, 0))
         ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=15, weight="bold"),
                      text_color=T.TEXT, anchor="w", justify="left", wraplength=620).grid(
@@ -444,18 +444,8 @@ class BrandStyleView(_BaseView):
         self._auto_line.pack(anchor="w", padx=T.PAD, pady=(T.PAD, 4))
         btns = ctk.CTkFrame(self._auto_card, fg_color="transparent")
         btns.pack(anchor="w", padx=T.PAD, pady=(0, T.PAD))
-        ctk.CTkButton(
-            btns, text="Keep Auto", height=28, width=100,
-            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._keep_auto,
-        ).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(
-            btns, text="Choose Another", height=28, width=120,
-            fg_color="transparent", border_width=1, border_color=T.BORDER,
-            text_color=T.TEXT, hover_color=T.CARD_HOVER, font=ctk.CTkFont(size=12),
-            command=self._switch_to_manual,
-        ).pack(side="left")
+        make_button(btns, "Keep Auto", self._keep_auto, variant="primary", width=100).pack(side="left", padx=(0, 8))
+        make_button(btns, "Choose Another", self._switch_to_manual, width=120).pack(side="left")
         self._auto_card.grid_remove()
 
         self._id_by_brand_label: dict[str, str] = {}
@@ -923,11 +913,7 @@ class ResearchView(_BaseView):
             script_frame, text="", font=ctk.CTkFont(size=10), text_color=T.MUTED, anchor="w",
         )
         self._script_path_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
-        ctk.CTkButton(
-            script_frame, text="Load from file…", height=26, width=120,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), command=self._on_load_script_file,
-        ).grid(row=0, column=1, sticky="n", padx=(T.PAD_SM, 0))
+        make_button(script_frame, "Load from file…", self._on_load_script_file, size="sm", width=120).grid(row=0, column=1, sticky="n", padx=(T.PAD_SM, 0))
         self._script_path = ""
 
         ctk.CTkLabel(form, text="Listings (optional)", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(
@@ -950,16 +936,12 @@ class ResearchView(_BaseView):
         adder.grid_columnconfigure(0, weight=1)
         self._new_listing_var = ctk.StringVar(value="")
         entry = ctk.CTkEntry(
-            adder, textvariable=self._new_listing_var,
+            adder, textvariable=self._new_listing_var, height=T.CONTROL_H,
             placeholder_text="paste a listing URL, then Add (or press Enter)",
         )
         entry.grid(row=0, column=0, sticky="ew")
         entry.bind("<Return>", lambda _e: self._on_add_listing())
-        ctk.CTkButton(
-            adder, text="Add", width=56, height=26,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), command=self._on_add_listing,
-        ).grid(row=0, column=1, padx=(T.PAD_SM, 0))
+        make_button(adder, "Add", self._on_add_listing, width=56).grid(row=0, column=1, padx=(T.PAD_SM, 0))
 
         self._listing_rows = ctk.CTkFrame(listings, fg_color="transparent")
         self._listing_rows.grid(row=1, column=0, sticky="ew", pady=(T.PAD_SM, 0))
@@ -985,11 +967,7 @@ class ResearchView(_BaseView):
 
         button_row = ctk.CTkFrame(form, fg_color="transparent")
         button_row.grid(row=5, column=0, columnspan=2, sticky="ew", padx=T.PAD, pady=(8, 4))
-        self._start_btn = ctk.CTkButton(
-            button_row, text="Start Research", height=34, width=150,
-            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-            font=ctk.CTkFont(size=12, weight="bold"), command=self._on_start_research,
-        )
+        self._start_btn = make_button(button_row, "Start Research", self._on_start_research, variant="primary", size="lg", width=150)
         self._start_btn.pack(side="left")
         self._status_pill = StatusPill(button_row, text="Idle", tone="muted")
         self._status_pill.pack(side="left", padx=(T.PAD_SM, 0))
@@ -1016,26 +994,14 @@ class ResearchView(_BaseView):
         # exist yet (no research run, or nothing downloaded).
         folder_row = ctk.CTkFrame(self._summary, fg_color="transparent")
         folder_row.grid(sticky="ew", padx=T.PAD, pady=(T.PAD_SM, T.PAD_SM))
-        self._open_research_btn = ctk.CTkButton(
-            folder_row, text="Open Research Folder", height=28, width=150,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), state="disabled",
-            command=lambda: self._open_path(self._research_folder_path()),
-        )
+        self._open_research_btn = make_button(folder_row, "Open Research Folder", lambda: self._open_path(self._research_folder_path()),
+                                              size="sm", width=150, state="disabled")
         self._open_research_btn.pack(side="left")
-        self._open_media_folder_btn = ctk.CTkButton(
-            folder_row, text="Open Media Folder", height=28, width=140,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), state="disabled",
-            command=lambda: self._open_path(self._media_folder_path()),
-        )
+        self._open_media_folder_btn = make_button(folder_row, "Open Media Folder", lambda: self._open_path(self._media_folder_path()),
+                                                  size="sm", width=140, state="disabled")
         self._open_media_folder_btn.pack(side="left", padx=(T.PAD_SM, 0))
-        self._open_media_btn = ctk.CTkButton(
-            folder_row, text="Open Media", height=28, width=110,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), state="disabled",
-            command=lambda: self._open_path(self._top_media_path),
-        )
+        self._open_media_btn = make_button(folder_row, "Open Media", lambda: self._open_path(self._top_media_path),
+                                           size="sm", width=110, state="disabled")
         self._open_media_btn.pack(side="left", padx=(T.PAD_SM, 0))
         self._top_media_path: Optional[Path] = None
 
@@ -1063,11 +1029,8 @@ class ResearchView(_BaseView):
         self._property_script_box.grid(row=2, column=0, sticky="ew", padx=T.PAD)
         analyze_row = ctk.CTkFrame(self._property_script_card, fg_color="transparent")
         analyze_row.grid(row=3, column=0, sticky="ew", padx=T.PAD, pady=(8, 10))
-        self._property_analyze_btn = ctk.CTkButton(
-            analyze_row, text="Analyze Property Script", height=32,
-            fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-            font=ctk.CTkFont(size=12, weight="bold"), command=self._on_analyze_property_script,
-        )
+        self._property_analyze_btn = make_button(analyze_row, "Analyze Property Script", self._on_analyze_property_script,
+                                                 variant="primary")
         self._property_analyze_btn.pack(side="left")
         self._property_script_status = ctk.CTkLabel(
             analyze_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED,
@@ -1094,11 +1057,8 @@ class ResearchView(_BaseView):
         )
         self._engine_status_label.grid(row=0, column=1, sticky="w", padx=(T.PAD_SM, 0))
         self._engine_advanced_open = False
-        self._engine_advanced_toggle = ctk.CTkButton(
-            engine_header, text="Advanced +", height=22, width=90,
-            fg_color="transparent", hover_color=T.CARD_HOVER, text_color=T.MUTED,
-            font=ctk.CTkFont(size=11), command=self._toggle_engine_advanced,
-        )
+        self._engine_advanced_toggle = make_button(engine_header, "Advanced +", self._toggle_engine_advanced,
+                                                   variant="ghost", size="sm", width=90)
         self._engine_advanced_toggle.grid(row=0, column=2, sticky="e")
 
         self._engine_advanced_block = ctk.CTkFrame(engine_card, fg_color="transparent")
@@ -1125,11 +1085,7 @@ class ResearchView(_BaseView):
             self._engine_advanced_block, textvariable=self._engine_python_var,
             placeholder_text="(bundled)",
         ).grid(row=2, column=1, sticky="ew", pady=4)
-        ctk.CTkButton(
-            self._engine_advanced_block, text="Save Engine Path", height=28, width=140,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), command=self._on_save_engine_path,
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 10))
+        make_button(self._engine_advanced_block, "Save Engine Path", self._on_save_engine_path, size="sm", width=140).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 10))
         self._engine_advanced_block.grid(row=1, column=0, columnspan=2, sticky="ew", padx=T.PAD)
         self._engine_advanced_block.grid_remove()
 
@@ -1178,11 +1134,7 @@ class ResearchView(_BaseView):
             width=140,
         ).pack(side="left", padx=(T.PAD_SM, 0))
 
-        ctk.CTkButton(
-            realty_card, text="Save RealtyAPI Settings", height=28, width=170,
-            fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-            font=ctk.CTkFont(size=11), command=self._on_save_realtyapi_key,
-        ).grid(row=5, column=0, sticky="w", padx=T.PAD, pady=(0, 10))
+        make_button(realty_card, "Save RealtyAPI Settings", self._on_save_realtyapi_key, size="sm", width=170).grid(row=5, column=0, sticky="w", padx=T.PAD, pady=(0, 10))
 
         self._researching = False
 
@@ -1548,18 +1500,8 @@ class ResearchView(_BaseView):
                 row, text=shown, text_color=T.TEXT, font=ctk.CTkFont(size=11), anchor="w",
             ).grid(row=0, column=0, sticky="w")
             StatusPill(row, text=text, tone=tone).grid(row=0, column=1, padx=(T.PAD_SM, 0))
-            ctk.CTkButton(
-                row, text="Re-research", width=86, height=22,
-                fg_color=T.BORDER, hover_color=T.ACCENT, text_color=T.TEXT,
-                font=ctk.CTkFont(size=10),
-                command=lambda u=url: self._on_reresearch_listing(u),
-            ).grid(row=0, column=2, padx=(T.PAD_SM, 0))
-            ctk.CTkButton(
-                row, text="Remove", width=64, height=22,
-                fg_color=T.BORDER, hover_color=T.DANGER, text_color=T.TEXT,
-                font=ctk.CTkFont(size=10),
-                command=lambda u=url: self._on_remove_listing(u),
-            ).grid(row=0, column=3, padx=(T.PAD_SM, 0))
+            make_button(row, "Re-research", lambda u=url: self._on_reresearch_listing(u), size="sm", width=86).grid(row=0, column=2, padx=(T.PAD_SM, 0))
+            make_button(row, "Remove", lambda u=url: self._on_remove_listing(u), variant="danger", size="sm", width=64).grid(row=0, column=3, padx=(T.PAD_SM, 0))
             self._listing_status.setdefault(url, (text, tone))
 
     def _on_reresearch_listing(self, url: str) -> None:
@@ -2379,7 +2321,7 @@ class RenderView(_BaseView):
                 lbl.configure(text_color=T.TEXT)
                 pill.set_tone("Done", "ok")
             elif state == "active":
-                dot.configure(text="\u25CF", text_color=T.ACCENT)
+                dot.configure(text="\u25CF", text_color=T.ACCENT_TEXT)
                 lbl.configure(text_color=T.TEXT)
                 pill.set_tone("Running", "run")
             else:
