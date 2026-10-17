@@ -49,7 +49,9 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
                  system   a body with its moon, e.g. place=earth+moon or moon
                  inner    the inner planets around the Sun
                  solar    the whole solar system
-                 heliosphere far out past the planets, where Voyager is now
+                 heliosphere far out past the planets, where Voyager is now: give the beat its
+                          craft row, and the app frames the craft's whole journey from launch,
+                          the planets at one end and the craft at the other
                  galaxy   the Milky Way from outside (its centre, arms and "you are here"
                           are labelled by themselves); with milky way+andromeda, both
                  universe the whole observable universe, galaxies by the thousand
@@ -80,7 +82,7 @@ Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) an
 - row=layer: something drawn on the map (map and map_footage beats only).
     vo_anchor  the words it appears on: 2 to 5 words copied from ITS OWN BEAT'S text cell
     type       title, marker, zone, craft, path, orbit, stat, caption, distance, line,
-               rings or pointer
+               rings, pointer or track
     and what that type needs (see LAYERS)
     until      leave empty (it leaves with its beat), after_footage (still there when the
                map comes back after the next footage), end (until the video ends), or a beat
@@ -119,7 +121,8 @@ The app finds every vo_anchor in the recorded narration, beat by beat, in order.
 
 THE STARMAP RHYTHM
 - Alternate: map, footage, map again. Footage is usually 25 to 45 percent of the running
-  time. Do not leave the map up for more than about 25 seconds without a card or footage.
+  time. Do not leave the map up for more than about 25 seconds without a card or footage --
+  in a long video (over five minutes) too: every stretch of the story keeps this rhythm.
 - MAP when the narration is about where, when or how far: a launch site, an orbit, a
   journey, a distance, a date, a landing site, the scale of space. FOOTAGE when it
   describes something filmed or photographed: a launch, the crew, a cabin, a moonwalk,
@@ -128,6 +131,17 @@ THE STARMAP RHYTHM
   seconds. Do not switch mode every sentence.
 - THE MAP MUST KEEP BUILDING: something new appears at least every 5 seconds of map
   narration (a craft, a path, an orbit, a marker, a zone, a number, a card, a caption).
+- EVERY MAP BEAT HAS ONE HERO MOMENT: the one thing that makes the viewer lean in, placed on
+  the words that land it. Pick the strongest the script allows:
+    a line id=light when the script says how long light or a signal takes
+    a distance (place=earth;<craft>) when the craft is far away and the gap matters
+    rings around the Sun when the story jumps in scale (1 light-hour; 1 light-day; 1 light-year)
+    a path drawing on while the craft flies it, when it travels
+    a stat for a striking number (a speed, a distance, a count, an age)
+    a pointer YOU ARE HERE when the view is so wide that home disappears
+  Use different hero moments in neighbouring beats; never the same kind three beats running.
+- THE VIDEO TRAVELS BETWEEN SCALES: close (a planet, a craft) -> wide (the system, the journey)
+  -> close again. Plan this arc across the whole script, like a documentary editor.
 - Show the journey: when the narration follows a spacecraft, give the beat the craft and
   its path, and a date, so the viewer watches it travel. When the narration says what the
   craft DOES (it lifts off, lands, enters orbit, flies past, leaves), name that visual action
@@ -148,9 +162,18 @@ CAMERA
   comes from the map itself: a craft flying with its tracking box, a path drawing on, a line
   lighting up, rings appearing. Like a cosmic-address video: one idea per beat, the camera
   steady while it is explained, then one deliberate move to the next place.
-- Keep the same place and frame for beats that stay in the same view, so the camera does
-  not move for nothing. Do not add push_in, pull_out or orbit to make a beat look busy;
-  never on a beat with a visual action (the action already frames the shot).
+- Two or three beats may share a view while one idea is explained, but never more than three
+  map beats in a row with the same place and frame (about 40 seconds): then change the view
+  -- a different scale (body -> system -> solar -> heliosphere and back), a different place,
+  a card or footage. A long video travels between scales all the way through; it never parks
+  on one wide view for minutes. (The app also turns the camera to a new angle when a view
+  is held a long time, but a new view is better.)
+- Pick the frame that makes the beat's subject BIG: a planet the story is at -> body or
+  system; the trip between planets -> inner or solar with the craft and its path; far out
+  -> heliosphere with the craft. A craft row in a planet close-up only when the craft is
+  there at that date (a flyby, an orbit); otherwise it is off-screen.
+- Do not add push_in, pull_out or orbit to make a beat look busy; never on a beat with a
+  visual action (the action already frames the shot).
 
 LAYERS
 - title: label (the video or part title), sub optional. One per part; never repeat.
@@ -173,13 +196,49 @@ LAYERS
   body to measure across (milky way). id = light (a glowing line with light running from the
   first thing to the second: use it whenever the script says how long light takes) or
   measure (a dashed measuring line). label = what it says (1.3 LIGHT-SECONDS, 2.5 MILLION
-  LIGHT-YEARS). One line at a time is the focus: give each its own moment.
+  LIGHT-YEARS). One line at a time is the focus: give each its own moment. dur = seconds the
+  line takes to draw from its first thing to its second: use it when something TRAVELS between
+  them in the narration (a solar storm reaching the craft over months, a signal crossing to
+  Earth). A craft's radio signal is a light line craft;earth in a view where both are on
+  screen, not a caption over a close-up of Earth.
+  A caption names a thing; it does not show it. When the narration explains something that
+  moves, travels, connects or is measured, give it a line, path, craft, track or distance row,
+  and keep captions for the words the picture cannot carry.
 - rings: scale rings around a body, so the viewer feels a jump in scale. place = the body
   (sun), text = the sizes separated by ; (1 light-hour; 1 light-day; 1 light-year), each
   optionally size=LABEL. Give them until = the next beat when the camera flies outwards
   through them.
 - pointer: a pin with a label on a thing (place = sun, label = YOU ARE HERE), for a view
   from far away.
+- track: a tracking marker on a MOVING planet or moon (place = io, label = IO), with its recent
+  orbit drawn as a fading dotted trail. Anchor it on the words that name it. Use it whenever the
+  script describes a planet or moon moving ("Io whips around Jupiter every 42 hours"); a craft
+  that moves gets a craft row instead. The app also adds these by itself for things the script
+  calls moving, and a light line when a signal travels; your rows always win.
+
+CINEMA ROWS (only when the project's Cinema option is on; Classic StarMap leaves them out)
+A row=layer with type plate (a full-frame diagram on a dark slate) or instrument (over the shot). id = which graphic,
+label = its title, extra = its settings as JSON in quotes. Anchor it on the words it explains; it lasts its beat unless hold says.
+The app already adds a timeline, a light-time axis, a heliosphere cross-section, comparison bars, title cards, fades
+and hero close-ups by itself; write these rows for what only the script knows. Plates:
+- bars       {"rows": [{"label": "VENERA 13", "value": 127, "text": "127 MIN", "highlight": true}], "max": 140}
+- compare    {"mode": "cards", "left": {"label": "VENUS'S AIR", "value": "1.6 kg", "color": "amber"}, "right": {...}}
+- curve      {"shape": "decay", "x_label": "SPEED", "y_label": "TIME FOR YOU", "keys": [{"t": 20, "x": 0.4}]}
+- composition {"parts": [{"label": "CARBON DIOXIDE", "pct": 96.5, "color": "#E8833A"}], "note": {"text": "OXYGEN: NONE", "color": "red"}}
+- orbitmap   {"extent_au": 40, "path": [{"t": 8, "au": 5.2, "angle": 40, "label": "JUPITER FLY-BY, 1979"}]}
+- timeline   {"from": 1970, "to": 2030, "step": 10, "events": [{"t": 50, "year": 1977, "label": "LAUNCH"}]}
+- logaxis    {"marks": [{"v": 1.28, "label": "MOON", "sub": "1.3 LIGHT-SECONDS"}], "keys": [{"t": 12, "v": 1.28}]}  (v in light-seconds)
+- section    {"unit": "KM", "max": 75, "layers": [{"from": 48, "to": 70, "label": "ACID CLOUDS"}]}
+- phase, wave, grid, dial, discmap: as named (a phase diagram, a signal that dies, a grid of cells, gauges or clocks, Earth and a far photo)
+- hero       {"scene": "venera_ground" | "venera_descent" | "cloud_airship" | "ship_engine"}  (a composed 3D scene, full frame)
+Instruments:
+- survival   {"chips": ["AIR", "TEMPERATURE"], "states": [{"t": 30, "verdict": "SECONDS", "color": "red", "lethal": ["AIR"]}]}
+- clock      {"mode": "light" | "dual" | "date", ...}   gauge {"label": "ALTITUDE", "min": 0, "max": 80, "keys": [{"t": 30, "v": 55, "text": "55 km"}]}
+- caption, metric, annotate (a ring on a photo: x, y, r), title, fade (to black, for a probe going silent)
+Times "t" inside extra are seconds of the narration (the app's Check plan shows each beat's start).
+In Cinema every map beat should also carry one caption row: a HEADLINE of 2 to 7 words that says what the shot means
+("THE TEAM'S CHOICE", "OUTSIDE THE BUBBLE, NOT THE SYSTEM", "FOR ALMOST 8 YEARS"), anchored on the words it sums up; sub =
+an optional small kicker above it ("AT SATURN", "18 MONTHS LATER"). The app draws it as the What If headline.
 
 PICTURES AND CLIPS (asset)
 - Do NOT invent file names. Describe what to find: nasa_image:<description>,
@@ -192,6 +251,15 @@ PICTURES AND CLIPS (asset)
   map beat: the map already shows them). NASA's video library has no such clips and returns
   unrelated ones.
 - Do not repeat the same description or idea twice.
+- flow_image:<description> (or flow_video:) makes an AI picture, for a moment no camera recorded and no
+  photo shows: the craft alone in interstellar space, the Golden Record drifting in sunlight, the
+  heliosphere as an artist would paint it, a spacecraft part seen up close. Describe it like a film
+  shot (subject, light, mood). The app labels it AI ILLUSTRATION on screen. NEVER for a real person or
+  team, an event that was photographed or filmed, a real photo a craft took, or a diagram with text:
+  those are nasa_ or stock_ only. Use it for at most one in five pictures.
+- A real photo a spacecraft took: describe it the way NASA titles it ("Jupiter's Great Red Spot"),
+  as nasa_image. If NASA has none, the app may stand in an AI illustration only where that is honest,
+  else leaves it out and the map takes the time.
 
 TIME AND CERTAINTY
 - Each dataset below says whether it is historical, current, planned, projected or
@@ -224,6 +292,8 @@ CHECKLIST BEFORE YOU ANSWER
    is the first 3 to 5 words of its own text and unique so far. Every layer's and card's
    vo_anchor is found, word for word, in its own beat's text cell.
 4. Every map and map_footage beat has a place and frame, and a date when the moment changes.
+   No more than three map beats in a row share the same place and frame; every heliosphere
+   beat has its craft row.
 5. Every map_footage beat has one to three cards in different places; every footage beat one
    to three clips and nothing else.
 6. Every event, site, craft, path and orbit is one listed below, written qualified; every

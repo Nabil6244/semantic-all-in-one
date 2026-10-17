@@ -115,7 +115,7 @@ def shot_for(cat: Catalog, beat: Beat, ctx: Sequence[str] = ()) -> Tuple[Dict[st
         child = cat.bodies.get("system_view", {}).get(p.body)       # a planet's system: the planet with its main moon
         shot = ({"target": f"{parent}+{p.body}", "fit": 1.5, "light": "front", "el_deg": 25} if parent
                 else {"target": f"{p.body}+{child}", "fit": 1.5, "light": "front", "el_deg": 25} if child
-                else {"target": p.body, "fill": 0.12, "light": "side", "el_deg": 20})
+                else {"target": p.body, "fill": 0.3, "light": "side", "el_deg": 20})   # no moon to pair with: the planet itself
     elif p.kind == "site":
         R = cat.body_radius_km(p.body)
         if f == "surface":
@@ -160,11 +160,250 @@ def _creep(length: float) -> float:
     return min(1.06, 1.0 + 0.006 * max(0.0, length))
 
 
+# each new view opens with a purposeful move, in rotation, so consecutive beats never feel the same:
+#   push    starts wider and closes in on the subject as it is named
+#   reveal  starts close on the subject and pulls back to show where it is
+#   settle  a gentle creep (the classic quiet shot), between the two stronger ones
+RECIPES = (("push", 1.5), ("settle", 1.15), ("reveal", 0.65))
+# Cinema's "every shot keeps moving": a shot is on screen a few seconds between cuts, so each one visibly pushes in and turns
+CINEMA_PUSH, CINEMA_SPIN, CINEMA_SPIN_CLOSE, CINEMA_SPIN_ANGLE, CINEMA_SPIN_ACTION, CINEMA_CUT_PUSH = 1.2, 3.5, 4.0, 4.5, 2.0, 1.2
+OPENING_PUSH = 1.7              # the video's first shot pushes in hard: the first seconds decide whether a viewer stays
+DRIFT_DEG_PER_S = 0.9                     # the slow orbit round each subject: a planet's face visibly turns (0.35 read as frozen)
+VARY_AFTER_S = 15.0                       # one view held this long across beats: the next beat sees it from a new angle
+_VARY_AZ = (32.0, -28.0, 20.0, -36.0)
+_VARY_EL = (12.0, -8.0, 18.0, -4.0)
+
+
+CUT_MIN_S = 4.0                 # no cut leaves a shot shorter than this
+CUTS_FROM_S = (9.0, 15.0)       # a beat this long is cut into 2, this long into 3 shots
+
+
+def _close_up(shot: Dict[str, Any], cat: Catalog) -> Optional[Dict[str, Any]]:
+    """The close-up of a view: its body bigger in frame, a pair's first body on its own, a far view much nearer."""
+    t = str(shot.get("target", ""))
+    if "fill" in shot:
+        s = copy.deepcopy(shot)
+        s["fill"] = min(0.95, float(shot["fill"]) * 1.9)
+        return s
+    if "fit" in shot and "+" in t:
+        a = t.split("+")[0].strip()
+        if a in cat.body_ids and next((w.get("kind") for w in cat.world if w["id"] == a), "") in ("body", "star"):
+            return {"target": a, "fill": 0.45, "light": shot.get("light", "side"), "el_deg": 20}
+        return None
+    if "distance" in shot:
+        return _scaled(shot, 0.38)
+    return None
+
+
+def _cut_times(b: Beat, words: List[Any], n: int) -> List[float]:
+    """n - 1 cut moments spread through the beat, each on the start of a spoken word near its even share (a cut on a word
+    reads as edited; between words it reads as a glitch)."""
+    out = []
+    for k in range(1, n):
+        want = b.start + (b.end - b.start) * k / n
+        near = [w[1] for w in words if abs(w[1] - want) <= 1.2 and b.start + CUT_MIN_S <= w[1] <= b.end - CUT_MIN_S]
+        t = min(near, key=lambda x: abs(x - want)) if near else want
+        if (not out or t - out[-1] >= CUT_MIN_S) and b.end - t >= CUT_MIN_S and t - b.start >= CUT_MIN_S:
+            out.append(round(t, 3))
+    return out
+
+
+def _view_sig(shot: Dict[str, Any]) -> Tuple[Any, ...]:
+    """What the viewer would call the same picture: the same subject, at about the same size, from about the same angle."""
+    if "path" in shot:
+        p = shot["path"]
+        return ("path", p.get("trajectory"), p.get("from_utc", "")[:7], p.get("to_utc", "")[:7], round(float(shot.get("el_deg", 25)) / 10))
+    size = next(((k, round(math.log10(max(float(v), 1e-9)) * 3)) for k, v in (shot.get("distance") or {}).items()), None) \
+        or ("fill", round(float(shot.get("fill", 0)) * 4)) if "fill" in shot else ("fit", round(float(shot.get("fit", 0)) * 2))
+    return (shot.get("target"), str(shot.get("follow")), size, round(float(shot.get("el_deg", 0)) / 10), round(float(shot.get("az_deg", 0)) / 15))
+
+
+def _variant(shot: Dict[str, Any], n: int) -> Dict[str, Any]:
+    """The same subject at the same size, seen from another angle (the n-th of a run): a pair framed by its separation only
+    rises or sinks (its side-on view is its point), anything else also turns round it -- a lit side stays lit."""
+    s = copy.deepcopy(shot)
+    el = float(s.get("el_deg", 20))
+    s["el_deg"] = max(6.0, min(80.0, el + _VARY_EL[n % len(_VARY_EL)] * (1.4 if "fit" in s and "+" in str(s.get("target")) else 1.0)))
+    if not ("fit" in s and "+" in str(s.get("target"))) and "path" not in s and "follow" not in s:
+        s["az_deg"] = float(s.get("az_deg", 0)) + _VARY_AZ[n % len(_VARY_AZ)]
+    return s
+
+
 def _reveal_s(from_km: float, to_km: float, length: float) -> float:
     """How long a pull_out / push_in between two scales takes: long enough to read as one deliberate camera move (about
     2.2 s per factor of e in scale, so 35x takes about 8 s), never more than 85% of the beat."""
     ratio = abs(math.log(max(to_km, 1e-3) / max(from_km, 1e-3)))
     return min(max(4.5, 2.2 * ratio), 0.85 * length)
+
+
+JOURNEY_EL = (35.0, 58.0, 24.0, 48.0)     # a run of journey views: each beat looks at the journey from a new angle
+
+
+def _sun_km(samples: List[Dict[str, Any]], utc: str) -> float:
+    """How far from the Sun a craft is at utc (km), from its samples (a straight line on past the last two)."""
+    t = parse_iso(utc)
+    a, b = samples[0], samples[1]
+    for a, b in zip(samples, samples[1:]):
+        if parse_iso(b["utc"]) >= t:
+            break
+    ta, tb = parse_iso(a["utc"]), parse_iso(b["utc"])
+    k = max(0.0, (t - ta).total_seconds() / ((tb - ta).total_seconds() or 1.0))
+    return math.hypot(*(a["km"][i] + (b["km"][i] - a["km"][i]) * k for i in range(3)))
+
+
+def _boundaries_named(cat: Catalog, b: Beat) -> List[Dict[str, Any]]:
+    """The boundaries round a map beat's body (bodies.json "boundaries") that its narration names, each with _body and the
+    _hit phrase."""
+    known = (cat.bodies.get("boundaries") or {}) if isinstance(getattr(cat, "bodies", None), dict) else {}
+    if b.mode == "footage" or not known:
+        return []
+    try:
+        body = cat.place(b.place, ()).body
+    except CatalogError:
+        return []
+    said = re.sub(r"[^a-z ]", " ", (b.text or "").lower())
+    out = []
+    for bd in known.get(body, []):
+        hit = next((s for s in bd.get("says", []) if re.search(rf"\b{re.escape(s)}\b", said)), None)
+        if hit:
+            out.append({**bd, "_body": body, "_hit": hit})
+    return out
+
+
+def _named_boundaries(cat: Catalog, plan: Plan, layers: List[Dict[str, Any]], notes: List[str]) -> List[Dict[str, Any]]:
+    """A map beat whose narration names a boundary round a body it frames ("the termination shock", "the heliopause", "an
+    enormous bubble ... called the heliosphere") shows it: a labelled ring round the body, facing the camera (a bubble's
+    outline from any angle), from the word that names it to the end of the beat. These had no geometry, so the CSV could
+    only caption them, and eight minutes of the 011 Voyager video were one Sun-to-craft path while the narration explained
+    the heliosphere's layers. A beat whose CSV already draws rings round that body is left as written."""
+    out: List[Dict[str, Any]] = []
+    words = [(re.sub(r"[^a-z]", "", str(w[0]).lower()), float(w[1])) for w in (plan.words or ())]
+    for b in plan.beats:
+        named = _boundaries_named(cat, b)
+        if not named:
+            continue
+        body = named[0]["_body"]
+        if any(L.get("type") == "rings" and L.get("around") == body and L["start"] < b.end and L["end"] > b.start for L in layers):
+            continue
+        rings, first = [], b.end
+        for bd in named:
+            w0 = bd["_hit"].split()[0]
+            t = next((t for w, t in words if w == w0 and b.start - 0.2 <= t < b.end), b.start)
+            first = min(first, t)
+            rings.append({"radius": {"au": bd["au"]}, "label": bd["label"], "names": bd.get("says", [])})
+        hit = next((L for L in layers if L.get("type") == "spacecraft" and L.get("id") and L["start"] < b.end - 1.0
+                    and L["end"] > first), None)
+        craft = hit["id"] if hit else None
+        if hit is not None and hit["start"] > first:
+            first = hit["start"]                     # the craft first, then the boundary drawn through where it is
+        end = b.end
+        i = plan.beats.index(b)
+        nxt = plan.beats[i + 1] if i + 1 < len(plan.beats) else None
+        if end - first < 4.0 and nxt is not None and nxt.mode != "footage" and nxt.place.lower() == b.place.lower():
+            end = min(nxt.end, first + 6.0)          # named in a beat's last words: it stays long enough to be seen
+        if rings and end - first >= 1.0:
+            # each stretch is drawn through the craft on screen in it (a beat's craft leaves with its beat)
+            for t0, t1 in ([(first, b.end), (b.end, end)] if end > b.end else [(first, end)]):
+                c = next((L["id"] for L in layers if L.get("type") == "spacecraft" and L.get("id") and L["start"] < t1 - 0.5 and L["end"] > t0 + 0.5), craft)
+                if t1 - t0 >= 0.5:
+                    out.append({"type": "rings", "around": body, "plane": "view", **({"through": c, "arc_deg": 40} if c else {}), "subject": True,
+                                "rings": rings, "start": round(t0, 3), "end": round(t1, 3), **({"fade_in": 0.6} if t0 == first else {}), "_row": b.row})
+            notes.append(f"beat {b.id}: the narration names {', '.join(r['label'] for r in rings)}; drawn as rings round {body}")
+    return out
+
+
+def _craft_sun_km(cat: Catalog, b: Beat, res: Optional[Resolution], clock: Optional[Dict[str, Any]]) -> float:
+    """How far from the Sun the beat's farthest craft row gets during the beat (km; 0 when it has none flying round the Sun)."""
+    if not clock or not clock.get("keys"):
+        return 0.0
+    far = 0.0
+    for it in b.layers:
+        if it.type != "craft" or not it.id:
+            continue
+        try:
+            T = cat.index.trajectories.get(cat.craft(cat.craft_id(it.id, res.ctx(b.id) if res else ())).get("trajectory") or "")
+        except CatalogError:
+            continue
+        if T is None or (T.data.get("frame") or "") != "sun":
+            continue
+        samples = [x for x in T.data.get("samples") or [] if x.get("km") and x.get("anchor", "sun") == "sun"]
+        for t in (b.start, max(b.start, b.end - 0.05)):
+            u = _clock_utc(clock, t)
+            if len(samples) >= 2 and u and parse_iso(u) > parse_iso(samples[0]["utc"]):
+                far = max(far, _sun_km(samples, u))
+    return far
+
+
+def journeys(cat: Catalog, plan: Plan, res: Optional[Resolution], clock: Optional[Dict[str, Any]],
+             actions: Optional[Dict[str, BeatAction]] = None) -> Dict[str, Dict[str, Any]]:
+    """Heliosphere beats with a craft out past the planets -> the stretch of its path from launch to where it is at the end of
+    the beat, framed whole (a camera "path" shot): the Sun and planets at one end, the craft at the other. The fixed
+    Sun-centred view 420 AU out left the planets a speck in an empty black frame and the craft at its edge, or off it, and
+    a run of such beats read as one frozen picture. The stretch already runs to where the craft is by the end of the beat,
+    so the shot needs no keep. A beat with no craft row of its own keeps the last one's craft."""
+    out: Dict[str, Dict[str, Any]] = {}
+    if not clock or not clock.get("keys"):
+        return out
+    carry: Optional[str] = None
+    for b in plan.beats:
+        if b.mode == "footage":
+            continue
+        act = (actions or {}).get(b.id)
+        if b.frame != "heliosphere" or (act is not None and (act.intro is not None or act.camera)):
+            carry = None if b.frame not in ("heliosphere", "solar") else carry
+            continue
+        tid = None
+        for it in b.layers:
+            if it.type == "craft" and it.id:
+                try:
+                    tid = cat.craft(cat.craft_id(it.id, res.ctx(b.id) if res else ())).get("trajectory")
+                except CatalogError:
+                    tid = None
+                if tid:
+                    break
+        if not tid and res is not None:
+            # no craft row: the craft of the beat's own mission (the only one flying out among the planets), else the last one
+            for did in res.ctx(b.id):
+                for cr in cat.index.datasets[did].craft.values():
+                    t = cat.index.trajectories.get(cr.get("trajectory") or "")
+                    if t is not None and (t.data.get("frame") or "") == "sun":
+                        tid = tid or t.id
+        tid = tid or carry
+        T = cat.index.trajectories.get(tid or "")
+        if T is None or (T.data.get("frame") or "") != "sun":
+            continue
+        samples = [x for x in T.data.get("samples") or [] if x.get("km") and x.get("anchor", "sun") == "sun"]
+        # the beat's own last moment, not b.end: the next beat's date takes over exactly there (a jump back to 1977 at the end
+        # of a "now" beat dropped its craft framing and left the Sun-centred planets on screen while the craft was named)
+        to_utc = _clock_utc(clock, max(b.start, b.end - 0.05))
+        if len(samples) < 2 or not to_utc or parse_iso(to_utc) <= parse_iso(samples[0]["utc"]):
+            continue
+        r = _sun_km(samples, to_utc)
+        if r < 5 * KM_PER_AU:
+            continue                                              # still among the inner planets: the usual view shows it
+        carry = tid
+        out[b.id] = {"path": {"trajectory": tid, "from_utc": samples[0]["utc"], "to_utc": to_utc, "ref_utc": to_utc, "fit": 1.45},
+                     "el_deg": float(b.extra.get("el_deg", 35)),
+                     "_km": round(r / 2 * 1.45 / TAN_HALF), "_r": r}
+    return out
+
+
+def _repaired(shot: Dict[str, Any], fix: Dict[str, Any]) -> Dict[str, Any]:
+    """An action's path frame as the screen audit asked: fit (> 1 wider), stretch (the stretch of path shown, x its length, about
+    its middle -- a stretch so short the craft sits alone in black space)."""
+    if not fix or "path" not in shot:
+        return shot
+    s = copy.deepcopy(shot)
+    p = s["path"]
+    if fix.get("fit"):
+        p["fit"] = p.get("fit", 1.3) * fix["fit"]
+    if fix.get("stretch") and p.get("from_utc") and p.get("to_utc"):
+        a, z = parse_iso(p["from_utc"]), parse_iso(p["to_utc"])
+        mid, half = a + (z - a) / 2, (z - a) / 2 * fix["stretch"]
+        p["from_utc"], p["to_utc"] = iso(mid - half), iso(mid + half)
+        if p.get("ref_utc"):
+            p["ref_utc"] = iso(mid)
+    return s
 
 
 def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: BeatAction, b: Beat) -> Dict[str, Any]:
@@ -181,8 +420,16 @@ def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: Bea
 
 
 def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resolution] = None,
-                 actions: Optional[Dict[str, BeatAction]] = None) -> Dict[str, Any]:
+                 actions: Optional[Dict[str, BeatAction]] = None, clock: Optional[Dict[str, Any]] = None,
+                 repairs: Optional[Dict[str, Dict[str, Any]]] = None, cinema: Optional[Dict[str, bool]] = None) -> Dict[str, Any]:
+    """cinema: the Cinema option's features (cinema.py), None for Classic StarMap.
+    repairs: per beat, what the screen audit asked for (see repair.py): scale (> 1 frames wider, < 1 closer), creep (how
+    much wider the beat starts than it ends), orbit (degrees a second round the subject)."""
     start: Optional[Dict[str, Any]] = None
+    view_t0, nvar, view_sig = 0.0, 0, None                        # the picture on screen: since when, how varied, which
+    recipe_n = 0                                                  # new views opened so far (they take the recipes in turn)
+    journey = journeys(cat, plan, res, clock, actions)
+    run = 0                                                       # journey views in a row so far
     moves: List[Dict[str, Any]] = []
     prev_key, prev_km, cur, prev_end = None, None, None, -1.0
     # a jump in time between missions or eras: the map dips dark behind the time-jump card, and the camera CUTS there
@@ -192,12 +439,54 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
         if b.mode == "footage":
             continue
         shot, place = shot_for(cat, b, res.ctx(b.id) if res else ())
+        if b.id in journey:
+            # the same journey beat after beat: each one glides to a new angle on it, so a long run never sits on one
+            # picture (the creep alone is too slow to see at this scale)
+            run = run + 1 if prev_key and prev_key[0] == "journey" else 0
+            shot = copy.deepcopy(journey[b.id])
+            r_named = max([bd["au"] * KM_PER_AU for bd in _boundaries_named(cat, b)] + [0.0])
+            if r_named > 0.8 * shot["_r"]:
+                # a boundary the narration names is part of the picture: the frame widens to hold it (the journey camera's drift
+                # now swings within 14 degrees of the framed angle, so a wider frame no longer turns end-on)
+                k = min(2.5, 1.15 * r_named / shot["_r"])
+                shot["path"]["fit"] = round(shot["path"]["fit"] * k, 3)
+                shot["_km"] = shot["_km"] * k
+            shot.pop("_r", None)
+            if "el_deg" not in b.extra:
+                shot["el_deg"] = JOURNEY_EL[run % len(JOURNEY_EL)]
+        fix = (repairs or {}).get(b.id, {})
+        if fix.get("scale"):
+            shot = _scaled(shot, fix["scale"])
+            if "_km" in shot:
+                shot["_km"] *= fix["scale"]
+            if "fit" in shot and "+" in str(shot.get("target")):
+                shot["fit"] = max(1.15, shot["fit"])               # a pair is never framed tighter than both ends
+        if fix.get("orbit") and "path" not in shot and "follow" not in shot:
+            shot["orbit_deg_per_s"] = fix["orbit"]
+        if fix.get("spin"):
+            shot["spin"] = fix["spin"]                            # the slow drift round the subject, faster here
+        mv = bool(cinema and cinema.get("motion", True))          # Cinema: every shot keeps moving
+        if mv and "spin" not in shot and "follow" not in shot:
+            shot["spin"] = CINEMA_SPIN
+        # (a view straight down on a surface site barely changes when it turns, so it pushes in harder)
+        push = lambda L: fix.get("creep") or (max(_creep(L), 1.4 if "@" in str(shot.get("target", "")) else CINEMA_PUSH) if mv else _creep(L))   # noqa: E731
+        if mv and not fix.get("creep") and "follow" not in shot:
+            # Cinema: the beat's opening shot moves as its first words say (out: starts closer and pulls back; orbit: turns wider)
+            from .cinema import MOVES, narrative_move
+
+            _nm = narrative_move(plan.words, b.start, min(b.end, b.start + 8.0), b.text[:160])
+            if _nm:
+                _e, _kt, _ks = MOVES[_nm]
+                shot["spin"] = float(shot.get("spin", CINEMA_SPIN)) * _ks
+                push = (lambda L, _e=_e: _e)   # noqa: E731
         km = _approx_km(shot, cat, place)
         act = (actions or {}).get(b.id)
         if act is not None and (act.intro is not None or act.camera):
             # a visual action: glide to its first view, then its camera intents (follow the craft, settle, pull back)
             length = b.end - b.start
-            intro = _action_shot(act.intro, shot, act, b)
+            intro = _repaired(_action_shot(act.intro, shot, act, b), fix)
+            if mv and "spin" not in intro and "follow" not in intro:
+                intro["spin"] = CINEMA_SPIN_ACTION                 # Cinema: an action's held frame turns too, gently (the craft still crosses it)
             # an action beat: drift only, no push_in (the craft is what moves)
             if start is None:
                 start, glide = intro, 0.0
@@ -207,6 +496,10 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             else:
                 ikm = _approx_km(intro, cat, place)
                 glide = max(1.5, _reveal_s(prev_km, ikm, length))  # one deliberate move into the action's view, never squeezed
+                if ikm < prev_km:
+                    # ...but a dive in to the action arrives while it is being told: 85% of a Saturn flyby beat spent closing in
+                    # from the whole solar system left the planet a speck until the narration had moved on
+                    glide = min(glide, max(1.5, 0.4 * length))
                 t0 = b.start
                 if ikm > 3 * prev_km and b.start - prev_end < 0.5:
                     # a pull_out straight on from the beat before starts a little early, so the wider view is already opening
@@ -221,14 +514,17 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                 d = max(0.5, min(dfrac * length, b.end - 0.2 - t))
                 if t >= b.end - 0.4:
                     break
-                moves.append({"t": round(t, 3), "dur": round(d, 3), "to": _action_shot(s, shot, act, b)})
+                moves.append({"t": round(t, 3), "dur": round(d, 3), "to": _repaired(_action_shot(s, shot, act, b), fix)})
                 last = t + d
+            if fix.get("creep") and not act.camera and b.end - 0.3 - last >= 2.0 and "path" in intro:
+                # the screen check found the held frame still for seconds: it closes in slowly through the rest of the beat
+                moves.append({"t": round(last, 3), "dur": round(b.end - 0.3 - last, 3), "to": _repaired(intro, {"fit": 1 / fix["creep"]})})
             # the composition stays stable (a slow creep, never frozen): the craft moves through the frame and the tracker
             # follows it, not the camera
             cur = moves[-1]["to"] if moves else start
             prev_key, prev_km, prev_end = ("action", b.id), _approx_km(cur, cat, place), b.end
             continue
-        key = (b.place.lower(), b.frame, b.move, tuple(sorted(b.extra.items())))
+        key = ("journey", b.id) if b.id in journey else (b.place.lower(), b.frame, b.move, tuple(sorted(b.extra.items())))
         length = b.end - b.start
         # no move asked for: the beat creeps in slowly, whatever moves in it (the camera never reacts to the craft)
         creep = b.move not in OWN_MOVES
@@ -238,22 +534,130 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
         elif b.move == "pull_out":
             first = _scaled(shot, 1 / 1.6)
         elif creep:
-            first = _scaled(shot, _creep(length))
+            first = _scaled(shot, push(length))
+        same = start is not None and key == prev_key and b.move in ("", "hold", "orbit")
+        sig = _view_sig(shot)
+        if sig != view_sig:
+            view_t0, nvar, view_sig = b.start, 0, sig
+        vary = start is not None and b.move in ("", "hold") and b.start - view_t0 >= VARY_AFTER_S and length >= 4.0
         if start is None:
+            if creep and not fix.get("creep") and "path" not in shot and "follow" not in shot:
+                first = _scaled(shot, OPENING_PUSH)
             start, glide = first, 0.0
-        elif key == prev_key and b.move in ("", "hold", "orbit"):
+        elif same and not vary:
             glide = 0.0                                           # the same view: no new glide...
             if creep and cur is not None and length >= 1.3:      # ...but it keeps creeping in from where the last beat ended
-                cur = _scaled(cur, 1 / _creep(length))
+                cur = _scaled(cur, 1 / push(length))
                 moves.append({"t": round(b.start, 3), "dur": round(length - 0.3, 3), "to": cur})
-            prev_key, prev_km = key, km
+            prev_km = km
             continue
         else:
-            glide = 0.0 if b.id in cut_in else min(max(2.5, 2.5 + 0.55 * abs(math.log10(km / prev_km))), 6.0, max(1.0, 0.7 * length))
+            if vary:
+                # held for a while already: this beat sees the same subject from a new angle (a glide round it), not the
+                # same picture again
+                shot = _variant(shot, nvar)
+                nvar += 1
+                view_t0 = b.start
+                first = _scaled(shot, push(length)) if creep else shot
+                glide = min(4.0, max(1.0, 0.5 * length))
+            else:
+                glide = 0.0 if b.id in cut_in else min(max(2.5, 2.5 + 0.55 * abs(math.log10(km / prev_km))), 6.0, max(1.0, 0.7 * length))
+                if creep and not fix.get("creep") and b.id not in journey and "path" not in shot and length - glide >= 5.0:
+                    name, k = RECIPES[recipe_n % len(RECIPES)]
+                    recipe_n += 1
+                    first = _scaled(shot, k)
+                    if "fit" in first and "+" in str(first.get("target")):
+                        first["fit"] = max(1.05, first["fit"])      # a pair revealed from close still has both ends in frame
             if creep and length - glide - 0.3 < 1.0:
                 first = shot                                      # too short to creep: glide straight to the shot
             moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": first})
         cur = first
+        # a long beat is cut into shots, as an editor would: the view -> a close-up -> the view again from a new angle (each
+        # with its own slow creep); never a beat with its own move, a craft's path, a surface site
+        n_cut = fix.get("cuts") or (3 if length >= CUTS_FROM_S[1] else 2 if length >= CUTS_FROM_S[0] else 1)
+        if cinema and cinema.get("cuts") and not fix.get("cuts"):
+            n_cut = max(1, round(length / 8.0))            # Cinema: the references' rhythm, a shot about every 8 s (median 6-10 s)
+        cuts = []
+        # a beat that draws a line between two things (a sight line, a signal, a distance) is about that relationship: a
+        # close-up of one end drops the other (b19: Jupiter fullscreen while the narration is about Voyager's view of Io)
+        relation = any(L.type in ("line", "distance") and ";" in (L.place or "") for L in b.layers)
+        if creep and n_cut > 1 and not relation and b.move in ("", "hold") and ("path" not in shot or mv) and "follow" not in shot and "@" not in str(shot.get("target", "")):
+            close = _close_up(shot, cat)
+            if close is None and mv and "path" in shot:
+                # Cinema: a journey is cut too -- the path seen closer from higher up, then from a new angle (never one long hold)
+                close = copy.deepcopy(shot)
+                close["el_deg"] = min(80.0, float(shot.get("el_deg", 35)) + 22)
+                close["path"]["fit"] = float(shot["path"].get("fit", 1.3)) * 0.85
+            r = _craft_sun_km(cat, b, res, clock) if close and shot.get("target") == "sun" and "distance" in shot else 0.0
+            if r:
+                # the close-up of a Sun-centred view keeps the beat's own craft in frame: 0.38x of the view put the inner planets
+                # on screen while the narration named a craft 40 AU out (six billion km, a light-day), and its line ran off the
+                # edge. It closes in only as far as the craft allows; with no room to close in, the cut is a new angle instead
+                d = next(iter(shot["distance"].values())) * {"au": KM_PER_AU, "ly": KM_PER_LY}.get(next(iter(shot["distance"])), 1.0)
+                k = max(0.38, r / (0.8 * TAN_HALF) / d)
+                close = _scaled(shot, k) if k <= 0.75 else _variant(shot, nvar + 2)
+            cuts = _cut_times(b, plan.words, n_cut) if close else []
+            if cinema and cinema.get("cuts"):
+                # Cinema: a cut lands in a narration pause when one is near (the references cut in pauses 65-82% of the time)
+                from .cinema import pause_cut
+
+                cuts = [pause_cut(plan.words, t, b.start + CUT_MIN_S, b.end - CUT_MIN_S) or t for t in cuts]
+            cuts = [t for t in cuts if t - (b.start + glide) >= 2.0]
+        elif cinema and cinema.get("hero") and creep and "path" in shot and length >= 2 * CUT_MIN_S + 1:
+            # Cinema: a journey beat about the craft itself cuts once, in a pause near its middle, to the craft's hero close-up
+            from .cinema import about_craft, hero_shot, pause_cut
+
+            tid = shot["path"].get("trajectory")
+            if tid and about_craft(b.text):
+                mid = b.start + length / 2
+                tc = pause_cut(plan.words, mid, b.start + CUT_MIN_S, b.end - CUT_MIN_S) or round(mid, 3)
+                if tc - (b.start + glide) >= 2.0:
+                    close, cuts = hero_shot(tid), [tc]
+        if cuts:
+            # inside each shot the picture must visibly move: a 12% push-in and a clear arc round the subject
+            s_close, s_angle = (CINEMA_SPIN_CLOSE, CINEMA_SPIN_ANGLE) if mv else (2.5, 3.0)
+            seq = [dict(close, spin=fix.get("spin") or s_close), dict(_scaled(_variant(shot, nvar + 1), 1.2), spin=fix.get("spin") or s_angle)]
+            while len(seq) < len(cuts):
+                # a longer beat (Cinema's rhythm): close-ups and new angles in turn, each from its own side
+                i = len(seq)
+                seq.append(dict(_variant(close, i), spin=fix.get("spin") or s_close) if i % 2 == 0
+                           else dict(_scaled(_variant(shot, nvar + i), 1.2), spin=fix.get("spin") or s_angle))
+            seq = seq[:len(cuts)]
+            first["spin"] = shot["spin"] = fix.get("spin") or (CINEMA_SPIN if mv else 2.0)    # the opening shot arcs too
+            if cinema and cinema.get("hero"):
+                # Cinema: a beat about the craft itself (its dish, instruments, record ...) cuts to a hero close-up of its model
+                from .cinema import about_craft, hero_shot
+
+                tid = None
+                for it in b.layers:
+                    if it.type == "craft" and it.id and (it.t if it.t is not None else b.start) <= cuts[0]:
+                        try:
+                            tid = cat.craft(cat.craft_id(it.id, res.ctx(b.id) if res else ())).get("trajectory")
+                        except CatalogError:
+                            tid = None
+                        if tid:
+                            break
+                if tid and about_craft(b.text):
+                    seq[0] = dict(hero_shot(tid), spin=1.5)
+            rest = cuts[0] - b.start - glide - 0.05
+            if rest >= 1.0 and first is not shot:
+                moves.append({"t": round(b.start + glide, 3), "dur": round(rest, 3), "to": shot})
+            for i, (tc, sub) in enumerate(zip(cuts, seq)):
+                t_end = cuts[i + 1] if i + 1 < len(cuts) else b.end
+                entry, target = _scaled(sub, CINEMA_CUT_PUSH if mv else 1.12), sub
+                if mv and "follow" not in sub:
+                    # Cinema: the words said while this shot is up decide its move -- pull out on "far / billions / beyond", push in on
+                    # "surface / instruments / record", a wider turn on "around / orbit"; otherwise a gentle push and arc
+                    from .cinema import MOVES, narrative_move
+
+                    e, k_t, k_s = MOVES[narrative_move(plan.words, tc, t_end)]
+                    spin = float(sub.get("spin", CINEMA_SPIN)) * k_s
+                    entry, target = dict(_scaled(sub, e), spin=spin), dict(_scaled(sub, k_t), spin=spin)
+                moves.append({"t": tc, "dur": 0.0, "to": entry})          # the cut
+                moves.append({"t": round(tc + 0.02, 3), "dur": round(t_end - tc - 0.35, 3), "to": target})   # and its move
+                cur = target
+            prev_key, prev_km, prev_end = key, km, b.end
+            continue
         if b.move in ("push_in", "pull_out") or (creep and first is not shot):
             rest = length - glide - 0.3
             if rest >= 1.0:
@@ -266,8 +670,9 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
         start = {"target": "earth", "fill": 0.5, "light": "side", "el_deg": 20}
     for sh in [start] + [m["to"] for m in moves]:
         sh.pop("_km", None)
+        sh.pop("_r", None)
     # the drift never rests: a stable shot is still alive (a frozen camera reads as a stuck video)
-    return {"drift_deg_per_s": 0.35, "start": start, "moves": moves}
+    return {"drift_deg_per_s": DRIFT_DEG_PER_S, "start": start, "moves": moves}
 
 
 
@@ -361,9 +766,47 @@ def stat_parts(fmt: str) -> Tuple[int, str, str]:
     return len(m.group(1) or ""), fmt[:m.start()].strip(), fmt[m.end():].strip()
 
 
+def _join_same_file(footage: List[Dict[str, Any]], notes: List[str]) -> List[Dict[str, Any]]:
+    """Two footage shots back to back that show the same file (same path or same bytes) are one shot. Each shot starts its
+    clip at in_s (0) and its picture's slow push from the start, so the second one replayed the clip from frame 0 and
+    restarted the push, faster, on the shorter shot. Joined, the clip plays on and the push runs once. A shot with its
+    own in_s (the writer chose where it starts) is left alone."""
+    import hashlib
+
+    digest: Dict[str, str] = {}
+
+    def same(name: str) -> str:
+        if name not in digest:
+            try:
+                h = hashlib.md5()
+                with open(name, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        h.update(chunk)
+                digest[name] = h.hexdigest()
+            except OSError:
+                digest[name] = name
+        return digest[name]
+
+    joined: List[Dict[str, Any]] = []
+    merged = 0
+    for d in footage:
+        p = joined[-1] if joined else None
+        kind = "image" if "image" in d else "file"
+        if (p is not None and kind in p and p[kind] and d.get(kind) and "in_s" not in d and abs(p["end"] - d["start"]) < 0.05
+                and same(p[kind]) == same(d[kind])):
+            p["end"] = d["end"]
+            merged += 1
+            continue
+        joined.append(d)
+    if merged:
+        notes.append(f"{merged} cut(s) between two footage shots of the same picture or clip removed: it plays on instead of restarting")
+    return joined
+
+
 def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = None, resolve_media: bool = True,
                  width: int = W, height: int = H, fps: int = 30, watermark: Optional[Dict[str, Any]] = None,
-                 reference_now: Optional[str] = None, resolution: Optional[Resolution] = None) -> Compiled:
+                 reference_now: Optional[str] = None, resolution: Optional[Resolution] = None,
+                 repairs: Optional[Dict[str, Dict[str, Any]]] = None, cinema: Any = None) -> Compiled:
     """Plan -> spec. media maps "row:<csv row>" or an asset string to a file (or {"file", "credit"}); "file:<name>" assets name a file in the
     spec's media folder directly. resolve_media=False (Check plan) lists what is still to be found instead of failing."""
     media = media or {}
@@ -427,11 +870,18 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                 problems.append(f"row {b.row}: {exc}")
     actions, act_errors, act_warnings = resolve_actions(plan, cat, res)
     problems += act_errors
+    # what the narration says is moving gets a marker from the moment it is named (after the actions: an added craft row
+    # never turns a plain beat into a visual action)
+    from .tracking import accelerate, add_auto_rows
+
+    notes += add_auto_rows(plan, cat, res)
     # two clocks: the stage-free one decides every frame (staging changes pacing, never composition); the staged one is
     # what the video shows -- the true date of where each craft is, with each action's phases given their narration time
     free = build_clock(cat, plan, problems, notes, res, actions)
+    notes += accelerate(free, plan, cat, actions)                 # an orbit the narration is about visibly turns
     _frame_what_the_clock_shows(plan, free, actions, act_warnings)
     clock = _with_stages(free, plan, actions)
+    journey_views = journeys(cat, plan, res, free, actions)
     ctx_of = {b.id: res.ctx(b.id) for b in beats}
     tctx = {b.id: res.contexts.get(b.id) for b in beats}
 
@@ -551,6 +1001,8 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                                 T["motion"] = L["motion"]
                         if L.get("label_bg"):
                             T["color"] = L["label_bg"]
+                        if it.extra.get("auto"):
+                            T["trail"] = True                       # named as moving: its actual trajectory as a fading trail
                         trackers.append(T)
                         L["label"] = ""                                 # the tracking box carries the name
                 elif ty == "orbit":
@@ -584,7 +1036,9 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     style = (it.id or "light").lower()
                     if style not in ("light", "measure"):
                         raise CatalogError(f"a line's id is its style: light (light travelling) or measure (a measuring line), not {it.id!r}")
-                    L = {"type": "link", "style": style, "reveal": {"t0": start, "t1": start + 1.0}, **timing}
+                    # dur: how long the line takes to draw from its first thing to its second -- something that TRAVELS between
+                    # them (a solar storm reaching a craft over the beat), not a line that is simply there
+                    L = {"type": "link", "style": style, "reveal": {"t0": start, "t1": start + max(1.0, float(it.dur or 1.0))}, **timing}
                     if it.label or it.text:
                         L["label"] = (it.label or it.text).upper()
                     distances.append((it, L))
@@ -598,6 +1052,34 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                         size, _, label = x.partition("=")
                         rings.append({"radius": ring_radius(size), "label": (label or size).strip().upper()})
                     L = {"type": "rings", "around": p.body, "rings": rings, **timing}
+                elif ty in ("plate", "instrument"):
+                    # Cinema's What If graphics, written by the CSV: id = the graphic (bars, curve, survival, clock, hero ...), extra = its
+                    # settings as JSON. A plate is full-frame on a slate; an instrument sits over the shot. Only with Cinema on (see below)
+                    from .cinema import CSV_KINDS
+
+                    kind = (it.id or "").strip().lower()
+                    if kind not in CSV_KINDS[ty]:
+                        raise CatalogError(f"{ty} id must be one of {', '.join(sorted(CSV_KINDS[ty]))} (got {it.id!r})")
+                    L = {"type": "cinema_hero" if kind == "hero" else f"tm_{kind}", **it.extra, **timing, "_cinema_row": ty}
+                    if it.label and "title" not in it.extra and kind not in ("caption", "metric", "fade", "hero", "annotate", "clock"):
+                        L["title"] = it.label.upper()
+                    if kind in ("caption", "annotate", "metric") and it.label and not any(k in it.extra for k in ("text", "label", "value")):
+                        L["label" if kind == "annotate" else ("value" if kind == "metric" else "text")] = it.label.upper()
+                    if it.sub and "sub" not in it.extra:
+                        L["sub"] = it.sub.upper()
+                elif ty == "track":
+                    # a marker on a moving planet or moon (its recent orbital path as a dotted trail); a craft named here is
+                    # tracked like a craft row
+                    try:
+                        cid = cat.craft_id(it.place, ctx_of[b.id])
+                    except CatalogError:
+                        cid = None
+                    if cid:
+                        raise CatalogError(f"track {it.place!r} is a spacecraft: give it a craft row (id={cid})")
+                    p = cat.place(it.place, ctx_of[b.id])
+                    if p.kind not in ("body",):
+                        raise CatalogError(f"track needs a planet or moon, not {p.kind} {it.place!r}")
+                    L = {"type": "tracker", "body": p.body, "label": (it.label or p.body).upper(), "trail": True, **timing}
                 elif ty == "pointer":
                     p = cat.place(it.place or b.place, ctx_of[b.id])
                     L = {"type": "pointer", "at": p.ref, "label": (it.label or "YOU ARE HERE").upper(), **timing}
@@ -625,6 +1107,22 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
             if m and m.get("credit"):
                 L["credit"] = m["credit"]
             layers.append(L)
+    _big_numbers(layers, beats, plan.duration)
+    # a journey view draws the road travelled (launch to the craft) until a path row of that craft takes over: the line
+    # that ties the planets at one end to the craft at the other
+    for b in beats:
+        sh = journey_views.get(b.id)
+        if sh is None or b.mode == "footage":
+            continue
+        tid = sh["path"]["trajectory"]
+        end = min([L["start"] for L in layers if L.get("type") == "trajectory" and L.get("of") == tid
+                   and L["start"] < b.end and L["end"] > b.start] + [b.end])
+        if end - b.start < 1.0:
+            continue
+        used_trajectories.add(tid)
+        layers.append({"type": "trajectory", "of": tid, "draw_utc": [sh["path"]["from_utc"], sh["path"]["to_utc"]],
+                       "start": round(b.start, 3), "end": round(end, 3), "style": {"future": "hidden"}, "_row": b.row, "_basis": cat.index.trajectories[tid].basis})
+    layers += _named_boundaries(cat, plan, layers, notes)
     # a distance or a line names bodies, sites or craft ("earth;csm"): a craft is whichever of its appearances is on screen then
     lines: List[Dict[str, Any]] = []
     for it, L in distances:
@@ -641,6 +1139,16 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     problems.append(f"row {it.row}: distance: {name!r} is neither a place nor a craft ({exc})")
                     continue
                 win = [w for w in craft_windows.get(cid, []) if w[0] <= it.t + 1e-6 < w[1]]
+                later = sorted(w for w in craft_windows.get(cid, []) if it.t < w[0] < L["end"] - 1.0)
+                if not win and later:
+                    # the distance is said a moment before the craft row's words ("about six billion km from the Sun,
+                    # Voyager 1 pointed..."): the line waits for the craft instead of being left out of the video
+                    win = later[:1]
+                    L["start"] = round(win[0][0], 3)
+                    if L.get("reveal"):
+                        span = L["reveal"]["t1"] - L["reveal"]["t0"]
+                        L["reveal"] = {"t0": L["start"], "t1": round(min(L["end"], L["start"] + span), 3)}
+                    notes.append(f"row {it.row}: the distance to {name!r} starts at {L['start']:.1f}s, when that craft comes on screen")
                 if not win:
                     problems.append(f"row {it.row}: distance to {name!r}, but that craft is not on screen at {it.t:.1f}s (add a craft row first)")
                     continue
@@ -674,8 +1182,8 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
             continue
         span = b.end - b.start
         fixed = sum(c.dur for c in b.clips if c.dur)
-        free = [c for c in b.clips if not c.dur]
-        share = (span - fixed) / len(free) if free else 0
+        untimed = [c for c in b.clips if not c.dur]
+        share = (span - fixed) / len(untimed) if untimed else 0
         t = b.start
         for k, c in enumerate(b.clips):
             d = c.dur if c.dur else share
@@ -692,6 +1200,7 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
             t += d
         if abs(t - b.end) > 0.05:
             notes.append(f"row {b.row}: beat {b.id}'s clips run {t - b.start:.1f}s of its {span:.1f}s")
+    footage = _join_same_file(footage, notes)
     if problems:
         raise CompileError(problems)
 
@@ -714,19 +1223,71 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
         if d not in res.used:
             res.used.append(d)
     res.used.sort()
+    from .cinema import flags as _cinema_flags
+
+    cinema_fl = _cinema_flags(cinema)
     spec: Dict[str, Any] = {
         "width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3),
-        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes, res, actions),
+        "clock": clock, "world": copy.deepcopy(cat.world), "camera": build_camera(cat, plan, notes, res, actions, free, repairs, cinema_fl),
         "layers": auto + trajectories + layers + tail, "footage": footage,
         "starmap": {"pack": cat.default or "", "datasets": list(res.used), "title": plan.title, "reference_now": res.reference_now,
                     "beats": {bid: {"status": c.status, "basis": c.basis, "utc": c.utc, "timeline": c.timeline, "badge": c.badge,
-                                    "datasets": c.datasets} for bid, c in res.contexts.items()}},
+                                    "datasets": c.datasets} for bid, c in res.contexts.items()},
+                    "beat_times": [{"id": b.id, "start": round(b.start, 3), "end": round(b.end, 3), "mode": b.mode, "row": b.row}
+                                   for b in beats]},
     }
     if watermark and watermark.get("text"):
         spec["watermark"] = watermark
+    if cinema_fl:
+        # the Cinema option (the StarMap tab's Cinema switch): What If's plates, type moments, citations, models (cinema.py)
+        from . import cinema as _cinema
+
+        _cinema.apply(spec, plan, cat, res, free, cinema_fl, notes)
+    else:
+        # Classic StarMap: Cinema's own rows are left out (they need the Cinema option), the rest renders as always
+        kept = [L for L in spec["layers"] if not L.get("_cinema_row")]
+        for L in spec["layers"]:
+            if L.get("_cinema_row"):
+                notes.append(f"row {L.get('_row')}: a {L['_cinema_row']} row ({L['type']}) is shown only with Cinema on (StarMap tab, Cinema)")
+        spec["layers"] = kept
     spec["starmap"]["actions"] = {bid: {"action": a.action, "craft": a.craft, "strategy": a.strategy, "span": list(a.span) if a.span else None}
                                   for bid, a in actions.items()}
     return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res, actions=actions, warnings=act_warnings)
+
+
+BIG_NUMBER_S, BIG_NUMBER_GAP_S, BIG_NUMBER_MAX = 3.2, 60.0, 6
+_BIG_WORDS = re.compile(r"BILLION|MILLION|YEAR|LIGHT|KM/H|KM/S|AU\b|DAYS?\b|HOURS?\b", re.I)
+
+
+def _big_numbers(layers: List[Dict[str, Any]], beats: List[Beat], duration: float) -> None:
+    """The few numbers a video turns on get a full-screen moment: the map dims and the figure counts up huge in the middle
+    for BIG_NUMBER_S, then it hands over to its usual corner chip. The biggest (by size and by unit: billions, years,
+    light-time, speeds) first, at most one a minute and BIG_NUMBER_MAX a video, never in the opening seconds or over
+    footage."""
+    map_beat = lambda t: next((b for b in beats if b.start <= t < b.end and b.mode != "footage"), None)   # noqa: E731
+    cands = []
+    for L in layers:
+        if L.get("type") != "stat_chip" or not isinstance(L.get("value"), (int, float)) or L["start"] < 4.0 or not map_beat(L["start"]):
+            continue
+        text = f"{L.get('unit', '')} {L.get('label', '')}".upper()
+        scale = 9 if "BILLION" in text else 6 if "MILLION" in text else 3 if "THOUSAND" in text else 0   # "25 BILLION KM" is 25e9
+        score = math.log10(max(1.0, abs(float(L["value"])))) + scale + (2.0 if _BIG_WORDS.search(text) else 0.0)
+        if score >= 3.0:
+            cands.append((score, L))
+    chosen: List[Dict[str, Any]] = []
+    for score, L in sorted(cands, key=lambda x: -x[0]):
+        if len(chosen) >= min(BIG_NUMBER_MAX, max(1, int(duration // 90))):
+            break
+        if all(abs(L["start"] - c["start"]) >= BIG_NUMBER_GAP_S for c in chosen):
+            chosen.append(L)
+    for L in chosen:
+        t0 = L["start"]
+        layers.append({"type": "big_number", "value": L["value"], "unit": L.get("unit", ""), "label": L.get("label", ""),
+                       "decimals": L.get("decimals", 0), "start": round(t0, 3), "end": round(t0 + BIG_NUMBER_S, 3),
+                       "fade_in": 0.35, "fade_out": 0.5, "_row": L.get("_row")})
+        # the chip takes over in its corner once the moment has passed (no second count-up)
+        L["start"] = round(min(L["end"] - 0.5, t0 + BIG_NUMBER_S - 0.3), 3)
+        L.pop("count_up", None)
 
 
 def _clock_utc(clock: Dict[str, Any], t: float) -> Optional[str]:

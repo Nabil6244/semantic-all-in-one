@@ -16,3 +16,6 @@ milkyway_pia10748_4096.jpg NASA/JPL-Caltech/R. Hurt (SSC-Caltech), PIA10748 "Our
 ../catalogs/bright_stars.json  Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit & Warren 1991), via CDS (V/50). Positions J2000.
 moon_ldem_bump_4096.jpg    NASA SVS CGI Moon Kit, LOLA elevation (ldem_16_uint), normalised to 8-bit and resized for relief shading.
                            https://svs.gsfc.nasa.gov/4720  Credit "NASA's Scientific Visualization Studio".
+jupiter_cassini_pia07782.jpg  NASA/JPL/Space Science Institute, PIA07782 "Cassini's Best Maps of Jupiter" (public domain), converted to JPEG.
+earth_night_4096.jpg       NASA Earth Observatory, Black Marble 2016 (Joshua Stevens, NASA GSFC; Suomi NPP VIIRS) (public domain), resized to 4096x2048.
+earth_clouds_4096.jpg      NASA Visible Earth, Blue Marble clouds (cloud_combined_8192, Reto Stöckli, NASA GSFC) (public domain), resized to 4096x2048.

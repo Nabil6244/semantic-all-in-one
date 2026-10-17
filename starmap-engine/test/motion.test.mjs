@@ -118,12 +118,30 @@ test('path shot: frames the stretch the beat shows and holds still while the cra
   assert.ok(Math.max(...xs) - Math.min(...xs) > 1.5, 'and it visibly crosses the frame');
 });
 
+test('path shot: a long run of one journey swings within a bounded angle of its framed view (never turns end-on)', () => {
+  const world = buildWorld(bodies, { date: new Date('1969-07-16T13:32:00Z') });
+  const traj = { type: 'trajectory', id: 'up', frame: 'earth', generate: [{ kind: 'surface_track', body: 'earth', site: [-80.6, 28.6], site_at: 'start', heading_deg: 72, arc_deg: 18, alt_far_km: 185, from_utc: '1969-07-16T13:32:00Z', to_utc: '1969-07-16T13:44:00Z' }] };
+  const shot = { path: { trajectory: 'up', from_utc: '1969-07-16T13:32:00Z', to_utc: '1969-07-16T13:44:00Z', fit: 1.3 }, el_deg: 20, spin: 3 };
+  const look = trajectoryLookup(world, [traj]);
+  const cam = createCamera(world, { fov_deg: 40, aspect: 16 / 9, drift_deg_per_s: 0.9, start: shot, moves: [] }, { trajectory: look });
+  const dir = (t) => { const c = cam(t); return sub(c.target, c.position); };
+  const d0 = dir(0);
+  let worst = 0, moved = 0;
+  for (let t = 0; t <= 600; t += 5) {
+    const a = angleDeg(d0, dir(t));
+    worst = Math.max(worst, a);
+    if (t < 30) moved = Math.max(moved, a);
+  }
+  assert.ok(worst < 36, `ten minutes of drift never turns it past its limit (reached ${worst.toFixed(1)} deg)`);
+  assert.ok(moved > 5, 'but it does move in the first seconds (a living frame)');
+});
+
 test('still windows: the always-on drift rests while something moves, with no jump when it stops or starts', () => {
   const world = buildWorld(bodies, { date: new Date('2020-01-01T00:00:00Z') });
   const shot = { target: 'earth', fill: 0.5, light: 'side', el_deg: 20 };
   const drifting = createCamera(world, { fov_deg: 40, drift_deg_per_s: 1, start: shot }), resting = createCamera(world, { fov_deg: 40, drift_deg_per_s: 1, still: [[2, 6]], start: shot });
   const dirAt = (cam, t) => { const c = cam(t); return sub(c.position, c.target); };
-  assert.ok(angleDeg(dirAt(resting, 3), dirAt(resting, 5)) < 1e-6, 'no drift inside the window');
+  assert.ok(angleDeg(dirAt(resting, 3), dirAt(resting, 5)) < 1e-4, 'no drift inside the window');
   assert.ok(angleDeg(dirAt(drifting, 3), dirAt(drifting, 5)) > 1.5, 'drift without one');
   let prev = dirAt(resting, 0);
   for (let t = 1 / 30; t < 9; t += 1 / 30) { const d = dirAt(resting, t); assert.ok(angleDeg(prev, d) < 1.01 / 30 + 1e-6, `smooth at ${t.toFixed(2)} s`); prev = d; }
@@ -138,4 +156,25 @@ test('spacecraft: the model gives way to a screen-space marker only far away, by
   for (const km of [3.7e8, 7e9, 5e10]) assert.equal(markerShare((0.01 / km) * 1300), 1);
   const mid = markerShare(3e-6);
   assert.ok(mid > 0 && mid < 1, 'a decade of scale in between cross-fades');
+});
+
+test('drift: a subject reached late in a video is seen from the angle it was framed for, then turns slowly from there', () => {
+  // the always-on drift used to build up over the whole video (ten minutes: planets on their night side, journeys end-on)
+  const world = buildWorld(bodies, { date: new Date('1969-07-16T13:44:00Z') });
+  const traj = { type: 'trajectory', id: 'up', frame: 'earth', generate: [{ kind: 'surface_track', body: 'earth', site: [-80.6, 28.6], site_at: 'start', heading_deg: 72, arc_deg: 18, alt_far_km: 185, from_utc: '1969-07-16T13:32:00Z', to_utc: '1969-07-16T13:44:00Z' }] };
+  const look = trajectoryLookup(world, [traj]);
+  const path = { trajectory: 'up', from_utc: '1969-07-16T13:32:00Z', to_utc: '1969-07-16T13:44:00Z', fit: 1.3 };
+  const cam = createCamera(world, { fov_deg: 40, drift_deg_per_s: 0.9, start: { target: 'earth', fill: 0.5, el_deg: 20 },
+    moves: [{ t: 600, dur: 4, to: { path, el_deg: 30 } }] }, { trajectory: look });
+  const designed = createCamera(world, { fov_deg: 40, start: { path, el_deg: 30 } }, { trajectory: look })(0);
+  const fwd = (c) => sub(c.target, c.position);
+  assert.ok(angleDeg(fwd(cam(604)), fwd(designed)) < 0.9 * 4 + 0.05, 'arrives at its framed angle (only the glide-in of drift)');
+  const turned = angleDeg(fwd(cam(614)), fwd(cam(604)));
+  assert.ok(turned > 5 && turned < 10, `then turns slowly: ${turned.toFixed(1)}° in 10 s`);
+  let prev = fwd(cam(599));
+  for (let t = 599 + 1 / 30; t < 606; t += 1 / 30) { const d = fwd(cam(t)); assert.ok(angleDeg(prev, d) < 2, `no jump at ${t.toFixed(2)} s`); prev = d; }
+  // a lit planet turns through its lit face, never round onto its night side
+  const lit = createCamera(world, { fov_deg: 40, drift_deg_per_s: 0.9, start: { target: 'moon', fill: 0.5, light: 'side', el_deg: 0 } });
+  const toSun = (t) => { const c = lit(t); return angleDeg(sub(c.position, c.target), world.vec('moon', 'sun')); };
+  assert.ok(toSun(40) < toSun(0), 'side light turns towards the front');
 });

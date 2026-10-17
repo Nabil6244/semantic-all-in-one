@@ -78,6 +78,43 @@ class TestPlannerDoesNotOverrunSource(unittest.TestCase):
                 continue
             self.assertLessEqual(shot.output_duration, playable + 0.12)
 
+    def test_short_clip_shots_walk_forward_never_restarting_at_zero(self) -> None:
+        """A 6 s clip under 9-12 s of narration: the shots' windows move forward through the clip (the last ends on its last
+        frame) instead of each restarting near 0 -- the clip cut after ~4 s, replayed its start and never showed its end."""
+        for req in (9.0, 12.0):
+            d = plan_edit_decision(_scene("1", start=0, end=req, actual=6.0, purpose="process"))
+            moving = [s for s in d.shots if not s.hold_tail]
+            self.assertGreaterEqual(len(moving), 2)
+            starts = [float(s.source_start or 0.0) for s in moving]
+            self.assertEqual(starts, sorted(starts))
+            self.assertGreater(starts[1], 1.0, f"{req}s: the second shot must not restart the clip")
+            self.assertAlmostEqual(float(moving[-1].source_end), 6.0, delta=0.1, msg="the clip's end is seen")
+
+    def test_a_still_is_one_continuous_push_never_restarted(self) -> None:
+        """A picture under long narration is one shot: a second shot of the same still restarted its push (the image jumped)."""
+        d = plan_edit_decision(_scene("1", start=0, end=14, asset_type="stock_image", purpose="process"))
+        self.assertEqual(len(d.shots), 1)
+        self.assertAlmostEqual(d.shots[0].output_duration, 14.0, places=1)
+
+    @unittest.skipUnless(FFMPEG_AVAILABLE, "ffmpeg required")
+    def test_two_scenes_on_the_same_clip_play_on_never_restarting(self) -> None:
+        """Back-to-back scenes given the same clip (or a twin with the same bytes): the second plays on from where the first
+        stopped instead of restarting the clip at frame 0."""
+        from editorial.shot_planner import plan_all_edit_decisions
+
+        with tempfile.TemporaryDirectory() as tmp:
+            clip = Path(tmp) / "a.mp4"
+            _make_clip(clip, 10.0)
+            twin = Path(tmp) / "twin.mp4"
+            twin.write_bytes(clip.read_bytes())
+            scenes = [_scene("1", start=0, end=4, actual=10.0), _scene("2", start=4, end=8, actual=10.0)]
+            out = plan_all_edit_decisions(scenes, media_paths={"1": str(clip), "2": str(twin)})
+            first, second = out[0].shots[-1], out[1].shots[0]
+            stopped = float(first.source_start or 0.0) + first.output_duration * float(first.speed or 1.0)
+            self.assertAlmostEqual(float(second.source_start), stopped, places=2)
+            self.assertGreater(stopped, 3.5)
+            self.assertLessEqual(float(second.source_end), 10.05)
+
     def test_video_longer_than_requested_stays_single(self) -> None:
         scene = _scene("1", start=0, end=3, text="Short beat.", actual=10.0)
         d = plan_edit_decision(scene)

@@ -29,6 +29,8 @@ import io
 import json
 from typing import Any, Dict, List, Optional
 
+from anchor_clock import AnchorClock, keep_in_order
+
 from .plan import MAX_CARDS, MODES, Beat, CameraStep, Clip, HybridPlan, Layer, PlanError, Support
 
 COLUMNS = ("beat", "row", "vo_anchor", "mode", "start", "end", "t", "dur", "id", "type", "place", "frame", "label", "sub", "text", "role", "kind",
@@ -118,67 +120,11 @@ def needs_words(text: str) -> bool:
     return False
 
 
-class _Clock:
-    """The narrator's words -> seconds, in script order (pakMap's matcher: "47 million" finds "forty seven million")."""
+class _Clock(AnchorClock):
+    """The narrator's words -> seconds, in script order (see anchor_clock): a beat anchor never stops the import."""
 
     def __init__(self, words, notes: Optional[List[str]] = None):
-        from pakmap.anchor import Transcript
-
-        self.tr = Transcript(list(words)) if words else None
-        self.cursor = 0
-        self.notes = notes if notes is not None else []
-
-    def _find(self, words: str):
-        """The narration's own spelling can differ from the script's: Whisper writes 1.3 as "1 3" and hears a name its own way
-        ("Hardee" -> "hardy"). Try the decimal split, then the closest spoken phrase when it is nearly the same word."""
-        import difflib
-        import re
-
-        hit = self.tr.find(words, self.cursor)
-        if hit is not None:
-            return hit
-        split = re.sub(r"(?<=\d)\.(?=\d)", " ", words)
-        if split != words:
-            hit = self.tr.find(split, self.cursor)
-            if hit is not None:
-                return hit
-        near = self.tr.nearest(words)
-        # one word only (a name): a longer phrase must be spoken as written, or a wrong place could be matched silently
-        if (near and len(words.split()) == 1 and len(near[0].split()) == 1 and words[:1].lower() == near[0][:1].lower()
-                and difflib.SequenceMatcher(None, words.lower(), near[0].lower()).ratio() >= 0.72):
-            hit = self.tr.find(near[0], self.cursor)
-            if hit is not None:
-                self.notes.append(f"vo_anchor {words!r} was matched to {near[0]!r} at {near[1]:.1f}s (how the narration spells it)")
-                return hit
-        # a longer phrase with one wrong word: the same start with fewer words, then the same end
-        parts = words.split()
-        for size in range(len(parts) - 1, 1, -1):
-            for label, sub in (("start", parts[:size]), ("end", parts[-size:])):
-                hit = self.tr.find(" ".join(sub), self.cursor)
-                if hit is not None:
-                    self.notes.append(f"vo_anchor {words!r}: not spoken exactly; its {label} words {' '.join(sub)!r} were found at {hit[0].t_start:.1f}s")
-                    return hit
-        return None
-
-    def at(self, phrase: str, *, advance: bool = True) -> float:
-        """The time of `phrase`, searched from the current beat's first words. Only a beat row (advance=True) moves the
-        search on: a layer, card or camera row is looked up inside its beat and never moves it, so one row whose words are
-        spoken later (an AI often anchors a label on the next sentence) cannot push every following beat "out of order"."""
-        from pakmap.compile import hit_first
-
-        if self.tr is None or not len(self.tr):
-            raise ValueError("vo_anchor needs the narration: choose the voiceover first, then load the CSV")
-        words, _, mod = phrase.partition("|")
-        hit = self._find(words.strip())
-        if hit is None:
-            near = self.tr.nearest(words.strip())
-            raise ValueError(f"vo_anchor {words.strip()!r} is not in the narration" + (f" (closest: {near[0]!r} at {near[1]:.1f}s)" if near else ""))
-        m, _nxt = hit
-        if m.out_of_order:
-            raise ValueError(f"vo_anchor {words.strip()!r} is only spoken before the previous row's words ({m.t_start:.1f}s): rows must follow the script in order")
-        if advance:
-            self.cursor = hit_first(self.tr, m)  # the beat's own rows (and the next beat) search from here
-        return round(m.t_end if mod.strip().lower() == "end" else m.t_start, 3)
+        super().__init__(list(words or ()), notes if notes is not None else [], unit="beat")
 
 
 def import_beats(text: str, words=(), duration: Optional[float] = None):
@@ -200,6 +146,7 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
     anchored: List[tuple] = []              # (beat index, row number, what, time) to check against the beat's span
     any_camera = False
     failed_beats = set()                    # a beat row with a problem: its own rows are not reported again
+    word_beats: Dict[int, bool] = {}        # beat index -> placed by estimate (its words were not heard); only word-timed beats
     rows = list(csv.reader(io.StringIO(text.lstrip("﻿"))))
     if not rows or not is_beat_csv(text):
         raise PlanError(["this is not a Hybrid beat CSV: the first row must be the header " + ",".join(COLUMNS)])
@@ -230,7 +177,12 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
             anchor = r.get("vo_anchor", "")
 
             def when(col: str) -> Optional[float]:
-                return _f(r, col) if r.get(col) else (clock.at(anchor, advance=kind == "beat") if anchor else None)
+                if r.get(col) or not anchor:
+                    return _f(r, col) if r.get(col) else None
+                t = clock.at(anchor, advance=kind == "beat", before=beats[-1].narration if beats else "")
+                if kind == "beat" and beats:
+                    word_beats[len(beats)] = clock.estimated
+                return t
 
             if kind == "plan":
                 plan_duration = _f(r, "end", required=True)
@@ -328,6 +280,9 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
     if problems:
         raise PlanError(problems)
     total = plan_duration if plan_duration is not None else duration
+    starts = keep_in_order([b.start for b in beats], word_beats, total, notes, [f"beat {b.id}" for b in beats])
+    for b, t in zip(beats, starts):
+        b.start = t
     # a beat with no end runs to where the next beat starts (the last one to the end of the narration)
     for i, n in open_ends.items():
         if i + 1 < len(beats):

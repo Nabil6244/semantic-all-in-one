@@ -33,6 +33,7 @@ export default {
     if (!inst.traj) bind(inst, inst.ctx.layer(inst.def.of).traj);
     const { def, traj } = inst;
     if (def.draw === false) return;
+    if (f.cam && f.cam.distance < 1) return;          // a hero close-up of a craft: its path would only cut across the model
     const st = def.style || {}, color = st.color || YELLOW;
     const now = traj.indexAt(def.motion ? motionWhen(def.motion, f.t, f.mu) : +f.date);   // a motion: the trail keeps up with its craft
     let cut;                                           // index the solid (travelled / revealed) part runs to

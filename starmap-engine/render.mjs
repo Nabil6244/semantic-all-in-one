@@ -20,6 +20,7 @@ import { createCutter } from './cutter.mjs';
 import { planChunks, chunkFingerprints, engineFingerprint } from './lib/segments.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const WHATIF = path.join(HERE, '..', 'whatif-engine');      // Cinema mode's shared diagram layers, fonts and models
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + '\n');
 const TYPES = { '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.webp': 'image/webp', '.jpeg': 'image/jpeg', '.mjs': 'text/javascript', '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf', '.jpg': 'image/jpeg', '.png': 'image/png' };
 
@@ -43,6 +44,10 @@ function startServer(spec, specDir, cutter) {
     if (url.pathname === '/' || url.pathname === '/index.html') file = path.join(HERE, 'page.html');
     else if (url.pathname === '/page.js') file = path.join(HERE, 'page.js');
     else if (/^\/(lib|layers)\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(HERE, url.pathname);
+    // Cinema mode borrows the What If engine's diagram layers, fonts and NASA 3D models (served from its own folder, never copied)
+    else if (/^\/wi\/(lib|layers)\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(WHATIF, url.pathname.slice(4));
+    else if (/^\/wi-fonts\/[\w.-]+\.ttf$/.test(url.pathname)) file = path.join(WHATIF, 'assets', 'fonts', path.basename(url.pathname));
+    else if (/^\/wi-models\/[\w.-]+\.glb$/.test(url.pathname)) file = path.join(WHATIF, 'assets', 'models', path.basename(url.pathname));
     else if (url.pathname.startsWith('/three/addons/')) { const f = path.resolve(addons, decodeURIComponent(url.pathname.slice('/three/addons/'.length))); if (f.startsWith(addons + path.sep)) file = f; }
     else if (/^\/footage\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.frameFile(Number(i), parseInt(k, 10)); }
     else if (/^\/cardframe\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.cardFrameFile(Number(i), parseInt(k, 10)); }
@@ -89,8 +94,10 @@ async function main() {
   const total = Math.round(spec.duration * fps);
   const specDir = path.dirname(path.resolve(specPath));
   const soft = process.env.STARMAP_GL === 'software';
-  const cacheDir = spec.segment_cache && !process.env.STARMAP_STILLS ? path.resolve(spec.segment_cache) : null;
-  let chunks = [{ i: 0, k0: 0, k1: total }], keys = null;
+  // STARMAP_RANGE="630,660": a preview of that window only (seconds of the video), never cached; normal renders are unaffected
+  const range = process.env.STARMAP_RANGE ? process.env.STARMAP_RANGE.split(',').map(Number) : null;
+  const cacheDir = spec.segment_cache && !process.env.STARMAP_STILLS && !range ? path.resolve(spec.segment_cache) : null;
+  let chunks = [{ i: 0, k0: range ? Math.max(0, Math.round(range[0] * fps)) : 0, k1: range ? Math.min(total, Math.round(range[1] * fps)) : total }], keys = null;
   if (cacheDir) {
     fs.mkdirSync(cacheDir, { recursive: true });
     chunks = planChunks(total, fps);

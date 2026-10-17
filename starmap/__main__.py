@@ -3,7 +3,9 @@
    python3 -m starmap render plan.csv --out video.mp4 [same options]              compile, then render with starmap-engine
    python3 -m starmap words narration.txt --out words.json                         estimated word timing (to try a script)
    python3 -m starmap prompt [--pack apollo11] [--script script.txt] [--out prompt.txt]   the beat-plan prompt, filled in
-   python3 -m starmap packs                                                        the mission packs available"""
+   python3 -m starmap packs                                                        the mission packs available
+   python3 -m starmap doctor script.txt [--prompt]                                 the script check (hook, re-hooks, payoff), or
+                                                                                   the script doctor prompt for an AI"""
 
 from __future__ import annotations
 
@@ -54,9 +56,19 @@ def main(argv=None) -> int:
     pr.add_argument("--script")
     pr.add_argument("--out")
     sub.add_parser("packs", help="the datasets in the library (found automatically)")
+    dr = sub.add_parser("doctor", help="does the script hold a viewer? (before the voiceover is recorded)")
+    dr.add_argument("script")
+    dr.add_argument("--prompt", action="store_true", help="print the script doctor prompt for an AI instead")
     a = ap.parse_args(argv)
     if a.cmd == "packs":
         print("\n".join(available_packs()))
+        return 0
+    if a.cmd == "doctor":
+        from .prompt import doctor_prompt
+        from .script_check import check_script
+
+        text = Path(a.script).read_text(encoding="utf-8")
+        print(doctor_prompt(text) if a.prompt else check_script(text).to_text())
         return 0
     if a.cmd == "prompt":
         from .prompt import build_prompt

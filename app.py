@@ -1062,6 +1062,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._build_starmap_section(self._view_visual_director.content, row=4)
         if self._weather_on():
             self._build_weather_section(self._view_visual_director.content, row=5)
+        self._build_whatif_section(self._view_visual_director.content, row=6)
         self._sync_style_picker()
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
@@ -1713,6 +1714,11 @@ class VideoGeneratorApp(ctk.CTk):
         self.script_box.bind("<FocusIn>", lambda _e: self._sync_script_watermark())
         self.script_box.bind("<FocusOut>", lambda _e: self._sync_script_watermark())
         self.script_box.bind("<FocusOut>", lambda _e: self._refresh_csv_prompt_script_boxes())
+        # the script is the project's: saved as it is typed or pasted (it was only saved from a style panel's box, so a script pasted
+        # here had to be pasted again every time the project was opened)
+        self.script_box.bind("<KeyRelease>", lambda _e: self._save_main_script_soon(), add="+")
+        self.script_box.bind("<FocusOut>", lambda _e: self._save_main_script_now(), add="+")
+        self.script_box.bind("<<Paste>>", lambda _e: self._save_main_script_soon(), add="+")
 
         ai_btns = ctk.CTkFrame(self._ai_block, fg_color="transparent")
         ai_btns.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
@@ -2889,7 +2895,7 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If")
     STYLE_BLURBS = {
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
         "Modern Tech News": "Technology news: fast cuts, the real product, reports and UI footage, few effects. Same workflow as Normal.",
@@ -2898,6 +2904,7 @@ class VideoGeneratorApp(ctk.CTk):
         "pakMap": "One continuous satellite-map camera with titles, markers, numbers and photo cards.",
         "Hybrid Map": "The map explains where, full-screen footage shows what it is like.",
         "StarMap": "Space documentaries: the real sky in 3D, spacecraft on their paths, NASA footage between.",
+        "What If": "Calm science explainers: real photos or clean illustrations for every sentence, diagrams, a survival clock, every number on screen as it is said.",
         "Enoch Template": "Evidence-first documentaries about ancient texts: real manuscripts and art, cards, few reconstructions, "
                           "checked claims. Same workflow as Normal.",
         "Weather": "US forecasts over the satellite map: National Weather Service data, full-screen footage between, your own voiceover.",
@@ -2912,6 +2919,7 @@ class VideoGeneratorApp(ctk.CTk):
         "pakMap": ("\u25C9", "One continuous satellite map", "A pakMap CSV", "Geography, borders, routes"),
         "Hybrid Map": ("\u25D0", "Map and full-screen footage in turns", "A beat CSV, or AI", "Place-based documentaries"),
         "StarMap": ("\u2737", "Space in 3D, spacecraft and NASA footage", "A StarMap beat CSV", "Space missions, planets, the universe"),
+        "What If": ("\u2753", "Science explainers: shots, diagrams, a survival clock", "Your voiceover + script (a shot CSV is optional)", "What if... space and survival videos"),
         "Enoch Template": ("\u2766", "Manuscripts, art and cards; checked claims", "Script + voiceover", "Ancient texts, hidden books"),
         "Weather": ("\u2601", "Forecast maps, real data, footage", "A Weather plan + your voiceover", "US forecasts, weather news"),
     }
@@ -3024,7 +3032,7 @@ class VideoGeneratorApp(ctk.CTk):
             return "Modern Tech News"
         if mode == "weather":
             return "Weather"
-        return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap"}.get(mode, "Normal video")
+        return {"pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap", "whatif": "What If"}.get(mode, "Normal video")
 
     def _modern_tech_on(self) -> bool:
         """Modern Tech News is chosen for this project (explicit, per project; never auto-detected)."""
@@ -3052,14 +3060,32 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
-        if getattr(self, "_weather_running", False):
+        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
         if choice != "Weather":
             self._weather_deactivate()
+        if choice != "What If":
+            self._whatif_deactivate()
         if choice == "Weather":   # its own branch: the chain below stays as it was
             self._weather_activate()
+            ws = getattr(self, "_workspace", None)
+            if ws is not None:
+                try:
+                    ws.set_editing_system("")
+                except Exception:
+                    pass
+                try:
+                    from ancient_texts import integration as _enoch
+
+                    _enoch.deselect(ws)
+                except Exception as exc:
+                    self._append_log(f"[ENOCH TEMPLATE] Style not saved ({exc})\n")
+            self._sync_primary_cta()
+            return
+        if choice == "What If":   # its own branch (whatif/app_section.py): the chain below stays as it was
+            self._whatif_activate()
             ws = getattr(self, "_workspace", None)
             if ws is not None:
                 try:
@@ -3131,6 +3157,9 @@ class VideoGeneratorApp(ctk.CTk):
         weather_block = getattr(self, "_weather_block", None)
         if weather_block is not None:
             weather_block.grid() if active == "Weather" else weather_block.grid_remove()
+        whatif_block = getattr(self, "_whatif_block", None)
+        if whatif_block is not None:
+            whatif_block.grid() if active == "What If" else whatif_block.grid_remove()
 
     def _style_card_header(self, block, title: str, description: str) -> None:
         """A style card's title with a one-line description under it (row 0 of the card), so a collapsed card says what it is."""
@@ -3578,6 +3607,9 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "generation_mode", "") == "weather":
             label.configure(text="\u25A6\n\nNo footage yet\nOn the Visual Director page, load your Weather plan and click Check plan.\nEvery full-screen clip then appears here, ready to replace or retry.")
             return
+        if getattr(self, "generation_mode", "") == "whatif":
+            label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, click Plan the shots.\nEvery picture and clip then appears here, ready to replace or retry.")
+            return
         if getattr(self, "generation_mode", "") == "starmap":
             label.configure(text="\u25A6\n\nNo pictures yet\nOn the Visual Director page, load your StarMap beat CSV.\nEvery photo card and footage clip then appears here, ready to replace or retry.")
         elif getattr(self, "generation_mode", "") != "hybrid":
@@ -3596,9 +3628,33 @@ class VideoGeneratorApp(ctk.CTk):
     # project's script already in it. The script box under it IS the Script page's script (one script per project): typing
     # in any of them updates the others and is saved with the project.
 
+    def _save_main_script_soon(self) -> None:
+        if getattr(self, "_script_save_job", None):
+            try:
+                self.after_cancel(self._script_save_job)
+            except Exception:
+                pass
+        self._script_save_job = self.after(800, self._save_main_script_now)
+
+    def _save_main_script_now(self) -> None:
+        """The Script page's text into the project's script file (only when it changed; an empty box never erases a saved script)."""
+        self._script_save_job = None
+        box, ws = getattr(self, "script_box", None), self._workspace
+        if box is None or ws is None:
+            return
+        text = box.get("1.0", "end").strip()
+        try:
+            saved = ws.script_path.read_text(encoding="utf-8").strip() if ws.script_path.is_file() else ""
+            if text and text != saved:
+                ws.save_script(text)
+        except OSError:
+            pass
+
     def _main_script_text(self) -> str:
         box = getattr(self, "script_box", None)
         text = box.get("1.0", "end").strip() if box is not None else ""
+        if text and callable(getattr(self, "_save_main_script_now", None)):
+            self._save_main_script_now()          # every style reads the script here (Plan, Generate): it is kept with the project
         if not text and self._workspace is not None:
             try:
                 if self._workspace.script_path.is_file():
@@ -3712,6 +3768,27 @@ class VideoGeneratorApp(ctk.CTk):
         self.clipboard_append(text)
         where = str(_enoch.state_dir(ws)) if ws is not None else "state/enoch_template"
         self.status_var.set(f"Enoch Template {kind} prompt copied. Paste it into any AI; save its answer in {where}.")
+
+    def _copy_starmap_doctor_prompt(self) -> None:
+        """StarMap: the script doctor prompt (retention: hook, open loop, re-hooks, payoff; titles; thumbnail text) with the
+        script and the app's own check of it -- for BEFORE the voiceover is recorded."""
+        from starmap.prompt import doctor_prompt
+        from starmap.script_check import check_script
+
+        script = self._main_script_text()
+        if not script:
+            self._starmap_status_var.set("Paste your script in the script box first: the doctor prompt checks and rewrites it.")
+            return
+        try:
+            text = doctor_prompt(script)
+        except OSError as exc:
+            messagebox.showerror("Script doctor prompt", f"The prompt file could not be read: {exc}")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        rep = check_script(script)
+        self._starmap_status_var.set(f"Script score {rep.score}/100. Doctor prompt copied: paste it into any AI, record the voiceover from "
+                                     "the script it returns, then copy the CSV prompt." + (f" First fix: {rep.findings[0]}" if rep.findings else ""))
 
     def _copy_csv_prompt(self, style: str, status_var=None) -> None:
         """Copy a style's CSV prompt with the project's script in it (Overscaled copies Exp Solar's when that look is chosen)."""
@@ -4813,7 +4890,9 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_load_btn.grid(row=0, column=0, padx=(0, 8))
         _make_button(actions, "Copy the CSV prompt", lambda: self._copy_csv_prompt("starmap", self._starmap_status_var),
                      size="lg", width=150).grid(row=0, column=1, padx=(0, 8))
-        self._build_csv_prompt_script_box(actions, row=1, columnspan=2)
+        _make_button(actions, "Script doctor prompt", self._copy_starmap_doctor_prompt,
+                     size="lg", width=150).grid(row=0, column=2, padx=(0, 8))
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=3)
         ctk.CTkLabel(controls, text="Missions, spacecraft, planets and their dates are found from the CSV automatically (historical, current, "
                                     "planned or hypothetical): nothing to select. Check plan lists what it found.",
                      font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
@@ -4840,7 +4919,45 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_plan_box.configure(state="disabled")
         ctk.CTkLabel(controls, textvariable=self._starmap_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560,
                      justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        self._build_starmap_cinema_tab(controls, row=7)
         controls.grid_remove()
+
+    def _build_starmap_cinema_tab(self, controls, *, row: int) -> None:
+        """StarMap's Cinema tab: the What If references' documentary grammar on top of StarMap (starmap/cinema.py), per project.
+        Off by default -- Classic StarMap renders exactly as before."""
+        from starmap.cinema import FEATURE_LABELS, FEATURES
+
+        self._starmap_cinema_var = ctk.BooleanVar(value=False)
+        self._starmap_cinema_feats = {k: ctk.BooleanVar(value=True) for k in FEATURES}
+        tabs = ctk.CTkTabview(controls, height=250, fg_color=_CARD, border_width=1, border_color=_BORDER, corner_radius=8)
+        tabs.grid(row=row, column=0, sticky="ew", pady=(12, 0))
+        tab = tabs.add("Cinema (What If visuals)")
+        tab.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkSwitch(tab, text="Use Cinema for this project", variable=self._starmap_cinema_var, command=self._save_starmap_cinema,
+                      font=ctk.CTkFont(size=12, weight="bold"), text_color=_TEXT).grid(row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 2))
+        ctk.CTkLabel(tab, text="Adds the What If references' documentary grammar on top of StarMap: diagram plates where the map cannot "
+                               "explain, the real NASA 3D spacecraft up close, numbers as type moments, documentary photos with a citation "
+                               "line, cuts in the narration's pauses, the references' loudness and grade. Off = Classic StarMap, unchanged.",
+                     font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=540, justify="left", anchor="w").grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 8))
+        for i, key in enumerate(FEATURES):
+            ctk.CTkCheckBox(tab, text=FEATURE_LABELS[key], variable=self._starmap_cinema_feats[key], command=self._save_starmap_cinema,
+                            font=ctk.CTkFont(size=11), text_color=_TEXT).grid(row=2 + i // 2, column=i % 2, sticky="w", padx=8, pady=3)
+
+    def _starmap_cinema_settings(self) -> "dict | None":
+        """The Cinema option as Generate takes it: {"enabled": True, feature: on ...}, or None when it is off."""
+        if not hasattr(self, "_starmap_cinema_var") or not self._starmap_cinema_var.get():
+            return None
+        return {"enabled": True, **{k: bool(v.get()) for k, v in self._starmap_cinema_feats.items()}}
+
+    def _save_starmap_cinema(self) -> None:
+        if self._workspace is None or not hasattr(self, "_starmap_cinema_var"):
+            return
+        try:
+            self._workspace.set_starmap_settings(cinema={"enabled": bool(self._starmap_cinema_var.get()),
+                                                         **{k: bool(v.get()) for k, v in self._starmap_cinema_feats.items()}})
+        except OSError as exc:
+            self._append_log(f"[STARMAP] Could not save the Cinema settings: {exc}\n")
 
     def _set_starmap_text(self, text: str) -> None:
         box = self._starmap_plan_box
@@ -4935,6 +5052,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_ok = None
         if "sound_design" in saved:
             self._starmap_sound_var.set(bool(saved["sound_design"]))
+        if hasattr(self, "_starmap_cinema_var"):
+            c = saved.get("cinema") if isinstance(saved.get("cinema"), dict) else {}
+            self._starmap_cinema_var.set(bool(c.get("enabled", False)))
+            for k, v in self._starmap_cinema_feats.items():
+                v.set(bool(c.get(k, True)))
         path = ws.starmap_csv_path if ws.starmap_csv_path.is_file() else None
         self._starmap_file_var.set(str(path) if path else "")
         if path is not None and saved.get("active"):
@@ -5134,7 +5256,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._cta_action = "generate"
         self.stage_var.set("GENERATE")
         self.hint_var.set("Ready — click Generate to render the StarMap video." if self._starmap_ok is not False
-                          else "The last Check plan found errors: fix the CSV first (Generate will stop on them).")
+                          else "The last Check plan found problems: Generate repairs or leaves out those rows and lists them in the log.")
         self._set_generate_btn(state="normal", text="Generate")
 
     def _on_starmap_cancel(self) -> None:
@@ -5178,6 +5300,7 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(ws, "state_dir", None)
         watermark = self._pakmap_watermark()
         sound_design = bool(self._starmap_sound_var.get())
+        cinema = self._starmap_cinema_settings()
         pixel_scale = self._export_pixel_scale()
         title = getattr(ws, "title", "") or ""
         reference_now = self._starmap_reference_now()
@@ -5202,7 +5325,7 @@ class VideoGeneratorApp(ctk.CTk):
             flow_engine_manager = self._get_flow_engine_manager()
             flow_video_account_ids = self._video_account_ids()
             try:
-                flow_settings, _accounts = self._image_flow_run_settings()
+                flow_settings = self._media_flow_run_settings()
             except Exception:
                 flow_settings = None
 
@@ -5256,7 +5379,7 @@ class VideoGeneratorApp(ctk.CTk):
                         media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                              on_manager_ready=_manager_ready),
                         pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager, flow_settings=flow_settings,
-                        flow_video_account_ids=flow_video_account_ids,
+                        flow_video_account_ids=flow_video_account_ids, cinema=cinema,
                     )
             except Exception as exc:
                 result = PakmapResult(False, [f"Unexpected error: {exc!r}"])
@@ -5287,7 +5410,13 @@ class VideoGeneratorApp(ctk.CTk):
                     self._show_preview(str(result.output_path))
                 except Exception:
                     pass
-                messagebox.showinfo("StarMap video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt').")
+                left = list(getattr(result, "unresolved", None) or [])
+                extra = (f"\n\n{len(left)} picture(s)/clip(s) could not be fetched and were left out (scene {', '.join(left[:8])}"
+                         f"{' …' if len(left) > 8 else ''}). Fix them in the Visual Plan tab and Generate again to add them." if left else "")
+                if left:
+                    self._starmap_status_var.set(f"Done, {len(left)} picture(s)/clip(s) left out: {result.output_path}")
+                    self._refresh_qa_ui(immediate=True)
+                messagebox.showinfo("StarMap video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt')." + extra)
             else:
                 self._append_log("[STARMAP] Generation failed:\n" + "\n".join(result.errors) + "\n")
                 self._set_starmap_text("Generation stopped:\n\n" + "\n".join(f"  {e}" for e in result.errors))
@@ -5321,6 +5450,36 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _style_choices(self) -> tuple:
         return self.STYLE_CHOICES + (("Weather",) if self._weather_on() else ())
+
+    # ---------- What If (calm science explainers; all of it lives in whatif/) ----------
+
+    def _build_whatif_section(self, parent, *, row: int) -> None:
+        from whatif import app_section
+
+        app_section.build(self, parent, row=row)
+
+    def _whatif_activate(self) -> None:
+        if getattr(self, "_whatif_block", None) is not None:
+            from whatif import app_section
+
+            app_section.activate(self)
+
+    def _whatif_deactivate(self) -> None:
+        if getattr(self, "_whatif_block", None) is not None:
+            from whatif import app_section
+
+            app_section.deactivate(self)
+
+    def _restore_whatif(self, ws) -> None:
+        if getattr(self, "_whatif_block", None) is not None:
+            from whatif import app_section
+
+            app_section.restore(self, ws)
+
+    def _on_whatif_cancel(self) -> None:
+        from whatif import app_section
+
+        app_section.cancel(self)
 
     def _build_weather_section(self, parent, *, row: int) -> None:
         from weather import app_section
@@ -5450,25 +5609,73 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _pakmap_get_words(self, voiceover_path: Path, whisper_model: str, whisper_state_dir, log) -> list:
         """The narration's word times: the project's cached alignment when there is one, else Whisper (the same
-        cache and call the other styles use). Raises RuntimeError with a plain message when there are none."""
+        cache and call the other styles use). Raises RuntimeError with a plain message when there are none.
+
+        Every source is checked against the voiceover's length: words that stop long before the audio ends are a broken
+        transcription (an mp3 with a damaged frame was heard as its first 18 s, 2026-10-16), never reused or saved, and
+        a fresh one that is still short stops with a message instead of squeezing the whole plan into those seconds."""
+        from pakmap.app_integration import voiceover_duration
+
         try:
             mtime = Path(voiceover_path).stat().st_mtime
         except OSError:
             mtime = 0
-        if self._pakmap_words and self._pakmap_words[0] == str(voiceover_path) and self._pakmap_words[1] == mtime:
+        try:
+            audio_len = float(voiceover_duration(voiceover_path) or 0.0)
+        except Exception:
+            audio_len = 0.0
+
+        def short(ws) -> bool:
+            """The words stop more than 30 s (or a quarter of the voiceover) before the audio does."""
+            if not ws or audio_len <= 0:
+                return False
+            return float(ws[-1][2]) < audio_len - max(30.0, 0.25 * audio_len)
+
+        if self._pakmap_words and self._pakmap_words[0] == str(voiceover_path) and self._pakmap_words[1] == mtime \
+                and not short(self._pakmap_words[2]):
             return self._pakmap_words[2]
         words = None
         if whisper_state_dir is not None:
             cached = get_cached_whisper_words(whisper_state_dir, voiceover_path)
             if cached:
-                words = [(w, float(s), float(e)) for w, s, e in cached]
-                log("[pakMap] Reusing cached word alignment for narration timing.")
+                cached = [(w, float(s), float(e)) for w, s, e in cached]
+                if not short(cached):
+                    words = cached
+                    log("[pakMap] Reusing cached word alignment for narration timing.")
+        # the narration's own word file: a restart (or another style) reuses it instead of transcribing a long voiceover again
+        words_file = Path(whisper_state_dir) / "narration_words.json" if whisper_state_dir is not None else None
+        from smart_editing import _audio_fingerprint
+        key = f"{_audio_fingerprint(voiceover_path)}:{whisper_model}"
+        if words is None and words_file is not None and words_file.is_file():
+            try:
+                saved = json.loads(words_file.read_text(encoding="utf-8"))
+                if saved.get("key") == key and saved.get("words"):
+                    got = [(str(w), float(s), float(e)) for w, s, e in saved["words"]]
+                    if short(got):
+                        log(f"[pakMap] The saved word timing covers only {got[-1][2]:.0f}s of a {audio_len:.0f}s voiceover: transcribing again.")
+                    else:
+                        words = got
+                        log("[pakMap] Reusing this voiceover's saved word timing.")
+            except (OSError, ValueError, TypeError):
+                words = None
         if words is None:
+            log(f"Transcribing the narration with Whisper ({whisper_model}) to time the script: a long voiceover takes a few minutes…")
             try:
                 words = vg.transcribe_audio(str(voiceover_path), whisper_model)
             except SystemExit as exc:
                 # transcribe_audio ends the process on failure; in a worker thread that would skip every handler and leave the panel busy forever
                 raise RuntimeError(str(exc.code or "the narration could not be transcribed")) from None
+            log(f"Narration transcribed: {len(words or [])} words.")
+            if short(words):
+                raise RuntimeError(
+                    f"the voiceover could only be heard up to {words[-1][2]:.0f}s of its {audio_len:.0f}s (the file is probably damaged "
+                    f"there). Export it again as a new mp3 or wav, choose it as the voiceover, and Generate again.")
+            if words and words_file is not None:
+                try:
+                    words_file.parent.mkdir(parents=True, exist_ok=True)
+                    words_file.write_text(json.dumps({"key": key, "words": [[str(w), float(s), float(e)] for w, s, e in words]}), encoding="utf-8")
+                except (OSError, TypeError, ValueError):
+                    pass
         if not words:
             raise RuntimeError("the narration produced no words to anchor the script to")
         self._pakmap_words = (str(voiceover_path), mtime, words)
@@ -6373,6 +6580,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._starmap_browse_file()
         elif action == "starmap_cancel":
             self._on_starmap_cancel()
+        elif action == "whatif_cancel":
+            self._on_whatif_cancel()
         elif action in ("weather_load", "weather_fetch", "weather_cancel"):
             self._weather_action(action)
         else:
@@ -7071,6 +7280,11 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "weather":
             self._sync_primary_cta_weather()
+            return
+        if self.generation_mode == "whatif":
+            from whatif import app_section as _wi
+
+            _wi.sync_cta(self)
             return
 
         snap = snap or (self._qa_snapshot() if self._scene_rows else None)
@@ -7776,11 +7990,22 @@ class VideoGeneratorApp(ctk.CTk):
             self._refresh_voiceover_active_label()
             self._bind_voice_player_to(None)
         self.output_var.set(str(ws.next_final_path()))
-        if ws.script_path.is_file() and self._script_mode_is_ai():
-            text = ws.script_path.read_text(encoding="utf-8")
-            self.script_box.delete("1.0", "end")
+        # the project's own script, whatever the script mode (it was only reloaded in the AI-script modes); a project with none
+        # starts empty, so the previous project's script is never shown -- or saved -- as this one's
+        try:
+            text = ws.script_path.read_text(encoding="utf-8") if ws.script_path.is_file() else ""
+        except OSError:
+            text = ""
+        if getattr(self, "_script_save_job", None):
+            try:
+                self.after_cancel(self._script_save_job)
+            except Exception:
+                pass
+            self._script_save_job = None
+        self.script_box.delete("1.0", "end")
+        if text.strip():
             self.script_box.insert("1.0", text)
-            self._sync_script_watermark()
+        self._sync_script_watermark()
         self._refresh_csv_prompt_script_boxes()
         if hasattr(self, "_overscaled_csv_var"):
             if ws.overscaled_csv_path.is_file():
@@ -7808,6 +8033,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._restore_hybrid(ws)
         self._restore_starmap(ws)
         self._restore_weather(ws)
+        self._restore_whatif(ws)
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -9423,6 +9649,8 @@ class VideoGeneratorApp(ctk.CTk):
             return  # and StarMap (its pictures and clips); see _populate_starmap_visual_plan
         if self.generation_mode == "weather":
             return  # and Weather (its footage); see weather.app_section.populate_visual_plan
+        if self.generation_mode == "whatif":
+            return  # and What If (its pictures); see whatif.app_section.populate_visual_plan
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -10450,6 +10678,14 @@ class VideoGeneratorApp(ctk.CTk):
             "videoResolution": p.get("resolution", FLOW_VIDEO_RESOLUTIONS[0][0]),
         }
 
+    def _media_flow_run_settings(self) -> dict:
+        """One settings dict for runs that hand the same `flow_settings` to both the image and the video provider
+        (StarMap, What If): the image settings plus the Video Profile's model/duration/resolution. Without the video
+        keys the engine fell back to its default video model (Veo 3.1 Fast) whatever the profile chose."""
+        settings, _accounts = self._image_flow_run_settings()
+        video = self._video_flow_settings()
+        return {**settings, **{k: v for k, v in video.items() if k != "aspectRatio"}}
+
     def _video_account_ids(self) -> list[str] | None:
         """The default Video Profile's checked accounts. None (= all signed-in
         accounts) only while the profile's checkboxes have never been touched;
@@ -10734,6 +10970,10 @@ class VideoGeneratorApp(ctk.CTk):
             from weather.app_section import images_dir
 
             return images_dir(self._workspace)
+        if self.generation_mode == "whatif" and self._workspace is not None:
+            from whatif.app_section import images_dir as _wi_images
+
+            return _wi_images(self._workspace)
         return self._workspace.assets_dir
 
     def _ensure_asset_manager(self, images_dir: Path) -> AssetManager:
@@ -10826,6 +11066,8 @@ class VideoGeneratorApp(ctk.CTk):
         key = _scene_key(scene_row.scene_number)
         if key in self._busy_scenes:
             return
+        if self._generation_blocks_scene_actions():
+            return
         previous = self.status_var.get()
         self.status_var.set("Selecting local media…")
         try:
@@ -10864,12 +11106,25 @@ class VideoGeneratorApp(ctk.CTk):
             daemon=True,
         ).start()
 
+    def _generation_blocks_scene_actions(self) -> bool:
+        """A Generate run fetches the same scenes: a Retry at the same time overwrote one with the other's file and record
+        (the Voyager run, 2026-10-16). Scene actions wait until Generate finishes or is stopped."""
+        if not any(getattr(self, f, False) for f in ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running",
+                                                     "_pakmap_running", "_weather_running", "_whatif_running")):
+            return False
+        messagebox.showinfo("Generate is running",
+                            "Scene actions are paused while Generate runs (both would fetch the same scene at once).\n\n"
+                            "Wait for it to finish, or press Stop, then Retry, Change source or Skip this scene.")
+        return True
+
     def _scene_action(self, action: str, scene_row: SceneRow) -> None:
         if not self._require_workspace("retry or change a scene"):
             return
         scene_row = self._scene_by_number(scene_row)
         key = _scene_key(scene_row.scene_number)
         if key in self._busy_scenes:
+            return
+        if self._generation_blocks_scene_actions():
             return
         if not self.images_var.get().strip():
             self._sync_images_dir()
@@ -12244,6 +12499,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._append_log("Cleared visual plan — paste a script or import a CSV to continue.\n")
 
     def _bulk_recovery(self, action: str, selected_only: bool) -> None:
+        if self._generation_blocks_scene_actions():
+            return
         snap = self._qa_snapshot()
         keys = self._qa.targets(snap.unresolved_keys, selected_only=selected_only)
         if not keys:
@@ -13511,6 +13768,12 @@ class VideoGeneratorApp(ctk.CTk):
     def _on_generate(self) -> None:
         if not self._uhd_disk_ok():
             return
+        busy = sorted(getattr(self, "_busy_scenes", set()) or ())
+        if busy:            # a Retry / Alternative still fetching: Generate would fetch the same scene at the same time
+            messagebox.showinfo("A scene is still being fetched",
+                                f"Scene {', '.join(busy[:6])}{' …' if len(busy) > 6 else ''} is still being retried or replaced.\n\n"
+                                "Generate once it shows READY (or Stop it), so the two never fetch the same scene at once.")
+            return
         if self.generation_mode == "overscaled":
             self._run_overscaled_generation()
             return
@@ -13525,6 +13788,11 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if self.generation_mode == "weather":
             self._run_weather_generation()
+            return
+        if self.generation_mode == "whatif":
+            from whatif import app_section as _wi
+
+            _wi.run_generation(self)
             return
 
         if self._running:
@@ -14648,10 +14916,10 @@ class VideoGeneratorApp(ctk.CTk):
         if self.generation_mode == "weather":
             messagebox.showinfo("Fix All Issues", "Not available for Weather. Use Retry or Change source on the affected clip(s) instead.")
             return
-        if self.generation_mode in ("pakmap", "hybrid", "starmap"):
+        if self.generation_mode in ("pakmap", "hybrid", "starmap", "whatif"):
             messagebox.showinfo(
                 "Fix All Issues",
-                "Not available for pakMap, Hybrid Map or StarMap. Use Retry or Change source on the affected picture(s) instead.",
+                "Not available for pakMap, Hybrid Map, StarMap or What If. Use Retry or Change source on the affected picture(s) instead.",
             )
             return
         if self.generation_mode == "overscaled":
@@ -15069,12 +15337,39 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.delete("1.0", "end")
         self.log_box.configure(state="disabled")
 
+    _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running")
+
+    def _heartbeat(self) -> None:
+        """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long
+        (transcribing a long voiceover, a big download or a render step can be quiet for minutes and look frozen)."""
+        try:
+            now = time.monotonic()
+            running = any(getattr(self, f, False) for f in self._RUN_FLAGS)
+            if not running:
+                self._run_started_at = None
+            else:
+                if getattr(self, "_run_started_at", None) is None:
+                    self._run_started_at = now
+                if now - getattr(self, "_last_log_at", now) >= 30:
+                    el = int(now - self._run_started_at)
+                    step = (getattr(self, "_last_log_line", "") or "").strip()[:90]
+                    self._append_log(f"… still working ({el // 60}:{el % 60:02d} so far){': ' + step if step else ''}\n")
+                    self._last_log_line = step          # the heartbeat itself is not the step
+        finally:
+            self.after(30000, self._heartbeat)
+
     def _append_log(self, text: str) -> None:
         if threading.current_thread() is not threading.main_thread():
             # Tk is single-threaded: hand a worker's line to the UI queue (drained in order by _poll_queue).
             self._ui_queue.put(("log", text))
             return
         line = (text or "").strip().split("\n")[-1].strip()
+        self._last_log_at = time.monotonic()
+        if not getattr(self, "_heartbeat_on", False):     # started by the first log line (every Generate begins with one)
+            self._heartbeat_on = True
+            self.after(30000, self._heartbeat)
+        if line and not line.startswith("… still working"):
+            self._last_log_line = line
         if line:
             try:
                 self.status_line_var.set(line[:140])

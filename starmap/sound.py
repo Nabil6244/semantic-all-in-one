@@ -15,7 +15,12 @@ import math
 from typing import Any, Dict, List
 
 LAYER_SFX = {"title": "deep_thud", "marker": "marker_pop", "region": "bubble_pluck", "trajectory": "directional_whoosh",
-             "orbit": "directional_whoosh", "stat_chip": "counter_ticks", "photo_card": "ui_click"}
+             "orbit": "directional_whoosh", "stat_chip": "counter_ticks", "photo_card": "ui_click",
+             "big_number": "deep_thud",
+             # Cinema (What If graphics): soft clicks on data, a low thud on titles, a soft transition into a plate
+             "tm_metric": "counter_ticks", "tm_title": "deep_thud", "cinema_plate": "soft_transition", "tm_caption": "ui_click",
+             "tm_timeline": "ui_click", "tm_logaxis": "ui_click", "tm_bars": "ui_click", "tm_compare": "ui_click", "tm_survival": "deep_thud",
+             "cinema_craft": "soft_transition", "tm_orbitmap": "directional_whoosh"}
 RANK = ("earth_spin", "deep_thud", "map_slide_whoosh", "soft_transition", "counter_ticks", "directional_whoosh", "marker_pop",
         "bubble_pluck", "ui_click")      # when two would play together, the earlier in this list wins
 MIN_GAP_S = 0.6                       # never two effects closer than this (the narration stays in front)

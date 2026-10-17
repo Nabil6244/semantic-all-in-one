@@ -1,5 +1,5 @@
 {
- "_about": "The bodies StarMap knows, as world entries for the engine (textures in starmap-engine/assets/textures). Aliases are what a script or CSV may call them; atmosphere adds the generic ATMOSPHERE layer whenever the body is in a video. parent_system: a moon's planet (place=europa frame=system shows jupiter+europa); system_view: the moon a planet's system view frames (place=jupiter frame=system).",
+ "_about": "The bodies StarMap knows, as world entries for the engine (textures in starmap-engine/assets/textures). Aliases are what a script or CSV may call them; atmosphere adds the generic ATMOSPHERE layer whenever the body is in a video. parent_system: a moon's planet (place=europa frame=system shows jupiter+europa); system_view: the moon a planet's system view frames (place=jupiter frame=system). period_days: the sidereal orbital period round its parent (NASA fact sheets), for orbit trails and time-lapsed orbits; rotation_hours: the sidereal day of a fast-turning planet, for time-lapsed close-ups.",
  "world": [
   {
    "id": "milkyway",
@@ -58,6 +58,7 @@
   },
   {
    "id": "mercury",
+   "period_days": 87.969,
    "parent": "sun",
    "kind": "body",
    "label": "MERCURY",
@@ -73,6 +74,7 @@
   },
   {
    "id": "venus",
+   "period_days": 224.701,
    "parent": "sun",
    "kind": "body",
    "label": "VENUS",
@@ -88,6 +90,8 @@
   },
   {
    "id": "earth",
+   "period_days": 365.256,
+   "rotation_hours": 23.934,
    "parent": "sun",
    "kind": "body",
    "label": "EARTH",
@@ -95,6 +99,8 @@
     "km": 6371
    },
    "texture": "earth_bluemarble_5400.jpg",
+   "night": "earth_night_4096.jpg",
+   "clouds": "earth_clouds_4096.jpg",
    "glow": "#7fb2ff",
    "offset": {
     "ephemeris": "earth"
@@ -105,6 +111,7 @@
   },
   {
    "id": "moon",
+   "period_days": 27.322,
    "parent": "earth",
    "kind": "body",
    "label": "MOON",
@@ -123,6 +130,8 @@
   },
   {
    "id": "mars",
+   "period_days": 686.98,
+   "rotation_hours": 24.623,
    "parent": "sun",
    "kind": "body",
    "label": "MARS",
@@ -139,13 +148,15 @@
   },
   {
    "id": "jupiter",
+   "period_days": 4332.59,
+   "rotation_hours": 9.925,
    "parent": "sun",
    "kind": "body",
    "label": "JUPITER",
    "radius": {
     "km": 69911
    },
-   "texture": "2k_jupiter.jpg",
+   "texture": "jupiter_cassini_pia07782.jpg",
    "offset": {
     "ephemeris": "jupiter"
    },
@@ -154,6 +165,7 @@
   },
   {
    "id": "io",
+   "period_days": 1.769,
    "parent": "jupiter",
    "kind": "body",
    "label": "IO",
@@ -170,6 +182,7 @@
   },
   {
    "id": "europa",
+   "period_days": 3.551,
    "parent": "jupiter",
    "kind": "body",
    "label": "EUROPA",
@@ -186,6 +199,7 @@
   },
   {
    "id": "ganymede",
+   "period_days": 7.155,
    "parent": "jupiter",
    "kind": "body",
    "label": "GANYMEDE",
@@ -202,6 +216,7 @@
   },
   {
    "id": "callisto",
+   "period_days": 16.689,
    "parent": "jupiter",
    "kind": "body",
    "label": "CALLISTO",
@@ -218,6 +233,8 @@
   },
   {
    "id": "saturn",
+   "period_days": 10759.22,
+   "rotation_hours": 10.656,
    "parent": "sun",
    "kind": "body",
    "label": "SATURN",
@@ -238,6 +255,8 @@
   },
   {
    "id": "uranus",
+   "period_days": 30685.4,
+   "rotation_hours": 17.24,
    "parent": "sun",
    "kind": "body",
    "label": "URANUS",
@@ -253,6 +272,8 @@
   },
   {
    "id": "neptune",
+   "period_days": 60189.0,
+   "rotation_hours": 16.11,
    "parent": "sun",
    "kind": "body",
    "label": "NEPTUNE",
@@ -268,6 +289,7 @@
   },
   {
    "id": "pluto",
+   "period_days": 90560.0,
    "parent": "sun",
    "kind": "body",
    "label": "PLUTO",
@@ -516,5 +538,30 @@
  },
  "system_view": {
   "jupiter": "europa"
+ },
+ "boundaries": {
+  "_about": "Named boundaries round a body that narration explains but no dataset draws, as the distance a craft crossed them at (approximate: the heliosphere is not a sphere). Shown as labelled rings when a map beat's narration names them. Termination shock: Voyager 1 crossed at ~94 AU (16 Dec 2004), Voyager 2 at ~84 AU; heliopause: Voyager 1 at ~121.6 AU (25 Aug 2012), Voyager 2 at ~119 AU (NASA/JPL).",
+  "sun": [
+   {
+    "id": "termination_shock",
+    "label": "TERMINATION SHOCK · V1 CROSSED ~94 AU",
+    "au": 94,
+    "says": [
+     "termination shock"
+    ]
+   },
+   {
+    "id": "heliopause",
+    "label": "HELIOPAUSE · V1 CROSSED ~122 AU",
+    "au": 121.6,
+    "says": [
+     "heliopause",
+     "heliosphere",
+     "interstellar space",
+     "interstellar medium",
+     "heliosheath"
+    ]
+   }
+  ]
  }
 }

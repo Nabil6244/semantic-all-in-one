@@ -240,20 +240,30 @@ class KeyboardNav(unittest.TestCase):
             return str(tk.call("focus", "-lastfor", toplevel))
 
         self.assertEqual(focused(), str(start), "could not focus the nav button")
+        def press(seq, at):
+            """Send one real key to `at`; the newly focused path. If focus did not move because the window lost
+            keyboard focus to another test window (parallel runner), skip as _focus_or_skip does."""
+            w = self.inst.nametowidget(at)
+            target = w.tk_focusNext() if seq == "<Tab>" else w.tk_focusPrev()
+            w.event_generate(seq)
+            self.inst.update()
+            now = focused()
+            if now == at and self.inst.focus_get() is None:
+                self.skipTest("the window lost keyboard focus to another window mid-walk")
+            if now == at:
+                self.fail(f"{seq} did not move focus from {at} (Tk's next/prev target: {target})")
+            return now
+
         path = [focused()]
         for _ in range(25):
-            self.inst.nametowidget(path[-1]).event_generate("<Tab>")
-            self.inst.update()
-            path.append(focused())
+            path.append(press("<Tab>", path[-1]))
         self.assertEqual(len(set(path)), len(path), f"focus repeated / got stuck: {path}")
         for p in path:
             self.assertTrue(self._viewable(p), f"Tab focused a non-viewable widget {p}")
         # back again
         back = [path[-1]]
         for _ in range(25):
-            self.inst.nametowidget(back[-1]).event_generate("<Shift-Tab>")
-            self.inst.update()
-            back.append(focused())
+            back.append(press("<Shift-Tab>", back[-1]))
         self.assertEqual(back[-1], path[0], "Shift+Tab did not walk back to where Tab started")
         self.results["real_tab_path_len"] = len(path)
 

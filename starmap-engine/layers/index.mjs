@@ -22,9 +22,10 @@ import status_badge from './status_badge.mjs';
 import footnote from './footnote.mjs';
 import time_jump from './time_jump.mjs';
 import tracker from './tracker.mjs';
+import big_number from './big_number.mjs';
 
 export const BUILTIN_LAYERS = [body_labels, marker, region, orbit, trajectory, spacecraft, atmosphere, link, rings, pointer, galaxy_guide,
-  title, stat_chip, mission_clock, distance, photo_card, caption, channel_name, status_badge, footnote, time_jump, tracker];
+  title, stat_chip, mission_clock, distance, photo_card, caption, channel_name, status_badge, footnote, time_jump, tracker, big_number];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

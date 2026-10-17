@@ -115,7 +115,9 @@ class EverySample(unittest.TestCase):
                 media = json.loads(media_json.read_text(encoding="utf-8"))
                 rep = check_csv(text, words, None, media=media)
                 self.assertTrue(rep.ok, rep.to_text())
-                self.assertFalse([p for p in rep.to_text().splitlines() if p.startswith("NOTE")], rep.to_text())
+                # "drawn as rings" only says a boundary the narration names was drawn for it (starmap/compile.py): not a problem
+                self.assertFalse([p for p in rep.to_text().splitlines() if p.startswith("NOTE") and "; drawn as rings round " not in p],
+                                 rep.to_text())
                 spec = strip_private(compile_plan(read_plan(text, words), Catalog(pid), media=media).spec)
                 self.assertTrue(any(L["type"] == "spacecraft" for L in spec["layers"]), "the sample shows its craft")
                 self.assertTrue(any(L["type"] == "trajectory" for L in spec["layers"]), "and its path")

@@ -385,3 +385,91 @@ class Generate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NarrationMatch(unittest.TestCase):
+    """011 Voyager: wrong NASA clips, an empty footage beat, captions standing in for pictures."""
+
+    def test_nasa_video_candidates_that_show_something_else_are_dropped(self):
+        from types import SimpleNamespace as NS
+
+        from starmap.media import _checked_nasa_video
+
+        class Base:
+            def __init__(self, **kw):
+                pass
+
+            def _search(self, scene, log, exclude_ids):
+                return [NS(nasa_id="ksc_012805_touchdown", title="KSC-05-S-00034", description="Space shuttle Discovery touchdown, 2005"),
+                        NS(nasa_id="tempo", title="NASA, Smithsonian Briefing on TEMPO Air Quality Satellite Instrument", description="Briefing"),
+                        NS(nasa_id="v1", title="Voyager 1 Launch on a Titan IIIE-Centaur", description="Voyager 1 lifts off, September 5, 1977")]
+
+        got = _checked_nasa_video(Base)()._search(NS(prompt="Titan IIIE-Centaur launch of Voyager 1 in September 1977", scene_number=4), lambda m: None, set())
+        self.assertEqual([c.nasa_id for c in got], ["v1"])
+
+    def test_a_footage_beat_with_no_clip_keeps_the_map_before_it(self):
+        from types import SimpleNamespace as NS
+
+        from starmap.app_integration import hold_map_over_empty_footage
+
+        beats = [NS(id="b1", mode="map", start=0.0, end=10.0), NS(id="b2", mode="footage", start=10.0, end=16.0)]
+        spec = {"footage": [], "layers": [{"type": "spacecraft", "start": 0.0, "end": 10.0}, {"type": "caption", "start": 5.0, "end": 10.0}]}
+        hold_map_over_empty_footage(spec, beats)
+        self.assertEqual([L["end"] for L in spec["layers"]], [16.0, 10.0], "the craft stays; its caption ends with its words")
+
+    def test_a_caption_naming_what_nothing_draws_is_flagged(self):
+        from types import SimpleNamespace as NS
+
+        from starmap.subject_check import check_subjects
+
+        plan = NS(beats=[NS(id="b1", mode="map", start=0.0, end=10.0, text="The heliopause.")])
+        cap = {"type": "caption", "text": "THE HELIOPAUSE", "start": 2.0, "end": 6.0}
+        bare = {"layers": [cap], "camera": {"start": {"target": "sun"}, "moves": []}, "footage": []}
+        self.assertEqual(len(check_subjects(plan, bare, (), ["heliopause"])), 1)
+        drawn = dict(bare, layers=[cap, {"type": "rings", "start": 1.0, "end": 10.0, "rings": [{"label": "X", "names": ["heliopause"]}]}])
+        self.assertEqual(check_subjects(plan, drawn, (), ["heliopause"]), [])
+
+
+class CachedMediaStaysChecked(unittest.TestCase):
+    """011 Voyager: wrong files cached by an earlier Generate came straight back on the next one."""
+
+    def _rows(self):
+        from types import SimpleNamespace as NS
+
+        return [NS(scene_number="4", source="nasa_video", prompt="Titan IIIE-Centaur launch of Voyager 1 in September 1977", row=23, kind="clip", beat="b6"),
+                NS(scene_number="50", source="stock_image", prompt="glowing refrigerator light bulb inside an open fridge", row=249, kind="card", beat="b63"),
+                NS(scene_number="16", source="nasa_image", prompt="Linda Morabito optical navigation engineer at JPL", row=81, kind="card", beat="b19"),
+                NS(scene_number="2", source="nasa_image", prompt="Voyager 1 image of Jupiter's Great Red Spot", row=60, kind="card", beat="b13")]
+
+    def test_a_cached_wrong_file_is_failed_and_never_returns(self):
+        import json as _json
+        from types import SimpleNamespace as NS
+
+        from asset_manager import AssetManifest
+        from starmap.media import recheck_cached_media, rejected_ids
+
+        d = Path(tempfile.mkdtemp())
+        man = AssetManifest(d)
+        man.set("4", {"source": "nasa_video", "status": "complete", "provider_asset_id": "ksc_012805_touchdown", "title": "KSC-05-S-00034"})
+        man.set("50", {"source": "stock_image", "status": "complete", "provider_asset_id": "6593607"})
+        man.set("16", {"source": "stock_image", "status": "complete", "provider_asset_id": "pixabay:4373171", "user_override": True})
+        man.set("2", {"source": "nasa_image", "status": "complete", "provider_asset_id": "PIA00342"})
+        (d / ".visual_qa_cache.json").write_text(_json.dumps({"k": {"scene_number": "50", "asset_id": "6593607", "status": "WEAK", "semantic_match": 0.26,
+                                                                    "failure_reasons": ["semantic mismatch"]}}), encoding="utf-8")
+
+        def get(url, **kw):
+            nid = kw["params"]["nasa_id"]
+            data = {"ksc_012805_touchdown": ("KSC-05-S-00034", "Space shuttle Discovery touchdown", "2005-01-28"),
+                    "PIA00342": ("Jupiter Great Red Spot", "Voyager 1 view of Jupiter's Great Red Spot", "1979-02-25")}[nid]
+            return NS(status_code=200, raise_for_status=lambda: None,
+                      json=lambda: {"collection": {"items": [{"data": [{"title": data[0], "description": data[1], "date_created": data[2]}]}]}})
+
+        failed = recheck_cached_media(self._rows(), d, log=lambda m: None, get=get)
+        self.assertEqual(sorted(failed), ["4", "50"], "a touchdown for a 1977 launch; a visual-QA mismatch; the right one and the user's own file are kept")
+        self.assertEqual(AssetManifest(d).get("4")["status"], "failed")
+        self.assertEqual(AssetManifest(d).get("2")["status"], "complete")
+        self.assertEqual(AssetManifest(d).get("16")["status"], "complete", "the user's own choice is never overridden")
+        self.assertEqual(rejected_ids(d), {"4": ["ksc_012805_touchdown"], "50": ["6593607"]})
+        # found again later for the same row: it is on the list, so it is failed again, never reused
+        AssetManifest(d).set("4", {"source": "nasa_video", "status": "complete", "provider_asset_id": "ksc_012805_touchdown"})
+        self.assertEqual(recheck_cached_media(self._rows(), d, log=lambda m: None, get=get), ["4"])

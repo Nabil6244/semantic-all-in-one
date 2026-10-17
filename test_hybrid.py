@@ -558,12 +558,13 @@ class TestIsolation(unittest.TestCase):
     def test_hybrid_only_reaches_for_the_shared_pieces_it_should(self):
         import re
 
-        allowed = {"hybrid", "pakmap", "visual_director", "providers", "asset_manager", "video_generator", "smart_editing", "scene_graph", "pakmap_engine", "ai_router"}
+        allowed = {"hybrid", "pakmap", "visual_director", "providers", "asset_manager", "video_generator", "smart_editing", "scene_graph", "pakmap_engine", "ai_router",
+                   "anchor_clock", "map_scene", "PIL"}  # shared narration clock, bundled-ffmpeg finder, watermark image
         used = set()
         for f in (ROOT / "hybrid").glob("*.py"):
             for m in re.finditer(r"^\s*(?:from|import)\s+([a-zA-Z_][\w]*)", f.read_text(encoding="utf-8"), re.M):
                 used.add(m.group(1))
-        stdlib = {"__future__", "copy", "json", "re", "math", "statistics", "time", "pathlib", "dataclasses", "typing", "difflib", "os", "sys", "csv", "io", "tempfile", "shutil", "hashlib", "uuid"}
+        stdlib = {"__future__", "copy", "json", "re", "math", "statistics", "time", "pathlib", "dataclasses", "typing", "difflib", "os", "sys", "csv", "io", "tempfile", "shutil", "hashlib", "uuid", "subprocess"}
         self.assertEqual(sorted(used - stdlib - allowed), [])
 
     def test_the_packaged_build_ships_the_prompts_and_the_engine_module(self):

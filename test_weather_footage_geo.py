@@ -111,12 +111,16 @@ class TheWiring(unittest.TestCase):
         for f in ("weather/generate.py", "weather/newsdoc/generate.py"):
             self.assertIn("make_resolver", Path(f).read_text(encoding="utf-8"), f)
 
-    def test_news_doc_never_asks_stock_for_a_place_or_tags_b_roll_with_one(self):
-        from weather.footage_geo import shows_place
+    def test_news_doc_place_b_roll_is_vetted_and_its_last_resort_has_no_place(self):
+        from weather.footage_geo import shows_place, verdict
         from weather.newsdoc.plan import DEFAULT_STOCK, stock_request
 
         self.assertFalse(any(shows_place(v) for v in DEFAULT_STOCK.values()))
-        self.assertFalse(shows_place(stock_request("Water covered the fields and the roads near the river.", "flood")))
+        # a line about fields asks for fields (newsdoc.plan.SCENES); a clip of fields whose record points abroad is still refused
+        req = stock_request("Water covered the fields and the roads near the river.", "flood")
+        self.assertTrue(shows_place(req), req)
+        abroad = {"source_url": "https://www.pexels.com/video/flooded-rice-paddy-fields-after-rain-123/", "author": "Nguyễn Văn"}
+        self.assertFalse(verdict(req, abroad)[0])
 
 
 if __name__ == "__main__":

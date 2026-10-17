@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .beat_csv import Beat, Plan
 from .catalog import Catalog, CatalogError
@@ -216,10 +216,12 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
     pick = _variant(b.id, cq)
     gens = _gens(data)
 
-    def hold(t0: str, t1: str, el: float, km: float, fit: float = 1.35, up: str = "radial") -> Dict[str, Any]:
+    def hold(t0: str, t1: str, el: float, km: float, fit: float = 1.35, up: str = "radial", include: Sequence[str] = ()) -> Dict[str, Any]:
         """The action's frame: the stretch of the craft's path the beat shows, framed whole from the side and HELD -- the
-        craft visibly crosses it and the tracker goes with it; the camera only turns if the craft would leave the frame."""
-        path = {"trajectory": tid, "from_utc": t0, "to_utc": t1, "fit": fit, **({"up": up} if up != "radial" else {})}
+        craft visibly crosses it and the tracker goes with it; the camera only turns if the craft would leave the frame.
+        include: bodies framed with it (a flyby's planet, so it is not cut off at the edge)."""
+        path = {"trajectory": tid, "from_utc": t0, "to_utc": t1, "fit": fit, **({"up": up} if up != "radial" else {}),
+                **({"include": list(include)} if include else {})}
         return {"path": path, "el_deg": el, "keep": {"trajectory": tid, "within": 0.8}, "_km": round(km)}
 
     if action == "liftoff":
@@ -258,6 +260,17 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         r = _orbit_radius(g, R, gens[gens.index(g) - 1] if g and gens.index(g) else None) if g else None
         if action == "orbit":
             a.span = (e, _shift(e, 0.6 * P))
+        elif action == "approach" and g is None:
+            # still on its way (no orbit there yet): the coast from here to the encounter, the body at the end of it -- half an
+            # hour of a months-long cruise is a craft alone in black space
+            meet = sorted(ev.utc for did in c.datasets for name, ev in cat.index.datasets[did].events.items()
+                          if body in name.lower() and iso_days(e, ev.utc) > 0)
+            a.span = (e, meet[0] if meet else _shift(e, 30 * 86400))
+            a.intro = hold(a.span[0], a.span[1], (38, 46, 32)[pick % 3], 1.5e8, fit=1.3, up="plane", include=[body])
+            a.readouts = ["distance", "speed"]
+            a.dest = body
+            a.summary = f"{cq} approaches {body} ({a.span[0][:10]} → {a.span[1][:10]})"
+            return _finish(a, b, c, res, when, e)
         else:
             a.span = (_shift(e, -0.12 * P), _shift(e, 0.3 * P))     # the arrival and the first stretch of orbit
             if action == "orbit_insert":
@@ -303,7 +316,9 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         if body is None:
             raise _Incomplete(f"Flyby visual incomplete: no body to fly past (give the beat a place)")
         Rb = _radius(cat, body)
-        h = min(36.0, max(1.0, Rb / 2000.0)) * 3600
+        # about six body radii of path either side of closest approach at flyby speed (~25 km/s): the planet a disc with the
+        # bend round it. Rb / 2000 h (+-29 h at Saturn, ~5 million km) framed the planet as a speck in an empty black frame
+        h = min(36.0, max(1.0, Rb / 15000.0)) * 3600
         a.body, a.span = body, (_shift(e, -h), _shift(e, h))
         if fg and fg.get("_t0") and fg.get("_t1"):
             a.span = (max(fg["_t0"], a.span[0]), min(fg["_t1"], a.span[1]))
@@ -312,7 +327,7 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
             a.stages = [Stage("approach", e, KEY), Stage("departure", a.span[1], KEY)]
             a.stages_cross_beats = True
         # the bend of the flyby, seen from above its plane, held: the craft swings past the body and away
-        a.intro = hold(a.span[0], a.span[1], (62, 75, 50)[pick % 3], 8 * Rb, fit=1.3, up="plane")
+        a.intro = hold(a.span[0], a.span[1], (62, 75, 50)[pick % 3], 8 * Rb, fit=1.3, up="plane", include=[body])
         a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} flies past {body}, closest at {e[:16].replace('T', ' ')} UTC"
     elif action in ("docking", "undocking", "separation"):
@@ -360,6 +375,12 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
         a.intro = hold(a.span[0], a.span[1], 28, max(300.0, Rf))
         a.readouts = ["altitude", "speed"]
         a.summary = f"{cq} on its path at {e[:16].replace('T', ' ')} UTC"
+    return _finish(a, b, c, res, when, e)
+
+
+
+def _finish(a: BeatAction, b: Beat, c: Any, res: Any, when: str, e: str) -> BeatAction:
+    """Every action's last touches: a stretch time runs into starts where the clock is, burns, the pace, the frames' moment."""
     if any(t.b == b.id and t.kind == "continuous" for t in getattr(res, "transitions", [])):
         # time runs in from the beat before: the beat shows the path from where the clock already is, so frame that
         for sh in [a.intro] + [x[2] for x in a.camera]:
@@ -376,7 +397,6 @@ def _build(b: Beat, c: Any, asked: str, source: str, crafts: List[Any], cat: Cat
             pth = sh["path"]
             pth["ref_utc"] = when if a.strategy == "motion" else _shift(pth["from_utc"], 0.5 * iso_days(pth["from_utc"], pth["to_utc"]) * 86400)
     return a
-
 
 def _variant(beat: str, craft: str) -> int:
     """A stable small number per beat and craft: which of an action's framings to use (the same CSV always gives the same

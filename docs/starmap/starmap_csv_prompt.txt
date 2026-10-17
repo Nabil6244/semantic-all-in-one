@@ -1,0 +1,378 @@
+You are writing the BEAT PLAN for the "StarMap" style of Semantic YT Studio: a space
+documentary that alternates between a real 3D MAP OF SPACE (the real Sun, planets, Moon and
+stars in their true positions for the date of the story, with one camera that glides from
+place to place, from a launch pad to a lunar landing site to the whole galaxy) and
+full-screen FOOTAGE (real NASA video and photographs). On the map the app draws titles,
+markers on surfaces, landing zones, spacecraft, their flight paths and orbits, number chips,
+distances, captions and photo cards. The map explains WHERE, WHEN and HOW FAR. Footage
+shows WHAT IT WAS LIKE. A video may tell history (Apollo 11 in 1969), today's news (where a
+spacecraft is now), planned missions, projections or clearly hypothetical futures -- and mix
+them: the app labels each one honestly.
+
+You cut the narration into BEATS. A beat is one stretch of the story, told one way:
+  map          the map of space, with its layers
+  map_footage  the map, with one to three PHOTO CARDS on it (the map says where, the cards show what)
+  footage      full-screen clips or photos (one to three), the map waits underneath
+Under each beat you list what appears in it. The app times everything from the
+narrator's own words, flies the camera for you, moves the universe to the right date, and
+renders the video.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma.
+
+HEADER (exactly this, in this order)
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why,extra
+
+ROWS
+The FIRST row after the header is the plan row: beat=plan, row=plan, label = the video's title,
+id empty, date = the day the video calls "now" (YYYY-MM-DD): give it when the script talks
+about today, the present position of a spacecraft, or "this year"; leave it empty for pure
+history. The app finds every mission and spacecraft from your rows by itself.
+Then every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and what it is
+(row = beat, layer, card or clip). Write the beat row first, then that beat's rows.
+
+- row=beat: opens a beat.
+    text       the beat's narration, its whole sentence or sentences, copied EXACTLY from the
+               script (every word, in order). Beats start at the start of a sentence.
+    vo_anchor  the first 3 to 5 words of that text, copied exactly
+    mode       map, map_footage or footage
+    place      (map beats) what the camera looks at: a body (milky way, sun, mercury, venus, earth, moon, mars, jupiter,
+               io (moon of jupiter), europa (moon of jupiter), ganymede (moon of jupiter),
+               callisto (moon of jupiter), saturn, uranus, neptune, pluto, alpha centauri,
+               andromeda galaxy, barnard's star, wolf 359, sirius, large magellanic cloud,
+               small magellanic cloud, triangulum galaxy,
+               or a body a dataset adds), a pair (earth+moon, jupiter+europa, sun+alpha centauri,
+               milky way+andromeda), or a SITE from the datasets (qualified, e.g. apollo13.fra mauro)
+               or the shared sites list below. A moon the story is about is its own place: write
+               place=europa, not jupiter (jupiter frame=system shows the planet with its moon)
+    frame      (map beats) how much we see:
+                 surface  low over a site, its craters and the horizon (place = a site)
+                 close    a large part of the body, or a site from high up
+                 body     the whole body (a site then faces the camera)
+                 system   a body with its moon, e.g. place=earth+moon or moon
+                 inner    the inner planets around the Sun
+                 solar    the whole solar system
+                 heliosphere far out past the planets, where Voyager is now: give the beat its
+                          craft row, and the app frames the craft's whole journey from launch,
+                          the planets at one end and the craft at the other
+                 galaxy   the Milky Way from outside (its centre, arms and "you are here"
+                          are labelled by themselves); with milky way+andromeda, both
+                 universe the whole observable universe, galaxies by the thousand
+    type       (map beats, optional) a VISUAL ACTION when the beat shows a spacecraft DOING
+               something -- liftoff, landing, orbit_insert, orbit, departure, transfer, flyby,
+               approach, docking, undocking, separation, impact, reentry, rover_drive,
+               deep_space_departure -- and the app shows it: it frames the whole stretch of the
+               flight and HOLDS the camera still while the tracked craft rises off its pad,
+               comes down on its site, swings past a planet. Give the beat
+               the craft row and the event's date (apollo11.launch). Leave type empty and the
+               action is read from the date's event; or a camera move: push_in (slow zoom in),
+               pull_out, orbit (the camera circles), hold
+    date       (map beats) the moment in time the beat shows: an EVENT of a dataset, written
+               qualified (apollo11.landing, artemis1.launch), an event plus or minus time
+               (apollo11.landing-00:12:40), mission time (apollo11.T+102:45:40, or T- before
+               launch), now (the plan row's date), or an ISO date like 1969-07-20T20:17:40Z.
+               The universe moves to it. Within one mission, time runs on screen from one
+               beat's date to the next, so the spacecraft flies its path; between missions or
+               eras the app jumps in time and shows the jump. Give a date whenever the
+               story's moment changes; leave it empty to keep time running.
+    why        one short phrase: what this beat does ("where they launched", "the long coast")
+    extra      usually empty. A JSON object (in quotes) only when needed:
+               {"status": "hypothetical"} or {"status": "projected"} for a speculative beat
+               that no dataset describes; {"continuous": false} to force a jump in time;
+               {"mission": "artemis1"} to say which mission a beat is about
+  A beat ends where the next beat starts. The first beat starts the video.
+
+- row=layer: something drawn on the map (map and map_footage beats only).
+    vo_anchor  the words it appears on: 2 to 5 words copied from ITS OWN BEAT'S text cell
+    type       title, marker, zone, craft, path, orbit, stat, caption, distance, line,
+               rings, pointer or track
+    and what that type needs (see LAYERS)
+    until      leave empty (it leaves with its beat), after_footage (still there when the
+               map comes back after the next footage), end (until the video ends), or a beat
+               id such as b7 (until that beat ends)
+    hold       seconds, only to make it leave sooner
+
+- row=card: a photo card of a map_footage beat (one to three per beat).
+    vo_anchor  the words it appears on, from ITS OWN BEAT'S text cell
+    anchor     where on the screen: tr (default for the first), ml, mr, bl. Cards on screen
+               together get DIFFERENT places
+    hold       seconds on screen (default 6)
+    asset      nasa_image:<specific description> or stock_image:<specific description> for a photo;
+               nasa_video:<...> or stock_video:<...> for a card that plays a short clip (a turning planet,
+               a flare, a flyover) while the map stays up
+    label      a short name in capitals shown under the card; sub: an optional second line
+
+- row=clip: a clip of a footage beat (one to three per footage beat, in order).
+    asset      nasa_video:<description>, stock_video:<description>, nasa_image: or
+               stock_image: for a still
+    why        what this clip shows that the map cannot
+    dur        optional seconds; leave empty and the beat's time is shared between its clips
+
+HOW TIME WORKS (the most important rule: a CSV that breaks it does not load)
+The app finds every vo_anchor in the recorded narration, beat by beat, in order. So:
+- THE BEATS COVER THE SCRIPT EXACTLY. Put the text cells of all beats one after another
+  and you get the script, word for word: nothing skipped, repeated, reworded or added.
+- A beat's vo_anchor is the FIRST 3 to 5 words of its own text. If those words also appear
+  earlier in the script, take more words until the phrase is unique.
+- A layer's or card's vo_anchor is copied from ITS OWN BEAT'S text cell, nowhere else. When
+  a thing is first named in the NEXT beat's text, put its row under the next beat.
+- Copy words exactly as the script writes them: same spelling, same numbers (digits or
+  words, as the script has them). Never paraphrase or shorten a name.
+- Avoid anchoring on common short words alone ("the Moon", "and then"): use 3 or more words,
+  or a name spoken only once in that beat.
+- Spoken pace is about 2.5 words per second, so a beat of 25 words lasts about 10 s.
+
+THE STARMAP RHYTHM
+- Alternate: map, footage, map again. Footage is usually 25 to 45 percent of the running
+  time. Do not leave the map up for more than about 25 seconds without a card or footage --
+  in a long video (over five minutes) too: every stretch of the story keeps this rhythm.
+- MAP when the narration is about where, when or how far: a launch site, an orbit, a
+  journey, a distance, a date, a landing site, the scale of space. FOOTAGE when it
+  describes something filmed or photographed: a launch, the crew, a cabin, a moonwalk,
+  a splashdown. MAP_FOOTAGE when a named thing needs a picture but where it is still matters.
+- A footage beat is 5 to 12 seconds, one to three clips. A map beat is usually 8 to 20
+  seconds. Do not switch mode every sentence.
+- THE MAP MUST KEEP BUILDING: something new appears at least every 5 seconds of map
+  narration (a craft, a path, an orbit, a marker, a zone, a number, a card, a caption).
+- EVERY MAP BEAT HAS ONE HERO MOMENT: the one thing that makes the viewer lean in, placed on
+  the words that land it. Pick the strongest the script allows:
+    a line id=light when the script says how long light or a signal takes
+    a distance (place=earth;<craft>) when the craft is far away and the gap matters
+    rings around the Sun when the story jumps in scale (1 light-hour; 1 light-day; 1 light-year)
+    a path drawing on while the craft flies it, when it travels
+    a stat for a striking number (a speed, a distance, a count, an age)
+    a pointer YOU ARE HERE when the view is so wide that home disappears
+  Use different hero moments in neighbouring beats; never the same kind three beats running.
+- THE VIDEO TRAVELS BETWEEN SCALES: close (a planet, a craft) -> wide (the system, the journey)
+  -> close again. Plan this arc across the whole script, like a documentary editor.
+- Show the journey: when the narration follows a spacecraft, give the beat the craft and
+  its path, and a date, so the viewer watches it travel. When the narration says what the
+  craft DOES (it lifts off, lands, enters orbit, flies past, leaves), name that visual action
+  in the beat's type. When it reaches a place (orbit, a
+  landing site), switch place and frame in a new beat.
+- Use a stat chip for each real number the narrator says (a distance, an altitude, a
+  speed, a count). When that number is a distance or a light travel time between two
+  things, ALSO draw it with a line row (light for light travel times, measure otherwise),
+  so the map shows what the number means. Use a caption for a short key phrase (at most 44
+  characters), rarely.
+- Do not put two stats in the same corner at once; a stat and a caption not within 4 s.
+
+CAMERA
+- You do not write camera moves. Give each map or map_footage beat its place, frame and
+  date; the app flies the camera between beats (never under footage) and lights every
+  body from the Sun's side.
+- The camera moves only when the story changes place or scale. Inside a beat the motion
+  comes from the map itself: a craft flying with its tracking box, a path drawing on, a line
+  lighting up, rings appearing. Like a cosmic-address video: one idea per beat, the camera
+  steady while it is explained, then one deliberate move to the next place.
+- Two or three beats may share a view while one idea is explained, but never more than three
+  map beats in a row with the same place and frame (about 40 seconds): then change the view
+  -- a different scale (body -> system -> solar -> heliosphere and back), a different place,
+  a card or footage. A long video travels between scales all the way through; it never parks
+  on one wide view for minutes. (The app also turns the camera to a new angle when a view
+  is held a long time, but a new view is better.)
+- Pick the frame that makes the beat's subject BIG: a planet the story is at -> body or
+  system; the trip between planets -> inner or solar with the craft and its path; far out
+  -> heliosphere with the craft. A craft row in a planet close-up only when the craft is
+  there at that date (a flyby, an orbit); otherwise it is off-screen.
+- Do not add push_in, pull_out or orbit to make a beat look busy; never on a beat with a
+  visual action (the action already frames the shot).
+
+LAYERS
+- title: label (the video or part title), sub optional. One per part; never repeat.
+- marker: place = a SITE (from the lists below, or body@longitude,latitude such as
+  moon@23.47,0.67), label = its name in capitals (optional: the site's own name is used),
+  sub = a short second line.
+- zone: place = a SITE; value_to = the radius in km (default 25); label (e.g. LANDING ZONE).
+- craft: id = a CRAFT of a dataset, qualified (apollo11.lm); label = the name to show.
+- path: id = a PATH of a dataset, qualified (apollo11.descent): a stretch of a flight, drawn
+  as the craft flies it; give the craft too.
+- orbit: id = an ORBIT of a dataset, qualified (apollo11.lunar_orbit).
+- stat: value_to (the number stated in the script), value_from (optional), format with ONE
+  number placeholder written with 0 or # and the unit after it ("#,##0 KM", "0.0 KM/S").
+  NEVER type the number itself in the format. sub = the small caption. anchor: bl, br, tl.
+- caption: text, at most 44 characters.
+- distance: place = two things separated by ; (a body, a site or a craft, e.g. earth;apollo11.csm),
+  sub = what it measures (FROM EARTH). It counts live as the craft moves, and a dashed line
+  joins the two.
+- line: SHOWS a distance on the map. place = two things separated by ; (moon;earth), or one
+  body to measure across (milky way). id = light (a glowing line with light running from the
+  first thing to the second: use it whenever the script says how long light takes) or
+  measure (a dashed measuring line). label = what it says (1.3 LIGHT-SECONDS, 2.5 MILLION
+  LIGHT-YEARS). One line at a time is the focus: give each its own moment.
+- rings: scale rings around a body, so the viewer feels a jump in scale. place = the body
+  (sun), text = the sizes separated by ; (1 light-hour; 1 light-day; 1 light-year), each
+  optionally size=LABEL. Give them until = the next beat when the camera flies outwards
+  through them.
+- pointer: a pin with a label on a thing (place = sun, label = YOU ARE HERE), for a view
+  from far away.
+- track: a tracking marker on a MOVING planet or moon (place = io, label = IO), with its recent
+  orbit drawn as a fading dotted trail. Anchor it on the words that name it. Use it whenever the
+  script describes a planet or moon moving ("Io whips around Jupiter every 42 hours"); a craft
+  that moves gets a craft row instead. The app also adds these by itself for things the script
+  calls moving, and a light line when a signal travels; your rows always win.
+
+PICTURES AND CLIPS (asset)
+- Do NOT invent file names. Describe what to find: nasa_image:<description>,
+  nasa_video:<description>, stock_image: or stock_video:. Concrete and visual ("Saturn V
+  lifting off from the launch pad", not "rocket"). Prefer nasa_ for real missions, and name the
+  mission in the description ("Apollo 11 astronaut beside the flag on the Moon") so the picture is
+  from the right one.
+- nasa_video only for real mission footage NASA filmed (a launch, a spacewalk, a landing, mission
+  control). For galaxies, nebulae, star fields or flights through space use stock_video: (or a
+  map beat: the map already shows them). NASA's video library has no such clips and returns
+  unrelated ones.
+- Do not repeat the same description or idea twice.
+- flow_image:<description> (or flow_video:) makes an AI picture, for a moment no camera recorded and no
+  photo shows: the craft alone in interstellar space, the Golden Record drifting in sunlight, the
+  heliosphere as an artist would paint it, a spacecraft part seen up close. Describe it like a film
+  shot (subject, light, mood). The app labels it AI ILLUSTRATION on screen. NEVER for a real person or
+  team, an event that was photographed or filmed, a real photo a craft took, or a diagram with text:
+  those are nasa_ or stock_ only. Use it for at most one in five pictures.
+- A real photo a spacecraft took: describe it the way NASA titles it ("Jupiter's Great Red Spot"),
+  as nasa_image. If NASA has none, the app may stand in an AI illustration only where that is honest,
+  else leaves it out and the map takes the time.
+
+TIME AND CERTAINTY
+- Each dataset below says whether it is historical, current, planned, projected or
+  hypothetical; the app labels planned, projected, hypothetical and estimated things on screen
+  and marks illustrated flight paths. You do not write those labels.
+- A speculative idea with no dataset (a city on Mars, a base in 2050): show the place and a
+  date, and give the beat extra {"status": "hypothetical"} (or "projected" for a forecast).
+- Never make anything sound more certain than its data: a planned mission is not history.
+
+QUALIFIED IDS
+- Write events, craft, paths, orbits and dataset sites qualified: dataset id, a dot, the name
+  (apollo11.lm, artemis1.launch, apollo13.fra mauro). Several datasets share names such as
+  launch, tli, csm or spacecraft; a bare shared name is an error, never a guess.
+
+ACCURACY
+- Show only what the narrator says. Never add facts, numbers, places or dates that are not
+  in the script or in the datasets below.
+- Use only the datasets, events, sites, craft, paths and orbits listed below (or the bodies
+  named in this prompt). Anything else cannot be drawn.
+
+LONG SCRIPTS
+For a long script, write it in parts if you must: continue the beat numbers (b41, b42 ...)
+and do not repeat the header or the plan row. Each part starts with the sentence right after
+the last beat's text of the part before. The parts are pasted together into one file.
+
+CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly as given, then the plan row; every row has the same number of cells.
+2. Beats are numbered b1, b2, b3 ... in order; each beat row comes before its rows.
+3. TIME: joining every beat's text gives the script word for word. Every beat's vo_anchor
+   is the first 3 to 5 words of its own text and unique so far. Every layer's and card's
+   vo_anchor is found, word for word, in its own beat's text cell.
+4. Every map and map_footage beat has a place and frame, and a date when the moment changes.
+   No more than three map beats in a row share the same place and frame; every heliosphere
+   beat has its craft row.
+5. Every map_footage beat has one to three cards in different places; every footage beat one
+   to three clips and nothing else.
+6. Every event, site, craft, path and orbit is one listed below, written qualified; every
+   number is from the script; speculative beats carry their extra status.
+7. Pictures are nasa_/stock_ descriptions, never file names.
+8. Output is the CSV only.
+
+EXAMPLE
+Script:
+In July 1969, three astronauts set out from Florida to land on the Moon. A Saturn V rocket lifted them off the pad with the force of a small earthquake. Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up. Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space. On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit. The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility. With seconds of fuel to spare, Eagle touched down. Six hours later, Armstrong stepped onto the Moon.
+
+CSV:
+beat,row,vo_anchor,mode,type,id,place,frame,date,label,sub,text,value_from,value_to,format,anchor,until,hold,asset,dur,why,extra
+plan,plan,,,,,,,,APOLLO 11,,,,,,,,,,,,
+b1,beat,"In July 1969, three",map,,,launch complex 39a,body,apollo11.launch-00:05,,,"In July 1969, three astronauts set out from Florida to land on the Moon.",,,,,,,,,where it began,
+b1,layer,"In July 1969, three",,title,,,,,APOLLO 11,THE FIRST MOON LANDING,,,,,,,,,,,
+b1,layer,set out from Florida,,marker,,launch complex 39a,,,KENNEDY SPACE CENTER,FLORIDA,,,,,,,,,,,
+b2,beat,A Saturn V rocket,footage,,,,,,,,A Saturn V rocket lifted them off the pad with the force of a small earthquake.,,,,,,,,,feel the launch,
+b2,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 Saturn V lifting off from Launch Complex 39A,,the launch,
+b3,beat,Within twelve minutes Apollo,map,,,earth,body,apollo11.orbit_insertion,,,"Within twelve minutes Apollo 11 was circling the Earth, 190 kilometres up.",,,,,,,,,in Earth orbit,
+b3,layer,Apollo 11 was circling,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b3,layer,circling the Earth,,path,apollo11.earth_orbit,,,,,,,,,,,,,,,,
+b3,layer,circling the Earth,,orbit,apollo11.parking_orbit,,,,,,,,,,,,,,,,
+b3,layer,190 kilometres up,,stat,,,,,,PARKING ORBIT,,,190,0 KM,bl,,,,,,
+b4,beat,Then the third stage,map,,,earth+moon,system,apollo11.tli,,,"Then the third stage fired again and pushed the spacecraft out of orbit, towards the Moon. For three days the crew coasted across almost 400,000 kilometres of empty space.",,,,,,,,,the way to the Moon,
+b4,layer,pushed the spacecraft out,,path,apollo11.translunar_coast,,,,,,,,,,,,,,,,
+b4,layer,pushed the spacecraft out,,craft,apollo11.csm,,,,APOLLO 11,,,,,,,,,,,,
+b4,layer,For three days the,,distance,,earth;apollo11.csm,,,,FROM EARTH,,,,,,,,,,,
+b4,layer,"almost 400,000 kilometres",,stat,,,,,,EARTH TO MOON,,,400000,"#,##0 KM",bl,,,,,,
+b5,beat,On the nineteenth of,map_footage,,,moon,body,apollo11.loi,,,On the nineteenth of July they slipped behind the Moon and fired their engine to enter lunar orbit.,,,,,,,,,arriving at the Moon,
+b5,layer,slipped behind the Moon,,craft,apollo11.csm,,,,COLUMBIA,,,,,,,,,,,,
+b5,layer,enter lunar orbit,,orbit,apollo11.lunar_orbit,,,,,,,,,,,,,,,,
+b5,card,slipped behind the Moon,,,,,,,IN LUNAR ORBIT,EARTH ABOVE THE MOON,,,,,tr,,,nasa_image:Apollo 11 view of the Earth above the lunar horizon,,,
+b6,beat,The next day Eagle,map,,,tranquility base,surface,apollo11.pdi,,,The next day Eagle separated from Columbia and dropped toward the Sea of Tranquility.,,,,,,,,,the descent,
+b6,layer,Eagle separated from Columbia,,craft,apollo11.lm,,,,EAGLE,,,,,,,b7,,,,,
+b6,layer,dropped toward the Sea,,path,apollo11.descent,,,,,,,,,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,zone,,tranquility base,,,LANDING ZONE,,,,22,,,b7,,,,,
+b6,layer,the Sea of Tranquility,,marker,,tranquility base,,,,SEA OF TRANQUILITY,,,,,,b7,,,,,
+b7,beat,With seconds of fuel,map,,,tranquility base,surface,apollo11.landing-00:00:03,,,"With seconds of fuel to spare, Eagle touched down.",,,,,,,,,the landing,
+b7,layer,Eagle touched down,,caption,,,,,,,EAGLE TOUCHED DOWN,,,,,,,,,,
+b8,beat,"Six hours later, Armstrong",footage,,,,,,,,"Six hours later, Armstrong stepped onto the Moon.",,,,,,,,,on the surface,
+b8,clip,,,,,,,,,,,,,,,,,nasa_image:Apollo 11 astronaut beside the US flag on the Moon,,the first moonwalk,
+
+THE DATASETS AND PLACES YOU MAY USE
+DATASETS (found by the app automatically; nothing is selected). Write their contents as qualified ids <dataset>.<name>:
+- apollo11: Apollo 11 · historical · 1969
+- apollo13: Apollo 13 · historical · 1970
+- apollo8: Apollo 8 · historical · 1968
+- artemis1: Artemis I · historical · 2022
+- chandrayaan3: Chandrayaan-3 · historical · 2023
+- change4: Chang'e-4 · historical · 2018–2019
+- voyager1: Voyager 1 · current · 1977–2012
+
+DETAILS:
+apollo11 = Apollo 11 (historical, 1969, geometry illustrated)
+  mission time T+0 = 1969-07-16 13:32 UTC (write apollo11.T+HH:MM:SS, or T- before it)
+  events: apollo11.launch (1969-07-16 13:32 UTC), apollo11.orbit_insertion (1969-07-16 13:43 UTC), apollo11.tli (1969-07-16 16:16 UTC), apollo11.loi (1969-07-19 17:21 UTC), apollo11.undocking (1969-07-20 17:44 UTC), apollo11.pdi (1969-07-20 20:05 UTC), apollo11.landing (1969-07-20 20:17 UTC), apollo11.first_step (1969-07-21 02:56 UTC), apollo11.lunar_liftoff (1969-07-21 17:54 UTC), apollo11.docking (1969-07-21 21:35 UTC), apollo11.tei (1969-07-22 04:55 UTC), apollo11.splashdown (1969-07-24 16:50 UTC)
+  craft: apollo11.csm (COLUMBIA; also columbia, command module), apollo11.lm (EAGLE; also eagle, lunar module, the lander)
+  paths: apollo11.earth_orbit (launch to tli), apollo11.translunar_coast (tli to loi), apollo11.descent (pdi to landing)
+  orbits: apollo11.parking_orbit (around earth), apollo11.lunar_orbit (around moon)
+  sites: apollo11.tranquility base (moon), apollo11.launch complex 39a (earth)
+apollo13 = Apollo 13 (historical, 1970, geometry illustrated)
+  mission time T+0 = 1970-04-11 19:13 UTC (write apollo13.T+HH:MM:SS, or T- before it)
+  events: apollo13.launch (1970-04-11 19:13 UTC), apollo13.orbit_insertion (1970-04-11 19:25 UTC), apollo13.tli (1970-04-11 21:48 UTC), apollo13.docking (1970-04-11 22:32 UTC), apollo13.explosion (1970-04-14 03:07 UTC), apollo13.free_return_burn (1970-04-14 08:42 UTC), apollo13.behind_the_moon (1970-04-15 00:21 UTC), apollo13.signal_back (1970-04-15 00:46 UTC), apollo13.pc2_burn (1970-04-15 02:40 UTC), apollo13.lm_jettison (1970-04-17 16:43 UTC), apollo13.splashdown (1970-04-17 18:07 UTC)
+  craft: apollo13.stack (ODYSSEY + AQUARIUS; also apollo 13, odyssey, aquarius, the spacecraft, the lifeboat, the crew, command module, lunar module)
+  paths: apollo13.earth_orbit (launch to tli), apollo13.translunar_coast (tli to explosion), apollo13.free_return (explosion to pc2_burn), apollo13.return_coast (pc2_burn to splashdown)
+  orbits: apollo13.parking_orbit (around earth)
+  sites: apollo13.launch complex 39a (earth), apollo13.fra mauro (moon), apollo13.apollo 13 splashdown (earth)
+apollo8 = Apollo 8 (historical, 1968, geometry illustrated)
+  mission time T+0 = 1968-12-21 12:51 UTC (write apollo8.T+HH:MM:SS, or T- before it)
+  events: apollo8.launch (1968-12-21 12:51 UTC), apollo8.orbit_insertion (1968-12-21 13:02 UTC), apollo8.tli (1968-12-21 15:41 UTC), apollo8.loi (1968-12-24 09:59 UTC), apollo8.circularization (1968-12-24 14:26 UTC), apollo8.earthrise (1968-12-24 16:40 UTC), apollo8.christmas_eve_broadcast (1968-12-25 02:34 UTC), apollo8.tei (1968-12-25 06:10 UTC), apollo8.entry (1968-12-27 15:37 UTC), apollo8.splashdown (1968-12-27 15:51 UTC)
+  craft: apollo8.csm (APOLLO 8; also apollo 8, the spacecraft, command module, the command module, the crew)
+  paths: apollo8.earth_orbit (launch to tli), apollo8.translunar_coast (tli to loi), apollo8.lunar_orbits (loi to tei), apollo8.return_coast (tei to entry)
+  orbits: apollo8.parking_orbit (around earth), apollo8.lunar_orbit (around moon)
+  sites: apollo8.launch complex 39a (earth), apollo8.apollo 8 splashdown (earth)
+artemis1 = Artemis I (historical, 2022, geometry illustrated)
+  mission time T+0 = 2022-11-16 06:47 UTC (write artemis1.T+HH:MM:SS, or T- before it)
+  events: artemis1.launch (2022-11-16 06:47 UTC), artemis1.tli (2022-11-16 08:17 UTC), artemis1.outbound_flyby (2022-11-21 12:44 UTC), artemis1.closest_approach (2022-11-21 12:57 UTC), artemis1.dro_insertion (2022-11-25 22:52 UTC), artemis1.farthest_point (2022-11-28 21:06 UTC), artemis1.dro_departure (2022-12-01 21:53 UTC), artemis1.return_flyby (2022-12-05 16:43 UTC), artemis1.splashdown (2022-12-11 17:40 UTC)
+  craft: artemis1.orion (ORION; also artemis i, artemis 1, the capsule, the spacecraft, the orion spacecraft)
+  paths: artemis1.earth_orbit (launch to tli), artemis1.outbound_coast (tli to outbound_flyby), artemis1.out_to_dro (outbound_flyby to dro_insertion), artemis1.distant_retrograde_orbit (dro_insertion to dro_departure), artemis1.return_coast (return_flyby to splashdown)
+  orbits: artemis1.dro (around moon)
+  sites: artemis1.launch pad 39b (earth), artemis1.artemis i splashdown (earth)
+chandrayaan3 = Chandrayaan-3 (historical, 2023, geometry illustrated)
+  mission time T+0 = 2023-07-14 09:05 UTC (write chandrayaan3.T+HH:MM:SS, or T- before it)
+  events: chandrayaan3.launch (2023-07-14 09:05 UTC), chandrayaan3.spacecraft_separation (2023-07-14 09:21 UTC), chandrayaan3.tli (2023-07-31 18:30 UTC), chandrayaan3.loi (2023-08-05 13:42 UTC), chandrayaan3.lander_separation (2023-08-17 07:30 UTC), chandrayaan3.powered_descent (2023-08-23 12:14 UTC), chandrayaan3.landing (2023-08-23 12:33 UTC)
+  craft: chandrayaan3.spacecraft (CHANDRAYAAN-3; also chandrayaan-3, chandrayaan 3, the spacecraft, the propulsion module), chandrayaan3.vikram (VIKRAM; also the lander, vikram lander, pragyan, the rover)
+  paths: chandrayaan3.earth_orbits (spacecraft_separation to tli), chandrayaan3.translunar_coast (tli to loi), chandrayaan3.lunar_orbits (loi to lander_separation), chandrayaan3.descent (powered_descent to landing)
+  orbits: chandrayaan3.final_lunar_orbit (around moon)
+  sites: chandrayaan3.sriharikota (earth), chandrayaan3.shiv shakti point (moon)
+change4 = Chang'e-4 (historical, 2018–2019, geometry illustrated)
+  mission time T+0 = 2018-12-07 18:23 UTC (write change4.T+HH:MM:SS, or T- before it)
+  events: change4.launch (2018-12-07 18:23 UTC), change4.lunar_transfer (2018-12-07 18:48 UTC), change4.loi (2018-12-12 08:45 UTC), change4.orbit_lowering (2018-12-30 00:55 UTC), change4.powered_descent (2019-01-03 02:15 UTC), change4.landing (2019-01-03 02:26 UTC), change4.rover_deployed (2019-01-03 14:22 UTC)
+  craft: change4.spacecraft (CHANG'E-4; also chang'e-4, chang'e 4, change 4, the spacecraft, the probe), change4.lander (CHANG'E-4; also the lander, yutu-2, the rover)
+  paths: change4.translunar_coast (lunar_transfer to loi), change4.lunar_orbits (loi to orbit_lowering), change4.descent (powered_descent to landing)
+  orbits: change4.lunar_orbit (around moon)
+  sites: change4.xichang (earth), change4.statio tianhe (moon)
+voyager1 = Voyager 1 (current, 1977–2012, robotic spacecraft, geometry observed, as of 2026-06-01)
+  mission time T+0 = 1977-09-05 12:56 UTC (write voyager1.T+HH:MM:SS, or T- before it)
+  events: voyager1.launch (5 SEP 1977), voyager1.jupiter_flyby (5 MAR 1979), voyager1.titan_flyby (12 NOV 1980), voyager1.saturn_flyby (12 NOV 1980), voyager1.pale_blue_dot (14 FEB 1990), voyager1.termination_shock (16 DEC 2004), voyager1.heliopause (25 AUG 2012)
+  craft: voyager1.voyager1 (VOYAGER 1; also voyager 1, voyager, the probe)
+  paths: voyager1.grand_tour (launch to saturn_flyby), voyager1.to_jupiter (launch to jupiter_flyby), voyager1.to_saturn (jupiter_flyby to saturn_flyby), voyager1.outbound (saturn_flyby to heliopause), voyager1.to_termination_shock (saturn_flyby to termination_shock), voyager1.interstellar (heliopause to 2026-06-01T00:00:00Z)
+  sites: voyager1.launch complex 41 (earth)
+  observed data through 2026-06-01; estimated up to 1825 days after
+
+Shared sites (any video): apollo 12 landing site (moon), apollo 14 landing site (moon), apollo 15 landing site (moon), apollo 16 landing site (moon), apollo 17 landing site (moon), baikonur cosmodrome (earth), chandrayaan-3 landing site (moon), chang'e 4 landing site (moon), gale crater (mars), jezero crater (mars), jiuquan satellite launch center (earth), kennedy space center (earth), olympus mons (mars), satish dhawan space centre (earth), tranquility base (moon), wenchang spacecraft launch site (earth)
+Bodies: alphacentauri, andromeda, barnardsstar, callisto, earth, europa, ganymede, io, jupiter, lmc, mars, mercury, milkyway, moon, neptune, pluto, saturn, sirius, smc, sun, triangulum, uranus, venus, wolf359 (and pairs such as earth+moon)
+
+NOW WRITE THE BEAT PLAN FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

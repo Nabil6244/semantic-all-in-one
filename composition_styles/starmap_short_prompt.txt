@@ -48,6 +48,9 @@ RHYTHM AND CAMERA
 - Each number the narrator says gets a stat. Don't put two stats in the same corner at once.
 - Describe pictures concretely ("Galileo close-up of Europa's cracked icy surface"), never file names,
   never the same description twice. Use stock_video for space scenery; nasa_video only for real missions.
+- flow_image:<a film-like description> for a scene no camera recorded (an ocean under Europa's ice, a
+  sunrise over Titan's dunes): an AI picture, labelled AI ILLUSTRATION on screen. Never for real people,
+  photographed events, a real photo a craft took, or diagrams with text. At most one in five pictures.
 - Show only what the script says. Do not invent facts, numbers or dates. Do not use spacecraft,
   path, orbit or mission event rows (craft/path/orbit layers, qualified dates) unless the script is about
   a built-in mission.

@@ -343,6 +343,7 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
         ev = pieces[0]
         if row.layer_type == "filmstrip":
             last_strip[row.item_no] = ev
+    events = _join_same_file(events, info, hints, base, rep)
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)
         info[ev["id"]].t_in, info[ev["id"]].t_out = ev["t_in"], ev["t_out"]
     rep.events = sorted(info.values(), key=lambda e: (e.t_in, e.row))
@@ -369,6 +370,49 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
     if rep.errors:
         raise CompileError(rep)
     return CompileResult(spec, rep, hints)
+
+
+def _join_same_file(events: List[dict], info: Dict[str, Any], hints: Dict[str, Any], base: Optional[Path], rep: Report) -> List[dict]:
+    """Two full-screen clips back to back (the second dissolving in over the first, or starting as it ends) that show the same
+    file -- same path or same bytes -- are one clip. The engine starts each media_full at frame 0 and each picture's push-in
+    from the start, so the second replayed the clip from its start and restarted the push. Joined, it plays on."""
+    import hashlib
+
+    digest: Dict[str, str] = {}
+
+    def same(media: str) -> str:
+        p = Path(media)
+        if not p.is_absolute() and base is not None:
+            p = base / p
+        key = str(p)
+        if key not in digest:
+            try:
+                h = hashlib.md5()
+                with open(p, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        h.update(chunk)
+                digest[key] = h.hexdigest()
+            except OSError:
+                digest[key] = media
+        return digest[key]
+
+    fulls = sorted((e for e in events if e.get("type") == "media_full"), key=lambda e: (e["t_in"], e["id"]))
+    drop = set()
+    prev = None
+    for e in fulls:
+        if (prev is not None and e.get("media") and prev.get("media") and prev["t_out"] - 1.0 <= e["t_in"] <= prev["t_out"] + 0.05
+                and same(str(prev["media"])) == same(str(e["media"]))):
+            prev["t_out"] = max(prev["t_out"], e["t_out"])
+            drop.add(e["id"])
+            continue
+        prev = e
+    if not drop:
+        return events
+    for eid in drop:
+        info.pop(eid, None)
+        hints["events"].pop(eid, None)
+    rep.info.append(f"{len(drop)} cut(s) between two full-screen clips of the same picture or clip removed: it plays on instead of restarting")
+    return [e for e in events if e["id"] not in drop]
 
 
 def _report_with(rep: Report, errors: List[str]) -> Report:

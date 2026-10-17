@@ -53,3 +53,10 @@ bench_performance_last.json
 # pakMap engine (Node deps installed locally, not committed)
 pakmap-engine/node_modules/
 flow-engine/_scratch-*
+
+# Local render previews and runtime output (too big for git / regenerated per run)
+docs/**/*.mp4
+CACHE_DIR/
+graphics_overlays/
+smart_text_overlays/
+sound_check/

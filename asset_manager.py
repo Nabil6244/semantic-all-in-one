@@ -151,40 +151,74 @@ def _key(scene_number: str) -> str:
         return str(scene_number).strip()
 
 
+_MANIFEST_LOCKS: Dict[str, threading.Lock] = {}
+_MANIFEST_LOCKS_GUARD = threading.Lock()
+
+
+def _manifest_lock(path: Path) -> threading.Lock:
+    with _MANIFEST_LOCKS_GUARD:
+        return _MANIFEST_LOCKS.setdefault(str(Path(path).resolve()), threading.Lock())
+
+
 class AssetManifest:
     """JSON-backed store: normalized scene number -> record dict. Saved after every
-    write so a crash mid-run doesn't lose progress already made (resume support)."""
+    write so a crash mid-run doesn't lose progress already made (resume support).
+
+    Several managers can hold the same folder's manifest at once (a Generate run and a Retry or an automatic
+    alternative from the Visual Plan). Each write therefore re-reads the file and changes only its own scene, and a
+    read picks up what another one wrote: a stale copy in memory must never put back a scene's old FAILED record
+    over the file another manager just fetched (the Voyager run, 2026-10-16: 061.mp4 on disk, its record still failed)."""
 
     def __init__(self, images_dir: Path):
         self.path = Path(images_dir) / MANIFEST_NAME
         self._data: Dict[str, dict] = {}
+        self._stamp = None
         self.load()
 
+    def _file_stamp(self):
+        try:
+            st = self.path.stat()
+            return (st.st_mtime_ns, st.st_size)
+        except OSError:
+            return None
+
     def load(self) -> None:
-        if self.path.is_file():
+        stamp = self._file_stamp()
+        if stamp is not None:
             try:
-                self._data = json.loads(self.path.read_text(encoding="utf-8"))
+                data = json.loads(self.path.read_text(encoding="utf-8"))
+                self._data = data if isinstance(data, dict) else {}
             except (json.JSONDecodeError, OSError):
-                self._data = {}
+                return                      # half written by another writer: keep what we had, read it next time
         else:
             self._data = {}
+        self._stamp = stamp
+
+    def _refresh(self) -> None:
+        if self._file_stamp() != self._stamp:
+            self.load()
 
     def save(self) -> None:
-        self.path.write_text(
-            json.dumps(self._data, indent=2, sort_keys=True), encoding="utf-8"
-        )
+        tmp = self.path.with_name(f"{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps(self._data, indent=2, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, self.path)          # atomic: a reader never sees half a file
+        self._stamp = self._file_stamp()
 
     def get(self, scene_number: str) -> Optional[dict]:
+        self._refresh()
         return self._data.get(_key(scene_number))
 
     def set(self, scene_number: str, record: dict) -> None:
         key = _key(scene_number)
-        if self._data.get(key) == record:
-            return
-        self._data[key] = record
-        self.save()
+        with _manifest_lock(self.path):
+            self._refresh()
+            if self._data.get(key) == record:
+                return
+            self._data[key] = record
+            self.save()
 
     def all(self) -> Dict[str, dict]:
+        self._refresh()
         return dict(self._data)
 
 

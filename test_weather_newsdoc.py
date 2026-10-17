@@ -123,20 +123,23 @@ class TheNewsHarvest(unittest.TestCase):
         broken = [f for f in (tmp / "wx" / "_work" / "news_cache").glob("*_p*r*.mp4") if f.stat().st_size <= 1000]
         self.assertEqual(broken, [])
 
-    def test_only_reports_of_this_event_are_taken(self):
+    def test_any_weather_clip_is_taken_whatever_its_date(self):
+        """The weather in the title is what matters (the user's rule), never the upload date: this part's own weather and place
+        first, then any weather clip; no weather (a school) or scenery (fall colours) is never taken."""
         from providers.youtube.base import VideoCandidate as V
         from weather.newsdoc.harvest import rank
 
         q = {"words": ["pecos", "fort", "stockton"], "state": "texas", "hazard": ["tornado"], "month": "october", "year": "2026"}
         got = [c.video_id for c in rank([
             V("ok", "u", "Eyewitness footage of tornado passing through Fort Stockton, Texas", "News", 60.0),
-            V("ok2", "u", "Texas tornado damage October 2026", "KWES", 120.0),
-            V("school", "u", "New elementary school in Pecos", "NewsWest 9", 120.0),          # no hazard
-            V("size", "u", "Tornado Size Comparison", "Comparisons", 300.0),                   # no place, a comparison
-            V("old", "u", "Pecos tornado May 2019", "KWES", 90.0),                             # another year / month
-            V("sep", "u", "Oklahoma tornado update (Thursday, Sept. 30)", "KOCO", 90.0),        # another month
-            V("hurr", "u", "Hurricane Isaias to bring tornadoes to Gulf Coast", "FOX Weather", 200.0)], q)]
-        self.assertEqual(got, ["ok", "ok2"])
+            V("school", "u", "New elementary school in Pecos", "NewsWest 9", 120.0),          # no weather
+            V("fall", "u", "Pecos Fall Colors drone view in 4k", "Drones", 120.0),            # scenery
+            V("old", "u", "Pecos tornado May 2019", "KWES", 90.0),                             # another year: still a tornado
+            V("flood", "u", "Flash flooding in Midland", "KWES", 90.0)], q)]                  # another weather: last
+        self.assertEqual(got[:2], ["ok", "old"])
+        self.assertEqual(got[-1], "flood")
+        self.assertNotIn("school", got)
+        self.assertNotIn("fall", got)
 
     def test_no_youtube_is_a_note_never_a_stop(self):
         from weather.newsdoc.harvest import harvest

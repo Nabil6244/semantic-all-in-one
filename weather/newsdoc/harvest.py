@@ -32,7 +32,7 @@ NEWS_CHANNEL = re.compile(r"\b(K[A-Z]{2,3}|W[A-Z]{2,3}|NBC|CBS|ABC|FOX|CNN|AP|Re
 SKIP_TITLE = re.compile(r"\b(live|livestream|24/7|compilation|explained|reaction|shorts|#shorts|music|game|minecraft|asmr|lofi|"
                         r"full episode|podcast|documentary|top \d+|best|comparison|size|simulation|school|elementary|football|"
                         r"sports|recipe|tour|vlog|forecast update|outlook)\b", re.I)
-CACHE_VERSION = "11"
+CACHE_VERSION = "12"   # 12: weather in the title decides, no date checks (2026-10-15)
 MAX_VIDEO_S = 600      # longer uploads are shows and compilations, not a report of the event
 SHORT_VIDEO_S = 240    # above this, only a news channel's upload is taken
 # YouTube's own "upload date" filter (the results page's sp parameter): yesterday's local reports are buried under old, popular videos
@@ -116,18 +116,21 @@ def queries(story, event: Dict, extra: Optional[Dict[int, List[str]]] = None) ->
         lines = [x for x in story.lines if x.part == k]
         county = next((p[0] for x in lines for p in x.places), "")
         town = next(iter(towns(lines)), "")
-        state = next((s for x in lines for s in x.states), story.states[0] if story.states else "")
+        local0 = town or county
+        # the state of the line that names the place (a part that opens on "Texas and Oklahoma" must not search "Fort Stockton Oklahoma")
+        state = next((x.place_state.get(local0) or (x.states[0] if x.states else "") for x in lines if local0 and local0 in x.text), "") or \
+            next((s for x in lines for s in x.states), story.states[0] if story.states else "")
         hz = _part_hazard(story, k)
         topic = TOPIC.get(hz, "storm")
         local = town or county
-        qs = [q for q in (f"{local} {state} {topic}".strip() if local else "", " ".join(x for x in (state, topic, month, year) if x)) if q]
+        qs = [q for q in (f"{local} {state} {topic}".strip() if local else "", " ".join(x for x in (state, topic) if x)) if q]
         qs = [q for q in list((extra or {}).get(k, [])) + qs if q.lower() not in seen]   # the story CSV's own searches first
         if not qs:
             continue
         seen.update(q.lower() for q in qs)
         rivers = [m.group(0) for x in lines for m in re.finditer(r"\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s(?:River|Creek|Bayou|Lake)\b", x.text)]
         words = sorted({n.strip().lower() for n in [county.replace("County", ""), *towns(lines), *rivers] if len(n.strip()) > 3})
-        place_q = f"{local} {state} drone".strip() if local else ""
+        place_q = f"{local} {state} {topic} drone".strip() if local else ""   # aerial of the place WITH the weather
         out.append({"part": k, "queries": qs, "query": qs[0], "place_query": place_q, "place": local or state, "words": words, "state": state.lower(),
                     "hazard": HAZARD_WORDS.get(hz, ["storm"]), "month": month.lower(), "year": year})
     return out
@@ -142,6 +145,13 @@ def _wrong_date(title: str, q: Dict) -> bool:
     return bool(q.get("month") and months and q["month"] not in months)
 
 
+WEATHER = re.compile(r"\b(weather|storms?|tornado(e?s)?|twister|funnel|flood(s|ing|ed)?|damage[ds]?|hail|rain|wind|thunderstorms?|"
+                     r"lightning|hurricane|tropical|surge|snow|blizzard|ice storm|severe|radar|warning|destruction|aftermath|debris|"
+                     r"high water|river|evacuat\w*|rescue)\b", re.I)
+SCENIC = re.compile(r"\b(fall colou?rs|autumn|foliage|christmas|halloween|sunset|sunrise|wedding|festival|parade|real estate|"
+                    r"tour|travel|vlog|downtown|homes? for sale)\b", re.I)
+
+
 def rank_place(cands, q: Dict) -> List:
     """Drone / aerial footage of the town itself (the reference's most used shot): the title names the place; no event date needed
     (it shows the place, not the storm); no compilations or long shows."""
@@ -150,6 +160,9 @@ def rank_place(cands, q: Dict) -> List:
         title = f"{c.title}".lower()
         dur = c.duration or 0.0
         if SKIP_TITLE.search(c.title or "") or not dur or dur < 20 or dur > MAX_VIDEO_S:
+            continue
+        # the place with this part's weather in it; never scenery ("Fall Colors", a sunset, a festival)
+        if SCENIC.search(title) or not WEATHER.search(title):
             continue
         if not any(re.search(r"\b" + re.escape(w) + r"\b", title) for w in q.get("words", [])):
             continue
@@ -164,17 +177,18 @@ def rank(cands, q: Dict) -> List:
     for c in cands:
         title = f"{c.title}".lower()
         dur = c.duration or 0.0
-        if SKIP_TITLE.search(c.title or "") or not dur or dur < 15 or dur > MAX_VIDEO_S or _wrong_date(c.title or "", q):
+        station = bool(NEWS_CHANNEL.search(c.channel or ""))
+        if SKIP_TITLE.search(c.title or "") or not dur or dur < (8 if station else 15) or dur > MAX_VIDEO_S or SCENIC.search(title):
             continue
-        if dur > SHORT_VIDEO_S and not NEWS_CHANNEL.search(c.channel or ""):
-            continue   # a long upload from a channel that is not a station is usually a compilation of other footage
         local_hit = any(re.search(r"\b" + re.escape(w) + r"\b", title) for w in q.get("words", []))
+        hazard_hit = any(w in title for w in q["hazard"])
+        if dur > SHORT_VIDEO_S and not station and not (local_hit and hazard_hit):
+            continue   # a long upload from a channel that is not a station is usually a compilation — unless it is this storm at this place
         state_hit = bool(q.get("state")) and q["state"] in title
         month_hit = bool(q.get("month")) and q["month"] in title
-        hazard_hit = any(w in title for w in q["hazard"])
-        if not hazard_hit or not (local_hit or (state_hit and month_hit)):
+        if not (hazard_hit or WEATHER.search(title)):   # any weather in the title (this part's own weather first); never a date check
             continue
-        s = 3.0 * local_hit + 1.0 * state_hit + 1.0 * month_hit + (1.5 if NEWS_CHANNEL.search(c.channel or "") else 0.0) + \
+        s = 5.0 * hazard_hit + 3.0 * local_hit + 1.0 * state_hit + 1.0 * month_hit + (1.5 if NEWS_CHANNEL.search(c.channel or "") else 0.0) + \
             (1.0 if 30 <= dur <= 420 else 0.0)
         scored.append((s, c))
     return [c for _s, c in sorted(scored, key=lambda p: -p[0])]
@@ -407,7 +421,7 @@ def harvest(project_root: "str | Path", story, event: Dict, *, backend=None, pau
     used_ids = set()
     chosen: List[tuple] = []
     day = str((event or {}).get("main_day") or "")
-    age_days = ((today or date.today()) - date.fromisoformat(day[:10])).days if len(day) >= 10 else None
+    age_days = None   # no date filter: a clip is chosen for the weather it shows, not when it was uploaded
     for q in qs:
         if out.downloads >= max_downloads:
             break
@@ -443,12 +457,7 @@ def harvest(project_root: "str | Path", story, event: Dict, *, backend=None, pau
                 break
             if c.video_id in used_ids:
                 continue
-            up = None if getattr(c, "place_shot", False) else upload_date(backend, c)
-            if up is None and hasattr(backend, "_ydl") and not getattr(c, "place_shot", False):   # throttled: one more try after a pause
-                time.sleep(pause * 2)
-                up = upload_date(backend, c)
-            time.sleep(pause / 2)
-            if not getattr(c, "place_shot", False) and not in_window(up, str((event or {}).get("main_day") or "")):
+            if False:   # dates are not checked (the weather in the title is what matters)
                 out.notes.append(f"news footage: \"{c.title}\" is from {up}, not from this event; skipped")
                 continue
             start = INTRO_S if (c.duration or 0) > 60 else 2.0

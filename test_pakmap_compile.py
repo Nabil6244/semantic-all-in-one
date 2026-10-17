@@ -192,6 +192,20 @@ class TestEvents(unittest.TestCase):
         self.assertEqual(e["fs"]["align"], "center")
         self.assertEqual(e["mf"]["media"], "clip.mp4")
 
+    def test_two_full_screen_clips_of_the_same_file_play_as_one_never_restarting(self):
+        """Back-to-back media_full clips showing the same bytes (a reused twin under another name) are one clip: the engine
+        starts each at frame 0, so the second replayed the clip from its start. A different clip still cuts."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(tmp)
+            (base / "a.mp4").write_bytes(b"same clip")
+            (base / "twin.mp4").write_bytes(b"same clip")
+            (base / "other.mp4").write_bytes(b"another clip")
+            res = build(TITLE + '1,Turkana,,,,media_full,mf,,,,,,,,,,a.mp4|twin.mp4|other.mp4,,,,,,\n', base_dir=base)
+        fulls = sorted((e for e in res.spec["events"] if e["type"] == "media_full"), key=lambda e: e["t_in"])
+        self.assertEqual([e["media"] for e in fulls], ["a.mp4", "other.mp4"])
+        self.assertGreater(fulls[0]["t_out"], fulls[1]["t_in"], "the joined clip runs on until the next one dissolves in")
+        self.assertTrue(any("plays on instead of restarting" in m for m in res.report.info))
+
     def test_unknown_params_pass_through_to_the_renderer(self):
         e = self.ev('1,Nairobi,,,,marker,m,,Nairobi,N,,,,,,,,,,,,,"{""side"": ""l"", ""future_option"": 5}"\n')
         self.assertEqual((e["m"]["side"], e["m"]["future_option"]), ("l", 5))

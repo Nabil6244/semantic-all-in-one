@@ -189,6 +189,37 @@ class StockProvider(AssetProvider):
             )
         return self._download(scene, best, images_dir, log)
 
+    def _rescue(self, scene: SceneRow, candidate: Candidate, images_dir: Path, log: LogFn, exc: Exception) -> AssetResult:
+        """A file that was too big, too slow or broken, with no smaller file offered: keep only the first seconds of the clip
+        (copied, no re-encode), else take the next best result once. The scene fails only when all of that fails."""
+        stopped = lambda: self._scene_stopped(scene.scene_number)  # noqa: E731
+        problems = [str(exc)]
+        if candidate.media_type == MediaType.VIDEO:
+            keep = _dl.UHD_KEEP_SECONDS
+            log(f"[STOCK] Scene {scene.scene_number} -> {exc}; keeping only the first {keep:.0f}s of the clip instead")
+            try:
+                path = download_first_seconds(candidate, images_dir, scene.scene_number, keep, max_bytes=MAX_BYTES, should_stop=stopped,
+                                              timeout_s=300.0)   # a stalled server must not hold the scene (or Generate) for long
+                return self._finish(scene, candidate, path, candidate.width, candidate.height, min(candidate.duration or keep, keep), log)
+            except DownloadCancelled as exc2:
+                return AssetResult(scene.scene_number, None, None, scene.stock_source, SceneStatus.FAILED, error=f"Download failed: {exc2}")
+            except Exception as exc2:
+                problems.append(f"the first {keep:.0f}s failed too: {exc2}")
+                log(f"[STOCK] Scene {scene.scene_number} -> the first {keep:.0f}s could not be kept either ({exc2})")
+        if not getattr(self, "_rescuing", False) and not stopped():
+            other = self._pick(scene, log, exclude_ids={str(candidate.asset_id)})
+            if other is not None:
+                log(f"[STOCK] Scene {scene.scene_number} -> {problems[0]}; trying the next result instead")
+                self._rescuing = True
+                try:
+                    got = self._download(scene, other, images_dir, log)
+                finally:
+                    self._rescuing = False
+                if got.status != SceneStatus.FAILED:
+                    return got
+                problems.append(f"the next result failed too: {got.error}")
+        return AssetResult(scene.scene_number, None, None, scene.stock_source, SceneStatus.FAILED, error="Download failed: " + "; ".join(problems))
+
     def _download(self, scene: SceneRow, candidate: Candidate, images_dir: Path, log: LogFn) -> AssetResult:
         source = scene.stock_source
         log(f"[STOCK] Scene {scene.scene_number} -> selected {candidate.provider} asset {candidate.asset_id} ({candidate.width}x{candidate.height})")
@@ -222,10 +253,7 @@ class StockProvider(AssetProvider):
         except Exception as exc:
             # A large (4K) file that was too big, too slow or broken: take the same clip's HD file instead of failing the scene.
             if not fallback.get("url"):
-                return AssetResult(
-                    scene.scene_number, None, None, source, SceneStatus.FAILED,
-                    error=f"Download failed: {exc}",
-                )
+                return self._rescue(scene, candidate, images_dir, log, exc)
             log(f"[STOCK] Scene {scene.scene_number} -> {width}x{height} download failed ({exc}); using the {fallback.get('width')}x{fallback.get('height')} file instead")
             try:
                 path = download_candidate(
@@ -239,7 +267,11 @@ class StockProvider(AssetProvider):
                 )
             width, height = int(fallback.get("width") or 0), int(fallback.get("height") or 0)
             duration = candidate.duration
+        return self._finish(scene, candidate, path, width, height, duration, log)
 
+    def _finish(self, scene: SceneRow, candidate: Candidate, path: Path, width, height, duration, log: LogFn) -> AssetResult:
+        """A downloaded file checked and recorded as the scene's asset."""
+        source = scene.stock_source
         # Hard content check — don't trust the candidate's advertised media_type
         # or the downloaded filename's extension alone. If asset_type explicitly
         # demands image/video, the actual bytes must match or this must fail,

@@ -171,14 +171,38 @@ def _state_for(path: Path) -> _FileState:
     return st
 
 
+def _read_existing(path: Path) -> Optional[dict]:
+    """The file's contents, or None when it exists but can't be read right now.
+    On Windows a reader gets PermissionError for the instant another process
+    replaces the file; reading that as "empty" made the next flush drop every
+    entry already written."""
+    for attempt in range(_REPLACE_RETRIES):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except FileNotFoundError:
+            return {}
+        except json.JSONDecodeError:
+            return {}  # a genuinely broken file is rebuilt, as before
+        except OSError:
+            time.sleep(_REPLACE_BACKOFF_S * min(attempt + 1, 4))
+    return None
+
+
 def _sync(st: _FileState) -> None:
     """Bring st.data in line with the disk (call with _LOCK held)."""
     cur = _disk_sig(st.path)
     if cur == st.sig:
         return
-    if cur is None and st.sig not in (False, None):
-        st.dirty.clear()  # file deleted since we last saw it
-    st.data = load_cache(st.path.parent)
+    if cur is None:
+        if st.sig not in (False, None):
+            st.dirty.clear()  # file deleted since we last saw it
+        data = {}
+    else:
+        data = _read_existing(st.path)
+        if data is None:
+            return  # still locked: keep our view and try again next time
+    st.data = data
     st.data.update(st.dirty)
     st.sig = cur
 

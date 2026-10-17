@@ -27,6 +27,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from anchor_clock import AnchorClock, keep_in_order
+
 COLUMNS = ("beat", "row", "vo_anchor", "start", "end", "t", "mode", "type", "id", "place", "frame", "date", "label", "sub", "text",
            "value_from", "value_to", "format", "anchor", "until", "hold", "asset", "dur", "why", "extra")
 ROWS = ("plan", "beat", "layer", "card", "clip")
@@ -37,7 +39,8 @@ MOVES = ("", "hold", "push_in", "pull_out", "orbit")
 VISUAL_ACTIONS = ("liftoff", "launch", "ascent", "orbit_insert", "orbit", "orbit_raise", "orbit_lower", "departure", "transfer", "approach",
                   "arrival", "flyby", "landing", "descent", "reentry", "docking", "undocking", "separation", "deployment", "impact",
                   "surface_traverse", "rover_drive", "station_keep", "trajectory_follow", "deep_space_departure")
-LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "caption", "distance", "line", "rings", "pointer")
+LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "caption", "distance", "line", "rings", "pointer", "track",
+               "plate", "instrument")      # plate / instrument: the Cinema option's What If graphics (cinema.py)
 CARD_ANCHORS = ("tr", "mr", "ml", "bl")
 DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "card": 6.0}
 # where a picture or clip comes from: the app's Visual Plan sources, NASA's image library, or file:<name> (a file of your own)
@@ -114,6 +117,8 @@ class Plan:
     title: str = ""
     notes: List[str] = field(default_factory=list)
     reference_now: str = ""                       # the plan row's date: what "now" and "today" mean for this video
+    words: List[Any] = field(default_factory=list)   # the narration's words [(word, start, end)] (timing for automatic rows)
+    media_numbers: Dict[int, str] = field(default_factory=dict)   # CSV row -> Visual Plan scene number (set by heal: rows left out never renumber)
 
 
 def is_starmap_csv(text: str) -> bool:
@@ -144,58 +149,35 @@ def number_form(text: str) -> str:
                lambda m: str(_TENS_WORDS[m[1].lower()] + _ORDINALS[m[2].lower()]), t, flags=re.I)
     t = re.sub(rf"\b({'|'.join(_ORDINALS)})\b", lambda m: str(_ORDINALS[m[1].lower()]), t, flags=re.I)   # sixteenth -> 16
     t = re.sub(r"\bthe\s+(\d+)\s+of\b", r"\1", t, flags=re.I)                                 # the 16 of november -> 16 november
+    t = re.sub(r"\ba\s+hundred\b", "one hundred", t, flags=re.I)                              # a hundred thousand -> 100000
+    t = re.sub(r"\b(?:kilomet(?:er|re)s?|km)\b", "kilometers", t, flags=re.I)                 # km / kilometres -> kilometers
+    t = re.sub(r"\bmetres?\b", "meters", t, flags=re.I)                                       # metres -> meters
     return t
 
 
-class WordClock:
-    """The narrator's words -> seconds, in script order. Beat rows move the search on; a beat's own rows are searched from the
-    beat's first words and never move it (an AI often anchors a label on a later sentence: it must not break later beats)."""
+def _thousands_joined(words: Sequence) -> List[Tuple[str, float, float]]:
+    """Whisper's transcript holds a spoken "280,000" as two words, "280" then "0" (seen for every thousands number in the
+    011 Voyager narration); the CSV's 280,000 is one number. Each such pair becomes one word, 280000, over both words' time,
+    so the rows the narration's numbers time (distance lines, stat chips, light lines) appear when they are said instead of
+    at the start of their beat (and a distance line before its craft was left out)."""
+    w = _plain_words(words)
+    out: List[Tuple[str, float, float]] = []
+    i = 0
+    while i < len(w):
+        if i + 1 < len(w) and re.fullmatch(r"\d{1,3}", w[i][0]) and w[i + 1][0] == "0":
+            out.append((f"{w[i][0]}000", w[i][1], w[i + 1][2]))
+            i += 2
+            continue
+        out.append(w[i])
+        i += 1
+    return out
+
+
+class WordClock(AnchorClock):
+    """The narrator's words -> seconds, in script order (see anchor_clock): StarMap's spelling of numbers on both sides."""
 
     def __init__(self, words: Sequence, notes: List[str]):
-        from pakmap.anchor import Transcript     # the shared word matcher (read-only)
-
-        self.tr = Transcript([(number_form(w), s, e) for w, s, e in words]) if words else None
-        self.cursor = 0
-        self.notes = notes
-
-    def _find(self, words: str):
-        words = number_form(words)
-        hit = self.tr.find(words, self.cursor)
-        if hit is not None:
-            return hit
-        split = re.sub(r"(?<=\d)\.(?=\d)", " ", words)            # Whisper writes 1.3 as "1 3"
-        if split != words and (hit := self.tr.find(split, self.cursor)) is not None:
-            return hit
-        near = self.tr.nearest(words)
-        if (near and len(words.split()) == 1 and len(near[0].split()) == 1 and words[:1].lower() == near[0][:1].lower()
-                and difflib.SequenceMatcher(None, words.lower(), near[0].lower()).ratio() >= 0.72):
-            if (hit := self.tr.find(near[0], self.cursor)) is not None:
-                self.notes.append(f"vo_anchor {words!r} was matched to {near[0]!r} at {near[1]:.1f}s (how the narration spells it)")
-                return hit
-        parts = words.split()
-        for size in range(len(parts) - 1, 1, -1):                 # one wrong word: the same start, or end, with fewer words
-            for label, sub in (("start", parts[:size]), ("end", parts[-size:])):
-                if (hit := self.tr.find(" ".join(sub), self.cursor)) is not None:
-                    self.notes.append(f"vo_anchor {words!r}: not spoken exactly; its {label} words {' '.join(sub)!r} were found at {hit[0].t_start:.1f}s")
-                    return hit
-        return None
-
-    def at(self, phrase: str, *, advance: bool) -> float:
-        if self.tr is None or not len(self.tr):
-            raise ValueError("vo_anchor needs the narration: choose the voiceover first (or give start / t in seconds)")
-        words, _, mod = phrase.partition("|")
-        hit = self._find(words.strip())
-        if hit is None:
-            near = self.tr.nearest(words.strip())
-            raise ValueError(f"vo_anchor {words.strip()!r} is not in the narration" + (f" (closest: {near[0]!r} at {near[1]:.1f}s)" if near else ""))
-        m, _ = hit
-        if m.out_of_order:
-            raise ValueError(f"vo_anchor {words.strip()!r} is only spoken before the previous beat's words ({m.t_start:.1f}s): rows must follow the script in order")
-        if advance:
-            from pakmap.compile import hit_first
-
-            self.cursor = hit_first(self.tr, m)
-        return round(m.t_end if mod.strip().lower() == "end" else m.t_start, 3)
+        super().__init__(_thousands_joined(words), notes, normalize=number_form, unit="beat")
 
 
 def _f(r: Dict[str, str], col: str) -> Optional[float]:
@@ -206,6 +188,22 @@ def _f(r: Dict[str, str], col: str) -> Optional[float]:
         return float(v.replace(",", "")) if col in ("value_from", "value_to") else float(v)
     except ValueError:
         raise ValueError(f"{col} must be a number (got {v!r})") from None
+
+
+def _plain_words(words: Sequence) -> List[Tuple[str, float, float]]:
+    """(word, start, end) triples from whatever the caller has (tuples, dicts, Whisper word objects); unreadable ones are skipped."""
+    out = []
+    for w in words or ():
+        try:
+            if isinstance(w, dict):
+                out.append((str(w.get("word", w.get("text", ""))).strip(), float(w["start"]), float(w["end"])))
+            elif hasattr(w, "start") and hasattr(w, "end"):
+                out.append((str(getattr(w, "word", getattr(w, "text", ""))).strip(), float(w.start), float(w.end)))
+            else:
+                out.append((str(w[0]).strip(), float(w[1]), float(w[2])))
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+    return out
 
 
 def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None) -> Plan:
@@ -220,6 +218,7 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
     beats: List[Beat] = []
     pack, title, plan_end, ref_now = "", "", None, ""
     failed: set = set()
+    word_beats: Dict[int, bool] = {}  # beat index -> placed by estimate (its words were not heard); only word-timed beats
     for n, cells in enumerate(rows[1:], start=2):
         if not any(c.strip() for c in cells):
             continue
@@ -256,7 +255,9 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                                          f"({', '.join(VISUAL_ACTIONS)}) (got {r.get('type')!r})")
                 start = _f(r, "start")
                 if start is None and anchor:
-                    start = clock.at(anchor, advance=True)
+                    start = clock.at(anchor, advance=True, before=beats[-1].text if beats else "")
+                    if beats:
+                        word_beats[len(beats)] = clock.estimated
                 if start is None:
                     if beats:
                         raise ValueError("a beat needs a vo_anchor (its first words) or a start in seconds")
@@ -278,7 +279,7 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                 by_words = False
                 if t is None and anchor and kind != "clip":
                     try:
-                        t, by_words = clock.at(anchor, advance=False), True
+                        t, by_words = clock.at(anchor, advance=False, before=b.text), True
                     except ValueError as exc:
                         notes.append(f"row {n}: {exc}; it appears at the start of beat {b.id}")
                 it = Item(row=n, kind=kind, type=r.get("type", "").lower(), t=t, id=r.get("id", ""), place=r.get("place", ""),
@@ -321,6 +322,9 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
         raise PlanError(problems)
     words_end = clock.tr.end if clock.tr is not None and len(clock.tr) else None
     total = plan_end or duration or words_end
+    starts = keep_in_order([b.start for b in beats], word_beats, total, notes, [f"row {b.row}: beat {b.id}" for b in beats])
+    for b, t in zip(beats, starts):
+        b.start = t
     for i, b in enumerate(beats):
         if b.end < 0:
             if i + 1 < len(beats):
@@ -344,4 +348,5 @@ def read_plan(text: str, words: Sequence = (), duration: Optional[float] = None)
                 it.t = b.start
     if problems:
         raise PlanError(problems)
-    return Plan(beats=beats, duration=float(total or beats[-1].end), pack=pack, title=title, notes=notes, reference_now=ref_now)
+    return Plan(beats=beats, duration=float(total or beats[-1].end), pack=pack, title=title, notes=notes, reference_now=ref_now,
+                words=_plain_words(words))

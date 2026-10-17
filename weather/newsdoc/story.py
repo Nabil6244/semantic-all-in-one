@@ -135,6 +135,8 @@ def read(words: Sequence, duration: float, script: str = "") -> Story:
         h = HEADING.match(x.text)
         if h and len(" ".join(g for g in h.groups() if g).split()) >= 2:
             x.heading = " — ".join(g.strip(" ,.") for g in h.groups() if g)
+        elif x.text.isupper() and len(x.text.split()) >= 2:   # a heading the script writes on its own line ("MAJOR FLOODING — CANADIAN RIVER")
+            x.heading = " — ".join(g.strip(" ,.:") for g in re.split(r"\s+[—–-]\s+", x.text.strip()) if g.strip(" ,.:"))
     # parts: a script heading, or a new state after a while
     parts: List[Tuple[int, str]] = [(0, "")]
     last_t, seen_states = 0.0, set(lines[0].states)

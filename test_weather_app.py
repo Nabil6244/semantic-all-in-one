@@ -52,7 +52,7 @@ inst.update_idletasks()
 shown = lambda w: bool(w.grid_info())
 
 if not ON:
-    emit("off_picker_is_the_eight_styles", tuple(inst._style_cards) == inst.STYLE_CHOICES and len(inst.STYLE_CHOICES) == 8, str(tuple(inst._style_cards)))
+    emit("off_picker_is_the_nine_styles", tuple(inst._style_cards) == inst.STYLE_CHOICES and len(inst.STYLE_CHOICES) == 9, str(tuple(inst._style_cards)))
     emit("off_no_weather_card", getattr(inst, "_weather_block", None) is None and inst._style_choices() == inst.STYLE_CHOICES)
     emit("off_weather_not_imported", not any(m == "weather" or m.startswith("weather.") for m in sys.modules), [m for m in sys.modules if m.startswith("weather")])
     inst._on_style_pick("pakMap")
@@ -172,7 +172,7 @@ class WeatherOff(_Base):
     MODE = "off"
 
     def test_the_app_is_as_before(self):
-        for n in ("off_picker_is_the_eight_styles", "off_no_weather_card", "off_weather_not_imported", "off_other_styles_still_switch"):
+        for n in ("off_picker_is_the_nine_styles", "off_no_weather_card", "off_weather_not_imported", "off_other_styles_still_switch"):
             with self.subTest(n):
                 self.check(n)
 

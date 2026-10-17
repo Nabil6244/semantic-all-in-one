@@ -396,7 +396,8 @@ class SfxRequest:
 
 
 # Sounds never used, whatever library is installed (rejected by ear).
-EXCLUDED_SFX_IDS = frozenset({"transition_02"})
+# whoosh_010 opens with a pitched, vowel-like "ahh" that sounds like a voice under the narration.
+EXCLUDED_SFX_IDS = frozenset({"transition_02", "whoosh_010"})
 
 
 class SfxCatalog:

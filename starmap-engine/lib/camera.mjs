@@ -18,7 +18,11 @@
 //            instead of a target, the stretch of a craft's path between two moments, framed whole and held: the camera
 //            stands to the side of the stretch (el_deg above it, on the sunlit side unless side is given) so the craft
 //            visibly CROSSES the frame while the camera stays still -- the action's own frame, worked out from the data
-//            for any craft, any body
+//            for any craft, any body; include: ["saturn"] frames those bodies with it (a flyby's planet)
+// spec.camera.drift_deg_per_s: the always-on slow orbit round the subject that keeps a quiet shot alive. It starts afresh with
+// every new subject (a run of shots of the same target or path): each subject is first seen from the angle it was framed for
+// -- the lit side, a journey side-on -- and the camera then turns slowly from there (towards the lit face for a lit shot). It
+// never builds up across a video: ten minutes of drift used to turn planets onto their night side and journeys end-on.
 // spec.camera.still: [[t0, t1], ...] narration windows where the always-on drift eases to a stop (something on screen is
 // moving -- a craft, a path being drawn -- so the camera has no reason to)
 // A move: { t, dur, to: shot } glides there (dur 0 = a cut). Distance changes in log space (a steady feel across any
@@ -32,6 +36,7 @@ import { anchorTarget, surfaceFrame } from './world.mjs';
 import { motionWhen } from './timing.mjs';
 
 const RAD = Math.PI / 180;
+const PATH_SWING = 35;          // degrees a journey (path) shot's drift swings either side of its framed angle (end-on is 90)
 export const smooth = (x) => { const k = Math.min(1, Math.max(0, x)); return k * k * k * (k * (6 * k - 15) + 10); };   // smootherstep
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
@@ -61,13 +66,13 @@ function dirIn(up, ref, az, el) {
  *  holds still however the drawn path shifts while the clock runs (a coast whose far end rides with its target);
  *  without, for the world's current date. */
 function pathStretch(world, traj, p, sunId, stretchMemo) {
-  if (p.ref_utc == null || !stretchMemo) return stretchAt(traj, p);
+  if (p.ref_utc == null || !stretchMemo) return stretchAt(traj, p, world);
   const key = `${traj.id}|${p.from_utc}|${p.to_utc}|${p.ref_utc}`;
   if (!stretchMemo.has(key)) {
     const was = world.date;
     world.setTime(new Date(p.ref_utc));
     try {
-      const st = stretchAt(traj, p);
+      const st = stretchAt(traj, p, world);
       // the Sun's side, fixed at that moment too: over a long stretch the Sun moves round, and the view must not flip
       if (sunId && sunId !== traj.frame) st.toSun = norm(world.vec(traj.frame, sunId).map((c, i) => c - st.centre[i]));
       stretchMemo.set(key, st);
@@ -76,9 +81,18 @@ function pathStretch(world, traj, p, sunId, stretchMemo) {
   }
   return stretchMemo.get(key);
 }
-function stretchAt(traj, p) {
+function stretchAt(traj, p, world) {
   const a = Date.parse(p.from_utc), b = Date.parse(p.to_utc), n = 24, pts = [];
   for (let i = 0; i <= n; i++) pts.push(traj.at(a + (b - a) * (i / n)).position);
+  // include: bodies framed with the stretch (the planet a flyby swings past, the one an approach is heading for) -- where
+  // they are at this moment, the whole disk
+  const extra = [];
+  for (const id of p.include || []) {
+    const node = world && world.get(id);
+    if (!node) continue;
+    const c = world.vec(traj.frame, id), R = node.radiusKm || 0;
+    for (const d of [[0, 0, 0], [R, 0, 0], [-R, 0, 0], [0, R, 0], [0, -R, 0], [0, 0, R], [0, 0, -R]]) extra.push(c.map((v, i) => v + d[i]));
+  }
   const lo = [0, 1, 2].map((i) => Math.min(...pts.map((q) => q[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((q) => q[i])));
   const centre = lo.map((v, i) => (v + hi[i]) / 2);
   let chord = pts[n].map((v, i) => v - pts[0][i]);
@@ -86,6 +100,12 @@ function stretchAt(traj, p) {
   // the plane the stretch bends in (a flyby's swing, a transfer's arc), when it bends at all
   const sa = pts[n >> 1].map((v, i) => v - pts[0][i]), sb = pts[n].map((v, i) => v - pts[0][i]), pn = cross(sa, sb);
   const normal = Math.hypot(...pn) > 1e-3 * Math.hypot(...sa) * Math.hypot(...sb) ? norm(pn) : null;
+  if (extra.length) {
+    // the bodies count for the frame (its centre and size), not for the stretch's own shape
+    const all = pts.concat(extra);
+    const lo2 = [0, 1, 2].map((i) => Math.min(...all.map((q) => q[i]))), hi2 = [0, 1, 2].map((i) => Math.max(...all.map((q) => q[i])));
+    return { pts: all, centre: lo2.map((v, i) => (v + hi2[i]) / 2), chord: norm(chord), normal };
+  }
   return { pts, centre, chord: norm(chord), normal };
 }
 
@@ -174,7 +194,9 @@ function shotState(world, shot, tanHalf, sunId, ctx = {}) {
     // following a craft: the camera stands OUTSIDE it, looking back towards the body it moves around (the planet, the Moon,
     // the Sun), raised el_deg towards the Sun (so a craft over the night side still has the lit limb behind it; north when
     // the body IS the Sun) -- the craft in front, the world behind it, whatever the orbit
-    const B = world.orientation(at.anchor), base = norm(at.local);
+    const B = world.orientation(at.anchor);
+    // lit: the camera on the Sun's side of the craft, looking at its lit face (a hero close-up), not back towards the body
+    const base = shot.follow.lit ? norm(at.local).map((c) => -c) : norm(at.local);
     const toward = sunId && sunId !== at.anchor ? norm(world.vec(at.anchor, sunId).map((c, i) => c - at.local[i])) : B.y;
     let lift = toward.map((c, i) => c - base[i] * dot(toward, base));
     if (Math.hypot(...lift) < 1e-6) lift = Math.abs(base[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1];
@@ -250,6 +272,28 @@ export function createCamera(world, cam, { trajectory, dateAt } = {}) {
     }
     return t - off;
   };
+  // runs of one subject: the drift of shot i counts from when its run began, turning the way its run turns
+  const subject = (sh) => (sh.path ? `path ${sh.path.trajectory}` : sh.follow ? `follow ${sh.follow.trajectory}` : `target ${sh.target}`);
+  const runStart = [], turnSign = [];
+  for (let i = 0; i < shots.length; i++) {
+    if (i > 0 && subject(shots[i]) === subject(shots[i - 1])) { runStart[i] = runStart[i - 1]; turnSign[i] = turnSign[i - 1]; continue; }
+    runStart[i] = i === 0 ? 0 : sorted[i - 1].t;
+    const sh = shots[i], az = sh.light ? (LIGHT_AZ[sh.light] ?? 25) + (sh.az_deg || 0) : 0;
+    // a lit shot turns through its lit face, not onto the night side (a turn about up takes az towards 0, the Sun's side)
+    turnSign[i] = sh.light && az < 0 ? -1 : 1;
+  }
+  /** shots[i]'s state at narration t (its drift included: from the moment its run began) */
+  const stateOf = (i, ctx, t) => {
+    const st = shotState(world, shots[i], tanHalf, sunId, ctx);
+    // spin: this shot turns faster than the usual drift (the screen check asks for it where a view would read as still)
+    let deg = drift * (shots[i].spin ?? 1) * (drifted(t) - drifted(runStart[i]));
+    // a run of journey beats is one subject for minutes (every beat frames the same craft path): its drift swings within
+    // PATH_SWING of the angle the path was framed for instead of adding up -- 90 s at 0.9-2.7 deg/s turned the path end-on,
+    // so a boundary or a signal line along it collapsed onto the craft. Constant speed, reversing at the limit (a sine would stall there and read as a frozen frame).
+    if (shots[i].path) deg = PATH_SWING * (2 / Math.PI) * Math.asin(Math.sin((Math.PI * deg) / (2 * PATH_SWING)));   // a triangle wave: the same speed, turning back at the limit
+    if (drift) st.dir = rotateAbout(st.dir, st.up, turnSign[i] * deg);
+    return st;
+  };
   return function at(t) {
     let idx = 0, move = null, held = 0;
     for (const m of moves) {
@@ -260,18 +304,18 @@ export function createCamera(world, cam, { trajectory, dateAt } = {}) {
     let s;
     const ctx = { trajectory, t, aspect: cam.aspect, memo };
     if (!move) {
-      const st = shotState(world, shots[idx], tanHalf, sunId, ctx);
+      const st = stateOf(idx, ctx, t);
       s = { ...st, target: st.local };
       if (st.orbit) s.dir = rotateAbout(st.dir, st.up, st.orbit * (t - held));
     } else {
-      const to = shotState(world, shots[move.i + 1], tanHalf, sunId, ctx);
+      const to = stateOf(move.i + 1, ctx, t);
       let from;
       if (dateAt) {
         const was = world.date;
         world.setTime(dateAt(move.t0));
         // its point stays relative to its body, so the body's own travel is still followed; only its turning is frozen
-        try { from = shotState(world, shots[move.i], tanHalf, sunId, { ...ctx, t: move.t0 }); } finally { world.setTime(was); }
-      } else from = shotState(world, shots[move.i], tanHalf, sunId, ctx);
+        try { from = stateOf(move.i, { ...ctx, t: move.t0 }, t); } finally { world.setTime(was); }
+      } else from = stateOf(move.i, ctx, t);
       const between = world.vec(from.anchor, to.anchor);
       const gapVec = [0, 1, 2].map((j) => between[j] + to.local[j] - from.local[j]);
       const k = move.t1 > move.t0 ? smooth((t - move.t0) / (move.t1 - move.t0)) : 1;
@@ -281,8 +325,7 @@ export function createCamera(world, cam, { trajectory, dateAt } = {}) {
       const target = w < 0.5 ? from.local.map((v, j) => v + gapVec[j] * w) : to.local.map((v, j) => v - gapVec[j] * (1 - w));
       s = { anchor: w < 0.5 ? from.anchor : to.anchor, target, dist: d, dir: norm(slerp(from.dir, to.dir, k)), up: norm(slerp(from.up, to.up, k)) };
     }
-    let dir = s.dir;
-    if (drift) dir = rotateAbout(dir, s.up, drift * drifted(t));   // a slow drift keeps a quiet shot alive; it rests while things move
+    const dir = s.dir;                                     // (the slow drift is in each shot's state: see stateOf)
     const position = s.target.map((v, i) => v + dir[i] * s.dist);
     // keep: the camera stays where it is and only TURNS when a craft is about to leave the frame (a soft follow, not a chase).
     // During a glide the two shots' corrections are blended, so a hand-over between beats never jumps.

@@ -264,8 +264,32 @@ def transcribe_audio(audio_path: str, model_size: str):
     )
 
     print(f"[1/4] Transcribing {audio_path} (this can take a while for long audio)...")
-    segments, _ = model.transcribe(audio_path, word_timestamps=True, vad_filter=True)
-    seg_list = list(segments)
+    # Decoded by the ffmpeg program first: Whisper's own reader (PyAV) stops at the first damaged frame, so an mp3 with a
+    # bad header 18 s in was transcribed as 18 s of a 13 minute voiceover (2026-10-16). ffmpeg skips damaged frames, as
+    # the final render does, so the words cover the same audio the video plays.
+    source = audio_path
+    try:
+        from providers.media_clip.ffmpeg_clip import _ffmpeg
+        import numpy as np
+
+        raw = hidden_subprocess.run([_ffmpeg(), "-v", "error", "-nostdin", "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "16000",
+                                     "-f", "f32le", "-"], capture_output=True, timeout=1800).stdout
+        if raw:
+            source = np.frombuffer(raw, np.float32).copy()
+    except Exception as exc:  # no ffmpeg: Whisper reads the file itself, as before
+        print(f"[1/4] ffmpeg could not decode the audio first ({exc}); Whisper reads the file itself")
+    segments, info = model.transcribe(source, word_timestamps=True, vad_filter=True)
+    # Whisper works through the audio as the segments are read: say how far it is, or a long voiceover looks frozen
+    total = float(getattr(info, "duration", 0) or 0)
+    seg_list, shown, started = [], -1, time.monotonic()
+    for seg in segments:
+        seg_list.append(seg)
+        if total > 0:
+            pct = int(min(100.0, 100.0 * float(seg.end) / total))
+            if pct // 10 > shown:
+                shown = pct // 10
+                print(f"[1/4] Transcribing… {pct}% ({int(seg.end) // 60}:{int(seg.end) % 60:02d} of "
+                      f"{int(total) // 60}:{int(total) % 60:02d}, {int(time.monotonic() - started)}s so far)")
 
     words = []  # list of (normalized_word, start, end)
     for seg in seg_list:

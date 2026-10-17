@@ -242,6 +242,7 @@ class TestSoundDensity(unittest.TestCase):
             root = Path(tmp)
             (root / "catalog.json").write_text(json.dumps({"sfx": [
                 {"id": "transition_02", "file": "transition/transition_02.wav", "category": "transition"},
+                {"id": "whoosh_010", "file": "whoosh/whoosh_010.opus", "category": "whoosh"},
                 {"id": "whoosh_05", "file": "whoosh/whoosh_05.wav", "category": "whoosh"},
             ]}), encoding="utf-8")
             self.assertEqual([e.id for e in SfxCatalog.load(root).entries], ["whoosh_05"])

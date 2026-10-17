@@ -72,10 +72,52 @@ class ClipTime(unittest.TestCase):
         self.assertEqual([(f["id"], f["start"], f["end"]) for f in share_missing_clip_time(fs)], [("b2_1", 0.0, 4.5), ("b2_3", 4.5, 9.0)])
 
     def test_complete_and_empty_beats_are_unchanged(self):
-        full = [{"id": "b8_1", "start": 1.0, "end": 2.0, "file": "a"}, {"id": "b8_2", "start": 2.0, "end": 3.0, "file": "b"}]
+        full = [{"id": "b8_1", "start": 1.0, "end": 4.0, "file": "a"}, {"id": "b8_2", "start": 4.0, "end": 7.0, "file": "b"}]
         self.assertEqual(share_missing_clip_time([dict(f) for f in full]), full)
+        notes = []
+        short = [{"id": "b7_1", "start": 1.0, "end": 2.0, "file": "a"}, {"id": "b7_2", "start": 2.0, "end": 3.0, "file": "b"}]
+        self.assertEqual(share_missing_clip_time(short, notes), [], "under MIN_CLIP_S for one clip: the map shows there")
+        self.assertIn("too short for a clip", notes[0])
         self.assertEqual(share_missing_clip_time([{"id": "b9_1", "start": 5.0, "end": 9.0}]), [], "no clip at all: the map, as before")
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AiStandIn(unittest.TestCase):
+    """No NASA picture of a mission scene: an AI still may stand in, labelled -- only where no camera could have recorded it."""
+
+    def plan_with(self, desc):
+        csv = CSV.replace("nasa_image:Europa full disk photographed by Galileo", f"nasa_image:{desc}")
+        return read_plan(csv, WORDS)
+
+    def run_with(self, desc, works=True):
+        sent = []
+
+        def fetch_scenes(table, images_dir, **kw):
+            sent.extend((str(r.scene_number), r.asset_type, r.prompt) for r in table)
+            paths = {str(r.scene_number): str(Path(images_dir) / "ai.png") for r in table if r.wants_flow_image} if works else {}
+            return SimpleNamespace(paths=paths, skipped=set(), missing={}, credits={})
+
+        out = fetch_media(self.plan_with(desc), Path(tempfile.mkdtemp()), nasa_get=NoNasa(), fetch_scenes=fetch_scenes,
+                          mission="Voyager 1", log=lambda *_: None)
+        return out, sent
+
+    def test_a_scene_no_camera_recorded_gets_a_labelled_ai_still(self):
+        out, sent = self.run_with("Voyager 1 drifting alone in the dark of interstellar space")
+        self.assertEqual([s[1] for s in sent], ["image"], "a Flow image row ('flow_image' is the table's alias for it)")
+        self.assertIn("no text", sent[0][2])
+        self.assertEqual(out.media["row:4"]["credit"], "AI ILLUSTRATION", "labelled on screen")
+        self.assertTrue(any("AI-generated" in c for c in out.credits))
+
+    def test_real_people_and_photographed_events_are_never_made_up(self):
+        for desc in ("Linda Morabito at JPL in 1979 with the Io image", "the Voyager team in mission control", "photograph of the launch"):
+            out, sent = self.run_with(desc)
+            self.assertEqual(sent, [], desc)
+            self.assertEqual(out.media.get("row:4"), {"file": ""}, "left out, as before")
+
+    def test_when_flow_fails_the_scene_is_left_out_not_blocked(self):
+        out, sent = self.run_with("the Golden Record spinning slowly in sunlight", works=False)
+        self.assertEqual(out.media.get("row:4"), {"file": ""})
+        self.assertFalse(out.missing, "Generate is never blocked by a stand-in")

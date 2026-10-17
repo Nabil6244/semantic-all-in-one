@@ -440,9 +440,11 @@ def _video_multi_shot(
         elif usable >= required * 0.88 and n == 1:
             src_start, src_end = 0.0, min(usable, required)
         elif n == 1 or dur <= play + 0.02:
-            # Replay the usable window (punch-in / reframe provides the cut).
-            offset = min(0.12 * i, max(0.0, usable - min(dur, play)))
-            src_start = round(offset, 3)
+            # The clip is shorter than the narration, so some of it is seen twice: the shots' windows walk forward through it
+            # (the first starts at 0, the last ends on the clip's last frame) and the punch-in / reframe provides the cut. Each
+            # shot restarting near 0 cut a 6 s clip after ~4 s, replayed its start and never showed its end.
+            offset = (usable - min(dur, play)) * i / (n - 1) if n > 1 else 0.0
+            src_start = round(max(0.0, offset), 3)
             src_end = round(min(usable, src_start + min(dur, play)), 3)
         elif usable >= sum(durs[: i + 1]) * 0.85:
             src_start = src_cursor
@@ -523,8 +525,9 @@ def _image_coverage(
     primary: AssetCandidate,
     intent: Optional[EditorialIntent] = None,
 ) -> EditDecision:
-    """Cover narration with a still — prefer one breathing hold over crop cuts."""
-    n = _n_shots_for_gap(required, 0.0, role, scene.pacing_bias, intent=intent)
+    """Cover narration with a still — one breathing hold, never crop cuts: a second shot of the same picture restarted its
+    slow push (faster, on the shorter shot), which reads as the image jumping."""
+    n = 1
     sizes = shot_size_sequence(role, n, prev_size=tracker.prev_shot_size)
     durs = _split_durations(required, n)
     prefer_static = scene.purpose in ("evidence",) or role in (
@@ -1237,4 +1240,54 @@ def plan_all_edit_decisions(
                 if len(recent) > 24:
                     recent = recent[-24:]
         out.append(decision)
+    _continue_same_clip(out)
     return out
+
+
+def _same_file(a: Optional[str], b: Optional[str], digests: Dict[str, str]) -> bool:
+    """Same picture or clip on disk: the same path, or the same bytes (a reused twin under another name)."""
+    import hashlib
+
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+
+    def md5(p: str) -> str:
+        if p not in digests:
+            try:
+                h = hashlib.md5()
+                with open(p, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        h.update(chunk)
+                digests[p] = h.hexdigest()
+            except OSError:
+                digests[p] = p
+        return digests[p]
+
+    return md5(a) == md5(b)
+
+
+def _continue_same_clip(decisions: List[EditDecision]) -> None:
+    """Two scenes back to back on the same clip: the second plays on from where the first stopped instead of restarting
+    it at frame 0 (the cut jumped back and replayed the opening seconds). Only when the clip has room left for the shot."""
+    digests: Dict[str, str] = {}
+    for prev, nxt in zip(decisions, decisions[1:]):
+        if not prev.shots or not nxt.shots:
+            continue
+        p, q = prev.shots[-1], nxt.shots[0]
+        if p.source_end is None or q.source_end is None or p.hold_tail or q.hold_tail:
+            continue   # a still, or a held last frame
+        if not _same_file(p.source_path, q.source_path, digests):
+            continue
+        # where the previous shot stopped playing (source_end is only the window it may read)
+        stopped = float(p.source_start or 0.0) + float(p.output_duration) * float(p.speed or 1.0)
+        start = float(q.source_start or 0.0)
+        if start >= stopped - 0.05:
+            continue
+        needs = float(q.output_duration) * float(q.speed or 1.0)
+        native = analyze_media_editability(Path(q.source_path), asset_type="stock_video").native_duration if q.source_path else 0.0
+        if native and stopped + needs <= native + 0.05:
+            q.source_start = round(stopped, 3)
+            q.source_end = round(min(native, stopped + max(needs, float(q.source_end) - start)), 3)
+            q.reason = f"{q.reason or ''} | plays on from the previous scene's clip".strip(" |")

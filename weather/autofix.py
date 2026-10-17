@@ -160,7 +160,13 @@ def repair_beats(text: str, words: Sequence, duration: Optional[float], notes: L
     last_err = None
     for _ in range(passes):
         try:
-            plan = plan_from_csv(_csv_text(rows), list(words), duration)
+            heard: List[str] = []
+            plan = plan_from_csv(_csv_text(rows), list(words), duration, notes=heard)
+            # a beat whose words were not heard no longer stops the import (anchor_clock places it by estimate): line the
+            # script up with the recording first, as an import error used to make it do, so it starts on its own words
+            if any(" is not heard near where the script puts it" in n for n in heard) and realign():
+                continue
+            notes.extend(heard)
             fix_places(plan, notes)
             return plan, aliases
         except PlanError as exc:

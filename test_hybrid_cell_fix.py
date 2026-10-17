@@ -58,12 +58,16 @@ class TestCells(unittest.TestCase):
                 "b1,beat,In Polk,map,Florida,region,a\n"
                 "b2,beat,Never said at all,map,Florida,region,b\n")
         words = estimate_words("In Polk the land is flat and wide and green and the story goes on for a while here")
+        # an anchor the narration never says no longer stops the import: the beat is placed by estimate, with a note
+        res = import_beats(text, words, 12.0)
+        self.assertTrue(any("Never said at all" in n for n in res.notes), res.notes)
+        bad_mode = text.replace("b2,beat,Never said at all,map,", "b2,beat,the land is,mapp,")
         with self.assertRaises(PlanError) as cm:
-            import_beats(text, words, 12.0)
-        cell = cell_fix.cell_for_problem(text, cm.exception.problems[0])
-        self.assertEqual((cell.row, cell.column, cell.value), (3, "vo_anchor", "Never said at all"))
-        cell.value = "the lend is"
-        self.assertIn("the land is", [t.lower() for t in cell_fix.suggestions(text, cell, words)])
+            import_beats(bad_mode, words, 12.0)
+        cell = cell_fix.cell_for_problem(bad_mode, cm.exception.problems[0])
+        self.assertEqual((cell.row, cell.column, cell.value), (3, "mode", "mapp"))
+        anchor = cell_fix.Cell(row=3, column="vo_anchor", value="the lend is", cells=cell.cells, message="")
+        self.assertIn("the land is", [t.lower() for t in cell_fix.suggestions(text, anchor, words)])
 
     def test_the_original_is_kept_once(self):
         with tempfile.TemporaryDirectory() as d:

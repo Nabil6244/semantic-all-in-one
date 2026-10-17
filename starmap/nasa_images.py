@@ -70,7 +70,7 @@ def score(query: str, title: str, description: str) -> float:
 _MISSION = re.compile(r"\b([A-Z][A-Za-z]+)[ -]?(\d{1,2}|I{1,3}|IV|V|VI{0,3})\b")
 
 
-def contradicts(query: str, title: str, description: str) -> Optional[str]:
+def contradicts(query: str, title: str, description: str, date: str = "") -> Optional[str]:
     """Why an item is NOT the picture asked for (None when it may be): it names another mission of the same name (Voyager 2's
     photo for "Voyager 1 ..."), or it lacks most of the named things the description asks for ("Great Red Spot", "Titan").
     The search ranks by shared words, so a caption about Io scored well for "the storms of Jupiter"; this check rejects it."""
@@ -88,7 +88,52 @@ def contradicts(query: str, title: str, description: str) -> Optional[str]:
     found = [w for w in named if _stem(w.lower()) in have or w.lower() in low]
     if named and len(found) * 3 < len(named) * 2:
         return f"it does not show {', '.join(w for w in named if w not in found)}"
+    # the mission's name is not evidence of what the picture shows: a caption about the Madrid antennas receiving "data from
+    # the agency's Voyager 1 spacecraft" won the card for "Voyager 1 spacecraft being prepared before launch in 1977". With the
+    # mission's name (and a "spacecraft" / "probe" right after it) taken out, what the description asks to SEE must be in
+    # what the item says it shows: its title, or its first sentence when the title is only the mission or a catalogue number
+    want = _subject(query, query)
+    if want:
+        shows = _subject(title, query) | _subject(_first_sentence(description), query)
+        if not any(_same(w, s) for w in want for s in shows):
+            return f"it mentions the mission but does not show {' / '.join(sorted(want))}"
+    # an asked-for year (a 1977 launch) and a picture made decades away from it that never mentions that year
+    years = {int(y) for y in re.findall(r"\b(19[5-9]\d|20[0-4]\d)\b", query)}
+    made = int(date[:4]) if re.match(r"(19|20)\d\d", date or "") else None
+    if years and made and all(abs(made - y) > 2 for y in years) and not any(str(y) in text for y in years):
+        return f"it was made in {made}, not {'/'.join(map(str, sorted(years)))}"
     return None
+
+
+# words that name the kind of picture, not its subject
+_NOT_SUBJECT = {"image", "photo", "photograph", "picture", "view", "nasa", "being", "before", "after", "during", "while", "shows",
+                "showing", "seen", "taken", "by", "as", "it", "this", "that", "his", "her", "their", "one", "two", "first"}
+_CRAFT_NOUN = r"(?:\s+(?:spacecraft|space\s+probe|probe|mission|team|project|program))?"
+
+
+def _subject(text: str, query: str) -> set:
+    """The content words of `text` once the query's missions ("Voyager 1", "Voyager", "Voyager 1 spacecraft"), years and
+    catalogue numbers are taken out: what it is a picture OF."""
+    t = text or ""
+    t = re.sub(r"[\w-]*\d[\w-]*", " ", t)           # catalogue numbers (ARC-1979-A79-7086, PIA00010) are not words
+    for name, num in _MISSION.findall(query):
+        if name.lower() in STOP or name == "NASA":
+            continue
+        t = re.sub(rf"\b{re.escape(name)}(?:[ -]?(?:\d{{1,2}}|[IVX]{{1,4}}))?(?:'s)?{_CRAFT_NOUN}\b", " ", t, flags=re.I)
+    return {_stem(w) for w in _words(t) if w not in _NOT_SUBJECT and not w.isdigit() and not re.search(r"\d", w) and len(w) >= 2}
+
+
+def _same(a: str, b: str) -> bool:
+    """One word, give or take its ending (prepar / preparation, launch / launched)."""
+    return a == b or (min(len(a), len(b)) >= 5 and (a.startswith(b) or b.startswith(a)))
+
+
+def _first_sentence(description: str) -> str:
+    """The opening sentence, past a dateline (as `score` reads it)."""
+    parts, first = re.split(r"(?<=\.)\s+", (description or "").strip()), ""
+    while parts and len(first) < 60:
+        first += " " + parts.pop(0)
+    return first
 
 
 def queries(description: str) -> List[str]:
@@ -185,7 +230,7 @@ def fetch(query: str, target: Path, *, min_score: float = 0.4, min_width: int = 
     for img in search(query, get=get, context=context)[:5]:
         if img.score < min_score:
             break
-        why = contradicts(query, img.title, img.description)
+        why = contradicts(query, img.title, img.description, img.date)
         if why:
             log(f"[StarMap] NASA image {img.nasa_id} skipped: {why}")
             continue

@@ -39,6 +39,7 @@ class Report:
     jumps: List[str] = field(default_factory=list)
     plan: Optional[Plan] = None
     compiled: Optional[Compiled] = None
+    script: List[str] = field(default_factory=list)       # the script check (script_check.py): score, strengths, what to fix
 
     @property
     def ok(self) -> bool:
@@ -64,6 +65,9 @@ class Report:
         out += [f"ERROR {e}" for e in self.errors]
         out += [f"WARNING {w}" for w in self.warnings]
         out += [f"NOTE {n}" for n in self.notes]
+        if self.script:
+            out.append("Script (does it hold a viewer?):")
+            out += self.script
         if self.to_find:
             out.append(f"TO FIND ({len(self.to_find)}): " + "; ".join(f"row {r}: {a}" for r, a in self.to_find))
         out.append("OK: ready to render" if self.ok and not self.to_find else ("OK once the pictures and clips are found" if self.ok else "NOT READY"))
@@ -109,7 +113,37 @@ def check_csv(text: str, words: Sequence = (), duration: Optional[float] = None,
     rep.to_find = comp.needs_media
     _rhythm(plan, comp, rep)
     _shots(plan, cat, rep)
+    _screen(plan, cat, comp, rep, dict(media=media, resolve_media=False, resolution=res))
+    from .script_check import check_script
+
+    rep.script = check_script(" ".join(b.text for b in plan.beats if b.text)).to_text().splitlines()
     return rep
+
+
+def _screen(plan: Plan, cat: Catalog, comp: Compiled, rep: Report, kw: Dict[str, Any]) -> None:
+    """The screen check Generate runs (repair.py): what it will repair, and what it cannot -- a speck in black space, a still
+    stretch, a planet cut by the frame edge -- so the CSV can be fixed before rendering. A heliosphere beat with no craft to
+    frame is flagged too: the app frames a craft's journey there, and without one it is a far view of a speck."""
+    from .compile import journeys
+
+    for b in plan.beats:
+        if b.mode != "footage" and b.frame == "heliosphere" and b.id not in journeys(cat, plan, comp.resolution, comp.spec.get("clock"), comp.actions):
+            rep.warnings.append(f"row {b.row}: heliosphere beat {b.id} has no spacecraft to frame (add its craft row), so it shows the planets as a speck")
+    # a beat whose caption names a thing nothing on screen draws (a heuristic: it catches captions standing in for pictures)
+    from .subject_check import check_subjects, craft_names, subject_terms
+
+    used = list(comp.resolution.used) if comp.resolution is not None else []
+    rep.warnings += check_subjects(plan, comp.spec, craft_names(cat, used), subject_terms(cat, used))
+    try:
+        from .repair import compile_checked
+
+        _, chk = compile_checked(plan, cat, **kw)
+    except Exception:
+        return
+    if chk.error:
+        return
+    # what Generate repairs by itself needs no word here; what it cannot repair is a warning to fix in the CSV
+    rep.warnings += [ln.replace("screen check: still ", "on screen: ") for ln in chk.lines()[1:]]
 
 
 def _bodies_named(text: str, cat: Catalog) -> set:

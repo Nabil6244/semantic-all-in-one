@@ -11,8 +11,10 @@ export default {
   draw(inst, f) {
     const { W, H, u } = f;
     let labels = [];
+    // a body a tracking marker names right now is not labelled twice
+    const tracked = new Set((f.spec.layers || []).filter((L) => L.type === 'tracker' && L.body && f.t >= L.start && f.t <= L.end).map((L) => L.body));
     for (const b of f.bodies) {
-      if (!b.n.label || (inst.only && !inst.only.has(b.id)) || inst.exclude.has(b.id) || (b.away ?? 1) < 0.5) continue;
+      if (!b.n.label || (inst.only && !inst.only.has(b.id)) || inst.exclude.has(b.id) || (b.away ?? 1) < 0.5 || tracked.has(b.id)) continue;
       const atScale = b.dist < 60 * f.cam.distance || b.id === f.cam.anchor;
       if (b.front && Math.abs(b.ndc[0]) < 1.05 && Math.abs(b.ndc[1]) < 1.05 && b.px < 0.32 * H && (f.inside > 0.3 || b.n.kind === 'galaxy') && atScale)
         labels.push({ id: b.id, x: b.sx, y: b.sy, r: b.px, text: b.n.label, dist: b.dist, size: b.n.radiusKm, depth: depthOf(f.world, b.id),
@@ -30,7 +32,14 @@ export default {
       const y = f.place(x, y0, w, h);                                    // make room for chips other layers put here
       taken.push({ x, y, w });
       f.g.globalAlpha = f.alpha * L.a * L.a * (3 - 2 * L.a);
-      u.chip(x, y, L.text, 24, { bg: 'rgba(255,255,255,0.92)', shadowBlur: 0 });
+      if (f.spec.cinema) {
+        // Cinema: What If's labels -- small, tracked, plain white text with a soft shadow, no chip
+        const g = f.g; g.save(); g.textAlign = 'center'; g.textBaseline = 'top'; g.font = u.font(15, 800);
+        if ('letterSpacing' in g) g.letterSpacing = `${2 * u.S}px`;
+        u.shadow(8, 0.8); g.fillStyle = 'rgba(235,240,246,0.92)'; g.fillText(L.text, L.x, y + 6 * u.S); u.noShadow(); g.restore();
+      } else {
+        u.chip(x, y, L.text, 24, { bg: 'rgba(255,255,255,0.92)', shadowBlur: 0 });
+      }
     }
     f.g.restore();
     void W;

@@ -17,25 +17,69 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from .beat_csv import Plan, PlanError, read_plan
 from .catalog import Catalog, CatalogError
 from .check import check_csv
-from .compile import CompileError, compile_plan, strip_private
+from .compile import CompileError, strip_private
 
 ProgressCallback = Callable[[str, float], None]
 
 
-def share_missing_clip_time(footage: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+MIN_CLIP_S = 2.2      # the engine refuses a footage clip under 2 s (starmap-engine/lib/footage.mjs MIN_BEAT_S); room for the dissolve
+
+
+_TEXT_LAYERS = ("caption", "stat_chip", "big_number", "photo_card", "title", "footnote")
+
+
+def hold_map_over_empty_footage(spec: Dict[str, Any], beats: Sequence[Any], notes: Optional[List[str]] = None) -> None:
+    """A footage beat left with no clip (none found, or each rejected as the wrong picture) goes to the map. The map beat
+    before it keeps its pictures on screen through it -- the craft, its path, a boundary -- instead of the bare view they
+    leave behind (the 011 Voyager video: the 2013 interstellar announcement, its unrelated briefing clip rejected, would
+    have shown an empty frame). Captions and numbers end as before: they belong to their own words."""
+    have = {str(f.get("id", "")).rsplit("_", 1)[0] for f in spec.get("footage") or []}
+    for i, b in enumerate(beats):
+        if b.mode != "footage" or b.id in have or i == 0 or beats[i - 1].mode == "footage":
+            continue
+        held = 0
+        for L in spec.get("layers") or []:
+            if L.get("type") in _TEXT_LAYERS or "end" not in L or "start" not in L:
+                continue
+            if abs(float(L["end"]) - b.start) <= 0.1 and float(L["start"]) < b.start:
+                L["end"] = round(b.end, 3)
+                held += 1
+        if held and notes is not None:
+            notes.append(f"footage {b.id}: no clip, so beat {beats[i - 1].id}'s map stays on screen through it ({held} layers)")
+
+
+def share_missing_clip_time(footage: List[Dict[str, Any]], notes: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """The footage entries that have a file. A footage beat that lost a clip (no picture found, or skipped) gives its time
     to the clips it still has -- they share the beat's whole stretch in order -- so the map is not left frozen in the gap.
-    A beat with no clip at all is unchanged (its time goes to the map, as before)."""
+    A beat with no clip at all is unchanged (its time goes to the map, as before).
+
+    Every clip gets at least MIN_CLIP_S: a beat keeps only as many clips as fit (the first ones), and a beat too short for
+    one clip leaves its seconds to the map. A clip under 2 s used to stop the whole render in the engine."""
     beats: Dict[str, List[Dict[str, Any]]] = {}
     for f in footage:
-        beats.setdefault(str(f.get("id", "")).rsplit("_", 1)[0], []).append(f)
+        fid = str(f.get("id", ""))
+        # a beat's clips are <beat>_<n>; Cinema's full-frame photos (cinema_photo_<n>) are each placed on their own words, never one
+        # "cinema_photo" beat: grouped, they were spread over the span from the first to the last and laid over the real clips
+        # ("footage cinema_photo_1 and b11_1 overlap", project #014)
+        key = fid if fid.startswith("cinema_") else fid.rsplit("_", 1)[0]
+        beats.setdefault(key, []).append(f)
     out: List[Dict[str, Any]] = []
-    for fs in beats.values():
+    for bid, fs in beats.items():
         fs = sorted(fs, key=lambda f: f["start"])
         have = [f for f in fs if f.get("file") or f.get("image")]
-        if have and len(have) < len(fs):
-            a, b = fs[0]["start"], fs[-1]["end"]
-            step = (b - a) / len(have)
+        if not have:
+            continue
+        a, b = fs[0]["start"], fs[-1]["end"]
+        fit = min(len(have), int((b - a) // MIN_CLIP_S))
+        if fit < 1:
+            if notes is not None:
+                notes.append(f"footage {bid}: only {b - a:.1f} s long, too short for a clip, so the map shows there instead")
+            continue
+        if fit < len(have) and notes is not None:
+            notes.append(f"footage {bid}: {b - a:.1f} s fits {fit} of its {len(have)} clips (at least {MIN_CLIP_S:g} s each); the rest are left out")
+        if fit < len(fs) or any(f["end"] - f["start"] < MIN_CLIP_S for f in have):
+            have = have[:fit]
+            step = (b - a) / fit
             for i, f in enumerate(have):
                 f["start"], f["end"] = round(a + i * step, 3), round(a + (i + 1) * step, 3)
         out += have
@@ -206,7 +250,7 @@ def generate_starmap_video(
     watermark: Optional[dict] = None, title: str = "", sound_design: bool = True, pixel_scale: int = 1, fps: int = 30,
     progress_cb: Optional[ProgressCallback] = None, log: Callable[[str], None] = print, cancel_check: Optional[Callable[[], bool]] = None,
     media_callbacks: Optional[dict] = None, render: Optional[Callable[..., Any]] = None, fetch: Optional[Callable[..., Any]] = None,
-    sound_catalog: Any = None, **provider_kwargs: Any,
+    sound_catalog: Any = None, cinema: Any = None, **provider_kwargs: Any,
 ):
     """`provider_kwargs` go to the shared media resolver (pexels_api_key, flow_engine_manager, flow_settings, flow_video_account_ids,
     youtube_clip_duration ...). `render` / `fetch` are injectable for tests. Datasets are found from the CSV (`pack` is only an
@@ -225,28 +269,45 @@ def generate_starmap_video(
 
     _report(progress_cb, "Reading the StarMap plan…", 0.02)
     duration = voiceover_duration(voiceover_path)
+    from .heal import HealedCsv, heal_until_clean, media_numbers
+    from .resolve import resolve
+
     try:
-        plan = read_plan(csv_path.read_text(encoding="utf-8"), whisper_words, duration)
-        if pack and not plan.pack:
-            plan.pack = pack
         cat = Catalog()
-    except PlanError as exc:
-        return PakmapResult(False, list(exc.problems))
+        csv_text = csv_path.read_text(encoding="utf-8")
     except CatalogError as exc:
         return PakmapResult(False, [str(exc)])
     except Exception as exc:
         return PakmapResult(False, [f"could not read the plan: {exc!r}"])
-    if duration:
-        plan.duration = duration            # the video ends with the narration
-        if plan.beats and plan.beats[-1].end > duration:
-            plan.beats[-1].end = max(plan.beats[-1].start + 0.5, duration)
+    numbers = media_numbers(csv_text)
+    healed = HealedCsv(csv_text)
+
+    def load(text: str):
+        """The plan and its catalog match from the (repaired) CSV text: ((plan, res), problems)."""
+        try:
+            p = read_plan(text, whisper_words, duration)
+        except PlanError as exc:
+            return None, list(exc.problems)
+        if pack and not p.pack:
+            p.pack = pack
+        if duration:
+            p.duration = duration            # the video ends with the narration
+            if p.beats and p.beats[-1].end > duration:
+                p.beats[-1].end = max(p.beats[-1].start + 0.5, duration)
+        p.media_numbers = numbers
+        r = resolve(p, cat, reference_now=p.reference_now or reference_now)
+        return (p, r), list(r.errors)
+
+    try:
+        # a row with a problem is repaired or left out (see heal), never the whole render
+        loaded, problems = heal_until_clean(healed, load, log)
+    except Exception as exc:
+        return PakmapResult(False, [f"could not read the plan: {exc!r}"])
+    if problems or loaded is None:
+        return PakmapResult(False, problems or ["the plan could not be read"])
+    plan, res = loaded
     for n in plan.notes:
         log(f"[StarMap] {n}")
-    from .resolve import resolve
-
-    res = resolve(plan, cat, reference_now=plan.reference_now or reference_now)
-    if res.errors:
-        return PakmapResult(False, list(res.errors))
     for line in res.detected(cat):
         log(f"[StarMap] dataset:{line}")
     # NASA picture search: each row is matched against its own beat's mission (Apollo 8's photo, not Apollo 11's)
@@ -265,8 +326,16 @@ def generate_starmap_video(
     try:
         from .media import fetch_media
 
+        extra = {}
+        if fetch is None and cinema:
+            from .cinema import flags as _cfl
+
+            if _cfl(cinema):
+                from whatif.planner import HOUSE
+
+                extra["ai_house"] = HOUSE                        # Cinema: AI stand-ins in What If's house look
         got = (fetch or fetch_media)(plan, Path(images_dir), scene_rows=scene_rows, log=log, cancel_check=cancel_check,
-                                     stills_dir=work / "stills", mission=mission_of, **(media_callbacks or {}), **provider_kwargs)
+                                     stills_dir=work / "stills", mission=mission_of, **(media_callbacks or {}), **extra, **provider_kwargs)
     except Exception as exc:
         return PakmapResult(False, [f"could not get the pictures and clips: {exc!r}"])
     if cancelled():
@@ -284,20 +353,63 @@ def generate_starmap_video(
             if it.asset.lower().startswith("file:"):
                 f = Path(it.asset[5:].strip())
                 f = f if f.is_absolute() else csv_path.parent / f
-                if not f.is_file():
-                    return PakmapResult(False, [f"row {it.row}: file {f} not found (file: names a file next to the CSV)"])
+                if not f.is_file():                 # left out, never the whole video: a clip's time goes to the rest
+                    log(f"[StarMap] row {it.row}: file {f} not found (file: names a file next to the CSV), so it is left out")
+                    media[f"row:{it.row}"] = {"file": ""}
+                    continue
                 media[f"row:{it.row}"] = {"file": str(f)}
     scale = 2 if int(pixel_scale or 1) >= 2 else 1
+    _report(progress_cb, "Checking every shot before drawing…", 0.08)
     try:
-        comp = compile_plan(plan, cat, media=media, width=1920 * scale, height=1080 * scale, fps=fps, watermark=watermark, resolution=res)
-    except CompileError as exc:
-        return PakmapResult(False, list(exc.problems))
+        # compile, then the screen check: every frame is projected (no drawing) and empty, still, cut, repeated or off-frame
+        # stretches are repaired beat by beat before the render starts
+        from .repair import compile_checked
+
+        try:
+            from map_scene.render import _node
+
+            node = _node()
+        except Exception:
+            node = "node"
+        first = [True]
+
+        def build(text: str):
+            """Compile the (repaired) CSV: (compiled, problems). The first try uses the plan already read."""
+            nonlocal plan, res
+            if not first[0]:
+                loaded_, problems_ = load(text)
+                if problems_:
+                    return None, problems_
+                plan, res = loaded_
+            first[0] = False
+            try:
+                return compile_checked(plan, cat, node=node, log=lambda s: log(f"[StarMap] {s}"), media=media,
+                                       width=1920 * scale, height=1080 * scale, fps=fps, watermark=watermark, resolution=res,
+                                       cinema=cinema), []
+            except CompileError as exc:
+                return None, list(exc.problems)
+
+        built, problems = heal_until_clean(healed, build, log)
+        if problems or built is None:
+            return PakmapResult(False, problems or ["the plan could not be compiled"])
+        comp, _check = built
     except Exception as exc:
         return PakmapResult(False, [f"unexpected error while compiling the plan: {exc!r}"])
     # skipped pictures: a card without a file is left out, a clip without one leaves its time to the map
     spec = strip_private(comp.spec)
     spec["layers"] = [L for L in spec["layers"] if not (L["type"] == "photo_card" and not (L.get("image") or L.get("video")))]
-    spec["footage"] = share_missing_clip_time(spec["footage"])
+    fit_notes: List[str] = []
+    spec["footage"] = share_missing_clip_time(spec["footage"], fit_notes)
+    hold_map_over_empty_footage(spec, plan.beats, fit_notes)
+    try:                                   # a report only: a caption standing in for a picture, a named craft not on screen
+        from .subject_check import check_subjects, craft_names, subject_terms
+
+        for line in check_subjects(plan, spec, craft_names(cat, list(res.used)), subject_terms(cat, list(res.used))):
+            log(f"[StarMap] subject check: {line}")
+    except Exception as exc:
+        log(f"[StarMap] subject check skipped: {exc}")
+    for n in fit_notes:
+        log(f"[StarMap] {n}")
     spec["media_dir"] = str(gather_media(spec, work / "render_media"))
     # chunks drawn before are reused when nothing that shows in them changed (an edit redraws only the seconds it touches)
     spec["segment_cache"] = str(work / "render_chunks")
@@ -319,14 +431,17 @@ def generate_starmap_video(
     def on_frame(done: int, total: int) -> None:
         _report(progress_cb, f"Drawing space… frame {done}/{total}", 0.10 + 0.78 * (done / max(1, total)))
 
-    try:
-        outcome = render(spec, silent, progress=on_frame, cancel_check=cancel_check, log=log)
-    except StarmapRenderCancelled:
-        return PakmapResult(False, ["Cancelled"], cancelled=True)
-    except StarmapRenderError as exc:
-        return PakmapResult(False, [str(exc)])
-    except Exception as exc:
-        return PakmapResult(False, [f"unexpected error while drawing space: {exc!r}"])
+    outcome = None
+    for attempt in (1, 2):      # a browser or GPU hiccup: once more (parts already drawn are reused from segment_cache)
+        try:
+            outcome = render(spec, silent, progress=on_frame, cancel_check=cancel_check, log=log)
+            break
+        except StarmapRenderCancelled:
+            return PakmapResult(False, ["Cancelled"], cancelled=True)
+        except Exception as exc:
+            if attempt == 2 or cancelled():
+                return PakmapResult(False, [str(exc) if isinstance(exc, StarmapRenderError) else f"unexpected error while drawing space: {exc!r}"])
+            log(f"[StarMap] the render stopped ({exc}); trying once more, reusing the parts already drawn")
     if cancelled():
         return PakmapResult(False, ["Cancelled"], cancelled=True)
 
@@ -340,6 +455,7 @@ def generate_starmap_video(
                 sound_notes.append(q.text())
         except Exception as exc:
             log(f"[StarMap] render QC skipped: {exc}")
+    music_credits: List[str] = []
     _report(progress_cb, "Designing the sound…" if sound_design else "Adding the narration…", 0.90)
     try:
         from .sound import plan_sound
@@ -353,6 +469,28 @@ def generate_starmap_video(
 
             mix = mix_pakmap_audio(audio_plan, voiceover_path, work / "starmap_audio.wav", duration=spec["duration"])
             narration = mix.path
+            # the music bed under it all: the story's mood, ducked under the narrator (StarMap only; credited)
+            try:
+                from map_scene.render import _ffmpeg as _ff
+
+                ff = _ff()
+            except Exception:
+                ff = "ffmpeg"
+            from .music import add_music
+
+            from .cinema import CINEMA_MUSIC_GAIN, flags as cinema_flags
+
+            cfl = cinema_flags(cinema) or {}
+            with_music, music_credits = add_music(Path(narration), work / "starmap_audio_music.wav", spec["duration"],
+                                                  " ".join(b.text for b in plan.beats), seed=title or plan.title, ffmpeg=ff, log=log,
+                                                  gain=CINEMA_MUSIC_GAIN if cfl.get("audio") else None)
+            if with_music:
+                narration = with_music
+            if cfl.get("audio"):
+                # Cinema: the references' loudness (-14 LUFS, two-pass, never stops a video if it fails)
+                from whatif.sound import normalize_loudness
+
+                narration = normalize_loudness(Path(narration), work / "starmap_audio_loud.wav", ff)
             log(f"[StarMap] sound design: {len(audio_plan.cues)} effect(s), {len(audio_plan.beds)} ambience bed(s)")
     except Exception as exc:     # the video is still made, with the narration alone, and the author is told
         narration, mix = voiceover_path, None
@@ -378,11 +516,27 @@ def generate_starmap_video(
     if problem:
         return PakmapResult(False, [f"final video failed validation: {problem}"])
 
-    credits = list(got.credits) + dataset_credits(cat, res)
+    # three thumbnail candidates from the video's strongest moments, next to the video (never fails the render)
+    try:
+        from .thumbnails import make_thumbnails
+
+        try:
+            from map_scene.render import _node as _nd
+
+            nd = _nd()
+        except Exception:
+            nd = "node"
+        thumbs = make_thumbnails(work / "starmap_spec.json", output_path.parent, output_path.stem, title or plan.title, node=nd, log=log)
+        if thumbs:
+            log(f"[StarMap] thumbnails: {', '.join(p.name for p in thumbs)}")
+    except Exception as exc:
+        log(f"[StarMap] thumbnails skipped: {exc}")
+    credits = list(got.credits) + dataset_credits(cat, res) + music_credits
     credits.append("Star positions: Yale Bright Star Catalogue (via CDS). Planet positions: astronomy-engine (MIT). Textures: NASA, NASA/JPL-Caltech, Solar System Scope (CC BY 4.0)")
     try:
         output_path.with_name(output_path.stem + " - credits.txt").write_text(credits_text(credits, outcome.warnings), encoding="utf-8")
     except OSError:
         pass
     _report(progress_cb, "Done.", 1.0)
-    return PakmapResult(True, [], output_path, None, credits, list(getattr(got, "notes", [])) + comp.notes + sound_notes + list(outcome.warnings), audio=audio_plan, audio_mix=mix)
+    return PakmapResult(True, [], output_path, None, credits, [f"repaired: {n}" for n in healed.notes] + list(getattr(got, "notes", [])) + comp.notes + fit_notes + sound_notes + list(outcome.warnings), audio=audio_plan, audio_mix=mix,
+                        unresolved=list(getattr(got, "unresolved", [])))

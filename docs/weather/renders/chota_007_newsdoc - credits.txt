@@ -1,0 +1,4 @@
+We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).
+Radar: NOAA/NWS NEXRAD via Iowa Environmental Mesonet (Iowa State University) (public domain; attribution requested; not an official NWS product; https://mesonet.agron.iastate.edu/disclaimer.php).
+Warnings: National Weather Service, archived by the Iowa Environmental Mesonet (Iowa State University).
+River gauges: U.S. Geological Survey (USGS); flood categories: NOAA National Weather Service.

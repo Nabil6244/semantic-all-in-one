@@ -110,6 +110,15 @@ def pack_vocabulary(cat: Catalog, script: Optional[str] = None, *, force: Option
     return "\n".join(lines)
 
 
+def doctor_prompt(script: str) -> str:
+    """The script doctor prompt (composition_styles/starmap_script_doctor_prompt.txt) with the script and the app's own check of
+    it: rewrite for retention BEFORE the voiceover is recorded, no fact changed; also titles and thumbnail text."""
+    from .script_check import check_script
+
+    text = prompt_path().with_name("starmap_script_doctor_prompt.txt").read_text(encoding="utf-8")
+    return text.replace("<<<REPORT>>>", check_script(script).to_text()).replace("<<<PASTE THE SCRIPT HERE>>>", script.strip())
+
+
 def short_prompt_path() -> Path:
     """composition_styles/starmap_short_prompt.txt (inside the packaged app when frozen)."""
     return prompt_path().with_name("starmap_short_prompt.txt")

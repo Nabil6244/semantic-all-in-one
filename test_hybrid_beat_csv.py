@@ -199,10 +199,13 @@ class TestWrittenFromTheScript(unittest.TestCase):
                               R(beat="b2", row="card", vo_anchor="Up in the", asset="stock_image:Maseru city view", place="Maseru", label="MASERU"))
         got = import_beats(late, WORDS, DURATION)
         self.assertTrue(any("row 7: the card words are spoken at" in n for n in got.notes), got.notes)
-        # a BEAT whose words come before the previous beat's still stops the import: the story order would be wrong
+        # a BEAT whose words come before the previous beat's never stops the import: it keeps its place in the story, with a note
         back = AI_CSV.replace(R(beat="b4", row="beat", vo_anchor="Back on the map", mode="map", place="Lesotho", frame="country"),
                               R(beat="b4", row="beat", vo_anchor="Lesotho is", mode="map", place="Lesotho", frame="country"))
-        self.assertIn("only spoken before the previous row", TestProblemsNameTheRow.problems(self, back, words=WORDS, duration=DURATION))
+        got = import_beats(back, WORDS, DURATION)
+        starts = [b.start for b in got.plan.beats]
+        self.assertEqual(starts, sorted(set(starts)), "beats stay in script order")
+        self.assertTrue(any("vo_anchor 'Lesotho is' is not heard near where the script puts it" in n for n in got.notes), got.notes)
 
     def test_the_app_routes_it_by_header(self):
         from app import VideoGeneratorApp as App
@@ -240,12 +243,12 @@ class TestNarrationSpelling(unittest.TestCase):
         self.assertEqual(len(got.plan.beats[0].layers), 2)
         self.assertTrue(any("Hardee" in n and "Hardy" in n for n in got.notes))
 
-    def test_an_unspoken_layer_phrase_is_placed_with_its_beat_but_an_unspoken_beat_stops_the_import(self):
+    def test_an_unspoken_phrase_never_stops_the_import(self):
         words = self._words("In Polk and Marshall about 1.3 million acres of land and some more words after that")
         got = import_beats(self.TEXT.replace("Hardee", "Zanzibar"), words, 12.0)  # not stopped: the marker appears with its beat
         self.assertTrue(any("Zanzibar" in n and "start of beat" in n for n in got.notes), got.notes)
-        with self.assertRaises(PlanError):  # a beat's own words must be found: they set where it starts
-            import_beats(self.TEXT.replace("In Polk", "Never said"), words, 12.0)
+        got = import_beats(self.TEXT.replace("In Polk", "Never said"), words, 12.0)  # a beat's words not heard: placed in order, with a note
+        self.assertTrue(any("Never said" in n and "not heard" in n for n in got.notes), got.notes)
 
 
     def test_a_beat_phrase_with_one_wrong_word_is_found_by_its_other_words(self):

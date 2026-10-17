@@ -136,7 +136,25 @@ for (const n of world.nodes.values()) {
           // low-Sun side still reads on screen ("min_light", a documentary choice, 0 = physically dark)
           bumpMap: n.bump ? await tex(n.bump) : null, bumpScale: n.bump_scale ?? 1,
           emissiveMap: map && n.min_light ? map : null, emissive: n.min_light ? 0xffffff : 0x000000, emissiveIntensity: n.min_light || 0 });
+    if (n.night && n.kind === 'body') {
+      // city lights on the NIGHT side only: the emissive map is masked by the real Sun direction (a soft band at the terminator)
+      mat.emissiveMap = await tex(n.night); mat.emissive = new THREE.Color(n.night_color || '#ffd8a0');
+      mat.emissiveIntensity = n.night_intensity ?? 1.6;
+      b.sunView = { value: new THREE.Vector3(1, 0, 0) };
+      mat.onBeforeCompile = (sh) => {
+        sh.uniforms.uSunView = b.sunView;
+        sh.fragmentShader = 'uniform vec3 uSunView;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
+          '#ifdef USE_EMISSIVEMAP\n  vec4 emissiveColor = texture2D( emissiveMap, vEmissiveMapUv );\n'
+          + '  totalEmissiveRadiance *= emissiveColor.rgb * smoothstep( 0.12, -0.2, dot( normal, normalize( uSunView ) ) );\n#endif');
+      };
+    }
     b.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), mat); b.mesh.scale.setScalar(n.radiusKm); g.add(b.mesh);
+    if (n.clouds) {
+      // a cloud shell just above the surface, turning with the body (its brightness is its opacity)
+      const ct = await tex(n.clouds); ct.colorSpace = THREE.NoColorSpace;
+      b.clouds = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), new THREE.MeshStandardMaterial({ color: 0xffffff, alphaMap: ct, transparent: true, depthWrite: false, roughness: 1, metalness: 0 }));
+      b.clouds.scale.setScalar(n.radiusKm * 1.006); g.add(b.clouds);
+    }
     if (n.rings) {     // a ring in the body's equatorial plane, its texture running from the inner to the outer edge
       const inner = n.radiusKm * n.rings.inner, outer = n.radiusKm * n.rings.outer;
       const geo = new THREE.RingGeometry(inner, outer, 256, 1);
@@ -146,6 +164,10 @@ for (const n of world.nodes.values()) {
       g.add(b.ring);
     }
     b.point = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(n.glow || n.color || '#cfd8ff'), sizeAttenuation: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending }));
+    if (n.kind === 'star') {     // a soft corona its own size round every star: the Sun glows, it is not a hard disk on black
+      b.corona = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(n.glow || '#ffcf70'), depthWrite: false, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending }));
+      b.corona.scale.setScalar(n.radiusKm * 7); g.add(b.corona);
+    }
     g.add(b.point);
   }
   if (n.kind === 'galaxy' && !n.texture) {
@@ -177,6 +199,8 @@ for (const n of world.nodes.values()) {
 await document.fonts.load('800 30px StarMapSans');
 const u = ui(ctx, W);
 const imageCache = new Map();
+const modelCache = new Map();
+let sharedDraco = null;
 const layerCtx = {
   THREE, scene, world, spec, clock: storyClock, W, H, focalPx,
   tex,
@@ -189,12 +213,144 @@ const layerCtx = {
   },
   /** A glTF/GLB model from the media folder (three.js GLTFLoader, loaded only when a spec asks for a model). */
   async loadModel(name) {
-    const { GLTFLoader } = await import('/three/addons/loaders/GLTFLoader.js');
-    const gltf = await new GLTFLoader().loadAsync(`/media/${encodeURIComponent(name)}`);
-    return gltf.scene;
+    // each model file is loaded (and decoded) once and cloned for every craft that uses it: one Draco decoder for all, so a
+    // video with dozens of craft appearances never runs the page out of memory (33 Voyager rows did)
+    if (!modelCache.has(name)) modelCache.set(name, (async () => {
+      const { GLTFLoader } = await import('/three/addons/loaders/GLTFLoader.js');
+      // "wi:voyager.glb": one of the NASA 3D models shipped with the What If engine (Cinema mode's hero shots)
+      const wi = String(name).startsWith('wi:');
+      const url = wi ? `/wi-models/${encodeURIComponent(name.slice(3))}` : `/media/${encodeURIComponent(name)}`;
+      const loader = new GLTFLoader();
+      if (wi) {   // NASA's models are Draco-compressed
+        if (!sharedDraco) {
+          const { DRACOLoader } = await import('/three/addons/loaders/DRACOLoader.js');
+          sharedDraco = new DRACOLoader().setDecoderPath('/three/addons/libs/draco/gltf/');
+        }
+        loader.setDRACOLoader(sharedDraco);
+      }
+      return (await loader.loadAsync(url)).scene;
+    })());
+    return (await modelCache.get(name)).clone(true);
   },
 };
 const registry = registerBuiltins(createRegistry());
+// Cinema mode (spec.cinema): the What If engine's diagram plates, type moments and citation line, its fonts, and a slate plate
+// behind a diagram. Classic StarMap (no spec.cinema) loads none of it.
+if (spec.cinema) {
+  for (const [family, file, weight] of [['TMSans', 'Inter-SemiBold.ttf', '600'], ['TMSans', 'Inter-Bold.ttf', '700'], ['WIMono', 'JetBrainsMono-SemiBold.ttf', '600'], ['WIMono', 'JetBrainsMono-Bold.ttf', '700']]) {
+    try { const ff = new FontFace(family, `url(/wi-fonts/${file})`, { weight }); await ff.load(); document.fonts.add(ff); } catch (e) { console.warn(`cinema font ${file}: ${e.message}`); }
+  }
+  // every What If layer: plates (timeline, light-time axis, cross-section, comparisons, bars, curves, composition, orbit map,
+  // phase, waveform, grid, disc map, dials), instruments (survival clock, clocks, gauge), type, captions, titles, fades, citations
+  for (const name of ['tm_metric', 'tm_cite', 'tm_timeline', 'tm_logaxis', 'tm_section', 'tm_compare', 'tm_dial', 'tm_title', 'tm_annotate',
+    'tm_bars', 'tm_caption', 'tm_clock', 'tm_composition', 'tm_curve', 'tm_discmap', 'tm_fade', 'tm_gauge', 'tm_grid', 'tm_orbitmap',
+    'tm_phase', 'tm_survival', 'tm_wave']) {
+    registry.register((await import(`/wi/layers/${name}.mjs`)).default);
+  }
+  // a What If hero scene (a lander on the plain, a descent under a parachute, an airship over clouds, a ship with engines): its own
+  // composed 3D scene, rendered full-frame over the map for its window
+  const { buildHero } = await import('/wi/lib/hero.mjs');
+  registry.register({
+    type: 'cinema_hero', space: 'screen',
+    create: (def) => ({ def, hero: buildHero(THREE, { kind: 'hero', scene: def.scene, cam: def.cam || {}, start: def.start, end: def.end }),
+      cam: new THREE.PerspectiveCamera(30, W / H, 0.05, 2000) }),
+    draw(inst, f) {
+      const d = inst.def, k = Math.min(1, Math.max(0, (f.t - d.start) / Math.max(0.1, d.end - d.start)));
+      inst.hero.place(inst.cam, k, W, H);
+      renderer.render(inst.hero.scene, inst.cam);
+      f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
+    },
+  });
+  // What If's deep-space craft shot: the craft's NASA model over a dense Milky Way sky, lit from one side, the camera
+  // slowly orbiting and closing in -- its own scene, full frame, independent of the map's camera (shot type A2 of the references)
+  const rndS = (seed) => { let x = seed >>> 0 || 1; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296); };
+  const deepSky = (seed) => {
+    const grp = new THREE.Group(), r = rndS(seed), n = 9000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const u = r() * 2 - 1, a = r() * Math.PI * 2, q = Math.sqrt(1 - u * u), b = 0.25 + 0.75 * r() ** 3, w = r();
+      pos.set([300 * q * Math.cos(a), 300 * u, 300 * q * Math.sin(a)], i * 3); col.set([b * (0.8 + 0.2 * w), b * 0.9, b * (1 - 0.25 * w)], i * 3);
+    }
+    const g1 = new THREE.BufferGeometry(); g1.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g1.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    grp.add(new THREE.Points(g1, new THREE.PointsMaterial({ size: 1.5 * H / 1080, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.95 })));
+    const m = 26000, mp = new Float32Array(m * 3), mc = new Float32Array(m * 3), r2 = rndS(seed + 5);
+    for (let i = 0; i < m; i++) {
+      const a = r2() * Math.PI * 2, lat = ((r2() + r2() + r2()) / 3 - 0.5) * 0.5, ca = Math.cos(lat), x = Math.cos(a) * ca, y = Math.sin(lat), z = Math.sin(a) * ca;
+      const tl = 0.45, yy = y * Math.cos(tl) - z * Math.sin(tl), zz = y * Math.sin(tl) + z * Math.cos(tl), b = (0.05 + 0.11 * r2()) * (1 - Math.min(1, Math.abs(lat) * 2.2));
+      mp.set([300 * x, 300 * yy, 300 * zz], i * 3); mc.set([b, b * 0.92, b * 0.86], i * 3);
+    }
+    const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.BufferAttribute(mp, 3)); g2.setAttribute('color', new THREE.BufferAttribute(mc, 3));
+    grp.add(new THREE.Points(g2, new THREE.PointsMaterial({ size: 3 * H / 1080, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
+    return grp;
+  };
+  registry.register({
+    type: 'cinema_craft', space: 'screen',
+    async create(def, ctx) {
+      const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020306);
+      scene.add(deepSky(def.seed ?? 7));
+      const key = new THREE.DirectionalLight(0xfff3e0, 2.6); key.position.set(-5, 2.5, 4); scene.add(key);
+      scene.add(new THREE.AmbientLight(0x8899aa, 0.12));
+      if (!def.model) throw new Error('cinema_craft: "model" is required (the compiler names the craft\'s model)');
+      const model = await ctx.loadModel(def.model);
+      // its own materials: the map's spacecraft layer fades the shared ones out when the craft is far away
+      model.traverse((o) => {
+        if (!o.material) return;
+        o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
+        for (const m of [].concat(o.material)) { m.transparent = false; m.opacity = 1; m.depthWrite = true; m.needsUpdate = true; }
+      });
+      const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+      model.position.sub(c); const holder = new THREE.Group(); holder.add(model); holder.scale.setScalar(2 / Math.max(size.x, size.y, size.z, 1e-6));
+      scene.add(holder);
+      return { def, scene, holder, cam: new THREE.PerspectiveCamera(34, W / H, 0.01, 1000) };
+    },
+    draw(inst, f) {
+      const d = inst.def, k = Math.min(1, Math.max(0, (f.t - d.start) / Math.max(0.1, d.end - d.start)));
+      // a few seconds on screen: a clear orbit round the craft and a push in, so the shot never reads as still
+      const az = ((d.az ?? 28) + (d.turn ?? 40) * k) * Math.PI / 180, el = (d.el ?? 8 + 6 * k) * Math.PI / 180, D = (d.from ?? 4.6) + ((d.to ?? 3.3) - (d.from ?? 4.6)) * k;
+      inst.holder.rotation.y = 0.15 * k;
+      inst.cam.position.set(Math.sin(az) * Math.cos(el) * D, Math.sin(el) * D, Math.cos(az) * Math.cos(el) * D); inst.cam.lookAt(0, 0, 0);
+      // composed as the references: the craft a little low and to one side of the frame, the sky above it
+      inst.cam.setViewOffset(W, H, (0.5 - (d.x ?? 0.56)) * W, (0.5 - (d.y ?? 0.56)) * H, W, H);
+      renderer.render(inst.scene, inst.cam);
+      f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
+    },
+  });
+  // the heliosphere as the references draw it: a bubble round the Sun that glows at its rim (a fresnel shell, additive)
+  registry.register({
+    type: 'cinema_bubble', space: 'world',
+    create(def, ctx) {
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { color: { value: new THREE.Color(def.color || '#3fd6ff') }, opacity: { value: 0 } },
+        vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+        fragmentShader: 'uniform vec3 color; uniform float opacity; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(1.0 - abs(dot(vN, vV)), 2.6); gl_FragColor = vec4(color * r, r * opacity); }',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), mat);
+      mesh.scale.set(1, 0.92, 1.08);       // not a perfect sphere: the Sun's motion through the galaxy squeezes it (illustrative)
+      mesh.visible = false; ctx.scene.add(mesh);
+      return { def, mesh, mat };
+    },
+    update(inst, f) {
+      const p = f.toCam(inst.def.around || 'sun', [0, 0, 0]), R = (inst.def.radius_au || 122) * 1.495978707e8;
+      inst.mesh.position.set(p[0], p[1], p[2]); inst.mesh.scale.set(R, R * 0.92, R * 1.08);
+      inst.mat.uniforms.opacity.value = 0.55 * f.alpha; inst.mesh.visible = f.alpha > 0.002;
+    },
+    draw() {},
+  });
+  registry.register({
+    type: 'cinema_plate', space: 'screen', create: (def) => ({ def }),
+    draw(inst, f) {   // a near-black slate plate over the map while a diagram explains (soft centre light, faint grid, vignette)
+      const { g, W, H } = f;
+      g.save(); g.globalAlpha = f.alpha;
+      const grd = g.createRadialGradient(W / 2, H * 0.45, H * 0.05, W / 2, H / 2, H);
+      grd.addColorStop(0, '#121821'); grd.addColorStop(1, '#05070B');
+      g.fillStyle = grd; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(142,153,168,0.06)'; g.lineWidth = 1;
+      for (let x = 0; x <= W; x += W / 24) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+      for (let y = 0; y <= H; y += W / 24) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      g.restore();
+    },
+  });
+}
 const layerDefs = defaultLayers(spec).map((d) => ((d.over_footage ?? registry.get(d.type)?.over_footage) ? d : fp.adjustLayer(d)));
 const layers = await registry.instantiate(layerDefs, layerCtx);
 const layerById = new Map(layers.filter((L) => L.def.id).map((L) => [L.def.id, L]));
@@ -245,6 +401,11 @@ function drawMap(t, date) {
       const q = basisQuat(B);
       b.mesh.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(Y, (B.w * Math.PI) / 180));
       if (b.ring) b.ring.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(X, -Math.PI / 2));
+      if (b.clouds) b.clouds.quaternion.copy(b.mesh.quaternion);
+      if (b.sunView && sunId) {
+        const sp = relBody(sunId);
+        b.sunView.value.set(sp[0] - p[0], sp[1] - p[1], sp[2] - p[2]).normalize().transformDirection(camera.matrixWorldInverse);
+      }
       const px = (b.n.radiusKm / Math.max(dist, 1e-9)) * focalPx;          // apparent radius in pixels
       b.mesh.visible = px >= 1.5; if (b.ring) b.ring.visible = px >= 1.5;
       b.point.visible = px < 6 && inside > 0.02;
@@ -252,6 +413,8 @@ function drawMap(t, date) {
       const away = b.n.show_from_ly ? ramp(fromSun, b.n.show_from_ly, b.n.show_from_ly * 4) : 1;   // a neighbour star: only from outside the solar system
       b.point.material.opacity = (1 - ramp(px, 3, 6)) * (b.n.kind === 'star' ? 1 : 0.9) * inside * away;
       b.point.visible = b.point.visible && away > 0.01; b.mesh.visible = b.mesh.visible && away > 0.01;
+      if (b.clouds) b.clouds.visible = b.mesh.visible;
+      if (b.corona) b.corona.visible = away > 0.01 && px > 0.4;
       const v = new THREE.Vector3(p[0], p[1], p[2]).project(camera);
       info.push({ id: b.n.id, n: b.n, p, dist, px, solid: b.mesh.visible, ndc: [v.x, v.y], front: inFront(p), sx: (v.x + 1) / 2 * W, sy: (1 - v.y) / 2 * H, away });
     }
@@ -322,6 +485,12 @@ function drawMap(t, date) {
   runLayers(layers, frame, 'update');
   renderer.render(scene, camera);
   ctx.drawImage(glCanvas, 0, 0);
+  if (look.glow) {
+    // a soft glow round bright things (the Sun, lit limbs, glowing trails): the picture's highlights, blurred, added back
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = look.glow;
+    ctx.filter = `contrast(2.4) brightness(0.55) blur(${Math.round(14 * H / 1080)}px)`;
+    ctx.drawImage(glCanvas, 0, 0); ctx.restore();
+  }
   runLayers(layers, frame, 'draw', (L) => !overFootage(L));
   return frame;
 }
@@ -335,6 +504,16 @@ async function drawFootage(b, t, alpha) {
     if (!res.ok) throw new Error(`footage ${b.id}: frame missing at ${t.toFixed(2)} s`);
     const bmp = await createImageBitmap(await res.blob());
     ctx.drawImage(bmp, 0, 0, W, H); bmp.close();
+  } else if (spec.cinema?.photos) {
+    // a documentary still: the photo whole across the frame (letterboxed), over a blurred, darkened copy of itself
+    const img = await layerCtx.loadImage(b.file), [, , zoom] = kenBurnsAt(b, t);
+    const cover = Math.max(W / img.width, H / img.height) * 1.08;
+    ctx.save(); ctx.filter = `blur(${Math.round(28 * H / 1080)}px) brightness(0.42) saturate(0.8)`;
+    ctx.drawImage(img, (W - img.width * cover) / 2, (H - img.height * cover) / 2, img.width * cover, img.height * cover); ctx.restore();
+    const fit = Math.min(W / img.width, (H * 0.78) / img.height) * Math.min(1.04, Math.max(1, zoom));
+    const dw = img.width * fit, dh = img.height * fit;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 30 * H / 1080;
+    ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2 - H * 0.03, dw, dh); ctx.restore();
   } else {
     const img = await layerCtx.loadImage(b.file), [cx, cy, zoom] = kenBurnsAt(b, t);
     const fit = b.fit === 'contain' ? Math.min(W / img.width, H / img.height) : Math.max(W / img.width, H / img.height);
@@ -369,6 +548,32 @@ async function feedVideoCards(t) {
   }
 }
 
+// ---- the cinematic finish (spec.look: { glow, vignette, grain }; on by default, 0 turns one off) ----------------------------
+const look = { glow: 0.28, vignette: 0.32, grain: 0.05, ...(spec.look || {}) };
+const grainTile = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), im = g.createImageData(256, 256);
+  let s = 7; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < im.data.length; i += 4) { const v = 128 + (rnd() - 0.5) * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+  g.putImageData(im, 0, 0); return c;
+})();
+function finishLook(t) {
+  if (spec.cinema?.grade) {
+    // the references' grade: a little less saturated, blacks lifted towards slate (drawn over itself through a filter)
+    ctx.save(); ctx.filter = 'saturate(0.86) contrast(0.95) brightness(1.03)'; ctx.drawImage(out, 0, 0); ctx.restore();
+  }
+  if (look.vignette) {
+    const grd = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 1.05);
+    grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, `rgba(0,0,0,${look.vignette})`);
+    ctx.save(); ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+  if (look.grain) {
+    // fine film grain, the same for the same frame (a re-render of a chunk is identical)
+    const f = Math.round(t * (spec.fps || 30)), ox = (f * 73) % 256, oy = (f * 151) % 256;
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = look.grain;
+    ctx.fillStyle = ctx.createPattern(grainTile, 'repeat'); ctx.translate(-ox, -oy); ctx.fillRect(ox, oy, W, H); ctx.restore();
+  }
+}
+
 window.renderFrame = async (t) => {
   const date = storyClock.utc(t);
   await feedVideoCards(t);
@@ -376,6 +581,7 @@ window.renderFrame = async (t) => {
   const frame = fp.mapAlpha(t) > 0.001 ? drawMap(t, date) : (ctx.fillStyle = '#000', ctx.fillRect(0, 0, W, H), screenFrame(t, date));
   for (const { beat, alpha } of fp.coverage(t)) await drawFootage(beat, t, alpha);
   runLayers(layers, frame, 'draw', overFootage);
+  finishLook(t);
   return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
 };
 window.__starmap = { layers, world, camAt, footage: fp, lastInfo: () => window.__lastInfo };     // for inspection tools and tests

@@ -82,6 +82,24 @@ class SampleAndPrompt(unittest.TestCase):
         self.assertNotIn("mission pack", p0.lower())
 
 
+class SameFileFootage(unittest.TestCase):
+    def test_two_footage_shots_of_the_same_clip_play_as_one_never_restarting(self):
+        """Back-to-back footage shots of the same bytes (a reused twin under another name) are one shot: each starts its clip
+        at frame 0 and its push from the start. A different clip, a gap, or a shot with its own in_s still cuts."""
+        import tempfile
+        from starmap.compile import _join_same_file
+        with tempfile.TemporaryDirectory() as tmp:
+            a, twin, other = (Path(tmp) / n for n in ("a.mp4", "twin.mp4", "o.mp4"))
+            a.write_bytes(b"same"); twin.write_bytes(b"same"); other.write_bytes(b"other")
+            notes = []
+            got = _join_same_file([{"id": "b2_1", "start": 3.0, "end": 6.0, "file": str(a)}, {"id": "b2_2", "start": 6.0, "end": 9.0, "file": str(twin)},
+                                   {"id": "b2_3", "start": 9.0, "end": 11.0, "file": str(other)}, {"id": "b2_4", "start": 11.0, "end": 13.0, "file": str(other), "in_s": 4},
+                                   {"id": "b4_1", "start": 20.0, "end": 23.0, "image": str(a)}, {"id": "b5_1", "start": 30.0, "end": 33.0, "image": str(a)}], notes)
+        self.assertEqual([(f["id"], f["start"], f["end"]) for f in got],
+                         [("b2_1", 3.0, 9.0), ("b2_3", 9.0, 11.0), ("b2_4", 11.0, 13.0), ("b4_1", 20.0, 23.0), ("b5_1", 30.0, 33.0)])
+        self.assertTrue(any("plays on instead of restarting" in n for n in notes))
+
+
 class Catalogs(unittest.TestCase):
     def setUp(self):
         self.cat = Catalog("apollo11")
@@ -141,10 +159,11 @@ class Errors(unittest.TestCase):
         self.assertIn("row 6: frame must be one of", p)
         self.assertIn("row 7: mode must be one of", p)
 
-    def test_words_the_narrator_never_says(self):
-        p = self.problems(csv_of(self.base(), {"beat": "b2", "row": "beat", "vo_anchor": "and then the aliens came", "mode": "footage"},
-                                 {"beat": "b2", "row": "clip", "asset": "file:x.jpg"}))
-        self.assertIn("row 3: vo_anchor 'and then the aliens came' is not in the narration", p)
+    def test_words_the_narrator_never_says_do_not_stop_the_plan(self):
+        plan = read_plan(csv_of(self.base(), {"beat": "b2", "row": "beat", "vo_anchor": "and then the aliens came", "mode": "footage"},
+                                {"beat": "b2", "row": "clip", "asset": "file:x.jpg"}), WORDS)
+        self.assertGreater(plan.beats[1].start, plan.beats[0].start)
+        self.assertTrue(any("'and then the aliens came' is not heard near where the script puts it" in n for n in plan.notes), plan.notes)
 
     def test_unknown_places_events_and_craft(self):
         p = self.problems(csv_of(dict(self.base(), place="tranquility bas", date="landng"),
@@ -179,6 +198,19 @@ class Timing(unittest.TestCase):
         plan = read_plan(text, WORDS)
         self.assertEqual(plan.beats[0].layers[0].t, 0.0)
         self.assertTrue(any("outside beat b1" in n for n in plan.notes))
+
+    def test_numbers_and_units_heard_as_whisper_writes_them_time_their_rows(self):
+        """The 011 Voyager narration: "280,000 kilometers" was transcribed "280" "0" "km", "seventy meters" as "70 metres",
+        "a hundred thousand" as "100" "0"; every such row fell back to the start of its beat (a distance line was dropped)."""
+        said = "on march 5 1979 voyager 1 passed about 280 0 km from jupiter a dish 70 metres across spans around 100 0 light years"
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate(said.split())]
+        at = {w: i * 0.5 for i, w in reversed(list(enumerate(said.split())))}
+        text = csv_of({"beat": "b1", "row": "beat", "vo_anchor": "On March 5, 1979", "mode": "map", "place": "jupiter", "frame": "body"},
+                      {"beat": "b1", "row": "layer", "vo_anchor": "about 280,000 kilometers from", "type": "caption", "text": "A"},
+                      {"beat": "b1", "row": "layer", "vo_anchor": "seventy meters across", "type": "caption", "text": "B"},
+                      {"beat": "b1", "row": "layer", "vo_anchor": "a hundred thousand light-years", "type": "caption", "text": "C"})
+        plan = read_plan(text, words)
+        self.assertEqual([it.t for it in plan.beats[0].layers], [at["about"], at["70"], at["100"]], plan.notes)
 
     def test_dates_fast_forward_between_neighbours_and_jump_under_footage(self):
         rep = check_csv(SAMPLE, WORDS, media=MEDIA)
@@ -220,6 +252,28 @@ class Timing(unittest.TestCase):
             if b.id in comp.actions:
                 inside = [m for m in moves if b.start <= m["t"] < b.end]
                 self.assertLessEqual(len(inside), 2, f"{b.id}: a glide in and at most one move with a reason")
+
+    def test_a_beat_whose_words_whisper_skipped_does_not_jump_ahead(self):
+        """Whisper heard "that disturbance traveled outward" as just "that"; the same two words said minutes later must not
+        pull the beat (and every beat after it) to the end: the beat is placed from the previous beat's length instead."""
+        b1 = "The answer came from the Sun itself, which hurled out a huge burst of charged gas called a coronal mass ejection."
+        b2 = "That disturbance traveled outward for thirteen months until it reached the spacecraft."
+        b3 = "Voyager's plasma wave instrument picked up those vibrations and their pitch revealed the density."
+        later = " ".join(["The mission went on for many more years and the probe kept sending data home."] * 12)
+        heard = f"{b1} That until it reached the spacecraft. {b3} {later} Still, that disturbance was never forgotten."
+        words = estimate_words(heard, words_per_second=2.5)
+        text = csv_of({"beat": "b1", "row": "beat", "vo_anchor": "The answer came from", "mode": "footage", "text": b1},
+                      {"beat": "b1", "row": "clip", "asset": "file:x.jpg"},
+                      {"beat": "b2", "row": "beat", "vo_anchor": "That disturbance traveled outward", "mode": "footage", "text": b2},
+                      {"beat": "b2", "row": "clip", "asset": "file:x.jpg"},
+                      {"beat": "b3", "row": "beat", "vo_anchor": "Voyager's plasma wave instrument", "mode": "footage", "text": b3},
+                      {"beat": "b3", "row": "clip", "asset": "file:x.jpg"})
+        plan = read_plan(text, words)
+        starts = [b.start for b in plan.beats]
+        self.assertEqual(starts, sorted(starts))
+        self.assertLess(starts[1], starts[2], "b2 stays before b3")
+        self.assertLess(starts[2], 20, "b3 is found where it is said, not after the late 'that disturbance'")
+        self.assertTrue(any("not heard near where the script puts it" in n for n in plan.notes))
 
     def test_media_to_find_is_listed_not_fatal_in_check(self):
         rep = check_csv(SAMPLE, WORDS)

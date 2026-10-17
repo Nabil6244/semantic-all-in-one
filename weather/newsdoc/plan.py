@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
 from . import MAP_SHARE
-from .story import OPENING_S, Story, word_time
+from .story import OPENING_S, Line, Story, word_time
 
 MAP_GAP_S = 20.0
 MAP_SHOT_S = 6.5
@@ -154,7 +154,40 @@ def _line_at(story: Story, t: float):
     return next((x for x in story.lines if x.span_start - 1e-6 <= t < x.span_end), story.lines[-1])
 
 
-def stock_request(text: str, category: str) -> str:
+# what a sentence describes -> b-roll that shows it (checked first: the sentence's own subject beats a generic storm shot)
+SCENES = [
+    (r"\b(drive|driving|roadway|roads?|vehicles?|cars?|turn around)\b.*\bflood|\bflood\w*\b.*\b(road|roadway|vehicles?|cars?)\b|don.t drown",
+     "car driving through flooded road"),
+    (r"\b(croplands?|pastures?|fields?|farm\w*|agricultur\w*|oil wells?)\b", "flooded farm fields"),
+    (r"\b(river|creek|stage|crest\w*|flood stage|upstream|downstream|gauge)\b", "swollen muddy river flooding"),
+    (r"\b(evacuat\w*|rescue\w*|stranded)\b", "flood rescue boat"),
+    (r"\b(basement|interior room|shelter|take cover)\b", "tornado siren"),
+    (r"\b(mobile homes?|debris|destroyed)\b", "tornado damage debris"),
+    (r"\b(roofs?|siding|windows)\b", "storm damaged roof"),
+    (r"\b(tree limbs?|trees?|power lines?|outages?)\b", "strong wind bending trees"),
+    (r"\b(hail|hailstones?)\b", "hailstones bouncing on the ground"),
+    (r"\b(rotation|funnel|tornado)\b", "tornado funnel cloud"),
+    (r"\b(radar)\b", "weather radar screen"),
+    (r"\b(lightning)\b", "lightning in dark storm clouds"),
+    (r"\b(rain|rainfall|downpour)\b", "heavy rain falling on street"),
+]
+# several shots of each weather, rotated (one request repeated for a whole section looks like one clip on loop)
+POOL = {"tornado": ["dark rotating storm clouds", "tornado funnel cloud", "supercell storm time lapse", "tornado damage debris"],
+        "severe": ["lightning in dark storm clouds", "strong wind bending trees", "heavy rain falling on street", "supercell storm time lapse",
+                   "hailstones bouncing on the ground"],
+        "flood": ["swollen muddy river flooding", "flooded farm fields", "flood water flowing over road", "heavy rain falling into water close up",
+                  "flooded neighborhood street"],
+        "heavy_rain": ["heavy rain falling on street", "flood water flowing over road", "rain on windshield driving"]}
+
+
+def stock_request(text: str, category: str, idx: int = 0) -> str:
+    """B-roll for a sentence: what it describes (SCENES), else the shots of its section's weather in turn, else the older matchers."""
+    for pat, req in SCENES:
+        if re.search(pat, text, re.I):
+            return req
+    if category in POOL:
+        pool = POOL[category]
+        return pool[idx % len(pool)]
     from ..intel.beats import footage_request
     from ..motion import fallback_request
     from ..teamplate.cutaways import request_for
@@ -212,7 +245,7 @@ def fill_footage(story: Story, gaps: List[tuple], runs: Sequence, notes: List[st
             else:
                 row = (csv or {}).get(line.i)
                 req = row.search if (row is not None and row.search and row.shot != "news") else \
-                    stock_request(line.text, hazard.get(line.part, story.category))
+                    stock_request(line.text, hazard.get(line.part, story.category), line.i)
                 k = asked.get(req, 0)
                 asked[req] = k + 1
                 ask = req if k == 0 else f"{req}, {VARIANTS[(k - 1) % len(VARIANTS)]}"
@@ -632,7 +665,16 @@ def _all_numbers(story: Story):
     return [(x, n) for x in story.lines for n in x.numbers]
 
 
-def _content(kind: str, story: Story, shots: List[Shot], t: float) -> Optional[Dict[str, Any]]:
+def _anchor_lines(kind: str, story: Story) -> list:
+    """The sentences a year or number graphic can come from (it is shown while one of them is said); [] for other kinds."""
+    if kind == "year":
+        return [x for x in story.lines if re.search(r"\b(19[5-9]\d|20\d\d)\b", x.text)]
+    if kind == "number":
+        return [x for x in story.lines if x.numbers]
+    return []
+
+
+def _content(kind: str, story: Story, shots: List[Shot], t: float, src: Optional[Line] = None) -> Optional[Dict[str, Any]]:
     """What a missing graphic shows, taken from the story itself (said numbers, places, sentences) — never invented."""
     nums = _all_numbers(story)
     line_at = _line_at(story, t)
@@ -644,10 +686,10 @@ def _content(kind: str, story: Story, shots: List[Shot], t: float) -> Optional[D
             by_unit.setdefault(n.label, []).append((x, n))
     big_unit = max(by_unit.values(), key=len) if by_unit else []
     if kind == "number" and nums:
-        x, n = nums[0]
+        x, n = next(((x, n) for x, n in nums if x is src), nums[0])
         return {"value": n.value, "shown": n.shown, "label": n.label, "corner": False}
     if kind == "year":
-        m = next((m for x in story.lines for m in re.finditer(r"\b(19[5-9]\d|20\d\d)\b", x.text)), None)
+        m = next((m for x in ([src] if src is not None else story.lines) for m in re.finditer(r"\b(19[5-9]\d|20\d\d)\b", x.text)), None)
         return {"text": m.group(1)} if m else None
     if kind == "ring":
         pct = next((n for _x, n in nums if n.shown.endswith("%")), None)
@@ -740,18 +782,38 @@ def ensure_all(story: Story, words: Sequence, shots: List[Shot], overlays: List[
     missing = [k for k in REQUIRED if k not in have]
     for kind in missing:
         length = LENGTH[kind]
-        t = 2.0
+        anchors = _anchor_lines(kind, story)
+        # a year or a number is shown while its sentence is said (the first such sentence with room), never at some other moment
+        windows = [(x.span_start, min(story.duration - 0.5, x.span_end + 0.5 + length), x) for x in anchors] or [(2.0, story.duration - 0.5, None)]
+        anchor = anchors[0] if anchors else None
         placed = False
-        while t + length < story.duration - 0.5:
-            if not busy(t, t + length, kind):
-                params = _content(kind, story, shots, t)
-                if params is None:
-                    break
-                out.append(Overlay(kind, round(t, 3), round(t + length, 3), params))
-                out.sort(key=lambda o: o.t0)
-                placed = True
+        for t, end, x in windows:
+            while t + length < end and not placed:
+                if not busy(t, t + length, kind):
+                    params = _content(kind, story, shots, t, x)
+                    if params is None:
+                        break
+                    out.append(Overlay(kind, round(t, 3), round(t + length, 3), params))
+                    out.sort(key=lambda o: o.t0)
+                    placed = True
+                t += 0.5
+            if placed:
                 break
-            t += 0.5
+        if not placed and anchor is not None:   # no free moment: it takes the place of a repeat shown while one of its sentences is said
+            counts = {k: sum(1 for o in out if o.kind == k) for k in {o.kind for o in out}}
+            for o in list(out):
+                x = next((x for x in anchors if o.t0 < x.span_end and x.span_start <= o.t0), None)
+                if x is None or counts.get(o.kind, 0) < 2 or o.kind in small or o.t1 - o.t0 < min(length, 3.0) or \
+                        any(sh.kind == "map" and sh.t0 < o.t1 and o.t0 < sh.t1 for sh in shots):
+                    continue
+                params = _content(kind, story, shots, o.t0, x)
+                if params is not None:
+                    out[out.index(o)] = Overlay(kind, o.t0, round(min(o.t1, o.t0 + length), 3), params)
+                    placed = True
+                    break
+        if not placed and anchor is not None:
+            notes.append(f"News Doc: no room for the {kind} graphic while its sentence is said, so it is not in this video")
+            continue
         if not placed:   # no free moment: it takes the place of a repeat (a kind already shown before)
             counts = {k: sum(1 for o in out if o.kind == k) for k in {o.kind for o in out}}
             spare = next((o for o in out if counts.get(o.kind, 0) >= 2 and o.kind not in small and o.t1 - o.t0 >= min(length, 3.5)

@@ -200,6 +200,68 @@ class CameraRules(unittest.TestCase):
         self.assertTrue(all(m["to"].get("path", {}).get("trajectory") == into[0]["to"]["path"]["trajectory"] for m in into), "then only a creep in")
         self.assertIn(10.0, [L["at"] for L in spec["layers"] if L["type"] == "time_jump"])
 
+    def test_heliosphere_beats_frame_the_journey_from_a_new_angle_each(self):
+        """A run of heliosphere beats was one Sun-centred view 420 AU out: the planets a speck, the craft at the edge, the
+        same picture beat after beat (the 009 Voyager render read as stuck for minutes)."""
+        rows = [dict(beat="plan", row="plan", date="2026-10-15"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="sun", frame="heliosphere", date="voyager1.termination_shock", text="x"),
+                dict(beat="b1", row="layer", t="0.3", type="craft", id="voyager1.voyager1"),
+                dict(beat="b2", row="beat", start="12", mode="map", place="sun", frame="heliosphere", text="y"),
+                dict(beat="b3", row="beat", start="24", mode="map", place="sun", frame="heliosphere", text="z"),
+                dict(beat="b3", row="layer", t="24.3", type="craft", id="voyager1.voyager1")]
+        spec = compiled(csv_of(rows), 36.0).spec
+        cam = spec["camera"]
+        views = [cam["start"]] + [m["to"] for m in cam["moves"]]
+        self.assertTrue(all(v.get("path", {}).get("trajectory") == "voyager1_path" for v in views),
+                        "every heliosphere beat frames the craft's path from launch (b2 keeps b1's craft)")
+        self.assertTrue(all(v["path"]["from_utc"].startswith("1977-09-05") and v["path"]["to_utc"].startswith("2004-12-16") for v in views))
+        self.assertEqual(len({v["el_deg"] for v in views}), 3, "each beat looks from a new angle")
+        trails = [L for L in spec["layers"] if L["type"] == "trajectory" and L.get("of") == "voyager1_path"]
+        self.assertEqual([L["start"] for L in trails], [0.0, 12.0, 24.0], "the road travelled is drawn in every beat")
+
+    def test_a_heliosphere_beat_before_a_jump_back_in_time_still_frames_its_craft(self):
+        """The 011 Voyager opening: a "now" heliosphere beat followed by the 1977 launch. Its clock was read at b.end, where the
+        launch date already applies, so the beat lost its journey shot and showed Sun-centred planets while the narration
+        named the craft one light-day out (the craft was off-frame for 24 s)."""
+        rows = [dict(beat="plan", row="plan", date="2026-11-18"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="sun", frame="heliosphere", date="now", text="x"),
+                dict(beat="b1", row="layer", t="0.3", type="craft", id="voyager1.voyager1"),
+                dict(beat="b2", row="beat", start="12", mode="map", place="sun", frame="solar", date="voyager1.launch", text="y")]
+        spec = compiled(csv_of(rows), 24.0).spec
+        first = [m["to"] for m in spec["camera"]["moves"] if m["t"] < 12.0] or [spec["camera"]["start"]]
+        self.assertTrue(all(v.get("path", {}).get("trajectory") == "voyager1_path" for v in first), first)
+        self.assertTrue(first[0]["path"]["to_utc"].startswith("2026-11-18"), "framed to where the craft is now, not 1977")
+
+    def test_a_close_up_cut_keeps_the_beats_far_craft_in_frame(self):
+        """011 Voyager b40 ("six billion km from the Sun, Voyager 1 pointed its camera inward"): the long beat's auto close-up
+        took a Sun-centred view to 0.38x and showed the inner planets, the craft 40 AU out off-frame and its line off the edge."""
+        rows = [dict(beat="plan", row="plan", date="2026-10-15"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="sun", frame="solar", date="voyager1.pale_blue_dot", text="x"),
+                dict(beat="b1", row="layer", t="0.3", type="craft", id="voyager1.voyager1")]
+        spec = compiled(csv_of(rows), 16.0).spec
+        views = [spec["camera"]["start"]] + [m["to"] for m in spec["camera"]["moves"]]
+        sun = [v["distance"]["au"] for v in views if v.get("target") == "sun" and "au" in v.get("distance", {})]
+        self.assertTrue(sun, views)
+        # the beat's own view is the widest the plan asks for (the screen check widens it further); no cut closes in past it
+        # while the craft would leave the frame (the old close-up was 0.38x of it: ~17 AU, the inner planets)
+        self.assertGreaterEqual(min(sun), 0.9 * spec["camera"]["moves"][0]["to"]["distance"]["au"], sun)
+
+    def test_a_boundary_the_narration_names_is_drawn_through_the_craft(self):
+        """011 Voyager b50/b52/b58: the narration explained the termination shock and heliopause and the CSV could only caption
+        them (they had no geometry), so minutes of the video were one Sun-to-craft path. Named, they are drawn."""
+        rows = [dict(beat="plan", row="plan", date="2026-10-15"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="sun", frame="heliosphere", date="voyager1.heliopause",
+                     text="In August 2012 Voyager 1 crossed the heliopause."),
+                dict(beat="b1", row="layer", t="0.3", type="craft", id="voyager1.voyager1"),
+                dict(beat="b2", row="beat", start="10", mode="map", place="sun", frame="heliosphere", text="It kept going."),
+                dict(beat="b2", row="layer", t="10.3", type="craft", id="voyager1.voyager1")]
+        spec = compiled(csv_of(rows), 20.0).spec
+        rings = [L for L in spec["layers"] if L["type"] == "rings"]
+        self.assertEqual(len(rings), 1, "only the beat that names it")
+        self.assertEqual([r["label"] for r in rings[0]["rings"]], ["HELIOPAUSE · V1 CROSSED ~122 AU"])
+        self.assertTrue(rings[0]["subject"] and rings[0]["through"].startswith("voyager1.voyager1"))
+        self.assertLessEqual(rings[0]["end"], 10.0)
+
     def test_a_craft_carrying_on_into_the_next_beat_stays_one_object(self):
         """It used to fade out and a second copy fade in, leaving 0.3 s with no craft, tracker or path mid-pull_out."""
         rows = [dict(beat="plan", row="plan"),
@@ -223,15 +285,24 @@ class CameraRules(unittest.TestCase):
         self.assertEqual([(t["label"], t["readouts"]) for t in tr], [("COLUMBIA", [])], "a craft that is just travelling: its name, no HUD")
         craft = next(L for L in spec["layers"] if L["type"] == "spacecraft")
         self.assertEqual(craft["label"], "", "the name lives in the tracking box")
-        self.assertEqual({m["to"]["target"] for m in spec["camera"]["moves"]}, {"earth+moon"}, "only a creep in the same view: the craft is not followed")
+        shots = [m["to"] for m in spec["camera"]["moves"]]
+        self.assertTrue({s.get("target") for s in shots} <= {"earth+moon", "earth"} and not any("follow" in s for s in shots),
+                        "the view and its close-up: the craft is never followed")
         self.assertNotIn("still", spec["camera"])
 
     def test_a_quiet_beat_creeps_a_little_whatever_its_length(self):
-        for length in (8.0, 30.0):
-            spec = compiled(*one("", "moon", "body", "apollo11.loi", "", length=length)).spec
-            self.assertNotIn("still", spec["camera"], "the drift never rests")
-            k = spec["camera"]["moves"][-1]["to"]["fill"] / spec["camera"]["start"]["fill"]
-            self.assertTrue(1.0 < k <= 1.25, f"a slow push-in, never more than a quarter ({k})")
+        spec = compiled(*one("", "moon", "body", "apollo11.loi", "", length=8.0)).spec
+        self.assertNotIn("still", spec["camera"], "the drift never rests")
+        k = spec["camera"]["moves"][-1]["to"]["fill"] / spec["camera"]["start"]["fill"]
+        self.assertTrue(1.0 < k <= 1.7, f"the video's first shot pushes in (the opening seconds), never more than 1.7x ({k})")
+        # a long beat is cut into shots (view -> close-up -> new angle), each with its own slow creep
+        spec = compiled(*one("", "moon", "body", "apollo11.loi", "", length=30.0)).spec
+        moves = spec["camera"]["moves"]
+        cuts = [m for m in moves if m["dur"] == 0.0]
+        self.assertEqual(len(cuts), 2, "three shots")
+        for c in cuts:
+            nxt = next(m for m in moves if m["t"] > c["t"])
+            self.assertTrue(1.0 < nxt["to"]["fill"] / c["to"]["fill"] <= 1.25, "each shot creeps a little")
 
     def test_framings_vary_by_beat_but_the_same_csv_gives_the_same_video(self):
         els = set()
@@ -498,3 +569,95 @@ class CrossBeatStages(unittest.TestCase):
         self.assertNotIn("b1", comp.actions)
         self.assertEqual({k["utc"] for k in comp.spec["clock"]["keys"] if k["t"] <= 10.0}, {"1980-11-12T23:46:00Z"},
                          "without an action span the beat keeps its date: nothing is made up")
+
+
+class ScreenCheck(unittest.TestCase):
+    """Generate compiles, projects every frame (no drawing) and repairs what would read as broken before rendering."""
+
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+
+        if not shutil.which("node"):
+            raise unittest.SkipTest("node is needed for the screen check")
+
+    def test_a_speck_in_black_space_is_repaired_before_rendering(self):
+        from starmap.repair import compile_checked
+
+        rows = [dict(beat="plan", row="plan"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="sun", frame="heliosphere", text="x"),
+                dict(beat="b1", row="layer", t="0.5", type="caption", text="FAR OUT"),
+                dict(beat="b2", row="beat", start="14", mode="map", place="jupiter", frame="body", text="y")]
+        plan = read_plan(csv_of(rows), [], 28.0)
+        comp, rep = compile_checked(plan, Catalog(), media=None, resolve_media=False)
+        self.assertGreater(rep.before["empty"], 3, "a Sun-centred view 420 AU out with no craft is a speck")
+        self.assertEqual(rep.after["empty"], 0, "repaired: framed closer")
+        self.assertIn("b1", rep.repairs)
+        self.assertFalse(rep.error)
+
+
+class Tracking(unittest.TestCase):
+    """What the narration says is moving gets a marker from the moment its name is spoken."""
+
+    def plan(self, text, rows=(), date="1979-03-05T00:00:00Z", words=True):
+        from pakmap.words import estimate_words
+
+        base = [dict(beat="plan", row="plan"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="jupiter", frame="system", date=date, text=text), *rows]
+        w = estimate_words(text, words_per_second=2.5) if words else []
+        plan = read_plan(csv_of(base), w, 16.0)
+        return plan, compile_plan(plan, Catalog(), media=None, resolve_media=False)
+
+    def test_a_moon_named_as_moving_gets_a_marker_on_its_word_and_its_orbit_turns(self):
+        plan, comp = self.plan("Every 42 hours, Io whips around Jupiter, squeezed by its neighbours.")
+        tr = [L for L in comp.spec["layers"] if L["type"] == "tracker" and L.get("body")]
+        self.assertEqual([L["body"] for L in tr], ["io"])
+        io_at = next(w[1] for w in plan.words if w[0].strip(",.").lower() == "io")
+        self.assertAlmostEqual(tr[0]["start"], io_at, places=2, msg="appears when its name is spoken, not at the beat's start")
+        self.assertTrue(tr[0]["trail"])
+        keys = comp.spec["clock"]["keys"]
+        from starmap.temporal import parse_iso
+
+        a = next(k for k in keys if k["t"] == 0.0)
+        z = max((k for k in keys if k["t"] <= 16.0), key=lambda k: k["t"])
+        days = (parse_iso(z["utc"]) - parse_iso(a["utc"])).total_seconds() / 86400
+        self.assertGreater(days, 0.3, "the orbit visibly turns: about a quarter of Io's 1.77 days")
+        self.assertLess(days, 0.5)
+
+    def test_a_body_that_is_not_moving_gets_no_marker(self):
+        _, comp = self.plan("So far from Earth that a radio message, moving at the speed of light, takes a day.")
+        self.assertFalse([L for L in comp.spec["layers"] if L["type"] == "tracker" and L.get("body")])
+
+    def test_the_csv_row_wins(self):
+        _, comp = self.plan("Io whips around Jupiter.", rows=[dict(beat="b1", row="layer", t="2", type="track", place="io", label="IO")])
+        tr = [L for L in comp.spec["layers"] if L["type"] == "tracker" and L.get("body")]
+        self.assertEqual([(L["body"], L["start"]) for L in tr], [("io", 2.0)], "one marker, the CSV's")
+
+    def test_a_travelling_signal_gets_a_light_line_from_earth_to_the_craft(self):
+        _, comp = self.plan("Voyager 1 races outward; a radio signal takes hours to reach it.",
+                            date="2020-01-01T00:00:00Z")
+        crafts = [L for L in comp.spec["layers"] if L["type"] == "spacecraft"]
+        links = [L for L in comp.spec["layers"] if L["type"] == "link" and L.get("style") == "light"]
+        self.assertEqual(len(crafts), 1, "the craft named as moving is added")
+        self.assertEqual(len(links), 1)
+        self.assertEqual(links[0]["between"][0], "earth")
+        self.assertGreaterEqual(links[0]["start"], crafts[0]["start"])
+
+    def test_without_the_narration_the_marker_is_placed_by_the_text_and_flagged(self):
+        _, comp = self.plan("The clouds part as Io whips around Jupiter.", words=False)
+        self.assertTrue(any("estimated" in n for n in comp.notes))
+
+
+class TimeLapseKeepsDates(unittest.TestCase):
+    def test_a_time_lapsed_beat_never_moves_the_next_beats_date(self):
+        from pakmap.words import estimate_words
+        from starmap.compile import _clock_utc
+
+        text1, text2 = "From space our planet never sleeps, clouds drift across it.", "Far beyond it Jupiter turns once every ten hours."
+        rows = [dict(beat="plan", row="plan"),
+                dict(beat="b1", row="beat", start="0", mode="map", place="earth", frame="body", date="2026-03-20T22:00:00Z", text=text1),
+                dict(beat="b2", row="beat", start="9", mode="map", place="jupiter", frame="body", date="1979-03-05T00:00:00Z", text=text2)]
+        plan = read_plan(csv_of(rows), estimate_words(text1 + " " + text2, words_per_second=2.5), 18.0)
+        comp = compile_plan(plan, Catalog(), media=None, resolve_media=False)
+        self.assertTrue(_clock_utc(comp.spec["clock"], 1.0).startswith("2026-03-20"))
+        self.assertTrue(_clock_utc(comp.spec["clock"], 10.0).startswith("1979-03-05"), "the Jupiter beat keeps its own date")
