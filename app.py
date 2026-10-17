@@ -5899,6 +5899,7 @@ class VideoGeneratorApp(ctk.CTk):
                  "Analyze a script or import a visual-plan CSV on the Script page,\n"
                  "and every scene appears here with its visual and status.",
             text_color=_MUTED, font=ctk.CTkFont(size=13), justify="center", anchor="center",
+            wraplength=440,  # the longest style hints were cut off at the edge on some fonts
         )
         self._scenes_empty_label.grid(row=1, column=0, sticky="ew", padx=12, pady=(80, 2))
 

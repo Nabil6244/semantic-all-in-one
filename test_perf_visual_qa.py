@@ -148,7 +148,7 @@ def build_media(d: Path) -> dict:
 class TestStillProbeMatchesFfprobe(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls._tmp = tempfile.TemporaryDirectory()
+        cls._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         cls.media = Path(cls._tmp.name) / "media"
         cls.media.mkdir()
         cls.fast = build_media(cls.media)
@@ -203,7 +203,7 @@ class TestStillProbeMatchesFfprobe(unittest.TestCase):
                         out[f"{name}|{mt.value}|{src.value}"] = qa.to_dict()
             return out
 
-        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as a, tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as b:
             new = run(Path(a))
             with mock.patch.object(technical, "_probe_still_header", return_value=None):
                 ref = run(Path(b))
@@ -226,7 +226,7 @@ def _qa(n: int, score: float = 0.5) -> VisualQAResult:
 
 class _CacheCase(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
+        self._tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.dir = Path(self._tmp.name)
         self.cache_file = self.dir / vqa_cache.CACHE_FILE
         self.assets = []
@@ -450,6 +450,8 @@ class TestCacheDurability(_CacheCase):
                     reads += 1
                 except json.JSONDecodeError:
                     bad += 1
+                except PermissionError:
+                    pass  # Windows: the file is locked for the instant a writer replaces it; read again
         for p in procs:
             self.assertEqual(p.wait(timeout=60), 0)
         self.assertEqual(bad, 0, "a reader saw a half-written cache file")
