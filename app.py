@@ -1266,6 +1266,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _scene_time_label(self, scene_number) -> str:
         """Timeline window for this scene (from editorial plan after align/render)."""
         ed = self._editorial_scene_lookup(scene_number)
+        if ed.get("start") is None or ed.get("end") is None:
+            return self._scene_segment_time_label(scene_number)
         try:
             start = float(ed.get("start"))
             end = float(ed.get("end"))
@@ -1276,6 +1278,21 @@ class VideoGeneratorApp(ctk.CTk):
         if end < start:
             end = start
         return f"{self._format_scene_timecode(start)}–{self._format_scene_timecode(end)}"
+
+    def _scene_segment_time_label(self, scene_number) -> str:
+        """No editorial plan (What If, Hybrid, ... never write one): the row's own timecode, "0:05  What If shot s3 · 4.0 s — …"."""
+        import re
+
+        key = _scene_key(scene_number)
+        row = next((r for r in (self._scene_rows or []) if _scene_key(r.scene_number) == key), None)
+        m = re.match(r"\s*(\d+):(\d\d(?:\.\d+)?)(?!\d)", str(getattr(row, "script_segment", "") or ""))
+        if m is None:
+            return "—"
+        start = int(m.group(1)) * 60 + float(m.group(2))
+        dur = re.search(r"·\s*(\d+(?:\.\d+)?)\s*s\b", row.script_segment)
+        if dur is None:
+            return self._format_scene_timecode(start)
+        return f"{self._format_scene_timecode(start)}–{self._format_scene_timecode(start + float(dur.group(1)))}"
 
     def _invalidate_stale_editorial_timeline(self) -> None:
         """Drop cached VO timeline so scene Time shows — until the next align.
