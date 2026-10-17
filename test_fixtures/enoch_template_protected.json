@@ -1,5 +1,5 @@
 {
- "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change. 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style.",
+ "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change. 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style. 2026-10-17 (approved by the owner): commit 5403eb8, app-wide upgrade -- video_generator.py: aligner inflection tolerance and far-duplicate guard, Ken Burns stills read once (byte-identical output); app.py: shared button roles/heights, clearer error messages, log batching, Settings lifecycle fixes (lines changed, none removed from Weather).",
  "base_commit": "05cfb49",
  "files": {
   "ai_router/__init__.py": "16a26dc22b8b1eabe792edad17d330d319037714480e51eded13af55108bc8b5",
@@ -217,7 +217,7 @@
   "typography/styles.py": "5ff17b885b3b4b2d3b3e33bd71eaaa73379c35d3cc826f264c2808d22bafb0a7",
   "typography/theme.py": "b90cb93e3c9663c19d0a246a8526eec4ae0daf347a199af84cf39d090aab1ab2",
   "typography/variation.py": "75b175ccb01f8ff9309b903cc1671c19222440831c8a8904b3c825e8592c27a2",
-  "video_generator.py": "0a9d720d2682324727c1448454dc4834e07012ccf235431032abdfa159f501b3",
+  "video_generator.py": "82505d7a0cc164a3e330c6b6b902819b9bbca51cefe207919ade2ac47142d6d2",
   "visual_allocation/__init__.py": "c9b2b5f2b2a584528456f0f9f66201e4c2ca000de5d097f4454afb219c43cda4",
   "visual_allocation/allocator.py": "429b779fe65b80ae9dffa171755949d9e40ace9fbfe55a4fbad40ccaf047a029",
   "visual_allocation/budget.py": "f2826cee233f04831ca169c89456559e5e6a6bb99c97778909a9a7fc7181c112",
