@@ -155,11 +155,16 @@ def _state_key(path: Path) -> str:
     return os.path.abspath(str(path))
 
 
+_BUSY = "busy"  # the file is there but Windows will not even stat it right now (another process is replacing it)
+
+
 def _disk_sig(path: Path):
     try:
         st = os.stat(path)
-    except OSError:
+    except FileNotFoundError:
         return None
+    except OSError:
+        return _BUSY
     return (st.st_mtime_ns, st.st_size, st.st_ino)
 
 
@@ -183,7 +188,11 @@ def _read_existing(path: Path) -> Optional[dict]:
         except FileNotFoundError:
             return {}
         except json.JSONDecodeError:
-            return {}  # a genuinely broken file is rebuilt, as before
+            # half written (Windows' in-place fallback in _replace_with_retry): read again; if it stays broken, keep our
+            # view -- our next flush rewrites the file whole, instead of rebuilding it from nothing and losing our entries
+            time.sleep(_REPLACE_BACKOFF_S)
+            if attempt >= 3:
+                return None
         except OSError:
             time.sleep(_REPLACE_BACKOFF_S * min(attempt + 1, 4))
     return None
@@ -194,6 +203,8 @@ def _sync(st: _FileState) -> None:
     cur = _disk_sig(st.path)
     if cur == st.sig:
         return
+    if cur == _BUSY:
+        return  # not "deleted": keep our view (with our own entries) and look again next time
     if cur is None:
         if st.sig not in (False, None):
             st.dirty.clear()  # file deleted since we last saw it
