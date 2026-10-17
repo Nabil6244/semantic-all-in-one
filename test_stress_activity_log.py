@@ -14,7 +14,10 @@ from __future__ import annotations
 import filecmp
 import json
 import os
-import resource
+try:
+    import resource  # Unix only
+except ImportError:  # Windows
+    resource = None
 import shutil
 import subprocess
 import sys
@@ -254,7 +257,8 @@ class ActivityLogFlood(unittest.TestCase):
             "rss_before_mb": round(rss_before, 1),
             "rss_peak_sampled_mb": round(max([r for r in rss if r == r] or [0]), 1),
             "rss_after_mb": round(_rss_mb(pid), 1),
-            "ru_maxrss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024), 1),
+            "ru_maxrss_mb": (round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024), 1)
+                             if resource is not None else float("nan")),
             "timed_out": state["drained_at"] is None,
         }
 
@@ -321,7 +325,8 @@ class ActivityLogFlood(unittest.TestCase):
         # (e) memory
         growth = stats["rss_peak_sampled_mb"] - stats["rss_before_mb"]
         stats["rss_growth_mb"] = round(growth, 1)
-        self.assertLess(growth, rss_growth_limit_mb, f"{label}: RSS grew {growth:.0f} MB: {stats}")
+        if growth == growth:  # NaN when the OS gave no RSS reading (CI sandbox, Windows): nothing to assert
+            self.assertLess(growth, rss_growth_limit_mb, f"{label}: RSS grew {growth:.0f} MB: {stats}")
         return stats
 
     # ----------------------------------------------------------------- tests

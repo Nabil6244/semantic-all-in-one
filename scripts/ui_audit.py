@@ -171,14 +171,13 @@ def audit_visible(app, light: bool) -> dict:
                     need = 3.0 if (weight == "bold" and (size or 0) >= 14) or (size or 0) >= 18 else 4.5
                     if ratio < need:
                         findings["contrast"].append(f"{_describe(w)} {tc} on {bg} = {ratio:.2f} (need {need})")
-                # clipped text: the label's own text area is narrower than the text
+                # clipped text: the layout gave the painted label less width than it asked for. Tk's own
+                # numbers (reqwidth vs width) include the real fallback font for glyphs such as \u2699 / \u2600;
+                # CTkFont.measure() does not, and over-reported those on Windows.
                 try:
-                    tf = getattr(w, "_font", None)
-                    tkfont = tf if isinstance(tf, ctk.CTkFont) else None
-                    if tkfont is not None and "\n" not in text and not getattr(w, "_wraplength", 0):
-                        need_px = tkfont.measure(text)
-                        inner = getattr(w, "_text_label", None) or getattr(w, "_label", None)
-                        have = inner.winfo_width() if inner is not None else w.winfo_width()
+                    inner = getattr(w, "_text_label", None) or getattr(w, "_label", None)
+                    if inner is not None and not getattr(w, "_wraplength", 0):
+                        need_px, have = inner.winfo_reqwidth(), inner.winfo_width()
                         if have > 1 and need_px > have + 2:
                             findings["clipped"].append(f"{_describe(w)} needs {need_px}px has {have}px")
                 except Exception:

@@ -66,6 +66,26 @@ def load_cache(images_dir: Path) -> dict:
 
 _tmp_counter = itertools.count()
 
+# Windows refuses os.replace() onto a file another handle has open (another process reading the cache,
+# antivirus, the search indexer): PermissionError. Those handles last milliseconds, so retry; if the
+# target stays locked, write in place as the code did before atomic writes (never worse than before).
+_REPLACE_RETRIES = 40
+_REPLACE_BACKOFF_S = 0.025
+
+
+def _replace_with_retry(tmp: Path, path: Path, text: str) -> None:
+    for attempt in range(_REPLACE_RETRIES):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(_REPLACE_BACKOFF_S * min(attempt + 1, 4))
+    path.write_text(text, encoding="utf-8")  # the pre-atomic behaviour
+    try:
+        tmp.unlink()
+    except OSError:
+        pass
+
 
 def _atomic_write_json(path: Path, cache: dict) -> None:
     """Write next to the target, then os.replace(): a reader (another
@@ -77,7 +97,7 @@ def _atomic_write_json(path: Path, cache: dict) -> None:
         fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
-        os.replace(tmp, path)
+        _replace_with_retry(tmp, path, text)
     except BaseException:
         try:
             tmp.unlink()
