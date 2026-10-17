@@ -126,6 +126,11 @@ def craft_model(layer: Dict[str, Any]) -> Optional[str]:
     return next((f"wi:{m}" for w, m in MODELS if w in key), None)
 
 
+def _day_month_year(d: Any) -> str:
+    """'5 MARCH 1979': strftime's %-d (no leading zero) is not supported on Windows ("Invalid format string")."""
+    return f"{d.day} {d.strftime('%B %Y')}".upper()
+
+
 def _fmt_light(s: float) -> str:
     for unit, sec in (("LIGHT-YEARS", 31557600), ("LIGHT-DAYS", 86400), ("LIGHT-HOURS", 3600), ("LIGHT-MINUTES", 60)):
         if s >= sec:
@@ -318,7 +323,7 @@ def lockups(spec: Dict[str, Any], clock: Dict[str, Any]) -> None:
         if not name:
             continue
         when = _clock_utc(clock, t)
-        sub = parse_iso(when).strftime("%-d %B %Y").upper() if when else ""
+        sub = _day_month_year(parse_iso(when)) if when else ""
         spec["layers"].append({"type": "tm_caption", "text": str(name).split(" · ")[0], "sub": sub, "size": "large", "anchor": "bc",
                                "start": round(t + 0.3, 3), "end": round(t + 4.3, 3), "fade_in": 0.3, "fade_out": 0.4})
 
@@ -507,7 +512,7 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
                                "fade_out": 0.25, "az": 20 + 37 * (len(added) % 4), "_cite": f"NASA 3D MODEL OF {str(next((T.get('label') for T in layers if T.get('type') == 'tracker' and T.get('craft') == src.get('id')), '') or src.get('id', 'THE CRAFT')).split(' · ')[0].upper()}"})
                 name = next((T.get("label") for T in layers if T.get("type") == "tracker" and T.get("craft") == src.get("id")), "") or src.get("label") or ""
                 layers.append({"type": "tm_caption", "text": str(name).split(" · ")[0].upper() or "SPACECRAFT",
-                               "sub": parse_iso(when).strftime("%-d %B %Y").upper() if when else "", "size": "large", "anchor": "bc",
+                               "sub": _day_month_year(parse_iso(when)) if when else "", "size": "large", "anchor": "bc",
                                "start": round(t + 0.4, 3), "end": round(t1 - 0.2, 3), "fade_in": 0.3, "fade_out": 0.3, "z": 4})
             elif kind == "number":
                 v, dec = src["value"], int(src.get("decimals") or 0)

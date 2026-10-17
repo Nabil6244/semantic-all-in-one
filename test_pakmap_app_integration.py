@@ -128,8 +128,10 @@ def scenario():
     emit("watermark_and_words_reach_the_generator", calls.get("wm") == {"text": "My Channel"} and calls.get("words") == WORDS)
     emit("video_lands_in_the_projects_final_folder", Path(calls.get("out", "")).parent == ws.final_dir, calls.get("out", ""))
     emit("work_files_go_to_the_pakmap_work_folder", calls.get("work") == str(ws.pakmap_work_dir), calls.get("work", ""))
-    emit("success_is_reported", "pakMap video ready" in str(shown.get("info")) and shown.get("preview") == calls.get("out") and inst._last_output == calls.get("out"), str(shown.get("info")))
-    emit("status_says_done", inst._pakmap_status_var.get().startswith("Done"), inst._pakmap_status_var.get())
+    emit("success_is_reported", "pakMap video ready" in str(shown.get("info")) and shown.get("preview") == calls.get("out") and inst._last_output == calls.get("out"),
+         f"{shown.get('info')} | error dialog: {shown.get('dialog')}")
+    emit("status_says_done", inst._pakmap_status_var.get().startswith("Done"),
+         inst._pakmap_status_var.get() + " | log: " + inst.log_box.get("1.0", "end")[-800:].replace("\n", " / "))
 
     # ---- sound design switch (Phase 7) ------------------------------------------------------------------
     emit("sound_design_reaches_the_generator", calls.get("sound") is True, str(calls.get("sound")))

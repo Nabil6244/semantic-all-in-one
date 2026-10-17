@@ -151,6 +151,10 @@ def _key(scene_number: str) -> str:
         return str(scene_number).strip()
 
 
+# Windows refuses to read or replace a file another handle holds open; those handles last milliseconds, so retry.
+_WIN_LOCK_RETRIES = 40
+_WIN_LOCK_BACKOFF_S = 0.025
+
 _MANIFEST_LOCKS: Dict[str, threading.Lock] = {}
 _MANIFEST_LOCKS_GUARD = threading.Lock()
 
@@ -185,11 +189,19 @@ class AssetManifest:
     def load(self) -> None:
         stamp = self._file_stamp()
         if stamp is not None:
-            try:
-                data = json.loads(self.path.read_text(encoding="utf-8"))
-                self._data = data if isinstance(data, dict) else {}
-            except (json.JSONDecodeError, OSError):
-                return                      # half written by another writer: keep what we had, read it next time
+            for attempt in range(_WIN_LOCK_RETRIES):
+                try:
+                    data = json.loads(self.path.read_text(encoding="utf-8"))
+                    self._data = data if isinstance(data, dict) else {}
+                    break
+                except PermissionError:
+                    # Windows: the file is locked for the instant another writer replaces it. Read again: a stale
+                    # copy here would make our next save() drop the scenes that writer just added.
+                    time.sleep(_WIN_LOCK_BACKOFF_S * min(attempt + 1, 4))
+                except (json.JSONDecodeError, OSError):
+                    return                  # half written by another writer: keep what we had, read it next time
+            else:
+                return
         else:
             self._data = {}
         self._stamp = stamp
@@ -201,7 +213,15 @@ class AssetManifest:
     def save(self) -> None:
         tmp = self.path.with_name(f"{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         tmp.write_text(json.dumps(self._data, indent=2, sort_keys=True), encoding="utf-8")
-        os.replace(tmp, self.path)          # atomic: a reader never sees half a file
+        for attempt in range(_WIN_LOCK_RETRIES):
+            try:
+                os.replace(tmp, self.path)  # atomic: a reader never sees half a file
+                break
+            except PermissionError:         # Windows: another handle has the file open for a moment
+                if attempt == _WIN_LOCK_RETRIES - 1:
+                    tmp.unlink(missing_ok=True)
+                    raise
+                time.sleep(_WIN_LOCK_BACKOFF_S * min(attempt + 1, 4))
         self._stamp = self._file_stamp()
 
     def get(self, scene_number: str) -> Optional[dict]:
