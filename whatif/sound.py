@@ -1,11 +1,11 @@
 """What If's sound: every graphic sounds like what it does -- a line draws (zap), a number counts (ticks), a dot lands (pop), a title
 or statement lands (thud), a section opens (riser) -- a change of shot kind gets a soft transition, and the ambience bed follows the
-story (water, wind, cold, the space drone). The sounds, the no-stacking rule and
+story (water, wind, cold, the ship's hum, a world's drone, two space drones). The sounds, the no-stacking rule and
 the mix (narration first, everything ducked under the voice) are pakMap's, used as they are (as StarMap does)."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 LAYER_SFX = {"tm_metric": "data_tick", "tm_caption": "ui_click", "tm_title": "deep_thud", "tm_fade": "deep_thud", "tm_survival": "ui_click",
              "tm_clock": "clock_ticking", "tm_gauge": "data_tick", "tm_composition": "counter_ticks", "tm_logaxis": "directional_whoosh",
@@ -26,8 +26,14 @@ ITEM_SFX = {"path": "draw_zap", "line": "draw_zap", "arrow": "draw_zap", "axis":
             "donut": "counter_ticks", "disc": "bubble_pluck"}
 MAJOR = ("deep_thud", "final_chime", "shimmer_riser", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0
-AMBIENCE = (("water_ambience", r"\b(water|rivers?|oceans?|lakes?|rain|seas?|flood\w*)\b"), ("desert_wind", r"\b(wind|dust|desert|sand|storms?|dunes?)\b"),
-            ("cold_wind", r"\b(ice|icy|frozen|polar|glaciers?|snow|cold)\b"))
+# What If's own beds (pakmap/sounds.py wi_*): audible on laptop speakers, about 15-17 dB under the voice like the references. "Solar wind" and
+# "stellar wind" are not weather, nor are the Oort cloud's "icy bodies" or the "ice giants": #016 switched to a desert wind for its heliosphere chapter
+AMBIENCE = (("wi_water", r"\b(water|rivers?|oceans?|lakes?|rain|seas?|flood\w*)\b"),
+            ("wi_wind", r"(?<!solar )(?<!stellar )\b(wind|dust|desert|sand|storms?|dunes?)\b"),
+            ("wi_cold", r"\b(ice(?! giants?)|icy(?! (bodies|moons?|worlds?|comets?|objects?))|frozen|polar|glaciers?|snow|cold)\b"))
+SPACE_BED, SPACE_BED_B, CRAFT_BED, PLANET_BED = "wi_space", "wi_space_b", "wi_craft", "wi_planet"
+WORLDS_RX = r"\b(jupiter|saturn|uranus|neptune|mars|venus|mercury|pluto|io|europa|ganymede|callisto|titan|triton|moons?|planets?|rings?)\b"
+BED_MIN_S, HOLD_S, SPACE_SWAP_S, XFADE_S = 20.0, 15.0, 90.0, 3.0
 
 
 def _when(v, length: float, cues: Dict[str, float], fallback: float) -> float:
@@ -78,21 +84,64 @@ def _template_cues(L: Dict[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
-def _ambience(spec: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """The bed follows the story: water where it talks about water, wind over dust and storms, cold over ice, the space drone otherwise
-    (a section lasts at least 20 s, so the bed never flickers)."""
+def _said(words: Sequence[Any], t0: float, t1: float) -> str:
+    """The narration spoken from t0 to t1 (Whisper words as dicts or objects): the compiled spec keeps no shot text."""
+    out = []
+    for w in words or ():
+        if isinstance(w, (list, tuple)):               # [word, start, end] as narration_words.json keeps them
+            text, t = (w[0], w[1]) if len(w) >= 2 else ("", None)
+        else:
+            get = w.get if isinstance(w, dict) else (lambda k, d=None, w=w: getattr(w, k, d))
+            text, t = get("word") or get("text") or "", get("start")
+        if t is not None and t0 - 0.5 <= float(t) < t1:
+            out.append(str(text))
+    return " ".join(out)
+
+
+def _bed_of(s: Dict[str, Any], words: Sequence[Any] = ()) -> str:
+    """The bed a shot asks for: water / wind / cold when it talks about them, else by what is on screen (a craft, a world, space)."""
     import re
 
+    txt = " ".join(str(s.get(k, "")) for k in ("text", "title", "sub")) + " " + _said(words, float(s["start"]), float(s["end"]))
+    told = next((a for a, pat in AMBIENCE if re.search(pat, txt, re.I)), None)
+    if told:
+        return told
+    kind = str(s.get("kind"))
+    if kind == "globe" or (kind in ("image", "video") and re.search(WORLDS_RX, txt, re.I)):
+        return PLANET_BED                                # a world on screen, as a model or as its photograph (#016's Jupiter flyby)
+    return CRAFT_BED if kind == "craft" else SPACE_BED
+
+
+def _ambience(spec: Dict[str, Any], words: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+    """The bed follows the story: water, wind, cold where the narration talks about them, the ship's hum on the craft, a deep drone at a
+    world, space otherwise -- and space alternates two drones every SPACE_SWAP_S, so 18 minutes are never one loop (#016). A new bed
+    starts only where its subject holds most of the next HOLD_S and BED_MIN_S after the last change, so the bed never flickers; the
+    beds crossfade (plan_sound)."""
+    shots = sorted((s for s in spec.get("shots") or [] if float(s.get("end", 0)) > float(s.get("start", 0))), key=lambda s: float(s["start"]))
+    want = [(float(s["start"]), float(s["end"]), _bed_of(s, words)) for s in shots]
+
+    def holds(name: str, t: float) -> bool:
+        cover = sum(max(0.0, min(e, t + HOLD_S) - max(a, t)) for a, e, n in want if n == name)
+        return cover >= 0.6 * HOLD_S
+
     marks: List[Dict[str, Any]] = []
-    for s in spec.get("shots") or []:
-        txt = " ".join(str(s.get(k, "")) for k in ("text", "title", "sub"))
-        name = next((a for a, pat in AMBIENCE if re.search(pat, txt, re.I)), "space_drone")
-        if not marks or (marks[-1]["ambience"] != name and float(s["start"]) - marks[-1]["t"] >= 20.0):
-            marks.append({"t": 0.0 if not marks else float(s["start"]), "ambience": name})
-    return marks or [{"t": 0.0, "ambience": "space_drone"}]
+    for a, _e, name in want:
+        if marks and a - marks[-1]["t"] < BED_MIN_S:
+            continue
+        cur = marks[-1]["ambience"] if marks else None
+        base = SPACE_BED if cur == SPACE_BED_B else cur
+        if name == SPACE_BED and base == SPACE_BED:
+            if a - marks[-1]["t"] >= SPACE_SWAP_S:     # the same space for minutes: the other drone
+                marks.append({"t": a, "ambience": SPACE_BED_B if cur == SPACE_BED else SPACE_BED})
+            continue
+        if name != base and (not marks or holds(name, a)):
+            if name == SPACE_BED and marks and marks[-1]["ambience"] != SPACE_BED:
+                name = SPACE_BED_B if any(m["ambience"] == SPACE_BED for m in marks[-3:]) else SPACE_BED
+            marks.append({"t": 0.0 if not marks else a, "ambience": name})
+    return marks or [{"t": 0.0, "ambience": SPACE_BED}]
 
 
-def sound_hints(spec: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+def sound_hints(spec: Dict[str, Any], words: Sequence[Any] = ()) -> Dict[str, List[Dict[str, Any]]]:
     """Every graphic the viewer sees gets the sound of what it does (a line draws, a number counts, a title lands); a change of shot kind
     gets a soft transition; the bed follows the story. Restraint is applied here (the mixer plays these cues as given)."""
     cues: List[Dict[str, Any]] = []
@@ -133,14 +182,17 @@ def sound_hints(spec: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         if sum(1 for k in kept if c["t"] - k["t"] < WINDOW_S) >= MAX_PER_WINDOW and c["sfx"] not in MAJOR:
             continue
         kept.append(c)
-    return {"cues": kept, "ambience": _ambience(spec)}
+    return {"cues": kept, "ambience": _ambience(spec, words)}
 
 
-def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = None):
+def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = None, words: Sequence[Any] = ()):
     from pakmap.audio_mix import resolve_assets
     from pakmap.audio_plan import plan_audio
 
-    plan = plan_audio({"duration": spec.get("duration", 0)}, sound_hints(spec), enabled=enabled, duration=spec.get("duration"))
+    plan = plan_audio({"duration": spec.get("duration", 0)}, sound_hints(spec, words), enabled=enabled, duration=spec.get("duration"))
+    for bed, nxt in zip(plan.beds, plan.beds[1:]):    # each bed runs on under the next one's fade-in: a crossfade, never a dip to silence
+        if abs(bed.end - nxt.start) < 0.05:
+            bed.end = min(float(spec.get("duration") or bed.end + XFADE_S), bed.end + XFADE_S)
     return resolve_assets(plan, catalog)
 
 

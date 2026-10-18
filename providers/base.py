@@ -10,6 +10,7 @@ assets be interchangeable from the renderer's point of view.
 from __future__ import annotations
 
 import dataclasses
+import re
 import enum
 from pathlib import Path
 from typing import Callable, Optional
@@ -65,6 +66,22 @@ class AssetError(Exception):
         self.scene_number = scene_number
         self.reason = reason
         super().__init__(f"Scene {scene_number}: {reason}")
+
+_STYLE_SENTENCE = re.compile(r"\b(realistic cg|cg render|documentary|16:9|no text|no logos|no labels|no people|no numbers|camera|push-in|"
+                            r"drift|lighting|star field|matte|desaturated|depth of field|cinematic|animation|restrained|natural colou?r)\b", re.I)
+
+
+def _search_words(prompt: str) -> str:
+    """What to search a stock site for when an AI row is switched to stock: the prompt without its house style and camera
+    sentences ("Cinematic, realistic CG for a serious space documentary ... Slow, smooth camera push-in" was searched word
+    for word and found an unrelated SD clip). A short prompt is used as it is."""
+    p = (prompt or "").strip()
+    if len(p) <= 120:
+        return p
+    keep = [x.strip() for x in re.split(r"(?<=[.!?:;])\s+", p) if x.strip() and not _STYLE_SENTENCE.search(x)]
+    words = " ".join(keep).split()
+    return " ".join(words[:14]) or p[:120]
+
 
 
 @dataclasses.dataclass
@@ -285,7 +302,7 @@ class SceneRow:
                 visual_description=self.visual_description,
                 fallbacks=list(self.fallbacks or []),
             )
-        query = (self.stock or self.prompt or "").strip()
+        query = (self.stock or _search_words(self.prompt) or "").strip()
         description = (self.visual_description or self.prompt or "").strip()
         if asset_type == "youtube_video":
             # Stock/flow rows often keep the search text in `.stock` with empty `.prompt`.

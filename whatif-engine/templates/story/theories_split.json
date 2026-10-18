@@ -35,10 +35,10 @@
    "p": "panel",
    "at": [
     0.075,
-    0.3
+    0.36
    ],
    "w": 0.4,
-   "h": 0.45,
+   "h": 0.24,
    "title": "{left}",
    "sub": "{left_sub}",
    "accent": "cyan",
@@ -48,10 +48,10 @@
    "p": "panel",
    "at": [
     0.525,
-    0.3
+    0.36
    ],
    "w": 0.4,
-   "h": 0.45,
+   "h": 0.24,
    "title": "{right}",
    "sub": "{right_sub}",
    "accent": "amber",
@@ -73,7 +73,7 @@
    "text": "VS",
    "at": [
     0.5,
-    0.54
+    0.48
    ],
    "size": 22,
    "font": "display",

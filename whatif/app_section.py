@@ -334,6 +334,19 @@ def load_visual_plan(app, ws) -> bool:
     return True
 
 
+def show_rows(app, rows) -> None:
+    """These rows (SceneRow) in the Visual Plan table, as they are -- the saved table re-matched to a new plan by Generate."""
+    app._scene_rows, app._scene_rows_owner, app._scene_preview_cache_sig = list(rows), MODE, None
+    M = _m(app)
+    keep = {M._scene_key(r.scene_number) for r in app._scene_rows}
+    app._asset_results = {k: v for k, v in app._asset_results.items() if k in keep}
+    if app._workspace is not None:
+        app._hydrate_overscaled_assets_from_manifest(images_dir(app._workspace))
+    app._render_scene_rows()
+    app._refresh_assets_cta()
+    save_visual_plan(app)
+
+
 def populate_visual_plan(app, plan=None, dicts=None) -> None:
     """Put the shots' pictures and clips in the EXISTING Visual Plan table (one row per asset shot). `dicts` are the rows already
     listed (Generate lists them on its own thread, before the fetch renumbers the shots)."""
@@ -523,10 +536,26 @@ def sync_cta(app) -> None:
         app._set_generate_btn(state="normal", text="Import Voiceover")
         return
     app._cta_action = "generate"
+    if all_assets_ready(app):
+        # every picture and clip of the Visual Plan is there: the next step only renders (nothing searched or generated)
+        app.stage_var.set("RENDER")
+        app.hint_var.set(f"All {len(app._scene_rows)} pictures and clips are ready — click Render. Nothing is searched or generated.")
+        app._set_generate_btn(state="normal", text="Render")
+        return
     app.stage_var.set("GENERATE")
     app.hint_var.set("Ready — click Generate to render the What If video." if app._whatif_ok is not False
                      else "The last check found problems: see the What If card, then Generate.")
     app._set_generate_btn(state="normal", text="Generate")
+
+
+def all_assets_ready(app) -> bool:
+    """Every row of What If's Visual Plan has its picture or clip (or was skipped)."""
+    if getattr(app, "_scene_rows_owner", None) != MODE or not getattr(app, "_scene_rows", None):
+        return False
+    try:
+        return all(app._row_status_from_result(r) in ("ready", "skipped") for r in app._scene_rows)
+    except Exception:
+        return False
 
 
 def cancel(app) -> None:
@@ -578,6 +607,7 @@ def run_generation(app) -> None:
     title = getattr(ws, "title", "") or ""
     pexels_api_key = app.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
     plan_rows = list(app._scene_rows) if getattr(app, "_scene_rows_owner", None) == MODE else None
+    render_only = all_assets_ready(app)      # the button says Render: the saved assets are used as they are
     save_visual_plan(app)                  # the rows as the author left them, for the next time the project is opened
     imgs = images_dir(ws)
     csv_file = current_csv(app)
@@ -590,13 +620,16 @@ def run_generation(app) -> None:
                     and not (man is not None and (man.get(r.scene_number) or {}).get("status") == "complete")]
     except Exception:
         new_flow = []
-    if new_flow:
+    if new_flow and not render_only:
         if not M.messagebox.askyesno("Generate pictures with Flow?",
                                      f"{len(new_flow)} picture(s)/clip(s) in this plan will be generated with Flow:\n\n"
                                      + "\n".join(f"- {(r.prompt or r.stock)[:70]}" for r in new_flow[:6]) + ("\n- ..." if len(new_flow) > 6 else "")
                                      + "\n\nPictures already saved (or replaced in the Visual Plan) are reused. Continue?"):
             return
-    if new_flow or plan_rows is None:
+    # always handed to the run (creating the manager starts nothing; Flow opens only when a picture is sent): the AI stand-ins for NASA
+    # misses are decided during the run, and without it every one failed "no Flow engine is configured" -- the render then stopped on
+    # them, Generate after Generate (#016, runs 7-9)
+    if True:
         flow_engine_manager = app._get_flow_engine_manager()
         flow_video_account_ids = app._video_account_ids()
         try:
@@ -609,8 +642,9 @@ def run_generation(app) -> None:
     app._whatif_tracking = app._track_generation_start(MODE)
     app._whatif_run_manager = None
     app._sync_primary_cta()
-    app._whatif_status_var.set("Starting What If generation…")
-    app._append_log("Starting What If generation…\n")
+    app._whatif_status_var.set("Rendering from the saved pictures and clips…" if render_only else "Starting What If generation…")
+    app._append_log(("Starting What If render (all pictures and clips are ready: nothing is searched or generated)…\n") if render_only
+                    else "Starting What If generation…\n")
 
     def progress_cb(message: str, fraction: float) -> None:
         def apply() -> None:
@@ -631,8 +665,15 @@ def run_generation(app) -> None:
     def _scene_complete(scene, result) -> None:
         app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
-    def _on_plan(plan) -> None:
-        if plan_rows is not None:       # the author's Visual Plan is already there (and may hold their replacements): keep it
+    def _on_plan(plan, rows=None) -> None:
+        if plan_rows is not None:       # the author's Visual Plan is already there (and may hold their replacements): keep it ...
+            if rows is not None and [str(r.scene_number) for r in rows] != [str(r.scene_number) for r in plan_rows]:
+                # ... but this plan needs other rows (#016: 44 listed, 68 needed): the tab shows every row of this plan, the saved
+                # pictures and changed sources kept on the rows they were matched to
+                listed = list(rows)
+                app.after(0, lambda: show_rows(app, listed))
+                thread_safe_log(f"{TAG} {len(listed)} picture(s)/clip(s) in this plan (the saved Visual Plan had {len(plan_rows)}); "
+                                f"all are listed in the Visual Plan")
             return
         from .app_integration import visual_dicts
 
@@ -664,7 +705,7 @@ def run_generation(app) -> None:
                     media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                          on_manager_ready=_manager_ready),
                     pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager, flow_settings=flow_settings,
-                    flow_video_account_ids=flow_video_account_ids, on_plan=_on_plan,
+                    flow_video_account_ids=flow_video_account_ids, on_plan=_on_plan, render_only=render_only,
                 )
         except Exception as exc:
             missing = getattr(exc, "filename", None)
@@ -702,6 +743,15 @@ def run_generation(app) -> None:
             if left:
                 app._refresh_qa_ui(immediate=True)
             M.messagebox.showinfo("What If video ready", f"Saved to:\n{result.output_path}\n\nCredits for the video description are saved next to it ('… - credits.txt')." + extra)
+        elif getattr(result, "unresolved", None):
+            # stopped before the render: the pictures that still need attention are fixed where every style fixes them
+            n = len(result.unresolved)
+            app._append_log(f"{TAG} Stopped before rendering: {n} picture(s)/clip(s) need attention (scene {', '.join(result.unresolved)}).\n")
+            set_text(app, f"Stopped before rendering: {n} picture(s)/clip(s) need attention.\n\nFix them in the Visual Plan (Retry, "
+                          f"Change source, Use local clip) or Skip them, then Generate again. Nothing was rendered.")
+            app._whatif_status_var.set(f"{n} picture(s) need attention — fix or skip them in the Visual Plan, then Generate again")
+            app._refresh_qa_ui(immediate=True)
+            app._goto_workflow_view("visual_plan")
         else:
             app._append_log(f"{TAG} Generation failed:\n" + "\n".join(result.errors) + "\n")
             set_text(app, "Generation stopped:\n\n" + "\n".join(f"  {e}" for e in result.errors))

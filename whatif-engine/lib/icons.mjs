@@ -89,6 +89,14 @@ export const ICONS = {
     g.fillStyle = c; rr(g, -0.14, -0.16, 0.28, 0.32, 0.04); g.fill(); g.fillRect(-0.2, -0.015, 0.4, 0.03);
     g.strokeStyle = c; g.beginPath(); g.arc(0, -0.28, 0.1, 0.2, Math.PI - 0.2); stroke(g, 0.035);
   },
+  // a deep-space probe (Voyager, Pioneer): a big dish over a small bus, a long boom and the power unit on its arm -- no solar panels
+  probe(g, o) {
+    const c = o.color || '#F2F4F7';
+    g.fillStyle = c; g.beginPath(); g.ellipse(0, -0.12, 0.3, 0.1, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#C9D2DD'; rr(g, -0.09, -0.06, 0.18, 0.14, 0.02); g.fill();
+    g.strokeStyle = c; g.beginPath(); g.moveTo(0.09, 0.02); g.lineTo(0.5, -0.32); g.moveTo(-0.09, 0.04); g.lineTo(-0.34, 0.3); stroke(g, 0.025);
+    g.fillStyle = '#F2A541'; g.beginPath(); g.arc(-0.34, 0.3, 0.05, 0, Math.PI * 2); g.fill();
+  },
   planet(g, o) {
     const c = o.color || '#C9A36A';
     g.fillStyle = c; g.beginPath(); g.arc(0, 0, 0.28, 0, TAU); g.fill();
@@ -180,6 +188,23 @@ export const ICONS = {
     g.fillStyle = c; g.beginPath(); g.moveTo(0, -0.42); g.lineTo(0.38, -0.2); g.lineTo(0, 0.02); g.lineTo(-0.38, -0.2); g.closePath(); g.fill();
     g.globalAlpha *= 0.75; g.beginPath(); g.moveTo(-0.38, -0.2); g.lineTo(0, 0.02); g.lineTo(0, 0.46); g.lineTo(-0.38, 0.24); g.closePath(); g.fill();
     g.globalAlpha *= 0.7; g.beginPath(); g.moveTo(0.38, -0.2); g.lineTo(0, 0.02); g.lineTo(0, 0.46); g.lineTo(0.38, 0.24); g.closePath(); g.fill();
+  },
+  moon(g, o) {
+    // a grey disc, its craters and a soft night side ("the Moon is not at one distance", #017: it was a cube)
+    g.fillStyle = o.color || '#D9D6CF'; g.beginPath(); g.arc(0, 0, 0.42, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(70,70,78,0.35)';
+    for (const [x, y, r] of [[-0.14, -0.12, 0.09], [0.12, 0.08, 0.07], [-0.05, 0.2, 0.05], [0.2, -0.16, 0.04], [-0.24, 0.1, 0.05]]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+    g.fillStyle = 'rgba(0,0,0,0.38)'; g.beginPath(); g.arc(0, 0, 0.42, -Math.PI / 2, Math.PI / 2); g.ellipse(0, 0, 0.16, 0.42, 0, Math.PI / 2, -Math.PI / 2, true); g.fill();
+  },
+  earth(g, o) {
+    g.fillStyle = '#2F6BDF'; g.beginPath(); g.arc(0, 0, 0.42, 0, TAU); g.fill();
+    g.save(); g.beginPath(); g.arc(0, 0, 0.42, 0, TAU); g.clip();
+    g.fillStyle = '#3FA35B';
+    g.beginPath(); g.ellipse(-0.14, -0.12, 0.16, 0.22, 0.4, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(0.18, 0.14, 0.13, 0.2, -0.3, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.75)'; g.beginPath(); g.ellipse(0, -0.4, 0.3, 0.07, 0, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.beginPath(); g.arc(0.1, 0.06, 0.48, -0.6, 2.2); g.fill();
+    g.restore();
   },
   telescope(g, o) {
     g.fillStyle = o.color || '#F2F4F7'; g.save(); g.rotate(-0.5); rr(g, -0.42, -0.09, 0.7, 0.18, 0.04); g.fill(); g.fillRect(0.28, -0.12, 0.1, 0.24); g.restore();

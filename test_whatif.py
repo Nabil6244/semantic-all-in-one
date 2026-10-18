@@ -301,6 +301,84 @@ class RemainingGaps(unittest.TestCase):
             read_shots(csv_text([dict(row="plan"), dict(row="shot", shot="s1", kind="image", asset="nasa_image:x"), dict(row="layer", type="annotate", label="x")]), [], 10)
         self.assertIn("annotate row needs", cm.exception.problems[0])
 
+    def test_a_disc_map_with_words_for_its_photo_never_blocks_the_pictures(self):
+        """Project #016: a disc map's text "Every person|Every city|..." was taken as its photo request; listing it raised, and the
+        Visual Plan stayed empty and no picture of the video was fetched."""
+        import csv
+        import io
+        from types import SimpleNamespace
+
+        from whatif.media import asset_shots
+        from whatif.shot_csv import COLUMNS, layers_from_rows
+
+        buf = io.StringIO(); w = csv.DictWriter(buf, fieldnames=COLUMNS); w.writeheader()
+        raw = timed("The soil probe tested a lens cap and not the ground of Venus at all, as we shall see now in this long sentence about it.")
+        for r in (dict(row="plan"), dict(row="shot", shot="s1", vo_anchor="The soil probe", kind="image", asset="nasa_image:Venera 14 panorama"),
+                  dict(row="layer", vo_anchor="Venus at all", type="diagram", id="discmap", label="EARTH", text="Every person|Every city|All of history")):
+            w.writerow(r)
+        shots, rows, info, notes = read_shots(buf.getvalue(), raw, raw[-1][2])
+        layers, plates = layers_from_rows(rows, shots, raw, "")
+        self.assertEqual(plates[0].asset, "nasa_image:James Webb Space Telescope first deep field galaxies")
+        bad = SimpleNamespace(asset="Every person|Every city", kind="plate")
+        self.assertEqual(asset_shots([bad, shots[0]]), [shots[0]], "a request with no source is left to its fallback")
+
+    def test_a_late_nasa_miss_gets_an_ai_still_reported_on_its_own_row(self):
+        """Project #016: NASA had no picture for rows 21, 23 ... after the opening; Commons had no provider and only opening shots got an
+        AI stand-in, so those rows stayed QUEUED and the render drew title cards instead."""
+        import tempfile
+        from types import SimpleNamespace
+
+        from whatif import media as wm
+
+        shot = planner.Shot(id="s1", start=200.0, end=205.0, kind="image", asset="nasa_image:Saturn F ring braided Voyager 1", name="BRAIDED F RING",
+                            text="the braided F ring")
+        seen, calls = [], []
+
+        def fetcher(plan, images_dir, **kw):
+            calls.append([c.asset.split(":", 1)[0] for b in plan.beats for c in b.clips])
+            row = plan.beats[0].clips[0].row
+            done = calls[-1][0] == "flow_image"
+            if done:
+                kw["on_scene_complete"](SimpleNamespace(scene_number=str(row)), SimpleNamespace(scene_number=str(row), ok=True))
+            return SimpleNamespace(media={f"row:{row}": {"file": str(Path(images_dir) / "x.png")}} if done else {}, unresolved=[] if done else [str(row)],
+                                   notes=[], credits=[])
+
+        with tempfile.TemporaryDirectory() as d:
+            got = wm.fetch([shot], Path(d), log=lambda m: None, fetcher=fetcher, on_scene_complete=lambda sc, r: seen.append(sc.scene_number))
+        self.assertEqual(calls, [["nasa_image"], ["commons_image"], ["flow_image"]])
+        self.assertTrue(shot.file and shot.cite[0] == "AI ILLUSTRATION")
+        self.assertEqual(seen, ["1"], "the AI pass reports on the row the Visual Plan shows, not its own number")
+        self.assertEqual(got.unresolved, [])
+
+    def test_people_are_judged_on_the_picture_not_the_narration(self):
+        from types import SimpleNamespace as N
+
+        from whatif.media import _illustration_for
+
+        self.assertTrue(_illustration_for(N(extra={}, name="TITAN HAZE LIMB", text="the team chose titan")))
+        self.assertTrue(_illustration_for(N(extra={}, name="FAMILY PORTRAIT MOSAIC", text="known as the family portrait")))
+        self.assertIsNone(_illustration_for(N(extra={}, name="VOYAGER FLIGHT TEAM", text="keeping voyager alive")))
+
+    def test_nothing_is_rendered_while_pictures_need_attention(self):
+        import tempfile
+        import wave
+        from types import SimpleNamespace
+
+        from whatif.app_integration import generate_whatif_video
+
+        words = timed("Saturn waits at the edge of the dark. Its rings are made of ice and rock that circle the planet forever.")
+        with tempfile.TemporaryDirectory() as d:
+            vo = Path(d) / "vo.wav"
+            with wave.open(str(vo), "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(8000); w.writeframes(b"\0\0" * 8000 * 12)
+            rendered = []
+            r = generate_whatif_video(vo, Path(d) / "out.mp4", work_dir=Path(d) / "w", whisper_words=words, images_dir=Path(d) / "m",
+                                      script=" ".join(w[0] for w in words), sound_design=False, log=lambda m: None,
+                                      fetch=lambda *a, **k: SimpleNamespace(media={}, unresolved=["21", "23"], notes=[], credits=[]),
+                                      render=lambda *a, **k: rendered.append(1))
+        self.assertFalse(r.ok)
+        self.assertEqual((r.unresolved[:2], rendered), (["21", "23"], []), "the fetch reported them: no render")
+
     def test_light_clock_follows_the_light_times_the_narrator_gives_and_the_years(self):
         script = ("In 1977 you leave Earth aboard Voyager and eleven hours later you are 1.3 light-seconds from home. Jupiter comes in 1979, "
                   "when light needs 37 light-minutes to reach you. By 1980 you are at Saturn, 85 light-minutes away, and in 1990 you are 5 light-hours out.")
@@ -335,8 +413,11 @@ class Compile(unittest.TestCase):
     def test_real_photographs_are_letterboxed_and_cited_like_the_reference(self):
         import tempfile
 
+        from PIL import Image
+
         tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
         tmp.close()
+        Image.new("RGB", (64, 36), (40, 30, 20)).save(tmp.name)     # a real picture: an empty file is (rightly) a broken one
         self.addCleanup(os.unlink, tmp.name)
         s = planner.Shot(id="s1", start=0, end=6, kind="image", asset="nasa_image:Venera 14 panorama", name="VENERA 14", cite=("REAL IMAGE", ""),
                          file=tmp.name, credit="NASA/NSSDCA/COURTESY OF THE USSR")
@@ -851,9 +932,26 @@ class Sound(unittest.TestCase):
         self.assertTrue(any(x.startswith("template light_bends:") for x in sources), sources)
         self.assertIn("draw_zap", [c["sfx"] for c in h["cues"]])
         self.assertIn("ui_click", [c["sfx"] for c in h["cues"]])
-        self.assertEqual([a["ambience"] for a in h["ambience"]], ["space_drone", "desert_wind"])
+        self.assertEqual([a["ambience"] for a in h["ambience"]], ["wi_space", "wi_wind"])
         ts = [c["t"] for c in h["cues"]]
         self.assertTrue(all(b - a >= 0.39 for a, b in zip(ts, ts[1:])))
+
+    def test_the_bed_follows_the_screen_and_never_plays_one_loop_for_minutes(self):
+        from whatif.sound import _ambience, plan_sound
+
+        shots = [{"start": 0, "end": 30, "kind": "craft"}, {"start": 30, "end": 300, "kind": "plate"},
+                 {"start": 300, "end": 330, "kind": "image"}, {"start": 330, "end": 360, "kind": "plate"}]
+        words = [["the", 302.0, 302.2], ["jupiter", 302.2, 302.8], ["icy", 340.0, 340.3], ["bodies", 340.3, 340.8]]
+        marks = _ambience({"shots": shots}, words)
+        names = [m["ambience"] for m in marks]
+        self.assertEqual(names[0], "wi_craft")                       # on the spacecraft: the ship's hum
+        self.assertIn("wi_space_b", names)                           # minutes of space: the second drone takes over
+        self.assertIn("wi_planet", names)                            # a photo of a named world
+        self.assertNotIn("wi_cold", names)                           # the Oort cloud's "icy bodies" are space, not a polar wind
+        self.assertTrue(all(b["t"] - a["t"] >= 20.0 for a, b in zip(marks, marks[1:])))
+        plan = plan_sound({"duration": 360, "shots": shots, "layers": []}, words=words)
+        for a, b in zip(plan.beds, plan.beds[1:]):
+            self.assertGreater(a.end, b.start)                       # a crossfade, never a gap
 
 
 class FlowBudget(unittest.TestCase):

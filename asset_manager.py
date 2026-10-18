@@ -2060,6 +2060,18 @@ class AssetManager:
             (AssetSource.FLOW_IMAGE, self.flow_image_provider),
             (AssetSource.FLOW_VIDEO, self.flow_video_provider),
         ):
+            # a scene whose source the user changed in the Visual Plan while this run waited (scene 34 of #016: switched to stock,
+            # then this run's Flow batch, planned before the change, generated it anyway and overwrote the stock clip) keeps the
+            # user's file: it leaves the batch
+            kept = []
+            for scene in pending[source]:
+                rec = self.manifest.get(scene.scene_number) or {}
+                if rec.get("user_override") and rec.get("status") == "complete" and str(rec.get("source") or "") != source.value:
+                    self.log(f"[ASSET] Scene {scene.scene_number} -> changed to {rec.get('source')} in the Visual Plan during this run; "
+                             f"not sent to {source.value.upper()}")
+                    continue
+                kept.append(scene)
+            pending[source] = kept
             self._resolve_flow_batch(
                 source,
                 provider,

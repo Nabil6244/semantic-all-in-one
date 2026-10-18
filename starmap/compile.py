@@ -1061,12 +1061,34 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
                     if kind not in CSV_KINDS[ty]:
                         raise CatalogError(f"{ty} id must be one of {', '.join(sorted(CSV_KINDS[ty]))} (got {it.id!r})")
                     L = {"type": "cinema_hero" if kind == "hero" else f"tm_{kind}", **it.extra, **timing, "_cinema_row": ty}
+                    if kind == "mission" and not it.until:
+                        L["end"] = end_of_video                 # the mission card is pinned for the whole trip (What If V4)
                     if it.label and "title" not in it.extra and kind not in ("caption", "metric", "fade", "hero", "annotate", "clock"):
                         L["title"] = it.label.upper()
                     if kind in ("caption", "annotate", "metric") and it.label and not any(k in it.extra for k in ("text", "label", "value")):
                         L["label" if kind == "annotate" else ("value" if kind == "metric" else "text")] = it.label.upper()
                     if it.sub and "sub" not in it.extra:
                         L["sub"] = it.sub.upper()
+                elif ty == "template":
+                    # Cinema: any What If template by id (fact_bullets, mission_intro, before_after ...), its slots from the row's columns as
+                    # in a What If CSV, timed on the narration. A plate template is full-frame on a slate; any other sits over the shot
+                    from whatif import templates as wi_tpl
+
+                    try:
+                        t_end = until_end(it, b) if it.until else None
+                        L, wi_plate = wi_tpl.layer_for(it, start, t_end, plan.words)
+                    except ValueError as exc:
+                        raise CatalogError(str(exc)) from None
+                    if L.get("image_slot"):
+                        m = find_media(it.row, it.asset) if it.asset else None
+                        if m and m.get("file"):
+                            L["slots"][L["image_slot"]] = m["file"]
+                        else:
+                            L["slots"].pop(L["image_slot"], None)
+                    L["_cinema_row"] = "plate" if wi_plate else "instrument"
+                    if wi_plate:
+                        kind, text = wi_plate.get("cite") or ("DIAGRAM", "")
+                        L["_tpl_cite"] = f"{kind} · {text}".rstrip(" ·")
                 elif ty == "track":
                     # a marker on a moving planet or moon (its recent orbital path as a dotted trail); a craft named here is
                     # tracked like a craft row

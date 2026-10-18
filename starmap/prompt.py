@@ -136,6 +136,10 @@ def build_prompt(pack: Optional[str] = None, script: Optional[str] = None) -> st
     text = prompt_path().read_text(encoding="utf-8")
     text = text.replace(BODIES_PLACEHOLDER, body_names(cat))
     text = text.replace(PACK_PLACEHOLDER, pack_vocabulary(cat, script, force=[pack] if pack else None))
+    if "<<<TEMPLATE CATALOG>>>" in text:                 # Cinema's template rows: What If's library, listed from its template files
+        from whatif.templates import catalog_text
+
+        text = text.replace("<<<TEMPLATE CATALOG>>>", catalog_text())
     if script:
         text = text.replace("<<<PASTE THE SCRIPT HERE>>>", script.strip())
     return text

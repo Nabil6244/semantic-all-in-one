@@ -17,13 +17,13 @@ export default {
     const d = inst.def, { g, W, H } = f, T = tm(g, W);
     const k = quartOut((f.t - (d.start ?? 0)) / 0.35);
     if (d.anchor === 'bc' || d.size === 'photo') {
-      const photo = d.size === 'photo', y = H * (photo ? 0.78 : 0.88);
+      const photo = d.size === 'photo', y = H * (d.cy ?? (photo ? 0.78 : 0.88)), cx = W * (d.cx ?? 0.5);   // cx / cy: under a photo card
       g.save(); g.globalAlpha = f.alpha * k;
       const txt = String(d.text).toUpperCase();
       let px = photo ? 27 : 29;
       while (px > 18 && T.measure(txt, T.sans(px, 800), 3) > W * 0.8) px -= 2;
-      T.text(txt, W / 2, y, { font: T.sans(px, 800), track: 3, align: 'center', color: photo ? '#A3AAB3' : C.white, shadow: photo ? 0 : 0.7 });
-      String(d.sub || '').toUpperCase().split('\n').filter(Boolean).forEach((ln, i) => T.text(ln, W / 2, y + (photo ? 36 : 36) * T.S + i * 26 * T.S,
+      T.text(txt, cx, y, { font: T.sans(px, 800), track: 3, align: 'center', color: photo ? '#A3AAB3' : C.white, shadow: photo ? 0 : 0.7 });
+      String(d.sub || '').toUpperCase().split('\n').filter(Boolean).forEach((ln, i) => T.text(ln, cx, y + (photo ? 36 : 36) * T.S + i * 26 * T.S,
         { font: T.mono(photo ? 16 : 17, 600), track: 2, align: 'center', color: photo ? '#8A8F96' : colour(d.sub_color, C.cream), shadow: photo ? 0 : 0.6, alpha: 0.9 }));
       g.restore();
       return;

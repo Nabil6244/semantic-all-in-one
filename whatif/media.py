@@ -15,9 +15,19 @@ from starmap.beat_csv import Item
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
 
 
+def is_asset(a: str) -> bool:
+    """'<source>:<what to find>' with a source the resolver knows (shot_csv.ASSET_SOURCES)."""
+    from .shot_csv import ASSET_SOURCES
+
+    src, sep, what = str(a or "").partition(":")
+    return bool(sep) and src.strip().lower() in ASSET_SOURCES and bool(what.strip())
+
+
 def asset_shots(shots: Sequence[Any]) -> List[Any]:
-    """The shots that name a source (file: ones are the author's own and need no fetching)."""
-    return [s for s in shots if s.asset and not s.asset.lower().startswith("file:")]
+    """The shots that name a source (file: ones are the author's own and need no fetching). A shot whose asset is not a
+    '<source>:<what>' request is left to its fallback: one bad request stopped the listing and the fetch of EVERY picture
+    (project #016: a disc map's text "Every person|Every city|..." taken as its photo)."""
+    return [s for s in shots if s.asset and not s.asset.lower().startswith("file:") and is_asset(s.asset)]
 
 
 PEOPLE = re.compile(r"\b(astronauts?|cosmonauts?|engineers?|scientists?|team|crew|people|person|man|woman|portrait|selfie|control room|press)\b", re.I)
@@ -92,13 +102,103 @@ def _take_visual_plan_sources(shots: Sequence[Any], scene_rows: Optional[Sequenc
     return changed
 
 
+def _save_on_table_rows(shots: Sequence[Any], numbers: Dict[str, str], images_dir: Path) -> None:
+    """An AI stand-in made under its own number (84, 85 ...) is also recorded under the Visual Plan row it fills (28, 29 ...): the row
+    shows it after a restart, and Render finds it there. A row that already has its own finished file is left as it is."""
+    from asset_manager import AssetManifest
+
+    man = AssetManifest(Path(images_dir))
+    for s in shots:
+        row = numbers.get(str(s.row))
+        if not row or not s.file or not Path(s.file).is_file():
+            continue
+        own = man.get(row) or {}
+        if own.get("status") == "complete" and Path(str(own.get("local_path") or "/-")).is_file():
+            continue
+        rec = man.get(str(s.row)) or {}
+        man.set(row, {**rec, "status": "complete", "local_path": str(s.file), "stand_in_for": row, "error": None})
+
+
+def _from_saved(shots: Sequence[Any], images_dir: Path, log: Callable[[str], None]) -> Any:
+    """Render: every asset as it is saved for its Visual Plan row -- nothing searched, generated or downloaded. A row with no saved
+    file is reported (unresolved), never fetched."""
+    from asset_manager import AssetManifest
+
+    as_plan(shots)
+    man = AssetManifest(Path(images_dir))
+    got = SimpleNamespace(media={}, unresolved=[], notes=[], credits=[])
+    for s in asset_shots(shots):
+        rec = man.get(str(s.row)) or {}
+        f = Path(str(rec.get("local_path") or "/-"))
+        if rec.get("status") == "complete" and f.is_file():
+            s.file, s.credit = str(f), str(rec.get("credit") or "")
+            if f.suffix.lower() in VIDEO_EXT:
+                s.kind = "video"
+            elif s.kind == "video":
+                s.kind = "image"
+            got.media[f"row:{s.row}"] = {"file": str(f), "credit": s.credit}
+            if s.credit and s.credit not in got.credits:
+                got.credits.append(s.credit)
+            if str(rec.get("source") or "").startswith("flow") and "AI-generated illustrations (Google Flow), labelled on screen" not in got.credits:
+                got.credits.append("AI-generated illustrations (Google Flow), labelled on screen")
+        else:
+            got.unresolved.append(str(s.row))
+    log(f"[What If] Render: {len(got.media)} saved picture(s)/clip(s) used as they are; nothing searched or generated"
+        + (f"; {len(got.unresolved)} row(s) have no saved file" if got.unresolved else ""))
+    return got
+
+
+_STOCK_SITES = re.compile(r"pexels\.com|pixabay\.com|^pixabay:|^pexels:", re.I)
+
+
+def _set_aside_stock_for_nasa(shots: Sequence[Any], images_dir: Path, log: Callable[[str], None]) -> int:
+    """A real-subject row (nasa_image / nasa_video) holding a stock site's photo: the Visual Plan lists a NASA picture as Stock Image, so
+    its Retry and Use alternatives searched Pexels/Pixabay -- "Voyager 1 launch Titan IIIE" got a fantasy Titan statue (project #016).
+    That photo is moved to _set_aside (never deleted) and the row is asked of NASA again; if NASA has nothing, it gets its labelled AI
+    stand-in, as every NASA miss does. Returns how many were set aside."""
+    import json
+    import shutil
+
+    man_path = Path(images_dir) / ".asset_manifest.json"
+    try:
+        man = json.loads(man_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    moved = []
+    for s in shots:
+        if not (s.row and s.asset.lower().startswith("nasa_")):
+            continue
+        k = f"{int(s.row):03d}"
+        rec = man.get(k)
+        if not isinstance(rec, dict) or not str(rec.get("source", "")).startswith("stock_"):
+            continue
+        if not (_STOCK_SITES.search(str(rec.get("source_url") or "")) or _STOCK_SITES.search(str(rec.get("provider_asset_id") or ""))):
+            continue
+        f = Path(str(rec.get("local_path") or ""))
+        if f.is_file():
+            aside = Path(images_dir) / "_set_aside"
+            aside.mkdir(exist_ok=True)
+            shutil.move(str(f), str(aside / f"{f.name}.stock_for_nasa"))
+        man[k] = {**rec, "status": "failed", "local_path": "", "user_override": None,
+                  "error": "a stock photo is not a picture of this real subject; asked of NASA again"}
+        moved.append(k)
+    if moved:
+        man_path.write_text(json.dumps(man, indent=1, ensure_ascii=False), encoding="utf-8")
+        log(f"[What If] Visual Plan scene(s) {', '.join(str(int(k)) for k in moved)}: a stock site's photo stood in for a real NASA subject; "
+            f"set aside (in _set_aside) and asked of NASA again")
+    return len(moved)
+
+
 def _illustration_for(s: Any) -> Optional[str]:
     """What an AI picture of this shot would be, when NASA has no picture of it: the shot's own description, in the house look.
     Never for people (a face must be real or absent)."""
     from .planner import brief, house
 
     what = (s.extra.get("alt") or "").strip() or " ".join(filter(None, [s.name.title() if s.name else "", s.text])).strip()
-    if not what or PEOPLE.search(what):
+    # people are judged on what the picture shows (its alt, else its name), not on the narration around it: "the team chose
+    # Titan" kept Titan's haze from its stand-in; Voyager's "Family Portrait" is a mosaic of planets, not a portrait
+    subject = (s.extra.get("alt") or "").strip() or (s.name or "").strip() or s.text
+    if not what or PEOPLE.search(re.sub(r"\bfamily portrait\b", "", subject, flags=re.I)):
         return None
     return f"flow_image:{house(what)}{brief(what)}"
 
@@ -134,6 +234,31 @@ def _caller(fn: Callable[..., Any]) -> Callable[..., Any]:
     return lambda *a, **k: fn(*a, **({**k} if named else {x: v for x, v in k.items() if x != "ai_fallback"}))
 
 
+_CALLBACKS = ("on_scene_start", "on_scene_generating", "on_scene_complete")
+
+
+def _renumbered(kw: Dict[str, Any], numbers: Dict[str, str]) -> Dict[str, Any]:
+    """kw with the Visual Plan callbacks reporting a later pass's scene (numbered 45, 53 ...) under the number its row has in the
+    table (21, 23 ...): those rows stayed QUEUED for the whole run, as nothing ever reported on their numbers."""
+    import copy
+    import dataclasses
+
+    def back(obj: Any) -> Any:
+        n = numbers.get(str(getattr(obj, "scene_number", "")))
+        if n is None:
+            return obj
+        if dataclasses.is_dataclass(obj):
+            return dataclasses.replace(obj, scene_number=n)
+        obj = copy.copy(obj)
+        obj.scene_number = n
+        return obj
+
+    def wrap(cb: Callable[..., Any]) -> Callable[..., Any]:
+        return lambda *a, **k: cb(*[back(x) for x in a], **k)
+
+    return {**kw, **{c: wrap(kw[c]) for c in _CALLBACKS if callable(kw.get(c))}}
+
+
 def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] = print, fetcher: Optional[Callable[..., Any]] = None,
           **kw: Any) -> Any:
     """Fetch every asset shot's file; sets shot.file / shot.credit. A real-picture request (nasa_image) that NASA cannot answer
@@ -142,8 +267,11 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     (a globe or a typographic shot) takes over."""
     from starmap.media import fetch_media
 
+    if kw.pop("render_only", False):
+        return _from_saved(shots, Path(images_dir), log)
     as_plan(shots)                       # numbers the shots' rows as the Visual Plan does
     _take_visual_plan_sources(shots, kw.get("scene_rows"), log)
+    # a ready row is the author's choice: never set aside or searched again at Generate (see starmap.media.recheck_cached_media)
     if kw.get("scene_rows"):
         realign_saved(Path(images_dir), [r for r in kw["scene_rows"] if hasattr(r, "scene_number")], log)
     plan = as_plan(shots)
@@ -154,7 +282,7 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     pass_dir = lambda k: Path(images_dir) if kept else Path(images_dir) / f"whatif_pass{k}"  # noqa: E731
     # naming a mission keeps NASA's answer: no stock search stands in for it
     mission = {str(s.row): (s.name or s.place or "mission") for s in shots if s.row and s.asset.lower().startswith("nasa_")}
-    got = call(plan, Path(images_dir), log=log, ai_fallback=False, mission=mission or "", **kw)
+    got = call(plan, Path(images_dir), log=log, ai_fallback=False, mission=mission or "", recheck_warn_only=True, **kw)
     _apply(shots, got)
     kw.pop("scene_rows", None)         # the Visual Plan table holds the first pass's rows only; the extra passes use their own
     # a second real source for what NASA does not hold: Wikimedia Commons (only for a named craft or place, so a search cannot drift to
@@ -162,6 +290,7 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     missed = [s for s in shots if s.row and not s.file and s.asset.lower().startswith("nasa_")]
     first_rows = {s.id: str(s.row) for s in missed}           # their Visual Plan numbers (the later passes number them anew)
     first = max([x.row for x in shots if x.row] or [0]) + 1
+    later_rows: set = set()                                     # the numbers the later passes gave them (never shown in the table)
     named = [s for s in missed if s.name and not PEOPLE.search(s.name + " " + s.text)]
     if named:
         for s in named:
@@ -169,30 +298,36 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
             s.asset = "commons_image:" + s.asset.split(":", 1)[1].strip()[:90]
             s.cite = ("REAL IMAGE", "")
         log(f"[What If] NASA has no picture of {', '.join(s.name for s in named)}; trying Wikimedia Commons")
-        got2 = call(as_plan(named, start_row=first), pass_dir(2), log=log, ai_fallback=False, mission=mission or "", **kw)
+        plan2 = as_plan(named, start_row=first)
+        later_rows.update(str(s.row) for s in named)
+        got2 = call(plan2, pass_dir(2), log=log, ai_fallback=False, mission=mission or "",
+                    **_renumbered(kw, {str(s.row): first_rows[s.id] for s in named}))
         _apply(named, got2)
         _merge(got, got2)
         first = max(x.row for x in named) + 1
     redo = []
-    from .planner import FLOW_OPEN_S
+    # every miss gets its AI picture, not only those in the opening (FLOW_OPEN_S): a later miss used to be left out, and the video
+    # was rendered with a title card where its picture should be (project #016: 9 of 11 misses). One still per miss, never a clip.
     for s in [s for s in missed if not s.file]:
-        if s.start >= FLOW_OPEN_S:          # Flow is for the opening: a later miss gets the compiler's own fallback (a globe or a typographic shot)
-            continue
         alt = _illustration_for(s)
         if alt:
             log(f"[What If] shot {s.id}: no real picture of {s.name or s.place or 'this'} was found; an AI illustration stands in (labelled on screen)")
             s.asset, s.cite = alt, ("AI ILLUSTRATION", "")
             redo.append(s)
     if redo:
-        got3 = call(as_plan(redo, start_row=first), pass_dir(3), log=log, ai_fallback=False, **kw)
+        plan3 = as_plan(redo, start_row=first)
+        stand_in_rows = {str(s.row): first_rows[s.id] for s in redo if s.id in first_rows}
+        later_rows.update(str(s.row) for s in redo)
+        got3 = call(plan3, pass_dir(3), log=log, ai_fallback=False, **_renumbered(kw, {str(s.row): first_rows[s.id] for s in redo if s.id in first_rows}))
         _apply(redo, got3)
         _merge(got, got3)
+        _save_on_table_rows(redo, stand_in_rows, Path(images_dir))
     # a NASA miss that a later pass filled (Commons, or an AI illustration) is not left out: only shots still without a file are
     # reported, under the number the Visual Plan shows (4 rows were flagged "needs action" although the video had their stand-ins)
     filled = {first_rows[s.id] for s in missed if s.file}
     if filled:
         log(f"[What If] Visual Plan scene(s) {', '.join(sorted(filled, key=int))}: no NASA picture, a stand-in from a later search is used")
-    stand_in_rows = {str(s.row) for s in shots if s.id in first_rows}
+    stand_in_rows = {str(s.row) for s in shots if s.id in first_rows} | later_rows
     got.unresolved = [n for n in (getattr(got, "unresolved", []) or []) if str(n) not in filled and str(n) not in stand_in_rows] + \
                      [first_rows[s.id] for s in missed if not s.file]
     got.unresolved = list(dict.fromkeys(got.unresolved))
@@ -242,7 +377,12 @@ def realign_saved(images_dir: Path, rows: Sequence[Any], log: Callable[[str], No
             continue
         kinds = _SAME_KIND.get((getattr(r, "asset_type", "") or "").lower())
         own = man.get(k)
-        if not kinds or not text_of(r) or (done(own) and _same_text(rec_text(own), text_of(r))):
+        # a row's own finished file stays when it was made for this row (the same text) or the user chose it; a file made for another
+        # row's text (the numbers shifted, #013) gives way to the finished file made for exactly this text -- the old one goes to
+        # _set_aside, never deleted (asked for by the owner, 2026-10-18)
+        if not kinds or not text_of(r):
+            continue
+        if done(own) and (own.get("user_override") or _same_text(rec_text(own), text_of(r))):
             continue
         donor = next((d for d, rec in man.items() if d != k and done(rec) and rec.get("source") in kinds and _same_text(rec_text(rec), text_of(r))), None)
         if donor is None and kinds & {"flow_image", "flow_video"}:
@@ -269,7 +409,10 @@ def realign_saved(images_dir: Path, rows: Sequence[Any], log: Callable[[str], No
             src, rec = copies[d]
             for old in images_dir.glob(f"{k}.*"):
                 aside.mkdir(exist_ok=True)
-                shutil.move(str(old), str(aside / f"{old.name}.realigned"))
+                tgt, n = aside / f"{old.name}.realigned", 1
+                while tgt.exists():                  # an earlier set-aside copy is kept too, never overwritten
+                    tgt, n = aside / f"{old.name}.realigned{n}", n + 1
+                shutil.move(str(old), str(tgt))
             dst = images_dir / f"{k}{src.suffix}"
             shutil.copy2(src, dst)
             man[k] = {**rec, "local_path": str(dst), "script_segment": getattr(r, "script_segment", rec.get("script_segment", ""))}

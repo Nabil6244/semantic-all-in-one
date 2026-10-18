@@ -36,7 +36,7 @@ export default {
     const { g, W, H } = f, T = tm(g, W), d = inst.def, tr = f.t - (d.start ?? 0);
     g.save();
     if (inst.tpl.plate !== false && inst.tpl.drift !== false) drift(g, f, d, 0.035);
-    const c = { g, T, W, H, alpha: f.alpha, image: (n) => inst.images.get(n) || null };
+    const c = { g, T, W, H, alpha: f.alpha, image: (n) => inst.images.get(n) || null, reserved: f.reserved || [] };
     for (const it of inst.items) {
       if (it._broken) continue;
       try { g.save(); drawItem(c, it, tr); } catch (e) { it._broken = true; if (typeof console !== 'undefined') console.warn(`tm_template ${inst.tpl.id}: item ${it.p} off: ${e.message}`); } finally { g.restore(); }

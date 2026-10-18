@@ -72,7 +72,20 @@ def _num(v: Any) -> Optional[float]:
         return None
 
 
+def _bar_list(text: str) -> List[str]:
+    """"A|B|C" when the text has no ";" and no "=": the separator an AI often writes instead of the prompt's "A; B; C"."""
+    t = str(text or "")
+    return [x.strip() for x in t.split("|") if x.strip()] if "|" in t and ";" not in t and "=" not in t else []
+
+
 def _pairs(text: str) -> List[Tuple[str, str]]:
+    bars = _bar_list(text)
+    # "IO 1|7 DAYS|EUROPA|3.5 DAYS": name, value, name, value only when every value has a number; otherwise each item stands alone
+    # ("CHIP FAILS|CODE REWRITTEN|...": steps, not pairs) -- the compare diagram pairs four plain words itself
+    if len(bars) >= 2 and len(bars) % 2 == 0 and all(re.search(r"\d", v) for v in bars[1::2]):
+        return [(bars[k], bars[k + 1]) for k in range(0, len(bars), 2)]
+    if len(bars) >= 2:
+        return [(b, "") for b in bars]
     out = []
     for part in str(text or "").split(";"):
         if not part.strip():
@@ -105,7 +118,7 @@ def slots_from_row(t: Dict[str, Any], it: Any) -> Dict[str, Any]:
             continue
         kind = spec.get("kind")
         if kind == "list":
-            out[name] = [x.strip().upper() for x in str(raw).split(";") if x.strip()]
+            out[name] = [x.strip().upper() for x in (_bar_list(raw) or str(raw).split(";")) if x.strip()]
         elif kind == "pairs":
             out[name] = [_pair_item(k, v) for k, v in _pairs(str(raw))]
         elif kind == "parts":
@@ -119,10 +132,46 @@ def slots_from_row(t: Dict[str, Any], it: Any) -> Dict[str, Any]:
         raise ValueError('extra "slots" must be a JSON object, e.g. {"slots": {"ratio_to": 100}}')
     out.update(extra)
     missing = [n for n, s in (t.get("slots") or {}).items() if s.get("required") and out.get(n) in (None, "", [])]
+    rescued = _label_from_text(t, it, out, missing)
+    missing = [n for n in missing if n not in rescued]
+    if not getattr(it, "_auto", False):
+        # an example list the row did not give (callout_object's "SOLAR PANELS · POWER" on Voyager, #016): empty, never the example
+        for n, sl in (t.get("slots") or {}).items():
+            if sl.get("from") and sl.get("kind") in ("list", "pairs", "parts") and n not in out:
+                out[n] = []
+        # a headline value the row left empty: the template's own default would be shown as if it had been said (#016: "12 DAYS" counted
+        # up on screen from day_night_strip's default). The planner's concept templates (auto) are drawn from their defaults on purpose.
+        missing += [n for n, sl in (t.get("slots") or {}).items() if sl.get("from") == "value_to" and isinstance(sl.get("default"), (int, float))
+                    and out.get(n) in (None, "") and n not in missing]
     if missing:
         cols = ", ".join(f"{n} ({t['slots'][n].get('from') or 'extra slots'})" for n in missing)
         raise ValueError(f"template {t['id']} needs {cols}")
     return out
+
+
+def _label_from_text(t: Dict[str, Any], it: Any, out: Dict[str, Any], missing: List[str]) -> List[str]:
+    """A required label the row left empty while its words are in `text` (project #016: 40 rows dropped, 28 diagram screens blank):
+    the words are the label. When another slot also reads `text` (fact_bullets' facts), its first item is the label and the rest
+    stay that slot's. Returns the slots filled."""
+    text = str(getattr(it, "text", "") or "").strip()
+    if not text:
+        return []
+    slots = t.get("slots") or {}
+    filled = []
+    for n in missing:
+        if slots[n].get("from") != "label":
+            continue
+        items = _bar_list(text) or [x.strip() for x in text.split(";") if x.strip()]
+        sharing = [m for m, s in slots.items() if s.get("from") == "text" and m != n]
+        if sharing and len(items) > 1:
+            out[n] = items[0].upper()
+            for m in sharing:
+                if slots[m].get("kind") == "list":
+                    out[m] = [x.upper() for x in items[1:]]
+        else:
+            out[n] = " · ".join(items).upper() if len(items) > 1 else text.upper()
+        filled.append(n)
+    return filled
 
 
 # ---- cues: the words a template waits for ---------------------------------------------------------------------------------------
@@ -166,6 +215,39 @@ def get(template_id: str) -> Dict[str, Any]:
     return t
 
 
+# the icon beside a fact block is what the narration is about, never the template's stand-in cube (#017: a cube beside "the Moon ... it
+# moves, it stretches"). The nearest match in the words around the block wins; else the nearest in the minute around it; else a star.
+ICON_WORDS = (("moon", r"\b(moon|lunar|moons|apollo|artemis|orion capsule|perigee|apogee|supermoon|crater\w*)\b"),
+              ("earth", r"\b(earth|earth's|our planet|home world|ocean\w*|tides?)\b"),
+              ("sun", r"\b(sun|sun's|solar|sunlight)\b"), ("planet", r"\b(planets?|jupiter|saturn|mars|venus|mercury|uranus|neptune|pluto|worlds?)\b"),
+              ("probe", r"\b(voyager|pioneer|cassini|galileo|new horizons|probe|spacecraft|lander|orbiter)\b"),
+              ("rocket", r"\b(rockets?|launch\w*|saturn v|sls|booster|liftoff)\b"), ("astronaut", r"\b(astronauts?|crew|cosmonauts?|spacewalk)\b"),
+              ("satellite", r"\b(satellites?|space station|iss)\b"), ("telescope", r"\b(telescopes?|observator\w*|hubble|webb)\b"),
+              ("radio", r"\b(radio|signal|antenna|dish|transmi\w*)\b"), ("lightning", r"\b(light|laser|speed of light)\b"),
+              ("hourglass", r"\b(years?|centur\w*|time|ages?|millions? of years)\b"), ("star", r"\b(stars?|galax\w*|milky way)\b"))
+
+
+def _said_near(it: Any, words: Sequence[Any], start: float, stop: float, *, before: float, after: float) -> str:
+    def w_t(w: Any) -> float:
+        return float(getattr(w, "start", w[1] if isinstance(w, (list, tuple)) else 0))
+
+    def w_s(w: Any) -> str:
+        return str(getattr(w, "text", w[0] if isinstance(w, (list, tuple)) else ""))
+
+    own = " ".join(str(getattr(it, c, "") or "") for c in ("label", "text", "sub"))
+    return own + " " + " ".join(w_s(w) for w in words if start - before <= w_t(w) <= stop + after)
+
+
+def icon_for(near: str, wider: str = "") -> str:
+    """The drawn icon for what is said: the subject in the words around the block, else in the minute around it."""
+    for text in (near, wider):
+        hits = [(m.start(), name) for name, rx in ICON_WORDS for m in [re.search(rx, text, re.I)] if m]
+        if hits:
+            counts = {name: len(re.findall(rx, text, re.I)) for name, rx in ICON_WORDS}
+            return max(hits, key=lambda h: (counts[h[1]], -h[0]))[1]
+    return "star"
+
+
 def layer_for(it: Any, start: float, end: Optional[float], words: Sequence[Any] = ()) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
     """A template row -> (tm_template layer, plate fields or None). The plate fields: tint, cite (kind, text), asset (a photo to fetch)."""
     t = get(it.id)
@@ -180,6 +262,12 @@ def layer_for(it: Any, start: float, end: Optional[float], words: Sequence[Any] 
             slots[photo_slot], asset = asset, asset           # compile.py places a local file like any fetched one
     if t.get("plate", True):
         plate = {"tint": (getattr(it, "extra", None) or {}).get("tint", t.get("tint", "cool")), "cite": split_cite(t.get("cite", "ILLUSTRATION")), "asset": asset}
+    if "object" in (t.get("slots") or {}) and "object" not in slots:
+        said = _said_near(it, words, start, stop, before=40.0, after=20.0)
+        if re.search(r"\b(voyager|pioneer|cassini|galileo|new horizons|ulysses|probe)\b", said, re.I):
+            slots["object"] = "probe"             # a dish probe, not the default satellite with solar panels
+    if "icon" in (t.get("slots") or {}) and not slots.get("icon"):
+        slots["icon"] = icon_for(_said_near(it, words, start, stop, before=8.0, after=2.0), _said_near(it, words, start, stop, before=60.0, after=20.0))
     layer = {"type": "tm_template", "template": _public(t), "slots": slots, "cues": find_cues(t, words, start, stop),
              "start": round(start, 3), "end": round(stop, 3), "fade_in": 0.05, "fade_out": 0.05 if plate else 0.3, "z": 4 if plate else 6,
              "plate": bool(plate)}

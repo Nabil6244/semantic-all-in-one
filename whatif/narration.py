@@ -136,6 +136,9 @@ def clauses(words: List[Word], pause_s: float = 0.35) -> List[Tuple[int, int]]:
     return out
 
 
+SENTENCE_MAX_WORDS = 32      # a sentence found from pauses alone is cut at its longest pause past this many words
+
+
 def sentences(words: List[Word]) -> List[Tuple[int, int]]:
     out, a = [], 0
     for i, w in enumerate(words):
@@ -143,6 +146,26 @@ def sentences(words: List[Word]) -> List[Tuple[int, int]]:
         if re.search(r"[.?!]$", w.text) or nxt is None or nxt.start - w.end >= 0.9:
             out.append((a, i))
             a = i + 1
+    if words and len(out) * 30.0 < max(30.0, words[-1].end - words[0].start) * 0.5:
+        return _pause_sentences(words)        # under one sentence a minute: a transcript without punctuation
+    return out
+
+
+def _pause_sentences(words: List[Word]) -> List[Tuple[int, int]]:
+    """Sentences from the pauses when the transcript has no punctuation (render #016: 18 minutes were 3 "sentences", and every rule that
+    reads a sentence saw minutes of narration): a pause of 0.55 s or more ends one; a run past SENTENCE_MAX_WORDS ends at its longest pause."""
+    out, a = [], 0
+    for i in range(len(words)):
+        nxt = words[i + 1] if i + 1 < len(words) else None
+        gap = (nxt.start - words[i].end) if nxt else 9.0
+        if gap >= 0.55 or nxt is None:
+            out.append((a, i))
+            a = i + 1
+        elif i - a + 1 >= SENTENCE_MAX_WORDS:
+            span = range(a + 8, i + 1)
+            cut = max(span, key=lambda k: (words[k + 1].start - words[k].end) if k + 1 < len(words) else 0.0)
+            out.append((a, cut))
+            a = cut + 1
     return out
 
 
@@ -536,7 +559,11 @@ def light_clock(words: List[Word], sn, metrics: List[Metric], dur: float, text: 
         return []
     pts = []
     for m in metrics:
-        sent = span_text(words, *next(((a, b) for a, b in sn if a <= m.i0 <= b), (m.i0, m.i1)))
+        # the words around the number, not its "sentence": a transcript with no punctuation is a few sentences minutes long, and every
+        # "300 years" in it passed for a light time (project #016's clock read 1,197,060 hours at Saturn)
+        sent = span_text(words, max(0, m.i0 - 12), min(len(words) - 1, m.i1 + 6))
+        if m.kind == "light" and re.search(r"\b(stars?|centauri|proxima|galax\w*|andromeda|nebula\w*|quasar\w*)\b", sent, re.I):
+            continue                                      # how far another star or galaxy is: not the light time from home to you
         if m.kind == "light":
             secs = m.value
         elif m.kind == "distance" and m.value >= 1e6 and re.search(r"\b(away|from (earth|home|the sun)|out)\b", sent, re.I):
@@ -545,11 +572,19 @@ def light_clock(words: List[Word], sn, metrics: List[Metric], dur: float, text: 
             secs = m.value
         else:
             continue
-        pts.append((m.t - LEAD_S, secs))
-    keys, last = [], -1.0
-    for t, sec in sorted(pts):
+        pts.append((m.t - LEAD_S, secs, m))
+    keys, last, bigs = [], -1.0, set()
+    for t, sec, m in sorted(pts, key=lambda p: p[0]):
         if sec >= last:                                   # light from home only grows on an outward journey
-            keys.append({"t": round(t, 3), "seconds": round(sec, 2)})
+            key = {"t": round(t, 3), "seconds": round(sec, 2)}
+            # a milestone the narrator names as such ("one light-day", "a light-hour"): the large dial, once each
+            for unit, size in (("LIGHT-DAY", 86400.0), ("LIGHT-HOUR", 3600.0)):
+                if m.kind == "light" and m.unit.rstrip("S") == unit and abs(sec / size - round(sec / size)) < 0.01 and round(sec / size) >= 1 \
+                        and (unit, round(sec / size)) not in bigs:
+                    n = int(round(sec / size))
+                    key.update(big=True, label=f"{'ONE' if n == 1 else n} {unit}{'S' if n > 1 else ''}")
+                    bigs.add((unit, n))
+            keys.append(key)
             last = sec
     if len(keys) < 2:
         return []
@@ -612,7 +647,17 @@ MISSION_STAGES = ["APPROACH", "PHOTON SPHERE", "EDGE", "INSIDE", "SINGULARITY"]
 
 
 def _pairs(text: str) -> List[Tuple[str, str]]:
-    """"VENERA 7=23 MIN; VENERA 13=127 MIN*" -> [(label, value)]"""
+    """"VENERA 7=23 MIN; VENERA 13=127 MIN*" -> [(label, value)]. "A|1|B|2" (no ";" and no "=", as an AI often writes it) is read as
+    name, value, name, value."""
+    t = str(text or "")
+    if "|" in t and ";" not in t and "=" not in t:
+        bars = [x.strip() for x in t.split("|") if x.strip()]
+        # "IO 1|7 DAYS|EUROPA|3.5 DAYS": name, value, name, value only when every value has a number; otherwise each item stands alone
+        # ("CHIP FAILS|CODE REWRITTEN|...": steps, not pairs) -- the compare diagram pairs four plain words itself
+        if len(bars) >= 2 and len(bars) % 2 == 0 and all(re.search(r"\d", v) for v in bars[1::2]):
+            return [(bars[k], bars[k + 1]) for k in range(0, len(bars), 2)]
+        if len(bars) >= 2:
+            return [(b, "") for b in bars]
     out = []
     for part in (text or "").split(";"):
         if part.strip():
@@ -644,6 +689,10 @@ def layers_from_row(it: Any, start: float, end: float) -> List[Dict[str, Any]]:
         plate = {"type": "tm_plate", "covers": True, "tint": it.extra.get("tint", "cool"), "title": it.label, "sub": it.sub, **timing,
                  "fade_in": 0.05, "fade_out": 0.05, "z": -5, "cite": ["DIAGRAM", it.extra.get("cite", "")]}
         pairs = _pairs(it.text)
+        if kind in ("compare", "particles") and len(pairs) not in (2, 4) and len(pairs) >= 2 and all(not v for _k, v in pairs):
+            kind = "timeline"            # "PLUTONIUM DECAYS|HEAT|ELECTRICITY": a chain of steps, drawn as steps in order, not two sides
+        if kind in ("bars", "composition", "logaxis", "curve") and pairs and all(not v for _k, v in pairs):
+            kind = "timeline"            # names with no values: nothing to measure, so the steps in order
         if kind == "bars":
             d = {"type": "tm_bars", "rows": [{"label": k.rstrip("*"), "value": _num(v), "text": v.rstrip("*"),
                                               "highlight": k.endswith("*") or v.endswith("*")} for k, v in pairs]}
@@ -654,6 +703,8 @@ def layers_from_row(it: Any, start: float, end: float) -> List[Dict[str, Any]]:
             d = {"type": "tm_curve", "shape": it.extra.get("shape", "decay"), "x_label": it.extra.get("x", "SPEED →"),
                  "y_label": it.extra.get("y", ""), "limit_label": it.extra.get("limit", ""), "keys": [{"t": start + 0.6, "x": 0.5}, {"t": start + 2.2, "x": 0.98}]}
         elif kind in ("compare", "particles"):
+            if len(pairs) == 4 and all(not v for _k, v in pairs):     # "VOYAGER 2|LAUNCHED FIRST|VOYAGER 1|FASTER": two sides
+                pairs = [(pairs[0][0], pairs[1][0]), (pairs[2][0], pairs[3][0])]
             if len(pairs) != 2:
                 raise ValueError("a compare diagram needs text with two sides: LEFT=value; RIGHT=value")
             (lk, lv), (rk, rv) = pairs
@@ -663,8 +714,12 @@ def layers_from_row(it: Any, start: float, end: float) -> List[Dict[str, Any]]:
                  "right": {"label": rk, "value": rv, "amount": b, "n": int(min(900, 600 * b / max(a, b))) or 3, "color": "cyan"}}
         elif kind == "discmap":
             d = {"type": "tm_discmap", "earth": it.label or "EARTH"}
+            from .media import is_asset
+
+            # the photograph in the disc: nasa_image:<what>. Words instead (an AI wrote what the disc stands for) are not a
+            # request for a picture: the disc shows the default deep field
             if it.text:
-                plate["asset"] = it.text                      # the photograph in the disc: nasa_image:<what>
+                plate["asset"] = it.text if is_asset(it.text) else "nasa_image:James Webb Space Telescope first deep field galaxies"
             plate["cite"] = ["DIAGRAM", str(it.extra.get("cite", "GALAXIES: NASA, ESA, CSA, STSCI"))]
         elif kind == "composition":
             d = {"type": "tm_composition", "parts": [{"label": k, "pct": _num(v)} for k, v in pairs]}
@@ -672,9 +727,12 @@ def layers_from_row(it: Any, start: float, end: float) -> List[Dict[str, Any]]:
                 d["note"] = {"text": it.extra["note"], "color": "red"}
         else:
             ev = [{"year": int(_num(v)), "label": k, "t": start + 0.4 + 0.5 * i} for i, (k, v) in enumerate(pairs)]
+            if len(ev) > 1 and not any(e["year"] for e in ev):     # steps with no years ("CHIP FAILS|CODE REWRITTEN|..."): 1, 2, 3 in order
+                for i, e in enumerate(ev, 1):
+                    e["year"] = i
             years = [e["year"] for e in ev] or [2000]
             d = {"type": "tm_timeline", "events": ev, "from": int(it.value_from or min(years) - 2), "to": int(it.value_to or max(years) + 2),
-                 "step": 10 if max(years) - min(years) > 30 else 5}
+                 "step": 10 if max(years) - min(years) > 30 else 5 if max(years) - min(years) > 8 else 1}
         return [plate, {**d, **timing, "fade_in": 0.05, "fade_out": 0.05}]
     if ty == "hud":
         kind = (it.id or "").lower()
@@ -685,11 +743,21 @@ def layers_from_row(it: Any, start: float, end: float) -> List[Dict[str, Any]]:
             # line, text = the stage (a name from extra "stages", or its number); every mission row joins one card (shot_csv._merge_missions)
             if it.value_to is None and not it.label:
                 raise ValueError("a mission row needs value_to (the number) and format (its unit), e.g. 6.3 + MILLION KM")
-            stages = [x.strip().upper() for x in str(it.extra.get("stages", "")).split(";") if x.strip()] or MISSION_STAGES
+            # no stages named: no stage rail (MISSION_STAGES are the black-hole video's; a Voyager card showed PHOTON SPHERE ...)
+            stages = [x.strip().upper() for x in str(it.extra.get("stages", "")).split(";") if x.strip()]
             st = (it.text or "").strip().upper()
-            idx = stages.index(st) if st in stages else int(_num(st)) if _num(st) is not None else 0
-            key = {"t": round(start, 3), "value": it.value_to if it.value_to is not None else 0, "unit": (it.format or "").upper(),
-                   "label": (it.label or "DISTANCE").upper(), "status": (it.sub or "").upper(), "stage": max(0, min(len(stages) - 1, idx))}
+            if not stages and st in MISSION_STAGES:     # the black-hole rail, only when the row names one of its stages
+                stages = list(MISSION_STAGES)
+            idx = stages.index(st) if st in stages else int(_num(st)) if stages and _num(st) is not None else 0
+            status = (it.sub or "").upper()
+            if it.value_to is not None:
+                value = it.value_to
+                if st and not stages:            # the row's words are its status, not a stage: "DISTANCE FROM SUN · TERMINATION SHOCK"
+                    status = f"{status} · {st}" if status else st
+            else:                                # no number: the words are the readout ("ENCOUNTER"), never a bare 0
+                value = st or status or (it.label or "").upper()
+            key = {"t": round(start, 3), "value": value, "unit": (it.format or "").upper() if it.value_to is not None else "",
+                   "label": (it.label or "DISTANCE").upper(), "status": status, "stage": max(0, min(len(stages) - 1, idx)) if stages else 0}
             until = it.extra.get("until")
             return [{"type": "tm_mission", "kicker": str(it.extra.get("kicker", "MISSION")).upper(), "stages": stages, "keys": [key],
                      "start": start, "end": float(until) if until is not None else max(end, start + 600.0), "z": 11}]

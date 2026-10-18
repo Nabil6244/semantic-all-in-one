@@ -187,7 +187,10 @@ def generate_whatif_video(
             scene_rows = remap_rows(list(mine.values()), list(scene_rows), log)
     if on_plan is not None:            # the app shows the shots in the Visual Plan before the pictures are fetched
         try:
-            on_plan(p)
+            try:
+                on_plan(p, scene_rows)     # with the saved table re-matched to this plan: the tab shows THIS plan's every row
+            except TypeError:
+                on_plan(p)
         except Exception as exc:
             log(f"[What If] the plan could not be shown in the Visual Plan ({exc!r})")
 
@@ -196,12 +199,23 @@ def generate_whatif_video(
     try:
         got = wm.fetch(p.shots, Path(images_dir), log=log, fetcher=fetch, scene_rows=scene_rows, cancel_check=cancel_check,
                        stills_dir=work / "stills", **(media_callbacks or {}), **provider_kwargs)
-    except Exception as exc:       # a failed fetch never stops the video: those shots get their fallback
-        log(f"[What If] fetching pictures failed ({exc!r}); the shots that needed them use their fallbacks")
+    except Exception as exc:
+        log(f"[What If] fetching pictures failed ({exc!r})")
+        if cancelled():
+            return PakmapResult(False, ["Cancelled"], cancelled=True)
+        # nothing is rendered without its pictures: a render of title cards where the pictures should be had to be stopped by hand
+        return PakmapResult(False, [f"The pictures and clips could not be fetched ({exc}). Nothing was rendered; fix it and Generate again."])
     if cancelled():
         return PakmapResult(False, ["Cancelled"], cancelled=True)
     for n in getattr(got, "notes", []) or []:
         log(f"[What If] {n}")
+    left = [str(n) for n in (getattr(got, "unresolved", []) or [])]
+    if left:
+        # pictures still missing after NASA, Commons and the AI stand-ins: stop before the render (it takes many minutes) and let
+        # the Visual Plan fix or Skip them; a skipped row is not counted, so Generate then renders
+        log(f"[What If] {len(left)} picture(s)/clip(s) still need attention (scene {', '.join(left)}): nothing is rendered until they are "
+            f"fixed or skipped in the Visual Plan")
+        return PakmapResult(False, [f"{len(left)} picture(s)/clip(s) need attention: scene {', '.join(left)}"], unresolved=left)
     for s in p.shots:             # a row switched to Flow Video in the Visual Plan on a long shot: the planner could not split it
         if s.kind == "video" and s.file and s.length > planner.FLOW_VIDEO_MAX_S + 0.05 and s.asset.lower().startswith("flow_"):
             log(f"[What If] shot {s.id} is {s.length:.1f} s, longer than a Flow clip should run ({planner.FLOW_VIDEO_MAX_S:.0f} s): its clip loops. "
@@ -266,7 +280,7 @@ def generate_whatif_video(
     try:
         from .sound import plan_sound
 
-        audio_plan = plan_sound(spec, enabled=sound_design, catalog=sound_catalog)
+        audio_plan = plan_sound(spec, enabled=sound_design, catalog=sound_catalog, words=whisper_words)
         for sid, what in sorted(audio_plan.missing.items()):
             sound_notes.append(f"missing sound {sid}: {what}")
         if sound_design:

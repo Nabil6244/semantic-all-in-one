@@ -19,7 +19,9 @@ USER_AGENT = "SemanticVideoGenerator/1.0 (documentary/educational; local-app)"
 class OpenverseBackend(StockBackend):
     name = "openverse"
 
-    def __init__(self):
+    def __init__(self, source: str = ""):
+        # source: an Openverse provider id ("wikimedia") to search that collection only -- the Commons pass for real subjects
+        self.source = source
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": USER_AGENT})
 
@@ -34,6 +36,7 @@ class OpenverseBackend(StockBackend):
                 "q": query,
                 "page_size": min(max(per_page, 3), 20),
                 "license": "cc0,pdm,by,by-sa",
+                **({"source": self.source} if self.source else {}),
             },
             timeout=TIMEOUT,
         )

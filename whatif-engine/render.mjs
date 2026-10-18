@@ -26,6 +26,23 @@ const threeRoot = () => firstDir(path.join(HERE, 'node_modules', 'three'), path.
 
 export const mediaDirOf = (spec, specDir) => (spec.media_dir ? path.resolve(specDir, spec.media_dir) : path.join(specDir, 'media'));
 
+// A frame that takes longer than this means the page froze, not that it is slow (a normal frame takes well under a second).
+const FRAME_TIMEOUT_MS = Number(process.env.WHATIF_FRAME_TIMEOUT_MS) || 60000;
+const MAX_RESTARTS = 5;
+class FrameTimeout extends Error {}
+const withTimeout = (promise, ms, what) => {
+  let timer;
+  const limit = new Promise((_, fail) => { timer = setTimeout(() => fail(new FrameTimeout(`${what} took over ${ms / 1000} s`)), ms); });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+};
+// a frozen browser may not answer close() either: give it 10 s, then kill its process
+async function closeQuietly(b) {
+  if (!b) return;
+  const proc = typeof b.process === 'function' ? b.process() : null;
+  try { await withTimeout(b.close(), 10000, 'closing the browser'); }
+  catch { try { if (proc) proc.kill('SIGKILL'); } catch { /* gone */ } }
+}
+
 function startServer(spec, specDir, cutter) {
   const mediaDir = mediaDirOf(spec, specDir), three = threeRoot(), pageSpec = JSON.stringify(spec);
   const modelDir = spec.model_dir || path.join(HERE, 'assets', 'models'), texDir = spec.texture_dir || path.join(HERE, 'assets', 'textures');
@@ -81,18 +98,25 @@ async function main() {
   const launchOpts = { headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars']
     : ['--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader', '--hide-scrollbars'] };
   if (spec.browser_channel) launchOpts.channel = spec.browser_channel;
-  const browser = await chromium.launch(launchOpts);
+  const pageErrors = [];
+  // one browser and page; opened again by the watchdog when a frame freezes
+  const openPage = async () => {
+    const b = await chromium.launch(launchOpts);
+    try {
+      const pg = await b.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+      pg.on('pageerror', (e) => pageErrors.push(String(e)));
+      pg.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
+      await pg.goto(`${origin}/index.html`);
+      try { await pg.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: 120000 }); }
+      catch (err) { throw new Error(`page did not start: ${pageErrors.slice(0, 5).join(' | ') || err.message}`); }
+      const setupError = await pg.evaluate(() => window.__error || null);
+      if (setupError) throw new Error(`scene setup failed: ${setupError}`);
+      return { browser: b, page: pg };
+    } catch (e) { await closeQuietly(b); throw e; }
+  };
+  let { browser, page } = await openPage();
   let ffmpeg = null;
   try {
-    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
-    const pageErrors = [];
-    page.on('pageerror', (e) => pageErrors.push(String(e)));
-    page.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
-    await page.goto(`${origin}/index.html`);
-    try { await page.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: 120000 }); }
-    catch (err) { throw new Error(`page did not start: ${pageErrors.slice(0, 5).join(' | ') || err.message}`); }
-    const setupError = await page.evaluate(() => window.__error || null);
-    if (setupError) throw new Error(`scene setup failed: ${setupError}`);
     emit({ event: 'gpu', mode: soft ? 'software' : 'hardware' });
     if (process.env.WHATIF_STILLS) {
       for (const t of process.env.WHATIF_STILLS.split(',').map(Number)) {
@@ -109,18 +133,36 @@ async function main() {
     let err = ''; ffmpeg.stderr.on('data', (d) => { err += d; });
     const closed = new Promise((resolve) => ffmpeg.on('close', (code) => resolve(code)));
     const t0 = Date.now();
-    let last = null, reused = 0;
-    for (let i = 0; i < total; i++) {
+    let last = null, reused = 0, restarts = 0;
+    // a part of a parallel render draws only its frames [from, to): every frame is a function of its time alone, so the parts
+    // joined are the same frames one render makes (whatif/engine_runner.py splits at shot cuts)
+    const [from, to] = Array.isArray(spec.frame_range) ? spec.frame_range.map(Number) : [0, total];
+    for (let i = from; i < to; i++) {
       await cutter.ensure(i / fps);
+      // tests only: the page freezes once at this frame, as render #016's did
+      if (process.env.WHATIF_TEST_FREEZE_AT && i === Number(process.env.WHATIF_TEST_FREEZE_AT) && restarts === 0) {
+        await page.evaluate(() => { window.renderFrame = () => new Promise(() => {}); });
+      }
       let b64 = null;
       for (let k = 0; k < 2 && b64 === null; k++) {
-        try { b64 = await page.evaluate((t) => window.renderFrame(t), i / fps); }
-        catch (e) { if (k === 1 && last === null) throw e; if (k === 1) emit({ event: 'warning', message: `frame ${i} could not be drawn (${String(e.message || e).slice(0, 200)}); the frame before it is used` }); }
+        try { b64 = await withTimeout(page.evaluate((t) => window.renderFrame(t), i / fps), FRAME_TIMEOUT_MS, `frame ${i}`); }
+        catch (e) {
+          if (e instanceof FrameTimeout) {
+            // the page froze (render #016 waited 11 minutes on one picture, then the 6-hour limit): a fresh browser draws it again
+            if (restarts >= MAX_RESTARTS) throw new Error(`the page froze ${restarts + 1} times (last at frame ${i} of ${total}); stopped`);
+            restarts++;
+            emit({ event: 'warning', message: `frame ${i} (${(i / fps).toFixed(1)} s) took over ${FRAME_TIMEOUT_MS / 1000} s: the page froze; restarting the browser and continuing from this frame (restart ${restarts} of ${MAX_RESTARTS})` });
+            await closeQuietly(browser);
+            ({ browser, page } = await openPage());
+          }
+          if (k === 1 && last === null) throw e;
+          if (k === 1) emit({ event: 'warning', message: `frame ${i} could not be drawn (${String(e.message || e).slice(0, 200)}); the frame before it is used` });
+        }
       }
       if (b64 === null) { b64 = last; reused++; }
       last = b64;
       if (!ffmpeg.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => ffmpeg.stdin.once('drain', r));
-      if (i % 30 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total, ms_per_frame: Math.round((Date.now() - t0) / (i + 1)) });
+      if ((i - from) % 30 === 0 || i === to - 1) emit({ event: 'progress', frame: i - from + 1, total: to - from, ms_per_frame: Math.round((Date.now() - t0) / (i - from + 1)) });
     }
     ffmpeg.stdin.end();
     const code = await closed;
@@ -130,10 +172,10 @@ async function main() {
     for (const m of repairs.slice(0, 40)) emit({ event: 'warning', message: m });
     if (reused) emit({ event: 'warning', message: `${reused} frame(s) repeated the frame before them` });
     for (const m of cutter.problems) emit({ event: 'warning', message: `${m}; that shot was drawn as a plate` });
-    emit({ event: 'done', output: spec.output, frames: total, seconds: Math.round((Date.now() - t0) / 100) / 10 });
+    emit({ event: 'done', output: spec.output, frames: to - from, seconds: Math.round((Date.now() - t0) / 100) / 10 });
   } finally {
     if (ffmpeg && ffmpeg.exitCode === null) { try { ffmpeg.stdin.destroy(); ffmpeg.kill('SIGKILL'); } catch { /* gone */ } }
-    await browser.close().catch(() => {});
+    await closeQuietly(browser);
     server.close(); cutter.cleanup();
   }
 }

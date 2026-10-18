@@ -40,7 +40,8 @@ VISUAL_ACTIONS = ("liftoff", "launch", "ascent", "orbit_insert", "orbit", "orbit
                   "arrival", "flyby", "landing", "descent", "reentry", "docking", "undocking", "separation", "deployment", "impact",
                   "surface_traverse", "rover_drive", "station_keep", "trajectory_follow", "deep_space_departure")
 LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "caption", "distance", "line", "rings", "pointer", "track",
-               "plate", "instrument")      # plate / instrument: the Cinema option's What If graphics (cinema.py)
+               "plate", "instrument", "template")   # plate / instrument / template: the Cinema option's What If graphics (cinema.py);
+#                                                         a template row is any of What If's templates by id (whatif-engine/templates)
 CARD_ANCHORS = ("tr", "mr", "ml", "bl")
 DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "card": 6.0}
 # where a picture or clip comes from: the app's Visual Plan sources, NASA's image library, or file:<name> (a file of your own)

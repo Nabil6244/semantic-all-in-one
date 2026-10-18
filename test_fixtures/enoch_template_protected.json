@@ -1,5 +1,5 @@
 {
- "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change. 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style. 2026-10-16 (asked for by the owner: no plan or one missing clip may stop a video): asset_manager.py -- AssetManifest re-reads before each write, so a Generate run's stale copy no longer puts a Retry's fetched scene back to FAILED; providers/stock/base.py -- a stock clip too big to download keeps its first seconds, else the next result. 2026-10-16 (owner): video_generator.py -- Whisper reports its progress while it transcribes; providers/stock/base.py -- the first-30s fallback is time-limited and logs why it failed. 2026-10-16 (owner): video_generator.py -- Whisper reads audio decoded by ffmpeg (a damaged mp3 frame no longer ends the transcript); starmap -- footage clips fit a 2.2 s minimum, music recovers in 0.3 s between sentences. 2026-10-17 (approved by the owner): commit 5403eb8, app-wide upgrade -- video_generator.py: aligner inflection tolerance and far-duplicate guard, Ken Burns stills read once (byte-identical output); app.py: shared button roles/heights, clearer error messages, log batching, Settings lifecycle fixes (lines changed, none removed from Weather). 2026-10-17 (approved by the owner): the StarMap camera/cinema/never-stop work (starmap/, starmap-engine/, its prompts and textures, new modules cinema/repair/tracking/thumbnails/script_check/subject_check), pakmap/compile.py, video_generator.py and editorial/shot_planner.py from the same-clip restart fix, and app.py lines changed for What If in the style picker -- each file recorded at its new hash. 2026-10-17 (approved by the owner, Windows CI fix): asset_manager.py -- the manifest re-reads and re-replaces a file Windows holds locked for an instant instead of keeping a stale copy; starmap/cinema.py -- dates without strftime's %-d, which Windows rejects.",
+ "_about": "Enoch Template work: files that must not change (sha256 of the file with CRLF normalised to LF). Guard is active until the Enoch Template work is finished; refresh deliberately, never to hide a change. 2026-10-15 (approved by the owner): asset_manager.py -- a scene that only changed its number reuses its saved file (AssetManager._reuse_by_content), so nothing is fetched or paid for twice in any style. 2026-10-16 (asked for by the owner: no plan or one missing clip may stop a video): asset_manager.py -- AssetManifest re-reads before each write, so a Generate run's stale copy no longer puts a Retry's fetched scene back to FAILED; providers/stock/base.py -- a stock clip too big to download keeps its first seconds, else the next result. 2026-10-16 (owner): video_generator.py -- Whisper reports its progress while it transcribes; providers/stock/base.py -- the first-30s fallback is time-limited and logs why it failed. 2026-10-16 (owner): video_generator.py -- Whisper reads audio decoded by ffmpeg (a damaged mp3 frame no longer ends the transcript); starmap -- footage clips fit a 2.2 s minimum, music recovers in 0.3 s between sentences. 2026-10-17 (approved by the owner): commit 5403eb8, app-wide upgrade -- video_generator.py: aligner inflection tolerance and far-duplicate guard, Ken Burns stills read once (byte-identical output); app.py: shared button roles/heights, clearer error messages, log batching, Settings lifecycle fixes (lines changed, none removed from Weather). 2026-10-17 (approved by the owner): the StarMap camera/cinema/never-stop work (starmap/, starmap-engine/, its prompts and textures, new modules cinema/repair/tracking/thumbnails/script_check/subject_check), pakmap/compile.py, video_generator.py and editorial/shot_planner.py from the same-clip restart fix, and app.py lines changed for What If in the style picker -- each file recorded at its new hash. 2026-10-17 (approved by the owner, Windows CI fix): asset_manager.py -- the manifest re-reads and re-replaces a file Windows holds locked for an instant instead of keeping a stale copy; starmap/cinema.py -- dates without strftime's %-d, which Windows rejects. 2026-10-17 (asked for by the owner: What If pictures stuck QUEUED and rendered as title cards): video_generator.py -- a pass of only commons_ rows gets the key-free stock search (Openverse carries Wikimedia Commons) instead of no provider. 2026-10-17 (asked for by the owner: the bugs seen in What If render #016): starmap/nasa_images.py -- a generic word (space, deep ...) is no evidence a NASA picture shows the subject, and a photo of people at a news conference is not the subject unless people are asked for; providers/stock/openverse.py -- a search can be limited to one collection; video_generator.py -- a pass of only commons_ rows searches Wikimedia Commons alone, never Pexels/Pixabay. 2026-10-18 (asked for by the owner: What If's styles in StarMap Cinema; What If sound, assets and stock fixes): starmap/, starmap-engine/page.js and the StarMap CSV prompt -- Cinema gains What If's templates and mission card (CSV template rows), information blocks, photo cards, graphics that hold to the cut and scene-following ambience, each a Cinema box (Classic StarMap unchanged); pakmap/sounds.py -- What If's audible ambience beds (wi_*); asset_manager.py -- a scene switched to another source is not overwritten by a running Flow batch; providers/base.py, providers/stock/base.py -- stock searches use the shot's subject words, Commons rows never broaden to one word; starmap/media.py -- a saved picture is only flagged, never re-fetched, by the What If render check. 2026-10-18 (approved by the owner: commit and push everything, CI green): the universal graphics work (gfx-core, gfx_templates.py) wired into pakMap and Hybrid -- pakmap/ (guard.py, compile.py, app_integration.py, audio_plan.py, schema.py, packaging.py), pakmap-engine/ (map_template event, check_gfx.mjs, samples, tests), hybrid/ template layers, the pakMap/Hybrid graphics prompts (new files, the originals unchanged); and the Doc Style work in graphics/ (doc_style, doc_plan, doc_looks) with graphics/render.py and video_generator.py -- each file recorded at its new hash; app.py lines changed only to pass the new switches.",
  "base_commit": "05cfb49",
  "files": {
   "ai_router/__init__.py": "16a26dc22b8b1eabe792edad17d330d319037714480e51eded13af55108bc8b5",
@@ -7,7 +7,7 @@
   "ai_router/errors.py": "6348bbc30569876e74aa2ceead8a8b8c8890a061de88731758e32fff70bb606e",
   "ai_router/providers.py": "7ef878a695d11c5a78837084bec94e0f02051da78f338fc164b7e96f16432b9d",
   "ai_router/router.py": "0c83aa4a8e1145b0e9abec19a6255a3e1a1baaa2c3828dbff5c3a950172fc7c9",
-  "asset_manager.py": "6cce73740a774c389667db6b002bb4bb1b91e6aebdf06acc75b066bcd9fd3fa6",
+  "asset_manager.py": "d5503999890c8b40a93cbd5f8225a2578e04bca334e7a1851b80163b24bf929b",
   "docs/styles/book_of_enoch_visual_guide.md": "d03c7fabb920a7d6f9f09a85ddbca5096e4ee15209827e41df39c732943d2190",
   "editorial/__init__.py": "2093185d8bb59f9d9b28127e21f49db3de35b7ed6fdc5c30ef39fa78b30086b5",
   "editorial/audio_director.py": "5e1f2b08fd6a693b94e6ab7186bc719e3da356748916ecebc6ea32d8d3e9a8fe",
@@ -113,7 +113,7 @@
   "graphics/memory.py": "9e543964c68277dbf560558efc29316b4d64bb627589a72aefa764fbafa69c75",
   "graphics/motion.py": "c18b8cb0a01af25635d85f482faeb109deec7e5293c73aeddb4ba58f8cca2f07",
   "graphics/qc.py": "41023f5fe5ff541bdb0595e2efe874c9f5e6587413b8caf8b695f871f94acdc8",
-  "graphics/render.py": "994b8989199302062b4cecfbb750a3283ce63c2bac4c88d33010d06c1fd3d399",
+  "graphics/render.py": "965a8512d71bec223e2574a5d27d5558029b2b14aa0d8b4fcc7a60e6d87bc2d9",
   "graphics/schema.py": "f0bd029b1f43a33470138f6b5b747456dd90c9a29b8496b8e29fbf4c62f16333",
   "graphics/semantics.py": "9f72238a40c4a5011e06a5597a32623675c29694060d48dbc4c0d85ac32b778f",
   "graphics/statistic.py": "a4181e90623a525de5b9a74886f172a14d437276045e4a8dd13ae7548f9e34d2",
@@ -132,7 +132,7 @@
   "providers/archive/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "providers/archive/ia_backend.py": "5d57d7a041c2584f881aecd529340f05837f9fd23d1fcbdd12c50a9adbb8a662",
   "providers/archive/provider.py": "0fb77d5add61566f0d0eb4e17510f32bf0b823ce6c9000dc5e1722d7b3f66e4e",
-  "providers/base.py": "af7e3fe268c2cffb23e3b5e1cd7f8ebb39c819be71201e02d0f0ad0bd796afe9",
+  "providers/base.py": "3ee1351efbd6f87f4b08476aed20d9e79ecdec488866e0111727b98bc320a2d2",
   "providers/ffmpeg_runner.py": "c5ce053d166a5caa8c6848dfd024c0431ea622e4384e5a99e8a878353825cc4a",
   "providers/flow/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "providers/flow/client.py": "72c55a6a6d657714d96aef777489aa987fc9e06733cdf68771727e2a13cada31",
@@ -156,11 +156,11 @@
   "providers/research_asset_provider.py": "bde4d727d461b36d8789ab76dc2c7389553d698c1aa239ba6b9f73c697fb6bfa",
   "providers/router.py": "04616501886852f778a460c4089df0a5508ae70b8f3eb2bbe8e8b4378fe3b837",
   "providers/stock/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "providers/stock/base.py": "ea5660446a8a4074d044f8c6b91efd336a19bd4d853fb2978b3a3cf60cb390d9",
+  "providers/stock/base.py": "54349babc57efdf19aa51b2a494bc541fea40baf008101e99cde8a1a1ceb50b2",
   "providers/stock/cache.py": "ebbb00759fb34549a7d5139177de4640e3ae5b513bd051d0f8b9765044101e7b",
   "providers/stock/downloader.py": "c556c556d8dd46caaf4dfb2ff830a5f28a5f28c3d92501889f123137f28cdd8b",
   "providers/stock/factory.py": "a5ff52d315e4bd430241c427c5634648c7bbb5d0c3a7acecd83e362b3cacbb36",
-  "providers/stock/openverse.py": "c262af75e26e47644b6837e0bc6c1a2731025c35bdad19ea60e5c02ff182a061",
+  "providers/stock/openverse.py": "d3603b96a2904171fc7b6ddfa7c3d0a8239a490a401aed29b122feb5b8891b74",
   "providers/stock/pexels.py": "fc392e2adbff134d855244eff34f66e1eada98b0ab19bd8d15fa982cc17ed78c",
   "providers/stock/pixabay.py": "3dd999a0c684c267a775cdf02398121316602b073d648207831d621f8a3c5018",
   "providers/stock/query.py": "65364a5e207d791dde7501c626aa9895d44d7c011b0bea00432d8ac051d9e4f7",
@@ -217,7 +217,7 @@
   "typography/styles.py": "5ff17b885b3b4b2d3b3e33bd71eaaa73379c35d3cc826f264c2808d22bafb0a7",
   "typography/theme.py": "b90cb93e3c9663c19d0a246a8526eec4ae0daf347a199af84cf39d090aab1ab2",
   "typography/variation.py": "75b175ccb01f8ff9309b903cc1671c19222440831c8a8904b3c825e8592c27a2",
-  "video_generator.py": "38e93386f3ceacb3031ce338fa862906cd2828543ffde5fd7e00b5b66a5fa69f",
+  "video_generator.py": "2904d0ffa35ce8493ede3995974d2f538719c66c79e440b3a2eff57e39b19f8e",
   "visual_allocation/__init__.py": "c9b2b5f2b2a584528456f0f9f66201e4c2ca000de5d097f4454afb219c43cda4",
   "visual_allocation/allocator.py": "429b779fe65b80ae9dffa171755949d9e40ace9fbfe55a4fbad40ccaf047a029",
   "visual_allocation/budget.py": "f2826cee233f04831ca169c89456559e5e6a6bb99c97778909a9a7fc7181c112",
@@ -229,6 +229,9 @@
   "visual_allocation/rhythm.py": "5801d7c315666f344ee4c734c40e0ffbf68c0e14f84c8ee7466c4094272d5c0b",
   "visual_allocation/scene_needs.py": "b81280ba1051a91a36272f193320953e2d317829fdb2847fa89d3804a8fcf363",
   "visual_allocation/settings.py": "0d6a839926398dba9c0782b3b2c9bad19cf3206c1c8f528c26cce337ee259735",
-  "visual_allocation/validation.py": "b14df06404a2d168b2fadd29366afeb6fe1c6cde2eef24e1623d343acee845f4"
+  "visual_allocation/validation.py": "b14df06404a2d168b2fadd29366afeb6fe1c6cde2eef24e1623d343acee845f4",
+  "graphics/doc_looks.py": "a5eaaa5dc127d5446aac47dfbb79869cc61996a4ce375ebdc37881fbeb3cd26a",
+  "graphics/doc_plan.py": "263d77c931bea13c2126360d3716e5e9ace085c8dabe4563215ab7ac55e9fef1",
+  "graphics/doc_style.py": "427c1f6ae0485362a2635fdcd607cd786ec9d29d714543d8c855660e91e2aaf4"
  }
 }

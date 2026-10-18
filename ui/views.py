@@ -1821,7 +1821,7 @@ class AudioView(_BaseView):
                 Divider(smart).grid(row=_next_row(), column=0, sticky="ew", pady=(10, 0))
             SectionLabel(smart, title).grid(row=_next_row(), column=0, sticky="w", pady=(12, 4))
 
-        def _feature(name: str, desc: str, enabled_var, intensity_var=None, on_intensity=None):
+        def _feature(name: str, desc: str, enabled_var, intensity_var=None, on_intensity=None, preview=None, on_toggle=None):
             row = ctk.CTkFrame(smart, fg_color="transparent")
             row.grid(row=_next_row(), column=0, sticky="ew", pady=5)
             row.grid_columnconfigure(1, weight=1)
@@ -1830,7 +1830,10 @@ class AudioView(_BaseView):
             def _toggled() -> None:
                 if seg is not None:
                     seg.configure(state="normal" if enabled_var.get() else "disabled")
-                app._persist_smart_editing_settings()
+                if on_toggle is not None:
+                    on_toggle(bool(enabled_var.get()))
+                else:
+                    app._persist_smart_editing_settings()
 
             ctk.CTkSwitch(
                 row, text="", width=46, variable=enabled_var, onvalue=True, offvalue=False,
@@ -1856,17 +1859,29 @@ class AudioView(_BaseView):
                 seg.grid(row=0, column=2, rowspan=2, sticky="e", padx=(12, 0))
                 seg.configure(state="normal" if enabled_var.get() else "disabled")
                 self._intensity_controls.append((enabled_var, seg))
+            if preview:
+                self._preview_thumb(row, *preview).grid(row=0, column=3, rowspan=2, sticky="e", padx=(14, 0))
             return row
 
         _group("ON-SCREEN TEXT")
         _feature("Smart Text Styles",
                  "Short lines from the narration: statements, questions and quotes. Intensity = how often.",
-                 app.smart_text_effects_var, app.smart_text_intensity_var)
-        _feature("Graphics", "Name lower-thirds, statistic cards and titles.", app.smart_graphics_var)
+                 app.smart_text_effects_var, app.smart_text_intensity_var,
+                 preview=("smart_previews/smart_text_thumb.png", "smart_previews/smart_text_preview.jpg"))
+        _feature("Graphics", "Name lower-thirds, statistic cards and titles.", app.smart_graphics_var,
+                 preview=("smart_previews/graphics_thumb.png", "smart_previews/graphics_preview.jpg"))
         _feature("Map Niche",
                  "Countdown fact tags (\u201c34. THE ROOF OF FLORIDA\u201d), the \u201c35 WILD FACTS\u201d hook "
                  "and yellow number / name callouts.",
-                 app.smart_map_niche_var)
+                 app.smart_map_niche_var, preview=("smart_previews/map_niche_thumb.png", "smart_previews/map_niche_preview.jpg"))
+        # Doc Style is app-wide (settings.json "doc_style"), not per project like the switches above.
+        self._doc_style_var = ctk.BooleanVar(value=bool(getattr(app, "_doc_style_on", lambda: False)()))
+        _feature("Doc Style",
+                 "The News Doc look for every graphic, plus its checklists, case file, quote cards, side panels, "
+                 "photo boards, day cards and glitch cuts where the narration fits them. One graphic at a time; "
+                 "Smart Text steps aside. Normal, Book of Enoch, pakMap and Hybrid videos. Click the picture for all of them.",
+                 self._doc_style_var, on_toggle=lambda on: app._set_doc_style(on) if hasattr(app, "_set_doc_style") else None,
+                 preview=("smart_previews/doc_style_thumb.png", "doc_style_preview.jpg"))
 
         _group("MOTION")
         _feature("Ken Burns Zoom", "Slow zoom on every still image. Intensity = how far (5% / 10% / 16%).",
@@ -1905,6 +1920,26 @@ class AudioView(_BaseView):
         self._amb_vol_auto = make_button(amb_row, "Auto", self._on_ambience_volume_auto, size="sm", width=58)
         self._amb_vol_auto.grid(row=0, column=3, sticky="e")
         self._sync_ambience_volume()
+
+    def _preview_thumb(self, master, thumb: str, full: str = ""):
+        """A small rounded picture of what a switch draws (assets/smart_previews/*_thumb.png, 2x for sharp screens);
+        a click opens the full-size sheet."""
+        from .branding import _assets_dir
+
+        thumb_path = _assets_dir() / thumb
+        full_path = _assets_dir() / (full or thumb)
+        try:
+            from PIL import Image
+
+            with Image.open(thumb_path) as im:
+                pic = im.convert("RGBA")
+            img = ctk.CTkImage(light_image=pic, dark_image=pic, size=(128, 72))
+        except Exception:
+            return ctk.CTkFrame(master, fg_color="transparent", width=1, height=1)
+        label = ctk.CTkLabel(master, image=img, text="", cursor="hand2")
+        label.bind("<Button-1>", lambda _e: ResearchView._open_path(full_path))
+        label._preview_img = img   # keep a reference
+        return label
 
     def _sync_ambience_volume(self) -> None:
         """Push the current setting into the slider + readout."""

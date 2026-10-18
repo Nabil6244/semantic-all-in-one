@@ -165,7 +165,9 @@ def engage(shots: List[Any], layers: List[Dict[str, Any]], words: Sequence[Any],
                     plate_budget -= t1 - ts
     # every second number over a picture: the counted lower-left look (a change of look, the same number and words). A CSV number is
     # its "text" ("1.5×", "92 BAR"), an automatic one its "value" + "unit"
-    metric_layers = [L for L in layers if L.get("type") == "tm_metric" and (L.get("value") or L.get("text")) and not L.get("rows")]
+    # (an information block at the left keeps its look: it is the reference's layout, whatif/typeset.py)
+    metric_layers = [L for L in layers if L.get("type") == "tm_metric" and (L.get("value") or L.get("text")) and not L.get("rows")
+                     and not L.get("typeset")]
     for k, L in enumerate(metric_layers):
         if k % BIG_NUMBER_EVERY != 1:
             continue
@@ -174,8 +176,10 @@ def engage(shots: List[Any], layers: List[Dict[str, Any]], words: Sequence[Any],
         if not m:
             continue
         t0, t1 = float(L["start"]), float(L["end"])
-        if on_plate(t0, t1) or _overlay_busy(layers, t0, t1):
-            continue
+        if on_plate(t0, t1) or _overlay_busy(layers, t0, t1) or any(
+                C.get("type") == "tm_caption" and C.get("size") != "photo" and C.get("anchor", "bl") == "bl"
+                and float(C["start"]) < max(t1, t0 + 3.5) and t0 < float(C["end"]) for C in layers):
+            continue                          # the lower left is taken by a caption: two lines there piled up (#016 at 9:05)
         num = float(m.group(1).replace(",", ""))
         unit = (str(L.get("unit") or "") + " " + m.group(2)).strip()
         slots = {"value_from": 0, "value_to": int(num) if num.is_integer() else num, "format": unit.upper(), "sub": str(L.get("sub") or "").upper()}

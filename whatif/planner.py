@@ -139,6 +139,40 @@ class ShotPlan:
     words: List[Word] = field(default_factory=list)
 
 
+NAME_AGAIN_S = 120.0       # the same name on screen again only this long after it was last shown ("VOYAGER 1" on every craft shot is noise)
+_DIRECTION = re.compile(r"^(in|on|against|with|behind|near|from|at|over|under|across|through|towards?|into|beside|above|below|far|alone|small|"
+                        r"close|closer|wide|new|angle|view|shot|again|seen|still|now|then|after|before|during|and|as|while|\w+ing|"
+                        r"is|was|are|begins|starts|turns|leaves|reaches|passes|heads|flies|sends|gets|goes|comes|keeps|sits|hangs|looks)$", re.I)
+_MEDIA_WORDS = re.compile(r"\b(footage|photo|photograph|image|picture|illustration|render|clip|still|animation|mosaic view)\b", re.I)
+
+
+_ING_NOUNS = {"crossing", "landing", "opening", "ending", "beginning", "building", "ceiling", "painting", "drawing", "recording", "reading",
+              "warning", "wiring", "housing", "bearing", "coating", "mapping", "heating", "spring", "string", "lightning", "morning", "evening"}
+
+
+def t_ok(last: Optional[float], t: float) -> bool:
+    return last is None or t - last >= NAME_AGAIN_S
+
+
+def screen_name(label: str) -> str:
+    """What may stand on screen as a thing's name: "VOYAGER 1", "PALE BLUE DOT", "IO". A CSV label written as a shot direction
+    ("Voyager 1 drifting in deep space", "Voyager 1 transmitting, new angle", "Saturn approach footage") was shown as the title (project
+    #016); it is cut to the name in front of the direction. Returns "" when nothing name-like is left."""
+    t = re.sub(r"\([^)]*\)", " ", str(label or ""))
+    t = re.split(r"\s[—–-]\s|[,:;]", t)[0]
+    t = _MEDIA_WORDS.sub(" ", t)
+    words = t.split()
+    keep = []
+    for w in words:
+        bare = w.strip(".'\"").lower()
+        if _DIRECTION.match(bare) and keep and not (bare.endswith("ing") and (len(bare) <= 5 or bare in _ING_NOUNS)):
+            break
+        keep.append(w)
+    if len(keep) > 4 or not keep:
+        return ""
+    return " ".join(keep).upper().strip(" .")
+
+
 def _craft(text: str) -> Optional[Tuple[str, str]]:
     low = text.lower()
     for pat, model, name in CRAFT:
@@ -306,6 +340,32 @@ AIRSHIP = re.compile(r"\b(airships?|dirigibles?|balloons?|floating (city|habitat
 DRIVE = re.compile(r"\b(constant (acceleration|thrust)|never stops pushing|keeps? (accelerating|pushing|burning)|fusion (drive|engine)|engines? (burn|fire|push)\w*|"
                    r"accelerat\w+ at 1 ?g|1 ?g of acceleration|your ship'?s? engines?)\b", re.I)
 FRAMINGS = ("wide establishing view", "medium view", "close detail", "low angle", "high angle looking down", "silhouette against the light")
+
+
+EVOLVE_MAX_S = 20.0     # one subject held as one evolving shot at most this long (the reference's 8-20 s compositions, V3)
+
+
+def merge_beats(shots: List[Shot], notes: List[str]) -> List[Shot]:
+    """Consecutive shots of the same subject -- the same 3D model, or the same world -- are one continuous, evolving shot: the
+    reference holds a composition while its type and graphics arrive on their words, where a shot list per CSV row cut to a new
+    framing of the same thing every 6 s (#016). A camera the CSV asks for on the next row ("close") is a real change and still cuts;
+    so does a longer total than EVOLVE_MAX_S. The layers keep their own times, so nothing moves on the narration."""
+    out: List[Shot] = []
+    merged = 0
+    for s in shots:
+        prev = out[-1] if out else None
+        same = prev is not None and prev.kind == s.kind and s.kind in ("craft", "globe") and abs(prev.end - s.start) < 0.05 \
+            and (prev.model or prev.texture) == (s.model or s.texture) and (prev.model or prev.texture)
+        own_cam = bool(s.cam) and s.cam != prev.cam if prev is not None else False
+        if same and not own_cam and s.end - prev.start <= EVOLVE_MAX_S and not s.extra.get("lockup"):
+            prev.end = s.end
+            prev.text = (prev.text + " " + s.text).strip()
+            merged += 1
+            continue
+        out.append(s)
+    if merged:
+        notes.append(f"plan: {merged} cut(s) between shots of the same subject removed: it is held as one evolving shot")
+    return out
 
 
 def vary(shots: List[Shot]) -> int:
@@ -538,7 +598,8 @@ def _draws_on_plate(L: Dict[str, Any]) -> bool:
 
 
 def _bare_plate(s: Shot) -> bool:
-    return s.kind == "plate" and not (s.title or s.file or s.asset or s.extra.get("lockup"))
+    # a heading is not content: a CSV plate with only its heading ("TITAN FLYBY GEOMETRY") was never repaired and stood empty (#016)
+    return s.kind == "plate" and not (s.file or s.asset or s.extra.get("lockup"))
 
 
 def empty_plates(shots: Sequence[Shot], layers: Sequence[Dict[str, Any]]) -> List[Shot]:
@@ -699,8 +760,11 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
     # diagrams: a ratio, a light-time distance or a composition is shown as the mechanism (a plate), not described
     sentence_of = lambda i: next(((a, b) for a, b in sn if a <= i <= b), (i, i))   # noqa: E731
     for m in metrics:
+        # judged on the words around the number: with no punctuation a "sentence" runs for minutes, and "300 years just to reach" the
+        # Oort cloud became a light time because "light" was said somewhere in it (project #016)
+        near = nr.span_text(words, max(0, m.i0 - 12), min(len(words) - 1, m.i1 + 4))
         if m.kind == "duration" and m.value >= 1.0 and re.search(r"\blight\b.{0,60}\b(takes?|took|reach\w*|travel\w*)\b|\b(takes?|took)\b.{0,40}\bfor (the )?light\b",
-                                                              nr.span_text(words, *sentence_of(m.i0)), re.I):
+                                                              near, re.I):
             m.kind = "light"                       # "light takes eight minutes": a distance in light-travel time (seconds of it)
         if m.kind not in ("ratio", "light", "percent"):
             continue
@@ -799,7 +863,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
             if carved is None:
                 continue
             shots = carved
-            it = type("Row", (), {"id": t["id"], "hold": t1 - t0, "extra": {}, **{c: None for c in tpl.COLUMNS}})()
+            it = type("Row", (), {"id": t["id"], "hold": t1 - t0, "extra": {}, "_auto": True, **{c: None for c in tpl.COLUMNS}})()
             L, _ = tpl.layer_for(it, t0, t1, words)
             layers.append(L)
             plates.append((t0, t1))
@@ -816,13 +880,19 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
     on_plate = lambda t0, t1=None: any(s.kind == "plate" and s.start - 0.05 < (t1 or t0) and t0 < s.end + 0.05 for s in shots)   # noqa: E731
 
     # named things: the lower-left lockup (a craft's name, an archive picture's subject) as the shot opens
+    shown_at: Dict[str, float] = {}
     for s in shots:
-        if s.kind in ("craft", "image", "video", "hero") and s.name and s.cite[0] in ("ILLUSTRATION", "REAL IMAGE", "AI ILLUSTRATION") and s.length >= 4.0:
+        name = screen_name(s.name)
+        if name and s.kind in ("craft", "image", "video", "hero") and t_ok(shown_at.get(name), s.start):
+            shown_at[name] = s.start
+        else:
+            name = ""
+        if s.kind in ("craft", "image", "video", "hero") and name and s.cite[0] in ("ILLUSTRATION", "REAL IMAGE", "AI ILLUSTRATION") and s.length >= 4.0:
             dated = re.search(r"\b(\d{1,2} )?(january|february|march|april|may|june|july|august|september|october|november|december) \d{4}\b|\b(1[5-9]|20)\d\d\b", s.text, re.I)
             # a craft's 3D model: the big name at the lower left; a picture of it: the lockup centred at the bottom (V1 0:01.5); a real photograph:
             # its caption centred under the letterboxed picture (V1 6:40)
             real = s.cite[0] == "REAL IMAGE"
-            L = {"type": "tm_caption", "text": s.name, "sub": dated.group(0).upper() if dated else "", "start": round(s.start + 0.35, 3),
+            L = {"type": "tm_caption", "text": name, "sub": dated.group(0).upper() if dated else "", "start": round(s.start + 0.35, 3),
                  "end": round(min(s.end - 0.2, s.start + 5.0), 3), "fade_in": 0.05, "fade_out": 0.3, "z": 5}
             L.update({"size": "large"} if s.kind == "craft" else {"size": "photo"} if real else {"size": "small", "anchor": "bc"})
             layers.append(L)
@@ -873,7 +943,9 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
             layers.append({**nr._title_lines(nr.span_text(words, *q)), "sub": "TELL ME IN THE COMMENTS", "type": "tm_title", "start": round(words[q[0]].start - LEAD_S, 3),
                            "end": round(min(duration, words[outro[1]].end + 1.5), 3), "fade_in": 0.05, "fade_out": 0.5, "z": 6})
 
-    # every other spoken measurement: a callout a beat before it is heard
+    # every other spoken measurement: a callout a beat before it is heard -- on a model, a world or the sky, as the reference's information
+    # block at the left (kicker from the words before the number, sub-line from the words after it: whatif/typeset.py)
+    from .typeset import HOSTS as TYPE_HOSTS, number_words
     last_end = -1e9
     for m in metrics:
         if m.extra.get("shown") or (m.kind == "duration" and m.value < 1.0):
@@ -892,6 +964,9 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
              "unit": "" if m.kind == "ratio" else m.unit, "sub": nr.sub_line(words, m, cl), "sub_color": "cyan" if m.kind in ("speed", "light") else "amber",
              "anchor": CALLOUT_ANCHORS[len([x for x in layers if x["type"] == "tm_metric"]) % len(CALLOUT_ANCHORS)],
              "size": "large" if len(m.label) <= 14 else "medium", "start": round(t0, 3), "end": round(t1, 3), "fade_in": 0.05, "fade_out": 0.3, "z": 5}
+        if shot_at(m.t).kind in TYPE_HOSTS:
+            kicker, sub = number_words(words, cl, m)
+            L.update({"anchor": "left", "kicker": kicker, "sub": sub or L["sub"], "sub_color": "amber", "typeset": True})
         layers.append(L)
         last_end = t1
         m.extra["shown"] = True
@@ -989,9 +1064,17 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
     shots = moving_open(shots, words, mode, notes)
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
+    # the reference's information block for the names and terms the narration says (whatif/typeset.py), once the shots are final
+    if auto:
+        from .typeset import typeset
+
+        typeset(shots, layers, words, metrics, duration, notes)
     mix_flow(shots, mode, notes)
     shots = split_long_videos(shots, words, layers, notes)
     limit_flow(shots, notes)
+    for i, s in enumerate(shots, 1):
+        s.id = f"s{i}"
+    shots = merge_beats(shots, notes)
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
     changed = vary(shots)

@@ -45,6 +45,216 @@ def _lockup(s: Shot) -> Optional[Dict[str, Any]]:
             "end": round(s.end - 0.2, 3), "fade_in": 0.1, "fade_out": 0.3, "z": 5}
 
 
+# instruments and credits sit in the corners; they never make a diagram plate "drawn on"
+_CORNER_TYPES = ("tm_mission", "tm_clock", "tm_cite", "tm_fade", "tm_survival", "tm_gauge")
+EMPTY_PLATE_S = 2.0
+HOLD_GAP_S = 4.0       # a plate gap up to this long after a graphic: the graphic holds (a caption would only flash)
+REUSE_GAP_S = 90.0            # the same picture again only this long after it was last on screen (the Pale Blue Dot 3 times in 30 s, #016)
+
+
+def _said_block(words: List[Any], a: float, b: float) -> Optional[Dict[str, Any]]:
+    """The reference's information block for an empty stretch, from what is said in it: a number, else a named thing or term, with the
+    words around it (whatif/typeset.py). None when the stretch says nothing of the kind."""
+    if not words:
+        return None
+    from . import typeset as ty
+
+    ws = list(words)
+    cl = nr.clauses(ws)
+    metrics = {m.i0: m for m in nr.extract_metrics(ws)}
+    names = ty._names()
+    for k, (x, y) in enumerate(cl):
+        if not (a - 0.1 <= ws[x].start <= b - 1.6):
+            continue
+        blk = ty._block(ws, cl, k, metrics, names)
+        if blk is None:
+            continue
+        t0, t1 = round(max(a + 0.1, ws[x].start - 0.25), 3), round(b - 0.2, 3)
+        if t1 - t0 < 1.6:
+            continue
+        timing = {"start": t0, "end": t1, "fade_in": 0.05, "fade_out": 0.3, "z": 5, "typeset": True}
+        if blk["metric"] is not None:
+            m = blk["metric"]
+            return {"type": "tm_metric", "value": ("≈ " if m.approx else "") + m.shown + ("×" if m.kind == "ratio" else ""),
+                    "unit": "" if m.kind == "ratio" else m.unit, "kicker": blk["kicker"], "sub": blk["sub"], "sub_color": "amber",
+                    "anchor": "left", "size": "large" if len(m.shown + m.unit) <= 12 else "medium", **timing}
+        return {"type": "tm_caption", "text": blk["head"], "kicker": blk["kicker"], "sub": blk["sub"], "sub_color": "amber",
+                "size": "large", "anchor": "ml", **timing}
+    return None
+
+
+FRAME_X = 0.13          # how far a craft / globe slides right when the information block is at the left (fraction of the width)
+YOU_PER_MIN = 1.0       # "you" / "your" this often: the narration makes the viewer the traveller (the reference's "YOU / ON BOARD")
+
+
+def _left_text(L: Dict[str, Any]) -> bool:
+    t = L.get("type")
+    if t == "tm_metric":
+        return L.get("anchor") in ("left", "upper_left")
+    if t == "tm_caption":
+        return L.get("size") != "photo" and L.get("anchor", "bl") in ("ml", "bl", "tl")
+    return False
+
+
+def _identity(out_shots: List[Dict[str, Any]], layers: List[Dict[str, Any]], words: List[Any], notes: List[str]) -> None:
+    """The journey's own craft gets a ring marker (V3: "YOU / ON BOARD" on Voyager), and a craft or world slides right while an information
+    block is at the left, so the type never sits on the subject. The marker says YOU only when the narration speaks to the viewer as the
+    traveller; otherwise it carries the craft's name. Only the craft with the most shots (3 or more) is the journey's."""
+    from collections import Counter
+
+    from .planner import CRAFT
+
+    crafts = Counter(d.get("model") for d in out_shots if d["kind"] == "craft" and d.get("model"))
+    model, n = crafts.most_common(1)[0] if crafts else (None, 0)
+    if model and n >= 3:
+        # one model can be several craft (voyager.glb is Voyager 1 and 2): the name the narration says most (the marker read
+        # "VOYAGER 2" on Voyager 1 when the first table entry was taken)
+        said = " ".join(getattr(w, "norm", "") for w in words)
+        cands = [(len(re.findall(p_, said, re.I)), nm) for p_, m, nm in CRAFT if m == model]
+        name = max(cands)[1] if cands and max(cands)[0] > 0 else next((nm for _p, m, nm in CRAFT if m == model), "")
+        mins = max(1.0, (words[-1].end - words[0].start) / 60.0) if words else 1.0
+        second_person = sum(1 for w in words if getattr(w, "norm", "") in ("you", "your")) / mins >= YOU_PER_MIN
+        label = "YOU\nON BOARD" if second_person else name
+        for d in out_shots:
+            if d["kind"] != "craft" or d.get("model") != model or not label:
+                continue
+            named = any(L.get("type") == "tm_caption" and str(L.get("text", "")).upper() == label and float(L["start"]) < d["end"]
+                        and d["start"] < float(L["end"]) for L in layers)
+            if not named:
+                d["marker"] = label
+        notes.append(f"plan: the journey's craft ({name or model}) carries its marker: {label.replace(chr(10), ' / ')}")
+    for d in out_shots:
+        if d["kind"] in ("craft", "globe") and any(_left_text(L) and float(L["start"]) < d["end"] - 1.0 and d["start"] + 1.0 < float(L["end"])
+                                                    for L in layers):
+            d["frame_x"] = FRAME_X
+
+
+_NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)")
+
+
+def _one_number_at_a_time(layers: List[Dict[str, Any]], notes: List[str]) -> List[Dict[str, Any]]:
+    """The same number in two text layers at once ("124,000 KM ABOVE" in the middle and "124,000 KM / ABOVE SATURN'S CLOUDS" at the
+    lower left, #016 at 5:01): the later one is left out."""
+    def number(L: Dict[str, Any]) -> str:
+        if L.get("type") not in ("tm_metric", "tm_caption"):
+            return ""
+        m = _NUM.search(f"{L.get('value') or ''} {L.get('text') or ''}")
+        return m.group(1).replace(",", "") if m else ""
+
+    kept: List[Dict[str, Any]] = []
+    drop = set()
+    for L in sorted(layers, key=lambda x: float(x.get("start") or 0)):
+        n = number(L)
+        if n and any(number(K) == n and float(K["start"]) < float(L["end"]) and float(L["start"]) < float(K["end"]) for K in kept):
+            notes.append(f"the number {n} was already on screen at {float(L['start']):.1f}s; its second copy is left out")
+            drop.add(id(L))
+            continue
+        kept.append(L)
+    return [L for L in layers if id(L) not in drop]          # the drawing order stays as it was
+
+
+_BROWSER_FORMATS = {"JPEG", "PNG", "WEBP", "GIF", "BMP"}
+_STILL_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".avif"}
+
+
+def _browser_safe(src: Path, dest: Path, notes: List[str]) -> bool:
+    """A still whose real format the renderer's browser cannot open (NASA's Oort Cloud illustration was a TIFF named .jpg: it never
+    loaded, and render #016 hung on it) is written to dest as a JPEG. Returns True when it wrote dest; False leaves the copy to the
+    caller (a clip, or a picture already in a format the page reads)."""
+    if src.suffix.lower() not in _STILL_EXT:
+        return False
+    try:
+        from PIL import Image
+
+        with Image.open(src) as im:
+            if (im.format or "").upper() in _BROWSER_FORMATS:
+                return False
+            im.convert("RGB").save(dest, "JPEG", quality=92)
+        notes.append(f"{src.name} is a {im.format} picture, which the renderer cannot open: converted to JPEG")
+        return True
+    except Exception:
+        return False
+
+
+def _openable(path: str) -> bool:
+    """A still the renderer can be given at all (a broken or unknown file: its shot takes its fallback, never a stall)."""
+    p = Path(path)
+    if p.suffix.lower() not in _STILL_EXT:
+        return True
+    try:
+        from PIL import Image
+
+        with Image.open(p) as im:
+            im.verify()
+        return True
+    except Exception:
+        return False
+
+
+def _plate_content(L: Dict[str, Any]) -> bool:
+    from .planner import DIAGRAMS
+
+    return L.get("type") in DIAGRAMS or (L.get("type") == "tm_template" and bool(L.get("plate", True)))
+
+
+def _hold_to_next(s: Shot, layers: List[Dict[str, Any]], notes: List[str]) -> None:
+    """A graphic that ends a moment before its plate does (a 5 s template on a 7 s shot) holds its last frame to the next graphic or the
+    cut: #017 had five blank plates of 1-2 s ("IT MOVES" at 35.4 s, "ONE ORBIT" at 240.6 s), each too short for a caption of its own."""
+    def drawn(L: Dict[str, Any]) -> bool:
+        return L.get("type") not in _CORNER_TYPES and L.get("start") is not None and L.get("end") is not None \
+            and float(L["start"]) < s.end and float(L["end"]) > s.start
+
+    for L in sorted((L for L in layers if drawn(L)), key=lambda L: float(L["end"])):
+        end = float(L["end"])
+        if end >= s.end - 0.05 or float(L["start"]) < s.start - 0.05:
+            continue                                   # already to the cut, or it came from the shot before
+        nxt = min([float(M["start"]) for M in layers if drawn(M) and M is not L and float(M["start"]) >= end - 0.05] + [s.end])
+        covered = any(drawn(M) and M is not L and float(M["start"]) < end and float(M["end"]) > end + 0.3 for M in layers)
+        if not covered and 0.3 <= nxt - end <= HOLD_GAP_S:
+            L["end"] = round(nxt if nxt < s.end else s.end, 3)
+            notes.append(f"shot {s.id}: its graphic holds {nxt - end:.1f}s longer, to {'the next one' if nxt < s.end else 'the cut'}, instead of a blank plate")
+
+
+def _fill_empty_plates(shots: List[Shot], layers: List[Dict[str, Any]], notes: List[str], words: List[Any] = ()) -> List[Dict[str, Any]]:
+    """A plate whose diagram was left out (or never written) showed only its small heading on a dark background, up to 15 s at a time
+    (project #016: 28 such screens, 31 % of its frames near-empty). Every stretch of a plate with nothing drawn on it for EMPTY_PLATE_S
+    or more carries the words spoken over it as a large title, timed to that stretch alone so it never covers a graphic that is there."""
+    out: List[Dict[str, Any]] = []
+    for s in shots:
+        if s.kind != "plate":
+            continue
+        _hold_to_next(s, layers, notes)
+        busy = sorted((max(s.start, float(L["start"])), min(s.end, float(L["end"]))) for L in layers + out
+                      if L.get("type") not in _CORNER_TYPES and L.get("start") is not None and L.get("end") is not None
+                      and float(L["start"]) < s.end and float(L["end"]) > s.start)
+        gaps, t = [], s.start
+        for a, b in busy:
+            if a - t >= EMPTY_PLATE_S:
+                gaps.append((t, a))
+            t = max(t, b)
+        if s.end - t >= EMPTY_PLATE_S:
+            gaps.append((t, s.end))
+        for a, b in gaps:
+            L = _said_block(words, a, b)
+            if L is None:
+                # what is said in that stretch, from the first clause that starts in it (never from the middle of one), weak ends trimmed
+                ws = list(words)
+                starts = [x for x, y in (nr.clauses(ws) if ws else []) if a - 0.05 <= ws[x].start < b - 1.0]
+                from .typeset import _clean
+                text = " ".join(_clean([w.text for w in ws[starts[0]:] if w.start < b - 0.3])) if starts else ""
+                text = text or " ".join(w.text for w in words if a - 0.05 <= w.start < b - 0.3) or s.text
+                part = Shot(id=s.id, start=a, end=b, kind="plate", text=text)
+                lock = _lockup(part)
+                if lock and len([w for w in lock["text"].split() if w.lower() not in nr.FILLER]) < 3:
+                    lock = None                   # "SOMEWHERE OUT": a fragment says nothing; calm sky for a moment is better (V3 6:46)
+                L = lock or ({"type": "tm_caption", "text": s.title.upper(), "size": "large", "anchor": "ml", "start": round(a + 0.2, 3),
+                                       "end": round(b - 0.2, 3), "fade_in": 0.1, "fade_out": 0.3, "z": 5} if s.title else None)
+            if L:
+                out.append(L)
+                notes.append(f"shot {s.id}: nothing was drawn on its diagram from {a:.1f}s to {b:.1f}s; the narration's words are shown there instead")
+    return out
+
+
 def _finite(v: Any) -> bool:
     if isinstance(v, float):
         return v == v and abs(v) != float("inf")
@@ -143,30 +353,46 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
                 return str(p)
             Path(media_dir).mkdir(parents=True, exist_ok=True)
             name = f"{len(names) + 1:03d}_{p.name}"
-            try:
-                os.link(p, Path(media_dir) / name)
-            except OSError:
-                shutil.copy2(p, Path(media_dir) / name)
+            if _browser_safe(p, Path(media_dir) / name, notes):
+                pass                                   # converted (a TIFF saved as .jpg, #016) or already a format the page reads
+            else:
+                try:
+                    os.link(p, Path(media_dir) / name)
+                except OSError:
+                    shutil.copy2(p, Path(media_dir) / name)
             names[str(p)] = name
         return names[str(p)]
 
     out_shots: List[Dict[str, Any]] = []
+    shown_until: Dict[str, float] = {}           # a file -> when it was last on screen
     for n, s in enumerate(shots):
         if s.kind in ("image", "video") and s.file and not Path(s.file).is_file():
             notes.append(f"shot {s.id}: its picture {Path(s.file).name} is no longer on disk (cache cleared or file moved)")
             s.file = ""
+        elif s.kind in ("image", "video") and s.file and not _openable(s.file):
+            notes.append(f"shot {s.id}: its picture {Path(s.file).name} cannot be opened (broken or unknown format); its fallback is shown")
+            s.file = ""
+        if s.kind in ("image", "video") and s.file:
+            key = str(Path(s.file).resolve())
+            prev = shots[n - 1] if n else None
+            joined = prev is not None and prev.file and str(Path(prev.file).resolve()) == key   # back to back: _join_same_file holds it
+            if key in shown_until and not joined and s.start - shown_until[key] < REUSE_GAP_S:
+                notes.append(f"shot {s.id}: {Path(s.file).name} was on screen {s.start - shown_until[key]:.0f} s ago; not shown again so soon")
+                s.file, s.asset = "", ""
+            else:
+                shown_until[key] = s.end
         if s.kind in ("image", "video") and not s.file:
             if s.asset.lower().startswith("file:") and Path(s.asset.split(":", 1)[1].strip()).is_file():
                 s.file = s.asset.split(":", 1)[1].strip()
             else:
-                _fallback(s, notes)
-                if s.extra.get("lockup") and (L := _lockup(s)):
-                    layers.append(L)
+                _fallback(s, notes)               # a title shot: its words come in the free stretches only (_fill_empty_plates)
         d: Dict[str, Any] = {"id": s.id, "start": round(s.start, 3), "end": round(s.end, 3), "kind": s.kind, "exit": s.exit}
         if s.kind in ("image", "video"):
             d["file"] = place(s.file)
             if s.cite[0] == "REAL IMAGE" and s.kind == "image" and not s.extra.get("full_bleed"):
                 d["compose"] = "letterbox"            # a real photograph: the whole picture over a blurred copy of itself (V1 6:40)
+                if any(L.get("typeset") and _left_text(L) and float(L["start"]) < s.end - 0.5 and s.start + 0.5 < float(L["end"]) for L in layers):
+                    d["compose"] = "card_right"       # with the information block at the left: the photo as a card on the right (V3 1:46)
             fx, fy = DRIFT_FOCUS[n % len(DRIFT_FOCUS)]
             d["drift"] = {"from": 1.0, "to": 1.04, "fx": fx, "fy": fy}
             if s.kind == "video" and Path(s.file).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"):
@@ -175,7 +401,9 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
             elif s.kind == "video":
                 d["in_s"], d["loop"] = float(s.extra.get("in_s", 0)), True
         elif s.kind == "plate":
-            d["tint"], d["title"], d["sub"] = s.tint, s.title, s.sub
+            # the heading belongs over a graphic (the reference's "VOYAGER 1 · COMPUTER MEMORY"), never alone on an empty plate
+            drawn = any(_plate_content(L) and float(L.get("start", 0)) < s.end - 0.3 and s.start + 0.3 < float(L.get("end", 0)) for L in layers)
+            d["tint"], d["title"], d["sub"] = s.tint, (s.title if drawn else ""), (s.sub if drawn else "")
             d["lockup"] = bool(s.extra.get("lockup"))            # a typographic stand-in: the act's instruments stay on over it
         elif s.kind == "hero":
             d["scene"], d["cam"] = s.scene, s.cam
@@ -185,6 +413,12 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
         elif s.kind == "globe":
             d["texture"], d["cam"], d["atmosphere"] = s.texture, s.cam, s.atmosphere
         out_shots.append(d)
+    _identity(out_shots, layers, getattr(plan, "words", None) or [], notes)
+    for d in out_shots:                       # a photo card's caption sits under the card, on the right
+        if d.get("compose") == "card_right":
+            for L in layers:
+                if L.get("type") == "tm_caption" and L.get("size") == "photo" and float(L["start"]) < d["end"] and d["start"] < float(L["end"]):
+                    L["cx"], L["cy"] = 0.73, 0.92
     out_shots = _join_same_file(out_shots, names, notes)
     # the photograph of a disc-map plate (V2 0:22): the plate shot's fetched file goes into its tm_discmap layer
     for s in shots:
@@ -199,6 +433,8 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
             v = str(L.get("slots", {}).get(L["image_slot"], ""))
             if v.lower().startswith("file:") and Path(v.split(":", 1)[1].strip()).is_file():
                 L["slots"][L["image_slot"]] = place(v.split(":", 1)[1].strip())
+    layers[:] = _one_number_at_a_time(layers, notes)
+    layers.extend(_fill_empty_plates(shots, layers, notes, getattr(plan, "words", None) or []))
     layers.append(citation(shots))
     layers = _finite_layers(layers, notes)
     spec = {"width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3), "look": dict(LOOK), "shots": out_shots,

@@ -23,9 +23,17 @@ def render_graphic_overlay(
     *,
     design: DocumentaryDesignSystem | None = None,
     composition: Optional[Dict[str, Any]] = None,
+    look: str = "",
 ) -> Optional[Path]:
-    """Render one GraphicSpec to a transparent PNG. None if nothing to draw."""
+    """Render one GraphicSpec to a transparent PNG. None if nothing to draw.
+    look="doc" (or "doc_looks"): the app-wide Doc Style switch — drawn in the News Doc look where it has one (graphics/doc_style.py)."""
     design = design or get_design_system()
+    if look in ("doc", "doc_looks"):
+        from .doc_style import render_doc_style
+
+        doc_png = render_doc_style(spec, out_path, width, height)
+        if doc_png is not None:
+            return doc_png
     # Phase 1–3: text / statistic / lower-third / label / callout.
     # MAP / CHART / PROCESS fall back to text treatment until their phases.
     text = spec.text
@@ -98,8 +106,9 @@ def render_graphics_for_scene(
     out_dir: Path,
     composition: Optional[Dict[str, Any]] = None,
     design: DocumentaryDesignSystem | None = None,
+    look: str = "",
 ) -> List[Tuple[Path, float, float, str, Optional[Tuple[int, int]]]]:
-    """Render all graphics overlapping a scene window → timed overlay list."""
+    """Render all graphics overlapping a scene window → timed overlay list. look: see render_graphic_overlay."""
     design = design or get_design_system()
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -119,7 +128,7 @@ def render_graphics_for_scene(
             continue
         png_path = out_dir / f"gfx_{sn}_{i:02d}_{spec.role.lower()}.png"
         png = render_graphic_overlay(
-            spec, png_path, width, height, design=design, composition=composition
+            spec, png_path, width, height, design=design, composition=composition, look=look
         )
         if png is None:
             continue

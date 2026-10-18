@@ -11,31 +11,35 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   const camera = new THREE.PerspectiveCamera(34, W / H, 0.01, 1000);
   const cache = new Map();
+  let anchor = null;
 
-  function stars(seed, n = 9000) {
+  // the sky behind every craft and globe: dense enough to read through the grade and the vignette (it was 1.5 px stars and a 0.05-0.16
+  // band, so craft shots looked like plain black next to the reference's Milky Way photograph)
+  const PX = Math.max(1, H / 1080);
+  function stars(seed, n = 16000) {
     const r = rnd(seed), pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const u = r() * 2 - 1, a = r() * Math.PI * 2, rad = 300, q = Math.sqrt(1 - u * u);
       pos.set([rad * q * Math.cos(a), rad * u, rad * q * Math.sin(a)], i * 3);
-      const b = 0.25 + 0.75 * r() ** 3, warm = r();
+      const b = 0.38 + 0.62 * r() ** 2.4, warm = r();
       col.set([b * (0.8 + 0.2 * warm), b * 0.9, b * (1 - 0.25 * warm)], i * 3);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const grp = new THREE.Group();
-    grp.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.5, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.95 })));
+    grp.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.9 * PX, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 1 })));
     // the Milky Way: a faint dust-and-starlight band along a tilted great circle, as the sky photograph behind the reference's craft shots
-    const m = 26000, mp = new Float32Array(m * 3), mc = new Float32Array(m * 3), r2 = rnd(seed + 5);
+    const m = 60000, mp = new Float32Array(m * 3), mc = new Float32Array(m * 3), r2 = rnd(seed + 5);
     for (let i = 0; i < m; i++) {
       const a = r2() * Math.PI * 2, lat = ((r2() + r2() + r2()) / 3 - 0.5) * 0.5, ca = Math.cos(lat), x = Math.cos(a) * ca, y = Math.sin(lat), z = Math.sin(a) * ca;
       const tilt = 0.45, yy = y * Math.cos(tilt) - z * Math.sin(tilt), zz = y * Math.sin(tilt) + z * Math.cos(tilt);
       mp.set([300 * x, 300 * yy, 300 * zz], i * 3);
-      const b = (0.05 + 0.11 * r2()) * (1 - Math.min(1, Math.abs(lat) * 2.2));
+      const b = (0.14 + 0.26 * r2()) * (1 - Math.min(1, Math.abs(lat) * 2.2));
       mc.set([b * 1.0, b * 0.92, b * 0.86], i * 3);
     }
     const g2 = new THREE.BufferGeometry();
     g2.setAttribute('position', new THREE.BufferAttribute(mp, 3)); g2.setAttribute('color', new THREE.BufferAttribute(mc, 3));
-    grp.add(new THREE.Points(g2, new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
+    grp.add(new THREE.Points(g2, new THREE.PointsMaterial({ size: 3.4 * PX, vertexColors: true, sizeAttenuation: false, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
     return grp;
   }
 
@@ -78,8 +82,14 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
       camera.lookAt((c.ox ?? 0), (c.oy ?? 0), 0); camera.up.set(Math.sin((c.roll ?? 0) * Math.PI / 180), 1, 0);
       if (shot.kind === 'globe') e.obj.rotation.y = ((shot.rotate_deg_s ?? 1.5) * (t - shot.start)) * Math.PI / 180 + (c.spin0 ?? 0);
       if (shot.kind === 'craft' && shot.spin_deg_s) e.obj.rotation.y = (shot.spin_deg_s * (t - shot.start)) * Math.PI / 180;
+      // a text block at the left: the whole view slides right so the subject sits beside it (the reference's left-third layout)
+      if (shot.frame_x) camera.setViewOffset(W, H, -shot.frame_x * W, 0, W, H); else camera.clearViewOffset();
       renderer.render(e.scene, camera);
+      // where the model's centre lands on screen (for the ring marker); off-screen or behind the camera: none
+      const v = new THREE.Vector3(0, 0, 0).project(camera);
+      anchor = v.z < 1 && Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 ? { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H } : null;
       return canvas;
     },
+    anchor: () => anchor,
   };
 }

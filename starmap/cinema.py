@@ -14,7 +14,12 @@ What it adds, each switchable (FEATURES):
           DIAGRAM, VISUALISATION -- a filled dot for real material, a ring for drawn).
   cuts    cuts land in a narration pause when one is near (the references: 65-82% of cuts in a pause), else on a word.
   audio   the references' loudness (-14 LUFS) and a music bed nearer the voice.
-  grade   the references' grade: a little less saturated, blacks lifted towards slate."""
+  grade   the references' grade: a little less saturated, blacks lifted towards slate.
+  templates  CSV template rows: any of What If's templates (whatif-engine/templates) and its mission card.
+  blocks  What If's information blocks from the narration (whatif/typeset.py) on the map, the craft and real photos.
+  cards   a real photo under a block becomes What If's photo card (framed on the right half).
+  fill    a slate's graphic holds to the cut; a longer empty stretch carries the narration's words (whatif/compile.py).
+  ambience  What If's scene-following beds (whatif/sound.py): the ship's hum, a world's drone, two space drones."""
 
 from __future__ import annotations
 
@@ -22,7 +27,7 @@ import math
 import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-FEATURES = ("motion", "budget", "plates", "hero", "type", "photos", "cuts", "audio", "grade")
+FEATURES = ("motion", "budget", "plates", "hero", "type", "photos", "cuts", "audio", "grade", "templates", "blocks", "cards", "fill", "ambience")
 FEATURE_LABELS = {
     "motion": "Every shot keeps moving, as the narration says",
     "budget": "Map at most 50% of screen time",
@@ -33,13 +38,18 @@ FEATURE_LABELS = {
     "cuts": "Cuts in narration pauses",
     "audio": "Reference loudness (-14 LUFS) and music level",
     "grade": "Documentary colour grade",
+    "templates": "What If templates and mission card (CSV template rows)",
+    "blocks": "Information blocks from the narration (kicker, headline, sub-line)",
+    "cards": "Real photos as a card on the right, beside the type",
+    "fill": "Graphics hold to the cut (no blank plates)",
+    "ambience": "Background sound follows the scene (What If beds)",
 }
 PLATE_S, PLATE_GAP_S, PLATE_MIN_S = 6.0, 20.0, 3.5
 # what a CSV may ask for with a plate row (full frame, on a slate) or an instrument row (over the shot) -- the What If graphics
 CSV_KINDS = {
     "plate": {"section", "logaxis", "timeline", "compare", "dial", "bars", "curve", "composition", "orbitmap", "phase", "wave", "grid",
               "discmap", "hero"},
-    "instrument": {"survival", "clock", "gauge", "caption", "metric", "annotate", "title", "fade"},
+    "instrument": {"survival", "clock", "gauge", "caption", "metric", "annotate", "title", "fade", "mission"},
 }
 SILENCE = re.compile(r"\b(went silent|fell silent|goes silent|lost contact|never heard from|final transmission|last signal|stopped "
                      r"transmitting|died|dies|dead|switched off for good|crushed|destroyed|burned up)\b", re.I)
@@ -664,9 +674,89 @@ def whatif_callouts(spec: Dict[str, Any], plan: Any) -> None:
         mine.append(t)
 
 
+# StarMap layers that already put words on screen: an information block never lands on them
+_TEXT_LAYERS = ("caption", "title", "stat_chip", "big_number", "photo_card", "pointer", "distance", "time_jump", "tm_caption", "tm_metric",
+                "tm_title", "tm_annotate", "tm_survival", "tm_fade", "tm_template")
+
+
+def _wi_words(plan: Any) -> List[Any]:
+    """The narration as What If's timed words (whatif.narration.Word), matched to the beats' text."""
+    from whatif import narration as nr
+
+    try:
+        return nr.words_of(list(plan.words or ()), " ".join(b.text for b in plan.beats if b.text))
+    except Exception:
+        return []
+
+
+def info_blocks(spec: Dict[str, Any], plan: Any, notes: List[str], *, cards: bool) -> None:
+    """What If's information block (whatif/typeset.py) on the map, the craft and real photos: a cyan kicker, a huge headline or number
+    and a sub-line at the left, from the narration's own words, every few seconds where nothing else is said on screen. With `cards`, a
+    real photo under a block becomes What If's photo card (the picture framed on the right half, the block beside it)."""
+    from types import SimpleNamespace
+
+    from whatif import narration as nr
+    from whatif.typeset import typeset
+
+    words = _wi_words(plan)
+    if not words:
+        return
+    hosts: List[Any] = [SimpleNamespace(kind="hero", start=a, end=z, cite=("", "")) for a, z in _map_stretches(spec) if z - a >= 3.0]
+    hosts += [SimpleNamespace(kind="craft" if L["type"] == "cinema_craft" else "hero", start=float(L["start"]), end=float(L["end"]), cite=("", ""))
+              for L in spec["layers"] if L.get("type") in ("cinema_craft", "cinema_hero")]
+    stills = [f for f in spec.get("footage", []) if (f.get("image") or re.search(r"\.(jpe?g|png|webp)$", str(f.get("file", "")), re.I))
+              and "AI ILLUSTRATION" not in str(f.get("credit", "")).upper()]
+    if cards:
+        hosts += [SimpleNamespace(kind="image", start=float(f["start"]), end=float(f["end"]), cite=("REAL IMAGE", "")) for f in stills]
+    hosts.sort(key=lambda h: h.start)
+    seen = [{"type": "tm_caption", "start": float(L["start"]), "end": float(L["end"]), "text": str(L.get("text") or L.get("value") or "")}
+            for L in spec["layers"] if L.get("type") in _TEXT_LAYERS and L.get("start") is not None and L.get("end") is not None]
+    n0 = len(seen)
+    typeset(hosts, seen, words, nr.extract_metrics(words), float(spec["duration"]), notes)
+    added = seen[n0:]
+    for L in added:
+        L.update(over_footage=True, z=3)
+        spec["layers"].append(L)
+    if cards:
+        for f in stills:
+            if any(float(f["start"]) - 0.05 <= L["start"] < float(f["end"]) for L in added):
+                f["compose"] = "card_right"
+
+
+def hold_and_fill(spec: Dict[str, Any], plan: Any, notes: List[str]) -> None:
+    """What If's plate rules on Cinema's slates: a graphic that ends a moment before its plate holds its last frame to the next one or the
+    cut, and a longer empty stretch carries the words spoken over it (whatif/compile.py), so a slate is never blank."""
+    from whatif.compile import _fill_empty_plates
+    from whatif.planner import Shot
+
+    slates = [L for L in spec["layers"] if L.get("type") == "cinema_plate"]
+    if not slates:
+        return
+    shots = [Shot(id=f"plate{i}", start=float(L["start"]), end=float(L["end"]), kind="plate") for i, L in enumerate(slates)]
+    drawn = [L for L in spec["layers"] if str(L.get("type", "")).startswith(("tm_", "cinema_")) and L.get("type") not in ("cinema_plate", "cinema_plate_hero", "cinema_bubble")]
+    for L in _fill_empty_plates(shots, drawn, notes, _wi_words(plan)):
+        L.setdefault("z", 4)
+        spec["layers"].append(L)
+
+
+def ambience_shots(spec: Dict[str, Any], plan: Any) -> List[Dict[str, Any]]:
+    """What is on screen, as What If's sound reads it (whatif/sound.py picks a bed per shot kind): a craft close-up or hero scene is
+    the ship's hum, a beat at a world (body / close / surface frame) a deep drone, footage by the words said over it, else space."""
+    out: List[Dict[str, Any]] = []
+    for b in plan.beats:
+        kind = "image" if b.mode == "footage" else ("globe" if (b.frame or "") in ("body", "close", "surface") else "plate")
+        out.append({"start": float(b.start), "end": float(b.end), "kind": kind})
+    for L in spec["layers"]:
+        if L.get("type") in ("cinema_craft", "cinema_hero"):
+            out.append({"start": float(L["start"]), "end": float(L["end"]), "kind": "craft"})
+    return [x for x in out if x["end"] > x["start"]]
+
+
 def date_corner(spec: Dict[str, Any]) -> None:
     """What If's date, top-right, from the universe date on screen, instead of StarMap's mission clock."""
     spec["layers"][:] = [L for L in spec["layers"] if L.get("type") != "mission_clock"]
+    if any(L.get("type") == "tm_mission" for L in spec["layers"]):
+        return                                        # the CSV's mission card holds the top-right corner (What If V4)
     spec["layers"].append({"type": "tm_clock", "mode": "date", "from_clock": True, "start": 0.0, "end": float(spec["duration"]), "z": 5})
 
 
@@ -722,7 +812,8 @@ def citations(spec: Dict[str, Any], plate_layers: List[Dict[str, Any]]) -> None:
             spans.append((L["start"], L["end"], "ILLUSTRATION", f"{str(L.get('scene', '')).replace('_', ' ').upper()} · COMPOSED 3D SCENE"))
     for p in plate_layers:
         if p.get("type") == "cinema_plate":
-            spans.append((p["start"], p["end"], "DIAGRAM", p.pop("_cite", "").replace("DIAGRAM · ", "")))
+            kind, _, text = p.pop("_cite", "").partition(" · ")   # "DIAGRAM · ...", or a template's own ("REAL IMAGE · ...", "ILLUSTRATION")
+            spans.append((p["start"], p["end"], kind or "DIAGRAM", text))
     spans.sort()
     segs, t = [], 0.0
     for a, z, kind, text in spans:
@@ -739,6 +830,11 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
     """Cinema's changes to a compiled spec (in place)."""
     spec["cinema"] = dict(fl)
     layers = spec["layers"]
+    if not fl.get("templates"):
+        dropped = [L for L in layers if L.get("_cinema_row") and L.get("type") in ("tm_template", "tm_mission")]
+        layers[:] = [L for L in layers if not any(L is D for D in dropped)]
+        if dropped:
+            notes.append(f"Cinema: {len(dropped)} template / mission row(s) left out (the Templates box is off)")
     plate_layers: List[Dict[str, Any]] = []
     # the CSV's own plates: a slate under each (inserted just before it, so it draws underneath)
     csv_plates = []
@@ -746,7 +842,7 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
         L = layers[i]
         if L.get("_cinema_row") == "plate" and L.get("type") != "cinema_hero":
             bg = {"type": "cinema_plate", "start": L["start"], "end": L["end"], "fade_in": 0.25, "fade_out": 0.3,
-                  "_cite": f"DIAGRAM · {str(L.get('title', '')).upper()}".rstrip(" ·")}
+                  "_cite": L.pop("_tpl_cite", None) or f"DIAGRAM · {str(L.get('title', '')).upper()}".rstrip(" ·")}
             layers.insert(i, bg)
             csv_plates.append(bg)
         elif L.get("type") == "cinema_hero":
@@ -779,6 +875,10 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
     if fl.get("type"):
         whatif_callouts(spec, plan)
         plate_layers = plate_layers + [L for L in layers if L.get("type") == "cinema_plate" and L not in plate_layers]
+    if fl.get("fill"):
+        hold_and_fill(spec, plan, notes)
+    if fl.get("blocks"):
+        info_blocks(spec, plan, notes, cards=bool(fl.get("cards") and fl.get("photos")))
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens
     spec["shots"] = [{"start": L["start"], "end": L["end"], "kind": "plate"} for L in layers if L.get("type") == "cinema_plate"]

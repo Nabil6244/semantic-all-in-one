@@ -92,9 +92,17 @@ def contradicts(query: str, title: str, description: str, date: str = "") -> Opt
     # the agency's Voyager 1 spacecraft" won the card for "Voyager 1 spacecraft being prepared before launch in 1977". With the
     # mission's name (and a "spacecraft" / "probe" right after it) taken out, what the description asks to SEE must be in
     # what the item says it shows: its title, or its first sentence when the title is only the mission or a catalogue number
+    # a photo of people at an event, unless people are what is asked for: "Suzanne Dodd ... holds a replica of the golden record ... at a
+    # news conference" stood in for "Voyager 1 interstellar space 2013"
+    opening = _first_sentence(description)
+    if _EVENT.search(opening) and not _PEOPLE_ASKED.search(query):
+        return "it is a photo of people at an event (a news conference or briefing), not of what is asked for"
     want = _subject(query, query)
     if want:
-        shows = _subject(title, query) | _subject(_first_sentence(description), query)
+        shows = _subject(title, query) | _subject(opening, query)
+        # a generic word is no evidence: "European Space Agency" in a Huygens touchdown clip matched "Deep Space Network antenna"
+        if want - _GENERIC_SUBJECT:
+            want, shows = want - _GENERIC_SUBJECT, shows - _GENERIC_SUBJECT
         if not any(_same(w, s) for w in want for s in shows):
             return f"it mentions the mission but does not show {' / '.join(sorted(want))}"
     # an asked-for year (a 1977 launch) and a picture made decades away from it that never mentions that year
@@ -109,6 +117,15 @@ def contradicts(query: str, title: str, description: str, date: str = "") -> Opt
 _NOT_SUBJECT = {"image", "photo", "photograph", "picture", "view", "nasa", "being", "before", "after", "during", "while", "shows",
                 "showing", "seen", "taken", "by", "as", "it", "this", "that", "his", "her", "their", "one", "two", "first"}
 _CRAFT_NOUN = r"(?:\s+(?:spacecraft|space\s+probe|probe|mission|team|project|program))?"
+
+
+_EVENT = re.compile(r"\b(news conference|press conference|briefing|press event|media day|town hall|speaks|speaking|answers questions|"
+                    r"is interviewed|ceremony|award|honou?red|poses|posing|panel discussion)\b", re.I)
+_PEOPLE_ASKED = re.compile(r"\b(team|engineers?|scientists?|people|person|crew|astronauts?|press|conference|briefing|portrait|manager|staff|"
+                           r"control room|mission control|ceremony|celebrat\w*|react\w*)\b", re.I)
+
+_GENERIC_SUBJECT = {"space", "deep", "outer", "view", "image", "imag", "picture", "photo", "photograph", "shot", "footage", "video", "agency",
+                    "mission", "program", "scene", "nasa", "spacecraft", "probe", "craft", "close", "far", "new", "first", "last"}
 
 
 def _subject(text: str, query: str) -> set:

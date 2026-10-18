@@ -1,6 +1,13 @@
 # pakMap / Hybrid Map: re-rendering only what changed (future optimization)
 
-Status: analysis only (2026-10-08). Nothing described here is implemented; current behaviour is unchanged.
+Status: implemented 2026-10-17, in a simpler form than the analysis below. The video is cut into pieces of about 30 s
+(`pakmap-engine/lib/segments.mjs`), only where no map-pinned card, filmstrip or auto-side marker is on screen on both sides
+of the cut. Each piece has a key: the engine code, the spec's settings, the camera, the piece's own layers and their files'
+sizes and times, and every footage window's timing. Pieces whose key is unchanged are reused from `.pakmap_segments/` next
+to the output. The rest are drawn by up to `render_parts()` renderers at once, and the pieces are joined without
+re-encoding (`pakmap/engine_runner.py`). Every renderer, the one-piece render included, empties MapLibre's tile memory
+where a piece starts (`page.js` `freshStart`), so pieces come out the same whichever renderer draws them (checked lossless
+against a one-piece render). Off with `PAKMAP_SEGMENTS=0`. The analysis below is kept for reference.
 
 ## Current behaviour
 

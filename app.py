@@ -3850,7 +3850,9 @@ class VideoGeneratorApp(ctk.CTk):
             style = "enoch_template"
         script = self._main_script_text()
         try:
-            text = build_prompt(style, script, graphics=bool(self._settings.get("doc_style", False)))
+            text = build_prompt(style, script)
+            if getattr(self, "_settings", {}).get("doc_style", False):
+                text = build_prompt(style, script, graphics=True)   # the graphics switch is on: pakMap and Hybrid get the longer prompt with the template list
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
@@ -4978,6 +4980,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_cinema_feats = {k: ctk.BooleanVar(value=True) for k in FEATURES}
         tabs = ctk.CTkTabview(controls, height=250, fg_color=_CARD, border_width=1, border_color=_BORDER, corner_radius=8)
         tabs.grid(row=row, column=0, sticky="ew", pady=(12, 0))
+        tabs.configure(height=120 + 30 * ((len(FEATURES) + 1) // 2))   # every feature box fits (the What If pieces added 5 more)
         tab = tabs.add("Cinema (What If visuals)")
         tab.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkSwitch(tab, text="Use Cinema for this project", variable=self._starmap_cinema_var, command=self._save_starmap_cinema,
@@ -11884,6 +11887,23 @@ class VideoGeneratorApp(ctk.CTk):
         issues = list(self._qa_snapshot().unresolved_keys)
         if issues:            # every scene that needs attention, whatever its source (then Change source… for all of them)
             menu.add_command(label=f"All issues ({len(issues)})", command=lambda ks=issues: self._select_scenes_by_source_bucket(ks))
+            menu.add_separator()
+        # by state: still waiting for its picture, or a picture/clip with an error (failed, needs action, or failed the picture check)
+        snap = self._qa_snapshot()
+        queued, errors = [], []
+        bad_visual = {i.key for i in getattr(snap, "visual_issues", []) if getattr(i, "severity", "") != "warning"}
+        for scene in self._scene_rows:
+            key = _scene_key(scene.scene_number)
+            st = self._row_status_from_result(scene)
+            if st in ("waiting", "queued", "pending"):
+                queued.append(key)
+            elif st == "needs_action" or key in bad_visual:
+                errors.append(key)
+        if queued:
+            menu.add_command(label=f"Queued ({len(queued)})", command=lambda ks=queued: self._select_scenes_by_source_bucket(ks))
+        if errors:
+            menu.add_command(label=f"With error ({len(errors)})", command=lambda ks=errors: self._select_scenes_by_source_bucket(ks))
+        if queued or errors:
             menu.add_separator()
         for name in (*order, *sorted(extras)):
             keys = by_bucket.get(name)

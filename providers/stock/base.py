@@ -123,6 +123,10 @@ class StockProvider(AssetProvider):
             queries = smart_media_queries(scene, resolved, manual=False)
         else:
             queries = build_queries(scene.stock)
+        if (scene.asset_type or "").lower() in ("commons_image", "commons_video"):
+            # a real subject (What If's second source after NASA): never broadened to one word -- "Saturn rings ringlets Voyager 1"
+            # ended as "Saturn" and "Voyager", and took a portrait of a person (#016)
+            queries = [q for k, q in enumerate(queries) if k == 0 or len(q.split()) >= 2]
         for i, query in enumerate(queries):
             if self._scene_stopped(scene.scene_number):
                 return None

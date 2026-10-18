@@ -194,6 +194,12 @@ for _brand_asset in ("logo.png", "logo_wordmark.png", "logo_wordmark_light.png")
         datas += [(str(_p), "assets")]
     elif _brand_asset == "logo.png":
         raise SystemExit(f"Missing brand asset: {_p}")
+# Doc Style's full style sheet (Audio & Effects > Smart editing): opened from the switch's picture.
+if (ROOT / "assets" / "doc_style_preview.jpg").is_file():
+    datas += [(str(ROOT / "assets" / "doc_style_preview.jpg"), "assets")]
+# Smart editing previews (Audio & Effects): a picture beside each on-screen text switch.
+for _p in sorted((ROOT / "assets" / "smart_previews").glob("*.*")):
+    datas += [(str(_p), "assets/smart_previews")]
 
 # Brand Kit + Video Style JSON (required for Brand & Style in packaged builds)
 for _data_dir_name in ("styles", "brand_kits"):

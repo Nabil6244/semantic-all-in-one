@@ -271,7 +271,36 @@ async function setup() {
     map.triggerRepaint();
   });
 
+  // drawFrame(t) draws frame t and starts its JPEG encode in the background (canvas.toBlob: the same encoder and quality as
+  // toDataURL, run off the main thread); takeFrame() hands back the oldest encoded frame. The renderer asks for frame t's
+  // JPEG while frame t+1 is being drawn, so the encode no longer adds to each frame's time. renderFrame(t) is both at once.
+  const encoded = [];
+  const toBase64 = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+    r.onerror = () => reject(r.error || new Error('could not read the encoded frame'));
+    r.readAsDataURL(blob);
+  });
+  window.drawFrame = async (t) => {
+    await composeFrame(t);
+    encoded.push(new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('the frame could not be encoded'))), 'image/jpeg', 0.92)).then(toBase64));
+  };
+  window.takeFrame = async () => {
+    if (!encoded.length) throw new Error('no frame was drawn');
+    return encoded.shift();
+  };
+  // Every piece of a render (lib/segments.mjs) starts with the map's tile memory empty, however the pieces are shared out:
+  // MapLibre's cache of tiles seen earlier can change a few pixels of a later fly-to, so a piece drawn by another renderer
+  // (or reused from the last render) would not be exactly the frames one renderer makes without this.
+  window.freshStart = () => {
+    for (const id of Object.keys(map.style.tileManagers || {})) map.style._clearSource(id);
+  };
   window.renderFrame = async (t) => {
+    await composeFrame(t);
+    return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
+  };
+
+  async function composeFrame(t) {
     const c = camera.at(t);
     map.jumpTo({ center: [((c.lon + 540) % 360) - 180, c.lat], zoom: c.zoom, pitch: 0, bearing: 0 });
     const { sel } = applyState(t, c);
@@ -299,8 +328,7 @@ async function setup() {
         sel.map((s) => `${s.id.replace('nasa_', '')} ${(s.opacity * 100).toFixed(0)}%`).join('  ')];
       lines.forEach((ln, i) => { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(10, 10 + i * OH * 0.03, ctx.measureText(ln).width + 12, OH * 0.03); ctx.fillStyle = '#fff'; ctx.fillText(ln, 16, 12 + i * OH * 0.03); });
     }
-    return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
-  };
+  }
   window.__ready = true;
 }
 

@@ -34,7 +34,17 @@ export default {
       if (mode === 'cards') {
         const w = 220 * T.S, h = 190 * T.S;
         T.card(cx - w / 2, cy - h / 2, w, h, { fill: 'rgba(10,13,18,0.7)', border: col });
-        T.text(String(s.value ?? ''), cx, cy - 6 * T.S, { font: T.display(48), align: 'center', track: 1 });
+        // a value fits its card: a number in big type, words ("LAUNCHED FIRST") smaller and on two lines -- they ran into each other (#016)
+        const val = String(s.value ?? ''), room = w * 0.86;
+        let px = 48;
+        while (px > 26 && T.measure(val, T.display(px), 1) > room) px -= 2;
+        if (T.measure(val, T.display(px), 1) <= room) T.text(val, cx, cy - 6 * T.S, { font: T.display(px), align: 'center', track: 1 });
+        else {
+          const ws = val.toUpperCase().split(/\s+/), half = Math.ceil(ws.length / 2), lines = [ws.slice(0, half).join(' '), ws.slice(half).join(' ')];
+          let q = 24;
+          while (q > 16 && Math.max(...lines.map((ln) => T.measure(ln, T.sans(q, 800), 1.5))) > room) q -= 1;
+          lines.forEach((ln, i) => T.text(ln, cx, cy - 18 * T.S + i * (q + 8) * T.S, { font: T.sans(q, 800), align: 'center', track: 1.5 }));
+        }
         if (s.sub) T.text(String(s.sub).toUpperCase(), cx, cy + 28 * T.S, { font: T.mono(13, 600), align: 'center', color: C.label, track: 1.5, shadow: 0 });
       } else if (mode === 'particles') {
         const w = 300 * T.S, x0 = cx - w / 2, y0 = cy - w / 2;

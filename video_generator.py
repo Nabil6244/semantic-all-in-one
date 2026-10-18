@@ -2532,8 +2532,15 @@ def render_video(
     render_cache_state_dir: Path | None = None,
     perf=None,
     progress_cb=None,
+    graphics_look: str = "",
+    doc_channel: str = "",
 ):
     """
+    graphics_look: "doc" when the app-wide Doc Style switch is on (graphics drawn in the News Doc look), else "";
+      "doc_looks" draws them in that look but adds no extras (Enoch Template, whose cards are the scene's text).
+      Doc Style also adds the News Doc looks the plan never asks for (graphics/doc_plan.py), one graphic at a time;
+      doc_channel is its corner watermark (none when empty).
+
     render_cache_state_dir, perf, progress_cb: all optional, all default to
     None/no-op (Semantic YT Studio 2.0 — Batch 1). Every existing caller and
     test that does not pass them gets byte-for-byte the same behavior as
@@ -2647,6 +2654,36 @@ def render_video(
         except Exception as exc:
             print(f"[3/4] Graphics timeline load skipped: {exc}")
             gfx_specs_all_once = []
+    if editorial_timeline and graphics_look == "doc":
+        try:
+            from graphics.doc_plan import plan_doc_extras
+
+            _doc_stills: dict = {}
+
+            def _doc_still(k: int):
+                """A still of scene k for the photo looks: the picture itself, or one frame of a clip."""
+                if k in _doc_stills:
+                    return _doc_stills[k]
+                p = image_paths[k] if 0 <= k < len(image_paths) else None
+                got = None
+                if p is not None and not is_video_file(p):
+                    got = str(p)
+                elif p is not None:
+                    out = Path("graphics_overlays") / f"doc_still_{k:04d}.jpg"
+                    out.parent.mkdir(exist_ok=True)
+                    r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", "1", "-i", str(p), "-frames:v", "1", str(out)],
+                                       capture_output=True, timeout=60)
+                    got = str(out) if r.returncode == 0 and out.is_file() else None
+                _doc_stills[k] = got
+                return got
+
+            doc_extras = plan_doc_extras(aligned_rows, display_timeline, gfx_specs_all_once, _doc_still, channel=doc_channel)
+            if doc_extras:
+                print(f"[3/4] Doc Style: {len(doc_extras)} extra graphic(s) "
+                      f"({', '.join(sorted({str(e.payload.get('doc_look')) for e in doc_extras}))})")
+            gfx_specs_all_once = list(gfx_specs_all_once) + doc_extras
+        except Exception as exc:
+            print(f"[3/4] Doc Style extras skipped: {exc}")
 
     # PHASE 4/5: project-scoped render cache — off entirely (pure render,
     # identical to pre-Batch-1 behavior) unless a caller opts in by passing
@@ -2772,6 +2809,7 @@ def render_video(
                         height=height,
                         out_dir=gfx_dir,
                         composition=gfx_comp or None,
+                        look=graphics_look,
                     )
                     timed_overlays.extend(gfx_timed)
             except Exception as exc:
@@ -3188,6 +3226,15 @@ def resolve_scene_assets(
         from providers.stock.pexels import build_pexels_provider
 
         stock_provider = build_pexels_provider(images_dir, pexels_api_key)
+    if stock_provider is None and any(s.wants_commons_image or s.wants_commons_video for s in scene_rows):
+        # commons_ rows route to the stock search, here Wikimedia Commons alone (through Openverse, no key needed): without a provider
+        # a pass of only commons rows failed "stock_image provider is not configured", and through Pexels a Titan row got a train plaque
+        from providers.stock.cache import StockCache
+        from providers.stock.base import StockProvider
+        from providers.stock.openverse import OpenverseBackend
+
+        stock_provider = StockProvider(backends=[OpenverseBackend(source="wikimedia")],
+                                       cache=StockCache(used_ids_file=Path(images_dir) / ".stock_used_assets.json"))
 
     flow_image_provider = None
     flow_video_provider = None

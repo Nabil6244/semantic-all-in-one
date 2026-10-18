@@ -241,10 +241,11 @@ if (spec.cinema) {
     try { const ff = new FontFace(family, `url(/wi-fonts/${file})`, { weight }); await ff.load(); document.fonts.add(ff); } catch (e) { console.warn(`cinema font ${file}: ${e.message}`); }
   }
   // every What If layer: plates (timeline, light-time axis, cross-section, comparisons, bars, curves, composition, orbit map,
-  // phase, waveform, grid, disc map, dials), instruments (survival clock, clocks, gauge), type, captions, titles, fades, citations
+  // phase, waveform, grid, disc map, dials), instruments (survival clock, clocks, gauge), type, captions, titles, fades, citations,
+  // the template library (whatif-engine/templates: fact blocks, mission intros, before/after ...) and the mission card
   for (const name of ['tm_metric', 'tm_cite', 'tm_timeline', 'tm_logaxis', 'tm_section', 'tm_compare', 'tm_dial', 'tm_title', 'tm_annotate',
     'tm_bars', 'tm_caption', 'tm_clock', 'tm_composition', 'tm_curve', 'tm_discmap', 'tm_fade', 'tm_gauge', 'tm_grid', 'tm_orbitmap',
-    'tm_phase', 'tm_survival', 'tm_wave']) {
+    'tm_phase', 'tm_survival', 'tm_wave', 'tm_template', 'tm_mission']) {
     registry.register((await import(`/wi/layers/${name}.mjs`)).default);
   }
   // a What If hero scene (a lander on the plain, a descent under a parachute, an airship over clouds, a ship with engines): its own
@@ -504,6 +505,16 @@ async function drawFootage(b, t, alpha) {
     if (!res.ok) throw new Error(`footage ${b.id}: frame missing at ${t.toFixed(2)} s`);
     const bmp = await createImageBitmap(await res.blob());
     ctx.drawImage(bmp, 0, 0, W, H); bmp.close();
+  } else if (spec.cinema?.photos && b.compose === 'card_right') {
+    // What If's photo card (V3 1:46): the whole picture framed on the right half over a dark blur of itself, a type block at the left
+    const img = await layerCtx.loadImage(b.file), [, , zoom] = kenBurnsAt(b, t);
+    const cover = Math.max(W / img.width, H / img.height) * 1.12;
+    ctx.save(); ctx.filter = `blur(${Math.round(30 * H / 1080)}px) brightness(0.28) saturate(0.6)`;
+    ctx.drawImage(img, (W - img.width * cover) / 2, (H - img.height * cover) / 2, img.width * cover, img.height * cover); ctx.restore();
+    const fit = Math.min(W * 0.42 / img.width, H * 0.7 / img.height) * Math.min(1.04, Math.max(1, zoom));
+    const dw = img.width * fit, dh = img.height * fit, x = W * 0.73 - dw / 2, y = H * 0.5 - dh / 2;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 30 * H / 1080; ctx.drawImage(img, x, y, dw, dh); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1.5 * H / 1080; ctx.strokeRect(x, y, dw, dh);
   } else if (spec.cinema?.photos) {
     // a documentary still: the photo whole across the frame (letterboxed), over a blurred, darkened copy of itself
     const img = await layerCtx.loadImage(b.file), [, , zoom] = kenBurnsAt(b, t);

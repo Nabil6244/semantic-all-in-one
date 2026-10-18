@@ -230,7 +230,7 @@ def _vqa_mismatch(images_dir: Path) -> Dict[tuple, str]:
 
 
 def recheck_cached_media(rows_info: Sequence[Any], images_dir: Path, *, manifest_cls: Any = None, log: Callable[[str], None] = print,
-                         get: Optional[Callable] = None) -> List[str]:
+                         get: Optional[Callable] = None, warn_only: bool = False) -> List[str]:
     """Files found by an earlier Generate are reused without a new search, so a check added since never saw them: the 011
     Voyager project kept a 2005 shuttle touchdown for its 1977 launch, an air-quality briefing for the 2013 interstellar
     announcement, a surveying instrument under a named JPL engineer and a woman at a fridge for a transmitter's power. Before
@@ -251,6 +251,11 @@ def recheck_cached_media(rows_info: Sequence[Any], images_dir: Path, *, manifest
     failed: List[str] = []
 
     def fail(n: str, rec: Dict[str, Any], why: str) -> None:
+        if warn_only:
+            # What If: a row that is ready in the Visual Plan is the author's to judge -- it is reused, never searched again at
+            # Generate (all 68 rows were ready and Generate fetched them again); the doubt is said, for the author to check
+            log(f"[StarMap] scene {n}: check this one -- the file {rec.get('provider_asset_id')} {why}; kept as it is in the Visual Plan")
+            return
         man.set(n, {**rec, "status": "failed", "error": f"not the asked-for picture: {why}", "relevance": why})
         _reject(images_dir, str(int(n)), str(rec.get("provider_asset_id") or ""))
         failed.append(n)
@@ -315,7 +320,8 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
     table = [r for r in table if str(r.scene_number) in wanted]
     all_rows = list(table)                                     # before NASA's misses are taken out (to report them)
     nasa_rows = {m.scene_number: m.prompt for m in rows_info if m.source == "nasa_image"}
-    recheck_cached_media(rows_info, Path(images_dir), manifest_cls=manifest_cls, log=log, get=nasa_get)
+    recheck_cached_media(rows_info, Path(images_dir), manifest_cls=manifest_cls, log=log, get=nasa_get,
+                         warn_only=bool(provider_kwargs.pop("recheck_warn_only", False)))
     unanswered: Dict[str, str] = {}
     no_match: Dict[str, str] = {}
     if nasa_rows:

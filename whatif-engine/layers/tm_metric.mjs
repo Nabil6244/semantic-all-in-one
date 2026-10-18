@@ -4,6 +4,7 @@
 //   { "type": "tm_metric", "value": "464", "unit": "°C", "sub": "HOT ENOUGH TO MELT LEAD", "sub_color": "amber",
 //     "size": "hero" | "large" | "medium", "anchor": "center" | "top" | "upper_left" | "left" | "right",
 //     "count": { "from": 0, "to": 464, "decimals": 0, "s": 1.0 }, "color": "white", "start": 12.3, "end": 15.5 }
+//   "kicker": "ALL SIX COMPUTERS TOGETHER\nHOLD ABOUT" -- one or two small cyan lines above the number (the reference's information block)
 //   { "type": "tm_metric", "anchor": "left", "rows": [{ "label": "ALTITUDE", "value": "30 km", "note": "", "color": "white" }, ...] }
 import { C, tm, colour, quartOut, fmt } from './tm_theme.mjs';
 
@@ -50,6 +51,10 @@ export default {
       const room = W * (align === 'left' ? 0.95 - ax : align === 'right' ? ax - 0.05 : 2 * Math.min(ax, 1 - ax) - 0.1);
       while (px > 40 && T.measure(big, T.display(px), 2) > Math.min(W * 0.8, room)) px -= 6;
       const y = d.sub ? -10 * T.S : px * 0.34 * T.S;
+      // the reference's kicker (V3 1:34 "ALL SIX COMPUTERS TOGETHER / HOLD ABOUT" over "70"): cyan caps, one or two lines, above the number
+      const kick = d.kicker ? String(d.kicker).toUpperCase().split('\n').slice(0, 2) : [];
+      kick.forEach((ln, i) => T.text(ln, 0, y - (px * 0.78 + 16) * T.S - (kick.length - 1 - i) * 27 * T.S,
+        { font: T.sans(21, 800), track: 2.4, color: colour(d.kicker_color, C.cyan), align, shadow: 0.6 }));
       T.text(String(big).toUpperCase(), 0, y, { font: T.display(px), color: colour(d.color), track: 2, align, glow: 'rgba(255,214,160,0.24)', shadow: 0.85 });
       if (d.sub) T.text(String(d.sub).toUpperCase(), 0, y + (px * 0.42 + 8) * T.S, { font: T.sans(Math.max(22, px * 0.23), 800), track: 3,
         color: colour(d.sub_color, C.amber), align });

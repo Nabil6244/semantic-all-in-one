@@ -10,6 +10,7 @@
 import { C, tm, colour, quartOut, stepKey, plateAlpha } from './tm_theme.mjs';
 
 const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const BIG_S = 4.0;
 const hms = (s) => { s = Math.max(0, Math.floor(s)); return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((x) => String(x).padStart(2, '0')).join(':'); };
 
 function valueCard(T, g, x, y, side, f, align) {
@@ -51,6 +52,23 @@ export default {
         if (i === -1) sec = keys[keys.length - 1].seconds;
         else if (i === 0) sec = keys[0].seconds;
         else { const a = keys[i - 1], b = keys[i]; sec = a.seconds + (b.seconds - a.seconds) * ((f.t - a.t) / (b.t - a.t)); }
+      }
+      // a milestone the narrator names ("one light-day"): the card grows into the large centred dial for BIG_S (V3 0:22, 6:42)
+      const big = keys.find((x) => x.big && f.t >= x.t && f.t < x.t + BIG_S);
+      if (big) {
+        const e = Math.min(1, (f.t - big.t) / 0.4) * Math.min(1, (big.t + BIG_S - f.t) / 0.4), R = 0.2 * H, cx = W / 2, cy = 0.44 * H;
+        g.save(); g.globalAlpha *= e;
+        g.shadowColor = 'rgba(242,165,65,0.55)'; g.shadowBlur = 26 * T.S;
+        g.strokeStyle = colour(d.color, C.amber); g.lineWidth = 4 * T.S; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
+        g.shadowBlur = 0;
+        const ang = ((sec % 86400) / 86400) * Math.PI * 2 - Math.PI / 2;
+        g.fillStyle = colour(d.color, C.amber); g.beginPath(); g.arc(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R, 6 * T.S, 0, Math.PI * 2); g.fill();
+        T.text(String(d.label || 'LIGHT FROM EARTH').toUpperCase(), cx, cy - 44 * T.S, { font: T.sans(16, 800), track: 2.5, align: 'center', color: C.label, shadow: 0 });
+        T.text(hms(sec), cx, cy + 18 * T.S, { font: T.mono(64, 700), align: 'center', color: C.white, shadow: 0 });
+        if (big.label) T.text(String(big.label).toUpperCase(), cx, cy + R + 64 * T.S, { font: T.display(54), align: 'center', color: colour(d.color, C.amber), glow: 'rgba(242,165,65,0.35)' });
+        g.restore();
+        g.restore();
+        return;
       }
       const x = 44 * T.S, y = 36 * T.S, w = 380 * T.S, h = 112 * T.S;
       g.translate(x, y); g.scale(s, s);

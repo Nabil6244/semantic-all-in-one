@@ -46,9 +46,10 @@ function insideTexture(THREE, seed) {
 }
 
 function cloudSprite(THREE) {
+  const r = rnd(29);   // seeded: every page draws the same puff (a parallel render's parts must match where they meet)
   return canvasTex(THREE, 128, 128, (g) => {
     for (let i = 0; i < 9; i++) {
-      const x = 30 + Math.random() * 68, y = 44 + Math.random() * 40, rr = 18 + Math.random() * 22;
+      const x = 30 + r() * 68, y = 44 + r() * 40, rr = 18 + r() * 22;
       const grd = g.createRadialGradient(x, y, 0, x, y, rr); grd.addColorStop(0, 'rgba(255,255,255,0.95)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = grd; g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fill();
     }

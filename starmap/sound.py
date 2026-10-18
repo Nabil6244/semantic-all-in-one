@@ -79,10 +79,20 @@ def sound_hints(spec: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     return {"cues": kept, "ambience": amb}
 
 
-def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = None):
-    """The AudioPlan (pakmap.audio_plan) with the library files found; nothing is read or mixed yet."""
+def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = None, ambience_shots: Any = None, words: Any = ()):
+    """The AudioPlan (pakmap.audio_plan) with the library files found; nothing is read or mixed yet. With `ambience_shots` (Cinema's
+    ambience box: what is on screen, cinema.ambience_shots) the bed is What If's: it follows the scene, the beds crossfade."""
     from pakmap.audio_mix import resolve_assets
     from pakmap.audio_plan import plan_audio
 
-    plan = plan_audio({"duration": spec.get("duration", 0)}, sound_hints(spec), enabled=enabled, duration=spec.get("duration"))
+    hints = sound_hints(spec)
+    if ambience_shots:
+        from whatif.sound import XFADE_S, _ambience
+
+        hints["ambience"] = _ambience({"shots": ambience_shots}, words)
+    plan = plan_audio({"duration": spec.get("duration", 0)}, hints, enabled=enabled, duration=spec.get("duration"))
+    if ambience_shots:
+        for bed, nxt in zip(plan.beds, plan.beds[1:]):    # each bed runs on under the next one's fade-in: a crossfade
+            if abs(bed.end - nxt.start) < 0.05:
+                bed.end = min(float(spec.get("duration") or bed.end + XFADE_S), bed.end + XFADE_S)
     return resolve_assets(plan, catalog)

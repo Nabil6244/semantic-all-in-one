@@ -460,7 +460,11 @@ def generate_starmap_video(
     try:
         from .sound import plan_sound
 
-        audio_plan = plan_sound(spec, enabled=sound_design, catalog=sound_catalog)
+        from .cinema import ambience_shots, flags as _amb_flags
+
+        _amb = (_amb_flags(cinema) or {}).get("ambience")
+        audio_plan = plan_sound(spec, enabled=sound_design, catalog=sound_catalog,
+                                ambience_shots=ambience_shots(spec, plan) if _amb else None, words=list(plan.words or ()) if _amb else ())
         (work / "starmap_sound_plan.txt").write_text(audio_plan.to_text(), encoding="utf-8")
         for sid, what in sorted(audio_plan.missing.items()):
             sound_notes.append(f"missing sound {sid}: {what}")

@@ -57,9 +57,13 @@ function fontOf(T, kind, px, weight) {
 const up = (it, s) => (it.case === 'keep' ? String(s) : String(s).toUpperCase());
 
 /** A label with an optional small kicker above and a mono line under it (the reference's two-line callout). */
+// legibility floors (fractions of a 1080 frame: 21 = 1.9 %, 17 = 1.6 %): a template label of 12-16 px could not be read (#016)
+export const MIN_LABEL = 21, MIN_SMALL = 17, MIN_TICK = 16;
+
 function label(c, it, tr, x, y, { text, sub, size = 26, align = 'left', color, subColor, font = 'sans', glow = false } = {}) {
+  size = Math.max(MIN_LABEL, size);
   const { T } = c;
-  if (it.kicker) T.text(up(it, it.kicker), x, y - size * 1.25 * T.S, { font: T.mono(Math.max(13, size * 0.5), 600), track: 3, color: hex(it.kicker_color || 'cyan'), align, shadow: 0 });
+  if (it.kicker) T.text(up(it, it.kicker), x, y - size * 1.25 * T.S, { font: T.mono(Math.max(MIN_SMALL - 1, size * 0.5), 600), track: 3, color: hex(it.kicker_color || 'cyan'), align, shadow: 0 });
   let w = 0;
   if (it.maxw && text != null && text !== '') {            // the line never runs out of its box or off the frame: smaller type instead
     const lim = it.maxw * c.W;
@@ -67,7 +71,7 @@ function label(c, it, tr, x, y, { text, sub, size = 26, align = 'left', color, s
   }
   if (text != null && text !== '') w = T.text(up(it, text), x, y, { font: fontOf(T, font, size, it.weight), track: it.track ?? (font === 'mono' ? 1 : 2.5), color, align,
     glow: glow ? (typeof glow === 'string' ? glow : 'rgba(255,214,160,0.3)') : null, shadow: it.shadow ?? 0.6 });
-  if (sub) T.text(up(it, sub), x, y + (size * 0.5 + 18) * T.S, { font: T.mono(it.sub_size || Math.max(14, size * 0.52), 600), track: 1.5, color: hex(subColor || it.sub_color || 'amber'), align, shadow: 0 });
+  if (sub) T.text(up(it, sub), x, y + (size * 0.5 + 18) * T.S, { font: T.mono(Math.max(MIN_SMALL, it.sub_size || size * 0.52), 600), track: 1.5, color: hex(subColor || it.sub_color || 'amber'), align, shadow: 0 });
   return w;
 }
 
@@ -79,10 +83,21 @@ function sideLabel(c, it, tr, x, y, R) {
 }
 
 // ---- the primitives -------------------------------------------------------------------------------------------------------------
+// a text or number whose anchor falls inside a corner instrument's box (c.reserved) is moved down to just below that box
+// w / align: the text's own extent, so a line that starts left of a box but runs into it (a side note under the mission card) moves too
+function clear(c, x, y, size, w = 0, align = 'left') {
+  const x0 = (align === 'center' ? x - w / 2 : align === 'right' ? x - w : x) / c.W, x1 = x0 + w / c.W, fy = y / c.H;
+  for (const r of c.reserved || []) {
+    if (x1 >= r[0] - 0.01 && x0 <= r[2] && fy >= r[1] && fy <= r[3] + 0.03) return [x, (r[3] + 0.03) * c.H + size * c.T.S * 0.8];
+  }
+  return [x, y];
+}
+
 export const PRIMS = {
   text(c, it, tr) {
-    const [x, y] = xy(c, param(it, 'at', tr, [0.5, 0.5]));
     let s = up(it, param(it, 'text', tr, ''));
+    const size0 = param(it, 'size', tr, 30), at0 = xy(c, param(it, 'at', tr, [0.5, 0.5]));
+    const [x, y] = clear(c, at0[0], at0[1], size0, c.T.measure(String(s), c.T.sans(Math.max(MIN_LABEL, size0), 800), 2), it.align || 'left');
     // "#" in the text is a live number: "1 HOUR FOR YOU = # HOURS ON EARTH" with m "count" (or a "value")
     if (s.includes('#') && (it._anim.value || it.value != null)) { const v = Number(param(it, 'value', tr, 0)); s = s.replace('#', fmt(v, it.decimals ?? (Math.abs(v) < 10 && !Number.isInteger(Number(it.to ?? it.value ?? v)) ? 1 : 0))); }
     const k = param(it, 'progress', tr, 1);
@@ -96,7 +111,7 @@ export const PRIMS = {
     }
   },
   number(c, it, tr) {
-    const [x, y] = xy(c, param(it, 'at', tr, [0.5, 0.5]));
+    const [x, y] = clear(c, ...xy(c, param(it, 'at', tr, [0.5, 0.5])), param(it, 'size', tr, 60));
     const v = Number(param(it, 'value', tr, 0));
     const s = `${it.prefix || ''}${fmt(v, it.decimals ?? (Math.abs(v) < 10 && !Number.isInteger(Number(it.to ?? it.value ?? v)) ? 1 : 0))}${it.unit ? ` ${it.unit}` : ''}`;
     label(c, it, tr, x, y, { text: s, sub: it.sub, size: param(it, 'size', tr, 64), align: it.align || 'left', color: colourOf(it, tr), font: it.font || 'display', glow: it.glow ?? true });
@@ -345,7 +360,7 @@ export const PRIMS = {
     g.fillStyle = col; g.beginPath(); g.arc(x, y, 4 * T.S, 0, TAU); g.fill();
     g.restore();
     if (it.label) label(c, it, tr, x, y - R - 26 * T.S, { text: param(it, 'label', tr), size: it.label_size || 26, align: 'center', color: colourOf(it, tr, 'label_color', '#FFFFFF') });
-    if (it.sub) T.text(up(it, param(it, 'sub', tr)), x, y + R + 40 * T.S, { font: T.mono(16, 600), track: 1.5, color: hex(it.sub_color || 'grey'), align: 'center', shadow: 0 });
+    if (it.sub) T.text(up(it, param(it, 'sub', tr)), x, y + R + 40 * T.S, { font: T.mono(MIN_SMALL, 600), track: 1.5, color: hex(it.sub_color || 'grey'), align: 'center', shadow: 0 });
   },
   axis(c, it, tr) {
     const { g, T } = c, A = xy(c, param(it, 'from', tr, [0.1, 0.6])), B = xy(c, param(it, 'to', tr, [0.9, 0.6])), col = colourOf(it, tr, 'color', '#8E99A8');
@@ -360,7 +375,7 @@ export const PRIMS = {
       if (tk.at > k + 1e-6) continue;
       const px = A[0] + (B[0] - A[0]) * tk.at, py = A[1] + (B[1] - A[1]) * tk.at, s = (tk.major === false ? 6 : 10) * T.S;
       T.line(px - (nx / nl) * s, py - (ny / nl) * s, px + (nx / nl) * s, py + (ny / nl) * s, { color: col, width: 1.6 });
-      if (tk.label) T.text(up(it, tk.label), px + (nx / nl) * 30 * T.S, py + (ny / nl) * 30 * T.S + 6 * T.S, { font: T.mono(it.tick_size || 15, 600), color: hex(tk.color || col), align: 'center', shadow: 0 });
+      if (tk.label) T.text(up(it, tk.label), px + (nx / nl) * 30 * T.S, py + (ny / nl) * 30 * T.S + 6 * T.S, { font: T.mono(Math.max(MIN_TICK, it.tick_size || 15), 600), color: hex(tk.color || col), align: 'center', shadow: 0 });
     }
     g.restore();
     if (it.label) {
@@ -377,7 +392,7 @@ export const PRIMS = {
     nodes.forEach((nm, i) => {
       const px = x + (w * i) / n, on = Math.abs(i - cur) < 0.5;
       if (on) T.node(px, y, { color: col, r: 6 }); else { c.g.save(); c.g.fillStyle = i < cur ? col : '#FFFFFF'; c.g.beginPath(); c.g.arc(px, y, 3.5 * T.S, 0, TAU); c.g.fill(); c.g.restore(); }
-      if (on || it.all_labels) T.text(up(it, nm), px, y + 26 * T.S, { font: T.mono(it.label_size || 12, 700), track: 1, color: on ? col : C.label, align: 'center', shadow: 0 });
+      if (on || it.all_labels) T.text(up(it, nm), px, y + 26 * T.S, { font: T.mono(Math.max(MIN_TICK, it.label_size || 12), 700), track: 1, color: on ? col : C.label, align: 'center', shadow: 0 });
     });
   },
   bar(c, it, tr) {
@@ -448,8 +463,8 @@ export const PRIMS = {
       if (drawn > 0) { g.strokeStyle = hex(p.color || pal[i % pal.length]); g.beginPath(); g.arc(x, y, R, a, a + drawn); g.stroke(); }
       if (drawn >= span * 0.99 && p.label) {
         const m = a + span / 2, lx = x + Math.cos(m) * (R + 60 * T.S), ly = y + Math.sin(m) * (R + 60 * T.S);
-        T.text(up(it, p.label), lx, ly, { font: T.sans(18, 800), track: 2, color: '#FFFFFF', align: Math.cos(m) >= 0 ? 'left' : 'right', shadow: 0 });
-        if (p.text) T.text(up(it, p.text), lx, ly + 22 * T.S, { font: T.mono(15, 600), color: hex(p.color || pal[i % pal.length]), align: Math.cos(m) >= 0 ? 'left' : 'right', shadow: 0 });
+        T.text(up(it, p.label), lx, ly, { font: T.sans(MIN_LABEL, 800), track: 2, color: '#FFFFFF', align: Math.cos(m) >= 0 ? 'left' : 'right', shadow: 0 });
+        if (p.text) T.text(up(it, p.text), lx, ly + 24 * T.S, { font: T.mono(MIN_SMALL, 600), color: hex(p.color || pal[i % pal.length]), align: Math.cos(m) >= 0 ? 'left' : 'right', shadow: 0 });
       }
       a += span;
     });
@@ -478,7 +493,7 @@ export const PRIMS = {
       const [lx, ly] = xy(c, lb.at), [px, py] = lb.point ? xy(c, lb.point) : [x, y];
       if (lb.t != null && tr < lb.t) continue;
       T.line(px, py, lx, ly + 6 * T.S, { color: 'rgba(255,255,255,0.45)', width: 1.2 });
-      T.text(up(it, lb.text), lx, ly, { font: T.mono(13, 700), track: 1.2, color: hex(lb.color || '#FFFFFF'), align: lb.align || 'center', shadow: 0 });
+      T.text(up(it, lb.text), lx, ly, { font: T.mono(MIN_TICK, 700), track: 1.2, color: hex(lb.color || '#FFFFFF'), align: lb.align || 'center', shadow: 0 });
     }
   },
   callout(c, it, tr) {

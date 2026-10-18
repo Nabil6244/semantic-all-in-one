@@ -239,6 +239,16 @@ Times "t" inside extra are seconds of the narration (the app's Check plan shows 
 In Cinema every map beat should also carry one caption row: a HEADLINE of 2 to 7 words that says what the shot means
 ("THE TEAM'S CHOICE", "OUTSIDE THE BUBBLE, NOT THE SYSTEM", "FOR ALMOST 8 YEARS"), anchored on the words it sums up; sub =
 an optional small kicker above it ("AT SATURN", "18 MONTHS LATER"). The app draws it as the What If headline.
+A row=layer with type template is any What If template (list below): id = the template's id, and its columns fill it
+(label / sub / text / value_from / value_to / format, as each template lists); extra {"slots": {"name": value}} sets any other slot;
+hold = seconds (most want 6-10). A template that brings its own dark plate is drawn full frame on a slate; one marked "draws over the
+shot on screen" sits over the map or picture. A photo template (before_after, annotated_photo_rings, photo_lockup ...) takes its picture
+from asset (nasa_image:<description>). Use at least one template row per minute in Cinema, never the same template twice within 60 s,
+and every value one the script states. Instrument row id mission = What If's mission card (top right, in place of the date): extra {"kicker": "MISSION · VOYAGER 1",
+"keys": [{"t": 12, "value": 0, "unit": "AU", "label": "DISTANCE FROM THE SUN", "status": "LAUNCHED 1977"}, {"t": 95, "value": 5.2, "unit": "AU", ...}]}
+(one key per beat, t in seconds of the narration; a number counts from the last key's when the unit is the same).
+TEMPLATE LIBRARY (id: what it shows. Columns: which column fills which part)
+<<<TEMPLATE CATALOG>>>
 
 PICTURES AND CLIPS (asset)
 - Do NOT invent file names. Describe what to find: nasa_image:<description>,
