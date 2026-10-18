@@ -369,9 +369,11 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
       each('marker', drawMarker); each('sticker', drawSticker);
       for (const e of live) if (e.type === 'media_full' && !e.cover_ui) drawMediaFull(e, t);
       each('pip', drawPip); each('filmstrip', drawFilmstrip);
-      ctx.save(); ctx.scale(1 / S, 1 / S); each('map_template', drawMapTemplate); ctx.restore();   // gfx-core templates draw in output pixels
+      const templates = (over) => { ctx.save(); ctx.scale(1 / S, 1 / S); for (const e of live) if (e.type === 'map_template' && (e.over_footage === true) === over) drawMapTemplate(e, t); ctx.restore(); };   // gfx-core templates draw in output pixels
+      templates(false);
       each('stat', drawStat); each('caption', drawCaption); each('hud_title', drawHud);
       for (const e of live) if (e.type === 'media_full' && e.cover_ui) drawMediaFull(e, t);
+      templates(true);   // graphics flagged over_footage: above the footage that covers everything else (Hybrid); none in a PakMap spec
       drawWatermark();
       ctx.restore();
     },

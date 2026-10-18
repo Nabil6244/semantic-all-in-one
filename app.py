@@ -2303,7 +2303,18 @@ class VideoGeneratorApp(ctk.CTk):
             return
         self._overscaled_csv_var.set(path)
         if self._load_overscaled_csv(path):
+            try:
+                from learning.events import note_import as _lrn
+                _lrn(self, "overscaled", path=path)
+            except Exception:
+                pass
             self._goto_workflow_view("visual_plan")
+        else:
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "overscaled", path=path)
+            except Exception:
+                pass
 
     def _browse_exp_solar_csv(self) -> None:
         """Exp Solar's own CSV picker — same file-dialog pattern as
@@ -2321,7 +2332,18 @@ class VideoGeneratorApp(ctk.CTk):
             return
         self._overscaled_csv_var.set(path)
         if self._load_overscaled_csv(path):
+            try:
+                from learning.events import note_import as _lrn
+                _lrn(self, "overscaled", path=path)
+            except Exception:
+                pass
             self._goto_workflow_view("visual_plan")
+        else:
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "overscaled", path=path)
+            except Exception:
+                pass
 
     def _browse_active_style_csv(self) -> None:
         """The single Visual Plan CSV path-row's browse command — routes to
@@ -3423,8 +3445,12 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_load_btn.grid(row=0, column=0, padx=(0, 8))
         self._hybrid_plan_btn = _make_button(actions, "Write plan with AI", self._hybrid_plan_with_ai, size="lg", width=150)
         self._hybrid_plan_btn.grid(row=0, column=1, padx=(0, 8))
-        _make_button(actions, "Copy the CSV prompt", self._hybrid_copy_prompt, size="lg", width=150).grid(row=0, column=2)
-        self._build_csv_prompt_script_box(actions, row=1, columnspan=3)
+        _make_button(actions, "Copy the CSV prompt", self._hybrid_copy_prompt, size="lg", width=150).grid(row=0, column=2, padx=(0, 8))
+        self._hybrid_copy_graphics_btn = _make_button(actions, "Copy graphics prompt", self._hybrid_copy_graphics_prompt, size="lg", width=170)
+        self._hybrid_copy_graphics_btn.grid(row=0, column=3, padx=(0, 16))
+        ctk.CTkSwitch(actions, text="Add graphics from the narration (shares, sizes, counts)", variable=self._hybrid_auto_gfx_var, command=self._on_hybrid_auto_gfx_changed,
+                      font=ctk.CTkFont(size=11)).grid(row=0, column=4, sticky="w")
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=5)
         ctk.CTkLabel(
             controls, text="Load beat CSV: your own plan, written by any AI with the CSV prompt.   Write plan with AI: the app plans it from your narration.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left",
@@ -3456,8 +3482,6 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_open_btn = _small("Edit in spreadsheet", self._hybrid_open_plan_file, 2)
         ctk.CTkSwitch(more, text="Sound effects + ambience", variable=self._hybrid_sound_var, command=self._save_hybrid_settings,
                       font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
-        ctk.CTkSwitch(more, text="Add graphics from the narration (shares, sizes, counts)", variable=self._hybrid_auto_gfx_var, command=self._on_hybrid_auto_gfx_changed,
-                      font=ctk.CTkFont(size=11)).grid(row=1, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
         self._hybrid_timeline = tk.Canvas(controls, height=54, highlightthickness=0, bd=0, bg=_CARD)
         self._hybrid_timeline.grid(row=7, column=0, sticky="ew", pady=(14, 0))
@@ -3664,7 +3688,11 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _hybrid_copy_prompt(self) -> None:
         """Copy the beat-CSV prompt (with the script in it): paste it into any AI and load the CSV it gives back."""
-        self._copy_csv_prompt("hybrid", self._hybrid_status_var)
+        self._copy_csv_prompt("hybrid", self._hybrid_status_var, graphics=False)
+
+    def _hybrid_copy_graphics_prompt(self) -> None:
+        """Copy the beat-CSV prompt with the universal graphics (template list and example row) and the script in it."""
+        self._copy_csv_prompt("hybrid", self._hybrid_status_var, graphics=True)
 
     # ---- "Copy the CSV prompt" and the script, in every style's panel ----------------------------------------------------
     # Every style that loads a CSV has the same button: it copies that style's prompt (app_csv_prompts.py) with the
@@ -3833,7 +3861,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._starmap_status_var.set(f"Script score {rep.score}/100. Doctor prompt copied: paste it into any AI, record the voiceover from "
                                      "the script it returns, then copy the CSV prompt." + (f" First fix: {rep.findings[0]}" if rep.findings else ""))
 
-    def _copy_csv_prompt(self, style: str, status_var=None) -> None:
+    def _copy_csv_prompt(self, style: str, status_var=None, graphics: Optional[bool] = None) -> None:
         """Copy a style's CSV prompt with the project's script in it (Overscaled copies Exp Solar's when that look is chosen)."""
         from app_csv_prompts import STYLE_NAMES, build_prompt
 
@@ -3851,14 +3879,22 @@ class VideoGeneratorApp(ctk.CTk):
         script = self._main_script_text()
         try:
             text = build_prompt(style, script)
-            if getattr(self, "_settings", {}).get("doc_style", False):
+            if graphics is None:
+                graphics = bool(getattr(self, "_settings", {}).get("doc_style", False))
+            if graphics:
                 text = build_prompt(style, script, graphics=True)   # the graphics switch is on: pakMap and Hybrid get the longer prompt with the template list
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
+        try:   # learned, style-scoped guidance (only when an approved package exists; the user sees it before it is added)
+            from learning.guidance import offer_guidance as _lrn
+            text = _lrn(self, text, style)
+        except Exception:
+            pass
         self.clipboard_clear()
         self.clipboard_append(text)
         name = STYLE_NAMES.get(style, style)
+        name = f"{name} graphics" if graphics and style in ("pakmap", "hybrid") else name
         msg = (f"{name} prompt copied with your script. Paste it into any AI, then load the CSV it writes." if script else
                f"{name} prompt copied. Paste it into any AI, replace its last line with your script, then load the CSV it writes.")
         (status_var or self.status_var).set(msg)
@@ -4283,6 +4319,9 @@ class VideoGeneratorApp(ctk.CTk):
         if self._hybrid_plan is not None:
             try:
                 from hybrid.app_integration import visual_dicts
+                from hybrid.local_fix import clamp_layers
+
+                clamp_layers(self._hybrid_plan)   # a layer anchored just before its map beat would stop the plan compiling, and the table would stay empty
 
                 dicts = visual_dicts(self._hybrid_plan)
             except Exception as exc:
@@ -4431,6 +4470,11 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _hybrid_show_import_problems(self, path, exc) -> None:
         """A CSV that cannot be loaded: list its problems as clickable rows (each opens that cell), keep the current plan."""
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(self, "hybrid", path=path, error=exc)
+        except Exception:
+            pass
         problems = list(getattr(exc, "problems", [])) or [str(exc) or type(exc).__name__]
         self._set_hybrid_text(f"{Path(path).name} has problems:\n\n" + "\n".join(problems))
         self._hybrid_status_var.set("The CSV could not be loaded. Click a problem to fix that cell here; the file is updated for you.")
@@ -4440,6 +4484,11 @@ class VideoGeneratorApp(ctk.CTk):
         """A CSV read without problems becomes the plan; its notes go under the plan."""
         name = Path(path).name
         self._hybrid_set_plan(got.plan, None)
+        try:   # after the plan is saved: the project's plan.json is the final imported representation
+            from learning.events import note_import as _lrn
+            _lrn(self, "hybrid", path=path, final_path=getattr(self._workspace, "hybrid_plan_path", None))
+        except Exception:
+            pass
         self._hybrid_file_var.set(str(path))
         self._hybrid_refresh_chips()
         extra = [f"note: {n}" for n in got.notes] + [f"warning: {w}" for w in got.warnings]
@@ -4757,7 +4806,22 @@ class VideoGeneratorApp(ctk.CTk):
             return
         from hybrid.validate import errors as _hy_errors, validate as _hy_validate
 
+        from hybrid.local_fix import clamp_layers as _hy_clamp
+
+        _timing_fixes = _hy_clamp(plan)   # a layer anchored just before its map beat appears with the beat, so the compile below cannot stop Generate
+        for _m in _timing_fixes:
+            self._append_log(f"[HYBRID] {_m}\n")
+        if _timing_fixes or not self._scene_rows:
+            self._populate_hybrid_visual_plan()
         blocking = _hy_errors(_hy_validate(plan))
+        if not blocking:
+            from hybrid.plan import validate_plan as _hy_problems
+
+            _compile_problems = _hy_problems(plan)
+            if _compile_problems:
+                self._hybrid_show_plan()
+                messagebox.showerror("Fix the plan first", "The plan does not compile:\n\n" + "\n".join(f"- {m}" for m in _compile_problems[:8]))
+                return
         if blocking:
             self._hybrid_show_plan()
             messagebox.showerror("Fix the plan first", "The plan has errors that would stop the render:\n\n" + "\n".join(f"- {f.message}" for f in blocking[:8]))
@@ -5182,16 +5246,36 @@ class VideoGeneratorApp(ctk.CTk):
             text = Path(path).read_text(encoding="utf-8")
         except OSError as exc:
             messagebox.showerror("Cannot read CSV", f"The CSV could not be read:\n{exc}" + "\n\nNothing in the project was changed. Check that the file still exists, is not open in another app and is saved as CSV (UTF-8), then load it again.")
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "starmap", path=path)
+            except Exception:
+                pass
             return False
         if not is_starmap_csv(text):
             messagebox.showerror("Not a StarMap beat CSV", "The first row must be the StarMap header (beat,row,vo_anchor,mode,...,date,...).\n\n"
                                  "Use Copy the CSV prompt to have an AI write one.")
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "starmap", path=path)
+            except Exception:
+                pass
             return False
         try:
             stored = self._workspace.copy_starmap_csv_in(Path(path))
         except OSError as exc:
             messagebox.showerror("StarMap", f"Could not save the CSV in the project: {exc}")
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "starmap", path=path)
+            except Exception:
+                pass
             return False
+        try:
+            from learning.events import note_import as _lrn
+            _lrn(self, "starmap", path=path, final_path=stored)
+        except Exception:
+            pass
         self._starmap_file_var.set(str(stored))
         self._starmap_ok = None
         if not self._starmap_enabled_var.get():
@@ -5582,8 +5666,19 @@ class VideoGeneratorApp(ctk.CTk):
         self._pakmap_base_dir = str(Path(path).resolve().parent)
         self._pakmap_csv_var.set(path)
         if self._load_pakmap_csv(path):
+            try:
+                from learning.events import note_import as _lrn
+                _lrn(self, "pakmap", path=path, final_path=self._workspace.pakmap_csv_path)
+            except Exception:
+                pass
             self._pakmap_enabled_var.set(True)
             self._on_pakmap_toggle()
+        else:
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(self, "pakmap", path=path)
+            except Exception:
+                pass
 
     def _load_pakmap_csv(self, path: str) -> bool:
         """Read the script (fast, no narration needed) and say what is in it. Timing and places are checked by
@@ -6540,6 +6635,9 @@ class VideoGeneratorApp(ctk.CTk):
         )
         activity = "Hide activity" if self._log_visible else "Activity"
         menu.add_command(label=activity, command=self._toggle_activity_log)
+        menu.add_command(label="Rate finished videos…", command=self._open_rating_history)
+        menu.add_command(label="CSV Generator…", command=self._open_csv_generator)
+        menu.add_command(label="Learning…", command=self._open_learning)
         try:
             menu.tk_popup(self._overflow_btn.winfo_rootx(),
                           self._overflow_btn.winfo_rooty() + max(28, self._overflow_btn.winfo_height()))
@@ -6848,10 +6946,24 @@ class VideoGeneratorApp(ctk.CTk):
                 lambda: self._auth_session,
                 refresh_session=refresh_session,
                 log=lambda m: self.after(0, lambda: self._append_log(f"{m}\n")),
+                on_terminal=self._learning_on_terminal,
             )
         return self._generation_tracker
 
+    @staticmethod
+    def _learning_on_terminal(payload) -> None:
+        try:
+            from learning.events import note_validation as _lrn
+            _lrn(payload)
+        except Exception:
+            pass
+
     def _track_generation_start(self, render_engine: str):
+        try:   # local learning ledger: freeze this render's style scope and imported CSV (works signed out too)
+            from learning.events import begin_render_op as _lrn
+            _lrn(self, render_engine, None)
+        except Exception:
+            pass
         try:
             project_id = getattr(self._workspace, "project_id", None) if self._workspace is not None else None
             return self._get_generation_tracker().start(render_engine=render_engine, project_id=project_id)
@@ -6860,6 +6972,15 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _track_generation_end(self, run, outcome: str, *, output_path=None, validated: bool = False,
                               message: str = "", category: Optional[str] = None) -> None:
+        try:   # local learning ledger first, so it also sees signed-out runs (run is None); never affects the tracker below
+            from learning.events import note_render_outcome as _lrn
+            from licensing.generation_tracking import categorize_error as _cat
+            _lrn(self, run, outcome, category or (_cat(message) if outcome == "failed" else None))
+            if outcome == "completed":
+                from learning.rating_ui import schedule_prompt as _sched
+                _sched(self, output_path)
+        except Exception:
+            pass
         if run is None:
             return
         try:
@@ -7563,7 +7684,48 @@ class VideoGeneratorApp(ctk.CTk):
             pass
         self._bind_production_layer(ws)
 
+    def _open_learning(self) -> None:
+        try:
+            from learning.self_learning_ui import open_learning
+            open_learning(self)
+        except Exception as exc:
+            messagebox.showinfo("Learning", f"The Learning window could not be opened: {exc}")
+
+    def _open_csv_generator(self) -> None:
+        try:
+            from csv_generator.ui import open_generator
+            open_generator(self)
+        except Exception as exc:
+            messagebox.showinfo("CSV Generator", f"The CSV Generator could not be opened: {exc}")
+
+    def _open_rating_history(self) -> None:
+        try:
+            from learning.rating_ui import open_history
+            open_history(self)
+        except Exception as exc:
+            messagebox.showinfo("Rate finished videos", f"The rating history could not be opened: {exc}")
+
+    def _start_learning_sync(self) -> None:
+        try:   # events are stamped with the signed-in account, and only that account's events are ever uploaded for it
+            from learning.ledger import set_owner_provider
+            set_owner_provider(lambda: getattr(self._auth_session, "user_id", None))
+        except Exception:
+            pass
+        try:   # background, idempotent, off the UI thread; signed out / offline simply does nothing
+            from learning.sync import ensure_worker
+            ensure_worker(lambda: self._auth_session, refresh_session=self._learning_refresh_session,
+                          enabled=lambda: bool(getattr(self, "_settings", {}).get("learning_sync", True)))
+        except Exception:
+            pass
+
+    def _learning_refresh_session(self):
+        from licensing.auth_client import get_auth_client
+        session = get_auth_client().verify_stored_session()
+        self._auth_session = session
+        return session
+
     def _bind_production_layer(self, ws) -> None:
+        self._start_learning_sync()
         """Point the production event log and job ledger at this project, then (in the background) clean up what an
         interrupted session left behind: half-written downloads and broken render-cache entries. Missing scene files
         and interrupted jobs are only reported — Generate / Retry fetch them through the usual providers."""
@@ -7798,6 +7960,8 @@ class VideoGeneratorApp(ctk.CTk):
             from ancient_texts.integration import smart_editing_settings as enoch_settings
 
             settings = enoch_settings(settings)
+        if self._normal_hybrid_style_on() and not settings.graphics:
+            settings = dataclasses.replace(settings, graphics=True)   # Hybrid Map graphics need the Graphics switch; this render only, the saved switch is untouched
         return settings
 
     def _smart_editing_settings_dict(self) -> dict:
@@ -8196,6 +8360,11 @@ class VideoGeneratorApp(ctk.CTk):
         )
         if path:
             dest = self._workspace.copy_csv_in(Path(path))
+            try:
+                from learning.events import note_import as _lrn
+                _lrn(self, "normal", path=path, final_path=dest)
+            except Exception:
+                pass
             self.csv_var.set(str(dest))
             self._sync_images_dir()
             self._refresh_scene_preview()
@@ -8968,6 +9137,11 @@ class VideoGeneratorApp(ctk.CTk):
                 self._import_claude_csv_text(text)
                 dialog.destroy()
             except Exception as exc:
+                try:
+                    from learning.events import note_prerender_failure as _lrn
+                    _lrn(self, "normal", "csv_import", error=exc, text=text)
+                except Exception:
+                    pass
                 messagebox.showerror(
                     "CSV import failed",
                     str(exc) or "Could not import pasted CSV.",
@@ -9001,20 +9175,28 @@ class VideoGeneratorApp(ctk.CTk):
         if "scene_number" not in normalized.split("\n", 1)[0].lower():
             # Still allow import — existing CSV path validates rows
             pass
+        self._learning_pending = {"text": text}   # original text, hashed by _finish_claude_csv_import
         dest.write_text(normalized, encoding="utf-8")
         self._finish_claude_csv_import(dest, source_label="pasted")
 
     def _import_claude_csv_path(self, path: Path, *, source_label: str = "uploaded") -> None:
         try:
+            self._learning_pending = {"path": path}
             dest = self._workspace.copy_csv_in(path)
             self._finish_claude_csv_import(dest, source_label=source_label)
         except Exception as exc:
+            try:
+                from learning.events import note_prerender_failure as _lrn
+                _lrn(self, "normal", "csv_import", error=exc, path=path)
+            except Exception:
+                pass
             messagebox.showerror(
                 "CSV import failed",
                 str(exc) or "Could not import the Claude CSV into the existing pipeline.",
             )
 
     def _finish_claude_csv_import(self, dest: Path, *, source_label: str) -> None:
+        _lpend, self._learning_pending = getattr(self, "_learning_pending", None) or {}, None
         self.csv_var.set(str(dest))
         self._sync_images_dir()
         # Enforce Asset mix % onto the imported CSV so Flow Video / Flow Image
@@ -9028,6 +9210,11 @@ class VideoGeneratorApp(ctk.CTk):
                 )
         except Exception as exc:
             self._append_log(f"[CLAUDE-PLAN] Asset mix enforce skipped: {exc}\n")
+        try:
+            from learning.events import note_import as _lrn
+            _lrn(self, "normal", path=_lpend.get("path"), text=_lpend.get("text"), final_path=dest)
+        except Exception:
+            pass
         self._refresh_scene_preview()
         self._goto_workflow_view("visual_plan")
         self._vo_status_var.set(f"Claude CSV {source_label} — {Path(dest).name}")
@@ -10680,6 +10867,15 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _set_doc_style(self, on: bool) -> None:
         self._settings["doc_style"] = bool(on)
+        save_settings(self._settings)
+
+    def _normal_hybrid_style_on(self) -> bool:
+        """The app-wide "Use Hybrid Map Graphics & Sound" switch (Audio & Effects > Smart editing, settings.json "normal_hybrid_style", off by
+        default): a Normal Video drawn with Hybrid Map's graphics look and sound design. Not used by the Enoch Template or Modern Tech News."""
+        return bool(self._settings.get("normal_hybrid_style", False)) and not self._modern_tech_on() and not _enoch_template_active(self)
+
+    def _set_normal_hybrid_style(self, on: bool) -> None:
+        self._settings["normal_hybrid_style"] = bool(on)
         save_settings(self._settings)
 
     def _flow_agent_images_on(self) -> bool:
@@ -13841,6 +14037,7 @@ class VideoGeneratorApp(ctk.CTk):
             "smart_editing": self._render_smart_editing_settings(),
             "resolution": "3840x2160" if self._export_pixel_scale() == 2 else "1920x1080",
             "enoch_template": _enoch_template_active(self),
+            "hybrid_style": self._normal_hybrid_style_on(),
         }, None
 
     # ---------- generate ----------
@@ -13893,6 +14090,11 @@ class VideoGeneratorApp(ctk.CTk):
 
         config, err = self._validate(require_audio=(mode == "render"))
         if err:
+            try:
+                from learning.events import note_prerender_failure as _lrn
+                _lrn(self, "normal", "generate_validation")
+            except Exception:
+                pass
             messagebox.showerror("Cannot start", err)
             return
 
@@ -14605,6 +14807,8 @@ class VideoGeneratorApp(ctk.CTk):
                     except Exception as exc:
                         print(f"[SMART] Sound density limit skipped ({exc})")
 
+                if config.get("hybrid_style"):
+                    sfx_for_mix = []   # Hybrid Map's sound design replaces the generic effects (mixed in video_generator.render_video); ambience stays
                 needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:
                     mixed = work_dir / "narration_with_sfx.wav"
@@ -14658,6 +14862,32 @@ class VideoGeneratorApp(ctk.CTk):
                               f"{len(_pplan.clips_reuse)} expected from the render cache.")
             except Exception as exc:
                 print(f"[PLAN] Skipped ({exc})")
+            _gfx_prepared = None   # the gfx-core graphics of the "Use Hybrid Map Graphics & Sound" switch, when it is on and something was drawn
+            _hybrid_stack = contextlib.ExitStack()   # holds the Hybrid sound hook for the render only; closed right after it and in the finally below
+            if config.get("hybrid_style"):
+                from normal_hybrid_style import finishing as _hybrid_finishing
+
+                _display = vg._scene_display_timeline(aligned, audio_end)
+                _starts = [w[0] for w in _display]
+                _by_idx = {i: transition_map[str(r.get("scene_number") or "")] for i, r in enumerate(aligned)
+                           if transition_map and transition_map.get(str(r.get("scene_number") or ""))}
+                try:   # the gfx-core template graphics (animated, drawn by gfx-overlay-engine) planned from the narration; never stops the render
+                    from graphics import graphics_from_timeline as _gfx_from_timeline
+                    from normal_gfx.pipeline import prepare as _gfx_prepare
+
+                    _gw, _gh = (int(x) for x in str(config.get("resolution") or "1920x1080").split("x"))
+                    _gtl = editorial_timeline_for_render(editorial_plan, graphics=bool(smart_cfg.graphics), map_niche=bool(smart_cfg.map_niche))
+                    _gfx_prepared = _gfx_prepare(whisper_words, float(audio_end), aligned, _display, _gfx_from_timeline(_gtl) if _gtl else [],
+                                                 width=_gw, height=_gh, captions=bool(config["captions"]),
+                                                 caption_style=config.get("caption_style", "classic"))
+                    _gfx_prepared.filter_smart_text(scene_text_fx, _display)
+                except Exception as exc:
+                    _gfx_prepared = None
+                    print(f"[GFX] gfx-core graphics skipped ({exc})")
+                _hybrid_stack.enter_context(_hybrid_finishing(
+                    vg, render_audio, work_dir / "hybrid_style_sound.wav", float(audio_end), _starts, _by_idx,
+                    template_events=_gfx_prepared.events if _gfx_prepared else (), spec_filter=_gfx_prepared.hook_specs if _gfx_prepared else None))
+                print("[HYBRID STYLE] Hybrid Map graphics & sound: ON (Doc Style look, Hybrid Map sound design).")
             _render_job = ledger.create("render", reuse_active=False)
             ledger.start(_render_job.id)
             vg.render_video(
@@ -14685,9 +14915,14 @@ class VideoGeneratorApp(ctk.CTk):
                 render_cache_state_dir=state_dir,
                 perf=perf,
                 progress_cb=_progress_cb,
-                graphics_look=("doc_looks" if config.get("enoch_template") else "doc") if self._doc_style_on() else "",
-                doc_channel=str(self._settings.get("pakmap_channel_name", "") or "") if self._doc_style_on() else "",
+                graphics_look=("doc_looks" if (config.get("enoch_template") or _gfx_prepared) else "doc") if (self._doc_style_on() or config.get("hybrid_style")) else "",
+                doc_channel=str(self._settings.get("pakmap_channel_name", "") or "") if (self._doc_style_on() or config.get("hybrid_style")) else "",
             )
+            _hybrid_stack.close()
+            if config.get("hybrid_style"):
+                _gfx_done = bool(_gfx_prepared) and _gfx_prepared.composite(config["output_path"])
+                print(_gfx_prepared.final_line(_gfx_done) if _gfx_prepared is not None
+                      else "[GFX] RESULT: the animated template graphics could not be planned; the video uses the Doc Style look.")
             ledger.complete(_render_job.id, outputs=[config["output_path"]])
             if config.get("enoch_template"):  # opt-in audio finishing + QC report, this style only
                 try:
@@ -14748,6 +14983,10 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             self._ui_queue.put(("error", traceback.format_exc()))
         finally:
+            try:
+                _hybrid_stack.close()
+            except Exception:
+                pass
             try:
                 for _job in ledger.jobs(state="running"):
                     if _job.type in ("render", "align", "editorial"):
@@ -14931,6 +15170,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_primary_cta()
 
     def _on_assets_partial(self, payload: dict) -> None:
+        try:
+            from learning.events import note_assets_outcome as _lrn
+            _lrn(self, False, (payload or {}).get("ready"), (payload or {}).get("total"))
+        except Exception:
+            pass
         tracking_run, self._normal_tracking = self._normal_tracking, None
         self._track_generation_end(
             tracking_run, "failed", category="asset",
@@ -14954,6 +15198,11 @@ class VideoGeneratorApp(ctk.CTk):
         )
 
     def _on_assets_complete(self, payload: dict) -> None:
+        try:
+            from learning.events import note_assets_outcome as _lrn
+            _lrn(self, True, (payload or {}).get("ready"), (payload or {}).get("total"))
+        except Exception:
+            pass
         self._end_generate_run()
         snap = self._qa_snapshot()
         ready = int((payload or {}).get("ready") or (snap.ready if snap else 0))

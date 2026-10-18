@@ -360,6 +360,7 @@ def generate_pakmap_video(
 
     sidecar = getattr(outcome, "sidecar", {}) or {}
     credits = list((sidecar.get("credits") or {}).get("attribution") or []) + list((sidecar.get("credits") or {}).get("notes") or [])
+    credits += [w[len("credit: "):] for w in res.report.warnings if w.startswith("credit: ") and w[len("credit: "):] not in credits]   # plan-level credits (OpenStreetMap place outlines)
     renderer_notes = [w.get("message", str(w)) if isinstance(w, dict) else str(w) for w in sidecar.get("warnings", [])]
     try:
         output_path.with_name(output_path.stem + " - credits.txt").write_text(credits_text(credits, renderer_notes), encoding="utf-8")

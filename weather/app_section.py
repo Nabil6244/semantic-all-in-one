@@ -769,10 +769,20 @@ def load_newsdoc_csv(app, text: str) -> bool:
     if not rows:
         M.messagebox.showerror(STYLE_NAME, "This is not a News Doc story CSV (its header needs vo_anchor and shot).\n\n"
                                            "With News Doc selected, Copy the CSV prompt gives Claude the format.")
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "weather", text=text)
+        except Exception:
+            pass
         return False
     p = project(app)
     p.root.mkdir(parents=True, exist_ok=True)
     (p.root / story_csv.FILE).write_text(text, encoding="utf-8")
+    try:
+        from learning.events import note_import as _lrn
+        _lrn(app, "weather", text=text, final_path=p.root / story_csv.FILE, style=current_style(app))
+    except Exception:
+        pass
     app._weather_file_var.set(str(p.root / story_csv.FILE))
     set_text(app, f"News Doc story CSV loaded: {len(rows)} row(s).\n\n" + ("\n".join(f"  {n}" for n in notes) + "\n\n" if notes else "") +
              "Each row's shot, search and graphic are used for its sentence; everything else is chosen automatically, and every News "
@@ -796,6 +806,11 @@ def load_plan(app, paths) -> bool:
             text = Path(path).read_text(encoding="cp1252", errors="replace")
         except OSError as exc:
             M.messagebox.showerror("Cannot read the plan", str(exc))
+            try:
+                from learning.events import note_import_failed as _lrn
+                _lrn(app, "weather", path=path)
+            except Exception:
+                pass
             return False
         from .newsdoc import KEY as ND_KEY
         from .newsdoc import story_csv
@@ -823,6 +838,11 @@ def load_plan(app, paths) -> bool:
             msg = (f"The {missing} part is missing.\n\nLoad the whole plan: one CSV made with Copy the CSV prompt, "
                    "or select beats.csv and weather_layers.csv together.")
         M.messagebox.showerror("Not a complete Weather plan", msg)
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "weather", paths=list(paths))
+        except Exception:
+            pass
         return False
     try:
         p.root.mkdir(parents=True, exist_ok=True)
@@ -836,7 +856,17 @@ def load_plan(app, paths) -> bool:
             (p.root / "plan.csv").write_text(one_file, encoding="utf-8")
     except OSError as exc:
         M.messagebox.showerror(STYLE_NAME, f"Could not save the plan in the project: {exc}")
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "weather", paths=list(paths))
+        except Exception:
+            pass
         return False
+    try:
+        from learning.events import note_import as _lrn
+        _lrn(app, "weather", paths=list(paths), style=current_style(app))
+    except Exception:
+        pass
     app._weather_file_var.set(str(p.root))
     app._weather_ok = None
     if not app._weather_enabled_var.get():

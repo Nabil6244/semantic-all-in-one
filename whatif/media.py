@@ -119,6 +119,22 @@ def _save_on_table_rows(shots: Sequence[Any], numbers: Dict[str, str], images_di
         man.set(row, {**rec, "status": "complete", "local_path": str(s.file), "stand_in_for": row, "error": None})
 
 
+def _stand_in_for(man: Any, shot: Any) -> Optional[dict]:
+    """A finished file of another manifest entry that was made for this shot's own request (same words): a Commons or AI
+    stand-in saved under a later pass's number. None when there is none."""
+    want = " ".join(shot.asset.partition(":")[2].lower().split())[:60]
+    if not want:
+        return None
+    for key, rec in sorted((getattr(man, "_data", None) or {}).items(), reverse=True):
+        if str(key).lstrip("0") == str(shot.row) or rec.get("status") != "complete":
+            continue
+        f = Path(str(rec.get("local_path") or "/-"))
+        said = " ".join(str(rec.get("prompt") or rec.get("stock_query") or "").lower().split())[:60]
+        if f.is_file() and said and said == want:
+            return rec
+    return None
+
+
 def _from_saved(shots: Sequence[Any], images_dir: Path, log: Callable[[str], None]) -> Any:
     """Render: every asset as it is saved for its Visual Plan row -- nothing searched, generated or downloaded. A row with no saved
     file is reported (unresolved), never fetched."""
@@ -130,6 +146,12 @@ def _from_saved(shots: Sequence[Any], images_dir: Path, log: Callable[[str], Non
     for s in asset_shots(shots):
         rec = man.get(str(s.row)) or {}
         f = Path(str(rec.get("local_path") or "/-"))
+        if not (rec.get("status") == "complete" and f.is_file()):
+            alt = _stand_in_for(man, s)       # a stand-in saved under another number is the row's picture: never stop Render for it
+            if alt:
+                rec, f = alt, Path(str(alt["local_path"]))
+                man.set(str(s.row), {**alt, "stand_in_for": str(s.row), "error": None})
+                log(f"[What If] scene {s.row}: its stand-in picture ({f.name}) was recorded under another number; now saved on the row")
         if rec.get("status") == "complete" and f.is_file():
             s.file, s.credit = str(f), str(rec.get("credit") or "")
             if f.suffix.lower() in VIDEO_EXT:
@@ -304,6 +326,9 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
                     **_renumbered(kw, {str(s.row): first_rows[s.id] for s in named}))
         _apply(named, got2)
         _merge(got, got2)
+        # a Commons picture is also recorded under the Visual Plan row it fills: Render reads only that row (project #023: rows
+        # 10, 13 and 44 showed READY from the Commons stand-ins 095/096/101 but had no saved file, so Render stopped)
+        _save_on_table_rows(named, {str(s.row): first_rows[s.id] for s in named}, Path(images_dir))
         first = max(x.row for x in named) + 1
     redo = []
     # every miss gets its AI picture, not only those in the opening (FLOW_OPEN_S): a later miss used to be left out, and the video

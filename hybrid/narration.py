@@ -31,7 +31,9 @@ class Sentence:
         return {"index": self.index, "text": self.text, "start": round(self.start, 3), "end": round(self.end, 3)}
 
 
-_SENT_END = re.compile(r"(?<=[.!?…])[\"'”’)\]]*\s+(?=[\"'“‘(\[]?[A-Z0-9])")
+# a sentence ends at its stop and the closing quote or bracket right after it (up to two of them), which stay WITH the sentence: `... long ago."` is one piece
+_Q = "[\"'”’)\\]]"
+_SENT_END = re.compile(rf"(?:(?<=[.!?…])|(?<=[.!?…]{_Q})|(?<=[.!?…]{_Q}{_Q}))\s+(?=[\"'“‘(\[]?[A-Z0-9])")
 
 
 def split_script(text: str) -> List[str]:

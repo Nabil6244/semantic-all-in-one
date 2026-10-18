@@ -1,0 +1,2730 @@
+{
+ "summary": {
+  "templates_in_library": 79,
+  "technically_renderable": 79,
+  "eligible_over_the_map": 79,
+  "eligible_over_footage": 68,
+  "full_screen_plates": 17,
+  "map_only": 11,
+  "with_an_automatic_rule": 39
+ },
+ "templates": [
+  {
+   "id": "before_after_label",
+   "family": "broadcast",
+   "use": "The big label of a before / after pair switching halfway (rows 'Before=Aug 2017; After=Aug 2023').",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6.5,
+   "full_screen_plate": false,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "chapter_serif",
+   "family": "broadcast",
+   "use": "A serif italic kicker over a tracked title wiped in from the left (date over event name).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4.5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "'Part/Chapter N' and a title of 2-7 words in the same or the next sentence",
+    "eligible": "a titled section is announced",
+    "placement": "serif kicker over a tracked title",
+    "timing": "from the announcement to the end of the title",
+    "fallback": "no title = chapter_words"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "counter_corner",
+   "family": "broadcast",
+   "use": "A number counting up in a corner panel: label, big value, a small line.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "value (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same quantity as big_number",
+    "eligible": "a quantity, when the middle of the picture should stay clear",
+    "placement": "corner panel, top right",
+    "timing": "from the sentence start",
+    "fallback": "a temperature is left to big_number"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "dim_vignette",
+   "family": "broadcast",
+   "use": "The frame dims with a soft vignette (put under a card so the type reads).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "a pure text or transition effect: nothing in the narration says when it belongs, so it is never forced (an author may still ask for it)"
+  },
+  {
+   "id": "keyword_title",
+   "family": "broadcast",
+   "use": "Heavy white words appearing one after another, the key word in a red box ('THE [PATH]'): the Teamplate title card.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 3.5,
+   "full_screen_plate": false,
+   "required": [
+    "words (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline (below) of at most five words",
+    "eligible": "a short sentence lands as a beat",
+    "placement": "heavy words one by one, the longest boxed in red",
+    "timing": "from the sentence start",
+    "fallback": "six or more words = a text style instead"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "lower_kicker",
+   "family": "broadcast",
+   "use": "Lower third with no bar: an orange kicker tag, a heavy white title, a line of small caps.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a person with what they are, as for name_bar",
+    "eligible": "the narrator introduces a person",
+    "placement": "lower third with a kicker (the role) and the name",
+    "timing": "from the name",
+    "fallback": "no role = nothing (name_bar needs one too)"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "record_badge",
+   "family": "broadcast",
+   "use": "A record badge: a coloured stamp headline, the place, the new value and date, the old record it beat (set date, prev_value, prev_date in params slots).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": false,
+   "required": [
+    "headline (label)",
+    "place (sub)",
+    "value (text)",
+    "date (params.slots)",
+    "prev_value (params.slots)",
+    "prev_date (params.slots)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 9,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "what record, where, new value and date, old value and date, all in one sentence",
+    "eligible": "a broken record is stated in full",
+    "placement": "badge",
+    "timing": "from the record words",
+    "fallback": "anything missing = no badge"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "record_card",
+   "family": "broadcast",
+   "use": "A side card: a title, then up to four rows (label, big value, small date) sliding in, a source line at the foot.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "scale_bar",
+   "family": "broadcast",
+   "use": "A scale legend: a gradient bar through colours with end labels and a title.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "labels (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs labels: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "stat_countup",
+   "family": "broadcast",
+   "use": "A big white number counting up over a darkened frame with its label typed beside it, then a compact orange tag top-right.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": false,
+   "required": [
+    "value (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same quantity as big_number",
+    "eligible": "a quantity, when another number layout was just shown",
+    "placement": "white number counting up, label typed beside it (dims the frame)",
+    "timing": "from the sentence start",
+    "fallback": "a temperature is left to big_number"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "tag_context",
+   "family": "broadcast",
+   "use": "Small black context tag at the top centre ('NHC BEST TRACK', 'SOURCE: UN').",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: text (text)"
+  },
+  {
+   "id": "tag_fact",
+   "family": "broadcast",
+   "use": "Orange fact tag in the middle of the frame (one short fact).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 3.5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "an extractor exists (superlatives) but it is not a rule: on the real project every tag restated a caption, counter or marker the plan already showed"
+  },
+  {
+   "id": "value_chip",
+   "family": "broadcast",
+   "use": "A value at a place on the map: a ring dot and a chip with the number counting up, a label and a small line (pins to the row's geo_ref).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 5.5,
+   "full_screen_plate": false,
+   "required": [
+    "value (text)",
+    "label (label)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template value_chip is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "photo_plate_1",
+   "family": "editorial",
+   "use": "1 framed picture(s) on a dark grid plate with serif captions and gold rules.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "photo_plate_2",
+   "family": "editorial",
+   "use": "2 framed picture(s) on a dark grid plate with serif captions and gold rules.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "photo_plate_3",
+   "family": "editorial",
+   "use": "3 framed picture(s) on a dark grid plate with serif captions and gold rules.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "quote_card",
+   "family": "editorial",
+   "use": "A gold bar, an italic display quote and a tracked attribution over darkened footage.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 9,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a quotation in quote marks of 4-30 words, a speaker named in the sentence or 8+ words",
+    "eligible": "the sentence quotes someone",
+    "placement": "left block, soft backing over footage",
+    "timing": "from the first quoted word to the last, +1 s",
+    "fallback": "a quotation is never shortened: too long or too short = no card"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "subtitle_gold",
+   "family": "editorial",
+   "use": "Serif subtitle lines with the key words lit in gold as they are spoken.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: text (text)"
+  },
+  {
+   "id": "end_question",
+   "family": "facts",
+   "use": "The closing question on a dimmed frame, words popping in, with a small kicker above ('WHAT DO YOU THINK?').",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "one of the narration's last two sentences, a question of 3-14 words",
+    "eligible": "the narrator closes with a question",
+    "placement": "centre, words popping in on a dimmed frame (backing over footage)",
+    "timing": "from the question's first word",
+    "fallback": "no question = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "fact_card",
+   "family": "facts",
+   "use": "The numbered fact card of a '10 facts' video: a huge outlined numeral, the headline on a colour bar, one or two lines of body.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "n (value_to)",
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 7,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "'Fact/Number N' and a headline of 2-7 words in the same sentence",
+    "eligible": "a numbered fact is announced",
+    "placement": "numbered card",
+    "timing": "from 'Fact N'",
+    "fallback": "no headline in the sentence = no card"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "fact_title",
+   "family": "facts",
+   "use": "Opening card of a list video: a big title with a kicker and a rule ('10 FACTS ABOUT CANADA').",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: title (label)"
+  },
+  {
+   "id": "chapter_next",
+   "family": "geo",
+   "use": "Chapter card: a tiny 'NEXT' kicker, a big display title and a thin gold rule (over a darkened map or footage).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: title (label)"
+  },
+  {
+   "id": "chokepoint_callout",
+   "family": "geo",
+   "use": "A strait or pass: pulsing ring, two banks, a card with its name, width and one fact (row geo_ref = the place).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template chokepoint_callout is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "distance_ruler",
+   "family": "geo",
+   "use": "A dashed ruler between two places with the great-circle distance counting up in a chip.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "points (geo)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template distance_ruler is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "flow_route",
+   "family": "geo",
+   "use": "Dashes and chevrons flow along a route (trade, supply, migration).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "points (geo)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template flow_route is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "heat_spread",
+   "family": "geo",
+   "use": "Heat spreads from one or more places: soft warm blobs that grow, optional label.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "points (geo)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template heat_spread is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "location_card",
+   "family": "geo",
+   "use": "A place card: name, coordinates, one fact, joined to the place by a leader line (row geo_ref = the place).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template location_card is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "photo_leader",
+   "family": "geo",
+   "use": "A photo card at the side with a leader line to the place it shows (give the picture in params slots image).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "image (params.slots)"
+   ],
+   "map_bound": true,
+   "needs_picture": true,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template photo_leader is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "place_lowerthird",
+   "family": "geo",
+   "use": "A name strip bottom-left: place or person with a small second line.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 4,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a place the narrator introduces that the map can find, not the subject of the whole video",
+    "eligible": "'In/At/Near X' or 'X is a <kind>'",
+    "placement": "lower-left bar",
+    "timing": "from the place name",
+    "fallback": "unfindable place = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "region_label",
+   "family": "geo",
+   "use": "Name over a highlighted region (the map adapter draws the outline and fill): glowing tracked name, optional sub line, a tag.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template region_label is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "region_spotlight",
+   "family": "geo",
+   "use": "The border draws itself around a region and everything outside is dimmed; its name at the centre (geo_ref = an area).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "polys (geo_area)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template region_spotlight is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "route_travel",
+   "family": "geo",
+   "use": "A route draws itself between places (geo_ref 'A;B;C') with a marker travelling along it and the ends named.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "points (geo)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template route_travel is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 7,
+    "where": [
+     "map"
+    ],
+    "requires": "'from A to B' with both places found on the map",
+    "eligible": "a journey",
+    "placement": "route drawn on the map",
+    "timing": "from the sentence start",
+    "fallback": "a place the atlas cannot find = nothing; never over footage (the map is hidden)"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "territory_clock",
+   "family": "geo",
+   "use": "A big year counting between two years with the share or area held growing as a bar and number (set year_from, year_to in params slots).",
+   "niches": [
+    "map",
+    "geopolitics",
+    "history",
+    "travel"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": false,
+   "required": [
+    "year_from (params.slots)",
+    "year_to (params.slots)",
+    "value_to (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs figures (dates, frames, before/after values) of its own that no sentence supplies reliably"
+  },
+  {
+   "id": "chapter_words",
+   "family": "news",
+   "use": "One to three huge words appearing one by one on a dimmed frame (a part title).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 3.5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "'Part/Chapter/Section/Act N' announced with no title after it",
+    "eligible": "the narrator announces a section",
+    "placement": "huge words on a dimmed frame",
+    "timing": "from the announcement",
+    "fallback": "a title after it goes to chapter_serif"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "checklist_card",
+   "family": "news",
+   "use": "A paper checklist card on the right: red header, items ticked one after the other.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "items (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 7,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "three to five consecutive sentences opening with First/Second/Third or Step one/two/three, each clause of 7 words and 24 characters or fewer",
+    "eligible": "a spoken sequence",
+    "placement": "paper card on the right",
+    "timing": "from the first step to the last, +1 s",
+    "fallback": "a longer clause = no card (it is never cut)"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "day_cards",
+   "family": "news",
+   "use": "A row of up to five cards dealt in one by one: heading, big value, unit (a forecast, a few countries, a few dates).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "dossier_card",
+   "family": "news",
+   "use": "A case file on paper: the name circled in red, facts typed below (a country, an event, a treaty).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6.5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "framed_still",
+   "family": "news",
+   "use": "A still in a thin light frame on dark navy with a caption, slowly pushing in (give the picture in params slots image).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "caption (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: caption (label)"
+  },
+  {
+   "id": "glitch_cut",
+   "family": "news",
+   "use": "A glitch cut that hides a change of picture: RGB slices then a white flash with cyan stripes.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 0.8,
+   "full_screen_plate": false,
+   "required": [],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "a pure text or transition effect: nothing in the narration says when it belongs, so it is never forced (an author may still ask for it)"
+  },
+  {
+   "id": "headline_wash",
+   "family": "news",
+   "use": "A headline left-centre over the shot on a dark wash, a grey line under it.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: title (label)"
+  },
+  {
+   "id": "name_bar",
+   "family": "news",
+   "use": "Orange bar with a name and a role, bottom-left (a person on camera).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a person with what they are ('Jane Smith, a glaciologist,' / 'Dr. Smith said' / 'the painter Eugene von Guerard')",
+    "eligible": "the narrator introduces a person",
+    "placement": "lower-left bar",
+    "timing": "from the name",
+    "fallback": "a bare name or a place name = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "place_pulse",
+   "family": "news",
+   "use": "Orange place tag with a pulsing white ring: pins to a map place when the row has a geo_ref.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)"
+   ],
+   "map_bound": true,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": null,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": false,
+   "over_footage_problem": "template place_pulse is drawn on the map (it needs a place on it), and the map is hidden under footage",
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": false,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "sits on the map (needs places or follows one): the planner does not know what the camera shows, so it is written into a map beat by the plan"
+  },
+  {
+   "id": "polaroid_board",
+   "family": "news",
+   "use": "Two pinned polaroids on a warm paper board with a taped title (two sides of a story).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "quote_boxed",
+   "family": "news",
+   "use": "Heavy caps quote on dimmed footage, words appearing one by one, the closing phrase boxed in red.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a short (under 8 words) unattributed quotation",
+    "eligible": "the narrator quotes a phrase",
+    "placement": "centre, heavy capitals",
+    "timing": "from the quoted words",
+    "fallback": "no quote marks = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "quote_card_black",
+   "family": "news",
+   "use": "The same boxed quote on a solid black full-screen card.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "no extractor yet reads its required slots from a sentence: text (text)"
+  },
+  {
+   "id": "side_panel",
+   "family": "news",
+   "use": "A navy panel on the right 44% with a teal edge, a title and up to three bullets (the explainer beside footage).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "bullets (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 2,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "'three <things>:' with three names, or a spoken sequence of exactly three steps",
+    "eligible": "three things or steps are listed",
+    "placement": "panel on the right 44% with a title and bullets",
+    "timing": "from 'three' / the first step",
+    "fallback": "two or four items = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "three_rings",
+   "family": "news",
+   "use": "Three outlined circles on black, each with a word, popping in one by one (three causes, three ideas).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "items (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "'three <things>:' and exactly three names of one or two words",
+    "eligible": "three things are named together",
+    "placement": "three rings, centre",
+    "timing": "from 'three'",
+    "fallback": "two or four names = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "timeline_strip",
+   "family": "news",
+   "use": "A horizontal timeline: the line draws itself, year and short label appear in turn (history of a border, a city, a dispute).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 8,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "three or more consecutive sentences that each date one event, in order, within 14 s",
+    "eligible": "a run of dated events",
+    "placement": "strip (backing over footage)",
+    "timing": "from the first date to the last, +1 s",
+    "fallback": "fewer than three, or out of order = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "typed_caption",
+   "family": "news",
+   "use": "Small caps typed in bottom-left over the shot on a soft dark floor.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4.5,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "placed by Doc Style as the look of the plan's own title chips, captions and counters (not by narration rules)"
+  },
+  {
+   "id": "year_wipe",
+   "family": "news",
+   "use": "A huge year or number wiping in digit by digit over dimmed footage, with a small line under it.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 4,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a year or decade after in/since/by/during/until/before/after/from",
+    "eligible": "a date is stated",
+    "placement": "large year wiped in",
+    "timing": "from the sentence",
+    "fallback": "no year = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "yellow_tag",
+   "family": "news",
+   "use": "Yellow pill tag top-left that slides in (a topic or place tag over footage; News Doc look).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "placed by Doc Style as the look of the plan's own title chips, captions and counters (not by narration rules)"
+  },
+  {
+   "id": "bar_race",
+   "family": "stats",
+   "use": "A bar race: frames of values by year play in turn and the bars re-rank (give frames in params slots as [{label: 2000, rows: [{label, value}]}, ...]).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 9,
+   "full_screen_plate": true,
+   "required": [
+    "frames (params.slots)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs figures (dates, frames, before/after values) of its own that no sentence supplies reliably"
+  },
+  {
+   "id": "before_after_slider",
+   "family": "stats",
+   "use": "A before / after picture slider: the divider sweeps across (give before and after pictures in params slots).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "before (params.slots)",
+    "after (params.slots)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs figures (dates, frames, before/after values) of its own that no sentence supplies reliably"
+  },
+  {
+   "id": "big_number",
+   "family": "stats",
+   "use": "One huge number counting up with a unit and a small caption: the number slam of a fact.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": false,
+   "required": [
+    "label (label)",
+    "value (value_to)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 2,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a quantity with a scale word or a unit (a small number only with what it measures), or 'twice as large as X'",
+    "eligible": "a measurement, a size, a count",
+    "placement": "centre, count-up",
+    "timing": "from the number words, held as the template says",
+    "fallback": "a bare small number, a year or no unit = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "bubble_compare",
+   "family": "stats",
+   "use": "Proportional bubbles side by side (area = value), the value inside and the name below.",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same two numbers and one unit as versus_numbers",
+    "eligible": "a comparison of two figures",
+    "placement": "two proportional bubbles on a plate (backing over footage)",
+    "timing": "from the first name",
+    "fallback": "no unit = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "dial_gauge",
+   "family": "stats",
+   "use": "A half-circle gauge whose needle swings to a value (green, amber, red zones).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": true,
+   "required": [
+    "value (value_to)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same percentage as ring_percent",
+    "eligible": "a share, when the ring was just shown",
+    "placement": "half-circle gauge",
+    "timing": "from the sentence start",
+    "fallback": "no percentage = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "dot_tally",
+   "family": "stats",
+   "use": "A grid of dots filling one after another (1 dot = a number of people or things), a counter beside it (set per in params slots).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "total (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs figures (dates, frames, before/after values) of its own that no sentence supplies reliably"
+  },
+  {
+   "id": "gold_stat",
+   "family": "stats",
+   "use": "Editorial stat: serif numeral in gold with a tracked caption beneath, over darkened footage.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics",
+    "history"
+   ],
+   "hold_s": 5,
+   "full_screen_plate": false,
+   "required": [
+    "value (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 5,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same quantity as big_number",
+    "eligible": "a quantity, when a big number was just shown",
+    "placement": "serif numeral, gold",
+    "timing": "from the number words",
+    "fallback": "a temperature is left to big_number"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "month_columns",
+   "family": "stats",
+   "use": "A dark card with a 12-month (or any) column chart over a map or footage: values above the bars, letters below.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 8,
+   "full_screen_plate": false,
+   "required": [
+    "title (label)",
+    "values (values)",
+    "labels (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs labels/values: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "number_line",
+   "family": "stats",
+   "use": "A number line with labelled points appearing in turn (use params slots log: true for orders of magnitude).",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "rank_bars",
+   "family": "stats",
+   "use": "Two to five bars compared (rainfall, population, area): the name sits inside the bar, the value counts up after it.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 7,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same two numbers and one unit as versus_numbers",
+    "eligible": "a comparison of two figures",
+    "placement": "two bars",
+    "timing": "from the first name",
+    "fallback": "no unit = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "ring_percent",
+   "family": "stats",
+   "use": "A percentage as a glowing ring that fills (share of territory, of population, of trade).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "title (text)",
+    "value (value_to)",
+    "label (label)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 7,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a share stated as a percentage between 0 and 100",
+    "eligible": "'60 percent' / 'sixty percent'",
+    "placement": "ring with its tag (own tag dropped beside a title chip)",
+    "timing": "from the sentence start",
+    "fallback": "no percentage = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "scoreboard",
+   "family": "stats",
+   "use": "A scoreboard of up to four rivals: name and big score each, the leader in gold (rows 'A=3; B=1').",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "stacked_compare",
+   "family": "stats",
+   "use": "Stacked bars to compare two or more places split into parts (rows 'CANADA:Energy=60; CANADA:Trade=40; USA:Energy=30; USA:Trade=70').",
+   "niches": [
+    "any"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 6,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "the same two numbers and one unit as versus_numbers",
+    "eligible": "a comparison of two figures",
+    "placement": "stacked bars on a plate (backing over footage)",
+    "timing": "from the first name",
+    "fallback": "no unit = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "top_list",
+   "family": "stats",
+   "use": "A ranked list in a card: rank, name, bar and value (largest countries, tallest peaks, busiest ports).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "title (label)",
+    "rows (rows)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs rows: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "trend_line",
+   "family": "stats",
+   "use": "A line chart that draws itself in a card; the last value lands as a labelled dot (population over years, price, temperature).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 7,
+   "full_screen_plate": true,
+   "required": [
+    "title (label)",
+    "values (values)",
+    "labels (labels)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": false,
+   "auto_rows": 0,
+   "rule": null,
+   "why_not_auto": "needs labels/values: a table or series of figures that a spoken sentence rarely states completely (no figure is invented to fill it)"
+  },
+  {
+   "id": "versus_numbers",
+   "family": "stats",
+   "use": "Two big numbers face to face with a VS badge (A against B).",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 6,
+   "full_screen_plate": true,
+   "required": [
+    "title (text)",
+    "a_label (label)",
+    "b_value (value_to)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 8,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "two named things with two numbers in one unit, stated side by side",
+    "eligible": "a comparison of two figures",
+    "placement": "plate with two numbers (backing over footage)",
+    "timing": "from the first name",
+    "fallback": "different units or scales = nothing"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "tag_headline",
+   "family": "text",
+   "use": "The small dark tag box with tracked caps, for chart or section headings.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_box",
+   "family": "text",
+   "use": "Text style 'box' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_glow",
+   "family": "text",
+   "use": "Text style 'glow' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_outline",
+   "family": "text",
+   "use": "Text style 'outline' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_slam",
+   "family": "text",
+   "use": "Text style 'slam' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_split",
+   "family": "text",
+   "use": "Text style 'split' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_stack",
+   "family": "text",
+   "use": "Text style 'stack' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_stamp",
+   "family": "text",
+   "use": "Text style 'stamp' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_sweep",
+   "family": "text",
+   "use": "Text style 'sweep' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_typewriter",
+   "family": "text",
+   "use": "Text style 'typewriter' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_underline",
+   "family": "text",
+   "use": "Text style 'underline' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  },
+  {
+   "id": "text_word_pop",
+   "family": "text",
+   "use": "Text style 'word_pop' for any headline or key phrase.",
+   "niches": [
+    "map",
+    "travel",
+    "geopolitics"
+   ],
+   "hold_s": 4,
+   "full_screen_plate": false,
+   "required": [
+    "text (text)"
+   ],
+   "map_bound": false,
+   "needs_picture": false,
+   "renders_on_map": true,
+   "renders_over_footage": true,
+   "render_problem": null,
+   "context_map": true,
+   "context_over_footage": true,
+   "over_footage_problem": null,
+   "plan_layer_on_map_beat": true,
+   "plan_layer_on_footage_beat": true,
+   "auto_rule": true,
+   "auto_rows": 1,
+   "rule": {
+    "weight": 2.5,
+    "group": "punchline",
+    "group_gap_s": 75.0,
+    "where": [
+     "map",
+     "footage"
+    ],
+    "requires": "a punchline: a declarative sentence of 3-8 words, no figures, no question, right after a sentence of 14+ words, not a heading and not already said by the plan's own text",
+    "eligible": "a short sentence lands as a beat of its own",
+    "placement": "centre, the style's own animation (dim or backing over footage)",
+    "timing": "from the sentence start, as long as the style holds",
+    "fallback": "shown word for word: never reworded or shortened; at most one text effect in 75 s"
+   },
+   "why_not_auto": ""
+  }
+ ]
+}

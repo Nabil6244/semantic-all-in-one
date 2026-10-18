@@ -34,7 +34,8 @@ Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and wha
     why        one short phrase: what this beat does ("where Lesotho is", "feel the winter")
   A beat ends where the next beat starts. The first beat starts the video.
 
-- row=layer: something drawn on the map (map and map_footage beats only).
+- row=layer: something drawn on the map (map and map_footage beats). A FOOTAGE beat may also carry layer rows, but only type=template ones marked
+  [map or footage] in the TEMPLATES list: a graphic drawn above the clip.
     vo_anchor  the words it appears on: 2 to 5 words copied from ITS OWN BEAT'S text cell
     type       hud_title, marker, zone_label, fill, line, stat, caption or template
     and what that type needs (see LAYERS)
@@ -53,6 +54,17 @@ Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and wha
   A map callout that sits on a place (location_card, chokepoint_callout, place_pulse, value_chip, region_label) takes that ONE place in
   place. Use ONLY numbers and facts stated in the script. Leave hold empty: a graphic has its own length. At most one graphic per
   beat, not together with a stat. Every graphic plays its own sound.
+  HOW OFTEN: go through the script for what it states that a graphic shows better than a caption: a quantity or measurement (big_number,
+  counter), a share, a comparison of two figures, a ranking, a date or a run of dates, a named person with their role, a quotation, a
+  place the narrator introduces. A long video usually has one every 60 to 90 seconds; a stretch with none of those has none. Vary the
+  ids: the same id again only for a different fact and not within two minutes. The map and the footage stay the main picture; use a
+  full-screen card (quote, ranking, timeline) only a few times in the whole video.
+  OVER FOOTAGE FIRST: the map already carries its own markers, titles and cards, and footage carries nothing. So put most graphics on the footage:
+  under a footage beat write the template row with its vo_anchor on the words that state the fact (the graphic appears when they are spoken and
+  leaves with the beat). Use the map beats for a graphic only when that fact belongs to the map (a route, a ruler, an outline, a callout that follows
+  a place: the [map only] ones) or no footage beat is close to the words that state it. Vary the layouts: a figure as a big number, a corner counter
+  or a serif numeral; a comparison as head to head, bars or bubbles; a person on a name bar or a lower third; a short sentence that lands as a beat as
+  one of the text styles.
   TEMPLATES (id [family] reads columns; params.slots ... = slots inside the JSON "slots": what it is for):
 <<<TEMPLATE CATALOG>>>
 
@@ -138,6 +150,12 @@ CAMERA
   place changes, never while footage is on screen.
 - place must be a NAME the atlas knows (a country, province, big city, or a region like
   Sahel), never a coordinate. Use frame=country or region; local for a city or site.
+- PLACES THE ATLAS CANNOT FIND stop the render. England, Scotland, Wales and Northern Ireland are known by name. A bay, sea, gulf,
+  strait, river, mountain, pass, island, estuary or small town is NOT: never use one as the camera place or a fill. Point the camera
+  at the county, province or country around it, and write a marker or label for such a place as decimal coordinates lat,lon
+  (latitude first), for example Morecambe Bay as 54.10,-2.85.
+- Everything a map beat marks must sit inside the camera's view. A region frame on a small county or city shows only about 100 km:
+  when a beat names towns farther apart than that, make the camera place the country (or a large region) around them.
 - Named regions the atlas knows: Sahel, Sahara, Amazon, Alps, Himalayas, Great Lakes, Rust
   Belt, Midwest, New England, Appalachia, Pacific Northwest, Deep South, Gulf Coast, Sun
   Belt, Middle East, Balkans, Scandinavia, Horn of Africa and the continents. For any other
@@ -181,7 +199,8 @@ LIMITS (the app checks these)
   counts as 2; fills, lines and cards do not count).
 - Layers stay: stat 4.5 s, caption 4 s, marker 9 s; titles, fills and lines until their
   beat ends (or until after_footage / end).
-- A footage beat has only clip rows. A map beat has no clip rows and no card. A
+- A footage beat has clip rows and, when the narration states something a graphic shows, template rows ([map or footage] graphics only; never a marker,
+  line, fill, title chip, stat or caption). A map beat has no clip rows and no card. A
   map_footage beat has one to three card rows.
 - Never leave more than about 5 seconds of map narration with nothing new appearing.
 - Show only what the narrator says. Never add facts, numbers or places that are not in
@@ -200,7 +219,7 @@ CHECKLIST BEFORE YOU ANSWER
    vo_anchor is the first 3 to 5 words of its own text and unique in the script so far.
    Every layer's and card's vo_anchor is found, word for word, in its own beat's text
    cell. Check this row by row: it is what makes the CSV load.
-4. Every map and map_footage beat has a place and frame; footage beats have only clips.
+4. Every map and map_footage beat has a place and frame; footage beats have clips (and template rows that are [map or footage]).
 5. Every map_footage beat has one to three cards (each in its own place); every footage beat one to three clips.
 6. Every number comes from the script; stat formats contain no typed number.
 7. No file names invented; pictures are stock_image:/stock_video: descriptions.

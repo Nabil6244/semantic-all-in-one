@@ -361,11 +361,31 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
         for e in events:
             if e["type"] == "map_template" and before.get(e["id"]) in ("hud_title", "caption", "stat") and e["id"] in info:
                 info[e["id"]].type = "map_template"; info[e["id"]].note = f"doc style (was {before[e['id']]})"
+    narration_script = (spec_extra or {}).get("narration_script")      # Hybrid: the plan's own text, which has the punctuation Whisper's words lack
+    if spec_extra and "narration_script" in spec_extra:
+        spec_extra = {k: v for k, v in spec_extra.items() if k != "narration_script"}
     if auto_templates and len(tr):
         # numbers the narration states (a share, a size) get the matching universal graphic, within a pacing budget (gfx_templates.auto_events)
         import gfx_templates
 
-        taken = [(e["t_in"], e["t_out"]) for e in events if e["type"] in ("media_full", "map_template", "stat")]
+        # a graphic may sit over Hybrid footage that covers the map layers (cover_ui): the engine draws it above the clip (event flag over_footage);
+        # any other footage still blocks it
+        zn = lambda e: gfx_templates.zones_of(e["template"]) if e["type"] == "map_template" else None   # noqa: E731
+        taken = [(e["t_in"], e["t_out"], zn(e)) for e in events if (e["type"] == "media_full" and not e.get("cover_ui"))
+                 or (e["type"] == "map_template" and e.get("over_footage") is True and e.get("template", {}).get("id") not in gfx_templates.CHIP_TEMPLATES)]
+        # a map-layer graphic (caption, counter, title) is drawn UNDER full-screen footage: it blocks a new graphic only where footage does not cover it,
+        # and only in the part of the frame it draws in
+        hidden = [(e["t_in"], e["t_out"], zn(e)) for e in events if e["type"] == "map_template" and e.get("over_footage") is not True
+                  and e.get("template", {}).get("id") not in gfx_templates.CHIP_TEMPLATES]
+        def _words_of(e):   # what the plan's own graphic says on screen
+            if e["type"] == "map_template":
+                return " ".join(str(v) for v in (e.get("slots") or {}).values() if isinstance(v, (str, int, float)))
+            return " ".join(str(e.get(k, "")) for k in ("label", "sub", "text") if e.get(k))
+        texts = [(e["t_in"], e["t_out"], _words_of(e)) for e in events if e["type"] in ("map_template", "hud_title", "caption", "stat") and _words_of(e)]
+        footage = [(e["t_in"], e["t_out"]) for e in events if e["type"] == "media_full" and e.get("cover_ui")]
+        chips = [(e["t_in"], e["t_out"]) for e in events if e["type"] == "map_template" and e.get("template", {}).get("id") in gfx_templates.CHIP_TEMPLATES]
+        stats = [e for e in events if e["type"] == "stat"]      # a stat that shows the number a graphic would show gives way to it; any other stat still blocks it
+        replaced: List[str] = []
         def _where(name: str):
             try:
                 loc = resolve(name, "point")
@@ -373,15 +393,36 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             except Exception:
                 return None
 
-        for ev in gfx_templates.auto_events(words, niche="map", taken=taken, total=total, resolve=_where):
+        for ev in gfx_templates.auto_events(words, niche="map", taken=taken, total=total, resolve=_where, stats=stats, replaced=replaced, chips=chips, footage=footage, script=narration_script, hidden_under_footage=hidden, texts=texts):
             events.append(ev)
             info[ev["id"]] = EventReport(ev["id"], "map_template", 0, ev["t_in"], ev["t_out"], "derived", 0, note="added from the narration")
+        if replaced:
+            events = [e for e in events if e["id"] not in set(replaced)]
+            for sid in replaced:
+                info.pop(sid, None)
+        try:   # the boundary of a place the narration discusses is outlined at that moment (place_focus: real polygons only; city outlines are a planning-time lookup, cached)
+            import place_focus
+
+            focus = place_focus.focus_events(words, existing_events=events, footage=footage, total=total, script=narration_script)
+            for ev in focus.events:
+                events.append(ev)
+                info[ev["id"]] = EventReport(ev["id"], "fill", 0, ev["t_in"], ev["t_out"], "derived", 0, note=f"place focus: {ev['geo_focus']['entity']} ({ev['geo_focus']['source']})")
+            rep.warnings.extend(f"place focus: {s.place} not outlined: {s.reason}" for s in focus.skipped if s.notable)
+            rep.warnings.extend(f"credit: {c}" for c in focus.credits)
+        except Exception as exc:    # never a stop: the video simply has no highlights
+            rep.warnings.append(f"place focus skipped: {exc}")
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)
         info[ev["id"]].t_in, info[ev["id"]].t_out = ev["t_in"], ev["t_out"]
     rep.events = sorted(info.values(), key=lambda e: (e.t_in, e.row))
 
     # ---- 5. camera ---------------------------------------------------------------------
     camera, moves = _camera(cam_rows, events, total, width, height, rep)
+    try:  # an outline the camera cannot show is framed for as long as it shows (place_focus.frame_camera); a script with camera rows of its own is never moved
+        import place_focus
+
+        rep.warnings.extend(place_focus.frame_camera(camera, events, bool(cam_rows), total, width, height))
+    except Exception as exc:
+        rep.warnings.append(f"place focus framing skipped: {exc}")
     rep.moves = moves
 
     spec: Dict[str, Any] = {

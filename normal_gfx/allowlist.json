@@ -1,0 +1,442 @@
+{
+ "version": 1,
+ "_about": "Which gfx-core templates Normal Video may use. auto = placed by the narration planner (its own extractor, a variant of a fact it reads, or a rule in normal_gfx/rules.py); doc = placed by the Doc Style detectors; manual = allowed but never placed automatically; full_frame = opaque card, disabled by default; excluded = needs a map. Change a mode here, not in code.",
+ "full_frame_enabled": false,
+ "doc_looks": {
+  "checklist": "checklist_card",
+  "rings": "three_rings",
+  "forecast": "day_cards",
+  "panel": "side_panel",
+  "quote": "quote_boxed",
+  "quote_card": "quote_card_black",
+  "dossier": "dossier_card",
+  "glitch": "glitch_cut"
+ },
+ "templates": {
+  "bar_race": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "before_after_label": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "before_after_slider": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "big_number": {
+   "mode": "auto",
+   "family": "stats",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "bubble_compare": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "chapter_next": {
+   "mode": "manual",
+   "family": "geo",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "chapter_serif": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "chapter_words": {
+   "mode": "auto",
+   "family": "news",
+   "why": "\"Part two\" / \"Chapter 3\" / \"Step one\": the part title, verbatim"
+  },
+  "checklist_card": {
+   "mode": "doc",
+   "family": "news",
+   "why": "placed where graphics/doc_plan detects its pattern in the narration"
+  },
+  "chokepoint_callout": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "pinned to a map place"
+  },
+  "counter_corner": {
+   "mode": "auto",
+   "family": "broadcast",
+   "why": "a variant of big_number: the same number and label, the unit on the small line"
+  },
+  "day_cards": {
+   "mode": "full_frame",
+   "family": "news",
+   "why": "covers the whole frame with its own card (measured: ink coverage 100 %); off by default, rare when enabled"
+  },
+  "dial_gauge": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "dim_vignette": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "distance_ruler": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "draws on a map (needs lon/lat)"
+  },
+  "dossier_card": {
+   "mode": "full_frame",
+   "family": "news",
+   "why": "covers the whole frame with its own card (measured: ink coverage 100 %); off by default, rare when enabled"
+  },
+  "dot_tally": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "end_question": {
+   "mode": "auto",
+   "family": "facts",
+   "why": "a question the narrator asks (4-14 words), verbatim"
+  },
+  "fact_card": {
+   "mode": "auto",
+   "family": "facts",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "fact_title": {
+   "mode": "manual",
+   "family": "facts",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "flow_route": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "draws on a map (needs lon/lat)"
+  },
+  "framed_still": {
+   "mode": "manual",
+   "family": "news",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "glitch_cut": {
+   "mode": "doc",
+   "family": "news",
+   "why": "placed where graphics/doc_plan detects its pattern in the narration"
+  },
+  "gold_stat": {
+   "mode": "auto",
+   "family": "stats",
+   "why": "a variant of ring_percent: the same percentage as a serif gold numeral"
+  },
+  "headline_wash": {
+   "mode": "auto",
+   "family": "news",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "heat_spread": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "draws on a map (needs lon/lat)"
+  },
+  "keyword_title": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "location_card": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "a map location card"
+  },
+  "lower_kicker": {
+   "mode": "auto",
+   "family": "broadcast",
+   "why": "a variant of name_bar: the same person and role"
+  },
+  "month_columns": {
+   "mode": "manual",
+   "family": "stats",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "name_bar": {
+   "mode": "auto",
+   "family": "news",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "number_line": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "photo_leader": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "a leader line to a map place"
+  },
+  "photo_plate_1": {
+   "mode": "full_frame",
+   "family": "editorial",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "photo_plate_2": {
+   "mode": "full_frame",
+   "family": "editorial",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "photo_plate_3": {
+   "mode": "full_frame",
+   "family": "editorial",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "place_lowerthird": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "needs a place finder (a map lookup) to name a place"
+  },
+  "place_pulse": {
+   "mode": "excluded",
+   "family": "news",
+   "why": "pinned to a map place"
+  },
+  "polaroid_board": {
+   "mode": "manual",
+   "family": "news",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "quote_boxed": {
+   "mode": "auto",
+   "family": "news",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "quote_card": {
+   "mode": "auto",
+   "family": "editorial",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "quote_card_black": {
+   "mode": "full_frame",
+   "family": "news",
+   "why": "covers the whole frame with its own card (measured: ink coverage 100 %); off by default, rare when enabled"
+  },
+  "rank_bars": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "record_badge": {
+   "mode": "auto",
+   "family": "broadcast",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "record_card": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "region_label": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "pinned to a map place"
+  },
+  "region_spotlight": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "draws a border on a map"
+  },
+  "ring_percent": {
+   "mode": "auto",
+   "family": "stats",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor); its full-screen plate becomes a soft backing over footage"
+  },
+  "route_travel": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "draws a route on a map"
+  },
+  "scale_bar": {
+   "mode": "excluded",
+   "family": "broadcast",
+   "why": "a map scale"
+  },
+  "scoreboard": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "side_panel": {
+   "mode": "doc",
+   "family": "news",
+   "why": "placed where graphics/doc_plan detects its pattern in the narration"
+  },
+  "stacked_compare": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "stat_countup": {
+   "mode": "auto",
+   "family": "broadcast",
+   "why": "a variant of big_number: the same number and label, the unit on the small line"
+  },
+  "subtitle_gold": {
+   "mode": "manual",
+   "family": "editorial",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "tag_context": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "tag_fact": {
+   "mode": "manual",
+   "family": "broadcast",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "tag_headline": {
+   "mode": "manual",
+   "family": "text",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "territory_clock": {
+   "mode": "excluded",
+   "family": "geo",
+   "why": "a map territory clock"
+  },
+  "text_box": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_glow": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_outline": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_slam": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_split": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_stack": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_stamp": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_sweep": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_typewriter": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_underline": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "text_word_pop": {
+   "mode": "auto",
+   "family": "text",
+   "why": "a variant of the strong-line graphic: the narrator's own short sentence (9 words or fewer), verbatim"
+  },
+  "three_rings": {
+   "mode": "full_frame",
+   "family": "news",
+   "why": "covers the whole frame with its own card (measured: ink coverage 100 %); off by default, rare when enabled"
+  },
+  "timeline_strip": {
+   "mode": "auto",
+   "family": "news",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor); its full-screen plate becomes a soft backing over footage"
+  },
+  "top_list": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "trend_line": {
+   "mode": "full_frame",
+   "family": "stats",
+   "why": "an opaque full-frame card: it would replace the footage; disabled by default"
+  },
+  "typed_caption": {
+   "mode": "manual",
+   "family": "news",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  },
+  "value_chip": {
+   "mode": "excluded",
+   "family": "broadcast",
+   "why": "pinned to a map place"
+  },
+  "versus_numbers": {
+   "mode": "auto",
+   "family": "stats",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor); its full-screen plate becomes a soft backing over footage"
+  },
+  "year_wipe": {
+   "mode": "auto",
+   "family": "news",
+   "why": "placed from the narration by gfx_templates.auto_events (its own extractor)"
+  },
+  "yellow_tag": {
+   "mode": "manual",
+   "family": "news",
+   "why": "allowed over footage; no narration rule places it automatically yet"
+  }
+ },
+ "variants": {
+  "big_number": [
+   "big_number",
+   "stat_countup",
+   "counter_corner"
+  ],
+  "ring_percent": [
+   "ring_percent",
+   "gold_stat"
+  ],
+  "name_bar": [
+   "name_bar",
+   "lower_kicker"
+  ],
+  "strong_line": [
+   "quote_boxed",
+   "text_slam",
+   "text_stamp",
+   "text_typewriter",
+   "text_word_pop",
+   "text_underline",
+   "text_split",
+   "text_glow",
+   "text_outline",
+   "text_box",
+   "text_sweep",
+   "text_stack",
+   "headline_wash"
+  ]
+ }
+}

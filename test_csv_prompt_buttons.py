@@ -59,6 +59,20 @@ class TestCopyCsvPrompt(unittest.TestCase):
             self.assertIn("with your script", fake.status)
         self.assertIn(SCRIPT_PLACEHOLDER, build_prompt("normal", ""))
 
+    def test_hybrid_has_a_plain_and_a_graphics_prompt_whatever_the_settings_switch_says(self):
+        from app_csv_prompts import build_prompt
+
+        plain, rich = build_prompt("hybrid", "x"), build_prompt("hybrid", "x", graphics=True)
+        self.assertNotEqual(plain, rich)
+        for switch in (False, True):
+            fake = self._fake("x")
+            fake._settings = {"doc_style": switch}
+            fake._copy_csv_prompt("hybrid", graphics=False)
+            self.assertEqual(fake.copied[0], plain)
+            fake._copy_csv_prompt("hybrid", graphics=True)
+            self.assertEqual(fake.copied[0], rich)
+            self.assertIn("graphics prompt copied", fake.status)
+
     def test_overscaled_panel_copies_exp_solar_when_that_look_is_chosen(self):
         fake = self._fake("x y z", preset="exp_solar")
         fake._copy_csv_prompt("overscaled")

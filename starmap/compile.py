@@ -419,6 +419,29 @@ def _action_shot(shot: Optional[Dict[str, Any]], usual: Dict[str, Any], act: Bea
     return s
 
 
+HELIO_AU = {"mercury": 0.39, "venus": 0.72, "earth": 1.0, "moon": 1.0, "mars": 1.52, "phobos": 1.52, "deimos": 1.52, "ceres": 2.77,
+            "jupiter": 5.2, "io": 5.2, "europa": 5.2, "ganymede": 5.2, "callisto": 5.2, "saturn": 9.54, "titan": 9.54, "enceladus": 9.54,
+            "uranus": 19.2, "neptune": 30.1, "triton": 30.1, "pluto": 39.5, "charon": 39.5}
+TRAVEL_MIN_AU = 0.6           # two bodies closer together than this (the Earth and the Moon) are a short hop, not a journey
+
+
+def _helio(shot: Optional[Dict[str, Any]]) -> Optional[float]:
+    """The Sun distance (AU) of the body a plain shot looks at; None for a path, a craft, a pair or a place not in the table."""
+    if not shot or "path" in shot or "follow" in shot:
+        return None
+    t = str(shot.get("target", ""))
+    return HELIO_AU.get(t) if t and "+" not in t and "@" not in t else None
+
+
+def _travel_via(prev: Optional[Dict[str, Any]], nxt: Dict[str, Any], glide: float, length: float) -> Optional[Dict[str, Any]]:
+    """The wide shot a camera passes through going from one body to another (zoom out over the system, zoom in on the next), or
+    None when they are the same body, close together, or the beat is too short to afford the trip."""
+    a, b = _helio(prev), _helio(nxt)
+    if a is None or b is None or prev.get("target") == nxt.get("target") or abs(a - b) < TRAVEL_MIN_AU or length < 6.0:
+        return None
+    return {"target": "sun", "distance": {"au": round(max(a, b) * 2.2 + 2.0, 1)}, "el_deg": 38, "spin": CINEMA_SPIN, "_travel": True}
+
+
 def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resolution] = None,
                  actions: Optional[Dict[str, BeatAction]] = None, clock: Optional[Dict[str, Any]] = None,
                  repairs: Optional[Dict[str, Dict[str, Any]]] = None, cinema: Optional[Dict[str, bool]] = None) -> Dict[str, Any]:
@@ -570,7 +593,16 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                         first["fit"] = max(1.05, first["fit"])      # a pair revealed from close still has both ends in frame
             if creep and length - glide - 0.3 < 1.0:
                 first = shot                                      # too short to creep: glide straight to the shot
-            moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": first})
+            wide = _travel_via(moves[-1]["to"] if moves else start, first, glide, length) if mv and b.id not in cut_in else None
+            if wide is not None:
+                # Cinema: between two bodies the camera pulls out over the solar system, then closes in on the next
+                # (zoom out, cross, zoom in) instead of a straight slide
+                glide = min(max(glide, 4.5), 0.7 * length)
+                g1 = 0.42 * glide
+                moves.append({"t": round(b.start, 3), "dur": round(g1, 3), "to": wide})
+                moves.append({"t": round(b.start + g1, 3), "dur": round(glide - g1, 3), "to": first})
+            else:
+                moves.append({"t": round(b.start, 3), "dur": round(glide, 3), "to": first})
         cur = first
         # a long beat is cut into shots, as an editor would: the view -> a close-up -> the view again from a new angle (each
         # with its own slow creep); never a beat with its own move, a craft's path, a surface site
@@ -605,13 +637,13 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             cuts = [t for t in cuts if t - (b.start + glide) >= 2.0]
         elif cinema and cinema.get("hero") and creep and "path" in shot and length >= 2 * CUT_MIN_S + 1:
             # Cinema: a journey beat about the craft itself cuts once, in a pause near its middle, to the craft's hero close-up
-            from .cinema import about_craft, hero_shot, pause_cut
+            from .cinema import about_craft, craft_alive, hero_shot, pause_cut
 
             tid = shot["path"].get("trajectory")
             if tid and about_craft(b.text):
                 mid = b.start + length / 2
                 tc = pause_cut(plan.words, mid, b.start + CUT_MIN_S, b.end - CUT_MIN_S) or round(mid, 3)
-                if tc - (b.start + glide) >= 2.0:
+                if tc - (b.start + glide) >= 2.0 and craft_alive(cat, tid, clock, tc):
                     close, cuts = hero_shot(tid), [tc]
         if cuts:
             # inside each shot the picture must visibly move: a 12% push-in and a clear arc round the subject
@@ -626,7 +658,7 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             first["spin"] = shot["spin"] = fix.get("spin") or (CINEMA_SPIN if mv else 2.0)    # the opening shot arcs too
             if cinema and cinema.get("hero"):
                 # Cinema: a beat about the craft itself (its dish, instruments, record ...) cuts to a hero close-up of its model
-                from .cinema import about_craft, hero_shot
+                from .cinema import about_craft, craft_alive, hero_shot
 
                 tid = None
                 for it in b.layers:
@@ -637,7 +669,7 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                             tid = None
                         if tid:
                             break
-                if tid and about_craft(b.text):
+                if tid and about_craft(b.text) and craft_alive(cat, tid, clock, cuts[0]):
                     seq[0] = dict(hero_shot(tid), spin=1.5)
             rest = cuts[0] - b.start - glide - 0.05
             if rest >= 1.0 and first is not shot:
@@ -1265,6 +1297,8 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
         from . import cinema as _cinema
 
         _cinema.apply(spec, plan, cat, res, free, cinema_fl, notes)
+        for m in spec["camera"]["moves"]:
+            m["to"].pop("_travel", None)
     else:
         # Classic StarMap: Cinema's own rows are left out (they need the Cinema option), the rest renders as always
         kept = [L for L in spec["layers"] if not L.get("_cinema_row")]

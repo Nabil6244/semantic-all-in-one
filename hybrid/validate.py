@@ -51,6 +51,30 @@ def _beat_of(message: str, plan: HybridPlan) -> str:
     return ""
 
 
+def labels_outside(b, loc, frame: str, find) -> list:
+    """The markers and zone labels of beat `b` that fall outside the picture the camera shows for `loc` at `frame`.
+    `find(ref, prefer)` is the place lookup (a GeoError result means the place cannot be found; those are skipped)."""
+    import math
+
+    from pakmap.geo import GeoError, view_for
+
+    lon, lat, zoom = view_for(loc, frame)
+    half_w = 40075.0 * math.cos(math.radians(lat)) / (512.0 * 2 ** zoom) * 1920.0 / 2.0
+    half_h = half_w * 9.0 / 16.0
+    out = []
+    for l in b.layers:
+        if l.type not in ("marker", "zone_label"):
+            continue
+        r = find(l.place, "point")
+        if isinstance(r, GeoError):
+            continue
+        dx = (r.lon - lon) * math.cos(math.radians(lat)) * 111.0
+        dy = (r.lat - lat) * 111.0
+        if abs(dx) > half_w * 0.96 or abs(dy) > half_h * 0.96:
+            out.append(l.label or l.place)
+    return out
+
+
 def validate(plan: HybridPlan) -> List[Finding]:
     out: List[Finding] = []
     err = lambda code, beat, msg: out.append(Finding("error", code, beat, msg))  # noqa: E731
@@ -199,6 +223,7 @@ def validate(plan: HybridPlan) -> List[Finding]:
         return cache[key]
 
     located = []
+    looking_at: Dict[str, tuple] = {}    # where each map beat's camera looks
     for b in plan.beats:
         wanted = [(c.place, "area", "camera") for c in b.camera if c.place]
         for l in b.layers:
@@ -219,20 +244,27 @@ def validate(plan: HybridPlan) -> List[Finding]:
                 if what == "fill" and not r.is_area:
                     err("fill_not_area", b.id, f"beat {b.id}: a fill needs an area (country, province, region) but {ref!r} is a point")
                 located.append((b.id, ref, r.lat, r.lon))
+                if what == "camera":
+                    looking_at.setdefault(b.id, (r.lat, r.lon))
     if len(located) >= 5:
         import math, statistics
 
         mlat, mlon = statistics.median(x[2] for x in located), statistics.median(x[3] for x in located)
+        warned = set()
         for bid, ref, lat, lon in located:
             dx = (lon - mlon) * math.cos(math.radians(mlat)) * 111.0
             dy = (lat - mlat) * 111.0
+            cam = looking_at.get(bid)
+            if cam and math.hypot((lon - cam[1]) * math.cos(math.radians(cam[0])) * 111.0, (lat - cam[0]) * 111.0) <= 1800.0:
+                continue     # the beat is deliberately somewhere else (emigrants in Australia): its own places sit with its own camera
+            if (bid, ref) in warned:
+                continue
+            warned.add((bid, ref))
             if math.hypot(dx, dy) > 1800.0:
                 warn("place_outlier", bid, f"beat {bid}: {ref!r} is {math.hypot(dx, dy):.0f} km from the rest of the story's places: check the coordinates (latitude first)")
 
     # everything a map beat labels must be inside the frame the camera ends up with (a marker the viewer cannot see is a defect)
     import math
-
-    from pakmap.geo import view_for
 
     for b in plan.beats:
         if not plan.is_map_mode(b) or not b.camera:
@@ -248,20 +280,7 @@ def validate(plan: HybridPlan) -> List[Finding]:
             warn("wide_view", b.id, f"beat {b.id}: the camera stays on the {frame} (globe-like) view for {b.end - b.start:.0f}s; keep that for the first 1-2 seconds and when the story really is planet-wide, otherwise fly to the country or region")
         if frame in ("country", "region") and not loc.is_area and re.fullmatch(r"\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*", target.place or ""):
             warn("point_zoom", b.id, f"beat {b.id}: {target.place!r} is a coordinate, so the camera shows it at street-level zoom whatever the frame; name the country or region (for example 'Niger', 'Sahel') to get a proper {frame} view")
-        lon, lat, zoom = view_for(loc, frame)
-        half_w = 40075.0 * math.cos(math.radians(lat)) / (512.0 * 2 ** zoom) * 1920.0 / 2.0
-        half_h = half_w * 9.0 / 16.0
-        out_of_frame = []
-        for l in b.layers:
-            if l.type not in ("marker", "zone_label"):
-                continue
-            r = find(l.place, "point")
-            if isinstance(r, GeoError):
-                continue
-            dx = (r.lon - lon) * math.cos(math.radians(lat)) * 111.0
-            dy = (r.lat - lat) * 111.0
-            if abs(dx) > half_w * 0.96 or abs(dy) > half_h * 0.96:
-                out_of_frame.append(l.label or l.place)
+        out_of_frame = labels_outside(b, loc, frame, find)
         if out_of_frame:
             warn("out_of_frame", b.id, f"beat {b.id}: {', '.join(out_of_frame)} would be outside the camera's view of {target.place} (frame {target.frame or 'region'}): widen the frame or move the camera")
 

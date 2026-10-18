@@ -118,6 +118,17 @@ def hero_shot(trajectory: str) -> Dict[str, Any]:
     return {"follow": {"trajectory": trajectory, "lit": True}, "distance": {"km": 0.014}, "el_deg": 16, "az_deg": 32}
 
 
+def craft_alive(cat: Any, tid: Optional[str], clock: Optional[Dict[str, Any]], t: float) -> bool:
+    """False while the narration's date is before the craft's first sample (a launch-day date earlier than lift-off): a follow
+    camera there points at nothing -- the empty frame."""
+    from .compile import _clock_utc
+
+    traj = cat.index.trajectories.get(tid or "")
+    utcs = [x["utc"] for x in ((traj.data.get("samples") if traj is not None else None) or []) if x.get("utc")]
+    now = _clock_utc(clock, t) if clock else None
+    return not utcs or not now or now >= min(utcs)
+
+
 def pause_cut(words: Sequence[Any], want: float, lo: float, hi: float) -> Optional[float]:
     """The middle of the narration pause (>= 0.18 s between two words) nearest `want`, within 1.5 s and inside [lo, hi]."""
     best = None
@@ -414,6 +425,25 @@ def map_share(spec: Dict[str, Any]) -> float:
     return sum(z - a for a, z in _map_stretches(spec)) / max(1e-6, float(spec["duration"]))
 
 
+# the planet under a craft shot (colours of its bands, atmosphere rim): the craft is never alone on black -- no entry (deep space) -> the Sun's flare
+BACKDROPS = {
+    "earth": (["#1d4f91", "#2f6fb8", "#e9f1fb", "#2d6a4f", "#1d4f91"], "#6fb4ff", 0.35), "moon": (["#8d8d8d", "#a7a7a2", "#6f6f6c"], "#cfd2d6", 0.2),
+    "mars": (["#a2452a", "#c1663a", "#8a3b24", "#d08a5c"], "#e39a6d", 0.3), "venus": (["#d9c28a", "#e6d6a6", "#c8ad72"], "#f0dfb0", 0.4),
+    "mercury": (["#7a7672", "#9a948d", "#5f5b57"], "#b9b2a8", 0.2),
+    "jupiter": (["#c8a27a", "#e8d3b1", "#9c6b45", "#f1e3cc", "#b58459"], "#e7c9a1", 0.9), "io": (["#d8c65a", "#e6d98a", "#c9892f"], "#f2e6a0", 0.3),
+    "europa": (["#d8d2c4", "#c9b79c", "#a98b6b"], "#e8e2d4", 0.3),
+    "saturn": (["#d8c28f", "#e9dcb4", "#bfa56d", "#f0e6c8"], "#efdca6", 0.8), "titan": (["#c98b3a", "#d9a458", "#b5762c"], "#f0b45a", 0.3),
+    "uranus": (["#9ed8dc", "#b9e6e8", "#86c3c9"], "#bff0f2", 0.3), "neptune": (["#2f55c4", "#4a74e0", "#223f9c"], "#6f95ff", 0.5),
+    "pluto": (["#b9a493", "#d9c8b8", "#8d7a6c"], "#e6d8c9", 0.3),
+}
+
+
+def backdrop(place: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The cinema_craft backdrop for the body a beat is about (None: deep space, the engine draws the Sun's flare instead)."""
+    got = BACKDROPS.get(str(place or "").lower().split("@")[0].split("+")[0].strip())
+    return {"colors": got[0], "rim": got[1], "bands": got[2]} if got else None
+
+
 def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, Any], notes: List[str]) -> None:
     """Map at most MAP_MAX of the screen time: the longest map stretches get What If shots, each at the words that call for it --
     the craft in deep space (a craft on screen there), a number full frame (a stat said there), the journey as an orbit map
@@ -426,6 +456,10 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
     if before <= MAP_MAX:
         return
     added: List[float] = []
+    # the camera's trips between bodies (zoom out, cross, zoom in) are the shot: nothing is cut in over them
+    mv = spec.get("camera", {}).get("moves", [])
+    trips = [(m["t"] - 0.5, (mv[i + 1]["t"] + mv[i + 1]["dur"]) if i + 1 < len(mv) else m["t"] + m["dur"] + 3.0)
+             for i, m in enumerate(mv) if m["to"].get("_travel")]
     cands: List[Tuple[float, str, Dict[str, Any]]] = []
     for L in layers:
         if L.get("type") == "spacecraft" and L.get("model"):
@@ -482,7 +516,8 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
                 ctx_b = res.ctx(bt.id) if res else []
                 if ctx_b and len([e for e in cat.index.datasets[ctx_b[0]].events.values() if e.utc]) >= 3:
                     local.append((tl, "timeline", {"ds": cat.index.datasets[ctx_b[0]], "b": bt}))
-            pool = [c for c in cands + local if a + 2.5 <= c[0] <= z - 4.5 and all(abs(c[0] - x) >= FILL_GAP_S for x in added)]
+            pool = [c for c in cands + local if a + 2.5 <= c[0] <= z - 4.5 and all(abs(c[0] - x) >= FILL_GAP_S for x in added)
+                    and not any(c[0] < t1_ and c[0] + 5.0 > t0_ for t0_, t1_ in trips)]
             if not pool:
                 continue
             t, kind, src = min(pool, key=lambda c: (order[c[1]], abs(c[0] - (a + FILL_LEAD_S))))
@@ -518,7 +553,10 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
                                "start": round(t, 3), "end": round(t1, 3), "fade_in": 0.2, "fade_out": 0.3})
             elif kind == "craft":
                 when = _clock_utc(clock, t)
+                _bt = next((x for x in plan.beats if x.mode != "footage" and x.start <= t < x.end), None)
+                _bd = backdrop(getattr(_bt, "place", None))
                 layers.append({"type": "cinema_craft", "model": src["model"], "start": round(t, 3), "end": round(t1, 3), "fade_in": 0.2,
+                               **({"backdrop": _bd} if _bd else {}),
                                "fade_out": 0.25, "az": 20 + 37 * (len(added) % 4), "_cite": f"NASA 3D MODEL OF {str(next((T.get('label') for T in layers if T.get('type') == 'tracker' and T.get('craft') == src.get('id')), '') or src.get('id', 'THE CRAFT')).split(' · ')[0].upper()}"})
                 name = next((T.get("label") for T in layers if T.get("type") == "tracker" and T.get("craft") == src.get("id")), "") or src.get("label") or ""
                 layers.append({"type": "tm_caption", "text": str(name).split(" · ")[0].upper() or "SPACECRAFT",

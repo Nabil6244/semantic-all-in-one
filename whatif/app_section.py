@@ -395,10 +395,20 @@ def load_csv(app, path: str) -> bool:
         text = read_text(path)
     except OSError as exc:
         M.messagebox.showerror("Cannot read CSV", str(exc))
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "whatif", path=path)
+        except Exception:
+            pass
         return False
     if not looks_usable(text):          # a semicolon CSV, no header, typos: accepted and repaired at Generate (whatif/heal.py)
         M.messagebox.showerror("Not a What If shot CSV", "The first row must be the What If header (row,shot,vo_anchor,kind,asset,...).\n\n"
                                                          "Use Copy the CSV prompt to have an AI write one.")
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "whatif", path=path)
+        except Exception:
+            pass
         return False
     ws = app._workspace
     try:
@@ -407,7 +417,17 @@ def load_csv(app, path: str) -> bool:
             shutil.copy2(path, csv_path(ws))
     except OSError as exc:
         M.messagebox.showerror("What If", f"Could not save the CSV in the project: {exc}")
+        try:
+            from learning.events import note_import_failed as _lrn
+            _lrn(app, "whatif", path=path)
+        except Exception:
+            pass
         return False
+    try:
+        from learning.events import note_import as _lrn
+        _lrn(app, "whatif", path=path, final_path=csv_path(ws))
+    except Exception:
+        pass
     app._whatif_file_var.set(str(csv_path(ws)))
     app._whatif_ok = None
     if not app._whatif_enabled_var.get():

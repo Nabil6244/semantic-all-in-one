@@ -55,7 +55,7 @@ def build_prompt(style: str, script: Optional[str] = None, *, pack: Optional[str
     if style in ("pakmap", "hybrid") and TEMPLATE_PLACEHOLDER in text:
         from gfx_templates import catalog_text as gfx_catalog      # the universal graphics, listed from gfx-core/templates
 
-        text = text.replace(TEMPLATE_PLACEHOLDER, "\n".join("  " + ln for ln in gfx_catalog("map").splitlines()))
+        text = text.replace(TEMPLATE_PLACEHOLDER, "\n".join("  " + ln for ln in gfx_catalog("map", footage=(style == "hybrid" and graphics)).splitlines()))
     if style == "whatif" and TEMPLATE_PLACEHOLDER in text:
         from whatif.templates import catalog_text      # the template list comes from the template files, so it is never out of date
 

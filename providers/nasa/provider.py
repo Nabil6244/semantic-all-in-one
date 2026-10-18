@@ -21,6 +21,7 @@ from providers.media_clip.ranking import rank_by_text
 from providers.youtube.base import compute_clip_window, compute_fallback_timestamp
 
 from .api_backend import NasaCandidate, NasaMediaBackend
+from .test_pattern import is_test_pattern
 
 DEFAULT_CLIP_DURATION = 3.5
 
@@ -153,6 +154,11 @@ class NasaProvider(AssetProvider):
             if sniff_media_kind(path) != "video":
                 path.unlink(missing_ok=True)
                 last_error = "Downloaded file is not video"
+                continue
+            if is_test_pattern(path):
+                path.unlink(missing_ok=True)
+                last_error = "The cut is a colour-bars test card"
+                log(f"[NASA] Candidate {idx} cut is a colour-bars test card; trying the next one")
                 continue
             return AssetResult(
                 scene_number=scene.scene_number,

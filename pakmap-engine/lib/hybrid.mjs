@@ -29,9 +29,10 @@ export function pausedSpan(windows, a, b) {
 
 /** The event as the map layers should see it at time t: its start moved later by the time spent under footage since it began,
  *  so every animation measured from t_in is frozen under footage. t_out is left alone (the planned lifecycle is narration time).
- *  With no windows (PakMap) the same object comes back. */
+ *  With no windows (PakMap) the same object comes back, and so does an event flagged over_footage (a map_template drawn above the footage). */
 export function shiftedEvent(e, t, windows) {
   if (!windows || !windows.length || e.type === 'media_full') return e;
+  if (e.over_footage === true) return e;   // a graphic made to be seen over footage runs on narration time: its animation does not stop under the clip
   const p = pausedSpan(windows, e.t_in, Math.min(t, e.t_out));
   return p > 0 ? { ...e, t_in: e.t_in + p } : e;
 }

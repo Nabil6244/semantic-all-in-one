@@ -31,6 +31,8 @@ from typing import Any, Dict, List, Optional
 
 from anchor_clock import AnchorClock, keep_in_order
 
+MIN_PULL_BEAT_S = 1.0   # the beat before one pulled earlier by its own words keeps at least this much
+
 from .plan import MAX_CARDS, MODES, Beat, CameraStep, Clip, HybridPlan, Layer, PlanError, Support
 
 COLUMNS = ("beat", "row", "vo_anchor", "mode", "start", "end", "t", "dur", "id", "type", "place", "frame", "label", "sub", "text", "role", "kind",
@@ -127,6 +129,30 @@ class _Clock(AnchorClock):
         super().__init__(list(words or ()), notes if notes is not None else [], unit="beat")
 
 
+def _pull_to_own_words(beats: List[Beat], starts: List[float], raw: List[float], word_beats: Dict[int, bool], anchored: List[tuple], notes: List[str]) -> List[float]:
+    """A beat whose own words were not heard is placed by estimate and then spread evenly between its neighbours (anchor_clock.keep_in_order): its
+    start, and so the end of the beat before it, is a guess. Its layers' words are often heard, and a layer cannot be spoken before the beat it was
+    copied from begins. So such a beat starts where its earliest heard layer is spoken, when the beat before it keeps at least MIN_PULL_BEAT_S and
+    all its own timed rows. A heard beat start is a measurement and never moves; with no room the layer keeps its voice time inside its beat's start
+    (the import's own check below) and the note says so."""
+    out = list(starts)
+    for i in range(1, len(beats)):
+        if beats[i].mode == "footage":
+            continue
+        if not (word_beats.get(i) is True or abs(out[i] - raw[i]) > 1e-6):
+            continue   # heard in order: the start is a measurement, not a guess
+        heard = [a[3] for a in anchored if a[0] == i and a[4] is not None and a[2].startswith("layer") and a[3] < out[i] - 1e-6]
+        if not heard:
+            continue
+        t = min(heard)
+        before = [a[3] for a in anchored if a[0] == i - 1]
+        if t < out[i - 1] + MIN_PULL_BEAT_S or any(x >= t - 1e-6 for x in before):
+            continue
+        notes.append(f"beat {beats[i].id}: its start was a guess ({out[i]:.1f}s) but its own words are heard at {t:.1f}s, so it starts there")
+        out[i] = round(t, 3)
+    return out
+
+
 def import_beats(text: str, words=(), duration: Optional[float] = None):
     """A beat CSV read against the narration: (plan, notes) in the same shape as the Hybrid CSV import (hybrid.csv_import.CsvImport)."""
     from .csv_import import CsvImport
@@ -144,6 +170,7 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
     open_ends: Dict[int, int] = {}          # beat index -> its CSV row (end to be filled from the next beat)
     timed_by_words: List[tuple] = []        # (beat index, layer) with no hold or until: gets its usual hold once the beat's end is known
     anchored: List[tuple] = []              # (beat index, row number, what, time) to check against the beat's span
+    at_start: List[tuple] = []              # (beat index, object) whose words were not heard: they appear with their beat, wherever its start ends up
     any_camera = False
     failed_beats = set()                    # a beat row with a problem: its own rows are not reported again
     word_beats: Dict[int, bool] = {}        # beat index -> placed by estimate (its words were not heard); only word-timed beats
@@ -222,6 +249,7 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                 b = beats[-1]
                 if r.get("beat") and r["beat"] != b.id:
                     raise ValueError(f"says beat {r['beat']!r} but follows beat {b.id!r}: keep each beat's rows under its beat row")
+                unheard = False
                 try:
                     t = when("t")
                 except ValueError as exc:
@@ -229,6 +257,7 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                     notes.append(f"row {n}: {exc}; it was placed at the start of beat {b.id}")
                     t = None
                     anchor = ""
+                    unheard = True
                 if t is not None and anchor and not r.get("t"):
                     anchored.append([len(beats) - 1, n, f"{kind} {r.get('id') or r.get('type') or ''}".strip(), t, None])
                 if kind == "camera":
@@ -237,6 +266,8 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                                                t=t if t is not None else b.start, dur=_f(r, "dur"), zoom_delta=_opt(extra.pop("zoom_delta", None))))
                     if anchored and anchored[-1][4] is None and anchored[-1][1] == n:
                         anchored[-1][4] = b.camera[-1]
+                    if unheard:
+                        at_start.append((len(beats) - 1, b.camera[-1]))
                 elif kind == "layer":
                     places = [p.strip() for p in r.get("place", "").split(";") if p.strip()]
                     is_line = r.get("type") == "line" or len(places) > 1
@@ -271,6 +302,8 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                         timed_by_words.append((len(beats) - 1, b.layers[-1]))  # written by hand or by an AI: it stays the usual time, not a whole beat
                     if anchored and anchored[-1][4] is None and anchored[-1][1] == n:
                         anchored[-1][4] = b.layers[-1]
+                    if unheard:
+                        at_start.append((len(beats) - 1, b.layers[-1]))
                 elif kind == "clip":
                     b.clips.append(Clip(asset=r.get("asset", ""), dur=_f(r, "dur"), reason=r.get("why", ""),
                                         kenburns=bool(extra.pop("kenburns", False)), loop=bool(extra.pop("loop", False))))
@@ -297,8 +330,11 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
         raise PlanError(problems)
     total = plan_duration if plan_duration is not None else duration
     starts = keep_in_order([b.start for b in beats], word_beats, total, notes, [f"beat {b.id}" for b in beats])
+    starts = _pull_to_own_words(beats, starts, [b.start for b in beats], word_beats, anchored, notes)
     for b, t in zip(beats, starts):
         b.start = t
+    for i, obj in at_start:   # "appears with its beat" means the beat's final start, not the start it had while the CSV was being read
+        obj.t = beats[i].start
     # a beat with no end runs to where the next beat starts (the last one to the end of the narration)
     for i, n in open_ends.items():
         if i + 1 < len(beats):

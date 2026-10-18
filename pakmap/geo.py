@@ -64,6 +64,7 @@ def _fold(text: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", t).strip()
 
 
+_SMALL_TOWN = 100_000
 _LATLON = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
 _ISO3 = re.compile(r"^[A-Z]{3}$")
 
@@ -130,6 +131,13 @@ def resolve(ref: str, prefer: str = "area") -> Located:
     if prefer == "point":
         c = _city(ref)
         if c:
+            if c.population < _SMALL_TOWN:   # "Wales" the nation, not a village of that name: a country, county or named region beats a small town
+                try:
+                    area = _from_place(find_place(ref), ref)
+                    if area.kind in ("country", "region", "admin1"):
+                        return area
+                except PlaceNotFound:
+                    pass
             return c
     try:
         return _from_place(find_place(ref), ref)

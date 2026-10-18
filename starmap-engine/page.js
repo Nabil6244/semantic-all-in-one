@@ -301,6 +301,35 @@ if (spec.cinema) {
       const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
       model.position.sub(c); const holder = new THREE.Group(); holder.add(model); holder.scale.setScalar(2 / Math.max(size.x, size.y, size.z, 1e-6));
       scene.add(holder);
+      // never a craft alone on black: the planet the beat is about under it (its limb, lit by the same Sun, with an atmosphere rim),
+      // or, in deep space, the Sun itself as a bright flare in the sky. The camera's orbit round the craft then sweeps the limb
+      // and the Sun across the frame.
+      const bd = def.backdrop;
+      if (bd && bd.colors) {
+        const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const cg = cv.getContext('2d'), rr = rndS((def.seed ?? 7) + 11);
+        const bands = bd.bands ?? 0.6, cols = bd.colors;
+        for (let y = 0; y < 256; y++) {
+          const k = y / 255, w = Math.sin(k * 23 + rr() * 0.4) * 0.5 + 0.5, ci = Math.min(cols.length - 1, Math.floor(((k * 5 * bands + w * bands) % 1) * cols.length));
+          cg.fillStyle = cols[ci]; cg.fillRect(0, y, 512, 1);
+        }
+        for (let i = 0; i < 900; i++) { cg.fillStyle = `rgba(255,255,255,${0.02 + 0.03 * rr()})`; cg.fillRect(rr() * 512, rr() * 256, 2 + 40 * rr(), 1 + 2 * rr()); }
+        const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+        const R = 90, planet = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0 }));
+        planet.position.set(bd.dx ?? 0, -(R + (bd.drop ?? 2.6)), bd.dz ?? -4); scene.add(planet);
+        const rim = new THREE.Mesh(new THREE.SphereGeometry(R * 1.012, 96, 64), new THREE.ShaderMaterial({
+          uniforms: { c: { value: new THREE.Color(bd.rim || '#6fb4ff') } },
+          vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+          fragmentShader: 'uniform vec3 c; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(1.0 - abs(dot(vN, vV)), 3.0); gl_FragColor = vec4(c * r, r * 0.9); }',
+          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide }));
+        rim.position.copy(planet.position); scene.add(rim);
+        key.intensity = 3.2;
+      } else {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 256; const cg = cv.getContext('2d'), gr = cg.createRadialGradient(128, 128, 0, 128, 128, 128);
+        gr.addColorStop(0, 'rgba(255,250,235,1)'); gr.addColorStop(0.08, 'rgba(255,240,205,0.9)'); gr.addColorStop(0.3, 'rgba(255,215,150,0.22)'); gr.addColorStop(1, 'rgba(255,200,120,0)');
+        cg.fillStyle = gr; cg.fillRect(0, 0, 256, 256);
+        const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+        sun.position.copy(key.position).normalize().multiplyScalar(120); sun.scale.setScalar(bd?.sun ?? 46); scene.add(sun);
+      }
       return { def, scene, holder, cam: new THREE.PerspectiveCamera(34, W / H, 0.01, 1000) };
     },
     draw(inst, f) {

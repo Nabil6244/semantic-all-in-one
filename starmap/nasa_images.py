@@ -82,6 +82,10 @@ def contradicts(query: str, title: str, description: str, date: str = "") -> Opt
         said = {n.upper() for n in re.findall(rf"\b{re.escape(name)}[ -]?(\d{{1,2}}|[IVX]{{1,4}})\b", text, flags=re.I)}
         if said and num.upper() not in said:
             return f"it is about {name} {'/'.join(sorted(said))}, not {name} {num}"
+    # a mission the query names must be named by the item: an Apollo 11 "B roll" with a launch in it stood in for "Voyager 1 launch 1977"
+    first = next(((n, num) for n, num in _MISSION.findall(query) if n.lower() not in STOP and n != "NASA"), None)
+    if first and not re.search(rf"\b{re.escape(first[0])}", text, flags=re.I):
+        return f"it never mentions {first[0]}"
     words = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", query)
     named = [w for i, w in enumerate(words) if i > 0 and w[0].isupper() and w.lower() not in STOP and w != "NASA"]
     have = {_stem(w) for w in _words(low)}

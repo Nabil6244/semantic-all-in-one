@@ -52,7 +52,8 @@ class HybridCompileError(ValueError):
 
 def spec_extra(plan: HybridPlan) -> dict:
     # media_lazy: video clips are cut into frames when needed and deleted when done, so the disk use does not grow with the length of the video
-    return {"hybrid": {"pause_overlays": bool(plan.setting("pause_overlays"))}, "media_lazy": True}
+    return {"hybrid": {"pause_overlays": bool(plan.setting("pause_overlays"))}, "media_lazy": True,
+            "narration_script": " ".join(b.narration.strip() for b in plan.beats if b.narration.strip())}   # read by pakmap.compile to plan the graphics; never reaches the spec
 
 
 def layer_end(plan: HybridPlan, beat: Beat, lay: Layer, notes: Optional[List[str]] = None) -> float:
@@ -161,6 +162,25 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
         line_map[row.line] = label
         return row
 
+    def fill_template(beat: Beat, lay: Layer, kw: Dict[str, Any]) -> bool:
+        """The row fields of a template layer (a map beat's or a footage beat's). False when the graphic cannot be made: it is left out and said."""
+        import gfx_templates
+
+        tp = dict(lay.params)
+        tid = lay.kind or tp.get("template", "")
+        tp["template"] = tid
+        if lay.text and "text" not in tp:
+            tp["text"] = lay.text
+        fields = {"label": lay.label, "sub": lay.sub, "text": tp.get("text", ""), "value_from": lay.value_from, "value_to": lay.value_to,
+                  "format": lay.format, "rows": tp.get("rows"), "values": tp.get("values"), "labels": tp.get("labels")}
+        why = gfx_templates.problem(tid, fields, tp.get("slots"), has_geo=bool(lay.places or lay.place))
+        if why:      # never a stop: a graphic that cannot be made is left out and said
+            notes.append(f"beat {beat.id}: graphic {lay.id} left out: {why}")
+            return False
+        kw.update(geo_ref=";".join(lay.places) if lay.places else lay.place, label_text=lay.label, sub_text=lay.sub,
+                  value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format, params=tp)
+        return True
+
     prev_footage_end: Optional[float] = None  # when the previous beat was footage: where its last clip ends
     for beat in plan.beats:
         if plan.is_map_mode(beat):
@@ -187,21 +207,8 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                 elif lay.type == "caption":
                     kw.update(label_text=lay.text, sub_text=lay.sub, anchor=lay.anchor or "bc")
                 elif lay.type == "template":
-                    import gfx_templates
-
-                    tp = dict(lay.params)
-                    tid = lay.kind or tp.get("template", "")
-                    tp["template"] = tid
-                    if lay.text and "text" not in tp:
-                        tp["text"] = lay.text
-                    fields = {"label": lay.label, "sub": lay.sub, "text": tp.get("text", ""), "value_from": lay.value_from, "value_to": lay.value_to,
-                              "format": lay.format, "rows": tp.get("rows"), "values": tp.get("values"), "labels": tp.get("labels")}
-                    why = gfx_templates.problem(tid, fields, tp.get("slots"), has_geo=bool(lay.places or lay.place))
-                    if why:      # never a stop: a graphic that cannot be made is left out and said
-                        notes.append(f"beat {beat.id}: graphic {lay.id} left out: {why}")
+                    if not fill_template(beat, lay, kw):
                         continue
-                    kw.update(geo_ref=";".join(lay.places) if lay.places else lay.place, label_text=lay.label, sub_text=lay.sub,
-                              value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format, params=tp)
                 add(label, **kw)
             cards = beat.cards  # MAP+FOOTAGE: the map says where, photo cards show what it looks like (up to MAX_CARDS, in different corners)
             landed = max([c.t + (c.dur or 0.0) for c in beat.camera if c.action == "fly_to"] or [0.0]) + 0.25
@@ -251,6 +258,21 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                 sfx = (beat.transition_sound or "none") if not handed_over else "none"
                 add(f"beat {beat.id} · footage clip {k + 1}", layer_type="media_full", layer_id=f"{beat.id}_c{k + 1}", t_start=a, t_end=b, asset_path=clip.asset, params=params, sfx=sfx)
             prev_footage_end = spans[-1][1]
+            for lay in beat.layers:   # template graphics over the clip: drawn above the footage (over_footage), on the narration's time, leaving with the beat
+                import gfx_templates
+
+                t0 = lay.t
+                if beat.end - 0.2 - t0 < 2.0 and beat.end - beat.start - 0.2 >= 2.0:
+                    t0 = max(beat.start + 0.05, beat.end - 0.2 - 2.0)    # spoken in the last words of the clip: a little earlier so it can be read
+                    notes.append(f"beat {beat.id}: graphic {lay.id} was brought forward to {t0:.1f}s so it stays on screen for at least 2 seconds")
+                natural = float(gfx_templates.get(lay.kind or lay.params.get("template", "")).get("hold", 5))
+                until = float(lay.until) if isinstance(lay.until, (int, float)) else None
+                end = min(until if until is not None else t0 + (lay.hold if lay.hold else natural), beat.end - 0.2)
+                kw = dict(layer_type="template", layer_id=lay.id, t_start=t0, t_end=end, params={})
+                if not fill_template(beat, lay, kw):
+                    continue
+                kw["params"] = {**kw["params"], "over_footage": True}
+                add(f"beat {beat.id} · template {lay.id} (over the footage)", **kw)
     # the always-on drift (what makes the map feel alive between camera moves)
     add("plan · camera drift", layer_type="camera", layer_id="drift", camera_action="drift", t_start=0.0, params={"pct_per_s": float(plan.setting("drift_pct_per_s")), "heading_deg": 60})
     return rows, line_map, notes

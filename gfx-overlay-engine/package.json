@@ -1,0 +1,7 @@
+{
+  "name": "gfx-overlay-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Batch renderer: gfx-core templates -> transparent PNG frame sequences (Normal Video 'Use Hybrid Map Graphics & Sound'). Draws with the same gfx-core modules and Playwright Chromium as pakMap/Hybrid, without the map."
+}

@@ -86,7 +86,9 @@ class TestAuto(unittest.TestCase):
         self.assertIsNone(G._percent("It grew 400 percent."))
 
     def test_other_niches_do_not_get_map_only_templates(self):
-        self.assertEqual(G.auto_events(self.WORDS, niche="weather"), [])
+        lib = G.load_library()
+        got = G.auto_events(self.WORDS, niche="weather")
+        self.assertTrue(all("any" in lib[e["template"]["id"]]["niches"] for e in got), [e["template"]["id"] for e in got])      # only graphics made for every niche
 
 
 class TestPakmapHook(unittest.TestCase):

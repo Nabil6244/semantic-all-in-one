@@ -11,6 +11,7 @@ shape as pakMap's, Hybrid's and StarMap's, so the app's finish handling is share
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
@@ -33,11 +34,43 @@ def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> No
             pass
 
 
+SCRIPT_MATCH_MIN = 0.25      # a real script heard through Whisper still shares ~70 % of its word triples; a different script ~3 %
+
+
+def script_match(words: Sequence[Any], csv_text: str) -> "tuple[float, int]":
+    """How much of the CSV's script (its beat texts, or its vo_anchors) is in the spoken narration: the share of the CSV's three-word runs
+    heard in the voiceover. Returns (share, how many runs the CSV has); a CSV with too little text to judge returns (1.0, n)."""
+    import csv as _csv
+    import io
+
+    norm = lambda t: re.findall(r"[a-z0-9']+", (t or "").lower().replace("\u2019", "'"))      # noqa: E731
+    try:
+        rows = list(_csv.DictReader(io.StringIO(csv_text.lstrip("\ufeff"))))
+    except _csv.Error:
+        return 1.0, 0
+    toks: List[str] = []
+    for col in ("text", "vo_anchor"):
+        toks = [w for r in rows if (r.get("row") or "beat") in ("beat", "shot", "") for w in norm(r.get(col))]
+        if len(toks) >= 40:
+            break
+    heard = [w for x in words for w in norm(getattr(x, "text", None) or (x[0] if isinstance(x, (list, tuple)) else str(x)))]
+    tri = lambda L: {tuple(L[i:i + 3]) for i in range(len(L) - 2)}      # noqa: E731
+    want = tri(toks)
+    if len(want) < 30 or len(heard) < 30:
+        return 1.0, len(want)
+    return len(want & tri(heard)) / len(want), len(want)
+
+
 def plan_from(words: Sequence[Any], script: str, duration: float, title: str = "", csv_text: str = "", *, flow_video: "bool | str" = "both") -> planner.ShotPlan:
     """The shot plan: from the shot CSV when there is one (repaired in memory first, whatif/heal.py: a bad row is fixed or left out,
     never a stop), else built from the narration alone. A CSV that yields no usable shot at all falls back to the narration."""
     if csv_text and csv_text.strip():
         from .heal import read_healed
+
+        share, n = script_match(words, csv_text)
+        if share < SCRIPT_MATCH_MIN:
+            raise PlanError([f"the shot CSV is for a different script than the voiceover: only {share:.0%} of its {n} three-word runs are spoken in the "
+                             f"voiceover (a matching script shares about 70 %). Load the CSV made for this voiceover, or remove the CSV to plan from the narration."])
 
         notes: List[str] = []
         try:

@@ -345,6 +345,40 @@ FRAMINGS = ("wide establishing view", "medium view", "close detail", "low angle"
 EVOLVE_MAX_S = 20.0     # one subject held as one evolving shot at most this long (the reference's 8-20 s compositions, V3)
 
 
+SHORT_SHOT_S = 2.0       # a picture on screen for less than this is a flash (a CSV whose anchors bunch up squeezed shots to 0.5 s)
+
+
+def absorb_short(shots: List[Shot], notes: List[str]) -> List[Shot]:
+    """A picture or clip shorter than SHORT_SHOT_S joins the neighbouring picture or clip, so the shots stay contiguous and the picture
+    that stays is held for the whole stretch. Plates, crafts, globes, hero and black shots are left as they are."""
+    ok = lambda x: x.kind in ("image", "video") and not x.extra.get("lockup")      # noqa: E731
+    out: List[Shot] = list(shots)
+    n = 0
+    i = 0
+    while i < len(out):
+        s = out[i]
+        if not ok(s) or s.length >= SHORT_SHOT_S:
+            i += 1
+            continue
+        prev = out[i - 1] if i > 0 and ok(out[i - 1]) and abs(out[i - 1].end - s.start) < 0.05 else None
+        nxt = out[i + 1] if i + 1 < len(out) and ok(out[i + 1]) and abs(out[i + 1].start - s.end) < 0.05 else None
+        host = max((x for x in (prev, nxt) if x is not None), key=lambda x: x.length, default=None)
+        if host is None:
+            i += 1
+            continue
+        if host is prev:
+            host.end, host.text = s.end, (host.text + " " + s.text).strip()
+        else:
+            host.start, host.text = s.start, (s.text + " " + host.text).strip()
+        host.extra["about"] = " ".join(x for x in (host.extra.get("about"), s.extra.get("about")) if x and x not in (host.extra.get("about") or ""))
+        del out[i]
+        n += 1
+        i = max(0, i - 1)
+    if n:
+        notes.append(f"plan: {n} flash shot(s) under {SHORT_SHOT_S:g} s joined the picture next to them")
+    return out
+
+
 def merge_beats(shots: List[Shot], notes: List[str]) -> List[Shot]:
     """Consecutive shots of the same subject -- the same 3D model, or the same world -- are one continuous, evolving shot: the
     reference holds a composition while its type and graphics arrive on their words, where a shot list per CSV row cut to a new
@@ -425,38 +459,49 @@ def mix_flow(shots: List[Shot], mode: str, notes: List[str]) -> int:
     return len(moved)
 
 
-FLOW_OPEN_S = 60.0          # Flow (AI pictures and clips) is for the opening; after it, at most one Flow shot per FLOW_LATER_GAP_S
+FLOW_OPEN_S = HOOK_S        # Flow (AI pictures and clips) is a last resort: never in the opening (real footage there), then at most one per FLOW_LATER_GAP_S
 FLOW_LATER_GAP_S = 180.0
 STOCK_STOP = {"the", "a", "an", "of", "to", "and", "in", "on", "at", "it", "its", "is", "was", "were", "be", "that", "this", "these", "those", "with",
               "for", "from", "by", "as", "but", "so", "or", "if", "then", "than", "into", "over", "under", "you", "your", "we", "our", "they", "their",
               "would", "could", "can", "will", "just", "only", "very", "much", "more", "most", "about", "there", "here", "what", "which", "who"}
 
 
-def stock_query(s: Shot) -> str:
-    """A short stock search for a shot: its subject, then the sentence's content words (no numbers)."""
-    words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]+", re.sub(r"\d[\d,.]*", " ", s.text or "")) if w.lower() not in STOCK_STOP and len(w) > 2]
+NICHE = "space astronomy"          # the channel's niche: a stock search is always anchored in it, so "move" cannot return a tape measure
+_NICHE_WORDS = re.compile(r"\b(space|star\w*|galax\w*|planet\w*|solar|sun|moon|orbit\w*|cosmic|universe|nebula|telescope|spacecraft|"
+                          r"voyager|mars|venus|jupiter|saturn|titan|earth|astronom\w*|milky|comet|asteroid)\b", re.I)
+
+
+def stock_query(s: Shot, context: str = "") -> str:
+    """A stock search for a shot from its CONTEXT, never one stray word: the sentence it sits in (extra["about"]), else its own words
+    plus the neighbouring shots' (a 0.5 s shot's text is a single word), led by its subject, anchored in the niche when the words alone are not."""
+    text = s.extra.get("about") or " ".join(x for x in (s.text, context) if x)
+    words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]+", re.sub(r"\d[\d,.]*", " ", text)) if w.lower() not in STOCK_STOP and len(w) > 2]
     head = (s.name or s.place or "").strip()
-    q = " ".join(dict.fromkeys(([head] if head else []) + words[:6]))
-    return q[:80] or "space"
+    parts = list(dict.fromkeys(([head] if head else []) + words[:8]))
+    if not _NICHE_WORDS.search(" ".join(parts)):
+        parts.append(NICHE)
+    return " ".join(parts)[:90] or NICHE
 
 
 def limit_flow(shots: List[Shot], notes: List[str]) -> int:
-    """Flow mostly in the opening (the author's rule): every Flow shot in the first FLOW_OPEN_S stays; after it one Flow shot per
-    FLOW_LATER_GAP_S is kept (a scene no camera could film), the rest become stock searches of the same subject. The CSV's rows too."""
+    """Flow is a last resort (the author's correction: it was added where no AI picture was needed, the opening above all): none in the
+    first FLOW_OPEN_S, then one Flow shot per FLOW_LATER_GAP_S is kept (a scene no camera could film), the rest become stock searches
+    of the same subject. The CSV's rows too."""
     last, moved = -1e9, 0
-    for s in shots:
-        if not s.asset.lower().startswith(("flow_image:", "flow_video:")) or s.start < FLOW_OPEN_S:
+    for i, s in enumerate(shots):
+        if not s.asset.lower().startswith(("flow_image:", "flow_video:")):
             continue
-        if s.start - last >= FLOW_LATER_GAP_S:
+        if s.start >= FLOW_OPEN_S and s.start - last >= FLOW_LATER_GAP_S:
             last = s.start
             continue
         src = "stock_video" if s.kind == "video" or s.asset.lower().startswith("flow_video:") else "stock_image"
         s.kind = "video" if src == "stock_video" else "image"
-        s.asset, s.cite = f"{src}:{stock_query(s)}", ("IMAGE", "")
+        around = " ".join(x.text for x in shots[max(0, i - 2):i + 3] if x is not s and x.text) if len(s.text.split()) < 8 else ""
+        s.asset, s.cite = f"{src}:{stock_query(s, around)}", ("IMAGE", "")
         moved += 1
     if moved:
-        notes.append(f"plan: Flow kept to the opening ({FLOW_OPEN_S:.0f} s) and one shot every {FLOW_LATER_GAP_S / 60:.0f} min after it; "
-                     f"{moved} later Flow shot(s) are stock searches instead")
+        notes.append(f"plan: Flow is a last resort (none in the first {FLOW_OPEN_S:.0f} s, one shot every {FLOW_LATER_GAP_S / 60:.0f} min at most); "
+                     f"{moved} Flow shot(s) are real-footage searches instead")
     return moved
 
 
@@ -737,7 +782,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
                 topic = fields.get("name") or fields["place"]
                 if fields["kind"] in ("image", "video") and MISSIONS_NO_MODEL.search(whole):
                     topic = f"{topic} lander" if re.search(r"\blander|landed|surface\b", whole, re.I) else topic
-            shots.append(Shot(id="", start=a, end=b, text=text, **fields))
+            shots.append(Shot(id="", start=a, end=b, text=text, extra={"about": whole}, **fields))
     else:
         for s in shots:
             if not s.text:
@@ -1075,6 +1120,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
     shots = merge_beats(shots, notes)
+    shots = absorb_short(shots, notes)
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
     changed = vary(shots)

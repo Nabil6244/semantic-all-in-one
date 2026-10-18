@@ -323,8 +323,9 @@ def validate_plan(plan: HybridPlan) -> List[str]:
     layer_ids: List[str] = []
     for i, b in enumerate(plan.beats):
         if b.mode == "footage":
-            if b.camera or b.layers or b.support or b.more_cards:
-                out.append(f"beat {b.id}: a footage beat cannot hold map camera moves, layers or a supporting card (they belong to a map beat)")
+            if b.camera or b.support or b.more_cards:
+                out.append(f"beat {b.id}: a footage beat cannot hold map camera moves or a supporting card (they belong to a map beat)")
+            out.extend(_footage_layer_problems(b, layer_ids))
             if not b.clips:
                 out.append(f"beat {b.id}: a footage beat needs at least one clip")
             for k, c in enumerate(b.clips):
@@ -381,6 +382,36 @@ def validate_plan(plan: HybridPlan) -> List[str]:
                     "template": bool(lay.kind or (lay.params or {}).get("template"))}[lay.type] if lay.type in LAYER_TYPES else True
             if not need:
                 out.append(f"layer {lay.id}: a {lay.type} is missing something it needs ({_NEEDS[lay.type]})")
+    return out
+
+
+def _footage_layer_problems(b: "Beat", layer_ids: List[str]) -> List[str]:
+    """A footage beat may carry template graphics (drawn above the clip, in its own beat's time) but no map layer: a marker, line, fill, title chip, stat or
+    caption sits on the map or in its UI, which footage covers. A graphic that needs the map or a picture of its own is refused with that reason."""
+    out: List[str] = []
+    import gfx_templates
+
+    for lay in b.layers:
+        if lay.id in layer_ids:
+            out.append(f"layer id {lay.id!r} is used more than once")
+        layer_ids.append(lay.id)
+        if lay.type != "template":
+            out.append(f"beat {b.id}: layer {lay.id} is a {lay.type}, which belongs to a map beat; a footage beat can only carry template graphics (type template)")
+            continue
+        tid = lay.kind or (lay.params or {}).get("template") or ""
+        if not tid:
+            out.append(f"layer {lay.id}: a template is missing something it needs ({_NEEDS['template']})")
+            continue
+        why = gfx_templates.over_footage_problem(tid)
+        if why:
+            out.append(f"beat {b.id}: layer {lay.id}: {why}")
+        if not (b.start - EPS <= lay.t < b.end - EPS):
+            out.append(f"layer {lay.id}: appears at {lay.t:g}s, outside its footage beat {b.id} ({b.start:g}-{b.end:g}s)")
+        u = lay.until
+        if not (u == "beat_end" or (isinstance(u, (int, float)) and lay.t < u <= b.end + EPS)):
+            out.append(f"layer {lay.id}: over footage it must leave with its beat: until must be beat_end or a time before {b.end:g}s")
+        if lay.hold is not None and lay.hold <= 0:
+            out.append(f"layer {lay.id}: hold must be more than 0")
     return out
 
 

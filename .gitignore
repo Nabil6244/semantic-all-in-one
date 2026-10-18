@@ -16,6 +16,7 @@ settings.json
 auth_session.json
 device_id.json
 .videogen/
+learning.sqlite*
 
 # PyInstaller
 build/

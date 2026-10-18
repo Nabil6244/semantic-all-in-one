@@ -69,6 +69,55 @@ class Cinema(unittest.TestCase):
         self.assertIsNone(pause_cut(words, 1.0, 1.5, 3.0), "outside the allowed span")
 
 
+class CinemaTravelAndContext(unittest.TestCase):
+    """Between two bodies the camera zooms out and in again; a craft shot is never a model alone on black or aimed at nothing."""
+
+    def trip(self, length=36.0):
+        rows = (beat("b1", 0, "Voyager 1 launched from Earth in 1977.", "1977-09-06T00:00:00Z", place="earth", frame="body")
+                + beat("b2", 12, "Eighteen months later it swept past Jupiter and its storms filled the camera.", "1979-03-05T00:00:00Z", place="jupiter", frame="body")
+                + beat("b3", 24, "Then Saturn bent its path and its rings were seen up close.", "1980-11-12T00:00:00Z", place="saturn", frame="body"))
+        return spec_of(rows, length, True)
+
+    def test_going_from_one_planet_to_another_pulls_out_over_the_system_then_closes_in(self):
+        moves = self.trip()["camera"]["moves"]
+        i = next(k for k, m in enumerate(moves) if m["t"] == 12.0)
+        wide, close = moves[i]["to"], moves[i + 1]["to"]
+        self.assertEqual(wide["target"], "sun")
+        self.assertGreater(wide["distance"]["au"], 10, "wide enough to hold Earth and Jupiter")
+        self.assertEqual(close["target"], "jupiter")
+        self.assertAlmostEqual(moves[i]["t"] + moves[i]["dur"], moves[i + 1]["t"], places=2)
+        self.assertTrue(all("_travel" not in m["to"] for m in moves), "the marker never reaches the renderer")
+
+    def test_classic_starmap_still_slides_straight(self):
+        rows = beat("b1", 0, "Earth.", "1977-09-06T00:00:00Z", place="earth", frame="body") + beat("b2", 12, "Jupiter.", "1979-03-05T00:00:00Z", place="jupiter", frame="body")
+        moves = spec_of(rows, 24.0, None)["camera"]["moves"]
+        self.assertFalse([m for m in moves if m["to"].get("target") == "sun"])
+
+    def test_nothing_is_cut_in_over_the_trip(self):
+        spec = self.trip()
+        moves = spec["camera"]["moves"]
+        i = next(k for k, m in enumerate(moves) if m["t"] == 12.0)
+        a, z = 12.0, moves[i + 1]["t"] + moves[i + 1]["dur"]
+        for L in spec["layers"]:
+            if L["type"] in ("cinema_craft", "cinema_plate"):
+                self.assertFalse(L["start"] < z and L["end"] > a, f"{L['type']} {L['start']}-{L['end']} hides the camera trip")
+
+    def test_a_craft_shot_has_a_planet_or_the_sun_behind_it(self):
+        from starmap.cinema import backdrop
+        self.assertTrue(backdrop("Jupiter")["colors"])
+        self.assertIsNone(backdrop("sun"))
+        crafts = [L for L in self.trip()["layers"] if L["type"] == "cinema_craft"]
+        self.assertTrue(crafts and "backdrop" in crafts[0], "the first craft shot is over Earth")
+
+    def test_a_follow_close_up_waits_for_the_craft_to_exist(self):
+        from starmap import Catalog
+        from starmap.cinema import craft_alive
+        cat = Catalog()
+        clock = {"keys": [{"t": 0.0, "utc": "1977-09-05T00:00:00Z"}, {"t": 30.0, "utc": "1977-09-05T00:00:30Z"}]}
+        self.assertFalse(craft_alive(cat, "voyager1_path", clock, 10.0), "launch was at 12:56, the clock says midnight")
+        self.assertTrue(craft_alive(cat, "no_such_path", clock, 10.0))
+
+
 if __name__ == "__main__":
     unittest.main()
 

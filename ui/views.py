@@ -1882,6 +1882,13 @@ class AudioView(_BaseView):
                  "Smart Text steps aside. Normal, Book of Enoch, pakMap and Hybrid videos. Click the picture for all of them.",
                  self._doc_style_var, on_toggle=lambda on: app._set_doc_style(on) if hasattr(app, "_set_doc_style") else None,
                  preview=("smart_previews/doc_style_thumb.png", "doc_style_preview.jpg"))
+        # Same convention as Doc Style: app-wide (settings.json "normal_hybrid_style"), off by default.
+        self._hybrid_style_var = ctk.BooleanVar(value=bool(getattr(app, "_settings", {}).get("normal_hybrid_style", False)))
+        _feature("Use Hybrid Map Graphics & Sound",
+                 "Hybrid Map's graphics look and sound design on your own footage and narration: News Doc tags, names, numbers, "
+                 "quotes and cards where the narration fits them, with Hybrid Map's effects timed to each one and ducked under the "
+                 "voice. No maps are added. Replaces the generic sound effects while on; your music and ambience stay.",
+                 self._hybrid_style_var, on_toggle=lambda on: app._set_normal_hybrid_style(on) if hasattr(app, "_set_normal_hybrid_style") else None)
 
         _group("MOTION")
         _feature("Ken Burns Zoom", "Slow zoom on every still image. Intensity = how far (5% / 10% / 16%).",

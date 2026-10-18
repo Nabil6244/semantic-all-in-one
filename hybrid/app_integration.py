@@ -34,7 +34,10 @@ def _scene_map(plan: HybridPlan) -> List[dict]:
     """Every picture or clip the plan needs, in the order (and with the numbers) the generator and the Visual Plan table use."""
     from pakmap.sourcing import find_occurrences
 
-    rows, line_map, _ = plan_to_rows(plan)
+    try:
+        rows, line_map, _ = plan_to_rows(plan)
+    except HybridCompileError:   # the plan view and Check plan report this; a plan that does not compile has no scenes yet
+        return []
     out = []
     for o in find_occurrences(rows):
         m = _LABEL.match(line_map.get(o.line, ""))
@@ -129,8 +132,18 @@ def plan_text(plan: HybridPlan, findings: Optional[Sequence[Finding]] = None, *,
 def check_plan(plan: HybridPlan, *, report: Optional[PlanResult] = None, scene_status: Optional[Dict[str, str]] = None, engine: bool = True,
                graphics: bool = False) -> "tuple[str, bool]":
     """Validate, then compile (the renderer's own rules and every place), and describe the plan. Returns (text, ok)."""
+    from .local_fix import clamp_layers
+
+    widened: List[str] = clamp_layers(plan)
     findings = validate(plan)
+    if any(f.code == "out_of_frame" for f in findings):   # a camera too tight for its markers: code can widen it, so the author never sees the warning
+        from .local_fix import fix as local_fix
+
+        n, widened = local_fix(plan, [f for f in findings if f.code == "out_of_frame"])
+        if n:
+            findings = validate(plan)
     text = plan_text(plan, findings, scene_status=scene_status, report=report)
+    text += "".join(f"\nnote: {w}" for w in widened)
     ok = not errors(findings)
     if ok:
         try:

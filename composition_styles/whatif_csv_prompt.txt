@@ -8,7 +8,8 @@ the exact thing being said, a diagram on a dark plate, a 3D model of a real NASA
 says appear on screen as big plain type a beat before they are said. Nothing decorative, nothing generic.
 
 === THE OPENING (first 20 seconds) ===
-- Shot 1 MOVES: flow_video, a craft, a globe or a hero scene. Never a still photo first, never a dark plate first.
+- Shot 1 MOVES: a craft, a globe, a hero scene, nasa_video or stock_video of the real subject. Never a still photo first, never a dark plate first.
+- Do NOT open on Flow: the opening is real footage, a 3D craft, a globe or a hero scene. An abstract line ("a thin glowing line of light", "a pulse of light") is not a reason for Flow: use the real subject, a craft, a globe or a diagram.
 - Cut every 3-5 seconds: no shot in the first 20 seconds is longer than 5 seconds. Something new appears every 2-4 seconds.
 - A real photograph can come second, after the moving opening shot (it fills the frame in the opening).
 
@@ -23,7 +24,7 @@ says appear on screen as big plain type a beat before they are said. Nothing dec
 === WHAT EACH SENTENCE BECOMES (decide in this order) ===
 1. It names a real craft, mission, place or event WITH a photograph that exists -> kind image, asset nasa_image:<the exact thing as NASA titles it>
    (the craft's name + the event). If you know no NASA picture exists: archive_video / commons_image, or a stock_video / stock_image search of
-   the same subject (flow_image only inside the opening minute, see FLOW BUDGET).
+   the same subject (Flow only as the last resort, see FLOW BUDGET).
 2. It names a craft in the 3D library -> kind craft, model <name>. Library: voyager, pioneer10, cassini, juno, galileo, magellan, parker, perseverance,
    viking_lander, jwst, hubble, apollo_lm, saturn_v, dsn_70m, dawn, messenger, rosetta, ulysses, ingenuity, insight, iss, deep_space_1, stardust.
 3. It explains a process, a comparison, a scale, a number or a composition -> a diagram (a layer row, see below). The program already adds
@@ -44,11 +45,11 @@ says appear on screen as big plain type a beat before they are said. Nothing dec
    extra {"cam": {"size": 0.26, "x": 0.5, "hover": 1.3}} changes the composition (size = the lander's width as a fraction of the frame; x = its position;
    a wide shot is size 0.09, a close one size 0.55).
 6. It describes a scene that no camera recorded (a lander on the ground, a probe falling through clouds, a ship with engines):
-   - inside the opening minute -> flow_video:<a precise visual description, with the motion: "the probe drifts slowly left, the camera pushes in">
-     (or flow_image:<the same kind of description> for a short in-between shot). A flow_video shot lasts UNDER 6 SECONDS: split a longer sentence
+   - ONLY when nothing real can show it (no photo, no footage, no 3D model, no hero scene, no globe, no diagram) and never in the first 20 seconds ->
+     flow_video:<a precise visual description, with the motion: "the probe drifts slowly left, the camera pushes in"> (or flow_image:<the same kind of description>). A flow_video shot lasts UNDER 6 SECONDS: split a longer sentence
      into two shots of the same subject (wide, then close). Describe ONLY what is visible: place, objects, light, weather, camera distance. Same
      craft = same description every time. No text, no labels, no people's faces.
-   - after the opening minute -> NOT Flow: a hero scene, a 3D craft, a globe, a template on a plate, or stock_video:<3-6 plain search words for real
+   - in every other case -> NOT Flow: a hero scene, a 3D craft, a globe, a template on a plate, or stock_video:<3-6 plain search words for real
      footage of the subject> / stock_image:<the same>. Write stock searches as a person would type them ("dusty red desert time lapse",
      "rocket launch night", "ice cracking close up"), never a long description.
 7. Death, silence, the end of a signal -> add a layer row type fade (the program also detects "went silent", "blacked out").
@@ -128,10 +129,9 @@ V4 "DISTANCE TO THE EDGE" card, V5 "YOUR WEIGHT 70 KG" card at the top-right):
 - Every number the narrator stresses is a metric row (value_to + format) or a big_number_lower: it counts up on screen.
 
 === FLOW BUDGET (AI pictures cost credits: use them where they matter) ===
-- Flow (flow_image / flow_video) is for the OPENING: the first 60 seconds may use it freely, so the video starts strong.
-- After 60 seconds: at most ONE Flow shot every 3 minutes, only for a scene no camera, archive, 3D model or diagram can show. Everything else is
+- Flow (flow_image / flow_video) is a LAST RESORT, never the default and never in the first 20 seconds. After that: at most ONE Flow shot every 3 minutes, only for a scene no camera, archive, 3D model, hero scene, globe or diagram can show. Everything else is
   a real picture (nasa_image, nasa_video, archive_video, commons_image), a stock search (stock_video, stock_image), a hero scene, a craft, a globe,
-  or a template on a plate. The program turns any extra later Flow row into a stock search of the same subject.
+  or a template on a plate. The program turns any extra Flow row (and every Flow row in the first 20 seconds) into a stock search of the same subject.
 - Prefer moving footage (stock_video, nasa_video, archive_video, hero scenes) over stills after the opening, so the video keeps moving.
 
 === GRAPHICS TARGETS (an engaging video uses the library, not only captions) ===

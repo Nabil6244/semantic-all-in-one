@@ -74,6 +74,12 @@ CAMERA
 - Camera geo_ref must be a NAME the atlas knows: a country, a province, a big city, or a
   region like Sahel. A coordinate is a single point and is always shown at street level,
   so never use a coordinate for a camera country/region view.
+- PLACES THE ATLAS CANNOT FIND stop the render. England, Scotland, Wales and Northern Ireland are known by name. A bay, sea, gulf,
+  strait, river, mountain, pass, island, estuary or small town is NOT: never use one as the camera geo_ref or a fill. Point the camera
+  at the county, province or country around it, and write the geo_ref of a marker or label for such a place as decimal coordinates lat,lon
+  (latitude first), for example Morecambe Bay as 54.10,-2.85.
+- Everything a map beat marks must sit inside the camera's view. A region frame on a small county or city shows only about 100 km:
+  when a beat names towns farther apart than that, make the camera place the country (or a large region) around them.
 - Move the camera only when the story moves to a new place, never within 3 seconds of
   another move, and never while footage is on screen. Vary where it looks.
 

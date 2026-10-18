@@ -78,7 +78,9 @@ class OpeningAndFlow(unittest.TestCase):
         count = lambda p, src: sum(1 for s in p.shots if s.asset.startswith(src))  # noqa: E731
         images, both, videos = self.plan("images"), self.plan("both"), self.plan("videos")
         self.assertEqual(count(videos, "flow_image:"), 0)
-        self.assertGreater(count(both, "flow_video:"), count(images, "flow_video:"))
+        self.assertGreaterEqual(count(both, "flow_video:"), count(images, "flow_video:"))
+        for p_ in (images, both, videos):
+            self.assertFalse(any(s.asset.startswith("flow_") for s in p_.shots if s.start < planner.FLOW_OPEN_S), "no Flow in the opening")
         self.assertTrue(all(s.kind == "video" for s in both.shots if s.asset.startswith("flow_video:")))
         self.assertEqual(planner.flow_mode(True), "videos")
         self.assertEqual(planner.flow_mode(False), "images")
@@ -114,7 +116,7 @@ class OpeningAndFlow(unittest.TestCase):
         p = plan_from(raw, script, raw[-1][2] + 0.4, "t", csv_text, flow_video="images")
         self.assertGreater(min(s.start for s in p.shots if s.asset.startswith("flow_video:")), planner.HOOK_S)
         clips = [s for s in p.shots if s.asset.startswith("flow_video:")]
-        self.assertGreater(len(clips), 2, "the long clips were split")
+        self.assertGreaterEqual(len(clips), 1, "Flow is a last resort: the one allowed clip is kept")
         self.assertTrue(all(s.length <= planner.FLOW_VIDEO_MAX_S + 1e-6 for s in clips), [(s.id, round(s.length, 2)) for s in clips])
         self.assertEqual(len({s.asset for s in clips}), len(clips), "each clip of the same subject is framed differently")
 
@@ -955,17 +957,51 @@ class Sound(unittest.TestCase):
 
 
 class FlowBudget(unittest.TestCase):
-    def test_flow_stays_in_the_opening_and_later_rows_become_stock(self):
+    def test_flow_is_a_last_resort_never_in_the_opening_and_later_rows_become_stock(self):
         shots = [planner.Shot(id=f"s{i}", start=i * 20.0, end=i * 20.0 + 20, kind="image", asset=f"flow_image:a scene {i}", text=f"dust storms sweep the plains {i}")
                  for i in range(15)]
         notes = []
         moved = planner.limit_flow(shots, notes)
         flow = [s.start for s in shots if s.asset.startswith("flow_")]
-        self.assertTrue(all(t < planner.FLOW_OPEN_S or t in (60.0, 240.0) for t in flow), flow)
+        self.assertTrue(all(t >= planner.FLOW_OPEN_S for t in flow), flow)
+        self.assertEqual(flow, [20.0, 200.0])
         self.assertEqual(moved, len(shots) - len(flow))
-        later = next(s for s in shots if s.start == 80.0)
-        self.assertTrue(later.asset.startswith("stock_image:") and "dust" in later.asset)
-        self.assertTrue(any("Flow kept to the opening" in n for n in notes))
+        first = shots[0]
+        self.assertTrue(first.asset.startswith("stock_image:") and "dust" in first.asset)
+        self.assertTrue(any("Flow is a last resort" in n for n in notes))
+
+    def test_the_opening_flow_videos_become_real_footage_searches(self):
+        shots = [planner.Shot(id=f"s{i}", start=i * 4.0, end=i * 4.0 + 4, kind="video", asset="flow_video:a pulse of light", text="a signal needs a full day")
+                 for i in range(5)]
+        planner.limit_flow(shots, [])
+        self.assertFalse(any(s.asset.startswith("flow_") for s in shots if s.start < planner.FLOW_OPEN_S))
+        self.assertTrue(all(s.asset.startswith("stock_video:") for s in shots if s.start < planner.FLOW_OPEN_S))
+
+    def test_the_csv_prompt_does_not_open_on_flow(self):
+        prompt = (Path(__file__).parent / "composition_styles" / "whatif_csv_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Do NOT open on Flow", prompt)
+        self.assertIn("LAST RESORT", prompt)
+        self.assertNotIn("the first 60 seconds may use it freely", prompt)
+
+
+class NasaClipGuards(unittest.TestCase):
+    def test_a_clip_that_never_names_the_mission_is_rejected(self):
+        from starmap.nasa_images import contradicts
+        why = contradicts("Voyager 1 launch 1977", 'Apollo 11 25th Anniversary "B" Roll Footage', "Cut 2 - Launch (08:02)", "")
+        self.assertIn("Voyager", why or "")
+        self.assertIsNone(contradicts("Voyager 1 launch 1977", "Titan IIIE launch of Voyager 1", "Voyager 1 lifts off in 1977", ""))
+
+    def test_colour_bars_are_a_test_pattern(self):
+        import numpy as np
+        from providers.nasa.test_pattern import frame_is_color_bars, H, W
+        bars = np.zeros((H, W, 3))
+        cols = [(190, 190, 190), (190, 190, 0), (0, 190, 190), (0, 190, 0), (190, 0, 190), (190, 0, 0), (0, 0, 190)]
+        for i, c in enumerate(cols):
+            bars[:, i * W // 7:(i + 1) * W // 7] = c
+        self.assertTrue(frame_is_color_bars(bars))
+        photo = np.random.default_rng(1).integers(0, 255, (H, W, 3)).astype(float)
+        self.assertFalse(frame_is_color_bars(photo))
+        self.assertFalse(frame_is_color_bars(np.full((H, W, 3), 20.0)))
 
 
 class Engage(unittest.TestCase):

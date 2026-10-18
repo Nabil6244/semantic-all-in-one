@@ -163,6 +163,12 @@ from pakmap.packaging import engine_data_files  # noqa: E402
 
 datas += engine_data_files(ROOT)
 hiddenimports += ["gfx_templates"]   # pakmap.compile imports the universal template planner inside functions (gfx-core ships through engine_data_files)
+hiddenimports += ["place_focus", "boundary_source", "gfx_extractors"]   # imported inside functions (pakmap.compile) or by gfx_templates: place-boundary highlighting
+hiddenimports += ["normal_hybrid_style"]   # imported inside a function (app.py): Normal Video "Use Hybrid Map Graphics & Sound"
+from normal_gfx.packaging import engine_data_files as normal_gfx_data_files  # noqa: E402
+
+datas += normal_gfx_data_files(ROOT)   # gfx-overlay-engine/ (draws the gfx-core templates for Normal Video; gfx-core and Playwright ship above)
+hiddenimports += ["normal_gfx", "normal_gfx.pipeline", "normal_gfx.planner", "normal_gfx.runner", "normal_gfx.composite"]   # imported inside functions (app.py)
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the
 # files it loads, and the starmap package's catalogs and mission packs (see starmap/packaging.py, which is unit-tested).

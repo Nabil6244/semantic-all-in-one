@@ -22,6 +22,7 @@ class NasaCandidate:
     download_url: str = ""
     duration: Optional[float] = None
     source_url: str = ""
+    date: str = ""
 
     @property
     def asset_id(self) -> str:
@@ -64,6 +65,7 @@ class NasaMediaBackend:
                 cand.description = str(
                     meta.get("description") or meta.get("description_508") or cand.description
                 )
+                cand.date = str(meta.get("date_created") or "")[:10]
                 out.append(cand)
         return out
 

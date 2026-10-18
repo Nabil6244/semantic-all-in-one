@@ -81,13 +81,13 @@ class TestPlan(unittest.TestCase):
         msgs = validate_plan(HybridPlan.from_dict(d))
         self.assertTrue(any("does not fit" in x and "cannot move under footage" in x for x in msgs), msgs)
 
-    def test_layers_belong_to_map_beats_and_footage_beats_hold_only_clips(self):
+    def test_layers_belong_to_map_beats_and_footage_beats_hold_clips_and_template_graphics_only(self):
         d = copy.deepcopy(PLAN)
         d["beats"][0]["layers"][2]["t"] = 10
         self.assertTrue(any("outside its map beat b1" in x for x in validate_plan(HybridPlan.from_dict(d))))
         d = copy.deepcopy(PLAN)
         d["beats"][1]["layers"] = [{"id": "x", "type": "marker", "t": 10, "place": "Nairobi", "label": "N"}]
-        self.assertTrue(any("footage beat cannot hold map camera moves" in x for x in validate_plan(HybridPlan.from_dict(d))))
+        self.assertTrue(any("layer x is a marker, which belongs to a map beat" in x and "only carry template graphics" in x for x in validate_plan(HybridPlan.from_dict(d))))
         d = copy.deepcopy(PLAN)
         d["beats"][1]["footage"]["clips"] = []
         self.assertTrue(any("needs at least one clip" in x for x in validate_plan(HybridPlan.from_dict(d))))

@@ -125,6 +125,7 @@ class GenerationTracker:
         log: Optional[Callable[[str], None]] = None,
         http_post: Optional[Callable[..., Any]] = None,
         background: bool = True,
+        on_terminal: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         self._session_provider = session_provider
         self._pending_dir = pending_dir or _default_pending_dir
@@ -132,6 +133,7 @@ class GenerationTracker:
         self._log = log or (lambda _m: None)
         self._post = http_post or requests.post
         self._background = background
+        self._on_terminal = on_terminal  # observer of finished payloads (local learning ledger); can never affect delivery
         self._lock = threading.Lock()  # guards run.finished + the pending file
 
     # ---- lifecycle -------------------------------------------------------
@@ -260,6 +262,11 @@ class GenerationTracker:
             guarded()
 
     def _send(self, payload: Dict[str, Any]) -> None:
+        if self._on_terminal is not None and payload.get("status") != STATUS_RUNNING:
+            try:
+                self._on_terminal(dict(payload))
+            except Exception:
+                pass
         self._send_pending()
         if not self._upsert(payload):
             self._queue(payload)

@@ -2,7 +2,7 @@
 //
 // Under Hybrid footage (media_full with cover_ui) the map, its layers and the cards are all covered. When the clip is fully
 // faded in, is a video (no push-in: kenburns "auto" gives a push-in to stills only), fills the frame at the output size and
-// nothing is drawn over it (no watermark, no debug HUD, no graphic the caller says draws on footage), the page would draw
+// nothing is drawn over it (no watermark, no debug HUD, no map_template flagged over_footage, no graphic the caller says draws on footage), the page would draw
 // exactly that clip frame -- the same JPEG file the page itself would load. The renderer sends that file straight to the
 // encoder: the map is rendered only where it can be seen. Every other frame (map, dissolves, stills, graphics on footage)
 // is drawn by the page as before. Off for pakMap specs (no spec.hybrid) and with spec.footage_shortcut === false.
@@ -43,10 +43,12 @@ export function footageShortcut(spec, events, media, { busy = () => false } = {}
   const fulls = all.filter((e) => e.type === 'media_full');
   if (!fulls.length) return none;
   const W = Math.round(spec.width * (spec.pixel_scale || 1)), H = Math.round(spec.height * (spec.pixel_scale || 1));
+  const over = all.filter((e) => e.type === 'map_template' && e.over_footage === true);
   const sizeOk = new Map();   // clip folder -> its frames are exactly the output size
   return (t) => {
     const live = fulls.filter((e) => t >= e.t_in && t < e.t_out);
     if (live.length !== 1) return null;
+    if (over.some((g) => t >= g.t_in && t < g.t_out)) return null;   // a graphic is drawn over the clip: the page must draw this frame
     const e = live[0];
     if (e.cover_ui !== true || footageAlpha(e, t, all, e.dissolve_s ?? TIMING.dissolve) < 1) return null;
     const info = media.index[mediaKey(e.media, e.start_s ?? 0)];
