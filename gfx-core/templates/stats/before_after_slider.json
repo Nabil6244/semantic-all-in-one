@@ -1,0 +1,41 @@
+{
+ "id": "before_after_slider",
+ "family": "stats",
+ "use": "A before / after picture slider: the divider sweeps across (give before and after pictures in params slots).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "compare",
+  "slider",
+  "photo"
+ ],
+ "slots": {
+  "before": {
+   "default": "",
+   "required": true
+  },
+  "after": {
+   "default": "",
+   "required": true
+  },
+  "before_label": {
+   "default": "BEFORE"
+  },
+  "after_label": {
+   "default": "AFTER"
+  }
+ },
+ "items": [
+  {
+   "p": "slider",
+   "before": "{before}",
+   "after": "{after}",
+   "before_label": "{before_label}",
+   "after_label": "{after_label}",
+   "in": 0.2
+  }
+ ]
+}

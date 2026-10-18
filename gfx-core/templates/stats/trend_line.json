@@ -1,0 +1,78 @@
+{
+ "id": "trend_line",
+ "family": "stats",
+ "use": "A line chart that draws itself in a card; the last value lands as a labelled dot (population over years, price, temperature).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "chart",
+  "trend",
+  "history",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "POPULATION OVER TIME",
+   "from": "label",
+   "required": true
+  },
+  "values": {
+   "default": [
+    12,
+    15,
+    19,
+    26,
+    31,
+    44,
+    52,
+    61
+   ],
+   "from": "values",
+   "required": true
+  },
+  "labels": {
+   "default": [
+    "1950",
+    "1960",
+    "1970",
+    "1980",
+    "1990",
+    "2000",
+    "2010",
+    "2020"
+   ],
+   "from": "labels",
+   "required": true
+  },
+  "unit": {
+   "default": "M",
+   "from": "sub"
+  },
+  "footnote": {
+   "default": "SOURCE: NATIONAL STATISTICS",
+   "from": "text"
+  }
+ },
+ "items": [
+  {
+   "p": "trend",
+   "title": "{title}",
+   "values": "{values}",
+   "labels": "{labels}",
+   "unit": "{unit}",
+   "footnote": "{footnote}",
+   "at": [
+    0.1,
+    0.16
+   ],
+   "w": 0.8,
+   "h": 0.64,
+   "in": 0.2
+  }
+ ]
+}

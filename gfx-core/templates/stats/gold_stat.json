@@ -1,0 +1,75 @@
+{
+ "id": "gold_stat",
+ "family": "stats",
+ "use": "Editorial stat: serif numeral in gold with a tracked caption beneath, over darkened footage.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "number",
+  "stat",
+  "editorial"
+ ],
+ "slots": {
+  "value": {
+   "default": 42,
+   "from": "value_to",
+   "required": true
+  },
+  "dec": {
+   "default": 0
+  },
+  "prefix": {
+   "default": ""
+  },
+  "unit": {
+   "default": "%"
+  },
+  "label": {
+   "default": "OF THE POPULATION",
+   "from": "label",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "number",
+   "to": "{value}",
+   "dec": "{dec}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "size": 150,
+   "weight": 600,
+   "color": "gold",
+   "in": 0.2,
+   "dur": 1.8,
+   "prefix": "{prefix}",
+   "unit": "{unit}"
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.62
+   ],
+   "size": 24,
+   "weight": 600,
+   "face": "ui",
+   "track": 8,
+   "color": "white",
+   "style": "split",
+   "in": 0.8,
+   "dur": 1.2
+  }
+ ],
+ "dim": 0.5,
+ "theme": "editorial"
+}

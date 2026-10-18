@@ -1,0 +1,38 @@
+{
+ "id": "chapter_words",
+ "family": "news",
+ "use": "One to three huge words appearing one by one on a dimmed frame (a part title).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 3.5,
+ "tags": [
+  "chapter",
+  "title",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "PART TWO",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{text}",
+   "style": "word_pop",
+   "size": 170,
+   "face": "ui",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "in": 0.2,
+   "dur": 1.6
+  }
+ ],
+ "dim": 0.55
+}

@@ -43,7 +43,7 @@ BEAT_EXTRA = {"geo_intent": "", "footage_intent": "", "overlay_intent": "", "tra
 
 # How long a layer stays when the CSV says neither `hold` nor `until` (the lengths composition_styles/hybrid_beats_prompt.txt promises).
 # Titles, fills and lines stay until their beat ends.
-DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "marker": 9.0}
+DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "marker": 9.0, "template": 6.0}
 
 
 def is_beat_csv(text: str) -> bool:
@@ -245,12 +245,28 @@ def plan_from_csv(text: str, words=(), duration: Optional[float] = None, *, note
                         until = float(until)
                     except ValueError:
                         pass
+                    lparams = dict(extra.pop("params", {}) or {})
+                    ltext = r.get("text", "")
+                    if r.get("type") == "template":
+                        # a universal graphic (gfx-core): kind = the template id, the text cell may hold a JSON object with its extras
+                        # ({"rows": "A=1; B=2"}, {"values": "1;2", "labels": "A;B"}, {"slots": {...}}, {"text": "..."})
+                        if r.get("kind"):
+                            lparams["template"] = r["kind"].strip()
+                        if ltext.strip().startswith("{"):
+                            try:
+                                more = json.loads(ltext)
+                                if not isinstance(more, dict):
+                                    raise ValueError("not an object")
+                            except ValueError as exc:
+                                raise ValueError(f"a template row's text cell must be a JSON object like {{\"rows\": \"A=1; B=2\"}} ({exc})") from exc
+                            lparams.update(more)
+                            ltext = ""
                     b.layers.append(Layer(
                         id=r.get("id") or f"{b.id}_{r.get('type') or 'layer'}{len(b.layers) + 1}", type=r.get("type", ""), t=t if t is not None else b.start,
                         place=extra.pop("place", "") if is_line else r.get("place", ""), places=places if is_line else [],
-                        label=r.get("label", ""), sub=r.get("sub", ""), text=r.get("text", ""), role=r.get("role", ""), kind=r.get("kind", ""),
+                        label=r.get("label", ""), sub=r.get("sub", ""), text=ltext, role=r.get("role", ""), kind=r.get("kind", ""),
                         value_from=_f(r, "value_from"), value_to=_f(r, "value_to"), format=r.get("format", ""), anchor=r.get("anchor", ""),
-                        until=until, hold=_f(r, "hold"), params=dict(extra.pop("params", {}) or {})))
+                        until=until, hold=_f(r, "hold"), params=lparams))
                     if anchor and not r.get("t") and not r.get("hold") and not r.get("until") and r.get("type") in DEFAULT_HOLD:
                         timed_by_words.append((len(beats) - 1, b.layers[-1]))  # written by hand or by an AI: it stays the usual time, not a whole beat
                     if anchored and anchored[-1][4] is None and anchored[-1][1] == n:

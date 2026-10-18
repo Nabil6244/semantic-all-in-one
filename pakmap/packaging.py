@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Set, Tuple
 
 MAPLIBRE_FILES = ("package.json", "dist/maplibre-gl.mjs", "dist/maplibre-gl-shared.mjs", "dist/maplibre-gl-worker.mjs", "dist/maplibre-gl.css")
-TOP_FILES = ("render.mjs", "page.html", "page.js", "package.json", "tools/validate_spec.mjs")
+TOP_FILES = ("render.mjs", "page.html", "page.js", "package.json", "tools/validate_spec.mjs", "tools/check_gfx.mjs")
 
 
 def npm_closure(node_modules: Path, package: str) -> Set[str]:
@@ -46,6 +46,14 @@ def engine_data_files(root: Path) -> List[Tuple[str, str]]:
         for f in sorted((eng / sub).glob(pattern)):
             if f.is_file():
                 add(f)
+    # gfx-core: the universal templates pakMap draws through its map_template event (renderer modules, fonts, the template JSON)
+    gfx = Path(root) / "gfx-core"
+    for sub, pattern in (("lib", "*.mjs"), ("fonts", "*.ttf"), ("fonts", "OFL.txt")):
+        for f in sorted((gfx / sub).glob(pattern)):
+            if f.is_file():
+                add(f)
+    for f in sorted((gfx / "templates").rglob("*.json")):
+        add(f)
     nm = eng / "node_modules"
     for name in MAPLIBRE_FILES:
         f = nm / "maplibre-gl" / name

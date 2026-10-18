@@ -1,0 +1,40 @@
+{
+ "id": "subtitle_gold",
+ "family": "editorial",
+ "use": "Serif subtitle lines with the key words lit in gold as they are spoken.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "subtitle"
+ ],
+ "slots": {
+  "text": {
+   "default": "a burial ground older than the last ice age.",
+   "from": "text",
+   "required": true
+  },
+  "highlight": {
+   "default": "last ice",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "subtitle",
+   "text": "{text}",
+   "highlight": "{highlight}",
+   "at": [
+    0.5,
+    0.88
+   ],
+   "in": 0.1
+  }
+ ],
+ "theme": "editorial"
+}

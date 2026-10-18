@@ -1,0 +1,27 @@
+item_no,vo_anchor,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,data_source,camera_action,frame,line_kind,hold,params
+1,Here are ten facts,camera,cam0,Canada,,,,,,,,,,start,country,,,
+1,Here are ten facts,fill,can,Canada,,,subject,,,,,,,,,,,
+1,Here are ten facts,template,,,FACTS ABOUT|CANADA,TOP 10,,,,,,,,,,,,"{""template"": ""fact_title""}"
+2,Fact one,camera,cam1,Canada,,,,,,,,,,push_in,country,,,
+2,Canada holds about sixty percent,template,,,FACT 1 · SHARE OF THE WORLD'S LAKES,OF ALL LAKES ON EARTH,,,60,,,,,,,,,"{""template"": ""ring_percent"", ""text"": ""FACT 1"", ""slots"": {""label"": ""CANADA""}}"
+3,Fact two,camera,cam2,Canada,,,,,,,,,,pull_back,continental,,,
+3,second largest country,template,,,TOTAL AREA,SECOND LARGEST COUNTRY ON EARTH,,,9984670,KM²,,,,,,,,"{""template"": ""big_number""}"
+4,Fact three,camera,cam3,Canada,,,,,,,,,,fly_to,country,,,
+4,longest coastline,template,,,FACT 3 · LONGEST COASTLINES (APPROX.),KM,,,,,,,,,,,,"{""template"": ""rank_bars"", ""rows"": ""CANADA@orange=202080; NORWAY@green=83281; INDONESIA@blue=54716""}"
+4,far longer than Norway,caption,,,LONGER THAN NORWAY AND INDONESIA COMBINED,,,,,,bc,,,,,,3.5,
+5,Fact four,camera,cam4,Canada,,,,,,,,,,fly_to,country,,,
+5,Four people for every square,template,,,FACT 4 · PEOPLE PER SQUARE KILOMETRE,,,,,,,,,,,,,"{""template"": ""versus_numbers"", ""slots"": {""a_label"": ""CANADA"", ""a_value"": 4, ""b_label"": ""BANGLADESH"", ""b_value"": 1100, ""unit"": ""PER KM\u00b2 (APPROX.)""}}"
+5,while Bangladesh has more than,caption,,,"BANGLADESH: OVER 1,000 PER KM²",,,,,,bc,,,,,,3.5,
+6,Fact five,camera,cam5,Vancouver,,,,,,,,,,fly_to,region,,,
+6,Rain falls almost every month,template,,,VANCOUVER · RAINFALL BY MONTH,FACT 5 · WETTER THAN YOU THINK,,,,,,,,,,,,"{""template"": ""month_columns"", ""values"": ""154;115;113;86;66;55;31;36;57;120;198;189"", ""labels"": ""J;F;M;A;M;J;J;A;S;O;N;D"", ""text"": ""MM \u00b7 LONG-TERM AVERAGE (APPROX.)""}"
+7,Fact six,camera,cam6,Canada,,,,,,,,,,pull_back,country,,,
+7,tripled since nineteen fifty,template,,,FACT 6 · CANADA'S POPULATION,M,,,,,,,,,,,,"{""template"": ""trend_line"", ""values"": ""14;17;21;24;27;31;34;38;41"", ""labels"": ""1950;1960;1970;1980;1990;2000;2010;2020;2024"", ""text"": ""SOURCE: STATISTICS CANADA (ROUNDED)""}"
+8,Fact seven,camera,cam7,Canada,,,,,,,,,,fly_to,country,,,
+8,Five provinces and territories,template,,,FACT 7 · LARGEST PROVINCES AND TERRITORIES,K KM²,,,,,,,,,,,,"{""template"": ""top_list"", ""rows"": ""Nunavut=2094; Quebec=1542; Northwest Territories=1346; Ontario=1076; British Columbia=945""}"
+9,Fact eight,camera,cam8,Nunavut,,,,,,,,,,fly_to,region,,,
+9,Nunavut is also,fill,nu,Nunavut,,,featured,,,,,,,,,,,
+9,least crowded place,template,,Nunavut,NUNAVUT,"ABOUT 40,000 PEOPLE",,,,,,,,,,,,"{""template"": ""region_label"", ""slots"": {""tag"": ""FACT 8 \u00b7 THE EMPTIEST PLACE""}}"
+10,Fact nine,camera,cam9,Canada,,,,,,,,,,fly_to,country,,,
+10,nine in ten Canadians,template,,,CLOSE TO THE BORDER,About 90% of Canadians live|within 160 km of the US border.,,,9,,,,,,,,,"{""template"": ""fact_card"", ""text"": ""FACT""}"
+11,Fact ten,camera,cam10,Canada,,,,,,,,,,pull_back,country,,,
+11,six time zones,template,,,SIX TIME ZONES,From Newfoundland to the Yukon.|The sun takes 4½ hours to cross it.,,,10,,,,,,,,,"{""template"": ""fact_card"", ""text"": ""FACT""}"

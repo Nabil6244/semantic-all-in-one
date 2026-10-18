@@ -1,0 +1,68 @@
+{
+ "id": "top_list",
+ "family": "stats",
+ "use": "A ranked list in a card: rank, name, bar and value (largest countries, tallest peaks, busiest ports).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "ranking",
+  "top",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "LARGEST COUNTRIES BY AREA",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "Russia",
+     "value": 17098
+    },
+    {
+     "label": "Canada",
+     "value": 9985
+    },
+    {
+     "label": "USA",
+     "value": 9834
+    },
+    {
+     "label": "China",
+     "value": 9597
+    },
+    {
+     "label": "Brazil",
+     "value": 8516
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "unit": {
+   "default": "K KM\u00b2",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "ranklist",
+   "title": "{title}",
+   "rows": "{rows}",
+   "unit": "{unit}",
+   "at": [
+    0.08,
+    0.12
+   ],
+   "w": 0.52,
+   "in": 0.2
+  }
+ ]
+}

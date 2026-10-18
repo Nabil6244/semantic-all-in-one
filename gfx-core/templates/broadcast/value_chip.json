@@ -1,0 +1,53 @@
+{
+ "id": "value_chip",
+ "family": "broadcast",
+ "use": "A value at a place on the map: a ring dot and a chip with the number counting up, a label and a small line (pins to the row's geo_ref).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 5.5,
+ "tags": [
+  "place",
+  "number",
+  "map",
+  "news"
+ ],
+ "slots": {
+  "value": {
+   "default": "31.2 IN",
+   "from": "text",
+   "required": true
+  },
+  "label": {
+   "default": "HOUSTON",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "tag": {
+   "default": ""
+  }
+ },
+ "items": [
+  {
+   "p": "valuechip",
+   "value": "{value}",
+   "label": "{label}",
+   "sub": "{sub}",
+   "tag": "{tag}",
+   "follow": true,
+   "at": [
+    0.5,
+    0.5
+   ],
+   "in": 0.2
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "gfx-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Universal graphics templates (charts, stat cards, fact cards, text styles) shared by every niche engine.",
+  "scripts": { "test": "node --test test/*.test.mjs" }
+}

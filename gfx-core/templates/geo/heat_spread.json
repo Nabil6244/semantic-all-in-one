@@ -1,0 +1,43 @@
+{
+ "id": "heat_spread",
+ "family": "geo",
+ "use": "Heat spreads from one or more places: soft warm blobs that grow, optional label.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "heat",
+  "climate",
+  "map"
+ ],
+ "slots": {
+  "points": {
+   "default": [
+    [
+     77.2,
+     28.6
+    ]
+   ],
+   "from": "geo",
+   "required": true
+  },
+  "label": {
+   "default": "",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "heat",
+   "points": "{points}",
+   "label": "{label}",
+   "dur": 4,
+   "in": 0.2
+  }
+ ]
+}

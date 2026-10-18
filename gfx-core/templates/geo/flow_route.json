@@ -1,0 +1,49 @@
+{
+ "id": "flow_route",
+ "family": "geo",
+ "use": "Dashes and chevrons flow along a route (trade, supply, migration).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "flow",
+  "trade",
+  "map"
+ ],
+ "slots": {
+  "points": {
+   "default": [
+    [
+     -123.1,
+     49.3
+    ],
+    [
+     -97.1,
+     49.9
+    ],
+    [
+     -75.7,
+     45.4
+    ]
+   ],
+   "from": "geo",
+   "required": true
+  },
+  "color": {
+   "default": "yellow"
+  }
+ },
+ "items": [
+  {
+   "p": "flowarrows",
+   "points": "{points}",
+   "color": "{color}",
+   "in": 0.2
+  }
+ ]
+}

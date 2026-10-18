@@ -1,0 +1,62 @@
+{
+ "id": "route_travel",
+ "family": "geo",
+ "use": "A route draws itself between places (geo_ref 'A;B;C') with a marker travelling along it and the ends named.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "route",
+  "travel",
+  "map"
+ ],
+ "slots": {
+  "points": {
+   "default": [
+    [
+     -123.1,
+     49.3
+    ],
+    [
+     -97.1,
+     49.9
+    ],
+    [
+     -75.7,
+     45.4
+    ]
+   ],
+   "from": "geo",
+   "required": true
+  },
+  "label": {
+   "default": "",
+   "from": "label"
+  },
+  "from_label": {
+   "default": ""
+  },
+  "to_label": {
+   "default": ""
+  },
+  "dur": {
+   "default": 3.5
+  }
+ },
+ "items": [
+  {
+   "p": "route",
+   "points": "{points}",
+   "label": "{label}",
+   "from_label": "{from_label}",
+   "to_label": "{to_label}",
+   "dur": "{dur}",
+   "in": 0.2
+  }
+ ]
+}

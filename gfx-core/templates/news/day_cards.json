@@ -1,0 +1,53 @@
+{
+ "id": "day_cards",
+ "family": "news",
+ "use": "A row of up to five cards dealt in one by one: heading, big value, unit (a forecast, a few countries, a few dates).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "cards",
+  "forecast",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "FIVE DAY OUTLOOK",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "Mon",
+     "text": "24"
+    },
+    {
+     "label": "Tue",
+     "text": "27"
+    },
+    {
+     "label": "Wed",
+     "text": "31"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "unit": {
+   "default": "\u00b0C",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "cardsrow",
+   "title": "{title}",
+   "rows": "{rows}",
+   "unit": "{unit}",
+   "in": 0.2
+  }
+ ]
+}

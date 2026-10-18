@@ -1,0 +1,38 @@
+{
+ "id": "name_bar",
+ "family": "news",
+ "use": "Orange bar with a name and a role, bottom-left (a person on camera).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "person",
+  "lowerthird",
+  "news"
+ ],
+ "slots": {
+  "label": {
+   "default": "JULIE LAUGHTON",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "LOCAL RESIDENT",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "nametag",
+   "name": "{label}",
+   "role": "{sub}",
+   "at": [
+    0.047,
+    0.68
+   ],
+   "in": 0.2
+  }
+ ]
+}

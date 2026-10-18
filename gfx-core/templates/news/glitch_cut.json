@@ -1,0 +1,22 @@
+{
+ "id": "glitch_cut",
+ "family": "news",
+ "use": "A glitch cut that hides a change of picture: RGB slices then a white flash with cyan stripes.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 0.8,
+ "tags": [
+  "transition",
+  "news"
+ ],
+ "slots": {},
+ "items": [
+  {
+   "p": "glitch",
+   "dur": 0.7,
+   "in": 0.0
+  }
+ ]
+}

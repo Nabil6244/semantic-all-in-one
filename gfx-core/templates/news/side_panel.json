@@ -1,0 +1,38 @@
+{
+ "id": "side_panel",
+ "family": "news",
+ "use": "A navy panel on the right 44% with a teal edge, a title and up to three bullets (the explainer beside footage).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 7,
+ "tags": [
+  "panel",
+  "bullets",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "WHY IT MATTERS",
+   "from": "label",
+   "required": true
+  },
+  "bullets": {
+   "default": [
+    "First point",
+    "Second point"
+   ],
+   "from": "labels",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "panel",
+   "title": "{title}",
+   "bullets": "{bullets}",
+   "in": 0.2
+  }
+ ]
+}

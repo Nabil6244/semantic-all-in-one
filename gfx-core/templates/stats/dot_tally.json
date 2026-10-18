@@ -1,0 +1,44 @@
+{
+ "id": "dot_tally",
+ "family": "stats",
+ "use": "A grid of dots filling one after another (1 dot = a number of people or things), a counter beside it (set per in params slots).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "tally",
+  "dots",
+  "data"
+ ],
+ "slots": {
+  "total": {
+   "default": 100,
+   "from": "value_to",
+   "required": true
+  },
+  "per": {
+   "default": 1
+  },
+  "highlight": {
+   "default": 0,
+   "from": "value_from"
+  },
+  "label": {
+   "default": "OF EVERY 100",
+   "from": "label",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "tally",
+   "total": "{total}",
+   "per": "{per}",
+   "highlight": "{highlight}",
+   "label": "{label}",
+   "in": 0.2
+  }
+ ]
+}

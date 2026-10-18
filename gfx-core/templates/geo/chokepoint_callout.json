@@ -1,0 +1,46 @@
+{
+ "id": "chokepoint_callout",
+ "family": "geo",
+ "use": "A strait or pass: pulsing ring, two banks, a card with its name, width and one fact (row geo_ref = the place).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "chokepoint",
+  "strait",
+  "geopolitics"
+ ],
+ "slots": {
+  "label": {
+   "default": "STRAIT OF HORMUZ",
+   "from": "label",
+   "required": true
+  },
+  "width": {
+   "default": ""
+  },
+  "fact": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "chokepoint",
+   "name": "{label}",
+   "width_km": "{width}",
+   "fact": "{fact}",
+   "follow": true,
+   "at": [
+    0.5,
+    0.5
+   ],
+   "in": 0.2
+  }
+ ]
+}

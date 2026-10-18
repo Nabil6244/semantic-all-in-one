@@ -1,0 +1,101 @@
+{
+ "id": "month_columns",
+ "family": "stats",
+ "use": "A dark card with a 12-month (or any) column chart over a map or footage: values above the bars, letters below.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 8,
+ "tags": [
+  "chart",
+  "monthly",
+  "climate",
+  "data"
+ ],
+ "slots": {
+  "tag": {
+   "default": "EXTREMES IN THE NORTH",
+   "from": "sub"
+  },
+  "title": {
+   "default": "BROOME \u00b7 RAINFALL BY MONTH",
+   "from": "label",
+   "required": true
+  },
+  "values": {
+   "default": [
+    181,
+    178,
+    99,
+    26,
+    29,
+    19,
+    8,
+    2,
+    1,
+    1,
+    9,
+    56
+   ],
+   "from": "values",
+   "required": true
+  },
+  "labels": {
+   "default": [
+    "J",
+    "F",
+    "M",
+    "A",
+    "M",
+    "J",
+    "J",
+    "A",
+    "S",
+    "O",
+    "N",
+    "D"
+   ],
+   "from": "labels",
+   "required": true
+  },
+  "footnote": {
+   "default": "MM \u00b7 LONG-TERM AVERAGE (APPROX.)",
+   "from": "text"
+  },
+  "highlight": {
+   "default": -1
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{tag}",
+   "at": [
+    0.008,
+    0.012
+   ],
+   "bg": "ink",
+   "color": "red",
+   "size": 26,
+   "in": 0.1
+  },
+  {
+   "p": "columns",
+   "title": "{title}",
+   "values": "{values}",
+   "labels": "{labels}",
+   "footnote": "{footnote}",
+   "highlight": "{highlight}",
+   "at": [
+    0.66,
+    0.12
+   ],
+   "w": 0.31,
+   "h": 0.52,
+   "in": 0.5
+  }
+ ]
+}

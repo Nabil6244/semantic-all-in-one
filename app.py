@@ -3199,6 +3199,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._pakmap_enabled_var = ctk.BooleanVar(value=False)
         self._pakmap_channel_var = ctk.StringVar(value=str(self._settings.get("pakmap_channel_name", "") or ""))
         self._pakmap_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+        self._pakmap_auto_gfx_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_auto_templates", False)))
         self._pakmap_running = False
         self._pakmap_cancel = threading.Event()
         self._pakmap_base_dir: str = ""  # the folder the CSV was picked from: its media paths are relative to it
@@ -3248,22 +3249,27 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11), command=self._on_pakmap_sound_changed,
         )
         self._pakmap_sound_switch.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        self._pakmap_auto_gfx_switch = ctk.CTkSwitch(
+            controls, text="Add graphics from the narration (shares, sizes, counts)", variable=self._pakmap_auto_gfx_var,
+            font=ctk.CTkFont(size=11), command=self._on_pakmap_auto_gfx_changed,
+        )
+        self._pakmap_auto_gfx_switch.grid(row=3, column=0, sticky="w", pady=(8, 0))
         self._pakmap_hint_label = ctk.CTkLabel(
             controls,
             text="Uses the voiceover chosen on the Script page. Check plan reads the narration and shows where every layer "
                  "lands before anything is drawn; the main action button then renders the video.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
-        self._pakmap_hint_label.grid(row=3, column=0, sticky="w", pady=(6, 0))
+        self._pakmap_hint_label.grid(row=4, column=0, sticky="w", pady=(6, 0))
         self._pakmap_plan_box = ctk.CTkTextbox(controls, height=220, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
-        self._pakmap_plan_box.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+        self._pakmap_plan_box.grid(row=5, column=0, sticky="ew", pady=(8, 0))
         self._pakmap_plan_box.configure(state="disabled")
         self._pakmap_status_label = ctk.CTkLabel(
             controls, textvariable=self._pakmap_status_var,
             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=420, justify="left",
         )
-        self._pakmap_status_label.grid(row=5, column=0, sticky="ew", pady=(6, 0))
-        self._build_csv_prompt_bar(controls, style="pakmap", status_var=self._pakmap_status_var, row=6)
+        self._pakmap_status_label.grid(row=6, column=0, sticky="ew", pady=(6, 0))
+        self._build_csv_prompt_bar(controls, style="pakmap", status_var=self._pakmap_status_var, row=7)
         controls.grid_remove()
 
     def _set_pakmap_plan_text(self, text: str) -> None:
@@ -3323,6 +3329,15 @@ class VideoGeneratorApp(ctk.CTk):
             pass
         self._save_pakmap_settings()
 
+    def _on_pakmap_auto_gfx_changed(self) -> None:
+        """When on, a number the narration states (60 percent, 9,984,670 square kilometres) gets the matching universal graphic
+        (gfx_templates.auto_events), within a pacing budget; the CSV's own graphics are never touched."""
+        self._settings["pakmap_auto_templates"] = bool(self._pakmap_auto_gfx_var.get())
+        try:
+            self._persist_global_settings()
+        except Exception:
+            pass
+
     def _save_pakmap_settings(self) -> None:
         if self._workspace is None:
             return
@@ -3367,6 +3382,7 @@ class VideoGeneratorApp(ctk.CTk):
         skipping a clip is done there; the map beats stay in this block's plan view."""
         self._hybrid_enabled_var = ctk.BooleanVar(value=False)
         self._hybrid_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+        self._hybrid_auto_gfx_var = ctk.BooleanVar(value=bool(self._settings.get("hybrid_auto_templates", False)))
         self._hybrid_status_var = ctk.StringVar(value="")
         self._hybrid_file_var = ctk.StringVar(value="")     # the CSV or plan file the plan came from (shown like pakMap's CSV row)
         self._hybrid_running = False
@@ -3440,6 +3456,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_open_btn = _small("Edit in spreadsheet", self._hybrid_open_plan_file, 2)
         ctk.CTkSwitch(more, text="Sound effects + ambience", variable=self._hybrid_sound_var, command=self._save_hybrid_settings,
                       font=ctk.CTkFont(size=11)).grid(row=0, column=3, sticky="e")
+        ctk.CTkSwitch(more, text="Add graphics from the narration (shares, sizes, counts)", variable=self._hybrid_auto_gfx_var, command=self._on_hybrid_auto_gfx_changed,
+                      font=ctk.CTkFont(size=11)).grid(row=1, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
         self._hybrid_timeline = tk.Canvas(controls, height=54, highlightthickness=0, bd=0, bg=_CARD)
         self._hybrid_timeline.grid(row=7, column=0, sticky="ew", pady=(14, 0))
@@ -3456,6 +3474,14 @@ class VideoGeneratorApp(ctk.CTk):
         ctk.CTkLabel(controls, textvariable=self._hybrid_status_var, font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520,
                      justify="left").grid(row=11, column=0, sticky="ew", pady=(6, 0))
         controls.grid_remove()
+
+    def _on_hybrid_auto_gfx_changed(self) -> None:
+        """Same as pakMap's switch: a number the narration states gets the matching universal graphic when the video is rendered (never over footage)."""
+        self._settings["hybrid_auto_templates"] = bool(self._hybrid_auto_gfx_var.get())
+        try:
+            self._persist_global_settings()
+        except Exception:
+            pass
 
     def _set_hybrid_text(self, text: str) -> None:
         box = self._hybrid_plan_box
@@ -3824,7 +3850,7 @@ class VideoGeneratorApp(ctk.CTk):
             style = "enoch_template"
         script = self._main_script_text()
         try:
-            text = build_prompt(style, script)
+            text = build_prompt(style, script, graphics=bool(self._settings.get("doc_style", False)))
         except OSError as exc:
             messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
             return
@@ -4630,6 +4656,7 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Check plan", "There is no Hybrid plan yet: click Load beat CSV… or Write plan with AI.")
             return
         plan, report, status = self._hybrid_plan, self._hybrid_report, self._hybrid_scene_status()
+        graphics_on = bool(self._settings.get("doc_style", False))   # the graphics switch: its drawing check is part of the plan check only when on
         self._hybrid_busy = True
         self._hybrid_check_btn.configure(state="disabled")
         self._hybrid_status_var.set("Checking the plan…")
@@ -4638,7 +4665,7 @@ class VideoGeneratorApp(ctk.CTk):
             try:
                 from hybrid.app_integration import check_plan
 
-                text, ok = check_plan(plan, report=report, scene_status=status)
+                text, ok = check_plan(plan, report=report, scene_status=status, graphics=graphics_on)
             except Exception as exc:
                 text, ok = f"Could not check the plan: {exc}", False
             self.after(0, lambda: finish(text, ok))
@@ -4803,6 +4830,9 @@ class VideoGeneratorApp(ctk.CTk):
             self._asset_manager = manager
             self._hybrid_run_manager = manager
 
+        hybrid_doc_style = bool(self._settings.get("doc_style", False))
+        hybrid_auto_gfx = bool(self._hybrid_auto_gfx_var.get())
+
         def worker() -> None:
             from hybrid.generate import generate_hybrid_video
             from pakmap.app_integration import PakmapResult
@@ -4819,7 +4849,7 @@ class VideoGeneratorApp(ctk.CTk):
                         plan, voiceover_path, output_path, work_dir=ws.hybrid_work_dir, whisper_words=words, base_dir=str(ws.hybrid_dir),
                         watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log, cancel_check=self._hybrid_cancel.is_set,
                         sound_design=sound_design, pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
-                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir, pixel_scale=pixel_scale,
+                        flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir, pixel_scale=pixel_scale, doc_style=hybrid_doc_style, guard=hybrid_doc_style, auto_templates=hybrid_auto_gfx,
                         media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                              on_manager_ready=_manager_ready),
                     )
@@ -5715,6 +5745,8 @@ class VideoGeneratorApp(ctk.CTk):
         base_dir = self._pakmap_base_dir or str(Path(csv_path).resolve().parent)
         watermark = self._pakmap_watermark()
         sound_design = bool(self._pakmap_sound_var.get())
+        auto_gfx = bool(self._pakmap_auto_gfx_var.get())
+        doc_style = bool(self._settings.get("doc_style", False))   # Graphics tab "Doc Style": the News Doc look for tags, titles and numbers
         check_images_dir = self._workspace.pakmap_images_dir if self._workspace is not None else None
         self._pakmap_checking = True
         self._pakmap_check_btn.configure(state="disabled")
@@ -5728,7 +5760,8 @@ class VideoGeneratorApp(ctk.CTk):
 
             try:
                 words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
-                res, report, problems = check_pakmap_plan(csv_path, words, duration=voiceover_duration(voiceover_path), base_dir=base_dir, watermark=watermark, images_dir=check_images_dir)
+                res, report, problems = check_pakmap_plan(csv_path, words, duration=voiceover_duration(voiceover_path), base_dir=base_dir, watermark=watermark, images_dir=check_images_dir,
+                                                          auto_templates=auto_gfx, doc_style=doc_style, guard=doc_style)
                 if report is not None:
                     text = report.to_text()
                 else:
@@ -5851,6 +5884,8 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_state_dir = getattr(self._workspace, "state_dir", None)
         watermark = self._pakmap_watermark()
         sound_design = bool(self._pakmap_sound_var.get())
+        auto_gfx = bool(self._pakmap_auto_gfx_var.get())
+        doc_style = bool(self._settings.get("doc_style", False))   # Graphics tab "Doc Style": the News Doc look for tags, titles and numbers
         pixel_scale = self._export_pixel_scale()
         title = getattr(self._workspace, "title", "") or ""
 
@@ -5935,7 +5970,7 @@ class VideoGeneratorApp(ctk.CTk):
                     result = generate_pakmap_video(
                         persisted, voiceover_path, output_path, work_dir=work_dir, whisper_words=words, base_dir=base_dir,
                         watermark=watermark, title=title, progress_cb=progress_cb, log=thread_safe_log,
-                        cancel_check=self._pakmap_cancel.is_set, sound_design=sound_design,
+                        cancel_check=self._pakmap_cancel.is_set, sound_design=sound_design, auto_templates=auto_gfx, doc_style=doc_style, guard=doc_style,
                         pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager,
                         flow_video_account_ids=flow_video_account_ids, scene_rows=plan_rows, media_dir=images_dir, pixel_scale=pixel_scale,
                         media_callbacks=dict(on_scene_start=_pm_scene_start, on_scene_complete=_pm_scene_complete,
@@ -10636,6 +10671,14 @@ class VideoGeneratorApp(ctk.CTk):
             "aspectRatio": self.flow_image_aspect_var.get(),
         }
 
+    def _doc_style_on(self) -> bool:
+        """The app-wide "Doc Style" switch (Audio & Effects > Smart editing), saved in settings.json: graphics drawn in the News Doc look."""
+        return bool(self._settings.get("doc_style"))
+
+    def _set_doc_style(self, on: bool) -> None:
+        self._settings["doc_style"] = bool(on)
+        save_settings(self._settings)
+
     def _flow_agent_images_on(self) -> bool:
         """The app-wide "Fast Flow images (agent mode)" switch (Settings → Flow), saved in settings.json."""
         return bool(self._settings.get("flow_agent_images"))
@@ -14622,6 +14665,8 @@ class VideoGeneratorApp(ctk.CTk):
                 render_cache_state_dir=state_dir,
                 perf=perf,
                 progress_cb=_progress_cb,
+                graphics_look=("doc_looks" if config.get("enoch_template") else "doc") if self._doc_style_on() else "",
+                doc_channel=str(self._settings.get("pakmap_channel_name", "") or "") if self._doc_style_on() else "",
             )
             ledger.complete(_render_job.id, outputs=[config["output_path"]])
             if config.get("enoch_template"):  # opt-in audio finishing + QC report, this style only

@@ -126,7 +126,8 @@ def plan_text(plan: HybridPlan, findings: Optional[Sequence[Finding]] = None, *,
     return "\n".join(lines)
 
 
-def check_plan(plan: HybridPlan, *, report: Optional[PlanResult] = None, scene_status: Optional[Dict[str, str]] = None, engine: bool = True) -> "tuple[str, bool]":
+def check_plan(plan: HybridPlan, *, report: Optional[PlanResult] = None, scene_status: Optional[Dict[str, str]] = None, engine: bool = True,
+               graphics: bool = False) -> "tuple[str, bool]":
     """Validate, then compile (the renderer's own rules and every place), and describe the plan. Returns (text, ok)."""
     findings = validate(plan)
     text = plan_text(plan, findings, scene_status=scene_status, report=report)
@@ -136,6 +137,19 @@ def check_plan(plan: HybridPlan, *, report: Optional[PlanResult] = None, scene_s
             res = compile_plan(plan, validate=engine)
             for n in res.notes:
                 text += f"\nnote: {n}"
+            # every graphic is drawn once on a mock canvas, as What If's check does: what Generate would repair or leave out is listed
+            try:
+                if not graphics:
+                    raise RuntimeError("graphics switch off")
+                from pakmap.guard import check_gfx
+
+                for gid, rec in check_gfx(res.result.spec).items():
+                    if rec.get("fatal"):
+                        text += f"\nrepaired: graphic {gid} cannot be drawn and Generate leaves it out ({rec['fatal']})"
+                    for m in rec.get("repairs", []):
+                        text += f"\nrepaired: graphic {gid}: {m}"
+            except Exception:  # noqa: BLE001 -- no node here: the check is skipped, never a stop
+                pass
             for w in res.report.warnings:
                 text += f"\nwarning: {w}"
         except HybridCompileError as exc:

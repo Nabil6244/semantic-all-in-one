@@ -1,0 +1,42 @@
+{
+ "id": "scoreboard",
+ "family": "stats",
+ "use": "A scoreboard of up to four rivals: name and big score each, the leader in gold (rows 'A=3; B=1').",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "scoreboard",
+  "compare"
+ ],
+ "slots": {
+  "title": {
+   "default": "",
+   "from": "label"
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "A",
+     "value": 3
+    },
+    {
+     "label": "B",
+     "value": 1
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "scoreboard",
+   "title": "{title}",
+   "rows": "{rows}",
+   "in": 0.2
+  }
+ ]
+}

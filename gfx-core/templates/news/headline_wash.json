@@ -1,0 +1,33 @@
+{
+ "id": "headline_wash",
+ "family": "news",
+ "use": "A headline left-centre over the shot on a dark wash, a grey line under it.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "headline",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "BORDER TALKS BREAK DOWN",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "headline",
+   "title": "{title}",
+   "sub": "{sub}",
+   "in": 0.2
+  }
+ ]
+}

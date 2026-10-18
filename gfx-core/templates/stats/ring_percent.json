@@ -1,0 +1,63 @@
+{
+ "id": "ring_percent",
+ "family": "stats",
+ "use": "A percentage as a glowing ring that fills (share of territory, of population, of trade).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "percent",
+  "share",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "SHARE OF TERRITORY",
+   "from": "text",
+   "required": true
+  },
+  "value": {
+   "default": 42,
+   "from": "value_to",
+   "required": true
+  },
+  "label": {
+   "default": "WESTERN DIVISION",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "OF NEW SOUTH WALES",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{title}",
+   "at": [
+    0.04,
+    0.07
+   ],
+   "in": 0.1
+  },
+  {
+   "p": "ring",
+   "value": "{value}",
+   "label": "{label}",
+   "sub": "{sub}",
+   "at": [
+    0.5,
+    0.5
+   ],
+   "r": 0.2,
+   "color": "teal",
+   "in": 0.4
+  }
+ ],
+ "triggers": "\\b\\d+(\\.\\d+)?\\s*(%|percent|per cent)"
+}

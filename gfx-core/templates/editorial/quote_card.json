@@ -1,0 +1,42 @@
+{
+ "id": "quote_card",
+ "family": "editorial",
+ "use": "A gold bar, an italic display quote and a tracked attribution over darkened footage.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "quote"
+ ],
+ "slots": {
+  "text": {
+   "default": "This is the fact my|students always argued with|me about.",
+   "from": "text",
+   "required": true
+  },
+  "by": {
+   "default": "NARRATOR",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "quote",
+   "text": "{text}",
+   "by": "{by}",
+   "at": [
+    0.07,
+    0.58
+   ],
+   "size": 62,
+   "in": 0.2
+  }
+ ],
+ "dim": 0.45,
+ "theme": "editorial"
+}

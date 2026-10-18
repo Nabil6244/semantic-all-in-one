@@ -1,0 +1,56 @@
+{
+ "id": "record_badge",
+ "family": "broadcast",
+ "use": "A record badge: a coloured stamp headline, the place, the new value and date, the old record it beat (set date, prev_value, prev_date in params slots).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 7,
+ "tags": [
+  "record",
+  "news"
+ ],
+ "slots": {
+  "headline": {
+   "default": "HOTTEST DAY ON RECORD",
+   "from": "label",
+   "required": true
+  },
+  "place": {
+   "default": "DELHI",
+   "from": "sub",
+   "required": true
+  },
+  "value": {
+   "default": "49.2\u00b0C",
+   "from": "text",
+   "required": true
+  },
+  "date": {
+   "default": "MAY 2024",
+   "required": true
+  },
+  "prev_value": {
+   "default": "48.4\u00b0C",
+   "required": true
+  },
+  "prev_date": {
+   "default": "JUNE 1998",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "badge",
+   "headline": "{headline}",
+   "place": "{place}",
+   "value": "{value}",
+   "date": "{date}",
+   "prev_value": "{prev_value}",
+   "prev_date": "{prev_date}",
+   "color": "red",
+   "in": 0.1
+  }
+ ]
+}

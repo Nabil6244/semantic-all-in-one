@@ -1,0 +1,54 @@
+{
+ "id": "distance_ruler",
+ "family": "geo",
+ "use": "A dashed ruler between two places with the great-circle distance counting up in a chip.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "distance",
+  "ruler",
+  "map"
+ ],
+ "slots": {
+  "points": {
+   "default": [
+    [
+     -123.1,
+     49.3
+    ],
+    [
+     -75.7,
+     45.4
+    ]
+   ],
+   "from": "geo",
+   "required": true
+  },
+  "unit": {
+   "default": "km",
+   "from": "format"
+  },
+  "from_label": {
+   "default": ""
+  },
+  "to_label": {
+   "default": ""
+  }
+ },
+ "items": [
+  {
+   "p": "ruler",
+   "points": "{points}",
+   "unit": "{unit}",
+   "from_label": "{from_label}",
+   "to_label": "{to_label}",
+   "in": 0.2
+  }
+ ]
+}

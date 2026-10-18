@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 MODES = ("map", "footage", "map_footage")  # map_footage: a map beat with a supporting photo card (the map says where, the card shows what)
 SOURCES = ("stock_image", "stock_video", "flow_image", "flow_video", "youtube_video")
 TRANSITIONS = ("dissolve",)
-LAYER_TYPES = ("hud_title", "marker", "zone_label", "fill", "line", "stat", "caption")
+LAYER_TYPES = ("hud_title", "marker", "zone_label", "fill", "line", "stat", "caption", "template")
 CAMERA_ACTIONS = ("start", "fly_to", "push_in", "pull_back")
 UNTIL_WORDS = ("beat_end", "after_footage", "end")
 EPS = 1e-6
@@ -377,10 +377,11 @@ def validate_plan(plan: HybridPlan) -> List[str]:
             if lay.hold is not None and lay.hold <= 0:
                 out.append(f"layer {lay.id}: hold must be more than 0")
             need = {"hud_title": lay.label, "marker": lay.place and lay.label, "zone_label": lay.place and lay.label, "fill": lay.place,
-                    "line": len(lay.places) >= 2 and lay.kind, "stat": lay.value_to is not None, "caption": lay.text}[lay.type] if lay.type in LAYER_TYPES else True
+                    "line": len(lay.places) >= 2 and lay.kind, "stat": lay.value_to is not None, "caption": lay.text,
+                    "template": bool(lay.kind or (lay.params or {}).get("template"))}[lay.type] if lay.type in LAYER_TYPES else True
             if not need:
                 out.append(f"layer {lay.id}: a {lay.type} is missing something it needs ({_NEEDS[lay.type]})")
     return out
 
 
-_NEEDS = {"hud_title": "label", "marker": "place and label", "zone_label": "place and label", "fill": "place", "line": "at least two places and a kind", "stat": "'to'", "caption": "text"}
+_NEEDS = {"hud_title": "label", "marker": "place and label", "zone_label": "place and label", "fill": "place", "line": "at least two places and a kind", "stat": "'to'", "caption": "text", "template": "kind (the template id)"}

@@ -1,0 +1,29 @@
+{
+ "id": "tag_context",
+ "family": "broadcast",
+ "use": "Small black context tag at the top centre ('NHC BEST TRACK', 'SOURCE: UN').",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "tag",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "SOURCE: UN",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "ctxtag",
+   "tone": "black",
+   "text": "{text}",
+   "in": 0.1
+  }
+ ]
+}

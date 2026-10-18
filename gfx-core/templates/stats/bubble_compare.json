@@ -1,0 +1,43 @@
+{
+ "id": "bubble_compare",
+ "family": "stats",
+ "use": "Proportional bubbles side by side (area = value), the value inside and the name below.",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "bubbles",
+  "compare",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "",
+   "from": "label"
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "A",
+     "value": 10
+    },
+    {
+     "label": "B",
+     "value": 40
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "bubbles",
+   "rows": "{rows}",
+   "title": "{title}",
+   "in": 0.2
+  }
+ ]
+}

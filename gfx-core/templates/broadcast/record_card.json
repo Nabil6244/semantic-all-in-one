@@ -1,0 +1,46 @@
+{
+ "id": "record_card",
+ "family": "broadcast",
+ "use": "A side card: a title, then up to four rows (label, big value, small date) sliding in, a source line at the foot.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 7,
+ "tags": [
+  "stats",
+  "card",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "THE STORM IN NUMBERS",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "Peak",
+     "text": "CAT 5",
+     "sub": "SEP 28"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "foot": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "recordcard",
+   "title": "{title}",
+   "rows": "{rows}",
+   "foot": "{foot}",
+   "in": 0.2
+  }
+ ]
+}

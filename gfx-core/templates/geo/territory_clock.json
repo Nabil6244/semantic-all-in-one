@@ -1,0 +1,58 @@
+{
+ "id": "territory_clock",
+ "family": "geo",
+ "use": "A big year counting between two years with the share or area held growing as a bar and number (set year_from, year_to in params slots).",
+ "niches": [
+  "map",
+  "geopolitics",
+  "history",
+  "travel"
+ ],
+ "plate": false,
+ "hold": 7,
+ "tags": [
+  "history",
+  "territory",
+  "clock"
+ ],
+ "slots": {
+  "year_from": {
+   "default": 1867,
+   "required": true
+  },
+  "year_to": {
+   "default": 1999,
+   "required": true
+  },
+  "value_from": {
+   "default": 0,
+   "from": "value_from"
+  },
+  "value_to": {
+   "default": 100,
+   "from": "value_to",
+   "required": true
+  },
+  "label": {
+   "default": "OF TERRITORY HELD",
+   "from": "label",
+   "required": true
+  },
+  "unit": {
+   "default": "%"
+  }
+ },
+ "items": [
+  {
+   "p": "yearclock",
+   "year_from": "{year_from}",
+   "year_to": "{year_to}",
+   "value_from": "{value_from}",
+   "value_to": "{value_to}",
+   "label": "{label}",
+   "unit": "{unit}",
+   "in": 0.2
+  }
+ ],
+ "dim": 0.35
+}

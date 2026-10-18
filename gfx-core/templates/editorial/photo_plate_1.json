@@ -1,0 +1,36 @@
+{
+ "id": "photo_plate_1",
+ "family": "editorial",
+ "use": "1 framed picture(s) on a dark grid plate with serif captions and gold rules.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "photo",
+  "caption"
+ ],
+ "slots": {
+  "rows": {
+   "default": [
+    {
+     "label": "Hillside dugout homes"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "photocards",
+   "rows": "{rows}",
+   "in": 0.2
+  }
+ ],
+ "theme": "editorial"
+}

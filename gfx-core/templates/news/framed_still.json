@@ -1,0 +1,37 @@
+{
+ "id": "framed_still",
+ "family": "news",
+ "use": "A still in a thin light frame on dark navy with a caption, slowly pushing in (give the picture in params slots image).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "photo",
+  "caption",
+  "news"
+ ],
+ "slots": {
+  "image": {
+   "default": ""
+  },
+  "caption": {
+   "default": "THE OLD BORDER POST",
+   "from": "label",
+   "required": true
+  },
+  "dur": {
+   "default": 6
+  }
+ },
+ "items": [
+  {
+   "p": "framed",
+   "image": "{image}",
+   "caption": "{caption}",
+   "dur": "{dur}",
+   "in": 0.2
+  }
+ ]
+}

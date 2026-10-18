@@ -1,0 +1,47 @@
+{
+ "id": "number_line",
+ "family": "stats",
+ "use": "A number line with labelled points appearing in turn (use params slots log: true for orders of magnitude).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "numberline",
+  "scale",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "",
+   "from": "label"
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "A",
+     "value": 1
+    },
+    {
+     "label": "B",
+     "value": 10
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "log": {
+   "default": false
+  }
+ },
+ "items": [
+  {
+   "p": "numberline",
+   "rows": "{rows}",
+   "title": "{title}",
+   "log": "{log}",
+   "in": 0.2
+  }
+ ]
+}

@@ -159,7 +159,8 @@ def check_with_engine(spec: dict) -> Tuple[List[str], List[str], bool]:
 def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[float] = None, width: int = 1920, height: int = 1080,
                  fps: int = 30, base_dir: "str | Path | None" = None, watermark: Optional[dict] = None, borders: bool = True,
                  output: str = "OUTPUT.mp4", cache_dir: str = "CACHE_DIR", validate: bool = True,
-                 media_map: Optional[Dict[Any, Optional[str]]] = None, spec_extra: Optional[Dict[str, Any]] = None) -> CompileResult:
+                 media_map: Optional[Dict[Any, Optional[str]]] = None, spec_extra: Optional[Dict[str, Any]] = None,
+                 auto_templates: bool = False, doc_style: bool = False) -> CompileResult:
     rep = Report()
     err = rep.errors.append
     # pictures named by source (stock_image:..., flow_image:...): a sticker needs a transparent PNG, which no provider can supply;
@@ -307,7 +308,8 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             err(f"row {row.line}: {exc.args[0] if exc.args else exc}")
             continue
         end = ends[row.item_no]
-        hold = row.hold if row.hold is not None else DEFAULT_HOLD.get(row.layer_type)
+        own_hold = ev.pop("_hold", None)
+        hold = row.hold if row.hold is not None else (own_hold if own_hold is not None else DEFAULT_HOLD.get(row.layer_type))
         t_out = row.t_end if row.t_end is not None else (t + hold if hold is not None else end)
         if t_out > end + 1e-9:
             if row.t_end is not None or row.hold is not None:
@@ -317,6 +319,12 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             rep.warnings.append(f"row {row.line}: {ev['id']!r} is on screen for only {max(0.0, t_out - t):.2f}s because the next item starts at {end + CLEAR_S:.1f}s")
             t_out = t + MIN_VISIBLE_S
         ev["t_in"], ev["t_out"] = _num(t), _num(t_out)
+        if ev["type"] == "map_template":
+            import gfx_templates
+
+            cues = gfx_templates.find_cues(ev["template"], words, ev["t_in"], ev["t_out"])
+            if cues:
+                ev["cues"] = cues
         pieces = [ev]
         clips = split_parts(str(ev.get("media", ""))) if row.layer_type == "media_full" else []
         if len(clips) > 1:
@@ -344,6 +352,30 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
         if row.layer_type == "filmstrip":
             last_strip[row.item_no] = ev
     events = _join_same_file(events, info, hints, base, rep)
+    if doc_style:
+        # the News Doc look (Settings > Graphics "Doc Style"): title chips, captions and whole-number counters become the gfx-core news templates
+        import gfx_templates
+
+        before = {e["id"]: e["type"] for e in events}
+        events = gfx_templates.apply_doc_style(events)
+        for e in events:
+            if e["type"] == "map_template" and before.get(e["id"]) in ("hud_title", "caption", "stat") and e["id"] in info:
+                info[e["id"]].type = "map_template"; info[e["id"]].note = f"doc style (was {before[e['id']]})"
+    if auto_templates and len(tr):
+        # numbers the narration states (a share, a size) get the matching universal graphic, within a pacing budget (gfx_templates.auto_events)
+        import gfx_templates
+
+        taken = [(e["t_in"], e["t_out"]) for e in events if e["type"] in ("media_full", "map_template", "stat")]
+        def _where(name: str):
+            try:
+                loc = resolve(name, "point")
+                return (loc.lon, loc.lat)
+            except Exception:
+                return None
+
+        for ev in gfx_templates.auto_events(words, niche="map", taken=taken, total=total, resolve=_where):
+            events.append(ev)
+            info[ev["id"]] = EventReport(ev["id"], "map_template", 0, ev["t_in"], ev["t_out"], "derived", 0, note="added from the narration")
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)
         info[ev["id"]].t_in, info[ev["id"]].t_out = ev["t_in"], ev["t_out"]
     rep.events = sorted(info.values(), key=lambda e: (e.t_in, e.row))
@@ -572,6 +604,39 @@ def _build(row: Row, eid: str, base: Optional[Path]) -> dict:
             ev["region_iso"] = [loc.iso]
         else:
             ev["bbox"] = [round(v, 4) for v in loc.bbox]
+    elif t == "template":
+        # a universal graphic (gfx-core): params.template names it, the row's columns fill its slots (see gfx_templates.py)
+        import gfx_templates
+
+        tid = p.pop("template", "") or (row.data_source.split(":", 1)[1] if row.data_source.lower().startswith("template:") else "")
+        if not tid:
+            raise ValueError("template needs params.template, the template id (for example {\"template\": \"rank_bars\"})")
+        fields = {"label": row.label_text, "sub": row.sub_text, "text": p.pop("text", "") or "", "value_from": row.value_from, "value_to": row.value_to,
+                  "format": row.value_format, "rows": p.pop("rows", None), "values": p.pop("values", None), "labels": p.pop("labels", None)}
+        follow = None
+        tpl = gfx_templates.get(tid)
+        wants = {s.get("from") for s in (tpl.get("slots") or {}).values()}
+        needs_follow = any(it.get("follow") for it in tpl.get("items", []))
+        if "geo" in wants and row.geo_ref:        # a route / ruler / heat: the row's places, "A;B;C", as [lon, lat] points
+            fields["geo"] = [[round(x.lon, 4), round(x.lat, 4)] for x in resolve_many(row.geo_ref)]
+        if "geo_area" in wants and row.geo_ref:   # a region spotlight: the area's outline, thinned so the spec stays small
+            loc = resolve(row.geo_ref, "area")
+            if not loc.is_area:
+                raise ValueError(f"{tid} needs an area (a country, state or region), but {row.geo_ref!r} is a point")
+            fields["geo_area"] = gfx_templates.slim_polys(loc.polys)
+        if needs_follow and (row.geo_ref or (row.lat is not None and row.lon is not None)):
+            loc = _place_args(row, "point")
+            # a region's name sits at the centre of its box, which is where the camera frames it (the "point inside" can be a far corner)
+            from .geo import fit
+
+            clon, clat = (fit(loc.bbox)[:2] if loc.is_area else (loc.lon, loc.lat))
+            follow = {"lon": round(clon, 5), "lat": round(clat, 5)}
+            if "coords" in (tpl.get("slots") or {}):
+                fields_extra = {"coords": f"{abs(clat):.2f}°{'N' if clat >= 0 else 'S'}  {abs(clon):.2f}°{'E' if clon >= 0 else 'W'}"}
+                p.setdefault("slots", {}); p["slots"] = {**fields_extra, **(p["slots"] or {})}
+        built, hold = gfx_templates.event_for(tid, fields, event_id=eid, t_in=0.0, follow=follow, extra=p.pop("slots", None))
+        ev.update(built)
+        ev["_hold"] = hold
     else:
         raise ValueError(f"layer type {t} is not handled")
     for k, v in p.items():  # whatever else the author put in params goes straight to the renderer

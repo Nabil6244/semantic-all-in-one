@@ -1,0 +1,46 @@
+{
+ "id": "location_card",
+ "family": "geo",
+ "use": "A place card: name, coordinates, one fact, joined to the place by a leader line (row geo_ref = the place).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "place",
+  "card",
+  "travel"
+ ],
+ "slots": {
+  "label": {
+   "default": "VANCOUVER",
+   "from": "label",
+   "required": true
+  },
+  "coords": {
+   "default": ""
+  },
+  "fact": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "locationcard",
+   "name": "{label}",
+   "coords": "{coords}",
+   "fact": "{fact}",
+   "follow": true,
+   "at": [
+    0.5,
+    0.5
+   ],
+   "in": 0.2
+  }
+ ]
+}

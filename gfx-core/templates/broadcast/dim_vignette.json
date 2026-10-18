@@ -1,0 +1,21 @@
+{
+ "id": "dim_vignette",
+ "family": "broadcast",
+ "use": "The frame dims with a soft vignette (put under a card so the type reads).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "dim",
+  "news"
+ ],
+ "slots": {},
+ "items": [
+  {
+   "p": "dip",
+   "in": 0
+  }
+ ]
+}

@@ -1,0 +1,40 @@
+{
+ "id": "keyword_title",
+ "family": "broadcast",
+ "use": "Heavy white words appearing one after another, the key word in a red box ('THE [PATH]'): the Teamplate title card.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 3.5,
+ "tags": [
+  "title",
+  "news"
+ ],
+ "slots": {
+  "words": {
+   "default": [
+    "THE",
+    "PATH"
+   ],
+   "from": "labels",
+   "required": true
+  },
+  "accent": {
+   "default": 99,
+   "from": "value_to"
+  }
+ },
+ "items": [
+  {
+   "p": "dip",
+   "in": 0
+  },
+  {
+   "p": "kwtitle",
+   "words": "{words}",
+   "accent": "{accent}",
+   "in": 0.2
+  }
+ ]
+}

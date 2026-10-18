@@ -1,0 +1,37 @@
+{
+ "id": "bar_race",
+ "family": "stats",
+ "use": "A bar race: frames of values by year play in turn and the bars re-rank (give frames in params slots as [{label: 2000, rows: [{label, value}]}, ...]).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 9,
+ "tags": [
+  "race",
+  "history",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "",
+   "from": "label"
+  },
+  "frames": {
+   "default": [],
+   "required": true
+  },
+  "dur": {
+   "default": 8
+  }
+ },
+ "items": [
+  {
+   "p": "barrace",
+   "frames": "{frames}",
+   "title": "{title}",
+   "dur": "{dur}",
+   "in": 0.2
+  }
+ ]
+}

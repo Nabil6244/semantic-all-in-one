@@ -1,0 +1,32 @@
+{
+ "id": "yellow_tag",
+ "family": "news",
+ "use": "Yellow pill tag top-left that slides in (a topic or place tag over footage; News Doc look).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "tag",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "DROUGHT",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "pill",
+   "text": "{text}",
+   "at": [
+    0.05,
+    0.07
+   ],
+   "in": 0.1
+  }
+ ]
+}

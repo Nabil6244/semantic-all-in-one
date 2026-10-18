@@ -1,0 +1,39 @@
+{
+ "id": "place_lowerthird",
+ "family": "geo",
+ "use": "A name strip bottom-left: place or person with a small second line.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "place",
+  "lowerthird"
+ ],
+ "slots": {
+  "label": {
+   "default": "BROKEN HILL",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "NEW SOUTH WALES \u00b7 POP. 17,000",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "lowerthird",
+   "title": "{label}",
+   "sub": "{sub}",
+   "at": [
+    0.04,
+    0.82
+   ],
+   "in": 0.2
+  }
+ ]
+}

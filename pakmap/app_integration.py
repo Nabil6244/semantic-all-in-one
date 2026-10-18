@@ -117,12 +117,27 @@ def describe_sourced(csv_path: "str | Path", images_dir: "str | Path | None" = N
 
 
 def check_pakmap_plan(csv_path: "str | Path", words: Sequence[Word], *, duration: Optional[float] = None, base_dir: "str | Path | None" = None,
-                      watermark: Optional[dict] = None, images_dir: "str | Path | None" = None) -> "tuple[Optional[CompileResult], Optional[Report], List[str]]":
+                      watermark: Optional[dict] = None, images_dir: "str | Path | None" = None,
+                      auto_templates: bool = False, doc_style: bool = False, guard: bool = False) -> "tuple[Optional[CompileResult], Optional[Report], List[str]]":
     """Compile only. Returns (result, report, problems): result is None when there are problems; the report
     (when there is one) explains each issue."""
     try:
-        res = compile_csv(csv_path, words, duration=duration, base_dir=base_dir, watermark=watermark)
-        apply_pacing(res, csv_path)  # PakMap only: card handoff + picture-density warnings (pakmap/pacing.py)
+        if guard:
+            from .guard import compile_guarded
+
+            # the graphics switch is on: the plain compile first; when it fails (or a graphic cannot be drawn) the CSV is repaired in memory exactly as
+            # Generate would (pakmap/guard.py), like What If's check
+            res, repairs, stops, repaired = compile_guarded(csv_path, words, duration=duration, base_dir=base_dir, watermark=watermark,
+                                                            auto_templates=auto_templates, doc_style=doc_style)
+            if res is None:
+                return None, None, stops
+            if not repaired:
+                apply_pacing(res, csv_path)  # PakMap only: card handoff + picture-density warnings (pakmap/pacing.py)
+            if repairs:
+                res.report.info[:0] = [f"repaired: {r}" for r in repairs[:40]] + (["(your CSV file is not changed; Generate repairs the same way)"] if repaired else [])
+        else:
+            res = compile_csv(csv_path, words, duration=duration, base_dir=base_dir, watermark=watermark, auto_templates=auto_templates, doc_style=doc_style)
+            apply_pacing(res, csv_path)  # PakMap only: card handoff + picture-density warnings (pakmap/pacing.py)
         res.report.info.extend(describe_sourced(csv_path, images_dir))
         return res, res.report, []
     except CsvError as exc:
@@ -162,7 +177,7 @@ def generate_pakmap_video(
     flow_video_account_ids: Optional[list] = None, media_callbacks: Optional[dict] = None, media_resolver: Optional[Callable[..., object]] = None,
     media_find_file: Optional[Callable[..., object]] = None, scene_rows: Optional[Sequence[object]] = None,
     media_dir: "str | Path | None" = None, media_manifest_cls: object = None, spec_extra: Optional[dict] = None,
-    media_options: Optional[dict] = None, pixel_scale: int = 1,
+    media_options: Optional[dict] = None, pixel_scale: int = 1, auto_templates: bool = False, doc_style: bool = False, guard: bool = False,
 ) -> PakmapResult:
     """`pixel_scale` 2 exports in 4K: the script is laid out at `resolution` (cards, camera and zoom are unchanged) and every
     frame is drawn with twice the pixels, so a 1920x1080 layout comes out 3840x2160."""
@@ -189,6 +204,22 @@ def generate_pakmap_video(
     # the rows are derived from the script.
     media_map = None
     unresolved: List[str] = []
+    try:
+        from .schema import parse_csv as _parse
+
+        if guard:
+            _parse(csv_path)
+    except CsvError:
+        # the graphics switch is on: a row the reader refuses is repaired or left out in memory (pakmap/guard.py, as What If's heal does): the rest of this run reads the repaired copy
+        from .guard import dry_run
+
+        dr = dry_run(csv_path, whisper_words, duration=duration, engine=False, base_dir=base_dir)
+        if not dr.text:
+            return PakmapResult(False, dr.stops or ["the CSV could not be read"])
+        for r in dr.repairs:
+            log(f"[pakMap] repaired: {r}")
+        csv_path = work / "repaired_script.csv"
+        csv_path.write_text(dr.text, encoding="utf-8")
     try:
         from .schema import parse_csv
         from .sourcing import fetch_scenes, find_occurrences
@@ -223,9 +254,25 @@ def generate_pakmap_video(
     except Exception as exc:
         return PakmapResult(False, [f"could not get the pictures: {exc!r}"])
     try:
-        res = compile_csv(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir, watermark=watermark, media_map=media_map, spec_extra=spec_extra)
+        repaired = False
+        if guard:
+            from .guard import compile_guarded
+
+            # the graphics switch is on: a row that cannot compile or a graphic that cannot be drawn is repaired or left out in memory
+            # (pakmap/guard.py), never a stop
+            res, repairs, stops, repaired = compile_guarded(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir,
+                                                            watermark=watermark, media_map=media_map, spec_extra=spec_extra,
+                                                            auto_templates=auto_templates, doc_style=doc_style)
+            if res is None:
+                return PakmapResult(False, stops)
+            for r in repairs:
+                log(f"[pakMap] repaired: {r}")
+        else:
+            res = compile_csv(csv_path, whisper_words, duration=duration, width=width, height=height, fps=fps, base_dir=base_dir, watermark=watermark, media_map=media_map, spec_extra=spec_extra,
+                              auto_templates=auto_templates, doc_style=doc_style)
         if not spec_extra:  # PakMap only: Hybrid Map renders through here too (with spec_extra) and keeps its own pacing
-            apply_pacing(res, csv_path)  # the same card handoff as Check plan showed
+            if not repaired:  # (a repaired plan was read from memory: the file's row numbers no longer match)
+                apply_pacing(res, csv_path)  # the same card handoff as Check plan showed
     except CsvError as exc:
         return PakmapResult(False, list(exc.problems))
     except CompileError as exc:

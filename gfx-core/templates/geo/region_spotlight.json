@@ -1,0 +1,38 @@
+{
+ "id": "region_spotlight",
+ "family": "geo",
+ "use": "The border draws itself around a region and everything outside is dimmed; its name at the centre (geo_ref = an area).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "region",
+  "border",
+  "dim",
+  "map"
+ ],
+ "slots": {
+  "polys": {
+   "default": [],
+   "from": "geo_area",
+   "required": true
+  },
+  "label": {
+   "default": "",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "spotlight",
+   "polys": "{polys}",
+   "label": "{label}",
+   "in": 0.2
+  }
+ ]
+}

@@ -1,0 +1,43 @@
+{
+ "id": "chapter_next",
+ "family": "geo",
+ "use": "Chapter card: a tiny 'NEXT' kicker, a big display title and a thin gold rule (over a darkened map or footage).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "chapter",
+  "title"
+ ],
+ "slots": {
+  "kicker": {
+   "default": "NEXT",
+   "from": "sub"
+  },
+  "title": {
+   "default": "Western Division|of New South Wales",
+   "from": "label",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "chapter",
+   "kicker": "{kicker}",
+   "title": "{title}",
+   "at": [
+    0.06,
+    0.68
+   ],
+   "size": 96,
+   "in": 0.2
+  }
+ ],
+ "dim": 0.5,
+ "theme": "editorial"
+}

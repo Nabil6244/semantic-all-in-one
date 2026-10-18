@@ -1,0 +1,45 @@
+{
+ "id": "fact_title",
+ "family": "facts",
+ "use": "Opening card of a list video: a big title with a kicker and a rule ('10 FACTS ABOUT CANADA').",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "intro",
+  "title",
+  "list"
+ ],
+ "slots": {
+  "kicker": {
+   "default": "TOP 10",
+   "from": "sub"
+  },
+  "title": {
+   "default": "FACTS ABOUT|CANADA",
+   "from": "label",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "chapter",
+   "kicker": "{kicker}",
+   "title": "{title}",
+   "at": [
+    0.07,
+    0.58
+   ],
+   "size": 104,
+   "in": 0.2,
+   "accent": "yellow",
+   "weight": 900,
+   "rule_w": 0.28
+  }
+ ],
+ "dim": 0.6
+}

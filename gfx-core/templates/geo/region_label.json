@@ -1,0 +1,61 @@
+{
+ "id": "region_label",
+ "family": "geo",
+ "use": "Name over a highlighted region (the map adapter draws the outline and fill): glowing tracked name, optional sub line, a tag.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "region",
+  "label",
+  "map"
+ ],
+ "slots": {
+  "tag": {
+   "default": "EXTREMES IN THE NORTH",
+   "from": "text"
+  },
+  "label": {
+   "default": "KIMBERLEY",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "at": {
+   "default": [
+    0.5,
+    0.55
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{tag}",
+   "at": [
+    0.008,
+    0.012
+   ],
+   "bg": "ink",
+   "color": "red",
+   "size": 26,
+   "in": 0.1
+  },
+  {
+   "p": "region_label",
+   "text": "{label}",
+   "sub": "{sub}",
+   "at": "{at}",
+   "size": 64,
+   "in": 0.4,
+   "follow": true
+  }
+ ]
+}

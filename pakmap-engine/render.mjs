@@ -106,6 +106,7 @@ function startServer(spec, plan, media) {
       else if (url.pathname === '/page.js') file = path.join(HERE, 'page.js');
       else if (/^\/lib\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(HERE, url.pathname);
       else if (/^\/fonts\/[\w.-]+\.ttf$/.test(url.pathname)) file = path.join(HERE, 'assets', url.pathname);
+      else if (/^\/gfx\/lib\/[\w-]+\.mjs$/.test(url.pathname) || /^\/gfx\/fonts\/[\w.-]+\.ttf$/.test(url.pathname)) file = path.join(HERE, '..', 'gfx-core', url.pathname.slice(5));   // gfx-core: the universal templates
       else if (url.pathname.startsWith('/maplibre/')) file = path.join(MAPLIBRE_DIST, path.basename(url.pathname));
       if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' });

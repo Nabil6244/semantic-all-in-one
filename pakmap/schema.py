@@ -14,11 +14,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 LAYER_TYPES = (
     "hud_title", "stat", "caption", "marker", "zone_label", "fill", "line", "pip", "filmstrip", "sticker",
-    "media_full", "dots", "cluster", "value_overlay", "ghost_shape", "streak", "camera", "sound",
+    "media_full", "dots", "cluster", "value_overlay", "ghost_shape", "streak", "template", "camera", "sound",
 )
 ALIASES = {"title": "hud_title", "hud": "hud_title", "zone": "zone_label", "region": "fill", "route": "line",
            "photo": "pip", "card": "pip", "footage": "media_full", "interlude": "media_full", "dot_density": "dots",
-           "heatmap": "value_overlay", "overlay": "value_overlay", "compare": "ghost_shape", "camera_move": "camera"}
+           "heatmap": "value_overlay", "overlay": "value_overlay", "compare": "ghost_shape", "camera_move": "camera",
+           "graphic": "template", "gfx": "template", "chart": "template"}
 CAMERA_ACTIONS = ("start", "fly_to", "push_in", "pull_back", "drift")
 LAYER_ACTIONS = ("in", "out")
 FRAMES = ("globe", "continental", "country", "region", "local")

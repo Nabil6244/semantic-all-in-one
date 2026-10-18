@@ -1,0 +1,33 @@
+{
+ "id": "three_rings",
+ "family": "news",
+ "use": "Three outlined circles on black, each with a word, popping in one by one (three causes, three ideas).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "list",
+  "rings",
+  "news"
+ ],
+ "slots": {
+  "items": {
+   "default": [
+    "One",
+    "Two",
+    "Three"
+   ],
+   "from": "labels",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "threerings",
+   "items": "{items}",
+   "in": 0.2
+  }
+ ]
+}

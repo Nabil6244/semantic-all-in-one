@@ -1,0 +1,57 @@
+{
+ "id": "end_question",
+ "family": "facts",
+ "use": "The closing question on a dimmed frame, words popping in, with a small kicker above ('WHAT DO YOU THINK?').",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "end",
+  "question",
+  "outro"
+ ],
+ "slots": {
+  "kicker": {
+   "default": "WHAT DO YOU THINK?",
+   "from": "sub"
+  },
+  "text": {
+   "default": "WHO OWNS THE ARCTIC?",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{kicker}",
+   "style": "plain",
+   "face": "ui",
+   "size": 28,
+   "weight": 800,
+   "track": 10,
+   "color": "muted",
+   "at": [
+    0.5,
+    0.38
+   ],
+   "in": 0.1,
+   "dur": 0.8
+  },
+  {
+   "p": "text",
+   "text": "{text}",
+   "style": "word_pop",
+   "size": 96,
+   "at": [
+    0.5,
+    0.52
+   ],
+   "in": 0.6,
+   "dur": 2.2
+  }
+ ],
+ "dim": 0.6
+}

@@ -10,6 +10,7 @@ import { freezeWindows } from '/lib/events.mjs';
 import { Grid, resolveRamp, imageSize, renderGridRGBA, mercY } from '/lib/raster.mjs';
 import { FILL_ROLES } from '/lib/style.mjs';
 import { lifeAlpha } from '/lib/anim.mjs';
+import { createGfx, drawGfx } from '/gfx/lib/render.mjs';   // gfx-core: universal templates (charts, facts, text styles)
 import { footageWindows, shiftedEvent } from '/lib/hybrid.mjs';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -24,6 +25,7 @@ async function setup() {
   const imagery = spec.imagery;
   const camera = createCamera({ camera: spec.camera, width: W, height: H, duration: spec.duration, freeze: freezeWindows(spec.events) });
   await document.fonts.load("800 40px PakMapSans");
+  if ((spec.events || []).some((e) => e.type === 'map_template')) { await document.fonts.load("800 40px GfxSans"); await document.fonts.load("600 40px GfxSerif"); await document.fonts.load("italic 500 40px GfxSerif"); }
   const overlays = spec.overlays || {};
   const tokens = spec.tokens || {};
   const offline = spec.imagery_enabled === false; // tests: no tiles, flat colour instead
@@ -213,7 +215,7 @@ async function setup() {
   const hudFont = `600 ${Math.round(OH * 0.022)}px monospace`;
   // The overlay works in output pixels (it scales its 1920x1080 design by height / 1080 itself); map points are in layout px.
   const overlay = createOverlay({
-    spec: R === 1 ? spec : { ...spec, width: OW, height: OH }, ctx,
+    spec: R === 1 ? spec : { ...spec, width: OW, height: OH }, ctx, gfx: { createGfx, drawGfx },
     project: (lon, lat) => { const p = map.project([lon, lat]); return p ? { x: p.x * R, y: p.y * R } : null; },
     unproject: (x, y) => map.unproject([x / R, y / R]),
     fetchMedia: async (id, frame) => createImageBitmap(await (await fetch(frame == null ? `/media/${id}` : `/media/${id}/${frame}`)).blob()),

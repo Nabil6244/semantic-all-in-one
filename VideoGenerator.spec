@@ -162,6 +162,7 @@ sys.path.insert(0, str(ROOT))
 from pakmap.packaging import engine_data_files  # noqa: E402
 
 datas += engine_data_files(ROOT)
+hiddenimports += ["gfx_templates"]   # pakmap.compile imports the universal template planner inside functions (gfx-core ships through engine_data_files)
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the
 # files it loads, and the starmap package's catalogs and mission packs (see starmap/packaging.py, which is unit-tested).

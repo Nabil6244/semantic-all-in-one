@@ -6,7 +6,7 @@
 import { parseFormat } from './format.mjs';
 import { LINE_KINDS, ROLES, FILL_ROLES } from './style.mjs';
 
-export const EVENT_TYPES = ['hud_title', 'stat', 'caption', 'marker', 'line', 'dots', 'cluster', 'value_overlay', 'ghost_shape', 'streak', 'pip', 'filmstrip', 'sticker', 'media_full', 'fill'];
+export const EVENT_TYPES = ['hud_title', 'stat', 'caption', 'marker', 'line', 'dots', 'cluster', 'value_overlay', 'ghost_shape', 'streak', 'pip', 'filmstrip', 'sticker', 'media_full', 'fill', 'map_template'];
 export const CARD_ANCHORS = ['tl', 'tr', 'ml', 'mr', 'bl', 'br', 'center'];
 export const CARD_SHAPES = ['landscape', 'square', 'portrait'];
 export const MAX_STAT = 2;
@@ -42,6 +42,10 @@ export function validateEvents(events, duration) {
       try { parseFormat(e.format ?? '0'); } catch (err) { errors.push(`${at}: ${err.message}`); }
     }
     if (e.type === 'caption' && !e.text) errors.push(`${at}: caption needs text`);
+    if (e.type === 'map_template') {
+      if (!e.template || typeof e.template !== 'object' || !Array.isArray(e.template.items)) errors.push(`${at}: map_template needs template (a gfx-core template: an object with items)`);
+      if (e.follow != null && !(num(e.follow.lon) && num(e.follow.lat))) errors.push(`${at}: map_template follow must be {lon, lat}`);
+    }
     if (e.type === 'marker') {
       if (!num(e.lon) || !num(e.lat)) errors.push(`${at}: marker needs numeric lon and lat`);
       if (!e.label) errors.push(`${at}: marker needs a label`);
@@ -139,6 +143,7 @@ export function mediaRefs(e) {
     case 'filmstrip': return (e.cards || []).map((c) => mk(c.media, { start_s: c.start_s ?? 0, loop: !!c.loop, maxW: 700 }));
     case 'sticker': return [mk(e.media, { maxW: 1400 })];
     case 'media_full': return [mk(e.media, { maxW: 1920, fit: e.fit === 'slow' })];
+    case 'map_template': return [...(Array.isArray(e.slots?.rows) ? e.slots.rows : []).map((r) => r && (r.image || r.media)), e.slots?.image, e.slots?.before, e.slots?.after].filter((p) => typeof p === 'string' && p).map((p) => mk(p, { maxW: 1200 }));
     default: return [];
   }
 }

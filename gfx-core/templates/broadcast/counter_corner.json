@@ -1,0 +1,44 @@
+{
+ "id": "counter_corner",
+ "family": "broadcast",
+ "use": "A number counting up in a corner panel: label, big value, a small line.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "number",
+  "counter",
+  "news"
+ ],
+ "slots": {
+  "value": {
+   "default": 46,
+   "from": "value_to",
+   "required": true
+  },
+  "label": {
+   "default": "CROSSINGS",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "anchor": {
+   "default": "tr"
+  }
+ },
+ "items": [
+  {
+   "p": "countercard",
+   "value": "{value}",
+   "label": "{label}",
+   "sub": "{sub}",
+   "anchor": "{anchor}",
+   "in": 0.1
+  }
+ ]
+}

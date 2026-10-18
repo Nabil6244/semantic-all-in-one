@@ -1,0 +1,54 @@
+{
+ "id": "fact_card",
+ "family": "facts",
+ "use": "The numbered fact card of a '10 facts' video: a huge outlined numeral, the headline on a colour bar, one or two lines of body.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "fact",
+  "list",
+  "countdown"
+ ],
+ "slots": {
+  "n": {
+   "default": 1,
+   "from": "value_to",
+   "required": true
+  },
+  "kicker": {
+   "default": "FACT",
+   "from": "text"
+  },
+  "title": {
+   "default": "MORE LAKES THAN ANY COUNTRY",
+   "from": "label",
+   "required": true
+  },
+  "body": {
+   "default": "Canada holds over 60% of the world's lakes.|Most of them are unnamed.",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "fact",
+   "num": "{n}",
+   "kicker": "{kicker}",
+   "title": "{title}",
+   "body": "{body}",
+   "at": [
+    0.07,
+    0.46
+   ],
+   "accent": "yellow",
+   "in": 0.1
+  }
+ ],
+ "dim": 0.5,
+ "triggers": "^(fact|number)\\s*\\d+"
+}

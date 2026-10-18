@@ -1,0 +1,43 @@
+{
+ "id": "before_after_label",
+ "family": "broadcast",
+ "use": "The big label of a before / after pair switching halfway (rows 'Before=Aug 2017; After=Aug 2023').",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6.5,
+ "tags": [
+  "compare",
+  "news"
+ ],
+ "slots": {
+  "rows": {
+   "default": [
+    {
+     "label": "Before",
+     "text": "2017"
+    },
+    {
+     "label": "After",
+     "text": "2023"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "foot": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "beforeafter",
+   "rows": "{rows}",
+   "foot": "{foot}",
+   "switch_s": 3,
+   "in": 0.1
+  }
+ ]
+}

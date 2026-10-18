@@ -1,0 +1,37 @@
+{
+ "id": "quote_boxed",
+ "family": "news",
+ "use": "Heavy caps quote on dimmed footage, words appearing one by one, the closing phrase boxed in red.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "quote",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "NOBODY SAW IT COMING",
+   "from": "text",
+   "required": true
+  },
+  "mark": {
+   "default": "",
+   "from": "sub"
+  },
+  "dur": {
+   "default": 4
+  }
+ },
+ "items": [
+  {
+   "p": "boxquote",
+   "text": "{text}",
+   "mark": "{mark}",
+   "dur": "{dur}",
+   "in": 0.1
+  }
+ ]
+}

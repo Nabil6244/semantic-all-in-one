@@ -21,7 +21,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
 }
 
-export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia = null }) {
+export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia = null, gfx = null }) {
   const W = spec.width, H = spec.height, S = H / FRAME.h;
   const events = spec.events || [];
   // Hybrid Map only: while full-screen media is up the map layers' clocks stop (empty for PakMap, so nothing changes there)
@@ -326,6 +326,20 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
     ctx.drawImage(b, c.sx, c.sy, c.sw, c.sh, 0, 0, FRAME.w, FRAME.h); ctx.restore();
   }
 
+  // gfx-core templates: built once per event (slots, cues, times), drawn in output pixels, optionally pinned to a place on the map
+  const gfxInst = new Map();
+  function drawMapTemplate(e, t) {
+    if (!gfx) return;
+    let inst = gfxInst.get(e.id);
+    if (!inst) { inst = gfx.createGfx(e.template, e.slots || {}, { len: e.t_out - e.t_in, cues: e.cues || {}, warn: (m) => console.warn(m) }); gfxInst.set(e.id, inst); }
+    let follow = null;
+    if (e.follow) { const q = project(e.follow.lon, e.follow.lat); if (q) follow = [q.x / W, q.y / H]; }
+    const a = lifeAlpha(t, e.t_in, e.t_out, 0.01, e.fade_out ?? 0.3); if (a <= 0) return;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    gfx.drawGfx(inst, ctx, W, H, t - e.t_in, { alpha: a, follow, project, image: (name) => bmp(name, 0, t, e.t_in, false) });
+    ctx.restore();
+  }
+
   function drawWatermark() {
     const w = spec.watermark; if (!w || !w.text || w.enabled === false) return;
     const L = watermarkLayout({ text: String(w.text).toUpperCase(), position: w.position || 'br' }, measure);
@@ -355,6 +369,7 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
       each('marker', drawMarker); each('sticker', drawSticker);
       for (const e of live) if (e.type === 'media_full' && !e.cover_ui) drawMediaFull(e, t);
       each('pip', drawPip); each('filmstrip', drawFilmstrip);
+      ctx.save(); ctx.scale(1 / S, 1 / S); each('map_template', drawMapTemplate); ctx.restore();   // gfx-core templates draw in output pixels
       each('stat', drawStat); each('caption', drawCaption); each('hud_title', drawHud);
       for (const e of live) if (e.type === 'media_full' && e.cover_ui) drawMediaFull(e, t);
       drawWatermark();

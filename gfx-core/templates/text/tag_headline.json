@@ -1,0 +1,34 @@
+{
+ "id": "tag_headline",
+ "family": "text",
+ "use": "The small dark tag box with tracked caps, for chart or section headings.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "tag",
+  "heading"
+ ],
+ "slots": {
+  "text": {
+   "default": "EXTREMES IN THE NORTH",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{text}",
+   "at": [
+    0.04,
+    0.07
+   ],
+   "in": 0.1
+  }
+ ]
+}

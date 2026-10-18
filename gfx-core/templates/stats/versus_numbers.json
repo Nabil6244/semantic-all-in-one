@@ -1,0 +1,77 @@
+{
+ "id": "versus_numbers",
+ "family": "stats",
+ "use": "Two big numbers face to face with a VS badge (A against B).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": true,
+ "hold": 6,
+ "tags": [
+  "compare",
+  "versus",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "HEAD TO HEAD",
+   "from": "text",
+   "required": true
+  },
+  "a_label": {
+   "default": "CANADA",
+   "from": "label",
+   "required": true
+  },
+  "a_value": {
+   "default": 9985,
+   "from": "value_from"
+  },
+  "b_label": {
+   "default": "CHINA",
+   "from": "sub"
+  },
+  "b_value": {
+   "default": 9597,
+   "from": "value_to",
+   "required": true
+  },
+  "unit": {
+   "default": "THOUSAND KM\u00b2",
+   "from": "format"
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{title}",
+   "at": [
+    0.04,
+    0.07
+   ],
+   "in": 0.1
+  },
+  {
+   "p": "versus",
+   "a": {
+    "label": "{a_label}",
+    "value": "{a_value}",
+    "unit": "{unit}",
+    "color": "orange"
+   },
+   "b": {
+    "label": "{b_label}",
+    "value": "{b_value}",
+    "unit": "{unit}",
+    "color": "blue"
+   },
+   "at": [
+    0.5,
+    0.55
+   ],
+   "in": 0.5
+  }
+ ]
+}

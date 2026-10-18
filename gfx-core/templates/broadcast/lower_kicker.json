@@ -1,0 +1,38 @@
+{
+ "id": "lower_kicker",
+ "family": "broadcast",
+ "use": "Lower third with no bar: an orange kicker tag, a heavy white title, a line of small caps.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "lowerthird",
+  "news"
+ ],
+ "slots": {
+  "kicker": {
+   "default": "",
+   "from": "text"
+  },
+  "title": {
+   "default": "THE LONGEST BORDER",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "lowerkick",
+   "kicker": "{kicker}",
+   "title": "{title}",
+   "sub": "{sub}",
+   "in": 0.2
+  }
+ ]
+}

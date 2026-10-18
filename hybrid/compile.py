@@ -186,6 +186,22 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                     kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format or "#,##0", sub_text=lay.sub, anchor=clash.get(lay.id, {}).get("anchor") or lay.anchor or "br")
                 elif lay.type == "caption":
                     kw.update(label_text=lay.text, sub_text=lay.sub, anchor=lay.anchor or "bc")
+                elif lay.type == "template":
+                    import gfx_templates
+
+                    tp = dict(lay.params)
+                    tid = lay.kind or tp.get("template", "")
+                    tp["template"] = tid
+                    if lay.text and "text" not in tp:
+                        tp["text"] = lay.text
+                    fields = {"label": lay.label, "sub": lay.sub, "text": tp.get("text", ""), "value_from": lay.value_from, "value_to": lay.value_to,
+                              "format": lay.format, "rows": tp.get("rows"), "values": tp.get("values"), "labels": tp.get("labels")}
+                    why = gfx_templates.problem(tid, fields, tp.get("slots"), has_geo=bool(lay.places or lay.place))
+                    if why:      # never a stop: a graphic that cannot be made is left out and said
+                        notes.append(f"beat {beat.id}: graphic {lay.id} left out: {why}")
+                        continue
+                    kw.update(geo_ref=";".join(lay.places) if lay.places else lay.place, label_text=lay.label, sub_text=lay.sub,
+                              value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format, params=tp)
                 add(label, **kw)
             cards = beat.cards  # MAP+FOOTAGE: the map says where, photo cards show what it looks like (up to MAX_CARDS, in different corners)
             landed = max([c.t + (c.dur or 0.0) for c in beat.camera if c.action == "fly_to"] or [0.0]) + 0.25

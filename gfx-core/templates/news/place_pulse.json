@@ -1,0 +1,42 @@
+{
+ "id": "place_pulse",
+ "family": "news",
+ "use": "Orange place tag with a pulsing white ring: pins to a map place when the row has a geo_ref.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "place",
+  "map",
+  "news"
+ ],
+ "slots": {
+  "label": {
+   "default": "BROKEN HILL",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "placepulse",
+   "name": "{label}",
+   "sub": "{sub}",
+   "at": [
+    0.53,
+    0.4
+   ],
+   "follow": true,
+   "in": 0.2
+  }
+ ]
+}

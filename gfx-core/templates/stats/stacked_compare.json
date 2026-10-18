@@ -1,0 +1,39 @@
+{
+ "id": "stacked_compare",
+ "family": "stats",
+ "use": "Stacked bars to compare two or more places split into parts (rows 'CANADA:Energy=60; CANADA:Trade=40; USA:Energy=30; USA:Trade=70').",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "stacked",
+  "compare",
+  "data"
+ ],
+ "slots": {
+  "title": {
+   "default": "",
+   "from": "label"
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "A:x",
+     "value": 1
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "stackbars",
+   "rows": "{rows}",
+   "title": "{title}",
+   "in": 0.2
+  }
+ ]
+}

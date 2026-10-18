@@ -1,0 +1,29 @@
+{
+ "id": "tag_fact",
+ "family": "broadcast",
+ "use": "Orange fact tag in the middle of the frame (one short fact).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 3.5,
+ "tags": [
+  "tag",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "FIRST OF ITS KIND",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "ctxtag",
+   "tone": "orange",
+   "text": "{text}",
+   "in": 0.1
+  }
+ ]
+}

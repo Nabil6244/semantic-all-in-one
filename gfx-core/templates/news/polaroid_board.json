@@ -1,0 +1,42 @@
+{
+ "id": "polaroid_board",
+ "family": "news",
+ "use": "Two pinned polaroids on a warm paper board with a taped title (two sides of a story).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "photo",
+  "compare",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "THEN AND NOW",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "Then"
+    },
+    {
+     "label": "Now"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "polaroids",
+   "title": "{title}",
+   "rows": "{rows}",
+   "in": 0.2
+  }
+ ]
+}

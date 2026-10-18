@@ -1,0 +1,34 @@
+{
+ "id": "year_wipe",
+ "family": "news",
+ "use": "A huge year or number wiping in digit by digit over dimmed footage, with a small line under it.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "year",
+  "date",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "1867",
+   "from": "text",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "yearwipe",
+   "text": "{text}",
+   "sub": "{sub}",
+   "in": 0.1
+  }
+ ]
+}

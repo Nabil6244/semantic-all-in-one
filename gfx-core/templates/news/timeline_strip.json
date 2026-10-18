@@ -1,0 +1,52 @@
+{
+ "id": "timeline_strip",
+ "family": "news",
+ "use": "A horizontal timeline: the line draws itself, year and short label appear in turn (history of a border, a city, a dispute).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "timeline",
+  "history",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "HOW THE BORDER WAS DRAWN",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "1818",
+     "text": "Treaty"
+    },
+    {
+     "label": "1846",
+     "text": "Oregon"
+    },
+    {
+     "label": "1871",
+     "text": "BC joins"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "dur": {
+   "default": 5
+  }
+ },
+ "items": [
+  {
+   "p": "timeline",
+   "title": "{title}",
+   "rows": "{rows}",
+   "dur": "{dur}",
+   "in": 0.2
+  }
+ ]
+}

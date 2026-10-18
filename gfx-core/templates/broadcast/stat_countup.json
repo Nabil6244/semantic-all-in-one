@@ -1,0 +1,41 @@
+{
+ "id": "stat_countup",
+ "family": "broadcast",
+ "use": "A big white number counting up over a darkened frame with its label typed beside it, then a compact orange tag top-right.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 7,
+ "tags": [
+  "number",
+  "stat",
+  "news"
+ ],
+ "slots": {
+  "value": {
+   "default": 5,
+   "from": "value_to",
+   "required": true
+  },
+  "label": {
+   "default": "COUNTRIES BORDER IT",
+   "from": "label",
+   "required": true
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "statbig",
+   "value": "{value}",
+   "label": "{label}",
+   "sub": "{sub}",
+   "in": 0.1,
+   "big_s": 3.6
+  }
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "id": "typed_caption",
+ "family": "news",
+ "use": "Small caps typed in bottom-left over the shot on a soft dark floor.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4.5,
+ "tags": [
+  "caption",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "THE PRIVATISATION OF THE COAST",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "typedcaption",
+   "text": "{text}",
+   "in": 0.2
+  }
+ ]
+}

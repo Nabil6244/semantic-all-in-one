@@ -1,0 +1,38 @@
+{
+ "id": "quote_card_black",
+ "family": "news",
+ "use": "The same boxed quote on a solid black full-screen card.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 5,
+ "tags": [
+  "quote",
+  "news"
+ ],
+ "slots": {
+  "text": {
+   "default": "THE WORST WAS YET TO COME",
+   "from": "text",
+   "required": true
+  },
+  "mark": {
+   "default": "",
+   "from": "sub"
+  },
+  "dur": {
+   "default": 4
+  }
+ },
+ "items": [
+  {
+   "p": "boxquote",
+   "text": "{text}",
+   "mark": "{mark}",
+   "solid": true,
+   "dur": "{dur}",
+   "in": 0.1
+  }
+ ]
+}

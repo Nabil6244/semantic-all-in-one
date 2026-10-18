@@ -559,7 +559,7 @@ class TestIsolation(unittest.TestCase):
         import re
 
         allowed = {"hybrid", "pakmap", "visual_director", "providers", "asset_manager", "video_generator", "smart_editing", "scene_graph", "pakmap_engine", "ai_router",
-                   "anchor_clock", "map_scene", "PIL"}  # shared narration clock, bundled-ffmpeg finder, watermark image
+                   "anchor_clock", "map_scene", "PIL", "gfx_templates"}   # gfx_templates: the universal graphics (a template layer's slots)  # shared narration clock, bundled-ffmpeg finder, watermark image
         used = set()
         for f in (ROOT / "hybrid").glob("*.py"):
             for m in re.finditer(r"^\s*(?:from|import)\s+([a-zA-Z_][\w]*)", f.read_text(encoding="utf-8"), re.M):

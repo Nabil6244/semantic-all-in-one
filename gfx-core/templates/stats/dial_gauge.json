@@ -1,0 +1,42 @@
+{
+ "id": "dial_gauge",
+ "family": "stats",
+ "use": "A half-circle gauge whose needle swings to a value (green, amber, red zones).",
+ "niches": [
+  "any"
+ ],
+ "plate": true,
+ "hold": 5,
+ "tags": [
+  "gauge",
+  "dial",
+  "data"
+ ],
+ "slots": {
+  "value": {
+   "default": 72,
+   "from": "value_to",
+   "required": true
+  },
+  "max": {
+   "default": 100
+  },
+  "unit": {
+   "default": "%"
+  },
+  "label": {
+   "default": "",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "dial",
+   "value": "{value}",
+   "max": "{max}",
+   "unit": "{unit}",
+   "label": "{label}",
+   "in": 0.2
+  }
+ ]
+}

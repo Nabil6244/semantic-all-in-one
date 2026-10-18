@@ -1,0 +1,60 @@
+{
+ "id": "big_number",
+ "family": "stats",
+ "use": "One huge number counting up with a unit and a small caption: the number slam of a fact.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "number",
+  "stat",
+  "fact"
+ ],
+ "slots": {
+  "label": {
+   "default": "TOTAL AREA",
+   "from": "label",
+   "required": true
+  },
+  "value": {
+   "default": 9984670,
+   "from": "value_to",
+   "required": true
+  },
+  "unit": {
+   "default": "KM\u00b2",
+   "from": "format"
+  },
+  "prefix": {
+   "default": ""
+  },
+  "sub": {
+   "default": "SECOND LARGEST COUNTRY ON EARTH",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "number",
+   "caption": "{label}",
+   "sub": "{sub}",
+   "to": "{value}",
+   "unit": "{unit}",
+   "prefix": "{prefix}",
+   "at": [
+    0.5,
+    0.52
+   ],
+   "size": 220,
+   "glow": "gold",
+   "in": 0.2,
+   "dur": 2
+  }
+ ],
+ "dim": 0.55,
+ "triggers": "\\b\\d[\\d,.]*\\s*(million|billion|thousand|square|km|miles|percent|%)"
+}

@@ -1,0 +1,43 @@
+{
+ "id": "checklist_card",
+ "family": "news",
+ "use": "A paper checklist card on the right: red header, items ticked one after the other.",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "list",
+  "checklist",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "WHAT TO PACK",
+   "from": "label",
+   "required": true
+  },
+  "items": {
+   "default": [
+    "Water",
+    "Map",
+    "Torch"
+   ],
+   "from": "labels",
+   "required": true
+  },
+  "dur": {
+   "default": 6
+  }
+ },
+ "items": [
+  {
+   "p": "checklist",
+   "title": "{title}",
+   "items": "{items}",
+   "dur": "{dur}",
+   "in": 0.2
+  }
+ ]
+}

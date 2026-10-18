@@ -126,6 +126,19 @@ class TestGenerate(unittest.TestCase):
         self.csv.write_text("item_no,layer_type\n1,nonsense\n", encoding="utf-8")
         self.assertIn("unknown layer_type", self.run_gen().errors[0])
 
+    def test_with_the_graphics_switch_on_a_script_problem_is_repaired_in_memory_and_only_no_usable_row_stops(self):
+        self.csv.write_text(CSV.replace("Nairobi,marker", "Atlantis rises,marker"), encoding="utf-8")
+        before = self.csv.read_text(encoding="utf-8")
+        r = self.run_gen(guard=True)
+        self.assertTrue(r.ok, r.errors)                       # the row that cannot be placed is left out, not a stop
+        self.assertTrue(any("repaired: left out" in ln and "Atlantis rises" in ln for ln in self.logs), self.logs)
+        self.assertEqual({e["type"] for e in self.specs[0]["events"]}, {"hud_title", "stat"})
+        self.assertEqual(self.csv.read_text(encoding="utf-8"), before, "the CSV on disk is never changed")
+        self.csv.write_text("item_no,layer_type\n1,nonsense\n", encoding="utf-8")
+        r2 = self.run_gen(guard=True)
+        self.assertFalse(r2.ok)
+        self.assertIn("no rows", r2.errors[0])
+
     def test_a_renderer_failure_is_reported_in_plain_words(self):
         def boom(spec, output, **kw):
             raise PakmapRenderError("pakMap render failed: map setup failed: no browser")
@@ -185,6 +198,17 @@ class TestPlanCheck(unittest.TestCase):
         self.assertIsNone(res2); self.assertTrue(problems2)
         self.csv.write_text("item_no,layer_type\n1,nonsense\n", encoding="utf-8")
         self.assertIn("unknown layer_type", check_pakmap_plan(self.csv, WORDS)[2][0])
+
+    def test_with_the_graphics_switch_on_problems_are_repaired_and_listed_not_raised(self):
+        self.csv.write_text(CSV.replace("forty seven million", "never said"), encoding="utf-8")
+        res, report, problems = check_pakmap_plan(self.csv, WORDS, duration=6.0, guard=True)
+        self.assertIsNotNone(res)                               # the row is left out (as What If's check does) and the plan is read again
+        self.assertEqual(problems, [])
+        self.assertTrue(any("never said" in ln and ln.startswith("repaired: left out") for ln in report.info), report.info)
+        res2, report2, problems2 = check_pakmap_plan(self.csv.parent / "gone.csv", WORDS)
+        self.assertIsNone(res2); self.assertTrue(problems2)
+        self.csv.write_text("item_no,layer_type\n1,nonsense\n", encoding="utf-8")
+        self.assertIn("no rows", check_pakmap_plan(self.csv, WORDS, guard=True)[2][0])        # nothing usable left: the only real stop
 
     def test_credits_text(self):
         t = credits_text(["A", "B"], ["note"])
@@ -256,7 +280,8 @@ class TestPackagingAndDiscovery(unittest.TestCase):
                        "pakmap-engine/lib/camera.mjs", "pakmap-engine/lib/datasets.mjs", "pakmap-engine/assets/fonts/Montserrat-VF.ttf",
                        "pakmap-engine/data/rainfall_chirps_2016_2020_0p1.i16.gz", "pakmap-engine/data/places_index.json.gz",
                        "pakmap-engine/data/populated_places.json.gz", "pakmap-engine/package.json", "pakmap-engine/tools/validate_spec.mjs",
-                       "pakmap-engine/node_modules/maplibre-gl/dist/maplibre-gl.mjs", "pakmap-engine/node_modules/geotiff/package.json"):
+                       "pakmap-engine/node_modules/maplibre-gl/dist/maplibre-gl.mjs", "pakmap-engine/node_modules/geotiff/package.json",
+                       "gfx-core/lib/render.mjs", "gfx-core/lib/prims.mjs", "gfx-core/fonts/CormorantGaramond-VF.ttf", "gfx-core/templates/stats/rank_bars.json"):
             self.assertIn(needed, names)
         for unwanted in ("pakmap-engine/test/", "pakmap-engine/samples/", "pakmap-engine/node_modules/@maplibre/", "pakmap-engine/tools/build_datasets.py", "pakmap-engine/tools/make_demo_media.py"):
             self.assertFalse([n for n in names if n.startswith(unwanted)], unwanted)

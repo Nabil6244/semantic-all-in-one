@@ -1,0 +1,44 @@
+{
+ "id": "dossier_card",
+ "family": "news",
+ "use": "A case file on paper: the name circled in red, facts typed below (a country, an event, a treaty).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 6.5,
+ "tags": [
+  "fact",
+  "dossier",
+  "news"
+ ],
+ "slots": {
+  "title": {
+   "default": "TREATY OF 1846",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "Year",
+     "text": "1846"
+    },
+    {
+     "label": "Parties",
+     "text": "UK, USA"
+    }
+   ],
+   "from": "rows",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "dossier",
+   "title": "{title}",
+   "rows": "{rows}",
+   "in": 0.2
+  }
+ ]
+}

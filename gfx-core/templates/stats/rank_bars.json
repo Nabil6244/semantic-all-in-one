@@ -1,0 +1,66 @@
+{
+ "id": "rank_bars",
+ "family": "stats",
+ "use": "Two to five bars compared (rainfall, population, area): the name sits inside the bar, the value counts up after it.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": true,
+ "hold": 7,
+ "tags": [
+  "compare",
+  "data",
+  "numbers"
+ ],
+ "slots": {
+  "title": {
+   "default": "AVERAGE RAINFALL PER YEAR (APPROX.)",
+   "from": "label",
+   "required": true
+  },
+  "rows": {
+   "default": [
+    {
+     "label": "CARNARVON",
+     "value": 230
+    },
+    {
+     "label": "SYDNEY",
+     "value": 1200
+    }
+   ],
+   "from": "rows",
+   "required": true
+  },
+  "unit": {
+   "default": "mm",
+   "from": "sub"
+  }
+ },
+ "items": [
+  {
+   "p": "tag",
+   "text": "{title}",
+   "at": [
+    0.04,
+    0.07
+   ],
+   "in": 0.1
+  },
+  {
+   "p": "hbars",
+   "rows": "{rows}",
+   "unit": "{unit}",
+   "at": [
+    0.04,
+    0.25
+   ],
+   "in": 0.7,
+   "stagger": 0.5,
+   "dur": 1.4
+  }
+ ],
+ "triggers": "\\b(times (more|less|larger|bigger|smaller)|compared (to|with)|versus|vs\\.?)\\b"
+}

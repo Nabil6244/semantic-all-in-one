@@ -1,0 +1,41 @@
+{
+ "id": "text_box",
+ "family": "text",
+ "use": "Text style 'box' for any headline or key phrase.",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics"
+ ],
+ "plate": false,
+ "hold": 4,
+ "tags": [
+  "text",
+  "box"
+ ],
+ "slots": {
+  "text": {
+   "default": "THE BORDER NOBODY WANTED",
+   "from": "text",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "text",
+   "text": "{text}",
+   "style": "box",
+   "size": 110,
+   "at": [
+    0.5,
+    0.5
+   ],
+   "accent": "yellow",
+   "glow": "",
+   "color": "white",
+   "in": 0.2,
+   "dur": 1.6
+  }
+ ],
+ "dim": 0.45
+}

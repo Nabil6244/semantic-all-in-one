@@ -1,0 +1,41 @@
+{
+ "id": "photo_leader",
+ "family": "geo",
+ "use": "A photo card at the side with a leader line to the place it shows (give the picture in params slots image).",
+ "niches": [
+  "map",
+  "travel",
+  "geopolitics",
+  "history"
+ ],
+ "plate": false,
+ "hold": 6,
+ "tags": [
+  "photo",
+  "place",
+  "travel"
+ ],
+ "slots": {
+  "image": {
+   "default": "",
+   "required": true
+  },
+  "caption": {
+   "default": "",
+   "from": "label"
+  }
+ },
+ "items": [
+  {
+   "p": "photoleader",
+   "image": "{image}",
+   "caption": "{caption}",
+   "follow": true,
+   "at": [
+    0.5,
+    0.5
+   ],
+   "in": 0.2
+  }
+ ]
+}

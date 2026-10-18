@@ -198,6 +198,11 @@ def _event_cue(ev: dict, forced: Optional[str]) -> Tuple[List[Cue], Optional[str
         return [Cue(t, "soft_transition", "full-screen footage dissolves in", eid)], None
     if typ == "streak":
         return [], "its wind is an ambience bed, not an effect"
+    if typ == "map_template":
+        import gfx_templates
+
+        cues = [Cue(t + at, sound, why, eid, priority=(sound_for(sound).priority if sound_for(sound) else PRIORITY_NORMAL)) for at, sound, why in gfx_templates.sfx_cues(ev)]
+        return (cues, None) if cues else ([], "this graphic makes no sound")
     return [], f"a {typ} makes no sound by default"
 
 

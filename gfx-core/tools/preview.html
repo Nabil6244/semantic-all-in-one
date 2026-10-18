@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>gfx-core preview</title>
+<style>
+@font-face{font-family:GfxSerif;src:url(/gfx-core/fonts/CormorantGaramond-VF.ttf);font-weight:300 700;font-style:normal}
+@font-face{font-family:GfxSerif;src:url(/gfx-core/fonts/CormorantGaramond-Italic-VF.ttf);font-weight:300 700;font-style:italic}
+@font-face{font-family:GfxSans;src:url(/pakmap-engine/assets/fonts/Montserrat-VF.ttf);font-weight:100 900}
+body{margin:0;background:#000}canvas{width:100vw;display:block}
+</style><canvas id="c" width="1920" height="1080"></canvas>
+<script type="module">
+import { createGfx, drawGfx } from '/gfx-core/lib/render.mjs';
+const q = new URLSearchParams(location.search), id = q.get('t') || 'rank_bars', time = parseFloat(q.get('time') ?? '3');
+const idx = await (await fetch('/gfx-core/templates/index.json')).json();
+const tpl = await (await fetch(`/gfx-core/templates/${idx[id]}/${id}.json`)).json();
+await document.fonts.load('800 40px GfxSans'); await document.fonts.load('600 40px GfxSerif'); await document.fonts.load('italic 500 40px GfxSerif');
+const c = document.getElementById('c'), g = c.getContext('2d');
+// stand-in "footage" for templates that draw over the picture: a satellite-ish map look
+const bg = g.createLinearGradient(0,0,1920,1080); bg.addColorStop(0,'#0b2a4a'); bg.addColorStop(0.45,'#1b4a6b'); bg.addColorStop(0.5,'#8a5a2b'); bg.addColorStop(1,'#5b3a1c');
+g.fillStyle = bg; g.fillRect(0,0,1920,1080);
+const inst = createGfx(tpl, q.get('slots') ? JSON.parse(q.get('slots')) : {});
+drawGfx(inst, g, 1920, 1080, time);
+window.__done = true;
+</script>

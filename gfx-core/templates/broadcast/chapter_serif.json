@@ -1,0 +1,38 @@
+{
+ "id": "chapter_serif",
+ "family": "broadcast",
+ "use": "A serif italic kicker over a tracked title wiped in from the left (date over event name).",
+ "niches": [
+  "any"
+ ],
+ "plate": false,
+ "hold": 4.5,
+ "tags": [
+  "title",
+  "chapter",
+  "news"
+ ],
+ "slots": {
+  "kicker": {
+   "default": "SEPTEMBER 2022",
+   "from": "sub"
+  },
+  "title": {
+   "default": "HURRICANE IAN",
+   "from": "label",
+   "required": true
+  }
+ },
+ "items": [
+  {
+   "p": "dip",
+   "in": 0
+  },
+  {
+   "p": "chaptercard",
+   "kicker": "{kicker}",
+   "title": "{title}",
+   "in": 0.2
+  }
+ ]
+}
