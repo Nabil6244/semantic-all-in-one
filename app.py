@@ -15503,11 +15503,33 @@ class VideoGeneratorApp(ctk.CTk):
             details_box.configure(state="disabled")
             actions = ctk.CTkFrame(win, fg_color="transparent")
             actions.pack(fill="x", padx=T.SPACE_LG, pady=T.SPACE_LG)
-            ctk.CTkButton(
-                actions, text="Retry", height=T.CONTROL_H, width=100,
-                fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-                command=lambda: (win.destroy(), self._on_generate()),
-            ).pack(side="left")
+            from ui.error_actions import fix_prompt as _fix_prompt, is_plan_error as _is_plan_error
+
+            if _is_plan_error([details]):
+                # The CSV must change: Retry would fail the same way (real logs: the same anchor error three presses in a row).
+                copied = ctk.StringVar(value="")
+
+                def _copy_fix() -> None:
+                    try:
+                        style = self._active_style()
+                    except Exception:
+                        style = ""
+                    self.clipboard_clear()
+                    self.clipboard_append(_fix_prompt(style, [details]))
+                    copied.set("Copied: paste it into the AI with your CSV, then load the fixed CSV.")
+
+                ctk.CTkButton(
+                    actions, text="Copy fix prompt", height=T.CONTROL_H, width=130,
+                    fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK, command=_copy_fix,
+                ).pack(side="left")
+                ctk.CTkLabel(win, textvariable=copied, font=ctk.CTkFont(size=T.FONT_METADATA[0]), text_color=T.MUTED,
+                             anchor="w", justify="left", wraplength=430).pack(fill="x", padx=T.SPACE_LG, before=actions)
+            else:
+                ctk.CTkButton(
+                    actions, text="Retry", height=T.CONTROL_H, width=100,
+                    fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+                    command=lambda: (win.destroy(), self._on_generate()),
+                ).pack(side="left")
             ctk.CTkButton(
                 actions, text="Dismiss", height=T.CONTROL_H, width=100,
                 fg_color="transparent", border_width=1, border_color=T.BORDER,
