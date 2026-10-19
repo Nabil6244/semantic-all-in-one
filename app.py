@@ -4812,6 +4812,8 @@ class VideoGeneratorApp(ctk.CTk):
         _timing_fixes = _hy_clamp(plan)   # a layer anchored just before its map beat appears with the beat, so the compile below cannot stop Generate
         for _m in _timing_fixes:
             self._append_log(f"[HYBRID] {_m}\n")
+        if _timing_fixes:   # repaired, not just logged: say so where the user is looking
+            self._notify(f"Fixed {len(_timing_fixes)} layer timing problem(s) before rendering. Details are in Activity.", tone="success")
         if _timing_fixes or not self._scene_rows:
             self._populate_hybrid_visual_plan()
         blocking = _hy_errors(_hy_validate(plan))
@@ -15467,6 +15469,14 @@ class VideoGeneratorApp(ctk.CTk):
                 message,
             )
             self._refresh_cleanup_button(defer=True)
+
+    def _notify(self, message: str, *, tone: str = "info", duration_ms: int = 5000) -> None:
+        """A short notice at the bottom of the window (the shell's Toast): what the app fixed or did on its own.
+        Never raises: the same text is always in the Activity log too."""
+        try:
+            self._shell.toast.show(message, tone=tone, duration_ms=duration_ms)
+        except Exception:
+            pass
 
     def _show_error_dialog(self, title: str, summary: str, details: str) -> None:
         """Professional error UX (spec item 19): a plain-language summary

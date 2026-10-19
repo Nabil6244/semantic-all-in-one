@@ -75,5 +75,29 @@ class DialogWiring(unittest.TestCase):
         self.assertIn('text="Retry"', body)   # other failures keep Retry
 
 
+class NotifyHelper(unittest.TestCase):
+    def _cls(self):
+        import app
+        return next(v for v in vars(app).values() if isinstance(v, type) and hasattr(v, "_show_error_dialog"))
+
+    def test_notify_uses_the_shell_toast_and_never_raises(self):
+        from unittest import mock
+
+        cls = self._cls()
+        fake = mock.Mock()
+        cls._notify(fake, "hello", tone="success")
+        fake._shell.toast.show.assert_called_once_with("hello", tone="success", duration_ms=5000)
+        broken = mock.Mock()
+        broken._shell.toast.show.side_effect = RuntimeError("no window")
+        cls._notify(broken, "hello")   # no exception
+        cls._notify(object(), "no shell at all")
+
+    def test_hybrid_timing_repairs_are_announced(self):
+        import inspect
+
+        src = inspect.getsource(self._cls()._run_hybrid_generation)
+        self.assertIn("self._notify(", src[src.index("_timing_fixes = "):])
+
+
 if __name__ == "__main__":
     unittest.main()
