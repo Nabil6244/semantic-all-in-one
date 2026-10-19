@@ -15515,7 +15515,8 @@ class VideoGeneratorApp(ctk.CTk):
             actions.pack(fill="x", padx=T.SPACE_LG, pady=T.SPACE_LG)
             from ui.error_actions import fix_prompt as _fix_prompt, is_plan_error as _is_plan_error, needs_attention as _needs_attention
 
-            if _needs_attention([details]):
+            _kind = "attention" if _needs_attention([details]) else ("plan" if _is_plan_error([details]) else "")
+            if _kind == "attention":
                 # Missing pictures are fixed per scene in the Visual Plan; Retry alone re-fetches the same not-found searches.
                 def _to_visual_plan() -> None:
                     win.destroy()
@@ -15526,12 +15527,7 @@ class VideoGeneratorApp(ctk.CTk):
                     actions, text="Fix in Visual Plan", height=T.CONTROL_H, width=140,
                     fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK, command=_to_visual_plan,
                 ).pack(side="left")
-                ctk.CTkButton(
-                    actions, text="Retry", height=T.CONTROL_H, width=100,
-                    fg_color="transparent", border_width=1, border_color=T.BORDER, text_color=T.TEXT,
-                    command=lambda: (win.destroy(), self._on_generate()),
-                ).pack(side="left", padx=(T.SPACE_SM, 0))
-            elif _is_plan_error([details]):
+            elif _kind == "plan":
                 # The CSV must change: Retry would fail the same way (real logs: the same anchor error three presses in a row).
                 copied = ctk.StringVar(value="")
 
@@ -15550,12 +15546,17 @@ class VideoGeneratorApp(ctk.CTk):
                 ).pack(side="left")
                 ctk.CTkLabel(win, textvariable=copied, font=ctk.CTkFont(size=T.FONT_METADATA[0]), text_color=T.MUTED,
                              anchor="w", justify="left", wraplength=430).pack(fill="x", padx=T.SPACE_LG, before=actions)
-            else:
-                ctk.CTkButton(
-                    actions, text="Retry", height=T.CONTROL_H, width=100,
-                    fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
-                    command=lambda: (win.destroy(), self._on_generate()),
-                ).pack(side="left")
+            ctk.CTkButton(
+                actions, text="Retry", height=T.CONTROL_H, width=100,
+                fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK,
+                command=lambda: (win.destroy(), self._on_generate()),
+            ).pack(side="left")
+            _retry = actions.winfo_children()[-1]
+            if _kind == "plan":
+                _retry.destroy()   # the CSV must change first: Retry would fail the same way
+            elif _kind == "attention":   # still useful after a network hiccup, but no longer the main action
+                _retry.configure(fg_color="transparent", border_width=1, border_color=T.BORDER, text_color=T.TEXT)
+                _retry.pack_configure(padx=(T.SPACE_SM, 0))
             ctk.CTkButton(
                 actions, text="Dismiss", height=T.CONTROL_H, width=100,
                 fg_color="transparent", border_width=1, border_color=T.BORDER,
