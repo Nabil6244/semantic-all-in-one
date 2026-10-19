@@ -184,6 +184,12 @@ jobs:
           file bin/ffmpeg | grep -q "$FILE_ARCH"
           file bin/node | grep -q "$FILE_ARCH"
 
+      - name: Packaged app startup check
+        # The built app imports its lazily-imported modules, runs the bundled ffmpeg/ffprobe/Node, loads the graphics templates
+        # and SFX and finds every render engine (startup_check.py), then exits without opening a window.
+        timeout-minutes: 10
+        run: python scripts/check_packaged_startup.py
+
       # ---- Code signing + notarization (Phase 1.3) ----
       # Fully optional and additive: with no signing secrets configured in
       # this repo, every step below is skipped and the build is identical to
@@ -380,6 +386,11 @@ jobs:
 
       - name: Build with PyInstaller
         run: pyinstaller VideoGenerator.spec
+
+      - name: Packaged app startup check
+        # Same check as on macOS: the built .exe imports, runs ffmpeg/ffprobe/Node, loads templates and SFX, finds the engines.
+        timeout-minutes: 10
+        run: python scripts/check_packaged_startup.py
 
       - name: Install Inno Setup
         shell: pwsh

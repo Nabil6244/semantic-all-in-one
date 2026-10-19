@@ -384,3 +384,65 @@ class TestStableAndSafe(unittest.TestCase):
             for name, spec in lib[e["template"]["id"]]["slots"].items():
                 if spec.get("required"):
                     self.assertNotIn(e["slots"].get(name), (None, "", []), f"{e['id']}.{name}")
+
+
+class TestFootageCoverage(unittest.TestCase):
+    PLACES = ["farm", "mill", "bridge", "quarry", "orchard", "village", "chapel", "harbour", "market", "ferry", "tower", "vineyard", "station", "lighthouse"]
+    TEXT = " ".join(f"Beyond the last {p}, the road climbs through old forest, and the river turns north toward the {p}s, where the cliffs are red, and the water is clear." for p in PLACES)
+
+    def test_at_least_half_of_the_clips_carry_a_graphic_made_of_the_narrations_own_words(self):
+        words = _plain(self.TEXT, step=0.45)
+        total = words[-1][2]
+        clips = [(t, t + 4.2) for t in [x * 7.0 + 3.0 for x in range(int(total // 7.0) - 1)]]
+        ev = G.auto_events(words, niche="map", script=self.TEXT, total=total, footage=clips)
+        on = [e for e in ev if e.get("over_footage")]
+        covered = sum(1 for c in clips if any(e["t_in"] < c[1] and c[0] < e["t_out"] for e in on))
+        self.assertGreaterEqual(covered, len(clips) / 2, f"{covered}/{len(clips)}")
+        self.assertGreaterEqual(len({e["template"]["id"] for e in on}), 4)                      # not one layout repeated
+        lib = G.load_library()
+        spoken = " ".join(self.TEXT.lower().replace(",", "").replace(".", "").split())
+        for e in on:
+            parts = []
+            for k, v in e["slots"].items():
+                if k in ("text", "title", "words", "kicker", "sub", "bullets", "items", "highlight"):
+                    parts += [str(x) for x in (v if isinstance(v, list) else [v])]
+            for part in parts:
+                said = " ".join(part.replace("|", " ").lower().replace(",", "").split())
+                if said:
+                    self.assertIn(said, spoken, f"{e['id']}: {said!r} is not the narration's own words")
+            self.assertTrue(G.sfx_cues(e), e["template"]["id"])                                  # and it has a sound
+            self.assertFalse(G.map_bound(lib[e["template"]["id"]]))
+
+    def test_every_template_has_a_sound_except_the_bare_dim(self):
+        silent = [tid for tid, t in G.load_library().items() if not G.sfx_cues({"template": G._public(t)})]
+        self.assertEqual(silent, ["dim_vignette"])
+
+
+class TestRecapAndCountdownCards(unittest.TestCase):
+    def test_every_date_the_narration_states_becomes_one_timeline_in_the_narrations_words(self):
+        text = (FILL * 2 + "In 1851 gold was found in the creek near the old mill. " + FILL * 2 + "In 1875 the harbour was finally dredged by hand. " + FILL * 2
+                + "From the 1960s, crews restored the crater with native plants. " + FILL * 2 + "In 2019 the whole landscape was listed for its culture. " + FILL * 3)
+        words = _plain(text, step=0.5)
+        ev = G.auto_events(words, niche="map", script=text, total=words[-1][2], enabled=("timeline_strip",))
+        self.assertEqual(ids(ev), ["timeline_strip"])
+        rows = ev[0]["slots"]["rows"]
+        self.assertEqual([r["label"] for r in rows], ["1851", "1875", "1960S", "2019"])
+        spoken = text.lower()
+        self.assertTrue(all(r["text"].lower() in spoken for r in rows))
+        last_date_spoken = max(a for t, a, b in G.sentences(G.display_words(words, text)) if "2019" in t)
+        self.assertGreater(ev[0]["t_in"], last_date_spoken)
+
+    def test_fewer_than_four_dates_make_no_recap(self):
+        text = FILL * 2 + "In 1851 gold was found in the creek. " + FILL * 2 + "In 1875 the harbour was dredged. " + FILL * 3
+        words = _plain(text, step=0.5)
+        self.assertEqual(G.auto_events(words, niche="map", script=text, total=words[-1][2], enabled=("timeline_strip",)), [])
+
+    def test_a_countdown_heading_and_its_title_make_a_numbered_card(self):
+        text = FILL * 3 + "Number ten. The two lakes of Camperdown. " + FILL * 3
+        words = _plain(text, step=0.5)
+        ev = G.auto_events(words, niche="map", script=text, total=words[-1][2], enabled=("fact_card",))
+        self.assertEqual(ids(ev), ["fact_card"])
+        self.assertEqual({k: v for k, v in ev[0]["slots"].items() if v != ""}, {"n": 10, "kicker": "NUMBER", "title": "THE TWO LAKES OF CAMPERDOWN"})
+        text = FILL * 3 + "Number ten. " + FILL * 3
+        words = _plain(text, step=0.5)
+        self.assertEqual(G.auto_events(words, niche="map", script=text, total=words[-1][2], enabled=("fact_card",)), [])      # no title after it: no card

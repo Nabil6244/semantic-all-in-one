@@ -12,6 +12,7 @@ import { mercY } from './raster.mjs';
 import { footageWindows, shiftedEvent, footageAlpha, kenBurnsScale, resolveKenBurns, fitFrame } from './hybrid.mjs';
 
 const font = (px) => `${FONT.weight} ${px}px ${FONT.family}, Montserrat, sans-serif`;
+const CARD_EDGE_MARGIN = 36;   // px a moved card keeps from the frame edge (room for its 115 % snap-in)
 const easeOutBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -19,6 +20,25 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr);
   ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
+}
+
+/** The area a photo card covers: the card and, when it has one, the label chip under it (which can be wider than the card). */
+export function cardBox(rect, label, measure) {
+  if (!label) return { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+  const L = cardLabelRect(rect, label, measure), x = Math.min(rect.x, L.x), r = Math.max(rect.x + rect.w, L.x + L.w);
+  return { x, y: rect.y, w: r - x, h: L.y + L.h - rect.y };
+}
+
+/** A map-following card is dragged along with the map; when the camera zooms or changes frame it can be carried past the edge and cut.
+ *  Returns the shift [dx, dy] limited so the whole box (plus its snap-in scale) stays `m` px inside the frame. No shift stays no shift. */
+export function clampShift(box, dx, dy, frame, m) {
+  if (!dx && !dy) return [0, 0];
+  const fit = (pos, size, shift, max) => {
+    if (size + 2 * m > max) return (max - size) / 2 - pos;       // wider than the frame: centre it
+    const lo = Math.max(0, Math.min(m, pos)), hi = Math.max(0, Math.min(m, max - pos - size));   // a card the layout put nearer the edge than m is never pushed back by the clamp
+    return Math.min(Math.max(pos + shift, lo), max - hi - size) - pos;
+  };
+  return [fit(box.x, box.w, dx, frame.w), fit(box.y, box.h, dy, frame.h)];
 }
 
 export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia = null, gfx = null }) {
@@ -274,7 +294,11 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
     const rect0 = cardRect({ anchor: e.anchor || 'tr', shape: e.shape, w: e.w, offset: e.offset || [0, 0] });
     let rect = rect0;
     if (e.at) { const q = project(e.at.lon, e.at.lat); if (q) rect = { ...rect0, x: q.x / S - rect0.w / 2 + (e.offset?.[0] || 0), y: q.y / S - rect0.h / 2 + (e.offset?.[1] || 0) }; }
-    else { const [dx, dy] = followMap(e.id, rect0.x + rect0.w / 2, rect0.y + rect0.h / 2); rect = { ...rect0, x: rect0.x + dx, y: rect0.y + dy }; }
+    else {
+      let [dx, dy] = followMap(e.id, rect0.x + rect0.w / 2, rect0.y + rect0.h / 2);
+      [dx, dy] = clampShift(cardBox(rect0, e.label, measure), dx, dy, FRAME, CARD_EDGE_MARGIN);   // a camera zoom never carries the card (or its label) out of the frame
+      rect = { ...rect0, x: rect0.x + dx, y: rect0.y + dy };
+    }
     if (e.leader) {
       const q = project(e.leader.lon, e.leader.lat);
       if (q) {
@@ -295,7 +319,9 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
   function drawFilmstrip(e, t) {
     if (t < e.t_in || t >= e.t_out) return;
     const rects = stripLayout(e.cards.length, { align: e.align || 'center' });
-    const [dx, dy] = followMap(e.id, 960, rects[0].y + rects[0].h / 2);
+    let [dx, dy] = followMap(e.id, 960, rects[0].y + rects[0].h / 2);
+    const strip = rects.reduce((b, r, i) => { const c = cardBox(r, e.cards[i].label, measure), x = Math.min(b.x, c.x), y = Math.min(b.y, c.y); return { x, y, w: Math.max(b.x + b.w, c.x + c.w) - x, h: Math.max(b.y + b.h, c.y + c.h) - y }; }, cardBox(rects[0], e.cards[0].label, measure));
+    [dx, dy] = clampShift(strip, dx, dy, FRAME, CARD_EDGE_MARGIN);
     e.cards.forEach((c, i) => {
       const t0 = e.t_in + i * (e.stagger_s ?? TIMING.cardStagger), st = cardState(t, t0, e.t_out);
       if (st.alpha <= 0) return;

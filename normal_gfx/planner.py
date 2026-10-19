@@ -112,7 +112,8 @@ def plan_graphics(words: Sequence[Tuple[str, float, float]], total: float, rows:
     try:
         replaced: List[str] = []
         autos = G.auto_events(words, niche="map", taken=taken, total=total, id_prefix="ngfx", enabled=allowed("auto", data),
-                              stats=_stat_events(existing_specs), replaced=replaced, footage=[(0.0, float(total))])
+                              stats=_stat_events(existing_specs), replaced=replaced, footage=[(0.0, float(total))],
+                              narration_fill=False)   # the Hybrid clip-fill and dates recap are for real footage clips
         for ev in autos:
             if str(ev.get("template", {}).get("id")) in data["templates"] and data["templates"][ev["template"]["id"]]["mode"] == "excluded":
                 continue

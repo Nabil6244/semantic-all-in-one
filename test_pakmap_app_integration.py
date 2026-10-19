@@ -107,7 +107,7 @@ def scenario():
     def fake_ok(csv, vo, out, **kw):
         calls.update(rows=kw.get("scene_rows"), media_dir=kw.get("media_dir"), callbacks=sorted((kw.get("media_callbacks") or {}).keys()), pexels=kw.get("pexels_api_key"), flow=kw.get("flow_engine_manager"), accounts=kw.get("flow_video_account_ids"), sound=kw.get("sound_design"), csv=str(csv), out=str(out), work=str(kw["work_dir"]), base=str(kw["base_dir"]), wm=kw["watermark"], words=kw["whisper_words"])
         kw["progress_cb"]("Drawing the map… frame 1/2", 0.4); kw["log"]("[pakMap] fake log line")
-        Path(out).write_bytes(b"x" * 10)
+        Path(out).write_bytes(b"x" * 4096)   # a finished video is never under 1 KB: the app now refuses that as cut short
         return pai.PakmapResult(True, [], Path(out), None, ["NASA credit", "CHIRPS credit"], [])
     pai.generate_pakmap_video = fake_ok
     inst._pakmap_get_words = lambda *a, **k: WORDS

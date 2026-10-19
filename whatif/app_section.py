@@ -670,6 +670,7 @@ def run_generation(app) -> None:
         def apply() -> None:
             app._whatif_status_var.set(f"{message} ({int(fraction * 100)}%)")
             app.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+            app._export_progress(fraction, message)
         app.after(0, apply)
 
     def thread_safe_log(message: str) -> None:
@@ -734,6 +735,7 @@ def run_generation(app) -> None:
         app.after(0, lambda: finish(result))
 
     def finish(result) -> None:
+        result = app._export_verified(result)   # never "video ready" for a missing, empty or old file
         app._whatif_running = False
         cancelled = bool(getattr(result, "cancelled", False)) or app._whatif_cancel.is_set()
         app._whatif_cancel.clear()

@@ -1445,6 +1445,7 @@ class ResearchView(_BaseView):
     def _on_add_listing(self) -> None:
         url = self._new_listing_var.get().strip()
         if not url:
+            self._status_label.configure(text="Paste a listing URL in the box first, then click Add.")
             return
         if url in self._listing_urls:
             self._new_listing_var.set("")
@@ -2259,6 +2260,11 @@ class RenderView(_BaseView):
         self._op.grid(row=len(self._STEPS) + 2, column=0, columnspan=3, sticky="ew", pady=(8, 0))
         self._out = MetricRow(pb, "Output file")
         self._out.grid(row=len(self._STEPS) + 3, column=0, columnspan=3, sticky="ew", pady=(2, 0))
+        # The styles (pakMap, Hybrid, StarMap, What If, Weather, Overscaled) render through their own engines: their job is
+        # app._export_job (export_state.ExportJob). Its row replaces the Normal-video steps above while it is shown.
+        self._job_row = MetricRow(pb, "Style")
+        self._job_row.grid(row=0, column=0, columnspan=3, sticky="ew", pady=3)
+        self._job_row.grid_remove()
 
         settings_card = Card(self._body, title="Output settings")
         settings_card.grid(row=2, column=0, sticky="ew")
@@ -2340,12 +2346,28 @@ class RenderView(_BaseView):
             self._voice_tile.set("Loaded", Path(audio).name[:34], "ok")
         else:
             self._voice_tile.set("Missing", "Add it on Audio & Effects", "warn")
+        # A style's render (pakMap, Hybrid, StarMap, What If, Weather, Overscaled): shown from its own job, not the Normal-video
+        # pipeline's progress bar and steps (which stay at 0 / "Waiting" during a style's render).
+        job = getattr(app, "_export_job", None)
+        style_job = job if (job is not None and getattr(job, "style", "normal") != "normal" and not running) else None
         out = app._last_output or app.output_var.get().strip() or ""
+        if not (out and Path(out).is_file()):   # a reopened project: its newest finished video (Play opens the same one)
+            latest = getattr(app, "_latest_final_video", lambda: None)()
+            out = str(latest) if latest is not None else out
+        if style_job is not None and style_job.output_path:
+            out = style_job.output_path
         has_out = bool(out) and Path(out).is_file()
         self._output_tile.set(Path(out).name[:26] if has_out else "None yet",
                               "Ready to play" if has_out else "Render to create one", "ok" if has_out else "")
         self._open_video_btn.configure(state="normal" if has_out else "disabled")
         self._open_folder_btn.configure(state="normal" if app._workspace is not None else "disabled")
+        if style_job is not None:
+            self._show_style_job(style_job, out, has_out)
+            return
+        self._job_row.grid_remove()
+        for dot, lbl, pill in self._phases:
+            for w in (dot, lbl, pill):
+                w.grid()
 
         try:
             frac = float(app.progress.get())
@@ -2378,7 +2400,20 @@ class RenderView(_BaseView):
                 pill.set_tone("Waiting", "muted")
         status = (app.status_var.get() or "").strip() if hasattr(app, "status_var") else ""
         self._op.set_value(status or ("Working\u2026" if running else "Idle"))
-        self._out.set_value(Path(out).name if out else "—")
+        self._out.set_value(Path(out).name if out else "\u2014")
+
+    def _show_style_job(self, job, out: str, has_out: bool) -> None:
+        """The style's own job: one row with its style and state instead of the Normal-video steps, its own progress, and
+        its verified output (a reported success whose file is missing is shown as failed, with why)."""
+        for dot, lbl, pill in self._phases:
+            for w in (dot, lbl, pill):
+                w.grid_remove()
+        self._job_row.grid()
+        self._job_row.set_value(job.label)
+        done = job.outcome == "completed" and bool(job.output_path) and has_out
+        self._bar.set(1.0 if done else (job.fraction if job.running else 0.0))
+        self._op.set_value(job.status_text())
+        self._out.set_value(Path(out).name if (done or (not job.running and has_out)) else "\u2014")
 
 
 class GraphicsView(_BaseView):
@@ -2748,8 +2783,8 @@ TOOL_CARDS = (
      "_open_rating_history"),
     ("Learning", "What the app has learned from your projects, the active knowledge package, and its controls.", "Open Learning",
      "_open_learning"),
-    ("Activity log", "Every step the app takes during planning, downloads and rendering, as it happens.", "Show / hide activity",
-     "_toggle_activity_log"),
+    ("Activity log", "Every step the app takes during planning, downloads and rendering, as it happens (on the Visuals page).",
+     "Show activity", "_show_activity_log"),
     ("Output folder", "The folder that holds this project's finished videos.", "Open output folder", "_open_output_folder"),
     ("Settings", "Accounts, providers, API keys, Flow, appearance and defaults.", "Open Settings", "_open_settings"),
 )

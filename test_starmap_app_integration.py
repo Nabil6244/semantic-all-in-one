@@ -109,7 +109,7 @@ def scenario():
     def fake_ok(csv_path, vo, out, **kw):
         got.update(kw, csv=str(csv_path), out=str(out))
         kw["progress_cb"]("Drawing space…", 0.4); kw["log"]("[StarMap] fake")
-        Path(out).write_bytes(b"x" * 10)
+        Path(out).write_bytes(b"x" * 4096)   # a finished video is never under 1 KB: the app now refuses that as cut short
         return PakmapResult(True, [], Path(out), None, ["NASA"], ["a note"])
     sai.generate_starmap_video = fake_ok
     inst._scene_rows[2].asset_type = "stock_video"; inst._scene_rows[2].stock = "moonwalk footage"      # the user changed clip 3 in the table

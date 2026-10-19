@@ -203,7 +203,8 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                 elif lay.type == "line":
                     kw.update(geo_ref=";".join(lay.places), line_kind=lay.kind)
                 elif lay.type == "stat":
-                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=lay.format or "#,##0", sub_text=lay.sub, anchor=clash.get(lay.id, {}).get("anchor") or lay.anchor or "br")
+                    fmt, sub = stat_text(lay.format or "#,##0", lay.sub)
+                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=fmt, sub_text=sub, anchor=clash.get(lay.id, {}).get("anchor") or lay.anchor or "br")
                 elif lay.type == "caption":
                     kw.update(label_text=lay.text, sub_text=lay.sub, anchor=lay.anchor or "bc")
                 elif lay.type == "template":
@@ -273,9 +274,66 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                     continue
                 kw["params"] = {**kw["params"], "over_footage": True}
                 add(f"beat {beat.id} · template {lay.id} (over the footage)", **kw)
+    for t0, bed in ambience_beds(plan):
+        add(f"plan · ambience {bed}", layer_type="sound", layer_id=f"amb_{int(t0)}", t_start=t0, ambience=bed)
     # the always-on drift (what makes the map feel alive between camera moves)
     add("plan · camera drift", layer_type="camera", layer_id="drift", camera_action="drift", t_start=0.0, params={"pct_per_s": float(plan.setting("drift_pct_per_s")), "heading_deg": 60})
     return rows, line_map, notes
+
+
+# What each beat is about -> the ambience bed under it (pakmap.sounds ids, the louder What If-tuned beds: the quiet pakMap ones sit near -40 dBFS and are not heard).
+AMBIENCE_TOPICS = (
+    ("wi_cold", ("ice", "icy", "glacier", "snow", "polar", "arctic", "antarctic", "frozen", "frost", "tundra", "permafrost")),
+    ("wi_water", ("ocean", "sea ", " sea", "lake", "river", "rain", "coast", "bay ", "waves", "wave ", "reef", "water", "waterfall", "shore", "creek", "estuary", "swamp", "wetland")),
+    ("wi_wind", ("desert", "dust", "storm", "arid", "wind", "outback", "dune", "salt flat", "salt lake", "drought", "bushfire", "wildfire")),
+    ("wi_space", ("space", "orbit", "asteroid", "meteor", "planet", "the moon", "galaxy", "solar system", "comet")),
+)
+AMBIENCE_DEFAULT = "wi_planet"
+AMBIENCE_MIN_STRETCH_S = 25.0   # a bed plays at least this long before another takes over: the topic of one short beat never flaps the sound
+
+
+def _beat_topic(beat: Beat) -> str:
+    text = " ".join([beat.narration, beat.purpose, beat.geo_intent, beat.footage_intent] + [c.asset for c in beat.clips]).lower()
+    text = f" {text} "
+    best, hits = "", 0
+    for bed, words in AMBIENCE_TOPICS:
+        n = sum(text.count(w) for w in words)
+        if n > hits:
+            best, hits = bed, n
+    return best
+
+
+def ambience_beds(plan: HybridPlan) -> List[Tuple[float, str]]:
+    """[(start_s, bed id)]: a quiet bed under the whole video that follows the beats' subject (cold, water, wind, space, otherwise a calm drone).
+    Turned off by the plan setting "ambience": false. Hybrid used to have none, so footage stretches and quiet narration had nothing under them."""
+    if not plan.beats or plan.settings.get("ambience", True) is False:
+        return []
+    out: List[Tuple[float, str]] = []
+    for beat in plan.beats:
+        topic = _beat_topic(beat)
+        if not out:
+            out.append((0.0, topic or AMBIENCE_DEFAULT))
+        elif topic and topic != out[-1][1] and beat.start - out[-1][0] >= AMBIENCE_MIN_STRETCH_S:
+            out.append((round(beat.start, 2), topic))
+    return out
+
+
+STAT_UNIT_MAX = 6   # the number is drawn at 86 px and the chip is as wide as number + unit text: a unit longer than this goes to the small line
+
+
+def stat_text(fmt: str, sub: str) -> Tuple[str, str]:
+    """'0.0 MILLION YEARS AGO' + sub 'FIRST ERUPTIONS' -> ('0.0', 'MILLION YEARS AGO · FIRST ERUPTIONS'): long words after the number would make a chip over a
+    thousand pixels wide. Short units (KM, %, M, °C) stay beside the number; a prefix is never touched."""
+    import re
+
+    m = re.search(r"[#0,]*0(?:\.0+)?", fmt)
+    if not m:
+        return fmt, sub
+    tail = fmt[m.end():]
+    words = tail.strip()
+    if len(words) <= STAT_UNIT_MAX:
+        return fmt, sub
+    return fmt[:m.end()], f"{words} · {sub}" if sub else words
 
 
 def is_video_asset(asset: str) -> bool:

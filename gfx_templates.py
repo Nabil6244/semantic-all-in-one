@@ -15,6 +15,7 @@ repeats). Only templates that have an extractor here are ever placed automatical
 
 from __future__ import annotations
 
+import collections
 import copy
 import json
 import re
@@ -601,14 +602,14 @@ RULES: Dict[str, Dict[str, Any]] = {
                         placement="centre, heavy capitals", timing="from the quoted words", fallback="no quote marks = nothing"),
     "record_badge": dict(weight=9, where=("map", "footage"), requires="what record, where, new value and date, old value and date, all in one sentence",
                          eligible="a broken record is stated in full", placement="badge", timing="from the record words", fallback="anything missing = no badge"),
-    "fact_card": dict(weight=7, where=("map", "footage"), requires="'Fact/Number N' and a headline of 2-7 words in the same sentence", eligible="a numbered fact is announced",
+    "fact_card": dict(weight=7, where=("map", "footage"), requires="'Fact/Number N' and a headline of 2-7 words, in the same sentence or as the whole next sentence", eligible="a numbered fact or countdown item is announced",
                       placement="numbered card", timing="from 'Fact N'", fallback="no headline in the sentence = no card"),
     "versus_numbers": dict(weight=8, where=("map", "footage"), requires="two named things with two numbers in one unit, stated side by side", eligible="a comparison of two figures",
                            placement="plate with two numbers (backing over footage)", timing="from the first name", fallback="different units or scales = nothing"),
     "rank_bars": dict(weight=7, where=("map", "footage"), requires="the same two numbers and one unit as versus_numbers", eligible="a comparison of two figures",
                       placement="two bars", timing="from the first name", fallback="no unit = nothing"),
-    "timeline_strip": dict(weight=8, where=("map", "footage"), requires="three or more consecutive sentences that each date one event, in order, within 14 s",
-                           eligible="a run of dated events", placement="strip (backing over footage)", timing="from the first date to the last, +1 s",
+    "timeline_strip": dict(weight=8, where=("map", "footage"), requires="three or more consecutive sentences that each date one event, in order, within 14 s; or, across the whole narration, four or more sentences that each state one date (a year or a decade)",
+                           eligible="a run of dated events, and a recap of all the dates after the last is spoken (first free moment within 45 s)", placement="strip (backing over footage)", timing="from the first date to the last, +1 s",
                            fallback="fewer than three, or out of order = nothing"),
     "checklist_card": dict(weight=7, where=("map", "footage"), requires="three to five consecutive sentences opening with First/Second/Third or Step one/two/three, each clause of 7 words and 24 characters or fewer",
                            eligible="a spoken sequence", placement="paper card on the right", timing="from the first step to the last, +1 s",
@@ -931,12 +932,83 @@ def zones_of(template: Dict[str, Any]) -> "frozenset[str]":
 
 
 COMPACT_ON_FOOTAGE = {"name_bar", "place_lowerthird", "lower_kicker", "counter_corner", "tag_headline", "ring_percent", "big_number", "gold_stat", "year_wipe", "dial_gauge"}   # little of the picture is covered
+# ---- every other clip: a graphic made of the narration's own words ---------------------------------------------------------------------------
+FOOTAGE_SHARE = 0.6          # about this share of the full-screen clips carry a graphic (the ones with a number, a year or a person already have theirs)
+FILL_LOOKS = (                # (template, slots from a clause, longest clause in characters): cards and text layouts that read over a picture
+    ("headline_wash", lambda c, hl: {"title": c.upper(), "sub": ""}, 34), ("subtitle_gold", lambda c, hl: {"text": c, "highlight": hl}, 56),
+    ("lower_kicker", lambda c, hl: {"title": c.upper(), "kicker": "", "sub": ""}, 30), ("tag_headline", lambda c, hl: {"text": c.upper()}, 42),
+    ("text_slam", lambda c, hl: {"text": c.upper()}, 22), ("text_typewriter", lambda c, hl: {"text": c.upper()}, 24), ("text_stamp", lambda c, hl: {"text": c.upper()}, 22),
+    ("text_word_pop", lambda c, hl: {"text": c.upper()}, 22), ("text_glow", lambda c, hl: {"text": c.upper()}, 22), ("text_outline", lambda c, hl: {"text": c.upper()}, 22),
+    ("text_box", lambda c, hl: {"text": c.upper()}, 22), ("text_sweep", lambda c, hl: {"text": c.upper()}, 22), ("text_split", lambda c, hl: {"text": c.upper()}, 22),
+    ("text_underline", lambda c, hl: {"text": c.upper()}, 22), ("keyword_title", lambda c, hl: {"words": c.upper().split(), "accent": max(range(len(c.split())), key=lambda i: len(c.split()[i]))}, 26),
+)
+# cards built from SEVERAL consecutive clauses of the narration, each word as spoken: (template, how many clauses, longest clause in characters, slots)
+CARD_LOOKS = (
+    ("side_panel", 3, 30, lambda cs: {"title": cs[0].upper(), "bullets": [c[:1].upper() + c[1:] for c in cs[1:]]}),
+    ("checklist_card", 3, 24, lambda cs: {"title": "AS WE GO", "items": [c[:1].upper() + c[1:] for c in cs]}),
+    ("chapter_serif", 2, 30, lambda cs: {"kicker": cs[0].upper(), "title": cs[1].upper()}),
+    ("quote_card", 1, 60, lambda cs: {"text": _wrap_quote(cs[0]), "by": ""}),
+    ("headline_wash", 2, 30, lambda cs: {"title": cs[0].upper(), "sub": cs[1].upper()}),
+)
+
+
+def _wrap_quote(text: str, width: int = 26) -> str:
+    out, cur = [], ""
+    for w in text.split():
+        if cur and len(cur) + 1 + len(w) > width:
+            out.append(cur); cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    out.append(cur)
+    return "|".join(out)
+
+
+_CLAUSE_LEAD = {"and", "but", "so", "then", "yet", "now", "also", "or", "because", "while", "when", "if", "which", "that", "who"}
+
+
+def _clauses(words: Sequence[Tuple[str, float, float]]) -> List[Tuple[str, float, float]]:
+    """The narration cut at its commas and stops: (clause as spoken, start, end). A clause is only ever used whole, with its own words."""
+    out, cur = [], []
+    for tok, a, b in words:
+        cur.append((tok, a, b))
+        if tok.rstrip("\"'”’)").endswith((",", ";", ":", ".", "!", "?")):
+            out.append(cur); cur = []
+    if cur:
+        out.append(cur)
+    res = []
+    for c in out:
+        toks = [t for t, _a, _b in c]
+        while toks and toks[0].lower().strip(",.;:!?") in _CLAUSE_LEAD:
+            toks.pop(0); c = c[1:]
+        text = " ".join(toks).strip().rstrip(",;:.!?").strip()
+        if text and c:
+            res.append((text, c[0][1], c[-1][2]))
+    return res
+
+
+def _clause_score(text: str) -> float:
+    n = len(text.split())
+    sc = 0.0
+    if 2 <= n <= 5:
+        sc += 1.0
+    if re.search(r"\d", text):
+        sc += 1.0
+    if re.search(r"(?i)\b(highest|largest|biggest|oldest|deepest|longest|first|only|last|most)\b", text):
+        sc += 1.5
+    if any(w[:1].isupper() for w in text.split()[1:]):
+        sc += 2.0                                            # a named place or person
+    return sc
+
+
+
+
 def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map", taken: Sequence[Tuple[float, float]] = (), total: Optional[float] = None,
                 id_prefix: str = "auto", enabled: Optional[Sequence[str]] = None,
                 resolve: Optional[Callable[[str], Optional[Tuple[float, float]]]] = None,
                 stats: Sequence[Dict[str, Any]] = (), replaced: Optional[List[str]] = None, chips: Sequence[Tuple[float, float]] = (),
                 footage: Sequence[Tuple[float, float]] = (), script: Optional[str] = None, report: Optional[List[Dict[str, Any]]] = None,
-                hidden_under_footage: Sequence[Tuple[float, float]] = (), texts: Sequence[Tuple[float, float, str]] = ()) -> List[Dict[str, Any]]:
+                hidden_under_footage: Sequence[Tuple[float, float]] = (), texts: Sequence[Tuple[float, float, str]] = (),
+                narration_fill: bool = True) -> List[Dict[str, Any]]:
     """Graphics for what the narration states, chosen by score, within the pacing budget.
 
     For each sentence every rule in AUTO that reads something from it makes a candidate (its slots come only from the narration; a required slot left empty
@@ -1158,6 +1230,94 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
             group_last[RULES[tid]["group"]] = win[1]
         if replaced is not None:
             replaced.extend(st["id"] for st in best["over"])
+    # footage first: about half of the full-screen clips get a graphic from their own narration (the clips that already have one count)
+    # narration_fill=False (Normal Video: its whole video is one 'footage' window) keeps the planner as it was: no fill cards, no dates recap
+    clauses = _clauses(words) if (cover and narration_fill) else []
+    seen_text: "set[str]" = set()
+    taken0 = [win3(x) for x in taken]
+    done_clips = 0
+    uses: Dict[str, int] = collections.Counter(e["template"]["id"] for e in events)
+    eligible = [f for f in cover if f[1] - f[0] >= 3.0]
+    for idx, (f0, f1) in enumerate(eligible):
+        have = any(e.get("over_footage") and e["t_in"] < f1 and f0 < e["t_out"] for e in events) or any(w[0] < f1 and f0 < w[1] for w in taken0)
+        if have:
+            done_clips += 1
+            continue
+        if done_clips >= FOOTAGE_SHARE * (idx + 1):
+            continue
+        cands = [(c, t0, t1) for c, t0, t1 in clauses if f0 - 0.6 <= t0 <= f1 - 2.0 and 2 <= len(c.split()) <= 8 and c.lower() not in seen_text]
+        cands.sort(key=lambda x: (-_clause_score(x[0]), x[1]))
+        placed = False
+        order = sorted([("card", k) for k in range(len(CARD_LOOKS))] + [("text", k) for k in range(len(FILL_LOOKS))],
+                       key=lambda x: (uses.get((CARD_LOOKS if x[0] == "card" else FILL_LOOKS)[x[1]][0], 0) + (0 if x[0] == "card" else 1), x[0] != "card", x[1]))
+        for c, t0, t1 in cands:
+            mine = _bag(c)
+            if any(tf - 20 < t1 and t0 < tt + 20 and mine and _bag(tx) and len(mine & _bag(tx)) / len(mine | _bag(tx)) >= 0.5 for tf, tt, tx in texts):
+                why("the_plan_already_says_it", "footage_fill", t0)
+                continue
+            hl = max(c.split(), key=len).strip(",.;:!?")
+            for kind, k in order:
+                if kind == "card":
+                    tid, need, limit, mk = CARD_LOOKS[k]
+                    run = [x for x in clauses if x[1] >= t0 - 0.01][:need]
+                    if len(run) < need or run[-1][2] - t0 > 14.0 or any(len(r[0]) > limit or not 1 <= len(r[0].split()) <= 8 for r in run) or any(r[0].lower() in seen_text for r in run):
+                        continue
+                    make, texts_used = (lambda _c, _h, mk=mk, run=run: mk([r[0] for r in run])), [r[0] for r in run]
+                else:
+                    tid, make, limit = FILL_LOOKS[k]
+                    texts_used = [c]
+                    if len(c) > limit:
+                        continue
+                if tid not in lib or (enabled is not None and tid not in enabled):
+                    continue
+                t = lib[tid]
+                start = max(f0 + 0.3, t0 - 0.2)
+                win = (start, min(f1 + 1.0 + (3.0 if kind == "card" else 0.0), start + min(float(t.get("hold", 4)), 7.0 if kind == "card" else 4.5)))      # may run on into the next clip: the graphic stays above the dissolve
+                if win[1] - win[0] < 2.4 or (total is not None and win[1] > total):
+                    continue
+                zn = zones_of(t)
+                if any(w[0] < win[1] + MIN_GAP_AFTER_S and win[0] - MIN_GAP_AFTER_S < w[1] and (len(w) < 3 or w[2] & zn) for w in visible_busy(win)):
+                    why("something_else_on_screen", tid, t0)
+                    continue
+                slots = make(c, hl)
+                if not _required_slots_filled(t, slots):
+                    continue
+                tpl = _footage_backing(without_example_text(_public(t), slots))
+                ev = {"id": f"{id_prefix}_{tid}_{len(events) + 1}", "type": "map_template", "template": tpl, "slots": slots, "t_in": round(win[0], 3), "t_out": round(win[1], 3), "over_footage": True}
+                events.append(ev); shown.append((win[0], win[1], zones_of(tpl))); shown.sort()
+                uses[tid] = uses.get(tid, 0) + 1; seen_text.update(x.lower() for x in texts_used); done_clips += 1; placed = True
+                break
+            if placed:
+                break
+    # a recap of every date the narration states, as one timeline (its own words per date), shown right after the last of them is spoken
+    dated, seen_year = [], set()
+    for si, (stext, sa, sb) in enumerate(sents):
+        ms = list(re.finditer(r"\b(1[0-9]{3}|20[0-3][0-9])(s?)\b", stext))
+        if len(ms) == 1 and ms[0].group(0) not in seen_year:
+            ev_text = X._event_text(stext, ms[0])
+            if ev_text:
+                seen_year.add(ms[0].group(0))
+                dated.append((int(ms[0].group(1)), ms[0].group(0).upper(), ev_text, sa, sb))
+    dated.sort()
+    if narration_fill and len(dated) >= 4 and (enabled is None or "timeline_strip" in enabled) and "timeline_strip" in lib:
+        rows = dated[:6]
+        t = lib["timeline_strip"]
+        slots = {"title": "THE DATES", "rows": [{"label": lab, "text": tx} for _y, lab, tx, _a, _b in rows], "dur": 6.0}
+        for delay in (0.6, 4.0, 8.0, 13.0, 20.0, 30.0, 45.0):          # right after the last date is spoken, or the first time after that the screen is free
+            start = max(r[4] for r in rows) + delay
+            win = (start, start + 7.0)
+            if total is not None and win[1] > total:
+                break
+            on_clip = any(win[0] < f[1] and f[0] < win[1] for f in cover)
+            tpl = without_example_text(_footage_backing(_public(t)) if on_clip else _public(t), slots)
+            if any(w[0] < win[1] + MIN_GAP_AFTER_S and win[0] - MIN_GAP_AFTER_S < w[1] for w in visible_busy(win)):
+                continue
+            ev = {"id": f"{id_prefix}_timeline_strip_{len(events) + 1}", "type": "map_template", "template": tpl, "slots": slots, "t_in": round(win[0], 3), "t_out": round(win[1], 3)}
+            if on_clip:
+                ev["over_footage"] = True
+            events.append(ev); shown.append((win[0], win[1], zones_of(tpl)))
+            break
+    events.sort(key=lambda e: (e["t_in"], e["id"]))
     return events
 
 
@@ -1241,9 +1401,10 @@ PRIM_SOUND = {
     "badge": "deep_thud", "beforeafter": "ui_click", "route": "directional_whoosh", "flowarrows": "directional_whoosh", "ruler": "draw_zap", "chokepoint": "marker_pop",
     "heat": "bubble_pluck", "spotlight": "draw_zap", "yearclock": "clock_ticking", "locationcard": "marker_pop", "photoleader": "ui_click", "dial": "counter_ticks",
     "bubbles": "bubble_pluck", "tally": "counter_ticks", "numberline": "draw_zap", "stackbars": "bubble_pluck", "barrace": "counter_ticks", "slider": "paper_slide",
-    "scoreboard": "deep_thud",
+    "scoreboard": "deep_thud", "headline": "deep_thud", "subtitle": "paper_slide", "scalebar": "draw_zap", "typedcaption": "ui_click",
 }
-TEXT_STYLE_SOUND = {"slam": "deep_thud", "stamp": "deep_thud", "typewriter": "ui_click", "word_pop": "marker_pop", "glow": "ui_click", "stack": "paper_slide"}
+TEXT_STYLE_SOUND = {"slam": "deep_thud", "stamp": "deep_thud", "typewriter": "ui_click", "word_pop": "marker_pop", "glow": "ui_click", "stack": "paper_slide",
+                    "box": "ui_click", "outline": "ui_click", "split": "fast_whoosh", "sweep": "fast_whoosh", "underline": "draw_zap"}
 
 
 def sfx_cues(ev: Dict[str, Any]) -> List[Tuple[float, str, str]]:

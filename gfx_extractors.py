@@ -167,10 +167,18 @@ def fact_card(sentence: str, ctx) -> Optional[Dict[str, Any]]:
     n = m.group("n").lower()
     num = int(n) if n.isdigit() else _WORD_NUMS[n]
     rest = re.split(r"[.!?:;]|,\s", m.group("rest").strip())[0].strip()
+    t1 = None
+    if not rest and ctx.index + 1 < len(ctx.sents):      # "Number ten." and the title is the next sentence
+        nxt = ctx.sents[ctx.index + 1][0].strip().rstrip(".!")
+        if nxt and not nxt.endswith("?"):
+            rest, t1 = nxt, ctx.sents[ctx.index + 1][2] + 0.5
     words = rest.split()
     if len(words) < 2 or len(words) > 7 or len(rest) > 30:
         return None                                   # the headline bar holds about 30 characters; a longer one is not cut, it gets no card
-    return {"n": num, "kicker": m.group("k").upper(), "title": rest.upper(), "_t0": ctx.time_at(m.start("k"))}
+    out = {"n": num, "kicker": m.group("k").upper(), "title": rest.upper(), "_t0": ctx.time_at(m.start("k"))}
+    if t1 is not None:
+        out["_t1"] = t1
+    return out
 
 
 _MONTH = r"(?:January|February|March|April|May|June|July|August|September|October|November|December)"

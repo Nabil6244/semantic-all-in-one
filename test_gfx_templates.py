@@ -241,8 +241,8 @@ class TestSoundAndGeoRows(unittest.TestCase):
                {"id": "b", "type": "map_template", "t_in": 12.0, "t_out": 18.0, "template": G.get("route_travel")},
                {"id": "c", "type": "map_template", "t_in": 20.0, "t_out": 24.0, "template": G.get("typed_caption")}]
         plan = plan_audio({"duration": 30, "events": evs, "camera": {"start": {"lon": 0, "lat": 0, "zoom": 3}, "moves": []}})
-        self.assertEqual([(c.sound, c.source) for c in plan.cues], [("deep_thud", "a"), ("directional_whoosh", "b")])
-        self.assertIn(("c", "this graphic makes no sound"), plan.silent)
+        self.assertEqual([(c.sound, c.source) for c in plan.cues], [("deep_thud", "a"), ("directional_whoosh", "b"), ("ui_click", "c")])   # every graphic has a sound now (the typed caption clicks)
+        self.assertEqual(plan.silent, [])
 
     def test_a_template_can_set_or_silence_its_own_sound(self):
         t = {**G.get("fact_card"), "sfx": [{"at": 0.5, "sound": "cash_register"}]}

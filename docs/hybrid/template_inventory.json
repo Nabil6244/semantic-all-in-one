@@ -671,8 +671,8 @@
      "map",
      "footage"
     ],
-    "requires": "'Fact/Number N' and a headline of 2-7 words in the same sentence",
-    "eligible": "a numbered fact is announced",
+    "requires": "'Fact/Number N' and a headline of 2-7 words, in the same sentence or as the whole next sentence",
+    "eligible": "a numbered fact or countdown item is announced",
     "placement": "numbered card",
     "timing": "from 'Fact N'",
     "fallback": "no headline in the sentence = no card"
@@ -1571,8 +1571,8 @@
      "map",
      "footage"
     ],
-    "requires": "three or more consecutive sentences that each date one event, in order, within 14 s",
-    "eligible": "a run of dated events",
+    "requires": "three or more consecutive sentences that each date one event, in order, within 14 s; or, across the whole narration, four or more sentences that each state one date (a year or a decade)",
+    "eligible": "a run of dated events, and a recap of all the dates after the last is spoken (first free moment within 45 s)",
     "placement": "strip (backing over footage)",
     "timing": "from the first date to the last, +1 s",
     "fallback": "fewer than three, or out of order = nothing"

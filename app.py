@@ -2741,6 +2741,7 @@ class VideoGeneratorApp(ctk.CTk):
             def apply() -> None:
                 self._overscaled_status_var.set(f"{message} ({int(fraction * 100)}%)")
                 self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+                self._export_progress(fraction, message)
 
             self.after(0, apply)
 
@@ -2874,6 +2875,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._overscaled_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._overscaled_cancel.is_set()
             self._overscaled_cancel.clear()
@@ -3507,6 +3509,11 @@ class VideoGeneratorApp(ctk.CTk):
             self._persist_global_settings()
         except Exception:
             pass
+        if self._workspace is not None:
+            try:
+                self._workspace.set_hybrid_settings(auto_graphics=bool(self._hybrid_auto_gfx_var.get()))
+            except OSError as exc:
+                self._append_log(f"[HYBRID] Could not remember the graphics switch for this project: {exc}\n")
 
     def _set_hybrid_text(self, text: str) -> None:
         box = self._hybrid_plan_box
@@ -4354,6 +4361,9 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_for_project = ws.project_id
         if "sound_design" in saved:
             self._hybrid_sound_var.set(bool(saved["sound_design"]))
+        from hybrid_gfx_note import restored_switch
+
+        self._hybrid_auto_gfx_var.set(restored_switch(saved, bool(self._settings.get("hybrid_auto_templates", False))))
         plan = None
         if ws.hybrid_plan_path.is_file():
             try:
@@ -4877,6 +4887,7 @@ class VideoGeneratorApp(ctk.CTk):
             def apply() -> None:
                 self._hybrid_status_var.set(f"{message} ({int(fraction * 100)}%)")
                 self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+                self._export_progress(fraction, message)
             self.after(0, apply)
 
         def thread_safe_log(message: str) -> None:
@@ -4928,6 +4939,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._hybrid_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._hybrid_cancel.is_set()
             self._hybrid_cancel.clear()
@@ -4944,6 +4956,9 @@ class VideoGeneratorApp(ctk.CTk):
                 self._hybrid_status_var.set(f"Done, but sound design failed (narration only): {result.output_path}" if getattr(result, "sound_failed", None)
                                             else f"Done: {result.output_path}")
                 self._append_log(f"[HYBRID] Final video: {result.output_path}\n")
+                from hybrid_gfx_note import narration_graphics_line
+
+                self._append_log(narration_graphics_line(hybrid_auto_gfx, result.report))
                 for credit in result.credits:
                     self._append_log(f"[HYBRID] Credit to include: {credit}\n")
                 for w in result.warnings:
@@ -5478,6 +5493,7 @@ class VideoGeneratorApp(ctk.CTk):
             def apply() -> None:
                 self._starmap_status_var.set(f"{message} ({int(fraction * 100)}%)")
                 self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+                self._export_progress(fraction, message)
             self.after(0, apply)
 
         def thread_safe_log(message: str) -> None:
@@ -5524,6 +5540,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._starmap_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._starmap_cancel.is_set()
             self._starmap_cancel.clear()
@@ -6031,6 +6048,7 @@ class VideoGeneratorApp(ctk.CTk):
             def apply() -> None:
                 self._pakmap_status_var.set(f"{message} ({int(fraction * 100)}%)")
                 self.hint_var.set(f"{message} ({int(fraction * 100)}%)")
+                self._export_progress(fraction, message)
             self.after(0, apply)
 
         def thread_safe_log(message: str) -> None:
@@ -6083,6 +6101,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._pakmap_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._pakmap_cancel.is_set()
             self._pakmap_cancel.clear()
@@ -6702,7 +6721,24 @@ class VideoGeneratorApp(ctk.CTk):
             return False
         return bool(box.get("1.0", "end").strip())
 
+    # A Stop pressed this soon after the same button started a run is the second click of a double-click, not a decision to
+    # cancel: the button turns into Stop the moment a run starts, and a double-click cancelled the run it had just started.
+    _CTA_DOUBLE_PRESS_S = 1.0
+
+    def _cta_double_press(self) -> bool:
+        action = getattr(self, "_cta_action", "generate")
+        now = time.monotonic()
+        if action == "cancel" or str(action).endswith("_cancel"):
+            if now - getattr(self, "_cta_last_start_press", -1e9) < self._CTA_DOUBLE_PRESS_S:
+                self._notify("Already started. Press Stop again if you want to cancel it.")
+                return True
+            return False
+        self._cta_last_start_press = now
+        return False
+
     def _on_primary_cta(self) -> None:
+        if self._cta_double_press():
+            return
         action = getattr(self, "_cta_action", "generate")
         if action == "picker":
             self._open_project_picker()
@@ -6967,6 +7003,11 @@ class VideoGeneratorApp(ctk.CTk):
             _lrn(self, render_engine, None)
         except Exception:
             pass
+        try:   # the job the Export page shows for every style (export_state); started only once a run passed its checks
+            from export_state import ExportJob as _ExportJob
+            self._export_job = _ExportJob(render_engine)
+        except Exception:
+            pass
         try:
             project_id = getattr(self._workspace, "project_id", None) if self._workspace is not None else None
             return self._get_generation_tracker().start(render_engine=render_engine, project_id=project_id)
@@ -6984,6 +7025,7 @@ class VideoGeneratorApp(ctk.CTk):
                 _sched(self, output_path)
         except Exception:
             pass
+        self._export_job_end(outcome, output_path, message)
         if run is None:
             return
         try:
@@ -6994,6 +7036,54 @@ class VideoGeneratorApp(ctk.CTk):
                 tracker.cancel(run)
             else:
                 tracker.fail(run, message, category=category)
+        except Exception:
+            pass
+
+    def _export_progress(self, fraction, message: str = "") -> None:
+        """A style's progress, for the Export page (main thread; every style's progress_cb calls it)."""
+        job = getattr(self, "_export_job", None)
+        if job is not None and job.running:
+            job.progress(fraction, message)
+
+    def _export_verified(self, result):
+        """Before a style says "video ready": its output must exist, not be empty, and come from this run. A result that
+        fails the check becomes a failure naming the problem, so the style's own failure branch runs instead."""
+        if not getattr(result, "ok", False):
+            return result
+        try:
+            from export_state import failed_copy, verify_output
+
+            job = getattr(self, "_export_job", None)
+            problem = verify_output(getattr(result, "output_path", None), job.started_at if job is not None else None)
+            if not problem:
+                return result
+            self._append_log(f"[EXPORT] Not exported: {problem}\n")
+            return failed_copy(result, problem)
+        except Exception:
+            return result
+
+    def _export_job_end(self, outcome: str, output_path=None, message: str = "") -> None:
+        """Every style's run ends here (from _track_generation_end): record the verified output and, for the styles, open
+        the Export page on it. Normal video keeps its own end-of-render handling (it already shows Export)."""
+        job = getattr(self, "_export_job", None)
+        if job is None or not job.running:
+            return
+        job.running = False
+        job.outcome = outcome
+        try:
+            if outcome == "completed":
+                from export_state import verify_output
+
+                problem = verify_output(output_path, job.started_at)
+                if problem:
+                    job.outcome, job.problem = "failed", problem
+                    return
+                job.output_path, job.fraction = str(output_path), 1.0
+                if job.style != "normal":
+                    self._last_output = str(output_path)
+                    self.after(0, lambda: self._goto_workflow_view("render"))
+            elif outcome == "failed":
+                job.problem = next((l.strip() for l in str(message or "").splitlines() if l.strip()), "")[:160]
         except Exception:
             pass
 
@@ -7285,6 +7375,13 @@ class VideoGeneratorApp(ctk.CTk):
             self._rebuild_issues()
         else:
             self._issues_drawer.grid_remove()
+
+    def _show_activity_log(self) -> None:
+        """Take the user to the activity log and open it (the Tools page's card). The log lives on the Visuals page, so a
+        plain toggle pressed from another page changed nothing the user could see."""
+        self._goto_workflow_view("visual_plan")
+        if not self._log_visible:
+            self._toggle_activity_log()
 
     def _toggle_activity_log(self) -> None:
         self._log_visible = not self._log_visible
@@ -8155,6 +8252,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _clear_render_preview(self) -> None:
         """Drop final-render thumbnail/path so project switches don't show stale media."""
         self._last_output = None
+        if not getattr(getattr(self, "_export_job", None), "running", False):
+            self._export_job = None   # the Export page must not show another project's finished job
         self._prev_image = None
         panel = getattr(self, "_preview_panel", None)
         thumb = getattr(self, "_thumb_label", None)
@@ -12072,6 +12171,8 @@ class VideoGeneratorApp(ctk.CTk):
         import tkinter as tk
 
         by_bucket = self._scene_keys_by_source_bucket()
+        if not by_bucket:   # the button is always enabled: say why nothing opens instead of doing nothing
+            self._notify("No scenes yet: load a plan or CSV first, then select scenes by their source.")
         if not by_bucket:
             return
         order = (
@@ -15665,8 +15766,30 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             pass
 
+    def _latest_final_video(self) -> Optional[Path]:
+        """The newest finished video in the open project's final folder (every style saves there), or None."""
+        ws = self._workspace
+        if ws is None:
+            return None
+        try:
+            vids = [p for p in Path(ws.final_dir).glob("*.mp4") if p.is_file() and p.stat().st_size >= 1024]
+        except OSError:
+            return None
+        return max(vids, key=lambda p: p.stat().st_mtime) if vids else None
+
     def _open_in_player(self) -> None:
         """Open the generated video in the system default player."""
+        if not self._last_output:
+            # The Export page enables Play for its "Last output" too (this session's output path, or the newest video in the
+            # project's final folder after reopening a project): play that one instead of doing nothing.
+            cand = self.output_var.get().strip()
+            latest = self._latest_final_video()
+            if cand and Path(cand).is_file():
+                self._last_output = cand
+            elif latest is not None:
+                self._last_output = str(latest)
+            else:
+                messagebox.showinfo("Play video", "There is no finished video in this project yet: render one first.")
         if not self._last_output:
             return
         p = Path(self._last_output)
@@ -15685,6 +15808,14 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _open_output_folder(self) -> None:
         """Open the folder that contains the generated video (selects the file when possible)."""
+        if not self._last_output:
+            # Nothing rendered in this session yet: the button used to do nothing although it looks enabled. Open the
+            # project's finished-videos folder (final/), where every style saves its video; without a project, say why.
+            if self._workspace is None:
+                messagebox.showinfo("Open output folder", "Open or create a project first: its videos are saved in its final folder.")
+                return
+            self._open_folder_path(Path(self._workspace.final_dir))
+            return
         if not self._last_output:
             return
         p = Path(self._last_output)
@@ -15921,6 +16052,9 @@ def _acquire_single_instance_lock_windows() -> bool:
 def main() -> None:
     # Re-assert Windows console hiding (frozen builds / late imports of yt-dlp).
     _hidden_subprocess.install()
+    if os.environ.get("SYT_STARTUP_CHECK"):   # packaged-build check (CI): imports, ffmpeg, Node, templates, SFX; no window
+        from startup_check import run as _startup_check
+        raise SystemExit(_startup_check(os.environ["SYT_STARTUP_CHECK"], ffmpeg=ensure_ffmpeg_on_path))
     _configure_macos_dock_name()
     if not _acquire_single_instance_lock_windows():
         messagebox.showwarning(

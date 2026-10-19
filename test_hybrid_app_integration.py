@@ -169,7 +169,7 @@ def scenario():
     def fake_ok(plan, vo, out, **kw):
         got.update(kw, plan=plan, out=str(out))
         kw["progress_cb"]("Drawing the map…", 0.4); kw["log"]("[pakMap] fake")
-        Path(out).write_bytes(b"x" * 10)
+        Path(out).write_bytes(b"x" * 4096)   # a finished video is never under 1 KB: the app now refuses that as cut short
         return PakmapResult(True, [], Path(out), None, ["NASA credit"], ["a note"])
     hg.generate_hybrid_video = fake_ok
     inst._scene_rows[1].asset_type = "stock_video"; inst._scene_rows[1].prompt = ""; inst._scene_rows[1].stock = "canals at sunrise"   # the user changed clip 2's source in the table

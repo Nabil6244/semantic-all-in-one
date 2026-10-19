@@ -15,6 +15,7 @@ Icons are generated from assets/logo.png (the square S mark) → AppIcon.ico / A
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -169,6 +170,8 @@ from normal_gfx.packaging import engine_data_files as normal_gfx_data_files  # n
 
 datas += normal_gfx_data_files(ROOT)   # gfx-overlay-engine/ (draws the gfx-core templates for Normal Video; gfx-core and Playwright ship above)
 hiddenimports += ["normal_gfx", "normal_gfx.pipeline", "normal_gfx.planner", "normal_gfx.runner", "normal_gfx.composite"]   # imported inside functions (app.py)
+hiddenimports += ["export_state", "hybrid_gfx_note"]   # imported inside functions (app.py, weather/whatif app_section): the Export job and the Hybrid graphics note
+hiddenimports += ["startup_check"]   # imported inside app.main: the packaged-build startup check CI runs on the built app
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the
 # files it loads, and the starmap package's catalogs and mission packs (see starmap/packaging.py, which is unit-tested).
@@ -538,6 +541,34 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# Packaged-build startup check (startup_check.py, run by CI on the built app): the project's own modules the app imports only
+# inside functions. Third-party submodules from collect_all are left out (their optional parts, e.g. PIL.ImageQt, need extras).
+def _own_module(name: str) -> bool:
+    top = name.split(".")[0]
+    if not ((ROOT / f"{top}.py").is_file() or (ROOT / top / "__init__.py").is_file()):
+        return False
+    if name.split(".")[-1] == "__main__":
+        return False
+    # a script is never imported by the check (weather/automation/record.py fetches live data and writes a file when imported); a module
+    # that prints at its top level is a script, while top-level calls like register(...) or UNITS.sort(...) are ordinary module set-up
+    import ast as _ast
+    rel = Path(*name.split("."))
+    src = next((p for p in (ROOT / rel.with_suffix(".py"), ROOT / rel / "__init__.py") if p.is_file()), None)
+    if src is None:
+        return True
+    try:
+        tree = _ast.parse(src.read_text(encoding="utf-8"))
+    except (SyntaxError, UnicodeDecodeError):
+        return True
+    return not any(isinstance(n, _ast.Expr) and isinstance(n.value, _ast.Call) and isinstance(n.value.func, _ast.Name) and n.value.func.id == "print"
+                   for n in tree.body)
+
+
+_check_list = Path(globals().get("workpath", str(ROOT / "build"))) / "startup_check_modules.json"
+_check_list.parent.mkdir(parents=True, exist_ok=True)
+_check_list.write_text(json.dumps(sorted({m for m in list(a.hiddenimports) + ["startup_check"] if _own_module(m)})), encoding="utf-8")
+a.datas += [("startup_check_modules.json", str(_check_list), "DATA")]
 
 pyz = PYZ(a.pure)
 
