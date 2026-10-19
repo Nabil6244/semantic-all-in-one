@@ -41,6 +41,7 @@ from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import sys
 import textwrap
+import threading
 from pathlib import Path
 
 from providers import hidden_subprocess
@@ -250,11 +251,22 @@ def words_match(a: str, b: str) -> bool:
 
 # ---------- step 1: transcribe ----------
 
-def transcribe_audio(audio_path: str, model_size: str):
+# The last loaded Whisper model, kept for the next call: StarMap, Hybrid, Weather, What If, the voiceover planner and the
+# main pipeline each transcribe, and every call used to load the model from disk again. Same model, same settings, so the
+# words are identical. One model at a time (a second size replaces it); the lock lets only one transcription use it at once.
+_WHISPER_LOCK = threading.Lock()
+_WHISPER_CACHE: dict = {}
+
+
+def _whisper_model(model_size: str):
     from faster_whisper import WhisperModel
 
+    cached = _WHISPER_CACHE.get("model")
+    if cached is not None and _WHISPER_CACHE.get("size") == model_size:
+        print(f"[1/4] Using the whisper model '{model_size}' already loaded")
+        return cached
     print(f"[1/4] Loading whisper model '{model_size}' (first run downloads it)...")
-
+    _WHISPER_CACHE.clear()
     model = WhisperModel(
         model_size,
         device="cpu",
@@ -262,6 +274,17 @@ def transcribe_audio(audio_path: str, model_size: str):
         cpu_threads=max(1, min(4, (os.cpu_count() or 4))),
         num_workers=1,
     )
+    _WHISPER_CACHE.update(model=model, size=model_size)
+    return model
+
+
+def transcribe_audio(audio_path: str, model_size: str):
+    with _WHISPER_LOCK:
+        return _transcribe_locked(audio_path, model_size)
+
+
+def _transcribe_locked(audio_path: str, model_size: str):
+    model = _whisper_model(model_size)
 
     print(f"[1/4] Transcribing {audio_path} (this can take a while for long audio)...")
     # Decoded by the ffmpeg program first: Whisper's own reader (PyAV) stops at the first damaged frame, so an mp3 with a
