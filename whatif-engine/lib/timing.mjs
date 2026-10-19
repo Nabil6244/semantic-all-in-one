@@ -14,7 +14,21 @@ export function opacityAt(def, t) {
   const fi = def.fade_in ?? DEFAULT_FADE, fo = def.fade_out ?? DEFAULT_FADE;
   const a = Number.isFinite(start) && fi > 0 ? smooth((t - start) / fi) : 1;
   const b = Number.isFinite(end) && fo > 0 ? smooth((end - t) / fo) : 1;
-  return Math.min(a, b);
+  return Math.min(a, b, muteAt(def.mute, t));
+}
+
+/** "mute": [[from, to], ...] -- windows in which an otherwise visible layer steps back (a corner instrument while a graphic would
+ *  overlap it, whatif/overlap.py), fading out and back in over MUTE_FADE. No mute = always 1. */
+export const MUTE_FADE = 0.3;
+function muteAt(windows, t) {
+  if (!Array.isArray(windows)) return 1;
+  let k = 1;
+  for (const w of windows) {
+    const a = Number(w && w[0]), b = Number(w && w[1]);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || t <= a - MUTE_FADE || t >= b + MUTE_FADE) continue;
+    k = Math.min(k, t < a ? smooth((a - t) / MUTE_FADE) : t > b ? smooth((t - b) / MUTE_FADE) : 0);
+  }
+  return k;
 }
 
 /** 0..1 progress of a timed reveal { t0, t1 } (eased), for paths drawn on and numbers counting up. Animations run on MAP

@@ -906,6 +906,11 @@ class VideoGeneratorApp(ctk.CTk):
             pass
         except tk.TclError:
             return   # the window is gone
+        try:   # Tk objects a worker thread's garbage collection let go of: their Tcl cleanup runs here (tk_thread_guard)
+            from tk_thread_guard import drain as _drain_tk_cleanups
+            _drain_tk_cleanups()
+        except Exception:
+            pass
         try:
             super().after(self._THREAD_AFTER_PUMP_MS, self._pump_thread_after)
         except tk.TclError:
@@ -11066,6 +11071,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _video_flow_settings(self) -> dict:
         """The default Video Profile's model/dimension/duration/resolution, for
         the GENERATE call's `settings` payload."""
+        getattr(self, "_note_low_res_flow_video", lambda: None)()   # never in the way of the settings themselves
         p = self._default_video_profile()
         return {
             "videoModel": p.get("model", FLOW_VIDEO_MODELS[2][0]),
@@ -11073,6 +11079,18 @@ class VideoGeneratorApp(ctk.CTk):
             "videoDuration": int(p.get("duration", 8)),
             "videoResolution": p.get("resolution", FLOW_VIDEO_RESOLUTIONS[0][0]),
         }
+
+    def _note_low_res_flow_video(self) -> None:
+        """Once a session: a Video Profile set to Omni 360p makes 640x360 clips, which look soft in a 1080p video (What If render 024).
+        Only a note in the log; the profile is the user's choice (Settings > Flow > Flow Video Profiles > Resolution)."""
+        try:
+            p = self._default_video_profile()
+            if p.get("model") == "abra" and str(p.get("resolution", "")) == "360p" and not getattr(self, "_low_res_flow_noted", False):
+                self._low_res_flow_noted = True
+                self._append_log("[FLOW] Note: the Flow video profile is set to 360p, so Flow makes 640x360 clips that look soft in a 1080p "
+                                 "video. Choose 720p in Settings > Flow > Flow Video Profiles > Resolution.\n")
+        except Exception:
+            pass
 
     def _media_flow_run_settings(self) -> dict:
         """One settings dict for runs that hand the same `flow_settings` to both the image and the video provider
@@ -16090,6 +16108,11 @@ def main() -> None:
     if os.environ.get("SYT_STARTUP_CHECK"):   # packaged-build check (CI): imports, ffmpeg, Node, templates, SFX; no window
         from startup_check import run as _startup_check
         raise SystemExit(_startup_check(os.environ["SYT_STARTUP_CHECK"], ffmpeg=ensure_ffmpeg_on_path))
+    try:   # no worker thread ever waits on Tk to clean up a variable or image (a deadlock froze the app, 2026-10-19)
+        from tk_thread_guard import install as _guard_tk_cleanups
+        _guard_tk_cleanups()
+    except Exception:
+        pass
     _configure_macos_dock_name()
     if not _acquire_single_instance_lock_windows():
         messagebox.showwarning(

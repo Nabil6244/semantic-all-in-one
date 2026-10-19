@@ -338,6 +338,36 @@ def _join_same_file(out: List[Dict[str, Any]], names: Dict[str, str], notes: Lis
     return joined
 
 
+UPSCALE_BELOW = 0.6         # a clip shorter than this share of the video's height is enlarged a lot (a 360p Flow clip in 1080p: 0.33)
+
+
+def _low_res(path: str, height: int) -> bool:
+    try:
+        from media_size import probe_size
+
+        size = probe_size(path)
+    except Exception:                        # noqa: BLE001 -- unknown size: scaled as before
+        return False
+    return bool(size) and size[1] < UPSCALE_BELOW * height
+
+
+OPENING_EMPTY_S = 0.8       # the first frames always carry a graphic: render 024 opened on 1.2 s of a dark star-trail clip and nothing else
+OPENING_PULL_S = 3.0         # the first graphic due within this many seconds comes in early to fill them
+OPENING_START_S = 0.3
+_INSTRUMENT_TYPES = {"tm_clock", "tm_mission", "tm_cite"}
+
+
+def _opening_never_empty(layers: List[Dict[str, Any]], notes: List[str]) -> None:
+    content = [L for L in layers if L.get("type") not in _INSTRUMENT_TYPES and L.get("start") is not None]
+    if not content or any(float(L["start"]) < OPENING_EMPTY_S for L in content):
+        return
+    first = min(content, key=lambda L: float(L["start"]))
+    if float(first["start"]) <= OPENING_PULL_S:
+        notes.append(f"the opening: the first graphic comes in at {OPENING_START_S:.1f}s instead of {float(first['start']):.1f}s, so the video "
+                     f"never opens on an empty screen")
+        first["start"] = OPENING_START_S
+
+
 def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fps: int = FPS, media_dir: Optional[Path] = None,
                  title: str = "") -> Dict[str, Any]:
     """The spec for whatif-engine. Files are hard-linked into media_dir (one folder the renderer serves)."""
@@ -400,6 +430,8 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
                 notes.append(f"shot {s.id}: its clip is a still picture ({Path(s.file).name}); shown as a picture")
             elif s.kind == "video":
                 d["in_s"], d["loop"] = float(s.extra.get("in_s", 0)), True
+                if _low_res(s.file, height):
+                    d["upscale"] = True              # the cutter scales it with Lanczos and a light unsharp mask (whatif-engine/cutter.mjs)
         elif s.kind == "plate":
             # the heading belongs over a graphic (the reference's "VOYAGER 1 · COMPUTER MEMORY"), never alone on an empty plate
             drawn = any(_plate_content(L) and float(L.get("start", 0)) < s.end - 0.3 and s.start + 0.3 < float(L.get("end", 0)) for L in layers)
@@ -436,6 +468,7 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
     layers[:] = _one_number_at_a_time(layers, notes)
     layers.extend(_fill_empty_plates(shots, layers, notes, getattr(plan, "words", None) or []))
     layers.append(citation(shots))
+    _opening_never_empty(layers, notes)
     layers = _finite_layers(layers, notes)
     spec = {"width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3), "look": dict(LOOK), "shots": out_shots,
             "layers": layers, "whatif": {"title": title or plan.title, "notes": notes}}

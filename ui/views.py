@@ -1895,7 +1895,8 @@ class AudioView(_BaseView):
                  "Hybrid Map's graphics look and sound design on your own footage and narration: News Doc tags, names, numbers, "
                  "quotes and cards where the narration fits them, with Hybrid Map's effects timed to each one and ducked under the "
                  "voice. No maps are added. Replaces the generic sound effects while on; your music and ambience stay.",
-                 self._hybrid_style_var, on_toggle=lambda on: app._set_normal_hybrid_style(on) if hasattr(app, "_set_normal_hybrid_style") else None)
+                 self._hybrid_style_var, on_toggle=lambda on: app._set_normal_hybrid_style(on) if hasattr(app, "_set_normal_hybrid_style") else None,
+                 preview=("smart_previews/hybrid_style_thumb.png", "smart_previews/hybrid_style_preview.jpg"))
 
         _group("MOTION")
         _feature("Ken Burns Zoom", "Slow zoom on every still image. Intensity = how far (5% / 10% / 16%).",

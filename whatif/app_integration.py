@@ -34,7 +34,37 @@ def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> No
             pass
 
 
-SCRIPT_MATCH_MIN = 0.25      # a real script heard through Whisper still shares ~70 % of its word triples; a different script ~3 %
+def mux_narration(video: Path, audio: Path, output_path: Path, duration: float, *, ffmpeg: Optional[str] = None) -> None:
+    """The finished picture with its sound: the video stream copied as it is (no second encode), the audio as AAC 192k, cut to the
+    narration's duration. Written next to output_path first, so a failure never leaves a broken file in its place. Raises on failure."""
+    import os
+
+    if ffmpeg is None:
+        from map_scene.render import _ffmpeg
+
+        ffmpeg = _ffmpeg()
+    try:
+        from providers.hidden_subprocess import run as _run      # no console window on Windows
+    except Exception:                                             # noqa: BLE001
+        import subprocess
+
+        _run = subprocess.run
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    part = output_path.with_name(output_path.stem + ".part.mp4")
+    cmd = [str(ffmpeg), "-y", "-v", "error", "-i", str(video), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+           "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-t", f"{float(duration):.3f}", "-movflags", "+faststart", str(part)]
+    r = _run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
+    if r.returncode != 0 or not part.is_file() or part.stat().st_size < 1024:
+        try:
+            part.unlink()
+        except OSError:
+            pass
+        raise RuntimeError((r.stderr or "").strip()[-400:] or f"ffmpeg exit {r.returncode}")
+    os.replace(part, output_path)
+
+
+SCRIPT_MATCH_MIN = 0.25     # a real script heard through Whisper still shares ~70 % of its word triples; a different script ~3 %
 
 
 def script_match(words: Sequence[Any], csv_text: str) -> "tuple[float, int]":
@@ -269,6 +299,10 @@ def generate_whatif_video(
     for n in spec["whatif"]["notes"]:
         if n not in p.notes:
             log(f"[What If] {n}")
+    _report(progress_cb, "Checking every frame for overlapping text…", 0.14)
+    from .overlap import repair_overlaps
+
+    repair_overlaps(spec, log)     # frame by frame: no text or graphic drawn over another (timing repairs only; never stops the video)
     (work / "whatif_spec.json").write_text(json.dumps(spec, indent=1, ensure_ascii=False), encoding="utf-8")
     try:                           # the renderer's dry run: what it will repair is logged now (it never stops the video)
         from .preflight import check_specs
@@ -356,15 +390,23 @@ def generate_whatif_video(
         log(f"[What If] loudness normalisation skipped: {exc}")
 
     _report(progress_cb, "Adding the narration…", 0.93)
+    from scene_graph.app_integration import validate_rendered_output
+
     try:
-        from types import SimpleNamespace
+        # the drawn video is already final (size, frame rate, CRF 18): only the sound is added and the picture is copied as it is. The
+        # Normal-video renderer encoded the whole video a second time (render 024: 7.5 -> 4.1 Mbit/s, every shot softer, Flow clips worst).
+        mux_narration(silent, Path(narration), output_path, spec["duration"])
+    except Exception as exc:       # noqa: BLE001
+        log(f"[What If] adding the narration without re-encoding failed ({exc}); using the full export instead")
+        try:
+            from types import SimpleNamespace
 
-        from scene_graph.app_integration import _export_via_existing_renderer, validate_rendered_output
+            from scene_graph.app_integration import _export_via_existing_renderer
 
-        _export_via_existing_renderer(SimpleNamespace(duration=spec["duration"], title=title or "What If", segment_id="whatif"), silent,
-                                      voiceover_path=str(narration), output_path=output_path, resolution=f"{spec['width']}x{spec['height']}", fps=fps, work_dir=work)
-    except Exception as exc:
-        return PakmapResult(False, [f"final export failed: {exc}"])
+            _export_via_existing_renderer(SimpleNamespace(duration=spec["duration"], title=title or "What If", segment_id="whatif"), silent,
+                                          voiceover_path=str(narration), output_path=output_path, resolution=f"{spec['width']}x{spec['height']}", fps=fps, work_dir=work)
+        except Exception as exc2:
+            return PakmapResult(False, [f"final export failed: {exc2}"])
     if not output_path.is_file():
         return PakmapResult(False, ["final export did not produce an output file"])
     problem = validate_rendered_output(output_path, expected_duration_s=spec["duration"])
