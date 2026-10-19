@@ -193,14 +193,16 @@ export const timing = {
 
 /**
  * Flow agent mode for images (settings.generationMode = "agent"; see lib/agent-api.js and lib/agent-runner.js).
- * Live tests (2026-10-06): 6 / 12 / 24 scenes per request all came back one image per scene in ~22-32 s.
+ * Default transport is the Agent UI panel (settings.agentViaUi !== false → flow-ui-agent.js): one multi-prompt paste,
+ * up to maxBatch stills. StreamChat RPC remains when agentViaUi is false (often refused with UNUSUAL_ACTIVITY).
+ * Live RPC tests (2026-10-06): 6 / 12 / 24 scenes per request all came back one image per scene in ~22-32 s.
  */
 export const agent = {
   maxBatch: 24,             // scenes per agent request (tested up to 24)
   maxMessageChars: 12000,   // a batch is also cut short when its scene list would make the message longer than this
   batchGapMs: 20000,        // pause between two agent requests on the same account
   // Give-up point for one agent reply (after which its outcome is unknown, never resent): grows with the batch. A 13-scene
-  // request under a 7-account load ran past a flat 240 s (2026-10-07).
+  // request under a 7-account load ran past a flat 240 s (2026-10-07). Same budget for UI Agent tile polling.
   streamTimeoutBaseMs: 120000,
   streamTimeoutPerSceneMs: 15000,
   streamTimeoutMaxMs: 600000,

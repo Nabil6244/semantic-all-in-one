@@ -13669,9 +13669,9 @@ class VideoGeneratorApp(ctk.CTk):
         ).pack(anchor="w", padx=20, pady=(2, 2))
         ctk.CTkLabel(
             body,
-            text="Flow's agent makes up to 24 scene images per request, much faster than one at a time. It uses "
-                 "Nano Banana 2 Lite and the accounts checked in the default Video Profile. Scenes the agent can't make "
-                 "use Flow UI mode (or RPC if UI mode is off). Applies to every project and is remembered. "
+            text="Pastes up to 24 scene prompts into Flow's Agent panel in one go (UI Agent), much faster than one at a "
+                 "time. Uses the accounts checked in the default Video Profile. Scenes the agent can't make use single "
+                 "Generate (Flow UI mode). Applies to every project and is remembered. "
                  "When both are on, agent wins for images; videos still use UI mode.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 16))

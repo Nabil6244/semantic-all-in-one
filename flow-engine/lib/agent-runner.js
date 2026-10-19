@@ -2,15 +2,18 @@
  * Image batches through Flow's agent mode (settings.generationMode = "agent"): up to agent.maxBatch scenes per request,
  * one image per scene, then the same per-scene results, files and ledger records as the standard path (batch-runner.js).
  *
+ * Transport (settings.agentViaUi, default true): paste buildAgentMessage into Flow's Agent UI panel and collect N still
+ * tiles (flow-ui-agent.js). StreamChat RPC remains available when agentViaUi is false, but Google often refuses it with
+ * UNUSUAL_ACTIVITY while the UI Agent panel still accepts multi-prompt batches.
+ *
  * Safety rules (same ledger, same keys as runBatchSlice, so the two paths guard each other):
  *   - a scene the ledger blocks / can reuse / can resume is handled exactly as the standard path would;
  *   - an agent request that fails before it is sent, or is refused outright, created nothing: those scenes go to the
  *     standard path in this same run;
  *   - once a request is on the wire, a missing answer is UNKNOWN: those scenes are never sent again automatically
  *     (Needs action, like the standard path);
- *   - every image is matched to its scene by the scene ID the agent named it with (S01…), else by the scene's exact text in
- *     the agent's prompt; a scene the agent did not make, or made in the wrong aspect ratio, goes to the standard path; an
- *     image that cannot be tied to one scene is never guessed;
+ *   - UI Agent: tiles are assigned to scenes in appearance order (message asks for S01… in order). RPC agent: every
+ *     image is matched by scene ID (S01…) or exact scene text; never guessed;
  *   - a cool-down answer (too much traffic, quota, agent capacity) rests the account: its scenes go to other accounts,
  *     never to the standard path on the same account;
  *   - fewer than agent.minScenes pending scenes use the standard path (an agent request has a fixed ~40-60 s cost).
@@ -27,6 +30,7 @@ import {
   AGENT_ASPECT_FOR_SETTING,
   agentSceneId,
   buildAgentMessage,
+  buildUiAgentMessage,
   coolDownReason,
   createAgentChat as realCreateAgentChat,
   fetchImageUrl as realFetchImageUrl,
@@ -42,6 +46,7 @@ import {
   openOrCreateProject as realOpenOrCreateProject,
   waitForFlowReady as realWaitForFlowReady,
 } from "./flow-api.js";
+import { generateAgentBatchViaUI as realGenerateAgentBatchViaUI } from "./flow-ui-agent.js";
 import { LedgerState, defaultLedger, generationKey, scopeOf } from "./generation-ledger.js";
 import { Submission, submissionOf } from "./generation-state.js";
 import { accountDownloadDir } from "./paths.js";
@@ -147,6 +152,7 @@ export async function runAgentSlice(params) {
     downloadMedia: realDownloadMedia,
     createAgentChat: realCreateAgentChat,
     sendAgentMessage: realSendAgentMessage,
+    generateAgentBatchViaUI: realGenerateAgentBatchViaUI,
     fetchImageUrl: realFetchImageUrl,
     runBatchSlice: realRunBatchSlice,
     sleep,
@@ -159,6 +165,8 @@ export async function runAgentSlice(params) {
   // the same reliable path Settings → Flow → UI mode selects (RPC is often refused with UNUSUAL_ACTIVITY).
   const standardSettings = { ...settings, generationMode: "ui" };
   if (standardSettings.model) standardSettings.model = canonicalImageModel(standardSettings.model);
+  // Default ON: Agent UI bulk (paste multi-prompt). Set agentViaUi: false to force StreamChat RPC.
+  const useUiAgent = standardSettings.agentViaUi !== false;
   const runId = standardSettings._runId || `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const scope = scopeOf(standardSettings.outputDir);
   const owner = accountId || page?.__flowAccountId || "";
@@ -256,7 +264,7 @@ export async function runAgentSlice(params) {
           failedStage: null, confirmedResumeFailedRunId: null, error: null, via: "agent", agentRequestId, agentChatId: null,
           sceneText: String(it.text || "").slice(0, 200),
         });
-        emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `Agent generating (batch ${b + 1}/${batches.length}, ${batch.length} scenes)…` });
+        emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `${useUiAgent ? "UI Agent" : "Agent"} generating (batch ${b + 1}/${batches.length}, ${batch.length} scenes)…` });
       }
       const notCreated = (its, state, why) => {
         for (const it of its) {
@@ -264,6 +272,70 @@ export async function runAgentSlice(params) {
           fallback.push(it);
         }
       };
+      const styleOpts = { aspect: expectedAspect, opening: style.opening, ending: style.ending };
+      const replyTimeoutMs = Number(standardSettings.agentReplyTimeoutMs) || agentReplyTimeoutMs(batch.length);
+
+      if (useUiAgent) {
+        // ---- UI Agent: one paste into Flow's Agent panel, N still tiles by order ----
+        const message = buildUiAgentMessage(batch.map((it) => it.text), styleOpts);
+        const chatId = "ui-agent";
+        for (const it of batch) ledger.put(it.key, { agentChatId: chatId, via: "agent-ui" });
+        let uiResult;
+        try {
+          uiResult = await d.generateAgentBatchViaUI(page, {
+            message,
+            expectedCount: batch.length,
+            timeoutMs: replyTimeoutMs,
+            shouldStop,
+            outputDir: outDir,
+          });
+        } catch (err) {
+          const sub = submissionOf(err);
+          if (sub === Submission.NOT_SUBMITTED) return notCreated(batch, LedgerState.FAILED_BEFORE_SUBMISSION, String(err?.message || err));
+          if (sub === Submission.REJECTED) return notCreated(batch, LedgerState.REJECTED, String(err?.message || err));
+          for (const it of batch) {
+            ledger.put(it.key, { state: LedgerState.SUBMITTED_UNKNOWN, error: String(err?.message || err) });
+            fail(it, `Not resubmitted: the Flow UI agent may already be making this image (${String(err?.message || err).slice(0, 120)}). Check the Flow project; click Retry on this scene to generate it again.`, { needsAction: true, submitted: true });
+          }
+          return;
+        }
+        const images = uiResult?.images || [];
+        if (!images.length) {
+          // Click happened (or we would have thrown NOT_SUBMITTED): outcome unknown — do not auto-resend.
+          for (const it of batch) {
+            ledger.put(it.key, { state: LedgerState.SUBMITTED_UNKNOWN, error: `UI agent ${uiResult?.diag?.outcome || "no images"}` });
+            fail(it, "Not resubmitted: the Flow UI agent was started but no stills were detected. Check the Flow project; click Retry on this scene to generate it again.", { needsAction: true, submitted: true });
+          }
+          return;
+        }
+        batch.forEach((it, j) => {
+          const img = images[j];
+          if (!img?.mediaId) {
+            ledger.put(it.key, { state: LedgerState.REJECTED, error: "the UI agent made no image for this scene" });
+            fallback.push(it);
+            return;
+          }
+          const agentInfo = {
+            agentModel: "UI_AGENT",
+            agentPrompt: message.slice(0, 400),
+            agentAspect: expectedAspect,
+            agentBatchId: null,
+            agentChatId: chatId,
+            agentRequestId,
+            agentSceneId: agentSceneId(j),
+            agentPlaceholderId: `ui-${j}`,
+            agentTitle: agentSceneId(j),
+            agentMatch: "order",
+            sceneText: String(it.text || "").slice(0, 200),
+          };
+          ledger.put(it.key, { state: LedgerState.MEDIA_ID_KNOWN, mediaId: img.mediaId, fifeUrl: img.fifeUrl || null, ...agentInfo });
+          toDownload.push({ ...it, mediaId: img.mediaId, fifeUrl: img.fifeUrl || null, agentInfo });
+        });
+        return;
+      }
+
+      // ---- StreamChat RPC agent (agentViaUi: false) ----
+      const message = buildAgentMessage(batch.map((it) => it.text), styleOpts);
       let chatId;
       try {
         chatId = await d.createAgentChat(page, projectId);
@@ -276,8 +348,8 @@ export async function runAgentSlice(params) {
       try {
         reply = await d.sendAgentMessage(page, {
           projectId, chatId, turn: 1,
-          message: buildAgentMessage(batch.map((it) => it.text), { aspect: expectedAspect, opening: style.opening, ending: style.ending }),
-          timeoutMs: Number(standardSettings.agentReplyTimeoutMs) || agentReplyTimeoutMs(batch.length),
+          message,
+          timeoutMs: replyTimeoutMs,
         });
       } catch (err) {
         const sub = submissionOf(err);
@@ -358,7 +430,7 @@ export async function runAgentSlice(params) {
           fallback.push(it);
           return;
         }
-        ledger.put(it.key, { state: LedgerState.MEDIA_ID_KNOWN, mediaId: res.mediaId, workflowId: res.workflowId, ...agentInfo });
+        ledger.put(it.key, { state: LedgerState.MEDIA_ID_KNOWN, mediaId: res.mediaId, ...agentInfo });
         toDownload.push({ ...it, mediaId: res.mediaId, agentInfo });
       });
     });
@@ -397,7 +469,8 @@ export async function runAgentSlice(params) {
       if (downloadsStopped() || (wait && shouldStop?.())) break;
       if (wait) await d.sleep(wait * 1000, shouldStop);
       try {
-        const url = await d.fetchImageUrl(page, it.mediaId);
+        // UI Agent tiles often use asb URLs (fifeUrl already known); RPC agent uses as29s via mediaId.
+        const url = it.fifeUrl || (await d.fetchImageUrl(page, it.mediaId));
         await d.downloadMedia(page, it.mediaId, it.dest, url || null, { kind: "image" });
         if (!isValidOutput(it.dest, "image")) throw new Error(`Download finished but the file is missing or not an image: ${it.dest}`);
         savedPath = path.resolve(it.dest);

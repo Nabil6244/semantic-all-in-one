@@ -87,6 +87,7 @@ export function splitSharedStyle(prompts, { minChars = 120, minSceneChars = 12 }
  * The message the agent gets: one line per scene with its ID, the shared style once, and the rules (one image each, the
  * text copied exactly, the image named with its scene ID). Observed live: the agent copies scene text verbatim, but Flow names
  * images itself, so the exact text is what ties an image to its scene (see mapCallsToScenes).
+ * Used by StreamChat RPC agent (agentViaUi: false).
  */
 export function buildAgentMessage(sceneTexts, { aspect = "16:9", opening = "", ending = "" } = {}) {
   const lines = sceneTexts.map((t, i) => `${agentSceneId(i)}: ${norm(t)}`);
@@ -100,6 +101,23 @@ export function buildAgentMessage(sceneTexts, { aspect = "16:9", opening = "", e
     ...(opening ? [`Shared opening: ${norm(opening)}`] : []),
     ...(ending ? [`Shared ending: ${norm(ending)}`] : []),
     "Scenes:",
+    ...lines,
+  ].join("\n");
+}
+
+/**
+ * Message for Flow's Agent UI panel (multi-prompt paste). Shorter than buildAgentMessage: no RPC naming rules.
+ * Asks for still photos only (Agent otherwise may plan paid videos from motion words). Scenes stay labeled S01…
+ * in order so humans can audit; tiles are matched by appearance order, not by those IDs.
+ */
+export function buildUiAgentMessage(sceneTexts, { aspect = "16:9", opening = "", ending = "" } = {}) {
+  const lines = sceneTexts.map((t, i) => `${agentSceneId(i)}: ${norm(t)}`);
+  return [
+    `Generate exactly ${sceneTexts.length} still images (photos only, not videos), one per scene below, in this order, aspect ratio ${aspect}.`,
+    "Use each scene's text exactly as written. Do not ask questions — just generate.",
+    ...(opening ? [`Shared style (put at the start of every prompt): ${norm(opening)}`] : []),
+    ...(ending ? [`Shared ending (put at the end of every prompt): ${norm(ending)}`] : []),
+    "",
     ...lines,
   ].join("\n");
 }

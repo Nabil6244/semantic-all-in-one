@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const { parseAgentStream, mapCallsToScenes, buildAgentMessage, splitSharedStyle, coolDownReason, AGENT_RECAPTCHA_ACTION, imageUrlFromAs29s } = await import("../lib/agent-api.js");
+const { parseAgentStream, mapCallsToScenes, buildAgentMessage, buildUiAgentMessage, splitSharedStyle, coolDownReason, AGENT_RECAPTCHA_ACTION, imageUrlFromAs29s } = await import("../lib/agent-api.js");
 const { planAgentBatches, runAgentSlice, textsClash } = await import("../lib/agent-runner.js");
 const { GenerationLedger, LedgerState } = await import("../lib/generation-ledger.js");
 const { Submission, tagSubmission } = await import("../lib/generation-state.js");
@@ -75,7 +75,7 @@ async function run({ flow, ledger, prompts, out, runId = "run-1", extra = {} }) 
   const result = await runAgentSlice({
     page: {}, prompts, promptIndices: prompts.map((_, i) => i), promptKeys: prompts.map((_, i) => String(i + 1)),
     totalAbsolute: prompts.length,
-    settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE",
+    settings: { mediaKind: "image", generationMode: "agent", agentViaUi: false, model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE",
       outputDir: out, _runId: runId, agentBatchGapMs: 0, agentMinScenes: 1, ...extra },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => false,
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
@@ -391,7 +391,7 @@ test("Stop during downloads, past the grace period: the images not yet saved are
   const events = [];
   await runAgentSlice({
     page: {}, prompts: SCENES, promptIndices: [0, 1, 2], promptKeys: ["1", "2", "3"], totalAbsolute: 3,
-    settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
+    settings: { mediaKind: "image", generationMode: "agent", agentViaUi: false, model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
       _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 0 },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => stop,
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
@@ -416,7 +416,7 @@ test("Stop before a batch is sent: its scenes are reported, nothing was generate
   const events = [];
   await runAgentSlice({
     page: {}, prompts, promptIndices: prompts.map((_, i) => i), promptKeys: prompts.map((_, i) => String(i + 1)), totalAbsolute: 30,
-    settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
+    settings: { mediaKind: "image", generationMode: "agent", agentViaUi: false, model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
       _runId: "run-1", agentBatchGapMs: 1, agentMinScenes: 1 },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => sends >= 1 && flow.calls.downloads >= 0 && events.some((e) => e.status === "waiting"),
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
@@ -470,7 +470,7 @@ test("Stop during downloads, within the grace period: images Flow already made a
   const events = [];
   await runAgentSlice({
     page: {}, prompts: SCENES, promptIndices: [0, 1, 2], promptKeys: ["1", "2", "3"], totalAbsolute: 3,
-    settings: { mediaKind: "image", generationMode: "agent", model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
+    settings: { mediaKind: "image", generationMode: "agent", agentViaUi: false, model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
       _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 30000 },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => stop,
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
@@ -506,4 +506,67 @@ test("the reply timeout grows with the batch, within limits", async () => {
   assert.ok(agentReplyTimeoutMs(1) < agentReplyTimeoutMs(13));
   assert.ok(agentReplyTimeoutMs(13) > 240000, "a 13-scene batch gets more than the old flat 240 s");
   assert.ok(agentReplyTimeoutMs(500) <= 600000);
+});
+
+test("UI Agent path pastes one message and maps stills to scenes by order", async () => {
+  const { out, ledger } = setup();
+  const calls = { ui: 0, messages: [], sends: 0 };
+  const flow = fakeFlow();
+  flow.deps.generateAgentBatchViaUI = async (_page, { message, expectedCount }) => {
+    calls.ui++;
+    calls.messages.push(message);
+    assert.equal(expectedCount, SCENES.length);
+    return {
+      clicked: true,
+      images: SCENES.map((_, i) => ({
+        mediaId: `asb-ui-${i}`,
+        fifeUrl: `https://flow.google.com/asb/token${i}=s0`,
+      })),
+      diag: { outcome: "success" },
+    };
+  };
+  flow.deps.sendAgentMessage = async () => { calls.sends++; throw new Error("RPC agent must not run"); };
+  const { results } = await run({
+    flow, ledger, prompts: SCENES, out,
+    extra: { agentViaUi: true },
+  });
+  assert.equal(calls.ui, 1);
+  assert.equal(calls.sends, 0);
+  assert.match(calls.messages[0], /still images \(photos only/);
+  assert.match(calls.messages[0], /S01:.*coal power plant/s);
+  assert.match(calls.messages[0], /S03:/);
+  assert.doesNotMatch(calls.messages[0], /Name the image with its scene ID/);
+  assert.equal(results.filter((r) => r.status === "done").length, 3);
+  assert.ok(results.every((r) => r.via === "agent" && r.agentMatch === "order"));
+});
+
+test("UI Agent message is short and asks for stills, not RPC naming rules", () => {
+  const msg = buildUiAgentMessage(SCENES, { aspect: "16:9" });
+  assert.match(msg, /Generate exactly 3 still images/);
+  assert.match(msg, /S02: engineers inspecting a turbine/i);
+  assert.doesNotMatch(msg, /Image prompt:/);
+  assert.doesNotMatch(msg, /Name the image with its scene ID/);
+});
+
+test("UI Agent failure before click falls through to the standard path", async () => {
+  const { out, ledger } = setup();
+  const flow = fakeFlow();
+  flow.deps.generateAgentBatchViaUI = async () => {
+    throw tagSubmission(new Error("no Send button"), Submission.NOT_SUBMITTED);
+  };
+  const { results } = await run({ flow, ledger, prompts: SCENES, out, extra: { agentViaUi: true } });
+  assert.equal(flow.calls.sends, 0);
+  assert.deepEqual(flow.calls.standard, SCENES);
+  assert.equal(results.filter((r) => r.status === "done").length, 3);
+});
+
+test("mediaKey / resolveStillUrl identify asb and flow-content stills", async () => {
+  const { mediaKey, resolveStillUrl } = await import("../lib/flow-ui-agent.js");
+  assert.equal(mediaKey("https://flow.google.com/asb/abc123=s1600-rw"), "asb:abc123");
+  assert.equal(mediaKey("https://flow-content.google/image/mid1?x=1"), "flow-content.google/image/mid1");
+  const asb = resolveStillUrl("https://flow.google.com/asb/tok99=s1600-rw");
+  assert.ok(asb.mediaId.startsWith("asb-"));
+  assert.equal(asb.fifeUrl, "https://flow.google.com/asb/tok99=s0");
+  const host = resolveStillUrl("https://flow-content.google/image/media-xyz");
+  assert.deepEqual(host, { mediaId: "media-xyz", fifeUrl: "https://flow-content.google/image/media-xyz" });
 });
