@@ -123,7 +123,7 @@ class ProjectView(_BaseView):
         details = Card(self._panel, title="Project details")
         details.grid(row=2, column=0, sticky="ew", pady=(0, 12))
         self._metrics: list[MetricRow] = []
-        for i, label in enumerate(("Project", "Narration", "Scenes", "Visual assets", "Ambience", "SFX",
+        for i, label in enumerate(("Project", "Style", "Narration", "Scenes", "Visual assets", "Ambience", "SFX",
                                    "Music", "Editorial score", "Last render")):
             row = MetricRow(details.body, label)
             row.grid(row=i, column=0, sticky="ew", pady=2)
@@ -133,11 +133,12 @@ class ProjectView(_BaseView):
         jump.grid(row=3, column=0, sticky="ew")
         links = ctk.CTkFrame(jump.body, fg_color="transparent")
         links.grid(row=0, column=0, sticky="w")
-        for key, label in (("script", "Script"), ("visual_plan", "Visuals"), ("audio", "Audio & Effects"),
-                           ("render", "Export")):
+        # Visual Director is where the style is chosen; Tools holds the CSV Generator, ratings and learning.
+        for i, (key, label) in enumerate((("script", "Script"), ("visual_director", "Style"), ("visual_plan", "Visuals"),
+                                          ("audio", "Audio & Effects"), ("render", "Export"), ("tools", "Tools"))):
             make_button(links, f"{T.NAV_ICONS.get(key, '')}  {label}",
                         lambda k=key: app._shell.navigate(k) if getattr(app, "_shell", None) else None,
-                        width=140).pack(side="left", padx=(0, 8))
+                        width=140).grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 8), pady=(0, 6))
 
     def on_show(self) -> None:
         ws = self.app._workspace
@@ -182,8 +183,13 @@ class ProjectView(_BaseView):
         score = qa.get("score")
         verdict = qa.get("verdict") or "—"
         out = self.app._last_output or self.app.output_var.get() or "—"
+        try:
+            style = str(self.app._active_style() or "")
+        except Exception:
+            style = ""
         vals = [
             ws.title,
+            style or "—",
             Path(audio).name if audio_ok else "Not loaded",
             str(n_scenes) if n_scenes else "—",
             f"{ready}/{total}" if total else "—",

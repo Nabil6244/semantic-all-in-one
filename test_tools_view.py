@@ -57,6 +57,18 @@ class ToolsViewBuild(unittest.TestCase):
             root.destroy()
 
 
+class OverviewShowsStyle(unittest.TestCase):
+    def test_overview_names_the_style_and_links_style_and_tools(self):
+        import inspect
+        from ui.views import ProjectView
+
+        src = inspect.getsource(ProjectView)
+        self.assertIn('"Style"', src)
+        self.assertIn("_active_style()", src)
+        self.assertIn('("visual_director", "Style")', src)
+        self.assertIn('("tools", "Tools")', src)
+
+
 class SidebarFitsSmallestWindow(unittest.TestCase):
     """Adding the Tools entry first pushed "About" 3 px past the sidebar at 1100x700 and hid the version label."""
 
