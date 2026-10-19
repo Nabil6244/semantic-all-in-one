@@ -816,6 +816,7 @@ _LAZY_VIEWS = {
     "render": "RenderView",
     "qa": "QAView",
     "about": "AboutOwnershipView",
+    "tools": "ToolsView",
     "graphics": "GraphicsView",
 }
 

@@ -218,17 +218,17 @@ class AppShell(ctk.CTkFrame):
                     font=ctk.CTkFont(size=10, weight="bold"), text_color=T.TEXT_TERTIARY, anchor="w",
                 )
                 header.grid(row=row, column=0, sticky="ew", padx=(20, 12),
-                            pady=(18 if current_group is None else 20, 6))
+                            pady=(18 if current_group is None else 14, 6))
                 self._group_headers.append(header)
                 current_group = group
                 row += 1
-            item = ctk.CTkFrame(side, fg_color="transparent", height=34)
+            item = ctk.CTkFrame(side, fg_color="transparent", height=T.CONTROL_H)
             item.grid(row=row, column=0, sticky="ew", padx=(0, 10), pady=1)
             item.grid_columnconfigure(1, weight=1)
             bar = ctk.CTkFrame(item, fg_color="transparent", width=3, height=20, corner_radius=2)
             bar.grid(row=0, column=0, sticky="w", padx=(0, 7))
             btn = ctk.CTkButton(
-                item, text=f"{T.NAV_ICONS.get(key, '•')}   {label}", height=34, anchor="w",
+                item, text=f"{T.NAV_ICONS.get(key, '•')}   {label}", height=T.CONTROL_H, anchor="w",
                 fg_color="transparent", hover_color=T.CARD_HOVER,
                 text_color=T.MUTED, font=ctk.CTkFont(size=13),
                 corner_radius=T.RADIUS,

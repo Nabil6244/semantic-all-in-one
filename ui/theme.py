@@ -573,6 +573,7 @@ NAV_ITEMS = (
     ("research", "Research", "advanced"),
     ("music", "Music", "advanced"),
     ("editorial", "Editorial Stats", "advanced"),
+    ("tools", "Tools", "advanced"),
     ("qa", "Quality Check", "advanced"),
     ("about", "About & Ownership", "advanced"),
 )
@@ -593,6 +594,7 @@ NAV_ICONS = {
     "music": "\u266B",            # ♫
     "editorial": "\u2261",        # ≡
     "qa": "\u2713",               # ✓
+    "tools": "\u2692",            # ⚒
     "about": "\u24D8",            # ⓘ
 }
 

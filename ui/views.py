@@ -2731,3 +2731,52 @@ class AboutOwnershipView(_BaseView):
         session = getattr(self.app, "_auth_session", None)
         name = (getattr(session, "display_name", "") or "").strip() if session else ""
         self._account_row.set_value(name or "—")
+
+
+# Tools reachable only from the "⋯" overflow menu before; that menu keeps its entries. Each card calls the SAME app method the menu
+# calls, so behaviour (and its error handling) is unchanged: (title, what it does, button, app method).
+TOOL_CARDS = (
+    ("CSV Generator", "Turn a script into a CSV for the current style, check it, and use it for the plan.", "Open CSV Generator",
+     "_open_csv_generator"),
+    ("Rate finished videos", "Score your finished videos so the app learns what worked; see the rating history.", "Rate videos",
+     "_open_rating_history"),
+    ("Learning", "What the app has learned from your projects, the active knowledge package, and its controls.", "Open Learning",
+     "_open_learning"),
+    ("Activity log", "Every step the app takes during planning, downloads and rendering, as it happens.", "Show / hide activity",
+     "_toggle_activity_log"),
+    ("Output folder", "The folder that holds this project's finished videos.", "Open output folder", "_open_output_folder"),
+    ("Settings", "Accounts, providers, API keys, Flow, appearance and defaults.", "Open Settings", "_open_settings"),
+)
+
+
+class ToolsView(_BaseView):
+    """One page for the app's tools, so they are found from the sidebar instead of only from the overflow menu."""
+
+    key = "tools"
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        SectionHeader(self, "Tools", "Helpers that work alongside every style").grid(
+            row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
+        self._buttons = {}
+        for row, (title, blurb, label, method) in enumerate(TOOL_CARDS):
+            card = Card(self._body)
+            card.grid(row=row, column=0, sticky="ew", pady=(0, T.PAD_SM))
+            card.grid_columnconfigure(0, weight=1)
+            ctk.CTkLabel(card, text=title, text_color=T.TEXT, anchor="w", font=ctk.CTkFont(size=14, weight="bold")).grid(
+                row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 2))
+            ctk.CTkLabel(card, text=blurb, text_color=T.MUTED, anchor="w", justify="left", wraplength=560,
+                         font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(0, T.PAD))
+            btn = make_button(card, label, lambda m=method: self._run(m), variant="secondary")
+            btn.grid(row=0, column=1, rowspan=2, sticky="e", padx=T.PAD, pady=T.PAD)
+            self._buttons[method] = btn
+
+    def _run(self, method: str) -> None:
+        fn = getattr(self.app, method, None)
+        if callable(fn):
+            fn()
+
+    def on_show(self) -> None:
+        # Only what the app actually has (a build without one of these tools shows no dead button).
+        for method, btn in self._buttons.items():
+            btn.configure(state="normal" if callable(getattr(self.app, method, None)) else "disabled")
