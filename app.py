@@ -15935,6 +15935,7 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(30000, self._heartbeat)
         if line and not line.startswith("… still working"):
             self._last_log_line = line
+            self._last_real_log_at = self._last_log_at   # the stall watchdog's "quiet since" (heartbeat lines do not count)
         if line:
             try:
                 self.status_line_var.set(line[:140])
@@ -16123,6 +16124,11 @@ def main() -> None:
         return
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()
+    try:   # a stuck download or media tool never freezes a Generate: stopped after minutes with no progress, report saved
+        from stall_guard import install_for_app as _install_stall_watchdog
+        app._stall_watchdog = _install_stall_watchdog(app)
+    except Exception:
+        pass
     app.mainloop()
 
 

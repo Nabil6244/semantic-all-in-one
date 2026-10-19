@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, List, Optional
 MODULES_FILE = "startup_check_modules.json"
 FILES_FILE = "startup_check_files.json"      # runtime-read files the spec says must be in the bundle (relative to it)
 # third-party packages every build needs (native extensions included); their optional submodules are not checked
-CORE_PACKAGES = ("customtkinter", "PIL.Image", "av", "numpy", "faster_whisper", "ctranslate2", "requests", "websockets", "yt_dlp", "sounddevice")
+CORE_PACKAGES = ("customtkinter", "PIL.Image", "av", "numpy", "faster_whisper", "ctranslate2", "requests", "websockets", "yt_dlp", "sounddevice", "psutil")
 ENGINE_FILES = ("pakmap-engine/render.mjs", "starmap-engine/render.mjs", "map-engine/render.mjs", "whatif-engine/render.mjs",
                 "weather-engine/render.mjs", "gfx-overlay-engine/render.mjs", "flow-engine/server.js")
 

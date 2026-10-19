@@ -23,3 +23,6 @@ beautifulsoup4>=4.12
 lxml>=5.0
 imagesize>=1.4
 chompjs>=1.3
+
+# Stall watchdog (stall_guard.py): sees the app's ffmpeg / yt-dlp child processes and their CPU on every OS.
+psutil>=5.9

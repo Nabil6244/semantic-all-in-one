@@ -173,6 +173,7 @@ hiddenimports += ["normal_gfx", "normal_gfx.pipeline", "normal_gfx.planner", "no
 hiddenimports += ["export_state", "hybrid_gfx_note"]   # imported inside functions (app.py, weather/whatif app_section): the Export job and the Hybrid graphics note
 hiddenimports += ["startup_check"]   # imported inside app.main: the packaged-build startup check CI runs on the built app
 hiddenimports += ["tk_thread_guard"]   # imported inside app.main / the main-thread pump: Tk cleanups from worker threads run on the main thread
+hiddenimports += ["stall_guard", "psutil"]   # imported inside app.main: the stall watchdog for stuck downloads / media tools
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the
 # files it loads, and the starmap package's catalogs and mission packs (see starmap/packaging.py, which is unit-tested).

@@ -316,16 +316,71 @@ def in_window(day: Optional[date], event_day: str) -> bool:
 PARALLEL = 3   # pieces downloaded at once (direct downloads; the browser capture, the fallback, runs one at a time by itself)
 
 
-def _direct(cand, start: float, length: float, dest: Path) -> bool:
-    """The app's own non-browser download (yt-dlp, a section of the video), safe to run several at once."""
-    try:
-        from providers.youtube.strategies import _legacy_yt_dlp_chain, run_strategy_chain
+PIECE_DEADLINE_S = 180.0   # one piece (direct try + browser fallback) gets this long; past it the piece is skipped, the run goes on
+STALL_US = "30000000"      # ffmpeg gives up on a network read that stalls this long (microseconds)
+DIRECT_CLIENTS = (None, "tv", "web_embedded")
 
-        out = run_strategy_chain(_legacy_yt_dlp_chain("bestvideo[height<=720]+bestaudio/best[height<=720]/best"), cand, start, length,
-                                 dest, lambda m: None)
-        return bool(out.ok) and dest.is_file()
+
+def _direct(cand, start: float, length: float, dest: Path) -> bool:
+    """The app's own non-browser download (yt-dlp, a section of the video), safe to run several at once. Its own small client
+    loop rather than the shared strategy chain: that chain redirects the process-wide stderr, which is not safe with downloads
+    running side by side (on Windows a stuck redirect left ffmpeg blocked for good), and it sets no stall limit on ffmpeg."""
+    import tempfile
+
+    try:
+        import yt_dlp
     except Exception:
         return False
+    url = cand.url or f"https://www.youtube.com/watch?v={cand.video_id}"
+    for client in DIRECT_CLIENTS:
+        with tempfile.TemporaryDirectory() as tmp:
+            opts = {
+                "quiet": True, "no_warnings": True, "noprogress": True,
+                "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+                "merge_output_format": "mp4",
+                "outtmpl": str(Path(tmp) / "clip.%(ext)s"),
+                "download_ranges": yt_dlp.utils.download_range_func(None, [(start, start + length)]),
+                "force_keyframes_at_cuts": True,
+                "socket_timeout": 20,
+                "external_downloader_args": {"ffmpeg_i": ["-rw_timeout", STALL_US]},
+            }
+            if client:
+                opts["extractor_args"] = {"youtube": {"player_client": [client]}}
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    ydl.download([url])
+            except Exception as exc:
+                if re.search(r"private|unavailable|removed|copyright|members-only|DRM", str(exc), re.I):
+                    return False
+                continue
+            made = sorted(Path(tmp).glob("clip.*"), key=lambda f: f.stat().st_size, reverse=True)
+            if made and made[0].stat().st_size > 0 and media_seconds(made[0]) >= RUN_MIN_S:
+                made[0].replace(dest)
+                return dest.is_file()
+    return False
+
+
+def _within(seconds: float, fn) -> "tuple[bool, object]":
+    """fn() on a side thread, waited for at most `seconds`. (False, None) when it is still running then: the caller moves on and the
+    stray thread (a daemon) finishes or dies on its own, never holding up the run or the app's exit."""
+    import threading
+
+    box: Dict[str, object] = {}
+
+    def run():
+        try:
+            box["value"] = fn()
+        except BaseException as exc:   # noqa: BLE001 — handed back to the caller as is
+            box["error"] = exc
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(seconds)
+    if t.is_alive():
+        return False, None
+    if "error" in box:
+        raise box["error"]  # type: ignore[misc]
+    return True, box.get("value")
 
 
 def _download_all(chosen, cache: Path, root: Path, backend, out: "Harvest", max_downloads: int, log) -> None:
@@ -351,15 +406,31 @@ def _download_all(chosen, cache: Path, root: Path, backend, out: "Harvest", max_
                 out.downloads += 1
             piece.unlink(missing_ok=True)
             log(f"[Weather] News Doc: downloading {p_len:.0f}s of \"{c.title}\" ({c.channel})")
-            ok = direct_ok and _direct(c, p_start, p_len, piece)
-            if not ok:
+            tmp_piece = piece.with_name(piece.stem + ".part.mp4")   # a timed-out try that lands late never poses as the piece
+
+            def fetch():
                 try:
-                    backend.download_segment(c, p_start, p_len, piece, log=log)
-                except Exception as exc:
-                    with lock:
-                        out.notes.append(f"news footage: \"{c.title}\" could not be downloaded ({str(exc)[:120]})")
-                    piece.unlink(missing_ok=True)
-                    return 0.0
+                    tmp_piece.unlink(missing_ok=True)
+                except OSError:   # Windows: a stray earlier try still has it open
+                    pass
+                if not (direct_ok and _direct(c, p_start, p_len, tmp_piece)):
+                    backend.download_segment(c, p_start, p_len, tmp_piece, log=log)
+                return True
+
+            try:
+                finished, _ = _within(PIECE_DEADLINE_S, fetch)
+            except Exception as exc:
+                with lock:
+                    out.notes.append(f"news footage: \"{c.title}\" could not be downloaded ({str(exc)[:120]})")
+                tmp_piece.unlink(missing_ok=True)
+                return 0.0
+            if not finished:
+                log(f"[Weather] News Doc: \"{c.title}\" did not finish in {PIECE_DEADLINE_S:.0f}s, skipped")
+                with lock:
+                    out.notes.append(f"news footage: \"{c.title}\" timed out after {PIECE_DEADLINE_S:.0f}s and was skipped")
+                return 0.0
+            if tmp_piece.is_file():
+                tmp_piece.replace(piece)
         real = media_seconds(piece) if piece.is_file() else 0.0
         if real < RUN_MIN_S:
             piece.unlink(missing_ok=True)

@@ -465,5 +465,32 @@ class NoAiAndNoNetwork(unittest.TestCase):
         self.assertTrue(any(s.kind == "news" for s in nd.shots))
 
 
+class NewsDocDeadline(unittest.TestCase):
+    """A download that never answers is skipped after PIECE_DEADLINE_S (it hung 36 min on Windows, 2026-10-19)."""
+
+    def test_a_download_that_never_returns_is_skipped(self):
+        import time
+        from types import SimpleNamespace as NS
+        from unittest import mock
+
+        import weather.newsdoc.harvest as h
+
+        class Hang:
+            def download_segment(self, c, s, n, dest, log=print):
+                time.sleep(3600)
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(h, "PIECE_DEADLINE_S", 2.0):
+            root = Path(d)
+            cache = root / "_work" / "news_cache"
+            cache.mkdir(parents=True)
+            c = NS(video_id="x1", title="Newport Beach declares local emergency", channel="KTLA", url="", duration=300)
+            out = h.Harvest(searches=[])
+            t0 = time.monotonic()
+            h._download_all([(c, {"part": 0, "place": "x"}, 10.0)], cache, root, Hang(), out, 5, lambda m: None)
+            self.assertLess(time.monotonic() - t0, 15)
+            self.assertTrue(any("timed out" in n for n in out.notes), out.notes)
+            self.assertEqual(out.runs, [])
+
+
 if __name__ == "__main__":
     unittest.main()
