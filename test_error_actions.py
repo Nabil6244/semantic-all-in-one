@@ -55,6 +55,16 @@ class FixPrompt(unittest.TestCase):
         self.assertEqual(len(plan_problems(many)), 100)
 
 
+class NeedsAttention(unittest.TestCase):
+    def test_real_stop_texts(self):
+        from ui.error_actions import needs_attention
+
+        self.assertTrue(needs_attention(["2 picture(s)/clip(s) need attention: scene 13, 44"]))   # What If #022/#023
+        self.assertTrue(needs_attention(["1 picture(s)/clip(s) still need attention (scene 85)"]))
+        self.assertFalse(needs_attention(REAL_OTHER_ERRORS + REAL_PLAN_ERRORS))
+        self.assertFalse(needs_attention([]))
+
+
 class DialogWiring(unittest.TestCase):
     def test_error_dialog_uses_the_decision(self):
         with open(os.path.join(os.path.dirname(__file__), "app.py"), encoding="utf-8") as fh:

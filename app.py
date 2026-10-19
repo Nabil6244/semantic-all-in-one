@@ -15503,9 +15503,25 @@ class VideoGeneratorApp(ctk.CTk):
             details_box.configure(state="disabled")
             actions = ctk.CTkFrame(win, fg_color="transparent")
             actions.pack(fill="x", padx=T.SPACE_LG, pady=T.SPACE_LG)
-            from ui.error_actions import fix_prompt as _fix_prompt, is_plan_error as _is_plan_error
+            from ui.error_actions import fix_prompt as _fix_prompt, is_plan_error as _is_plan_error, needs_attention as _needs_attention
 
-            if _is_plan_error([details]):
+            if _needs_attention([details]):
+                # Missing pictures are fixed per scene in the Visual Plan; Retry alone re-fetches the same not-found searches.
+                def _to_visual_plan() -> None:
+                    win.destroy()
+                    self._goto_workflow_view("visual_plan")
+                    self._open_issues_drawer()
+
+                ctk.CTkButton(
+                    actions, text="Fix in Visual Plan", height=T.CONTROL_H, width=140,
+                    fg_color=T.ACCENT, hover_color=T.ACCENT_HOV, text_color=T.ACCENT_DARK, command=_to_visual_plan,
+                ).pack(side="left")
+                ctk.CTkButton(
+                    actions, text="Retry", height=T.CONTROL_H, width=100,
+                    fg_color="transparent", border_width=1, border_color=T.BORDER, text_color=T.TEXT,
+                    command=lambda: (win.destroy(), self._on_generate()),
+                ).pack(side="left", padx=(T.SPACE_SM, 0))
+            elif _is_plan_error([details]):
                 # The CSV must change: Retry would fail the same way (real logs: the same anchor error three presses in a row).
                 copied = ctk.StringVar(value="")
 

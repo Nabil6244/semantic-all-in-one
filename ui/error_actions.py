@@ -35,6 +35,16 @@ def is_plan_error(errors: Iterable[str]) -> bool:
     return bool(lines) and len(plan_problems(lines)) == len(lines)
 
 
+_ATTENTION = re.compile(r"\bneeds? attention\b", re.IGNORECASE)
+
+
+def needs_attention(errors: Iterable[str]) -> bool:
+    """The run stopped before rendering because some pictures/clips are missing ("2 picture(s)/clip(s) need attention:
+    scene 13, 44"). Those are fixed scene by scene in the Visual Plan (Retry, Change source, Use local clip, Skip); real
+    What If projects ended in this stop 2-4 times before a render, with only Retry offered."""
+    return any(_ATTENTION.search(str(e or "")) for e in (errors or ()))
+
+
 def fix_prompt(style: str, errors: Iterable[str], limit: int = 40) -> str:
     """A prompt to paste into the AI that wrote the CSV, next to that CSV."""
     problems = plan_problems(errors)[:limit]
