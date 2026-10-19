@@ -28,7 +28,8 @@ class TestFlowVideoModelSelection(unittest.TestCase):
         fake.flow_image_model_var = types.SimpleNamespace(get=lambda: "BELUGA")
         fake.flow_image_aspect_var = types.SimpleNamespace(get=lambda: "IMAGE_ASPECT_RATIO_LANDSCAPE")
         fake._video_account_ids = lambda: ["acct-1"]
-        for name in ("_current_image_flow_settings", "_flow_agent_images_on", "_image_flow_run_settings",
+        for name in ("_current_image_flow_settings", "_flow_agent_images_on", "_flow_ui_mode_on",
+                     "_flow_generation_mode", "_image_flow_run_settings",
                      "_get_video_profiles", "_default_video_profile", "_video_flow_settings", "_media_flow_run_settings"):
             setattr(fake, name, types.MethodType(getattr(self.App, name), fake))
         return fake

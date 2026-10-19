@@ -23,8 +23,6 @@ import { batchexecute, resolveImageAspectWireValue } from "./batchexecute-config
 import {
   mintCaptchaWithFallback,
   BATCHEXECUTE_HEADERS,
-  extensionHl,
-  extensionReqId,
 } from "./extension-captcha.js";
 import {
   Submission,
@@ -1380,9 +1378,10 @@ async function generateOneImageInner(page, projectId, prompt, settings, promptIn
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
-  // Extension adapter: hl fixed "en", _reqid random 1e5–1e6 (not Flow SPA hq/Kb).
-  const reqId = extensionReqId();
-  const hl = extensionHl();
+  // Match Flow's own SPA: hq/Kb _reqid + hl from the page URL (not extension random "en").
+  // Extension-style reqids were answered with PUBLIC_ERROR_UNUSUAL_ACTIVITY after the 2026-10-18 Flow cut.
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
 
   const captchaAction = api.recaptchaAction;
   const captchaMintStartedAt = Date.now();
@@ -2017,9 +2016,9 @@ async function generateOneVideoInner(page, projectId, prompt, settings, promptIn
   const uuidA = uuid();
   const uuidB = uuid();
   const uuidC = uuid();
-  // Extension adapter: hl fixed "en", _reqid random 1e5–1e6.
-  const reqId = extensionReqId();
-  const hl = extensionHl();
+  // Match Flow's own SPA (same as image path / agent path).
+  const reqId = nextReqId(page);
+  const hl = currentHl(page);
 
   const captchaAction = api.videoRecaptchaAction;
   const captchaMintStartedAt = Date.now();

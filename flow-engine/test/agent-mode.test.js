@@ -308,14 +308,14 @@ test("a download that fails stays resumable and the next run downloads it withou
   assert.ok(second.results.every((r) => r.status === "done"));
 });
 
-test("an account restriction stops the account: nothing is retried or handed to the standard path", async () => {
+test("agent UNUSUAL_ACTIVITY falls through to the standard image path (different captcha action)", async () => {
   const { out, ledger } = setup();
   const line = JSON.stringify([["wrb.fr", null, null, null, null, [7, null, [["type.googleapis.com/google.rpc.ErrorInfo", ["PUBLIC_ERROR_UNUSUAL_ACTIVITY"]]]], "generic"]]);
   const flow = fakeFlow({ replies: [`)]}'\n\n${line.length}\n${line}\n`] });
   const { result, results } = await run({ flow, ledger, prompts: SCENES, out });
-  assert.equal(result.restricted, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
-  assert.ok(results.every((r) => r.restricted));
-  assert.deepEqual(flow.calls.standard, []);
+  assert.equal(result.restricted, null);
+  assert.deepEqual(flow.calls.standard, SCENES);
+  assert.ok(results.every((r) => r.status === "done"));
 });
 
 test("more than 24 scenes: several requests on the account, one at a time", async () => {

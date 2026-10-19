@@ -14,8 +14,7 @@ export function resolveGenerationMode(settings) {
  * May a failed RPC attempt be followed by a UI attempt for the same prompt? Only when the RPC request certainly never reached
  * Google (the page was not ready, no token could be made, the in-page check failed before sending). Never after:
  *   - an unknown outcome (timeout, lost connection, unreadable answer, navigation during the call): it may have been accepted;
- *   - any answer from Google (rate limit, quota, sign-out, refusal): the UI would be the same request through another door;
- *   - an account restriction (UNUSUAL_ACTIVITY): a stop condition, never retried another way.
+ *   - any answer from Google (rate limit, quota, sign-out, refusal, UNUSUAL_ACTIVITY): use Settings → Flow → UI mode instead of auto-fallback.
  */
 export function mayFallBackToUi(err) {
   if (!err || err instanceof AccountRestrictedError) return false;

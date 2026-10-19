@@ -419,14 +419,15 @@ test("one account never submits two generations at once through its page; differ
   assert.equal(overlap, 2, "two accounts generate at the same time");
 });
 
-test("an account restriction stops the account: no retry, no other mechanism, no hand-off", async () => {
+test("an account restriction stops this account and hands the work to another (no same-account retry)", async () => {
   const dir = tmp();
   const flow = fakeFlow({ outcomes: [new AccountRestrictedError("PUBLIC_ERROR_UNUSUAL_ACTIVITY")] });
   const { result, results } = await run({ flow, ledger: new GenerationLedger(path.join(dir, "l.json")), out: dir, prompts: ["one", "two", "three"] });
-  assert.equal(flow.calls.submit, 1);
-  assert.equal(result.reassign.length, 0);
+  assert.equal(flow.calls.submit, 1, "this account must not retry the restricted request");
   assert.equal(result.restricted, "PUBLIC_ERROR_UNUSUAL_ACTIVITY");
-  assert.deepEqual(results.map((r) => r.status), ["failed", "failed", "failed"]);
+  assert.equal(result.reassign.length, 3, "failed prompt + remaining prompts go to another account");
+  assert.ok(result.reassign.every((r) => r.reason === "restricted"));
+  assert.equal(results.filter((r) => r.status === "rate_limited" && r.reassign).length, 1);
 });
 
 test("an empty prompt fails its own scene and does not shift the others", async () => {
@@ -530,4 +531,14 @@ test("UI fallback only when the RPC certainly sent nothing — never after an un
   };
   await assert.rejects(() => generateOneMedia({}, "p", "prompt", { generationMode: "rpc_then_ui" }, 0, "video", { impl }));
   assert.equal(ui, 0, "an ambiguous RPC video must never become a UI video");
+
+  await assert.rejects(
+    () => generateOneMedia({}, "p", "prompt", { generationMode: "rpc" }, 0, "image", {
+      impl: {
+        generateOneImage: async () => { throw new AccountRestrictedError("PUBLIC_ERROR_UNUSUAL_ACTIVITY"); },
+        generateOneImageViaUI: async () => { ui++; return { mediaId: "img" }; },
+      },
+    }),
+  );
+  assert.equal(ui, 0, "UNUSUAL_ACTIVITY is not an auto UI fallback — use Settings → Flow → UI mode");
 });

@@ -155,9 +155,9 @@ export async function runAgentSlice(params) {
   const ledger = d.ledger || (await defaultLedger());
   const emit = (type, payload) => onProgress?.({ type, ...payload });
   const outDir = accountDownloadDir(folderLabel, settings.outputDir || undefined);
-  // The standard path's settings (same ledger identity: generationMode is not part of the key).
-  const standardSettings = { ...settings };
-  delete standardSettings.generationMode;
+  // The standard path's settings (ledger identity ignores generationMode). After agent refusal, use UI —
+  // the same reliable path Settings → Flow → UI mode selects (RPC is often refused with UNUSUAL_ACTIVITY).
+  const standardSettings = { ...settings, generationMode: "ui" };
   if (standardSettings.model) standardSettings.model = canonicalImageModel(standardSettings.model);
   const runId = standardSettings._runId || `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const scope = scopeOf(standardSettings.outputDir);
@@ -297,12 +297,12 @@ export async function runAgentSlice(params) {
 
       const parsed = parseAgentStream(reply.text);
       if (parsed.error && parsed.error.reason === "PUBLIC_ERROR_UNUSUAL_ACTIVITY" && !parsed.calls.length) {
-        restricted = parsed.error.reason;
-        for (const it of batch) {
-          ledger.put(it.key, { state: LedgerState.REJECTED, error: restricted });
-          fail(it, `Flow restricted account ${label} (${restricted}).`, { restricted: true });
-        }
-        return;
+        // Agent chat uses CHAT_GENERATION captcha; the standard path uses IMAGE_GENERATION.
+        // Do not brand the account restricted yet — fall through to the standard image path.
+        emit("status", {
+          message: `Agent refused (${parsed.error.reason}) — trying the standard Flow path for ${batch.length} scene(s)`,
+        });
+        return notCreated(batch, LedgerState.REJECTED, parsed.error.reason);
       }
       const cool = coolDownReason(parsed, reply.text);
       if (cool && !parsed.calls.length) {

@@ -500,15 +500,37 @@ export async function runBatchSlice({
           });
           continue;
         }
-        // 2. Google is restricting this account: stop it here, retry nothing, hand nothing to another account.
+        // 2. Google refused this account (UNUSUAL_ACTIVITY). UI fallback already ran inside generateOneMedia for
+        // images when configured; if we still see this, stop this account and hand the work to another.
         if (err instanceof AccountRestrictedError) {
           done = true;
           stopBatch = true;
           restricted = err.reason;
-          failPrompt(abs, prompt, err.message, { restricted: true });
+          reassign.push({ index: abs, prompt, promptKey, reason: "restricted" });
           for (let j = i + 1; j < prompts.length; j++) {
-            failPrompt(promptIndices[j], prompts[j], `Not run: Flow restricted account ${life.label} (${err.reason}).`, { restricted: true });
+            reassign.push({
+              index: promptIndices[j],
+              prompt: prompts[j],
+              promptKey: promptKeys?.[j] ?? null,
+              reason: "restricted",
+            });
           }
+          emit("PROMPT_RESULT", {
+            index: abs,
+            prompt,
+            status: "rate_limited",
+            error: activeErr.message,
+            reassign: true,
+            restricted: true,
+          });
+          emit("BATCH_PROGRESS", {
+            index: abs,
+            total: totalAbsolute,
+            status: "waiting",
+            message: `Account restricted (${err.reason}) — rotating to another account…`,
+            completed,
+            failed,
+          });
           break;
         }
         // 3. Defence in depth: anything that may have created a generation and was not converted above.

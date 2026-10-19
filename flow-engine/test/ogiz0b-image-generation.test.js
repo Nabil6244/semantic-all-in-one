@@ -117,13 +117,8 @@ test("request is sent to the confirmed batchexecute endpoint with the expected q
   assert.match(captured.url, /source-path=%2Fproject%2F3fe16e7e-e725-4dc0-852b-80593cffdd9f/);
   assert.match(captured.url, /bl=boq_labs-ai-sandbox-frontend_20260903\.13_p0/);
   assert.match(captured.url, /f\.sid=5154174394542838292/);
-  // hl is read from the page's own current URL now (confirmed live from the
-  // real Flow frontend bundle — see project notes), falling back to the
-  // frontend's own default "en-US" when the URL carries no ?hl= param, as
-  // this fakePage's URL does not. No longer the old hardcoded "en-GB".
-  // OBSOLETE assertion removed here: `hl=en-US` (the page's own default) was replaced by extension-parity request shaping
-  // before the 2026-10-05 audit; that behaviour is tracked by the skipped OBSOLETE tests in reqid-hl.test.js, pending an
-  // owner decision. Everything else this test checks still holds.
+  // hl comes from the page URL (Flow SPA parity), defaulting to en-US when absent.
+  assert.match(captured.url, /[?&]hl=en-US(?:&|$)/);
   assert.match(captured.url, /_reqid=\d+/);
   assert.match(captured.url, /rt=c/);
 });

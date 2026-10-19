@@ -212,13 +212,13 @@ export const agent = {
 
 /**
  * How Flow assets are generated — the ONE source of truth (settings.generationMode may choose another for a run):
- *   rpc          batchexecute only (default)
- *   ui           the Flow web UI only
+ *   ui           the Flow web UI only (default — Google refuses automated RPC with UNUSUAL_ACTIVITY)
+ *   rpc          batchexecute only
  *   rpc_then_ui  RPC; the UI only when the RPC request could not be sent at all (see generation-dispatch.js)
- * FLOW_GENERATION_MODE overrides the default.
+ * FLOW_GENERATION_MODE overrides the default. The app Settings → Flow "UI mode" switch sends generationMode explicitly.
  */
 export const GENERATION_MODES = new Set(["rpc", "ui", "rpc_then_ui"]);
-export const DEFAULT_GENERATION_MODE = "rpc";
+export const DEFAULT_GENERATION_MODE = "ui";
 
 export function resolveGenerationMode() {
   const fromEnv = String(process.env.FLOW_GENERATION_MODE || "").trim().toLowerCase();

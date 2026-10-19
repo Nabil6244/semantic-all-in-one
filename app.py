@@ -11024,12 +11024,27 @@ class VideoGeneratorApp(ctk.CTk):
         """The app-wide "Fast Flow images (agent mode)" switch (Settings → Flow), saved in settings.json."""
         return bool(self._settings.get("flow_agent_images"))
 
+    def _flow_ui_mode_on(self) -> bool:
+        """The app-wide "Flow UI mode" switch (Settings → Flow). Default ON: missing key means True.
+        Drives Flow's real Generate button instead of the private RPC (which Google has been refusing)."""
+        if "flow_ui_mode" not in self._settings:
+            return True
+        return bool(self._settings.get("flow_ui_mode"))
+
+    def _flow_generation_mode(self, *, for_image: bool) -> str:
+        """agent (images only) > ui (default) > rpc."""
+        if for_image and self._flow_agent_images_on():
+            return "agent"
+        return "ui" if self._flow_ui_mode_on() else "rpc"
+
     def _image_flow_run_settings(self) -> tuple[dict, list[str] | None]:
-        """Settings + accounts for Flow image runs. With agent mode on, images are asked for in batches through
-        Flow's agent, on the Video Profile's accounts; off, the normal per-image path on all signed-in accounts."""
-        if self._flow_agent_images_on():
-            return {**self._current_image_flow_settings(), "generationMode": "agent"}, self._video_account_ids()
-        return self._current_image_flow_settings(), None
+        """Settings + accounts for Flow image runs. Agent mode batches on the Video Profile's accounts;
+        otherwise UI mode (default) or RPC on all signed-in accounts."""
+        mode = self._flow_generation_mode(for_image=True)
+        settings = {**self._current_image_flow_settings(), "generationMode": mode}
+        if mode == "agent":
+            return settings, self._video_account_ids()
+        return settings, None
 
     # ---------- video profiles ----------
     # A Video Profile bundles the account/browser pool + model/dimension/duration
@@ -11078,6 +11093,8 @@ class VideoGeneratorApp(ctk.CTk):
             "aspectRatio": p.get("aspectRatio", FLOW_IMAGE_ASPECT_RATIOS[0][0]),
             "videoDuration": int(p.get("duration", 8)),
             "videoResolution": p.get("resolution", FLOW_VIDEO_RESOLUTIONS[0][0]),
+            # Video never uses agent; ui (default) or rpc from the Flow tab switch.
+            "generationMode": self._flow_generation_mode(for_image=False),
         }
 
     def _note_low_res_flow_video(self) -> None:
@@ -11095,10 +11112,11 @@ class VideoGeneratorApp(ctk.CTk):
     def _media_flow_run_settings(self) -> dict:
         """One settings dict for runs that hand the same `flow_settings` to both the image and the video provider
         (StarMap, What If): the image settings plus the Video Profile's model/duration/resolution. Without the video
-        keys the engine fell back to its default video model (Veo 3.1 Fast) whatever the profile chose."""
+        keys the engine fell back to its default video model (Veo 3.1 Fast) whatever the profile chose.
+        Keep the image generationMode (agent/ui/rpc); video ignores \"agent\" and falls back to the engine default."""
         settings, _accounts = self._image_flow_run_settings()
         video = self._video_flow_settings()
-        return {**settings, **{k: v for k, v in video.items() if k != "aspectRatio"}}
+        return {**settings, **{k: v for k, v in video.items() if k not in ("aspectRatio", "generationMode")}}
 
     def _video_account_ids(self) -> list[str] | None:
         """The default Video Profile's checked accounts. None (= all signed-in
@@ -13621,6 +13639,23 @@ class VideoGeneratorApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=_MUTED,
         ).pack(anchor="w", padx=20, pady=(0, 8))
 
+        ui_mode_var = ctk.BooleanVar(value=self._flow_ui_mode_on())
+
+        def _toggle_ui_mode() -> None:
+            self._settings["flow_ui_mode"] = bool(ui_mode_var.get())
+            save_settings(self._settings)
+
+        ctk.CTkSwitch(
+            body, text="Flow UI mode (images & videos)", variable=ui_mode_var,
+            onvalue=True, offvalue=False, command=_toggle_ui_mode, font=ctk.CTkFont(size=12),
+        ).pack(anchor="w", padx=20, pady=(2, 2))
+        ctk.CTkLabel(
+            body,
+            text="Default on. Uses Flow's real Generate button instead of the private API. Needed when Google refuses "
+                 "automated requests (unusual activity). Applies to every project for both images and videos.",
+            font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
+        ).pack(anchor="w", padx=20, pady=(0, 10))
+
         agent_var = ctk.BooleanVar(value=self._flow_agent_images_on())
 
         def _toggle_agent() -> None:
@@ -13636,7 +13671,8 @@ class VideoGeneratorApp(ctk.CTk):
             body,
             text="Flow's agent makes up to 24 scene images per request, much faster than one at a time. It uses "
                  "Nano Banana 2 Lite and the accounts checked in the default Video Profile. Scenes the agent can't make "
-                 "are made the normal way. Applies to every project and is remembered.",
+                 "use Flow UI mode (or RPC if UI mode is off). Applies to every project and is remembered. "
+                 "When both are on, agent wins for images; videos still use UI mode.",
             font=ctk.CTkFont(size=11), text_color=_MUTED, wraplength=410, justify="left",
         ).pack(anchor="w", padx=20, pady=(0, 16))
 

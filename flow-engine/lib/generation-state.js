@@ -39,12 +39,13 @@ export function provenNotCreated(err) {
 }
 
 /**
- * Google's anti-abuse / account-restriction answer. A stop condition: the prompt fails, the account's slice stops, nothing is
- * retried, sent through another mechanism, or handed to another account.
+ * Google's anti-abuse answer (PUBLIC_ERROR_UNUSUAL_ACTIVITY). The RPC created nothing (REJECTED).
+ * Prefer Settings → Flow → "Flow UI mode" instead of auto-falling back. batch-runner may hand remaining
+ * work to another account; videos never open a second paid path automatically.
  */
 export class AccountRestrictedError extends Error {
   constructor(reason) {
-    super(`Flow refused this account's request (${reason}). Stopped: the request is not retried or sent another way.`);
+    super(`Flow refused this account's request (${reason}).`);
     this.name = "AccountRestrictedError";
     this.reason = reason;
     this.submission = Submission.REJECTED;

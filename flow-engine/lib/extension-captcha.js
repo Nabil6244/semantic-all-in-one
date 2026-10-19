@@ -1,29 +1,102 @@
 /**
- * Extension-parity reCAPTCHA mint (Auto Flow mainworld-bridge + mint-on-about).
+ * reCAPTCHA mint for Flow batchexecute / agent requests.
  *
- * The working extension prefers minting on a hidden https://flow.google.com/about
- * tab with grecaptcha.enterprise.execute(siteKey, { action }), then uses that
- * token in batchexecute from the /project tab. Minting only on /project (or with
- * a mismatched site key) is what the bridge comments link to UNUSUAL_ACTIVITY.
+ * Prefer the project page's own grecaptcha (what Flow's UI uses). Minting on a
+ * hidden /about tab by injecting enterprise.js was the older extension path;
+ * after Flow's 2026-10-18 frontend cut, that path is answered with
+ * PUBLIC_ERROR_UNUSUAL_ACTIVITY on both ogiZ0b and agent StreamChat while the
+ * project-page token still matches what Flow itself sends.
+ *
+ * Prefer a site key detected from the page over the hardcoded fallback — a
+ * mismatched key is also answered with UNUSUAL_ACTIVITY.
  */
 import { secrets } from "../config.js";
 import { batchexecute } from "./batchexecute-config.js";
 
 const ABOUT_URL = "https://flow.google.com/about";
 
+/** @param {import('playwright').Page} page */
+async function detectSiteKeyOnPage(page) {
+  return page.evaluate(() => {
+    try {
+      const cfg = typeof ___grecaptcha_cfg !== "undefined" ? ___grecaptcha_cfg : undefined;
+      const clients = cfg && cfg.clients;
+      if (!clients) return "";
+      for (const ck of Object.keys(clients)) {
+        const client = clients[ck];
+        for (const p of Object.keys(client)) {
+          const v = client[p];
+          if (v && typeof v === "object") {
+            for (const p2 of Object.keys(v)) {
+              const v2 = v[p2];
+              if (v2 && typeof v2 === "object" && v2.sitekey) return v2.sitekey;
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  });
+}
+
 /**
+ * Mint on the project tab with the page's already-loaded grecaptcha.
  * @param {import('playwright').Page} projectPage
- * @param {string} action IMAGE_GENERATION | VIDEO_GENERATION | …
- * @returns {Promise<{ token: string, mintedOn: string, durationMs: number }>}
+ * @param {string} action
+ */
+export async function mintCaptchaOnProjectPage(projectPage, action) {
+  const started = Date.now();
+  const detected = await detectSiteKeyOnPage(projectPage);
+  const siteKey = detected || secrets.recaptchaSiteKey;
+  if (!siteKey) throw new Error("site key unresolved on project page");
+  const token = await projectPage.evaluate(
+    async ({ siteKey, action }) => {
+      const grec = window.grecaptcha?.enterprise;
+      if (!grec?.execute) return { token: null, error: "grecaptcha.enterprise not available on project page" };
+      await new Promise((resolve) => {
+        try {
+          grec.ready(resolve);
+        } catch {
+          resolve();
+        }
+      });
+      try {
+        const token = await Promise.race([
+          grec.execute(siteKey, { action }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("execute timeout")), 15000)),
+        ]);
+        return { token, error: null };
+      } catch (e) {
+        return { token: null, error: String(e?.message || e) };
+      }
+    },
+    { siteKey, action },
+  );
+  if (!token?.token) {
+    throw new Error(token?.error || "reCAPTCHA execute on project page returned empty token");
+  }
+  return {
+    token: String(token.token),
+    mintedOn: "project",
+    durationMs: Date.now() - started,
+    siteKeySource: detected ? "detected" : "config",
+  };
+}
+
+/**
+ * Extension-parity mint on a hidden /about tab (fallback only).
+ * @param {import('playwright').Page} projectPage
+ * @param {string} action IMAGE_GENERATION | VIDEO_GENERATION | CHAT_GENERATION | …
  */
 export async function mintCaptchaLikeExtension(projectPage, action) {
-  const siteKey = secrets.recaptchaSiteKey;
+  const siteKeyConfigured = secrets.recaptchaSiteKey;
   const context = projectPage.context();
   const about = await context.newPage();
   const started = Date.now();
   try {
     await about.goto(ABOUT_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-    // Match mainworld-bridge injectGrecaptcha + waitGrecaptcha + mintCaptcha.
     const token = await about.evaluate(
       async ({ siteKey, action }) => {
         function detectSiteKey() {
@@ -92,13 +165,14 @@ export async function mintCaptchaLikeExtension(projectPage, action) {
         }
 
         const detected = detectSiteKey();
+        // Prefer the key Flow already loaded on this page.
+        const key = detected || siteKey;
         if (!window.grecaptcha?.enterprise?.execute) {
-          injectGrecaptcha(siteKey || detected);
+          injectGrecaptcha(key);
         }
         if (!(await waitGrecaptcha(10000))) {
           return { token: null, error: "grecaptcha.enterprise not available on /about" };
         }
-        const key = siteKey || detected;
         if (!key) return { token: null, error: "site key unresolved" };
         await new Promise((resolve) => {
           try {
@@ -114,12 +188,12 @@ export async function mintCaptchaLikeExtension(projectPage, action) {
               setTimeout(() => reject(new Error("execute timeout")), 15000),
             ),
           ]);
-          return { token, error: null };
+          return { token, error: null, keySource: detected ? "detected" : "config" };
         } catch (e) {
           return { token: null, error: String(e?.message || e) };
         }
       },
-      { siteKey, action },
+      { siteKey: siteKeyConfigured, action },
     );
 
     if (!token?.token) {
@@ -129,6 +203,7 @@ export async function mintCaptchaLikeExtension(projectPage, action) {
       token: String(token.token),
       mintedOn: ABOUT_URL,
       durationMs: Date.now() - started,
+      siteKeySource: token.keySource || "unknown",
     };
   } finally {
     try {
@@ -140,41 +215,25 @@ export async function mintCaptchaLikeExtension(projectPage, action) {
 }
 
 /**
- * Prefer /about mint (extension SW path); fall back to project-page mint
- * (extension content-script path) when /about fails.
+ * Prefer project-page mint (Flow UI parity); fall back to /about injection.
  */
 export async function mintCaptchaWithFallback(projectPage, action) {
+  let projectErr;
   try {
-    return await mintCaptchaLikeExtension(projectPage, action);
-  } catch (aboutErr) {
-    const siteKey = secrets.recaptchaSiteKey;
-    const started = Date.now();
-    const token = await projectPage.evaluate(
-      async ({ siteKey, action }) => {
-        const grec = window.grecaptcha?.enterprise;
-        if (!grec?.execute) return null;
-        await new Promise((resolve) => {
-          try {
-            grec.ready(resolve);
-          } catch {
-            resolve();
-          }
-        });
-        return grec.execute(siteKey, { action });
-      },
-      { siteKey, action },
-    );
-    if (!token) {
-      throw new Error(
-        `captcha failed (about: ${aboutErr?.message || aboutErr}; project mint empty)`,
-      );
-    }
+    return await mintCaptchaOnProjectPage(projectPage, action);
+  } catch (e) {
+    projectErr = e;
+  }
+  try {
+    const about = await mintCaptchaLikeExtension(projectPage, action);
     return {
-      token: String(token),
-      mintedOn: "project-fallback",
-      durationMs: Date.now() - started,
-      aboutError: String(aboutErr?.message || aboutErr),
+      ...about,
+      projectError: String(projectErr?.message || projectErr),
     };
+  } catch (aboutErr) {
+    throw new Error(
+      `captcha failed (project: ${projectErr?.message || projectErr}; about: ${aboutErr?.message || aboutErr})`,
+    );
   }
 }
 

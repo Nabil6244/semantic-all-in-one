@@ -739,7 +739,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         }
 
         for (const item of result?.reassign || []) {
-          if (item.reason === "quota") exhaustedAccounts.add(a.id);
+          if (item.reason === "quota" || item.reason === "restricted") exhaustedAccounts.add(a.id);
           reassign.push({ ...item, fromAccountId: a.id });
         }
       }),
