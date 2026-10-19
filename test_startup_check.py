@@ -41,6 +41,28 @@ class StartupCheck(unittest.TestCase):
         self.assertTrue(any("no_such_module_xyz" in f for f in data["failures"]))
         self.assertTrue(any(f.startswith("engine files missing") for f in data["failures"]))
 
+    def test_a_listed_file_missing_from_the_bundle_fails_the_check(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / startup_check.FILES_FILE).write_text(json.dumps(["composition_styles/hybrid_beats_prompt_graphics.txt"]), encoding="utf-8")
+            orig = startup_check.bundle_root
+            startup_check.bundle_root = lambda: root
+            try:
+                startup_check.run(str(root / "r.json"), ffmpeg=lambda: None)
+            finally:
+                startup_check.bundle_root = orig
+            data = json.loads((root / "r.json").read_text(encoding="utf-8"))
+        self.assertTrue(any("hybrid_beats_prompt_graphics.txt" in f and f.startswith("files missing") for f in data["failures"]), data["failures"])
+
+    def test_the_spec_ships_every_prompt_text_in_composition_styles(self):
+        import fnmatch
+
+        spec = (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8")
+        globs = [g for g in ("*_prompt.txt", "*_prompt_*.txt") if f'glob("{g}")' in spec]
+        for f in (ROOT / "composition_styles").glob("*.txt"):
+            self.assertTrue(any(fnmatch.fnmatch(f.name, g) for g in globs), f"{f.name} is not shipped by VideoGenerator.spec")
+        self.assertIn('"startup_check_files.json"', spec)
+
     def test_every_engine_file_the_check_expects_exists_in_the_source_tree(self):
         for rel in startup_check.ENGINE_FILES:
             self.assertTrue((ROOT / rel).is_file(), rel)

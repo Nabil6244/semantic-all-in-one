@@ -115,7 +115,7 @@ class Opening(unittest.TestCase):
             self.assertEqual(layers[0]["start"], start)
 
 
-class Mux(unittest.TestCase):
+class _WithFfmpeg(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.ff = str(ROOT / "bin" / ("ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"))
@@ -124,6 +124,8 @@ class Mux(unittest.TestCase):
         if not cls.ff:
             raise unittest.SkipTest("ffmpeg not available")
 
+
+class Mux(_WithFfmpeg):
     def test_the_picture_is_copied_and_the_sound_added(self):
         from whatif.app_integration import mux_narration
 
@@ -165,7 +167,7 @@ class Wiring(unittest.TestCase):
         self.assertTrue(any(s.endswith(str(Path("tools") / "overlap_audit.mjs")) for s, _d in data_files(ROOT)))
 
 
-class LowResClips(Mux):
+class LowResClips(_WithFfmpeg):
     """Render 024's Flow clips were 640x360 in a 1080p video: the compiler marks them so the cutter enlarges them with Lanczos + unsharp."""
 
     def _clip(self, w, h):
@@ -194,6 +196,32 @@ class LowResClips(Mux):
         fake2 = types.SimpleNamespace(_default_video_profile=lambda: {"model": "abra", "resolution": "720p"}, _append_log=lines.append)
         app.VideoGeneratorApp._note_low_res_flow_video(fake2)
         self.assertEqual(len(lines), 1)
+
+
+class EmptyClips(_WithFfmpeg):
+    """Render 024, 1:51-2:00: a NASA clip that was black from start to end showed 8.8 s of black under its text."""
+
+    def _clip(self, vf):
+        d = Path(tempfile.mkdtemp())
+        f = d / "c.mp4"
+        subprocess.run([self.ff, "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=640x360:r=30:d=3", "-vf", vf, "-pix_fmt", "yuv420p", str(f)], check=True)
+        return str(f)
+
+    def test_a_black_clip_is_empty_and_a_dark_star_field_is_not(self):
+        self.assertTrue(wc._empty_clip(self._clip("null")))
+        stars = ",".join(f"drawbox=x={(i * 97) % 620}:y={(i * 53) % 340}:w=3:h=3:color=white:t=fill" for i in range(40))
+        self.assertFalse(wc._empty_clip(self._clip(stars)))
+        self.assertFalse(wc._empty_clip("/no/such/clip.mp4"))
+
+    def test_the_compiler_gives_a_black_clip_its_fallback(self):
+        from whatif.planner import Shot, ShotPlan
+
+        black = self._clip("null")
+        shot = Shot(id="s1", start=0.0, end=4.0, kind="video", text="The launch at dawn.", file=black, asset="nasa_video:launch")
+        plan = ShotPlan(shots=[shot], layers=[], duration=4.0, title="t")
+        spec = wc.compile_spec(plan, media_dir=None)
+        self.assertNotEqual(spec["shots"][0]["kind"], "video")
+        self.assertTrue(any("black from start to end" in n for n in spec["whatif"]["notes"]), spec["whatif"]["notes"])
 
 
 if __name__ == "__main__":

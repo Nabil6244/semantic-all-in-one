@@ -24,6 +24,37 @@ from .api_backend import NasaCandidate, NasaMediaBackend
 from .test_pattern import is_test_pattern
 
 DEFAULT_CLIP_DURATION = 3.5
+# A window that is black from start to end (a launch video's dark middle gave What If render 024 a black 8.8 s shot) is cut again from
+# these other points of the same video before the next search result is tried.
+RETRY_POINTS = (0.25, 0.75, 0.10)
+BLANK_EDGE = 0.05            # edge density no sampled frame of a blank cut reaches (dark space footage sits at 0.3+)
+
+
+def is_blank_clip(path: Path) -> bool:
+    """True when no frame (2 a second) of the cut shows any edge: black or an even fade, nothing to see. Unknown = False."""
+    import re
+    import subprocess
+
+    try:
+        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-an", "-vf",
+                            "fps=2,scale=320:-2,format=gray,edgedetect=low=0.08:high=0.2,signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+                            "-f", "null", "-"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    except Exception:
+        return False
+    vals = [float(v) for v in re.findall(r"lavfi\.signalstats\.YAVG=([0-9.]+)", (r.stderr or "") + (r.stdout or ""))]
+    return bool(vals) and max(vals) < BLANK_EDGE
+
+
+def clip_windows(duration, clip_duration: float) -> list:
+    """(start, length) windows to cut, the usual one first, then RETRY_POINTS (those that overlap one before are left out)."""
+    first = compute_clip_window(compute_fallback_timestamp(duration, clip_duration), duration, clip_duration)
+    out = [first]
+    if duration and duration > clip_duration * 2:
+        for k in RETRY_POINTS:
+            w = compute_clip_window(duration * k, duration, clip_duration)
+            if all(abs(w[0] - o[0]) >= clip_duration for o in out):
+                out.append(w)
+    return out
 
 
 class NasaProvider(AssetProvider):
@@ -135,21 +166,33 @@ class NasaProvider(AssetProvider):
                 )
             log(f"[NASA] Candidate {idx} -> \"{candidate.title}\" ({candidate.nasa_id})")
             duration = candidate.duration or probe_duration(candidate.download_url)
-            target = compute_fallback_timestamp(duration, self.clip_duration)
-            start, clip_len = compute_clip_window(target, duration, self.clip_duration)
             n = int(str(scene.scene_number).strip())
             target_path = Path(images_dir) / f"{n:03d}.mp4"
-            try:
-                path = download_clip(
-                    candidate.download_url,
-                    target_path,
-                    start,
-                    clip_len,
-                    log=log,
-                    should_stop=lambda: self._scene_stopped(scene),
-                )
-            except Exception as exc:
-                last_error = str(exc)
+            path = None
+            for start, clip_len in clip_windows(duration, self.clip_duration):
+                if self._scene_stopped(scene):
+                    break
+                try:
+                    path = download_clip(
+                        candidate.download_url,
+                        target_path,
+                        start,
+                        clip_len,
+                        log=log,
+                        should_stop=lambda: self._scene_stopped(scene),
+                    )
+                except Exception as exc:
+                    last_error = str(exc)
+                    path = None
+                    break
+                if sniff_media_kind(path) == "video" and is_blank_clip(path):
+                    log(f"[NASA] Candidate {idx} is black at {start:.0f}s; cutting another part of the same video")
+                    path.unlink(missing_ok=True)
+                    last_error = "The cut is black from start to end"
+                    path = None
+                    continue
+                break
+            if path is None:
                 continue
             if sniff_media_kind(path) != "video":
                 path.unlink(missing_ok=True)

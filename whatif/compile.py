@@ -176,6 +176,43 @@ def _browser_safe(src: Path, dest: Path, notes: List[str]) -> bool:
         return False
 
 
+EMPTY_EDGE = 0.05            # edge density (0-255 scale, edgedetect mean) no sampled frame of an empty clip reaches; dark space footage sits at 0.3+
+_empty_cache: Dict[tuple, bool] = {}
+
+
+def _empty_clip(path: str) -> bool:
+    """A clip with nothing in it: none of its keyframes shows any edge. Render 024's NASA clip (1:51-2:00) was the black middle of
+    a launch video, so the shot showed 8.8 s of black under its text. Star fields, night skies and dark footage all have edges and pass;
+    a clip that cannot be read is left to the renderer (False)."""
+    p = Path(path)
+    try:
+        st = p.stat()
+    except OSError:
+        return False
+    key = (str(p.resolve()), st.st_size, st.st_mtime)
+    if key in _empty_cache:
+        return _empty_cache[key]
+    empty = False
+    try:
+        from map_scene.render import _ffmpeg
+
+        try:
+            from providers.hidden_subprocess import run as _run
+        except Exception:                    # noqa: BLE001
+            import subprocess
+
+            _run = subprocess.run
+        r = _run([_ffmpeg(), "-hide_banner", "-nostats", "-skip_frame", "nokey", "-i", str(p), "-an", "-vf",     # keyframes only: fast
+                  "scale=320:-2,format=gray,edgedetect=low=0.08:high=0.2,signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+                  "-f", "null", "-"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+        vals = [float(m) for m in re.findall(r"lavfi\.signalstats\.YAVG=([0-9.]+)", (r.stderr or "") + (r.stdout or ""))]
+        empty = bool(vals) and max(vals) < EMPTY_EDGE
+    except Exception:                        # noqa: BLE001 -- unknown: the clip is used as before
+        empty = False
+    _empty_cache[key] = empty
+    return empty
+
+
 def _openable(path: str) -> bool:
     """A still the renderer can be given at all (a broken or unknown file: its shot takes its fallback, never a stall)."""
     p = Path(path)
@@ -401,6 +438,9 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
             s.file = ""
         elif s.kind in ("image", "video") and s.file and not _openable(s.file):
             notes.append(f"shot {s.id}: its picture {Path(s.file).name} cannot be opened (broken or unknown format); its fallback is shown")
+            s.file = ""
+        elif s.kind == "video" and s.file and Path(s.file).suffix.lower() not in _STILL_EXT and _empty_clip(s.file):
+            notes.append(f"shot {s.id}: its clip {Path(s.file).name} is black from start to end (nothing to see); its fallback is shown instead")
             s.file = ""
         if s.kind in ("image", "video") and s.file:
             key = str(Path(s.file).resolve())

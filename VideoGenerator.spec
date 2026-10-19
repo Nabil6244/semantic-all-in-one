@@ -234,6 +234,8 @@ if _COMPOSITION_STYLES_DIR.is_dir():
     # "Copy the CSV prompt" text (app_csv_prompts.py).
     for f in sorted(_COMPOSITION_STYLES_DIR.glob("*_prompt.txt")):
         datas.append((str(f), "composition_styles"))
+    for f in sorted(_COMPOSITION_STYLES_DIR.glob("*_prompt_*.txt")):    # the "Copy graphics prompt" texts (hybrid_beats_prompt_graphics.txt, pakmap_csv_prompt_graphics.txt): missing from every build until 2026-10-19
+        datas.append((str(f), "composition_styles"))
 else:
     raise SystemExit(
         f"Missing {_COMPOSITION_STYLES_DIR} — Overscaled/Exp Solar style "
@@ -570,6 +572,10 @@ _check_list = Path(globals().get("workpath", str(ROOT / "build"))) / "startup_ch
 _check_list.parent.mkdir(parents=True, exist_ok=True)
 _check_list.write_text(json.dumps(sorted({m for m in list(a.hiddenimports) + ["startup_check"] if _own_module(m)})), encoding="utf-8")
 a.datas += [("startup_check_modules.json", str(_check_list), "DATA")]
+# ... and the runtime-read files it must find in the bundle (every prompt text in composition_styles/: two were missing from builds)
+_check_files = Path(globals().get("workpath", str(ROOT / "build"))) / "startup_check_files.json"
+_check_files.write_text(json.dumps(sorted(f"composition_styles/{_p.name}" for _p in (ROOT / "composition_styles").glob("*.txt"))), encoding="utf-8")
+a.datas += [("startup_check_files.json", str(_check_files), "DATA")]
 
 pyz = PYZ(a.pure)
 

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 MODULES_FILE = "startup_check_modules.json"
+FILES_FILE = "startup_check_files.json"      # runtime-read files the spec says must be in the bundle (relative to it)
 # third-party packages every build needs (native extensions included); their optional submodules are not checked
 CORE_PACKAGES = ("customtkinter", "PIL.Image", "av", "numpy", "faster_whisper", "ctranslate2", "requests", "websockets", "yt_dlp", "sounddevice")
 ENGINE_FILES = ("pakmap-engine/render.mjs", "starmap-engine/render.mjs", "map-engine/render.mjs", "whatif-engine/render.mjs",
@@ -116,6 +117,15 @@ def run(report_path: str, ffmpeg: Optional[Callable[[], Optional[Path]]] = None)
     except Exception as exc:
         failures.append(f"bundled SFX: {exc}")
 
+    listed_files: List[str] = []
+    if (root / FILES_FILE).is_file():
+        listed_files = [str(x) for x in json.loads((root / FILES_FILE).read_text(encoding="utf-8"))]
+    elif getattr(sys, "frozen", False):
+        failures.append(f"{FILES_FILE} is missing from the bundle")
+    lost = [x for x in listed_files if not (root / x).is_file()]
+    checks["files_checked"] = len(listed_files)
+    if lost:
+        failures.append("files missing from the bundle: " + ", ".join(lost))
     missing = [p for p in ENGINE_FILES if not (root / p).is_file()]
     if missing:
         failures.append("engine files missing: " + ", ".join(missing))
