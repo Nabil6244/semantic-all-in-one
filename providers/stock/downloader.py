@@ -123,7 +123,7 @@ def download_first_seconds(
     DownloadCancelled when the scene is stopped, IOError past `max_bytes`, RuntimeError when ffmpeg fails.
     """
     from providers import hidden_subprocess
-    from providers.media_clip.ffmpeg_clip import _ffmpeg
+    from providers.media_clip.ffmpeg_clip import _ffmpeg, _tls_opts
 
     n = int(str(scene_number).strip())
     target = Path(images_dir) / f"{n:03d}.mp4"
@@ -132,6 +132,10 @@ def download_first_seconds(
     cmd = [
         _ffmpeg(), "-hide_banner", "-loglevel", "error", "-nostdin",
         "-rw_timeout", "60000000",   # 60 s without data = a stalled connection
+        # the bundled ffmpeg has no certificate store: without this every https stock clip failed here with
+        # "certificate verify failed" (projects #021-#023, 2026-10-19). https only: ffmpeg rejects -ca_file for a plain
+        # http server that does not redirect ("Option ca_file not found").
+        *(_tls_opts(candidate.url) if str(candidate.url).lower().startswith("https://") else []),
         "-i", candidate.url, "-t", f"{float(seconds):.3f}",
         "-map", "0:v:0", "-map", "0:a?", "-dn", "-c", "copy", "-movflags", "+faststart", "-y", str(tmp),
     ]
