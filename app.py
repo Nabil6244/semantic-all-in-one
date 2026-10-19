@@ -877,6 +877,40 @@ class VideoGeneratorApp(ctk.CTk):
     _view_about = _lazy_view("about")
     _view_graphics = _lazy_view("graphics")
 
+    # Worker threads (every style's progress_cb, log and finish) call self.after(...). Tk only accepts that while the main thread
+    # is inside mainloop; when a main-thread step runs longer than ~1 s (building a page on a slow Windows machine) the worker gets
+    # RuntimeError('main thread is not in main loop') and the run fails ("Unexpected error"). A call from another thread is queued
+    # here instead and scheduled by the main thread a few milliseconds later; calls from the main thread are unchanged.
+    _THREAD_AFTER_PUMP_MS = 15
+
+    def after(self, ms, func=None, *args):
+        if func is not None and threading.current_thread() is not threading.main_thread():
+            q = self.__dict__.get("_thread_after_queue")
+            if q is None:
+                q = self.__dict__.setdefault("_thread_after_queue", queue.SimpleQueue())
+            q.put((ms, func, args))
+            return ""
+        if func is not None and not self.__dict__.get("_thread_after_pumping"):
+            self.__dict__.setdefault("_thread_after_queue", queue.SimpleQueue())
+            self._thread_after_pumping = True
+            super().after(self._THREAD_AFTER_PUMP_MS, self._pump_thread_after)
+        return super().after(ms, func, *args)
+
+    def _pump_thread_after(self) -> None:
+        q = self.__dict__.get("_thread_after_queue")
+        try:
+            while q is not None:
+                ms, func, args = q.get_nowait()
+                super().after(ms, func, *args)
+        except queue.Empty:
+            pass
+        except tk.TclError:
+            return   # the window is gone
+        try:
+            super().after(self._THREAD_AFTER_PUMP_MS, self._pump_thread_after)
+        except tk.TclError:
+            pass
+
     def __init__(self) -> None:
         super().__init__()
         self.title("Semantic YT Studio")
@@ -7081,7 +7115,8 @@ class VideoGeneratorApp(ctk.CTk):
                 job.output_path, job.fraction = str(output_path), 1.0
                 if job.style != "normal":
                     self._last_output = str(output_path)
-                    self.after(0, lambda: self._goto_workflow_view("render"))
+                    # only while this job is still the latest: a run started before this fires (a quick Generate again) keeps its page
+                    self.after(0, lambda: self._goto_workflow_view("render") if getattr(self, "_export_job", None) is job else None)
             elif outcome == "failed":
                 job.problem = next((l.strip() for l in str(message or "").splitlines() if l.strip()), "")[:160]
         except Exception:

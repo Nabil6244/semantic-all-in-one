@@ -96,6 +96,8 @@ class SidebarFitsSmallestWindow(unittest.TestCase):
                 inst.geometry("1100x700+20+20")
                 for _ in range(5):
                     inst.update()
+                if inst.winfo_height() < 700:   # a small CI screen clamps the window: this check is about a real 1100x700 window
+                    self.skipTest(f"the screen ({inst.winfo_screenwidth()}x{inst.winfo_screenheight()}) gave a {inst.winfo_width()}x{inst.winfo_height()} window")
                 side = inst._shell.sidebar
                 bottom = side.winfo_rooty() + side.winfo_height()
                 last = inst._shell._nav_btns["about"]

@@ -131,10 +131,11 @@ jobs:
         if: ${{ matrix.run_tests }}
         # A normal run takes ~5-10 min. Fail (with the log kept) instead of GitHub's 6-hour default if something hangs.
         timeout-minutes: 40
-        env:
-          PATH: ${{ github.workspace }}/bin:${{ env.PATH }}
-        # Same tests as unittest discover, one process per module in parallel.
-        run: python scripts/run_tests_parallel.py
+        # Same tests as unittest discover, one process per module in parallel. The bundled ffmpeg goes first on the runner's own
+        # PATH (an env: PATH built from ${{ env.PATH }} was only bin/: the env context has no PATH, so git and node were missing).
+        run: |
+          export PATH="$GITHUB_WORKSPACE/bin:$PATH"
+          python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
         # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.

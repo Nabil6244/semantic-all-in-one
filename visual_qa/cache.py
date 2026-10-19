@@ -115,6 +115,7 @@ def save_cache(images_dir: Path, cache: dict) -> None:
             # An explicit save replaces the file wholesale, exactly as before.
             st.data = json.loads(json.dumps(cache))
             st.dirty.clear()
+            st.mine.clear()
             st.sig = _disk_sig(path)
             st.last_flush = time.monotonic()
 
@@ -137,13 +138,16 @@ _LOCK = threading.RLock()
 
 
 class _FileState:
-    __slots__ = ("path", "data", "sig", "dirty", "last_flush", "timer")
+    __slots__ = ("path", "data", "sig", "dirty", "mine", "last_flush", "timer")
 
     def __init__(self, path: Path) -> None:
         self.path = path
         self.data: dict = {}
         self.sig = False  # never synced
         self.dirty: dict = {}
+        # every entry this process stored (written or not): another process that read the file before our last write
+        # and wrote after it would otherwise drop them from the file, and our next sync from our view (Windows CI: 97 of 100)
+        self.mine: dict = {}
         self.last_flush = float("-inf")
         self.timer: Optional[threading.Timer] = None
 
@@ -208,12 +212,14 @@ def _sync(st: _FileState) -> None:
     if cur is None:
         if st.sig not in (False, None):
             st.dirty.clear()  # file deleted since we last saw it
+            st.mine.clear()
         data = {}
     else:
         data = _read_existing(st.path)
         if data is None:
             return  # still locked: keep our view and try again next time
     st.data = data
+    st.data.update(st.mine)
     st.data.update(st.dirty)
     st.sig = cur
 
@@ -301,6 +307,7 @@ def store_cached(
         _sync(st)
         st.data[fp] = entry
         st.dirty[fp] = entry
+        st.mine[fp] = entry
         wait = st.last_flush + FLUSH_INTERVAL_S - time.monotonic()
         if wait <= 0:
             _flush_state(st)

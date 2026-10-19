@@ -145,7 +145,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent
 NODE_PROBE = r"""
 import fs from 'fs';
-import {createCamera, lonLatToWorld} from '%s/pakmap-engine/lib/camera.mjs';
+import {createCamera, lonLatToWorld} from '%s';
 const j = JSON.parse(fs.readFileSync(process.argv[2]));
 const cam = createCamera({camera: j.camera, width: j.w, height: j.h, duration: j.duration});
 const out = [];
@@ -156,7 +156,7 @@ for (const t of j.times) {
   out.push([x0, y0, x1, y1]);
 }
 console.log(JSON.stringify(out));
-""" % ROOT
+""" % (ROOT / "pakmap-engine" / "lib" / "camera.mjs").as_uri()   # a file:// URL: Node rejects a bare D:\ path in an import on Windows
 
 
 @unittest.skipUnless(shutil.which("node"), "node not available")
@@ -189,6 +189,15 @@ NARR = ("The hurricane is approaching Houston tonight and the sky is dark. Crews
 
 
 class TestInCompile(unittest.TestCase):
+    def setUp(self):
+        # Houston's outline from a fake OpenStreetMap answer (test_place_focus's fixture), not the network or this machine's cache:
+        # a CI runner has neither, and the city then (correctly) gets no outline
+        from test_place_focus import FakeNominatim, item, store
+        st, _ = store(FakeNominatim({"Houston": [item()]}), tempfile.mkdtemp())
+        orig = PF.focus_events
+        self.addCleanup(setattr, PF, "focus_events", orig)
+        PF.focus_events = lambda *a, **k: orig(*a, **{**k, "store": k.get("store") or st})
+
     def run_compile(self, csv, on=True):
         import tempfile
         d = tempfile.mkdtemp()
