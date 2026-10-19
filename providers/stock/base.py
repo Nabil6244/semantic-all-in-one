@@ -9,6 +9,7 @@ matter how many backends are configured.
 from __future__ import annotations
 
 import dataclasses
+import re
 from pathlib import Path
 from typing import List, Optional, Set
 
@@ -27,6 +28,13 @@ from . import downloader as _dl
 from .downloader import MAX_BYTES, UHD_MAX_BYTES, DownloadCancelled, download_candidate, download_first_seconds
 from .query import build_queries
 from .ranking import filter_candidates, rank_candidates
+
+_URL_SECRET = re.compile(r"((?:[?&]|\b)(?:key|api_key|apikey|access_token|token|client_secret)=)[^&\s'\"]+", re.IGNORECASE)
+
+
+def redact_url_secrets(text: str) -> str:
+    """An error text with every key/token URL parameter value hidden: a backend error can quote its request URL, and the log is a file."""
+    return _URL_SECRET.sub(r"\1REDACTED", text or "")
 
 
 @dataclasses.dataclass
@@ -101,7 +109,7 @@ class StockProvider(AssetProvider):
             try:
                 results = backend.search(query, media_type=media_type)
             except Exception as exc:
-                log(f"[STOCK] {backend.name} search failed for \"{query}\": {exc}")
+                log(f"[STOCK] {backend.name} search failed for \"{query}\": {redact_url_secrets(str(exc))}")
                 results = []
             self.cache.set_search(backend.name, query, results, media_type)
             candidates.extend(results)

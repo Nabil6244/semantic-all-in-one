@@ -15,6 +15,17 @@ from .base import Candidate, StockBackend
 IMAGE_SEARCH_URL = "https://pixabay.com/api/"
 VIDEO_SEARCH_URL = "https://pixabay.com/api/videos/"
 TIMEOUT = 15
+MAX_QUERY_CHARS = 100   # Pixabay answers 400 Bad Request to a longer `q`
+
+
+def fit_query(query: str) -> str:
+    """The search words cut to Pixabay's limit at a word boundary (a long prompt-like query failed every search, #016)."""
+    q = " ".join((query or "").split())
+    if len(q) <= MAX_QUERY_CHARS:
+        return q
+    head = q[:MAX_QUERY_CHARS + 1]
+    cut = head.rsplit(" ", 1)[0] if " " in head else ""
+    return cut or q[:MAX_QUERY_CHARS]
 
 
 class PixabayBackend(StockBackend):
@@ -27,6 +38,7 @@ class PixabayBackend(StockBackend):
         self._session = requests.Session()
 
     def search(self, query: str, media_type: str = "all", per_page: int = 15) -> List[Candidate]:
+        query = fit_query(query)
         candidates: List[Candidate] = []
         if media_type in ("all", "image"):
             candidates.extend(self._search_images(query, per_page))
@@ -135,4 +147,7 @@ class PixabayBackend(StockBackend):
             raise RuntimeError("Pixabay rejected the API key (401 Unauthorized).")
         if resp.status_code == 429:
             raise RuntimeError("Pixabay rate limit reached (429) — try again later.")
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            # requests' own message carries the request URL, and Pixabay takes the API key in the URL: it ended up in project logs.
+            reason = f"{resp.status_code} {resp.reason or ''}".strip()
+            raise RuntimeError(f"Pixabay refused the search ({reason})")
