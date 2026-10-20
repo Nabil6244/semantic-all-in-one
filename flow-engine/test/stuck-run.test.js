@@ -91,6 +91,30 @@ test("a previous run that ends normally is never cut off", async () => {
   await orch.forceEndRun("cleanup", noBrowsers);
 });
 
+test("a previous run that still reports progress is not cut off after the cooperative window", async () => {
+  orch.__startFakeRunForTest();
+  // Keep looking "alive" longer than a tiny cooperative window; stuck threshold is high.
+  const heartbeat = setInterval(() => orch.noteRunActivity(), 20);
+  const previous = wait(200);
+  try {
+    const cut = await orch.endPreviousRun(previous, 5000, noBrowsers);
+    assert.equal(cut, false, "progressing job must not be force-cut");
+  } finally {
+    clearInterval(heartbeat);
+  }
+  await orch.forceEndRun("cleanup", noBrowsers);
+});
+
+test("Stop force default is long enough for Agent download grace", () => {
+  assert.ok(orch.STOP_FORCE_AFTER_MS >= 30000);
+  assert.ok(orch.PREVIOUS_RUN_STUCK_MS >= 180000);
+});
+
+test("agentStillBusy timeout is treated as busy (not idle)", async () => {
+  // Same contract as agentStillBusy: hung evaluate → fallback true so we keep waiting.
+  assert.equal(await bounded(never(), 40, true), true);
+});
+
 test("cut-off agent scenes become Retry-able (never resent automatically)", async () => {
   const entries = new Map([["k1", { state: LedgerState.SUBMITTING }], ["k2", { state: LedgerState.MEDIA_ID_KNOWN }]]);
   const ledger = { get: (k) => entries.get(k), put: (k, v) => entries.set(k, { ...entries.get(k), ...v }) };

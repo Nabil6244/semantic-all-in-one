@@ -46,13 +46,40 @@ let runSeq = 0;
 /** GENERATE_DONE of the live run, so a forced end can still close it for the app. */
 let liveDonePayload = null;
 let stopTimer = null;
-/** After Stop, a run that has not ended by itself is cut off this long later. */
-export const STOP_FORCE_AFTER_MS = 5000;
-/** A new GENERATE waits this long for the previous run to end after asking it to stop, then cuts it off. */
-export const PREVIOUS_RUN_GRACE_MS = 20000;
+/**
+ * After Stop, a run that has not ended by itself is cut off this long later.
+ * 30s matches agent.stopGraceMs so finished Agent tiles can still download.
+ */
+export const STOP_FORCE_AFTER_MS = 30000;
+/**
+ * After asking a previous run to stop, wait at least this long for a cooperative
+ * wind-down (Agent download grace) before considering a force-cut.
+ */
+export const PREVIOUS_RUN_COOPERATIVE_MS = 30000;
+/**
+ * A new GENERATE only force-cuts the previous run when it has shown no progress
+ * for this long (slow healthy jobs keep ticking BATCH_PROGRESS / downloads).
+ * Frozen tabs stop reporting activity and get cut; 20s-of-wall-clock alone was
+ * cutting healthy slow Agent batches.
+ */
+export const PREVIOUS_RUN_STUCK_MS = 180000;
+/** @deprecated use PREVIOUS_RUN_STUCK_MS — kept so older tests/imports still resolve. */
+export const PREVIOUS_RUN_GRACE_MS = PREVIOUS_RUN_STUCK_MS;
 const accountProgress = new Map();
 /** Throttle full STATE broadcasts during high-frequency BATCH_PROGRESS. */
 let lastProgressStateAt = 0;
+/** Last time the live run reported real work (progress / download / status). */
+let lastRunActivityAt = 0;
+
+/** Mark that the live run is still making progress (used by endPreviousRun). */
+export function noteRunActivity(at = Date.now()) {
+  lastRunActivityAt = Math.max(lastRunActivityAt, Number(at) || Date.now());
+}
+
+/** Test hook. */
+export function __lastRunActivityAtForTest() {
+  return lastRunActivityAt;
+}
 
 /** True when preparation failed because the Google session is gone (not a transient SPA glitch). */
 export function isSignedOutPrepareError(err) {
@@ -433,17 +460,31 @@ export function routeToOwners(workers, slices, selected, ownerOf) {
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Wait for the previous run; ask it to stop, and cut it off if it has not ended `graceMs` later. */
-export async function endPreviousRun(previous, graceMs = PREVIOUS_RUN_GRACE_MS, deps = {}) {
+/**
+ * Wait for the previous run; ask it to stop. Give it a short cooperative window,
+ * then force-cut only if it has shown no progress for `stuckMs` (default 3 min).
+ * A slow but healthy job keeps reporting activity and is never cut for wall-clock alone.
+ * `stuckMs` may be a small number in tests (cooperative wait shrinks to match).
+ */
+export async function endPreviousRun(previous, stuckMs = PREVIOUS_RUN_STUCK_MS, deps = {}) {
+  const stuck = Math.max(1, Number(stuckMs) || PREVIOUS_RUN_STUCK_MS);
+  const cooperativeMs = Math.min(PREVIOUS_RUN_COOPERATIVE_MS, stuck);
   let ended = false;
   const done = previous.then(() => { ended = true; }, () => { ended = true; });
   await Promise.race([done, delay(0)]);
   if (ended) return false;
   stopAll = true;
-  await Promise.race([done, delay(graceMs)]);
+  await Promise.race([done, delay(cooperativeMs)]);
   if (ended) return false;
-  await forceEndRun("a new Generate was started and the previous run did not stop", deps);
-  return true;
+  while (!ended) {
+    const idleFor = Date.now() - (lastRunActivityAt || 0);
+    if (idleFor >= stuck) {
+      await forceEndRun("a new Generate was started and the previous run looked stuck (no progress)", deps);
+      return true;
+    }
+    await Promise.race([done, delay(Math.min(500, stuck))]);
+  }
+  return false;
 }
 
 /**
@@ -492,6 +533,7 @@ export function __startFakeRunForTest(donePayload = { type: "GENERATE_DONE", out
   running = true;
   const mySeq = ++runSeq;
   liveDonePayload = donePayload;
+  noteRunActivity();
   return { stopped: () => stopAll || mySeq !== runSeq, isCurrent: () => mySeq === runSeq };
 }
 
@@ -539,6 +581,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   running = true;
   const mySeq = ++runSeq;
   liveDonePayload = donePayload;
+  noteRunActivity();
   /** This run should stop: Stop was pressed, or it was cut off (a newer run may have cleared stopAll since). */
   const stopped = () => stopAll || mySeq !== runSeq;
   // One id per run: the ledger uses it to tell "the user was told in an earlier run and asked again" from "this run".
@@ -795,6 +838,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
               evt.type === "PROMPT_RESULT" ||
               evt.status === "failed" ||
               evt.status === "done";
+            noteRunActivity(now);
             if (important || now - lastProgressStateAt >= throttle) {
               lastProgressStateAt = now;
               pushState();
@@ -859,6 +903,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         accountProgress.set(a.id, { ...cur, message: evt.message || cur.message });
       }
       const now = Date.now();
+      noteRunActivity(now);
       const important = evt.type === "PROMPT_RESULT" || evt.status === "failed" || evt.status === "done";
       if (important || now - lastProgressStateAt >= (Number(timing.progressStateThrottleMs) || 250)) {
         lastProgressStateAt = now;
@@ -1070,8 +1115,8 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
 }
 
 /**
- * Stop always works: the run gets `forceAfterMs` to end by itself (finished images are saved), then it is cut off
- * (forceEndRun) however stuck it is. `force` cuts it off at once.
+ * Stop always works: the run gets `forceAfterMs` (default 30s, Agent download grace) to end by itself
+ * (finished images are saved), then it is cut off (forceEndRun) however stuck it is. `force` cuts it off at once.
  */
 export function stopGenerate({ force = false, forceAfterMs = STOP_FORCE_AFTER_MS, deps = {} } = {}) {
   stopAll = true;

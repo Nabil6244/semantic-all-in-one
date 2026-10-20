@@ -230,9 +230,11 @@ async function mediaInventory(page) {
 }
 
 async function agentStillBusy(page) {
+  // Timeout → still busy (not idle). A laggy but live tab used to fall back to
+  // false, then the wait loop could stop early after 12s of no new tiles.
   return bounded(
     page.evaluate(() => /\bThinking\b|\bGenerating\b/i.test((document.body?.innerText || "").slice(0, 20000))),
-    PAGE_CALL_TIMEOUT_MS, false);
+    PAGE_CALL_TIMEOUT_MS, true);
 }
 
 /** Bottom-bar Agent toggle (aria-pressed true when Agent mode is on). */
