@@ -200,6 +200,11 @@ export const timing = {
 export const agent = {
   maxBatch: 24,             // scenes per agent request (tested up to 24)
   maxMessageChars: 12000,   // a batch is also cut short when its scene list would make the message longer than this
+  // UI Agent paste limit. Real prompts run ~1,900 chars, so 12k held only 6-9 scenes; 50k fits 24 (an 18k paste was kept whole live). Shared
+  // sentences are carried once. A paste Flow cuts is caught and the batch is halved (flow-ui-agent.js / agent-runner.js).
+  uiMaxMessageChars: 50000,
+  uiMinBatch: 8,            // smallest UI Agent request the self-tuning batch size steps down to
+  uiGoodMatchRatio: 0.8,    // a UI Agent request matching fewer of its scenes than this makes the account's next one smaller
   batchGapMs: 20000,        // pause between two agent requests on the same account
   // Give-up point for one agent reply (after which its outcome is unknown, never resent): grows with the batch. A 13-scene
   // request under a 7-account load ran past a flat 240 s (2026-10-07). Same budget for UI Agent tile polling.
@@ -209,6 +214,7 @@ export const agent = {
   // A job with fewer NEW images than this uses the standard path (an agent request costs ~40-60 s however small).
   minScenes: 5,
   stopGraceMs: 30000,       // after Stop, images already made are still downloaded for this long
+  downloadParallel: 4,      // agent images downloaded at once per account (one at a time took ~30 s of a 24-scene batch)
   coolDownMs: 600000,       // an account Flow asked to slow down gets no new agent batch for this long
 };
 

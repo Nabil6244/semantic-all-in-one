@@ -84,6 +84,26 @@ export function splitSharedStyle(prompts, { minChars = 120, minSceneChars = 12 }
 }
 
 /**
+ * UI Agent only: like splitSharedStyle, and also lifts whole sentences that every scene repeats anywhere in its prompt (a
+ * character lock or style block in the middle, which an opening/ending split cannot see), so the message carries them once.
+ * Live 2026-10-20: ~1,900-char prompts held ~640 chars of such sentences; with each copied per scene a request fit 6-9 scenes.
+ * Returns { opening, ending, shared, texts }; texts are each scene's own words (what tiles are matched by).
+ */
+export function splitSharedForUiAgent(prompts, { minChars = 120, minSceneChars = 12 } = {}) {
+  const base = splitSharedStyle(prompts, { minChars, minSceneChars });
+  const none = { ...base, shared: "" };
+  if (base.texts.length < 2) return none;
+  const sentencesOf = (t) => t.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+  const per = base.texts.map(sentencesOf);
+  const common = per[0].filter((x, k, arr) => arr.indexOf(x) === k && per.every((list) => list.includes(x)));
+  if (common.join(" ").length < minChars) return none;
+  const drop = new Set(common);
+  const texts = per.map((list) => list.filter((x) => !drop.has(x)).join(" "));
+  if (texts.some((t) => t.length < minSceneChars)) return none;
+  return { opening: base.opening, ending: base.ending, shared: common.join(" "), texts };
+}
+
+/**
  * The message the agent gets: one line per scene with its ID, the shared style once, and the rules (one image each, the
  * text copied exactly, the image named with its scene ID). Observed live: the agent copies scene text verbatim, but Flow names
  * images itself, so the exact text is what ties an image to its scene (see mapCallsToScenes).
@@ -110,12 +130,13 @@ export function buildAgentMessage(sceneTexts, { aspect = "16:9", opening = "", e
  * Asks for still photos only (Agent otherwise may plan paid videos from motion words). Scenes stay labeled S01…
  * in order so humans can audit; tiles are matched by appearance order, not by those IDs.
  */
-export function buildUiAgentMessage(sceneTexts, { aspect = "16:9", opening = "", ending = "" } = {}) {
+export function buildUiAgentMessage(sceneTexts, { aspect = "16:9", opening = "", ending = "", shared = "" } = {}) {
   const lines = sceneTexts.map((t, i) => `${agentSceneId(i)}: ${norm(t)}`);
   return [
     `Generate exactly ${sceneTexts.length} still images (photos only, not videos), one per scene below, in this order, aspect ratio ${aspect}.`,
     "Use each scene's text exactly as written. Do not ask questions — just generate.",
     ...(opening ? [`Shared style (put at the start of every prompt): ${norm(opening)}`] : []),
+    ...(shared ? [`Shared details (add to every prompt, word for word, right after the scene text): ${norm(shared)}`] : []),
     ...(ending ? [`Shared ending (put at the end of every prompt): ${norm(ending)}`] : []),
     "",
     ...lines,
@@ -402,17 +423,58 @@ export function mapUiTilesToScenes(sceneTexts, tiles) {
       },
     ]),
   );
-  const { mapping: callMap, unmatchedScenes, extraCalls } = mapCallsToScenes(sceneTexts, calls, results);
+  const { mapping: callMap, extraCalls } = mapCallsToScenes(sceneTexts, calls, results);
   const mapping = new Map();
   for (const [sceneIndex, { call, method }] of callMap) {
     const row = list.find((r) => r.placeholderId === call.placeholderId);
     if (row) mapping.set(sceneIndex, { tile: row.tile, method, placeholderId: call.placeholderId });
   }
+  // Tiles whose prompt the agent tidied or trimmed (long batches): match by shared word pairs, only on a clear winner.
+  const free = extraCalls.map((c) => list.find((r) => r.placeholderId === c.placeholderId)).filter(Boolean);
+  for (const { sceneIndex, row, score } of wordMatches(sceneTexts, mapping, free)) {
+    mapping.set(sceneIndex, { tile: row.tile, method: "words", placeholderId: row.placeholderId, score });
+  }
+  const used = new Set([...mapping.values()].map((m) => m.placeholderId));
   return {
     mapping,
-    unmatchedScenes,
-    extraTiles: extraCalls.map((c) => list.find((r) => r.placeholderId === c.placeholderId)?.tile).filter(Boolean),
+    unmatchedScenes: sceneTexts.map((_, i) => i).filter((i) => !mapping.has(i)),
+    extraTiles: list.filter((r) => !used.has(r.placeholderId)).map((r) => r.tile),
   };
+}
+
+/** A tile's word-pair score must reach this, and beat the runner-up (either way) by UI_MATCH_MARGIN, to be accepted. */
+export const UI_MATCH_MIN = 0.6;
+export const UI_MATCH_MARGIN = 0.2;
+
+function wordPairs(text) {
+  const w = wordsOf(text).split(" ").filter(Boolean);
+  const out = new Set(w.length === 1 ? w : []);
+  for (let i = 0; i + 1 < w.length; i++) out.add(`${w[i]} ${w[i + 1]}`);
+  return out;
+}
+
+/**
+ * Pairs (open scene, free tile) where the tile carries most of the scene's word pairs and no other scene or tile comes
+ * close. Share of the SCENE's pairs found in the tile, so extra words in the tile (shared style, agent additions) cost
+ * nothing. Never a guess: an unclear tile stays unmatched.
+ */
+function wordMatches(sceneTexts, mapping, freeRows) {
+  const scenes = sceneTexts.map((t, i) => ({ i, pairs: wordPairs(t) })).filter((s) => !mapping.has(s.i) && s.pairs.size);
+  const rows = freeRows.map((row) => ({ row, pairs: wordPairs(row.prompt) })).filter((r) => r.pairs.size);
+  const score = (s, r) => { let n = 0; for (const p of s.pairs) if (r.pairs.has(p)) n++; return n / s.pairs.size; };
+  const grid = scenes.map((s) => rows.map((r) => score(s, r)));
+  const out = [];
+  scenes.forEach((s, a) => {
+    rows.forEach((r, b) => {
+      const v = grid[a][b];
+      if (v < UI_MATCH_MIN) return;
+      const otherTiles = grid[a].filter((_, k) => k !== b);
+      const otherScenes = grid.map((row) => row[b]).filter((_, k) => k !== a);
+      if (otherTiles.some((x) => x > v - UI_MATCH_MARGIN) || otherScenes.some((x) => x > v - UI_MATCH_MARGIN)) return;
+      out.push({ sceneIndex: s.i, row: r.row, score: Math.round(v * 100) / 100 });
+    });
+  });
+  return out;
 }
 
 /** The signed image URL for a media id (as29s), or null. Read-only: never generates anything. */

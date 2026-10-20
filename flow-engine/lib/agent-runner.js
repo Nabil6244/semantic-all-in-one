@@ -38,6 +38,7 @@ import {
   mapUiTilesToScenes,
   parseAgentStream,
   sendAgentMessage as realSendAgentMessage,
+  splitSharedForUiAgent,
   splitSharedStyle,
   wordsOf,
 } from "./agent-api.js";
@@ -47,7 +48,7 @@ import {
   openOrCreateProject as realOpenOrCreateProject,
   waitForFlowReady as realWaitForFlowReady,
 } from "./flow-api.js";
-import { generateAgentBatchViaUI as realGenerateAgentBatchViaUI } from "./flow-ui-agent.js";
+import { generateAgentBatchViaUI as realGenerateAgentBatchViaUI, writeUiAgentLog } from "./flow-ui-agent.js";
 import { LedgerState, defaultLedger, generationKey, scopeOf } from "./generation-ledger.js";
 import { Submission, submissionOf } from "./generation-state.js";
 import { accountDownloadDir } from "./paths.js";
@@ -142,6 +143,31 @@ export function planAgentBatches(items, {
   return batches.map((bt) => bt.items);
 }
 
+/**
+ * UI Agent request size per account, self-tuning: a request that matched too few of its scenes (or a paste Flow cut) makes
+ * that account's next request smaller; a clean one grows it back toward agent.maxBatch. Speed never beats correctness.
+ */
+const UI_BATCH_STEPS = [8, 12, 16, 24];
+const uiBatchCap = new Map();
+export function uiBatchCapFor(key) {
+  return uiBatchCap.get(key) ?? agentConfig.maxBatch;
+}
+export function noteUiBatchResult(key, { size, matched }) {
+  const cap = uiBatchCapFor(key);
+  const ratio = size ? matched / size : 1;
+  const steps = UI_BATCH_STEPS.filter((n) => n >= agentConfig.uiMinBatch && n <= agentConfig.maxBatch);
+  if (ratio < agentConfig.uiGoodMatchRatio) {
+    const down = [...steps].reverse().find((n) => n < Math.min(cap, size));
+    uiBatchCap.set(key, down ?? agentConfig.uiMinBatch);
+  } else if (ratio >= 0.95 && size >= cap) {
+    uiBatchCap.set(key, steps.find((n) => n > cap) ?? agentConfig.maxBatch);
+  }
+  return uiBatchCapFor(key);
+}
+export function resetUiBatchCaps() {
+  uiBatchCap.clear();
+}
+
 export async function runAgentSlice(params) {
   const {
     page, prompts, promptIndices, promptKeys, totalAbsolute, settings, folderLabel, shouldStop, onProgress,
@@ -233,10 +259,16 @@ export async function runAgentSlice(params) {
     emit("status", { message: `${toGenerate.length} scene(s): using the standard Flow path (quicker than an agent request)` });
     fallback.push(...toGenerate.splice(0));
   }
-  const style = splitSharedStyle(toGenerate.map((it) => it.prompt));
+  // UI Agent: shared sentences anywhere in the prompt are carried once, so 20-24 long scenes fit one paste.
+  const style = useUiAgent ? splitSharedForUiAgent(toGenerate.map((it) => it.prompt)) : splitSharedStyle(toGenerate.map((it) => it.prompt));
   toGenerate.forEach((it, j) => { it.text = style.texts[j]; });
-  const styleChars = style.opening.length + style.ending.length;
-  const batches = planAgentBatches(toGenerate, { lenOf: (it) => it.text.length, textOf: (it) => it.text, maxChars: Math.max(2000, agentConfig.maxMessageChars - styleChars) });
+  const styleChars = style.opening.length + style.ending.length + (style.shared || "").length;
+  const capKey = owner || label;
+  const maxMessageChars = useUiAgent ? agentConfig.uiMaxMessageChars : agentConfig.maxMessageChars;
+  const batches = planAgentBatches(toGenerate, {
+    maxBatch: useUiAgent ? uiBatchCapFor(capKey) : agentConfig.maxBatch,
+    lenOf: (it) => it.text.length, textOf: (it) => it.text, maxChars: Math.max(2000, maxMessageChars - styleChars),
+  });
   let coolDown = null;      // set when Flow says this account must rest: the rest of its scenes go to other accounts
   const rest = (its, reason) => {
     for (const it of its) {
@@ -273,7 +305,7 @@ export async function runAgentSlice(params) {
           fallback.push(it);
         }
       };
-      const styleOpts = { aspect: expectedAspect, opening: style.opening, ending: style.ending };
+      const styleOpts = { aspect: expectedAspect, opening: style.opening, ending: style.ending, shared: style.shared || "" };
       const replyTimeoutMs = Number(standardSettings.agentReplyTimeoutMs) || agentReplyTimeoutMs(batch.length);
 
       if (useUiAgent) {
@@ -292,6 +324,15 @@ export async function runAgentSlice(params) {
           });
         } catch (err) {
           const sub = submissionOf(err);
+          if (sub === Submission.NOT_SUBMITTED && err?.pasteTruncated && batch.length > 1) {
+            // Flow cut the paste; nothing was sent. Send the same scenes as two smaller requests on this account.
+            for (const it of batch) ledger.put(it.key, { state: LedgerState.FAILED_BEFORE_SUBMISSION, error: String(err.message) });
+            const half = Math.ceil(batch.length / 2);
+            batches.splice(b + 1, 0, batch.slice(0, half), batch.slice(half));
+            uiBatchCap.set(capKey, Math.max(agentConfig.uiMinBatch, half));
+            emit("status", { message: `${err.message}: sending ${batch.length} scenes as two requests of ${half} and ${batch.length - half}` });
+            return;
+          }
           if (sub === Submission.NOT_SUBMITTED) return notCreated(batch, LedgerState.FAILED_BEFORE_SUBMISSION, String(err?.message || err));
           if (sub === Submission.REJECTED) return notCreated(batch, LedgerState.REJECTED, String(err?.message || err));
           for (const it of batch) {
@@ -311,29 +352,33 @@ export async function runAgentSlice(params) {
         }
         // Match by Reuse-prompt text only — never gallery order (wrong live 2026-10-20).
         const { mapping, extraTiles } = mapUiTilesToScenes(batch.map((it) => it.text), images);
+        const methods = {};
+        for (const m of mapping.values()) methods[m.method] = (methods[m.method] || 0) + 1;
+        const sharedWords = wordsOf(style.shared || "");
+        const nextCap = noteUiBatchResult(capKey, { size: batch.length, matched: mapping.size });
+        writeUiAgentLog(outDir, {
+          ts: new Date().toISOString(), stage: "mapping", expectedCount: batch.length, tiles: images.length, matched: mapping.size,
+          methods, extraTiles: extraTiles.length, nextBatchCap: nextCap, sharedChars: (style.shared || "").length,
+          tilesWithShared: sharedWords ? images.filter((t) => wordsOf(t.prompt).includes(sharedWords)).length : null,
+        });
+        emit("status", { message: `UI Agent: ${mapping.size}/${batch.length} images matched to their scenes` });
         batch.forEach((it, j) => {
           const match = mapping.get(j);
           const img = match?.tile;
           if (!img?.mediaId) {
-            if (extraTiles.length) {
-              const unmatched = extraTiles.map((t) => ({
-                prompt: String(t.prompt || "").slice(0, 500),
-                mediaId: t.mediaId || null,
-                ariaLabel: t.ariaLabel || null,
-              }));
-              ledger.put(it.key, {
-                state: LedgerState.SUBMITTED_UNKNOWN,
-                error: "UI agent image could not be matched to this scene",
-                agentChatId: chatId,
-                sceneText: String(it.text || "").slice(0, 300),
-                agentUnmatched: unmatched,
-              });
-              fail(it, "Not resubmitted: a Flow UI agent image could not be matched to this scene. Check the Flow project; click Retry on this scene to generate it again.",
-                { needsAction: true, submitted: true, agentUnmatched: unmatched });
-            } else {
-              ledger.put(it.key, { state: LedgerState.REJECTED, error: "the UI agent made no image for this scene" });
-              fallback.push(it);
-            }
+            // No image could be tied to this scene for certain: never guess. Make it again (another request or the
+            // standard path); a leftover unmatched tile is kept in the ledger for the record.
+            const unmatched = extraTiles.map((t) => ({
+              prompt: String(t.prompt || "").slice(0, 500),
+              mediaId: t.mediaId || null,
+              ariaLabel: t.ariaLabel || null,
+            }));
+            ledger.put(it.key, {
+              state: LedgerState.REJECTED,
+              error: extraTiles.length ? "a UI agent image could not be matched to this scene for certain: made again" : "the UI agent made no image for this scene",
+              ...(extraTiles.length ? { agentChatId: chatId, sceneText: String(it.text || "").slice(0, 300), agentUnmatched: unmatched } : {}),
+            });
+            fallback.push(it);
             return;
           }
           const agentInfo = {
@@ -478,10 +523,10 @@ export async function runAgentSlice(params) {
     stopSeenAt = stopSeenAt || Date.now();
     return Date.now() - stopSeenAt >= graceMs;
   };
+  // Several images at once (each writes its own temp file, through the browser's request API): one at a time took
+  // ~30 s of a 24-scene batch. Scenes are claimed in order, so "downloaded" still marks where a Stop cut in.
   let downloaded = 0;
-  for (const it of toDownload) {
-    if (downloadsStopped()) break;
-    downloaded++;
+  const downloadOne = async (it) => {
     emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `Downloading ${path.basename(it.dest)}…` });
     ledger.put(it.key, { dest: path.resolve(it.dest) });
     let lastErr = null;
@@ -508,7 +553,15 @@ export async function runAgentSlice(params) {
       ledger.put(it.key, { state, error: String(lastErr?.message || lastErr || "stopped"), ...(it.confirmed ? { confirmedResumeFailedRunId: runId } : {}) });
       fail(it, `Flow generated this image but the download failed: ${lastErr?.message || "stopped"}. Retry fetches it again — it will not be generated twice.`, { needsAction: true, resumable: true, ledgerState: state, submitted: true });
     }
-  }
+  };
+  const downloadWorker = async () => {
+    while (downloaded < toDownload.length && !downloadsStopped()) {
+      const it = toDownload[downloaded++];
+      await downloadOne(it);
+    }
+  };
+  const parallel = Math.max(1, Number(standardSettings.agentDownloadParallel ?? agentConfig.downloadParallel) || 1);
+  await Promise.all(Array.from({ length: Math.min(parallel, toDownload.length) }, downloadWorker));
 
   // Stopped during downloads: those images exist on Flow and their media ids are in the ledger; the next run only downloads.
   for (const it of toDownload.slice(downloaded)) {

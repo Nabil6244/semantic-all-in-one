@@ -39,7 +39,7 @@ export function boundedOrThrow(promise, ms, what) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-function writeUiAgentLog(outputDir, diag) {
+export function writeUiAgentLog(outputDir, diag) {
   if (!outputDir) return;
   try {
     const dir = path.join(outputDir, "agent");
@@ -95,6 +95,85 @@ export async function collectStillUrls(page) {
     }, MEDIA_HOST), PAGE_CALL_TIMEOUT_MS, []);
 }
 
+/**
+ * Flow's gallery is a virtual scroll list (live 2026-10-20: "cdk-virtual-scrollable", ~10 of 24+ tiles in the DOM at once).
+ * A tile scrolled out of view does not exist on the page: it can be neither counted nor have its Reuse prompt clicked.
+ * scrollGallery moves that list: "top", "down" (most of one screen) or "keep"; returns where it is.
+ */
+async function scrollGallery(page, how) {
+  return bounded(page.evaluate((mode) => {
+    const first = document.querySelector("flow-grid-tile-container");
+    let el = first?.parentElement;
+    while (el && el !== document.body) {
+      if (/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 4) break;
+      el = el.parentElement;
+    }
+    if (!el || el === document.body) el = document.scrollingElement || document.documentElement;
+    if (mode === "top") el.scrollTop = 0;
+    else if (mode === "down") el.scrollTop = el.scrollTop + Math.max(200, el.clientHeight * 0.8);
+    return { top: el.scrollTop, atEnd: el.scrollTop + el.clientHeight >= el.scrollHeight - 4 };
+  }, how), PAGE_CALL_TIMEOUT_MS, { top: 0, atEnd: true });
+}
+
+const SCROLL_SETTLE_MS = 350;
+/** A request with some but not all stills is over only after this long with no new tile (12 s cut 24-scene runs short). */
+export const PARTIAL_QUIET_MS = 45000;
+const MAX_SCROLL_STEPS = 80;
+
+/** Every still in the project, top to bottom, by scrolling the whole virtual gallery (ends back at the top). */
+export async function collectAllStillUrls(page) {
+  const out = [];
+  const seen = new Set();
+  const add = (urls) => {
+    for (const u of urls) {
+      const k = mediaKey(u);
+      if (k && !seen.has(k)) { seen.add(k); out.push(u); }
+    }
+  };
+  await scrollGallery(page, "top");
+  await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
+  for (let step = 0; step < MAX_SCROLL_STEPS; step++) {
+    add(await collectStillUrls(page));
+    const pos = await scrollGallery(page, "down");
+    if (pos.atEnd) {
+      await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
+      add(await collectStillUrls(page));
+      break;
+    }
+    await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
+  }
+  await scrollGallery(page, "top");
+  return out;
+}
+
+/** Scroll until the tile for `key` is in the DOM: down from where the list is, then once more from the top. */
+async function revealTile(page, key) {
+  const present = () => bounded(page.evaluate((wantKey) => {
+    const asbTok = wantKey.startsWith("asb:") ? wantKey.slice(4) : null;
+    for (const c of document.querySelectorAll("flow-grid-tile-container")) {
+      const src = c.querySelector("img")?.getAttribute("src") || "";
+      if (asbTok ? src.includes(asbTok) : src.includes(wantKey.split("/").pop())) return true;
+    }
+    return false;
+  }, key), PAGE_CALL_TIMEOUT_MS, false);
+  for (let pass = 0; pass < 2; pass++) {
+    if (pass === 1) {
+      await scrollGallery(page, "top");
+      await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
+    }
+    for (let step = 0; step < MAX_SCROLL_STEPS; step++) {
+      if (await present()) return true;
+      const pos = await scrollGallery(page, "down");
+      await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
+      if (pos.atEnd) {
+        if (await present()) return true;
+        break;
+      }
+    }
+  }
+  return false;
+}
+
 export function resolveStillUrl(url) {
   if (!url) return null;
   if (url.includes(MEDIA_HOST)) {
@@ -103,6 +182,17 @@ export function resolveStillUrl(url) {
   }
   return resolveAsbImage(url);
 }
+
+/**
+ * The bulk scene list we pasted (not one tile's prompt): its header, or two or more "S01:" scene lines. Real tile prompts
+ * are often 1,500-2,500 chars (style blocks), so length is never the test — a 500-char cap dropped every tile (2026-10-20).
+ */
+export function isBulkAgentMessage(text) {
+  const t = String(text || "");
+  return /^Generate exactly \d+ still images/i.test(t.trim()) || (t.match(/^\s*S\d{2,3}:/gm) || []).length >= 2;
+}
+
+const squash = (t) => String(t || "").replace(/\s+/g, " ").trim();
 
 /**
  * Clear the prompt editor so a failed Reuse cannot leave the bulk agent message
@@ -129,6 +219,7 @@ export async function readPromptsForStillUrls(page, urls) {
     const resolved = resolveStillUrl(url);
     if (!resolved?.mediaId) continue;
     const key = mediaKey(url);
+    await revealTile(page, key);
     await clearPromptEditor(page);
 
     const noMeta = { ariaLabel: "", clickedReuse: false, src: "" };
@@ -167,14 +258,15 @@ export async function readPromptsForStillUrls(page, urls) {
       ), PAGE_CALL_TIMEOUT_MS, noMeta);
 
     let editorText = "";
+    let lastSeen = "";
     if (meta.clickedReuse) {
-      const deadline = Date.now() + 3000;
+      const deadline = Date.now() + 6000;
       while (Date.now() < deadline) {
         editorText = await bounded(
           page.evaluate(() => (document.querySelector("div.ProseMirror")?.innerText || "").trim()),
           PAGE_CALL_TIMEOUT_MS, "");
-        // Bulk paste is multi-line / very long; a real tile prompt is one short line.
-        if (editorText && editorText.length < 500 && !/^Generate exactly \d+ still images/i.test(editorText)) {
+        lastSeen = editorText || lastSeen;
+        if (editorText && !isBulkAgentMessage(editorText)) {
           break;
         }
         editorText = "";
@@ -192,6 +284,7 @@ export async function readPromptsForStillUrls(page, urls) {
         prompt: "",
         ariaLabel: meta.ariaLabel || "",
         reuseFailed: true,
+        why: !meta.src ? "tile_not_found" : !meta.clickedReuse ? "no_reuse_button" : lastSeen ? "bulk_text_in_editor" : "editor_stayed_empty",
       });
       continue;
     }
@@ -203,7 +296,10 @@ export async function readPromptsForStillUrls(page, urls) {
       ariaLabel: meta.ariaLabel || "",
     });
   }
-  return out.filter((t) => t.prompt);
+  const kept = out.filter((t) => t.prompt);
+  // Why each unread tile was dropped (diagnostic log only).
+  Object.defineProperty(kept, "failures", { value: out.filter((t) => !t.prompt).map((t) => t.why), enumerable: false });
+  return kept;
 }
 
 async function mediaInventory(page) {
@@ -339,6 +435,18 @@ export async function generateAgentBatchViaUI(page, {
     await setEditorText(page, editor, message);
     diag.messageChars = String(message).length;
 
+    // Flow may cut a very long paste: never send a scene list that lost scenes (the runner splits the batch and retries).
+    const pasted = await bounded(
+      page.evaluate(() => (document.querySelector("div.ProseMirror")?.innerText || "")), PAGE_CALL_TIMEOUT_MS, null);
+    diag.pastedChars = pasted == null ? null : squash(pasted).length;
+    if (pasted != null && squash(pasted).length < squash(message).length * 0.97) {
+      diag.outcome = "paste_truncated";
+      await clearPromptEditor(page);
+      const err = new Error(`Flow kept ${diag.pastedChars} of ${squash(message).length} characters of the scene list`);
+      err.pasteTruncated = true;
+      throw tagSubmission(err, Submission.NOT_SUBMITTED);
+    }
+
     // Re-check Agent is still on after typing (UI can reset the toggle).
     if (!(await agentModeOn(page))) {
       const again = await ensureAgentMode(page, { timeoutMs: 8000 });
@@ -350,7 +458,7 @@ export async function generateAgentBatchViaUI(page, {
       }
     }
 
-    const known = new Set((await collectStillUrls(page)).map(mediaKey).filter(Boolean));
+    const known = new Set((await collectAllStillUrls(page)).map(mediaKey).filter(Boolean));
     diag.preExistingStillCount = known.size;
 
     diag.stage = "locating_generate_button";
@@ -372,7 +480,8 @@ export async function generateAgentBatchViaUI(page, {
     const deadline = Date.now() + timeoutMs;
     let lastNewAt = Date.now();
     while (Date.now() < deadline && !shouldStop?.()) {
-      const urls = await collectStillUrls(page);
+      // The whole gallery, not just the rendered window: new tiles below it were invisible and the wait ended early.
+      const urls = await collectAllStillUrls(page);
       for (const url of urls) {
         const key = mediaKey(url);
         if (!key || known.has(key) || seen.has(key)) continue;
@@ -384,18 +493,24 @@ export async function generateAgentBatchViaUI(page, {
       diag.agentBusy = busy;
       if (ordered.length >= n && !busy) break;
       if (ordered.length >= n && Date.now() - lastNewAt > 8000) break;
-      if (ordered.length > 0 && ordered.length < n && !busy && Date.now() - lastNewAt > 12000) break;
+      // Some stills but not all: the agent paints in bursts and its busy text is not reliable, so allow a long quiet gap.
+      if (ordered.length > 0 && ordered.length < n && !busy && Date.now() - lastNewAt > PARTIAL_QUIET_MS) break;
       await new Promise((r) => setTimeout(r, 1500));
     }
 
     diag.stage = "reading_tile_prompts";
     // Take every new tile we saw (not only first N) so out-of-order gallery still maps by text.
-    const urls = ordered.map((o) => o.url);
+    // Gallery order (top to bottom), so each tile is found by scrolling a little further down.
+    const wanted = new Set(ordered.map((o) => o.key));
+    const urls = (await collectAllStillUrls(page)).filter((u) => wanted.has(mediaKey(u)));
+    for (const o of ordered) if (!urls.some((u) => mediaKey(u) === o.key)) urls.push(o.url);
     const images = await readPromptsForStillUrls(page, urls);
     diag.foundCount = images.length;
     diag.rawTileCount = ordered.length;
     diag.promptedCount = images.filter((t) => t.prompt).length;
     diag.samplePrompts = images.map((t) => String(t.prompt || "").slice(0, 100));
+    diag.promptLengths = images.map((t) => String(t.prompt || "").length);
+    diag.reuseFailures = images.failures || [];
     diag.agentModeFinal = await agentModeOn(page);
     if (images.length < n) diag.mediaInventory = await mediaInventory(page);
     diag.outcome =

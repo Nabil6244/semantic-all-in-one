@@ -392,7 +392,7 @@ test("Stop during downloads, past the grace period: the images not yet saved are
   await runAgentSlice({
     page: {}, prompts: SCENES, promptIndices: [0, 1, 2], promptKeys: ["1", "2", "3"], totalAbsolute: 3,
     settings: { mediaKind: "image", generationMode: "agent", agentViaUi: false, model: "BELUGA", aspectRatio: "IMAGE_ASPECT_RATIO_LANDSCAPE", outputDir: out,
-      _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 0 },
+      _runId: "run-1", agentBatchGapMs: 0, agentMinScenes: 1, agentStopGraceMs: 0, agentDownloadParallel: 1 },
     folderLabel: "acct-A", accountId: "acct-A", accountLabel: "acct-A", shouldStop: () => stop,
     onProgress: (e) => events.push(e), deps: { ...flow.deps, ledger },
   });

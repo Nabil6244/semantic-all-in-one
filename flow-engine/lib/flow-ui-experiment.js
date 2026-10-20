@@ -118,6 +118,24 @@ const SETTINGS_PANEL_SIGNAL_SELECTOR = 'button[role="radio"]';
  * anything — used both to log instrumentation and to decide whether a click
  * actually caused a transition. Never touches cookies/session data.
  */
+/** Switch Flow's bottom-bar Agent toggle off if it is on. Returns whether it was on. Never throws. */
+export async function turnAgentModeOff(page, { timeoutMs = 5000 } = {}) {
+  try {
+    const btn = page.locator("button").filter({ hasText: /^Agent$/i }).first();
+    if ((await btn.count()) === 0) return false;
+    const on = async () => (await btn.getAttribute("aria-pressed", { timeout: 2000 }).catch(() => null)) === "true";
+    if (!(await on())) return false;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline && (await on())) {
+      await btn.click({ timeout: 2000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function inspectSettingsControl(page, control) {
   const attached = await control
     .count()
@@ -287,6 +305,10 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.stage = "waiting_for_flow_ready";
     await waitForFlowReady(page);
     diag.projectPageReached = true;
+
+    // A UI Agent batch leaves Flow's bottom-bar "Agent" toggle on, which hides the settings control this path needs
+    // (every first single Generate after an agent batch failed with no_visible_settings_control, then reloaded). Turn it off.
+    diag.agentToggleWasOn = await turnAgentModeOff(page);
 
     if (opts.mode && MODE_TOGGLE_LABEL[opts.mode]) {
       diag.stage = "selecting_mode";

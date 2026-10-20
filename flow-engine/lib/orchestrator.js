@@ -935,6 +935,8 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
           pushState();
         },
         batchGapMs: Number(settings.agentBatchGapMs ?? agentConfig.batchGapMs),
+        ui: settings.agentViaUi !== false,
+        maxChars: settings.agentViaUi !== false ? agentConfig.uiMaxMessageChars : agentConfig.maxMessageChars,
       });
       for (const { item, reason } of res.unrun) {
         emitFinalFail(item.index, item.prompt, reason === "stopped"

@@ -12,10 +12,11 @@
  * whose image Flow already made on one account (download-only) is handed to that account, never counted as a new image.
  *
  * Scenes the agent made nothing for come back here: five or more are sent as one more agent round, fewer go through the
- * standard path (runStandard). Uncertain scenes never come back: runAgentSlice leaves them in the ledger as Needs action.
+ * standard path (runStandard), split across every healthy account (one account making 100+ one by one was the slow part
+ * live 2026-10-20). Uncertain scenes never come back: runAgentSlice leaves them in the ledger as Needs action.
  */
 import { agent as agentConfig } from "../config.js";
-import { splitSharedStyle } from "./agent-api.js";
+import { splitSharedForUiAgent, splitSharedStyle } from "./agent-api.js";
 import { planAgentBatches } from "./agent-runner.js";
 import { LedgerState } from "./generation-ledger.js";
 
@@ -61,11 +62,11 @@ export function planImageJob({ prompts, promptKeys = null, settings = {}, ledger
 }
 
 /** Cut scenes into agent requests: same rules as one account's batches (balanced, size and clash limits). */
-export function planPoolBatches(items, { maxBatch = agentConfig.maxBatch, maxChars = agentConfig.maxMessageChars } = {}) {
+export function planPoolBatches(items, { maxBatch = agentConfig.maxBatch, maxChars = agentConfig.maxMessageChars, ui = false } = {}) {
   if (!items.length) return [];
-  const style = splitSharedStyle(items.map((it) => it.prompt));
+  const style = ui ? splitSharedForUiAgent(items.map((it) => it.prompt)) : splitSharedStyle(items.map((it) => it.prompt));
   const withText = items.map((it, j) => ({ ...it, text: style.texts[j] }));
-  const styleChars = style.opening.length + style.ending.length;
+  const styleChars = style.opening.length + style.ending.length + (style.shared || "").length;
   return planAgentBatches(withText, {
     maxBatch, lenOf: (it) => it.text.length, textOf: (it) => it.text, maxChars: Math.max(2000, maxChars - styleChars),
   }).map((batch) => batch.map(({ text, ...it }) => it));
@@ -82,7 +83,7 @@ export async function runAgentPool({
   items, accounts, isStopped = () => false, prepare, runSlice, runStandard,
   onAccountState = () => {}, now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
   coolDownMs = agentConfig.coolDownMs, minScenes = agentConfig.minScenes, maxBatch = agentConfig.maxBatch,
-  maxChars = agentConfig.maxMessageChars, batchGapMs = agentConfig.batchGapMs, maxRounds = 2,
+  maxChars = agentConfig.maxMessageChars, batchGapMs = agentConfig.batchGapMs, maxRounds = 2, ui = false,
 }) {
   const state = new Map(accounts.map((a) => [a.id, { gone: false, coolUntil: 0, page: null, lastBatchAt: 0 }]));
   const unrun = [];
@@ -112,7 +113,7 @@ export async function runAgentPool({
         shared.push(it);   // owner gone or unknown: runAgentSlice's ledger check blocks or regenerates it safely
       }
     }
-    const queue = planPoolBatches(shared, { maxBatch, maxChars });
+    const queue = planPoolBatches(shared, { maxBatch, maxChars, ui });
     const ownQueues = new Map([...byOwner].map(([id, its]) => [id, chunk(its, maxBatch)]));
     const fallback = [];
 
@@ -183,7 +184,7 @@ export async function runAgentPool({
         }
         if (result?.reassign?.length) {
           const back = result.reassign.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, noConfirm: !!r.noConfirm }));
-          for (const b of planPoolBatches(back, { maxBatch, maxChars })) queue.push(b);
+          for (const b of planPoolBatches(back, { maxBatch, maxChars, ui })) queue.push(b);
         }
         if (result?.fallback?.length) fallback.push(...result.fallback.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null })));
       }
@@ -203,18 +204,24 @@ export async function runAgentPool({
     leftover = await runRound(leftover);   // five or more the agent did not make: one more agent round
   }
   if (leftover.length && !isStopped()) {
-    // Fewer than five (or still left after the extra round): the standard path, on the first healthy account.
-    const a = accounts.find((x) => usable(x) && !cooling(x)) || accounts.find(usable);
-    if (!a) {
+    // Fewer than five (or still left after the extra round): the standard path, shared across the healthy accounts.
+    const ready = accounts.filter((x) => usable(x) && !cooling(x));
+    const helpers = ready.length ? ready : accounts.filter(usable).slice(0, 1);
+    if (!helpers.length) {
       for (const it of leftover) unrun.push({ item: it, reason: "no_account" });
     } else {
-      try {
-        const page = await pageFor(a);
-        accountsUsed.add(a.id);
-        await runStandard({ account: a, page, items: leftover });
-      } catch (e) {
-        for (const it of leftover) unrun.push({ item: it, reason: "no_account" });
-      }
+      const shares = helpers.map(() => []);
+      leftover.forEach((it, k) => shares[k % helpers.length].push(it));
+      await Promise.all(helpers.map(async (a, k) => {
+        if (!shares[k].length) return;
+        try {
+          const page = await pageFor(a);
+          accountsUsed.add(a.id);
+          await runStandard({ account: a, page, items: shares[k] });
+        } catch (e) {
+          for (const it of shares[k]) unrun.push({ item: it, reason: "no_account" });
+        }
+      }));
     }
   } else if (leftover.length) {
     for (const it of leftover) unrun.push({ item: it, reason: "stopped" });
