@@ -12,8 +12,8 @@
  *     standard path in this same run;
  *   - once a request is on the wire, a missing answer is UNKNOWN: those scenes are never sent again automatically
  *     (Needs action, like the standard path);
- *   - UI Agent: tiles are assigned to scenes in appearance order (message asks for S01… in order). RPC agent: every
- *     image is matched by scene ID (S01…) or exact scene text; never guessed;
+ *   - UI Agent: each tile's prompt is read via Flow "Reuse prompt", then matched by exact scene text (same never-guess
+ *     rules as RPC). Gallery order is never used — it was wrong live. RPC agent: match by scene ID (S01…) or exact text;
  *   - a cool-down answer (too much traffic, quota, agent capacity) rests the account: its scenes go to other accounts,
  *     never to the standard path on the same account;
  *   - fewer than agent.minScenes pending scenes use the standard path (an agent request has a fixed ~40-60 s cost).
@@ -35,6 +35,7 @@ import {
   createAgentChat as realCreateAgentChat,
   fetchImageUrl as realFetchImageUrl,
   mapCallsToScenes,
+  mapUiTilesToScenes,
   parseAgentStream,
   sendAgentMessage as realSendAgentMessage,
   splitSharedStyle,
@@ -308,24 +309,44 @@ export async function runAgentSlice(params) {
           }
           return;
         }
+        // Match by Reuse-prompt text only — never gallery order (wrong live 2026-10-20).
+        const { mapping, extraTiles } = mapUiTilesToScenes(batch.map((it) => it.text), images);
         batch.forEach((it, j) => {
-          const img = images[j];
+          const match = mapping.get(j);
+          const img = match?.tile;
           if (!img?.mediaId) {
-            ledger.put(it.key, { state: LedgerState.REJECTED, error: "the UI agent made no image for this scene" });
-            fallback.push(it);
+            if (extraTiles.length) {
+              const unmatched = extraTiles.map((t) => ({
+                prompt: String(t.prompt || "").slice(0, 500),
+                mediaId: t.mediaId || null,
+                ariaLabel: t.ariaLabel || null,
+              }));
+              ledger.put(it.key, {
+                state: LedgerState.SUBMITTED_UNKNOWN,
+                error: "UI agent image could not be matched to this scene",
+                agentChatId: chatId,
+                sceneText: String(it.text || "").slice(0, 300),
+                agentUnmatched: unmatched,
+              });
+              fail(it, "Not resubmitted: a Flow UI agent image could not be matched to this scene. Check the Flow project; click Retry on this scene to generate it again.",
+                { needsAction: true, submitted: true, agentUnmatched: unmatched });
+            } else {
+              ledger.put(it.key, { state: LedgerState.REJECTED, error: "the UI agent made no image for this scene" });
+              fallback.push(it);
+            }
             return;
           }
           const agentInfo = {
             agentModel: "UI_AGENT",
-            agentPrompt: message.slice(0, 400),
+            agentPrompt: String(img.prompt || "").slice(0, 400),
             agentAspect: expectedAspect,
             agentBatchId: null,
             agentChatId: chatId,
             agentRequestId,
             agentSceneId: agentSceneId(j),
             agentPlaceholderId: `ui-${j}`,
-            agentTitle: agentSceneId(j),
-            agentMatch: "order",
+            agentTitle: String(img.ariaLabel || agentSceneId(j)).slice(0, 80),
+            agentMatch: match.method,
             sceneText: String(it.text || "").slice(0, 200),
           };
           ledger.put(it.key, { state: LedgerState.MEDIA_ID_KNOWN, mediaId: img.mediaId, fifeUrl: img.fifeUrl || null, ...agentInfo });

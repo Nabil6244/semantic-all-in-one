@@ -371,6 +371,50 @@ export function mapCallsToScenes(sceneTexts, calls, results = {}) {
   };
 }
 
+/**
+ * Tie UI Agent gallery tiles to scenes. Same never-guess rules as mapCallsToScenes.
+ * Each tile needs a prompt (from Flow's "Reuse prompt" — confirmed live to copy the
+ * scene text exactly). Gallery DOM order is NOT used (live 2026-10-20: order assigned
+ * lighthouse→book, taxi→apple, etc.).
+ * tiles: [{ prompt, ariaLabel?, mediaId, fifeUrl, url? }, ...]
+ * Returns { mapping: sceneIndex -> { tile, method }, unmatchedScenes, extraTiles }.
+ */
+export function mapUiTilesToScenes(sceneTexts, tiles) {
+  const list = (tiles || []).map((t, i) => ({
+    tile: t,
+    placeholderId: `ui-${i}`,
+    prompt: String(t?.prompt || t?.ariaLabel || ""),
+  }));
+  const calls = list.map(({ placeholderId, prompt, tile }) => ({
+    placeholderId,
+    prompt,
+    aspect: "",
+    modelKey: "UI_AGENT",
+    fields: { display_name: String(tile?.ariaLabel || ""), title: String(tile?.ariaLabel || "") },
+  }));
+  const results = Object.fromEntries(
+    list.map(({ placeholderId, tile }) => [
+      placeholderId,
+      {
+        status: tile?.mediaId ? "success" : "missing",
+        mediaId: tile?.mediaId || null,
+        title: String(tile?.ariaLabel || ""),
+      },
+    ]),
+  );
+  const { mapping: callMap, unmatchedScenes, extraCalls } = mapCallsToScenes(sceneTexts, calls, results);
+  const mapping = new Map();
+  for (const [sceneIndex, { call, method }] of callMap) {
+    const row = list.find((r) => r.placeholderId === call.placeholderId);
+    if (row) mapping.set(sceneIndex, { tile: row.tile, method, placeholderId: call.placeholderId });
+  }
+  return {
+    mapping,
+    unmatchedScenes,
+    extraTiles: extraCalls.map((c) => list.find((r) => r.placeholderId === c.placeholderId)?.tile).filter(Boolean),
+  };
+}
+
 /** The signed image URL for a media id (as29s), or null. Read-only: never generates anything. */
 export async function fetchImageUrl(page, mediaId) {
   const out = await inPage(

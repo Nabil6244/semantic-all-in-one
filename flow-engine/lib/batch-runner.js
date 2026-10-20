@@ -81,6 +81,14 @@ export function withAccountLock(accountKey, fn) {
   return run;
 }
 
+/**
+ * Forget every account chain. Only for a run that was cut off (orchestrator.forceEndRun): its stuck step holds the
+ * chain forever, and its Flow tabs are closed first, so nothing of it can still submit through the page.
+ */
+export function resetAccountLocks() {
+  accountChains.clear();
+}
+
 /** A finished file of the expected kind is on disk (used to recognise output saved before a crash). */
 export function isValidOutput(file, kind) {
   try {

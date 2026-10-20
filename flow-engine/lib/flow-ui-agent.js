@@ -3,10 +3,11 @@
  *
  * Critical (live 2026-10-20): the bottom-bar "Agent" toggle must be aria-pressed=true
  * before pasting. If it stays false, "Start generation" is Create mode and makes ONE
- * image from the whole message — that was the bulk failure (diag: agentPanel false,
- * foundCount 1). With Agent on, the same Start generation arrow plans N stills.
+ * image from the whole message. With Agent on, the same Start generation arrow plans N stills.
  *
- * Mapping is by appearance order (message asks for S01… in order).
+ * Assignment: NEVER by gallery order (that mismatched scenes live). After tiles appear,
+ * each tile's "Reuse prompt" is clicked — Flow fills the editor with the exact scene
+ * text — then mapUiTilesToScenes / mapCallsToScenes ties tiles to scenes by that text.
  */
 
 import fs from "node:fs";
@@ -19,6 +20,24 @@ const PROMPT_EDITOR_SELECTOR = 'div.ProseMirror[aria-label="What do you want to 
 const GENERATE_BUTTON_SELECTOR = 'button[aria-label="Start generation"]';
 const MEDIA_HOST = "flow-content.google";
 const ASB_TOKEN_RE = /\/asb\/([^=?&#]+)/;
+/** page.evaluate has no timeout of its own: a frozen Flow tab used to hang a batch (and Stop) forever. */
+export const PAGE_CALL_TIMEOUT_MS = 10000;
+
+/** `promise`, or `fallback` once `ms` pass (a hung page call never holds the run). */
+export function bounded(promise, ms, fallback) {
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(fallback), ms); });
+  return Promise.race([Promise.resolve(promise).catch(() => fallback), timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Like bounded(), but a page call that does not answer throws (callers that cannot guess a result). */
+export function boundedOrThrow(promise, ms, what) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Flow page did not answer (${what}) within ${Math.round(ms / 1000)} s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function writeUiAgentLog(outputDir, diag) {
   if (!outputDir) return;
@@ -49,7 +68,7 @@ export function mediaKey(url) {
  * (live: strict Option-N filter only saw 1 of 5). Skip video thumbnails and tiny icons.
  */
 export async function collectStillUrls(page) {
-  return page
+  return bounded(page
     .evaluate((host) => {
       const out = [];
       const seen = new Set();
@@ -73,8 +92,7 @@ export async function collectStillUrls(page) {
         push(src);
       }
       return out;
-    }, MEDIA_HOST)
-    .catch(() => []);
+    }, MEDIA_HOST), PAGE_CALL_TIMEOUT_MS, []);
 }
 
 export function resolveStillUrl(url) {
@@ -86,8 +104,110 @@ export function resolveStillUrl(url) {
   return resolveAsbImage(url);
 }
 
+/**
+ * Clear the prompt editor so a failed Reuse cannot leave the bulk agent message
+ * in place (that made every tile "match" every scene and uniqueness failed).
+ */
+async function clearPromptEditor(page) {
+  await bounded(page.evaluate(() => {
+    const el = document.querySelector("div.ProseMirror");
+    if (!el) return;
+    el.focus();
+    document.execCommand("selectAll", false, null);
+    document.execCommand("delete", false, null);
+  }), PAGE_CALL_TIMEOUT_MS, undefined);
+}
+
+/**
+ * For each new still URL, read Flow's per-tile prompt via that tile's "Reuse prompt"
+ * button (exact scene text live). Never reuse a stale editor value from a previous
+ * tile or from the bulk paste. Returns [{ url, mediaId, fifeUrl, prompt, ariaLabel }].
+ */
+export async function readPromptsForStillUrls(page, urls) {
+  const out = [];
+  for (const url of urls) {
+    const resolved = resolveStillUrl(url);
+    if (!resolved?.mediaId) continue;
+    const key = mediaKey(url);
+    await clearPromptEditor(page);
+
+    const noMeta = { ariaLabel: "", clickedReuse: false, src: "" };
+    const meta = await bounded(page
+      .evaluate(
+        ({ wantKey }) => {
+          const tokenOf = (u) => {
+            const m = /\/asb\/([^=?&#]+)/.exec(u || "");
+            if (m) return `asb:${m[1]}`;
+            try {
+              const x = new URL(u, location.href);
+              return `${x.host}${x.pathname}`;
+            } catch {
+              return null;
+            }
+          };
+          const asbTok = wantKey.startsWith("asb:") ? wantKey.slice(4) : null;
+          for (const container of document.querySelectorAll("flow-grid-tile-container")) {
+            const img = container.querySelector("img");
+            const src = img?.currentSrc || img?.src || "";
+            if (!src) continue;
+            const k = tokenOf(src);
+            const hit = k === wantKey || (asbTok && src.includes(asbTok));
+            if (!hit) continue;
+            const ariaLabel = container.getAttribute("aria-label") || "";
+            const btn = container.querySelector('button[aria-label="Reuse prompt"]');
+            if (btn) {
+              btn.scrollIntoView({ block: "center", inline: "nearest" });
+              btn.click();
+            }
+            return { ariaLabel, clickedReuse: Boolean(btn), src };
+          }
+          return { ariaLabel: "", clickedReuse: false, src: "" };
+        },
+        { wantKey: key },
+      ), PAGE_CALL_TIMEOUT_MS, noMeta);
+
+    let editorText = "";
+    if (meta.clickedReuse) {
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {
+        editorText = await bounded(
+          page.evaluate(() => (document.querySelector("div.ProseMirror")?.innerText || "").trim()),
+          PAGE_CALL_TIMEOUT_MS, "");
+        // Bulk paste is multi-line / very long; a real tile prompt is one short line.
+        if (editorText && editorText.length < 500 && !/^Generate exactly \d+ still images/i.test(editorText)) {
+          break;
+        }
+        editorText = "";
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+
+    const prompt = editorText || "";
+    if (!prompt) {
+      // No reliable prompt — skip (never fall back to bulk editor or order).
+      out.push({
+        url,
+        mediaId: resolved.mediaId,
+        fifeUrl: resolved.fifeUrl,
+        prompt: "",
+        ariaLabel: meta.ariaLabel || "",
+        reuseFailed: true,
+      });
+      continue;
+    }
+    out.push({
+      url,
+      mediaId: resolved.mediaId,
+      fifeUrl: resolved.fifeUrl,
+      prompt,
+      ariaLabel: meta.ariaLabel || "",
+    });
+  }
+  return out.filter((t) => t.prompt);
+}
+
 async function mediaInventory(page) {
-  return page
+  return bounded(page
     .evaluate(() => {
       const kind = (u) => {
         try {
@@ -106,14 +226,13 @@ async function mediaInventory(page) {
         counts[key] = (counts[key] || 0) + 1;
       }
       return counts;
-    })
-    .catch(() => null);
+    }), PAGE_CALL_TIMEOUT_MS, null);
 }
 
 async function agentStillBusy(page) {
-  return page
-    .evaluate(() => /\bThinking\b|\bGenerating\b/i.test((document.body?.innerText || "").slice(0, 20000)))
-    .catch(() => false);
+  return bounded(
+    page.evaluate(() => /\bThinking\b|\bGenerating\b/i.test((document.body?.innerText || "").slice(0, 20000))),
+    PAGE_CALL_TIMEOUT_MS, false);
 }
 
 /** Bottom-bar Agent toggle (aria-pressed true when Agent mode is on). */
@@ -123,8 +242,8 @@ function agentToggle(page) {
 
 async function agentModeOn(page) {
   const btn = agentToggle(page);
-  if ((await btn.count().catch(() => 0)) === 0) return false;
-  return (await btn.getAttribute("aria-pressed").catch(() => null)) === "true";
+  if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) return false;
+  return (await bounded(btn.getAttribute("aria-pressed", { timeout: PAGE_CALL_TIMEOUT_MS }), PAGE_CALL_TIMEOUT_MS, null)) === "true";
 }
 
 /**
@@ -135,7 +254,7 @@ export async function ensureAgentMode(page, { timeoutMs = 15000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   const btn = agentToggle(page);
   await btn.waitFor({ state: "visible", timeout: timeoutMs }).catch(() => {});
-  if ((await btn.count().catch(() => 0)) === 0) {
+  if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) {
     return { ok: false, reason: "agent_toggle_missing" };
   }
   while (Date.now() < deadline) {
@@ -143,7 +262,7 @@ export async function ensureAgentMode(page, { timeoutMs = 15000 } = {}) {
       // Agent instructions control appears once Agent is active (confirmed live).
       return { ok: true, reason: "pressed" };
     }
-    await btn.click().catch(() => {});
+    await bounded(btn.click({ timeout: PAGE_CALL_TIMEOUT_MS }), PAGE_CALL_TIMEOUT_MS, undefined);
     await new Promise((r) => setTimeout(r, 500));
   }
   return { ok: await agentModeOn(page), reason: (await agentModeOn(page)) ? "pressed" : "toggle_stuck" };
@@ -153,14 +272,14 @@ async function setEditorText(page, editor, text) {
   await editor.click();
   await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
   await page.keyboard.press("Backspace");
-  const ok = await page.evaluate((t) => {
+  const ok = await boundedOrThrow(page.evaluate((t) => {
     const el =
       document.querySelector('div.ProseMirror[aria-label="What do you want to create?"]') ||
       document.querySelector("div.ProseMirror");
     if (!el) return false;
     el.focus();
     return document.execCommand("insertText", false, t);
-  }, text);
+  }, text), PAGE_CALL_TIMEOUT_MS, "paste the scene list");
   if (!ok) await page.keyboard.insertText(text);
 }
 
@@ -236,6 +355,11 @@ export async function generateAgentBatchViaUI(page, {
     const genBtn = page.locator(GENERATE_BUTTON_SELECTOR).first();
     await genBtn.waitFor({ state: "visible", timeout: 15000 });
 
+    if (shouldStop?.()) {
+      diag.outcome = "stopped_before_click";
+      throw tagSubmission(new Error("Stopped before the agent request was sent"), Submission.NOT_SUBMITTED);
+    }
+
     diag.stage = "clicking_generate";
     diag.generationClickedAt = Date.now();
     await genBtn.click();
@@ -262,17 +386,24 @@ export async function generateAgentBatchViaUI(page, {
       await new Promise((r) => setTimeout(r, 1500));
     }
 
-    const images = [];
-    for (const { url } of ordered.slice(0, n)) {
-      const resolved = resolveStillUrl(url);
-      if (resolved?.mediaId && resolved?.fifeUrl) images.push({ ...resolved, url });
-    }
+    diag.stage = "reading_tile_prompts";
+    // Take every new tile we saw (not only first N) so out-of-order gallery still maps by text.
+    const urls = ordered.map((o) => o.url);
+    const images = await readPromptsForStillUrls(page, urls);
     diag.foundCount = images.length;
     diag.rawTileCount = ordered.length;
+    diag.promptedCount = images.filter((t) => t.prompt).length;
+    diag.samplePrompts = images.map((t) => String(t.prompt || "").slice(0, 100));
     diag.agentModeFinal = await agentModeOn(page);
     if (images.length < n) diag.mediaInventory = await mediaInventory(page);
     diag.outcome =
-      images.length >= n ? "success" : images.length > 0 ? "partial" : shouldStop?.() ? "stopped" : "timeout_no_media";
+      images.length >= n && images.every((t) => t.prompt)
+        ? "success"
+        : images.length > 0
+          ? "partial"
+          : shouldStop?.()
+            ? "stopped"
+            : "timeout_no_media";
 
     return { clicked: true, images, diag };
   } catch (e) {

@@ -66,6 +66,24 @@ _NO_START_TIMEOUT_SECONDS = 180.0
 # One GENERATE at a time — Retry used to fire several Flow jobs and fail extras
 # with "A Flow batch is already running".
 _ENGINE_GENERATE_LOCK = threading.Lock()
+_LOCK_POLL_SECONDS = 0.5
+
+
+def _acquire_generate_lock(timeout: float, should_stop: Optional[Callable[[], bool]]) -> Optional[bool]:
+    """Take the GENERATE lock: True when held, False on timeout, None when Stop was pressed while waiting.
+
+    One blocking acquire used to wait for hours behind a stuck earlier job, and Stop could not end that wait."""
+    if _ENGINE_GENERATE_LOCK.acquire(blocking=False):
+        return True   # free: taken at once, exactly as before (Stop only ends a wait)
+    deadline = time.monotonic() + timeout
+    while True:
+        if should_stop is not None and should_stop():
+            return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        if _ENGINE_GENERATE_LOCK.acquire(timeout=min(_LOCK_POLL_SECONDS, remaining)):
+            return True
 
 _SOURCE_BY_KIND = {"image": AssetSource.FLOW_IMAGE, "video": AssetSource.FLOW_VIDEO}
 _EXT_BY_KIND = {"image": "png", "video": "mp4"}
@@ -163,7 +181,10 @@ class FlowProvider(AssetProvider):
 
         timeout_seconds = self._generate_timeout_seconds(len(scenes))
         lock_wait = max(_IDLE_WAIT_TIMEOUT + 30.0, timeout_seconds + 30.0)
-        if not _ENGINE_GENERATE_LOCK.acquire(timeout=lock_wait):
+        acquired = _acquire_generate_lock(lock_wait, lambda: self._batch_should_stop(should_stop, scenes))
+        if acquired is None:
+            return {s.scene_number: self._fail(s, "Cancelled.") for s in scenes}
+        if not acquired:
             error = "Timed out waiting for another Flow job in this app — try Retry again."
             return {s.scene_number: self._fail(s, error) for s in scenes}
         try:

@@ -26,7 +26,8 @@ test("retries back off and stay bounded", () => {
 
 test("a stop request aborts preparation immediately", () => {
   const body = src.slice(src.indexOf("async function ensurePrepared"));
-  assert.match(body, /if \(stopAll \|\| attempt >= attempts\) break/);
+  // stopped(): Stop was pressed, or this run was cut off (orchestrator.forceEndRun).
+  assert.match(body, /if \(stopped\(\) \|\| attempt >= attempts\) break/);
 });
 
 test("a genuinely broken account still throws", () => {

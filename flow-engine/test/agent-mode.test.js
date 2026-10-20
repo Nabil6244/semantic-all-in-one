@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const { parseAgentStream, mapCallsToScenes, buildAgentMessage, buildUiAgentMessage, splitSharedStyle, coolDownReason, AGENT_RECAPTCHA_ACTION, imageUrlFromAs29s } = await import("../lib/agent-api.js");
+const { parseAgentStream, mapCallsToScenes, mapUiTilesToScenes, buildAgentMessage, buildUiAgentMessage, splitSharedStyle, coolDownReason, AGENT_RECAPTCHA_ACTION, imageUrlFromAs29s } = await import("../lib/agent-api.js");
 const { planAgentBatches, runAgentSlice, textsClash } = await import("../lib/agent-runner.js");
 const { GenerationLedger, LedgerState } = await import("../lib/generation-ledger.js");
 const { Submission, tagSubmission } = await import("../lib/generation-state.js");
@@ -508,7 +508,7 @@ test("the reply timeout grows with the batch, within limits", async () => {
   assert.ok(agentReplyTimeoutMs(500) <= 600000);
 });
 
-test("UI Agent path pastes one message and maps stills to scenes by order", async () => {
+test("UI Agent path pastes one message and maps stills to scenes by prompt text, not gallery order", async () => {
   const { out, ledger } = setup();
   const calls = { ui: 0, messages: [], sends: 0 };
   const flow = fakeFlow();
@@ -516,11 +516,15 @@ test("UI Agent path pastes one message and maps stills to scenes by order", asyn
     calls.ui++;
     calls.messages.push(message);
     assert.equal(expectedCount, SCENES.length);
+    // Deliberately scramble gallery order vs scene order (the live bug).
+    const order = [2, 0, 1];
     return {
       clicked: true,
-      images: SCENES.map((_, i) => ({
-        mediaId: `asb-ui-${i}`,
-        fifeUrl: `https://flow.google.com/asb/token${i}=s0`,
+      images: order.map((sceneIndex, i) => ({
+        mediaId: `asb-ui-${sceneIndex}`,
+        fifeUrl: `https://flow.google.com/asb/token${sceneIndex}=s0`,
+        prompt: SCENES[sceneIndex],
+        ariaLabel: `Tile ${i}`,
       })),
       diag: { outcome: "success" },
     };
@@ -534,10 +538,26 @@ test("UI Agent path pastes one message and maps stills to scenes by order", asyn
   assert.equal(calls.sends, 0);
   assert.match(calls.messages[0], /still images \(photos only/);
   assert.match(calls.messages[0], /S01:.*coal power plant/s);
-  assert.match(calls.messages[0], /S03:/);
   assert.doesNotMatch(calls.messages[0], /Name the image with its scene ID/);
   assert.equal(results.filter((r) => r.status === "done").length, 3);
-  assert.ok(results.every((r) => r.via === "agent" && r.agentMatch === "order"));
+  assert.ok(results.every((r) => r.via === "agent" && r.agentMatch === "text"));
+  // Scene 0 must get media for scene 0, not gallery slot 0 (which was scene 2).
+  assert.equal(results.find((r) => r.index === 0).mediaIds[0], "asb-ui-0");
+  assert.equal(results.find((r) => r.index === 2).mediaIds[0], "asb-ui-2");
+});
+
+test("mapUiTilesToScenes never uses gallery order; unmatched stays unmatched", () => {
+  const tiles = [
+    { mediaId: "m-book", prompt: SCENES[2], ariaLabel: "river" },
+    { mediaId: "m-plant", prompt: SCENES[0], ariaLabel: "plant" },
+    { mediaId: "m-extra", prompt: "a red bus in London", ariaLabel: "bus" },
+  ];
+  const m = mapUiTilesToScenes(SCENES, tiles);
+  assert.equal(m.mapping.get(0).tile.mediaId, "m-plant");
+  assert.equal(m.mapping.get(2).tile.mediaId, "m-book");
+  assert.equal(m.mapping.has(1), false);
+  assert.equal(m.extraTiles.length, 1);
+  assert.equal(m.extraTiles[0].mediaId, "m-extra");
 });
 
 test("UI Agent message is short and asks for stills, not RPC naming rules", () => {

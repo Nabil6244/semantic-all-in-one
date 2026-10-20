@@ -22,7 +22,7 @@ import {
   waitForFlowReady,
   logFlowNav,
 } from "./flow-api.js";
-import { runBatchSlice } from "./batch-runner.js";
+import { resetAccountLocks, runBatchSlice } from "./batch-runner.js";
 import { activeAgentScenes, agentSceneKey, runAgentSlice } from "./agent-runner.js";
 import { planImageJob, runAgentPool } from "./agent-pool.js";
 import { accountIdentity } from "./profile-identity.js";
@@ -38,6 +38,18 @@ let stopAll = false;
 let running = false;
 /** Serialize GENERATE so concurrent Retry / asset jobs never race the running flag. */
 let generateChain = Promise.resolve();
+/**
+ * Bumped when a run starts and when one is cut off (forceEndRun). A run whose number is no longer current is stopped
+ * (its shouldStop is true) and silent (its finally changes no shared state), even if a stuck step returns much later.
+ */
+let runSeq = 0;
+/** GENERATE_DONE of the live run, so a forced end can still close it for the app. */
+let liveDonePayload = null;
+let stopTimer = null;
+/** After Stop, a run that has not ended by itself is cut off this long later. */
+export const STOP_FORCE_AFTER_MS = 5000;
+/** A new GENERATE waits this long for the previous run to end after asking it to stop, then cuts it off. */
+export const PREVIOUS_RUN_GRACE_MS = 20000;
 const accountProgress = new Map();
 /** Throttle full STATE broadcasts during high-frequency BATCH_PROGRESS. */
 let lastProgressStateAt = 0;
@@ -383,7 +395,8 @@ export function splitPrompts(prompts, n, keys = null) {
  * batch; force-reset clears a stuck flag so the next job can start.
  */
 export function generate(opts) {
-  const run = generateChain.then(() => runGenerate(opts));
+  // Never chained blindly: a previous run stuck on a step that never returns used to hold every later GENERATE forever.
+  const run = endPreviousRun(generateChain).then(() => runGenerate(opts));
   // Keep the chain alive after failures so later jobs still run.
   generateChain = run.catch(() => {});
   return run;
@@ -416,6 +429,76 @@ export function routeToOwners(workers, slices, selected, ownerOf) {
     }
   }
   return { workers: outWorkers, slices: outSlices };
+}
+
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Wait for the previous run; ask it to stop, and cut it off if it has not ended `graceMs` later. */
+export async function endPreviousRun(previous, graceMs = PREVIOUS_RUN_GRACE_MS, deps = {}) {
+  let ended = false;
+  const done = previous.then(() => { ended = true; }, () => { ended = true; });
+  await Promise.race([done, delay(0)]);
+  if (ended) return false;
+  stopAll = true;
+  await Promise.race([done, delay(graceMs)]);
+  if (ended) return false;
+  await forceEndRun("a new Generate was started and the previous run did not stop", deps);
+  return true;
+}
+
+/**
+ * Cut off the live run without waiting for it. Its Flow tabs are closed (a page call stuck on a frozen tab fails at
+ * once), the account chains it holds are dropped, its agent scenes are released for Retry (marked "may have been made",
+ * never sent again automatically), and the app gets GENERATE_DONE so nothing waits on it.
+ */
+export async function forceEndRun(reason, deps = {}) {
+  const close = deps.closeAllBrowsers || closeAllBrowsers;
+  clearTimeout(stopTimer);
+  stopTimer = null;
+  const wasRunning = running;
+  runSeq++;
+  stopAll = true;
+  running = false;
+  console.warn(`[flow] Run cut off: ${reason}`);
+  try {
+    await Promise.race([close(), delay(15000)]);
+  } catch {}
+  resetAccountLocks();
+  if (activeAgentScenes.size) {
+    try {
+      const ledger = deps.ledger || (await defaultLedger());
+      for (const key of activeAgentScenes.keys()) {
+        if (ledger.get(key)?.state === LedgerState.SUBMITTING) {
+          ledger.put(key, { state: LedgerState.SUBMITTED_UNKNOWN, error: `run cut off: ${reason}` });
+        }
+      }
+    } catch {}
+    activeAgentScenes.clear();
+  }
+  for (const [id, p] of accountProgress.entries()) {
+    if (!id.startsWith("__") && ["running", "checking", "waiting"].includes(p?.status)) {
+      accountProgress.set(id, { ...p, status: "idle", message: "Stopped" });
+    }
+  }
+  pushState({ generateError: wasRunning ? `Stopped: ${reason}.` : null });
+  if (wasRunning) broadcast({ ...(liveDonePayload || { type: "GENERATE_DONE" }), forced: true });
+  liveDonePayload = null;
+  return wasRunning;
+}
+
+/** Test hook: put the engine in the "a run is live" state without opening Flow. Returns that run's stop check. */
+export function __startFakeRunForTest(donePayload = { type: "GENERATE_DONE", outputDir: null }) {
+  stopAll = false;
+  running = true;
+  const mySeq = ++runSeq;
+  liveDonePayload = donePayload;
+  return { stopped: () => stopAll || mySeq !== runSeq, isCurrent: () => mySeq === runSeq };
+}
+
+/** Test hook: subscribe to broadcasts. */
+export function __onBroadcastForTest(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 async function runGenerate({ prompts, settings, accountIds, promptKeys = null }) {
@@ -454,6 +537,10 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
 
   stopAll = false;
   running = true;
+  const mySeq = ++runSeq;
+  liveDonePayload = donePayload;
+  /** This run should stop: Stop was pressed, or it was cut off (a newer run may have cleared stopAll since). */
+  const stopped = () => stopAll || mySeq !== runSeq;
   // One id per run: the ledger uses it to tell "the user was told in an earlier run and asked again" from "this run".
   settings = { ...settings, _runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
 
@@ -565,7 +652,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
           pushState();
           break;
         }
-        if (stopAll || attempt >= attempts) break;
+        if (stopped() || attempt >= attempts) break;
         accountProgress.set(account.id, {
           status: "checking",
           message: `Preparing… (attempt ${attempt + 1}/${attempts})`,
@@ -651,7 +738,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
           accountId: a.id,
           accountLabel: a.label,
           workerIndex: i,
-          shouldStop: () => stopAll,
+          shouldStop: stopped,
           onProgress: (evt) => {
             const cur = accountProgress.get(a.id) || {};
             if (evt.type === "BATCH_PROGRESS") {
@@ -786,14 +873,14 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         page, prompts: items.map((it) => it.prompt), promptIndices: items.map((it) => it.index), promptKeys: items.map((it) => it.promptKey),
         totalAbsolute: total, settings: { ...settings, folder: a.label, confirmResubmitKeys, ...extra },
         folderLabel: `${a.label}-${String(a.id).slice(0, 6)}`, accountId: a.id, accountLabel: a.label, workerIndex: 0,
-        shouldStop: () => stopAll, onProgress: forward(a),
+        shouldStop: stopped, onProgress: forward(a),
       };
     };
     {
       const res = await runAgentPool({
         items: poolItems,
         accounts: poolAccounts,
-        isStopped: () => stopAll,
+        isStopped: stopped,
         prepare: (a) => ensurePrepared(a),
         runSlice: ({ account, page, items }) => runAgentSlice({ ...sliceArgs(account, page, items, { agentMinScenes: 0 }), deferFallback: true }),
         runStandard: ({ account, page, items }) => runBatchSlice(sliceArgs(account, page, items)),
@@ -864,7 +951,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
 
     // Rotate: reassign rate-limited / quota-handed prompts to other accounts.
     let rotateRound = 0;
-    while (pending.length && !stopAll && rotateRound < selected.length + 1) {
+    while (pending.length && !stopped() && rotateRound < selected.length + 1) {
       rotateRound++;
       /** @type {Map<string, { prompts: string[], indices: number[] }>} */
       const byAccount = new Map();
@@ -955,6 +1042,13 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   } catch (e) {
     caught = e;
   } finally {
+    if (mySeq !== runSeq) {
+      // Cut off by forceEndRun, which already ended this run for the app; a newer run may be live now.
+      return;
+    }
+    clearTimeout(stopTimer);
+    stopTimer = null;
+    liveDonePayload = null;
     running = false;
     const passesMeta = accountProgress.get("__passes_run__");
     accountProgress.delete("__passes_run__");
@@ -975,19 +1069,34 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   }
 }
 
-export function stopGenerate({ force = false } = {}) {
+/**
+ * Stop always works: the run gets `forceAfterMs` to end by itself (finished images are saved), then it is cut off
+ * (forceEndRun) however stuck it is. `force` cuts it off at once.
+ */
+export function stopGenerate({ force = false, forceAfterMs = STOP_FORCE_AFTER_MS, deps = {} } = {}) {
   stopAll = true;
-  if (force) {
-    // Stuck leftover after app kill: no live generate() finally will clear this.
-    running = false;
-  }
   pushState();
+  if (!running) return;
+  if (force) {
+    forceEndRun("Stop was forced", deps).catch(() => {});
+    return;
+  }
+  if (stopTimer) return;
+  const seq = runSeq;
+  stopTimer = setTimeout(() => {
+    stopTimer = null;
+    if (running && runSeq === seq) forceEndRun("Stop was pressed and the run did not end by itself", deps).catch(() => {});
+  }, forceAfterMs);
 }
 
 /** Clear a stuck `running` flag left by a previous app session. */
 export function resetGenerateState() {
+  clearTimeout(stopTimer);
+  stopTimer = null;
+  runSeq++;   // a leftover run that wakes later stays stopped and silent
   stopAll = true;
   running = false;
+  resetAccountLocks();
   pushState({ generateError: null });
 }
 
