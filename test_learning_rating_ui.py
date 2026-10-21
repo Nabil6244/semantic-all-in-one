@@ -18,7 +18,9 @@ class RatingDialogTk(unittest.TestCase):
         except Exception as exc:
             raise unittest.SkipTest(f"no display / customtkinter: {exc}")
         self.addCleanup(self.root.destroy)
-        self.tmp = tempfile.TemporaryDirectory()
+        # The save runs on a background thread that may still be closing its sqlite connection when the test ends;
+        # Windows will not delete an open file (CI 2026-10-21: WinError 32 in cleanup after every check had passed).
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(self.tmp.cleanup)
         self.led = lg.Ledger(Path(self.tmp.name) / "l.sqlite")
         lg.set_default_ledger(self.led)

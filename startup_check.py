@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 MODULES_FILE = "startup_check_modules.json"
+# The Weather panel's Copy prompts (weather/app_section.py FORMATS, News Doc, the Teamplate addendum, the script prompt).
+WEATHER_PROMPTS = ("forecast_csv_prompt.txt", "news_csv_prompt.txt", "post_event_csv_prompt.txt", "newsdoc_csv_prompt.txt",
+                   "newsdoc_script_prompt.txt", "teamplate_csv_addendum.txt", "script_prompt.txt")
 FILES_FILE = "startup_check_files.json"      # runtime-read files the spec says must be in the bundle (relative to it)
 # third-party packages every build needs (native extensions included); their optional submodules are not checked
 CORE_PACKAGES = ("customtkinter", "PIL.Image", "av", "numpy", "faster_whisper", "ctranslate2", "requests", "websockets", "yt_dlp", "sounddevice", "psutil")
@@ -116,6 +119,32 @@ def run(report_path: str, ffmpeg: Optional[Callable[[], Optional[Path]]] = None)
             failures.append(f"bundled SFX: {inv}")
     except Exception as exc:
         failures.append(f"bundled SFX: {exc}")
+
+    # Every style's "Copy the CSV prompt", built inside the bundle exactly as the button builds it (with a script). A file
+    # being present is not enough: some prompts are assembled from template catalogs and mission packs at click time.
+    try:
+        from app_csv_prompts import CSV_PROMPTS, CSV_PROMPTS_GRAPHICS, build_prompt
+
+        probe = "Hudson Bay is huge."
+        built = 0
+        for style in CSV_PROMPTS:
+            for graphics in ((False, True) if style in CSV_PROMPTS_GRAPHICS else (False,)):
+                text = build_prompt(style, probe, graphics=graphics)
+                if len(text) < 200 or probe not in text:
+                    failures.append(f"copy CSV prompt {style}{' graphics' if graphics else ''}: {len(text)} chars, script in it: {probe in text}")
+                built += 1
+        # Weather's panel reads weather/prompts/*.txt (read here, not imported: nothing outside weather/ imports it).
+        weather_prompts = sorted((root / "weather" / "prompts").glob("*.txt"))
+        if len(weather_prompts) < len(WEATHER_PROMPTS):
+            failures.append(f"copy CSV prompt weather: {len(weather_prompts)} prompt files in the bundle")
+        for name in WEATHER_PROMPTS:
+            path = root / "weather" / "prompts" / name
+            if not path.is_file() or len(path.read_text(encoding="utf-8")) < 200:
+                failures.append(f"copy CSV prompt weather/{name}: missing or too short")
+            built += 1
+        checks["csv_prompts_built"] = built
+    except Exception as exc:
+        failures.append(f"copy CSV prompts: {type(exc).__name__}: {exc}")
 
     listed_files: List[str] = []
     if (root / FILES_FILE).is_file():
