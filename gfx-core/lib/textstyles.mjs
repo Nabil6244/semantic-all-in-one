@@ -38,16 +38,21 @@ export const TEXT_STYLES = {
     g.restore();
   },
 
-  // each word pops in on its own beat
+  // each word pops in on its own beat; a line wider than the frame shrinks, then wraps onto lines stacked upward (the last line keeps y)
   word_pop(T, g, text, x, y, p, o) {
-    const ws = words(text), space = T.measure(' ', o.px, o.weight, o.track), widths = ws.map((w) => T.measure(w, o.px, o.weight, o.track));
-    const total = widths.reduce((a, b) => a + b, 0) + space * (ws.length - 1);
-    let cx = x - (o.align === 'center' ? total / 2 : o.align === 'right' ? total : 0);
-    ws.forEach((w, i) => {
-      const k = clamp01((p * (ws.length + 1.2) - i) / 1.2), sc = 0.7 + 0.3 * overshoot(k);
-      g.save(); g.translate(cx + widths[i] / 2, y - o.px * T.S * 0.35); g.scale(sc, sc); g.translate(-(cx + widths[i] / 2), -(y - o.px * T.S * 0.35));
-      base(T, g, w, cx, y, { ...o, align: 'left' }, { alpha: easeOut(k * 2) }); g.restore();
-      cx += widths[i] + space;
+    const ws = words(text), { px, lines } = fitWords(T, ws, x, o), oo = { ...o, px }, lh = px * T.S * 1.08;
+    const space = T.measure(' ', px, o.weight, o.track), widths = ws.map((w) => T.measure(w, px, o.weight, o.track));
+    let i = 0;
+    lines.forEach((n, li) => {
+      const ly = y - (lines.length - 1 - li) * lh, ix = widths.slice(i, i + n), total = ix.reduce((a, b) => a + b, 0) + space * (n - 1);
+      let cx = x - (o.align === 'center' ? total / 2 : o.align === 'right' ? total : 0);
+      ix.forEach((wd, j) => {
+        const w = ws[i + j], k = clamp01((p * (ws.length + 1.2) - (i + j)) / 1.2), sc = 0.7 + 0.3 * overshoot(k);
+        g.save(); g.translate(cx + wd / 2, ly - px * T.S * 0.35); g.scale(sc, sc); g.translate(-(cx + wd / 2), -(ly - px * T.S * 0.35));
+        base(T, g, w, cx, ly, { ...oo, align: 'left' }, { alpha: easeOut(k * 2) }); g.restore();
+        cx += wd + space;
+      });
+      i += n;
     });
   },
 
@@ -111,6 +116,33 @@ export const TEXT_STYLES = {
 };
 
 export const TEXT_STYLE_NAMES = Object.keys(TEXT_STYLES);
+
+const FIT_MARGIN = 0.05, FIT_TWO = 0.72, FIT_LINES = 2;   // frame margin each side; below this share of the asked size two lines are allowed
+
+/** How word_pop lays out: { px, lines: [words per line] }. One line at the asked size when it fits (drawn exactly as before); else the
+ *  largest size that fits, on one line down to FIT_TWO of the asked size, after that on up to FIT_LINES lines (two lines at a large size
+ *  would climb into the kicker above). Width is what is left from x to the frame edges for the alignment. */
+export function fitWords(T, ws, x, o) {
+  const W = T.W, m = W * FIT_MARGIN, room = o.align === 'center' ? 2 * Math.min(x, W - x) - 2 * m : o.align === 'right' ? x - m : W - x - m;
+  const lay = (px, maxLines) => {
+    const sp = T.measure(' ', px, o.weight, o.track), out = []; let cur = 0, n = 0;
+    for (const w of ws) {
+      const wd = T.measure(w, px, o.weight, o.track);
+      if (wd > room) return null;
+      if (n && cur + sp + wd > room) { out.push(n); cur = wd; n = 1; } else { cur = n ? cur + sp + wd : wd; n += 1; }
+    }
+    if (n) out.push(n);
+    if (out.length !== 2) return out.length <= maxLines ? out : null;
+    const wOf = (a, b) => T.measure(ws.slice(a, b).join(' '), px, o.weight, o.track);   // two lines: the split with the most even widths
+    let best = out[0];
+    for (let k = 1; k < ws.length; k++) if (Math.max(wOf(0, k), wOf(k, ws.length)) < Math.max(wOf(0, best), wOf(best, ws.length))) best = k;
+    return [best, ws.length - best];
+  };
+  if (!ws.length || room <= 0) return { px: o.px, lines: [ws.length] };
+  const step = Math.max(1, o.px * 0.03);
+  for (let px = o.px; px >= 12; px -= step) { const l = lay(px, px <= o.px * FIT_TWO ? FIT_LINES : 1); if (l) return { px, lines: l }; }
+  return { px: 12, lines: lay(12, ws.length) || [ws.length] };
+}
 
 function wrap(s, n) {
   const out = []; let cur = '';

@@ -33,3 +33,17 @@ test('a slot the template cannot use keeps its default instead of failing', () =
   assert.equal(inst.items.length, 2);
   const { g, bad } = mockCanvas(1920, 1080); drawGfx(inst, g, 1920, 1080, 3); assert.deepEqual(bad, []);
 });
+
+test('word_pop keeps a short line as it was and fits a long question inside the frame', async () => {
+  const { fitWords } = await import('../lib/textstyles.mjs');
+  const T = { W: 1920, S: 1, measure: (s, px) => String(s).length * px * 0.72 };   // roughly the bold display face
+  const o = { px: 96, weight: 900, track: 0, align: 'center' };
+  const ws = (s) => s.split(' ');
+  assert.deepEqual(fitWords(T, ws('WHO OWNS THE ARCTIC?'), 960, o), { px: 96, lines: [4] });
+  for (const q of ['WHICH COUNTRY\'S RIVERS SHOULD WE FOLLOW NEXT?', 'IF THE ALPS LOST ALL THEIR GLACIERS TOMORROW, WHICH OF EUROPE\'S GREAT RIVERS WOULD RUN DRY FIRST?']) {
+    const words = ws(q), { px, lines } = fitWords(T, words, 960, o);
+    assert.ok(lines.length <= 2 && lines.reduce((a, b) => a + b, 0) === words.length, q);
+    let i = 0;
+    for (const n of lines) { const line = words.slice(i, i + n).join(' '); i += n; assert.ok(T.measure(line, px) <= 1920 * 0.9, `${line} is wider than the frame at ${px}px`); }
+  }
+});
