@@ -10493,6 +10493,32 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             return 0.0, 400.0
 
+    def _fit_scene_scroll(self) -> None:
+        """Once the table is drawn: the scroll area is the rows' real size and the view is inside it. After the plan shrank while
+        scrolled down (What If's Generate re-lists it: 108 -> 0 -> 108) the scroll area kept the old, taller size and the view
+        sat below the last row: an empty table for the rest of the run (live 2026-10-21, #027)."""
+        lst = getattr(self, "_scenes_list", None)
+        canvas = getattr(lst, "_parent_canvas", None)
+        if canvas is None:
+            return
+
+        def _fit():
+            try:
+                lst.update_idletasks()
+                box = canvas.bbox("all")
+                if not box:
+                    return
+                canvas.configure(scrollregion=box)
+                content_h = max(int(box[3] - box[1]), 1)
+                view_h = max(int(canvas.winfo_height()), 1)
+                top = float(canvas.canvasy(0))
+                if top > max(0, content_h - view_h):
+                    canvas.yview_moveto(max(0.0, (content_h - view_h) / content_h))
+            except Exception:
+                pass
+
+        self.after_idle(_fit)
+
     def _render_scene_rows(self) -> None:
         # The fast path below may only skip rebuilding when the rows are the
         # SAME objects with the SAME displayed content. Keyed on scene_number
@@ -10543,6 +10569,7 @@ class VideoGeneratorApp(ctk.CTk):
         if not self._scene_rows:
             self.scenes_summary_var.set("")
             self._refresh_qa_ui(immediate=True)
+            self._fit_scene_scroll()
             return
 
         self._build_scene_list_header()
@@ -10554,6 +10581,7 @@ class VideoGeneratorApp(ctk.CTk):
                     self._decorate_scene_row(i, scene)
                 self._scene_row_signature = signature
                 self._refresh_qa_ui(immediate=True)
+                self._fit_scene_scroll()
                 return
 
             def _batch(start: int) -> None:
@@ -10567,6 +10595,7 @@ class VideoGeneratorApp(ctk.CTk):
                 else:
                     self._scene_row_signature = signature
                     self._refresh_qa_ui(immediate=True)
+                    self._fit_scene_scroll()
 
             self.after_idle(lambda: _batch(0))
             return
@@ -10579,6 +10608,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._scene_row_signature = signature
         self._refresh_scene_window(force=True)
         self._refresh_qa_ui(immediate=True)
+        self._fit_scene_scroll()
 
     def _update_changed_scene_rows(self, signature: tuple, use_window: bool) -> bool:
         """Incremental redraw when the SAME scene numbers are shown in the
