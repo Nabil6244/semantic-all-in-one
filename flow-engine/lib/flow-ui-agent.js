@@ -77,7 +77,10 @@ export async function collectStillUrls(page) {
         seen.add(src);
         out.push(src);
       };
-      for (const el of document.querySelectorAll("img, video")) {
+      // Gallery tiles only when the page has them: the chat-panel layout also shows small copies of each image in the
+      // agent's replies (live 2026-10-21, Accounts 6 and 9), which are not tiles and must not count as new stills.
+      const tiles = document.querySelectorAll("flow-grid-tile-container img, flow-grid-tile-container video");
+      for (const el of tiles.length ? tiles : document.querySelectorAll("img, video")) {
         const src = el.currentSrc || el.src || "";
         if (!src) continue;
         const alt = (el.alt || "").trim();
@@ -338,9 +341,20 @@ function agentToggle(page) {
   return page.locator("button").filter({ hasText: /^Agent$/i }).first();
 }
 
+/**
+ * The other Flow layout (live 2026-10-21, Account 6): no Agent toggle at all — the agent is a chat panel that is always
+ * open on the right, with the same "What do you want to create?" editor and Start generation button. Its "Agent
+ * instructions" button only shows while the agent is active (same signal as the toggle layout).
+ */
+async function agentPanelOpen(page) {
+  const panel = page.locator('button[aria-label="Agent instructions"]').first();
+  if ((await bounded(panel.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) return false;
+  return Boolean(await bounded(panel.isVisible(), PAGE_CALL_TIMEOUT_MS, false));
+}
+
 async function agentModeOn(page) {
   const btn = agentToggle(page);
-  if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) return false;
+  if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) return agentPanelOpen(page);
   return (await bounded(btn.getAttribute("aria-pressed", { timeout: PAGE_CALL_TIMEOUT_MS }), PAGE_CALL_TIMEOUT_MS, null)) === "true";
 }
 
@@ -351,8 +365,14 @@ async function agentModeOn(page) {
 export async function ensureAgentMode(page, { timeoutMs = 15000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   const btn = agentToggle(page);
-  await btn.waitFor({ state: "visible", timeout: timeoutMs }).catch(() => {});
+  // Either layout's control: the toggle, or the chat panel's "Agent instructions" (no 15 s wait for a toggle that is not there).
+  await Promise.any([
+    btn.waitFor({ state: "visible", timeout: timeoutMs }),
+    page.locator('button[aria-label="Agent instructions"]').first().waitFor({ state: "visible", timeout: timeoutMs }),
+  ]).catch(() => {});
   if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) {
+    // Chat-panel layout: no toggle to press; the agent is on when its panel is open.
+    if (await agentPanelOpen(page)) return { ok: true, reason: "agent_panel" };
     return { ok: false, reason: "agent_toggle_missing" };
   }
   while (Date.now() < deadline) {

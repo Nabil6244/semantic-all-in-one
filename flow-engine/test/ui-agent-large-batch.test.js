@@ -234,3 +234,33 @@ test("agent images are downloaded several at once, each to its own scene file", 
   assert.equal(peak, agentConfig.downloadParallel);
   for (const r of results) assert.equal(path.basename(r.path), `${String(r.index + 1).padStart(3, "0")}.png`);
 });
+
+/** A page with Flow's toggle layout (an "Agent" button) or its chat-panel layout (no toggle, "Agent instructions" shown). */
+function layoutPage({ toggle, panel }) {
+  const state = { pressed: false };
+  const none = { count: async () => 0, isVisible: async () => false, waitFor: () => new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 30)) };
+  const toggleLoc = {
+    count: async () => 1, isVisible: async () => true, waitFor: async () => {},
+    getAttribute: async () => String(state.pressed), click: async () => { state.pressed = true; },
+  };
+  const panelLoc = { count: async () => 1, isVisible: async () => true, waitFor: async () => {} };
+  return {
+    state,
+    locator: (sel) => {
+      if (sel === "button") return { filter: () => ({ first: () => (toggle ? toggleLoc : none) }) };
+      if (sel.includes("Agent instructions")) return { first: () => (panel ? panelLoc : none) };
+      return { first: () => none };
+    },
+  };
+}
+
+test("agent mode is found in both Flow layouts: the Agent toggle, and the always-open chat panel", async () => {
+  const { ensureAgentMode } = await import("../lib/flow-ui-agent.js");
+  const t = layoutPage({ toggle: true, panel: false });
+  assert.deepEqual(await ensureAgentMode(t, { timeoutMs: 2000 }), { ok: true, reason: "pressed" });
+  assert.equal(t.state.pressed, true);
+  assert.deepEqual(await ensureAgentMode(layoutPage({ toggle: false, panel: true }), { timeoutMs: 2000 }), { ok: true, reason: "agent_panel" });
+  const started = Date.now();
+  assert.equal((await ensureAgentMode(layoutPage({ toggle: false, panel: false }), { timeoutMs: 200 })).ok, false);
+  assert.ok(Date.now() - started < 2000);
+});

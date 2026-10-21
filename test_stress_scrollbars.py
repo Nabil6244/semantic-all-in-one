@@ -122,6 +122,15 @@ class Scrollbars(unittest.TestCase):
             out[seq] = sum(1 for ln in str(self.inst.tk.call("bind", "all", seq)).split("\n") if ln.strip())
         return out
 
+    def _laid_out(self, scrollbar, tries=40):
+        """Whether the scrollbar canvas has a real size. A headless CI runner (Windows, 2026-10-21) sometimes never maps
+        it: the thumb is then drawn 0 px tall before and after a scroll, which says nothing about the redraw patch."""
+        for _ in range(tries):
+            if scrollbar._canvas.winfo_height() > 10:
+                return True
+            self._settle(1)
+        return False
+
     def _wheel(self, widget, delta, n=1):
         for _ in range(n):
             widget.event_generate("<MouseWheel>", delta=delta, x=10, y=10)
@@ -144,20 +153,23 @@ class Scrollbars(unittest.TestCase):
             box.insert("1.0", "".join(f"line {i:05d} " + "x" * 300 + "\n" for i in range(5000)))
             self._settle()
             sb = box._y_scrollbar
+            drawn = self._laid_out(sb)
             y0, t0 = box.yview(), self._thumb(sb)
             self.assertLess(y0[1], 0.2, f"textbox too short to scroll: {y0}")
             # mouse wheel (macOS delta units; Windows uses multiples of 120 — both move down when negative)
             self._wheel(box._textbox, -120, n=5)
             y1, t1 = box.yview(), self._thumb(sb)
             self.assertGreater(y1[0], y0[0], "mouse wheel did not scroll the textbox")
-            self.assertNotEqual(t1, t0, "scrollbar thumb not redrawn after wheel scroll")
+            if drawn:
+                self.assertNotEqual(t1, t0, "scrollbar thumb not redrawn after wheel scroll")
             self.assertAlmostEqual(sb._start_value, y1[0], places=3)
             # scrollbar command (what dragging the thumb sends)
             sb._command("moveto", 0.5)
             self._settle()
             y2, t2 = box.yview(), self._thumb(sb)
             self.assertAlmostEqual(y2[0], 0.5, delta=0.01)
-            self.assertNotEqual(t2, t1, "thumb not redrawn after moveto")
+            if drawn:
+                self.assertNotEqual(t2, t1, "thumb not redrawn after moveto")
             # click on the scrollbar track near the bottom
             sb._canvas.event_generate("<Button-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
             sb._canvas.event_generate("<ButtonRelease-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
