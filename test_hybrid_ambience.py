@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from hybrid.compile import plan_to_rows
+from hybrid.compile import AMBIENCE_DEFAULT, plan_to_rows
 from hybrid.plan import Beat, CameraStep, Clip, HybridPlan, Support
 from pakmap.audio_plan import plan_audio
 from pakmap.sounds import AMBIENCE_IDS
@@ -51,6 +51,25 @@ class TestHybridAmbience(unittest.TestCase):
     def test_the_same_topic_twice_is_one_bed(self):
         plan = HybridPlan(duration=60, beats=[_beat(1, 0, 30, "the lake"), _beat(2, 30, 60, "the river", "footage")])
         self.assertEqual(len(_beds(plan)), 1)
+
+    def test_word_fragments_are_not_water(self):
+        text = "the terrain near the Ukraine border, drivers overseas this season, a train and a microwave"
+        self.assertEqual(_beds(HybridPlan(duration=40, beats=[_beat(1, 0, 40, text)])), [(0.0, AMBIENCE_DEFAULT)])
+
+    def test_one_passing_mention_is_not_the_topic(self):
+        beat = _beat(1, 0, 40, "the town by the river")
+        beat.purpose = beat.geo_intent = "the old market town"
+        self.assertEqual(_beds(HybridPlan(duration=40, beats=[beat])), [(0.0, AMBIENCE_DEFAULT)])
+
+    def test_water_stops_when_the_narration_moves_on(self):
+        plan = HybridPlan(duration=300, beats=[_beat(1, 0, 40, "the lake and the river"), _beat(2, 40, 100, "the parliament votes", "footage"),
+                                               _beat(3, 100, 300, "the election results by district")])
+        self.assertEqual(_beds(plan), [(0.0, "wi_water"), (40.0, AMBIENCE_DEFAULT)])
+
+    def test_a_short_water_beat_does_not_take_the_sound_over(self):
+        plan = HybridPlan(duration=120, beats=[_beat(1, 0, 50, "farmland"), _beat(2, 50, 58, "the lake and the river", "footage"),
+                                               _beat(3, 58, 120, "stone fences")])
+        self.assertEqual(_beds(plan), [(0.0, AMBIENCE_DEFAULT)])
 
     def test_the_plan_can_switch_ambience_off(self):
         plan = HybridPlan(duration=40, beats=[_beat(1, 0, 40, "the lake")], settings={"ambience": False})

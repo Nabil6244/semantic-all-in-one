@@ -282,22 +282,35 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
 
 
 # What each beat is about -> the ambience bed under it (pakmap.sounds ids, the louder What If-tuned beds: the quiet pakMap ones sit near -40 dBFS and are not heard).
+# Whole words only (plural s/es allowed): "rain" must not hit terrain, Ukraine or train, "river" not drivers, "sea" not overseas or season.
 AMBIENCE_TOPICS = (
     ("wi_cold", ("ice", "icy", "glacier", "snow", "polar", "arctic", "antarctic", "frozen", "frost", "tundra", "permafrost")),
-    ("wi_water", ("ocean", "sea ", " sea", "lake", "river", "rain", "coast", "bay ", "waves", "wave ", "reef", "water", "waterfall", "shore", "creek", "estuary", "swamp", "wetland")),
+    ("wi_water", ("ocean", "sea", "lake", "river", "rain", "rainfall", "coast", "coastline", "bay", "wave", "reef", "water", "waterfall", "shore",
+                  "creek", "estuary", "swamp", "wetland")),
     ("wi_wind", ("desert", "dust", "storm", "arid", "wind", "outback", "dune", "salt flat", "salt lake", "drought", "bushfire", "wildfire")),
     ("wi_space", ("space", "orbit", "asteroid", "meteor", "planet", "the moon", "galaxy", "solar system", "comet")),
 )
 AMBIENCE_DEFAULT = "wi_planet"
+AMBIENCE_MIN_HITS = 2           # one passing mention ("the river town", "by sea") is not what the beat is about: it stays on the calm default
+AMBIENCE_MIN_RUN_S = 12.0       # a topic spoken for less than this (one short beat) never takes the sound over
 AMBIENCE_MIN_STRETCH_S = 25.0   # a bed plays at least this long before another takes over: the topic of one short beat never flaps the sound
+_TOPIC_RES: Dict[str, Any] = {}
+
+
+def _topic_re(bed: str, words: Tuple[str, ...]):
+    import re
+
+    if bed not in _TOPIC_RES:
+        _TOPIC_RES[bed] = re.compile(r"\b(?:" + "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in words) + r")(?:s|es)?\b")
+    return _TOPIC_RES[bed]
 
 
 def _beat_topic(beat: Beat) -> str:
-    text = " ".join([beat.narration, beat.purpose, beat.geo_intent, beat.footage_intent] + [c.asset for c in beat.clips]).lower()
-    text = f" {text} "
-    best, hits = "", 0
+    """The bed this beat is about, or "" (calm default). Clip file names are not read: a folder called Waterloo or Rainbow is no topic."""
+    text = " ".join([beat.narration, beat.purpose, beat.geo_intent, beat.footage_intent]).lower()
+    best, hits = "", AMBIENCE_MIN_HITS - 1
     for bed, words in AMBIENCE_TOPICS:
-        n = sum(text.count(w) for w in words)
+        n = len(_topic_re(bed, words).findall(text))
         if n > hits:
             best, hits = bed, n
     return best
@@ -305,16 +318,23 @@ def _beat_topic(beat: Beat) -> str:
 
 def ambience_beds(plan: HybridPlan) -> List[Tuple[float, str]]:
     """[(start_s, bed id)]: a quiet bed under the whole video that follows the beats' subject (cold, water, wind, space, otherwise a calm drone).
+    Beats with no clear subject go back to the calm drone, so a water bed lasts only while the narration is about water.
     Turned off by the plan setting "ambience": false. Hybrid used to have none, so footage stretches and quiet narration had nothing under them."""
     if not plan.beats or plan.settings.get("ambience", True) is False:
         return []
-    out: List[Tuple[float, str]] = []
+    runs: List[List[Any]] = []   # [start, end, bed]: consecutive beats with the same subject
     for beat in plan.beats:
-        topic = _beat_topic(beat)
+        bed = _beat_topic(beat) or AMBIENCE_DEFAULT
+        if runs and runs[-1][2] == bed:
+            runs[-1][1] = beat.end
+        else:
+            runs.append([beat.start, beat.end, bed])
+    out: List[Tuple[float, str]] = []
+    for start, end, bed in runs:
         if not out:
-            out.append((0.0, topic or AMBIENCE_DEFAULT))
-        elif topic and topic != out[-1][1] and beat.start - out[-1][0] >= AMBIENCE_MIN_STRETCH_S:
-            out.append((round(beat.start, 2), topic))
+            out.append((0.0, bed))
+        elif bed != out[-1][1] and end - start >= AMBIENCE_MIN_RUN_S and start - out[-1][0] >= AMBIENCE_MIN_STRETCH_S:
+            out.append((round(start, 2), bed))
     return out
 
 
