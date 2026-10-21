@@ -28,6 +28,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
+import { collectAllStillUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
+import { wordsOf } from "./agent-api.js";
 
 /**
  * A UI generation that produced nothing: if Generate was clicked (or the click was attempted) the job may still finish on
@@ -256,6 +258,19 @@ async function openSettingsPanelWithRetry(page, diag, { maxAttempts = 3, perAtte
   return false;
 }
 
+/** "match" when the tile's Reuse prompt is the prompt that was sent, "mismatch" when it is another, "unreadable" otherwise. */
+async function tilePromptCheck(page, url, prompt) {
+  try {
+    const [tile] = await readPromptsForStillUrls(page, [url]);
+    if (!tile?.prompt) return "unreadable";
+    const got = wordsOf(tile.prompt);
+    const want = wordsOf(prompt);
+    return got && want && (got === want || got.includes(want) || want.includes(got)) ? "match" : "mismatch";
+  } catch {
+    return "unreadable";
+  }
+}
+
 function writeUiLog(outputDir, entry) {
   try {
     const dir = outputDir || os.tmpdir();
@@ -412,14 +427,51 @@ async function runUiGeneration(page, prompt, opts = {}) {
         return els.filter((el) => el.src && (el.src.includes(host) || el.src.includes("/asb/"))).map((el) => el.src);
       }, MEDIA_HOST)
       .catch(() => []);
+    // Flow's gallery is a virtual scroll list: tiles scrolled out of view are not in the DOM, so an older tile that
+    // scrolled back in was taken as this generation's image (live 2026-10-21: 8 of 10 single images after an agent
+    // batch were another scene's picture). Snapshot the whole gallery for stills.
+    if (opts.mode !== "video") {
+      const all = await collectAllStillUrls(page).catch(() => []);
+      if (Array.isArray(all)) preExistingMediaUrls.push(...all);
+    }
     diag.preExistingMediaCount = preExistingMediaUrls.length;
 
     diag.stage = "clicking_generate";
+    // A greyed-out Start generation cannot send anything. Live 2026-10-21 a click on one waited 30 s, threw, and the
+    // scene was then held as "maybe sent" (stuck in processing, never retried). Wait for it to enable; if it never
+    // does, report NOT sent so the scene is made again.
+    const isEnabled = () => (typeof genBtn.isEnabled === "function" ? genBtn.isEnabled().catch(() => false) : true);
+    const enabled = await genBtn
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(async () => {
+        const until = Date.now() + 20000;
+        while (Date.now() < until) {
+          if (await isEnabled()) return true;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        return false;
+      })
+      .catch(() => false);
+    if (!enabled) {
+      diag.outcome = "generate_button_disabled";
+      return { mediaId: null, fifeUrl: null, diag };
+    }
     diag.generationClickedAt = Date.now();
-    await genBtn.click();
+    try {
+      await genBtn.click({ timeout: 15000 });
+    } catch (clickErr) {
+      // The click never landed if the button went disabled again: nothing was sent.
+      if (typeof genBtn.isEnabled === "function" && !(await genBtn.isEnabled().catch(() => true))) {
+        diag.generationClickedAt = null;
+        diag.outcome = "generate_button_disabled";
+        return { mediaId: null, fifeUrl: null, diag };
+      }
+      throw clickErr;
+    }
 
     diag.stage = "waiting_for_completion";
     const deadline = Date.now() + generationTimeoutMs;
+    let unreadable = 0;
     while (Date.now() < deadline && !mediaUrl && !opts.shouldStop?.()) {
       mediaUrl = await page
         .evaluate(
@@ -461,6 +513,17 @@ async function runUiGeneration(page, prompt, opts = {}) {
           { host: MEDIA_HOST, known: preExistingMediaUrls, wantVideo: opts.mode === "video" },
         )
         .catch(() => null);
+      if (mediaUrl && opts.mode !== "video") {
+        // Never save a tile without proof it is this prompt's: its Reuse prompt must be the text just sent.
+        const check = await tilePromptCheck(page, mediaUrl, prompt);
+        diag.promptCheck = check;
+        if (check === "mismatch") {
+          preExistingMediaUrls.push(mediaUrl);
+          mediaUrl = null;
+        } else if (check === "unreadable" && ++unreadable < 3) {
+          mediaUrl = null;
+        }
+      }
       if (!mediaUrl) await new Promise((r) => setTimeout(r, 1500));
     }
 
