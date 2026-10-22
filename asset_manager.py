@@ -1669,6 +1669,8 @@ class AssetManager:
                 continue
             result = retry_results.get(key)
             if result is None:
+                if on_scene_complete and results.get(key) is not None:
+                    on_scene_complete(scene, results[key])  # its row was set back to QUEUED for the retry: show the original failure again
                 continue  # keep the original failure, already finalized
             if self.is_scene_cancelled(key):
                 if result.ok and result.path:
@@ -1679,6 +1681,8 @@ class AssetManager:
                     on_scene_complete(scene, result)
                 continue
             if not result.ok:
+                if on_scene_complete and results.get(key) is not None:
+                    on_scene_complete(scene, results[key])  # its row was set back to QUEUED for the retry: show the original failure again
                 continue  # retry failed too; original NEEDS_ACTION finalization stands
             self.log(f"[ASSET] Scene {key} recovered on retry")
             self._record_failed_approach(scene, source, result)

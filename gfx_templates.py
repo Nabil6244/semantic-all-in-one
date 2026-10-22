@@ -840,7 +840,7 @@ def stat_is_redundant(stat: Dict[str, Any], template_id: str, slots: Dict[str, A
     return abs(shown - new) <= 1e-9 * max(1.0, abs(new)) or (stat.get("value_to") is not None and float(stat["value_to"]) == float(slots.get("value")))
 
 
-CHIP_TEMPLATES = ("yellow_tag",)     # the Doc Style title chip (a small pill, top-left): it does not block a graphic that leaves that corner free
+CHIP_TEMPLATES = ("yellow_tag", "tag_headline")     # the Doc Style title chip (a small pill, top-left): it does not block a graphic that leaves that corner free
 
 
 def _uses_top_left(t: Dict[str, Any]) -> bool:
@@ -918,6 +918,7 @@ _ALL_ZONES = frozenset(r + c for r in "TMB" for c in "LCR")
 ZONES: Dict[str, "frozenset[str]"] = {
     "end_question": frozenset({"MC"}),
     "typed_caption": frozenset({"BL", "BC"}), "counter_corner": frozenset({"TR"}), "yellow_tag": frozenset({"TL"}),
+    "tag_headline": frozenset({"TL"}), "subtitle_gold": frozenset({"BL", "BC", "BR"}),
     "name_bar": frozenset({"ML", "BL"}), "place_lowerthird": frozenset({"BL"}), "tag_fact": frozenset({"MC"}),
     "big_number": frozenset({"MC"}), "gold_stat": frozenset({"MC"}), "year_wipe": frozenset({"MC"}), "three_rings": frozenset({"MC"}),
     "quote_boxed": frozenset({"MC"}), "quote_card": frozenset({"ML", "MC"}), "fact_card": frozenset({"ML", "MC"}), "record_badge": frozenset({"MC"}),
@@ -934,6 +935,11 @@ def zones_of(template: Dict[str, Any]) -> "frozenset[str]":
 COMPACT_ON_FOOTAGE = {"name_bar", "place_lowerthird", "lower_kicker", "counter_corner", "tag_headline", "ring_percent", "big_number", "gold_stat", "year_wipe", "dial_gauge"}   # little of the picture is covered
 # ---- every other clip: a graphic made of the narration's own words ---------------------------------------------------------------------------
 FOOTAGE_SHARE = 0.6          # about this share of the full-screen clips carry a graphic (the ones with a number, a year or a person already have theirs)
+# rich=True (Hybrid Map): more graphics. More per minute, closer together, punchlines more often, most clips carry one, and a clip may show the clause
+# being spoken as it starts (begun up to RICH_CLAUSE_LEAD_S earlier), still whole and word for word
+RICH = dict(max_per_minute=4, max_per_minute_footage=6, min_spacing=4.0, group_gap=40.0, footage_share=0.85, clause_lead=3.0, clause_words=10)
+NORMAL = dict(max_per_minute=MAX_PER_MINUTE, max_per_minute_footage=MAX_PER_MINUTE_FOOTAGE, min_spacing=MIN_SPACING_S, group_gap=None, footage_share=FOOTAGE_SHARE,
+              clause_lead=0.6, clause_words=8)
 FILL_LOOKS = (                # (template, slots from a clause, longest clause in characters): cards and text layouts that read over a picture
     ("headline_wash", lambda c, hl: {"title": c.upper(), "sub": ""}, 34), ("subtitle_gold", lambda c, hl: {"text": c, "highlight": hl}, 56),
     ("lower_kicker", lambda c, hl: {"title": c.upper(), "kicker": "", "sub": ""}, 30), ("tag_headline", lambda c, hl: {"text": c.upper()}, 42),
@@ -1008,7 +1014,7 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
                 stats: Sequence[Dict[str, Any]] = (), replaced: Optional[List[str]] = None, chips: Sequence[Tuple[float, float]] = (),
                 footage: Sequence[Tuple[float, float]] = (), script: Optional[str] = None, report: Optional[List[Dict[str, Any]]] = None,
                 hidden_under_footage: Sequence[Tuple[float, float]] = (), texts: Sequence[Tuple[float, float, str]] = (),
-                narration_fill: bool = True) -> List[Dict[str, Any]]:
+                narration_fill: bool = True, rich: bool = False) -> List[Dict[str, Any]]:
     """Graphics for what the narration states, chosen by score, within the pacing budget.
 
     For each sentence every rule in AUTO that reads something from it makes a candidate (its slots come only from the narration; a required slot left empty
@@ -1023,6 +1029,7 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
     graphic that draws its own tag in their corner). `footage` = windows of full-screen footage that covers every map layer (Hybrid cover_ui): a graphic whose
     time falls on one is drawn above it (event flag over_footage) with a soft backing instead of a plate. `report` collects why a graphic was not drawn."""
     lib = load_library()
+    dens = RICH if rich else NORMAL
     entries = [(tid, pat, fn) for tid, pat, fn in AUTO if tid in lib and (enabled is None or tid in enabled)
                and (niche in lib[tid].get("niches", []) or "any" in lib[tid].get("niches", []))]
     events: List[Dict[str, Any]] = []
@@ -1136,12 +1143,12 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
             if any(not stat_is_redundant(st, tid, slots) for st in over):
                 why("another_stat_on_screen", tid, a)
                 return None
-        if win[0] - last_end < (MIN_SPACING_FOOTAGE_S if on_clip else MIN_SPACING_S):
+        if win[0] - last_end < (MIN_SPACING_FOOTAGE_S if on_clip else dens["min_spacing"]):
             why("spacing", tid, a)
             return None
         rule = RULES.get(tid, {})
         grp = rule.get("group")
-        if grp and grp in group_last and win[0] - group_last[grp] < float(rule.get("group_gap_s", 75.0)):
+        if grp and grp in group_last and win[0] - group_last[grp] < float(dens["group_gap"] or rule.get("group_gap_s", 75.0)):
             why("too_soon_for_another_text_effect", tid, a)
             return None
         if grp == "punchline":
@@ -1164,7 +1171,7 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
             if near and (len(near) >= SAME_TEMPLATE_MAX or (tid not in _IDENTITY and not _significant(text))):
                 why("same_layout_again", tid, a)
                 return None                                # again soon only for a fact that stands out, and only so often
-        if sum(1 for e in events if win[0] - 60 < e["t_in"] <= win[0]) >= (MAX_PER_MINUTE_FOOTAGE if on_clip else MAX_PER_MINUTE):
+        if sum(1 for e in events if win[0] - 60 < e["t_in"] <= win[0]) >= (dens["max_per_minute_footage"] if on_clip else dens["max_per_minute"]):
             why("per_minute_limit", tid, a)
             return None
         if total is not None and win[1] > total:
@@ -1243,9 +1250,9 @@ def auto_events(words: Sequence[Tuple[str, float, float]], *, niche: str = "map"
         if have:
             done_clips += 1
             continue
-        if done_clips >= FOOTAGE_SHARE * (idx + 1):
+        if done_clips >= dens["footage_share"] * (idx + 1):
             continue
-        cands = [(c, t0, t1) for c, t0, t1 in clauses if f0 - 0.6 <= t0 <= f1 - 2.0 and 2 <= len(c.split()) <= 8 and c.lower() not in seen_text]
+        cands = [(c, t0, t1) for c, t0, t1 in clauses if f0 - dens["clause_lead"] <= t0 <= f1 - 2.0 and t1 >= f0 + 0.8 and 2 <= len(c.split()) <= dens["clause_words"] and c.lower() not in seen_text]
         cands.sort(key=lambda x: (-_clause_score(x[0]), x[1]))
         placed = False
         order = sorted([("card", k) for k in range(len(CARD_LOOKS))] + [("text", k) for k in range(len(FILL_LOOKS))],
@@ -1355,22 +1362,40 @@ def _template_event(template_id: str, ev: Dict[str, Any], slots: Dict[str, Any])
     return out
 
 
-def apply_doc_style(events: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+# rotate=True (Hybrid Map): the plan's titles and captions take turns between News Doc looks that sit in the same place and read the same words,
+# so a long video is not one tag and one caption over and over (in order of appearance, so the same plan always gets the same looks)
+DOC_ROTATION = {"hud_title": ("yellow_tag", "tag_headline"), "caption": ("typed_caption", "subtitle_gold")}
+
+
+def apply_doc_style(events: Sequence[Dict[str, Any]], rotate: bool = False) -> List[Dict[str, Any]]:
     """Redraw a map video's title chips, captions and whole-number counters in the News Doc look (the gfx-core "news" templates).
     Same ids, same times; only what has a faithful News Doc twin is changed:
       hud_title -> yellow_tag (label, and the subtitle after a dot)      caption -> typed_caption
       stat counting 0 -> a whole number (its sub-line names it) -> counter_corner; a whole number with a unit ("#,##0 KM") -> the same compact card, the unit on its small line
     Everything else (markers, lines, fills, photo cards, footage, a stat that counts from another value or has a unit format) is left as it is."""
     out: List[Dict[str, Any]] = []
-    for ev in events:
+    turn: Dict[int, int] = {}     # event position -> its turn among the plan's layers of its kind, by start time
+    if rotate:
+        for kind in DOC_ROTATION:
+            mine = sorted((i for i, e in enumerate(events) if e.get("type") == kind), key=lambda i: (float(events[i].get("t_in", 0.0)), i))
+            turn.update({i: k for k, i in enumerate(mine)})
+
+    def _rotated(kind: str, twin: str) -> str:
+        if not rotate:
+            return twin
+        looks = [x for x in DOC_ROTATION[kind] if x in load_library()] or [twin]
+        return looks[turn.get(pos, 0) % len(looks)]
+
+    for pos, ev in enumerate(events):
         t = ev.get("type")
         try:
             if t == "hud_title" and ev.get("label"):
                 text = ev["label"] + (f" · {ev['sub']}" if ev.get("sub") else "")
-                out.append(_template_event("yellow_tag", ev, {"text": str(text).upper()}))
+                out.append(_template_event(_rotated("hud_title", "yellow_tag"), ev, {"text": str(text).upper()}))
                 continue
             if t == "caption" and ev.get("text"):
-                out.append(_template_event("typed_caption", ev, {"text": str(ev["text"]).replace("\n", " ")}))
+                look = _rotated("caption", "typed_caption")
+                out.append(_template_event(look, ev, {"text": str(ev["text"]).replace("\n", " "), "highlight": ""} if look == "subtitle_gold" else {"text": str(ev["text"]).replace("\n", " ")}))
                 continue
             v, f = ev.get("value_to"), ev.get("value_from")
             unit = _UNIT_FORMAT.match(str(ev.get("format", "")).strip())

@@ -4341,6 +4341,29 @@ class VideoGeneratorApp(ctk.CTk):
         self._hybrid_refresh_steps()
         self._sync_primary_cta()
 
+    def _hybrid_all_scenes_ready(self) -> bool:
+        """Every clip and card of the plan has its file (or was skipped by the author), so the next click renders instead of fetching."""
+        plan = getattr(self, "_hybrid_plan", None)
+        if plan is None or self._hybrid_table_is_stale(plan):
+            return False
+        try:
+            return all(self._row_status_from_result(r) in ("ready", "success", "skipped") for r in self._scene_rows)
+        except Exception:
+            return False
+
+    def _hybrid_table_is_stale(self, plan) -> bool:
+        """True when the Visual Plan table does not list exactly this plan's clips and cards (by number: a source the user changed in the table is kept)."""
+        if getattr(self, "_scene_rows_owner", None) != "hybrid":
+            return True
+        try:
+            from hybrid.app_integration import visual_dicts
+
+            want = [str(d["scene_number"]) for d in visual_dicts(plan)]
+        except Exception:
+            return False
+        have = [str(r.scene_number) for r in self._scene_rows]
+        return sorted(want) != sorted(have)
+
     def _hybrid_scene_status(self) -> dict:
         status = {}
         for row in getattr(self, "_scene_rows", []) if getattr(self, "_scene_rows_owner", None) == "hybrid" else []:
@@ -4818,6 +4841,13 @@ class VideoGeneratorApp(ctk.CTk):
         self.stage_var.set("GENERATE")
         self.hint_var.set("Ready — click Generate to render the Hybrid Map video.")
         self._set_generate_btn(state="normal", text="Generate")
+        if self._hybrid_all_scenes_ready():
+            self.stage_var.set("RENDER")
+            self.hint_var.set("Every scene is ready — click Render to draw the Hybrid Map video.")
+            self._set_generate_btn(state="normal", text="Render")
+        else:
+            self.hint_var.set("Click Generate scenes: the clips and pictures are fetched first, then you click Render.")
+            self._set_generate_btn(state="normal", text="Generate scenes")
 
     def _on_hybrid_cancel(self) -> None:
         if not self._hybrid_running or self._hybrid_cancel.is_set():
@@ -4864,6 +4894,8 @@ class VideoGeneratorApp(ctk.CTk):
         if _timing_fixes:   # repaired, not just logged: say so where the user is looking
             self._notify(f"Fixed {len(_timing_fixes)} layer timing problem(s) before rendering. Details are in Activity.", tone="success")
         if _timing_fixes or not self._scene_rows:
+            self._populate_hybrid_visual_plan()
+        elif self._hybrid_table_is_stale(plan):   # the table was made from an older plan (or by another style): it lists this plan's clips before anything is fetched
             self._populate_hybrid_visual_plan()
         blocking = _hy_errors(_hy_validate(plan))
         if not blocking:
@@ -4951,11 +4983,18 @@ class VideoGeneratorApp(ctk.CTk):
 
         hybrid_doc_style = bool(self._settings.get("doc_style", False))
         hybrid_auto_gfx = bool(self._hybrid_auto_gfx_var.get())
+        hybrid_media_only = not self._hybrid_all_scenes_ready()   # Generate fetches the scenes and stops; Render (every scene ready) draws the video
+        self._append_log("[HYBRID] Getting the scenes: the video is drawn when you click Render once they are all ready.\n" if hybrid_media_only
+                         else "[HYBRID] Every scene is ready: rendering the video.\n")
 
         def worker() -> None:
             from hybrid.generate import generate_hybrid_video
             from pakmap.app_integration import PakmapResult
 
+            if hybrid_media_only:
+                import functools
+
+                generate_hybrid_video = functools.partial(generate_hybrid_video, media_only=True)
             prun = self._production_begin("hybrid")
 
             try:
@@ -4978,6 +5017,18 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            if result.ok and getattr(result, "media_ready", 0) and not self._hybrid_cancel.is_set():   # the scenes are ready; nothing was drawn
+                self._hybrid_running = False
+                run, self._hybrid_tracking = self._hybrid_tracking, None
+                self._track_generation_end(run, "completed", output_path=None, validated=False, message="scenes ready")
+                self._hybrid_status_var.set(f"All {result.media_ready} scene(s) are ready. Check them in the Visual Plan, then click Render.")
+                self._append_log(f"[HYBRID] All {result.media_ready} scene(s) are ready. Nothing was rendered yet: click Render to draw the video.\n")
+                self._populate_hybrid_visual_plan()
+                self._hybrid_show_plan()
+                self._refresh_qa_ui(immediate=True)
+                self._notify("Scenes ready. Click Render to draw the video.", tone="success")
+                self._sync_primary_cta()
+                return
             result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._hybrid_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._hybrid_cancel.is_set()

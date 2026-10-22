@@ -37,6 +37,7 @@ class PakmapResult:
     audio_mix: Optional[object] = None  # pakmap.audio_mix.MixResult
     # Sound design was asked for but is not in the video (the mix failed, so the video has the narration only): why.
     sound_failed: Optional[str] = None
+    media_ready: int = 0  # media_only: every picture is ready and nothing was drawn (this many pictures); the next run renders
 
 
 def _report(cb: Optional[ProgressCallback], message: str, fraction: float) -> None:
@@ -178,6 +179,7 @@ def generate_pakmap_video(
     media_find_file: Optional[Callable[..., object]] = None, scene_rows: Optional[Sequence[object]] = None,
     media_dir: "str | Path | None" = None, media_manifest_cls: object = None, spec_extra: Optional[dict] = None,
     media_options: Optional[dict] = None, pixel_scale: int = 1, auto_templates: bool = False, doc_style: bool = False, guard: bool = False,
+    media_only: bool = False,
 ) -> PakmapResult:
     """`pixel_scale` 2 exports in 4K: the script is laid out at `resolution` (cards, camera and zoom are unchanged) and every
     frame is drawn with twice the pixels, so a 1920x1080 layout comes out 3840x2160."""
@@ -231,6 +233,12 @@ def generate_pakmap_video(
             rows = list(scene_rows) if scene_rows else [SceneRow.from_csv_row(d) for d in visual_plan_dicts(csv_path)]
             wanted = {str(o.scene_number) for o in occs}
             rows = [r for r in rows if str(r.scene_number) in wanted]
+            # a picture the script needs but the table does not list (the table was made from an older plan) is still fetched: never drawn without it
+            listed = {str(r.scene_number) for r in rows}
+            if scene_rows and wanted - listed:
+                extra = [SceneRow.from_csv_row(d) for d in visual_plan_dicts(csv_path) if str(d.get("scene_number")) in wanted - listed]
+                log(f"[pakMap] {len(extra)} picture(s) were not in the Visual Plan table yet; they are fetched too: " + ", ".join(str(r.scene_number) for r in extra))
+                rows += extra
             _report(progress_cb, f"Getting {len(rows)} picture(s) from stock / Flow / YouTube…", 0.05)
             got = fetch_scenes(
                 rows, media_dir or (work / MEDIA_DIRNAME), resolver=media_resolver, find_file=media_find_file, manifest_cls=media_manifest_cls, log=log,
@@ -239,12 +247,19 @@ def generate_pakmap_video(
             )
             if cancelled():
                 return PakmapResult(False, ["Cancelled"], cancelled=True)
+            for o in occs:   # every picture is accounted for before anything is drawn: found, skipped by the author, or reported missing
+                n = str(o.scene_number)
+                if n not in got.paths and n not in got.skipped and n not in got.missing:
+                    got.missing[n] = "it was never fetched"
             if got.missing:
                 by_n = {str(o.scene_number): o for o in occs}
                 lines = [f"Picture {n} ({by_n[n].description}, script row {by_n[n].line}): {why}" for n, why in got.missing.items()]
                 unresolved = list(got.missing)
                 return PakmapResult(False, lines + ["Open the Visual Plan tab to Retry, Change source or Skip these pictures, then Generate again. Pictures that were fetched are kept."],
                                     unresolved=unresolved)
+            if media_only:   # Hybrid: the scenes are fetched first; drawing waits for the author's Render click
+                _report(progress_cb, f"All {len(got.paths) + len(got.skipped)} picture(s) ready", 1.0)
+                return PakmapResult(True, media_ready=len(got.paths) + len(got.skipped))
             media_map = {}
             for o in occs:
                 n = str(o.scene_number)

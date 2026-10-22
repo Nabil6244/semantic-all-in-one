@@ -357,10 +357,11 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
         import gfx_templates
 
         before = {e["id"]: e["type"] for e in events}
-        events = gfx_templates.apply_doc_style(events)
+        events = gfx_templates.apply_doc_style(events, rotate=bool(spec_extra))   # Hybrid (spec_extra): titles and captions take turns between looks
         for e in events:
             if e["type"] == "map_template" and before.get(e["id"]) in ("hud_title", "caption", "stat") and e["id"] in info:
                 info[e["id"]].type = "map_template"; info[e["id"]].note = f"doc style (was {before[e['id']]})"
+    hybrid = bool(spec_extra)   # Hybrid Map renders through here with its own spec_extra; pakMap never sets it
     narration_script = (spec_extra or {}).get("narration_script")      # Hybrid: the plan's own text, which has the punctuation Whisper's words lack
     if spec_extra and "narration_script" in spec_extra:
         spec_extra = {k: v for k, v in spec_extra.items() if k != "narration_script"}
@@ -393,7 +394,8 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             except Exception:
                 return None
 
-        for ev in gfx_templates.auto_events(words, niche="map", taken=taken, total=total, resolve=_where, stats=stats, replaced=replaced, chips=chips, footage=footage, script=narration_script, hidden_under_footage=hidden, texts=texts):
+        for ev in gfx_templates.auto_events(words, niche="map", taken=taken, total=total, resolve=_where, stats=stats, replaced=replaced, chips=chips, footage=footage, script=narration_script, hidden_under_footage=hidden, texts=texts,
+                                              rich=hybrid):   # Hybrid Map: more graphics (gfx_templates.RICH)
             events.append(ev)
             info[ev["id"]] = EventReport(ev["id"], "map_template", 0, ev["t_in"], ev["t_out"], "derived", 0, note="added from the narration")
         if replaced:

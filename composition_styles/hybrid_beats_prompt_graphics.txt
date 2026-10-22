@@ -56,8 +56,11 @@ Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and wha
   beat, not together with a stat. Every graphic plays its own sound.
   HOW OFTEN: go through the script for what it states that a graphic shows better than a caption: a quantity or measurement (big_number,
   counter), a share, a comparison of two figures, a ranking, a date or a run of dates, a named person with their role, a quotation, a
-  place the narrator introduces. A long video usually has one every 60 to 90 seconds; a stretch with none of those has none. Vary the
-  ids: the same id again only for a different fact and not within two minutes. The map and the footage stay the main picture; use a
+  place the narrator introduces, a short sentence that lands as a beat (a text style), a list of three things (side_panel, three_rings),
+  a numbered point or a new section (fact_card, chapter_serif). Aim for one template every 20 to 40 seconds of narration (a 10-minute
+  video has about 20 of them); a stretch with none of those has none. Prefer a template to a plain caption, title chip or stat whenever
+  one fits what is said. Vary the ids: use as many DIFFERENT template ids from the list as the script allows (a 10-minute video should
+  use at least 10 different ids), the same id again only for a different fact and not within two minutes. The map and the footage stay the main picture; use a
   full-screen card (quote, ranking, timeline) only a few times in the whole video.
   OVER FOOTAGE FIRST: the map already carries its own markers, titles and cards, and footage carries nothing. So put most graphics on the footage:
   under a footage beat write the template row with its vo_anchor on the words that state the fact (the graphic appears when they are spoken and
@@ -228,6 +231,9 @@ CHECKLIST BEFORE YOU ANSWER
    share the screen have different anchors; a new thing appears on the map every ~4 seconds.
 9. VARIETY: several different layer types across the video; at least one line in a video
    of 2 minutes or more; no area filled twice; no stat and caption within 4 seconds.
+10. GRAPHICS: count the template rows: about one per 20 to 40 seconds of narration, most of
+   them on footage beats, many different ids, every one showing only words and numbers the
+   script states.
 10. Output is the CSV only.
 
 EXAMPLE

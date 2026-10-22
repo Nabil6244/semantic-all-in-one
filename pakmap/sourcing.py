@@ -179,6 +179,16 @@ def fetch_scenes(
         else:
             first_of[key] = n
     error = ""
+    # the Visual Plan row of a scene the providers never reported (a repeat fetched once, a retry that failed again) would stay QUEUED: each one
+    # still gets its final state below
+    reported: set = set()
+    on_complete = provider_kwargs.get("on_scene_complete")
+    if on_complete is not None:
+        def _complete(scene: Any, res: Any) -> None:
+            reported.add(str(getattr(scene, "scene_number", "")))
+            on_complete(scene, res)
+
+        provider_kwargs["on_scene_complete"] = _complete
     try:
         resolver([_row_dict(sc) for sc in scenes if str(sc.scene_number) not in duplicate_of], images_dir, log=log, **provider_kwargs)
     except SystemExit as exc:
@@ -216,4 +226,39 @@ def fetch_scenes(
                 result.fetched += 1
         else:
             result.missing[n] = err_text or error or "no picture was found for it"
+    if on_complete is not None:
+        _report_unreported(scenes, result, reported, on_complete)
     return result
+
+
+def _report_unreported(scenes: Sequence[Any], result: "FetchResult", reported: set, on_complete: Callable[[Any, Any], None]) -> None:
+    try:
+        from providers.base import AssetResult, SceneStatus
+    except Exception:
+        return
+    for sc in scenes:
+        n = str(sc.scene_number)
+        if n in reported:
+            continue
+        if n in result.paths:
+            res = AssetResult(scene_number=n, path=Path(result.paths[n]), media_type=None, source=_source_of(sc), status=SceneStatus.READY)
+        elif n in result.skipped:
+            res = AssetResult(scene_number=n, path=None, media_type=None, source=_source_of(sc), status=SceneStatus.SKIPPED, error="Skipped.")
+        else:
+            res = AssetResult(scene_number=n, path=None, media_type=None, source=_source_of(sc), status=SceneStatus.NEEDS_ACTION,
+                              error=result.missing.get(n) or "no picture was found for it")
+        try:
+            on_complete(sc, res)
+        except Exception:
+            pass
+
+
+def _source_of(scene: Any) -> Any:
+    from providers.base import AssetSource
+
+    try:
+        from asset_manager import SceneAssetRouter
+
+        return SceneAssetRouter.classify(scene) or AssetSource.STOCK
+    except Exception:
+        return AssetSource.STOCK

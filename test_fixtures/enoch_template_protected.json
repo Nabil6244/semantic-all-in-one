@@ -7,7 +7,7 @@
     "ai_router/errors.py": "6348bbc30569876e74aa2ceead8a8b8c8890a061de88731758e32fff70bb606e",
     "ai_router/providers.py": "7ef878a695d11c5a78837084bec94e0f02051da78f338fc164b7e96f16432b9d",
     "ai_router/router.py": "0c83aa4a8e1145b0e9abec19a6255a3e1a1baaa2c3828dbff5c3a950172fc7c9",
-    "asset_manager.py": "d5503999890c8b40a93cbd5f8225a2578e04bca334e7a1851b80163b24bf929b",
+    "asset_manager.py": "5e0ffa33660d1e415073be1757a1b33322a586ac8181f65548f350bc3af98ba0",
     "docs/styles/book_of_enoch_visual_guide.md": "d03c7fabb920a7d6f9f09a85ddbca5096e4ee15209827e41df39c732943d2190",
     "editorial/__init__.py": "2093185d8bb59f9d9b28127e21f49db3de35b7ed6fdc5c30ef39fa78b30086b5",
     "editorial/audio_director.py": "5e1f2b08fd6a693b94e6ab7186bc719e3da356748916ecebc6ea32d8d3e9a8fe",
