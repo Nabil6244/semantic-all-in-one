@@ -28,7 +28,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
-import { collectAllStillUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
+import { collectAllStillUrls, collectAllVideoUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
 import { wordsOf } from "./agent-api.js";
 
 /**
@@ -284,6 +284,59 @@ function writeUiLog(outputDir, entry) {
 }
 
 /**
+ * Live 2026-10-22: a video that has just finished shows as <img alt="Generated video thumbnail"> on
+ * flow-content.google/image/... (a JPEG), which is neither a /video/ nor an /asb/ URL, so the wait ran out while the video
+ * sat on the page. Hovering the tile loads its <video>, an /asb/ URL that returns the mp4: that URL is returned. If the
+ * hover shows nothing, the page is reloaded (at most twice), which redraws the tile as an /asb/ thumbnail the normal
+ * check knows. Never clicks anything.
+ */
+async function videoBehindThumbnail(page, known, diag) {
+  const thumb = await page
+    .evaluate(
+      ({ host, known }) => {
+        const el = Array.from(document.querySelectorAll("img[src]")).find(
+          (e) => e.src.includes(host) && /video thumbnail/i.test(e.alt || "") && !known.includes(e.src),
+        );
+        if (!el) return null;
+        const r = el.getBoundingClientRect?.() || { x: 0, y: 0, width: 0, height: 0 };
+        return { src: el.src, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      },
+      { host: MEDIA_HOST, known },
+    )
+    .catch(() => null);
+  if (!thumb) return null;
+  diag.videoThumbnailSeen = true;
+  await page.mouse?.move(thumb.x, thumb.y).catch(() => {});
+  const knownTokens = known.map((u) => ASB_TOKEN_RE.exec(u || "")?.[1]).filter(Boolean);
+  for (let i = 0; i < 8; i++) {
+    const src = await page
+      .evaluate(
+        ({ host, knownTokens }) => {
+          for (const v of document.querySelectorAll("video")) {
+            const u = v.currentSrc || v.src || "";
+            const tok = /\/asb\/([^=?&#]+)/.exec(u)?.[1];
+            if ((tok && !knownTokens.includes(tok)) || (u.includes(host) && u.includes("/video/"))) return u;
+          }
+          return null;
+        },
+        { host: MEDIA_HOST, knownTokens },
+      )
+      .catch(() => null);
+    if (src) {
+      diag.videoFoundBy = "hover";
+      return src;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  diag.videoThumbnailReloads = (diag.videoThumbnailReloads || 0) + 1;
+  if (diag.videoThumbnailReloads <= 2 && typeof page.reload === "function") {
+    await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+    await waitForFlowReady(page).catch(() => {});
+  }
+  return null;
+}
+
+/**
  * Core UI-driven generation. Returns the media URL (never downloads it) plus
  * a mediaId parsed from that URL, matching what extractOgiZ0bImageResult
  * already does for the RPC path's response — same {mediaId, fifeUrl} shape.
@@ -429,11 +482,10 @@ async function runUiGeneration(page, prompt, opts = {}) {
       .catch(() => []);
     // Flow's gallery is a virtual scroll list: tiles scrolled out of view are not in the DOM, so an older tile that
     // scrolled back in was taken as this generation's image (live 2026-10-21: 8 of 10 single images after an agent
-    // batch were another scene's picture). Snapshot the whole gallery for stills.
-    if (opts.mode !== "video") {
-      const all = await collectAllStillUrls(page).catch(() => []);
-      if (Array.isArray(all)) preExistingMediaUrls.push(...all);
-    }
+    // batch were another scene's picture). Snapshot the whole gallery, of videos too: an earlier scene's video scrolling
+    // back into view was otherwise taken as this scene's.
+    const all = await (opts.mode === "video" ? collectAllVideoUrls(page) : collectAllStillUrls(page)).catch(() => []);
+    if (Array.isArray(all)) preExistingMediaUrls.push(...all);
     diag.preExistingMediaCount = preExistingMediaUrls.length;
 
     diag.stage = "clicking_generate";
@@ -513,6 +565,7 @@ async function runUiGeneration(page, prompt, opts = {}) {
           { host: MEDIA_HOST, known: preExistingMediaUrls, wantVideo: opts.mode === "video" },
         )
         .catch(() => null);
+      if (!mediaUrl && opts.mode === "video") mediaUrl = await videoBehindThumbnail(page, preExistingMediaUrls, diag);
       if (mediaUrl && opts.mode !== "video") {
         // Never save a tile without proof it is this prompt's: its Reuse prompt must be the text just sent.
         const check = await tilePromptCheck(page, mediaUrl, prompt);
@@ -596,10 +649,11 @@ async function runUiGeneration(page, prompt, opts = {}) {
 
 /**
  * Prompt text for Flow's Agent UI, which picks image vs video from the words
- * alone. Image requests get an explicit "one still image, not a video"
- * instruction; video requests are left as they are.
+ * alone. Each request says which one it wants: a video prompt sent bare could
+ * come back as a still, and the video wait then ran its full 9 minutes for nothing.
  */
 export function agentPromptFor(prompt, mode) {
+  if (mode === "video") return `Generate one video clip only (a single short video with motion, not a still image): ${prompt}`;
   if (mode !== "image") return prompt;
   return `Generate one still image only (a single photo, not a video, no motion): ${prompt}`;
 }

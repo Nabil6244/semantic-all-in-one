@@ -123,8 +123,28 @@ const SCROLL_SETTLE_MS = 350;
 export const PARTIAL_QUIET_MS = 45000;
 const MAX_SCROLL_STEPS = 80;
 
+/** Video tile URLs on the page (a <video>, its "Generated video thumbnail", or a flow-content.google /video/ URL). */
+export async function collectVideoUrls(page) {
+  return bounded(page
+    .evaluate((host) => {
+      const out = [];
+      for (const el of document.querySelectorAll("img, video")) {
+        const src = el.currentSrc || el.src || "";
+        if (!src || out.includes(src)) continue;
+        const isVideo = el.tagName === "VIDEO" || /video thumbnail/i.test(el.alt || "");
+        if ((isVideo && /\/asb\//.test(src)) || (src.includes(host) && /\/video\//.test(src))) out.push(src);
+      }
+      return out;
+    }, MEDIA_HOST), PAGE_CALL_TIMEOUT_MS, []);
+}
+
+/** Every video in the project, by scrolling the whole virtual gallery (ends back at the top). */
+export async function collectAllVideoUrls(page) {
+  return collectAllStillUrls(page, collectVideoUrls);
+}
+
 /** Every still in the project, top to bottom, by scrolling the whole virtual gallery (ends back at the top). */
-export async function collectAllStillUrls(page) {
+export async function collectAllStillUrls(page, collect = collectStillUrls) {
   const out = [];
   const seen = new Set();
   const add = (urls) => {
@@ -136,11 +156,11 @@ export async function collectAllStillUrls(page) {
   await scrollGallery(page, "top");
   await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
   for (let step = 0; step < MAX_SCROLL_STEPS; step++) {
-    add(await collectStillUrls(page));
+    add(await collect(page));
     const pos = await scrollGallery(page, "down");
     if (pos.atEnd) {
       await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));
-      add(await collectStillUrls(page));
+      add(await collect(page));
       break;
     }
     await new Promise((r) => setTimeout(r, SCROLL_SETTLE_MS));

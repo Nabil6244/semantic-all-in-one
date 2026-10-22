@@ -225,6 +225,36 @@ test("video mode with only a poster image fails visibly instead of saving an ima
   );
 });
 
+test("a finished video shown only as a flow-content /image/ thumbnail is found by hovering its tile (live 2026-10-22)", async () => {
+  const outputDir = tmpOutputDir();
+  const { page, state } = makeDomPage({ elementsAfterGenerate: [] });
+  const thumb = {
+    tagName: "IMG",
+    alt: "Generated video thumbnail",
+    src: "https://flow-content.google/image/thumb-1?sig=x",
+    getBoundingClientRect: () => ({ x: 10, y: 20, width: 100, height: 60 }),
+  };
+  const video = { tagName: "VIDEO", alt: "", src: "https://flow.google.com/asb/VIDTOKEN" };
+  page.mouse = { move: async () => { state.hovered = true; } };
+  const evaluate = page.evaluate;
+  let calls = 0;
+  page.evaluate = async (fn, arg) => {
+    if (calls++ === 0) return evaluate(fn, arg); // Flow-ready check
+    const prev = globalThis.document;
+    const els = state.generateClicked ? [thumb, ...(state.hovered ? [video] : [])] : [];
+    globalThis.document = { querySelectorAll: (sel) => (sel === "video" ? els.filter((e) => e.tagName === "VIDEO") : els) };
+    try {
+      return fn(arg);
+    } finally {
+      globalThis.document = prev;
+    }
+  };
+  const result = await generateOneVideoViaUI(page, PROJECT_ID, PROMPT, { outputDir, generationTimeoutMs: 20000 }, 0);
+  assert.ok(state.hovered, "the thumbnail tile was hovered");
+  assert.match(result.mediaId, /^asb-/);
+  assert.equal(result.fifeUrl, "https://flow.google.com/asb/VIDTOKEN=mm,22,15");
+});
+
 test("image mode still accepts the new /image/ result", async () => {
   const outputDir = tmpOutputDir();
   const { page } = makeDomPage({
@@ -309,11 +339,37 @@ test("a video that appears after the old 180s cap is detected (one click) and do
   assert.ok(!fs.existsSync(`${dest}.part`));
 });
 
-test("Agent UI: image requests say 'still image, not a video'; video requests are unchanged", async () => {
+test("Agent UI: image requests say 'still image, not a video'; video requests say 'video, not a still'", async () => {
   const { agentPromptFor } = await import("../lib/flow-ui-experiment.js");
   const img = agentPromptFor("slow drone glide over sawgrass with visible water flow", "image");
   assert.match(img, /still image/i);
   assert.match(img, /not a video/i);
   assert.ok(img.endsWith("slow drone glide over sawgrass with visible water flow"));
-  assert.equal(agentPromptFor("drone flight over the coast", "video"), "drone flight over the coast");
+  const vid = agentPromptFor("drone flight over the coast", "video");
+  assert.match(vid, /video clip/i);
+  assert.match(vid, /not a still image/i);
+  assert.ok(vid.endsWith("drone flight over the coast"));
+});
+
+test("collectVideoUrls keeps video tiles only (asb video thumbnails, <video>, /video/ URLs), never stills", async () => {
+  const { collectVideoUrls } = await import("../lib/flow-ui-agent.js");
+  const els = [
+    { tagName: "IMG", alt: "Generated video thumbnail", src: "https://flow.google.com/asb/vidA" },
+    { tagName: "VIDEO", alt: "", src: "https://flow.google.com/asb/vidB=mm,22,15" },
+    { tagName: "VIDEO", alt: "", src: "https://flow-content.google/video/v3?x=1" },
+    { tagName: "IMG", alt: "Option 1", src: "https://flow.google.com/asb/stillA=s1600-rw" },
+    { tagName: "IMG", alt: "", src: "https://flow-content.google/image/i1" },
+  ];
+  const page = {
+    evaluate: async (fn, arg) => {
+      const prev = globalThis.document;
+      globalThis.document = { querySelectorAll: () => els };
+      try { return fn(arg); } finally { globalThis.document = prev; }
+    },
+  };
+  assert.deepEqual(await collectVideoUrls(page), [
+    "https://flow.google.com/asb/vidA",
+    "https://flow.google.com/asb/vidB=mm,22,15",
+    "https://flow-content.google/video/v3?x=1",
+  ]);
 });
