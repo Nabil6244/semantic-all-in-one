@@ -48,7 +48,7 @@ class BoardResult:
 
 
 def _disp(tok: str, cased: Dict[str, str]) -> str:
-    return cased.get(tok, tok)
+    return cased.get(tok, "I" if tok == "i" else tok)
 
 
 def _weight(tok: str, cased: Dict[str, str], table: Dict[str, str]) -> float:
@@ -93,7 +93,7 @@ def best_phrases(idxs: Sequence[int], words, cased: Dict[str, str], table: Dict[
         toks = [norm(words[g][0]) for g in cl]
         best = None
         for i in range(len(cl)):
-            if (toks[i] in LX.STOP or toks[i] in LX.WEAK or not toks[i]) and not (not strict_edges and toks[i] in LX.LEADING_OK and i + 1 < len(cl)) and not (not strict_edges and toks[i] in LX.CLAUSE_START_OK and i == 0 and len(cl) >= 3):
+            if (toks[i] in LX.STOP or toks[i] in LX.WEAK or not toks[i]) and not (not strict_edges and toks[i] in LX.LEADING_OK and i + 1 < len(cl)) and not (not strict_edges and toks[i] in LX.CLAUSE_START_OK and i == 0 and len(cl) >= 2):
                 continue
             for j in range(i, min(len(cl), i + max_words)):
                 if toks[j] in LX.STOP or toks[j] in LX.WEAK or not toks[j]:
@@ -104,6 +104,10 @@ def best_phrases(idxs: Sequence[int], words, cased: Dict[str, str], table: Dict[
                     continue
                 if require_clause_end and j != len(cl) - 1:
                     continue
+                if j != len(cl) - 1 and (toks[j] in LX.DANGLING_END or (len(toks[j]) > 4 and toks[j].endswith("ly") and toks[j] not in cased and toks[j] not in table)):
+                    continue            # it would stop in the middle of the clause on a word that needs what comes next ("... and officially", "right above")
+                if j != len(cl) - 1 and toks[j + 1] not in LX.STOP:
+                    continue            # a cut inside a clause falls before a function word ("founder died in 1994 | and ..."), never between two content words ("its eternal | leader")
                 if n == 1 and not (any(c.isdigit() for c in run[0]) or run[0] in cased or run[0] in table):
                     continue
                 sc = sum(_weight(t, cased, table) for t in run)

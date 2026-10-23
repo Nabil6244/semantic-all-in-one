@@ -247,5 +247,28 @@ class Director(unittest.TestCase):
         self.assertEqual(json.dumps(maps_off, sort_keys=True), json.dumps(maps_on, sort_keys=True))
 
 
+class SceneMeaning(unittest.TestCase):
+    """Round 2: a cartoon scene needs a real reason in the words; weak hints ("family", "people") never pick a desert town for a story about a country."""
+
+    def test_weak_words_alone_choose_no_scene(self):
+        from explainer.director import compose_cartoon as CC
+        self.assertIsNone(CC.scene_for("run the place like a family business".split()))
+        self.assertIsNone(CC.scene_for("get you sent to a prison camp and the people were afraid".split()))
+        self.assertEqual(CC.scene_for("the farmers worked the fields all day".split()), "field")
+        self.assertEqual(CC.scene_for("the whole village gathered in the square".split()), "town")
+
+    def test_the_korea_script_gets_no_cartoon_beat_at_all(self):
+        from test_director_real_material import SCRIPT, WORDS, DUR
+        r = run(WORDS, SCRIPT, DUR, cartoon_share=0.5)
+        self.assertIsNotNone(r.plan, r.problems)
+        self.assertNotIn("cartoon", [b["kind"] for b in r.report["selection"]["beats"]])
+        self.assertTrue(r.report["selection"].get("cartoon_skipped"), "the report says why no beat became a cartoon")
+
+    def test_a_beat_with_a_real_scene_still_becomes_a_cartoon(self):
+        words, dur = synth(Director.SCRIPT)
+        r = run(words, Director.SCRIPT, dur, cartoon_share=0.4)
+        self.assertIn("cartoon", [b["kind"] for b in r.report["selection"]["beats"]])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

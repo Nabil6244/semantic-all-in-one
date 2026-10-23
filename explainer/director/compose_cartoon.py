@@ -5,7 +5,7 @@ drawn from words that are not spoken."""
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from ..board import styles as ST
 from ..board.cues import Cue
@@ -19,11 +19,12 @@ FIG_H = 420
 POSE_BY_LABEL = {"hook": "surprise", "question": "think", "twist": "surprise", "conclusion": "idle"}
 
 
-def scene_for(tokens: Sequence[str]) -> str:
-    """The set whose words are said most in the beat (ties: the one said first, then the table order)."""
-    best, key = "town", (0, 0)
+def scene_for(tokens: Sequence[str]) -> Optional[str]:
+    """The set whose words are said most in the beat (ties: the one said first, then the table order), or None when the beat names no scene: there is no default set, because a wrong
+    scene (a desert town for a story about a country) is worse than a board."""
+    best, key = None, (0, 0)
     for k, (name, words) in enumerate(LX.SET_WORDS.items()):
-        hits = [i for i, t in enumerate(tokens) if t in words]
+        hits = [i for i, t in enumerate(tokens) if t in words and t not in LX.SCENE_WEAK]
         cand = (len(hits), -(hits[0] if hits else 10 ** 6))
         if hits and cand > key:
             best, key = name, cand
@@ -31,8 +32,14 @@ def scene_for(tokens: Sequence[str]) -> str:
 
 
 def scene_score(tokens: Sequence[str]) -> int:
-    """How well a beat suits a cartoon: scene words plus people words."""
-    return sum(1 for t in tokens if any(t in w for w in LX.SET_WORDS.values())) + 2 * sum(1 for t in tokens if t in LX.PEOPLE_WORDS)
+    """How well a beat suits a cartoon: 0 when it names no scene; otherwise scene words plus people words."""
+    if scene_for(tokens) is None:
+        return 0
+    strong = sum(1 for t in tokens if any(t in w for w in LX.SET_WORDS.values()) and t not in LX.SCENE_WEAK)
+    people = sum(1 for t in tokens if t in LX.PEOPLE_WORDS)
+    if people == 0 and strong < 2:          # figures need someone to be: a place word alone ("light cities glowing") stays a board
+        return 0
+    return strong + 2 * people
 
 
 def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent], words, cased: Dict[str, str], opt: DirectorOptions, table, roles, variant: int = 0) -> BoardResult:
@@ -41,7 +48,7 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
     toks = [norm(words[g][0]) for g in bw]
     res = BoardResult([])
     cues: List[Cue] = []
-    name = scene_for(toks)
+    name = scene_for(toks) or "town"      # only reached for a beat the selection already judged to have a scene
     tod = "dusk" if any(t in LX.DUSK_WORDS for t in toks) else "day"
     cues.append(Cue(f"{beat_id}_set1", "visual", {"index": 0}, pos=(0, 0), offset_s=0.0, params={"style": "set", "set": name, "tod": tod}))
 

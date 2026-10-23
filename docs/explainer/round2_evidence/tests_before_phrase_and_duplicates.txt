@@ -1,0 +1,44 @@
+test_a_number_is_not_shown_twice_on_one_board (__main__.WeakEndsAndDuplicates.test_a_number_is_not_shown_twice_on_one_board) ... ok
+test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition (__main__.WeakEndsAndDuplicates.test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition) ... FAIL
+test_an_adverb_that_really_ends_the_clause_is_allowed (__main__.WeakEndsAndDuplicates.test_an_adverb_that_really_ends_the_clause_is_allowed) ... ok
+test_korea_boards_never_repeat_a_text (__main__.WeakEndsAndDuplicates.test_korea_boards_never_repeat_a_text) ... FAIL
+test_korea_has_no_phrase_ending_on_those_words (__main__.WeakEndsAndDuplicates.test_korea_has_no_phrase_ending_on_those_words) ... FAIL
+
+======================================================================
+FAIL: test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition (__main__.WeakEndsAndDuplicates.test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 354, in test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition
+    self.assertNotEqual(p.text.split()[-1].lower(), "officially", p.text)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'officially' == 'officially' : founder died in 1994 and officially
+
+======================================================================
+FAIL: test_korea_boards_never_repeat_a_text (__main__.WeakEndsAndDuplicates.test_korea_boards_never_repeat_a_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 392, in test_korea_boards_never_repeat_a_text
+    self.assertEqual(len(texts), len(set(texts)), f"{bid}: {texts}")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 6 != 5 : e2: ['right above', 'country', 'people', 'black hole the size of england', '26 million', '26 million']
+
+======================================================================
+FAIL: test_korea_has_no_phrase_ending_on_those_words (__main__.WeakEndsAndDuplicates.test_korea_has_no_phrase_ending_on_those_words)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 373, in test_korea_has_no_phrase_ending_on_those_words
+    self.assertEqual(bad, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: Lists differ: [('e2', 'right above'), ('e4', 'founder died in 1994 and officially')] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+('e2', 'right above')
+
+- [('e2', 'right above'), ('e4', 'founder died in 1994 and officially')]
++ []
+
+----------------------------------------------------------------------
+Ran 5 tests in 8.637s
+
+FAILED (failures=3)

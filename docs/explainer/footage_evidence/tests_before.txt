@@ -1,0 +1,192 @@
+test_a_query_word_that_is_not_spoken_is_a_problem (__main__.Gates.test_a_query_word_that_is_not_spoken_is_a_problem) ... ERROR
+test_footage_beats_carry_no_narrator_and_the_plan_is_deterministic (__main__.Gates.test_footage_beats_carry_no_narrator_and_the_plan_is_deterministic) ... ERROR
+test_rows_for_the_visual_plan_appear_only_with_footage (__main__.Gates.test_rows_for_the_visual_plan_appear_only_with_footage) ... ERROR
+test_the_hybrid_compiler_accepts_it (__main__.Gates.test_the_hybrid_compiler_accepts_it) ... ERROR
+test_the_plain_relevance_gate_still_refuses_remote_references (__main__.Gates.test_the_plain_relevance_gate_still_refuses_remote_references) ... ERROR
+test_the_plan_passes_the_hybrid_validators_and_the_relevance_gate (__main__.Gates.test_the_plan_passes_the_hybrid_validators_and_the_relevance_gate) ... ERROR
+test_a_still_picture_source_gets_a_slow_zoom (__main__.Reference.test_a_still_picture_source_gets_a_slow_zoom) ... ERROR
+test_each_clip_reference_is_a_source_and_a_query_spoken_in_its_own_beat (__main__.Reference.test_each_clip_reference_is_a_source_and_a_query_spoken_in_its_own_beat) ... ERROR
+test_the_caption_is_a_hybrid_template_over_the_clip_quoting_the_narration (__main__.Reference.test_the_caption_is_a_hybrid_template_over_the_clip_quoting_the_narration) ... ERROR
+test_the_other_sources_can_be_chosen_and_nonsense_is_refused (__main__.Reference.test_the_other_sources_can_be_chosen_and_nonsense_is_refused) ... ERROR
+test_a_question_or_a_number_beat_stays_a_board (__main__.Selection.test_a_question_or_a_number_beat_stays_a_board) ... ERROR
+test_default_has_no_footage_and_is_unchanged (__main__.Selection.test_default_has_no_footage_and_is_unchanged) ... ERROR
+test_footage_is_opt_in_capped_and_spaced (__main__.Selection.test_footage_is_opt_in_capped_and_spaced) ... ERROR
+test_only_beats_that_name_something_you_can_film_become_footage (__main__.Selection.test_only_beats_that_name_something_you_can_film_become_footage) ... ERROR
+test_the_two_settings_are_optional_and_clamped (__main__.Settings.test_the_two_settings_are_optional_and_clamped) ... ERROR
+
+======================================================================
+ERROR: test_a_query_word_that_is_not_spoken_is_a_problem (__main__.Gates.test_a_query_word_that_is_not_spoken_is_a_problem)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_footage_beats_carry_no_narrator_and_the_plan_is_deterministic (__main__.Gates.test_footage_beats_carry_no_narrator_and_the_plan_is_deterministic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_rows_for_the_visual_plan_appear_only_with_footage (__main__.Gates.test_rows_for_the_visual_plan_appear_only_with_footage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_hybrid_compiler_accepts_it (__main__.Gates.test_the_hybrid_compiler_accepts_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_plain_relevance_gate_still_refuses_remote_references (__main__.Gates.test_the_plain_relevance_gate_still_refuses_remote_references)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_plan_passes_the_hybrid_validators_and_the_relevance_gate (__main__.Gates.test_the_plan_passes_the_hybrid_validators_and_the_relevance_gate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 116, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_a_still_picture_source_gets_a_slow_zoom (__main__.Reference.test_a_still_picture_source_gets_a_slow_zoom)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 68, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_each_clip_reference_is_a_source_and_a_query_spoken_in_its_own_beat (__main__.Reference.test_each_clip_reference_is_a_source_and_a_query_spoken_in_its_own_beat)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 68, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_caption_is_a_hybrid_template_over_the_clip_quoting_the_narration (__main__.Reference.test_the_caption_is_a_hybrid_template_over_the_clip_quoting_the_narration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 68, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_other_sources_can_be_chosen_and_nonsense_is_refused (__main__.Reference.test_the_other_sources_can_be_chosen_and_nonsense_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 68, in setUp
+    self.r = run(self.words, SCRIPT, self.dur, footage_share=0.4)
+             ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_a_question_or_a_number_beat_stays_a_board (__main__.Selection.test_a_question_or_a_number_beat_stays_a_board)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 60, in test_a_question_or_a_number_beat_stays_a_board
+    r = run(words, s, dur, footage_share=0.6)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_default_has_no_footage_and_is_unchanged (__main__.Selection.test_default_has_no_footage_and_is_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 33, in test_default_has_no_footage_and_is_unchanged
+    b = run(words, SCRIPT, dur, footage_share=0.0)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_footage_is_opt_in_capped_and_spaced (__main__.Selection.test_footage_is_opt_in_capped_and_spaced)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 39, in test_footage_is_opt_in_capped_and_spaced
+    r = run(words, SCRIPT, dur, footage_share=0.35)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_only_beats_that_name_something_you_can_film_become_footage (__main__.Selection.test_only_beats_that_name_something_you_can_film_become_footage)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 49, in test_only_beats_that_name_something_you_can_film_become_footage
+    r = run(words, SCRIPT, dur, footage_share=0.5)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 48, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'footage_share'
+
+======================================================================
+ERROR: test_the_two_settings_are_optional_and_clamped (__main__.Settings.test_the_two_settings_are_optional_and_clamped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase9_footage.py", line 158, in test_the_two_settings_are_optional_and_clamped
+    from explainer.integration import footage_settings
+ImportError: cannot import name 'footage_settings' from 'explainer.integration' (/Users/muhammadnabil/Downloads/video_generator-main/explainer/integration.py)
+
+----------------------------------------------------------------------
+Ran 15 tests in 9.191s
+
+FAILED (errors=15)

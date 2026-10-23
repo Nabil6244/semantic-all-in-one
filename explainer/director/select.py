@@ -108,6 +108,9 @@ def resolve_places(cands: Sequence[str], weak: set = frozenset(), allow: Sequenc
     ok: Dict[str, Tuple[str, bool]] = {}
     ignored: List[str] = []
     for c in cands:
+        if c.strip().lower() in LX.OCEAN_WORDS and c not in allow:
+            ignored.append(c + " (an ocean, not a place the map can mark)")
+            continue
         if c.strip().lower() in LX.DIRECTION_WORDS and c not in allow:
             ignored.append(c + " (ambiguous direction word, not a place on its own)")
             continue
@@ -178,6 +181,7 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
     cap = opt.cartoon_share * duration
     used = 0.0
     scored = []
+    skipped = []
     for k, b in enumerate(beats):
         if b.kind != "board" or b.dur < opt.min_beat_s - 1e-6:
             continue
@@ -185,6 +189,8 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
         sc = scene_score(toks)
         if sc > 0:
             scored.append((-sc, k))
+        else:
+            skipped.append({"beat": b.id, "reason": "the words name no scene (family, people or rain alone do not choose one): it stays a board"})
     chosen = []
     for _s, k in sorted(scored):
         b = beats[k]
@@ -200,6 +206,42 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
         used += b.dur
         chosen.append(b.id)
     info["cartoon_beats"] = sorted(chosen)
+    info["cartoon_skipped"] = skipped
+
+
+def _assign_footage(beats: List[BeatPlan], words, duration: float, opt: DirectorOptions, info: Dict[str, Any]) -> None:
+    """Opt-in: board beats whose words name things a camera can film (ships, armies, railways, markets) become footage beats, up to `footage_share` of the runtime, never three in a row. The
+    opening hook, questions and beats with numbers stay boards: they belong to the narrator and the pictures. The application's own sources supply the clips."""
+    cap = opt.footage_share * duration
+    used = 0.0
+    scored, skipped = [], []
+    for k, b in enumerate(beats):
+        if b.kind != "board" or b.dur < opt.min_beat_s - 1e-6:
+            continue
+        toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
+        if {s.label for s in b.sents} & {"hook", "question"} or any(ch.isdigit() for t in toks for ch in t):
+            skipped.append({"beat": b.id, "reason": "an opening, a question or a number: it stays a board"})
+            continue
+        strong = sum(1 for t in toks if t in LX.CONCRETE_STRONG)
+        if strong == 0:
+            skipped.append({"beat": b.id, "reason": "nothing a camera can film is said (a title or a single object is better as a board): it stays a board"})
+            continue
+        scored.append((-(2 * strong + sum(1 for t in toks if t in LX.CONCRETE_WEAK)), k))
+    chosen = []
+    for _s, k in sorted(scored):
+        b = beats[k]
+        if used + b.dur > cap + 1e-9:
+            continue
+        run_l = sum(1 for j in range(k - 1, -1, -1) if beats[j].kind == "footage")
+        run_r = sum(1 for j in range(k + 1, len(beats)) if beats[j].kind == "footage")
+        if run_l + run_r >= 2 or (run_l >= 1 and run_r >= 1):
+            continue
+        b.kind = "footage"
+        b.notes.append("footage beat: the words name something a camera can film")
+        used += b.dur
+        chosen.append(b.id)
+    info["footage_beats"] = sorted(chosen)
+    info["footage_skipped"] = skipped
 
 
 def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: DirectorOptions) -> Dict[str, Any]:
@@ -242,6 +284,8 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
             arch_s += b.dur
     if opt.cartoon_share > 0:
         _assign_cartoons(beats, words, duration, opt, info)
+    if opt.footage_share > 0:
+        _assign_footage(beats, words, duration, opt, info)
     if not any(b.kind == "map" for b in beats):
         first = beats[0]
         fp = None

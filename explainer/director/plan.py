@@ -85,6 +85,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     if not sents:
         res.problems.append("no sentences found in the narration")
         return res
+    if opt.footage_share > 0 and opt.footage_source not in LX.FOOTAGE_SOURCES:
+        res.problems.append(f"unknown footage source {opt.footage_source!r} (use one of {', '.join(LX.FOOTAGE_SOURCES)})")
+        return res
     SG.label_sentences(sents, words, script)
     SG.compute_breaks(sents, words)
     cased = SG.casing(script)
@@ -189,6 +192,28 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 b.notes.append(f"archive beat could not be built, board beat instead: {exc}")
                 b.kind, b.archive = "board", None
                 plan_beats.append(None)
+        elif b.kind == "footage":
+            try:
+                from ..beats.footage import CAPTION_MIN_READ_S, make_footage_beat, pick_query
+                from ..beats.relevance import beat_tokens as _bt
+                btoks = [t["tok"] for t in _bt(words, b.start, b.end)]
+                pq = pick_query(btoks, LX.CONCRETE_STRONG, LX.STOP, LX.CONCRETE_WEAK)
+                if pq is None:
+                    raise ValueError("no word a camera can film")
+                allidx = [g for s_ in b.sents for g in s_.widx if b.start - 1e-6 <= words[g][1] < b.end - 1e-6]
+                brk = sentence_ends | set().union(*[s_.breaks for s_ in b.sents])
+                cands_ = CP.best_phrases(allidx, words, cased, table, brk, k=3, max_words=6, fit=lambda t: len(t) <= 56, min_score=3.0, min_words=2)
+                cap = next((c_ for c_ in cands_ if words[c_.first][1] <= b.end - CAPTION_MIN_READ_S), None)
+                if cap is None:
+                    raise ValueError("no phrase to show over the clip early enough to read")
+                beat = make_footage_beat(b.id, b.start, b.end, words, source=opt.footage_source, query=pq[0], caption={"text": cap.text, "t": words[cap.first][1]}, still_sources=LX.FOOTAGE_STILL_SOURCES)
+                plan_beats.append(beat)
+                beat_notes[b.id] = {"kind": "footage", "source": opt.footage_source, "query": pq[0], "caption": cap.text}
+                info.setdefault("footage_queries", {})[b.id] = f"{opt.footage_source}:{pq[0]}"
+            except Exception as exc:
+                b.notes.append(f"footage beat could not be built, board beat instead: {exc}")
+                b.kind = "board"
+                plan_beats.append(None)
         else:
             plan_beats.append(None)
     modes = PC.plan_narrator([(b.kind, b.start, b.end) for b in beats], opt)
@@ -205,6 +230,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             beat = plan_beats[k]
             if b.kind == "map":
                 evs_ = [b.start] + [l["t"] for l in beat.get("layers", [])] + [c["t"] for c in beat.get("camera", []) if c["action"] != "start"]
+            elif b.kind == "footage":
+                evs_ = [b.start] + [l["t"] for l in beat.get("layers", [])]
             else:
                 evs_ = [b.start]
             all_events += evs_
@@ -270,7 +297,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                             "layout": [{"cue": r.cue.id, "kind": r.cue.kind, "slot": r.slot, "font_px": r.font_px, "lines": r.lines, "first_frame": r.first_frame} for r in resolved if not r.problems and r.cue.kind not in ("clear", "narrator")]}
     plan = assemble_plan(total, plan_beats, {"dissolve_s": float(opt.dissolve_s)})
     # ---- gates ----
-    rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None) if materialize else None
+    rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
+                     allow_sources=LX.FOOTAGE_SOURCES if opt.footage_share > 0 else ()) if materialize else None
     if rep is not None:
         res.problems += rep.problems
         res.warnings += rep.warnings

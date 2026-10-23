@@ -118,7 +118,7 @@ def _resolvable(place: str) -> Tuple[bool, str]:
 
 
 def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optional[Dict[str, Dict[str, List[str]]]] = None, base_dir: Optional[Path] = None,
-               resolve_offline: bool = True) -> Report:
+               resolve_offline: bool = True, allow_sources: Sequence[str] = ()) -> Report:
     """Check a plan dict (the Hybrid JSON shape) against the narration. `subjects` = {beat_id: {clip_index (as text): [subject phrases]}} for archive clips."""
     from hybrid.plan import HybridPlan, PlanError, validate_plan
     from ..captions.timing import resolve_caption
@@ -232,6 +232,23 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
         elif b.mode == "footage":
             for k, c in enumerate(b.clips):
                 rec = {"beat": b.id, "clip": k, "asset": c.asset, "reason": c.reason}
+                src, _sep, query = (c.asset or "").partition(":")
+                if allow_sources and _sep and src in allow_sources:        # a reference for the application's own source: its query must be about this beat's own words
+                    q = toks(query)
+                    spoken = {t["tok"] for t in tk}
+                    missing = [w for w in q if w not in spoken]
+                    if not q:
+                        rep.problems.append(f"beat {b.id}: clip {k + 1}: the {src} reference has no query")
+                    elif missing:
+                        rep.problems.append(f"beat {b.id}: clip {k + 1}: the query {query!r} has words that are not spoken inside this beat's narration: {', '.join(missing)}")
+                    if not (c.reason or "").strip():
+                        rep.problems.append(f"beat {b.id}: clip {k + 1}: a footage clip needs a non-empty reason")
+                    rec["query"], rec["source"] = query, src
+                    for lay in b.layers:
+                        if lay.type == "template" and (lay.kind or "") == "typed_caption" and find_phrase(tk, lay.text or "") is None:
+                            rep.problems.append(f"beat {b.id}: layer {lay.id}: the caption {lay.text!r} is not a contiguous quote of this beat's narration")
+                    rep.records.append(rec)
+                    continue
                 why = local_file_problem(c.asset, base_dir)
                 if why:
                     rep.problems.append(f"beat {b.id}: clip {k + 1}: {why}")

@@ -6,7 +6,11 @@ each every both either neither such own same other another what which who whom w
 # a contraction of a function word ("it's", "he's", "don't") is itself a function word: a phrase never begins (as a bare edge) or ends on one
 CONTRACTIONS = frozenset("""it's he's she's that's there's here's what's who's where's how's when's let's i'm you're we're they're i've you've we've they've i'll you'll he'll she'll we'll they'll it'll
 i'd you'd he'd she'd we'd they'd it'd don't doesn't didn't can't couldn't won't wouldn't isn't aren't wasn't weren't hasn't haven't hadn't shouldn't mustn't""".split())
-STOP = STOP | CONTRACTIONS
+# the application's word list has no apostrophes at all ("wasn't" arrives as "wasnt"): the same contractions without them, only where no ordinary word is spelled that way
+CONTRACTIONS_NO_APOSTROPHE = frozenset("""wasnt werent isnt arent dont doesnt didnt cant couldnt wouldnt hasnt havent hadnt shouldnt mustnt youre theyre youve weve theyve ive thats theres heres whats whos wheres hows hes shes""".split())
+STOP = STOP | CONTRACTIONS | CONTRACTIONS_NO_APOSTROPHE
+# an ocean is not a place the map can mark: the lookup would answer with some town of that name
+OCEAN_WORDS = frozenset("atlantic pacific arctic antarctic".split())
 # a single capitalised direction word is not a place ("The South is blazing"); inside a longer name ("South Korea") it is part of the name
 DIRECTION_WORDS = frozenset("north south east west northeast northwest southeast southwest northern southern eastern western central upper lower middle inner outer".split())
 # words that, just before a place name, make it a yardstick rather than a destination ("the size of England", "bigger than Texas")
@@ -44,18 +48,35 @@ SOFT_BREAK = frozenset("but so because which while when if then until although w
 LEADING_OK = frozenset("no not never every each all only more most less few same".split())
 
 # function words that may begin a phrase when the phrase is a whole clause ("who could argue", "how do you bring water to thirsty people", "it was too shallow")
-CLAUSE_START_OK = frozenset("who what how why where when which that it we they he she you i there".split())
+CLAUSE_START_OK = frozenset("who what how why where when which that it we they he she you i there there's here's it's that's what's who's where's how's he's she's they're we're you're i'm theres heres thats whats whos hes shes theyre youre".split())
 
 
 # ---- cartoon beats (Phase 7): which scene a beat suggests, which props and which people words it carries; first-hit counts decide, the table order breaks ties ----
 SET_WORDS = {
-    "field": "farm farms farmer farmers farming field fields crop crops harvest wheat grain plantation soil rain rains".split(),
-    "town": "village villages town towns home homes house houses families family neighbours desert square".split(),
+    "field": "farm farms farmer farmers farming field fields crop crops harvest wheat grain plantation soil".split(),
+    "town": "village villages town towns home homes house houses desert square".split(),
     "city": "city cities market markets bank banks capital street streets factory factories shop shops office offices".split(),
     "harbour": "harbour harbor port ports ship ships sea boat boats sail sailors sailing dock docks voyage".split(),
     "room": "room rooms school classroom parliament court palace throne meeting council ministry students teacher king queen".split(),
 }
+# hints that never choose a scene on their own: "a family business" or "the people were afraid" says nothing about where the scene is
+SCENE_WEAK = frozenset("family families neighbours neighbors people rain rains".split())
 PEOPLE_WORDS = frozenset("people families family farmers workers citizens villagers crowd everyone children kids men women population residents sailors students".split())
 PROP_WORDS = {"house": "house houses home homes village".split(), "tree": "tree trees forest wood timber".split(), "cactus": "desert cactus dry".split(), "fence": "fence fences border wall walls boundary".split(),
               "flag": "flag flags nation country empire king government".split(), "sign": "law laws rule rules notice price prices tax taxes sign".split(), "crate": "trade goods cargo crates grain barrels".split()}
+# a phrase that stops BEFORE the end of its clause must not end on one of these: they need what follows ("right above ...", "officially ...")
+DANGLING_END = frozenset("above below beyond behind inside outside across around through against between among within toward towards near along upon beneath underneath despite during".split())
 DUSK_WORDS = frozenset("evening dusk sunset night twilight".split())
+
+
+# ---- footage beats (Phase 9): things a camera can film. A beat becomes footage only when its words name one of them; questions, numbers and abstract ideas stay boards ----
+# what a stock search answers well (a place, a vehicle, a crowd, a machine) versus a person's title or an object that is better shown as a picture: only the first group makes a beat footage
+CONCRETE_STRONG = frozenset("""ship ships boat boats navy fleet harbour harbor port ports dock docks sailor sailors sea ocean coast river bridge island mountain mountains desert forest field fields farm farms farmer farmers
+crop crops harvest village town city cities street streets market markets factory factories railway railways railroad railroads train trains locomotive road roads airport airplane aeroplane plane
+army armies soldier soldiers troops cannon cannons gun guns rifle rifles castle castles palace palaces temple church cathedral crowd crowds protest protests pirate pirates workers worker miners mine mines
+coal oil steel cotton tea sugar spice spices prison camp camps fire flood floods storm storms earthquake volcano famine hospital school classroom students laboratory scientist scientists doctor doctors
+rocket satellite telescope computer computers phone phones television radio newspaper newspapers printing press parade wedding festival kitchen restaurant bread rice wheat grain cattle horses horse elephant elephants""".split())
+CONCRETE_WEAK = frozenset("king queen emperor president throne treasure silver gold coin coins money bank banks slaves chains book books library museum statue monument map globe flag flags sword swords".split())
+CONCRETE = CONCRETE_STRONG | CONCRETE_WEAK
+FOOTAGE_SOURCES = ("stock_video", "youtube_video", "flow_video", "stock_image", "flow_image")        # the application's own sources (hybrid/plan.py SOURCES)
+FOOTAGE_STILL_SOURCES = ("stock_image", "flow_image")

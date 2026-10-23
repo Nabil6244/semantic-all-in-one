@@ -1,0 +1,26 @@
+test_a_beat_with_a_real_scene_still_becomes_a_cartoon (__main__.SceneMeaning.test_a_beat_with_a_real_scene_still_becomes_a_cartoon) ... ok
+test_the_korea_script_gets_no_cartoon_beat_at_all (__main__.SceneMeaning.test_the_korea_script_gets_no_cartoon_beat_at_all) ... FAIL
+test_weak_words_alone_choose_no_scene (__main__.SceneMeaning.test_weak_words_alone_choose_no_scene) ... FAIL
+
+======================================================================
+FAIL: test_the_korea_script_gets_no_cartoon_beat_at_all (__main__.SceneMeaning.test_the_korea_script_gets_no_cartoon_beat_at_all)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 264, in test_the_korea_script_gets_no_cartoon_beat_at_all
+    self.assertNotIn("cartoon", [b["kind"] for b in r.report["selection"]["beats"]])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'cartoon' unexpectedly found in ['cartoon', 'cartoon', 'map', 'board', 'cartoon', 'board', 'cartoon', 'board', 'board']
+
+======================================================================
+FAIL: test_weak_words_alone_choose_no_scene (__main__.SceneMeaning.test_weak_words_alone_choose_no_scene)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 255, in test_weak_words_alone_choose_no_scene
+    self.assertIsNone(CC.scene_for("run the place like a family business".split()))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'town' is not None
+
+----------------------------------------------------------------------
+Ran 3 tests in 7.765s
+
+FAILED (failures=2)

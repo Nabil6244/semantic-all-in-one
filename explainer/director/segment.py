@@ -76,6 +76,11 @@ def casing(script: Optional[str]) -> Dict[str, str]:
     if not script:
         return {}
     out: Dict[str, str] = {}
+    for t in re.findall(r"[A-Za-z][A-Za-z'\u2019\-]*", script):         # contractions as the script writes them: the word list has none ("wasnt" -> "wasn't"), so a quote shows the script's form
+        low = t.lower().replace("\u2019", "'")
+        if "'" in low and re.search(r"(n't|'re|'ve|'ll|'m|'d)$", low):
+            out.setdefault(low.replace("'", ""), low)
+    out["i"] = "I"
     for sent in re.split(r"(?<=[.!?])\s+|\n+", script):
         toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", sent)
         for k, t in enumerate(toks):

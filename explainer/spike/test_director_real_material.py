@@ -20,6 +20,7 @@ from explainer.director import compose as CP                                    
 from explainer.director import segment as SG                                        # noqa: E402
 from explainer.director import select as SEL                                        # noqa: E402
 from explainer.director.segment import norm                                         # noqa: E402
+from explainer.director import lexicon as LX                                        # noqa: E402
 
 FX = Path(__file__).resolve().parent / "fixtures" / "korea"
 SCRIPT = (FX / "script.txt").read_text().strip()
@@ -342,6 +343,134 @@ class EmptyAndCrowdedBoards(unittest.TestCase):
             authored = [x for x in d["dropped"] if not re.search(r"_r\d", x["cue"])]
             if authored:
                 self.assertTrue(d.get("rescued") is not None, f"{bid}: authored cues were dropped and nothing says what happened")
+
+
+class WeakEndsAndDuplicates(unittest.TestCase):
+    """Round 2 (after the real-material gate): a phrase cut off in the middle of a clause must not end on an -ly adverb or a bare preposition, and a number is not shown twice."""
+
+    def test_a_phrase_that_stops_inside_its_clause_never_ends_on_an_adverb_or_preposition(self):
+        words, _d = synth("Its founder died in 1994 and officially he's still its eternal leader.")
+        got = CP.best_phrases(list(range(len(words))), words, {}, {}, {7}, k=3, max_words=8)
+        for p in got:
+            self.assertNotEqual(p.text.split()[-1].lower(), "officially", p.text)
+        words, _d = synth("And then right above it there's nothing but darkness and silence.")
+        got = CP.best_phrases(list(range(len(words))), words, {}, {}, set(), k=3, max_words=8)
+        for p in got:
+            self.assertNotEqual(p.text.split()[-1].lower(), "above", p.text)
+
+    def test_a_cut_inside_a_clause_falls_before_a_function_word(self):
+        words, _d = synth("Its founder died in 1994 and officially he's still its eternal leader.")
+        toks = [norm(w[0]) for w in words]
+        got = CP.best_phrases(list(range(len(words))), words, {}, {}, set(), k=4, max_words=7, min_score=3.0)
+        self.assertTrue(got)
+        for p in got:
+            if p.last != len(words) - 1:
+                self.assertIn(toks[p.last + 1], LX.STOP, f"{p.text!r} stops before the content word {toks[p.last + 1]!r}")
+
+    def test_korea_phrases_that_stop_inside_a_clause_stop_before_a_function_word(self):
+        r = KoreaCache.get()
+        toks = [norm(w[0]) for w in WORDS]
+        for ph_list in (d.get("phrases", []) for d in r.report["beat_details"].values() if isinstance(d, dict)):
+            for ph in ph_list:
+                if ph.get("as") in ("line", "scroll", "box", "lite", "title") and ph["last"] + 1 < len(WORDS) and ph["sentence"] >= 0 and not any(ch.isdigit() for ch in ph["phrase"]):     # a quantity ("26 million") may stand alone
+                    nxt = toks[ph["last"] + 1]
+                    s_end = next(s_.widx[-1] for s_ in SG.sentences(WORDS, SCRIPT, DUR, 8.0) if ph["last"] in s_.widx)
+                    if ph["last"] != s_end and not (ph["last"] in set().union(*[s_.breaks for s_ in SG.sentences(WORDS, SCRIPT, DUR, 8.0)])):
+                        self.assertIn(nxt, LX.STOP, f"{ph['phrase']!r} -> {nxt!r}")
+
+    def test_an_adverb_that_really_ends_the_clause_is_allowed(self):
+        words, _d = synth("The river rose slowly.")
+        got = CP.best_phrases(list(range(len(words))), words, {}, {}, {3}, k=2, max_words=8, min_score=3.0)
+        self.assertTrue(any(p.text.endswith("slowly") for p in got), [p.text for p in got])
+
+    def test_korea_has_no_phrase_ending_on_those_words(self):
+        r = KoreaCache.get()
+        bad = []
+        for bid, d in r.report["beat_details"].items():
+            for c in text_cues(d.get("cue_specs", []) if isinstance(d, dict) else []):
+                last = c["text"].split()[-1].lower().strip(".,")
+                if last in ("officially", "above", "below", "beyond"):
+                    bad.append((bid, c["text"]))
+        self.assertEqual(bad, [])
+
+    def test_a_number_is_not_shown_twice_on_one_board(self):
+        s = "A black hole the size of England where a country of 26 million people should be. Then the lights went out over the whole peninsula and nobody came back for years."
+        words, dur = synth(s)
+        r = run(words, s, dur)
+        self.assertIsNotNone(r.plan, r.problems)
+        for bid, d in r.report["beat_details"].items():
+            if not isinstance(d, dict) or "cue_specs" not in d:
+                continue
+            texts = [" ".join(c["text"].lower().split()) for c in d["cue_specs"] if c["kind"] in TEXT_KINDS + ("chip",) and c.get("text") and c["text"] != "?"]
+            self.assertEqual(len(texts), len(set(texts)), f"{bid}: {texts}")
+        self.assertEqual(KoreaCache.get().problems, [])
+
+    def test_korea_boards_never_repeat_a_text(self):
+        r = KoreaCache.get()
+        for bid, d in r.report["beat_details"].items():
+            if isinstance(d, dict) and "cue_specs" in d:
+                texts = [c["text"].lower() for c in d["cue_specs"] if c["kind"] in TEXT_KINDS + ("chip",) and c.get("text") and c["text"] != "?"]
+                self.assertEqual(len(texts), len(set(texts)), f"{bid}: {texts}")
+
+
+def app_words(script):
+    """Words as the application stores them: lower case, every apostrophe removed ("wasn't" -> "wasnt")."""
+    words, dur = synth(script)
+    return [(w[0].replace("'", ""), w[1], w[2]) for w in words], dur
+
+
+class AppStyleWords(unittest.TestCase):
+    """Round 3 (found in the user's first real render): the application's word list has no apostrophes, so "wasn't" arrives as "wasnt" and "you're" as "youre"."""
+    SCRIPT = ("It was built by pirates and it wasn't really run by the government at all. The strangest part is the language you're hearing right now. "
+              "Back then the superpowers of the world weren't English and they didn't have much money. If you can't find your own treasure, take someone else's. "
+              "So England's Queen Elizabeth I came up with a solution to the problem of a small poor country on the edge of the map. "
+              "In the North Atlantic a small rainy island ruled the waves while Spain counted its silver and gold.")
+
+    def texts(self, r):
+        out = []
+        for d in r.report["beat_details"].values():
+            if isinstance(d, dict):
+                out += [c["text"] for c in d.get("cue_specs", []) if c.get("text") and c["kind"] in TEXT_KINDS + ("chip",)]
+        return out
+
+    def test_contractions_are_shown_with_their_apostrophes(self):
+        words, dur = app_words(self.SCRIPT)
+        r = run(words, self.SCRIPT, dur)
+        self.assertIsNotNone(r.plan, r.problems)
+        text = " ".join(self.texts(r)).lower()
+        for bad in ("wasnt", "werent", "youre", "didnt", "cant"):
+            self.assertNotRegex(text, rf"\b{bad}\b", f"{bad} was shown without its apostrophe: {text}")
+
+    def test_no_phrase_ends_or_begins_on_an_apostrophe_less_contraction(self):
+        words, dur = app_words(self.SCRIPT)
+        r = run(words, self.SCRIPT, dur)
+        func = {"wasnt", "werent", "youre", "didnt", "cant", "wasn't", "weren't", "you're", "didn't", "can't"}
+        for t in self.texts(r):
+            toks = [x.lower().strip(".,") for x in t.split()]
+            self.assertNotIn(toks[-1], func, t)
+
+    def test_a_lone_I_is_capitalised(self):
+        words, dur = app_words(self.SCRIPT)
+        r = run(words, self.SCRIPT, dur)
+        for t in self.texts(r):
+            self.assertNotRegex(t, r"(^|\s)i(\s|$)", t)
+
+    def test_an_ocean_is_not_a_place_on_the_map(self):
+        cands, weak = SEL.place_candidates(self.SCRIPT, DirectorOptions())
+        resolved, ignored = SEL.resolve_places(cands, weak)
+        self.assertNotIn("Atlantic", resolved)
+        self.assertTrue(any(i.startswith("Atlantic") and "ocean" in i for i in ignored), ignored)
+        words, dur = app_words(self.SCRIPT)
+        r = run(words, self.SCRIPT, dur)
+        self.assertNotIn("Atlantic", map_places_of(r.plan))
+
+
+def map_places_of(plan):
+    out = []
+    for b in plan["beats"]:
+        if b["mode"] == "map":
+            out += [c.get("place") for c in b.get("camera", []) if c.get("place")] + [l["place"] for l in b.get("layers", []) if l.get("place")]
+    return out
 
 
 class Determinism(unittest.TestCase):

@@ -208,6 +208,7 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
                 for c in grp:
                     c.pos = (c.pos[0], c.pos[1] + dy)
         # a quantity: a navy tag with the number and its noun (as "x3 income" in the reference) when there is room beside the lines, else the bottom chip below
+        shown_now = {" ".join(c.text.lower().split()) for c in cues[first_new:] if c.text}        # texts already on this board: a number is never shown a second time
         num_g = next((g for g in sidx if any(ch.isdigit() for ch in words[g][0])), None)
         if num_g is not None and layout in ("split", "title", "scroll") and not any(c.kind == "visual" and (c.params or {}).get("style") == "tag" for c in cues[first_new:]):
             nx = [norm(words[g][0]) for g in sidx if g > num_g][:2]
@@ -216,8 +217,9 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
             if nxt2 and norm(words[nxt2[0]][0]) not in LX.STOP and norm(words[nxt2[0]][0]) not in LX.WEAK:
                 take.append(nxt2[0])
             ttext = " ".join(re.sub(r"[^\w,.%$]", "", words[g][0]) for g in take)
-            cues.append(Cue(cid("tag"), "visual", at(num_g), text=ttext, role="blue", pos=(1380, 130), params={"style": "tag"}))
-            covered.update(take)
+            if ttext.lower() not in shown_now:               # an exact repeat of a text already on the board is not drawn again
+                cues.append(Cue(cid("tag"), "visual", at(num_g), text=ttext, role="blue", pos=(1380, 130), params={"style": "tag"}))
+                covered.update(take)
             num_g = None
         # number: a big dark chip (year or quantity), after the picture elements, in the bottom strip
         num = num_g
@@ -226,7 +228,8 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
             nxt_w = norm(words[num + 1][0]) if num + 1 < len(words) else ""
             if nxt_w in ("million", "billion", "thousand", "trillion", "percent", "hundred"):
                 ctext = f"{ctext} {nxt_w}"
-            cues.append(Cue(cid("chip"), "chip", at(num), text=ctext, params={"px": 72}))
+            if ctext.lower() not in shown_now:
+                cues.append(Cue(cid("chip"), "chip", at(num), text=ctext, params={"px": 72}))
         if si + 1 < len(sents):
             nxt = [g for g in sents[si + 1].widx if g in pos]
             if nxt:

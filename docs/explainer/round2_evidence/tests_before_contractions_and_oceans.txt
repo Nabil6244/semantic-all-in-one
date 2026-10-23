@@ -1,0 +1,36 @@
+test_a_lone_I_is_capitalised (__main__.AppStyleWords.test_a_lone_I_is_capitalised) ... FAIL
+test_an_ocean_is_not_a_place_on_the_map (__main__.AppStyleWords.test_an_ocean_is_not_a_place_on_the_map) ... FAIL
+test_contractions_are_shown_with_their_apostrophes (__main__.AppStyleWords.test_contractions_are_shown_with_their_apostrophes) ... FAIL
+test_no_phrase_ends_or_begins_on_an_apostrophe_less_contraction (__main__.AppStyleWords.test_no_phrase_ends_or_begins_on_an_apostrophe_less_contraction) ... ok
+
+======================================================================
+FAIL: test_a_lone_I_is_capitalised (__main__.AppStyleWords.test_a_lone_I_is_capitalised)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 456, in test_a_lone_I_is_capitalised
+    self.assertNotRegex(t, r"(^|\s)i(\s|$)", t)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Regex matched: ' i ' matches '(^|\\s)i(\\s|$)' in 'englands Queen Elizabeth i came' : englands Queen Elizabeth i came
+
+======================================================================
+FAIL: test_an_ocean_is_not_a_place_on_the_map (__main__.AppStyleWords.test_an_ocean_is_not_a_place_on_the_map)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 461, in test_an_ocean_is_not_a_place_on_the_map
+    self.assertNotIn("Atlantic", resolved)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Atlantic' unexpectedly found in {'Atlantic': ('county', True), 'Spain': ('country', True)}
+
+======================================================================
+FAIL: test_contractions_are_shown_with_their_apostrophes (__main__.AppStyleWords.test_contractions_are_shown_with_their_apostrophes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 442, in test_contractions_are_shown_with_their_apostrophes
+    self.assertNotRegex(text, rf"\b{bad}\b", f"{bad} was shown without its apostrophe: {text}")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Regex matched: 'wasnt' matches '\\bwasnt\\b' in 'wasnt really run by the government it was built by pirates strangest part money superpowers of the world werent english treasure cant find your own treasure take someone elses englands queen elizabeth i came country problem of a small poor country edge of the map' : wasnt was shown without its apostrophe: wasnt really run by the government it was built by pirates strangest part money superpowers of the world werent english treasure cant find your own treasure take someone elses englands queen elizabeth i came country problem of a small poor country edge of the map
+
+----------------------------------------------------------------------
+Ran 4 tests in 2.223s
+
+FAILED (failures=3)
