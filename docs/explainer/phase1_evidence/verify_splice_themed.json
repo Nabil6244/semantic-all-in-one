@@ -1,0 +1,489 @@
+{
+ "beats": {
+  "b2": [
+   6.8,
+   15.066666666666666
+  ],
+  "b4": [
+   17.833333333333332,
+   24.833333333333332
+  ]
+ },
+ "problems_of_input_plan": [],
+ "checks": {
+  "sentence_sources_agree": true,
+  "unknown_beat_refused": true,
+  "map_beat_refused": true,
+  "duplicate_refused": true,
+  "strict_stops_before_any_clip_is_drawn": true,
+  "non_strict_records_problem_and_builds_both": true,
+  "missing_dissolve_s_refused": true,
+  "input_plan_not_mutated": true
+ },
+ "variants": {
+  "dissolve_0.0": {
+   "dissolve_s": 0.0,
+   "notes": [
+    "beat b2: sentence boundaries from punctuation",
+    "beat b4: sentence boundaries from punctuation"
+   ],
+   "problems": [],
+   "clips": [
+    "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/p1_splice/variant_d0_0/b2_board.mp4",
+    "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/p1_splice/variant_d0_0/b4_board.mp4"
+   ],
+   "other_beats_unchanged": true,
+   "settings_dissolve": 0.0,
+   "board_beats_point_to_clips": true,
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.8,
+   "video_frames": 840,
+   "board_runs": [
+    {
+     "first": 204,
+     "last": 452,
+     "frames": 249,
+     "code_first": 0,
+     "code_last": 247,
+     "steps": [
+      0,
+      1
+     ],
+     "held_frames": 1,
+     "skipped_frames": 0,
+     "held_at": [
+      {
+       "video_frame": 205,
+       "clip_frame": 0
+      }
+     ],
+     "offset": 205,
+     "offset_values": [
+      205
+     ]
+    },
+    {
+     "first": 535,
+     "last": 744,
+     "frames": 210,
+     "code_first": 0,
+     "code_last": 209,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 535,
+     "offset_values": [
+      535
+     ]
+    }
+   ],
+   "runs_match_two_board_beats": true,
+   "clip_frame0": [
+    {
+     "beat": "b2",
+     "video_frame": 205,
+     "time_s": 6.833333333333333,
+     "ideal_origin_s": 6.8,
+     "beat_start_frame_exact": 204.0,
+     "beat_end_frame_exact": 452.0,
+     "run_first": 204,
+     "run_last": 452,
+     "held_frames": 1,
+     "skipped_frames": 0,
+     "held_at": [
+      {
+       "video_frame": 205,
+       "clip_frame": 0
+      }
+     ]
+    },
+    {
+     "beat": "b4",
+     "video_frame": 535,
+     "time_s": 17.833333333333332,
+     "ideal_origin_s": 17.833333333333332,
+     "beat_start_frame_exact": 535.0,
+     "beat_end_frame_exact": 745.0,
+     "run_first": 535,
+     "run_last": 744,
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": []
+    }
+   ],
+   "cues": [
+    {
+     "beat": "b2",
+     "id": "a1",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 7.386,
+     "planned_onset_abs": 7.386,
+     "first_clip_frame": 18,
+     "problems": [],
+     "expected_video_frame_clip_map": 223,
+     "detected_video_frame": 223,
+     "latency_vs_word_s": 0.0473,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a2",
+     "kind": "pop",
+     "word": "Farmers",
+     "word_start_abs": 9.556,
+     "planned_onset_abs": 9.755999999999998,
+     "first_clip_frame": 89,
+     "problems": [],
+     "expected_video_frame_clip_map": 294,
+     "detected_video_frame": 294,
+     "latency_vs_word_s": 0.244,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a3",
+     "kind": "pop",
+     "word": "water",
+     "word_start_abs": 10.732,
+     "planned_onset_abs": 10.931999999999999,
+     "first_clip_frame": 124,
+     "problems": [],
+     "expected_video_frame_clip_map": 329,
+     "detected_video_frame": 329,
+     "latency_vs_word_s": 0.2347,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a4",
+     "kind": "clear",
+     "word": "water",
+     "word_start_abs": 10.732,
+     "planned_onset_abs": 12.314,
+     "first_clip_frame": 166,
+     "problems": []
+    },
+    {
+     "beat": "b2",
+     "id": "a5",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 12.902,
+     "planned_onset_abs": 13.001999999999999,
+     "first_clip_frame": 187,
+     "problems": [],
+     "expected_video_frame_clip_map": 392,
+     "detected_video_frame": 392,
+     "latency_vs_word_s": 0.1647,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b4",
+     "id": "b1",
+     "kind": "type",
+     "word": "steps",
+     "word_start_abs": 18.712,
+     "planned_onset_abs": 18.712,
+     "first_clip_frame": 27,
+     "problems": [],
+     "expected_video_frame_clip_map": 562,
+     "detected_video_frame": 562,
+     "latency_vs_word_s": 0.0213,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "beat": "b4",
+     "id": "b2",
+     "kind": "pop",
+     "word": "depends",
+     "word_start_abs": 20.882,
+     "planned_onset_abs": 21.082,
+     "first_clip_frame": 98,
+     "problems": [],
+     "expected_video_frame_clip_map": 633,
+     "detected_video_frame": 633,
+     "latency_vs_word_s": 0.218,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "beat": "b4",
+     "id": "b3",
+     "kind": "type",
+     "word": "whole",
+     "word_start_abs": 23.934,
+     "planned_onset_abs": 23.978,
+     "first_clip_frame": 185,
+     "problems": [],
+     "expected_video_frame_clip_map": 720,
+     "detected_video_frame": 720,
+     "latency_vs_word_s": 0.066,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0,
+     "complete_minus_sentence_end_s": -0.0113
+    }
+   ],
+   "summary": {
+    "cues_measured": 7,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "latency_min_s": 0.0213,
+    "latency_max_s": 0.244,
+    "share_latency_in_0_to_0.4s": 1.0,
+    "n_latency": 6
+   }
+  },
+  "dissolve_0.5": {
+   "dissolve_s": 0.5,
+   "notes": [
+    "beat b2: sentence boundaries from punctuation",
+    "beat b4: sentence boundaries from punctuation",
+    "dissolve_s is 0.5: each board clip is its beat plus 0.5 s long and its first and last 0.25 s sit under the dissolve"
+   ],
+   "problems": [],
+   "clips": [
+    "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/p1_splice/variant_d0_5/b2_board.mp4",
+    "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/p1_splice/variant_d0_5/b4_board.mp4"
+   ],
+   "other_beats_unchanged": true,
+   "settings_dissolve": 0.5,
+   "board_beats_point_to_clips": true,
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 16.3,
+   "video_frames": 840,
+   "board_runs": [
+    {
+     "first": 211,
+     "last": 445,
+     "frames": 235,
+     "code_first": 14,
+     "code_last": 248,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 197,
+     "offset_values": [
+      197
+     ]
+    },
+    {
+     "first": 542,
+     "last": 738,
+     "frames": 197,
+     "code_first": 14,
+     "code_last": 210,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 528,
+     "offset_values": [
+      528
+     ]
+    }
+   ],
+   "runs_match_two_board_beats": true,
+   "clip_frame0": [
+    {
+     "beat": "b2",
+     "video_frame": 197,
+     "time_s": 6.566666666666666,
+     "ideal_origin_s": 6.55,
+     "beat_start_frame_exact": 204.0,
+     "beat_end_frame_exact": 452.0,
+     "run_first": 211,
+     "run_last": 445,
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": []
+    },
+    {
+     "beat": "b4",
+     "video_frame": 528,
+     "time_s": 17.6,
+     "ideal_origin_s": 17.583333333333332,
+     "beat_start_frame_exact": 535.0,
+     "beat_end_frame_exact": 745.0,
+     "run_first": 542,
+     "run_last": 738,
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": []
+    }
+   ],
+   "cues": [
+    {
+     "beat": "b2",
+     "id": "a1",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 7.386,
+     "planned_onset_abs": 7.386,
+     "first_clip_frame": 26,
+     "problems": [],
+     "expected_video_frame_clip_map": 223,
+     "detected_video_frame": 223,
+     "latency_vs_word_s": 0.0473,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a2",
+     "kind": "pop",
+     "word": "Farmers",
+     "word_start_abs": 9.556,
+     "planned_onset_abs": 9.755999999999998,
+     "first_clip_frame": 97,
+     "problems": [],
+     "expected_video_frame_clip_map": 294,
+     "detected_video_frame": 294,
+     "latency_vs_word_s": 0.244,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a3",
+     "kind": "pop",
+     "word": "water",
+     "word_start_abs": 10.732,
+     "planned_onset_abs": 10.931999999999999,
+     "first_clip_frame": 132,
+     "problems": [],
+     "expected_video_frame_clip_map": 329,
+     "detected_video_frame": 329,
+     "latency_vs_word_s": 0.2347,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "beat": "b2",
+     "id": "a4",
+     "kind": "clear",
+     "word": "water",
+     "word_start_abs": 10.732,
+     "planned_onset_abs": 12.314,
+     "first_clip_frame": 173,
+     "problems": []
+    },
+    {
+     "beat": "b2",
+     "id": "a5",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 12.902,
+     "planned_onset_abs": 13.001999999999999,
+     "first_clip_frame": 194,
+     "problems": [],
+     "expected_video_frame_clip_map": 391,
+     "detected_video_frame": 391,
+     "latency_vs_word_s": 0.1313,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "beat": "b4",
+     "id": "b1",
+     "kind": "type",
+     "word": "steps",
+     "word_start_abs": 18.712,
+     "planned_onset_abs": 18.712,
+     "first_clip_frame": 34,
+     "problems": [],
+     "expected_video_frame_clip_map": 562,
+     "detected_video_frame": 562,
+     "latency_vs_word_s": 0.0213,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "beat": "b4",
+     "id": "b2",
+     "kind": "pop",
+     "word": "depends",
+     "word_start_abs": 20.882,
+     "planned_onset_abs": 21.082,
+     "first_clip_frame": 105,
+     "problems": [],
+     "expected_video_frame_clip_map": 633,
+     "detected_video_frame": 633,
+     "latency_vs_word_s": 0.218,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "beat": "b4",
+     "id": "b3",
+     "kind": "type",
+     "word": "whole",
+     "word_start_abs": 23.934,
+     "planned_onset_abs": 23.978,
+     "first_clip_frame": 192,
+     "problems": [],
+     "expected_video_frame_clip_map": 720,
+     "detected_video_frame": 720,
+     "latency_vs_word_s": 0.066,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0,
+     "complete_minus_sentence_end_s": -0.0113
+    }
+   ],
+   "summary": {
+    "cues_measured": 7,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "latency_min_s": 0.0213,
+    "latency_max_s": 0.244,
+    "share_latency_in_0_to_0.4s": 1.0,
+    "n_latency": 6
+   }
+  }
+ },
+ "sentence_sources": {
+  "punctuated_words_no_sentences": {
+   "source": [
+    "punctuation"
+   ],
+   "all_onsets_equal_to_punctuated": true,
+   "problems": []
+  },
+  "normalised_words_pause_fallback": {
+   "source": [
+    "pauses"
+   ],
+   "all_onsets_equal_to_punctuated": true,
+   "problems": []
+  },
+  "normalised_words_hybrid_pauses": {
+   "source": [
+    "given"
+   ],
+   "all_onsets_equal_to_punctuated": true,
+   "problems": []
+  },
+  "normalised_words_hybrid_script": {
+   "source": [
+    "given"
+   ],
+   "all_onsets_equal_to_punctuated": true,
+   "problems": []
+  }
+ }
+}

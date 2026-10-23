@@ -1,0 +1,136 @@
+{
+ "beats": [
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "Alps"
+    }
+   ],
+   "end": 5.022,
+   "geo_intent": "where Alps is",
+   "id": "e1",
+   "layers": [
+    {
+     "id": "e1_marker1",
+     "label": "ALPS",
+     "place": "Alps",
+     "t": 1.482,
+     "type": "marker",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: Alps",
+   "start": 0.0
+  },
+  {
+   "camera": [
+    {
+     "action": "fly_to",
+     "dur": 2.0,
+     "frame": "country",
+     "place": "Greenland",
+     "t": 5.504
+    }
+   ],
+   "end": 10.132,
+   "geo_intent": "where Greenland is",
+   "id": "e2",
+   "layers": [
+    {
+     "id": "e2_fill1",
+     "place": "Greenland",
+     "role": "subject",
+     "t": 5.904,
+     "type": "fill",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: Greenland",
+   "start": 5.022
+  },
+  {
+   "end": 14.654,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_glaciers/explainer/board_d7e20a6130b6090e.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 10.132
+  },
+  {
+   "end": 17.706,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_glaciers/explainer/board_0c6dd9de7dbc3353.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 14.654
+  },
+  {
+   "end": 22.816,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_glaciers/explainer/board_b47cb03a5c654b70.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: twist",
+   "start": 17.706
+  },
+  {
+   "end": 28.626,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_glaciers/explainer/board_34fed589f8d30e59.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 22.816
+  },
+  {
+   "end": 34.274,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_glaciers/explainer/board_c8a72dccdc7baee9.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 28.626
+  }
+ ],
+ "duration": 34.274,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

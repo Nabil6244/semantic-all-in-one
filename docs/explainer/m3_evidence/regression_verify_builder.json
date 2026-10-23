@@ -1,0 +1,346 @@
+{
+ "checks": {
+  "strict_raises_on_missing_word": true,
+  "non_strict_skips_bad_cue_and_still_builds": true,
+  "problem_reported_for_k": true,
+  "problem_reported_for_e": true,
+  "problem_reported_for_w": true,
+  "problem_reported_for_l": true,
+  "problem_reported_for_o": true,
+  "build_is_deterministic_manifest": true,
+  "build_is_deterministic_frames": true,
+  "clip_bytes_identical_between_builds": true
+ },
+ "variants": {
+  "dissolve_0.0": {
+   "dissolve_s": 0.0,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 16.1,
+   "clip_origin_s": 9.0,
+   "clip_length_s": 8.0,
+   "clip_frames": 240,
+   "video_frames": 720,
+   "video_duration_s": 24.0,
+   "frame_number_check": {
+    "board_frames": 240,
+    "first_video_frame": 270,
+    "last_video_frame": 509,
+    "contiguous": true,
+    "code_steps": [
+     1
+    ],
+    "first_code": 0,
+    "last_code": 239,
+    "video_frame_minus_clip_frame_values": [
+     270
+    ],
+    "constant_offset": true,
+    "clip_frame0_at_video_frame": 270,
+    "clip_frame0_time_s": 9.0,
+    "ideal_origin_s": 9.0
+   },
+   "cues": [
+    {
+     "id": "c1_type",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 9.494,
+     "planned_onset_abs": 9.494,
+     "first_clip_frame": 15,
+     "planned_video_frame_builder": 285,
+     "problems": [],
+     "expected_video_frame_clip_map": 285,
+     "detected_video_frame": 285,
+     "region_px": [
+      282,
+      110
+     ],
+     "detected_time_s": 9.5,
+     "latency_vs_word_s": 0.006,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c2_pop",
+     "kind": "pop",
+     "word": "Farmers",
+     "word_start_abs": 11.4,
+     "planned_onset_abs": 11.6,
+     "first_clip_frame": 78,
+     "planned_video_frame_builder": 348,
+     "problems": [],
+     "expected_video_frame_clip_map": 348,
+     "detected_video_frame": 348,
+     "region_px": [
+      224,
+      330
+     ],
+     "detected_time_s": 11.6,
+     "latency_vs_word_s": 0.2,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c3_pop",
+     "kind": "pop",
+     "word": "water",
+     "word_start_abs": 12.576,
+     "planned_onset_abs": 12.776,
+     "first_clip_frame": 114,
+     "planned_video_frame_builder": 384,
+     "problems": [],
+     "expected_video_frame_clip_map": 384,
+     "detected_video_frame": 384,
+     "region_px": [
+      224,
+      330
+     ],
+     "detected_time_s": 12.8,
+     "latency_vs_word_s": 0.224,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c4_clear",
+     "kind": "clear",
+     "word": "water",
+     "word_start_abs": 12.576,
+     "planned_onset_abs": 14.15,
+     "first_clip_frame": 155,
+     "planned_video_frame_builder": 425,
+     "problems": []
+    },
+    {
+     "id": "c5_title",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 14.738,
+     "planned_onset_abs": 14.838,
+     "first_clip_frame": 176,
+     "planned_video_frame_builder": 446,
+     "problems": [],
+     "expected_video_frame_clip_map": 446,
+     "detected_video_frame": 446,
+     "region_px": [
+      752,
+      136
+     ],
+     "detected_time_s": 14.866666666666667,
+     "latency_vs_word_s": 0.1287,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c6_type_end",
+     "kind": "type",
+     "word": "nobody",
+     "word_start_abs": 15.62,
+     "planned_onset_abs": 16.052,
+     "first_clip_frame": 212,
+     "planned_video_frame_builder": 482,
+     "problems": [],
+     "expected_video_frame_clip_map": 482,
+     "detected_video_frame": 482,
+     "region_px": [
+      684,
+      110
+     ],
+     "detected_time_s": 16.066666666666666,
+     "latency_vs_word_s": 0.4467,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0,
+     "typing_complete_frame": 502,
+     "typing_complete_time_s": 16.733333333333334,
+     "sentence_end_abs": 16.752,
+     "complete_minus_sentence_end_s": -0.0187
+    },
+    {
+     "id": "c4_clear",
+     "kind": "clear",
+     "word": "water",
+     "planned_onset_abs": 14.15,
+     "next_sentence_start_abs": 14.15,
+     "expected_video_frame_clip_map": 425,
+     "detected_video_frame": 425,
+     "detected_minus_clip_map_frames": 0,
+     "latency_vs_sentence_start_s": 0.0167
+    }
+   ],
+   "latency_summary": {
+    "n": 4,
+    "min_s": 0.006,
+    "max_s": 0.224,
+    "share_in_0_to_0.4s": 1.0,
+    "max_abs_frame_error_vs_clip_map": 0,
+    "undetected": []
+   }
+  },
+  "dissolve_0.5": {
+   "dissolve_s": 0.5,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 15.5,
+   "clip_origin_s": 8.75,
+   "clip_length_s": 8.5,
+   "clip_frames": 255,
+   "video_frames": 720,
+   "video_duration_s": 24.0,
+   "frame_number_check": {
+    "board_frames": 227,
+    "first_video_frame": 277,
+    "last_video_frame": 503,
+    "contiguous": true,
+    "code_steps": [
+     1
+    ],
+    "first_code": 14,
+    "last_code": 240,
+    "video_frame_minus_clip_frame_values": [
+     263
+    ],
+    "constant_offset": true,
+    "clip_frame0_at_video_frame": 263,
+    "clip_frame0_time_s": 8.766666666666667,
+    "ideal_origin_s": 8.75
+   },
+   "cues": [
+    {
+     "id": "c1_type",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 9.494,
+     "planned_onset_abs": 9.494,
+     "first_clip_frame": 23,
+     "planned_video_frame_builder": 285,
+     "problems": [],
+     "expected_video_frame_clip_map": 286,
+     "detected_video_frame": 286,
+     "region_px": [
+      282,
+      110
+     ],
+     "detected_time_s": 9.533333333333333,
+     "latency_vs_word_s": 0.0393,
+     "detected_minus_builder_plan_frames": 1,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c2_pop",
+     "kind": "pop",
+     "word": "Farmers",
+     "word_start_abs": 11.4,
+     "planned_onset_abs": 11.6,
+     "first_clip_frame": 86,
+     "planned_video_frame_builder": 348,
+     "problems": [],
+     "expected_video_frame_clip_map": 349,
+     "detected_video_frame": 349,
+     "region_px": [
+      224,
+      330
+     ],
+     "detected_time_s": 11.633333333333333,
+     "latency_vs_word_s": 0.2333,
+     "detected_minus_builder_plan_frames": 1,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c3_pop",
+     "kind": "pop",
+     "word": "water",
+     "word_start_abs": 12.576,
+     "planned_onset_abs": 12.776,
+     "first_clip_frame": 121,
+     "planned_video_frame_builder": 384,
+     "problems": [],
+     "expected_video_frame_clip_map": 384,
+     "detected_video_frame": 384,
+     "region_px": [
+      224,
+      330
+     ],
+     "detected_time_s": 12.8,
+     "latency_vs_word_s": 0.224,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c4_clear",
+     "kind": "clear",
+     "word": "water",
+     "word_start_abs": 12.576,
+     "planned_onset_abs": 14.15,
+     "first_clip_frame": 162,
+     "planned_video_frame_builder": 425,
+     "problems": []
+    },
+    {
+     "id": "c5_title",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 14.738,
+     "planned_onset_abs": 14.838,
+     "first_clip_frame": 183,
+     "planned_video_frame_builder": 446,
+     "problems": [],
+     "expected_video_frame_clip_map": 446,
+     "detected_video_frame": 446,
+     "region_px": [
+      752,
+      136
+     ],
+     "detected_time_s": 14.866666666666667,
+     "latency_vs_word_s": 0.1287,
+     "detected_minus_builder_plan_frames": 0,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "c6_type_end",
+     "kind": "type",
+     "word": "nobody",
+     "word_start_abs": 15.62,
+     "planned_onset_abs": 16.052,
+     "first_clip_frame": 220,
+     "planned_video_frame_builder": 482,
+     "problems": [],
+     "expected_video_frame_clip_map": 483,
+     "detected_video_frame": 483,
+     "region_px": [
+      684,
+      110
+     ],
+     "detected_time_s": 16.1,
+     "latency_vs_word_s": 0.48,
+     "detected_minus_builder_plan_frames": 1,
+     "detected_minus_clip_map_frames": 0,
+     "typing_complete_frame": 503,
+     "typing_complete_time_s": 16.766666666666666,
+     "sentence_end_abs": 16.752,
+     "complete_minus_sentence_end_s": 0.0147
+    },
+    {
+     "id": "c4_clear",
+     "kind": "clear",
+     "word": "water",
+     "planned_onset_abs": 14.15,
+     "next_sentence_start_abs": 14.15,
+     "expected_video_frame_clip_map": 425,
+     "detected_video_frame": 425,
+     "detected_minus_clip_map_frames": 0,
+     "latency_vs_sentence_start_s": 0.0167
+    }
+   ],
+   "latency_summary": {
+    "n": 4,
+    "min_s": 0.0393,
+    "max_s": 0.2333,
+    "share_in_0_to_0.4s": 1.0,
+    "max_abs_frame_error_vs_clip_map": 0,
+    "undetected": []
+   }
+  }
+ }
+}

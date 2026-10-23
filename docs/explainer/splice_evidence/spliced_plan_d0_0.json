@@ -1,0 +1,100 @@
+{
+ "version": 1,
+ "duration": 28.0,
+ "settings": {
+  "dissolve_s": 0.0,
+  "return_grace_s": 0.8,
+  "drift_pct_per_s": 0.5
+ },
+ "beats": [
+  {
+   "id": "b1",
+   "mode": "map",
+   "start": 0,
+   "end": 6.8,
+   "purpose": "locate the country",
+   "geo_intent": "where Pakistan is",
+   "camera": [
+    {
+     "action": "start",
+     "place": "Pakistan",
+     "frame": "country"
+    }
+   ],
+   "layers": [
+    {
+     "id": "title",
+     "type": "hud_title",
+     "t": 0.3,
+     "label": "PART 1",
+     "sub": "ONE RIVER"
+    },
+    {
+     "id": "fill",
+     "type": "fill",
+     "t": 0.5,
+     "place": "Pakistan",
+     "role": "subject",
+     "until": "beat_end"
+    }
+   ]
+  },
+  {
+   "id": "b2",
+   "mode": "footage",
+   "start": 6.8,
+   "end": 15.066666666666666,
+   "purpose": "placeholder",
+   "footage": {
+    "clips": [
+     {
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/splice_run2/variant_d0_0/b2_board.mp4",
+      "reason": "Explainer board clip, word-timed"
+     }
+    ]
+   }
+  },
+  {
+   "id": "b3",
+   "mode": "map",
+   "start": 15.066666666666666,
+   "end": 17.833333333333332,
+   "purpose": "the north",
+   "geo_intent": "the mountains feed the river",
+   "camera": [],
+   "layers": [
+    {
+     "id": "m",
+     "type": "marker",
+     "t": 15.667,
+     "place": "Gilgit",
+     "label": "GILGIT"
+    }
+   ]
+  },
+  {
+   "id": "b4",
+   "mode": "footage",
+   "start": 17.833333333333332,
+   "end": 24.833333333333332,
+   "purpose": "placeholder",
+   "footage": {
+    "clips": [
+     {
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/splice_run2/variant_d0_0/b4_board.mp4",
+      "reason": "Explainer board clip, word-timed"
+     }
+    ]
+   }
+  },
+  {
+   "id": "b5",
+   "mode": "map",
+   "start": 24.833333333333332,
+   "end": 28.0,
+   "purpose": "close",
+   "camera": [],
+   "layers": []
+  }
+ ]
+}

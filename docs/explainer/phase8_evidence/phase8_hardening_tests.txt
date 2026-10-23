@@ -1,0 +1,18 @@
+test_every_application_method_it_calls_exists_in_the_real_app (__main__.AppPatch.test_every_application_method_it_calls_exists_in_the_real_app) ... ok
+test_it_applies_cleanly_to_head_and_the_result_parses (__main__.AppPatch.test_it_applies_cleanly_to_head_and_the_result_parses) ... ok
+test_it_only_adds_lines_to_app_and_spec (__main__.AppPatch.test_it_only_adds_lines_to_app_and_spec) ... ok
+test_the_weather_guard_sees_only_added_lines (__main__.AppPatch.test_the_weather_guard_sees_only_added_lines)
+The guard's own rule on a scratch result: no line of the base commit's app.py or spec removed except the approved ones. ... ok
+test_every_asset_folder_and_file_ships (__main__.Packaging.test_every_asset_folder_and_file_ships) ... ok
+test_every_module_is_named_and_the_verification_scripts_are_not (__main__.Packaging.test_every_module_is_named_and_the_verification_scripts_are_not) ... ok
+test_direct_plan_never_raises_and_reports_why (__main__.Settings.test_direct_plan_never_raises_and_reports_why) ... ok
+test_paths_with_spaces_and_non_ascii_letters_work (__main__.Settings.test_paths_with_spaces_and_non_ascii_letters_work) ... ok
+test_the_cartoon_share_setting_is_clamped_and_never_raises (__main__.Settings.test_the_cartoon_share_setting_is_clamped_and_never_raises) ... ok
+test_without_the_setting_the_plan_is_the_directors_default (__main__.Settings.test_without_the_setting_the_plan_is_the_directors_default) ... ok
+test_a_copy_with_only_the_shipped_explainer_files_directs_and_encodes (__main__.ShippedFilesOnly.test_a_copy_with_only_the_shipped_explainer_files_directs_and_encodes)
+Packaged-app stand-in: the Explainer package without its verification scripts, tests, fixtures or docs, beside the rest of the repository. ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 25.501s
+
+OK

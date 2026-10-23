@@ -1,0 +1,135 @@
+{
+ "beats": [
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "Pakistan"
+    },
+    {
+     "action": "fly_to",
+     "dur": 2.0,
+     "frame": "region",
+     "place": "Gilgit",
+     "t": 5.5
+    }
+   ],
+   "end": 9.2,
+   "geo_intent": "the river system of Pakistan",
+   "id": "b1",
+   "layers": [
+    {
+     "id": "b1_marker1",
+     "label": "GILGIT",
+     "place": "Gilgit",
+     "t": 6.664,
+     "type": "marker",
+     "until": "beat_end"
+    },
+    {
+     "id": "b1_fill2",
+     "place": "Pakistan",
+     "role": "subject",
+     "t": 0.5,
+     "type": "fill",
+     "until": "beat_end"
+    },
+    {
+     "id": "b1_caption3",
+     "t": 1.97,
+     "text": "single river system",
+     "type": "caption",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "where the river begins",
+   "start": 0.0
+  },
+  {
+   "camera": [
+    {
+     "action": "fly_to",
+     "dur": 2.0,
+     "frame": "country",
+     "place": "Pakistan",
+     "t": 9.4
+    }
+   ],
+   "end": 12.6,
+   "geo_intent": "the river runs south",
+   "id": "b2",
+   "layers": [
+    {
+     "id": "b2_marker1",
+     "label": "LAHORE",
+     "place": "Lahore",
+     "t": 10.97,
+     "type": "marker",
+     "until": "beat_end"
+    },
+    {
+     "id": "b2_marker2",
+     "label": "KARACHI",
+     "place": "Karachi",
+     "t": 11.558,
+     "type": "marker",
+     "until": "beat_end"
+    },
+    {
+     "id": "b2_line3",
+     "kind": "river",
+     "places": [
+      "Lahore",
+      "Karachi"
+     ],
+     "t": 11.458,
+     "type": "line",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "where it flows",
+   "start": 9.2
+  },
+  {
+   "end": 19.0,
+   "footage": {
+    "clips": [
+     {
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/m3_run4/map/farm_market.png",
+      "kenburns": true,
+      "reason": "a picture of the farming this river feeds: what the map cannot show"
+     }
+    ]
+   },
+   "id": "b3",
+   "mode": "footage",
+   "purpose": "farmers and water",
+   "start": 12.6
+  },
+  {
+   "end": 24.0,
+   "geo_intent": "return to the map",
+   "id": "b4",
+   "layers": [
+    {
+     "id": "b4_caption1",
+     "t": 20.87,
+     "text": "the story returns to the map",
+     "type": "caption",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "back to the map",
+   "start": 19.0
+  }
+ ],
+ "duration": 24.0,
+ "settings": {
+  "dissolve_s": 0.5
+ },
+ "version": 1
+}

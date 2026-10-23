@@ -1,0 +1,133 @@
+{
+ "beats": [
+  {
+   "end": 4.728,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_printing/explainer/board_79743e7375d10c68.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e1",
+   "mode": "footage",
+   "purpose": "explainer board: hook",
+   "start": 0.0
+  },
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "region",
+     "place": "Mainz"
+    }
+   ],
+   "end": 9.544,
+   "geo_intent": "where Mainz is",
+   "id": "e2",
+   "layers": [
+    {
+     "id": "e2_marker1",
+     "label": "MAINZ",
+     "place": "Mainz",
+     "t": 6.004,
+     "type": "marker",
+     "until": "beat_end"
+    },
+    {
+     "id": "e2_fill2",
+     "place": "Germany",
+     "role": "subject",
+     "t": 6.492,
+     "type": "fill",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: Mainz, Germany",
+   "start": 4.728
+  },
+  {
+   "end": 13.478,
+   "footage": {
+    "clips": [
+     {
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/qg/archive_lib/press.png",
+      "kenburns": true,
+      "reason": "a picture of a press: what the map cannot show"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "archive: printing press",
+   "start": 9.544
+  },
+  {
+   "end": 20.464,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_printing/explainer/board_19f39361db9a1856.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 13.478
+  },
+  {
+   "end": 24.692,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_printing/explainer/board_110f662597bca13d.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: twist",
+   "start": 20.464
+  },
+  {
+   "end": 28.332,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_printing/explainer/board_d42242ebf6d144de.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 24.692
+  },
+  {
+   "end": 33.098,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_printing/explainer/board_262747c0f04eab26.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 28.332
+  }
+ ],
+ "duration": 33.098,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

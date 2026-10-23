@@ -1,0 +1,1247 @@
+{
+ "checks": {
+  "asset_build_twice_identical_in_memory": true,
+  "asset_files_on_disk_equal_rebuild": true,
+  "manifest_sha256_matches_every_layer": true,
+  "six_poses_three_eyes_four_mouths": true,
+  "renderer_has_no_drawing_code": true,
+  "render_does_not_load_the_asset_builder": true,
+  "damaged_asset_strict_raises_with_build_hint": true,
+  "damaged_asset_non_strict_renders_everything_else": true,
+  "missing_asset_reports_problem": true,
+  "pose_before_show_is_a_problem": true,
+  "second_show_is_a_problem": true,
+  "pose_during_enter_slide_is_a_problem": true,
+  "two_poses_on_one_frame_is_a_problem": true,
+  "hide_after_hide_is_a_problem": true,
+  "unknown_pose_is_a_problem": true,
+  "scale_out_of_range_is_a_problem": true,
+  "bad_side_is_a_problem": true,
+  "bad_action_is_a_problem": true,
+  "still_reserved_kinds_report_problem": true,
+  "explicit_card_on_narrator_is_a_problem": true,
+  "explicit_icon_on_narrator_is_a_problem": true,
+  "explicit_prop_on_narrator_is_a_problem": true,
+  "explicit_chip_on_narrator_is_a_problem": true,
+  "explicit_header_on_narrator_is_a_problem": true,
+  "element_during_narrator_presence_collides": true,
+  "element_after_exit_finished_is_allowed": true,
+  "element_after_instant_exit_is_allowed": true,
+  "element_during_enter_slide_collides": true,
+  "right_narrator_cards_avoid_right_slots": true,
+  "right_narrator_named_slot_blocked": true,
+  "narrator_box_is_the_union_of_every_frame": true,
+  "eight_props_registered": true,
+  "every_prop_draws_inside_its_sprite_with_a_margin": true,
+  "props_work_in_cards_and_icons_without_problems": true,
+  "deterministic_plain_clip_bytes": true,
+  "deterministic_plain_frames": true,
+  "deterministic_plain_manifest": true,
+  "deterministic_instr_clip_bytes": true,
+  "deterministic_instr_frames": true,
+  "deterministic_instr_manifest": true,
+  "deterministic_across_processes_plain_clip_bytes": true
+ },
+ "variants": {
+  "dissolve_0.0": {
+   "dissolve_s": 0.0,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 16.9,
+   "clip_origin_s": 7.0,
+   "clip_length_s": 10.0,
+   "clip_frames": 300,
+   "builder_problems": [],
+   "narrator": {
+    "asset_id": "narrator_explorer_v1",
+    "assets_manifest_sha256": "7360b9dd3c130a538ea7e98205d287dbf0bc15540a69143e1a3f93cb59dd8b64",
+    "side": "left",
+    "events": [
+     {
+      "cue": "n1",
+      "frame": 6,
+      "action": "show",
+      "pose": "idle",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n2",
+      "frame": 24,
+      "action": "pose",
+      "pose": "point",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n3",
+      "frame": 59,
+      "action": "pose",
+      "pose": "surprise",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n4",
+      "frame": 108,
+      "action": "pose",
+      "pose": "think",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n5",
+      "frame": 126,
+      "action": "pose",
+      "pose": "explain",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n6",
+      "frame": 204,
+      "action": "pose",
+      "pose": "shrug",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n7",
+      "frame": 284,
+      "action": "hide",
+      "pose": "",
+      "scale_pct": 100
+     }
+    ],
+    "visible_from_frame": 6,
+    "gone_from_frame": 296,
+    "blink_start_frames": [
+     109,
+     244
+    ],
+    "speech_runs": [
+     [
+      6,
+      93
+     ],
+     [
+      108,
+      187
+     ],
+     [
+      204,
+      291
+     ]
+    ],
+    "collision_box": [
+     -258.0,
+     425.0,
+     589.0,
+     986.0
+    ],
+    "settled_box": [
+     218.0,
+     425.0,
+     589.0,
+     986.0
+    ]
+   },
+   "video_frames": 720,
+   "pure_board_frames": 300,
+   "first_pure_video_frame": 210,
+   "last_pure_video_frame": 509,
+   "clip_frame0_at_video_frame": 210,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "runs": 1,
+   "m1_cues": [
+    {
+     "id": "h1",
+     "kind": "header",
+     "first_clip_frame": 6,
+     "expected_video_frame_clip_map": 216,
+     "detected_video_frame": 216,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 6,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c1",
+     "kind": "card",
+     "first_clip_frame": 18,
+     "expected_video_frame_clip_map": 228,
+     "detected_video_frame": 228,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 18,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c2",
+     "kind": "card",
+     "first_clip_frame": 89,
+     "expected_video_frame_clip_map": 299,
+     "detected_video_frame": 299,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 89,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "a1",
+     "kind": "arrow",
+     "first_clip_frame": 95,
+     "expected_video_frame_clip_map": 305,
+     "detected_video_frame": 305,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 95,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "h2",
+     "kind": "header",
+     "first_clip_frame": 117,
+     "expected_video_frame_clip_map": 327,
+     "detected_video_frame": 327,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 117,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "i1",
+     "kind": "icon",
+     "first_clip_frame": 132,
+     "expected_video_frame_clip_map": 342,
+     "detected_video_frame": 342,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 132,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c3",
+     "kind": "card",
+     "first_clip_frame": 182,
+     "expected_video_frame_clip_map": 392,
+     "detected_video_frame": 392,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 182,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "a2",
+     "kind": "arrow",
+     "first_clip_frame": 191,
+     "expected_video_frame_clip_map": 401,
+     "detected_video_frame": 401,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 191,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c4",
+     "kind": "card",
+     "first_clip_frame": 216,
+     "expected_video_frame_clip_map": 426,
+     "detected_video_frame": 426,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 216,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "k1",
+     "kind": "chip",
+     "first_clip_frame": 260,
+     "expected_video_frame_clip_map": 470,
+     "detected_video_frame": 470,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 260,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "k2",
+     "kind": "chip",
+     "first_clip_frame": 278,
+     "expected_video_frame_clip_map": 488,
+     "detected_video_frame": 488,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 278,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    }
+   ],
+   "m1_cues_summary": {
+    "n": 11,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "all_same_clip_frames_as_m1": true
+   },
+   "narrator_frame_alignment": {
+    "pure_frames_compared": 300,
+    "zero_offset_is_best": 300,
+    "decisively_best_by_0.2_mae": 68,
+    "mismatches": [],
+    "mean_abs_error_gray_levels": 0.397,
+    "max_abs_error_gray_levels": 0.6,
+    "region_px": [
+     0,
+     420,
+     600,
+     580
+    ],
+    "note": "decoded video vs the rig's own expected frame (instrumented board, narrator only), L = 0.299R+0.587G+0.114B"
+   },
+   "narrator_state_changes": [
+    {
+     "cue": "n1",
+     "action": "show",
+     "pose": "idle",
+     "clip_frame": 6,
+     "expected_video_frame_clip_map": 216,
+     "changed_region_px": [
+      6,
+      431,
+      424,
+      980
+     ],
+     "delta_mae_by_clip_frame": {
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 1.68,
+      "7": 17.9,
+      "8": 27.49,
+      "9": 27.51,
+      "10": 27.54,
+      "11": 27.54,
+      "12": 27.7
+     },
+     "detected_clip_frame": 6,
+     "detected_video_frame": 216,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n2",
+     "action": "pose",
+     "pose": "point",
+     "clip_frame": 24,
+     "expected_video_frame_clip_map": 234,
+     "changed_region_px": [
+      252,
+      434,
+      585,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "21": 0.0,
+      "22": 0.0,
+      "23": 0.0,
+      "24": 0.92,
+      "25": 1.88,
+      "26": 2.94,
+      "27": 3.97,
+      "28": 7.19,
+      "29": 7.19,
+      "30": 7.19
+     },
+     "detected_clip_frame": 24,
+     "detected_video_frame": 234,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n3",
+     "action": "pose",
+     "pose": "surprise",
+     "clip_frame": 59,
+     "expected_video_frame_clip_map": 269,
+     "changed_region_px": [
+      226,
+      429,
+      585,
+      977
+     ],
+     "delta_mae_by_clip_frame": {
+      "56": 0.0,
+      "57": 0.0,
+      "58": 0.0,
+      "59": 1.4,
+      "60": 2.93,
+      "61": 4.4,
+      "62": 5.93,
+      "63": 9.32,
+      "64": 9.32,
+      "65": 9.32
+     },
+     "detected_clip_frame": 59,
+     "detected_video_frame": 269,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n4",
+     "action": "pose",
+     "pose": "think",
+     "clip_frame": 108,
+     "expected_video_frame_clip_map": 318,
+     "changed_region_px": [
+      226,
+      433,
+      510,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "105": 0.0,
+      "106": 0.0,
+      "107": 0.0,
+      "108": 1.03,
+      "109": 2.11,
+      "110": 3.24,
+      "111": 4.43,
+      "112": 11.29,
+      "113": 11.29,
+      "114": 11.29
+     },
+     "detected_clip_frame": 108,
+     "detected_video_frame": 318,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n5",
+     "action": "pose",
+     "pose": "explain",
+     "clip_frame": 126,
+     "expected_video_frame_clip_map": 336,
+     "changed_region_px": [
+      252,
+      433,
+      579,
+      981
+     ],
+     "delta_mae_by_clip_frame": {
+      "123": 0.0,
+      "124": 0.0,
+      "125": 0.0,
+      "126": 2.73,
+      "127": 4.24,
+      "128": 5.66,
+      "129": 7.1,
+      "130": 7.38,
+      "131": 7.38,
+      "132": 7.38
+     },
+     "detected_clip_frame": 126,
+     "detected_video_frame": 336,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n6",
+     "action": "pose",
+     "pose": "shrug",
+     "clip_frame": 204,
+     "expected_video_frame_clip_map": 414,
+     "changed_region_px": [
+      222,
+      434,
+      579,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "201": 0.0,
+      "202": 0.0,
+      "203": 0.0,
+      "204": 2.21,
+      "205": 3.28,
+      "206": 4.33,
+      "207": 5.48,
+      "208": 7.64,
+      "209": 7.64,
+      "210": 7.64
+     },
+     "detected_clip_frame": 204,
+     "detected_video_frame": 414,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n7",
+     "action": "hide",
+     "pose": "",
+     "clip_frame": 284,
+     "expected_video_frame_clip_map": 494,
+     "changed_region_px": [
+      60,
+      433,
+      514,
+      981
+     ],
+     "delta_mae_by_clip_frame": {
+      "281": 0.0,
+      "282": 0.0,
+      "283": 0.0,
+      "284": 6.62,
+      "285": 18.3,
+      "286": 24.71,
+      "287": 29.93,
+      "288": 36.5,
+      "289": 44.93,
+      "290": 48.63
+     },
+     "detected_clip_frame": 284,
+     "detected_video_frame": 494,
+     "detected_minus_clip_map_frames": 0
+    }
+   ],
+   "faces": {
+    "settled_pure_frames_classified": 246,
+    "mouth_confusion_scheduled_by_decoded": {
+     "closed": {
+      "closed": 141,
+      "open": 0,
+      "wide": 0,
+      "o": 0
+     },
+     "open": {
+      "closed": 0,
+      "open": 27,
+      "wide": 0,
+      "o": 0
+     },
+     "wide": {
+      "closed": 0,
+      "open": 0,
+      "wide": 39,
+      "o": 0
+     },
+     "o": {
+      "closed": 0,
+      "open": 0,
+      "wide": 0,
+      "o": 39
+     }
+    },
+    "mouth_accuracy": 1.0,
+    "eyes_confusion_scheduled_by_decoded": {
+     "open": {
+      "open": 167,
+      "blink": 0,
+      "happy": 0
+     },
+     "blink": {
+      "open": 0,
+      "blink": 5,
+      "happy": 0
+     },
+     "happy": {
+      "open": 0,
+      "blink": 0,
+      "happy": 74
+     }
+    },
+    "eye_accuracy": 1.0,
+    "blinks_scheduled_in_classified_frames": 5,
+    "blinks_decoded_in_classified_frames": 5
+   },
+   "mouth_per_frame": {
+    "silence_frames_classified": 32,
+    "silence_frames_with_open_mouth_false_positive": 0,
+    "speech_frames_classified": 214,
+    "speech_frames_with_closed_mouth": 109,
+    "note": "closed frames inside speech are the closed half of the 6-frame cycle, by design"
+   },
+   "mouth_activity": {
+    "window_frames": 7,
+    "speech_frames_with_full_window": 184,
+    "speech_frames_moving": 184,
+    "speech_moving_share": 1.0,
+    "silence_frames_with_full_window": 26,
+    "silence_frames_moving": 6,
+    "silence_moving_share": 0.2308,
+    "silence_frames_4_or_more_from_speech": 16,
+    "silence_far_moving": 0,
+    "silence_far_moving_share": 0.0,
+    "false_negative_speech_frames_with_closed_mouth_in_a_closed_phase_are_by_design": true,
+    "ground_truth": "speech runs from the synthetic word times (made by rule), bridged gaps <= 4 frames; NOT a human voice",
+    "classifier": "template matching of the decoded mouth region against the four rig mouth renders, minimum mean absolute error"
+   },
+   "poses_in_pixels": {
+    "n1": {
+     "scheduled": "idle",
+     "clip_frame": 23,
+     "best_match": "idle",
+     "mae_best": 0.407,
+     "mae_scheduled": 0.407
+    },
+    "n2": {
+     "scheduled": "point",
+     "clip_frame": 43,
+     "best_match": "point",
+     "mae_best": 0.42,
+     "mae_scheduled": 0.42
+    },
+    "n3": {
+     "scheduled": "surprise",
+     "clip_frame": 85,
+     "best_match": "surprise",
+     "mae_best": 0.432,
+     "mae_scheduled": 0.432
+    },
+    "n4": {
+     "scheduled": "think",
+     "clip_frame": 119,
+     "best_match": "think",
+     "mae_best": 0.411,
+     "mae_scheduled": 0.411
+    },
+    "n5": {
+     "scheduled": "explain",
+     "clip_frame": 167,
+     "best_match": "explain",
+     "mae_best": 0.38,
+     "mae_scheduled": 0.38
+    },
+    "n6": {
+     "scheduled": "shrug",
+     "clip_frame": 246,
+     "best_match": "shrug",
+     "mae_best": 0.384,
+     "mae_scheduled": 0.384
+    }
+   },
+   "distinct_poses_matched": [
+    "explain",
+    "idle",
+    "point",
+    "shrug",
+    "surprise",
+    "think"
+   ],
+   "geometry": {
+    "per_frame_collisions_with_elements": 0,
+    "collisions": [],
+    "settled_frames_with_pixels_outside_frame": 0,
+    "transition_frames_with_pixels_outside_frame": 6,
+    "outside_pixels_max": 77183,
+    "outside_edges": [
+     "left"
+    ],
+    "below_984_settled": 0,
+    "frames_checked": 290,
+    "elements_checked": 11,
+    "element_boxes_include_scale_in_overshoot": true
+   }
+  },
+  "dissolve_0.5": {
+   "dissolve_s": 0.5,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 18.5,
+   "clip_origin_s": 6.75,
+   "clip_length_s": 10.5,
+   "clip_frames": 315,
+   "builder_problems": [],
+   "narrator": {
+    "asset_id": "narrator_explorer_v1",
+    "assets_manifest_sha256": "7360b9dd3c130a538ea7e98205d287dbf0bc15540a69143e1a3f93cb59dd8b64",
+    "side": "left",
+    "events": [
+     {
+      "cue": "n1",
+      "frame": 14,
+      "action": "show",
+      "pose": "idle",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n2",
+      "frame": 32,
+      "action": "pose",
+      "pose": "point",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n3",
+      "frame": 67,
+      "action": "pose",
+      "pose": "surprise",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n4",
+      "frame": 116,
+      "action": "pose",
+      "pose": "think",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n5",
+      "frame": 134,
+      "action": "pose",
+      "pose": "explain",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n6",
+      "frame": 212,
+      "action": "pose",
+      "pose": "shrug",
+      "scale_pct": 100
+     },
+     {
+      "cue": "n7",
+      "frame": 291,
+      "action": "hide",
+      "pose": "",
+      "scale_pct": 100
+     }
+    ],
+    "visible_from_frame": 14,
+    "gone_from_frame": 303,
+    "blink_start_frames": [
+     117,
+     252
+    ],
+    "speech_runs": [
+     [
+      14,
+      101
+     ],
+     [
+      116,
+      194
+     ],
+     [
+      212,
+      299
+     ]
+    ],
+    "collision_box": [
+     -258.0,
+     425.0,
+     589.0,
+     986.0
+    ],
+    "settled_box": [
+     218.0,
+     425.0,
+     589.0,
+     986.0
+    ]
+   },
+   "video_frames": 720,
+   "pure_board_frames": 287,
+   "first_pure_video_frame": 217,
+   "last_pure_video_frame": 503,
+   "clip_frame0_at_video_frame": 203,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "runs": 1,
+   "m1_cues": [
+    {
+     "id": "h1",
+     "kind": "header",
+     "first_clip_frame": 14,
+     "expected_video_frame_clip_map": 217,
+     "detected_video_frame": 217,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 14,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c1",
+     "kind": "card",
+     "first_clip_frame": 26,
+     "expected_video_frame_clip_map": 229,
+     "detected_video_frame": 229,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 26,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c2",
+     "kind": "card",
+     "first_clip_frame": 96,
+     "expected_video_frame_clip_map": 299,
+     "detected_video_frame": 299,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 96,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "a1",
+     "kind": "arrow",
+     "first_clip_frame": 102,
+     "expected_video_frame_clip_map": 305,
+     "detected_video_frame": 305,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 102,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "h2",
+     "kind": "header",
+     "first_clip_frame": 125,
+     "expected_video_frame_clip_map": 328,
+     "detected_video_frame": 328,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 125,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "i1",
+     "kind": "icon",
+     "first_clip_frame": 140,
+     "expected_video_frame_clip_map": 343,
+     "detected_video_frame": 343,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 140,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c3",
+     "kind": "card",
+     "first_clip_frame": 190,
+     "expected_video_frame_clip_map": 393,
+     "detected_video_frame": 393,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 190,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "a2",
+     "kind": "arrow",
+     "first_clip_frame": 199,
+     "expected_video_frame_clip_map": 402,
+     "detected_video_frame": 402,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 199,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "c4",
+     "kind": "card",
+     "first_clip_frame": 224,
+     "expected_video_frame_clip_map": 427,
+     "detected_video_frame": 427,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 224,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "k1",
+     "kind": "chip",
+     "first_clip_frame": 268,
+     "expected_video_frame_clip_map": 471,
+     "detected_video_frame": 471,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 268,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    },
+    {
+     "id": "k2",
+     "kind": "chip",
+     "first_clip_frame": 286,
+     "expected_video_frame_clip_map": 489,
+     "detected_video_frame": 489,
+     "detected_minus_clip_map_frames": 0,
+     "m1_first_clip_frame": 286,
+     "m1_detected_minus_clip_map_frames": 0,
+     "same_clip_frame_as_m1": true
+    }
+   ],
+   "m1_cues_summary": {
+    "n": 11,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "all_same_clip_frames_as_m1": true
+   },
+   "narrator_frame_alignment": {
+    "pure_frames_compared": 287,
+    "zero_offset_is_best": 287,
+    "decisively_best_by_0.2_mae": 66,
+    "mismatches": [],
+    "mean_abs_error_gray_levels": 0.436,
+    "max_abs_error_gray_levels": 3.068,
+    "region_px": [
+     0,
+     420,
+     600,
+     580
+    ],
+    "note": "decoded video vs the rig's own expected frame (instrumented board, narrator only), L = 0.299R+0.587G+0.114B"
+   },
+   "narrator_state_changes": [
+    {
+     "cue": "n1",
+     "action": "show",
+     "pose": "idle",
+     "clip_frame": 14,
+     "expected_video_frame_clip_map": 217,
+     "changed_region_px": [
+      6,
+      431,
+      424,
+      980
+     ],
+     "delta_mae_by_clip_frame": {
+      "14": 1.64,
+      "15": 17.99,
+      "16": 27.55,
+      "17": 27.57,
+      "18": 27.59,
+      "19": 27.58,
+      "20": 27.73
+     },
+     "detected_clip_frame": 14,
+     "detected_video_frame": 217,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n2",
+     "action": "pose",
+     "pose": "point",
+     "clip_frame": 32,
+     "expected_video_frame_clip_map": 235,
+     "changed_region_px": [
+      252,
+      434,
+      585,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "29": 0.0,
+      "30": 0.0,
+      "31": 0.0,
+      "32": 0.89,
+      "33": 1.82,
+      "34": 2.86,
+      "35": 3.89,
+      "36": 7.2,
+      "37": 7.2,
+      "38": 7.2
+     },
+     "detected_clip_frame": 32,
+     "detected_video_frame": 235,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n3",
+     "action": "pose",
+     "pose": "surprise",
+     "clip_frame": 67,
+     "expected_video_frame_clip_map": 270,
+     "changed_region_px": [
+      226,
+      429,
+      585,
+      977
+     ],
+     "delta_mae_by_clip_frame": {
+      "64": 0.0,
+      "65": 0.0,
+      "66": 0.0,
+      "67": 1.35,
+      "68": 2.8,
+      "69": 4.36,
+      "70": 5.92,
+      "71": 9.31,
+      "72": 9.32,
+      "73": 9.31
+     },
+     "detected_clip_frame": 67,
+     "detected_video_frame": 270,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n4",
+     "action": "pose",
+     "pose": "think",
+     "clip_frame": 116,
+     "expected_video_frame_clip_map": 319,
+     "changed_region_px": [
+      226,
+      433,
+      510,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "113": 0.0,
+      "114": 0.0,
+      "115": 0.0,
+      "116": 1.09,
+      "117": 2.25,
+      "118": 3.36,
+      "119": 4.45,
+      "120": 11.26,
+      "121": 11.26,
+      "122": 11.26
+     },
+     "detected_clip_frame": 116,
+     "detected_video_frame": 319,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n5",
+     "action": "pose",
+     "pose": "explain",
+     "clip_frame": 134,
+     "expected_video_frame_clip_map": 337,
+     "changed_region_px": [
+      252,
+      433,
+      579,
+      981
+     ],
+     "delta_mae_by_clip_frame": {
+      "131": 0.0,
+      "132": 0.0,
+      "133": 0.0,
+      "134": 2.73,
+      "135": 4.23,
+      "136": 5.66,
+      "137": 7.1,
+      "138": 7.37,
+      "139": 7.38,
+      "140": 7.38
+     },
+     "detected_clip_frame": 134,
+     "detected_video_frame": 337,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n6",
+     "action": "pose",
+     "pose": "shrug",
+     "clip_frame": 212,
+     "expected_video_frame_clip_map": 415,
+     "changed_region_px": [
+      222,
+      434,
+      579,
+      982
+     ],
+     "delta_mae_by_clip_frame": {
+      "209": 0.0,
+      "210": 0.0,
+      "211": 0.0,
+      "212": 2.34,
+      "213": 3.43,
+      "214": 4.48,
+      "215": 5.48,
+      "216": 7.61,
+      "217": 7.61,
+      "218": 7.61
+     },
+     "detected_clip_frame": 212,
+     "detected_video_frame": 415,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "cue": "n7",
+     "action": "hide",
+     "pose": "",
+     "clip_frame": 291,
+     "expected_video_frame_clip_map": 494,
+     "changed_region_px": [
+      60,
+      432,
+      514,
+      981
+     ],
+     "delta_mae_by_clip_frame": {
+      "288": 0.0,
+      "289": 0.0,
+      "290": 0.0,
+      "291": 6.61,
+      "292": 18.56,
+      "293": 24.65,
+      "294": 29.86,
+      "295": 35.74,
+      "296": 44.85,
+      "297": 48.54
+     },
+     "detected_clip_frame": 291,
+     "detected_video_frame": 494,
+     "detected_minus_clip_map_frames": 0
+    }
+   ],
+   "faces": {
+    "settled_pure_frames_classified": 245,
+    "mouth_confusion_scheduled_by_decoded": {
+     "closed": {
+      "closed": 142,
+      "open": 0,
+      "wide": 0,
+      "o": 0
+     },
+     "open": {
+      "closed": 0,
+      "open": 27,
+      "wide": 0,
+      "o": 0
+     },
+     "wide": {
+      "closed": 0,
+      "open": 0,
+      "wide": 39,
+      "o": 0
+     },
+     "o": {
+      "closed": 0,
+      "open": 0,
+      "wide": 0,
+      "o": 37
+     }
+    },
+    "mouth_accuracy": 1.0,
+    "eyes_confusion_scheduled_by_decoded": {
+     "open": {
+      "open": 166,
+      "blink": 0,
+      "happy": 0
+     },
+     "blink": {
+      "open": 0,
+      "blink": 5,
+      "happy": 0
+     },
+     "happy": {
+      "open": 0,
+      "blink": 0,
+      "happy": 74
+     }
+    },
+    "eye_accuracy": 1.0,
+    "blinks_scheduled_in_classified_frames": 5,
+    "blinks_decoded_in_classified_frames": 5
+   },
+   "mouth_per_frame": {
+    "silence_frames_classified": 33,
+    "silence_frames_with_open_mouth_false_positive": 0,
+    "speech_frames_classified": 212,
+    "speech_frames_with_closed_mouth": 109,
+    "note": "closed frames inside speech are the closed half of the 6-frame cycle, by design"
+   },
+   "mouth_activity": {
+    "window_frames": 7,
+    "speech_frames_with_full_window": 182,
+    "speech_frames_moving": 182,
+    "speech_moving_share": 1.0,
+    "silence_frames_with_full_window": 27,
+    "silence_frames_moving": 3,
+    "silence_moving_share": 0.1111,
+    "silence_frames_4_or_more_from_speech": 17,
+    "silence_far_moving": 0,
+    "silence_far_moving_share": 0.0,
+    "false_negative_speech_frames_with_closed_mouth_in_a_closed_phase_are_by_design": true,
+    "ground_truth": "speech runs from the synthetic word times (made by rule), bridged gaps <= 4 frames; NOT a human voice",
+    "classifier": "template matching of the decoded mouth region against the four rig mouth renders, minimum mean absolute error"
+   },
+   "poses_in_pixels": {
+    "n1": {
+     "scheduled": "idle",
+     "clip_frame": 31,
+     "best_match": "idle",
+     "mae_best": 0.411,
+     "mae_scheduled": 0.411
+    },
+    "n2": {
+     "scheduled": "point",
+     "clip_frame": 51,
+     "best_match": "point",
+     "mae_best": 0.423,
+     "mae_scheduled": 0.423
+    },
+    "n3": {
+     "scheduled": "surprise",
+     "clip_frame": 93,
+     "best_match": "surprise",
+     "mae_best": 0.438,
+     "mae_scheduled": 0.438
+    },
+    "n4": {
+     "scheduled": "think",
+     "clip_frame": 127,
+     "best_match": "think",
+     "mae_best": 0.413,
+     "mae_scheduled": 0.413
+    },
+    "n5": {
+     "scheduled": "explain",
+     "clip_frame": 175,
+     "best_match": "explain",
+     "mae_best": 0.378,
+     "mae_scheduled": 0.378
+    },
+    "n6": {
+     "scheduled": "shrug",
+     "clip_frame": 253,
+     "best_match": "shrug",
+     "mae_best": 0.385,
+     "mae_scheduled": 0.385
+    }
+   },
+   "distinct_poses_matched": [
+    "explain",
+    "idle",
+    "point",
+    "shrug",
+    "surprise",
+    "think"
+   ],
+   "geometry": {
+    "per_frame_collisions_with_elements": 0,
+    "collisions": [],
+    "settled_frames_with_pixels_outside_frame": 0,
+    "transition_frames_with_pixels_outside_frame": 6,
+    "outside_pixels_max": 77183,
+    "outside_edges": [
+     "left"
+    ],
+    "below_984_settled": 0,
+    "frames_checked": 289,
+    "elements_checked": 11,
+    "element_boxes_include_scale_in_overshoot": true
+   }
+  }
+ },
+ "notes": [],
+ "assets": {
+  "asset_id": "narrator_explorer_v1",
+  "manifest_sha256": "7360b9dd3c130a538ea7e98205d287dbf0bc15540a69143e1a3f93cb59dd8b64",
+  "layers_digest": "448002c9ec7ba7060c13a9bdf445793433a38c058f7312d947b6121ce8551fd6",
+  "pillow_version": "12.3.0",
+  "design_height_px": 548,
+  "files": {
+   "body_explain.png": "0ac33049edf63ded91916df2b535bbe231250a93edc4f1c32263d4a74e556f7f",
+   "body_idle.png": "d4674a63bec85d1cff0999a0e56d2483ba4781cfca40b29e390dd2d4744f9a0e",
+   "body_point.png": "371451e2bb1dec5aaef545c4f550e8c9fae2dd8fb6e12fd7539cc043a29b0f84",
+   "body_shrug.png": "e3ad8142aa8192894e31d9b4c7140ccb507adb140c3031a3ef6ffd9d08cf056b",
+   "body_surprise.png": "ed94c7fbde871b801a3a74fc6b86cdd8440fa5c2f79061d7eddad24486b381aa",
+   "body_think.png": "ab6cf1c0beb99c8f2d918243cda16b71b45a79e8d0568241b04b6fd90e0a92d3",
+   "eyes_blink.png": "6a18f61482879ad5da3ee1cc9719b88f412399da598cb80245f26b79f260b61a",
+   "eyes_happy.png": "e3456f3b1617fd422c9710bc87a47abfd9895ba87e0e7a62ac67c90748b650b6",
+   "eyes_open.png": "dc74be1f76565d33c43c85a2026357d8f435820d511357affdf0079fa140dfeb",
+   "manifest.json": "7360b9dd3c130a538ea7e98205d287dbf0bc15540a69143e1a3f93cb59dd8b64",
+   "mouth_closed.png": "8037ccd2a28d086a3bfe919fd327bc427eb504cb38673a5f679a38b247b0210d",
+   "mouth_o.png": "3c7911143f06875ed0f4eb6684f07bc84dfeb898b4707cc5d67be3403a49d622",
+   "mouth_open.png": "c6a163122bb8818f6276edcaf8de9176ed37afcc76413f6a12d5d359fd7dfa74",
+   "mouth_wide.png": "e5ae3efce355d59b09c566f9c5e0649c78be59f191d467f00900a5e28298dce6"
+  }
+ },
+ "clip_sha256": {
+  "plain": "ee17b59459fd65e7108df1d87740619cef60ab57fabe6f268947ce0286135399",
+  "instrumented": "e03d10056dd78b1d345509debd14b56ce975193f73b53095f03c88c1be752c96"
+ },
+ "clip_bytes": 549307
+}

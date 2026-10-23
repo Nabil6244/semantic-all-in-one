@@ -1,0 +1,2188 @@
+{
+ "explainer_version": 1,
+ "options": {
+  "min_beat_s": 3.2,
+  "max_beat_s": 8.0,
+  "split_over_s": 6.4,
+  "max_still_s": 2.0,
+  "narrator_every_s": 30.0,
+  "narrator_share": 0.45,
+  "max_map_share": 0.3,
+  "max_archive_share": 0.12,
+  "map_min_beat_s": 2.8,
+  "narrator": true,
+  "look": "reference",
+  "dissolve_s": 0.0,
+  "fps": 30,
+  "size": [
+   1920,
+   1080
+  ],
+  "fallback_place": "Europe",
+  "archive_dir": null,
+  "metaphors": {},
+  "roles": {},
+  "work_dir": "<WORK>/work_korea"
+ },
+ "duration_s": 47.048,
+ "sentences": 13,
+ "sentence_labels": [
+  {
+   "i": 0,
+   "label": "hook",
+   "trigger": "",
+   "start": 0.0,
+   "end": 1.68,
+   "text": "Look at Korea from space at night.",
+   "words": 7
+  },
+  {
+   "i": 1,
+   "label": "explain",
+   "trigger": "",
+   "start": 1.94,
+   "end": 5.1,
+   "text": "The South is blazing with light cities glowing like spilled gold.",
+   "words": 11
+  },
+  {
+   "i": 2,
+   "label": "explain",
+   "trigger": "",
+   "start": 5.32,
+   "end": 7.24,
+   "text": "And then right above it, there's nothing.",
+   "words": 7
+  },
+  {
+   "i": 3,
+   "label": "explain",
+   "trigger": "",
+   "start": 7.56,
+   "end": 11.86,
+   "text": "A black hole the size of England where a country of 26 million people should be.",
+   "words": 16
+  },
+  {
+   "i": 4,
+   "label": "explain",
+   "trigger": "",
+   "start": 12.14,
+   "end": 15.22,
+   "text": "From up there, South Korea looks like an island.",
+   "words": 10
+  },
+  {
+   "i": 5,
+   "label": "explain",
+   "trigger": "",
+   "start": 15.22,
+   "end": 16.76,
+   "text": "That dark country is North Korea.",
+   "words": 5
+  },
+  {
+   "i": 6,
+   "label": "explain",
+   "trigger": "",
+   "start": 17.1,
+   "end": 21.2,
+   "text": "Its founder died in 1994 and officially he's still its eternal leader.",
+   "words": 12
+  },
+  {
+   "i": 7,
+   "label": "explain",
+   "trigger": "",
+   "start": 21.48,
+   "end": 26.24,
+   "text": "Since then, his son and his grandson have run the place like a family business.",
+   "words": 16
+  },
+  {
+   "i": 8,
+   "label": "explain",
+   "trigger": "",
+   "start": 26.24,
+   "end": 31.82,
+   "text": "a country where your radio is fixed to the government station where watching a south korean tv show can",
+   "words": 19
+  },
+  {
+   "i": 9,
+   "label": "explain",
+   "trigger": "",
+   "start": 31.82,
+   "end": 37.56,
+   "text": "get you sent to a prison camp and where kids are taught that their leader family has almost magical powers",
+   "words": 20
+  },
+  {
+   "i": 10,
+   "label": "explain",
+   "trigger": "",
+   "start": 37.96,
+   "end": 40.04,
+   "text": "And here's what makes it truly strange.",
+   "words": 8
+  },
+  {
+   "i": 11,
+   "label": "explain",
+   "trigger": "",
+   "start": 40.04,
+   "end": 42.74,
+   "text": "80 years ago, North and South were the same country.",
+   "words": 9
+  },
+  {
+   "i": 12,
+   "label": "explain",
+   "trigger": "",
+   "start": 43.06,
+   "end": 46.06,
+   "text": "Same language, same food, same families.",
+   "words": 6
+  }
+ ],
+ "selection": {
+  "place_candidates": [
+   "Look",
+   "Korea",
+   "South",
+   "England",
+   "South Korea",
+   "North Korea",
+   "North",
+   "Since",
+   "It's",
+   "South Korean TV",
+   "South Korean",
+   "Korean TV",
+   "Korean",
+   "TV"
+  ],
+  "places_resolved": {
+   "South": [
+    "admin1",
+    true
+   ],
+   "England": [
+    "region",
+    true
+   ],
+   "South Korea": [
+    "country",
+    true
+   ],
+   "North Korea": [
+    "country",
+    true
+   ],
+   "North": [
+    "admin1",
+    true
+   ]
+  },
+  "places_ignored": [
+   "Look",
+   "Korea",
+   "Since",
+   "It's",
+   "South Korean TV",
+   "South Korean",
+   "Korean TV",
+   "Korean",
+   "TV"
+  ],
+  "archive_notes": [],
+  "beats": [
+   {
+    "id": "e1",
+    "kind": "map",
+    "start": 0.0,
+    "end": 5.32
+   },
+   {
+    "id": "e2",
+    "kind": "map",
+    "start": 5.32,
+    "end": 12.14
+   },
+   {
+    "id": "e3",
+    "kind": "board",
+    "start": 12.14,
+    "end": 17.1
+   },
+   {
+    "id": "e4",
+    "kind": "board",
+    "start": 17.1,
+    "end": 21.48
+   },
+   {
+    "id": "e5",
+    "kind": "board",
+    "start": 21.48,
+    "end": 26.24
+   },
+   {
+    "id": "e6",
+    "kind": "board",
+    "start": 26.24,
+    "end": 31.82
+   },
+   {
+    "id": "e7",
+    "kind": "board",
+    "start": 31.82,
+    "end": 37.96
+   },
+   {
+    "id": "e8",
+    "kind": "board",
+    "start": 37.96,
+    "end": 43.06
+   },
+   {
+    "id": "e9",
+    "kind": "board",
+    "start": 43.06,
+    "end": 47.048
+   }
+  ],
+  "notes": {
+   "e3": [
+    "a place is spoken (South) but the map budget or the 2-in-a-row limit was reached: board beat"
+   ],
+   "e6": [
+    "a place is spoken (South) but the map budget or the 2-in-a-row limit was reached: board beat"
+   ],
+   "e8": [
+    "a place is spoken (North) but the map budget or the 2-in-a-row limit was reached: board beat"
+   ]
+  }
+ },
+ "beat_details": {
+  "e1": {
+   "kind": "map",
+   "places": [
+    "South"
+   ]
+  },
+  "e2": {
+   "kind": "map",
+   "places": [
+    "England"
+   ]
+  },
+  "e3": {
+   "cues": 6,
+   "kinds": [
+    "clear",
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 2.06,
+   "still_gap_all_s": 2.06,
+   "still_gap_strict_s": 2.06,
+   "narrator": "start",
+   "labels": [
+    "explain",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 4,
+     "label": "explain",
+     "phrase": "South Korea looks like an island",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 44,
+     "last": 49,
+     "as": "scroll"
+    },
+    {
+     "sentence": 5,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 52,
+     "last": 52,
+     "as": "tile"
+    },
+    {
+     "sentence": 5,
+     "label": "explain",
+     "phrase": "dark country is North Korea",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 51,
+     "last": 55,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.297,
+   "clip": "board_b3cf5c5d2c11d893.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e3_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e3_scroll1",
+     "kind": "visual",
+     "anchor": {
+      "index": 3
+     },
+     "text": "South Korea looks like an island",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      350
+     ],
+     "params": {
+      "style": "scroll"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e3_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 10
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e3_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 11
+     },
+     "text": "country",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      740,
+      298
+     ],
+     "params": {
+      "style": "tile"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e3_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "dark country is North Korea",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1090,
+      318
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e3_n_pose1",
+     "kind": "narrator",
+     "anchor": {
+      "index": 10
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "pose",
+      "pose": "point"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e3_scroll1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 66,
+     "lines": [
+      "South Korea looks",
+      "like an island"
+     ],
+     "first_frame": 31
+    },
+    {
+     "cue": "e3_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 104
+    },
+    {
+     "cue": "e3_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "dark country is North",
+      "Korea"
+     ],
+     "first_frame": 93
+    }
+   ]
+  },
+  "e4": {
+   "cues": 4,
+   "kinds": [
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e4_line_r1_720_761: added typed line 'eternal leader' inside a 3.3 s still gap (18.18 to 21.48 s)"
+   ],
+   "still_gap_s": 2.28,
+   "still_gap_all_s": 0.72,
+   "still_gap_strict_s": 2.28,
+   "narrator": "mid",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 6,
+     "label": "explain",
+     "phrase": "founder died in 1994 and officially he's",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 57,
+     "last": 63,
+     "as": "line"
+    },
+    {
+     "sentence": -1,
+     "label": "repair",
+     "phrase": "eternal leader",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 66,
+     "last": 67,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.383,
+   "clip": "board_611d180178540906.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e4_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "point",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 1
+     },
+     "text": "founder died in 1994 and officially he's",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      390
+     ],
+     "params": {
+      "style": "line",
+      "width": 1080,
+      "px": 76,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e4_tag1",
+     "kind": "visual",
+     "anchor": {
+      "index": 4
+     },
+     "text": "1994",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1380,
+      130
+     ],
+     "params": {
+      "style": "tag"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_line_r1_720_761",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "eternal leader",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      761
+     ],
+     "params": {
+      "style": "line",
+      "width": 560,
+      "px": 64,
+      "lines": 2,
+      "tint": false,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e4_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 76,
+     "lines": [
+      "founder died in 1994 and officially",
+      "he's"
+     ],
+     "first_frame": 6
+    },
+    {
+     "cue": "e4_tag1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 56,
+     "lines": [
+      "1994"
+     ],
+     "first_frame": 33
+    },
+    {
+     "cue": "e4_line_r1_720_761",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "eternal leader"
+     ],
+     "first_frame": 101
+    }
+   ]
+  },
+  "e5": {
+   "cues": 3,
+   "kinds": [
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 2.0,
+   "still_gap_all_s": 2.0,
+   "still_gap_strict_s": 2.0,
+   "narrator": "mid",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 7,
+     "label": "explain",
+     "phrase": "place like a family business it's",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 78,
+     "last": 83,
+     "as": "scroll"
+    },
+    {
+     "sentence": 7,
+     "label": "explain",
+     "phrase": "son and his grandson have run",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 71,
+     "last": 76,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.394,
+   "clip": "board_4e984dfe016fa2d8.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e5_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "point",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_scroll1",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "place like a family business it's",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      262
+     ],
+     "params": {
+      "style": "scroll"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 3
+     },
+     "text": "son and his grandson have run",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      800,
+      632
+     ],
+     "params": {
+      "style": "line",
+      "width": 1000,
+      "px": 68,
+      "tint": false,
+      "align": "center",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e5_scroll1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 66,
+     "lines": [
+      "place like a family",
+      "business it's"
+     ],
+     "first_frame": 83
+    },
+    {
+     "cue": "e5_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 68,
+     "lines": [
+      "son and his grandson have run"
+     ],
+     "first_frame": 33
+    }
+   ]
+  },
+  "e6": {
+   "cues": 5,
+   "kinds": [
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 2.42,
+   "still_gap_all_s": 1.56,
+   "still_gap_strict_s": 2.42,
+   "narrator": "end",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 85,
+     "last": 85,
+     "as": "circle"
+    },
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "radio is fixed to the government station",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 88,
+     "last": 94,
+     "as": "line"
+    },
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "where watching a South Korean TV show",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 95,
+     "last": 101,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.415,
+   "clip": "board_4baed48bd43001eb.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e6_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "point",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e6_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 1
+     },
+     "text": "country",
+     "role": "red",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      740,
+      284
+     ],
+     "params": {
+      "style": "circle"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e6_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 4
+     },
+     "text": "radio is fixed to the government station",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1090,
+      304
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e6_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 11
+     },
+     "text": "where watching a South Korean TV show",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1090,
+      530
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e6_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 17
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e6_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 6
+    },
+    {
+     "cue": "e6_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "radio is fixed to the",
+      "government station"
+     ],
+     "first_frame": 26
+    },
+    {
+     "cue": "e6_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "where watching a South",
+      "Korean TV show"
+     ],
+     "first_frame": 98
+    }
+   ]
+  },
+  "e7": {
+   "cues": 2,
+   "kinds": [
+    "visual"
+   ],
+   "dropped": [
+    {
+     "cue": "e7_line_r1_720_761",
+     "reason": "cue e7_line_r1_720_761: the box at (720, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_761",
+     "reason": "cue e7_line_r1_790_761: the box at (790, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_761",
+     "reason": "cue e7_line_r1_860_761: the box at (860, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_761",
+     "reason": "cue e7_line_r1_930_761: the box at (930, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_761",
+     "reason": "cue e7_line_r1_1000_761: the box at (1000, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_761",
+     "reason": "cue e7_line_r1_1070_761: the box at (1070, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_761",
+     "reason": "cue e7_line_r1_1140_761: the box at (1140, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_761",
+     "reason": "cue e7_line_r1_1210_761: the box at (1210, 761) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_691",
+     "reason": "cue e7_line_r1_720_691: the box at (720, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_691",
+     "reason": "cue e7_line_r1_790_691: the box at (790, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_691",
+     "reason": "cue e7_line_r1_860_691: the box at (860, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_691",
+     "reason": "cue e7_line_r1_930_691: the box at (930, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_691",
+     "reason": "cue e7_line_r1_1000_691: the box at (1000, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_691",
+     "reason": "cue e7_line_r1_1070_691: the box at (1070, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_691",
+     "reason": "cue e7_line_r1_1140_691: the box at (1140, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_691",
+     "reason": "cue e7_line_r1_1210_691: the box at (1210, 691) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_621",
+     "reason": "cue e7_line_r1_720_621: the box at (720, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_621",
+     "reason": "cue e7_line_r1_790_621: the box at (790, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_621",
+     "reason": "cue e7_line_r1_860_621: the box at (860, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_621",
+     "reason": "cue e7_line_r1_930_621: the box at (930, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_621",
+     "reason": "cue e7_line_r1_1000_621: the box at (1000, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_621",
+     "reason": "cue e7_line_r1_1070_621: the box at (1070, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_621",
+     "reason": "cue e7_line_r1_1140_621: the box at (1140, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_621",
+     "reason": "cue e7_line_r1_1210_621: the box at (1210, 621) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_551",
+     "reason": "cue e7_line_r1_720_551: the box at (720, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_551",
+     "reason": "cue e7_line_r1_790_551: the box at (790, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_551",
+     "reason": "cue e7_line_r1_860_551: the box at (860, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_551",
+     "reason": "cue e7_line_r1_930_551: the box at (930, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_551",
+     "reason": "cue e7_line_r1_1000_551: the box at (1000, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_551",
+     "reason": "cue e7_line_r1_1070_551: the box at (1070, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_551",
+     "reason": "cue e7_line_r1_1140_551: the box at (1140, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_551",
+     "reason": "cue e7_line_r1_1210_551: the box at (1210, 551) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_481",
+     "reason": "cue e7_line_r1_720_481: the box at (720, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_481",
+     "reason": "cue e7_line_r1_790_481: the box at (790, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_481",
+     "reason": "cue e7_line_r1_860_481: the box at (860, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_481",
+     "reason": "cue e7_line_r1_930_481: the box at (930, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_481",
+     "reason": "cue e7_line_r1_1000_481: the box at (1000, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_481",
+     "reason": "cue e7_line_r1_1070_481: the box at (1070, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_481",
+     "reason": "cue e7_line_r1_1140_481: the box at (1140, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_481",
+     "reason": "cue e7_line_r1_1210_481: the box at (1210, 481) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_411",
+     "reason": "cue e7_line_r1_720_411: the box at (720, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_411",
+     "reason": "cue e7_line_r1_790_411: the box at (790, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_411",
+     "reason": "cue e7_line_r1_860_411: the box at (860, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_411",
+     "reason": "cue e7_line_r1_930_411: the box at (930, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_411",
+     "reason": "cue e7_line_r1_1000_411: the box at (1000, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_411",
+     "reason": "cue e7_line_r1_1070_411: the box at (1070, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_411",
+     "reason": "cue e7_line_r1_1140_411: the box at (1140, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_411",
+     "reason": "cue e7_line_r1_1210_411: the box at (1210, 411) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_341",
+     "reason": "cue e7_line_r1_720_341: the box at (720, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_341",
+     "reason": "cue e7_line_r1_790_341: the box at (790, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_341",
+     "reason": "cue e7_line_r1_860_341: the box at (860, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_341",
+     "reason": "cue e7_line_r1_930_341: the box at (930, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_341",
+     "reason": "cue e7_line_r1_1000_341: the box at (1000, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_341",
+     "reason": "cue e7_line_r1_1070_341: the box at (1070, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_341",
+     "reason": "cue e7_line_r1_1140_341: the box at (1140, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_341",
+     "reason": "cue e7_line_r1_1210_341: the box at (1210, 341) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_271",
+     "reason": "cue e7_line_r1_720_271: the box at (720, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_271",
+     "reason": "cue e7_line_r1_790_271: the box at (790, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_271",
+     "reason": "cue e7_line_r1_860_271: the box at (860, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_271",
+     "reason": "cue e7_line_r1_930_271: the box at (930, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_271",
+     "reason": "cue e7_line_r1_1000_271: the box at (1000, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_271",
+     "reason": "cue e7_line_r1_1070_271: the box at (1070, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1140_271",
+     "reason": "cue e7_line_r1_1140_271: the box at (1140, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1210_271",
+     "reason": "cue e7_line_r1_1210_271: the box at (1210, 271) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_201",
+     "reason": "cue e7_line_r1_720_201: the box at (720, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_201",
+     "reason": "cue e7_line_r1_790_201: the box at (790, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_201",
+     "reason": "cue e7_line_r1_860_201: the box at (860, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_930_201",
+     "reason": "cue e7_line_r1_930_201: the box at (930, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1000_201",
+     "reason": "cue e7_line_r1_1000_201: the box at (1000, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_1070_201",
+     "reason": "cue e7_line_r1_1070_201: the box at (1070, 201) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_771",
+     "reason": "cue e7_line_r1_720_771: the box at (720, 771) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_771",
+     "reason": "cue e7_line_r1_790_771: the box at (790, 771) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_771",
+     "reason": "cue e7_line_r1_860_771: the box at (860, 771) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_701",
+     "reason": "cue e7_line_r1_720_701: the box at (720, 701) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_701",
+     "reason": "cue e7_line_r1_790_701: the box at (790, 701) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_701",
+     "reason": "cue e7_line_r1_860_701: the box at (860, 701) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_631",
+     "reason": "cue e7_line_r1_720_631: the box at (720, 631) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_631",
+     "reason": "cue e7_line_r1_790_631: the box at (790, 631) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_631",
+     "reason": "cue e7_line_r1_860_631: the box at (860, 631) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_561",
+     "reason": "cue e7_line_r1_720_561: the box at (720, 561) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_561",
+     "reason": "cue e7_line_r1_790_561: the box at (790, 561) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_561",
+     "reason": "cue e7_line_r1_860_561: the box at (860, 561) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_491",
+     "reason": "cue e7_line_r1_720_491: the box at (720, 491) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_491",
+     "reason": "cue e7_line_r1_790_491: the box at (790, 491) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_491",
+     "reason": "cue e7_line_r1_860_491: the box at (860, 491) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_421",
+     "reason": "cue e7_line_r1_720_421: the box at (720, 421) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_421",
+     "reason": "cue e7_line_r1_790_421: the box at (790, 421) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_421",
+     "reason": "cue e7_line_r1_860_421: the box at (860, 421) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_351",
+     "reason": "cue e7_line_r1_720_351: the box at (720, 351) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_351",
+     "reason": "cue e7_line_r1_790_351: the box at (790, 351) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_351",
+     "reason": "cue e7_line_r1_860_351: the box at (860, 351) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_281",
+     "reason": "cue e7_line_r1_720_281: the box at (720, 281) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_281",
+     "reason": "cue e7_line_r1_790_281: the box at (790, 281) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_281",
+     "reason": "cue e7_line_r1_860_281: the box at (860, 281) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_211",
+     "reason": "cue e7_line_r1_720_211: the box at (720, 211) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_211",
+     "reason": "cue e7_line_r1_790_211: the box at (790, 211) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_211",
+     "reason": "cue e7_line_r1_860_211: the box at (860, 211) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_141",
+     "reason": "cue e7_line_r1_720_141: the box at (720, 141) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_790_141",
+     "reason": "cue e7_line_r1_790_141: the box at (790, 141) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_860_141",
+     "reason": "cue e7_line_r1_860_141: the box at (860, 141) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_782",
+     "reason": "cue e7_line_r1_720_782: the box at (720, 782) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_712",
+     "reason": "cue e7_line_r1_720_712: the box at (720, 712) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_642",
+     "reason": "cue e7_line_r1_720_642: the box at (720, 642) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_572",
+     "reason": "cue e7_line_r1_720_572: the box at (720, 572) collides with 'e7_line1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_502",
+     "reason": "cue e7_line_r1_720_502: the box at (720, 502) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_432",
+     "reason": "cue e7_line_r1_720_432: the box at (720, 432) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_362",
+     "reason": "cue e7_line_r1_720_362: the box at (720, 362) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_292",
+     "reason": "cue e7_line_r1_720_292: the box at (720, 292) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_222",
+     "reason": "cue e7_line_r1_720_222: the box at (720, 222) collides with 'e7_scroll1', which is on screen at the same time"
+    },
+    {
+     "cue": "e7_line_r1_720_152",
+     "reason": "cue e7_line_r1_720_152: the box at (720, 152) collides with 'e7_scroll1', which is on screen at the same time"
+    }
+   ],
+   "repairs": [],
+   "still_gap_s": 3.24,
+   "still_gap_all_s": 3.24,
+   "still_gap_strict_s": 3.24,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 9,
+     "label": "explain",
+     "phrase": "get you sent to a prison camp",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 103,
+     "last": 109,
+     "as": "scroll"
+    },
+    {
+     "sentence": 9,
+     "label": "explain",
+     "phrase": "leader family has almost magical powers",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 117,
+     "last": 122,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.502,
+   "clip": "board_2e8d886a46d4c01a.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e7_scroll1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "get you sent to a prison camp",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      216
+     ],
+     "params": {
+      "style": "scroll"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e7_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 14
+     },
+     "text": "leader family has almost magical powers",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      800,
+      586
+     ],
+     "params": {
+      "style": "line",
+      "width": 1000,
+      "px": 68,
+      "tint": false,
+      "align": "center",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e7_scroll1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 66,
+     "lines": [
+      "get you sent to a",
+      "prison camp"
+     ],
+     "first_frame": 3
+    },
+    {
+     "cue": "e7_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 68,
+     "lines": [
+      "leader family has almost magical",
+      "powers"
+     ],
+     "first_frame": 101
+    }
+   ]
+  },
+  "e8": {
+   "cues": 6,
+   "kinds": [
+    "clear",
+    "visual"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 1.76,
+   "still_gap_all_s": 0.0,
+   "still_gap_strict_s": 0.0,
+   "narrator": "none",
+   "labels": [
+    "explain",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 10,
+     "label": "explain",
+     "phrase": "here's what makes it truly strange 80",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 124,
+     "last": 130,
+     "as": "line"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 139,
+     "last": 139,
+     "as": "circle"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "years ago",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 131,
+     "last": 132,
+     "as": "line"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "North and South were the same country",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 133,
+     "last": 139,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.349,
+   "clip": "board_329f6d7f9d404ecf.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e8_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 1
+     },
+     "text": "here's what makes it truly strange 80",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      390
+     ],
+     "params": {
+      "style": "line",
+      "width": 1080,
+      "px": 76,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e8_tag1",
+     "kind": "visual",
+     "anchor": {
+      "index": 7
+     },
+     "text": "80",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1380,
+      130
+     ],
+     "params": {
+      "style": "tag"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e8_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 8
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e8_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 16
+     },
+     "text": "country",
+     "role": "red",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1430,
+      313
+     ],
+     "params": {
+      "style": "circle"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e8_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 8
+     },
+     "text": "years ago",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      333
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e8_line3",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "North and South were the same country",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      472
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e8_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 76,
+     "lines": [
+      "here's what makes it truly",
+      "strange 80"
+     ],
+     "first_frame": 5
+    },
+    {
+     "cue": "e8_tag1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 56,
+     "lines": [
+      "80"
+     ],
+     "first_frame": 57
+    },
+    {
+     "cue": "e8_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 134
+    },
+    {
+     "cue": "e8_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "years ago"
+     ],
+     "first_frame": 63
+    },
+    {
+     "cue": "e8_line3",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "North and South were",
+      "the same country"
+     ],
+     "first_frame": 92
+    }
+   ]
+  },
+  "e9": {
+   "cues": 2,
+   "kinds": [
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 3.99,
+   "still_gap_all_s": 2.06,
+   "still_gap_strict_s": 3.99,
+   "narrator": "only",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [],
+   "peak_occupancy_share": 0.0,
+   "clip": "board_6b997f1a27a42441.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e9_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e9_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 5
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": []
+  }
+ },
+ "story": {
+  "hook": {
+   "present": true,
+   "sentence": 0,
+   "at_s": 0.0,
+   "trigger": "",
+   "explicit": false,
+   "basis": "position: the first sentence"
+  },
+  "question": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "twist": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "conclusion": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "hook_within_30s": true,
+  "question_within_120s": false
+ },
+ "pacing": {
+  "beats": 9,
+  "duration_s": 47.05,
+  "layer_mix_s": {
+   "map": 12.14,
+   "board": 34.91
+  },
+  "layer_mix_share": {
+   "map": 0.258,
+   "board": 0.742
+  },
+  "shot_length": {
+   "median_s": 5.1,
+   "min_s": 3.99,
+   "max_s": 6.82,
+   "share_between_2_and_8_s": 1.0
+  },
+  "change_density": {
+   "windows_2s": 23,
+   "windows_with_a_change": 20,
+   "share": 0.87
+  },
+  "meaningful_change_density": {
+   "windows_2s": 23,
+   "windows_with_a_change": 19,
+   "share": 0.826,
+   "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+  },
+  "narrator": {
+   "share": 0.503,
+   "longest_absence_s": 12.14,
+   "target_share": 0.45,
+   "target_longest_absence_s": 30.0
+  },
+  "targets": {
+   "median_shot_near_4.6s": true,
+   "90pct_shots_2_to_8s": true,
+   "change_in_95pct_of_2s_windows": false,
+   "narrator_absence_le_30s": true,
+   "narrator_share_35_to_60pct": true
+  }
+ },
+ "metaphors": {
+  "keywords": {
+   "country": {
+    "assets": [
+     "prop:flag"
+    ],
+    "roles": [
+     "red"
+    ],
+    "count": 3,
+    "beats": [
+     "e3",
+     "e6",
+     "e8"
+    ]
+   }
+  },
+  "asset_consistent": true,
+  "recurring_keywords": [
+   "country"
+  ]
+ },
+ "change_events_s": [
+  0.0,
+  2.24,
+  5.32,
+  8.42,
+  8.92,
+  12.14,
+  12.54,
+  13.16,
+  15.22,
+  15.48,
+  15.58,
+  15.92,
+  16.1,
+  16.34,
+  17.1,
+  17.1,
+  17.28,
+  17.6,
+  17.88,
+  18.08,
+  18.18,
+  18.76,
+  19.32,
+  19.74,
+  20.46,
+  20.8,
+  21.48,
+  21.48,
+  22.56,
+  22.8,
+  22.94,
+  23.08,
+  23.56,
+  23.8,
+  24.24,
+  26.24,
+  26.24,
+  26.42,
+  27.08,
+  27.42,
+  27.7,
+  27.94,
+  28.16,
+  28.26,
+  28.62,
+  29.5,
+  29.543,
+  29.586,
+  29.629,
+  29.671,
+  29.714,
+  29.757,
+  31.32,
+  31.82,
+  31.82,
+  31.92,
+  35.16,
+  35.42,
+  35.8,
+  36.18,
+  36.5,
+  37.06,
+  37.96,
+  37.96,
+  38.1,
+  38.42,
+  38.54,
+  38.76,
+  38.82,
+  38.88,
+  38.94,
+  39.86,
+  40.04,
+  40.3,
+  41.02,
+  41.26,
+  41.44,
+  41.78,
+  41.92,
+  42.08,
+  42.32,
+  42.42,
+  43.06,
+  43.06,
+  43.46,
+  45.52,
+  47.048
+ ],
+ "meaningful_change_events_s": [
+  0.0,
+  2.24,
+  5.32,
+  8.42,
+  8.92,
+  12.14,
+  13.16,
+  15.22,
+  15.58,
+  17.1,
+  17.1,
+  17.28,
+  18.18,
+  20.46,
+  21.48,
+  21.48,
+  22.56,
+  24.24,
+  26.24,
+  26.24,
+  26.42,
+  27.08,
+  29.5,
+  31.82,
+  31.82,
+  31.92,
+  35.16,
+  37.96,
+  37.96,
+  38.1,
+  39.86,
+  40.04,
+  41.02,
+  42.42,
+  43.06,
+  43.06,
+  47.048
+ ],
+ "relevance_records": 9,
+ "hybrid_validate": {
+  "errors": [],
+  "technical": [],
+  "warnings": [
+   "the first photo card appears at 47s: open with a card inside the first 15 seconds so the picture work starts early"
+  ]
+ },
+ "validate_plan_problems": []
+}

@@ -1,0 +1,19 @@
+[0] High in the Alps the ice has been melting for a hundred years.
+    (nothing)
+[1] The glaciers of Greenland now lose more than 250 billion tonnes of ice every year.
+    (nothing)
+[2] Scientists drill deep into the ice to read the air of the past.
+    card: scientists drill deep into the ice
+    caption: read the air of the past
+[3] Each layer is a record of one winter.
+    card: each layer is a record of one winter
+[4] But the fastest loss is happening now, and the sea is rising along every coast.
+    card: fastest loss is happening
+    caption: sea is rising along every coast
+[5] Iceland has already lost its first glacier.
+    card: Iceland has already lost its first glacier
+[6] Farmers below the mountains fear for their water.
+    card: farmers below the mountains fear for their water
+[7] In the end the ice is a clock, and it is telling us how much time we have.
+    card: telling us how much time
+    caption: end the ice is a clock

@@ -1,0 +1,174 @@
+test_same_inputs_same_plan (__main__.Determinism.test_same_inputs_same_plan) ... ok
+test_a_crowded_sentence_keeps_its_important_phrases_or_says_why_not (__main__.EmptyAndCrowdedBoards.test_a_crowded_sentence_keeps_its_important_phrases_or_says_why_not) ... ok
+test_dropped_text_is_rescued_not_lost (__main__.EmptyAndCrowdedBoards.test_dropped_text_is_rescued_not_lost)
+Force every authored text cue off the board (an unreachable position, so the layout gate drops all of them) and require a deterministic rescue that keeps the collision gate on. ... FAIL
+test_every_narrated_board_sentence_with_content_has_text (__main__.EmptyAndCrowdedBoards.test_every_narrated_board_sentence_with_content_has_text) ... FAIL
+test_rescue_keeps_collision_checking (__main__.EmptyAndCrowdedBoards.test_rescue_keeps_collision_checking) ... ok
+test_the_final_board_has_meaningful_text (__main__.EmptyAndCrowdedBoards.test_the_final_board_has_meaningful_text) ... FAIL
+test_budget_never_hides_a_relevant_place_without_a_reason (__main__.PlaceSpotting.test_budget_never_hides_a_relevant_place_without_a_reason) ... FAIL
+test_direction_word_inside_a_name_still_resolves (__main__.PlaceSpotting.test_direction_word_inside_a_name_still_resolves) ... ok
+test_england_as_a_destination_still_gets_a_map (__main__.PlaceSpotting.test_england_as_a_destination_still_gets_a_map) ... FAIL
+test_look_at_korea_is_not_south_lebanon (__main__.PlaceSpotting.test_look_at_korea_is_not_south_lebanon) ... FAIL
+test_north_and_south_korea_stay_distinct (__main__.PlaceSpotting.test_north_and_south_korea_stay_distinct) ... FAIL
+test_size_comparison_is_not_a_fly_to (__main__.PlaceSpotting.test_size_comparison_is_not_a_fly_to) ... FAIL
+test_standalone_direction_words_are_not_places (__main__.PlaceSpotting.test_standalone_direction_words_are_not_places) ... FAIL
+test_unresolvable_place_is_never_substituted (__main__.PlaceSpotting.test_unresolvable_place_is_never_substituted) ... ok
+test_a_word_that_touches_the_sentence_boundary_belongs_to_the_next_sentence (__main__.SentenceAndPhraseHygiene.test_a_word_that_touches_the_sentence_boundary_belongs_to_the_next_sentence) ... FAIL
+test_best_phrases_never_ends_on_a_contraction (__main__.SentenceAndPhraseHygiene.test_best_phrases_never_ends_on_a_contraction) ... FAIL
+test_caption_matches_stay_in_the_anchor_sentence (__main__.SentenceAndPhraseHygiene.test_caption_matches_stay_in_the_anchor_sentence) ... ok
+test_every_phrase_stays_inside_one_sentence (__main__.SentenceAndPhraseHygiene.test_every_phrase_stays_inside_one_sentence) ... FAIL
+test_no_phrase_ends_on_a_dangling_contraction (__main__.SentenceAndPhraseHygiene.test_no_phrase_ends_on_a_dangling_contraction) ... FAIL
+test_phrases_are_contiguous_quotes_of_their_beat (__main__.SentenceAndPhraseHygiene.test_phrases_are_contiguous_quotes_of_their_beat) ... ok
+test_short_sentences_punctuation_repeats_and_the_final_sentence (__main__.SentenceAndPhraseHygiene.test_short_sentences_punctuation_repeats_and_the_final_sentence) ... FAIL
+
+======================================================================
+FAIL: test_dropped_text_is_rescued_not_lost (__main__.EmptyAndCrowdedBoards.test_dropped_text_is_rescued_not_lost)
+Force every authored text cue off the board (an unreachable position, so the layout gate drops all of them) and require a deterministic rescue that keeps the collision gate on.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 294, in test_dropped_text_is_rescued_not_lost
+    self.assertTrue(text_cues(d["cue_specs"]), f"{b['id']}: every text cue was lost")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : e3: every text cue was lost
+
+======================================================================
+FAIL: test_every_narrated_board_sentence_with_content_has_text (__main__.EmptyAndCrowdedBoards.test_every_narrated_board_sentence_with_content_has_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 264, in test_every_narrated_board_sentence_with_content_has_text
+    self.assertEqual(empty, [], f"board sentences with no text: {empty}")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [('e9', 'same language same food same families')] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+('e9', 'same language same food same families')
+
+- [('e9', 'same language same food same families')]
++ [] : board sentences with no text: [('e9', 'same language same food same families')]
+
+======================================================================
+FAIL: test_the_final_board_has_meaningful_text (__main__.EmptyAndCrowdedBoards.test_the_final_board_has_meaningful_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 270, in test_the_final_board_has_meaningful_text
+    self.assertTrue(text_cues(d["cue_specs"]), "the final board carries no text")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : the final board carries no text
+
+======================================================================
+FAIL: test_budget_never_hides_a_relevant_place_without_a_reason (__main__.PlaceSpotting.test_budget_never_hides_a_relevant_place_without_a_reason)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 158, in test_budget_never_hides_a_relevant_place_without_a_reason
+    self.assertTrue(name in shown or name in not_shown, f"{name} is neither on a map nor explained: shown={shown} not_shown={not_shown}")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Rome is neither on a map nor explained: shown={'Europe'} not_shown={}
+
+======================================================================
+FAIL: test_england_as_a_destination_still_gets_a_map (__main__.PlaceSpotting.test_england_as_a_destination_still_gets_a_map)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 125, in test_england_as_a_destination_still_gets_a_map
+    self.assertIn("England", map_places(r.plan))
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'England' not found in ['Europe']
+
+======================================================================
+FAIL: test_look_at_korea_is_not_south_lebanon (__main__.PlaceSpotting.test_look_at_korea_is_not_south_lebanon)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 96, in test_look_at_korea_is_not_south_lebanon
+    self.assertNotIn("South", names)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+AssertionError: 'South' unexpectedly found in ['South', 'South', 'England', 'England']
+
+======================================================================
+FAIL: test_north_and_south_korea_stay_distinct (__main__.PlaceSpotting.test_north_and_south_korea_stay_distinct)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 134, in test_north_and_south_korea_stay_distinct
+    self.assertEqual(sorted(h.name for h in hits), ["North Korea", "South Korea"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['North', 'North Korea', 'South', 'South Korea'] != ['North Korea', 'South Korea']
+
+First differing element 0:
+'North'
+'North Korea'
+
+First list contains 2 additional elements.
+First extra element 2:
+'South'
+
+- ['North', 'North Korea', 'South', 'South Korea']
+?        ---------               ---------
+
++ ['North Korea', 'South Korea']
+
+======================================================================
+FAIL: test_size_comparison_is_not_a_fly_to (__main__.PlaceSpotting.test_size_comparison_is_not_a_fly_to)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 116, in test_size_comparison_is_not_a_fly_to
+    self.assertIsNotNone(r.plan, r.problems)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None : ["the explainer director failed: IndexError('list assignment index out of range')"]
+
+======================================================================
+FAIL: test_standalone_direction_words_are_not_places (__main__.PlaceSpotting.test_standalone_direction_words_are_not_places)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 103, in test_standalone_direction_words_are_not_places
+    self.assertNotIn("South", resolved)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 'South' unexpectedly found in {'South': ('admin1', True), 'North': ('admin1', True)}
+
+======================================================================
+FAIL: test_a_word_that_touches_the_sentence_boundary_belongs_to_the_next_sentence (__main__.SentenceAndPhraseHygiene.test_a_word_that_touches_the_sentence_boundary_belongs_to_the_next_sentence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 167, in test_a_word_that_touches_the_sentence_boundary_belongs_to_the_next_sentence
+    self.assertTrue(any(t.startswith("that dark country") for t in text), text)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : ['look at korea from space at night', 'the south is blazing with light cities glowing like spilled gold', "and then right above it there's nothing", 'a black hole the size of england where a country of 26 million people should be', 'from up there south korea looks like an island that', 'dark country is north korea', "its founder died in 1994 and officially he's still its eternal leader", "since then his son and his grandson have run the place like a family business it's", 'a country where your radio is fixed to the government station where watching a south korean tv show can', 'get you sent to a prison camp and where kids are taught that their leader family has almost magical powers', "and here's what makes it truly strange 80", 'years ago north and south were the same country', 'same language same food same families']
+
+======================================================================
+FAIL: test_best_phrases_never_ends_on_a_contraction (__main__.SentenceAndPhraseHygiene.test_best_phrases_never_ends_on_a_contraction)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 195, in test_best_phrases_never_ends_on_a_contraction
+    self.assertFalse(p.text.split()[-1].lower().endswith(("'s", "'re", "'ve", "'ll", "'d", "'m")), p.text)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : founder died in 1994 and officially he's
+
+======================================================================
+FAIL: test_every_phrase_stays_inside_one_sentence (__main__.SentenceAndPhraseHygiene.test_every_phrase_stays_inside_one_sentence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 179, in test_every_phrase_stays_inside_one_sentence
+    self.assertEqual(owner[ph["first"]], owner[ph["last"]], f"{look} {bid}: {ph['phrase']!r} crosses a sentence boundary")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 7 != 8 : reference e5: "place like a family business it's" crosses a sentence boundary
+
+======================================================================
+FAIL: test_no_phrase_ends_on_a_dangling_contraction (__main__.SentenceAndPhraseHygiene.test_no_phrase_ends_on_a_dangling_contraction)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 187, in test_no_phrase_ends_on_a_dangling_contraction
+    self.assertIsNone(dangling.search(c["text"].strip()), f"{look} {bid}: {c['text']!r}")
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <re.Match object; span=(35, 40), match=" he's"> is not None : reference e4: "founder died in 1994 and officially he's"
+
+======================================================================
+FAIL: test_short_sentences_punctuation_repeats_and_the_final_sentence (__main__.SentenceAndPhraseHygiene.test_short_sentences_punctuation_repeats_and_the_final_sentence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 233, in test_short_sentences_punctuation_repeats_and_the_final_sentence
+    self.assertIsNotNone(r.plan, r.problems)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None : ["the explainer director failed: IndexError('list assignment index out of range')"]
+
+----------------------------------------------------------------------
+Ran 21 tests in 17.158s
+
+FAILED (failures=14)

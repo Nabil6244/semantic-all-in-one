@@ -1,0 +1,2230 @@
+{
+ "checks": {
+  "labels_hook_twist_conclusion_and_question_flag": true,
+  "without_a_script_a_question_word_starts_a_question": true,
+  "long_sentence_split_at_its_longest_pause_near_the_middle": true,
+  "no_part_longer_than_the_limit": true,
+  "beats_tile_the_narration_with_no_gap": true,
+  "no_beat_longer_than_max_beat_s": true,
+  "sentence_start_words_only_count_if_country_or_region": true,
+  "capitalised_mid_sentence_places_are_found": true,
+  "caller_place_list_is_used_without_a_script": true,
+  "key_phrase_prefers_the_scored_run_and_uses_script_casing": true,
+  "caller_metaphor_table_wins": true,
+  "role_from_polarity_and_caller_override": true,
+  "narrator_runs_have_start_mid_end_and_none_for_other_kinds": true,
+  "narrator_off_gives_none_everywhere": true,
+  "dry_build_reports_a_card_that_does_not_fit": true,
+  "gate_drops_only_the_cue_that_does_not_fit": true,
+  "empty_words_returns_a_problem_not_an_exception": true,
+  "garbage_words_never_raise": true,
+  "missing_work_dir_is_a_problem_not_an_exception": true,
+  "unwritable_work_dir_never_raises": true,
+  "integration_entry_point_never_raises": true,
+  "archive_library_keeps_only_valid_local_entries": true,
+  "archive_library_with_invalid_json_is_a_note": true,
+  "packaging_lists_assets_and_modules": true,
+  "aqueducts_d0.0_plan_built": true,
+  "aqueducts_d0.0_validate_plan_clean": true,
+  "aqueducts_d0.0_beats_tile_and_one_camera_start": true,
+  "aqueducts_d0.0_every_board_clip_exists_with_the_expected_frame_count": true,
+  "aqueducts_d0.0_no_remote_or_generated_asset": true,
+  "aqueducts_d0.0_no_network_attempt_while_directing": true,
+  "aqueducts_d0.0_application_editorial_validator_has_no_errors": true,
+  "aqueducts_d0.0_metaphor_assets_consistent": true,
+  "aqueducts_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "aqueducts_d0.0_shots_between_2_and_8_s": true,
+  "aqueducts_d0.0_narrator_never_absent_over_30_s": true,
+  "aqueducts_d0.5_plan_built": true,
+  "aqueducts_d0.5_validate_plan_clean": true,
+  "aqueducts_d0.5_beats_tile_and_one_camera_start": true,
+  "aqueducts_d0.5_every_board_clip_exists_with_the_expected_frame_count": true,
+  "aqueducts_d0.5_no_remote_or_generated_asset": true,
+  "aqueducts_d0.5_no_network_attempt_while_directing": true,
+  "aqueducts_d0.5_application_editorial_validator_has_no_errors": true,
+  "aqueducts_d0.5_metaphor_assets_consistent": true,
+  "aqueducts_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "aqueducts_d0.5_shots_between_2_and_8_s": true,
+  "aqueducts_d0.5_narrator_never_absent_over_30_s": true,
+  "coffee_d0.0_plan_built": true,
+  "coffee_d0.0_validate_plan_clean": true,
+  "coffee_d0.0_beats_tile_and_one_camera_start": true,
+  "coffee_d0.0_every_board_clip_exists_with_the_expected_frame_count": true,
+  "coffee_d0.0_no_remote_or_generated_asset": true,
+  "coffee_d0.0_no_network_attempt_while_directing": true,
+  "coffee_d0.0_application_editorial_validator_has_no_errors": true,
+  "coffee_d0.0_metaphor_assets_consistent": true,
+  "coffee_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "coffee_d0.0_shots_between_2_and_8_s": true,
+  "coffee_d0.0_narrator_never_absent_over_30_s": true,
+  "coffee_d0.5_plan_built": true,
+  "coffee_d0.5_validate_plan_clean": true,
+  "coffee_d0.5_beats_tile_and_one_camera_start": true,
+  "coffee_d0.5_every_board_clip_exists_with_the_expected_frame_count": true,
+  "coffee_d0.5_no_remote_or_generated_asset": true,
+  "coffee_d0.5_no_network_attempt_while_directing": true,
+  "coffee_d0.5_application_editorial_validator_has_no_errors": true,
+  "coffee_d0.5_metaphor_assets_consistent": true,
+  "coffee_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "coffee_d0.5_shots_between_2_and_8_s": true,
+  "coffee_d0.5_narrator_never_absent_over_30_s": true,
+  "inflation_d0.0_plan_built": true,
+  "inflation_d0.0_validate_plan_clean": true,
+  "inflation_d0.0_beats_tile_and_one_camera_start": true,
+  "inflation_d0.0_every_board_clip_exists_with_the_expected_frame_count": true,
+  "inflation_d0.0_no_remote_or_generated_asset": true,
+  "inflation_d0.0_no_network_attempt_while_directing": true,
+  "inflation_d0.0_application_editorial_validator_has_no_errors": true,
+  "inflation_d0.0_metaphor_assets_consistent": true,
+  "inflation_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "inflation_d0.0_shots_between_2_and_8_s": true,
+  "inflation_d0.0_narrator_never_absent_over_30_s": true,
+  "inflation_d0.5_plan_built": true,
+  "inflation_d0.5_validate_plan_clean": true,
+  "inflation_d0.5_beats_tile_and_one_camera_start": true,
+  "inflation_d0.5_every_board_clip_exists_with_the_expected_frame_count": true,
+  "inflation_d0.5_no_remote_or_generated_asset": true,
+  "inflation_d0.5_no_network_attempt_while_directing": true,
+  "inflation_d0.5_application_editorial_validator_has_no_errors": true,
+  "inflation_d0.5_metaphor_assets_consistent": true,
+  "inflation_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "inflation_d0.5_shots_between_2_and_8_s": true,
+  "inflation_d0.5_narrator_never_absent_over_30_s": true,
+  "printing_d0.0_plan_built": true,
+  "printing_d0.0_validate_plan_clean": true,
+  "printing_d0.0_beats_tile_and_one_camera_start": true,
+  "printing_d0.0_every_board_clip_exists_with_the_expected_frame_count": true,
+  "printing_d0.0_no_remote_or_generated_asset": true,
+  "printing_d0.0_no_network_attempt_while_directing": true,
+  "printing_d0.0_application_editorial_validator_has_no_errors": true,
+  "printing_d0.0_metaphor_assets_consistent": true,
+  "printing_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "printing_d0.0_shots_between_2_and_8_s": true,
+  "printing_d0.0_narrator_never_absent_over_30_s": true,
+  "printing_d0.5_plan_built": true,
+  "printing_d0.5_validate_plan_clean": true,
+  "printing_d0.5_beats_tile_and_one_camera_start": true,
+  "printing_d0.5_every_board_clip_exists_with_the_expected_frame_count": true,
+  "printing_d0.5_no_remote_or_generated_asset": true,
+  "printing_d0.5_no_network_attempt_while_directing": true,
+  "printing_d0.5_application_editorial_validator_has_no_errors": true,
+  "printing_d0.5_metaphor_assets_consistent": true,
+  "printing_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "printing_d0.5_shots_between_2_and_8_s": true,
+  "printing_d0.5_narrator_never_absent_over_30_s": true,
+  "glaciers_d0.0_plan_built": true,
+  "glaciers_d0.0_validate_plan_clean": true,
+  "glaciers_d0.0_beats_tile_and_one_camera_start": true,
+  "glaciers_d0.0_every_board_clip_exists_with_the_expected_frame_count": true,
+  "glaciers_d0.0_no_remote_or_generated_asset": true,
+  "glaciers_d0.0_no_network_attempt_while_directing": true,
+  "glaciers_d0.0_application_editorial_validator_has_no_errors": true,
+  "glaciers_d0.0_metaphor_assets_consistent": true,
+  "glaciers_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "glaciers_d0.0_shots_between_2_and_8_s": true,
+  "glaciers_d0.0_narrator_never_absent_over_30_s": true,
+  "glaciers_d0.5_plan_built": true,
+  "glaciers_d0.5_validate_plan_clean": true,
+  "glaciers_d0.5_beats_tile_and_one_camera_start": true,
+  "glaciers_d0.5_every_board_clip_exists_with_the_expected_frame_count": true,
+  "glaciers_d0.5_no_remote_or_generated_asset": true,
+  "glaciers_d0.5_no_network_attempt_while_directing": true,
+  "glaciers_d0.5_application_editorial_validator_has_no_errors": true,
+  "glaciers_d0.5_metaphor_assets_consistent": true,
+  "glaciers_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "glaciers_d0.5_shots_between_2_and_8_s": true,
+  "glaciers_d0.5_narrator_never_absent_over_30_s": true,
+  "printing_uses_the_archive_picture": true,
+  "inflation_warns_about_the_arbitrary_fallback_map": true,
+  "every_topic_has_a_hook_and_a_conclusion": true,
+  "metaphor_keywords_recur_in_at_least_one_topic": true,
+  "every_text_is_a_contiguous_quote_of_its_own_beat_narration": true,
+  "no_text_starts_or_ends_on_a_function_word_except_allow_listed_openers": true,
+  "no_card_text_is_repeated_inside_a_beat": true,
+  "long_phrases_of_six_or_more_words_are_shown_as_word_by_word_captions": true,
+  "first_card_of_every_board_goes_to_the_lower_row_beside_the_narrator": true,
+  "a_chip_shows_the_whole_quantity": true,
+  "no_conclusion_is_invented_when_the_script_has_no_conclusion_cue": true,
+  "a_sentence_initial_so_in_the_last_quarter_is_an_explicit_conclusion": true,
+  "hook_is_reported_as_positional_not_as_a_cue": true,
+  "script_commas_become_clause_breaks": true,
+  "a_phrase_never_crosses_a_clause_break": true,
+  "caller_override_gives_one_asset_and_one_role_everywhere": true,
+  "plans_identical_in_two_fresh_folders": true,
+  "same_clip_names_and_bytes_in_two_fresh_folders": true,
+  "separate_process_gives_the_same_plan_and_clip_bytes": true,
+  "second_run_reuses_the_cached_clips_and_returns_the_same_plan": true,
+  "ref_aqueducts_d0.0_plan_built_and_every_gate_clean": true,
+  "ref_aqueducts_d0.0_validate_plan_clean": true,
+  "ref_aqueducts_d0.0_tiles_and_one_camera_start": true,
+  "ref_aqueducts_d0.0_application_editorial_validator_has_no_errors": true,
+  "ref_aqueducts_d0.0_no_network_attempt": true,
+  "ref_aqueducts_d0.0_clips_exist_with_the_expected_frame_count": true,
+  "ref_aqueducts_d0.0_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_aqueducts_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_aqueducts_d0.0_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_aqueducts_d0.5_plan_built_and_every_gate_clean": true,
+  "ref_aqueducts_d0.5_validate_plan_clean": true,
+  "ref_aqueducts_d0.5_tiles_and_one_camera_start": true,
+  "ref_aqueducts_d0.5_application_editorial_validator_has_no_errors": true,
+  "ref_aqueducts_d0.5_no_network_attempt": true,
+  "ref_aqueducts_d0.5_clips_exist_with_the_expected_frame_count": true,
+  "ref_aqueducts_d0.5_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_aqueducts_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_aqueducts_d0.5_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_coffee_d0.0_plan_built_and_every_gate_clean": true,
+  "ref_coffee_d0.0_validate_plan_clean": true,
+  "ref_coffee_d0.0_tiles_and_one_camera_start": true,
+  "ref_coffee_d0.0_application_editorial_validator_has_no_errors": true,
+  "ref_coffee_d0.0_no_network_attempt": true,
+  "ref_coffee_d0.0_clips_exist_with_the_expected_frame_count": true,
+  "ref_coffee_d0.0_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_coffee_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_coffee_d0.0_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_coffee_d0.5_plan_built_and_every_gate_clean": true,
+  "ref_coffee_d0.5_validate_plan_clean": true,
+  "ref_coffee_d0.5_tiles_and_one_camera_start": true,
+  "ref_coffee_d0.5_application_editorial_validator_has_no_errors": true,
+  "ref_coffee_d0.5_no_network_attempt": true,
+  "ref_coffee_d0.5_clips_exist_with_the_expected_frame_count": true,
+  "ref_coffee_d0.5_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_coffee_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_coffee_d0.5_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_inflation_d0.0_plan_built_and_every_gate_clean": true,
+  "ref_inflation_d0.0_validate_plan_clean": true,
+  "ref_inflation_d0.0_tiles_and_one_camera_start": true,
+  "ref_inflation_d0.0_application_editorial_validator_has_no_errors": true,
+  "ref_inflation_d0.0_no_network_attempt": true,
+  "ref_inflation_d0.0_clips_exist_with_the_expected_frame_count": true,
+  "ref_inflation_d0.0_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_inflation_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_inflation_d0.0_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_inflation_d0.5_plan_built_and_every_gate_clean": true,
+  "ref_inflation_d0.5_validate_plan_clean": true,
+  "ref_inflation_d0.5_tiles_and_one_camera_start": true,
+  "ref_inflation_d0.5_application_editorial_validator_has_no_errors": true,
+  "ref_inflation_d0.5_no_network_attempt": true,
+  "ref_inflation_d0.5_clips_exist_with_the_expected_frame_count": true,
+  "ref_inflation_d0.5_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_inflation_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_inflation_d0.5_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_printing_d0.0_plan_built_and_every_gate_clean": true,
+  "ref_printing_d0.0_validate_plan_clean": true,
+  "ref_printing_d0.0_tiles_and_one_camera_start": true,
+  "ref_printing_d0.0_application_editorial_validator_has_no_errors": true,
+  "ref_printing_d0.0_no_network_attempt": true,
+  "ref_printing_d0.0_clips_exist_with_the_expected_frame_count": true,
+  "ref_printing_d0.0_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_printing_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_printing_d0.0_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_printing_d0.5_plan_built_and_every_gate_clean": true,
+  "ref_printing_d0.5_validate_plan_clean": true,
+  "ref_printing_d0.5_tiles_and_one_camera_start": true,
+  "ref_printing_d0.5_application_editorial_validator_has_no_errors": true,
+  "ref_printing_d0.5_no_network_attempt": true,
+  "ref_printing_d0.5_clips_exist_with_the_expected_frame_count": true,
+  "ref_printing_d0.5_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_printing_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_printing_d0.5_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_glaciers_d0.0_plan_built_and_every_gate_clean": true,
+  "ref_glaciers_d0.0_validate_plan_clean": true,
+  "ref_glaciers_d0.0_tiles_and_one_camera_start": true,
+  "ref_glaciers_d0.0_application_editorial_validator_has_no_errors": true,
+  "ref_glaciers_d0.0_no_network_attempt": true,
+  "ref_glaciers_d0.0_clips_exist_with_the_expected_frame_count": true,
+  "ref_glaciers_d0.0_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_glaciers_d0.0_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_glaciers_d0.0_report_has_meaningful_change_and_occupancy_numbers": true,
+  "ref_glaciers_d0.5_plan_built_and_every_gate_clean": true,
+  "ref_glaciers_d0.5_validate_plan_clean": true,
+  "ref_glaciers_d0.5_tiles_and_one_camera_start": true,
+  "ref_glaciers_d0.5_application_editorial_validator_has_no_errors": true,
+  "ref_glaciers_d0.5_no_network_attempt": true,
+  "ref_glaciers_d0.5_clips_exist_with_the_expected_frame_count": true,
+  "ref_glaciers_d0.5_every_picture_label_title_and_line_is_a_contiguous_quote_of_its_beat": true,
+  "ref_glaciers_d0.5_replay_equals_cached_clips_and_cues_on_independent_frames": true,
+  "ref_glaciers_d0.5_report_has_meaningful_change_and_occupancy_numbers": true,
+  "reference_look_uses_at_least_four_of_the_element_styles_overall": true,
+  "reference_look_plans_identical_in_two_fresh_folders": true,
+  "reference_look_clip_bytes_identical_in_two_fresh_folders": true,
+  "app_patch_adds_lines_only": true,
+  "app_patch_applies_cleanly_to_the_current_files": true,
+  "patched_app_and_spec_still_parse": true,
+  "patched_app_adds_the_setting_default_off_and_nothing_else_reads_it": true,
+  "real_render_through_unchanged_hybrid_ok": true,
+  "real_render_made_no_network_attempt": true
+ },
+ "topics": {
+  "aqueducts_d0.0": {
+   "seconds": 9.7,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+    "hybrid.validate: the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 9,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 10,
+    "duration_s": 48.5,
+    "layer_mix_s": {
+     "board": 43.68,
+     "map": 4.82
+    },
+    "layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "shot_length": {
+     "median_s": 4.67,
+     "min_s": 3.35,
+     "max_s": 6.58,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 24,
+     "windows_with_a_change": 24,
+     "share": 1.0
+    },
+    "meaningful_change_density": {
+     "windows_2s": 24,
+     "windows_with_a_change": 22,
+     "share": 0.917,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.51,
+     "longest_absence_s": 13.27,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": true,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     22.7
+    ],
+    "conclusion": [
+     true,
+     40.5
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "city": {
+      "assets": [
+       "icon:house"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e1"
+      ]
+     },
+     "water": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 6,
+      "beats": [
+       "e5",
+       "e5",
+       "e6",
+       "e7",
+       "e9",
+       "e9"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "water"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+    "the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+   ],
+   "kinds": [
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "map",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Italy"
+   ],
+   "dropped_cues": {},
+   "repairs": {},
+   "still_gap_max_s": 3.13,
+   "replay": {
+    "beats": 9,
+    "problems": [],
+    "cues_checked": 29,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "aqueducts_d0.5": {
+   "seconds": 10.2,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+    "hybrid.validate: the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 9,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 10,
+    "duration_s": 48.5,
+    "layer_mix_s": {
+     "board": 43.68,
+     "map": 4.82
+    },
+    "layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "shot_length": {
+     "median_s": 4.67,
+     "min_s": 3.35,
+     "max_s": 6.58,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 24,
+     "windows_with_a_change": 24,
+     "share": 1.0
+    },
+    "meaningful_change_density": {
+     "windows_2s": 24,
+     "windows_with_a_change": 22,
+     "share": 0.917,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.51,
+     "longest_absence_s": 13.27,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": true,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     22.7
+    ],
+    "conclusion": [
+     true,
+     40.5
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "city": {
+      "assets": [
+       "icon:house"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e1"
+      ]
+     },
+     "water": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 6,
+      "beats": [
+       "e5",
+       "e5",
+       "e6",
+       "e7",
+       "e9",
+       "e9"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "water"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+    "the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+   ],
+   "kinds": [
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "map",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Italy"
+   ],
+   "dropped_cues": {},
+   "repairs": {},
+   "still_gap_max_s": 3.13,
+   "replay": {
+    "beats": 9,
+    "problems": [],
+    "cues_checked": 29,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "coffee_d0.0": {
+   "seconds": 7.7,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 6,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 36.63,
+    "layer_mix_s": {
+     "map": 4.73,
+     "board": 31.9
+    },
+    "layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "shot_length": {
+     "median_s": 4.82,
+     "min_s": 3.64,
+     "max_s": 6.99,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "meaningful_change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 16,
+     "share": 0.889,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.478,
+     "longest_absence_s": 9.58,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": true,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     15.24
+    ],
+    "conclusion": [
+     true,
+     30.68
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "farmers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "people": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e7"
+      ]
+     },
+     "prices": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 2,
+      "beats": [
+       "e5",
+       "e5"
+      ]
+     },
+     "sea": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e3"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "prices"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Ethiopia",
+    "Brazil",
+    "Colombia"
+   ],
+   "dropped_cues": {
+    "e3": [
+     {
+      "cue": "e3_chip1",
+      "reason": "cue e3_chip1: no free chip slot (slot K3 is taken by 'e3_caption1')"
+     }
+    ]
+   },
+   "repairs": {
+    "e3": [
+     "e3_n_pose_r1: narrator pose explain -> point in the middle of a 2.5 s gap with nothing new being said (10.23 to 12.78 s)"
+    ]
+   },
+   "still_gap_max_s": 2.66,
+   "replay": {
+    "beats": 6,
+    "problems": [],
+    "cues_checked": 22,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "coffee_d0.5": {
+   "seconds": 8.1,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 6,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 36.63,
+    "layer_mix_s": {
+     "map": 4.73,
+     "board": 31.9
+    },
+    "layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "shot_length": {
+     "median_s": 4.82,
+     "min_s": 3.64,
+     "max_s": 6.99,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "meaningful_change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 16,
+     "share": 0.889,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.478,
+     "longest_absence_s": 9.58,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": true,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     15.24
+    ],
+    "conclusion": [
+     true,
+     30.68
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "farmers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "people": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e7"
+      ]
+     },
+     "prices": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 2,
+      "beats": [
+       "e5",
+       "e5"
+      ]
+     },
+     "sea": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e3"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "prices"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Ethiopia",
+    "Brazil",
+    "Colombia"
+   ],
+   "dropped_cues": {
+    "e3": [
+     {
+      "cue": "e3_chip1",
+      "reason": "cue e3_chip1: no free chip slot (slot K3 is taken by 'e3_caption1')"
+     }
+    ]
+   },
+   "repairs": {
+    "e3": [
+     "e3_n_pose_r1: narrator pose explain -> point in the middle of a 2.5 s gap with nothing new being said (10.23 to 12.78 s)"
+    ]
+   },
+   "still_gap_max_s": 2.66,
+   "replay": {
+    "beats": 6,
+    "problems": [],
+    "cues_checked": 22,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "inflation_d0.0": {
+   "seconds": 7.9,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "no place qualified: the opening map shows the arbitrary fallback place 'Europe'",
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 6,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 36.74,
+    "layer_mix_s": {
+     "map": 4.43,
+     "board": 32.3
+    },
+    "layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "shot_length": {
+     "median_s": 4.77,
+     "min_s": 4.23,
+     "max_s": 6.69,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 17,
+     "share": 0.944
+    },
+    "meaningful_change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 14,
+     "share": 0.778,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.511,
+     "longest_absence_s": 8.99,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     16.53
+    ],
+    "conclusion": [
+     true,
+     27.74
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "crisis": {
+      "assets": [
+       "icon:warning"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 4,
+      "beats": [
+       "e5",
+       "e5",
+       "e6",
+       "e6"
+      ]
+     },
+     "money": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e4",
+       "e7"
+      ]
+     },
+     "prices": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "green"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "workers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e2"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "crisis",
+     "money"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [],
+   "dropped_cues": {
+    "e2": [
+     {
+      "cue": "e2_chip1",
+      "reason": "cue e2_chip1: no free chip slot (slot K3 is taken by 'e2_caption1')"
+     }
+    ]
+   },
+   "repairs": {
+    "e2": [
+     "e2_n_pose_r1: narrator pose explain -> point in the middle of a 2.5 s gap with nothing new being said (4.83 to 7.37 s)"
+    ],
+    "e3": [
+     "e3_n_pose_r1: narrator pose point -> think in the middle of a 3.0 s gap with nothing new being said (10.23 to 13.18 s)",
+     "e3_n_pose_r2: narrator pose think -> explain in the middle of a 2.3 s gap with nothing new being said (13.28 to 15.54 s)"
+    ],
+    "e5": [
+     "e5_n_pose_r1: narrator pose point -> think in the middle of a 2.4 s gap with nothing new being said (21.45 to 23.81 s)"
+    ]
+   },
+   "still_gap_max_s": 2.55,
+   "replay": {
+    "beats": 6,
+    "problems": [],
+    "cues_checked": 28,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "inflation_d0.5": {
+   "seconds": 7.0,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "no place qualified: the opening map shows the arbitrary fallback place 'Europe'",
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 6,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 36.74,
+    "layer_mix_s": {
+     "map": 4.43,
+     "board": 32.3
+    },
+    "layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "shot_length": {
+     "median_s": 4.77,
+     "min_s": 4.23,
+     "max_s": 6.69,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 17,
+     "share": 0.944
+    },
+    "meaningful_change_density": {
+     "windows_2s": 18,
+     "windows_with_a_change": 14,
+     "share": 0.778,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.511,
+     "longest_absence_s": 8.99,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     true,
+     0.5
+    ],
+    "twist": [
+     true,
+     16.53
+    ],
+    "conclusion": [
+     true,
+     27.74
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": true
+   },
+   "metaphors": {
+    "keywords": {
+     "crisis": {
+      "assets": [
+       "icon:warning"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 4,
+      "beats": [
+       "e5",
+       "e5",
+       "e6",
+       "e6"
+      ]
+     },
+     "money": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e4",
+       "e7"
+      ]
+     },
+     "prices": {
+      "assets": [
+       "icon:coin"
+      ],
+      "roles": [
+       "green"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "workers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e2"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "crisis",
+     "money"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [],
+   "dropped_cues": {
+    "e2": [
+     {
+      "cue": "e2_chip1",
+      "reason": "cue e2_chip1: no free chip slot (slot K3 is taken by 'e2_caption1')"
+     }
+    ]
+   },
+   "repairs": {
+    "e2": [
+     "e2_n_pose_r1: narrator pose explain -> point in the middle of a 2.5 s gap with nothing new being said (4.83 to 7.37 s)"
+    ],
+    "e3": [
+     "e3_n_pose_r1: narrator pose point -> think in the middle of a 3.0 s gap with nothing new being said (10.23 to 13.18 s)",
+     "e3_n_pose_r2: narrator pose think -> explain in the middle of a 2.3 s gap with nothing new being said (13.28 to 15.54 s)"
+    ],
+    "e5": [
+     "e5_n_pose_r1: narrator pose point -> think in the middle of a 2.4 s gap with nothing new being said (21.45 to 23.81 s)"
+    ]
+   },
+   "still_gap_max_s": 2.55,
+   "replay": {
+    "beats": 6,
+    "problems": [],
+    "cues_checked": 28,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "printing_d0.0": {
+   "seconds": 5.6,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 5,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 33.1,
+    "layer_mix_s": {
+     "board": 24.35,
+     "map": 4.82,
+     "archive": 3.93
+    },
+    "layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "shot_length": {
+     "median_s": 4.73,
+     "min_s": 3.64,
+     "max_s": 6.99,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "meaningful_change_density": {
+     "windows_2s": 16,
+     "windows_with_a_change": 14,
+     "share": 0.875,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     false,
+     null
+    ],
+    "twist": [
+     true,
+     20.46
+    ],
+    "conclusion": [
+     true,
+     28.33
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": false
+   },
+   "metaphors": {
+    "keywords": {
+     "book": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e1"
+      ]
+     },
+     "books": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e6",
+       "e6"
+      ]
+     },
+     "ideas": {
+      "assets": [
+       "prop:bulb"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     },
+     "machine": {
+      "assets": [
+       "icon:gear"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e7",
+       "e7"
+      ]
+     },
+     "years": {
+      "assets": [
+       "icon:clock"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "books",
+     "machine"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "board",
+    "map",
+    "archive",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Mainz",
+    "Germany",
+    "Europe"
+   ],
+   "dropped_cues": {},
+   "repairs": {
+    "e4": [
+     "e4_n_pose_r1: narrator pose point -> think in the middle of a 2.7 s gap with nothing new being said (13.88 to 16.53 s)",
+     "e4_n_pose_r2: narrator pose think -> explain in the middle of a 2.3 s gap with nothing new being said (16.63 to 18.88 s)"
+    ],
+    "e7": [
+     "e7_card_r1: added card 'who could be heard' inside a 2.3 s still gap (30.79 to 33.10 s)"
+    ]
+   },
+   "still_gap_max_s": 1.76,
+   "replay": {
+    "beats": 5,
+    "problems": [],
+    "cues_checked": 25,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "printing_d0.5": {
+   "seconds": 5.1,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 5,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 33.1,
+    "layer_mix_s": {
+     "board": 24.35,
+     "map": 4.82,
+     "archive": 3.93
+    },
+    "layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "shot_length": {
+     "median_s": 4.73,
+     "min_s": 3.64,
+     "max_s": 6.99,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "meaningful_change_density": {
+     "windows_2s": 16,
+     "windows_with_a_change": 14,
+     "share": 0.875,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     false,
+     null
+    ],
+    "twist": [
+     true,
+     20.46
+    ],
+    "conclusion": [
+     true,
+     28.33
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": false
+   },
+   "metaphors": {
+    "keywords": {
+     "book": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e1"
+      ]
+     },
+     "books": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e6",
+       "e6"
+      ]
+     },
+     "ideas": {
+      "assets": [
+       "prop:bulb"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     },
+     "machine": {
+      "assets": [
+       "icon:gear"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 2,
+      "beats": [
+       "e7",
+       "e7"
+      ]
+     },
+     "years": {
+      "assets": [
+       "icon:clock"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": [
+     "books",
+     "machine"
+    ]
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+   ],
+   "kinds": [
+    "board",
+    "map",
+    "archive",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Mainz",
+    "Germany",
+    "Europe"
+   ],
+   "dropped_cues": {},
+   "repairs": {
+    "e4": [
+     "e4_n_pose_r1: narrator pose point -> think in the middle of a 2.7 s gap with nothing new being said (13.88 to 16.53 s)",
+     "e4_n_pose_r2: narrator pose think -> explain in the middle of a 2.3 s gap with nothing new being said (16.63 to 18.88 s)"
+    ],
+    "e7": [
+     "e7_card_r1: added card 'who could be heard' inside a 2.3 s still gap (30.79 to 33.10 s)"
+    ]
+   },
+   "still_gap_max_s": 1.76,
+   "replay": {
+    "beats": 5,
+    "problems": [],
+    "cues_checked": 25,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "glaciers_d0.0": {
+   "seconds": 8.2,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: beat e4: 3.1s of footage barely registers; give it more narration or fold it into a card"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 5,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 34.27,
+    "layer_mix_s": {
+     "map": 10.13,
+     "board": 24.14
+    },
+    "layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "shot_length": {
+     "median_s": 5.11,
+     "min_s": 3.05,
+     "max_s": 5.81,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 17,
+     "windows_with_a_change": 14,
+     "share": 0.824
+    },
+    "meaningful_change_density": {
+     "windows_2s": 17,
+     "windows_with_a_change": 13,
+     "share": 0.765,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     false,
+     null
+    ],
+    "twist": [
+     true,
+     17.71
+    ],
+    "conclusion": [
+     true,
+     28.63
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": false
+   },
+   "metaphors": {
+    "keywords": {
+     "farmers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e6"
+      ]
+     },
+     "read": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e3"
+      ]
+     },
+     "record": {
+      "assets": [
+       "icon:document"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     },
+     "sea": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "time": {
+      "assets": [
+       "icon:clock"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e7"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": []
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "beat e4: 3.1s of footage barely registers; give it more narration or fold it into a card"
+   ],
+   "kinds": [
+    "map",
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Alps",
+    "Greenland",
+    "Iceland"
+   ],
+   "dropped_cues": {},
+   "repairs": {
+    "e4": [
+     "e4_n_pose_r1: narrator pose explain -> point in the middle of a 3.0 s gap with nothing new being said (14.75 to 17.71 s)"
+    ],
+    "e6": [
+     "e6_n_pose_r1: narrator pose point -> think in the middle of a 2.7 s gap with nothing new being said (22.92 to 25.57 s)"
+    ]
+   },
+   "still_gap_max_s": 2.31,
+   "replay": {
+    "beats": 5,
+    "problems": [],
+    "cues_checked": 18,
+    "cues_off_the_independent_frame": []
+   }
+  },
+  "glaciers_d0.5": {
+   "seconds": 5.2,
+   "plan_ok": true,
+   "problems": [],
+   "warnings": [
+    "hybrid.validate: beat e4: 3.1s of footage barely registers; give it more narration or fold it into a card"
+   ],
+   "network_attempts_refused": [],
+   "validate_plan_problems": [],
+   "tiling_ok": true,
+   "one_camera_start": true,
+   "board_clips": 5,
+   "clips_exist": true,
+   "clip_frame_count_mismatches": [],
+   "remote_or_generated_assets": [],
+   "pacing": {
+    "beats": 7,
+    "duration_s": 34.27,
+    "layer_mix_s": {
+     "map": 10.13,
+     "board": 24.14
+    },
+    "layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "shot_length": {
+     "median_s": 5.11,
+     "min_s": 3.05,
+     "max_s": 5.81,
+     "share_between_2_and_8_s": 1.0
+    },
+    "change_density": {
+     "windows_2s": 17,
+     "windows_with_a_change": 14,
+     "share": 0.824
+    },
+    "meaningful_change_density": {
+     "windows_2s": 17,
+     "windows_with_a_change": 13,
+     "share": 0.765,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "targets": {
+     "median_shot_near_4.6s": true,
+     "90pct_shots_2_to_8s": true,
+     "change_in_95pct_of_2s_windows": false,
+     "narrator_absence_le_30s": true,
+     "narrator_share_35_to_60pct": true
+    }
+   },
+   "story": {
+    "hook": [
+     true,
+     0.5
+    ],
+    "question": [
+     false,
+     null
+    ],
+    "twist": [
+     true,
+     17.71
+    ],
+    "conclusion": [
+     true,
+     28.63
+    ],
+    "hook_within_30s": true,
+    "question_within_120s": false
+   },
+   "metaphors": {
+    "keywords": {
+     "farmers": {
+      "assets": [
+       "icon:person"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e6"
+      ]
+     },
+     "read": {
+      "assets": [
+       "prop:book"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e3"
+      ]
+     },
+     "record": {
+      "assets": [
+       "icon:document"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e4"
+      ]
+     },
+     "sea": {
+      "assets": [
+       "icon:drop"
+      ],
+      "roles": [
+       "red"
+      ],
+      "count": 1,
+      "beats": [
+       "e5"
+      ]
+     },
+     "time": {
+      "assets": [
+       "icon:clock"
+      ],
+      "roles": [
+       "blue"
+      ],
+      "count": 1,
+      "beats": [
+       "e7"
+      ]
+     }
+    },
+    "asset_consistent": true,
+    "recurring_keywords": []
+   },
+   "hybrid_validate_errors": [],
+   "hybrid_validate_warnings": [
+    "beat e4: 3.1s of footage barely registers; give it more narration or fold it into a card"
+   ],
+   "kinds": [
+    "map",
+    "map",
+    "board",
+    "board",
+    "board",
+    "board",
+    "board"
+   ],
+   "places": [
+    "Alps",
+    "Greenland",
+    "Iceland"
+   ],
+   "dropped_cues": {},
+   "repairs": {
+    "e4": [
+     "e4_n_pose_r1: narrator pose explain -> point in the middle of a 3.0 s gap with nothing new being said (14.75 to 17.71 s)"
+    ],
+    "e6": [
+     "e6_n_pose_r1: narrator pose point -> think in the middle of a 2.7 s gap with nothing new being said (22.92 to 25.57 s)"
+    ]
+   },
+   "still_gap_max_s": 2.31,
+   "replay": {
+    "beats": 5,
+    "problems": [],
+    "cues_checked": 18,
+    "cues_off_the_independent_frame": []
+   }
+  }
+ },
+ "notes": [],
+ "determinism": {
+  "clips": [
+   "board_07a3d23e6263fc14.mp4",
+   "board_223554ea4af05444.mp4",
+   "board_294836c37ee5ff14.mp4",
+   "board_53610f20054f11e2.mp4",
+   "board_a12dd54493de791a.mp4",
+   "board_e4ab6ac294cb6ab6.mp4"
+  ],
+  "plan_sha256": "445ceebe0931b0ff4f3febe9589e2353108b07d3151d4766c76e6878f2f7c8be",
+  "clip_sha256": {
+   "board_07a3d23e6263fc14.mp4": "750051a721cc0bddfb0399d64f9fc3a74b119c1080953980f0c5d7836ab1c4e7",
+   "board_223554ea4af05444.mp4": "60148fdf40cfa5f1b781ee126d00c9fcb4682d0f6ccaf0b53c222c5f0e6d21bc",
+   "board_294836c37ee5ff14.mp4": "fcf986db3f3ace5f0c1408438a2f11e71d3d61e822648a750d400f3c41996f44",
+   "board_53610f20054f11e2.mp4": "26c32f5c9ea4293fc1719b1c258d381f89909864ad31078affdc0c883a344336",
+   "board_a12dd54493de791a.mp4": "2225bd8e1c36cbc325f99d6f1b4fa2b8c2024fa718663576fa99b760ac99605d",
+   "board_e4ab6ac294cb6ab6.mp4": "e6f7bf059ecd592247ff826ca896de9822a58784c349e41328c983986e5587f2"
+  }
+ },
+ "reference_look": {
+  "ref_aqueducts_d0.0": {
+   "styles": [
+    "box",
+    "circle",
+    "line",
+    "lite",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.917,
+   "all": 1.0,
+   "occupancy": [
+    0.481,
+    0.291,
+    0.35,
+    0.552,
+    0.373,
+    0.206,
+    0.44,
+    0.563,
+    0.145
+   ]
+  },
+  "ref_aqueducts_d0.5": {
+   "styles": [
+    "box",
+    "circle",
+    "line",
+    "lite",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.917,
+   "all": 1.0,
+   "occupancy": [
+    0.481,
+    0.291,
+    0.35,
+    0.552,
+    0.373,
+    0.206,
+    0.44,
+    0.563,
+    0.145
+   ]
+  },
+  "ref_coffee_d0.0": {
+   "styles": [
+    "circle",
+    "line",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.889,
+   "all": 1.0,
+   "occupancy": [
+    0.276,
+    0.602,
+    0.366,
+    0.373,
+    0.232,
+    0.563
+   ]
+  },
+  "ref_coffee_d0.5": {
+   "styles": [
+    "circle",
+    "line",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.889,
+   "all": 1.0,
+   "occupancy": [
+    0.276,
+    0.602,
+    0.366,
+    0.373,
+    0.232,
+    0.563
+   ]
+  },
+  "ref_inflation_d0.0": {
+   "styles": [
+    "box",
+    "circle",
+    "line",
+    "lite",
+    "scroll",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.778,
+   "all": 0.889,
+   "occupancy": [
+    0.376,
+    0.272,
+    0.366,
+    0.349,
+    0.384,
+    0.373
+   ]
+  },
+  "ref_inflation_d0.5": {
+   "styles": [
+    "box",
+    "circle",
+    "line",
+    "lite",
+    "scroll",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.778,
+   "all": 0.889,
+   "occupancy": [
+    0.376,
+    0.272,
+    0.366,
+    0.349,
+    0.384,
+    0.373
+   ]
+  },
+  "ref_printing_d0.0": {
+   "styles": [
+    "circle",
+    "line",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.875,
+   "all": 0.938,
+   "occupancy": [
+    0.309,
+    0.297,
+    0.38,
+    0.349,
+    0.436
+   ]
+  },
+  "ref_printing_d0.5": {
+   "styles": [
+    "circle",
+    "line",
+    "tag",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.875,
+   "all": 0.938,
+   "occupancy": [
+    0.309,
+    0.297,
+    0.38,
+    0.349,
+    0.436
+   ]
+  },
+  "ref_glaciers_d0.0": {
+   "styles": [
+    "circle",
+    "line",
+    "scroll",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.824,
+   "all": 0.882,
+   "occupancy": [
+    0.273,
+    0.297,
+    0.38,
+    0.436,
+    0.394
+   ]
+  },
+  "ref_glaciers_d0.5": {
+   "styles": [
+    "circle",
+    "line",
+    "scroll",
+    "tile",
+    "title"
+   ],
+   "meaningful": 0.824,
+   "all": 0.882,
+   "occupancy": [
+    0.273,
+    0.297,
+    0.38,
+    0.436,
+    0.394
+   ]
+  }
+ },
+ "app_patch": {
+  "added_lines": 79,
+  "removed_lines": 0,
+  "files": [
+   "app.py",
+   "VideoGenerator.spec"
+  ]
+ },
+ "render": {
+  "plan_ok": true,
+  "render_ok": true,
+  "render_errors": [],
+  "seconds": 14.8,
+  "network_attempts_refused": [],
+  "video_frames": 1470,
+  "expected_frames": 1470,
+  "plan_duration_s": 48.498,
+  "voice_duration_s": 49.0
+ }
+}

@@ -1,0 +1,224 @@
+{
+ "asset_id": "narrator_explorer_v1",
+ "built_by": "explainer/narrator/build_assets.py",
+ "canvas": [
+  440,
+  560
+ ],
+ "design_height_px": 548,
+ "eyes": {
+  "blink": {
+   "bytes": 1062,
+   "file": "eyes_blink.png",
+   "origin": [
+    120,
+    112
+   ],
+   "sha256": "6a18f61482879ad5da3ee1cc9719b88f412399da598cb80245f26b79f260b61a"
+  },
+  "happy": {
+   "bytes": 1102,
+   "file": "eyes_happy.png",
+   "origin": [
+    120,
+    112
+   ],
+   "sha256": "e3456f3b1617fd422c9710bc87a47abfd9895ba87e0e7a62ac67c90748b650b6"
+  },
+  "open": {
+   "bytes": 3224,
+   "file": "eyes_open.png",
+   "origin": [
+    120,
+    112
+   ],
+   "sha256": "dc74be1f76565d33c43c85a2026357d8f435820d511357affdf0079fa140dfeb"
+  }
+ },
+ "feet_y": 548,
+ "head_center": [
+  220,
+  150
+ ],
+ "layers_digest": "448002c9ec7ba7060c13a9bdf445793433a38c058f7312d947b6121ce8551fd6",
+ "mouths": {
+  "closed": {
+   "bytes": 1145,
+   "file": "mouth_closed.png",
+   "origin": [
+    160,
+    170
+   ],
+   "sha256": "8037ccd2a28d086a3bfe919fd327bc427eb504cb38673a5f679a38b247b0210d"
+  },
+  "o": {
+   "bytes": 1680,
+   "file": "mouth_o.png",
+   "origin": [
+    160,
+    170
+   ],
+   "sha256": "3c7911143f06875ed0f4eb6684f07bc84dfeb898b4707cc5d67be3403a49d622"
+  },
+  "open": {
+   "bytes": 2543,
+   "file": "mouth_open.png",
+   "origin": [
+    160,
+    170
+   ],
+   "sha256": "c6a163122bb8818f6276edcaf8de9176ed37afcc76413f6a12d5d359fd7dfa74"
+  },
+  "wide": {
+   "bytes": 3528,
+   "file": "mouth_wide.png",
+   "origin": [
+    160,
+    170
+   ],
+   "sha256": "e5ae3efce355d59b09c566f9c5e0649c78be59f191d467f00900a5e28298dce6"
+  }
+ },
+ "params": {
+  "arm_w": 24,
+  "cheek": [
+   240,
+   150,
+   140,
+   255
+  ],
+  "eye_white": [
+   255,
+   255,
+   255,
+   255
+  ],
+  "hair": [
+   86,
+   56,
+   36,
+   255
+  ],
+  "hand_r": 17,
+  "head_r": 92,
+  "ink": [
+   38,
+   38,
+   40,
+   255
+  ],
+  "line": 6,
+  "mouth_in": [
+   150,
+   40,
+   50,
+   255
+  ],
+  "pants": [
+   96,
+   84,
+   120,
+   255
+  ],
+  "scarf": [
+   212,
+   70,
+   66,
+   255
+  ],
+  "shirt": [
+   70,
+   150,
+   160,
+   255
+  ],
+  "shoe": [
+   120,
+   80,
+   50,
+   255
+  ],
+  "skin": [
+   250,
+   222,
+   190,
+   255
+  ],
+  "tongue": [
+   236,
+   120,
+   130,
+   255
+  ]
+ },
+ "pillow_version": "12.3.0",
+ "poses": {
+  "explain": {
+   "bbox": [
+    102,
+    0,
+    433,
+    551
+   ],
+   "bytes": 46053,
+   "file": "body_explain.png",
+   "sha256": "0ac33049edf63ded91916df2b535bbe231250a93edc4f1c32263d4a74e556f7f"
+  },
+  "idle": {
+   "bbox": [
+    107,
+    0,
+    333,
+    551
+   ],
+   "bytes": 37814,
+   "file": "body_idle.png",
+   "sha256": "d4674a63bec85d1cff0999a0e56d2483ba4781cfca40b29e390dd2d4744f9a0e"
+  },
+  "point": {
+   "bbox": [
+    102,
+    0,
+    439,
+    551
+   ],
+   "bytes": 42676,
+   "file": "body_point.png",
+   "sha256": "371451e2bb1dec5aaef545c4f550e8c9fae2dd8fb6e12fd7539cc043a29b0f84"
+  },
+  "shrug": {
+   "bbox": [
+    72,
+    0,
+    368,
+    551
+   ],
+   "bytes": 38190,
+   "file": "body_shrug.png",
+   "sha256": "e3ad8142aa8192894e31d9b4c7140ccb507adb140c3031a3ef6ffd9d08cf056b"
+  },
+  "surprise": {
+   "bbox": [
+    76,
+    0,
+    364,
+    551
+   ],
+   "bytes": 45254,
+   "file": "body_surprise.png",
+   "sha256": "ed94c7fbde871b801a3a74fc6b86cdd8440fa5c2f79061d7eddad24486b381aa"
+  },
+  "think": {
+   "bbox": [
+    125,
+    0,
+    351,
+    551
+   ],
+   "bytes": 41850,
+   "file": "body_think.png",
+   "sha256": "ab6cf1c0beb99c8f2d918243cda16b71b45a79e8d0568241b04b6fd90e0a92d3"
+  }
+ },
+ "version": 1
+}

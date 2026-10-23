@@ -1,0 +1,114 @@
+{
+ "beats": [
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "Europe"
+    }
+   ],
+   "end": 4.434,
+   "geo_intent": "where Europe is",
+   "id": "e1",
+   "mode": "map",
+   "purpose": "map: Europe",
+   "start": 0.0
+  },
+  {
+   "end": 10.132,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_9baa4ffd549b65fd.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e2",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 4.434
+  },
+  {
+   "end": 16.53,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_7a4c2a2f629fda32.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 10.132
+  },
+  {
+   "end": 21.052,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_be8313b9637586ee.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: twist",
+   "start": 16.53
+  },
+  {
+   "end": 27.744,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_23c7013f5c54d412.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 21.052
+  },
+  {
+   "end": 31.972,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_3a696ecc822d3e46.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 27.744
+  },
+  {
+   "end": 36.738,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_inflation/explainer/board_11ce5e887089de7d.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 31.972
+  }
+ ],
+ "duration": 36.738,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

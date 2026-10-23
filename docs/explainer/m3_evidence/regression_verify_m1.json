@@ -1,0 +1,696 @@
+{
+ "checks": {
+  "reserved_kind_reports_problem": true,
+  "unknown_asset_lists_available": true,
+  "icon_needs_asset": true,
+  "text_too_long_reports_problem": true,
+  "fifth_card_gets_no_slot": true,
+  "arrow_before_endpoint_reports_problem": true,
+  "position_outside_margins_reports_problem": true,
+  "named_slot_taken_reports_problem": true,
+  "wrong_class_slot_reports_problem": true,
+  "strict_raises_on_layout_problem": true,
+  "non_strict_skips_bad_and_builds_good": true,
+  "legacy_positions_unchanged_by_new_cues": true,
+  "new_card_avoids_legacy_items": true,
+  "slot_reused_after_clear": true,
+  "manifest_has_schema_version_1": true,
+  "deterministic_plain_clip_bytes": true,
+  "deterministic_plain_frames": true,
+  "deterministic_plain_manifest": true,
+  "deterministic_instr_clip_bytes": true,
+  "deterministic_instr_frames": true,
+  "deterministic_instr_manifest": true
+ },
+ "variants": {
+  "dissolve_0.0": {
+   "dissolve_s": 0.0,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.7,
+   "clip_origin_s": 7.0,
+   "clip_length_s": 10.0,
+   "clip_frames": 300,
+   "builder_problems": [],
+   "video_frames": 720,
+   "runs": [
+    {
+     "first": 210,
+     "last": 509,
+     "frames": 300,
+     "code_first": 0,
+     "code_last": 299,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 210,
+     "offset_values": [
+      210
+     ]
+    }
+   ],
+   "clip_frame0_at_video_frame": 210,
+   "cues": [
+    {
+     "id": "h1",
+     "kind": "header",
+     "slot": "H1",
+     "word": "Prices",
+     "word_start_abs": 7.2,
+     "planned_onset_abs": 7.2,
+     "first_clip_frame": 6,
+     "planned_video_frame_builder": 216,
+     "problems": [],
+     "expected_video_frame_clip_map": 216,
+     "detected_video_frame": 216,
+     "bbox": [
+      616,
+      72,
+      1176,
+      214
+     ],
+     "latency_vs_word_s": 0.0,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "c1",
+     "kind": "card",
+     "slot": "C1",
+     "word": "rose",
+     "word_start_abs": 7.494,
+     "planned_onset_abs": 7.593999999999999,
+     "first_clip_frame": 18,
+     "planned_video_frame_builder": 228,
+     "problems": [],
+     "expected_video_frame_clip_map": 228,
+     "detected_video_frame": 228,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.106,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "c2",
+     "kind": "card",
+     "slot": "C2",
+     "word": "homes.",
+     "word_start_abs": 9.846,
+     "planned_onset_abs": 9.946,
+     "first_clip_frame": 89,
+     "planned_video_frame_builder": 299,
+     "problems": [],
+     "expected_video_frame_clip_map": 299,
+     "detected_video_frame": 299,
+     "bbox": [
+      1288,
+      206,
+      1848,
+      534
+     ],
+     "latency_vs_word_s": 0.1207,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "a1",
+     "kind": "arrow",
+     "slot": "c1->c2",
+     "word": "homes.",
+     "word_start_abs": 9.846,
+     "planned_onset_abs": 10.146,
+     "first_clip_frame": 95,
+     "planned_video_frame_builder": 305,
+     "problems": [],
+     "expected_video_frame_clip_map": 305,
+     "detected_video_frame": 305,
+     "bbox": [
+      1152,
+      356,
+      1240,
+      384
+     ],
+     "latency_vs_word_s": 0.3207,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "x1",
+     "kind": "clear",
+     "slot": "",
+     "word": "Meanwhile",
+     "word_start_abs": 10.6,
+     "planned_onset_abs": 10.6,
+     "first_clip_frame": 108,
+     "planned_video_frame_builder": 318,
+     "problems": []
+    },
+    {
+     "id": "h2",
+     "kind": "header",
+     "slot": "H1",
+     "word": "gold",
+     "word_start_abs": 10.894,
+     "planned_onset_abs": 10.894,
+     "first_clip_frame": 117,
+     "planned_video_frame_builder": 327,
+     "problems": [],
+     "expected_video_frame_clip_map": 327,
+     "detected_video_frame": 327,
+     "bbox": [
+      616,
+      72,
+      1176,
+      214
+     ],
+     "latency_vs_word_s": 0.006,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "i1",
+     "kind": "icon",
+     "slot": "C1",
+     "word": "flowed",
+     "word_start_abs": 11.188,
+     "planned_onset_abs": 11.388,
+     "first_clip_frame": 132,
+     "planned_video_frame_builder": 342,
+     "problems": [],
+     "expected_video_frame_clip_map": 342,
+     "detected_video_frame": 342,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.212,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "c3",
+     "kind": "card",
+     "slot": "C2",
+     "word": "crown.",
+     "word_start_abs": 12.952,
+     "planned_onset_abs": 13.052,
+     "first_clip_frame": 182,
+     "planned_video_frame_builder": 392,
+     "problems": [],
+     "expected_video_frame_clip_map": 392,
+     "detected_video_frame": 392,
+     "bbox": [
+      1288,
+      206,
+      1848,
+      534
+     ],
+     "latency_vs_word_s": 0.1147,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "a2",
+     "kind": "arrow",
+     "slot": "i1->c3",
+     "word": "crown.",
+     "word_start_abs": 12.952,
+     "planned_onset_abs": 13.352,
+     "first_clip_frame": 191,
+     "planned_video_frame_builder": 401,
+     "problems": [],
+     "expected_video_frame_clip_map": 401,
+     "detected_video_frame": 401,
+     "bbox": [
+      1152,
+      356,
+      1240,
+      384
+     ],
+     "latency_vs_word_s": 0.4147,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "x2",
+     "kind": "clear",
+     "slot": "",
+     "word": "Nobody",
+     "word_start_abs": 13.8,
+     "planned_onset_abs": 13.8,
+     "first_clip_frame": 204,
+     "planned_video_frame_builder": 414,
+     "problems": []
+    },
+    {
+     "id": "c4",
+     "kind": "card",
+     "slot": "C1",
+     "word": "counted",
+     "word_start_abs": 14.094,
+     "planned_onset_abs": 14.193999999999999,
+     "first_clip_frame": 216,
+     "planned_video_frame_builder": 426,
+     "problems": [],
+     "expected_video_frame_clip_map": 426,
+     "detected_video_frame": 426,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.106,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "k1",
+     "kind": "chip",
+     "slot": "K1",
+     "word": "1545",
+     "word_start_abs": 15.564,
+     "planned_onset_abs": 15.664,
+     "first_clip_frame": 260,
+     "planned_video_frame_builder": 470,
+     "problems": [],
+     "expected_video_frame_clip_map": 470,
+     "detected_video_frame": 470,
+     "bbox": [
+      699,
+      878,
+      902,
+      1006
+     ],
+     "latency_vs_word_s": 0.1027,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "k2",
+     "kind": "chip",
+     "slot": "K2",
+     "word": "100,000",
+     "word_start_abs": 16.152,
+     "planned_onset_abs": 16.252000000000002,
+     "first_clip_frame": 278,
+     "planned_video_frame_builder": 488,
+     "problems": [],
+     "expected_video_frame_clip_map": 488,
+     "detected_video_frame": 488,
+     "bbox": [
+      1021,
+      878,
+      1299,
+      1006
+     ],
+     "latency_vs_word_s": 0.1147,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "x1",
+     "kind": "clear",
+     "word": "Meanwhile",
+     "planned_onset_abs": 10.6,
+     "first_clip_frame": 108,
+     "measured_on": "c1",
+     "expected_video_frame_clip_map": 318,
+     "detected_video_frame": 318,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "x2",
+     "kind": "clear",
+     "word": "Nobody",
+     "planned_onset_abs": 13.8,
+     "first_clip_frame": 204,
+     "measured_on": "c3",
+     "expected_video_frame_clip_map": 414,
+     "detected_video_frame": 414,
+     "detected_minus_clip_map_frames": 0
+    }
+   ],
+   "summary": {
+    "cues_total": 15,
+    "cues_measured": 13,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "max_abs_frame_error_vs_builder_plan": 0,
+    "latency_min_s": 0.0,
+    "latency_max_s": 0.4147,
+    "runs": 1,
+    "held_frames": 0,
+    "skipped_frames": 0
+   }
+  },
+  "dissolve_0.5": {
+   "dissolve_s": 0.5,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 15.2,
+   "clip_origin_s": 6.75,
+   "clip_length_s": 10.5,
+   "clip_frames": 315,
+   "builder_problems": [],
+   "video_frames": 720,
+   "runs": [
+    {
+     "first": 217,
+     "last": 503,
+     "frames": 287,
+     "code_first": 14,
+     "code_last": 300,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 203,
+     "offset_values": [
+      203
+     ]
+    }
+   ],
+   "clip_frame0_at_video_frame": 203,
+   "cues": [
+    {
+     "id": "h1",
+     "kind": "header",
+     "slot": "H1",
+     "word": "Prices",
+     "word_start_abs": 7.2,
+     "planned_onset_abs": 7.2,
+     "first_clip_frame": 14,
+     "planned_video_frame_builder": 216,
+     "problems": [],
+     "expected_video_frame_clip_map": 217,
+     "detected_video_frame": 217,
+     "bbox": [
+      616,
+      72,
+      1176,
+      214
+     ],
+     "latency_vs_word_s": 0.0333,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "c1",
+     "kind": "card",
+     "slot": "C1",
+     "word": "rose",
+     "word_start_abs": 7.494,
+     "planned_onset_abs": 7.593999999999999,
+     "first_clip_frame": 26,
+     "planned_video_frame_builder": 228,
+     "problems": [],
+     "expected_video_frame_clip_map": 229,
+     "detected_video_frame": 229,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.1393,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "c2",
+     "kind": "card",
+     "slot": "C2",
+     "word": "homes.",
+     "word_start_abs": 9.846,
+     "planned_onset_abs": 9.946,
+     "first_clip_frame": 96,
+     "planned_video_frame_builder": 299,
+     "problems": [],
+     "expected_video_frame_clip_map": 299,
+     "detected_video_frame": 299,
+     "bbox": [
+      1288,
+      206,
+      1848,
+      534
+     ],
+     "latency_vs_word_s": 0.1207,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "a1",
+     "kind": "arrow",
+     "slot": "c1->c2",
+     "word": "homes.",
+     "word_start_abs": 9.846,
+     "planned_onset_abs": 10.146,
+     "first_clip_frame": 102,
+     "planned_video_frame_builder": 305,
+     "problems": [],
+     "expected_video_frame_clip_map": 305,
+     "detected_video_frame": 305,
+     "bbox": [
+      1152,
+      356,
+      1240,
+      384
+     ],
+     "latency_vs_word_s": 0.3207,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "x1",
+     "kind": "clear",
+     "slot": "",
+     "word": "Meanwhile",
+     "word_start_abs": 10.6,
+     "planned_onset_abs": 10.6,
+     "first_clip_frame": 116,
+     "planned_video_frame_builder": 318,
+     "problems": []
+    },
+    {
+     "id": "h2",
+     "kind": "header",
+     "slot": "H1",
+     "word": "gold",
+     "word_start_abs": 10.894,
+     "planned_onset_abs": 10.894,
+     "first_clip_frame": 125,
+     "planned_video_frame_builder": 327,
+     "problems": [],
+     "expected_video_frame_clip_map": 328,
+     "detected_video_frame": 328,
+     "bbox": [
+      616,
+      72,
+      1176,
+      214
+     ],
+     "latency_vs_word_s": 0.0393,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "i1",
+     "kind": "icon",
+     "slot": "C1",
+     "word": "flowed",
+     "word_start_abs": 11.188,
+     "planned_onset_abs": 11.388,
+     "first_clip_frame": 140,
+     "planned_video_frame_builder": 342,
+     "problems": [],
+     "expected_video_frame_clip_map": 343,
+     "detected_video_frame": 343,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.2453,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "c3",
+     "kind": "card",
+     "slot": "C2",
+     "word": "crown.",
+     "word_start_abs": 12.952,
+     "planned_onset_abs": 13.052,
+     "first_clip_frame": 190,
+     "planned_video_frame_builder": 392,
+     "problems": [],
+     "expected_video_frame_clip_map": 393,
+     "detected_video_frame": 393,
+     "bbox": [
+      1288,
+      206,
+      1848,
+      534
+     ],
+     "latency_vs_word_s": 0.148,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "a2",
+     "kind": "arrow",
+     "slot": "i1->c3",
+     "word": "crown.",
+     "word_start_abs": 12.952,
+     "planned_onset_abs": 13.352,
+     "first_clip_frame": 199,
+     "planned_video_frame_builder": 401,
+     "problems": [],
+     "expected_video_frame_clip_map": 402,
+     "detected_video_frame": 402,
+     "bbox": [
+      1152,
+      356,
+      1240,
+      384
+     ],
+     "latency_vs_word_s": 0.448,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "x2",
+     "kind": "clear",
+     "slot": "",
+     "word": "Nobody",
+     "word_start_abs": 13.8,
+     "planned_onset_abs": 13.8,
+     "first_clip_frame": 212,
+     "planned_video_frame_builder": 414,
+     "problems": []
+    },
+    {
+     "id": "c4",
+     "kind": "card",
+     "slot": "C1",
+     "word": "counted",
+     "word_start_abs": 14.094,
+     "planned_onset_abs": 14.193999999999999,
+     "first_clip_frame": 224,
+     "planned_video_frame_builder": 426,
+     "problems": [],
+     "expected_video_frame_clip_map": 427,
+     "detected_video_frame": 427,
+     "bbox": [
+      616,
+      206,
+      1176,
+      534
+     ],
+     "latency_vs_word_s": 0.1393,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "k1",
+     "kind": "chip",
+     "slot": "K1",
+     "word": "1545",
+     "word_start_abs": 15.564,
+     "planned_onset_abs": 15.664,
+     "first_clip_frame": 268,
+     "planned_video_frame_builder": 470,
+     "problems": [],
+     "expected_video_frame_clip_map": 471,
+     "detected_video_frame": 471,
+     "bbox": [
+      699,
+      878,
+      902,
+      1006
+     ],
+     "latency_vs_word_s": 0.136,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "k2",
+     "kind": "chip",
+     "slot": "K2",
+     "word": "100,000",
+     "word_start_abs": 16.152,
+     "planned_onset_abs": 16.252000000000002,
+     "first_clip_frame": 286,
+     "planned_video_frame_builder": 488,
+     "problems": [],
+     "expected_video_frame_clip_map": 489,
+     "detected_video_frame": 489,
+     "bbox": [
+      1021,
+      878,
+      1299,
+      1006
+     ],
+     "latency_vs_word_s": 0.148,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "x1",
+     "kind": "clear",
+     "word": "Meanwhile",
+     "planned_onset_abs": 10.6,
+     "first_clip_frame": 116,
+     "measured_on": "c1",
+     "expected_video_frame_clip_map": 319,
+     "detected_video_frame": 319,
+     "detected_minus_clip_map_frames": 0
+    },
+    {
+     "id": "x2",
+     "kind": "clear",
+     "word": "Nobody",
+     "planned_onset_abs": 13.8,
+     "first_clip_frame": 212,
+     "measured_on": "c3",
+     "expected_video_frame_clip_map": 415,
+     "detected_video_frame": 415,
+     "detected_minus_clip_map_frames": 0
+    }
+   ],
+   "summary": {
+    "cues_total": 15,
+    "cues_measured": 13,
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "max_abs_frame_error_vs_builder_plan": 1,
+    "latency_min_s": 0.0333,
+    "latency_max_s": 0.448,
+    "runs": 1,
+    "held_frames": 0,
+    "skipped_frames": 0
+   }
+  }
+ },
+ "clip_sha256": {
+  "plain": "aca2cd87f33fcdcfdb07a198312de784108df87c02547f0a6e829b56fd465edd",
+  "instrumented": "4cfaf4c265258ee2931bf56a02276e3b2f3b1ada5fe96966422b307d96053380"
+ },
+ "clip_bytes": 272903
+}

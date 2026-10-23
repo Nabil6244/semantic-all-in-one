@@ -1,0 +1,20 @@
+test_a_place_that_cannot_be_framed_is_rejected_with_a_reason (__main__.Framing.test_a_place_that_cannot_be_framed_is_rejected_with_a_reason) ... ok
+test_a_single_place_is_framed_on_that_place (__main__.Framing.test_a_single_place_is_framed_on_that_place) ... ok
+test_far_apart_places_in_a_short_beat_are_never_drawn_off_screen (__main__.Framing.test_far_apart_places_in_a_short_beat_are_never_drawn_off_screen) ... ok
+test_korea_has_no_off_screen_warning (__main__.Framing.test_korea_has_no_off_screen_warning) ... ok
+test_korea_places_are_inside_the_compiled_camera_view (__main__.Framing.test_korea_places_are_inside_the_compiled_camera_view) ... ok
+test_the_framing_module_rejects_a_hand_built_out_of_frame_layer (__main__.Framing.test_the_framing_module_rejects_a_hand_built_out_of_frame_layer) ... ok
+test_two_neighbours_spoken_two_seconds_apart_share_one_good_view (__main__.Framing.test_two_neighbours_spoken_two_seconds_apart_share_one_good_view) ... ok
+test_a_spoken_quantity_in_a_map_beat_becomes_a_stat_grounded_in_the_words (__main__.MapLayers.test_a_spoken_quantity_in_a_map_beat_becomes_a_stat_grounded_in_the_words) ... ok
+test_a_year_is_not_a_statistic (__main__.MapLayers.test_a_year_is_not_a_statistic) ... ok
+test_every_filled_country_gets_a_label_at_or_after_its_fill (__main__.MapLayers.test_every_filled_country_gets_a_label_at_or_after_its_fill) ... ok
+test_every_map_layer_is_tied_to_the_beats_own_words_and_validates (__main__.MapLayers.test_every_map_layer_is_tied_to_the_beats_own_words_and_validates) ... ok
+test_the_plan_compiles_through_the_applications_own_compiler (__main__.MapLayers.test_the_plan_compiles_through_the_applications_own_compiler) ... ok
+test_imagery_is_chosen_by_the_renderer_not_baked_into_the_plan (__main__.Preserved.test_imagery_is_chosen_by_the_renderer_not_baked_into_the_plan) ... ok
+test_planning_is_deterministic (__main__.Preserved.test_planning_is_deterministic) ... ok
+test_the_pakmap_cache_folder_is_the_one_the_application_uses (__main__.Preserved.test_the_pakmap_cache_folder_is_the_one_the_application_uses) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 18.243s
+
+OK

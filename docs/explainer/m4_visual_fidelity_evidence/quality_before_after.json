@@ -1,0 +1,916 @@
+{
+ "aqueducts": {
+  "classic": {
+   "texts": 17,
+   "mean_words": 5.71,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.891,
+   "sentences_without_any_text": 0,
+   "sentences": 9,
+   "distinct_share": 1.0,
+   "font_px_min": 48,
+   "font_px_mean": 50.6,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "T02_median_shot_s": 4.67,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 24,
+     "share": 1.0
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 22,
+     "share": 0.917,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.237,
+     0.215,
+     0.407,
+     0.25,
+     0.333,
+     0.166,
+     0.249,
+     0.333,
+     0.166
+    ],
+    "T04_longest_still_all_s": 3.13,
+    "T04_longest_still_strict_s": 3.13,
+    "T04_longest_still_s": 3.13,
+    "T05_narrator": {
+     "share": 0.51,
+     "longest_absence_s": 13.27,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 0.889,
+    "T09_captions": {
+     "n": 5,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 74.2,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 22.7,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 40.5,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 3,
+   "cards": 12,
+   "captions": 5,
+   "headers": 0,
+   "events": 80
+  },
+  "reference": {
+   "texts": 23,
+   "mean_words": 4.04,
+   "share_3_plus_words": 0.696,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 5,
+   "content_coverage_mean": 0.88,
+   "sentences_without_any_text": 0,
+   "sentences": 9,
+   "distinct_share": 0.87,
+   "font_px_min": 56,
+   "font_px_mean": 64.3,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "T02_median_shot_s": 4.67,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 24,
+     "share": 1.0
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 22,
+     "share": 0.917,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.481,
+     0.291,
+     0.35,
+     0.552,
+     0.373,
+     0.206,
+     0.44,
+     0.563,
+     0.145
+    ],
+    "T04_longest_still_all_s": 1.76,
+    "T04_longest_still_strict_s": 3.53,
+    "T04_longest_still_s": 3.53,
+    "T05_narrator": {
+     "share": 0.51,
+     "longest_absence_s": 13.27,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 0.889,
+    "T09_captions": {
+     "n": 0,
+     "share_8_words_or_fewer": 0.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 49.5,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 22.7,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 40.5,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 3,
+   "cards": 0,
+   "captions": 0,
+   "headers": 0,
+   "events": 111
+  }
+ },
+ "coffee": {
+  "classic": {
+   "texts": 12,
+   "mean_words": 5.75,
+   "share_3_plus_words": 0.833,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.899,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 48.9,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "T02_median_shot_s": 4.82,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 16,
+     "share": 0.889,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.234,
+     0.234,
+     0.247,
+     0.333,
+     0.187,
+     0.223
+    ],
+    "T04_longest_still_all_s": 2.66,
+    "T04_longest_still_strict_s": 2.66,
+    "T04_longest_still_s": 2.66,
+    "T05_narrator": {
+     "share": 0.478,
+     "longest_absence_s": 9.58,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 4,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 32.8,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 15.24,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 30.68,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 8,
+   "captions": 4,
+   "headers": 0,
+   "events": 56
+  },
+  "reference": {
+   "texts": 18,
+   "mean_words": 3.72,
+   "share_3_plus_words": 0.556,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 6,
+   "content_coverage_mean": 0.849,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 56,
+   "font_px_mean": 63.1,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "T02_median_shot_s": 4.82,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 16,
+     "share": 0.889,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.276,
+     0.602,
+     0.366,
+     0.373,
+     0.232,
+     0.563
+    ],
+    "T04_longest_still_all_s": 1.58,
+    "T04_longest_still_strict_s": 3.35,
+    "T04_longest_still_s": 3.35,
+    "T05_narrator": {
+     "share": 0.478,
+     "longest_absence_s": 9.58,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 0,
+     "share_8_words_or_fewer": 0.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 0.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 15.24,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 30.68,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 0,
+   "captions": 0,
+   "headers": 0,
+   "events": 84
+  }
+ },
+ "inflation": {
+  "classic": {
+   "texts": 13,
+   "mean_words": 5.85,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.87,
+   "sentences_without_any_text": 1,
+   "sentences": 9,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.7,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "T02_median_shot_s": 4.77,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 17,
+     "share": 0.944
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 14,
+     "share": 0.778,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.233,
+     0.166,
+     0.242,
+     0.333,
+     0.348,
+     0.214
+    ],
+    "T04_longest_still_all_s": 2.55,
+    "T04_longest_still_strict_s": 2.55,
+    "T04_longest_still_s": 2.55,
+    "T05_narrator": {
+     "share": 0.511,
+     "longest_absence_s": 8.99,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 3,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 98.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 16.53,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 27.74,
+      "trigger": "the lesson",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 10,
+   "captions": 3,
+   "headers": 0,
+   "events": 54
+  },
+  "reference": {
+   "texts": 19,
+   "mean_words": 3.79,
+   "share_3_plus_words": 0.684,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 6,
+   "content_coverage_mean": 0.823,
+   "sentences_without_any_text": 1,
+   "sentences": 9,
+   "distinct_share": 0.947,
+   "font_px_min": 54,
+   "font_px_mean": 61.2,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "T02_median_shot_s": 4.77,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 16,
+     "share": 0.889
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 14,
+     "share": 0.778,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.376,
+     0.272,
+     0.366,
+     0.349,
+     0.384,
+     0.373
+    ],
+    "T04_longest_still_all_s": 2.95,
+    "T04_longest_still_strict_s": 3.25,
+    "T04_longest_still_s": 3.25,
+    "T05_narrator": {
+     "share": 0.511,
+     "longest_absence_s": 8.99,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 0,
+     "share_8_words_or_fewer": 0.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 32.7,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 16.53,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 27.74,
+      "trigger": "the lesson",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 0,
+   "captions": 0,
+   "headers": 0,
+   "events": 71
+  }
+ },
+ "printing": {
+  "classic": {
+   "texts": 12,
+   "mean_words": 4.75,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.781,
+   "sentences_without_any_text": 1,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.8,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "T02_median_shot_s": 4.73,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 14,
+     "share": 0.875,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.234,
+     0.195,
+     0.333,
+     0.333,
+     0.499
+    ],
+    "T04_longest_still_all_s": 0,
+    "T04_longest_still_strict_s": 0,
+    "T04_longest_still_s": 1.76,
+    "T05_narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 72.5,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 20.46,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.33,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 10,
+   "captions": 2,
+   "headers": 0,
+   "events": 44
+  },
+  "reference": {
+   "texts": 16,
+   "mean_words": 3.12,
+   "share_3_plus_words": 0.625,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 6,
+   "content_coverage_mean": 0.659,
+   "sentences_without_any_text": 1,
+   "sentences": 8,
+   "distinct_share": 0.938,
+   "font_px_min": 56,
+   "font_px_mean": 61.3,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "T02_median_shot_s": 4.73,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 14,
+     "share": 0.875,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.309,
+     0.297,
+     0.38,
+     0.349,
+     0.436
+    ],
+    "T04_longest_still_all_s": 2.17,
+    "T04_longest_still_strict_s": 2.95,
+    "T04_longest_still_s": 2.95,
+    "T05_narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 0,
+     "share_8_words_or_fewer": 0.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 36.3,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 20.46,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.33,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 0,
+   "captions": 0,
+   "headers": 0,
+   "events": 61
+  }
+ },
+ "glaciers": {
+  "classic": {
+   "texts": 9,
+   "mean_words": 6.22,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.786,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.3,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "T02_median_shot_s": 5.11,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 13,
+     "share": 0.765
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 12,
+     "share": 0.706,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.208,
+     0.166,
+     0.22,
+     0.166,
+     0.204
+    ],
+    "T04_longest_still_all_s": 2.31,
+    "T04_longest_still_strict_s": 2.75,
+    "T04_longest_still_s": 2.31,
+    "T05_narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 3,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 0.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 17.71,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.63,
+      "trigger": "in the end",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 6,
+   "captions": 3,
+   "headers": 0,
+   "events": 44
+  },
+  "reference": {
+   "texts": 13,
+   "mean_words": 4.0,
+   "share_3_plus_words": 0.692,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 4,
+   "content_coverage_mean": 0.751,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 58,
+   "font_px_mean": 63.5,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "T02_median_shot_s": 5.11,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 14,
+     "share": 0.824
+    },
+    "T03_meaningful_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 13,
+     "share": 0.765,
+     "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+    },
+    "peak_occupancy_share": [
+     0.273,
+     0.297,
+     0.38,
+     0.436,
+     0.394
+    ],
+    "T04_longest_still_all_s": 2.55,
+    "T04_longest_still_strict_s": 2.86,
+    "T04_longest_still_s": 2.86,
+    "T05_narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 0,
+     "share_8_words_or_fewer": 0.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 0.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 17.71,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.63,
+      "trigger": "in the end",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 0,
+   "captions": 0,
+   "headers": 0,
+   "events": 61
+  }
+ }
+}

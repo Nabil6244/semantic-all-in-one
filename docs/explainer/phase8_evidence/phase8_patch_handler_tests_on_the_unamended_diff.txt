@@ -1,0 +1,48 @@
+test_a_director_failure_leaves_the_current_plan_and_resets_everything (__main__.PatchedHandlers.test_a_director_failure_leaves_the_current_plan_and_resets_everything) ... ok
+test_a_director_that_raises_is_handled_like_a_failure (__main__.PatchedHandlers.test_a_director_that_raises_is_handled_like_a_failure) ... ok
+test_a_good_plan_is_installed_and_the_button_comes_back (__main__.PatchedHandlers.test_a_good_plan_is_installed_and_the_button_comes_back) ... ok
+test_a_plan_the_model_cannot_read_closes_the_progress_card_and_keeps_the_plan (__main__.PatchedHandlers.test_a_plan_the_model_cannot_read_closes_the_progress_card_and_keeps_the_plan) ... ERROR
+test_a_second_run_after_stop_is_not_disturbed_by_the_first_ones_late_answer (__main__.PatchedHandlers.test_a_second_run_after_stop_is_not_disturbed_by_the_first_ones_late_answer) ... ok
+test_stop_resets_the_button_and_a_late_answer_changes_nothing (__main__.PatchedHandlers.test_stop_resets_the_button_and_a_late_answer_changes_nothing) ... FAIL
+test_stop_respects_the_switch (__main__.PatchedHandlers.test_stop_respects_the_switch) ... ERROR
+
+======================================================================
+ERROR: test_a_plan_the_model_cannot_read_closes_the_progress_card_and_keeps_the_plan (__main__.PatchedHandlers.test_a_plan_the_model_cannot_read_closes_the_progress_card_and_keeps_the_plan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase8_hardening.py", line 326, in test_a_plan_the_model_cannot_read_closes_the_progress_card_and_keeps_the_plan
+    self.run_worker(app, ev, mods)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase8_hardening.py", line 292, in run_worker
+    events.after.pop(0)()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "patched_app.py", line 3603, in <lambda>
+  File "patched_app.py", line 3620, in finish
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase8_hardening.py", line 324, in bad
+    raise ValueError("beat b3 has no mode")
+ValueError: beat b3 has no mode
+
+======================================================================
+ERROR: test_stop_respects_the_switch (__main__.PatchedHandlers.test_stop_respects_the_switch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase8_hardening.py", line 359, in test_stop_respects_the_switch
+    self.assertEqual(app._hybrid_explainer_btn.last, {"state": "disabled", "text": "Direct with Explainer"})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'FakeTk' object has no attribute 'last'
+
+======================================================================
+FAIL: test_stop_resets_the_button_and_a_late_answer_changes_nothing (__main__.PatchedHandlers.test_stop_resets_the_button_and_a_late_answer_changes_nothing)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase8_hardening.py", line 346, in test_stop_resets_the_button_and_a_late_answer_changes_nothing
+    self.assertEqual(app._hybrid_explainer_btn.last, {"state": "normal", "text": "Direct with Explainer"})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'state': 'disabled', 'text': 'Directing…'} != {'state': 'normal', 'text': 'Direct with Explainer'}
+- {'state': 'disabled', 'text': 'Directing…'}
++ {'state': 'normal', 'text': 'Direct with Explainer'}
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.173s
+
+FAILED (failures=1, errors=2)

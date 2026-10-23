@@ -1,0 +1,266 @@
+{
+ "variant": "B",
+ "video": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/run/variant_B/spike_B.mp4",
+ "clip": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/run/media/board_8.0.mp4",
+ "n_frames": 720,
+ "segments": [
+  {
+   "kind": "map",
+   "first_frame": 0,
+   "last_frame": 269,
+   "start_s": 0.0,
+   "end_s": 9.0,
+   "frames": 270
+  },
+  {
+   "kind": "board",
+   "first_frame": 270,
+   "last_frame": 509,
+   "start_s": 9.0,
+   "end_s": 17.0,
+   "frames": 240
+  },
+  {
+   "kind": "map",
+   "first_frame": 510,
+   "last_frame": 569,
+   "start_s": 17.0,
+   "end_s": 19.0,
+   "frames": 60
+  },
+  {
+   "kind": "blend/other",
+   "first_frame": 570,
+   "last_frame": 707,
+   "start_s": 19.0,
+   "end_s": 23.6,
+   "frames": 138
+  },
+  {
+   "kind": "map",
+   "first_frame": 708,
+   "last_frame": 719,
+   "start_s": 23.6,
+   "end_s": 24.0,
+   "frames": 12
+  }
+ ],
+ "board": {
+  "first_frame": 270,
+  "last_frame": 509,
+  "first_s": 9.0,
+  "last_end_s": 17.0,
+  "frames": 240,
+  "contiguous": true,
+  "first_code": 0,
+  "last_code": 239,
+  "code_steps_seen": [
+   1
+  ],
+  "codes_skipped_or_repeated": []
+ },
+ "blend_or_other_frames": {
+  "count": 138,
+  "frames": [
+   570,
+   571,
+   572,
+   573,
+   574,
+   575,
+   576,
+   577,
+   578,
+   579,
+   580,
+   581,
+   582,
+   583,
+   584,
+   585,
+   586,
+   587,
+   588,
+   589,
+   590,
+   591,
+   592,
+   593,
+   594,
+   595,
+   596,
+   597,
+   598,
+   599,
+   600,
+   601,
+   602,
+   603,
+   604,
+   605,
+   606,
+   607,
+   608,
+   609,
+   610,
+   611,
+   612,
+   613,
+   614,
+   615,
+   616,
+   617,
+   618,
+   619,
+   620,
+   621,
+   622,
+   623,
+   624,
+   625,
+   626,
+   627,
+   628,
+   629
+  ]
+ },
+ "board_run_pixel_stability": {
+  "interior_rgb_min": [
+   192,
+   192,
+   192
+  ],
+  "interior_rgb_max": [
+   192,
+   192,
+   192
+  ],
+  "top_border_rgb_min": [
+   222,
+   0,
+   0
+  ],
+  "top_border_rgb_max": [
+   222,
+   0,
+   0
+  ]
+ },
+ "placement_fidelity": [
+  {
+   "video_frame": 270,
+   "video_time_s": 9.0,
+   "clip_frame": 0,
+   "size": [
+    1920,
+    1080
+   ],
+   "mean_abs_diff_rgb": 0.109,
+   "p99_abs_diff": 3,
+   "max_abs_diff": 55,
+   "border_box_rendered_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ],
+   "border_box_source_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ]
+  },
+  {
+   "video_frame": 271,
+   "video_time_s": 9.033333333333333,
+   "clip_frame": 1,
+   "size": [
+    1920,
+    1080
+   ],
+   "mean_abs_diff_rgb": 0.11,
+   "p99_abs_diff": 3,
+   "max_abs_diff": 57,
+   "border_box_rendered_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ],
+   "border_box_source_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ]
+  },
+  {
+   "video_frame": 390,
+   "video_time_s": 13.0,
+   "clip_frame": 120,
+   "size": [
+    1920,
+    1080
+   ],
+   "mean_abs_diff_rgb": 0.239,
+   "p99_abs_diff": 6,
+   "max_abs_diff": 54,
+   "border_box_rendered_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ],
+   "border_box_source_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ]
+  },
+  {
+   "video_frame": 509,
+   "video_time_s": 16.966666666666665,
+   "clip_frame": 239,
+   "size": [
+    1920,
+    1080
+   ],
+   "mean_abs_diff_rgb": 0.233,
+   "p99_abs_diff": 6,
+   "max_abs_diff": 54,
+   "border_box_rendered_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ],
+   "border_box_source_[top,bottom,left,right]": [
+    21,
+    1079,
+    0,
+    1919
+   ]
+  }
+ ],
+ "transition_frames": [
+  270,
+  510,
+  570,
+  708
+ ],
+ "audio": {
+  "duration_out_s": 24.0,
+  "duration_in_s": 24.0,
+  "clicks_found_out": 24,
+  "clicks_found_in": 24,
+  "click_offset_ms_mean": 0.05,
+  "click_offset_ms_std": 0.28,
+  "click_offset_ms_min": -0.04,
+  "click_offset_ms_max": 1.37,
+  "tone_rms_min_over_median_out": 0.991,
+  "tone_rms_min_over_median_in": 0.992,
+  "silent_windows_out_(<0.2x median)": 0
+ }
+}

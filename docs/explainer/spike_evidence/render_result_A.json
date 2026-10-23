@@ -1,0 +1,11 @@
+{
+ "variant": "A",
+ "validate_problems": [],
+ "ok": true,
+ "errors": [],
+ "warnings": [],
+ "output": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/run/variant_A/spike_A.mp4",
+ "seconds": 19.4,
+ "clip": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/run/media/board_8.5.mp4",
+ "dissolve_s": 0.5
+}

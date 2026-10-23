@@ -1,0 +1,37 @@
+[0] Every city begins with a simple problem: how do you bring water to thirsty people?
+    header: thirsty people
+    card: thirsty people
+    card: simple problem
+    card: bring water
+[1] The oldest answer was a ditch, dug by hand across the land.
+    card: oldest answer
+    card: hand across
+    card: ditch dug
+[2] Then the Romans built the aqueduct, a channel lifted on arches so that gravity could keep working across a valley.
+    card: Romans built
+    card: keep working across
+    card: channel lifted
+    card: gravity
+[3] Engineers measured the slope with almost no tools, a drop of only a few centimetres in every hundred metres.
+    card: engineers measured
+    card: few centimetres
+    card: almost
+    card: hundred metres
+[4] But if the slope was too steep, the water tore the stone apart.
+    header: water tore
+    card: water tore
+    caption: tore the stone apart
+    card: slope
+[5] If it was too shallow, the water simply stopped.
+    card: water simply stopped
+[6] Rome solved this eleven times over, and each line carried water from a different spring.
+    card: line carried water
+    card: different spring
+    card: eleven times
+[7] Today the same idea hides under the streets of Italy, in pipes and pumps.
+    (nothing)
+[8] So the principle has not changed: water still travels downhill, and every system we build is a way of persuading it to g
+    card: travels downhill
+    card: changed water
+    card: persuading
+    caption: go where we need

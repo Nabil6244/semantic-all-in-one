@@ -1,0 +1,16 @@
+ M composition_styles/starmap_beats_prompt.txt
+ M composition_styles/whatif_csv_prompt.txt
+ M starmap-engine/page.js
+ M starmap/cinema.py
+ M test_fixtures/weather_protected.json
+ M whatif-engine/layers/tm_theme.mjs
+ M whatif-engine/lib/tpl.mjs
+ M whatif-engine/page.js
+ M whatif/compile.py
+ M whatif/planner.py
+?? docs/explainer/
+?? docs/terrain3d/
+?? explainer/
+?? out/
+?? test_whatif_variety.py
+?? whatif/variety.py

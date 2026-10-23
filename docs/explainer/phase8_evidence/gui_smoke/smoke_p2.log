@@ -1,0 +1,7 @@
+[07:24:24] 8. RESTART: switch restored = True | settings file explainer_style = True
+[07:24:25]    project reopened; Hybrid switch (per project) = True
+[07:24:26]    after Hybrid shown: Explainer switch = True | button = ['normal', 'Direct with Explainer'] | plan restored from project = 10
+[07:24:26]    switched OFF: switch = False | button = ['disabled', 'Direct with Explainer'] | settings file explainer_style = False
+[07:24:26] final settings file: {'projects_root': '/private/tmp/claude-501/-Users-muhammadnabil-Downloads-video-generator-main/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/gui/projects', 'active_project_id': 'project_20261023_001', 'pakmap_channel_name': '', 'explainer_style': False}
+[07:24:26] DONE
+[07:24:26] mainloop ended

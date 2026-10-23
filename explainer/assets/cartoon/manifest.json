@@ -1,0 +1,655 @@
+{
+ "asset_id": "cartoon_kit_v1",
+ "built_by": "explainer/cartoon/build_assets.py",
+ "canvas": [
+  440,
+  560
+ ],
+ "cast": {
+  "blue": {
+   "idle": {
+    "a": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 41371,
+     "file": "cast_blue_idle_a.png",
+     "sha256": "a48a7bd8cda0f45673929eeeb010dac893096652edfa086f4f64e34ab051c74b",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "b": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 38734,
+     "file": "cast_blue_idle_b.png",
+     "sha256": "f99e28a0902e01b80606e90b0f65e74d43fd964ab444e8b5c62ab7ce5c29558c",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "c": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 41346,
+     "file": "cast_blue_idle_c.png",
+     "sha256": "895dc52a93af4b34ff68983b257da7fc6812c6380bac4b09c551049f6f2fac64",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "point": {
+    "a": {
+     "bbox": [
+      102,
+      0,
+      439,
+      551
+     ],
+     "bytes": 46253,
+     "file": "cast_blue_point_a.png",
+     "sha256": "f578da949b8f67dd7c3a3c8242b1f340b7552aa940f6fd0285d55e0ceef224b0",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "surprise": {
+    "a": {
+     "bbox": [
+      76,
+      0,
+      364,
+      551
+     ],
+     "bytes": 49044,
+     "file": "cast_blue_surprise_a.png",
+     "sha256": "f3f96c671481ac19adaa22587a1d84e01e621a9107b8595be06222512fcdec87",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "think": {
+    "a": {
+     "bbox": [
+      125,
+      0,
+      351,
+      551
+     ],
+     "bytes": 45202,
+     "file": "cast_blue_think_a.png",
+     "sha256": "d1ecea147b15598ffc20e98abe468230c0ba98ffad0c499349b9da925acc1ddb",
+     "size": [
+      440,
+      560
+     ]
+    }
+   }
+  },
+  "gold": {
+   "idle": {
+    "a": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 41355,
+     "file": "cast_gold_idle_a.png",
+     "sha256": "abc06f2e7bae35d3da54ff580275bf891404f359b2af20bc7e754e830cbc3921",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "b": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 38741,
+     "file": "cast_gold_idle_b.png",
+     "sha256": "641e6958b8a1c0baad41d3dedbd7e52504e7422dc0549e690ebef7e307149a37",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "c": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 41495,
+     "file": "cast_gold_idle_c.png",
+     "sha256": "2c648f4bd934d0806af5d5936c3b89a21a846fa5ad7664ec774ff1104091071b",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "point": {
+    "a": {
+     "bbox": [
+      102,
+      0,
+      439,
+      551
+     ],
+     "bytes": 46062,
+     "file": "cast_gold_point_a.png",
+     "sha256": "6a9db77cd606e2f33d13f70b99cccd0b4d496ffbe54a242895c74591bbaeb38f",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "surprise": {
+    "a": {
+     "bbox": [
+      76,
+      0,
+      364,
+      551
+     ],
+     "bytes": 48814,
+     "file": "cast_gold_surprise_a.png",
+     "sha256": "cd3ccfdef2ac5930f68522539bd9ee55cf67b7eb5188a20f16d03d8ee5aee4b1",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "think": {
+    "a": {
+     "bbox": [
+      125,
+      0,
+      351,
+      551
+     ],
+     "bytes": 45117,
+     "file": "cast_gold_think_a.png",
+     "sha256": "87641c4404430d52fb6aca8dfe96c08e941e7e6898b18f5502f80d9b342912b1",
+     "size": [
+      440,
+      560
+     ]
+    }
+   }
+  },
+  "green": {
+   "idle": {
+    "a": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 40540,
+     "file": "cast_green_idle_a.png",
+     "sha256": "d88c6f845955b518b7c5a0e2df49ad40041024530ea05fe4cf9e6cae044cfe81",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "b": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 37873,
+     "file": "cast_green_idle_b.png",
+     "sha256": "c84270ad55f5d826d962062ae023c6860a39b732a74a9575cdda18f45aa7bb6b",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "c": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 40673,
+     "file": "cast_green_idle_c.png",
+     "sha256": "148a08b199e381ef4d74c5f366bb405202aeddda94ae03863f386cab5b1f1ccc",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "point": {
+    "a": {
+     "bbox": [
+      102,
+      0,
+      439,
+      551
+     ],
+     "bytes": 44909,
+     "file": "cast_green_point_a.png",
+     "sha256": "9b83a38b499712dd87eec92ef3414cdf7fce3d3ec6a72bfd2d41ddb7ae5f72d6",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "surprise": {
+    "a": {
+     "bbox": [
+      76,
+      0,
+      364,
+      551
+     ],
+     "bytes": 47868,
+     "file": "cast_green_surprise_a.png",
+     "sha256": "562ac84135682207501401122c3d4f0e173538c98d68c95ce74059135b6f448e",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "think": {
+    "a": {
+     "bbox": [
+      125,
+      0,
+      351,
+      551
+     ],
+     "bytes": 44187,
+     "file": "cast_green_think_a.png",
+     "sha256": "8815a2ef3a0c411b13da3d5fd76156b7c5236ad89289acba1f3448e544e429e6",
+     "size": [
+      440,
+      560
+     ]
+    }
+   }
+  },
+  "red": {
+   "idle": {
+    "a": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 40944,
+     "file": "cast_red_idle_a.png",
+     "sha256": "913d7bc8260b6e251c5df840c458f62f71bf981585c417757be7440d3165961c",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "b": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 38304,
+     "file": "cast_red_idle_b.png",
+     "sha256": "0376be7dc62bb0f2bcc2710a426cf6b6e7d9d3809f5bab104e93000a61dac776",
+     "size": [
+      440,
+      560
+     ]
+    },
+    "c": {
+     "bbox": [
+      107,
+      0,
+      333,
+      551
+     ],
+     "bytes": 40930,
+     "file": "cast_red_idle_c.png",
+     "sha256": "cbabd09b043e47052e6bf8b0653c2d54027ee2e95eb3ec9afb49cb52e2b80acc",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "point": {
+    "a": {
+     "bbox": [
+      102,
+      0,
+      439,
+      551
+     ],
+     "bytes": 45700,
+     "file": "cast_red_point_a.png",
+     "sha256": "2fec89b07fbe5887cd4d0e7e9abff9b0b6f4e2cd9c1b39c9701f7eb6f163c06d",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "surprise": {
+    "a": {
+     "bbox": [
+      76,
+      0,
+      364,
+      551
+     ],
+     "bytes": 48439,
+     "file": "cast_red_surprise_a.png",
+     "sha256": "73a4969b4d409805f1de5b75b911aecd3fe5a931eb391dc62bfb0dc3d37aa7b1",
+     "size": [
+      440,
+      560
+     ]
+    }
+   },
+   "think": {
+    "a": {
+     "bbox": [
+      125,
+      0,
+      351,
+      551
+     ],
+     "bytes": 44681,
+     "file": "cast_red_think_a.png",
+     "sha256": "9a9558cd7a992dd54990bd2a466f444610340660d91b7f1f2759e5ae272629a3",
+     "size": [
+      440,
+      560
+     ]
+    }
+   }
+  }
+ },
+ "feet_y": 548,
+ "kits": [
+  "a",
+  "b",
+  "c"
+ ],
+ "layers_digest": "b0db7257f262dfc538dfe4f8f6577a97193bd1e9b864acfd39a5d332f2a721f6",
+ "pillow_version": "12.3.0",
+ "poses": [
+  "idle",
+  "point",
+  "surprise",
+  "think"
+ ],
+ "props": {
+  "cactus": {
+   "bbox": [
+    0,
+    23,
+    160,
+    279
+   ],
+   "bytes": 4370,
+   "file": "prop_cactus.png",
+   "sha256": "bc9d40e5c42c5de8bf86a89c49794c120f77e2d1bcb07bd925b8ff5f0e3581a8",
+   "size": [
+    160,
+    280
+   ]
+  },
+  "crate": {
+   "bbox": [
+    3,
+    3,
+    177,
+    157
+   ],
+   "bytes": 973,
+   "file": "prop_crate.png",
+   "sha256": "ba45eeb42c86db24f9cb97075b85657eeafb8a0991a233a3aace6017caa0ca04",
+   "size": [
+    180,
+    160
+   ]
+  },
+  "fence": {
+   "bbox": [
+    0,
+    17,
+    420,
+    149
+   ],
+   "bytes": 1796,
+   "file": "prop_fence.png",
+   "sha256": "baeead67889b7e887718484c90466cc738fdb65790b7888617d34c6503f0cff4",
+   "size": [
+    420,
+    150
+   ]
+  },
+  "flag": {
+   "bbox": [
+    23,
+    5,
+    153,
+    319
+   ],
+   "bytes": 2538,
+   "file": "prop_flag.png",
+   "sha256": "bf5211e9cad406634d3e69b8c2b6c40034f0b2fd290eb3500319f2a57950c381",
+   "size": [
+    160,
+    320
+   ]
+  },
+  "house": {
+   "bbox": [
+    0,
+    59,
+    340,
+    297
+   ],
+   "bytes": 3287,
+   "file": "prop_house.png",
+   "sha256": "8c0decec62e62e9260be70317ef033b6e3d53821c527c7c3201f3ee530a6fd24",
+   "size": [
+    340,
+    300
+   ]
+  },
+  "sign": {
+   "bbox": [
+    11,
+    7,
+    229,
+    319
+   ],
+   "bytes": 3382,
+   "file": "prop_sign.png",
+   "sha256": "bd0225872894b7f9dced16eadfb9caf521b3ff5171ca2649cbfc813646a0ae37",
+   "size": [
+    240,
+    320
+   ]
+  },
+  "tree": {
+   "bbox": [
+    17,
+    7,
+    203,
+    339
+   ],
+   "bytes": 10163,
+   "file": "prop_tree.png",
+   "sha256": "166e5d8e9f69db85d0ee856e281a09041aa32b1e2416cc4b0633880d8a0f1913",
+   "size": [
+    220,
+    340
+   ]
+  }
+ },
+ "roles": [
+  "blue",
+  "green",
+  "red",
+  "gold"
+ ],
+ "sets": {
+  "city": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 16288,
+     "file": "set_city_day.png",
+     "sha256": "e1a529607182dfff79af2b54a1691d9fb07bab3f7917eadc0b98790207ce0774",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 17735,
+     "file": "set_city_dusk.png",
+     "sha256": "01d913fa33f1f49843bb2f8c2e34e3402259563607fdf93244f92825dbfd2e2a",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "field": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 42705,
+     "file": "set_field_day.png",
+     "sha256": "a7b1efca753e349e778a720ba7d7cadf6d95a1cf69951366cc51cddfd5278735",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 37467,
+     "file": "set_field_dusk.png",
+     "sha256": "09fff773d25bed82b449757c093ef7c81aa8d32b23d5164de16eea2446284141",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "harbour": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 19620,
+     "file": "set_harbour_day.png",
+     "sha256": "574b90268db96884c05295158596f259c42b631e6df737b3459f025c5da6430e",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 16673,
+     "file": "set_harbour_dusk.png",
+     "sha256": "886c54da44c38bba38651e1e801b738dda66cbc673ca441050fce45e075d28c9",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "room": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 13111,
+     "file": "set_room_day.png",
+     "sha256": "c88f10d2b23cd83287a25549fad5cff309c17533f7ea11df3418d6f966a383d7",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 12851,
+     "file": "set_room_dusk.png",
+     "sha256": "c4c697d4a7fbd0cd53b91a67a6423549518d199c6dd612938b5fce39896dc736",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "town": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 33532,
+     "file": "set_town_day.png",
+     "sha256": "d9430fc71c18d829a29bb2a79b9b19683d974b72885e122a428029df89d9b441",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 29141,
+     "file": "set_town_dusk.png",
+     "sha256": "cf314ae18be8a40f0d4a85c3a53d0a41a5772003275f7c088d75a72cc83a08b1",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  }
+ },
+ "version": 1
+}

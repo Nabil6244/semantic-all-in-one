@@ -1,0 +1,21 @@
+[0] Why did a small red fruit from Ethiopia change the whole world?
+    (nothing)
+[1] Legend says a goat herder noticed his goats dancing after eating the berries.
+    card: legend says a goat herder noticed
+    caption: goats dancing after eating the berries
+[2] By the year 1600 coffee had crossed the sea to Arabia, and merchants guarded the beans like gold.
+    card: 1600 coffee had crossed the sea to Arabia
+    caption: merchants guarded the beans like gold
+[3] But the Dutch smuggled a single plant to their islands, and the monopoly broke.
+    card: monopoly broke
+    caption: Dutch smuggled a single plant to their islands
+[4] Brazil planted millions of trees, and prices fell.
+    card: Brazil planted millions of trees
+    card: prices fell
+[5] Soon farmers in Colombia were growing coffee on steep mountain slopes.
+    card: Colombia were growing coffee on steep mountain
+[6] Today more than 2 billion cups are drunk every day.
+    card: 2 billion cups are drunk every day
+[7] So the story of coffee is really a story of trade, and of the people who work the land.
+    card: people who work the land
+    caption: coffee is really a story of trade

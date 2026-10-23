@@ -1,0 +1,953 @@
+{
+ "explainer_version": 1,
+ "options": {
+  "min_beat_s": 3.2,
+  "max_beat_s": 8.0,
+  "split_over_s": 6.4,
+  "max_still_s": 2.0,
+  "narrator_every_s": 30.0,
+  "narrator_share": 0.45,
+  "max_map_share": 0.3,
+  "max_archive_share": 0.12,
+  "map_min_beat_s": 2.8,
+  "narrator": true,
+  "dissolve_s": 0.0,
+  "fps": 30,
+  "size": [
+   1920,
+   1080
+  ],
+  "fallback_place": "Europe",
+  "archive_dir": "<WORK>/archive_lib",
+  "metaphors": {},
+  "roles": {},
+  "work_dir": "<WORK>/topic_printing_d0.0"
+ },
+ "duration_s": 33.098,
+ "sentences": 8,
+ "sentence_labels": [
+  {
+   "i": 0,
+   "label": "hook",
+   "trigger": "",
+   "start": 0.5,
+   "end": 3.98
+  },
+  {
+   "i": 1,
+   "label": "explain",
+   "trigger": "",
+   "start": 4.73,
+   "end": 8.8
+  },
+  {
+   "i": 2,
+   "label": "explain",
+   "trigger": "",
+   "start": 9.54,
+   "end": 12.73
+  },
+  {
+   "i": 3,
+   "label": "explain",
+   "trigger": "",
+   "start": 13.48,
+   "end": 15.79
+  },
+  {
+   "i": 4,
+   "label": "explain",
+   "trigger": "",
+   "start": 16.53,
+   "end": 19.72
+  },
+  {
+   "i": 5,
+   "label": "twist",
+   "trigger": "but",
+   "start": 20.46,
+   "end": 23.95
+  },
+  {
+   "i": 6,
+   "label": "explain",
+   "trigger": "",
+   "start": 24.69,
+   "end": 27.59
+  },
+  {
+   "i": 7,
+   "label": "conclusion",
+   "trigger": "(last sentence)",
+   "start": 28.33,
+   "end": 32.7
+  }
+ ],
+ "selection": {
+  "place_candidates": [
+   "Before",
+   "Mainz",
+   "Germany",
+   "Ideas",
+   "Within",
+   "Europe",
+   "Readers"
+  ],
+  "places_resolved": {
+   "Mainz": [
+    "city",
+    false
+   ],
+   "Germany": [
+    "country",
+    true
+   ],
+   "Europe": [
+    "region",
+    true
+   ]
+  },
+  "places_ignored": [
+   "Before",
+   "Ideas",
+   "Within",
+   "Readers"
+  ],
+  "archive_notes": [
+   "archive library entry 2: file not found: missing.png",
+   "archive library entry 3: stock_image: references fetch or generate pictures at render time and are refused (local files only)",
+   "archive library entry 4: needs a reason and subjects"
+  ],
+  "beats": [
+   {
+    "id": "e1",
+    "kind": "board",
+    "start": 0.0,
+    "end": 4.728
+   },
+   {
+    "id": "e2",
+    "kind": "map",
+    "start": 4.728,
+    "end": 9.544
+   },
+   {
+    "id": "e3",
+    "kind": "archive",
+    "start": 9.544,
+    "end": 13.478
+   },
+   {
+    "id": "e4",
+    "kind": "board",
+    "start": 13.478,
+    "end": 20.464
+   },
+   {
+    "id": "e5",
+    "kind": "board",
+    "start": 20.464,
+    "end": 24.692
+   },
+   {
+    "id": "e6",
+    "kind": "board",
+    "start": 24.692,
+    "end": 28.332
+   },
+   {
+    "id": "e7",
+    "kind": "board",
+    "start": 28.332,
+    "end": 33.098
+   }
+  ],
+  "notes": {
+   "e4": [
+    "a place is spoken (Europe) but the map budget or the 2-in-a-row limit was reached: board beat"
+   ]
+  }
+ },
+ "beat_details": {
+  "e2": {
+   "kind": "map",
+   "places": [
+    "Mainz",
+    "Germany"
+   ]
+  },
+  "e3": {
+   "kind": "archive",
+   "asset": "<WORK>/archive_lib/press.png",
+   "subjects": [
+    "printing press",
+    "movable metal letters"
+   ]
+  },
+  "e1": {
+   "cues": 6,
+   "kinds": [
+    "card",
+    "chip",
+    "header",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e1_card_r1: added card 'months' inside a 2.3 s still gap (1.48 to 3.73 s)"
+   ],
+   "still_gap_s": 1.76,
+   "narrator": "only",
+   "labels": [
+    "hook"
+   ],
+   "phrases": [
+    {
+     "sentence": 0,
+     "label": "hook",
+     "phrase": "single book took",
+     "asset": "prop:book",
+     "keyword": "book",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_59880cccf0c345f1.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e1_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "surprise",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_header1",
+     "kind": "header",
+     "anchor": {
+      "index": 3
+     },
+     "text": "single book took",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 3
+     },
+     "text": "single book took",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "prop:book",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_chip1",
+     "kind": "chip",
+     "anchor": {
+      "index": 1
+     },
+     "text": "1440",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 11
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 9
+     },
+     "text": "months",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e4": {
+   "cues": 8,
+   "kinds": [
+    "card",
+    "clear",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e4_card_r1: added card 'books filled' inside a 3.8 s still gap (16.63 to 20.46 s)",
+    "e4_card_r2: added card 'march' inside a 2.7 s still gap (13.88 to 16.53 s)",
+    "e4_card_r3: added card 'Europe' inside a 2.4 s still gap (18.10 to 20.46 s)"
+   ],
+   "still_gap_s": 1.76,
+   "narrator": "start",
+   "labels": [
+    "explain",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "ideas spread faster",
+     "asset": "prop:bulb",
+     "keyword": "ideas",
+     "role": "blue",
+     "role_keyword": ""
+    },
+    {
+     "sentence": 4,
+     "label": "explain",
+     "phrase": "within fifty years millions",
+     "asset": "icon:clock",
+     "keyword": "years",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_7c9b421a74703210.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e4_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 0
+     },
+     "text": "ideas spread faster",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "prop:bulb",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 8
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card2",
+     "kind": "card",
+     "anchor": {
+      "index": 8
+     },
+     "text": "within fifty years millions",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:clock",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_n_pose1",
+     "kind": "narrator",
+     "anchor": {
+      "index": 8
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "pose",
+      "pose": "point"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 13
+     },
+     "text": "books filled",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "prop:book",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 7
+     },
+     "text": "march",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r3",
+     "kind": "card",
+     "anchor": {
+      "index": 18
+     },
+     "text": "Europe",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e5": {
+   "cues": 6,
+   "kinds": [
+    "caption",
+    "card",
+    "header",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e5_card_r1: added card 'afraid' inside a 2.4 s still gap (20.46 to 22.82 s)"
+   ],
+   "still_gap_s": 1.28,
+   "narrator": "end",
+   "labels": [
+    "twist"
+   ],
+   "phrases": [
+    {
+     "sentence": 5,
+     "label": "twist",
+     "phrase": "control",
+     "asset": null,
+     "keyword": "",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_d642bafd61823668.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e5_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "point",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_header1",
+     "kind": "header",
+     "anchor": {
+      "index": 9
+     },
+     "text": "control",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 9
+     },
+     "text": "control",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 8
+     },
+     "text": "to control every page",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 11
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 4
+     },
+     "text": "afraid",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e6": {
+   "cues": 1,
+   "kinds": [
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 1.86,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 6,
+     "label": "explain",
+     "phrase": "books slipped across borders",
+     "asset": "prop:book",
+     "keyword": "books",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_a5977f50f1ff3841.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e6_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 6
+     },
+     "text": "books slipped across borders",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "prop:book",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e7": {
+   "cues": 3,
+   "kinds": [
+    "caption",
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e7_card_r1: added card 'read' inside a 2.8 s still gap (28.73 to 31.57 s)"
+   ],
+   "still_gap_s": 1.53,
+   "narrator": "none",
+   "labels": [
+    "conclusion"
+   ],
+   "phrases": [
+    {
+     "sentence": 7,
+     "label": "conclusion",
+     "phrase": "one machine changed",
+     "asset": "icon:gear",
+     "keyword": "machine",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_69db1287885f1245.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e7_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 1
+     },
+     "text": "one machine changed",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:gear",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e7_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 11
+     },
+     "text": "who could be heard",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e7_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 6
+     },
+     "text": "read",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "prop:book",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  }
+ },
+ "story": {
+  "hook": {
+   "present": true,
+   "sentence": 0,
+   "at_s": 0.5,
+   "trigger": ""
+  },
+  "question": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null
+  },
+  "twist": {
+   "present": true,
+   "sentence": 5,
+   "at_s": 20.46,
+   "trigger": "but"
+  },
+  "conclusion": {
+   "present": true,
+   "sentence": 7,
+   "at_s": 28.33,
+   "trigger": "(last sentence)"
+  },
+  "hook_within_30s": true,
+  "question_within_120s": false
+ },
+ "pacing": {
+  "beats": 7,
+  "duration_s": 33.1,
+  "layer_mix_s": {
+   "board": 24.35,
+   "map": 4.82,
+   "archive": 3.93
+  },
+  "layer_mix_share": {
+   "board": 0.736,
+   "map": 0.146,
+   "archive": 0.119
+  },
+  "shot_length": {
+   "median_s": 4.73,
+   "min_s": 3.64,
+   "max_s": 6.99,
+   "share_between_2_and_8_s": 1.0
+  },
+  "change_density": {
+   "windows_2s": 16,
+   "windows_with_a_change": 15,
+   "share": 0.938
+  },
+  "narrator": {
+   "share": 0.482,
+   "longest_absence_s": 8.75,
+   "target_share": 0.45,
+   "target_longest_absence_s": 30.0
+  },
+  "targets": {
+   "median_shot_near_4.6s": true,
+   "90pct_shots_2_to_8s": true,
+   "change_in_95pct_of_2s_windows": false,
+   "narrator_absence_le_30s": true,
+   "narrator_share_35_to_60pct": true
+  }
+ },
+ "metaphors": {
+  "keywords": {
+   "book": {
+    "assets": [
+     "prop:book"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e1"
+    ]
+   },
+   "books": {
+    "assets": [
+     "prop:book"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 2,
+    "beats": [
+     "e4",
+     "e6"
+    ]
+   },
+   "ideas": {
+    "assets": [
+     "prop:bulb"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e4"
+    ]
+   },
+   "machine": {
+    "assets": [
+     "icon:gear"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e7"
+    ]
+   },
+   "read": {
+    "assets": [
+     "prop:book"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e7"
+    ]
+   },
+   "years": {
+    "assets": [
+     "icon:clock"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e4"
+    ]
+   }
+  },
+  "asset_consistent": true,
+  "recurring_keywords": [
+   "books"
+  ]
+ },
+ "relevance_records": 8,
+ "hybrid_validate": {
+  "errors": [],
+  "technical": [],
+  "warnings": [
+   "more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+  ]
+ },
+ "validate_plan_problems": []
+}

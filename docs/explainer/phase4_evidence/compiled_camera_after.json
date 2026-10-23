@@ -1,0 +1,21 @@
+{
+ "start": {
+  "lon": 127.8575,
+  "lat": 36.4883,
+  "zoom": 6.139
+ },
+ "drift": {
+  "pct_per_s": 0.5,
+  "heading_deg": 60
+ },
+ "moves": [
+  {
+   "type": "pull_back",
+   "t": 12.19,
+   "dur": 0.7,
+   "to": {
+    "zoom": 5.139
+   }
+  }
+ ]
+}

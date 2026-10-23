@@ -1,0 +1,177 @@
+audio 28.0s -> /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/media/voice.wav; card -> /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/media/card.png
+[3/4] Locating image files...
+[3/4] Scene clips → /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/work/stub_images/_vg_render_clips
+[3/4] Rendering 1 scene clips...
+       clip 1/1 (28.00s)
+[4/4] Muxing 1 clip(s) + audio…
+[4/4] concat=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/work/stub_images/concat_list.txt
+[4/4] clips_dir=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/work/stub_images/_vg_render_clips
+[4/4] Done. Output: /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/render.mp4
+{
+ "dissolve_s": 0.0,
+ "notes": [
+  "beat b2: sentence boundaries from punctuation",
+  "beat b4: sentence boundaries from punctuation"
+ ],
+ "problems": [],
+ "clips": [
+  "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/b2_board.mp4",
+  "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_0/b4_board.mp4"
+ ],
+ "other_beats_unchanged": true,
+ "settings_dissolve": 0.0,
+ "board_beats_point_to_clips": true,
+ "render_ok": true,
+ "render_errors": [],
+ "render_seconds": 14.9,
+ "video_frames": 840,
+ "runs_match_two_board_beats": true,
+ "clip_frame0": [
+  {
+   "beat": "b2",
+   "video_frame": 205,
+   "time_s": 6.833333333333333,
+   "ideal_origin_s": 6.8,
+   "beat_start_frame_exact": 204.0,
+   "beat_end_frame_exact": 452.0,
+   "run_first": 204,
+   "run_last": 452,
+   "held_frames": 1,
+   "skipped_frames": 0,
+   "held_at": [
+    {
+     "video_frame": 205,
+     "clip_frame": 0
+    }
+   ]
+  },
+  {
+   "beat": "b4",
+   "video_frame": 535,
+   "time_s": 17.833333333333332,
+   "ideal_origin_s": 17.833333333333332,
+   "beat_start_frame_exact": 535.0,
+   "beat_end_frame_exact": 745.0,
+   "run_first": 535,
+   "run_last": 744,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "held_at": []
+  }
+ ],
+ "summary": {
+  "cues_measured": 7,
+  "undetected": [],
+  "max_abs_frame_error_vs_clip_map": 0,
+  "latency_min_s": 0.0213,
+  "latency_max_s": 0.244,
+  "share_latency_in_0_to_0.4s": 1.0,
+  "n_latency": 6
+ }
+}
+[3/4] Locating image files...
+[3/4] Scene clips → /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/work/stub_images/_vg_render_clips
+[3/4] Rendering 1 scene clips...
+       clip 1/1 (28.00s)
+[4/4] Muxing 1 clip(s) + audio…
+[4/4] concat=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/work/stub_images/concat_list.txt
+[4/4] clips_dir=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/work/stub_images/_vg_render_clips
+[4/4] Done. Output: /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/render.mp4
+{
+ "dissolve_s": 0.5,
+ "notes": [
+  "beat b2: sentence boundaries from punctuation",
+  "beat b4: sentence boundaries from punctuation",
+  "dissolve_s is 0.5: each board clip is its beat plus 0.5 s long and its first and last 0.25 s sit under the dissolve"
+ ],
+ "problems": [],
+ "clips": [
+  "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/b2_board.mp4",
+  "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_splice/variant_d0_5/b4_board.mp4"
+ ],
+ "other_beats_unchanged": true,
+ "settings_dissolve": 0.5,
+ "board_beats_point_to_clips": true,
+ "render_ok": true,
+ "render_errors": [],
+ "render_seconds": 15.4,
+ "video_frames": 840,
+ "runs_match_two_board_beats": true,
+ "clip_frame0": [
+  {
+   "beat": "b2",
+   "video_frame": 197,
+   "time_s": 6.566666666666666,
+   "ideal_origin_s": 6.55,
+   "beat_start_frame_exact": 204.0,
+   "beat_end_frame_exact": 452.0,
+   "run_first": 211,
+   "run_last": 445,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "held_at": []
+  },
+  {
+   "beat": "b4",
+   "video_frame": 528,
+   "time_s": 17.6,
+   "ideal_origin_s": 17.583333333333332,
+   "beat_start_frame_exact": 535.0,
+   "beat_end_frame_exact": 745.0,
+   "run_first": 542,
+   "run_last": 738,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "held_at": []
+  }
+ ],
+ "summary": {
+  "cues_measured": 7,
+  "undetected": [],
+  "max_abs_frame_error_vs_clip_map": 0,
+  "latency_min_s": 0.0213,
+  "latency_max_s": 0.244,
+  "share_latency_in_0_to_0.4s": 1.0,
+  "n_latency": 6
+ }
+}
+{
+ "sentence_sources_agree": true,
+ "unknown_beat_refused": true,
+ "map_beat_refused": true,
+ "duplicate_refused": true,
+ "strict_stops_before_any_clip_is_drawn": true,
+ "non_strict_records_problem_and_builds_both": true,
+ "missing_dissolve_s_refused": true,
+ "input_plan_not_mutated": true
+}
+{
+ "punctuated_words_no_sentences": {
+  "source": [
+   "punctuation"
+  ],
+  "all_onsets_equal_to_punctuated": true,
+  "problems": []
+ },
+ "normalised_words_pause_fallback": {
+  "source": [
+   "pauses"
+  ],
+  "all_onsets_equal_to_punctuated": true,
+  "problems": []
+ },
+ "normalised_words_hybrid_pauses": {
+  "source": [
+   "given"
+  ],
+  "all_onsets_equal_to_punctuated": true,
+  "problems": []
+ },
+ "normalised_words_hybrid_script": {
+  "source": [
+   "given"
+  ],
+  "all_onsets_equal_to_punctuated": true,
+  "problems": []
+ }
+}

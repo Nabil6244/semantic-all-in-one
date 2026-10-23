@@ -1,0 +1,131 @@
+{
+ "beats": [
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "Ethiopia"
+    }
+   ],
+   "end": 4.728,
+   "geo_intent": "where Ethiopia is",
+   "id": "e1",
+   "layers": [
+    {
+     "id": "e1_fill1",
+     "place": "Ethiopia",
+     "role": "subject",
+     "t": 2.558,
+     "type": "fill",
+     "until": "beat_end"
+    },
+    {
+     "id": "e1_caption2",
+     "t": 1.382,
+     "text": "small red fruit",
+     "type": "caption",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: Ethiopia",
+   "start": 0.0
+  },
+  {
+   "end": 9.25,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_8306544df272d717.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e2",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 4.728
+  },
+  {
+   "end": 15.242,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_787ee74d030ac444.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 9.25
+  },
+  {
+   "end": 20.058,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_90cc58936143760f.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: twist",
+   "start": 15.242
+  },
+  {
+   "end": 27.044,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_1ed8f48d5cff5c5e.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 20.058
+  },
+  {
+   "end": 30.684,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_fefb26bd0117ba8e.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 27.044
+  },
+  {
+   "end": 36.626,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/topic_coffee_d0.0/explainer/board_0c8a96f97111ee67.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 30.684
+  }
+ ],
+ "duration": 36.626,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

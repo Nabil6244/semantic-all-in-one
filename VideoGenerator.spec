@@ -195,6 +195,12 @@ datas += weather_data_files(ROOT)
 hiddenimports += whatif_modules(ROOT)
 hiddenimports += weather_modules(ROOT)   # app.py imports Weather only inside methods: name every module so none is missed
 
+# Explainer: the narrator layers and the two OFL handwriting fonts (explainer/packaging.py, tested by explainer/spike/verify_m4.py) and every module of the package.
+from explainer.packaging import data_files as explainer_data_files, python_modules as explainer_modules  # noqa: E402
+
+datas += explainer_data_files(ROOT)
+hiddenimports += explainer_modules(ROOT)   # app.py imports the Explainer director only inside methods
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership); _light = the light-theme lettering

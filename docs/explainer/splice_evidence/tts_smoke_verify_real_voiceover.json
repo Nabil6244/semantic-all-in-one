@@ -1,0 +1,465 @@
+{
+ "window": {
+  "hybrid_sentence_index": 2,
+  "beat_in_cut_s": [
+   1.7333,
+   11.2667
+  ],
+  "cut_offset_s": 5.4,
+  "cut_duration_s": 13.433333333333334,
+  "hybrid_sentences_in_total": 9
+ },
+ "cues": [
+  {
+   "id": "r1_type",
+   "kind": "type",
+   "anchor": {
+    "word": "river",
+    "occurrence": 1
+   },
+   "text": "river feeds"
+  },
+  {
+   "id": "r2_pop",
+   "kind": "pop",
+   "anchor": {
+    "word": "farmers"
+   },
+   "text": "farmers"
+  },
+  {
+   "id": "r3_clear",
+   "kind": "clear",
+   "anchor": {
+    "word": "farmers"
+   },
+   "text": ""
+  },
+  {
+   "id": "r4_title",
+   "kind": "title",
+   "anchor": {
+    "word": "glaciers"
+   },
+   "text": "GLACIERS"
+  },
+  {
+   "id": "r5_type_end",
+   "kind": "type",
+   "anchor": {
+    "word": "knows"
+   },
+   "text": "knows how long"
+  }
+ ],
+ "sentence_sources": {
+  "raw_punctuated": {
+   "source": [
+    "punctuation"
+   ],
+   "equal_to_hybrid_sentences": true,
+   "differences_ms": {},
+   "problems": []
+  },
+  "app_words_pause_fallback": {
+   "source": [
+    "pauses"
+   ],
+   "equal_to_hybrid_sentences": true,
+   "differences_ms": {},
+   "problems": []
+  },
+  "app_words_hybrid_sentences": {
+   "source": [
+    "given"
+   ],
+   "equal_to_hybrid_sentences": true,
+   "differences_ms": {},
+   "problems": []
+  }
+ },
+ "word_time_quality": {
+  "words_compared": 8,
+  "mean_ms": -56,
+  "median_ms": -115,
+  "std_ms": 168,
+  "p90_abs_ms": 231,
+  "max_abs_ms": 235,
+  "note": "audio energy onset minus Whisper start, a rough proxy; positive = the audio rises after the transcribed start"
+ },
+ "variants": {
+  "dissolve_0.0_tail_0": {
+   "dissolve_s": 0.0,
+   "tail_frames": 0,
+   "notes": [
+    "beat b2: sentence boundaries from given"
+   ],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 8.0,
+   "video_frames": 400,
+   "board_runs": [
+    {
+     "first": 52,
+     "last": 338,
+     "frames": 287,
+     "code_first": 0,
+     "code_last": 285,
+     "steps": [
+      0,
+      1
+     ],
+     "held_frames": 1,
+     "skipped_frames": 0,
+     "held_at": [
+      {
+       "video_frame": 195,
+       "clip_frame": 142
+      }
+     ],
+     "offset": null,
+     "offset_values": [
+      52,
+      53
+     ]
+    }
+   ],
+   "cues_measured": [
+    {
+     "id": "r1_type",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 2.16,
+     "planned_onset_abs": 2.16,
+     "first_clip_frame": 13,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 65,
+     "detected_video_frame": 65,
+     "latency_vs_word_s": 0.0067,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r2_pop",
+     "kind": "pop",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 5.140000000000001,
+     "first_clip_frame": 103,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 155,
+     "detected_video_frame": 155,
+     "latency_vs_word_s": 0.2267,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r3_clear",
+     "kind": "clear",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 8.22,
+     "first_clip_frame": 195,
+     "sentence_source": "given",
+     "problems": []
+    },
+    {
+     "id": "r4_title",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 8.66,
+     "planned_onset_abs": 8.76,
+     "first_clip_frame": 211,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 264,
+     "detected_video_frame": 264,
+     "latency_vs_word_s": 0.14,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "r5_type_end",
+     "kind": "type",
+     "word": "knows",
+     "word_start_abs": 10.06,
+     "planned_onset_abs": 10.493333333333334,
+     "first_clip_frame": 263,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 316,
+     "detected_video_frame": 316,
+     "latency_vs_word_s": 0.4733,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1,
+     "complete_minus_sentence_end_s": 0.0067
+    }
+   ],
+   "summary": {
+    "runs": 1,
+    "run_held_frames": [
+     1
+    ],
+    "run_held_at": [
+     [
+      {
+       "video_frame": 195,
+       "clip_frame": 142
+      }
+     ]
+    ],
+    "run_skipped_frames": [
+     0
+    ],
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "max_abs_frame_error_vs_builder_plan": 1,
+    "latency_min_s": 0.0067,
+    "latency_max_s": 0.2267
+   }
+  },
+  "dissolve_0.5_tail_0": {
+   "dissolve_s": 0.5,
+   "tail_frames": 0,
+   "notes": [
+    "beat b2: sentence boundaries from given",
+    "dissolve_s is 0.5: each board clip is its beat plus 0.5 s long and its first and last 0.25 s sit under the dissolve"
+   ],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 8.1,
+   "video_frames": 403,
+   "board_runs": [
+    {
+     "first": 59,
+     "last": 331,
+     "frames": 273,
+     "code_first": 14,
+     "code_last": 286,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 45,
+     "offset_values": [
+      45
+     ]
+    }
+   ],
+   "cues_measured": [
+    {
+     "id": "r1_type",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 2.16,
+     "planned_onset_abs": 2.16,
+     "first_clip_frame": 21,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 66,
+     "detected_video_frame": 66,
+     "latency_vs_word_s": 0.04,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "r2_pop",
+     "kind": "pop",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 5.140000000000001,
+     "first_clip_frame": 110,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 155,
+     "detected_video_frame": 155,
+     "latency_vs_word_s": 0.2267,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r3_clear",
+     "kind": "clear",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 8.22,
+     "first_clip_frame": 203,
+     "sentence_source": "given",
+     "problems": []
+    },
+    {
+     "id": "r4_title",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 8.66,
+     "planned_onset_abs": 8.76,
+     "first_clip_frame": 219,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 264,
+     "detected_video_frame": 264,
+     "latency_vs_word_s": 0.14,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1
+    },
+    {
+     "id": "r5_type_end",
+     "kind": "type",
+     "word": "knows",
+     "word_start_abs": 10.06,
+     "planned_onset_abs": 10.493333333333334,
+     "first_clip_frame": 271,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 316,
+     "detected_video_frame": 316,
+     "latency_vs_word_s": 0.4733,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 1,
+     "complete_minus_sentence_end_s": 0.0067
+    }
+   ],
+   "summary": {
+    "runs": 1,
+    "run_held_frames": [
+     0
+    ],
+    "run_held_at": [
+     []
+    ],
+    "run_skipped_frames": [
+     0
+    ],
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "max_abs_frame_error_vs_builder_plan": 1,
+    "latency_min_s": 0.04,
+    "latency_max_s": 0.2267
+   }
+  },
+  "dissolve_0.0_tail_2": {
+   "dissolve_s": 0.0,
+   "tail_frames": 2,
+   "notes": [
+    "beat b2: sentence boundaries from given"
+   ],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 7.5,
+   "video_frames": 400,
+   "board_runs": [
+    {
+     "first": 52,
+     "last": 338,
+     "frames": 287,
+     "code_first": 0,
+     "code_last": 286,
+     "steps": [
+      1
+     ],
+     "held_frames": 0,
+     "skipped_frames": 0,
+     "held_at": [],
+     "offset": 52,
+     "offset_values": [
+      52
+     ]
+    }
+   ],
+   "cues_measured": [
+    {
+     "id": "r1_type",
+     "kind": "type",
+     "word": "river",
+     "word_start_abs": 2.16,
+     "planned_onset_abs": 2.16,
+     "first_clip_frame": 13,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 65,
+     "detected_video_frame": 65,
+     "latency_vs_word_s": 0.0067,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r2_pop",
+     "kind": "pop",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 5.140000000000001,
+     "first_clip_frame": 103,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 155,
+     "detected_video_frame": 155,
+     "latency_vs_word_s": 0.2267,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r3_clear",
+     "kind": "clear",
+     "word": "farmers",
+     "word_start_abs": 4.94,
+     "planned_onset_abs": 8.22,
+     "first_clip_frame": 195,
+     "sentence_source": "given",
+     "problems": []
+    },
+    {
+     "id": "r4_title",
+     "kind": "title",
+     "word": "glaciers",
+     "word_start_abs": 8.66,
+     "planned_onset_abs": 8.76,
+     "first_clip_frame": 211,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 263,
+     "detected_video_frame": 263,
+     "latency_vs_word_s": 0.1067,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0
+    },
+    {
+     "id": "r5_type_end",
+     "kind": "type",
+     "word": "knows",
+     "word_start_abs": 10.06,
+     "planned_onset_abs": 10.493333333333334,
+     "first_clip_frame": 263,
+     "sentence_source": "given",
+     "problems": [],
+     "expected_video_frame_clip_map": 315,
+     "detected_video_frame": 315,
+     "latency_vs_word_s": 0.44,
+     "detected_minus_clip_map_frames": 0,
+     "detected_minus_builder_plan_frames": 0,
+     "complete_minus_sentence_end_s": -0.0267
+    }
+   ],
+   "summary": {
+    "runs": 1,
+    "run_held_frames": [
+     0
+    ],
+    "run_held_at": [
+     []
+    ],
+    "run_skipped_frames": [
+     0
+    ],
+    "undetected": [],
+    "max_abs_frame_error_vs_clip_map": 0,
+    "max_abs_frame_error_vs_builder_plan": 0,
+    "latency_min_s": 0.0067,
+    "latency_max_s": 0.2267
+   }
+  }
+ }
+}

@@ -1,0 +1,24 @@
+[07:20:33] 1. project opened; voiceover bound: voiceover.wav | script chars: 814
+[07:20:33]    Hybrid Map switch found: True
+[07:20:33]    Hybrid enabled: True | mode: hybrid
+[07:20:35] 2. DEFAULT (never touched): switch = False | button = ['disabled', 'Direct with Explainer'] | mapped on screen: 1 | viewable: 1
+[07:20:35]    settings key explainer_style in file: <absent>
+[07:20:35] 3. Hybrid unchanged while off: 'Write plan with AI' = ['normal', 'Write plan with AI'] | 'Load beat CSV' = normal | busy = False | plan = None
+[07:20:35]    direct() called while OFF -> no effect: True | progress card shown: 0
+[07:20:35] 4. Explainer switch widget found: True | text: Explainer look (board clips, narrator, captions)
+[07:20:35]    after switching ON: switch = True | button = ['normal', 'Direct with Explainer'] | settings file explainer_style = True
+[07:20:36]    RUNNING: button = ['disabled', 'Directing…'] | busy = True | progress card shown = True | title: Directing the Explainer look | plan_btn: ['normal', 'Write plan with AI']
+[07:21:05] wait ended ok 28.5 s
+[07:21:05] 5. FINISHED: plan installed = 10 beats | button = ['normal', 'Direct with Explainer'] | busy = False | progress card shown = False | status line: Explainer plan ready: 10 beats. Check the plan, then get the scenes and render as usual. | dialogs: []
+[07:21:05]    beat modes: {'footage': 9, 'map': 1} | visual plan rows (footage): 0 | rows owner: hybrid
+[07:21:05]    first rows: []
+[07:21:05] 6. FAILURE: voiceover replaced by 2 KB of random bytes; clicking Direct with Explainer
+[07:21:06] wait ended ok 0.5 s
+[07:21:06]    after failure: plan unchanged (same object) = True | beats = 10 | button = ['normal', 'Direct with Explainer'] | busy = False | progress card shown = False | status: The Explainer plan could not be made; your current plan is unchanged. | dialog: [('showerror', 'Direct with Explainer', "The plan could not be made. Your current plan is unchanged.\n\n[Errno 1094995529] Invalid data found when processing input: '/private/tmp/claude-501/-Users-muhamm")]
+[07:21:06] 7. STOP: good voiceover restored; clicking Direct, then Stop
+[07:21:07]    running before Stop: button = ['normal', 'Direct with Explainer'] | busy = False | progress card shown = False
+[07:21:07]    immediately after Stop: button = ['normal', 'Direct with Explainer'] | busy = False | progress card shown = False | status: Stopped. Chapters already planned are saved, so planning again continues from there. | plan unchanged = False
+[07:21:52]    45 s later (the stopped worker has answered by now): button = ['normal', 'Direct with Explainer'] | busy = False | plan unchanged = False | new dialogs since Stop: [] | progress card shown = False
+[07:21:52] final settings file: {'projects_root': '/private/tmp/claude-501/-Users-muhammadnabil-Downloads-video-generator-main/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/gui/projects', 'active_project_id': 'project_20261023_001', 'pakmap_channel_name': '', 'explainer_style': True}
+[07:21:52] DONE
+[07:21:52] mainloop ended

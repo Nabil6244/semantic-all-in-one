@@ -1,0 +1,10 @@
+[07:22:40] 9. STOP (slow run): at start switch = True | button = ['normal', 'Direct with Explainer'] | plan restored from the project = 10
+[07:22:40]    cached board clips deleted (so the director must encode again): 9
+[07:22:43]    running: button = ['disabled', 'Directing…'] | busy = True | progress card shown = True | title: Directing the Explainer look
+[07:22:43]    immediately after Stop: button = ['normal', 'Direct with Explainer'] | busy = False | progress card shown = False | status: Stopped. Chapters already planned are saved, so planning again continues from there. | plan unchanged = True | plan beats = 10
+[07:23:03] wait ended ok 20.1 s
+[07:23:23]    worker finished and answered late (clips re-encoded in the background): button = ['normal', 'Direct with Explainer'] | busy = False | plan unchanged = True | dialogs since Stop: [] | progress card shown = False | status: Stopped. Chapters already planned are saved, so planning again continues from there.
+[07:23:23] 10. START AGAIN right after: button invoke works = normal
+[07:23:23] final settings file: {'projects_root': '/private/tmp/claude-501/-Users-muhammadnabil-Downloads-video-generator-main/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/gui/projects', 'active_project_id': 'project_20261023_001', 'pakmap_channel_name': '', 'explainer_style': True}
+[07:23:23] DONE
+[07:23:23] mainloop ended

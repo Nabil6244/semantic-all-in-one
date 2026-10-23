@@ -1,0 +1,2620 @@
+{
+ "explainer_version": 1,
+ "options": {
+  "min_beat_s": 3.2,
+  "max_beat_s": 8.0,
+  "split_over_s": 6.4,
+  "max_still_s": 2.0,
+  "narrator_every_s": 30.0,
+  "narrator_share": 0.45,
+  "max_map_share": 0.3,
+  "max_archive_share": 0.12,
+  "map_min_beat_s": 2.8,
+  "narrator": true,
+  "cartoon_share": 0.3,
+  "look": "reference",
+  "dissolve_s": 0.0,
+  "fps": 30,
+  "size": [
+   1920,
+   1080
+  ],
+  "fallback_place": "Europe",
+  "archive_dir": null,
+  "metaphors": {},
+  "roles": {},
+  "work_dir": "<WORK>/work_korea"
+ },
+ "duration_s": 47.048,
+ "sentences": 13,
+ "sentence_labels": [
+  {
+   "i": 0,
+   "label": "hook",
+   "trigger": "",
+   "start": 0.0,
+   "end": 1.68,
+   "text": "Look at Korea from space at night.",
+   "words": 7
+  },
+  {
+   "i": 1,
+   "label": "explain",
+   "trigger": "",
+   "start": 1.94,
+   "end": 5.1,
+   "text": "The South is blazing with light cities glowing like spilled gold.",
+   "words": 11
+  },
+  {
+   "i": 2,
+   "label": "explain",
+   "trigger": "",
+   "start": 5.32,
+   "end": 7.24,
+   "text": "And then right above it, there's nothing.",
+   "words": 7
+  },
+  {
+   "i": 3,
+   "label": "explain",
+   "trigger": "",
+   "start": 7.56,
+   "end": 11.86,
+   "text": "A black hole the size of England where a country of 26 million people should be.",
+   "words": 16
+  },
+  {
+   "i": 4,
+   "label": "explain",
+   "trigger": "",
+   "start": 12.14,
+   "end": 14.7,
+   "text": "From up there, South Korea looks like an island.",
+   "words": 9
+  },
+  {
+   "i": 5,
+   "label": "explain",
+   "trigger": "",
+   "start": 14.7,
+   "end": 16.76,
+   "text": "That dark country is North Korea.",
+   "words": 6
+  },
+  {
+   "i": 6,
+   "label": "explain",
+   "trigger": "",
+   "start": 17.1,
+   "end": 21.2,
+   "text": "Its founder died in 1994 and officially he's still its eternal leader.",
+   "words": 12
+  },
+  {
+   "i": 7,
+   "label": "explain",
+   "trigger": "",
+   "start": 21.48,
+   "end": 25.62,
+   "text": "Since then, his son and his grandson have run the place like a family business.",
+   "words": 15
+  },
+  {
+   "i": 8,
+   "label": "explain",
+   "trigger": "",
+   "start": 25.62,
+   "end": 31.82,
+   "text": "it's a country where your radio is fixed to the government station where watching a south korean tv show can",
+   "words": 20
+  },
+  {
+   "i": 9,
+   "label": "explain",
+   "trigger": "",
+   "start": 31.82,
+   "end": 37.56,
+   "text": "get you sent to a prison camp and where kids are taught that their leader family has almost magical powers",
+   "words": 20
+  },
+  {
+   "i": 10,
+   "label": "explain",
+   "trigger": "",
+   "start": 37.96,
+   "end": 39.76,
+   "text": "And here's what makes it truly strange.",
+   "words": 7
+  },
+  {
+   "i": 11,
+   "label": "explain",
+   "trigger": "",
+   "start": 39.76,
+   "end": 42.74,
+   "text": "80 years ago, North and South were the same country.",
+   "words": 10
+  },
+  {
+   "i": 12,
+   "label": "explain",
+   "trigger": "",
+   "start": 43.06,
+   "end": 46.06,
+   "text": "Same language, same food, same families.",
+   "words": 6
+  }
+ ],
+ "selection": {
+  "place_candidates": [
+   "Look",
+   "Korea",
+   "South",
+   "England",
+   "South Korea",
+   "North Korea",
+   "North",
+   "Since",
+   "South Korean TV",
+   "South Korean",
+   "Korean TV",
+   "Korean",
+   "TV"
+  ],
+  "places_resolved": {
+   "England": [
+    "region",
+    true
+   ],
+   "South Korea": [
+    "country",
+    true
+   ],
+   "North Korea": [
+    "country",
+    true
+   ]
+  },
+  "places_ignored": [
+   "Look",
+   "Korea",
+   "South (ambiguous direction word, not a place on its own)",
+   "North (ambiguous direction word, not a place on its own)",
+   "Since",
+   "South Korean TV",
+   "South Korean",
+   "Korean TV",
+   "Korean",
+   "TV"
+  ],
+  "archive_notes": [],
+  "places_comparison": [
+   "e2: England (hole the size of england) at 8.8 s: a size comparison, not a place to show"
+  ],
+  "places_not_shown": [],
+  "cartoon_beats": [
+   "e5",
+   "e7"
+  ],
+  "map_layers_rejected": [],
+  "beats": [
+   {
+    "id": "e1",
+    "kind": "board",
+    "start": 0.0,
+    "end": 5.32
+   },
+   {
+    "id": "e2",
+    "kind": "board",
+    "start": 5.32,
+    "end": 12.14
+   },
+   {
+    "id": "e3",
+    "kind": "map",
+    "start": 12.14,
+    "end": 17.1
+   },
+   {
+    "id": "e4",
+    "kind": "board",
+    "start": 17.1,
+    "end": 21.48
+   },
+   {
+    "id": "e5",
+    "kind": "cartoon",
+    "start": 21.48,
+    "end": 25.62
+   },
+   {
+    "id": "e6",
+    "kind": "board",
+    "start": 25.62,
+    "end": 31.82
+   },
+   {
+    "id": "e7",
+    "kind": "cartoon",
+    "start": 31.82,
+    "end": 37.96
+   },
+   {
+    "id": "e8",
+    "kind": "board",
+    "start": 37.96,
+    "end": 43.06
+   },
+   {
+    "id": "e9",
+    "kind": "board",
+    "start": 43.06,
+    "end": 47.048
+   }
+  ],
+  "notes": {
+   "e2": [
+    "England (hole the size of england) at 8.8 s: a size comparison, not a place to show"
+   ],
+   "e3": [
+    "camera: one view for South Korea, North Korea: South Korea at frame region, pulled back 1 (zoom 5.14)",
+    "map still-time repair: caption 'like an island' inside a 2.7 s gap"
+   ],
+   "e5": [
+    "cartoon beat: the words suggest a scene and people"
+   ],
+   "e7": [
+    "cartoon beat: the words suggest a scene and people"
+   ]
+  }
+ },
+ "beat_details": {
+  "e3": {
+   "kind": "map",
+   "places": [
+    "South Korea",
+    "North Korea"
+   ]
+  },
+  "e1": {
+   "cues": 8,
+   "kinds": [
+    "clear",
+    "narrator",
+    "title",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [
+    "e1_line_r1_720_761: added typed line 'South is blazing' inside a 2.3 s still gap (0.94 to 3.22 s)"
+   ],
+   "still_gap_s": 1.6,
+   "still_gap_all_s": 0.0,
+   "still_gap_strict_s": 0.0,
+   "narrator": "start",
+   "labels": [
+    "hook",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 0,
+     "label": "hook",
+     "phrase": "space at night",
+     "asset": null,
+     "keyword": "",
+     "role": "yellow",
+     "role_keyword": "",
+     "first": 4,
+     "last": 6,
+     "as": "title"
+    },
+    {
+     "sentence": 0,
+     "label": "hook",
+     "phrase": "look at Korea from space at night",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 0,
+     "last": 6,
+     "as": "line"
+    },
+    {
+     "sentence": 1,
+     "label": "explain",
+     "phrase": "gold",
+     "asset": "prop:chest",
+     "keyword": "gold",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 17,
+     "last": 17,
+     "as": "tile"
+    },
+    {
+     "sentence": 1,
+     "label": "explain",
+     "phrase": "light cities glowing like spilled gold",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 12,
+     "last": 17,
+     "as": "line"
+    },
+    {
+     "sentence": -1,
+     "label": "repair",
+     "phrase": "South is blazing",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 8,
+     "last": 10,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.362,
+   "clip": "board_4f4f02a186f6a4e6.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e1_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "surprise",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_title1",
+     "kind": "title",
+     "anchor": {
+      "index": 4
+     },
+     "text": "SPACE AT NIGHT",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1270,
+      425
+     ],
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "look at Korea from space at night",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      770,
+      565
+     ],
+     "params": {
+      "style": "line",
+      "width": 1000,
+      "px": 64,
+      "tint": false,
+      "align": "center",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e1_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 17
+     },
+     "text": "gold",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "prop:chest",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1430,
+      298
+     ],
+     "params": {
+      "style": "tile"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 12
+     },
+     "text": "light cities glowing like spilled gold",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      318
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e1_n_pose1",
+     "kind": "narrator",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "pose",
+      "pose": "explain"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_line_r1_720_761",
+     "kind": "visual",
+     "anchor": {
+      "index": 8
+     },
+     "text": "South is blazing",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      761
+     ],
+     "params": {
+      "style": "line",
+      "width": 560,
+      "px": 64,
+      "lines": 2,
+      "tint": false,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e1_title1",
+     "kind": "title",
+     "slot": "",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 29
+    },
+    {
+     "cue": "e1_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "look at Korea from space at night"
+     ],
+     "first_frame": 0
+    },
+    {
+     "cue": "e1_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "gold"
+     ],
+     "first_frame": 145
+    },
+    {
+     "cue": "e1_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "light cities glowing like",
+      "spilled gold"
+     ],
+     "first_frame": 97
+    },
+    {
+     "cue": "e1_line_r1_720_761",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "South is blazing"
+     ],
+     "first_frame": 65
+    }
+   ]
+  },
+  "e2": {
+   "cues": 10,
+   "kinds": [
+    "chip",
+    "clear",
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [],
+   "still_gap_s": 2.02,
+   "still_gap_all_s": 1.68,
+   "still_gap_strict_s": 2.02,
+   "narrator": "end",
+   "labels": [
+    "explain",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 2,
+     "label": "explain",
+     "phrase": "right above",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 20,
+     "last": 21,
+     "as": "line"
+    },
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 34,
+     "last": 34,
+     "as": "tile"
+    },
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "people",
+     "asset": "icon:person",
+     "keyword": "people",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 38,
+     "last": 38,
+     "as": "tile"
+    },
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "black hole the size of England",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 26,
+     "last": 31,
+     "as": "line"
+    },
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "26 million",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 36,
+     "last": 37,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.599,
+   "clip": "board_baaedf1691d8fe19.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e2_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 2
+     },
+     "text": "right above",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      442
+     ],
+     "params": {
+      "style": "line",
+      "width": 1080,
+      "px": 76,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e2_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e2_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 16
+     },
+     "text": "country",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      915,
+      156
+     ],
+     "params": {
+      "style": "tile"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_tile2",
+     "kind": "visual",
+     "anchor": {
+      "index": 20
+     },
+     "text": "people",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "icon:person",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1305,
+      156
+     ],
+     "params": {
+      "style": "tile"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 8
+     },
+     "text": "black hole the size of England",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      616
+     ],
+     "params": {
+      "style": "line",
+      "width": 1100,
+      "px": 64,
+      "tint": false,
+      "align": "center",
+      "lines": 1,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e2_line3",
+     "kind": "visual",
+     "anchor": {
+      "index": 18
+     },
+     "text": "26 million",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      745
+     ],
+     "params": {
+      "style": "line",
+      "width": 1100,
+      "px": 64,
+      "tint": false,
+      "align": "center",
+      "lines": 1,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e2_chip1",
+     "kind": "chip",
+     "anchor": {
+      "index": 18
+     },
+     "text": "26 million",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "px": 72
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_n_pose1",
+     "kind": "narrator",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "pose",
+      "pose": "point"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 22
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e2_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 76,
+     "lines": [
+      "right above"
+     ],
+     "first_frame": 11
+    },
+    {
+     "cue": "e2_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 129
+    },
+    {
+     "cue": "e2_tile2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "people"
+     ],
+     "first_frame": 171
+    },
+    {
+     "cue": "e2_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "black hole the size of England"
+     ],
+     "first_frame": 72
+    },
+    {
+     "cue": "e2_line3",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "26 million"
+     ],
+     "first_frame": 141
+    },
+    {
+     "cue": "e2_chip1",
+     "kind": "chip",
+     "slot": "K1",
+     "font_px": 54,
+     "lines": [],
+     "first_frame": 144
+    }
+   ]
+  },
+  "e4": {
+   "cues": 3,
+   "kinds": [
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [
+    "e4_line_r1_720_761: added typed line 'eternal leader' inside a 3.3 s still gap (18.18 to 21.48 s)"
+   ],
+   "still_gap_s": 2.28,
+   "still_gap_all_s": 1.14,
+   "still_gap_strict_s": 2.28,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 6,
+     "label": "explain",
+     "phrase": "founder died in 1994 and officially",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 57,
+     "last": 62,
+     "as": "line"
+    },
+    {
+     "sentence": -1,
+     "label": "repair",
+     "phrase": "eternal leader",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 66,
+     "last": 67,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.253,
+   "clip": "board_596e5908b3abe075.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e4_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 1
+     },
+     "text": "founder died in 1994 and officially",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      442
+     ],
+     "params": {
+      "style": "line",
+      "width": 1080,
+      "px": 76,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e4_tag1",
+     "kind": "visual",
+     "anchor": {
+      "index": 4
+     },
+     "text": "1994",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1380,
+      130
+     ],
+     "params": {
+      "style": "tag"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_line_r1_720_761",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "eternal leader",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      761
+     ],
+     "params": {
+      "style": "line",
+      "width": 560,
+      "px": 64,
+      "lines": 2,
+      "tint": false,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e4_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 76,
+     "lines": [
+      "founder died in 1994 and officially"
+     ],
+     "first_frame": 6
+    },
+    {
+     "cue": "e4_tag1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 56,
+     "lines": [
+      "1994"
+     ],
+     "first_frame": 33
+    },
+    {
+     "cue": "e4_line_r1_720_761",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "eternal leader"
+     ],
+     "first_frame": 101
+    }
+   ]
+  },
+  "e5": {
+   "cues": 5,
+   "kinds": [
+    "caption",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [],
+   "still_gap_s": 1.14,
+   "still_gap_all_s": 1.14,
+   "still_gap_strict_s": 1.14,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 7,
+     "label": "explain",
+     "phrase": "run the place like a family business",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 76,
+     "last": 82,
+     "as": "caption"
+    }
+   ],
+   "peak_occupancy_share": 0.36,
+   "clip": "board_9ebe4240bb714732.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e5_set1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      0,
+      0
+     ],
+     "params": {
+      "style": "set",
+      "set": "town",
+      "tod": "day"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_fig1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      430,
+      466
+     ],
+     "params": {
+      "style": "figure",
+      "cast": "blue",
+      "pose": "point",
+      "kit": "a",
+      "height": 420,
+      "flip": false
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_fig2",
+     "kind": "visual",
+     "anchor": {
+      "index": 3
+     },
+     "text": "",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      466
+     ],
+     "params": {
+      "style": "figure",
+      "cast": "gold",
+      "pose": "idle",
+      "kit": "a",
+      "height": 420,
+      "flip": true
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_crowd1",
+     "kind": "visual",
+     "anchor": {
+      "index": 13
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1260,
+      711
+     ],
+     "params": {
+      "style": "crowd",
+      "n": 7,
+      "height": 170,
+      "seed": 4
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 8
+     },
+     "text": "run the place like a family business",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "mode": "words"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e5_set1",
+     "kind": "visual",
+     "slot": "backdrop",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 0
+    },
+    {
+     "cue": "e5_fig1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 3
+    },
+    {
+     "cue": "e5_fig2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 36
+    },
+    {
+     "cue": "e5_crowd1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 102
+    },
+    {
+     "cue": "e5_caption1",
+     "kind": "caption",
+     "slot": "B",
+     "font_px": 48,
+     "lines": [
+      "run the place like a family business"
+     ],
+     "first_frame": 70
+    }
+   ]
+  },
+  "e6": {
+   "cues": 5,
+   "kinds": [
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [],
+   "still_gap_s": 2.42,
+   "still_gap_all_s": 1.56,
+   "still_gap_strict_s": 2.42,
+   "narrator": "only",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 85,
+     "last": 85,
+     "as": "circle"
+    },
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "radio is fixed to the government station",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 88,
+     "last": 94,
+     "as": "line"
+    },
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "where watching a South Korean TV show",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 95,
+     "last": 101,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.415,
+   "clip": "board_b383c318620d2083.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e6_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e6_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 2
+     },
+     "text": "country",
+     "role": "red",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      740,
+      284
+     ],
+     "params": {
+      "style": "circle"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e6_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 5
+     },
+     "text": "radio is fixed to the government station",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1090,
+      304
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e6_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 12
+     },
+     "text": "where watching a South Korean TV show",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1090,
+      530
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e6_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 18
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e6_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 24
+    },
+    {
+     "cue": "e6_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "radio is fixed to the",
+      "government station"
+     ],
+     "first_frame": 44
+    },
+    {
+     "cue": "e6_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "where watching a South",
+      "Korean TV show"
+     ],
+     "first_frame": 117
+    }
+   ]
+  },
+  "e7": {
+   "cues": 5,
+   "kinds": [
+    "caption",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [],
+   "still_gap_s": 3.08,
+   "still_gap_all_s": 3.08,
+   "still_gap_strict_s": 3.08,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 9,
+     "label": "explain",
+     "phrase": "get you sent to a prison camp",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 103,
+     "last": 109,
+     "as": "caption"
+    }
+   ],
+   "peak_occupancy_share": 0.35,
+   "clip": "board_b73c1387c0c036cf.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e7_set1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      0,
+      0
+     ],
+     "params": {
+      "style": "set",
+      "set": "town",
+      "tod": "day"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e7_fig1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      430,
+      466
+     ],
+     "params": {
+      "style": "figure",
+      "cast": "blue",
+      "pose": "point",
+      "kit": "a",
+      "height": 420,
+      "flip": false
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e7_fig2",
+     "kind": "visual",
+     "anchor": {
+      "index": 5
+     },
+     "text": "",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      466
+     ],
+     "params": {
+      "style": "figure",
+      "cast": "gold",
+      "pose": "idle",
+      "kit": "a",
+      "height": 420,
+      "flip": true
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e7_crowd1",
+     "kind": "visual",
+     "anchor": {
+      "index": 12
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1260,
+      711
+     ],
+     "params": {
+      "style": "crowd",
+      "n": 7,
+      "height": 170,
+      "seed": 6
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e7_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 0
+     },
+     "text": "get you sent to a prison camp",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "mode": "words"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e7_set1",
+     "kind": "visual",
+     "slot": "backdrop",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 0
+    },
+    {
+     "cue": "e7_fig1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 3
+    },
+    {
+     "cue": "e7_fig2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 30
+    },
+    {
+     "cue": "e7_crowd1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 0,
+     "lines": [],
+     "first_frame": 92
+    },
+    {
+     "cue": "e7_caption1",
+     "kind": "caption",
+     "slot": "B",
+     "font_px": 48,
+     "lines": [
+      "get you sent to a prison camp"
+     ],
+     "first_frame": 0
+    }
+   ]
+  },
+  "e8": {
+   "cues": 8,
+   "kinds": [
+    "clear",
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [],
+   "still_gap_s": 1.4,
+   "still_gap_all_s": 0.0,
+   "still_gap_strict_s": 0.0,
+   "narrator": "start",
+   "labels": [
+    "explain",
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 10,
+     "label": "explain",
+     "phrase": "makes it truly strange",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 126,
+     "last": 129,
+     "as": "line"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "country",
+     "asset": "prop:flag",
+     "keyword": "country",
+     "role": "gold",
+     "role_keyword": "",
+     "first": 139,
+     "last": 139,
+     "as": "circle"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "80 years ago",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 130,
+     "last": 132,
+     "as": "line"
+    },
+    {
+     "sentence": 11,
+     "label": "explain",
+     "phrase": "North and South were the same country",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 133,
+     "last": 139,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.412,
+   "clip": "board_7d87073aa8f1e1da.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e8_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e8_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 3
+     },
+     "text": "makes it truly strange",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      442
+     ],
+     "params": {
+      "style": "line",
+      "width": 1080,
+      "px": 76,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e8_clear1",
+     "kind": "clear",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e8_tile1",
+     "kind": "visual",
+     "anchor": {
+      "index": 16
+     },
+     "text": "country",
+     "role": "red",
+     "offset_s": null,
+     "asset": "prop:flag",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1430,
+      313
+     ],
+     "params": {
+      "style": "circle"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e8_line2",
+     "kind": "visual",
+     "anchor": {
+      "index": 7
+     },
+     "text": "80 years ago",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      333
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e8_line3",
+     "kind": "visual",
+     "anchor": {
+      "index": 10
+     },
+     "text": "North and South were the same country",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      472
+     ],
+     "params": {
+      "style": "line",
+      "width": 660,
+      "px": 64,
+      "tint": false,
+      "align": "",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e8_tag1",
+     "kind": "visual",
+     "anchor": {
+      "index": 7
+     },
+     "text": "80 years",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      1380,
+      130
+     ],
+     "params": {
+      "style": "tag"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e8_n_pose1",
+     "kind": "narrator",
+     "anchor": {
+      "index": 7
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "pose",
+      "pose": "point"
+     },
+     "cps": 30.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e8_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 76,
+     "lines": [
+      "makes it truly strange"
+     ],
+     "first_frame": 18
+    },
+    {
+     "cue": "e8_tile1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 58,
+     "lines": [
+      "country"
+     ],
+     "first_frame": 134
+    },
+    {
+     "cue": "e8_line2",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "80 years ago"
+     ],
+     "first_frame": 54
+    },
+    {
+     "cue": "e8_line3",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "North and South were",
+      "the same country"
+     ],
+     "first_frame": 92
+    },
+    {
+     "cue": "e8_tag1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 56,
+     "lines": [
+      "80 years"
+     ],
+     "first_frame": 57
+    }
+   ]
+  },
+  "e9": {
+   "cues": 5,
+   "kinds": [
+    "narrator",
+    "visual"
+   ],
+   "dropped": [],
+   "rescued": [],
+   "lost": [],
+   "repairs": [
+    "e9_line_r1_720_761: added typed line 'same food' inside a 2.1 s still gap (43.16 to 45.24 s)"
+   ],
+   "still_gap_s": 1.81,
+   "still_gap_all_s": 0.0,
+   "still_gap_strict_s": 0.0,
+   "narrator": "end",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 12,
+     "label": "explain",
+     "phrase": "same language",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 140,
+     "last": 141,
+     "as": "scroll"
+    },
+    {
+     "sentence": 12,
+     "label": "explain",
+     "phrase": "same families",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 144,
+     "last": 145,
+     "as": "line"
+    },
+    {
+     "sentence": -1,
+     "label": "repair",
+     "phrase": "same food",
+     "asset": null,
+     "keyword": "",
+     "role": "ink",
+     "role_keyword": "",
+     "first": 142,
+     "last": 143,
+     "as": "line"
+    }
+   ],
+   "peak_occupancy_share": 0.458,
+   "clip": "board_c47fc997c1709627.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e9_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "point",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e9_scroll1",
+     "kind": "visual",
+     "anchor": {
+      "index": 0
+     },
+     "text": "same language",
+     "role": "gold",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      900,
+      262
+     ],
+     "params": {
+      "style": "scroll"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e9_line1",
+     "kind": "visual",
+     "anchor": {
+      "index": 4
+     },
+     "text": "same families",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      800,
+      632
+     ],
+     "params": {
+      "style": "line",
+      "width": 1000,
+      "px": 68,
+      "tint": false,
+      "align": "center",
+      "lines": 2,
+      "sync": true
+     },
+     "cps": 34.0
+    },
+    {
+     "id": "e9_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 5
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e9_line_r1_720_761",
+     "kind": "visual",
+     "anchor": {
+      "index": 2
+     },
+     "text": "same food",
+     "role": "ink",
+     "offset_s": 0.0,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": [
+      720,
+      761
+     ],
+     "params": {
+      "style": "line",
+      "width": 560,
+      "px": 64,
+      "lines": 2,
+      "tint": false,
+      "sync": true
+     },
+     "cps": 34.0
+    }
+   ],
+   "layout": [
+    {
+     "cue": "e9_scroll1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 66,
+     "lines": [
+      "same language"
+     ],
+     "first_frame": 3
+    },
+    {
+     "cue": "e9_line1",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 68,
+     "lines": [
+      "same families"
+     ],
+     "first_frame": 66
+    },
+    {
+     "cue": "e9_line_r1_720_761",
+     "kind": "visual",
+     "slot": "free",
+     "font_px": 64,
+     "lines": [
+      "same food"
+     ],
+     "first_frame": 38
+    }
+   ]
+  }
+ },
+ "story": {
+  "hook": {
+   "present": true,
+   "sentence": 0,
+   "at_s": 0.0,
+   "trigger": "",
+   "explicit": false,
+   "basis": "position: the first sentence"
+  },
+  "question": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "twist": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "conclusion": {
+   "present": false,
+   "sentence": null,
+   "at_s": null,
+   "trigger": null,
+   "explicit": null,
+   "basis": "a cue word or phrase in the narration or script punctuation"
+  },
+  "hook_within_30s": true,
+  "question_within_120s": false
+ },
+ "pacing": {
+  "beats": 9,
+  "duration_s": 47.05,
+  "layer_mix_s": {
+   "board": 31.81,
+   "map": 4.96,
+   "cartoon": 10.28
+  },
+  "layer_mix_share": {
+   "board": 0.676,
+   "map": 0.105,
+   "cartoon": 0.219
+  },
+  "shot_length": {
+   "median_s": 5.1,
+   "min_s": 3.99,
+   "max_s": 6.82,
+   "share_between_2_and_8_s": 1.0
+  },
+  "change_density": {
+   "windows_2s": 23,
+   "windows_with_a_change": 23,
+   "share": 1.0
+  },
+  "meaningful_change_density": {
+   "windows_2s": 23,
+   "windows_with_a_change": 23,
+   "share": 1.0,
+   "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+  },
+  "narrator": {
+   "share": 0.583,
+   "longest_absence_s": 13.48,
+   "target_share": 0.45,
+   "target_longest_absence_s": 30.0
+  },
+  "targets": {
+   "median_shot_near_4.6s": true,
+   "90pct_shots_2_to_8s": true,
+   "change_in_95pct_of_2s_windows": true,
+   "narrator_absence_le_30s": true,
+   "narrator_share_35_to_60pct": true
+  }
+ },
+ "metaphors": {
+  "keywords": {
+   "country": {
+    "assets": [
+     "prop:flag"
+    ],
+    "roles": [
+     "red"
+    ],
+    "count": 3,
+    "beats": [
+     "e2",
+     "e6",
+     "e8"
+    ]
+   },
+   "gold": {
+    "assets": [
+     "prop:chest"
+    ],
+    "roles": [
+     "gold"
+    ],
+    "count": 1,
+    "beats": [
+     "e1"
+    ]
+   },
+   "people": {
+    "assets": [
+     "icon:person"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e2"
+    ]
+   }
+  },
+  "asset_consistent": true,
+  "recurring_keywords": [
+   "country"
+  ]
+ },
+ "change_events_s": [
+  0.0,
+  0.14,
+  0.32,
+  0.4,
+  0.56,
+  0.84,
+  0.94,
+  1.22,
+  1.44,
+  1.94,
+  2.14,
+  2.4,
+  2.6,
+  3.22,
+  3.42,
+  3.74,
+  4.1,
+  4.42,
+  4.72,
+  4.82,
+  5.32,
+  5.32,
+  5.68,
+  5.88,
+  7.56,
+  7.7,
+  7.92,
+  8.18,
+  8.38,
+  8.6,
+  8.82,
+  9.62,
+  10.02,
+  10.12,
+  10.52,
+  11.02,
+  11.6,
+  12.14,
+  12.14,
+  12.19,
+  13.06,
+  13.36,
+  14.0,
+  16.1,
+  16.4,
+  17.1,
+  17.28,
+  17.6,
+  17.88,
+  18.08,
+  18.18,
+  18.76,
+  19.32,
+  20.46,
+  20.8,
+  21.48,
+  21.48,
+  21.58,
+  22.66,
+  23.8,
+  23.98,
+  24.14,
+  24.38,
+  24.62,
+  24.78,
+  24.88,
+  25.14,
+  25.62,
+  25.62,
+  26.02,
+  26.42,
+  27.08,
+  27.42,
+  27.7,
+  27.94,
+  28.16,
+  28.26,
+  28.62,
+  29.5,
+  29.543,
+  29.586,
+  29.629,
+  29.671,
+  29.714,
+  29.757,
+  31.32,
+  31.82,
+  31.82,
+  31.92,
+  32.0,
+  32.18,
+  32.42,
+  32.62,
+  32.72,
+  32.82,
+  33.02,
+  34.88,
+  37.96,
+  37.96,
+  38.36,
+  38.54,
+  38.76,
+  38.84,
+  38.92,
+  39.76,
+  39.86,
+  40.04,
+  40.3,
+  41.02,
+  41.26,
+  41.44,
+  41.78,
+  41.92,
+  42.08,
+  42.32,
+  42.42,
+  43.06,
+  43.06,
+  43.16,
+  44.3,
+  44.58,
+  45.24,
+  45.52,
+  47.048
+ ],
+ "meaningful_change_events_s": [
+  0.0,
+  0.94,
+  2.14,
+  3.22,
+  4.82,
+  5.32,
+  5.32,
+  5.68,
+  7.7,
+  9.62,
+  10.02,
+  10.12,
+  11.02,
+  12.14,
+  12.14,
+  12.19,
+  13.06,
+  13.36,
+  14.0,
+  16.1,
+  16.4,
+  17.1,
+  17.28,
+  18.18,
+  20.46,
+  21.48,
+  21.48,
+  21.58,
+  22.66,
+  23.8,
+  24.88,
+  25.62,
+  25.62,
+  26.42,
+  27.08,
+  29.5,
+  31.82,
+  31.82,
+  31.92,
+  32.82,
+  34.88,
+  37.96,
+  37.96,
+  38.54,
+  39.76,
+  39.86,
+  41.02,
+  42.42,
+  43.06,
+  43.06,
+  43.16,
+  44.3,
+  45.24,
+  47.048
+ ],
+ "relevance_records": 13,
+ "hybrid_validate": {
+  "errors": [],
+  "technical": [],
+  "warnings": [
+   "the first photo card appears at 47s: open with a card inside the first 15 seconds so the picture work starts early"
+  ]
+ },
+ "validate_plan_problems": []
+}

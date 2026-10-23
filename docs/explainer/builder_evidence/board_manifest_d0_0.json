@@ -1,0 +1,198 @@
+{
+ "clip": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/builder_run/variant_d0_0/board.mp4",
+ "clip_length_s": 8.0,
+ "clip_origin_s": 9.0,
+ "cues": [
+  {
+   "anchor": {
+    "word": "river"
+   },
+   "at": "word",
+   "bbox": [
+    696,
+    128,
+    985,
+    187
+   ],
+   "finish_with": null,
+   "first_frame": 15,
+   "id": "c1_type",
+   "kind": "type",
+   "offset_s": null,
+   "onset_abs": 9.494,
+   "onset_clip": 0.4939999999999998,
+   "planned_video_frame": 285,
+   "problems": [],
+   "role": "blue",
+   "sentence_end_abs": 10.92,
+   "sentence_start_abs": 9.2,
+   "text": "one river",
+   "type_duration_s": 0.3,
+   "word": "river",
+   "word_start_abs": 9.494
+  },
+  {
+   "anchor": {
+    "word": "farmers"
+   },
+   "at": "word",
+   "bbox": [
+    688,
+    508,
+    912,
+    838
+   ],
+   "finish_with": null,
+   "first_frame": 78,
+   "id": "c2_pop",
+   "kind": "pop",
+   "offset_s": null,
+   "onset_abs": 11.6,
+   "onset_clip": 2.5999999999999996,
+   "planned_video_frame": 348,
+   "problems": [],
+   "role": "blue",
+   "sentence_end_abs": 13.414,
+   "sentence_start_abs": 11.4,
+   "text": "farmers",
+   "type_duration_s": null,
+   "word": "Farmers",
+   "word_start_abs": 11.4
+  },
+  {
+   "anchor": {
+    "word": "water"
+   },
+   "at": "word",
+   "bbox": [
+    1068,
+    508,
+    1292,
+    838
+   ],
+   "finish_with": null,
+   "first_frame": 114,
+   "id": "c3_pop",
+   "kind": "pop",
+   "offset_s": null,
+   "onset_abs": 12.776,
+   "onset_clip": 3.776,
+   "planned_video_frame": 384,
+   "problems": [],
+   "role": "green",
+   "sentence_end_abs": 13.414,
+   "sentence_start_abs": 11.4,
+   "text": "water",
+   "type_duration_s": null,
+   "word": "water",
+   "word_start_abs": 12.576
+  },
+  {
+   "anchor": {
+    "word": "water"
+   },
+   "at": "next_sentence",
+   "bbox": null,
+   "finish_with": null,
+   "first_frame": 155,
+   "id": "c4_clear",
+   "kind": "clear",
+   "offset_s": null,
+   "onset_abs": 14.15,
+   "onset_clip": 5.15,
+   "planned_video_frame": 425,
+   "problems": [],
+   "role": "blue",
+   "sentence_end_abs": 13.414,
+   "sentence_start_abs": 11.4,
+   "text": "",
+   "type_duration_s": null,
+   "word": "water",
+   "word_start_abs": 12.576
+  },
+  {
+   "anchor": {
+    "word": "glaciers"
+   },
+   "at": "word",
+   "bbox": [
+    566,
+    338,
+    1354,
+    461
+   ],
+   "finish_with": null,
+   "first_frame": 176,
+   "id": "c5_title",
+   "kind": "title",
+   "offset_s": null,
+   "onset_abs": 14.838,
+   "onset_clip": 5.837999999999999,
+   "planned_video_frame": 446,
+   "problems": [],
+   "role": "blue",
+   "sentence_end_abs": 16.752,
+   "sentence_start_abs": 14.15,
+   "text": "THE TWIST",
+   "type_duration_s": null,
+   "word": "glaciers",
+   "word_start_abs": 14.738
+  },
+  {
+   "anchor": {
+    "word": "nobody"
+   },
+   "at": "word",
+   "bbox": [
+    696,
+    871,
+    1468,
+    940
+   ],
+   "finish_with": "sentence_end",
+   "first_frame": 212,
+   "id": "c6_type_end",
+   "kind": "type",
+   "offset_s": null,
+   "onset_abs": 16.052,
+   "onset_clip": 7.052,
+   "planned_video_frame": 482,
+   "problems": [],
+   "role": "blue",
+   "sentence_end_abs": 16.752,
+   "sentence_start_abs": 14.15,
+   "text": "nobody knows how long",
+   "type_duration_s": 0.7,
+   "word": "nobody",
+   "word_start_abs": 15.62
+  }
+ ],
+ "fps": 30,
+ "instrument": true,
+ "n_frames": 240,
+ "plan_fragment": {
+  "beat": {
+   "end": 17.0,
+   "footage": {
+    "clips": [
+     {
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-Hi6zOL/e8dc3ee2-6b87-400e-899a-4a67f9520786/scratchpad/explainer_spike/builder_run/variant_d0_0/board.mp4",
+      "reason": "Explainer board clip, word-timed"
+     }
+    ]
+   },
+   "id": "b2",
+   "mode": "footage",
+   "purpose": "board clip",
+   "start": 9.0
+  },
+  "settings": {
+   "dissolve_s": 0.0
+  }
+ },
+ "problems": [],
+ "size": [
+  1920,
+  1080
+ ]
+}

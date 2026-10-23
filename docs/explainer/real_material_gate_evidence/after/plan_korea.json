@@ -1,0 +1,169 @@
+{
+ "beats": [
+  {
+   "end": 5.32,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_4f4f02a186f6a4e6.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e1",
+   "mode": "footage",
+   "purpose": "explainer board: hook",
+   "start": 0.0
+  },
+  {
+   "end": 12.14,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_baaedf1691d8fe19.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e2",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 5.32
+  },
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "South Korea"
+    }
+   ],
+   "end": 17.1,
+   "geo_intent": "where South Korea is",
+   "id": "e3",
+   "layers": [
+    {
+     "id": "e3_fill1",
+     "place": "South Korea",
+     "role": "subject",
+     "t": 13.06,
+     "type": "fill",
+     "until": "beat_end"
+    },
+    {
+     "id": "e3_fill2",
+     "place": "North Korea",
+     "role": "subject",
+     "t": 16.1,
+     "type": "fill",
+     "until": "beat_end"
+    },
+    {
+     "id": "e3_caption3",
+     "t": 13.66,
+     "text": "looks like an island",
+     "type": "caption",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: South Korea, North Korea",
+   "start": 12.14
+  },
+  {
+   "end": 21.48,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_596e5908b3abe075.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 17.1
+  },
+  {
+   "end": 25.62,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_7d39ac79500db5ee.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 21.48
+  },
+  {
+   "end": 31.82,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_bb1b3fcd590eeb41.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 25.62
+  },
+  {
+   "end": 37.96,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_cc0ce3a5ad37f999.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 31.82
+  },
+  {
+   "end": 43.06,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_27701d50de171618.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e8",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 37.96
+  },
+  {
+   "end": 47.048,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_7940dbd9ba17c7bb.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e9",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 43.06
+  }
+ ],
+ "duration": 47.048,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

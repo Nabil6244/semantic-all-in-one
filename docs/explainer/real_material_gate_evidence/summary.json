@@ -1,0 +1,193 @@
+{
+ "korea": {
+  "topic": "korea",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "hybrid.validate: the first photo card appears at 47s: open with a card inside the first 15 seconds so the picture work starts early"
+  ],
+  "seconds": 19.5,
+  "duration_s": 47.048,
+  "phrase_metrics": {
+   "texts": 18,
+   "cards": 0,
+   "mean_words": 4.44,
+   "share_3_or_more_words": 0.611,
+   "fragment_rate_edge_function_or_weak_word": 0.056,
+   "single_non_number_word_rate": 0.167,
+   "content_coverage_mean": 0.586,
+   "sentences_with_no_text": 6,
+   "sentences": 13,
+   "distinct_phrases_share": 0.889,
+   "font_px_min": 56,
+   "font_px_mean": 64.2
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "Look at Korea from space at night.",
+    "texts": []
+   },
+   {
+    "sentence": 1,
+    "text": "The South is blazing with light cities glowing like spilled gold.",
+    "texts": []
+   },
+   {
+    "sentence": 2,
+    "text": "And then right above it, there's nothing.",
+    "texts": []
+   },
+   {
+    "sentence": 3,
+    "text": "A black hole the size of England where a country of 26 million people should be.",
+    "texts": []
+   },
+   {
+    "sentence": 4,
+    "text": "From up there, South Korea looks like an island.",
+    "texts": [
+     "visual: South Korea looks like an island"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "That dark country is North Korea.",
+    "texts": [
+     "visual: country",
+     "visual: dark country is North Korea"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Its founder died in 1994 and officially he's still its eternal leader.",
+    "texts": [
+     "visual: founder died in 1994 and officially he's",
+     "visual: 1994",
+     "visual: eternal leader"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "Since then, his son and his grandson have run the place like a family business.",
+    "texts": [
+     "visual: place like a family business it's",
+     "visual: son and his grandson have run"
+    ]
+   },
+   {
+    "sentence": 8,
+    "text": "It's a country where your radio is fixed to the government station, where watching a South Korean TV show can get you se",
+    "texts": [
+     "visual: country",
+     "visual: radio is fixed to the government station",
+     "visual: where watching a South Korean TV show",
+     "visual: get you sent to a prison camp",
+     "visual: leader family has almost magical powers"
+    ]
+   },
+   {
+    "sentence": 9,
+    "text": "And here's what makes it truly strange.",
+    "texts": [
+     "visual: here's what makes it truly strange 80",
+     "visual: 80",
+     "visual: years ago"
+    ]
+   },
+   {
+    "sentence": 10,
+    "text": "80 years ago, North and South were the same country.",
+    "texts": [
+     "visual: 80",
+     "visual: country",
+     "visual: years ago",
+     "visual: North and South were the same country"
+    ]
+   },
+   {
+    "sentence": 11,
+    "text": "Same language, same food, same families.",
+    "texts": []
+   },
+   {
+    "sentence": 12,
+    "text": "So,",
+    "texts": []
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "map": 0.258,
+    "board": 0.742
+   },
+   "T02_median_shot_s": 5.1,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 23,
+    "windows_with_a_change": 20,
+    "share": 0.87
+   },
+   "T03_meaningful_change_windows": {
+    "windows_2s": 23,
+    "windows_with_a_change": 19,
+    "share": 0.826,
+    "counts": "element starts (picture, title, line, box, tag, scroll, chip, arrow, card, caption), map layers and camera steps, archive start, beat cuts; not narrator poses, clears or per-word growth"
+   },
+   "peak_occupancy_share": [
+    0.297,
+    0.383,
+    0.394,
+    0.415,
+    0.502,
+    0.349,
+    0.0
+   ],
+   "T04_longest_still_all_s": 3.24,
+   "T04_longest_still_strict_s": 3.99,
+   "T04_longest_still_s": 3.99,
+   "T05_narrator": {
+    "share": 0.503,
+    "longest_absence_s": 12.14,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 0.75,
+   "T09_captions": {
+    "n": 0,
+    "share_8_words_or_fewer": 0.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 38.3,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.0,
+     "trigger": "",
+     "explicit": false
+    },
+    "question": {
+     "present": false,
+     "at_s": null,
+     "trigger": null,
+     "explicit": null
+    },
+    "twist": {
+     "present": false,
+     "at_s": null,
+     "trigger": null,
+     "explicit": null
+    },
+    "conclusion": {
+     "present": false,
+     "at_s": null,
+     "trigger": null,
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": false
+   }
+  },
+  "render_ok": true
+ }
+}

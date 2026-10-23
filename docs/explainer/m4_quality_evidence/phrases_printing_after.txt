@@ -1,0 +1,22 @@
+[0] Before 1440 a single book took a monk many months to copy.
+    card: monk many months to copy
+    caption: before 1440 a single book took
+[1] Then a goldsmith in Mainz, in Germany, built a machine with movable metal letters.
+    (nothing)
+[2] The printing press could make hundreds of pages in a day.
+    (nothing)
+[3] Ideas spread faster than any army could march.
+    card: ideas spread faster than any army could march
+[4] Within fifty years millions of books filled the cities of Europe.
+    card: within fifty years millions of books filled
+    caption: cities of Europe
+[5] But the rulers were afraid, and they tried to control every page.
+    card: rulers were afraid
+    card: tried to control every page
+[6] Readers wanted to learn, and the books slipped across borders.
+    card: readers wanted to learn
+    card: books slipped across borders
+[7] So one machine changed who could read, who could argue, and who could be heard.
+    card: machine changed who could read
+    card: who could argue
+    card: who could be heard

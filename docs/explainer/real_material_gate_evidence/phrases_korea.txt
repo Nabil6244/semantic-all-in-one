@@ -1,0 +1,39 @@
+[0] Look at Korea from space at night.
+    (nothing)
+[1] The South is blazing with light cities glowing like spilled gold.
+    (nothing)
+[2] And then right above it, there's nothing.
+    (nothing)
+[3] A black hole the size of England where a country of 26 million people should be.
+    (nothing)
+[4] From up there, South Korea looks like an island.
+    visual: South Korea looks like an island
+[5] That dark country is North Korea.
+    visual: country
+    visual: dark country is North Korea
+[6] Its founder died in 1994 and officially he's still its eternal leader.
+    visual: founder died in 1994 and officially he's
+    visual: 1994
+    visual: eternal leader
+[7] Since then, his son and his grandson have run the place like a family business.
+    visual: place like a family business it's
+    visual: son and his grandson have run
+[8] It's a country where your radio is fixed to the government station, where watching a South Korean TV show can get you se
+    visual: country
+    visual: radio is fixed to the government station
+    visual: where watching a South Korean TV show
+    visual: get you sent to a prison camp
+    visual: leader family has almost magical powers
+[9] And here's what makes it truly strange.
+    visual: here's what makes it truly strange 80
+    visual: 80
+    visual: years ago
+[10] 80 years ago, North and South were the same country.
+    visual: 80
+    visual: country
+    visual: years ago
+    visual: North and South were the same country
+[11] Same language, same food, same families.
+    (nothing)
+[12] So,
+    (nothing)

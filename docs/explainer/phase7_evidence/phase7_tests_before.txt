@@ -1,0 +1,228 @@
+test_cast_sprites_are_visible_and_inside_their_canvas (__main__.Assets.test_cast_sprites_are_visible_and_inside_their_canvas) ... ERROR
+test_manifest_counts_and_hashes (__main__.Assets.test_manifest_counts_and_hashes) ... ok
+test_narrator_assets_are_untouched_by_building_the_kit (__main__.Assets.test_narrator_assets_are_untouched_by_building_the_kit) ... ok
+test_the_cast_looks_different_from_the_narrator_but_shares_its_body (__main__.Assets.test_the_cast_looks_different_from_the_narrator_but_shares_its_body) ... ERROR
+test_the_kit_is_built_once_and_the_files_on_disk_are_exactly_the_build (__main__.Assets.test_the_kit_is_built_once_and_the_files_on_disk_are_exactly_the_build) ... ok
+test_the_loader_refuses_a_damaged_file_and_never_builds (__main__.Assets.test_the_loader_refuses_a_damaged_file_and_never_builds) ... ERROR
+test_a_backdrop_figure_and_prop_build_without_problems (__main__.Cues.test_a_backdrop_figure_and_prop_build_without_problems) ... FAIL
+test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time (__main__.Cues.test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time) ... FAIL
+test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic (__main__.Cues.test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic) ... FAIL
+test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins (__main__.Cues.test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins) ... FAIL
+test_a_prop_behind_a_figure_is_allowed_but_not_behind_text (__main__.Cues.test_a_prop_behind_a_figure_is_allowed_but_not_behind_text) ... FAIL
+test_existing_styles_and_kinds_are_unchanged (__main__.Cues.test_existing_styles_and_kinds_are_unchanged) ... ok
+test_the_backdrop_may_cover_everything_and_is_exempt_from_collision (__main__.Cues.test_the_backdrop_may_cover_everything_and_is_exempt_from_collision) ... FAIL
+test_the_set_is_drawn_underneath_everything (__main__.Cues.test_the_set_is_drawn_underneath_everything) ... FAIL
+test_two_figures_may_not_overlap (__main__.Cues.test_two_figures_may_not_overlap) ... FAIL
+test_unknown_set_role_pose_or_prop_is_a_problem_not_a_crash (__main__.Cues.test_unknown_set_role_pose_or_prop_is_a_problem_not_a_crash) ... ok
+test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator (__main__.Director.test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator) ... ERROR
+test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row (__main__.Director.test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row) ... ERROR
+test_phase_4_maps_are_untouched_by_the_cartoon_option (__main__.Director.test_phase_4_maps_are_untouched_by_the_cartoon_option) ... ERROR
+test_the_default_plan_has_no_cartoon_beat (__main__.Director.test_the_default_plan_has_no_cartoon_beat) ... ERROR
+test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic (__main__.Director.test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic) ... ERROR
+test_the_set_follows_the_words_and_dusk_follows_evening (__main__.Director.test_the_set_follows_the_words_and_dusk_follows_evening) ... ERROR
+
+======================================================================
+ERROR: test_cast_sprites_are_visible_and_inside_their_canvas (__main__.Assets.test_cast_sprites_are_visible_and_inside_their_canvas)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 68, in test_cast_sprites_are_visible_and_inside_their_canvas
+    from explainer.cartoon import kit
+ImportError: cannot import name 'kit' from 'explainer.cartoon' (/Users/muhammadnabil/Downloads/video_generator-main/explainer/cartoon/__init__.py)
+
+======================================================================
+ERROR: test_the_cast_looks_different_from_the_narrator_but_shares_its_body (__main__.Assets.test_the_cast_looks_different_from_the_narrator_but_shares_its_body)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 78, in test_the_cast_looks_different_from_the_narrator_but_shares_its_body
+    from explainer.cartoon import kit
+ImportError: cannot import name 'kit' from 'explainer.cartoon' (/Users/muhammadnabil/Downloads/video_generator-main/explainer/cartoon/__init__.py)
+
+======================================================================
+ERROR: test_the_loader_refuses_a_damaged_file_and_never_builds (__main__.Assets.test_the_loader_refuses_a_damaged_file_and_never_builds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 60, in test_the_loader_refuses_a_damaged_file_and_never_builds
+    from explainer.cartoon import kit
+ImportError: cannot import name 'kit' from 'explainer.cartoon' (/Users/muhammadnabil/Downloads/video_generator-main/explainer/cartoon/__init__.py)
+
+======================================================================
+ERROR: test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator (__main__.Director.test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 188, in test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator
+    r = run(words, self.SCRIPT, dur, cartoon_share=0.4)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+ERROR: test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row (__main__.Director.test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 178, in test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row
+    r = run(words, self.SCRIPT, dur, cartoon_share=0.4)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+ERROR: test_phase_4_maps_are_untouched_by_the_cartoon_option (__main__.Director.test_phase_4_maps_are_untouched_by_the_cartoon_option)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 240, in test_phase_4_maps_are_untouched_by_the_cartoon_option
+    on = run(words, SCRIPT, DUR, cartoon_share=0.4)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+ERROR: test_the_default_plan_has_no_cartoon_beat (__main__.Director.test_the_default_plan_has_no_cartoon_beat)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 174, in test_the_default_plan_has_no_cartoon_beat
+    self.assertEqual(json.dumps(r.plan, sort_keys=True), json.dumps(run(words, self.SCRIPT, dur, cartoon_share=0.0).plan, sort_keys=True))
+                                                                    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+ERROR: test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic (__main__.Director.test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 229, in test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic
+    a = run(words, self.SCRIPT, dur, cartoon_share=0.4)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+ERROR: test_the_set_follows_the_words_and_dusk_follows_evening (__main__.Director.test_the_set_follows_the_words_and_dusk_follows_evening)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 212, in test_the_set_follows_the_words_and_dusk_follows_evening
+    r = run(words, self.SCRIPT, dur, cartoon_share=0.5)
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_director_real_material.py", line 47, in run
+    return direct(words, script, DirectorOptions(**kw), duration=duration, materialize=False)
+                                 ~~~~~~~~~~~~~~~^^^^^^
+TypeError: DirectorOptions.__init__() got an unexpected keyword argument 'cartoon_share'. Did you mean 'narrator_share'?
+
+======================================================================
+FAIL: test_a_backdrop_figure_and_prop_build_without_problems (__main__.Cues.test_a_backdrop_figure_and_prop_build_without_problems)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 95, in test_a_backdrop_figure_and_prop_build_without_problems
+    self.assertEqual(probs, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: Lists differ: ['cue set1: a visual cue needs params.styl[237 chars]ine'] != []
+
+First list contains 3 additional elements.
+First extra element 0:
+'cue set1: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line'
+
++ []
+- ['cue set1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line',
+-  'cue p1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line',
+-  'cue f1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line']
+
+======================================================================
+FAIL: test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time (__main__.Cues.test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 123, in test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time
+    self.assertEqual(probs, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: Lists differ: ['cue cr: a visual cue needs params.style,[47 chars]ine'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'cue cr: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line'
+
++ []
+- ['cue cr: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line']
+
+======================================================================
+FAIL: test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic (__main__.Cues.test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 141, in test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic
+    self.assertEqual(f.first_frame, math.ceil((WORDS[4][1] + 0.1) * 30 - 1e-9))     # the default offset of a visual cue is 0.1 s
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 54
+
+======================================================================
+FAIL: test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins (__main__.Cues.test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 109, in test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins
+    self.assertTrue(any("f1" in p and "collides" in p for p in probs), probs)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : ['cue f1: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line']
+
+======================================================================
+FAIL: test_a_prop_behind_a_figure_is_allowed_but_not_behind_text (__main__.Cues.test_a_prop_behind_a_figure_is_allowed_but_not_behind_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 116, in test_a_prop_behind_a_figure_is_allowed_but_not_behind_text
+    self.assertEqual(probs, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: Lists differ: ['cue p1: a visual cue needs params.style,[141 chars]ine'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'cue p1: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line'
+
++ []
+- ['cue p1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line',
+-  'cue f1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line']
+
+======================================================================
+FAIL: test_the_backdrop_may_cover_everything_and_is_exempt_from_collision (__main__.Cues.test_the_backdrop_may_cover_everything_and_is_exempt_from_collision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 100, in test_the_backdrop_may_cover_everything_and_is_exempt_from_collision
+    self.assertEqual(probs, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+AssertionError: Lists differ: ['cue set1: a visual cue needs params.styl[49 chars]ine'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'cue set1: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line'
+
++ []
+- ['cue set1: a visual cue needs params.style, one of tile, circle, box, lite, '
+-  'tag, scroll, line']
+
+======================================================================
+FAIL: test_the_set_is_drawn_underneath_everything (__main__.Cues.test_the_set_is_drawn_underneath_everything)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 152, in test_the_set_is_drawn_underneath_everything
+    self.assertNotEqual(im.getpixel((10, 10)), (192, 192, 192))      # not the grey board: the set shows
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: (192, 192, 192) == (192, 192, 192)
+
+======================================================================
+FAIL: test_two_figures_may_not_overlap (__main__.Cues.test_two_figures_may_not_overlap)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase7_cartoon.py", line 104, in test_two_figures_may_not_overlap
+    self.assertTrue(any("f2" in p and "collides" in p for p in probs), probs)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : ['cue f1: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line', 'cue f2: a visual cue needs params.style, one of tile, circle, box, lite, tag, scroll, line']
+
+----------------------------------------------------------------------
+Ran 22 tests in 11.581s
+
+FAILED (failures=8, errors=9)

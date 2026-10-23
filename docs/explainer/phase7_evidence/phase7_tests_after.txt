@@ -1,0 +1,27 @@
+test_cast_sprites_are_visible_and_inside_their_canvas (__main__.Assets.test_cast_sprites_are_visible_and_inside_their_canvas) ... ok
+test_manifest_counts_and_hashes (__main__.Assets.test_manifest_counts_and_hashes) ... ok
+test_narrator_assets_are_untouched_by_building_the_kit (__main__.Assets.test_narrator_assets_are_untouched_by_building_the_kit) ... ok
+test_the_cast_looks_different_from_the_narrator_but_shares_its_body (__main__.Assets.test_the_cast_looks_different_from_the_narrator_but_shares_its_body) ... ok
+test_the_kit_is_built_once_and_the_files_on_disk_are_exactly_the_build (__main__.Assets.test_the_kit_is_built_once_and_the_files_on_disk_are_exactly_the_build) ... ok
+test_the_loader_refuses_a_damaged_file_and_never_builds (__main__.Assets.test_the_loader_refuses_a_damaged_file_and_never_builds) ... ok
+test_a_backdrop_figure_and_prop_build_without_problems (__main__.Cues.test_a_backdrop_figure_and_prop_build_without_problems) ... ok
+test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time (__main__.Cues.test_a_crowd_is_a_row_of_n_figures_inside_the_margins_and_the_same_every_time) ... ok
+test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic (__main__.Cues.test_a_figure_appears_on_the_word_it_is_anchored_to_and_the_frame_is_deterministic) ... ok
+test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins (__main__.Cues.test_a_figure_may_not_cover_a_caption_slot_or_leave_the_margins) ... ok
+test_a_prop_behind_a_figure_is_allowed_but_not_behind_text (__main__.Cues.test_a_prop_behind_a_figure_is_allowed_but_not_behind_text) ... ok
+test_existing_styles_and_kinds_are_unchanged (__main__.Cues.test_existing_styles_and_kinds_are_unchanged) ... ok
+test_the_backdrop_may_cover_everything_and_is_exempt_from_collision (__main__.Cues.test_the_backdrop_may_cover_everything_and_is_exempt_from_collision) ... ok
+test_the_set_is_drawn_underneath_everything (__main__.Cues.test_the_set_is_drawn_underneath_everything) ... ok
+test_two_figures_may_not_overlap (__main__.Cues.test_two_figures_may_not_overlap) ... ok
+test_unknown_set_role_pose_or_prop_is_a_problem_not_a_crash (__main__.Cues.test_unknown_set_role_pose_or_prop_is_a_problem_not_a_crash) ... ok
+test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator (__main__.Director.test_a_cartoon_beat_has_a_set_a_figure_a_grounded_caption_and_no_narrator) ... ok
+test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row (__main__.Director.test_cartoon_beats_are_opt_in_capped_and_never_three_in_a_row) ... ok
+test_phase_4_maps_are_untouched_by_the_cartoon_option (__main__.Director.test_phase_4_maps_are_untouched_by_the_cartoon_option) ... ok
+test_the_default_plan_has_no_cartoon_beat (__main__.Director.test_the_default_plan_has_no_cartoon_beat) ... ok
+test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic (__main__.Director.test_the_plan_with_cartoon_beats_passes_every_gate_and_is_deterministic) ... ok
+test_the_set_follows_the_words_and_dusk_follows_evening (__main__.Director.test_the_set_follows_the_words_and_dusk_follows_evening) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 14.388s
+
+OK

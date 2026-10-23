@@ -1,0 +1,128 @@
+--- a/app.py
++++ b/app.py
+@@ -3447,6 +3447,7 @@
+         self._hybrid_enabled_var = ctk.BooleanVar(value=False)
+         self._hybrid_sound_var = ctk.BooleanVar(value=bool(self._settings.get("pakmap_sound_design", True)))
+         self._hybrid_auto_gfx_var = ctk.BooleanVar(value=bool(self._settings.get("hybrid_auto_templates", False)))
++        self._hybrid_explainer_var = ctk.BooleanVar(value=bool(self._settings.get("explainer_style", False)))   # opt-in Explainer look: off unless the user turns it on
+         self._hybrid_status_var = ctk.StringVar(value="")
+         self._hybrid_file_var = ctk.StringVar(value="")     # the CSV or plan file the plan came from (shown like pakMap's CSV row)
+         self._hybrid_running = False
+@@ -3493,6 +3494,11 @@
+         ctk.CTkSwitch(actions, text="Add graphics from the narration (shares, sizes, counts)", variable=self._hybrid_auto_gfx_var, command=self._on_hybrid_auto_gfx_changed,
+                       font=ctk.CTkFont(size=11)).grid(row=0, column=4, sticky="w")
+         self._build_csv_prompt_script_box(actions, row=1, columnspan=5)
++        ctk.CTkSwitch(actions, text="Explainer look (board clips, narrator, captions)", variable=self._hybrid_explainer_var, command=self._on_hybrid_explainer_changed,
++                      font=ctk.CTkFont(size=11)).grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 0))
++        self._hybrid_explainer_btn = _make_button(actions, "Direct with Explainer", self._hybrid_explainer_direct, size="lg", width=170)
++        self._hybrid_explainer_btn.grid(row=2, column=3, columnspan=2, sticky="w", pady=(8, 0))
++        self._hybrid_explainer_btn.configure(state="normal" if self._hybrid_explainer_var.get() else "disabled")
+         ctk.CTkLabel(
+             controls, text="Load beat CSV: your own plan, written by any AI with the CSV prompt.   Write plan with AI: the app plans it from your narration.",
+             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left",
+@@ -3553,7 +3559,80 @@
+                 self._workspace.set_hybrid_settings(auto_graphics=bool(self._hybrid_auto_gfx_var.get()))
+             except OSError as exc:
+                 self._append_log(f"[HYBRID] Could not remember the graphics switch for this project: {exc}\n")
++
++    def _on_hybrid_explainer_changed(self) -> None:
++        """Opt-in Explainer look (off by default): it only enables 'Direct with Explainer'. Nothing about the current plan or the render changes until that button is used."""
++        on = bool(self._hybrid_explainer_var.get())
++        self._settings["explainer_style"] = on
++        try:
++            self._persist_global_settings()
++        except Exception:
++            pass
++        self._hybrid_explainer_btn.configure(state="normal" if on else "disabled")
++
++    def _hybrid_explainer_direct(self) -> None:
++        """Voiceover + script -> the Explainer director -> a Hybrid plan, installed through the same path as 'Write plan with AI'. Any failure keeps the current plan."""
++        if self._hybrid_running or self._hybrid_busy or not self._hybrid_explainer_var.get():
++            return
++        if not self._require_workspace("direct a Hybrid plan with the Explainer look"):
++            return
++        voiceover_path = self._current_voiceover_path()
++        if voiceover_path is None:
++            messagebox.showinfo("Direct with Explainer", "Select or import a voiceover first: the plan is made from the narration's real timing.")
++            return
++        script = self._vo_script_text()
++        whisper_model = self.model_var.get().strip() or "base"
++        whisper_state_dir = getattr(self._workspace, "state_dir", None)
++        work_dir = str(self._workspace.hybrid_dir)
++        self._hybrid_busy = True
++        self._hybrid_explainer_btn.configure(state="disabled", text="Directing…")
++        self._append_log("[HYBRID] Directing with the Explainer look…\n")
++        work = self._hybrid_progress_start("Directing the Explainer look", "Listening to the narration first (the first time can take a few minutes).")
++
++        def post(fn) -> None:
++            self.after(0, fn)
++
++        def worker() -> None:
++            try:
++                from explainer.integration import direct_plan
++                from pakmap.app_integration import voiceover_duration
++
++                words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
++                out = direct_plan(words, script or None, self._settings, work_dir=work_dir, duration=voiceover_duration(voiceover_path),
++                                  log=lambda m: post(lambda: self._append_log(f"[HYBRID] {m}\n")))
++                post(lambda: finish(out, None))
++            except BaseException as exc:  # incl. SystemExit: the panel must never be left busy
++                post(lambda e=exc: finish(None, e))
++
++        def finish(out, exc) -> None:
++            if work != self._hybrid_work_id:
++                return   # stopped by the user: a late answer is ignored
++            self._hybrid_busy = False
++            self._hybrid_explainer_btn.configure(state="normal" if self._hybrid_explainer_var.get() else "disabled", text="Direct with Explainer")
++            if exc is not None or out.get("plan") is None:
++                why = str(exc) if exc is not None else "; ".join(out.get("problems") or ["no plan"])
++                self._append_log(f"[HYBRID] The Explainer director could not make a plan: {why}. Your current plan is unchanged.\n")
++                self._hybrid_progress_done(work, "The Explainer plan could not be made; your current plan is unchanged.")
++                messagebox.showerror("Direct with Explainer", f"The plan could not be made. Your current plan is unchanged.\n\n{why[:600]}")
++                return
++            try:
++                from hybrid.plan import HybridPlan
+ 
++                plan = HybridPlan.from_dict(out["plan"])
++            except Exception as exc2:      # a plan the Hybrid model cannot read: close the progress card, say so, keep the current plan
++                self._append_log(f"[HYBRID] The Explainer plan could not be read: {exc2}. Your current plan is unchanged.\n")
++                self._hybrid_progress_done(work, "The Explainer plan could not be read; your current plan is unchanged.")
++                messagebox.showerror("Direct with Explainer", f"The plan could not be read. Your current plan is unchanged.\n\n{str(exc2)[:600]}")
++                return
++            self._hybrid_progress_done(work)
++            self._hybrid_set_plan(plan, None)
++            for w in out.get("warnings") or []:
++                self._append_log(f"[HYBRID] {w}\n")
++            self._hybrid_status_var.set(f"Explainer plan ready: {len(plan.beats)} beats. Check the plan, then get the scenes and render as usual.")
++            self._append_log(f"[HYBRID] Explainer plan ready ({len(plan.beats)} beats).\n")
++
++        threading.Thread(target=worker, daemon=True).start()
++
+     def _set_hybrid_text(self, text: str) -> None:
+         box = self._hybrid_plan_box
+         box.configure(state="normal")
+@@ -3694,6 +3773,9 @@
+         """Stop waiting for the plan or import now. What the AI already finished is saved with the project; a late answer is ignored."""
+         self._hybrid_busy = False
+         self._hybrid_plan_btn.configure(state="normal", text="Write plan with AI")
++        explainer_btn = getattr(self, "_hybrid_explainer_btn", None)     # the Explainer button is reset the same way; its late answer is ignored by the work id below
++        if explainer_btn is not None:
++            explainer_btn.configure(state="normal" if self._hybrid_explainer_var.get() else "disabled", text="Direct with Explainer")
+         self._hybrid_progress_done(self._hybrid_work_id, "Stopped. Chapters already planned are saved, so planning again continues from there.")
+         self._append_log("[HYBRID] Stopped by the user.\n")
+ 
+--- a/VideoGenerator.spec
++++ b/VideoGenerator.spec
+@@ -194,6 +194,12 @@
+ datas += weather_data_files(ROOT)
+ hiddenimports += whatif_modules(ROOT)
+ hiddenimports += weather_modules(ROOT)   # app.py imports Weather only inside methods: name every module so none is missed
++
++# Explainer: the narrator layers and the two OFL handwriting fonts (explainer/packaging.py, tested by explainer/spike/verify_m4.py) and every module of the package.
++from explainer.packaging import data_files as explainer_data_files, python_modules as explainer_modules  # noqa: E402
++
++datas += explainer_data_files(ROOT)
++hiddenimports += explainer_modules(ROOT)   # app.py imports the Explainer director only inside methods
+ 
+ # App logo (UI) + platform icons
+ # logo.png  = square "S" mark (topbar avatar + icon source)

@@ -1,0 +1,754 @@
+{
+ "aqueducts": {
+  "before": {
+   "texts": 27,
+   "mean_words": 2.11,
+   "share_3_plus_words": 0.185,
+   "trailing_function_or_weak_word": 1,
+   "leading_function_word_not_allowlisted": 1,
+   "single_word": 4,
+   "content_coverage_mean": 0.72,
+   "sentences_without_any_text": 0,
+   "sentences": 9,
+   "distinct_share": 0.926,
+   "font_px_min": 48,
+   "font_px_mean": 51.4,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "T02_median_shot_s": 4.67,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 23,
+     "share": 0.958
+    },
+    "T04_longest_still_s": 2.35,
+    "T05_narrator": {
+     "share": 0.512,
+     "longest_absence_s": 17.09,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 0.889,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 86.6,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 22.7,
+      "trigger": "but",
+      "explicit": null
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 44.32,
+      "trigger": "(last sentence)",
+      "explicit": null
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 3,
+   "cards": 23,
+   "captions": 2,
+   "headers": 2,
+   "events": null
+  },
+  "after": {
+   "texts": 17,
+   "mean_words": 5.71,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.891,
+   "sentences_without_any_text": 0,
+   "sentences": 9,
+   "distinct_share": 1.0,
+   "font_px_min": 48,
+   "font_px_mean": 50.6,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.901,
+     "map": 0.099
+    },
+    "T02_median_shot_s": 4.67,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 24,
+     "windows_with_a_change": 24,
+     "share": 1.0
+    },
+    "T04_longest_still_s": 3.13,
+    "T05_narrator": {
+     "share": 0.51,
+     "longest_absence_s": 13.27,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 0.889,
+    "T09_captions": {
+     "n": 5,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 74.2,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 22.7,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 40.5,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 3,
+   "cards": 12,
+   "captions": 5,
+   "headers": 0,
+   "events": 80
+  }
+ },
+ "coffee": {
+  "before": {
+   "texts": 19,
+   "mean_words": 2.16,
+   "share_3_plus_words": 0.316,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 1,
+   "single_word": 6,
+   "content_coverage_mean": 0.681,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 0.947,
+   "font_px_min": 44,
+   "font_px_mean": 50.7,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "T02_median_shot_s": 4.82,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "T04_longest_still_s": 1.88,
+    "T05_narrator": {
+     "share": 0.577,
+     "longest_absence_s": 5.94,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 114.7,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 15.24,
+      "trigger": "but",
+      "explicit": null
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 30.68,
+      "trigger": "(last sentence)",
+      "explicit": null
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 16,
+   "captions": 2,
+   "headers": 1,
+   "events": null
+  },
+  "after": {
+   "texts": 12,
+   "mean_words": 5.75,
+   "share_3_plus_words": 0.833,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.899,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 48.9,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.129,
+     "board": 0.871
+    },
+    "T02_median_shot_s": 4.82,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 18,
+     "share": 1.0
+    },
+    "T04_longest_still_s": 2.66,
+    "T05_narrator": {
+     "share": 0.478,
+     "longest_absence_s": 9.58,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 4,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 32.8,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 15.24,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 30.68,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 8,
+   "captions": 4,
+   "headers": 0,
+   "events": 56
+  }
+ },
+ "inflation": {
+  "before": {
+   "texts": 19,
+   "mean_words": 2.42,
+   "share_3_plus_words": 0.474,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 2,
+   "single_word": 5,
+   "content_coverage_mean": 0.692,
+   "sentences_without_any_text": 0,
+   "sentences": 9,
+   "distinct_share": 0.947,
+   "font_px_min": 44,
+   "font_px_mean": 50.3,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "T02_median_shot_s": 4.77,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 17,
+     "share": 0.944
+    },
+    "T04_longest_still_s": 1.88,
+    "T05_narrator": {
+     "share": 0.626,
+     "longest_absence_s": 4.77,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 3,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 98.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 16.53,
+      "trigger": "but",
+      "explicit": null
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 27.74,
+      "trigger": "the lesson",
+      "explicit": null
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 15,
+   "captions": 3,
+   "headers": 1,
+   "events": null
+  },
+  "after": {
+   "texts": 13,
+   "mean_words": 5.85,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.87,
+   "sentences_without_any_text": 1,
+   "sentences": 9,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.7,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.121,
+     "board": 0.879
+    },
+    "T02_median_shot_s": 4.77,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 18,
+     "windows_with_a_change": 17,
+     "share": 0.944
+    },
+    "T04_longest_still_s": 2.55,
+    "T05_narrator": {
+     "share": 0.511,
+     "longest_absence_s": 8.99,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 3,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 98.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": true
+     },
+     "twist": {
+      "present": true,
+      "at_s": 16.53,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 27.74,
+      "trigger": "the lesson",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": true
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 10,
+   "captions": 3,
+   "headers": 0,
+   "events": 54
+  }
+ },
+ "printing": {
+  "before": {
+   "texts": 16,
+   "mean_words": 2.31,
+   "share_3_plus_words": 0.5,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 2,
+   "single_word": 7,
+   "content_coverage_mean": 0.55,
+   "sentences_without_any_text": 1,
+   "sentences": 8,
+   "distinct_share": 0.875,
+   "font_px_min": 44,
+   "font_px_mean": 50.6,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "T02_median_shot_s": 4.73,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "T04_longest_still_s": 1.86,
+    "T05_narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 36.3,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 20.46,
+      "trigger": "but",
+      "explicit": null
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.33,
+      "trigger": "(last sentence)",
+      "explicit": null
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 12,
+   "captions": 2,
+   "headers": 2,
+   "events": null
+  },
+  "after": {
+   "texts": 12,
+   "mean_words": 4.75,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.781,
+   "sentences_without_any_text": 1,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.8,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "board": 0.736,
+     "map": 0.146,
+     "archive": 0.119
+    },
+    "T02_median_shot_s": 4.73,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 16,
+     "windows_with_a_change": 15,
+     "share": 0.938
+    },
+    "T04_longest_still_s": 1.76,
+    "T05_narrator": {
+     "share": 0.482,
+     "longest_absence_s": 8.75,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 72.5,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 20.46,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.33,
+      "trigger": "so (sentence-initial, last quarter)",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 10,
+   "captions": 2,
+   "headers": 0,
+   "events": 44
+  }
+ },
+ "glaciers": {
+  "before": {
+   "texts": 13,
+   "mean_words": 2.0,
+   "share_3_plus_words": 0.231,
+   "trailing_function_or_weak_word": 3,
+   "leading_function_word_not_allowlisted": 2,
+   "single_word": 5,
+   "content_coverage_mean": 0.467,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 0.923,
+   "font_px_min": 48,
+   "font_px_mean": 51.1,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "T02_median_shot_s": 5.11,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 15,
+     "share": 0.882
+    },
+    "T04_longest_still_s": 1.96,
+    "T05_narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 2,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 35.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": null
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 17.71,
+      "trigger": "but",
+      "explicit": null
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.63,
+      "trigger": "in the end",
+      "explicit": null
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 10,
+   "captions": 2,
+   "headers": 1,
+   "events": null
+  },
+  "after": {
+   "texts": 9,
+   "mean_words": 6.22,
+   "share_3_plus_words": 1.0,
+   "trailing_function_or_weak_word": 0,
+   "leading_function_word_not_allowlisted": 0,
+   "single_word": 0,
+   "content_coverage_mean": 0.786,
+   "sentences_without_any_text": 0,
+   "sentences": 8,
+   "distinct_share": 1.0,
+   "font_px_min": 40,
+   "font_px_mean": 49.3,
+   "scorecard": {
+    "T01_layer_mix_share": {
+     "map": 0.296,
+     "board": 0.704
+    },
+    "T02_median_shot_s": 5.11,
+    "T02_share_2_to_8_s": 1.0,
+    "T03_change_windows": {
+     "windows_2s": 17,
+     "windows_with_a_change": 13,
+     "share": 0.765
+    },
+    "T04_longest_still_s": 2.31,
+    "T05_narrator": {
+     "share": 0.54,
+     "longest_absence_s": 10.13,
+     "target_share": 0.45,
+     "target_longest_absence_s": 30.0
+    },
+    "T07_cuts_at_sentence_start_share": 1.0,
+    "T09_captions": {
+     "n": 3,
+     "share_8_words_or_fewer": 1.0
+    },
+    "T12_metaphor_consistent": true,
+    "T12_recurrences_per_10min": 0.0,
+    "T13_story": {
+     "hook": {
+      "present": true,
+      "at_s": 0.5,
+      "trigger": "",
+      "explicit": false
+     },
+     "question": {
+      "present": false,
+      "at_s": null,
+      "trigger": null,
+      "explicit": null
+     },
+     "twist": {
+      "present": true,
+      "at_s": 17.71,
+      "trigger": "but",
+      "explicit": true
+     },
+     "conclusion": {
+      "present": true,
+      "at_s": 28.63,
+      "trigger": "in the end",
+      "explicit": true
+     },
+     "hook_within_30s": true,
+     "question_within_120s": false
+    }
+   },
+   "hybrid_validate_warnings": 1,
+   "cards": 6,
+   "captions": 3,
+   "headers": 0,
+   "events": 44
+  }
+ }
+}

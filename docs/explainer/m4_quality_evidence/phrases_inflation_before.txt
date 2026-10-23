@@ -1,0 +1,29 @@
+[0] What happens when a loaf of bread costs a million marks?
+    (nothing)
+[1] In 1923 workers were paid twice a day, because the money lost its value by the afternoon.
+    card: 1923 workers
+    card: money lost
+    card: paid twice
+    card: afternoon
+[2] Families carried wheelbarrows of cash to the shop.
+    card: families carried wheelbarrows
+    card: cash
+[3] Savings built over a lifetime became worthless in weeks.
+    card: lifetime became worthless
+[4] But the cause was simple: the government printed money to pay its debts.
+    header: government printed money
+    card: government printed money
+    caption: to pay its debts
+[5] Prices rose faster than anyone could count.
+    card: prices rose faster
+    card: anyone
+[6] Then a new currency arrived, and the crisis ended almost overnight.
+    card: crisis ended almost overnight
+    card: currency arrived
+[7] In 2008 another crisis showed that the lesson is easy to forget.
+    card: crisis showed
+    caption: is easy to forget
+[8] That is why money is only a promise, and trust is what keeps it alive.
+    card: promise
+    caption: what keeps it alive
+    card: money

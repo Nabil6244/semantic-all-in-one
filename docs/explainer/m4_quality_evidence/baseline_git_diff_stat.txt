@@ -1,0 +1,11 @@
+ composition_styles/starmap_beats_prompt.txt | 12 +++++
+ composition_styles/whatif_csv_prompt.txt    | 22 ++++++--
+ starmap-engine/page.js                      |  7 ++-
+ starmap/cinema.py                           | 84 ++++++++++++++++++++++++++++-
+ test_fixtures/weather_protected.json        |  8 +--
+ whatif-engine/layers/tm_theme.mjs           |  2 +
+ whatif-engine/lib/tpl.mjs                   |  2 +
+ whatif-engine/page.js                       |  4 +-
+ whatif/compile.py                           |  4 +-
+ whatif/planner.py                           |  8 ++-
+ 10 files changed, 140 insertions(+), 13 deletions(-)

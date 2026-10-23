@@ -1,0 +1,1261 @@
+{
+ "explainer_version": 1,
+ "options": {
+  "min_beat_s": 3.2,
+  "max_beat_s": 8.0,
+  "split_over_s": 6.4,
+  "max_still_s": 2.0,
+  "narrator_every_s": 30.0,
+  "narrator_share": 0.45,
+  "max_map_share": 0.3,
+  "max_archive_share": 0.12,
+  "map_min_beat_s": 2.8,
+  "narrator": true,
+  "dissolve_s": 0.0,
+  "fps": 30,
+  "size": [
+   1920,
+   1080
+  ],
+  "fallback_place": "Europe",
+  "archive_dir": null,
+  "metaphors": {},
+  "roles": {},
+  "work_dir": "<WORK>/topic_aqueducts_d0.0"
+ },
+ "duration_s": 48.498,
+ "sentences": 10,
+ "sentence_labels": [
+  {
+   "i": 0,
+   "label": "hook",
+   "trigger": "",
+   "start": 0.5,
+   "end": 4.87
+  },
+  {
+   "i": 1,
+   "label": "explain",
+   "trigger": "",
+   "start": 5.61,
+   "end": 9.09
+  },
+  {
+   "i": 2,
+   "label": "explain",
+   "trigger": "",
+   "start": 9.84,
+   "end": 15.67
+  },
+  {
+   "i": 3,
+   "label": "explain",
+   "trigger": "",
+   "start": 16.42,
+   "end": 21.96
+  },
+  {
+   "i": 4,
+   "label": "twist",
+   "trigger": "but",
+   "start": 22.7,
+   "end": 26.48
+  },
+  {
+   "i": 5,
+   "label": "explain",
+   "trigger": "",
+   "start": 27.23,
+   "end": 29.83
+  },
+  {
+   "i": 6,
+   "label": "explain",
+   "trigger": "",
+   "start": 30.57,
+   "end": 34.94
+  },
+  {
+   "i": 7,
+   "label": "explain",
+   "trigger": "",
+   "start": 35.68,
+   "end": 39.75
+  },
+  {
+   "i": 8,
+   "label": "explain",
+   "trigger": "",
+   "start": 40.5,
+   "end": 44.28
+  },
+  {
+   "i": 9,
+   "label": "conclusion",
+   "trigger": "(last sentence)",
+   "start": 44.32,
+   "end": 48.1
+  }
+ ],
+ "selection": {
+  "place_candidates": [
+   "Romans",
+   "Engineers",
+   "Rome",
+   "Today",
+   "Italy"
+  ],
+  "places_resolved": {
+   "Italy": [
+    "country",
+    true
+   ]
+  },
+  "places_ignored": [
+   "Romans",
+   "Engineers",
+   "Rome (sentence start, not a country or region)",
+   "Today"
+  ],
+  "archive_notes": [],
+  "beats": [
+   {
+    "id": "e1",
+    "kind": "board",
+    "start": 0.0,
+    "end": 5.61
+   },
+   {
+    "id": "e2",
+    "kind": "board",
+    "start": 5.61,
+    "end": 9.838
+   },
+   {
+    "id": "e3",
+    "kind": "board",
+    "start": 9.838,
+    "end": 16.418
+   },
+   {
+    "id": "e4",
+    "kind": "board",
+    "start": 16.418,
+    "end": 22.704
+   },
+   {
+    "id": "e5",
+    "kind": "board",
+    "start": 22.704,
+    "end": 27.226
+   },
+   {
+    "id": "e6",
+    "kind": "board",
+    "start": 27.226,
+    "end": 30.572
+   },
+   {
+    "id": "e7",
+    "kind": "board",
+    "start": 30.572,
+    "end": 35.682
+   },
+   {
+    "id": "e8",
+    "kind": "map",
+    "start": 35.682,
+    "end": 40.498
+   },
+   {
+    "id": "e9",
+    "kind": "board",
+    "start": 40.498,
+    "end": 44.32
+   },
+   {
+    "id": "e10",
+    "kind": "board",
+    "start": 44.32,
+    "end": 48.498
+   }
+  ],
+  "notes": {
+   "e8": [
+    "map still-time repair: caption 'idea hides' inside a 2.6 s gap"
+   ]
+  }
+ },
+ "beat_details": {
+  "e8": {
+   "kind": "map",
+   "places": [
+    "Italy"
+   ]
+  },
+  "e1": {
+   "cues": 5,
+   "kinds": [
+    "card",
+    "header",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e1_card_r1: added card 'simple problem' inside a 3.4 s still gap (0.90 to 4.32 s)",
+    "e1_card_r2: added card 'bring water' inside a 2.3 s still gap (2.07 to 4.32 s)"
+   ],
+   "still_gap_s": 1.47,
+   "narrator": "start",
+   "labels": [
+    "hook"
+   ],
+   "phrases": [
+    {
+     "sentence": 0,
+     "label": "hook",
+     "phrase": "thirsty people",
+     "asset": "icon:person",
+     "keyword": "people",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_8ebbec4b687ccb41.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e1_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "surprise",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e1_header1",
+     "kind": "header",
+     "anchor": {
+      "index": 13
+     },
+     "text": "thirsty people",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 13
+     },
+     "text": "thirsty people",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:person",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 5
+     },
+     "text": "simple problem",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e1_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 10
+     },
+     "text": "bring water",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e2": {
+   "cues": 5,
+   "kinds": [
+    "card",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e2_card_r1: added card 'hand across' inside a 2.8 s still gap (6.00 to 8.84 s)",
+    "e2_card_r2: added card 'ditch dug' inside a 2.1 s still gap (6.00 to 8.06 s)"
+   ],
+   "still_gap_s": 1.18,
+   "narrator": "end",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 1,
+     "label": "explain",
+     "phrase": "oldest answer",
+     "asset": null,
+     "keyword": "",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_c8661036c3ef0f85.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e2_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "surprise",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 1
+     },
+     "text": "oldest answer",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e2_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 11
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e2_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 8
+     },
+     "text": "hand across",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e2_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 5
+     },
+     "text": "ditch dug",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e3": {
+   "cues": 5,
+   "kinds": [
+    "arrow",
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e3_card_r1: added card 'channel lifted' inside a 3.8 s still gap (10.53 to 14.35 s)",
+    "e3_card_r2: added card 'gravity' inside a 2.4 s still gap (12.00 to 14.35 s)"
+   ],
+   "still_gap_s": 1.77,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 2,
+     "label": "explain",
+     "phrase": "Romans built",
+     "asset": null,
+     "keyword": "",
+     "role": "green",
+     "role_keyword": "built"
+    },
+    {
+     "sentence": 2,
+     "label": "explain",
+     "phrase": "keep working across",
+     "asset": null,
+     "keyword": "",
+     "role": "green",
+     "role_keyword": "built"
+    }
+   ],
+   "clip": "board_f30a2487781f4895.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e3_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 2
+     },
+     "text": "Romans built",
+     "role": "green",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e3_card2",
+     "kind": "card",
+     "anchor": {
+      "index": 15
+     },
+     "text": "keep working across",
+     "role": "green",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e3_arrow1",
+     "kind": "arrow",
+     "anchor": {
+      "index": 15
+     },
+     "text": "",
+     "role": "ink",
+     "offset_s": 0.4,
+     "asset": "",
+     "src": "e3_card1",
+     "dst": "e3_card2",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e3_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 7
+     },
+     "text": "channel lifted",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e3_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 13
+     },
+     "text": "gravity",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e4": {
+   "cues": 5,
+   "kinds": [
+    "card",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e4_card_r1: added card 'few centimetres' inside a 5.9 s still gap (16.82 to 22.70 s)",
+    "e4_card_r2: added card 'almost' inside a 3.5 s still gap (16.82 to 20.34 s)",
+    "e4_card_r3: added card 'hundred metres' inside a 2.4 s still gap (20.34 to 22.70 s)"
+   ],
+   "still_gap_s": 2.35,
+   "narrator": "start",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 3,
+     "label": "explain",
+     "phrase": "engineers measured",
+     "asset": null,
+     "keyword": "",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_77d105d28371e85d.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e4_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 0
+     },
+     "text": "engineers measured",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 13
+     },
+     "text": "few centimetres",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 5
+     },
+     "text": "almost",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e4_card_r3",
+     "kind": "card",
+     "anchor": {
+      "index": 17
+     },
+     "text": "hundred metres",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e5": {
+   "cues": 6,
+   "kinds": [
+    "caption",
+    "card",
+    "header",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e5_card_r1: added card 'slope' inside a 2.4 s still gap (22.70 to 25.06 s)"
+   ],
+   "still_gap_s": 1.37,
+   "narrator": "end",
+   "labels": [
+    "twist"
+   ],
+   "phrases": [
+    {
+     "sentence": 4,
+     "label": "twist",
+     "phrase": "water tore",
+     "asset": "icon:drop",
+     "keyword": "water",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_7ebff52eef14832b.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e5_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "explain",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "none"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_header1",
+     "kind": "header",
+     "anchor": {
+      "index": 8
+     },
+     "text": "water tore",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 8
+     },
+     "text": "water tore",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 9
+     },
+     "text": "tore the stone apart",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e5_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 12
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e5_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 3
+     },
+     "text": "slope",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e6": {
+   "cues": 1,
+   "kinds": [
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 1.86,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 5,
+     "label": "explain",
+     "phrase": "water simply stopped",
+     "asset": "icon:drop",
+     "keyword": "water",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_e0da312624fd3f9b.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e6_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 6
+     },
+     "text": "water simply stopped",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e7": {
+   "cues": 3,
+   "kinds": [
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e7_card_r1: added card 'different spring' inside a 2.7 s still gap (33.02 to 35.68 s)",
+    "e7_card_r2: added card 'eleven times' inside a 2.5 s still gap (30.57 to 33.02 s)"
+   ],
+   "still_gap_s": 1.47,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 6,
+     "label": "explain",
+     "phrase": "line carried water",
+     "asset": "icon:drop",
+     "keyword": "water",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_a7fed0dd69b34925.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e7_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 8
+     },
+     "text": "line carried water",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e7_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 13
+     },
+     "text": "different spring",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e7_card_r2",
+     "kind": "card",
+     "anchor": {
+      "index": 3
+     },
+     "text": "eleven times",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e9": {
+   "cues": 2,
+   "kinds": [
+    "card"
+   ],
+   "dropped": [],
+   "repairs": [
+    "e9_card_r1: added card 'changed water' inside a 2.5 s still gap (40.50 to 42.95 s)"
+   ],
+   "still_gap_s": 1.57,
+   "narrator": "none",
+   "labels": [
+    "explain"
+   ],
+   "phrases": [
+    {
+     "sentence": 8,
+     "label": "explain",
+     "phrase": "travels downhill",
+     "asset": "icon:drop",
+     "keyword": "water",
+     "role": "blue",
+     "role_keyword": ""
+    }
+   ],
+   "clip": "board_cec2eb04ddd17630.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e9_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 8
+     },
+     "text": "travels downhill",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e9_card_r1",
+     "kind": "card",
+     "anchor": {
+      "index": 5
+     },
+     "text": "changed water",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "icon:drop",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    }
+   ]
+  },
+  "e10": {
+   "cues": 4,
+   "kinds": [
+    "caption",
+    "card",
+    "narrator"
+   ],
+   "dropped": [],
+   "repairs": [],
+   "still_gap_s": 1.46,
+   "narrator": "only",
+   "labels": [
+    "conclusion"
+   ],
+   "phrases": [
+    {
+     "sentence": 9,
+     "label": "conclusion",
+     "phrase": "persuading",
+     "asset": null,
+     "keyword": "",
+     "role": "green",
+     "role_keyword": "build"
+    }
+   ],
+   "clip": "board_41f584826a863997.mp4",
+   "built": true,
+   "problems": [],
+   "cue_specs": [
+    {
+     "id": "e10_n_show",
+     "kind": "narrator",
+     "anchor": {
+      "index": 0
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "show",
+      "pose": "idle",
+      "side": "left",
+      "scale": 1.0,
+      "enter": "slide"
+     },
+     "cps": 30.0
+    },
+    {
+     "id": "e10_card1",
+     "kind": "card",
+     "anchor": {
+      "index": 6
+     },
+     "text": "persuading",
+     "role": "green",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e10_caption1",
+     "kind": "caption",
+     "anchor": {
+      "index": 9
+     },
+     "text": "go where we need",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {},
+     "cps": 30.0
+    },
+    {
+     "id": "e10_n_hide",
+     "kind": "narrator",
+     "anchor": {
+      "index": 12
+     },
+     "text": "",
+     "role": "blue",
+     "offset_s": null,
+     "asset": "",
+     "src": "",
+     "dst": "",
+     "slot": null,
+     "pos": null,
+     "params": {
+      "action": "hide",
+      "exit": "slide"
+     },
+     "cps": 30.0
+    }
+   ]
+  }
+ },
+ "story": {
+  "hook": {
+   "present": true,
+   "sentence": 0,
+   "at_s": 0.5,
+   "trigger": ""
+  },
+  "question": {
+   "present": true,
+   "sentence": 0,
+   "at_s": 0.5,
+   "trigger": ""
+  },
+  "twist": {
+   "present": true,
+   "sentence": 4,
+   "at_s": 22.7,
+   "trigger": "but"
+  },
+  "conclusion": {
+   "present": true,
+   "sentence": 9,
+   "at_s": 44.32,
+   "trigger": "(last sentence)"
+  },
+  "hook_within_30s": true,
+  "question_within_120s": true
+ },
+ "pacing": {
+  "beats": 10,
+  "duration_s": 48.5,
+  "layer_mix_s": {
+   "board": 43.68,
+   "map": 4.82
+  },
+  "layer_mix_share": {
+   "board": 0.901,
+   "map": 0.099
+  },
+  "shot_length": {
+   "median_s": 4.67,
+   "min_s": 3.35,
+   "max_s": 6.58,
+   "share_between_2_and_8_s": 1.0
+  },
+  "change_density": {
+   "windows_2s": 24,
+   "windows_with_a_change": 23,
+   "share": 0.958
+  },
+  "narrator": {
+   "share": 0.512,
+   "longest_absence_s": 17.09,
+   "target_share": 0.45,
+   "target_longest_absence_s": 30.0
+  },
+  "targets": {
+   "median_shot_near_4.6s": true,
+   "90pct_shots_2_to_8s": true,
+   "change_in_95pct_of_2s_windows": true,
+   "narrator_absence_le_30s": true,
+   "narrator_share_35_to_60pct": true
+  }
+ },
+ "metaphors": {
+  "keywords": {
+   "people": {
+    "assets": [
+     "icon:person"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 1,
+    "beats": [
+     "e1"
+    ]
+   },
+   "water": {
+    "assets": [
+     "icon:drop"
+    ],
+    "roles": [
+     "blue"
+    ],
+    "count": 7,
+    "beats": [
+     "e1",
+     "e1",
+     "e5",
+     "e6",
+     "e7",
+     "e9",
+     "e9"
+    ]
+   }
+  },
+  "asset_consistent": true,
+  "recurring_keywords": [
+   "water"
+  ]
+ },
+ "relevance_records": 11,
+ "hybrid_validate": {
+  "errors": [],
+  "technical": [],
+  "warnings": [
+   "beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+   "more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+   "the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+  ]
+ },
+ "validate_plan_problems": []
+}

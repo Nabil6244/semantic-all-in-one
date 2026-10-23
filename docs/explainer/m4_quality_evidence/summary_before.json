@@ -1,0 +1,756 @@
+{
+ "aqueducts": {
+  "topic": "aqueducts",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "hybrid.validate: beat e6: 3.3s of footage barely registers; give it more narration or fold it into a card",
+   "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often",
+   "hybrid.validate: the first photo card appears at 48s: open with a card inside the first 15 seconds so the picture work starts early"
+  ],
+  "seconds": 9.0,
+  "duration_s": 48.498,
+  "phrase_metrics": {
+   "texts": 27,
+   "cards": 23,
+   "mean_words": 2.11,
+   "share_3_or_more_words": 0.185,
+   "fragment_rate_edge_function_or_weak_word": 0.037,
+   "single_non_number_word_rate": 0.111,
+   "content_coverage_mean": 0.664,
+   "sentences_with_no_text": 1,
+   "sentences": 9,
+   "distinct_phrases_share": 0.926,
+   "font_px_min": 48,
+   "font_px_mean": 51.4
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "Every city begins with a simple problem: how do you bring water to thirsty people?",
+    "texts": [
+     "header: thirsty people",
+     "card: thirsty people",
+     "card: simple problem",
+     "card: bring water"
+    ]
+   },
+   {
+    "sentence": 1,
+    "text": "The oldest answer was a ditch, dug by hand across the land.",
+    "texts": [
+     "card: oldest answer",
+     "card: hand across",
+     "card: ditch dug"
+    ]
+   },
+   {
+    "sentence": 2,
+    "text": "Then the Romans built the aqueduct, a channel lifted on arches so that gravity could keep working across a valley.",
+    "texts": [
+     "card: Romans built",
+     "card: keep working across",
+     "card: channel lifted",
+     "card: gravity"
+    ]
+   },
+   {
+    "sentence": 3,
+    "text": "Engineers measured the slope with almost no tools, a drop of only a few centimetres in every hundred metres.",
+    "texts": [
+     "card: engineers measured",
+     "card: few centimetres",
+     "card: almost",
+     "card: hundred metres"
+    ]
+   },
+   {
+    "sentence": 4,
+    "text": "But if the slope was too steep, the water tore the stone apart.",
+    "texts": [
+     "header: water tore",
+     "card: water tore",
+     "caption: tore the stone apart",
+     "card: slope"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "If it was too shallow, the water simply stopped.",
+    "texts": [
+     "card: water simply stopped"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Rome solved this eleven times over, and each line carried water from a different spring.",
+    "texts": [
+     "card: line carried water",
+     "card: different spring",
+     "card: eleven times"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "Today the same idea hides under the streets of Italy, in pipes and pumps.",
+    "texts": []
+   },
+   {
+    "sentence": 8,
+    "text": "So the principle has not changed: water still travels downhill, and every system we build is a way of persuading it to g",
+    "texts": [
+     "card: travels downhill",
+     "card: changed water",
+     "card: persuading",
+     "caption: go where we need"
+    ]
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "board": 0.901,
+    "map": 0.099
+   },
+   "T02_median_shot_s": 4.67,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 24,
+    "windows_with_a_change": 23,
+    "share": 0.958
+   },
+   "T04_longest_still_s": 2.35,
+   "T05_narrator": {
+    "share": 0.512,
+    "longest_absence_s": 17.09,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 0.889,
+   "T09_captions": {
+    "n": 2,
+    "share_8_words_or_fewer": 1.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 86.6,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "question": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "twist": {
+     "present": true,
+     "at_s": 22.7,
+     "trigger": "but",
+     "explicit": null
+    },
+    "conclusion": {
+     "present": true,
+     "at_s": 44.32,
+     "trigger": "(last sentence)",
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": true
+   }
+  },
+  "render_ok": true
+ },
+ "coffee": {
+  "topic": "coffee",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+  ],
+  "seconds": 7.1,
+  "duration_s": 36.626,
+  "phrase_metrics": {
+   "texts": 19,
+   "cards": 16,
+   "mean_words": 2.16,
+   "share_3_or_more_words": 0.316,
+   "fragment_rate_edge_function_or_weak_word": 0.105,
+   "single_non_number_word_rate": 0.316,
+   "content_coverage_mean": 0.586,
+   "sentences_with_no_text": 1,
+   "sentences": 8,
+   "distinct_phrases_share": 0.947,
+   "font_px_min": 44,
+   "font_px_mean": 50.7
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "Why did a small red fruit from Ethiopia change the whole world?",
+    "texts": []
+   },
+   {
+    "sentence": 1,
+    "text": "Legend says a goat herder noticed his goats dancing after eating the berries.",
+    "texts": [
+     "card: goats dancing after eating",
+     "card: berries"
+    ]
+   },
+   {
+    "sentence": 2,
+    "text": "By the year 1600 coffee had crossed the sea to Arabia, and merchants guarded the beans like gold.",
+    "texts": [
+     "card: year 1600 coffee",
+     "card: merchants guarded",
+     "card: Arabia",
+     "card: crossed"
+    ]
+   },
+   {
+    "sentence": 3,
+    "text": "But the Dutch smuggled a single plant to their islands, and the monopoly broke.",
+    "texts": [
+     "header: Dutch smuggled",
+     "card: Dutch smuggled",
+     "caption: and the monopoly broke",
+     "card: single plant"
+    ]
+   },
+   {
+    "sentence": 4,
+    "text": "Brazil planted millions of trees, and prices fell.",
+    "texts": [
+     "card: brazil planted millions",
+     "card: prices fell"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "Soon farmers in Colombia were growing coffee on steep mountain slopes.",
+    "texts": [
+     "card: steep mountain slopes",
+     "card: growing coffee"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Today more than 2 billion cups are drunk every day.",
+    "texts": [
+     "card: billion cups"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "So the story of coffee is really a story of trade, and of the people who work the land.",
+    "texts": [
+     "card: people",
+     "caption: who work the land",
+     "card: coffee",
+     "card: trade"
+    ]
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "map": 0.129,
+    "board": 0.871
+   },
+   "T02_median_shot_s": 4.82,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 18,
+    "windows_with_a_change": 18,
+    "share": 1.0
+   },
+   "T04_longest_still_s": 1.88,
+   "T05_narrator": {
+    "share": 0.577,
+    "longest_absence_s": 5.94,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 1.0,
+   "T09_captions": {
+    "n": 2,
+    "share_8_words_or_fewer": 1.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 114.7,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "question": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "twist": {
+     "present": true,
+     "at_s": 15.24,
+     "trigger": "but",
+     "explicit": null
+    },
+    "conclusion": {
+     "present": true,
+     "at_s": 30.68,
+     "trigger": "(last sentence)",
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": true
+   }
+  },
+  "render_ok": true
+ },
+ "inflation": {
+  "topic": "inflation",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "no place qualified: the opening map shows the arbitrary fallback place 'Europe'",
+   "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+  ],
+  "seconds": 7.3,
+  "duration_s": 36.738,
+  "phrase_metrics": {
+   "texts": 19,
+   "cards": 15,
+   "mean_words": 2.42,
+   "share_3_or_more_words": 0.474,
+   "fragment_rate_edge_function_or_weak_word": 0.158,
+   "single_non_number_word_rate": 0.263,
+   "content_coverage_mean": 0.655,
+   "sentences_with_no_text": 1,
+   "sentences": 9,
+   "distinct_phrases_share": 0.947,
+   "font_px_min": 44,
+   "font_px_mean": 50.3
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "What happens when a loaf of bread costs a million marks?",
+    "texts": []
+   },
+   {
+    "sentence": 1,
+    "text": "In 1923 workers were paid twice a day, because the money lost its value by the afternoon.",
+    "texts": [
+     "card: 1923 workers",
+     "card: money lost",
+     "card: paid twice",
+     "card: afternoon"
+    ]
+   },
+   {
+    "sentence": 2,
+    "text": "Families carried wheelbarrows of cash to the shop.",
+    "texts": [
+     "card: families carried wheelbarrows",
+     "card: cash"
+    ]
+   },
+   {
+    "sentence": 3,
+    "text": "Savings built over a lifetime became worthless in weeks.",
+    "texts": [
+     "card: lifetime became worthless"
+    ]
+   },
+   {
+    "sentence": 4,
+    "text": "But the cause was simple: the government printed money to pay its debts.",
+    "texts": [
+     "header: government printed money",
+     "card: government printed money",
+     "caption: to pay its debts"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "Prices rose faster than anyone could count.",
+    "texts": [
+     "card: prices rose faster",
+     "card: anyone"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Then a new currency arrived, and the crisis ended almost overnight.",
+    "texts": [
+     "card: crisis ended almost overnight",
+     "card: currency arrived"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "In 2008 another crisis showed that the lesson is easy to forget.",
+    "texts": [
+     "card: crisis showed",
+     "caption: is easy to forget"
+    ]
+   },
+   {
+    "sentence": 8,
+    "text": "That is why money is only a promise, and trust is what keeps it alive.",
+    "texts": [
+     "card: promise",
+     "caption: what keeps it alive",
+     "card: money"
+    ]
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "map": 0.121,
+    "board": 0.879
+   },
+   "T02_median_shot_s": 4.77,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 18,
+    "windows_with_a_change": 17,
+    "share": 0.944
+   },
+   "T04_longest_still_s": 1.88,
+   "T05_narrator": {
+    "share": 0.626,
+    "longest_absence_s": 4.77,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 1.0,
+   "T09_captions": {
+    "n": 3,
+    "share_8_words_or_fewer": 1.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 98.0,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "question": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "twist": {
+     "present": true,
+     "at_s": 16.53,
+     "trigger": "but",
+     "explicit": null
+    },
+    "conclusion": {
+     "present": true,
+     "at_s": 27.74,
+     "trigger": "the lesson",
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": true
+   }
+  },
+  "render_ok": true
+ },
+ "printing": {
+  "topic": "printing",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "beat e2: layer e2_fill2: the camera is not looking at an area that contains 'Germany' when the layer appears, so it may be off screen (warning only: the real view is not computed)",
+   "hybrid.validate: more than half of the beats are shorter than 5 seconds: the video changes visual too often"
+  ],
+  "seconds": 4.9,
+  "duration_s": 33.098,
+  "phrase_metrics": {
+   "texts": 16,
+   "cards": 12,
+   "mean_words": 2.31,
+   "share_3_or_more_words": 0.5,
+   "fragment_rate_edge_function_or_weak_word": 0.188,
+   "single_non_number_word_rate": 0.438,
+   "content_coverage_mean": 0.518,
+   "sentences_with_no_text": 2,
+   "sentences": 8,
+   "distinct_phrases_share": 0.875,
+   "font_px_min": 44,
+   "font_px_mean": 50.6
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "Before 1440 a single book took a monk many months to copy.",
+    "texts": [
+     "header: single book took",
+     "card: single book took",
+     "card: months"
+    ]
+   },
+   {
+    "sentence": 1,
+    "text": "Then a goldsmith in Mainz, in Germany, built a machine with movable metal letters.",
+    "texts": []
+   },
+   {
+    "sentence": 2,
+    "text": "The printing press could make hundreds of pages in a day.",
+    "texts": []
+   },
+   {
+    "sentence": 3,
+    "text": "Ideas spread faster than any army could march.",
+    "texts": [
+     "card: ideas spread faster",
+     "card: march"
+    ]
+   },
+   {
+    "sentence": 4,
+    "text": "Within fifty years millions of books filled the cities of Europe.",
+    "texts": [
+     "card: within fifty years millions",
+     "card: books filled",
+     "card: Europe"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "But the rulers were afraid, and they tried to control every page.",
+    "texts": [
+     "header: control",
+     "card: control",
+     "caption: to control every page",
+     "card: afraid"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Readers wanted to learn, and the books slipped across borders.",
+    "texts": [
+     "card: books slipped across borders"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "So one machine changed who could read, who could argue, and who could be heard.",
+    "texts": [
+     "card: one machine changed",
+     "caption: who could be heard",
+     "card: read"
+    ]
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "board": 0.736,
+    "map": 0.146,
+    "archive": 0.119
+   },
+   "T02_median_shot_s": 4.73,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 16,
+    "windows_with_a_change": 15,
+    "share": 0.938
+   },
+   "T04_longest_still_s": 1.86,
+   "T05_narrator": {
+    "share": 0.482,
+    "longest_absence_s": 8.75,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 1.0,
+   "T09_captions": {
+    "n": 2,
+    "share_8_words_or_fewer": 1.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 36.3,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "question": {
+     "present": false,
+     "at_s": null,
+     "trigger": null,
+     "explicit": null
+    },
+    "twist": {
+     "present": true,
+     "at_s": 20.46,
+     "trigger": "but",
+     "explicit": null
+    },
+    "conclusion": {
+     "present": true,
+     "at_s": 28.33,
+     "trigger": "(last sentence)",
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": false
+   }
+  },
+  "render_ok": true
+ },
+ "glaciers": {
+  "topic": "glaciers",
+  "plan_ok": true,
+  "problems": [],
+  "warnings": [
+   "hybrid.validate: beat e4: 3.1s of footage barely registers; give it more narration or fold it into a card"
+  ],
+  "seconds": 6.5,
+  "duration_s": 34.274,
+  "phrase_metrics": {
+   "texts": 13,
+   "cards": 10,
+   "mean_words": 2.0,
+   "share_3_or_more_words": 0.231,
+   "fragment_rate_edge_function_or_weak_word": 0.154,
+   "single_non_number_word_rate": 0.385,
+   "content_coverage_mean": 0.409,
+   "sentences_with_no_text": 2,
+   "sentences": 8,
+   "distinct_phrases_share": 0.923,
+   "font_px_min": 48,
+   "font_px_mean": 51.1
+  },
+  "per_sentence": [
+   {
+    "sentence": 0,
+    "text": "High in the Alps the ice has been melting for a hundred years.",
+    "texts": []
+   },
+   {
+    "sentence": 1,
+    "text": "The glaciers of Greenland now lose more than 250 billion tonnes of ice every year.",
+    "texts": []
+   },
+   {
+    "sentence": 2,
+    "text": "Scientists drill deep into the ice to read the air of the past.",
+    "texts": [
+     "card: scientists drill deep",
+     "card: read",
+     "card: past"
+    ]
+   },
+   {
+    "sentence": 3,
+    "text": "Each layer is a record of one winter.",
+    "texts": [
+     "card: one winter"
+    ]
+   },
+   {
+    "sentence": 4,
+    "text": "But the fastest loss is happening now, and the sea is rising along every coast.",
+    "texts": [
+     "header: happening now",
+     "card: happening now",
+     "caption: rising along every coast"
+    ]
+   },
+   {
+    "sentence": 5,
+    "text": "Iceland has already lost its first glacier.",
+    "texts": [
+     "card: first glacier"
+    ]
+   },
+   {
+    "sentence": 6,
+    "text": "Farmers below the mountains fear for their water.",
+    "texts": [
+     "card: farmers below"
+    ]
+   },
+   {
+    "sentence": 7,
+    "text": "In the end the ice is a clock, and it is telling us how much time we have.",
+    "texts": [
+     "card: telling",
+     "caption: much time we have",
+     "card: clock",
+     "card: ice"
+    ]
+   }
+  ],
+  "scorecard": {
+   "T01_layer_mix_share": {
+    "map": 0.296,
+    "board": 0.704
+   },
+   "T02_median_shot_s": 5.11,
+   "T02_share_2_to_8_s": 1.0,
+   "T03_change_windows": {
+    "windows_2s": 17,
+    "windows_with_a_change": 15,
+    "share": 0.882
+   },
+   "T04_longest_still_s": 1.96,
+   "T05_narrator": {
+    "share": 0.54,
+    "longest_absence_s": 10.13,
+    "target_share": 0.45,
+    "target_longest_absence_s": 30.0
+   },
+   "T07_cuts_at_sentence_start_share": 1.0,
+   "T09_captions": {
+    "n": 2,
+    "share_8_words_or_fewer": 1.0
+   },
+   "T12_metaphor_consistent": true,
+   "T12_recurrences_per_10min": 35.0,
+   "T13_story": {
+    "hook": {
+     "present": true,
+     "at_s": 0.5,
+     "trigger": "",
+     "explicit": null
+    },
+    "question": {
+     "present": false,
+     "at_s": null,
+     "trigger": null,
+     "explicit": null
+    },
+    "twist": {
+     "present": true,
+     "at_s": 17.71,
+     "trigger": "but",
+     "explicit": null
+    },
+    "conclusion": {
+     "present": true,
+     "at_s": 28.63,
+     "trigger": "in the end",
+     "explicit": null
+    },
+    "hook_within_30s": true,
+    "question_within_120s": false
+   }
+  },
+  "render_ok": true
+ }
+}

@@ -1,0 +1,464 @@
+{
+ "edges": [
+  0,
+  2.137,
+  6.481,
+  7.9,
+  12.263,
+  13.4,
+  17.719,
+  19.0,
+  23.541,
+  25.2,
+  29.837,
+  32.0
+ ],
+ "variants": {
+  "hard_tail0": {
+   "render_ok": true,
+   "errors": [],
+   "runs_found": 5,
+   "boards": [
+    {
+     "beat": "f1",
+     "start_s": 2.137,
+     "end_s": 6.481,
+     "start_frame_exact": 64.11,
+     "end_frame_exact": 194.43,
+     "beat_frames_exact": 130.32,
+     "clip_frames": 130,
+     "run_first": 65,
+     "run_last": 194,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      65
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f3",
+     "start_s": 7.9,
+     "end_s": 12.263,
+     "start_frame_exact": 237.0,
+     "end_frame_exact": 367.89,
+     "beat_frames_exact": 130.89,
+     "clip_frames": 131,
+     "run_first": 237,
+     "run_last": 367,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      237
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    },
+    {
+     "beat": "f5",
+     "start_s": 13.4,
+     "end_s": 17.719,
+     "start_frame_exact": 402.0,
+     "end_frame_exact": 531.57,
+     "beat_frames_exact": 129.57,
+     "clip_frames": 130,
+     "run_first": 402,
+     "run_last": 531,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      402
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    },
+    {
+     "beat": "f7",
+     "start_s": 19.0,
+     "end_s": 23.541,
+     "start_frame_exact": 570.0,
+     "end_frame_exact": 706.23,
+     "beat_frames_exact": 136.23,
+     "clip_frames": 136,
+     "run_first": 570,
+     "run_last": 706,
+     "held_frames": 1,
+     "held_at": [
+      {
+       "video_frame": 571,
+       "clip_frame": 0
+      }
+     ],
+     "skipped_frames": 0,
+     "offset_values": [
+      571
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f9",
+     "start_s": 25.2,
+     "end_s": 29.837,
+     "start_frame_exact": 756.0,
+     "end_frame_exact": 895.11,
+     "beat_frames_exact": 139.11,
+     "clip_frames": 139,
+     "run_first": 756,
+     "run_last": 895,
+     "held_frames": 1,
+     "held_at": [
+      {
+       "video_frame": 757,
+       "clip_frame": 0
+      }
+     ],
+     "skipped_frames": 0,
+     "offset_values": [
+      757
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    }
+   ],
+   "totals": {
+    "boards": 5,
+    "boards_with_a_held_frame": 2,
+    "boards_with_skipped_frames": 0,
+    "max_abs_cue_error_vs_plan_frames": 1,
+    "max_abs_cue_error_vs_clip_map_frames": 0
+   }
+  },
+  "hard_tail2": {
+   "render_ok": true,
+   "errors": [],
+   "runs_found": 5,
+   "boards": [
+    {
+     "beat": "f1",
+     "start_s": 2.137,
+     "end_s": 6.481,
+     "start_frame_exact": 64.11,
+     "end_frame_exact": 194.43,
+     "beat_frames_exact": 130.32,
+     "clip_frames": 132,
+     "run_first": 65,
+     "run_last": 194,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      65
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f3",
+     "start_s": 7.9,
+     "end_s": 12.263,
+     "start_frame_exact": 237.0,
+     "end_frame_exact": 367.89,
+     "beat_frames_exact": 130.89,
+     "clip_frames": 133,
+     "run_first": 237,
+     "run_last": 367,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      237
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    },
+    {
+     "beat": "f5",
+     "start_s": 13.4,
+     "end_s": 17.719,
+     "start_frame_exact": 402.0,
+     "end_frame_exact": 531.57,
+     "beat_frames_exact": 129.57,
+     "clip_frames": 132,
+     "run_first": 402,
+     "run_last": 531,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      402
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    },
+    {
+     "beat": "f7",
+     "start_s": 19.0,
+     "end_s": 23.541,
+     "start_frame_exact": 570.0,
+     "end_frame_exact": 706.23,
+     "beat_frames_exact": 136.23,
+     "clip_frames": 138,
+     "run_first": 570,
+     "run_last": 706,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      570
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    },
+    {
+     "beat": "f9",
+     "start_s": 25.2,
+     "end_s": 29.837,
+     "start_frame_exact": 756.0,
+     "end_frame_exact": 895.11,
+     "beat_frames_exact": 139.11,
+     "clip_frames": 141,
+     "run_first": 756,
+     "run_last": 895,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      756
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 0
+    }
+   ],
+   "totals": {
+    "boards": 5,
+    "boards_with_a_held_frame": 0,
+    "boards_with_skipped_frames": 0,
+    "max_abs_cue_error_vs_plan_frames": 1,
+    "max_abs_cue_error_vs_clip_map_frames": 0
+   }
+  },
+  "dissolve_tail0": {
+   "render_ok": true,
+   "errors": [],
+   "runs_found": 5,
+   "boards": [
+    {
+     "beat": "f1",
+     "start_s": 2.137,
+     "end_s": 6.481,
+     "start_frame_exact": 64.11,
+     "end_frame_exact": 194.43,
+     "beat_frames_exact": 130.32,
+     "clip_frames": 145,
+     "run_first": 71,
+     "run_last": 187,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      57
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f3",
+     "start_s": 7.9,
+     "end_s": 12.263,
+     "start_frame_exact": 237.0,
+     "end_frame_exact": 367.89,
+     "beat_frames_exact": 130.89,
+     "clip_frames": 146,
+     "run_first": 244,
+     "run_last": 361,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      230
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f5",
+     "start_s": 13.4,
+     "end_s": 17.719,
+     "start_frame_exact": 402.0,
+     "end_frame_exact": 531.57,
+     "beat_frames_exact": 129.57,
+     "clip_frames": 145,
+     "run_first": 409,
+     "run_last": 525,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      395
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f7",
+     "start_s": 19.0,
+     "end_s": 23.541,
+     "start_frame_exact": 570.0,
+     "end_frame_exact": 706.23,
+     "beat_frames_exact": 136.23,
+     "clip_frames": 151,
+     "run_first": 577,
+     "run_last": 699,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      563
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f9",
+     "start_s": 25.2,
+     "end_s": 29.837,
+     "start_frame_exact": 756.0,
+     "end_frame_exact": 895.11,
+     "beat_frames_exact": 139.11,
+     "clip_frames": 154,
+     "run_first": 763,
+     "run_last": 888,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      749
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    }
+   ],
+   "totals": {
+    "boards": 5,
+    "boards_with_a_held_frame": 0,
+    "boards_with_skipped_frames": 0,
+    "max_abs_cue_error_vs_plan_frames": 1,
+    "max_abs_cue_error_vs_clip_map_frames": 0
+   }
+  },
+  "dissolve_tail2": {
+   "render_ok": true,
+   "errors": [],
+   "runs_found": 5,
+   "boards": [
+    {
+     "beat": "f1",
+     "start_s": 2.137,
+     "end_s": 6.481,
+     "start_frame_exact": 64.11,
+     "end_frame_exact": 194.43,
+     "beat_frames_exact": 130.32,
+     "clip_frames": 147,
+     "run_first": 71,
+     "run_last": 187,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      57
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f3",
+     "start_s": 7.9,
+     "end_s": 12.263,
+     "start_frame_exact": 237.0,
+     "end_frame_exact": 367.89,
+     "beat_frames_exact": 130.89,
+     "clip_frames": 148,
+     "run_first": 244,
+     "run_last": 361,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      230
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f5",
+     "start_s": 13.4,
+     "end_s": 17.719,
+     "start_frame_exact": 402.0,
+     "end_frame_exact": 531.57,
+     "beat_frames_exact": 129.57,
+     "clip_frames": 147,
+     "run_first": 409,
+     "run_last": 525,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      395
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f7",
+     "start_s": 19.0,
+     "end_s": 23.541,
+     "start_frame_exact": 570.0,
+     "end_frame_exact": 706.23,
+     "beat_frames_exact": 136.23,
+     "clip_frames": 153,
+     "run_first": 577,
+     "run_last": 699,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      563
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    },
+    {
+     "beat": "f9",
+     "start_s": 25.2,
+     "end_s": 29.837,
+     "start_frame_exact": 756.0,
+     "end_frame_exact": 895.11,
+     "beat_frames_exact": 139.11,
+     "clip_frames": 156,
+     "run_first": 763,
+     "run_last": 888,
+     "held_frames": 0,
+     "held_at": [],
+     "skipped_frames": 0,
+     "offset_values": [
+      749
+     ],
+     "cue_detected_minus_clip_map": 0,
+     "cue_detected_minus_builder_plan": 1
+    }
+   ],
+   "totals": {
+    "boards": 5,
+    "boards_with_a_held_frame": 0,
+    "boards_with_skipped_frames": 0,
+    "max_abs_cue_error_vs_plan_frames": 1,
+    "max_abs_cue_error_vs_clip_map_frames": 0
+   }
+  }
+ }
+}

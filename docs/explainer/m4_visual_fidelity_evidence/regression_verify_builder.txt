@@ -1,0 +1,105 @@
+audio 24.0s -> /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/media/voice.wav; card -> /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/media/card.png
+[3/4] Locating image files...
+[3/4] Scene clips → /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_0/work/stub_images/_vg_render_clips
+[3/4] Rendering 1 scene clips...
+       clip 1/1 (24.00s)
+[4/4] Muxing 1 clip(s) + audio…
+[4/4] concat=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_0/work/stub_images/concat_list.txt
+[4/4] clips_dir=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_0/work/stub_images/_vg_render_clips
+[4/4] Done. Output: /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_0/render.mp4
+{
+ "dissolve_s": 0.0,
+ "validate_problems": [],
+ "render_ok": true,
+ "render_errors": [],
+ "render_seconds": 15.8,
+ "clip_origin_s": 9.0,
+ "clip_length_s": 8.0,
+ "clip_frames": 240,
+ "video_frames": 720,
+ "video_duration_s": 24.0,
+ "frame_number_check": {
+  "board_frames": 240,
+  "first_video_frame": 270,
+  "last_video_frame": 509,
+  "contiguous": true,
+  "code_steps": [
+   1
+  ],
+  "first_code": 0,
+  "last_code": 239,
+  "video_frame_minus_clip_frame_values": [
+   270
+  ],
+  "constant_offset": true,
+  "clip_frame0_at_video_frame": 270,
+  "clip_frame0_time_s": 9.0,
+  "ideal_origin_s": 9.0
+ },
+ "latency_summary": {
+  "n": 4,
+  "min_s": 0.006,
+  "max_s": 0.224,
+  "share_in_0_to_0.4s": 1.0,
+  "max_abs_frame_error_vs_clip_map": 0,
+  "undetected": []
+ }
+}
+[3/4] Locating image files...
+[3/4] Scene clips → /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_5/work/stub_images/_vg_render_clips
+[3/4] Rendering 1 scene clips...
+       clip 1/1 (24.00s)
+[4/4] Muxing 1 clip(s) + audio…
+[4/4] concat=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_5/work/stub_images/concat_list.txt
+[4/4] clips_dir=/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_5/work/stub_images/_vg_render_clips
+[4/4] Done. Output: /private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_builder/variant_d0_5/render.mp4
+{
+ "dissolve_s": 0.5,
+ "validate_problems": [],
+ "render_ok": true,
+ "render_errors": [],
+ "render_seconds": 15.8,
+ "clip_origin_s": 8.75,
+ "clip_length_s": 8.5,
+ "clip_frames": 255,
+ "video_frames": 720,
+ "video_duration_s": 24.0,
+ "frame_number_check": {
+  "board_frames": 227,
+  "first_video_frame": 277,
+  "last_video_frame": 503,
+  "contiguous": true,
+  "code_steps": [
+   1
+  ],
+  "first_code": 14,
+  "last_code": 240,
+  "video_frame_minus_clip_frame_values": [
+   263
+  ],
+  "constant_offset": true,
+  "clip_frame0_at_video_frame": 263,
+  "clip_frame0_time_s": 8.766666666666667,
+  "ideal_origin_s": 8.75
+ },
+ "latency_summary": {
+  "n": 4,
+  "min_s": 0.0393,
+  "max_s": 0.2333,
+  "share_in_0_to_0.4s": 1.0,
+  "max_abs_frame_error_vs_clip_map": 0,
+  "undetected": []
+ }
+}
+{
+ "strict_raises_on_missing_word": true,
+ "non_strict_skips_bad_cue_and_still_builds": true,
+ "problem_reported_for_k": true,
+ "problem_reported_for_e": true,
+ "problem_reported_for_w": true,
+ "problem_reported_for_l": true,
+ "problem_reported_for_o": true,
+ "build_is_deterministic_manifest": true,
+ "build_is_deterministic_frames": true,
+ "clip_bytes_identical_between_builds": true
+}

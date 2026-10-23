@@ -1,0 +1,176 @@
+{
+ "beats": [
+  {
+   "end": 5.61,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_3d51fc4949316f80.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e1",
+   "mode": "footage",
+   "purpose": "explainer board: hook",
+   "start": 0.0
+  },
+  {
+   "end": 9.838,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_f459a767ebd0fe4b.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e2",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 5.61
+  },
+  {
+   "end": 16.418,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_766d1b00c1c1dac6.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 9.838
+  },
+  {
+   "end": 22.704,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_61b0ce854dcb7a4f.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 16.418
+  },
+  {
+   "end": 27.226,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_d15d51c8e12c3b2a.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: twist",
+   "start": 22.704
+  },
+  {
+   "end": 30.572,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_f31e9a5199472322.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 27.226
+  },
+  {
+   "end": 35.682,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_63e672f842194290.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 30.572
+  },
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "country",
+     "place": "Italy"
+    }
+   ],
+   "end": 40.498,
+   "geo_intent": "where Italy is",
+   "id": "e8",
+   "layers": [
+    {
+     "id": "e8_fill1",
+     "place": "Italy",
+     "role": "subject",
+     "t": 38.328,
+     "type": "fill",
+     "until": "beat_end"
+    },
+    {
+     "id": "e8_caption2",
+     "t": 36.564,
+     "text": "idea hides under the streets",
+     "type": "caption",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: Italy",
+   "start": 35.682
+  },
+  {
+   "end": 44.32,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_b9df1453691d1e8c.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e9",
+   "mode": "footage",
+   "purpose": "explainer board: conclusion",
+   "start": 40.498
+  },
+  {
+   "end": 48.498,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_aqueducts/explainer/board_94ad93107d81fadb.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e10",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 44.32
+  }
+ ],
+ "duration": 48.498,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

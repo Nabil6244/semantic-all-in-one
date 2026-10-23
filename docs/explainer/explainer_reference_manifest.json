@@ -1,0 +1,481 @@
+{
+  "schema_version": "0.1-phase0",
+  "status": "COMPLETE FOR THE SELECTED SEGMENT (R2, 0:00.0-1:59.7). All other parts of both references are NOT shot-listed. Times are approximate, see measurement_method.",
+  "generated": "2026-10-22",
+  "references": [
+    {
+      "id": "R1",
+      "path": "/Users/muhammadnabil/Downloads/The-Entire-History-SnapYT.App.mp4",
+      "title_source": "file name only; the on-screen title card was not inspected",
+      "duration_s": 2127.57,
+      "resolution": "640x360",
+      "fps": 30,
+      "audio": true,
+      "inspected": "12 contact sheets at 15 s spacing (144 frames over the whole video), 2 close-up strips (305 s at 1 fps, 1280 s at 2 fps), full-length ffmpeg scene-change count. A full-length segment-level Whisper (base) transcript exists in the scratchpad but was not used for shot timing.",
+      "not_inspected": "shot-by-shot timing, caption timing, transitions, recurring metaphor timing",
+      "scene_change_count_threshold_0_3": 283
+    },
+    {
+      "id": "R2",
+      "path": "/Users/muhammadnabil/Downloads/Why-Did-the-SnapYT.App.mp4",
+      "title_source": "file name only; the on-screen title card was not inspected",
+      "duration_s": 2368.44,
+      "resolution": "640x360",
+      "fps": 30,
+      "audio": true,
+      "inspected": "17 contact sheets at 12 s spacing (whole video), 120 frames at 1 fps over 0:00-2:00 with labelled timestamps, 2 fine strips at 10 fps (22.0-24.0 s) and 6.7 fps (62.0-65.0 s), ffmpeg scene-change list for 0-125 s, word-level Whisper (base, int8) transcript for 0-125 s",
+      "not_inspected": "everything after 2:00 except the 12 s contact sheets",
+      "scene_change_count_threshold_0_3": 318
+    }
+  ],
+  "segment": {
+    "reference": "R2",
+    "start_s": 0.0,
+    "end_s": 119.7,
+    "duration_s": 119.7,
+    "end_note": "Ends on a detected hard cut at 119.7 s, so the passage is a whole number of shots. The next shot (from 119.7 s) is not in this manifest.",
+    "why_representative": "It is the opening: a human-scale hook (a border town) that zooms out to the thesis, then a puzzle ('the twist'), a historical turn, and the first aphorism. It uses all four layers (map, cartoon, board, archival), the narrator in several placements, a recurring colour-coded pair (north blue / south gold, USA blue / Mexico green), typed captions, counters, a crossing-arrows diagram, a scroll, and two paintings. It does NOT exercise: dialogue between two characters, dark silhouette scenes, the recurring scale metaphor, or chart types (bar, line, pie, gauge). Those need a second test segment (see report).",
+    "techniques_exercised": [
+      "satellite map with camera push, dashed border line, pin, translucent country fill, labels, date chip, coin pins, route lines",
+      "cartoon set reused across 5 shots (desert fence) with flags, families, check-list captions, time-of-day shift",
+      "split-screen of two cartoon sets with a divider and counters",
+      "board scene: narrator + paired icon rows + typed labels, framed thumbnails, crossing arrows, scroll, paradox arrows",
+      "archival painting with white/yellow text overlay and a counting counter",
+      "big outlined display title with scale-in, plus typed subtitle",
+      "date chip that changes value (2009 -> 1700)",
+      "hard cuts aligned to sentence onsets",
+      "narrator leaving frame while the map moves"
+    ]
+  },
+  "measurement_method": {
+    "boundaries": "Hard cuts from ffmpeg scene filter (threshold 0.25) plus visual inspection of 1 fps labelled frames. The scene filter MISSES cuts between two light frames (for example cartoon to grey board), so some boundaries were set from frames at 1 s resolution (+/-0.5 s) and one (23.05 s) was verified at 10 fps. Boundaries marked boundary_confidence 'cut-detected' are +/-0.1 s; 'frame-estimated' are +/-0.5 s.",
+    "narration_times": "Whisper base (int8, word timestamps) run on this segment's audio. Word times are the model's estimate (typically +/-0.3 s), not frame-measured.",
+    "narration_text_policy": "The manifest stores a paraphrase of each shot's idea (narration_idea), not the narration text.",
+    "change_events": "Hand-annotated from frames. Times are approximate (+/-1 s unless marked 'measured').",
+    "precision_warning": "The reference is 640x360 H.264. Small text, mouth shapes and exact colours are low-confidence."
+  },
+  "summary": {
+    "shot_count": 24,
+    "mean_shot_s": 4.99,
+    "median_shot_s": 4.6,
+    "min_shot_s": 2.2,
+    "max_shot_s": 11.4,
+    "seconds_by_category": { "cartoon": 39.05, "board": 38.95, "map": 32.5, "archival": 9.2 },
+    "share_by_category_pct": { "cartoon": 32.6, "board": 32.5, "map": 27.2, "archival": 7.7 },
+    "annotated_change_events": 85,
+    "annotated_change_events_per_s": 0.71,
+    "median_gap_between_annotated_events_s": 1.0,
+    "max_gap_between_annotated_events_s": 4.3,
+    "two_second_windows_with_a_change_or_cut": "58 of 60 (hand-annotated, so a provisional figure)",
+    "narrator_on_screen_s_estimate": 60,
+    "narrator_share_pct_estimate": 50,
+    "longest_narrator_absence": { "start_s": 73.8, "end_s": 99.6, "duration_s": 25.8, "shots": "S14-S20" },
+    "first_narrator_absence": { "start_s": 5.7, "end_s": 23.05, "duration_s": 17.35, "shots": "S02-S05" },
+    "detected_cuts_in_segment": 22,
+    "cuts_within_0_25s_of_sentence_start": 16,
+    "cuts_within_0_25s_of_sentence_or_clause_start": 17,
+    "whole_video_scene_changes_note": "283 (R1) and 318 (R2) detected changes at threshold 0.3 give a mean of 7.5 s per change, but this is a LOWER BOUND (the detector misses light-to-light cuts). In this segment the true shot rate is about one per 5.0 s."
+  },
+  "shots": [
+    {
+      "id": "S01", "start_s": 0.0, "end_s": 5.7, "duration_s": 5.7, "category": "map",
+      "boundary_confidence": "cut-detected (end)",
+      "narration_idea": "Introduces a town on the US-Mexico border by name.",
+      "composition": "Satellite view of North America; camera pushes from continental view down to the Arizona-Sonora border. Narrator standing at the right edge.",
+      "key_objects": ["satellite imagery", "white dashed border line", "yellow pin"],
+      "on_screen_text": ["UNITED STATES (small, top right)", "Nogales (pin label)"],
+      "narrator": { "present": true, "side": "right", "pose": "standing, mouth open, arm toward content (arm detail low confidence)", "scale": "about one third of frame height", "confidence": "medium" },
+      "transition_in": null,
+      "change_events": [
+        { "t": 0.0, "what": "camera starts push-in" },
+        { "t": 2.5, "what": "dashed border line appears" },
+        { "t": 3.0, "what": "country label typed" },
+        { "t": 5.0, "what": "pin and label appear" }
+      ],
+      "continuity": "Opens the Nogales thread; map returns at S11 and S13.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S02", "start_s": 5.7, "end_s": 8.0, "duration_s": 2.3, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "Corrects the first impression: it is two towns.",
+      "composition": "Flat desert town: rows of adobe houses, cacti, road, sun and clouds. No fence yet.",
+      "key_objects": ["houses", "cacti", "road", "sun"],
+      "on_screen_text": ["town 1 / town 2 (small grey labels, ~7 s)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 7.0, "what": "two small labels typed over the two halves" } ],
+      "continuity": "First appearance of the desert-town set (reused S04, S05, S07, S09).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S03", "start_s": 8.0, "end_s": 10.4, "duration_s": 2.4, "category": "archival",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "A fence runs through the middle of it.",
+      "composition": "Colour street-level photograph of a border street with a tall fence and patrol vehicles; city on a hill behind.",
+      "key_objects": ["photograph of the real fence"],
+      "on_screen_text": ["the fence (small white typed key phrase, top)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 8.8, "what": "key phrase typed over the photo" } ],
+      "continuity": "Real photo used as proof right after the cartoon claim.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S04", "start_s": 10.4, "end_s": 17.1, "duration_s": 6.7, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "North side is one named town, south side is the other, in a different country.",
+      "composition": "Same desert town, now with a wooden fence; camera slides right across it. US flag over left houses, Mexico flag over right houses.",
+      "key_objects": ["fence", "US flag", "Mexico flag", "houses"],
+      "on_screen_text": ["NORTH (small grey)", "Nogales, Arizona (typed)", "SOUTH", "Nogales, Sonora + MEXICO (typed)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 10.5, "what": "US flag appears" },
+        { "t": 11.0, "what": "NORTH label" },
+        { "t": 12.2, "what": "town name typed" },
+        { "t": 13.0, "what": "Mexico flag appears" },
+        { "t": 14.0, "what": "SOUTH label" },
+        { "t": 15.5, "what": "second town name typed" }
+      ],
+      "continuity": "Colour roles begin: USA/north text blue-grey, Mexico/south text green.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S05", "start_s": 17.1, "end_s": 23.05, "duration_s": 5.95, "category": "cartoon",
+      "boundary_confidence": "cut-detected (start), measured at 10 fps (end)",
+      "narration_idea": "Same desert, same weather, same families with cousins on both sides.",
+      "composition": "Wide shot of the fenced town. A check-list types in at the top; a blue family on the left and a green family on the right appear and wave.",
+      "key_objects": ["fence", "two families (blue / green clothing)", "green tick marks"],
+      "on_screen_text": ["same desert (tick)", "same weather (tick)", "same families", "cousins on both sides"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 18.0, "what": "first tick line typed" },
+        { "t": 19.0, "what": "second tick line typed" },
+        { "t": 20.0, "what": "families appear" },
+        { "t": 21.0, "what": "third line typed (yellow-green)" },
+        { "t": 22.0, "what": "families wave, fourth line typed" }
+      ],
+      "continuity": "Blue family = USA side, green family = Mexico side. Reused as thumbnails in S10.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S06", "start_s": 23.05, "end_s": 27.6, "duration_s": 4.55, "category": "board",
+      "boundary_confidence": "measured at 10 fps (start: hard cut between 23.00 and 23.10), cut-detected (end)",
+      "narration_idea": "The same food, the same music, often the same language.",
+      "composition": "Plain light-grey board. Narrator at left. Two column headers; three rows of paired round icons (blue-ringed USA, green-ringed Mexico) joined by an equals sign and a typed word.",
+      "key_objects": ["narrator", "taco icon", "guitar/music icon", "speech-bubble icon", "equals signs"],
+      "on_screen_text": ["USA side (blue)", "Mexico side (green)", "= food", "= music", "= language"],
+      "narrator": { "present": true, "side": "left", "pose": "standing, one arm extended toward content", "scale": "about half of frame height", "confidence": "medium" },
+      "transition_in": "hard cut (measured: no blend frames at 10 fps)",
+      "change_events": [
+        { "t": 23.2, "what": "column headers typed (measured)" },
+        { "t": 23.8, "what": "first icon pair pops in, label typed (measured)" },
+        { "t": 24.8, "what": "second icon pair" },
+        { "t": 26.7, "what": "third icon pair" }
+      ],
+      "continuity": "Colour roles continue (blue USA / green Mexico). Narrator first appears in left-on-board placement.",
+      "confidence": { "content": "high", "timing": "high for 23.05-23.9, medium after" }
+    },
+    {
+      "id": "S07", "start_s": 27.6, "end_s": 31.5, "duration_s": 3.9, "category": "cartoon",
+      "boundary_confidence": "cut-detected (start), frame-estimated (end, 31-32 s)",
+      "narration_idea": "Sets up a comparison of a household on each side.",
+      "composition": "Same fenced desert town, both families standing.",
+      "key_objects": ["fence", "families"],
+      "on_screen_text": ["American household (small grey, ~31 s)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 31.0, "what": "label typed" } ],
+      "continuity": "Fifth return to the desert-town set.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S08", "start_s": 31.5, "end_s": 36.1, "duration_s": 4.6, "category": "board",
+      "boundary_confidence": "frame-estimated (start), cut-detected (end)",
+      "narration_idea": "A household on the American side earns about three times as much.",
+      "composition": "Grey board, narrator left. Two house icons separated by a fence post. Coin stacks grow beside each house; the USA stack is clearly taller. A dark navy tag shows the ratio.",
+      "key_objects": ["narrator", "two house icons", "fence post", "coin stacks", "navy tag"],
+      "on_screen_text": ["USA side (blue)", "Mexico side (green)", "x3 income (navy tag)"],
+      "narrator": { "present": true, "side": "left", "pose": "standing, arm extended", "scale": "about half of frame height", "confidence": "medium" },
+      "transition_in": "hard cut (not verified at fine resolution)",
+      "change_events": [
+        { "t": 32.0, "what": "one coin appears on each house" },
+        { "t": 33.0, "what": "coin stacks grow" },
+        { "t": 34.0, "what": "navy ratio tag drops in" }
+      ],
+      "continuity": "Same two-column colour roles. The 'house + coins' pair returns in later boards (not inspected).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S09", "start_s": 36.1, "end_s": 42.0, "duration_s": 5.9, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "People on the north side live longer, have better roads and safer streets.",
+      "composition": "Fenced desert town with both families; a tick list types in; the sky shifts from day to dusk across the shot.",
+      "key_objects": ["fence", "families", "tick list", "dusk gradient"],
+      "on_screen_text": ["live longer (tick)", "better roads (tick)", "safer streets (tick)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 38.0, "what": "first tick line" },
+        { "t": 39.0, "what": "second tick line" },
+        { "t": 40.5, "what": "sun lowers, sky warms" },
+        { "t": 41.0, "what": "third tick line" }
+      ],
+      "continuity": "Time-of-day shift used as a mood beat. Last use of the full cartoon set in this segment.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S10", "start_s": 42.0, "end_s": 46.6, "duration_s": 4.6, "category": "board",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "Same place, same people, completely different lives.",
+      "composition": "Grey board; narrator left; two framed thumbnails of the cartoon scene (blue frame USA, green frame Mexico); typed summary lines, the last in red.",
+      "key_objects": ["narrator", "two framed thumbnails of earlier scene"],
+      "on_screen_text": ["same place", "same people", "completely different lives (red)"],
+      "narrator": { "present": true, "side": "left", "pose": "standing, arm extended, eyes open/closed alternate", "scale": "about half of frame height", "confidence": "medium" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 42.5, "what": "thumbnails appear" },
+        { "t": 43.0, "what": "two typed lines" },
+        { "t": 44.5, "what": "red conclusion typed" }
+      ],
+      "continuity": "The earlier cartoon scene is re-used as a recap thumbnail: asset reuse as a story device.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S11", "start_s": 46.6, "end_s": 58.0, "duration_s": 11.4, "category": "map",
+      "boundary_confidence": "cut-detected (46.6 and 47.1 both detected, 58.0)",
+      "narration_idea": "Zooms out: the USA is the richest big country; its southern neighbours are mostly middle-income.",
+      "composition": "Satellite globe view of the Americas. USA gets a translucent white fill and label with a yellow sub-line; camera pans south; Latin America tinted gold; country labels. Narrator at right for the first ~4 s, then not visible.",
+      "key_objects": ["Nogales pin", "USA fill", "gold fill over Latin America", "country labels"],
+      "on_screen_text": ["USA (label)", "richest big country in history (yellow sub-line)", "Mexico", "Argentina", "middle-income (yellow)"],
+      "narrator": { "present": true, "side": "right", "pose": "standing, mouth open", "scale": "about one third of frame height", "confidence": "medium", "note": "visible ~47-51 s, not visible ~52-58 s while the camera pans" },
+      "transition_in": "hard cut (two cuts 0.5 s apart; the second may be a camera hop)",
+      "change_events": [
+        { "t": 47.0, "what": "pin at Nogales" },
+        { "t": 48.5, "what": "USA fill and label" },
+        { "t": 50.0, "what": "yellow sub-line typed" },
+        { "t": 52.0, "what": "camera pans south, narrator leaves" },
+        { "t": 54.0, "what": "Latin America turns gold, Mexico label" },
+        { "t": 55.5, "what": "Argentina label" },
+        { "t": 56.5, "what": "middle-income label typed" }
+      ],
+      "continuity": "Establishes the map colour language: highlighted rich = white/blue, middle-income Latin America = gold.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S12", "start_s": 58.0, "end_s": 67.7, "duration_s": 9.7, "category": "board",
+      "boundary_confidence": "cut-detected; internal clear measured at 62.3 s (6.7 fps strip)",
+      "narration_idea": "Many struggle with poverty, inflation and crime; then 'but here is the twist'; it was not always like this.",
+      "composition": "Grey board, narrator left. Three white cards with orange border (house, banknote with rising arrow, red siren), each with a one-word label. At ~62.3 s the board clears; the outlined yellow display title scales in; a typed subtitle follows; a dark date chip shows a year that changes; a red typed line.",
+      "key_objects": ["narrator", "3 icon cards", "outlined display title", "dark date chip"],
+      "on_screen_text": ["poverty", "inflation", "crime", "THE TWIST (yellow outlined display type)", "almost nobody knows (typed)", "2009 -> 1700 (date chip)", "a short red line meaning it was not always like this"],
+      "narrator": { "present": true, "side": "left", "pose": "standing; mouth open/closed toggling about every 0.15-0.3 s; eyes blink (measured 62.0-65.0 s)", "scale": "about half of frame height", "confidence": "medium" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 60.0, "what": "card 1 (poverty)" },
+        { "t": 61.0, "what": "card 2 (inflation)" },
+        { "t": 62.0, "what": "card 3 (crime)" },
+        { "t": 62.3, "what": "board cleared (measured)" },
+        { "t": 63.0, "what": "THE TWIST starts scaling in (measured onset 63.05, full size 63.2)" },
+        { "t": 64.25, "what": "subtitle starts typing (measured), complete at 64.85" },
+        { "t": 66.0, "what": "date chip 2009" },
+        { "t": 67.0, "what": "chip changes to 1700, red line typed" }
+      ],
+      "continuity": "The 'twist' title pops on its key word; the subtitle completes with the end of the sentence.",
+      "confidence": { "content": "high", "timing": "high for 62-65 s, medium elsewhere" }
+    },
+    {
+      "id": "S13", "start_s": 67.7, "end_s": 73.8, "duration_s": 6.1, "category": "map",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "Around 1700 the richest places in the Americas were in Latin America.",
+      "composition": "Satellite world view; small grey date chip top-left reading 1700; three gold coin pins appear on Latin American locations; yellow text; narrator at right.",
+      "key_objects": ["date chip", "gold coin pins", "narrator"],
+      "on_screen_text": ["1700 (chip)", "the richest places (yellow)", "Latin America", "the north poor (small grey, at north)"],
+      "narrator": { "present": true, "side": "right", "pose": "standing, mouth open; expression changes to a smile at ~73 s", "scale": "about one third of frame height", "confidence": "low-medium" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 68.0, "what": "date chip fades in" },
+        { "t": 71.0, "what": "first coin pin" },
+        { "t": 72.0, "what": "two more coin pins" },
+        { "t": 73.0, "what": "Latin America and north labels" }
+      ],
+      "continuity": "Gold = rich (coin pins) now attached to the south.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S14", "start_s": 73.8, "end_s": 78.4, "duration_s": 4.6, "category": "archival",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "Mexico City was a grand capital of around a hundred thousand people.",
+      "composition": "Full-frame colonial-era painting of a plaza and cathedral under a smoky sky; edges softly darkened or blurred to fill the 16:9 frame. White title, yellow subtitle, and a person icon with a counting number.",
+      "key_objects": ["painting", "person icon + counter"],
+      "on_screen_text": ["Mexico City (white)", "a grand capital (yellow)", "counter counting up toward 100,000"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 74.0, "what": "title typed" },
+        { "t": 75.0, "what": "subtitle typed" },
+        { "t": 77.0, "what": "counter appears and counts up" }
+      ],
+      "continuity": "Painting first, cartoon of the same subject next (S15): archival proof then cartoon explanation.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S15", "start_s": 78.4, "end_s": 81.0, "duration_s": 2.6, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "The city had a university and a cathedral.",
+      "composition": "Cartoon Mexico City: cathedral with gold dome, volcano behind, a line of about 16 small characters along the bottom; a university building slides in.",
+      "key_objects": ["cathedral", "volcano", "crowd of ~16", "university building"],
+      "on_screen_text": ["Mexico City", "~100,000 people (cloud label)", "university", "cathedral"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 79.0, "what": "university building and label" },
+        { "t": 80.0, "what": "cathedral label" }
+      ],
+      "continuity": "Crowd row = population device (reused S17).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S16", "start_s": 81.0, "end_s": 84.0, "duration_s": 3.0, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "Boston at the time was a town of a few thousand.",
+      "composition": "Split screen with a thin black divider: Mexico City cartoon on the left, a small New England town (white church, two settlers, pines) on the right.",
+      "key_objects": ["split-screen divider", "church", "two settlers"],
+      "on_screen_text": ["Mexico City", "~100,000", "Boston", "~7,000"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 82.0, "what": "Boston panel appears on the right" }, { "t": 83.0, "what": "Boston count appears" } ],
+      "continuity": "Size contrast shown by composition, not a chart.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S17", "start_s": 84.0, "end_s": 88.4, "duration_s": 4.4, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "A silver-mining city in the mountains of Bolivia.",
+      "composition": "Huge red-brown cone mountain with dark mine openings and white silver dots; a long row of small characters along the bottom.",
+      "key_objects": ["cone mountain", "silver dots", "crowd row"],
+      "on_screen_text": ["silver", "Bolivia (yellow)", "Potosi"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 84.5, "what": "silver label" }, { "t": 86.0, "what": "Bolivia label" }, { "t": 87.0, "what": "Potosi label" } ],
+      "continuity": "Cartoon then archival of the same city (S18).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S18", "start_s": 88.4, "end_s": 90.6, "duration_s": 2.2, "category": "archival",
+      "boundary_confidence": "cut-detected (a mid-sentence cut)",
+      "narration_idea": "One of the biggest cities in the world.",
+      "composition": "Dark red-brown bird's-eye historic painting of the city under the mountain, with a legend in the artwork's corner; slight slow zoom.",
+      "key_objects": ["historic painting"],
+      "on_screen_text": ["Potosi (yellow)", "one of the biggest cities in ... (white, typed)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 89.0, "what": "typed text" }, { "t": 89.5, "what": "label" } ],
+      "continuity": "The cut lands mid-sentence on a key phrase, not at a sentence start.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S19", "start_s": 90.6, "end_s": 95.3, "duration_s": 4.7, "category": "map",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "The Caribbean sugar islands were among the richest places on Earth.",
+      "composition": "Satellite zoom on the Caribbean; four yellow pins with labels; small sugar-cane icons beside them; white heading and yellow typed sub-heading. No narrator.",
+      "key_objects": ["pins x4", "sugar icons"],
+      "on_screen_text": ["sugar islands (white)", "Jamaica, Cuba, Saint-Domingue, Barbados", "some of the richest places on Earth (yellow)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 91.0, "what": "heading typed" }, { "t": 92.0, "what": "pins and labels" }, { "t": 93.5, "what": "yellow sub-heading typed" } ],
+      "continuity": "Gold typed text on map = the 'rich' reading of the south.",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S20", "start_s": 95.3, "end_s": 99.6, "duration_s": 4.3, "category": "cartoon",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "The north was a poor, cold, empty backwater.",
+      "composition": "Snowy landscape: a lone settler near a log cabin among pines, light snowfall. Three words spaced across the top, then a single capitalised word.",
+      "key_objects": ["settler", "log cabin", "pines", "snow"],
+      "on_screen_text": ["poor", "cold", "empty", "BACKWATER (capitals)"],
+      "narrator": { "present": false, "side": null, "pose": null, "scale": null, "confidence": "high" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 96.5, "what": "poor" }, { "t": 97.2, "what": "cold" }, { "t": 97.8, "what": "empty" }, { "t": 98.3, "what": "BACKWATER typed" } ],
+      "continuity": "Contrast pair with S15-S17 (crowded rich south vs empty poor north).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S21", "start_s": 99.6, "end_s": 107.4, "duration_s": 7.8, "category": "board",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "So what happened? How did the poor north become the richest while the rich south fell behind?",
+      "composition": "Grey board. Narrator large and centred-left for the first ~1 s with a yellow question mark, then small at left. '1700' and 'TODAY' column headers; blue box 'poor north' with a blue arrow growing to 'richest'; a yellow 'rich south' box with a red arrow crossing down to an orange 'fell behind' box.",
+      "key_objects": ["narrator", "question mark", "four labelled boxes", "two crossing arrows"],
+      "on_screen_text": ["?", "1700", "TODAY", "poor north", "richest", "rich south", "fell behind"],
+      "narrator": { "present": true, "side": "left", "pose": "large with arms raised at 99.6-100.8 s, then small and standing", "scale": "large then about one third of frame height", "confidence": "medium" },
+      "transition_in": "hard cut",
+      "change_events": [
+        { "t": 100.0, "what": "question mark pops" },
+        { "t": 101.5, "what": "column headers typed" },
+        { "t": 102.0, "what": "poor north box" },
+        { "t": 103.0, "what": "blue arrow grows to richest box" },
+        { "t": 106.0, "what": "rich south box and red crossing arrow to fell behind" }
+      ],
+      "continuity": "Colour roles: blue = poor north (rising), yellow/gold = rich south (falling). The same roles recur in S24 and in later boards (R2 sheets).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S22", "start_s": 107.4, "end_s": 112.0, "duration_s": 4.6, "category": "map",
+      "boundary_confidence": "cut-detected",
+      "narration_idea": "To understand it, go back to the moment Europeans arrived.",
+      "composition": "Satellite view of the Atlantic; a small date chip (value low confidence, appears to read 1492); two white route lines from Europe toward the Caribbean; a red flag marker; narrator at right.",
+      "key_objects": ["date chip", "two white route lines", "flag marker", "narrator"],
+      "on_screen_text": ["date chip (value uncertain)", "England", "Spain", "Europe"],
+      "narrator": { "present": true, "side": "right", "pose": "standing, mouth open", "scale": "about one third of frame height", "confidence": "medium" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 108.0, "what": "date chip changes" }, { "t": 110.0, "what": "route lines draw" }, { "t": 111.0, "what": "labels typed" } ],
+      "continuity": "Date chip is the way the video steps back in time.",
+      "confidence": { "content": "medium", "timing": "medium" }
+    },
+    {
+      "id": "S23", "start_s": 112.0, "end_s": 115.0, "duration_s": 3.0, "category": "board",
+      "boundary_confidence": "cut-detected (start), frame-estimated (end)",
+      "narration_idea": "...and to a very strange lesson.",
+      "composition": "Grey board; narrator left changing from closed mouth to open to pointing; a cream scroll appears blank, then fills with a two-line title; a red '?!' burst at its corner.",
+      "key_objects": ["narrator", "cream scroll", "red ?! burst"],
+      "on_screen_text": ["A very strange lesson (on scroll)", "?!"],
+      "narrator": { "present": true, "side": "left", "pose": "closed mouth -> open mouth -> pointing", "scale": "about half of frame height", "confidence": "medium" },
+      "transition_in": "hard cut",
+      "change_events": [ { "t": 112.3, "what": "empty scroll appears" }, { "t": 113.3, "what": "scroll text typed" }, { "t": 114.0, "what": "?! burst" } ],
+      "continuity": "Scroll = chapter-title device (also seen elsewhere in R2).",
+      "confidence": { "content": "high", "timing": "medium" }
+    },
+    {
+      "id": "S24", "start_s": 115.0, "end_s": 119.7, "duration_s": 4.7, "category": "board",
+      "boundary_confidence": "frame-estimated (start), cut-detected (end)",
+      "narration_idea": "The worst thing that can happen to a country is to be born rich.",
+      "composition": "Grey board; narrator small at left; red typed line at top; a gold crown-treasure cradle labelled born rich appears, then a plain rough cradle labelled born poor; finally a red down arrow beside rich and a blue up arrow beside poor.",
+      "key_objects": ["narrator", "gold treasure cradle with crown", "plain cradle", "red down arrow", "blue up arrow"],
+      "on_screen_text": ["the worst thing (red, typed)", "born rich (gold)", "born poor (blue)"],
+      "narrator": { "present": true, "side": "left", "pose": "small, standing, mouth closed then open", "scale": "about one quarter of frame height", "confidence": "medium" },
+      "transition_in": "hard cut or in-place clear (not verified)",
+      "change_events": [ { "t": 116.0, "what": "red line typed" }, { "t": 117.0, "what": "born rich icon" }, { "t": 118.0, "what": "born poor icon" }, { "t": 119.0, "what": "down arrow on rich, up arrow on poor" } ],
+      "continuity": "The paradox (rich falls, poor rises) is drawn with the same gold/blue roles as S21. This is the aphorism that the video keeps returning to.",
+      "confidence": { "content": "high", "timing": "medium" }
+    }
+  ],
+  "recurring_elements": [
+    { "id": "narrator", "description": "One straw-hat stick figure with a spear. Placed at the left on boards, at the right on maps, almost never in cartoon scenes. Present about half of this segment." },
+    { "id": "colour_roles", "description": "Blue = USA / north / poor-north; green = Mexico; gold or yellow = rich / south / treasure; red = emphasis, conclusion, loss. Held across cartoon, board and map in this segment." },
+    { "id": "desert_town_set", "description": "One cartoon set used five times (S02, S04, S05, S07, S09) and re-used as a thumbnail (S10)." },
+    { "id": "typed_text", "description": "Short key phrases typed on screen in a handwritten face (dark on board, white or yellow on scenes and maps); a heavy outlined yellow display face for chapter-style titles." },
+    { "id": "date_chip", "description": "A small rounded chip showing a year, used on maps and boards; the value can change in place (2009 to 1700)." },
+    { "id": "signature_metaphor", "description": "NOT in this segment. In later parts of R2 the sticky note 'who gets to keep it' and a balance scale (south gold, north blue) recur; in R1, whale and shrimp. They need a second test segment." }
+  ],
+  "unknowns": [
+    "Exact lettering fonts (the video does not name them; no match was attempted).",
+    "Exact palette values beyond the board grey and cream paper (measured only on compressed 640x360 frames).",
+    "Whether the narrator mouth is driven by audio levels or a fixed loop.",
+    "Transitions at S08, S24 and the 46.6/47.1 s pair are not verified at fine resolution.",
+    "Recap and callback frequency across the whole video (not measured).",
+    "Anything after 2:00 of R2 and everything shot-level in R1.",
+    "Whether the reference uses sound effects or ambience under these shots (audio content other than the voice was not analysed)."
+  ]
+}

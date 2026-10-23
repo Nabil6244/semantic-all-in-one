@@ -1,0 +1,1713 @@
+{
+ "checks": {
+  "rung1_every_word_at_its_own_start": true,
+  "rung2_unmatched_word_spread_between_neighbours": true,
+  "rung2_trailing_word_spread_to_sentence_end": true,
+  "rung3_nothing_matched_types_from_anchor": true,
+  "rung3_typed_mode_is_requested_not_fallback": true,
+  "rung4_empty_phrase": true,
+  "rung4_more_than_12_words": true,
+  "over_policy_recorded_above_8_words": true,
+  "repeated_words_match_the_nearest_after_the_previous": true,
+  "word_before_the_anchor_is_never_matched": true,
+  "word_only_before_anchor_gives_rung3": true,
+  "match_further_than_6_words_is_ignored": true,
+  "sentence_boundary_words_outside_window_unmatched": true,
+  "zero_length_window_stacks_on_the_matched_word": true,
+  "out_of_order_times_clamped_then_distrusted_beyond_2": true,
+  "one_out_of_order_time_clamped_and_noted": true,
+  "phrase_past_the_beat_spread_ends_before_the_clip_end": true,
+  "display_only_dash_shares_the_previous_time": true,
+  "caption_manifest_records_rung_and_inputs": true,
+  "caption_schema_version_is_1_2": true,
+  "caption_needs_text": true,
+  "caption_anchor_not_in_beat_is_rung4_problem": true,
+  "caption_bad_mode_is_a_problem": true,
+  "caption_over_12_words_is_a_problem": true,
+  "caption_text_too_wide_for_slot_is_a_problem": true,
+  "caption_position_outside_margins_is_a_problem": true,
+  "caption_wrong_class_slot_is_a_problem": true,
+  "caption_before_clip_start_is_a_problem": true,
+  "named_chip_slot_under_the_caption_text_is_refused": true,
+  "automatic_chip_goes_beside_the_caption_not_under_it": true,
+  "chip_beside_left_half_caption_is_allowed": true,
+  "caption_named_slot_under_a_visible_chip_is_refused": true,
+  "caption_moves_to_a_free_slot_when_a_chip_blocks": true,
+  "explicit_card_over_caption_is_a_problem": true,
+  "caption_explicit_box_over_card_is_a_problem": true,
+  "caption_explicit_box_over_prop_icon_is_a_problem": true,
+  "right_narrator_long_caption_takes_the_left_half": true,
+  "right_narrator_short_caption_stays_in_the_full_band_beside_it": true,
+  "right_narrator_named_BR_blocked": true,
+  "caption_while_narrator_present_or_sliding_collides": true,
+  "caption_after_narrator_exit_finished_is_allowed": true,
+  "caption_box_over_left_narrator_is_a_problem": true,
+  "strict_raises_on_caption_problem": true,
+  "non_strict_skips_bad_caption_and_builds_good": true,
+  "map_plan_passes_validate_plan_and_relevance": true,
+  "every_map_layer_has_its_word_match_recorded": true,
+  "markers_and_fills_start_at_the_spoken_word": true,
+  "sample_plan_has_no_camera_framing_warnings": true,
+  "layers_at_places_outside_the_camera_area_get_a_framing_warning": true,
+  "places_resolve_with_the_offline_lookup": true,
+  "negative_marker_for_place_spoken_only_in_another_beat": true,
+  "negative_that_plan_passes_validate_plan": true,
+  "negative_marker_placed_too_early": true,
+  "negative_marker_placed_too_late": true,
+  "negative_marker_label_not_spoken": true,
+  "negative_unresolvable_place_offline": true,
+  "negative_place_spoken_but_unknown_to_the_offline_lookup": true,
+  "negative_caption_layer_not_in_narration": true,
+  "negative_caption_layer_starting_word_spoken_but_phrase_not": true,
+  "negative_map_layer_outside_its_beat_is_caught_by_validate_plan": true,
+  "negative_archive_clip_without_reason": true,
+  "negative_archive_clip_blank_reason": true,
+  "negative_archive_subject_not_spoken_in_window": true,
+  "negative_archive_no_subject_given": true,
+  "negative_invalid_local_file_missing_file": true,
+  "negative_invalid_local_file_directory": true,
+  "negative_invalid_local_file_empty_file": true,
+  "negative_invalid_local_file_unsupported_extension": true,
+  "negative_invalid_local_file_unreadable": true,
+  "negative_remote_reference_0": true,
+  "builder_refuses_remote_reference_0": true,
+  "negative_remote_reference_1": true,
+  "builder_refuses_remote_reference_1": true,
+  "negative_remote_reference_2": true,
+  "builder_refuses_remote_reference_2": true,
+  "negative_remote_reference_3": true,
+  "builder_refuses_remote_reference_3": true,
+  "negative_remote_reference_4": true,
+  "builder_refuses_remote_reference_4": true,
+  "negative_remote_reference_5": true,
+  "builder_refuses_remote_reference_5": true,
+  "negative_remote_reference_6": true,
+  "builder_refuses_remote_reference_6": true,
+  "negative_remote_reference_7": true,
+  "builder_refuses_remote_reference_7": true,
+  "negative_remote_reference_8": true,
+  "builder_refuses_remote_reference_8": true,
+  "negative_remote_reference_9": true,
+  "builder_refuses_remote_reference_9": true,
+  "negative_remote_reference_10": true,
+  "builder_refuses_remote_reference_10": true,
+  "negative_remote_reference_11": true,
+  "builder_refuses_remote_reference_11": true,
+  "negative_remote_reference_12": true,
+  "builder_refuses_remote_reference_12": true,
+  "validate_plan_alone_accepts_most_remote_references": true,
+  "negative_map_footage_card_with_remote_asset": true,
+  "builder_strict_not spoken i_0": true,
+  "builder_strict_not spoken i_1": true,
+  "builder_strict_not supporte_2": true,
+  "builder_strict_non-empty re_3": true,
+  "builder_strict_none of its _4": true,
+  "builder_non_strict_returns_problems_and_the_good_layers": true,
+  "map_plan_renders_through_unchanged_hybrid": true,
+  "no_network_attempts_while_rendering_map_and_archive": true,
+  "archive_picture_is_on_screen_mid_beat": true,
+  "no_network_attempts_in_counterfactual_renders": true,
+  "plan_builds_identical_same_process": true,
+  "caption_clip_plain_bytes_identical": true,
+  "caption_clip_plain_frames_identical": true,
+  "caption_clip_plain_manifest_identical": true,
+  "caption_clip_instr_bytes_identical": true,
+  "caption_clip_instr_frames_identical": true,
+  "caption_clip_instr_manifest_identical": true,
+  "caption_clip_identical_across_processes": true
+ },
+ "variants": {
+  "captions_dissolve_0.0": {
+   "name": "captions",
+   "dissolve_s": 0.0,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.4,
+   "clip_origin_s": 7.0,
+   "clip_frames": 300,
+   "builder_problems": [],
+   "schema_version": "1.2",
+   "video_frames": 720,
+   "pure_board_frames": 300,
+   "clip_frame0_at_video_frame": 210,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "captions": [
+    {
+     "id": "k1",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "prices",
+      "rose",
+      "every",
+      "year"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "prices",
+       "reveal_time_abs": 7.2,
+       "plan_clip_frame": 6,
+       "independent_clip_frame_from_narration": 6,
+       "plan_equals_independent": true,
+       "expected_video_frame": 216,
+       "detected_video_frame": 216,
+       "error_frames": 0
+      },
+      {
+       "word": "rose",
+       "reveal_time_abs": 7.494,
+       "plan_clip_frame": 15,
+       "independent_clip_frame_from_narration": 15,
+       "plan_equals_independent": true,
+       "expected_video_frame": 225,
+       "detected_video_frame": 225,
+       "error_frames": 0
+      },
+      {
+       "word": "every",
+       "reveal_time_abs": 7.788,
+       "plan_clip_frame": 24,
+       "independent_clip_frame_from_narration": 24,
+       "plan_equals_independent": true,
+       "expected_video_frame": 234,
+       "detected_video_frame": 234,
+       "error_frames": 0
+      },
+      {
+       "word": "year",
+       "reveal_time_abs": 8.082,
+       "plan_clip_frame": 33,
+       "independent_clip_frame_from_narration": 33,
+       "plan_equals_independent": true,
+       "expected_video_frame": 243,
+       "detected_video_frame": 243,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "k2",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "the",
+      "poor",
+      "lost",
+      "their",
+      "domes"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 9.552,
+       "stacked": false,
+       "to": 10.096,
+       "words": [
+        "domes"
+       ]
+      }
+     ],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "the",
+       "reveal_time_abs": 8.67,
+       "plan_clip_frame": 51,
+       "independent_clip_frame_from_narration": 51,
+       "plan_equals_independent": true,
+       "expected_video_frame": 261,
+       "detected_video_frame": 261,
+       "error_frames": 0
+      },
+      {
+       "word": "poor",
+       "reveal_time_abs": 8.964,
+       "plan_clip_frame": 59,
+       "independent_clip_frame_from_narration": 59,
+       "plan_equals_independent": true,
+       "expected_video_frame": 269,
+       "detected_video_frame": 269,
+       "error_frames": 0
+      },
+      {
+       "word": "lost",
+       "reveal_time_abs": 9.258,
+       "plan_clip_frame": 68,
+       "independent_clip_frame_from_narration": 68,
+       "plan_equals_independent": true,
+       "expected_video_frame": 278,
+       "detected_video_frame": 278,
+       "error_frames": 0
+      },
+      {
+       "word": "their",
+       "reveal_time_abs": 9.552,
+       "plan_clip_frame": 77,
+       "independent_clip_frame_from_narration": 77,
+       "plan_equals_independent": true,
+       "expected_video_frame": 287,
+       "detected_video_frame": 287,
+       "error_frames": 0
+      },
+      {
+       "word": "domes",
+       "reveal_time_abs": 9.824,
+       "plan_clip_frame": 85,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 295,
+       "detected_video_frame": 295,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "k3",
+     "rung": 3,
+     "rung_name": "anchor_only",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "a",
+      "completely",
+      "different",
+      "thought"
+     ],
+     "notes": [
+      "no phrase word was found in the anchor's sentence: typed from the anchor (rung 3)"
+     ],
+     "spread": [],
+     "stacked": 0,
+     "words": [],
+     "typed": {
+      "first_char": {
+       "expected_video_frame": 327,
+       "detected_video_frame": 327,
+       "error_frames": 0
+      },
+      "completion": {
+       "expected_video_frame": 356,
+       "detected_video_frame": 356,
+       "error_frames": 0
+      },
+      "note": "completion = first frame whose changed-pixel count reaches 97% of the final count; antialiasing and the 30 cps step make +-1 frame expected"
+     }
+    },
+    {
+     "id": "k4",
+     "rung": 3,
+     "rung_name": "anchor_only",
+     "mode": "typed",
+     "slot": "B",
+     "phrase": [
+      "the",
+      "crown",
+      "grew",
+      "rich"
+     ],
+     "notes": [
+      "mode typed was requested: the whole phrase is typed from the anchor (not a fallback)"
+     ],
+     "spread": [],
+     "stacked": 0,
+     "words": [],
+     "typed": {
+      "first_char": {
+       "expected_video_frame": 389,
+       "detected_video_frame": 389,
+       "error_frames": 0
+      },
+      "completion": {
+       "expected_video_frame": 407,
+       "detected_video_frame": 407,
+       "error_frames": 0
+      },
+      "note": "completion = first frame whose changed-pixel count reaches 97% of the final count; antialiasing and the 30 cps step make +-1 frame expected"
+     }
+    },
+    {
+     "id": "k5",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "nobody",
+      "counted",
+      "the",
+      "cost"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 14.094,
+       "stacked": true,
+       "to": 14.094,
+       "words": [
+        "nobody"
+       ]
+      }
+     ],
+     "stacked": 1,
+     "words": [
+      {
+       "word": "nobody",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 213,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 423,
+       "detected_video_frame": 423,
+       "error_frames": 0
+      },
+      {
+       "word": "counted",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 213,
+       "independent_clip_frame_from_narration": 213,
+       "plan_equals_independent": true,
+       "expected_video_frame": 423,
+       "detected_video_frame": 423,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 14.388,
+       "plan_clip_frame": 222,
+       "independent_clip_frame_from_narration": 222,
+       "plan_equals_independent": true,
+       "expected_video_frame": 432,
+       "detected_video_frame": 432,
+       "error_frames": 0
+      },
+      {
+       "word": "cost",
+       "reveal_time_abs": 14.976,
+       "plan_clip_frame": 240,
+       "independent_clip_frame_from_narration": 240,
+       "plan_equals_independent": true,
+       "expected_video_frame": 450,
+       "detected_video_frame": 450,
+       "error_frames": 0
+      }
+     ]
+    }
+   ],
+   "caption_summary": {
+    "words_measured": 13,
+    "undetected": [],
+    "max_abs_error_frames": 0,
+    "plan_vs_independent_mismatches": [],
+    "typed_first_char_errors": [
+     0,
+     0
+    ],
+    "typed_completion_errors": [
+     0,
+     0
+    ]
+   },
+   "geometry": {
+    "frames_checked": 300,
+    "caption_collisions_or_margin_violations": 0,
+    "examples": []
+   }
+  },
+  "layout_dissolve_0.0": {
+   "name": "layout",
+   "dissolve_s": 0.0,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.3,
+   "clip_origin_s": 7.0,
+   "clip_frames": 300,
+   "builder_problems": [],
+   "schema_version": "1.2",
+   "video_frames": 720,
+   "pure_board_frames": 300,
+   "clip_frame0_at_video_frame": 210,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "captions": [
+    {
+     "id": "ca1",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "prices",
+      "rose",
+      "every",
+      "year"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "prices",
+       "reveal_time_abs": 7.2,
+       "plan_clip_frame": 6,
+       "independent_clip_frame_from_narration": 6,
+       "plan_equals_independent": true,
+       "expected_video_frame": 216,
+       "detected_video_frame": 216,
+       "error_frames": 0
+      },
+      {
+       "word": "rose",
+       "reveal_time_abs": 7.494,
+       "plan_clip_frame": 15,
+       "independent_clip_frame_from_narration": 15,
+       "plan_equals_independent": true,
+       "expected_video_frame": 225,
+       "detected_video_frame": 225,
+       "error_frames": 0
+      },
+      {
+       "word": "every",
+       "reveal_time_abs": 7.788,
+       "plan_clip_frame": 24,
+       "independent_clip_frame_from_narration": 24,
+       "plan_equals_independent": true,
+       "expected_video_frame": 234,
+       "detected_video_frame": 234,
+       "error_frames": 0
+      },
+      {
+       "word": "year",
+       "reveal_time_abs": 8.082,
+       "plan_clip_frame": 33,
+       "independent_clip_frame_from_narration": 33,
+       "plan_equals_independent": true,
+       "expected_video_frame": 243,
+       "detected_video_frame": 243,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "ca2",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "gold",
+      "flowed",
+      "across",
+      "the",
+      "sea"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "gold",
+       "reveal_time_abs": 10.894,
+       "plan_clip_frame": 117,
+       "independent_clip_frame_from_narration": 117,
+       "plan_equals_independent": true,
+       "expected_video_frame": 327,
+       "detected_video_frame": 327,
+       "error_frames": 0
+      },
+      {
+       "word": "flowed",
+       "reveal_time_abs": 11.188,
+       "plan_clip_frame": 126,
+       "independent_clip_frame_from_narration": 126,
+       "plan_equals_independent": true,
+       "expected_video_frame": 336,
+       "detected_video_frame": 336,
+       "error_frames": 0
+      },
+      {
+       "word": "across",
+       "reveal_time_abs": 11.482,
+       "plan_clip_frame": 135,
+       "independent_clip_frame_from_narration": 135,
+       "plan_equals_independent": true,
+       "expected_video_frame": 345,
+       "detected_video_frame": 345,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 11.776,
+       "plan_clip_frame": 144,
+       "independent_clip_frame_from_narration": 144,
+       "plan_equals_independent": true,
+       "expected_video_frame": 354,
+       "detected_video_frame": 354,
+       "error_frames": 0
+      },
+      {
+       "word": "sea",
+       "reveal_time_abs": 12.07,
+       "plan_clip_frame": 153,
+       "independent_clip_frame_from_narration": 153,
+       "plan_equals_independent": true,
+       "expected_video_frame": 363,
+       "detected_video_frame": 363,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "ca3",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "nobody",
+      "counted",
+      "the",
+      "true",
+      "cost"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 14.094,
+       "stacked": true,
+       "to": 14.094,
+       "words": [
+        "nobody"
+       ]
+      }
+     ],
+     "stacked": 1,
+     "words": [
+      {
+       "word": "nobody",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 213,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 423,
+       "detected_video_frame": 423,
+       "error_frames": 0
+      },
+      {
+       "word": "counted",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 213,
+       "independent_clip_frame_from_narration": 213,
+       "plan_equals_independent": true,
+       "expected_video_frame": 423,
+       "detected_video_frame": 423,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 14.388,
+       "plan_clip_frame": 222,
+       "independent_clip_frame_from_narration": 222,
+       "plan_equals_independent": true,
+       "expected_video_frame": 432,
+       "detected_video_frame": 432,
+       "error_frames": 0
+      },
+      {
+       "word": "true",
+       "reveal_time_abs": 14.682,
+       "plan_clip_frame": 231,
+       "independent_clip_frame_from_narration": 231,
+       "plan_equals_independent": true,
+       "expected_video_frame": 441,
+       "detected_video_frame": 441,
+       "error_frames": 0
+      },
+      {
+       "word": "cost",
+       "reveal_time_abs": 14.976,
+       "plan_clip_frame": 240,
+       "independent_clip_frame_from_narration": 240,
+       "plan_equals_independent": true,
+       "expected_video_frame": 450,
+       "detected_video_frame": 450,
+       "error_frames": 0
+      }
+     ]
+    }
+   ],
+   "caption_summary": {
+    "words_measured": 14,
+    "undetected": [],
+    "max_abs_error_frames": 0,
+    "plan_vs_independent_mismatches": [],
+    "typed_first_char_errors": [],
+    "typed_completion_errors": []
+   },
+   "geometry": {
+    "frames_checked": 300,
+    "caption_collisions_or_margin_violations": 0,
+    "examples": []
+   }
+  },
+  "captions_dissolve_0.5": {
+   "name": "captions",
+   "dissolve_s": 0.5,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.6,
+   "clip_origin_s": 6.75,
+   "clip_frames": 315,
+   "builder_problems": [],
+   "schema_version": "1.2",
+   "video_frames": 720,
+   "pure_board_frames": 287,
+   "clip_frame0_at_video_frame": 203,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "captions": [
+    {
+     "id": "k1",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "prices",
+      "rose",
+      "every",
+      "year"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "prices",
+       "reveal_time_abs": 7.2,
+       "plan_clip_frame": 14,
+       "independent_clip_frame_from_narration": 14,
+       "plan_equals_independent": true,
+       "expected_video_frame": 217,
+       "detected_video_frame": 217,
+       "error_frames": 0
+      },
+      {
+       "word": "rose",
+       "reveal_time_abs": 7.494,
+       "plan_clip_frame": 23,
+       "independent_clip_frame_from_narration": 23,
+       "plan_equals_independent": true,
+       "expected_video_frame": 226,
+       "detected_video_frame": 226,
+       "error_frames": 0
+      },
+      {
+       "word": "every",
+       "reveal_time_abs": 7.788,
+       "plan_clip_frame": 32,
+       "independent_clip_frame_from_narration": 32,
+       "plan_equals_independent": true,
+       "expected_video_frame": 235,
+       "detected_video_frame": 235,
+       "error_frames": 0
+      },
+      {
+       "word": "year",
+       "reveal_time_abs": 8.082,
+       "plan_clip_frame": 40,
+       "independent_clip_frame_from_narration": 40,
+       "plan_equals_independent": true,
+       "expected_video_frame": 243,
+       "detected_video_frame": 243,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "k2",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "the",
+      "poor",
+      "lost",
+      "their",
+      "domes"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 9.552,
+       "stacked": false,
+       "to": 10.096,
+       "words": [
+        "domes"
+       ]
+      }
+     ],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "the",
+       "reveal_time_abs": 8.67,
+       "plan_clip_frame": 58,
+       "independent_clip_frame_from_narration": 58,
+       "plan_equals_independent": true,
+       "expected_video_frame": 261,
+       "detected_video_frame": 261,
+       "error_frames": 0
+      },
+      {
+       "word": "poor",
+       "reveal_time_abs": 8.964,
+       "plan_clip_frame": 67,
+       "independent_clip_frame_from_narration": 67,
+       "plan_equals_independent": true,
+       "expected_video_frame": 270,
+       "detected_video_frame": 270,
+       "error_frames": 0
+      },
+      {
+       "word": "lost",
+       "reveal_time_abs": 9.258,
+       "plan_clip_frame": 76,
+       "independent_clip_frame_from_narration": 76,
+       "plan_equals_independent": true,
+       "expected_video_frame": 279,
+       "detected_video_frame": 279,
+       "error_frames": 0
+      },
+      {
+       "word": "their",
+       "reveal_time_abs": 9.552,
+       "plan_clip_frame": 85,
+       "independent_clip_frame_from_narration": 85,
+       "plan_equals_independent": true,
+       "expected_video_frame": 288,
+       "detected_video_frame": 288,
+       "error_frames": 0
+      },
+      {
+       "word": "domes",
+       "reveal_time_abs": 9.824,
+       "plan_clip_frame": 93,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 296,
+       "detected_video_frame": 296,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "k3",
+     "rung": 3,
+     "rung_name": "anchor_only",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "a",
+      "completely",
+      "different",
+      "thought"
+     ],
+     "notes": [
+      "no phrase word was found in the anchor's sentence: typed from the anchor (rung 3)"
+     ],
+     "spread": [],
+     "stacked": 0,
+     "words": [],
+     "typed": {
+      "first_char": {
+       "expected_video_frame": 328,
+       "detected_video_frame": 328,
+       "error_frames": 0
+      },
+      "completion": {
+       "expected_video_frame": 357,
+       "detected_video_frame": 357,
+       "error_frames": 0
+      },
+      "note": "completion = first frame whose changed-pixel count reaches 97% of the final count; antialiasing and the 30 cps step make +-1 frame expected"
+     }
+    },
+    {
+     "id": "k4",
+     "rung": 3,
+     "rung_name": "anchor_only",
+     "mode": "typed",
+     "slot": "B",
+     "phrase": [
+      "the",
+      "crown",
+      "grew",
+      "rich"
+     ],
+     "notes": [
+      "mode typed was requested: the whole phrase is typed from the anchor (not a fallback)"
+     ],
+     "spread": [],
+     "stacked": 0,
+     "words": [],
+     "typed": {
+      "first_char": {
+       "expected_video_frame": 390,
+       "detected_video_frame": 390,
+       "error_frames": 0
+      },
+      "completion": {
+       "expected_video_frame": 408,
+       "detected_video_frame": 408,
+       "error_frames": 0
+      },
+      "note": "completion = first frame whose changed-pixel count reaches 97% of the final count; antialiasing and the 30 cps step make +-1 frame expected"
+     }
+    },
+    {
+     "id": "k5",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "B",
+     "phrase": [
+      "nobody",
+      "counted",
+      "the",
+      "cost"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 14.094,
+       "stacked": true,
+       "to": 14.094,
+       "words": [
+        "nobody"
+       ]
+      }
+     ],
+     "stacked": 1,
+     "words": [
+      {
+       "word": "nobody",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 221,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 424,
+       "detected_video_frame": 424,
+       "error_frames": 0
+      },
+      {
+       "word": "counted",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 221,
+       "independent_clip_frame_from_narration": 221,
+       "plan_equals_independent": true,
+       "expected_video_frame": 424,
+       "detected_video_frame": 424,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 14.388,
+       "plan_clip_frame": 230,
+       "independent_clip_frame_from_narration": 230,
+       "plan_equals_independent": true,
+       "expected_video_frame": 433,
+       "detected_video_frame": 433,
+       "error_frames": 0
+      },
+      {
+       "word": "cost",
+       "reveal_time_abs": 14.976,
+       "plan_clip_frame": 247,
+       "independent_clip_frame_from_narration": 247,
+       "plan_equals_independent": true,
+       "expected_video_frame": 450,
+       "detected_video_frame": 450,
+       "error_frames": 0
+      }
+     ]
+    }
+   ],
+   "caption_summary": {
+    "words_measured": 13,
+    "undetected": [],
+    "max_abs_error_frames": 0,
+    "plan_vs_independent_mismatches": [],
+    "typed_first_char_errors": [
+     0,
+     0
+    ],
+    "typed_completion_errors": [
+     0,
+     0
+    ]
+   },
+   "geometry": {
+    "frames_checked": 315,
+    "caption_collisions_or_margin_violations": 0,
+    "examples": []
+   }
+  },
+  "layout_dissolve_0.5": {
+   "name": "layout",
+   "dissolve_s": 0.5,
+   "validate_problems": [],
+   "render_ok": true,
+   "render_errors": [],
+   "render_seconds": 14.9,
+   "clip_origin_s": 6.75,
+   "clip_frames": 315,
+   "builder_problems": [],
+   "schema_version": "1.2",
+   "video_frames": 720,
+   "pure_board_frames": 287,
+   "clip_frame0_at_video_frame": 203,
+   "held_frames": 0,
+   "skipped_frames": 0,
+   "captions": [
+    {
+     "id": "ca1",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "prices",
+      "rose",
+      "every",
+      "year"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "prices",
+       "reveal_time_abs": 7.2,
+       "plan_clip_frame": 14,
+       "independent_clip_frame_from_narration": 14,
+       "plan_equals_independent": true,
+       "expected_video_frame": 217,
+       "detected_video_frame": 217,
+       "error_frames": 0
+      },
+      {
+       "word": "rose",
+       "reveal_time_abs": 7.494,
+       "plan_clip_frame": 23,
+       "independent_clip_frame_from_narration": 23,
+       "plan_equals_independent": true,
+       "expected_video_frame": 226,
+       "detected_video_frame": 226,
+       "error_frames": 0
+      },
+      {
+       "word": "every",
+       "reveal_time_abs": 7.788,
+       "plan_clip_frame": 32,
+       "independent_clip_frame_from_narration": 32,
+       "plan_equals_independent": true,
+       "expected_video_frame": 235,
+       "detected_video_frame": 235,
+       "error_frames": 0
+      },
+      {
+       "word": "year",
+       "reveal_time_abs": 8.082,
+       "plan_clip_frame": 40,
+       "independent_clip_frame_from_narration": 40,
+       "plan_equals_independent": true,
+       "expected_video_frame": 243,
+       "detected_video_frame": 243,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "ca2",
+     "rung": 1,
+     "rung_name": "all_matched",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "gold",
+      "flowed",
+      "across",
+      "the",
+      "sea"
+     ],
+     "notes": [],
+     "spread": [],
+     "stacked": 0,
+     "words": [
+      {
+       "word": "gold",
+       "reveal_time_abs": 10.894,
+       "plan_clip_frame": 125,
+       "independent_clip_frame_from_narration": 125,
+       "plan_equals_independent": true,
+       "expected_video_frame": 328,
+       "detected_video_frame": 328,
+       "error_frames": 0
+      },
+      {
+       "word": "flowed",
+       "reveal_time_abs": 11.188,
+       "plan_clip_frame": 134,
+       "independent_clip_frame_from_narration": 134,
+       "plan_equals_independent": true,
+       "expected_video_frame": 337,
+       "detected_video_frame": 337,
+       "error_frames": 0
+      },
+      {
+       "word": "across",
+       "reveal_time_abs": 11.482,
+       "plan_clip_frame": 142,
+       "independent_clip_frame_from_narration": 142,
+       "plan_equals_independent": true,
+       "expected_video_frame": 345,
+       "detected_video_frame": 345,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 11.776,
+       "plan_clip_frame": 151,
+       "independent_clip_frame_from_narration": 151,
+       "plan_equals_independent": true,
+       "expected_video_frame": 354,
+       "detected_video_frame": 354,
+       "error_frames": 0
+      },
+      {
+       "word": "sea",
+       "reveal_time_abs": 12.07,
+       "plan_clip_frame": 160,
+       "independent_clip_frame_from_narration": 160,
+       "plan_equals_independent": true,
+       "expected_video_frame": 363,
+       "detected_video_frame": 363,
+       "error_frames": 0
+      }
+     ]
+    },
+    {
+     "id": "ca3",
+     "rung": 2,
+     "rung_name": "partial",
+     "mode": "words",
+     "slot": "BL",
+     "phrase": [
+      "nobody",
+      "counted",
+      "the",
+      "true",
+      "cost"
+     ],
+     "notes": [],
+     "spread": [
+      {
+       "from": 14.094,
+       "stacked": true,
+       "to": 14.094,
+       "words": [
+        "nobody"
+       ]
+      }
+     ],
+     "stacked": 1,
+     "words": [
+      {
+       "word": "nobody",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 221,
+       "independent_clip_frame_from_narration": null,
+       "plan_equals_independent": null,
+       "expected_video_frame": 424,
+       "detected_video_frame": 424,
+       "error_frames": 0
+      },
+      {
+       "word": "counted",
+       "reveal_time_abs": 14.094,
+       "plan_clip_frame": 221,
+       "independent_clip_frame_from_narration": 221,
+       "plan_equals_independent": true,
+       "expected_video_frame": 424,
+       "detected_video_frame": 424,
+       "error_frames": 0
+      },
+      {
+       "word": "the",
+       "reveal_time_abs": 14.388,
+       "plan_clip_frame": 230,
+       "independent_clip_frame_from_narration": 230,
+       "plan_equals_independent": true,
+       "expected_video_frame": 433,
+       "detected_video_frame": 433,
+       "error_frames": 0
+      },
+      {
+       "word": "true",
+       "reveal_time_abs": 14.682,
+       "plan_clip_frame": 238,
+       "independent_clip_frame_from_narration": 238,
+       "plan_equals_independent": true,
+       "expected_video_frame": 441,
+       "detected_video_frame": 441,
+       "error_frames": 0
+      },
+      {
+       "word": "cost",
+       "reveal_time_abs": 14.976,
+       "plan_clip_frame": 247,
+       "independent_clip_frame_from_narration": 247,
+       "plan_equals_independent": true,
+       "expected_video_frame": 450,
+       "detected_video_frame": 450,
+       "error_frames": 0
+      }
+     ]
+    }
+   ],
+   "caption_summary": {
+    "words_measured": 14,
+    "undetected": [],
+    "max_abs_error_frames": 0,
+    "plan_vs_independent_mismatches": [],
+    "typed_first_char_errors": [],
+    "typed_completion_errors": []
+   },
+   "geometry": {
+    "frames_checked": 315,
+    "caption_collisions_or_margin_violations": 0,
+    "examples": []
+   }
+  }
+ },
+ "notes": [],
+ "map_plan": {
+  "validate_plan_problems": [],
+  "relevance_problems": [],
+  "warnings": [
+   "beat b2: camera fly_to 'Pakistan' is not spoken inside this beat (warning only; the opening start camera is exempt)",
+   "beat b4: layer b4_caption1: the caption 'the story returns to the map' is only partly supported by the narration (rung 2)"
+  ],
+  "layers_checked": 7,
+  "clips_checked": 1,
+  "plan_sha256": "e8febd8ea83eeddfa7bf8373bcc5e1768a355617bd5f1959d4ac7804dff2ca55"
+ },
+ "map_evidence": {
+  "beats": [
+   {
+    "beat": "b1",
+    "layers": [
+     {
+      "layer": "b1_marker1",
+      "type": "marker",
+      "match": {
+       "phrase": "Gilgit",
+       "tokens": [
+        "gilgit"
+       ],
+       "words": [
+        "Gilgit,"
+       ],
+       "word_indices": [
+        14
+       ],
+       "start": 6.564,
+       "end": 6.814,
+       "occurrence": 1
+      },
+      "t": 6.664
+     },
+     {
+      "layer": "b1_fill2",
+      "type": "fill",
+      "match": {
+       "phrase": "Pakistan",
+       "tokens": [
+        "pakistan"
+       ],
+       "words": [
+        "Pakistan"
+       ],
+       "word_indices": [
+        0
+       ],
+       "start": 0.5,
+       "end": 0.75,
+       "occurrence": 1
+      },
+      "t": 0.5
+     },
+     {
+      "layer": "b1_caption3",
+      "type": "caption",
+      "caption": {
+       "rung": 1,
+       "rung_name": "all_matched",
+       "mode": "words",
+       "phrase_words": [
+        "single",
+        "river",
+        "system"
+       ],
+       "matched": [
+        {
+         "phrase_word": "single",
+         "narration_word": "single",
+         "narration_index": 5,
+         "start": 1.97,
+         "end": 2.22
+        },
+        {
+         "phrase_word": "river",
+         "narration_word": "river",
+         "narration_index": 6,
+         "start": 2.264,
+         "end": 2.514
+        },
+        {
+         "phrase_word": "system",
+         "narration_word": "system.",
+         "narration_index": 7,
+         "start": 2.558,
+         "end": 2.808
+        }
+       ],
+       "reveal_times_abs": [
+        1.97,
+        2.264,
+        2.558
+       ],
+       "spread": [],
+       "clamped": 0,
+       "stacked": 0,
+       "over_policy": false,
+       "window": {
+        "anchor_time": 1.97,
+        "window_words": 14,
+        "sentence_end": null,
+        "beat_end": 9.2,
+        "clip_end_abs": 9.2,
+        "fps": 30
+       },
+       "notes": []
+      },
+      "t": 1.97
+     }
+    ],
+    "camera": [
+     {
+      "place": "Gilgit",
+      "t": 5.5
+     }
+    ]
+   },
+   {
+    "beat": "b2",
+    "layers": [
+     {
+      "layer": "b2_marker1",
+      "type": "marker",
+      "match": {
+       "phrase": "Lahore",
+       "tokens": [
+        "lahore"
+       ],
+       "words": [
+        "Lahore"
+       ],
+       "word_indices": [
+        24
+       ],
+       "start": 10.87,
+       "end": 11.12,
+       "occurrence": 1
+      },
+      "t": 10.97
+     },
+     {
+      "layer": "b2_marker2",
+      "type": "marker",
+      "match": {
+       "phrase": "Karachi",
+       "tokens": [
+        "karachi"
+       ],
+       "words": [
+        "Karachi."
+       ],
+       "word_indices": [
+        26
+       ],
+       "start": 11.458,
+       "end": 11.708,
+       "occurrence": 1
+      },
+      "t": 11.558
+     },
+     {
+      "layer": "b2_line3",
+      "type": "line",
+      "matches": [
+       {
+        "phrase": "Lahore",
+        "tokens": [
+         "lahore"
+        ],
+        "words": [
+         "Lahore"
+        ],
+        "word_indices": [
+         24
+        ],
+        "start": 10.87,
+        "end": 11.12,
+        "occurrence": 1
+       },
+       {
+        "phrase": "Karachi",
+        "tokens": [
+         "karachi"
+        ],
+        "words": [
+         "Karachi."
+        ],
+        "word_indices": [
+         26
+        ],
+        "start": 11.458,
+        "end": 11.708,
+        "occurrence": 1
+       }
+      ],
+      "t": 11.458
+     }
+    ],
+    "camera": [
+     {
+      "place": "Pakistan",
+      "t": 9.4
+     }
+    ]
+   },
+   {
+    "beat": "b3",
+    "clips": [
+     {
+      "clip": 0,
+      "asset": "/private/tmp/claude-501/-Users-muhammadnabil--claude-spares-spare-HI7QKl/528a896b-0d53-4c44-9a01-ed25459cb69e/scratchpad/vfreg_m3/map/farm_market.png",
+      "subject": [
+       "farmers",
+       "water"
+      ],
+      "subject_matches": [
+       {
+        "phrase": "farmers",
+        "tokens": [
+         "farmers"
+        ],
+        "words": [
+         "Farmers"
+        ],
+        "word_indices": [
+         27
+        ],
+        "start": 13.0,
+        "end": 13.25,
+        "occurrence": 1
+       },
+       {
+        "phrase": "water",
+        "tokens": [
+         "water"
+        ],
+        "words": [
+         "water"
+        ],
+        "word_indices": [
+         31
+        ],
+        "start": 14.176,
+        "end": 14.426,
+        "occurrence": 1
+       }
+      ]
+     }
+    ],
+    "subjects": {
+     "b3": {
+      "0": [
+       "farmers",
+       "water"
+      ]
+     }
+    }
+   },
+   {
+    "beat": "b4",
+    "layers": [
+     {
+      "layer": "b4_caption1",
+      "type": "caption",
+      "caption": {
+       "rung": 2,
+       "rung_name": "partial",
+       "mode": "words",
+       "phrase_words": [
+        "the",
+        "story",
+        "returns",
+        "to",
+        "the",
+        "map"
+       ],
+       "matched": [
+        {
+         "phrase_word": "the",
+         "narration_word": "the",
+         "narration_index": 39,
+         "start": 20.87,
+         "end": 21.12
+        },
+        {
+         "phrase_word": "map",
+         "narration_word": "map.",
+         "narration_index": 40,
+         "start": 21.164,
+         "end": 21.414
+        }
+       ],
+       "reveal_times_abs": [
+        20.87,
+        20.9288,
+        20.9876,
+        21.0464,
+        21.1052,
+        21.164
+       ],
+       "spread": [
+        {
+         "words": [
+          "story",
+          "returns",
+          "to",
+          "the"
+         ],
+         "from": 20.87,
+         "to": 21.164,
+         "stacked": false
+        }
+       ],
+       "clamped": 0,
+       "stacked": 0,
+       "over_policy": false,
+       "window": {
+        "anchor_time": 19.988,
+        "window_words": 5,
+        "sentence_end": null,
+        "beat_end": 24.0,
+        "clip_end_abs": 24.0,
+        "fps": 30
+       },
+       "notes": []
+      },
+      "t": 20.87
+     }
+    ],
+    "camera": []
+   }
+  ]
+ },
+ "remote_references": [
+  {
+   "ref": "stock_image:a market",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "stock_video:farmers",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "flow_image:a river at dawn",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "flow_video:farmers walking",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "youtube_video:farmers documentary",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "https://example.com/p.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "http://example.com/p.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "ftp://example.com/p.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "file:///etc/passwd.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "//host/share/p.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "www.example.com/p.jpg",
+   "validate_plan_accepts": true
+  },
+  {
+   "ref": "data:image/png;base64,AAAA",
+   "validate_plan_accepts": false
+  },
+  {
+   "ref": "a.png|b.png",
+   "validate_plan_accepts": false
+  }
+ ],
+ "map_render": {
+  "label": "base",
+  "validate_plan_problems": [],
+  "render_ok": true,
+  "render_errors": [],
+  "render_seconds": 18.9,
+  "network_attempts_refused": [],
+  "video_frames": 720,
+  "archive_picture_correlation_mid_beat": 0.943,
+  "map_frame_correlation_with_picture_at_10s": -0.061
+ },
+ "map_layer_render_timing": [
+  {
+   "layer": "b1_fill2",
+   "type": "fill",
+   "plan_t": 0.5,
+   "plan_frame": 15,
+   "render_ok": true,
+   "diff_plateau": 74079,
+   "first_nonzero_frame": 0,
+   "first_5pct_of_plateau_frame": 0,
+   "first_big_jump_frame": 16,
+   "offsets_vs_plan_frame": {
+    "first_nonzero": -15,
+    "5pct_of_plateau": -15,
+    "big_jump": 1
+   },
+   "diff_series_around_plan_frame": {
+    "9": 9800,
+    "10": 11443,
+    "11": 10286,
+    "12": 9506,
+    "13": 10787,
+    "14": 12238,
+    "15": 11121,
+    "16": 20926,
+    "17": 33721,
+    "18": 37482,
+    "19": 48292,
+    "20": 49441,
+    "21": 60954,
+    "22": 63201
+   },
+   "network_attempts_refused": []
+  },
+  {
+   "layer": "b1_marker1",
+   "type": "marker",
+   "plan_t": 6.664,
+   "plan_frame": 200,
+   "render_ok": true,
+   "diff_plateau": 46732,
+   "first_nonzero_frame": 194,
+   "first_5pct_of_plateau_frame": 197,
+   "first_big_jump_frame": 196,
+   "offsets_vs_plan_frame": {
+    "first_nonzero": -6,
+    "5pct_of_plateau": -3,
+    "big_jump": -4
+   },
+   "diff_series_around_plan_frame": {
+    "194": 41,
+    "195": 265,
+    "196": 1099,
+    "197": 6042,
+    "198": 6618,
+    "199": 8979,
+    "200": 10020,
+    "201": 23884,
+    "202": 34946,
+    "203": 42532,
+    "204": 46732,
+    "205": 44767,
+    "206": 43226,
+    "207": 42798
+   },
+   "network_attempts_refused": []
+  },
+  {
+   "layer": "b1_caption3",
+   "type": "caption",
+   "plan_t": 1.97,
+   "plan_frame": 60,
+   "render_ok": true,
+   "diff_plateau": 349937,
+   "first_nonzero_frame": 13,
+   "first_5pct_of_plateau_frame": 60,
+   "first_big_jump_frame": 60,
+   "offsets_vs_plan_frame": {
+    "first_nonzero": -47,
+    "5pct_of_plateau": 0,
+    "big_jump": 0
+   },
+   "diff_series_around_plan_frame": {
+    "54": 7413,
+    "55": 6645,
+    "56": 6426,
+    "57": 6902,
+    "58": 7719,
+    "59": 7050,
+    "60": 114410,
+    "61": 197548,
+    "62": 259640,
+    "63": 296250,
+    "64": 328130,
+    "65": 337399,
+    "66": 347110,
+    "67": 346261
+   },
+   "network_attempts_refused": []
+  }
+ ],
+ "clip_sha256": {
+  "caption_plain": "d9b64c5a73596c0d19258f22c1b142988b596272886515ebd529c7e48589dfa0",
+  "caption_instrumented": "b9132916ff6328c811ab7b0f8ce37fcc896e1e9af6cbbb907975071d8f0b7cbc"
+ },
+ "clip_bytes": 81030
+}

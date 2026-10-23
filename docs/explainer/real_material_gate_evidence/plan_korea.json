@@ -1,0 +1,166 @@
+{
+ "beats": [
+  {
+   "camera": [
+    {
+     "action": "start",
+     "frame": "region",
+     "place": "South"
+    }
+   ],
+   "end": 5.32,
+   "geo_intent": "where South is",
+   "id": "e1",
+   "layers": [
+    {
+     "id": "e1_marker1",
+     "label": "SOUTH",
+     "place": "South",
+     "t": 2.24,
+     "type": "marker",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: South",
+   "start": 0.0
+  },
+  {
+   "camera": [
+    {
+     "action": "fly_to",
+     "dur": 2.0,
+     "frame": "country",
+     "place": "England",
+     "t": 8.42
+    }
+   ],
+   "end": 12.14,
+   "geo_intent": "where England is",
+   "id": "e2",
+   "layers": [
+    {
+     "id": "e2_marker1",
+     "label": "ENGLAND",
+     "place": "England",
+     "t": 8.92,
+     "type": "marker",
+     "until": "beat_end"
+    }
+   ],
+   "mode": "map",
+   "purpose": "map: England",
+   "start": 5.32
+  },
+  {
+   "end": 17.1,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_b3cf5c5d2c11d893.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e3",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 12.14
+  },
+  {
+   "end": 21.48,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_611d180178540906.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e4",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 17.1
+  },
+  {
+   "end": 26.24,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_4e984dfe016fa2d8.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e5",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 21.48
+  },
+  {
+   "end": 31.82,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_4baed48bd43001eb.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e6",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 26.24
+  },
+  {
+   "end": 37.96,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_2e8d886a46d4c01a.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e7",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 31.82
+  },
+  {
+   "end": 43.06,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_329f6d7f9d404ecf.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e8",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 37.96
+  },
+  {
+   "end": 47.048,
+   "footage": {
+    "clips": [
+     {
+      "asset": "<WORK>/work_korea/explainer/board_6b997f1a27a42441.mp4",
+      "reason": "explainer board clip drawn from this beat's own narration"
+     }
+    ]
+   },
+   "id": "e9",
+   "mode": "footage",
+   "purpose": "explainer board: explain",
+   "start": 43.06
+  }
+ ],
+ "duration": 47.048,
+ "settings": {
+  "dissolve_s": 0.0
+ },
+ "version": 1
+}

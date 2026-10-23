@@ -1,0 +1,1 @@
+[pakMap] Map imagery: 0 map tile(s) failed to download; 0 drawn from a coarser zoom, 0 from a coarser imagery layer (0 failed download(s) and 0 unreadable or blank tile(s) in all).
