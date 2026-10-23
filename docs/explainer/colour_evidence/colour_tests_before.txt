@@ -1,0 +1,37 @@
+test_a_country_keeps_its_colour_everywhere_in_the_video (__main__.CountryColours.test_a_country_keeps_its_colour_everywhere_in_the_video) ... FAIL
+test_colours_are_deterministic (__main__.CountryColours.test_colours_are_deterministic) ... ok
+test_every_filled_country_gets_its_own_colour_role (__main__.CountryColours.test_every_filled_country_gets_its_own_colour_role) ... FAIL
+test_the_colours_do_not_change_the_other_gates (__main__.CountryColours.test_the_colours_do_not_change_the_other_gates) ... ok
+test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours (__main__.CountryColours.test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours) ... FAIL
+
+======================================================================
+FAIL: test_a_country_keeps_its_colour_everywhere_in_the_video (__main__.CountryColours.test_a_country_keeps_its_colour_everywhere_in_the_video)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase4_maps.py", line 262, in test_a_country_keeps_its_colour_everywhere_in_the_video
+    self.assertEqual(len({next(iter(v)) for v in seen.values()}), len(seen))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2
+
+======================================================================
+FAIL: test_every_filled_country_gets_its_own_colour_role (__main__.CountryColours.test_every_filled_country_gets_its_own_colour_role)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase4_maps.py", line 244, in test_every_filled_country_gets_its_own_colour_role
+    self.assertIn(l.get("role"), ALLOWED_FILL_ROLES, f"{bid}: {l['place']} has role {l.get('role')!r}")
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'subject' not found in ('compare', 'green', 'red', 'featured', 'accent', 'orange') : e3: South Korea has role 'subject'
+
+======================================================================
+FAIL: test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours (__main__.CountryColours.test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/muhammadnabil/Downloads/video_generator-main/explainer/spike/test_phase4_maps.py", line 271, in test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours
+    self.assertEqual(len(set(roles)), 2, roles)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : ['primary', 'primary']
+
+----------------------------------------------------------------------
+Ran 5 tests in 14.508s
+
+FAILED (failures=3)

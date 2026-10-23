@@ -229,5 +229,58 @@ class Preserved(unittest.TestCase):
         self.assertEqual(json.dumps(a.plan, sort_keys=True), json.dumps(b.plan, sort_keys=True))
 
 
+ALLOWED_FILL_ROLES = ("compare", "green", "red", "featured", "accent", "orange")      # pakMap's own fill roles (blue, green, bright red, gold, purple, orange); never the dark "primary" brown
+
+
+class CountryColours(unittest.TestCase):
+    def fills(self, plan):
+        return [(b["id"], l) for b in plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "fill"]
+
+    def test_every_filled_country_gets_its_own_colour_role(self):
+        r = KoreaCache.get()
+        fills = self.fills(r.plan)
+        self.assertGreaterEqual(len(fills), 2)
+        for bid, l in fills:
+            self.assertIn(l.get("role"), ALLOWED_FILL_ROLES, f"{bid}: {l['place']} has role {l.get('role')!r}")
+        roles = [l["role"] for _b, l in fills]
+        self.assertEqual(len(set(roles)), len(roles), "two countries on one map must not share a colour")
+
+    def test_a_country_keeps_its_colour_everywhere_in_the_video(self):
+        s = ("The ancient empire of Egypt grew along a great river. Farmers planted wheat each year beside the water. Traders carried grain downstream to the cities. "
+             "Priests recorded the harvest on papyrus. Far to the north the people of Greece built small harbour towns. Their ships crossed the sea to trade with Egypt again. "
+             "Sailors told stories of the great river. Merchants from Greece sold olive oil in the markets of Egypt. The two lands grew rich together.")
+        words, dur = synth(s)
+        r = run(words, s, dur, max_map_share=0.9)
+        self.assertIsNotNone(r.plan, r.problems)
+        seen = {}
+        for bid, l in self.fills(r.plan):
+            seen.setdefault(l["place"], set()).add(l["role"])
+        self.assertTrue(seen)
+        for place, roles in seen.items():
+            self.assertEqual(len(roles), 1, f"{place} changes colour between maps: {roles}")
+        if len(seen) > 1:
+            self.assertEqual(len({next(iter(v)) for v in seen.values()}), len(seen))
+
+    def test_the_compiled_pakmap_spec_draws_the_fills_in_different_colours(self):
+        from hybrid.compile import compile_plan
+        from hybrid.plan import HybridPlan
+        r = KoreaCache.get()
+        c = compile_plan(HybridPlan.from_dict(json.loads(json.dumps(r.plan))), base_dir=str(ROOT), validate=False)
+        roles = [e.get("role") for e in c.spec["events"] if e["type"] == "fill"]
+        self.assertEqual(len(roles), 2)
+        self.assertEqual(len(set(roles)), 2, roles)
+        self.assertNotIn("primary", roles)
+
+    def test_the_colours_do_not_change_the_other_gates(self):
+        r = KoreaCache.get()
+        self.assertEqual(r.report["hybrid_validate"].get("errors"), [])
+        self.assertEqual([x for x in layer_frames(r.plan) if not x[3]], [])
+
+    def test_colours_are_deterministic(self):
+        a = run(WORDS, SCRIPT, DUR)
+        b = run(WORDS, SCRIPT, DUR)
+        self.assertEqual([l.get("role") for _x, l in self.fills(a.plan)], [l.get("role") for _x, l in self.fills(b.plan)])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

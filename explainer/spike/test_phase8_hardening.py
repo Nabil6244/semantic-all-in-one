@@ -27,6 +27,16 @@ def words_for(script):
     return synth(script)
 
 
+def unpatched_files(d):
+    """Write the application's app.py and spec WITHOUT the Explainer patch into folder d: HEAD's versions, with the patch reversed out when it is already committed or applied."""
+    d = Path(d)
+    for f in ("app.py", "VideoGenerator.spec"):
+        (d / f).write_text(subprocess.run(["git", "show", f"HEAD:{f}"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout)
+    if "_hybrid_explainer_direct" in (d / "app.py").read_text():
+        r = subprocess.run(["patch", "-R", "-p1", "-s", "-i", str(PATCH)], cwd=str(d), capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr
+
+
 class Packaging(unittest.TestCase):
     def test_every_asset_folder_and_file_ships(self):
         from explainer import packaging as PK
@@ -139,8 +149,7 @@ class AppPatch(unittest.TestCase):
 
     def test_it_applies_cleanly_to_head_and_the_result_parses(self):
         with tempfile.TemporaryDirectory() as d:
-            for f in ("app.py", "VideoGenerator.spec"):
-                (Path(d) / f).write_text(subprocess.run(["git", "show", f"HEAD:{f}"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout)
+            unpatched_files(d)
             r = subprocess.run(["git", "apply", "--unsafe-paths", "--directory", d, str(PATCH)], cwd=d, capture_output=True, text=True)
             if r.returncode != 0:
                 r = subprocess.run(["patch", "-p1", "-i", str(PATCH)], cwd=d, capture_output=True, text=True)
@@ -165,9 +174,7 @@ class AppPatch(unittest.TestCase):
         manifest = json.loads((ROOT / "test_fixtures" / "weather_protected.json").read_text())
         base = manifest["base_commit"]
         with tempfile.TemporaryDirectory() as d:
-            for f in ("app.py", "VideoGenerator.spec"):
-                head = subprocess.run(["git", "show", f"HEAD:{f}"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout
-                (Path(d) / f).write_text(head)
+            unpatched_files(d)
             subprocess.run(["patch", "-p1", "-i", str(PATCH)], cwd=d, capture_output=True, text=True, check=True)
             for f in ("app.py", "VideoGenerator.spec"):
                 old = subprocess.run(["git", "show", f"{base}:{f}"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout.splitlines()
@@ -203,8 +210,7 @@ class PatchedHandlers(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()
         d = Path(cls.tmp)
-        (d / "app.py").write_text(subprocess.run(["git", "show", "HEAD:app.py"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout)
-        (d / "VideoGenerator.spec").write_text(subprocess.run(["git", "show", "HEAD:VideoGenerator.spec"], cwd=str(ROOT), capture_output=True, text=True, check=True).stdout)
+        unpatched_files(d)
         r = subprocess.run(["patch", "-p1", "-i", str(PATCH)], cwd=str(d), capture_output=True, text=True)
         assert r.returncode == 0, r.stdout + r.stderr
         tree = ast.parse((d / "app.py").read_text())

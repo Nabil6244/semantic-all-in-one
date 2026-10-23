@@ -56,6 +56,8 @@ def direct(words: Sequence[Word], script: Optional[str] = None, options: Optiona
     except Exception as exc:                                              # never raise into the application
         return DirectorResult(None, {"exception": traceback.format_exc(limit=6)}, [f"the explainer director failed: {exc!r}"], [])
 
+# pakMap's own fill roles in the order countries meet them: bright red, gold, purple, orange, then green and blue (which sit weakly on satellite land and sea; the dark "primary" brown is never used)
+FILL_PALETTE = ("red", "featured", "accent", "orange", "green", "compare")
 _QUANTITY = ("million", "billion", "thousand", "trillion", "percent", "hundred")
 
 
@@ -105,6 +107,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     beat_notes: Dict[str, Any] = {}
     first_map = True
     cur_view = None
+    country_roles: Dict[str, str] = {}      # each filled country keeps one colour for the whole video (the same recurring-metaphor rule as the picture roles)
     map_places_done = set()
     info.setdefault("map_layers_rejected", [])
     for b in beats:
@@ -128,7 +131,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                         info["map_layers_rejected"].append({"beat": b.id, "place": h.name, "reason": "the camera cannot show it in time"})
                         continue
                     if h.kind == "country":
-                        fills.append({"place": h.name, "offset_s": round(wait, 3)})
+                        if h.name not in country_roles:
+                            country_roles[h.name] = FILL_PALETTE[len(country_roles) % len(FILL_PALETTE)]
+                        fills.append({"place": h.name, "offset_s": round(wait, 3), "role": country_roles[h.name]})
                         zones.append({"place": h.name, "offset_s": round(max(0.3, wait + 0.3), 3)})
                     else:
                         markers.append({"place": h.name, "offset_s": round(max(0.1, wait), 3)})
