@@ -39,12 +39,14 @@ def _cue_key(c) -> Dict[str, Any]:
 
 
 def clip_name(cues, beat_words, start: float, end: float, opt: DirectorOptions, beat_id: str) -> str:
-    man = rig.load_assets().manifest_sha256 if any(c.kind == "narrator" for c in cues) else ""
+    nstyle = next(((c.params or {}).get("style", "cartoon") for c in cues if c.kind == "narrator" and (c.params or {}).get("action") == "show"), "cartoon")
+    man = rig.load_assets(nstyle).manifest_sha256 if any(c.kind == "narrator" for c in cues) else ""
     if any(c.kind == "visual" and (c.params or {}).get("style") in ("set", "figure", "crowd", "prop") for c in cues):      # the cartoon kit: an edited asset must not reuse an old clip
         from ..cartoon import kit
         man += kit.manifest()["layers_digest"]
     blob = json.dumps({"v": EXPLAINER_VERSION, "schema": SCHEMA_VERSION, "assets": man, "id": beat_id, "cues": [_cue_key(c) for c in cues], "words": [[w[0], round(w[1], 4), round(w[2], 4)] for w in beat_words],
-                       "start": round(start, 4), "end": round(end, 4), "dissolve": opt.dissolve_s, "fps": opt.fps, "size": list(opt.size)}, sort_keys=True, default=str)
+                       "start": round(start, 4), "end": round(end, 4), "dissolve": opt.dissolve_s, "fps": opt.fps, "size": list(opt.size),
+                       **({"bg": opt.background} if opt.background != "grey" else {})}, sort_keys=True, default=str)
     return f"board_{hashlib.sha256(blob.encode()).hexdigest()[:16]}.mp4"
 
 
@@ -57,7 +59,53 @@ def direct(words: Sequence[Word], script: Optional[str] = None, options: Optiona
         return DirectorResult(None, {"exception": traceback.format_exc(limit=6)}, [f"the explainer director failed: {exc!r}"], [])
 
 # pakMap's own fill roles in the order countries meet them: bright red, gold, purple, orange, then green and blue (which sit weakly on satellite land and sea; the dark "primary" brown is never used)
-FILL_PALETTE = ("red", "featured", "accent", "orange", "green", "compare")
+FILL_PALETTE = ("red", "featured", "accent", "orange", "green", "compare", "water", "primary")      # the last two only when a video fills more than six countries
+MAX_TEXT_LAYERS = 5               # pakMap's renderer rule: at most five text objects (marker or zone label, caption, stat, title) on screen at once
+LABEL_HOLD_S = 2.2
+LABEL_MIN_S = 0.8
+
+
+def _cap_text_layers(beat: Dict[str, Any], info: Dict[str, Any], beat_id: str) -> None:
+    """On a world view every country is filled, but each zone label stays only about 2 s, and the labels alive together never push the text layers on screen past the renderer's five (captions,
+    statistics and markers count too). A label that cannot keep its place for at least 0.8 s is left out and the reason recorded; its country stays filled in its own colour."""
+    end = float(beat["end"])
+    lays = beat.get("layers", [])
+
+    def stop(l: Dict[str, Any]) -> float:
+        u = l.get("until", "beat_end")
+        e = end if u == "beat_end" else float(u)
+        return min(e, l["t"] + float(l["hold"])) if l.get("hold") else e
+
+    others = [l for l in lays if l["type"] in ("marker", "caption", "stat", "hud_title")]
+    weight = lambda l: (2 if l.get("sub") else 1) if l["type"] in ("marker", "hud_title") else 1
+    labels = sorted((l for l in lays if l["type"] == "zone_label"), key=lambda l: (l["t"], l["id"]))
+    keep: List[Dict[str, Any]] = []
+    for l in labels:
+        t0 = float(l["t"])
+        t1 = min(end, t0 + LABEL_HOLD_S)
+        marks = [t0] + [x["t"] for x in others if t0 < x["t"] < t1]
+        room_o = max(sum(weight(x) for x in others if x["t"] <= m + 1e-9 and stop(x) > m + 1e-9) for m in marks)
+        cap = MAX_TEXT_LAYERS - room_o
+        alive = [k for k in keep if stop(k) > t0 + 1e-9]
+        l["until"] = round(t1, 3)
+        while len(alive) >= max(cap, 0) and alive:
+            first = alive.pop(0)
+            if t0 - first["t"] >= LABEL_MIN_S:
+                first["until"] = round(t0, 3)
+            else:                                      # the earliest label has not been up long enough: this one yields instead
+                alive.insert(0, first)
+                break
+        if len(alive) >= max(cap, 0) or t1 - t0 < LABEL_MIN_S:
+            lays.remove(l)
+            info.setdefault("map_labels_skipped", []).append({"beat": beat_id, "place": l.get("place"), "reason": f"the renderer allows {MAX_TEXT_LAYERS} text layers on screen at once; this label would be the {len(alive) + room_o + 1}th"})
+            continue
+        keep.append(l)
+    for k in keep:                                     # a label shortened above keeps at least LABEL_MIN_S (guaranteed by the test above)
+        if stop(k) - k["t"] < LABEL_MIN_S - 1e-9:
+            lays.remove(k)
+            info.setdefault("map_labels_skipped", []).append({"beat": beat_id, "place": k.get("place"), "reason": "it could not stay on screen long enough"})
+
+
 _QUANTITY = ("million", "billion", "thousand", "trillion", "percent", "hundred")
 
 
@@ -84,6 +132,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     sents = SG.sentences(words, script, total, opt.split_over_s)
     if not sents:
         res.problems.append("no sentences found in the narration")
+        return res
+    from ..board import backdrops as _BD
+    if opt.background not in _BD.STYLES:
+        res.problems.append(f"unknown background {opt.background!r} (use {', '.join(_BD.STYLES)})")
+        return res
+    if opt.narrator_style not in ("serious", "cartoon"):
+        res.problems.append(f"unknown narrator style {opt.narrator_style!r} (serious or cartoon)")
         return res
     if opt.footage_share > 0 and opt.footage_source not in LX.FOOTAGE_SOURCES:
         res.problems.append(f"unknown footage source {opt.footage_source!r} (use one of {', '.join(LX.FOOTAGE_SOURCES)})")
@@ -117,7 +172,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if b.kind == "map":
             try:
                 pl = b.places[0]
-                hits = [h for h in b.places[:3] if h.match]
+                all_hits = [h for h in b.places if h.match]
+                hits = all_hits[:8] if len(all_hits) >= 4 else all_hits[:3]          # a sentence that lists many countries is drawn whole (up to 8) on one world view
                 bstart = b.start + (opt.dissolve_s / 2)
                 cam = FR.plan_camera([{"name": h.name, "t": h.match["start"]} for h in hits], bstart, b.end, first_map, cur_view)
                 for rj in cam["rejected"]:
@@ -127,6 +183,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 for note in cam["notes"]:
                     b.notes.append("camera: " + note)
                 markers, fills, zones = [], [], []
+                label_boxes: List[Tuple[str, Tuple[float, float, float, float]]] = []
                 for h in shown:
                     wait = max(0.0, cam["ready"].get(h.name, 0.0) - h.match["start"])      # the layer waits until the camera is where the place can be seen
                     if wait > 0.5:
@@ -137,6 +194,22 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                         if h.name not in country_roles:
                             country_roles[h.name] = FILL_PALETTE[len(country_roles) % len(FILL_PALETTE)]
                         fills.append({"place": h.name, "offset_s": round(wait, 3), "role": country_roles[h.name]})
+                        if cam.get("wide") and cam.get("view"):          # on a world view the names must not pile up: a label that would sit on an earlier one is left out, and why is recorded
+                            try:
+                                from ..beats import framing as _fr
+                                loc = _fr._geo().resolve(h.name)
+                                cx, cy = _fr.project(loc.lon, loc.lat, cam["view"])
+                                lw = 15 * len(h.name) + 30
+                                box = (cx - lw / 2 - 6, cy - 24, cx + lw / 2 + 6, cy + 24)
+                                clash = next((n_ for n_, o_ in label_boxes if not (box[2] < o_[0] or o_[2] < box[0] or box[3] < o_[1] or o_[3] < box[1])), None)
+                                if clash or not (60 <= cx <= 1860 and 60 <= cy <= 1020):
+                                    why = f"its label would sit on the label of {clash}" if clash else "its centre is too near the edge of the frame for a label"
+                                    info.setdefault("map_labels_skipped", []).append({"beat": b.id, "place": h.name, "reason": why})
+                                    b.notes.append(f"{h.name} is outlined but not labelled: {why}")
+                                    continue
+                                label_boxes.append((h.name, box))
+                            except Exception:
+                                pass
                         zones.append({"place": h.name, "offset_s": round(max(0.3, wait + 0.3), 3)})
                     else:
                         markers.append({"place": h.name, "offset_s": round(max(0.1, wait), 3)})
@@ -167,6 +240,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                     b.notes.append(f"map still-time repair: caption {kp.text!r} inside a {gap:.1f} s gap")
                 if first_map and not pl.match:
                     beat["camera"] = [{"action": "start", "place": pl.name, "frame": frame}]
+                if cam.get("wide"):
+                    _cap_text_layers(beat, info, b.id)
                 bad = FR.check_framing({"beats": [x for x in plan_beats if x and x.get("mode") == "map"] + [beat]}) if hits else []
                 if bad:                                         # the geometry said it fits and the check says it does not: never render it, say so
                     raise ValueError("camera framing: " + "; ".join(bad))
@@ -284,7 +359,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if materialize:
             f = out_dir / name
             if not (f.is_file() and f.stat().st_size > 0):
-                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id)
+                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=opt.background)
                 if bb.problems:
                     br.problems += bb.problems
             built = True

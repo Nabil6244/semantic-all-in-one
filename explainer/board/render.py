@@ -358,10 +358,14 @@ def _place_new(ok: Sequence[ResolvedCue], placed: Sequence[Item], clears: Sequen
     return new
 
 
-def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path: Optional[str], frame_no: int, instrument: bool, narrator=None) -> Image.Image:
+def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path: Optional[str], frame_no: int, instrument: bool, narrator=None, background: str = "grey") -> Image.Image:
     W, H = size
     th = T.THEME
-    im = Image.new("RGB", (W, H), BOARD if font_path is not None else th.board)
+    if background != "grey" and font_path is None:
+        from . import backdrops
+        im = backdrops.image(background, (W, H))
+    else:
+        im = Image.new("RGB", (W, H), BOARD if font_path is not None else th.board)
     for it in items:                                   # a cartoon set is the backdrop: under the narrator and everything else
         if it.style == "set" and not (t + 1e-9 < it.onset or (it.hide_at is not None and t + 1e-9 >= it.hide_at)):
             E.draw_visual(im, it, t - it.onset, frame_no)
@@ -416,12 +420,12 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
     return im
 
 
-def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int], out_path: Path, font_path: Optional[str], instrument: bool, narrator=None) -> int:
+def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int], out_path: Path, font_path: Optional[str], instrument: bool, narrator=None, background: str = "grey") -> int:
     W, H = size
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
            "-an", "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p", "-preset", "medium", "-movflags", "+faststart", str(out_path)]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(n_frames):
-        p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator).tobytes())
+        p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator, background).tobytes())
     p.stdin.close()
     return p.wait()

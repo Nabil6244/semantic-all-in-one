@@ -1,0 +1,20 @@
+--- a/app.py
++++ b/app.py
+@@ -3499,6 +3499,8 @@
+         self._hybrid_explainer_btn = _make_button(actions, "Direct with Explainer", self._hybrid_explainer_direct, size="lg", width=170)
+         self._hybrid_explainer_btn.grid(row=2, column=3, columnspan=2, sticky="w", pady=(8, 0))
+         self._hybrid_explainer_btn.configure(state="normal" if self._hybrid_explainer_var.get() else "disabled")
++        from explainer.ui_options import install as _install_explainer_options  # explainer/ui_options.py
++        _install_explainer_options(self, actions)
+         ctk.CTkLabel(
+             controls, text="Load beat CSV: your own plan, written by any AI with the CSV prompt.   Write plan with AI: the app plans it from your narration.",
+             font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=520, justify="left",
+@@ -3629,6 +3631,8 @@
+             for w in out.get("warnings") or []:
+                 self._append_log(f"[HYBRID] {w}\n")
+             self._hybrid_status_var.set(f"Explainer plan ready: {len(plan.beats)} beats. Check the plan, then get the scenes and render as usual.")
++            from explainer.ui_options import status_after_plan  # explainer/ui_options.py
++            status_after_plan(self, plan)
+             self._append_log(f"[HYBRID] Explainer plan ready ({len(plan.beats)} beats).\n")
+ 
+         threading.Thread(target=worker, daemon=True).start()

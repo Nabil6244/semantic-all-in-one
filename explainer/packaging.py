@@ -1,6 +1,6 @@
 """Which files of the Explainer style ship inside the packaged app (for VideoGenerator.spec, after approval; tested by explainer/spike/verify_m4.py).
 
-Data: the narrator PNG layers and manifest, the cartoon kit (sets, cast, props and manifest), and the two OFL handwriting fonts with their licence texts (Inter ships with the application's own assets/fonts folder).
+Data: the narrator PNG layers and manifest (the original explorer and the serious look), the cartoon kit (sets, cast, props and manifest), and the two OFL handwriting fonts with their licence texts (Inter ships with the application's own assets/fonts folder).
 Python: every module of the package (app.py would import it only inside methods, so every module is named, as for What If and Weather)."""
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Tuple
 
-DATA_DIRS = ("assets/narrator", "assets/cartoon", "assets/fonts")
+DATA_DIRS = ("assets/narrator", "assets/narrator_serious", "assets/cartoon", "assets/fonts")
 
 
 def data_files(root: Path) -> List[Tuple[str, str]]:

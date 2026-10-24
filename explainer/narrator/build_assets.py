@@ -37,6 +37,10 @@ PARAMS = {
     "head_r": 92, "arm_w": 24, "hand_r": 17,
 }
 P = PARAMS
+STYLE = "cartoon"                 # "serious" (build(style)) swaps the face, hair, clothes and colours; the poses and every box stay the same
+SERIOUS_PARAMS = {"skin": (232, 198, 168, 255), "hair": (38, 34, 38, 255), "shirt": (38, 52, 84, 255), "pants": (52, 54, 62, 255), "shoe": (30, 28, 30, 255), "scarf": (120, 36, 44, 255)}
+OUT_BY_STYLE = {"cartoon": OUT, "serious": OUT.parent / "narrator_serious"}
+ASSET_ID_BY_STYLE = {"cartoon": ASSET_ID, "serious": "narrator_serious_v1"}
 
 
 class Canvas:
@@ -129,15 +133,25 @@ def draw_body(pose: str) -> Image.Image:
     arm(c, lp, lh, lf)
     if pose != "think":
         arm(c, rp, rh, rf)
-    # neckerchief
-    c.poly([(168, 228), (272, 228), (220, 306)], P["scarf"])
-    c.circle((220, 236), 15, P["scarf"])
+    if STYLE == "serious":      # a white collar and a dark red tie
+        c.poly([(176, 226), (264, 226), (220, 312)], (238, 238, 240, 255))
+        c.poly([(210, 246), (230, 246), (234, 330), (220, 350), (206, 330)], P["scarf"])
+    else:                       # neckerchief
+        c.poly([(168, 228), (272, 228), (220, 306)], P["scarf"])
+        c.circle((220, 236), 15, P["scarf"])
     # head (face features are separate layers)
     c.circle(HEAD, P["head_r"], P["skin"], True, 7)
-    for cx in (HEAD[0] - 56, HEAD[0] + 56):
-        c.ellipse((cx - 17, 172, cx + 17, 190), P["cheek"], False)
+    if STYLE != "serious":
+        for cx in (HEAD[0] - 56, HEAD[0] + 56):
+            c.ellipse((cx - 17, 172, cx + 17, 190), P["cheek"], False)
     if pose == "think":                      # the hand at the chin is in front of the head
         arm(c, [(280, 266), (330, 300), (276, 262)], (254, 238), None)
+    if STYLE == "serious":      # neat short hair: a cap over the top of the head with a curved hairline
+        (cx, cy), r = HEAD, P["head_r"]
+        outer = [(cx + (r + 3) * math.cos(math.radians(a)), cy + (r + 3) * math.sin(math.radians(a))) for a in range(186, 355, 6)]
+        inner = [(cx + dx, cy - 58 + 16 * math.cos(math.pi * dx / (2 * (r + 3)))) for dx in range(int(outer[-1][0] - cx) - 4, int(outer[0][0] - cx) + 5, -14)]
+        c.poly(outer + inner, P["hair"])
+        return c.done()
     # tuft of hair
     leaf(c, 214, 70, 52, 26, -22)
     leaf(c, 226, 66, 62, 28, 4)
@@ -147,6 +161,18 @@ def draw_body(pose: str) -> Image.Image:
 
 def draw_eyes(state: str) -> Image.Image:
     c = Canvas(200, 70)
+    if STYLE == "serious":      # narrow eyes under straight brows
+        for sgn, cx in ((1, 60), (-1, 140)):
+            cy = 40
+            if state == "open":
+                c.ellipse((cx - 15, cy - 8, cx + 15, cy + 8), P["eye_white"], True, 4)
+                c.circle((cx + 3 * sgn * -1 + 2, cy), 5, P["ink"], False)
+            elif state == "blink":
+                c.stroke([(cx - 15, cy), (cx + 15, cy)], 5, P["ink"])
+            else:
+                c.arc((cx - 15, cy - 6, cx + 15, cy + 8), 200, 340, 5, P["ink"])
+            c.stroke([(cx - 18 * sgn, cy - 22 + 2 * (sgn < 0)), (cx + 16 * sgn, cy - 16 - 2 * (sgn < 0))], 6, P["hair"])       # the brows slant a little inward: a calm, attentive look
+        return c.done()
     for cx in (60, 140):
         cy = 34
         if state == "open":
@@ -163,6 +189,16 @@ def draw_eyes(state: str) -> Image.Image:
 def draw_mouth(state: str) -> Image.Image:
     c = Canvas(120, 70)
     cx, cy = 60, 26
+    if STYLE == "serious":      # small, level mouth shapes
+        if state == "closed":
+            c.stroke([(cx - 20, cy + 6), (cx + 20, cy + 6)], 6, P["ink"])
+        elif state == "open":
+            c.ellipse((cx - 14, cy - 2, cx + 14, cy + 16), P["mouth_in"], True, 4)
+        elif state == "wide":
+            c.ellipse((cx - 18, cy - 4, cx + 18, cy + 22), P["mouth_in"], True, 4)
+        else:
+            c.ellipse((cx - 9, cy - 2, cx + 9, cy + 16), P["mouth_in"], True, 4)
+        return c.done()
     if state == "closed":
         c.arc((cx - 26, cy - 12, cx + 26, cy + 14), 25, 155, 6, P["ink"])
     elif state == "open":
@@ -185,7 +221,21 @@ def png_bytes(im: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def build() -> Dict[str, bytes]:
+def build(style: str = "cartoon") -> Dict[str, bytes]:
+    global STYLE
+    saved, old = dict(P), STYLE
+    STYLE = style
+    if style == "serious":
+        P.update(SERIOUS_PARAMS)
+    try:
+        return _build()
+    finally:
+        STYLE = old
+        P.clear()
+        P.update(saved)
+
+
+def _build() -> Dict[str, bytes]:
     files: Dict[str, bytes] = {}
     meta = {"poses": {}, "eyes": {}, "mouths": {}}
     for pose in POSES:
@@ -208,24 +258,29 @@ def build() -> Dict[str, bytes]:
             b = files[m["file"]]
             m["sha256"], m["bytes"] = hashlib.sha256(b).hexdigest(), len(b)
     allb = [b for b in (hashlib.sha256(files[n]).hexdigest() for n in sorted(files))]
-    manifest = {"asset_id": ASSET_ID, "version": 1, "canvas": [CW, CH], "feet_y": FEET_Y, "head_center": list(HEAD), "design_height_px": FEET_Y - min(m["bbox"][1] for m in meta["poses"].values()),
+    manifest = {"asset_id": ASSET_ID_BY_STYLE[STYLE], "version": 1, "canvas": [CW, CH], "feet_y": FEET_Y, "head_center": list(HEAD), "design_height_px": FEET_Y - min(m["bbox"][1] for m in meta["poses"].values()),
                 "pillow_version": PIL.__version__, "built_by": "explainer/narrator/build_assets.py", "params": {k: v for k, v in PARAMS.items()}, **meta,
-                "layers_digest": hashlib.sha256("".join(allb).encode()).hexdigest()}
+                "layers_digest": hashlib.sha256("".join(allb).encode()).hexdigest(), **({"style": STYLE} if STYLE != "cartoon" else {})}
     files["manifest.json"] = (json.dumps(manifest, indent=1, sort_keys=True) + "\n").encode()
     return files
 
 
 def main(argv) -> int:
-    files = build()
+    style = argv[argv.index("--style") + 1] if "--style" in argv else "cartoon"
+    if style not in OUT_BY_STYLE:
+        print(f"unknown style {style!r} (use {', '.join(OUT_BY_STYLE)})")
+        return 2
+    out = OUT_BY_STYLE[style]
+    files = build(style)
     if "--check" in argv:
-        bad = [n for n, b in files.items() if not (OUT / n).is_file() or (OUT / n).read_bytes() != b]
-        extra = sorted(p.name for p in OUT.glob("*") if p.name not in files) if OUT.exists() else []
+        bad = [n for n, b in files.items() if not (out / n).is_file() or (out / n).read_bytes() != b]
+        extra = sorted(p.name for p in out.glob("*") if p.name not in files) if out.exists() else []
         print(json.dumps({"files": len(files), "differ_or_missing": bad, "extra_on_disk": extra}, indent=1))
         return 0 if not bad and not extra else 1
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     for n, b in files.items():
-        (OUT / n).write_bytes(b)
-    print(f"wrote {len(files)} files to {OUT}; manifest sha256 {hashlib.sha256(files['manifest.json']).hexdigest()}")
+        (out / n).write_bytes(b)
+    print(f"wrote {len(files)} files to {out}; manifest sha256 {hashlib.sha256(files['manifest.json']).hexdigest()}")
     return 0
 
 

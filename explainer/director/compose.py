@@ -278,7 +278,7 @@ def author(beat_id: str, start: float, end: float, sents: Sequence[Sent], words,
     if narrator != "none":
         first_pose = carry_pose if narrator in ("mid", "end") else (pose_seq[0][1] if pose_seq else "idle")
         enter = "slide" if narrator in ("only", "start") else "none"
-        cues.insert(0, Cue(f"{beat_id}_n_show", "narrator", {"index": 0}, params={"action": "show", "pose": first_pose, "side": "left", "scale": 1.0, "enter": enter}))
+        cues.insert(0, Cue(f"{beat_id}_n_show", "narrator", {"index": 0}, params={"action": "show", "pose": first_pose, "side": "left", "scale": 1.0, "enter": enter, **({"style": opt.narrator_style} if opt.narrator_style != "cartoon" else {})}))
         cur = first_pose
         for k, (wi, pose) in enumerate(pose_seq):
             if wi > 0 and pose != cur:

@@ -13,6 +13,9 @@ READY = 0.6                      # a move counts as done at this fraction of its
 MIN_SINGLE_ZOOM = 3.0            # a single view that needs a lower zoom than this makes the places too small to read: the camera moves between them instead
 DELTAS = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5)
 FRAMES = ("country", "region", "continental")
+WIDE_FRAMES = FRAMES + ("globe",)
+WIDE_MIN_ZOOM = 1.2              # a beat that names three or more far-apart places may use a world view this wide (the places are small, but they are filled and named)
+WIDE_MIN_SHARE = 0.6             # on a wide view a place counts as shown when its centre is in the frame and at least this share of its bounding box is
 FIRST_MOVE_DUR = 0.7
 LATER_MOVE_DUR = 1.4
 GAP_S = 0.1                      # two moves never overlap, and the next starts this long after the last one ends
@@ -46,6 +49,30 @@ def inside(box: Sequence[float], bbox: Sequence[float], margin: float = MARGIN, 
     bw, bs, be, bn = bbox
     mx, my = (e - w) * margin, (n - s) * margin
     return bw >= w + mx and be <= e - mx and bs >= s + my + (n - s) * bottom and bn <= n - my
+
+
+def visible_share(box: Sequence[float], bbox: Sequence[float], margin: float = MARGIN) -> float:
+    """Share of the place's bounding box that lies inside the frame (with the usual margin), 0 to 1."""
+    w, s, e, n = box
+    mx, my = (e - w) * margin, (n - s) * margin
+    w, s, e, n = w + mx, s + my, e - mx, n - my
+    bw, bs, be, bn = bbox
+    ix, iy = max(0.0, min(e, be) - max(w, bw)), max(0.0, min(n, bn) - max(s, bs))
+    area = max(1e-9, (be - bw) * (bn - bs))
+    return min(1.0, ix * iy / area)
+
+
+def shown_wide(box: Sequence[float], bbox: Sequence[float]) -> bool:
+    cx, cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
+    w, s, e, n = box
+    return w <= cx <= e and s <= cy <= n and visible_share(box, bbox) >= WIDE_MIN_SHARE
+
+
+def project(lon: float, lat: float, view: Sequence[float], w: int = 1920, h: int = 1080) -> Tuple[float, float]:
+    """Pixel position of (lon, lat) in the frame of a camera at view = (lon, lat, zoom) (the engine's projection; used only to keep zone labels from overlapping)."""
+    G = _pk()
+    k = 512 * 2 ** view[2]
+    return (w / 2 + (lon - view[0]) / 360.0 * k, h / 2 + (G.merc_y(lat) - G.merc_y(view[1])) * k)
 
 
 def place_bbox(name: str) -> Tuple[float, float, float, float]:
@@ -97,6 +124,7 @@ def check_framing(plan: Dict[str, Any]) -> List[str]:
     for b in plan.get("beats", []):
         if b.get("mode") not in ("map", "map_footage"):
             continue
+        wide = len({l.get("place") for l in b.get("layers", []) if l.get("type") in ("fill", "marker") and l.get("place")}) >= 3      # a world view: centre in frame and most of the place visible
         for lay in b.get("layers", []):
             if lay.get("type") not in ("fill", "marker", "zone_label") or not lay.get("place"):
                 continue
@@ -106,18 +134,20 @@ def check_framing(plan: Dict[str, Any]) -> List[str]:
             except Exception as exc:
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} cannot be located ({str(exc)[:60]})")
                 continue
+            if v is not None and wide and shown_wide(view_box(*v), bb):
+                continue
             if v is None or not inside(view_box(*v), bb):
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} is not fully inside the camera view when the layer appears at {float(lay['t']):.1f} s")
     return found
 
 
-def _candidates(places: Sequence[str]):
+def _candidates(places: Sequence[str], frames: Sequence[str] = FRAMES):
     seen = []
     for p in places:
         if p in seen:
             continue
         seen.append(p)
-        for fr in FRAMES:
+        for fr in frames:
             try:
                 base = step_view(p, fr)
             except Exception:
@@ -158,6 +188,18 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
         key = (round(v[2], 3), -d, -FRAMES.index(fr))
         if best is None or key > best[0]:
             best = (key, p, fr, d, v)
+    wide = False
+    if best is None and len(names) >= 3:        # no tight view holds them all: three or more far-apart places get one world view, each place centred in frame and mostly visible
+        for p, fr, d, v in _candidates(names, WIDE_FRAMES):
+            if v[2] < WIDE_MIN_ZOOM - 1e-9:
+                continue
+            if not all(shown_wide(view_box(*v), boxes[n]) for n in names):
+                continue
+            key = (round(v[2], 3), -d, -WIDE_FRAMES.index(fr))
+            if best is None or key > best[0]:
+                best = (key, p, fr, d, v)
+        wide = best is not None
+        out["wide"] = wide
     t0 = beat_start + 0.05
     if best is not None:
         _k, p, fr, d, v = best
@@ -182,7 +224,7 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
         out["view"] = v
         out["notes"].append(f"one view for {', '.join(names)}: {p} at frame {fr}" + (f", pulled back {d:g}" if d else "") + f" (zoom {v[2]:.2f})")
         # a slow push-in keeps a long single view alive without losing any place
-        if allow_push and beat_end - beat_start >= 5.5:
+        if allow_push and not wide and beat_end - beat_start >= 5.5:
             t_push = round(max((out["moves"][-1]["t"] + out["moves"][-1]["dur"]) if out["moves"] else beat_start, beat_start + 0.45 * (beat_end - beat_start)) + GAP_S, 3)
             nv = (v[0], v[1], v[2] + 0.5)
             if t_push + 3.2 <= beat_end - 0.3 and all(inside(view_box(*nv), boxes[n], 0.08, CAPTION_BAND) for n in names):

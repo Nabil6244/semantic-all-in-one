@@ -139,7 +139,7 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
     except Exception:
         views = []
 
-    def framed(place: str, t: float) -> Optional[bool]:
+    def framed(place: str, t: float, wide: bool = False) -> Optional[bool]:
         """True/False when the camera target in force at time t (the latest step at or before t) contains `place`; None when it cannot be told."""
         cur = [s for s in steps if s[0] <= t + 1e-9]
         if not cur:
@@ -148,7 +148,8 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
             from . import framing as FR
             v = FR.view_at(views, t)
             if v is not None:
-                return FR.inside(FR.view_box(*v), FR.place_bbox(place))
+                bb_ = FR.place_bbox(place)
+                return FR.inside(FR.view_box(*v), bb_) or (wide and FR.shown_wide(FR.view_box(*v), bb_))      # a world view of three or more places: centred in frame and mostly visible
         except Exception:
             pass
         cam = cur[-1][1]
@@ -185,7 +186,7 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                             rep.problems.append(f"beat {b.id}: layer {lay.id}: the application's offline place lookup cannot find {pl!r} ({why})")
                 if resolve_offline:
                     for pl in places:
-                        fr = framed(pl, lay.t)
+                        fr = framed(pl, lay.t, len({x.place for x in b.layers if x.type in ("fill", "marker") and x.place}) >= 3)
                         if fr is False:
                             rep.warnings.append(f"beat {b.id}: layer {lay.id}: the camera is not looking at an area that contains {pl!r} when the layer appears, so it may be off screen "
                                                 f"(warning only: the real view is not computed)")

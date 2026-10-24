@@ -29,10 +29,19 @@ def footage_settings(settings: Optional[Dict[str, Any]]):
     return share, (src if src in FOOTAGE_SOURCES else "stock_video")
 
 
+def look_settings(settings: Optional[Dict[str, Any]]):
+    """(background, narrator style) from `explainer_background` (grey, paper, grid, warm; default paper) and `explainer_narrator` (serious or cartoon; default serious)."""
+    from .board.backdrops import STYLES
+    s = settings if isinstance(settings, dict) else {}
+    bg, nar = s.get("explainer_background"), s.get("explainer_narrator")
+    return (bg if bg in STYLES else "paper"), (nar if nar in ("serious", "cartoon") else "serious")
+
+
 def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any], *, work_dir: str, duration: Optional[float] = None, places: Sequence[str] = (),
                 archive_dir: Optional[str] = None, dissolve_s: float = 0.0, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
     """Returns {"plan": dict | None, "problems": [...], "warnings": [...], "report": {...}}. `settings` is the application's settings dict (read only; the one key read is `explainer_cartoon_share`, default 0)."""
     opt = DirectorOptions(work_dir=work_dir, places=list(places), archive_dir=archive_dir, dissolve_s=float(dissolve_s), cartoon_share=cartoon_share(settings),
-                          footage_share=footage_settings(settings)[0], footage_source=footage_settings(settings)[1])
+                          footage_share=footage_settings(settings)[0], footage_source=footage_settings(settings)[1],
+                          background=look_settings(settings)[0], narrator_style=look_settings(settings)[1])
     r = direct(words, script, opt, duration=duration, log=log)
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

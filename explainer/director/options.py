@@ -24,6 +24,8 @@ class DirectorOptions:
     narrator: bool = True
     footage_share: float = 0.0          # 0 = none (the default). Otherwise the largest share of the runtime board beats may be turned into FOOTAGE beats: a source and a query for the application's own "Get the scenes" step
     footage_source: str = "stock_video"  # stock_video | youtube_video | flow_video | stock_image | flow_image: which of the application's sources the references name (the Visual Plan lets you change a row)
+    background: str = "paper"           # grey (the reference's flat board) | paper | grid | warm: light textures behind the board; every earlier look used grey
+    narrator_style: str = "serious"     # serious | cartoon (the original round-faced explorer)
     cartoon_share: float = 0.0          # 0 = no cartoon beats (the default: nothing changes); otherwise the largest share of the runtime that board beats may be turned into cartoon beats (scene set, cast, one prop; no narrator)
     look: str = "reference"             # "reference": large picture tiles, boxes, titles and typed lines (schema v1.3); "classic": the cream cards of Milestones 1 to 4a (kept, unchanged)
     # ---- plan ----

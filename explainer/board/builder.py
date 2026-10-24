@@ -65,7 +65,7 @@ def clip_geometry(beat_start: float, beat_end: float, dissolve_s: float) -> Tupl
 def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: float, beat_end: float, out_path: "str | Path", *, dissolve_s: float = 0.0,
                      fps: int = 30, size: Tuple[int, int] = (1920, 1080), instrument: bool = False, strict: bool = True, beat_id: str = "board",
                      purpose: str = "", font_path: "str | Path | None" = None, manifest_path: "str | Path | None" = None,
-                     sentences: Optional[Sequence[Tuple[float, float]]] = None, tail_frames: int = 0) -> BoardBuild:
+                     sentences: Optional[Sequence[Tuple[float, float]]] = None, tail_frames: int = 0, background: str = "grey") -> BoardBuild:
     """Resolve the cues against `words`, draw the clip, write it to `out_path`.
 
     strict=True  (default): any cue problem raises BoardCueError before anything is drawn (nothing is guessed).
@@ -83,7 +83,7 @@ def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: flo
         raise BoardCueError(problems)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    rc = encode(items, n_frames, fps, size, out_path, font, instrument, track)
+    rc = encode(items, n_frames, fps, size, out_path, font, instrument, track, background)
     if rc != 0:
         raise RuntimeError(f"ffmpeg could not encode the board clip (exit {rc})")
     fragment = {"beat": {"id": beat_id, "mode": "footage", "start": beat_start, "end": beat_end, "purpose": purpose or "board clip",

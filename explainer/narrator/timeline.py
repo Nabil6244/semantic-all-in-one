@@ -41,6 +41,7 @@ class Event:
     side: str = "left"
     enter: str = "slide"
     exit: str = "slide"
+    style: str = "cartoon"
 
 
 @dataclass
@@ -90,7 +91,8 @@ def speech_runs(words_frames: Sequence[Tuple[int, int]]) -> List[Tuple[int, int]
 
 class NarratorTrack:
     def __init__(self, events: List[Event], words_frames: Sequence[Tuple[int, int]], clip_frames: int, beat_id: str):
-        self.assets = rig.load_assets()
+        self.style = events[0].style
+        self.assets = rig.load_assets(self.style)
         self.events = events
         self.clip_frames = clip_frames
         self.beat_id = beat_id
@@ -106,7 +108,7 @@ class NarratorTrack:
         self.blinks = blink_starts(beat_id, self.f_first, last)
         m = self.assets.manifest
         self.bbox = {p: tuple(m["poses"][p]["bbox"]) for p in m["poses"]}
-        self.canvas = rig.canvas_size()
+        self.canvas = rig.canvas_size(self.style)
         self.uy1 = max(b[3] for b in self.bbox.values())      # lowest opaque row of any pose (design px at scale 1)
         self._bounds: Optional[Tuple[Rect, Rect]] = None
 
@@ -210,12 +212,12 @@ class NarratorTrack:
             return
         em, ee = mouth or st.mouth, eyes or st.eyes
         for ly in st.layers:
-            sp = rig.sprite(ly.pose, ee, em, ly.scale_pct, self.flip) if ly.alpha_q >= 4 else rig.faded(ly.pose, ee, em, ly.scale_pct, self.flip, ly.alpha_q)
+            sp = rig.sprite(ly.pose, ee, em, ly.scale_pct, self.flip, self.style) if ly.alpha_q >= 4 else rig.faded(ly.pose, ee, em, ly.scale_pct, self.flip, ly.alpha_q, self.style)
             im.paste(sp, (ly.x, ly.y), sp)
 
     def summary(self) -> Dict[str, Any]:
         allb, setb = self.bounds()
-        return {"asset_id": self.assets.manifest["asset_id"], "assets_manifest_sha256": self.assets.manifest_sha256, "side": self.side,
+        return {"asset_id": self.assets.manifest["asset_id"], **({"style": self.style} if self.style != "cartoon" else {}), "assets_manifest_sha256": self.assets.manifest_sha256, "side": self.side,
                 "events": [{"cue": e.cue_id, "frame": e.frame, "action": e.action, "pose": e.pose, "scale_pct": e.scale_pct} for e in self.events],
                 "visible_from_frame": self.f_first, "gone_from_frame": self.f_end, "blink_start_frames": self.blinks, "speech_runs": [list(r) for r in self.runs],
                 "collision_box": [round(v, 1) for v in allb], "settled_box": [round(v, 1) for v in setb]}
@@ -231,8 +233,14 @@ def build_track(resolved, words, clip_origin: float, clip_length: float, fps: in
     cues = [r for r in resolved if r.cue.kind == "narrator" and not r.problems and r.first_frame is not None]
     if not cues:
         return None
+    first_show = next((r for r in cues if (r.cue.params or {}).get("action") == "show"), None)
+    style = ((first_show.cue.params or {}).get("style", "cartoon")) if first_show else "cartoon"
+    if style not in rig.ASSET_DIRS:
+        for r in cues:
+            r.problems.append(f"cue {r.cue.id}: unknown narrator style {style!r} (use {', '.join(sorted(rig.ASSET_DIRS))})")
+        return None
     try:
-        rig.load_assets()
+        rig.load_assets(style)
     except rig.AssetError as e:
         for r in cues:
             r.problems.append(f"cue {r.cue.id}: narrator assets unavailable: {e}")
@@ -261,6 +269,7 @@ def build_track(resolved, words, clip_origin: float, clip_length: float, fps: in
                 r.problems.append(f"cue {r.cue.id}: side must be left or right and enter slide or none")
                 continue
             ev.side, ev.enter = side, enter
+            ev.style = style
         if act == "hide":
             ex = p.get("exit", "slide")
             if ex not in MOTIONS:

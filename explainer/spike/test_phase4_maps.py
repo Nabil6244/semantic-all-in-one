@@ -282,5 +282,167 @@ class CountryColours(unittest.TestCase):
         self.assertEqual([l.get("role") for _x, l in self.fills(a.plan)], [l.get("role") for _x, l in self.fills(b.plan)])
 
 
+WIDE_LIST = ("It ruled India and Canada, Australia and Egypt, Nigeria, Jamaica and Malaysia. At any hour of the day it was daytime somewhere in that empire. "
+             "Farmers planted wheat each year beside the water and traders carried grain downstream to the cities. Priests recorded the harvest on papyrus. "
+             "Every season the river rose and fell and the kings built storehouses to hold the grain. The two lands grew rich together.")
+WIDE_NAMES = ("India", "Canada", "Australia", "Egypt", "Nigeria", "Jamaica", "Malaysia")
+
+
+def map_hash(plan):
+    import hashlib
+    return hashlib.sha256(json.dumps([b for b in plan["beats"] if b["mode"] == "map"], sort_keys=True).encode()).hexdigest()[:16]
+
+
+class WideCountryList(unittest.TestCase):
+    """A sentence that names many far-apart countries is one wide map: every country filled and labelled on its own word."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.words, cls.dur = synth(WIDE_LIST)
+        cls.r = run(cls.words, WIDE_LIST, cls.dur, max_map_share=0.9)
+
+    def fills(self):
+        return {l["place"]: (b["id"], l) for b in self.r.plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "fill"}
+
+    def test_every_spoken_country_is_filled(self):
+        self.assertIsNotNone(self.r.plan, self.r.problems)
+        self.assertEqual(sorted(set(WIDE_NAMES) - set(self.fills())), [], f"filled: {sorted(self.fills())}")
+
+    def test_all_of_them_are_inside_the_compiled_camera_view_when_they_appear(self):
+        bad = [x for x in layer_frames(self.r.plan) if not x[3]]
+        self.assertEqual(bad, [])
+
+    def test_each_has_its_own_colour_and_a_label_or_a_recorded_reason(self):
+        f = self.fills()
+        roles = [l["role"] for _b, l in f.values()]
+        self.assertEqual(len(set(roles)), len(roles), roles)
+        labelled = {l["place"] for b in self.r.plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "zone_label"}
+        skipped = {d["place"] for d in self.r.report["selection"].get("map_labels_skipped", []) if d.get("reason", "").strip()}
+        for name in f:
+            self.assertTrue(name in labelled or name in skipped, f"{name}: no label and no recorded reason")
+
+    def test_each_fill_appears_on_its_own_spoken_word(self):
+        from explainer.beats.relevance import find_phrase
+        for name, (bid, l) in self.fills().items():
+            b = next(x for x in self.r.plan["beats"] if x["id"] == bid)
+            m = find_phrase(beat_tokens(self.words, b["start"], b["end"]), name)
+            self.assertIsNotNone(m, name)
+            self.assertTrue(-0.2 - 1e-6 <= l["t"] - m["start"] <= 0.6 + 1e-6, f"{name}: layer at {l['t']} but spoken at {m['start']}")
+        ts = sorted(l["t"] for _b, l in self.fills().values())
+        self.assertGreater(len(set(ts)), 4, "the fills arrive one by one as the countries are named")
+
+    def test_the_plan_still_passes_the_relevance_and_editorial_gates(self):
+        rep = check_plan(self.r.plan, self.words)
+        self.assertEqual([p for p in rep.problems if "file not found" not in p and "clip 1:" not in p], [])
+        self.assertEqual(self.r.report["hybrid_validate"].get("errors"), [])
+
+    def test_two_and_three_place_beats_are_unchanged(self):
+        words, dur = synth(TWO_KOREAS)
+        r = run(words, TWO_KOREAS, dur, max_map_share=0.6)
+        self.assertEqual(map_hash(r.plan), "9dd4957c7a045b64")
+        self.assertEqual(map_hash(KoreaCache.get().plan), "3025bc75875ae4ad")
+
+    def test_deterministic(self):
+        again = run(self.words, WIDE_LIST, self.dur, max_map_share=0.9)
+        self.assertEqual(json.dumps(self.r.plan, sort_keys=True), json.dumps(again.plan, sort_keys=True))
+
+
+REAL_PROJECT = Path.home() / "Downloads" / "VideoGenerator" / "Video_2026-10-23_032_explainer"
+
+
+def compile_with_standins(plan, work):
+    """The application's own compiler with validate=True (the engine's rules included). Board and footage clips that were never encoded (materialize=False) get a tiny local stand-in file."""
+    import copy
+    import subprocess
+    from hybrid.compile import compile_plan
+    from hybrid.plan import HybridPlan
+    standin = Path(work) / "standin.mp4"
+    if not standin.exists():
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=320x180:r=30:d=3", "-pix_fmt", "yuv420p", str(standin)], check=True)
+    p = copy.deepcopy(plan)
+    for b in p["beats"]:
+        if b["mode"] == "footage":
+            for c in b["footage"]["clips"]:
+                c["asset"] = str(standin)
+    return compile_plan(HybridPlan.from_dict(json.loads(json.dumps(p))), base_dir=str(ROOT), validate=True)
+
+
+class WideBeatsThroughTheRealCompiler(unittest.TestCase):
+    """The engine's own rules (no more than 5 text layers at once) and the plan check's framing warning, on the synthetic list and on the user's real project beat."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        cls.tmp = tempfile.mkdtemp()
+        cls.words, cls.dur = synth(WIDE_LIST)
+        cls.r = run(cls.words, WIDE_LIST, cls.dur, max_map_share=0.9)
+        cls.real = None
+        wf = REAL_PROJECT / "state" / "narration_words.json"
+        if wf.is_file():
+            from hybrid.narration import build_sentences
+            W = [tuple(w) for w in json.loads(wf.read_text())["words"]]
+            script = (REAL_PROJECT / "script" / "narration.txt").read_text()
+            last = build_sentences(W, script, W[-1][2] + 0.4)[3]
+            words = [w for w in W if w[1] < last.end + 1e-6]
+            text = script[: script.index(last.text) + len(last.text)]
+            cls.real = (words, text, run(words, text, last.end + 0.4))
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _text_layers_on_screen(self, plan):
+        worst = 0
+        for b in plan["beats"]:
+            if b["mode"] != "map":
+                continue
+            lay = [l for l in b.get("layers", []) if l["type"] in ("zone_label", "caption", "stat", "marker", "hud_title")]
+            for l in lay:
+                t = l["t"]
+                alive = [x for x in lay if x["t"] <= t + 1e-9 and (x.get("until", "beat_end") == "beat_end" or isinstance(x.get("until"), (int, float)) and x["until"] > t)
+                         and (x.get("hold") is None or x["t"] + x["hold"] > t)]
+                worst = max(worst, len(alive))
+        return worst
+
+    def test_the_synthetic_list_compiles_with_zero_errors_and_at_most_five_text_layers(self):
+        c = compile_with_standins(self.r.plan, self.tmp)
+        self.assertEqual(c.report.errors, [])
+        self.assertLessEqual(self._text_layers_on_screen(self.r.plan), 5)
+
+    def test_every_country_of_the_list_is_still_filled_in_its_own_colour(self):
+        fills = [l for b in self.r.plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "fill"]
+        self.assertEqual(sorted(l["place"] for l in fills), sorted(WIDE_NAMES))
+        self.assertEqual(len({l["role"] for l in fills}), len(fills))
+
+    def test_skipped_labels_are_recorded(self):
+        labelled = {l["place"] for b in self.r.plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "zone_label"}
+        skipped = {d["place"] for d in self.r.report["selection"].get("map_labels_skipped", [])}
+        for n in WIDE_NAMES:
+            self.assertTrue(n in labelled or n in skipped, n)
+
+    def test_the_plan_check_gives_no_off_screen_warning_for_the_wide_beat(self):
+        rep = check_plan(self.r.plan, self.words)
+        self.assertEqual([w for w in rep.warnings if "off screen" in w], [])
+
+    def test_the_users_real_project_beat_compiles_with_zero_errors(self):
+        if self.real is None:
+            self.skipTest("the real project is not on this machine")
+        words, text, r = self.real
+        self.assertIsNotNone(r.plan, r.problems)
+        c = compile_with_standins(r.plan, self.tmp)
+        self.assertEqual(c.report.errors, [])
+        self.assertLessEqual(self._text_layers_on_screen(r.plan), 5)
+        fills = [l["place"] for b in r.plan["beats"] if b["mode"] == "map" for l in b.get("layers", []) if l["type"] == "fill"]
+        self.assertGreaterEqual(len(set(fills)), 7)
+
+    def test_the_users_real_project_beat_has_no_off_screen_warning(self):
+        if self.real is None:
+            self.skipTest("the real project is not on this machine")
+        words, text, r = self.real
+        rep = check_plan(r.plan, words)
+        self.assertEqual([w for w in rep.warnings if "off screen" in w], [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
