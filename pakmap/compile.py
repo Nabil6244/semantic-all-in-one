@@ -413,6 +413,16 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
             rep.warnings.extend(f"credit: {c}" for c in focus.credits)
         except Exception as exc:    # never a stop: the video simply has no highlights
             rep.warnings.append(f"place focus skipped: {exc}")
+    try:
+        import place_focus
+
+        if hybrid:
+            place_focus.colour_fills(events)     # Hybrid Map: highlighted areas in strong colours, one per country
+        else:
+            for ev in events:
+                ev.pop("_iso", None)
+    except Exception as exc:
+        rep.warnings.append(f"fill colours skipped: {exc}")
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)
         info[ev["id"]].t_in, info[ev["id"]].t_out = ev["t_in"], ev["t_out"]
     rep.events = sorted(info.values(), key=lambda e: (e.t_in, e.row))
@@ -560,6 +570,7 @@ def _build(row: Row, eid: str, base: Optional[Path]) -> dict:
         if role is None:
             raise ValueError(f"unknown color_role {row.color_role!r} for a fill (use {', '.join(sorted(set(FILL_ROLES) - {''}))})")
         ev["role"] = role
+        ev["_iso"] = loc.iso     # which country the area is in (Hybrid colours each country on its own; removed before the spec is written)
         if loc.kind == "country" and loc.iso:
             ev["iso"] = [loc.iso]
         else:
@@ -672,7 +683,7 @@ def _build(row: Row, eid: str, base: Optional[Path]) -> dict:
             # a region's name sits at the centre of its box, which is where the camera frames it (the "point inside" can be a far corner)
             from .geo import fit
 
-            clon, clat = (fit(loc.bbox)[:2] if loc.is_area else (loc.lon, loc.lat))
+            clon, clat = (fit(loc.view_bbox)[:2] if loc.is_area else (loc.lon, loc.lat))
             follow = {"lon": round(clon, 5), "lat": round(clat, 5)}
             if "coords" in (tpl.get("slots") or {}):
                 fields_extra = {"coords": f"{abs(clat):.2f}°{'N' if clat >= 0 else 'S'}  {abs(clon):.2f}°{'E' if clon >= 0 else 'W'}"}

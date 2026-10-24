@@ -57,6 +57,46 @@ class Located:
     def is_area(self) -> bool:
         return self.polys is not None
 
+    @property
+    def view_bbox(self) -> BBox:
+        """The box the camera frames: the mainland plus whatever lies within ~300 km of it, leaving out far overseas pieces
+        (Alaska/Hawaii for the USA, French Guiana for France), whose box would pull the centre into Canada or the Atlantic."""
+        if self.kind != "country" or not self.polys or len(self.polys) < 2:
+            return self.bbox
+        cached = self.__dict__.get("_vb")
+        if cached:
+            return cached
+        boxes = []
+        for poly in self.polys:
+            pts = poly[0] if poly else []
+            if pts:
+                xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+                boxes.append((min(xs), min(ys), max(xs), max(ys)))
+        if not boxes:
+            return self.bbox
+
+        def area(b):
+            return (b[2] - b[0]) * (b[3] - b[1])
+
+        def gap(a, b):
+            lat = (a[1] + a[3] + b[1] + b[3]) / 4
+            dx = max(a[0] - b[2], b[0] - a[2], 0.0) * math.cos(math.radians(lat))
+            dy = max(a[1] - b[3], b[1] - a[3], 0.0)
+            return math.hypot(dx, dy) * 111.0
+
+        cur = max(boxes, key=area)
+        rest = [b for b in boxes if b is not cur]
+        grew = True
+        while grew:
+            grew = False
+            for b in rest[:]:
+                if gap(cur, b) <= 300.0:
+                    cur = (min(cur[0], b[0]), min(cur[1], b[1]), max(cur[2], b[2]), max(cur[3], b[3]))
+                    rest.remove(b)
+                    grew = True
+        self.__dict__["_vb"] = cur
+        return cur
+
 
 def _fold(text: str) -> str:
     t = unicodedata.normalize("NFKD", text or "")
@@ -111,6 +151,13 @@ def resolve(ref: str, prefer: str = "area") -> Located:
     ref = (ref or "").strip()
     if not ref:
         raise GeoError("geo_ref is empty")
+    if ";" in ref:   # "Cornwall;Devon": one view that holds all of them (a camera target; fills and lines split the list themselves)
+        parts = [resolve(part, prefer) for part in ref.split(";") if part.strip()]
+        if len(parts) > 1:
+            w, s_, e, n = (min(p.bbox[0] for p in parts), min(p.bbox[1] for p in parts), max(p.bbox[2] for p in parts), max(p.bbox[3] for p in parts))
+            polys = [poly for p in parts if p.polys for poly in p.polys]   # empty for points: still an area, so the camera fits the box
+            return Located(" and ".join(p.name for p in parts), "region", (w + e) / 2, (s_ + n) / 2, (w, s_, e, n), parts[0].iso, polys)
+        ref = parts[0].name if parts else ref
     m = _LATLON.match(ref)
     if m:
         lat, lon = float(m.group(1)), float(m.group(2))
@@ -189,7 +236,7 @@ def view_for(loc: Located, frame: str = "", width: int = 1920, height: int = 108
     if frame == "local" or not loc.is_area:
         return loc.lon, loc.lat, FRAME_ZOOM["local"]
     pad = 0.25 if frame == "region" else 0.18
-    cx, cy, z = fit(loc.bbox, width, height, pad)
+    cx, cy, z = fit(loc.view_bbox, width, height, pad)
     return cx, cy, (max(z, 5.0) if frame == "region" else z)
 
 

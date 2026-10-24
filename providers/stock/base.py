@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 import re
 from pathlib import Path
+import threading
 from typing import List, Optional, Set
 
 from ..base import (
@@ -28,6 +29,8 @@ from . import downloader as _dl
 from .downloader import MAX_BYTES, UHD_MAX_BYTES, DownloadCancelled, download_candidate, download_first_seconds
 from .query import build_queries
 from .ranking import filter_candidates, rank_candidates
+
+_PICK_LOCK = threading.Lock()
 
 _URL_SECRET = re.compile(r"((?:[?&]|\b)(?:key|api_key|apikey|access_token|token|client_secret)=)[^&\s'\"]+", re.IGNORECASE)
 
@@ -135,6 +138,7 @@ class StockProvider(AssetProvider):
             # a real subject (What If's second source after NASA): never broadened to one word -- "Saturn rings ringlets Voyager 1"
             # ended as "Saturn" and "Voyager", and took a portrait of a person (#016)
             queries = [q for k, q in enumerate(queries) if k == 0 or len(q.split()) >= 2]
+        fallback = None
         for i, query in enumerate(queries):
             if self._scene_stopped(scene.scene_number):
                 return None
@@ -169,8 +173,16 @@ class StockProvider(AssetProvider):
                 log=log,
             )
             if ranked:
-                return ranked[0]
-        return None
+                with _PICK_LOCK:
+                    # A picture already used in this project is the last choice, not just a lower score: with 50 scenes asking for
+                    # similar things the same few top results kept winning. Scenes picking at the same time see each other's choice.
+                    used = self.cache.used_asset_ids()
+                    fresh = [c for c in ranked if c.asset_id not in used]
+                    if fresh:
+                        self.cache.record_used(fresh[0].asset_id)
+                        return fresh[0]
+                fallback = fallback or ranked[0]   # everything it found was used already: try the broader query, keep this if nothing better turns up
+        return fallback
 
     def resolve(self, scene: SceneRow, images_dir: Path, log: LogFn = print) -> AssetResult:
         source = scene.stock_source
