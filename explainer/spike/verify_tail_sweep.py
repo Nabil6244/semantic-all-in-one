@@ -25,7 +25,7 @@ FPS = 30
 work.mkdir(parents=True, exist_ok=True)
 voice, card = work / "voice.wav", work / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(Path(__file__).resolve().parent / "make_audio.py"), str(voice), "32", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(Path(__file__).resolve().parent / "make_audio.py"), str(voice), "32", str(card)], check=True, timeout=1800)
 EDGES = [0, 2.137, 6.481, 7.9, 12.263, 13.4, 17.719, 19.0, 23.541, 25.2, 29.837, 32.0]
 beats, specs = [], []
 for i in range(len(EDGES) - 1):

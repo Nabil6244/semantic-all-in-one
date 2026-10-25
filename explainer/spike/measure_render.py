@@ -11,19 +11,19 @@ FPS = 30
 
 
 def raw(path, vf, pix, size_bytes):
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True)
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True, timeout=1800)
     return np.frombuffer(p.stdout, dtype=np.uint8).reshape(-1, size_bytes)
 
 
 def frame_png(path, n):
     p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"select=eq(n\\,{n})", "-vframes", "1", "-f", "image2pipe", "-c:v", "png", "-"],
-                       capture_output=True, check=True)
+                       capture_output=True, check=True, timeout=1800)
     return Image.open(io.BytesIO(p.stdout)).convert("RGB")
 
 
 def n_frames(video) -> int:
     return int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0", str(video)],
-                              capture_output=True, text=True).stdout.strip().strip(","))
+                              capture_output=True, text=True, timeout=1800).stdout.strip().strip(","))
 
 
 def board_runs(video, probe: Tuple[int, int] = (1700, 300)) -> Tuple[List[Dict], int]:

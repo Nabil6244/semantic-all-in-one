@@ -123,7 +123,7 @@ for name, script in TOPICS.items():
     # ---- render and contact sheet ----
     voice = work / "media" / f"voice_{int(math.ceil(dur))}.wav"
     if not voice.exists():
-        subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), str(int(math.ceil(dur))), str(work / "media" / "card.png")], check=True)
+        subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), str(int(math.ceil(dur))), str(work / "media" / "card.png")], check=True, timeout=1800)
     (out / f"plan_{name}_abs.json").write_text(json.dumps(r.plan, indent=1, sort_keys=True))
     hp = HybridPlan.load(out / f"plan_{name}_abs.json")
     video = out / f"render_{name}.mp4"

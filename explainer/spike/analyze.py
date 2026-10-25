@@ -22,13 +22,13 @@ FPS, W, H = 30, 1920, 1080
 
 
 def raw(path, vf, pix, size_bytes):
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True)
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True, timeout=1800)
     a = np.frombuffer(p.stdout, dtype=np.uint8)
     return a.reshape(-1, size_bytes)
 
 
 n_frames = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0", str(video)],
-                              capture_output=True, text=True).stdout.strip().strip(","))
+                              capture_output=True, text=True, timeout=1800).stdout.strip().strip(","))
 # per-frame probes: interior grey, top border, left border, and the 16 code cells
 p_int = raw(video, "crop=2:2:1700:300", "rgb24", 12)[:, :3]
 p_top = raw(video, "crop=2:2:960:22", "rgb24", 12)[:, :3]
@@ -80,7 +80,7 @@ if board_idx:
 
 def frame_png(path, n):
     p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"select=eq(n\\,{n})", "-vframes", "1", "-f", "image2pipe", "-c:v", "png", "-"],
-                       capture_output=True, check=True)
+                       capture_output=True, check=True, timeout=1800)
     import io
     return Image.open(io.BytesIO(p.stdout)).convert("RGB")
 
@@ -134,7 +134,7 @@ def pcm(path):
     if str(path).endswith(".wav"):
         with wave.open(str(path)) as w:
             return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(float) / 32768, w.getframerate()
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", "48000", "-f", "s16le", "-"], capture_output=True, check=True)
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", "48000", "-f", "s16le", "-"], capture_output=True, check=True, timeout=1800)
     return np.frombuffer(p.stdout, dtype=np.int16).astype(float) / 32768, 48000
 
 

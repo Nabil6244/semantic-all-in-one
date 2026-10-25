@@ -38,7 +38,7 @@ media = work / "media"
 media.mkdir(exist_ok=True)
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(Path(__file__).resolve().parent / "make_audio.py"), str(voice), "28", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(Path(__file__).resolve().parent / "make_audio.py"), str(voice), "28", str(card)], check=True, timeout=1800)
 
 # ---- narration: our own sentences, 0.7 s between sentences, Whisper-shaped words with punctuation ----
 SENT = ["Pakistan is built around a single river system.", "It begins in the high mountains, far to the north.",

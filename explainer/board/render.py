@@ -428,4 +428,8 @@ def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int]
     for i in range(n_frames):
         p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator, background).tobytes())
     p.stdin.close()
-    return p.wait()
+    try:
+        return p.wait(timeout=3600)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        return -1

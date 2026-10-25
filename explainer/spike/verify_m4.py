@@ -155,7 +155,7 @@ ck["packaging_lists_assets_and_modules"] = len(packaging.data_files(root)) == 19
 
 # ================= B. five topics =================
 def ffprobe_frames(p):
-    return int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0", str(p)], capture_output=True, text=True).stdout.strip().strip(",") or 0)
+    return int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0", str(p)], capture_output=True, text=True, timeout=1800).stdout.strip().strip(",") or 0)
 
 
 def run_topic(name, d, wd, archive=False, look="classic"):
@@ -333,7 +333,7 @@ sc=TOPICS['coffee']; w,d=words_from_script(sc)
 r=direct(w, sc, DirectorOptions(look="classic", work_dir={str(work / 'det_c')!r}), duration=d)
 open({str(work / 'det_c_plan.json')!r},'w').write(json.dumps(r.plan, indent=1, sort_keys=True))
 """
-subprocess.run([sys.executable, "-B", "-I", "-c", child], capture_output=True)
+subprocess.run([sys.executable, "-B", "-I", "-c", child], capture_output=True, timeout=1800)
 cc = sorted(p.name for p in (work / "det_c" / "explainer").glob("*.mp4")) if (work / "det_c" / "explainer").is_dir() else []
 ck["separate_process_gives_the_same_plan_and_clip_bytes"] = (work / "det_c_plan.json").exists() and (work / "det_c_plan.json").read_text().replace(str((work / "det_c").resolve()), "<WORK>") == plan_text(a_r.plan, (work / "det_a").resolve()) \
     and cc == ca and all(sha(work / "det_c" / "explainer" / n) == sha(work / "det_a" / "explainer" / n) for n in ca)
@@ -412,15 +412,15 @@ pt = (root / "docs/explainer/m4_app_patch.diff").read_text()
 ck["app_patch_adds_lines_only"] = not any(l.startswith("-") and not l.startswith("---") for l in pt.splitlines()) and sum(1 for l in pt.splitlines() if l.startswith("+") and not l.startswith("+++")) > 0
 patch_applied = "_hybrid_explainer_direct" in (root / "app.py").read_text()          # the patch is already in the working tree's app.py
 patch_file = root / "docs/explainer/m4_app_patch.diff"
-ck["app_patch_applies_cleanly_to_the_current_files"] = subprocess.run(["git", "apply"] + (["--reverse"] if patch_applied else []) + ["--check", str(patch_file)], cwd=str(root), capture_output=True).returncode == 0     # applied: it reverses cleanly, so it matches the files exactly
+ck["app_patch_applies_cleanly_to_the_current_files"] = subprocess.run(["git", "apply"] + (["--reverse"] if patch_applied else []) + ["--check", str(patch_file)], cwd=str(root), capture_output=True, timeout=1800).returncode == 0     # applied: it reverses cleanly, so it matches the files exactly
 tmp = work / "patched"
 shutil.rmtree(tmp, ignore_errors=True)
 tmp.mkdir()
 for fn in ("app.py", "VideoGenerator.spec"):
     shutil.copy(root / fn, tmp / fn)
 if patch_applied:         # take the patch out of the scratch copy first, so the same forward application is tested in both states
-    subprocess.run(["patch", "-R", "-p1", "-s", "-i", str(patch_file)], cwd=str(tmp), capture_output=True, check=True)
-okp = subprocess.run(["patch", "-p1", "-s", "-i", str(root / "docs/explainer/m4_app_patch.diff")], cwd=str(tmp), capture_output=True)
+    subprocess.run(["patch", "-R", "-p1", "-s", "-i", str(patch_file)], cwd=str(tmp), capture_output=True, check=True, timeout=1800)
+okp = subprocess.run(["patch", "-p1", "-s", "-i", str(root / "docs/explainer/m4_app_patch.diff")], cwd=str(tmp), capture_output=True, timeout=1800)
 import ast
 try:
     ast.parse((tmp / "app.py").read_text())
@@ -438,7 +438,7 @@ wd = work / "render_run"
 r, wds, dur_, secs, net = run_topic(name, 0.0, wd)
 voice = work / "voice_49.wav"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), str(int(math.ceil(dur_))), str(work / "card49.png")], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), str(int(math.ceil(dur_))), str(work / "card49.png")], check=True, timeout=1800)
 rend = {"plan_ok": r.plan is not None}
 if r.plan is not None:
     (wd / "plan.json").write_text(json.dumps(r.plan, indent=1, sort_keys=True))
@@ -452,7 +452,7 @@ if r.plan is not None:
     rend.update({"render_ok": bool(res.ok), "render_errors": list(res.errors or []), "seconds": round(time.time() - t0, 1), "network_attempts_refused": list(NetGuard.attempts)})
     if res.ok:
         nb = M.n_frames(video)
-        adur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(voice)], capture_output=True, text=True).stdout.strip())
+        adur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(voice)], capture_output=True, text=True, timeout=1800).stdout.strip())
         rend["video_frames"], rend["expected_frames"] = nb, int(round(adur * FPS))      # the render is as long as the voiceover file (49.0 s); the plan is 48.5 s long
         rend["plan_duration_s"], rend["voice_duration_s"] = dur_, adur
         sel = [(b["id"], b["start"], b["end"]) for b in r.plan["beats"]]

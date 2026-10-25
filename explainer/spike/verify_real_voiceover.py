@@ -87,8 +87,8 @@ CUES = [Cue("r1_type", "type", {"word": anchor_type[0], "occurrence": 1}, text=f
 # ---- the audio for the render: a cut around the window, times shifted so the cut starts at 0 ----
 shift = max(0.0, frame(t_lo))
 cut = work / "voice_cut.wav"
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{shift}", "-t", f"{t_hi - shift:.3f}", "-i", str(audio), "-vn", "-ac", "1", "-ar", "48000", str(cut)], check=True)
-dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(cut)], capture_output=True, text=True).stdout)
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{shift}", "-t", f"{t_hi - shift:.3f}", "-i", str(audio), "-vn", "-ac", "1", "-ar", "48000", str(cut)], check=True, timeout=1800)
+dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(cut)], capture_output=True, text=True, timeout=1800).stdout)
 dur = math.floor(dur * FPS) / FPS
 sh = lambda ws: [(w[0], round(w[1] - shift, 3), round(w[2] - shift, 3)) for w in ws if w[2] - shift > 0 and w[1] - shift < dur]
 RAWc, APPc = sh(RAW), sh(APP)

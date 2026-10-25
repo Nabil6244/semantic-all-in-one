@@ -42,7 +42,7 @@ media = work / "media"
 media.mkdir(exist_ok=True)
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True, timeout=1800)
 
 
 def narrate(sentences):
@@ -76,7 +76,7 @@ CUES = [
 ]
 result = {"checks": {}, "variants": {}}
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
-fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True).stdout.split("#")[-1]
+fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True, timeout=1800).stdout.split("#")[-1]
 
 # ---- 1. unit checks ----
 tiny = work / "tiny"

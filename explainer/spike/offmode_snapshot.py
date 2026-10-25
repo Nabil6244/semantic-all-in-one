@@ -20,7 +20,7 @@ def jsha(obj) -> str:
 
 
 def git(*a):
-    return subprocess.run(["git", *a], cwd=root, capture_output=True, text=True).stdout
+    return subprocess.run(["git", *a], cwd=root, capture_output=True, text=True, timeout=1800).stdout
 
 
 from hybrid import plan as hplan

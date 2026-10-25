@@ -50,9 +50,9 @@ media = work / "media"
 media.mkdir(exist_ok=True)
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True, timeout=1800)
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
-fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True).stdout.split("#")[-1]
+fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True, timeout=1800).stdout.split("#")[-1]
 
 
 # ---- no-network guard: every connection attempt to a non-local address is recorded and refused ----
@@ -567,7 +567,7 @@ if base["render_ok"]:
     mid.save(work / "map_render_base" / "archive_mid_beat.png")
     # layer timing that can be measured offline: counterfactual renders without one layer, first frame that differs from the base render
     def decoded_small(path, frames):
-        p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-frames:v", str(frames), "-vf", "scale=480:270,format=gray", "-f", "rawvideo", "-"], capture_output=True, check=True)
+        p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-frames:v", str(frames), "-vf", "scale=480:270,format=gray", "-f", "rawvideo", "-"], capture_output=True, check=True, timeout=1800)
         return np.frombuffer(p.stdout, np.uint8).reshape(-1, 270 * 480).astype(np.int16)
 
     nwatch = int(9.0 * FPS)
@@ -618,7 +618,7 @@ child = child.replace("here = Path(__file__).resolve().parent", f"here = Path({s
 cap_src = src_text[src_text.index("CAP = ["):src_text.index("LAYOUT = [")]
 child += "\nBEAT = (7.0, 17.0)\n" + cap_src + f"\nbuild_board_clip(CAP, WORDS, *BEAT, Path({str(tiny / 'cap_child.mp4')!r}), beat_id='b2')\n"
 (work / "child_build.py").write_text(child)
-subprocess.run([sys.executable, "-B", "-I", str(work / "child_build.py")], capture_output=True)
+subprocess.run([sys.executable, "-B", "-I", str(work / "child_build.py")], capture_output=True, timeout=1800)
 ck["caption_clip_identical_across_processes"] = (tiny / "cap_child.mp4").exists() and sha(tiny / "cap_child.mp4") == sha(tiny / "cap_plain1.mp4")
 (work / "verify_m3.json").write_text(json.dumps(result, indent=1, default=str))
 print(json.dumps({k: v for k, v in ck.items() if v is not True}, indent=1))

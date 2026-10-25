@@ -21,7 +21,7 @@ size = sys.argv[3] if len(sys.argv) > 3 else "base"
 import numpy as np
 from faster_whisper import WhisperModel
 
-pcm = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-i", str(audio), "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, check=True).stdout
+pcm = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-i", str(audio), "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, check=True, timeout=1800).stdout
 x = np.frombuffer(pcm, np.float32).copy()
 model = WhisperModel(size, device="cpu", compute_type="int8", cpu_threads=4, num_workers=1)
 segments, info = model.transcribe(x, word_timestamps=True, vad_filter=True)

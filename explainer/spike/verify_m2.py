@@ -52,9 +52,9 @@ media = work / "media"
 media.mkdir(exist_ok=True)
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True, timeout=1800)
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
-fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True).stdout.split("#")[-1]
+fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True, timeout=1800).stdout.split("#")[-1]
 
 
 def narrate(sentences):
@@ -119,7 +119,7 @@ ck["renderer_has_no_drawing_code"] = ("ImageDraw" not in src_rig and not _re.sea
 probe = (f"import sys; sys.dont_write_bytecode=True; sys.path.insert(0, {str(root)!r}); from explainer.board import Cue, build_board_clip; "
          f"w=[('a',7.2,7.4),('b',7.6,7.9)]; b=build_board_clip([Cue('n','narrator',{{'word':'a'}},params={{'action':'show'}})], w, 7.0, 8.5, {str(tiny / 'fresh.mp4')!r}); "
          f"print('explainer.narrator.build_assets' in sys.modules)")
-ck["render_does_not_load_the_asset_builder"] = subprocess.run([sys.executable, "-B", "-I", "-c", probe], capture_output=True, text=True).stdout.strip() == "False"
+ck["render_does_not_load_the_asset_builder"] = subprocess.run([sys.executable, "-B", "-I", "-c", probe], capture_output=True, text=True, timeout=1800).stdout.strip() == "False"
 
 
 def with_assets_dir(path):
@@ -244,7 +244,7 @@ child = src_text[:cut].replace("sys.argv[1]", repr(str(root))).replace("sys.argv
 child = child.replace("here = Path(__file__).resolve().parent", f"here = Path({str(here)!r})")
 child += f"\nbuild_board_clip(CUES, WORDS, *BEAT, Path({str(tiny / 'plain_child.mp4')!r}), beat_id='b2')\n"
 (work / "child_build.py").write_text(child)
-subprocess.run([sys.executable, "-B", "-I", str(work / "child_build.py")], capture_output=True)
+subprocess.run([sys.executable, "-B", "-I", str(work / "child_build.py")], capture_output=True, timeout=1800)
 ck["deterministic_across_processes_plain_clip_bytes"] = (tiny / "plain_child.mp4").exists() and sha(tiny / "plain_child.mp4") == sha(tiny / "plain1.mp4")
 
 # ================= C. render and read back =================
@@ -321,7 +321,7 @@ def run_variant(d):
             a = np.frombuffer(buf, np.uint8).reshape(RH, RW, 3).astype(np.float32)
             dec[i] = a[..., 0] * 0.299 + a[..., 1] * 0.587 + a[..., 2] * 0.114
         i += 1
-    p.wait()
+    p.wait(timeout=3600)
     # (instrumented frames: the red border is in both; PIL 'L' uses the same weights)
     align_ok = decisive = total = 0
     maes = []

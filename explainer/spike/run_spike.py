@@ -36,15 +36,15 @@ fixture = json.loads((root / "test_hybrid_app_plan.json").read_text())
 # --- media (all local, all made by the spike's own scripts) ---
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True, timeout=1800)
 secs = {"A": 8.5, "B": 8.0, "C": 8.0}[variant]
 clip = media / f"board_{secs}.mp4"
 if variant in ("A", "B") and not clip.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_board_clip.py"), str(clip), str(secs)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_board_clip.py"), str(clip), str(secs)], check=True, timeout=1800)
 if variant == "C":
     clip = media / "plain_8.0.mp4"
     if not clip.exists():   # a plain local clip: flat blue, no code cells, no board look (it only shows where the join is)
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x3060a0:s=1920x1080:r=30:d=8", "-pix_fmt", "yuv420p", "-c:v", "libx264", str(clip)], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x3060a0:s=1920x1080:r=30:d=8", "-pix_fmt", "yuv420p", "-c:v", "libx264", str(clip)], check=True, timeout=1800)
 
 # --- derived plan (the fixture's beats, local assets) ---
 plan = json.loads(json.dumps(fixture))

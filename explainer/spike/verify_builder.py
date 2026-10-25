@@ -38,7 +38,7 @@ media = work / "media"
 media.mkdir(exist_ok=True)
 voice, card = media / "voice.wav", media / "card.png"
 if not voice.exists():
-    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True)
+    subprocess.run([sys.executable, "-B", "-I", str(here / "make_audio.py"), str(voice), "24", str(card)], check=True, timeout=1800)
 
 
 # ---- the test narration: our own sentences, Whisper-shaped words (text with punctuation, start, end) ----
@@ -87,20 +87,20 @@ h1 = build_board_clip(CUES, WORDS, *BEAT, tiny / "d1.mp4", instrument=True, mani
 h2 = build_board_clip(CUES, WORDS, *BEAT, tiny / "d2.mp4", instrument=True, manifest_path=tiny / "d2.json")
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
 result["checks"]["build_is_deterministic_manifest"] = json.loads((tiny / "d1.json").read_text())["cues"] == json.loads((tiny / "d2.json").read_text())["cues"]
-fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True).stdout.split("#")[-1]
+fm = lambda p: subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True, timeout=1800).stdout.split("#")[-1]
 result["checks"]["build_is_deterministic_frames"] = fm(tiny / "d1.mp4") == fm(tiny / "d2.mp4")
 result["checks"]["clip_bytes_identical_between_builds"] = sha(tiny / "d1.mp4") == sha(tiny / "d2.mp4")
 
 
 # ---- 2. render and read back ----
 def raw(path, vf, pix, size_bytes):
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True)
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", vf, "-f", "rawvideo", "-pix_fmt", pix, "-"], capture_output=True, check=True, timeout=1800)
     return np.frombuffer(p.stdout, dtype=np.uint8).reshape(-1, size_bytes)
 
 
 def frame_png(path, n):
     import io
-    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"select=eq(n\\,{n})", "-vframes", "1", "-f", "image2pipe", "-c:v", "png", "-"], capture_output=True, check=True)
+    p = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"select=eq(n\\,{n})", "-vframes", "1", "-f", "image2pipe", "-c:v", "png", "-"], capture_output=True, check=True, timeout=1800)
     return Image.open(io.BytesIO(p.stdout)).convert("RGB")
 
 
@@ -127,8 +127,8 @@ def run_variant(d):
     if not res.ok:
         return info
     nb = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames", "-of", "csv=p=0", str(video)],
-                            capture_output=True, text=True).stdout.strip().strip(","))
-    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)], capture_output=True, text=True).stdout.strip())
+                            capture_output=True, text=True, timeout=1800).stdout.strip().strip(","))
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)], capture_output=True, text=True, timeout=1800).stdout.strip())
     info.update({"video_frames": nb, "video_duration_s": dur})
     # frame-number read-back
     p_int = raw(video, "crop=2:2:1700:300", "rgb24", 12)[:, :3].astype(int)

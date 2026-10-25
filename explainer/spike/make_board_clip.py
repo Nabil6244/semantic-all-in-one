@@ -79,6 +79,6 @@ p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 for i in range(n_frames):
     p.stdin.write(frame(i).tobytes())
 p.stdin.close()
-rc = p.wait()
+rc = p.wait(timeout=3600)
 print(f"board clip: {n_frames} frames, {seconds}s, {W}x{H}@{fps}, rc={rc}, {out}")
 sys.exit(rc)
