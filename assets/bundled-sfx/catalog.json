@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "library_root": "${USER_SFX_ROOT}",
   "generated_by": "scripts/build_audio_library.py",
   "format": "opus128",
@@ -3681,30 +3681,6 @@
       "duration": 60.007,
       "source": "Sonniss GDC",
       "source_file": "WATRLap_Small Waves sloshing onto Rock Slabs at huge Glacial Lake _JSE_HoN_Quad.wav",
-      "license": "Sonniss #GameAudioGDC Bundle License",
-      "commercial_use": true,
-      "attribution_required": false,
-      "format": "opus",
-      "curated": true,
-      "loudness_lufs": -34.0
-    },
-    {
-      "id": "amb_water_04",
-      "file": "ambience/amb_water_04.opus",
-      "category": "ambience",
-      "tags": [
-        "water",
-        "ocean",
-        "river",
-        "shore",
-        "waves",
-        "lake",
-        "gentle"
-      ],
-      "intensity": "low",
-      "duration": 60.007,
-      "source": "Sonniss GDC",
-      "source_file": "WATRLap_Summer Tennessee Lake Dock Water Ripples Wake Wave Gentle 05 Distant_ESM_CPS.wav",
       "license": "Sonniss #GameAudioGDC Bundle License",
       "commercial_use": true,
       "attribution_required": false,
