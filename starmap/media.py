@@ -179,6 +179,18 @@ def still_of(video: Path, out: Path) -> Path:
     raise RuntimeError(f"could not take a still from {video.name}")
 
 
+def _report_ready(provider_kwargs: Dict[str, Any], row: Any, path: Path) -> None:
+    """Tell the Visual Plan table a NASA picture is in (the NASA pass runs before every other scene is fetched, and the
+    rows would otherwise stay QUEUED until it ends): the app's own scene callback with a finished result."""
+    done = provider_kwargs.get("on_scene_complete")
+    if done is None:
+        return
+    from providers.base import AssetResult, AssetSource, MediaType, SceneStatus
+
+    done(row, AssetResult(scene_number=str(row.scene_number), path=path, media_type=MediaType.IMAGE, source=AssetSource.STOCK_IMAGE,
+                          status=SceneStatus.READY))
+
+
 def _report_left_out(provider_kwargs: Dict[str, Any], table: Sequence[Any], n: str, why: str) -> None:
     """Tell the Visual Plan table a row was left out (it would otherwise stay QUEUED): the app's own scene callback, with a
     failed result carrying the reason, so the row shows NEEDS ACTION with Retry / Change source."""
@@ -322,11 +334,13 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
     nasa_rows = {m.scene_number: m.prompt for m in rows_info if m.source == "nasa_image"}
     recheck_cached_media(rows_info, Path(images_dir), manifest_cls=manifest_cls, log=log, get=nasa_get,
                          warn_only=bool(provider_kwargs.pop("recheck_warn_only", False)))
+    told: set = set()                                           # scenes the table was told are left out, so it is not told twice
     unanswered: Dict[str, str] = {}
     no_match: Dict[str, str] = {}
     if nasa_rows:
         nasa_images.prefetch(table, nasa_rows, images_dir, manifest_cls=manifest_cls, log=log, get=nasa_get, cancel_check=cancel_check,
-                             context=mission, unanswered=unanswered, no_match=no_match)
+                             context=mission, unanswered=unanswered, no_match=no_match,
+                             on_found=lambda row, path: _report_ready(provider_kwargs, row, path))
         # A story about a mission keeps NASA's answer: no stock photo stands in for the mission's own picture. A story with no
         # mission (a moon, a planet, the scale of space) lets a NASA miss try the stock search, which also reaches Wikimedia.
         mission_story = (any(str(v).strip() for v in mission.values()) if isinstance(mission, dict) else bool(str(mission or "").strip())) \
@@ -336,6 +350,13 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
             for n in list(no_match):
                 log(f"[StarMap] No NASA image for scene {n}; this story names no mission, so it tries the stock search")
                 del no_match[n]
+        for n, why in unanswered.items():                       # the table shows these now, not after the stock search of every other scene
+            _report_left_out(provider_kwargs, all_rows, n, f"Left out: NASA's image library did not answer ({why}). Retry it, then Generate again.")
+            told.add(n)
+        for n, why in no_match.items():
+            _report_left_out(provider_kwargs, all_rows, n, f"Left out: {why} (nasa_image:{nasa_rows.get(n, '')}). Change source, "
+                                                           f"use a local clip, or describe it the way NASA titles it.")
+            told.add(n)
         # not to the stock search: NASA was unreachable, or (for a mission) has no picture that is really this one
         table = [r for r in table if str(r.scene_number) not in unanswered and str(r.scene_number) not in no_match]
     if fetch_scenes is None:
@@ -363,7 +384,8 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
         if n in unanswered:                                     # never stops the video: left out, a clip's time goes to the rest
             why = f"NASA's image library did not answer ({unanswered[n]})"
             out.media[f"row:{m.row}"] = {"file": ""}
-            _report_left_out(provider_kwargs, all_rows, n, f"Left out: {why}. Retry it, then Generate again.")
+            if n not in told:
+                _report_left_out(provider_kwargs, all_rows, n, f"Left out: {why}. Retry it, then Generate again.")
             out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}: nasa_image:{m.prompt}): {why}, so it is left out. "
                              f"Retry it in the Visual Plan and Generate again to add it.")
             out.unresolved.append(n)
@@ -373,8 +395,9 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
             continue
         if n in no_match:                                       # left out: a card goes, a clip leaves its time to the map
             out.media[f"row:{m.row}"] = {"file": ""}
-            _report_left_out(provider_kwargs, all_rows, n, f"Left out: {no_match[n]} (nasa_image:{m.prompt}). Change source, "
-                                                         f"use a local clip, or describe it the way NASA titles it.")
+            if n not in told:
+                _report_left_out(provider_kwargs, all_rows, n, f"Left out: {no_match[n]} (nasa_image:{m.prompt}). Change source, "
+                                                             f"use a local clip, or describe it the way NASA titles it.")
             out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}: nasa_image:{m.prompt}): {no_match[n]}, "
                              f"so it is left out. Describe it the way NASA titles it, or give it another source in the Visual Plan.")
             continue

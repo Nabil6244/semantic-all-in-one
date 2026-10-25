@@ -137,6 +137,7 @@ class ShotPlan:
     title: str = ""
     notes: List[str] = field(default_factory=list)
     words: List[Word] = field(default_factory=list)
+    look: Dict[str, Any] = field(default_factory=dict)      # this video's grade (whatif/variety.py)
 
 
 NAME_AGAIN_S = 120.0       # the same name on screen again only this long after it was last shown ("VOYAGER 1" on every craft shot is noise)
@@ -1115,6 +1116,11 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
 
         typeset(shots, layers, words, metrics, duration, notes)
     mix_flow(shots, mode, notes)
+    look: Dict[str, Any] = {}
+    if auto:
+        from . import variety
+
+        look = variety.apply(shots, layers, title, text_all, notes)
     shots = split_long_videos(shots, words, layers, notes)
     limit_flow(shots, notes)
     for i, s in enumerate(shots, 1):
@@ -1131,7 +1137,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
         notes.append(f"WARNING shot {s.id} ({s.start:.1f}-{s.end:.1f}s) is an empty plate: nothing is drawn on most of it")
     from .engage import coverage
     notes.append(f"plan: text or graphics on screen {100 * coverage(shots, layers, duration):.0f}% of the video")
-    return ShotPlan(shots=shots, layers=layers, duration=duration, title=title, notes=notes, words=words)
+    return ShotPlan(shots=shots, layers=layers, duration=duration, title=title, notes=notes, words=words, look=look)
 
 
 def report(p: ShotPlan) -> Dict[str, Any]:

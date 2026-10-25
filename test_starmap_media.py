@@ -98,6 +98,19 @@ class Nasa(unittest.TestCase):
         nasa_images.prefetch(rows, nasa_rows, d, get=get, log=lambda m: None)
         self.assertFalse(any(c[1].get("q", "").startswith("Saturn") for c in get.calls))
 
+    def test_a_found_picture_is_reported_ready_at_once_and_again_on_a_rerun(self):
+        """The Visual Plan row must not stay QUEUED while the other scenes are still being fetched (project 034)."""
+        from providers.base import SceneRow
+
+        d = Path(tempfile.mkdtemp())
+        rows = [SceneRow.from_csv_row(r) for r in visual_dicts_from_csv(SAMPLE)]
+        get = fake_nasa({"Apollo 11 Saturn V lifting off from Launch Complex 39A": [("Apollo 11 Saturn V lifting off from Launch Complex 39A", "kscid")]}, {"kscid": jpeg()})
+        nasa_rows = {m.scene_number: m.prompt for m in media_rows(load_plan(SAMPLE, WORDS)) if m.source == "nasa_image"}
+        for _ in range(2):                                      # first run fetches it, the second finds it on disk
+            told = []
+            nasa_images.prefetch(rows, nasa_rows, d, get=get, log=lambda m: None, on_found=lambda row, path: told.append((row.scene_number, path.is_file())))
+            self.assertEqual(told, [("1", True)])
+
     def test_a_renumbered_row_is_searched_on_nasa_not_skipped_for_its_old_file(self):
         """An edited CSV renumbers its scenes: scene 1's finished stock file from the old CSV is not the new scene 1's
         picture, so NASA is searched for it (it used to be skipped, and the stock search then found a Pexels photo)."""

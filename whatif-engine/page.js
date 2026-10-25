@@ -5,7 +5,8 @@
 import { createRegistry, runLayers } from '/lib/layers.mjs';
 import { registerBuiltins } from '/layers/index.mjs';
 import { shotAt, driftAt, clipFrameIndex, sanitizeShots } from '/lib/shots.mjs';
-import { tm } from '/layers/tm_theme.mjs';
+import { tm, C, colourSet } from '/layers/tm_theme.mjs';
+import { setAccent } from '/lib/tpl.mjs';
 
 const spec = await (await fetch('/spec.json')).json();
 const W = spec.width, H = spec.height;
@@ -20,6 +21,7 @@ const out = document.createElement('canvas'); out.width = W; out.height = H;
 const ctx = out.getContext('2d');
 const T = tm(ctx, W);
 const look = { saturate: 0.82, contrast: 1.04, lift: '#080B10', vignette: 0.34, grain: 0.035, ...(spec.look || {}) };
+if (look.accent) { setAccent(look.accent); colourSet(look.accent); }
 
 // a picture or clip frame that does not arrive in LOAD_MS is asked for once more, then given up (its shot becomes a plate): a load
 // that never finished froze render #016 for good

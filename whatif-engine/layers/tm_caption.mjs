@@ -13,6 +13,12 @@ export default {
   type: 'tm_caption',
   space: 'screen',
   create: (def) => { if (!def.text) throw new Error('tm_caption: "text" is required'); return { def }; },
+  update(inst, f) {
+    if (!f.claim || !(f.alpha > 0.05)) return;
+    const { W, H } = f, a = inst.def.anchor || 'bl';
+    if (a === 'bc' || inst.def.size === 'photo') f.claim(W * 0.2, H * 0.84, W * 0.6, H * 0.12);
+    else f.claim(W * 0.04, H * (ANCHOR_Y[a] ?? 0.74) - H * 0.1, W * 0.5, H * 0.2);
+  },
   draw(inst, f) {
     const d = inst.def, { g, W, H } = f, T = tm(g, W);
     const k = quartOut((f.t - (d.start ?? 0)) / 0.35);

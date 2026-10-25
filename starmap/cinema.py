@@ -27,7 +27,7 @@ import math
 import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-FEATURES = ("motion", "budget", "plates", "hero", "type", "photos", "cuts", "audio", "grade", "templates", "blocks", "cards", "fill", "ambience")
+FEATURES = ("motion", "budget", "plates", "hero", "type", "photos", "cuts", "audio", "grade", "templates", "blocks", "cards", "fill", "ambience", "variety")
 FEATURE_LABELS = {
     "motion": "Every shot keeps moving, as the narration says",
     "budget": "Map at most 50% of screen time",
@@ -43,6 +43,7 @@ FEATURE_LABELS = {
     "cards": "Real photos as a card on the right, beside the type",
     "fill": "Graphics hold to the cut (no blank plates)",
     "ambience": "Background sound follows the scene (What If beds)",
+    "variety": "Variety: 3D for named craft, fewer text cards, camera moves, a look per topic",
 }
 PLATE_S, PLATE_GAP_S, PLATE_MIN_S = 6.0, 20.0, 3.5
 # what a CSV may ask for with a plate row (full frame, on a slate) or an instrument row (over the shot) -- the What If graphics
@@ -394,7 +395,7 @@ def _covered(spec: Dict[str, Any]) -> List[Tuple[float, float]]:
     beat = lambda f: str(f.get("id", "")) if str(f.get("id", "")).startswith("cinema_") else str(f.get("id", "")).rsplit("_", 1)[0]   # noqa: E731
     shown = {beat(f) for f in spec.get("footage", []) if has(f)}
     iv = [(f["start"], f["end"]) for f in spec.get("footage", []) if has(f) or beat(f) in shown]
-    iv += [(L["start"], L["end"]) for L in spec["layers"] if L.get("type") in ("cinema_plate", "cinema_hero", "cinema_craft")]
+    iv += [(L["start"], L["end"]) for L in spec["layers"] if L.get("type") in ("cinema_plate", "cinema_hero", "cinema_craft", "cinema_globe")]
     moves = sorted(spec["camera"].get("moves", []), key=lambda m: m["t"])
     for i, m in enumerate(moves):
         if (m["to"].get("follow") or {}).get("lit"):
@@ -740,8 +741,8 @@ def info_blocks(spec: Dict[str, Any], plan: Any, notes: List[str], *, cards: boo
     if not words:
         return
     hosts: List[Any] = [SimpleNamespace(kind="hero", start=a, end=z, cite=("", "")) for a, z in _map_stretches(spec) if z - a >= 3.0]
-    hosts += [SimpleNamespace(kind="craft" if L["type"] == "cinema_craft" else "hero", start=float(L["start"]), end=float(L["end"]), cite=("", ""))
-              for L in spec["layers"] if L.get("type") in ("cinema_craft", "cinema_hero")]
+    hosts += [SimpleNamespace(kind="craft" if L["type"] in ("cinema_craft", "cinema_globe") else "hero", start=float(L["start"]), end=float(L["end"]), cite=("", ""))
+              for L in spec["layers"] if L.get("type") in ("cinema_craft", "cinema_globe", "cinema_hero")]
     stills = [f for f in spec.get("footage", []) if (f.get("image") or re.search(r"\.(jpe?g|png|webp)$", str(f.get("file", "")), re.I))
               and "AI ILLUSTRATION" not in str(f.get("credit", "")).upper()]
     if cards:
@@ -785,9 +786,161 @@ def ambience_shots(spec: Dict[str, Any], plan: Any) -> List[Dict[str, Any]]:
         kind = "image" if b.mode == "footage" else ("globe" if (b.frame or "") in ("body", "close", "surface") else "plate")
         out.append({"start": float(b.start), "end": float(b.end), "kind": kind})
     for L in spec["layers"]:
-        if L.get("type") in ("cinema_craft", "cinema_hero"):
+        if L.get("type") in ("cinema_craft", "cinema_globe", "cinema_hero"):
             out.append({"start": float(L["start"]), "end": float(L["end"]), "kind": "craft"})
     return [x for x in out if x["end"] > x["start"]]
+
+
+SHOT_3D_BEAT_MIN = 7.0       # a map beat shorter than this keeps its map
+SHOT_3D_LEN = 4.4            # seconds of a 3D shot inside a map beat
+SHOT_3D_GAP = 3.0            # seconds between two 3D shots
+SHOT_3D_TIME_MAX = 0.30      # at most this share of the video is a 3D craft or globe shot
+THREE_D_SHARE = 0.55         # up to this share of a StarMap video's footage shots is drawn in 3D (a craft's model or a world's globe)
+
+
+def _globe_for(text: str) -> Optional[Tuple[str, str, str, bool]]:
+    """(texture, name, rim colour, rings) of the world the narration is about, or None. The first world named wins; Saturn comes with rings."""
+    from whatif import planner as wp
+
+    low = text.lower()
+    sat = re.search(r"\bsaturn\b(?! v)", low)
+    got = wp._world(text)
+    if sat and (got is None or sat.start() <= low.find(got[1].lower().replace("the ", ""))):
+        return "2k_saturn.jpg", "SATURN", "#e8d8a8", True
+    if got is None:
+        return None
+    tex, name, rim = got
+    return tex, name, rim, False
+
+
+def variety(spec: Dict[str, Any], plan: Any, notes: List[str]) -> None:
+    """What If's variety pass (whatif/variety.py) on a Cinema spec, so two videos do not look like one:
+    footage about a craft the engine has a model of is drawn as that model over the footage (never next to another 3D shot, a third of
+    the footage at most); a still gets a new Ken Burns move each time; plain text cards are held to a share of the graphics; the grade
+    and the information colour follow the topic. All from the narration; every change is in the notes."""
+    import re as _re
+    from types import SimpleNamespace
+
+    from whatif import planner as wp
+    from whatif import variety as wv
+
+    beats = [b for b in plan.beats if b.text]
+    layers = spec["layers"]
+    footage = spec.get("footage") or []
+
+    def beat_text(t: float) -> str:
+        b = next((b for b in plan.beats if b.mode == "footage" and b.start - 0.05 <= t < b.end), None)
+        return str(b.text) if b is not None and b.text else ""
+
+    def solid(a: float, z: float) -> bool:
+        return any(L.get("type") in ("cinema_craft", "cinema_globe", "cinema_hero") and float(L["start"]) < z + 0.3 and a - 0.3 < float(L["end"]) for L in layers)
+
+    # 1. 3D for the craft or world the narration names (a craft as its NASA model, a world as a globe with its real map)
+    made, made_globes, topic = 0, 0, ""
+    cap = max(3, int(THREE_D_SHARE * max(1, len(footage))))
+    taken = sum(1 for L in layers if L.get("type") in ("cinema_craft", "cinema_globe"))
+    for f in sorted(footage, key=lambda x: float(x["start"])):
+        a, z = float(f["start"]), float(f["end"])
+        text = beat_text(a)
+        named = wp._craft(text)
+        if named:
+            topic = named[1]
+        if taken + made + made_globes >= cap or z - a < 3.0 or not text or wp.PHOTO.search(text) or solid(a, z):
+            continue
+        place = next((b.place for b in plan.beats if b.mode != "footage" and b.end <= a + 0.1 and b.place), None)
+        if named or (wv.CARRY.search(text) and topic):
+            model, name = named or next(((m, n) for _p, m, n in wp.CRAFT if n == topic), (None, None))
+            if model:
+                bd = backdrop(place)
+                layers.append({"type": "cinema_craft", "model": f"wi:{model}", "start": round(a, 3), "end": round(z, 3), "fade_in": 0.2, "fade_out": 0.25,
+                               "over_footage": True, "az": 20 + 37 * (made % 4), "z": 2, **({"backdrop": bd} if bd else {}),
+                               "_cite": f"NASA 3D MODEL OF {name}"})
+                layers.append({"type": "tm_caption", "text": name, "size": "large", "anchor": "bc", "start": round(a + 0.4, 3), "end": round(z - 0.2, 3),
+                               "fade_in": 0.3, "fade_out": 0.3, "z": 4, "over_footage": True})
+                made += 1
+                continue
+        world = _globe_for(text)
+        if world is None or wp.EVENT.search(text):
+            continue
+        tex, name, rim, rings = world
+        layers.append({"type": "cinema_globe", "texture": tex, "start": round(a, 3), "end": round(z, 3), "fade_in": 0.2, "fade_out": 0.25,
+                       "over_footage": True, "az": 18 + 41 * (made_globes % 4), "rim": rim or "#6fb4ff", "rings": rings, "sun": name == "THE SUN",
+                       "seed": 11 + made_globes, "z": 2, "_cite": f"NASA TEXTURE MAP OF {name}"})
+        layers.append({"type": "tm_caption", "text": name, "size": "large", "anchor": "bc", "start": round(a + 0.4, 3), "end": round(z - 0.2, 3),
+                       "fade_in": 0.3, "fade_out": 0.3, "z": 4, "over_footage": True})
+        made_globes += 1
+    if made or made_globes:
+        notes.append(f"Cinema variety: {made} footage shot(s) drawn as a NASA 3D craft model and {made_globes} as a 3D globe with its real map")
+    # 1b. a map beat that names a craft or world gets a short 3D shot of it where it is named (the map keeps the rest of the beat)
+    from .tracking import spoken_at
+
+    inserted = 0
+    dur_all = float(spec.get("duration") or 0) or (max((float(L.get("end", 0)) for L in layers), default=0.0))
+    spans3d = lambda: [(float(L["start"]), float(L["end"])) for L in layers if L.get("type") in ("cinema_craft", "cinema_globe", "cinema_hero")]
+    for b in plan.beats:
+        if b.mode == "footage" or not b.text or b.end - b.start < SHOT_3D_BEAT_MIN:
+            continue
+        if sum(z - a for a, z in spans3d()) >= SHOT_3D_TIME_MAX * dur_all:
+            break
+        craft, world = wp._craft(b.text), _globe_for(b.text)
+        if craft is None and world is None:
+            continue
+        if wp.PHOTO.search(b.text) and craft is None:
+            continue
+        key = (craft[1] if craft else world[1]).split()[0].lower()
+        t = spoken_at(list(plan.words), b.start, b.end, key)
+        if t is None:
+            continue
+        a, z = round(max(b.start + 0.3, t - 0.3), 3), 0.0
+        z = round(min(b.end - 0.3, a + SHOT_3D_LEN), 3)
+        if z - a < 3.0:
+            continue
+        flat = [(float(f["start"]), float(f["end"])) for f in footage] + \
+               [(float(L["start"]), float(L["end"])) for L in layers if L.get("type") in ("cinema_plate", "cinema_plate_hero")]
+        if any(x < z and a < y for x, y in flat) or any(x < z + SHOT_3D_GAP and a - SHOT_3D_GAP < y for x, y in spans3d()):
+            continue
+        if craft is not None:
+            layers.append({"type": "cinema_craft", "model": f"wi:{craft[0]}", "start": a, "end": z, "fade_in": 0.2, "fade_out": 0.25, "over_footage": True,
+                           "az": 20 + 37 * (inserted % 4), "z": 2, "_cite": f"NASA 3D MODEL OF {craft[1]}"})
+            name = craft[1]
+        else:
+            tex, name, rim, rings = world
+            layers.append({"type": "cinema_globe", "texture": tex, "start": a, "end": z, "fade_in": 0.2, "fade_out": 0.25, "over_footage": True,
+                           "az": 18 + 41 * (inserted % 4), "rim": rim or "#6fb4ff", "rings": rings, "sun": name == "THE SUN", "seed": 31 + inserted,
+                           "z": 2, "_cite": f"NASA TEXTURE MAP OF {name}"})
+        layers.append({"type": "tm_caption", "text": name, "size": "large", "anchor": "bc", "start": round(a + 0.4, 3), "end": round(z - 0.2, 3),
+                       "fade_in": 0.3, "fade_out": 0.3, "z": 4, "over_footage": True})
+        inserted += 1
+    if inserted:
+        notes.append(f"Cinema variety: {inserted} map beat(s) cut to a 3D shot of the craft or world they name")
+    # 2. a new camera move on each still
+    n = last = 0
+    for f in sorted(footage, key=lambda x: float(x["start"])):
+        if not f.get("image") or f.get("ken_burns"):
+            continue
+        k = n % len(wv.MOTIONS)
+        if n and k == last:
+            k = (k + 1) % len(wv.MOTIONS)
+        m = wv.MOTIONS[k]
+        f["ken_burns"] = {"from": [m.get("fx", 0.5), m.get("fy", 0.5), m["from"]], "to": [m.get("fx", 0.5), m.get("fy", 0.5), m["to"]]}
+        last, n = k, n + 1
+    if n:
+        notes.append(f"Cinema variety: camera moves rotate over {n} still(s)")
+    # 3. fewer plain text cards (hosts: footage, 3D, map)
+    hosts: List[Any] = [SimpleNamespace(kind="image", start=float(f["start"]), end=float(f["end"]), length=float(f["end"]) - float(f["start"])) for f in footage]
+    hosts += [SimpleNamespace(kind="craft" if L["type"] in ("cinema_craft", "cinema_globe") else "hero", start=float(L["start"]), end=float(L["end"]),
+                              length=float(L["end"]) - float(L["start"])) for L in layers if L.get("type") in ("cinema_craft", "cinema_globe", "cinema_hero")]
+    hosts += [SimpleNamespace(kind="plate", start=float(L["start"]), end=float(L["end"]), length=float(L["end"]) - float(L["start"]))
+              for L in layers if L.get("type") == "cinema_plate"]
+    hosts += [SimpleNamespace(kind="hero", start=a, end=z, length=z - a) for a, z in _map_stretches(spec)]
+    hosts.sort(key=lambda h: h.start)
+    if hosts:
+        wv.trim_text(hosts, layers, notes)
+    # 4. the look
+    name, look = wv.pick_look(str(getattr(plan, "title", "") or ""), " ".join(b.text for b in beats))
+    spec["cinema_look"] = look
+    spec.setdefault("look", {}).update({k: look[k] for k in ("vignette", "grain") if k in look})
+    notes.append(f"Cinema variety: look '{name}'")
 
 
 def date_corner(spec: Dict[str, Any]) -> None:
@@ -846,6 +999,8 @@ def citations(spec: Dict[str, Any], plate_layers: List[Dict[str, Any]]) -> None:
     for L in spec.get("layers", []):
         if L.get("type") == "cinema_craft":                      # the craft's NASA model over an illustrative sky
             spans.append((L["start"], L["end"], "ILLUSTRATION", f"{L.pop('_cite', 'NASA 3D MODEL')} · SKY: ILLUSTRATIVE"))
+        if L.get("type") == "cinema_globe":                      # a world drawn with its real map over an illustrative sky
+            spans.append((L["start"], L["end"], "ILLUSTRATION", f"{L.pop('_cite', 'NASA TEXTURE MAP')} · SKY: ILLUSTRATIVE"))
         if L.get("type") == "cinema_hero":                       # a composed 3D scene: drawn, so an illustration
             spans.append((L["start"], L["end"], "ILLUSTRATION", f"{str(L.get('scene', '')).replace('_', ' ').upper()} · COMPOSED 3D SCENE"))
     for p in plate_layers:
@@ -862,6 +1017,56 @@ def citations(spec: Dict[str, Any], plate_layers: List[Dict[str, Any]]) -> None:
     if t < dur - 0.3:
         segs.append({"t0": round(t, 3), "t1": round(dur, 3), "kind": "VISUALISATION", "text": "REAL SKY FOR THE STORY'S DATES · NASA TEXTURES"})
     spec["layers"].append({"type": "tm_cite", "segments": segs, "start": 0.0, "end": dur})
+
+
+# where each text template sits on screen (x0, y0, x1, y1 as fractions of the frame), so two that overlap in time and in space can be found
+_CAPTION_ZONE = {"ml": (0.04, 0.40, 0.62, 0.62), "bl": (0.04, 0.66, 0.50, 0.84), "tl": (0.04, 0.16, 0.50, 0.34), "bc": (0.15, 0.82, 0.85, 0.96)}
+_METRIC_ZONE = {"center": (0.18, 0.36, 0.82, 0.66), "mid": (0.18, 0.38, 0.82, 0.68), "top": (0.18, 0.12, 0.82, 0.32), "upper_left": (0.04, 0.24, 0.55, 0.46),
+                "left": (0.04, 0.32, 0.50, 0.56), "right": (0.50, 0.32, 0.96, 0.56), "upper_right": (0.50, 0.08, 0.97, 0.32), "low": (0.18, 0.64, 0.82, 0.86)}
+_TEXT_GAP = 0.12        # seconds between one text leaving and the next arriving
+_TEXT_MIN = 1.2         # a text is never cut shorter than this
+
+
+def _text_zone(L: Dict[str, Any]) -> Optional[Tuple[float, float, float, float]]:
+    t = L.get("type")
+    if t == "tm_caption":
+        return _CAPTION_ZONE.get(str(L.get("anchor") or "bl"))
+    if t == "tm_metric":
+        return _METRIC_ZONE.get(str(L.get("anchor") or "center"))
+    if t in ("tm_title", "tm_section"):
+        return (0.15, 0.30, 0.85, 0.70)
+    return None
+
+
+def declutter(spec: Dict[str, Any], notes: List[str]) -> None:
+    """Two big texts must not sit on top of each other (a caption on a big number, a title over a caption). When two overlap in time
+    AND on screen, the earlier one leaves a moment sooner, else the later one arrives a moment later; a number that fits neither way goes."""
+    layers = spec["layers"]
+    texts = [L for L in layers if _text_zone(L) is not None and L.get("start") is not None and L.get("end") is not None]
+    texts.sort(key=lambda L: (L["start"], L["end"]))
+    moved = dropped = 0
+    for i, b in enumerate(texts):
+        for a in texts[:i]:
+            if a in layers and b in layers and a is not b:
+                za, zb = _text_zone(a), _text_zone(b)
+                if not (za[0] < zb[2] and zb[0] < za[2] and za[1] < zb[3] and zb[1] < za[3]):
+                    continue
+                if min(a["end"], b["end"]) - max(a["start"], b["start"]) <= 0.05:
+                    continue
+                if b["start"] - _TEXT_GAP - a["start"] >= _TEXT_MIN:                        # the earlier one leaves a moment sooner
+                    a["end"] = round(b["start"] - _TEXT_GAP, 3)
+                    moved += 1
+                elif b["end"] - (a["end"] + _TEXT_GAP) >= _TEXT_MIN:                       # the later one arrives a moment later
+                    b["start"] = round(a["end"] + _TEXT_GAP, 3)
+                    moved += 1
+                else:                                                                       # neither fits: a plain number goes, never a caption
+                    gone = b if b.get("type") == "tm_metric" else a if a.get("type") == "tm_metric" else None
+                    if gone is not None:
+                        layers.remove(gone)
+                        dropped += 1
+    if moved or dropped:
+        notes.append(f"Cinema: {moved} text(s) moved by a moment and {dropped} left out so no two overlap on screen")
+
 
 
 def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, Any], fl: Dict[str, bool], notes: List[str]) -> None:
@@ -917,6 +1122,9 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
         hold_and_fill(spec, plan, notes)
     if fl.get("blocks"):
         info_blocks(spec, plan, notes, cards=bool(fl.get("cards") and fl.get("photos")))
+    if fl.get("variety"):
+        variety(spec, plan, notes)
+    declutter(spec, notes)
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens
     spec["shots"] = [{"start": L["start"], "end": L["end"], "kind": "plate"} for L in layers if L.get("type") == "cinema_plate"]

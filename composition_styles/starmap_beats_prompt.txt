@@ -247,6 +247,18 @@ from asset (nasa_image:<description>). Use at least one template row per minute 
 and every value one the script states. Instrument row id mission = What If's mission card (top right, in place of the date): extra {"kicker": "MISSION · VOYAGER 1",
 "keys": [{"t": 12, "value": 0, "unit": "AU", "label": "DISTANCE FROM THE SUN", "status": "LAUNCHED 1977"}, {"t": 95, "value": 5.2, "unit": "AU", ...}]}
 (one key per beat, t in seconds of the narration; a number counts from the last key's when the unit is the same).
+CINEMA VARIETY (no two videos should look alike)
+- Let this script decide the shots: its subject, numbers, places and mood. Do not repeat the pattern of a previous video (the same opening, a
+  headline after every sentence, a photo card after every map).
+- Mix what is shown: map close-ups and wide views, full-screen footage, photos, diagram plates, templates, instruments. No more than three
+  beats of the same mode in a row.
+- Plain headline captions are at most one graphic in four. The rest should SHOW the thing: a template or plate (a distance or a time -> route_line,
+  signal_delay, number_line; a share -> ring_value, composition_donut; a comparison -> bar_race, size_ladder, pov_split; a sequence ->
+  discovery_timeline, chapter_strip), a counted number, a tracked craft.
+- Whenever the narration is about a craft the 3D library has (voyager, pioneer, cassini, juno, galileo, magellan, parker, hubble, webb, perseverance,
+  ingenuity, insight, iss, messenger, rosetta, dawn, stardust, ulysses, viking, apollo lm, saturn v), give that moment a craft row or a footage beat
+  the app can draw as the craft's NASA 3D model. Real archive photos are for the photo, the people or the event itself.
+- Never use a template only to fill a quota: a sentence with nothing to show gets a clean map or footage beat.
 TEMPLATE LIBRARY (id: what it shows. Columns: which column fills which part)
 <<<TEMPLATE CATALOG>>>
 

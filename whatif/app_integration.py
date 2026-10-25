@@ -206,8 +206,9 @@ def generate_whatif_video(
     sound_design: bool = True, pixel_scale: int = 1, fps: int = 30, flow_video: "bool | str" = "both",
     progress_cb: Optional[ProgressCallback] = None, log: Callable[[str], None] = print, cancel_check: Optional[Callable[[], bool]] = None,
     media_callbacks: Optional[dict] = None, render: Optional[Callable[..., Any]] = None, fetch: Optional[Callable[..., Any]] = None,
-    sound_catalog: Any = None, on_plan: Optional[Callable[[Any], None]] = None, **provider_kwargs: Any,
+    sound_catalog: Any = None, on_plan: Optional[Callable[[Any], None]] = None, media_only: bool = False, **provider_kwargs: Any,
 ):
+    """`media_only`: fetch every picture and clip, then stop (nothing is drawn); the author's Render click draws the video."""
     from pakmap.app_integration import PakmapResult, credits_text, voiceover_duration
 
     voiceover_path, output_path = Path(voiceover_path), Path(output_path)
@@ -279,6 +280,11 @@ def generate_whatif_video(
         log(f"[What If] {len(left)} picture(s)/clip(s) still need attention (scene {', '.join(left)}): nothing is rendered until they are "
             f"fixed or skipped in the Visual Plan")
         return PakmapResult(False, [f"{len(left)} picture(s)/clip(s) need attention: scene {', '.join(left)}"], unresolved=left)
+    if media_only:
+        n_media = len(visual_dicts(p))
+        if n_media:                    # nothing to fetch means nothing to wait for: that plan renders straight away
+            _report(progress_cb, f"All {n_media} picture(s)/clip(s) ready", 1.0)
+            return PakmapResult(True, media_ready=n_media)
     for s in p.shots:             # a row switched to Flow Video in the Visual Plan on a long shot: the planner could not split it
         if s.kind == "video" and s.file and s.length > planner.FLOW_VIDEO_MAX_S + 0.05 and s.asset.lower().startswith("flow_"):
             log(f"[What If] shot {s.id} is {s.length:.1f} s, longer than a Flow clip should run ({planner.FLOW_VIDEO_MAX_S:.0f} s): its clip loops. "

@@ -119,13 +119,15 @@ V4 "DISTANCE TO THE EDGE" card, V5 "YOUR WEIGHT 70 KG" card at the top-right):
   photo_lockup for a real photograph with its name and date.
 
 === TEXT ON SCREEN (REQUIRED) ===
-- After the opening, EVERY shot gets at least one layer row (metric, caption or template) unless it is a plate that carries its diagram.
+- After the opening, EVERY shot gets at least one layer row (a metric, a template or a caption), unless it is a plate that carries its diagram or a 3D shot whose name is already on screen.
 - Each piece of text is a COMPLETE short fact, a name, a date or a number: 2-7 words that make sense on their own.
   GOOD: "MARS LOST MOST OF ITS AIR" · "VIKING 1 · 20 JULY 1976" · "6 MBAR · 1% OF EARTH" · "THE MAGNETIC FIELD SWITCHED OFF" · "SOLAR WIND STRIPS THE AIR"
   BAD (never): "QUESTION IS NOT SIMPLY WHERE" · "FROM THAT AND OTHER MEASUREMENTS" · "LIKE A SLOW LEAK" · "SCIENTISTS ARE CAREFUL ABOUT THE PRECISE"
   (half-sentences copied from the narration mean nothing on screen).
-- Show these facts with the text layouts, rotating them so no layout repeats within a minute: kicker_headline, lower_third, side_note,
-  boxed_fact, underline_title, two_tone_headline, key_word (1-3 words only), typewriter_line, statement. A plain caption only now and then.
+- Text layouts (kicker_headline, lower_third, side_note, boxed_fact, underline_title, two_tone_headline, key_word (1-3 words only),
+  typewriter_line, statement) are for the SOME shots that only need a name, a date or one fact: at most ONE graphic in four. The other
+  shots get a graphic that SHOWS the thing: a diagram, a counted number, an instrument, a 3D craft or globe with its name, a photo template.
+  Never the same layout twice within a minute, and never a text card on a shot that already carries a diagram or a 3D model.
 - Every number the narrator stresses is a metric row (value_to + format) or a big_number_lower: it counts up on screen.
 
 === FLOW BUDGET (AI pictures cost credits: use them where they matter) ===
@@ -143,10 +145,24 @@ V4 "DISTANCE TO THE EDGE" card, V5 "YOUR WEIGHT 70 KG" card at the top-right):
   ranking_ladder or callout_object. Two sides or theories: theories_split or pov_split. A process: a diagram template, not a caption.
 - Open each section with stage_header (or chapter_strip); end with recap_strip before end_question.
 - A caption alone is the weakest graphic: use it only when no template fits.
+- Plain text cards (kicker_headline, lower_third, side_note, key_word, statement, underline_title, two_tone_headline, typewriter_line, boxed_fact)
+  are at most ONE graphic in four. The rest are diagrams, instruments, numbers and 3D.
+- Whenever the narration names a spacecraft or a planet the library has (see craft and globe models), that shot is kind=craft or kind=globe,
+  not a stock photo. Real archive photos only when the narrator talks about the photo, the people or the event itself.
+- Follow the narration: what the narrator says in that sentence decides the shot and the graphic, never a fixed pattern.
 - Every value in a template row must be one the script states (the templates' sample values are never shown as facts).
 
 === TEMPLATE LIBRARY (id: what it shows. Columns: which column fills which part) ===
 <<<TEMPLATE CATALOG>>>
+
+=== VARIETY (no two videos should look alike; the app adds the grade and camera moves, you choose what is shown) ===
+- Let THIS script decide: its subject, its numbers, its places, its mood. Do not reuse the pattern of a previous video (the same opening, the
+  same card after every sentence, the same photo-then-caption rhythm).
+- Mix the shot kinds across the video: real footage, stock clips, archive photos, 3D craft, globes, hero scenes, diagram plates, instruments.
+  No more than three shots of the same kind in a row; a long stretch of photos with captions is the failure to avoid.
+- Pick the graphic from what the sentence says: a distance or a time -> route_line / signal_delay / number_line; a share -> ring_value / composition_donut;
+  a comparison -> bar_race / size_ladder / pov_split; a sequence -> discovery_timeline / chapter_strip; a body or a craft -> its 3D model or globe.
+- Use each library family you have a reason for, but never a template only to fill a quota: if a sentence has nothing to show, a clean real shot is better.
 
 === STRUCTURE TO FOLLOW ===
 Hook (first 45 s): the most visceral version of the question, fast; the title card on the first question.

@@ -563,9 +563,9 @@ def sync_cta(app) -> None:
         app._set_generate_btn(state="normal", text="Render")
         return
     app.stage_var.set("GENERATE")
-    app.hint_var.set("Ready — click Generate to render the What If video." if app._whatif_ok is not False
-                     else "The last check found problems: see the What If card, then Generate.")
-    app._set_generate_btn(state="normal", text="Generate")
+    app.hint_var.set("Click Generate scenes: the pictures and clips are fetched first, then you click Render." if app._whatif_ok is not False
+                     else "The last check found problems: see the What If card, then Generate scenes.")
+    app._set_generate_btn(state="normal", text="Generate scenes")
 
 
 def all_assets_ready(app) -> bool:
@@ -573,7 +573,7 @@ def all_assets_ready(app) -> bool:
     if getattr(app, "_scene_rows_owner", None) != MODE or not getattr(app, "_scene_rows", None):
         return False
     try:
-        return all(app._row_status_from_result(r) in ("ready", "skipped") for r in app._scene_rows)
+        return app._scenes_all_ready(MODE)
     except Exception:
         return False
 
@@ -628,6 +628,7 @@ def run_generation(app) -> None:
     pexels_api_key = app.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
     plan_rows = list(app._scene_rows) if getattr(app, "_scene_rows_owner", None) == MODE else None
     render_only = all_assets_ready(app)      # the button says Render: the saved assets are used as they are
+    media_only = not render_only             # Generate scenes: fetch every picture and clip and stop; Render draws the video
     save_visual_plan(app)                  # the rows as the author left them, for the next time the project is opened
     imgs = images_dir(ws)
     csv_file = current_csv(app)
@@ -662,9 +663,9 @@ def run_generation(app) -> None:
     app._whatif_tracking = app._track_generation_start(MODE)
     app._whatif_run_manager = None
     app._sync_primary_cta()
-    app._whatif_status_var.set("Rendering from the saved pictures and clips…" if render_only else "Starting What If generation…")
+    app._whatif_status_var.set("Rendering from the saved pictures and clips…" if render_only else "Getting the pictures and clips…")
     app._append_log(("Starting What If render (all pictures and clips are ready: nothing is searched or generated)…\n") if render_only
-                    else "Starting What If generation…\n")
+                    else "Getting the pictures and clips: the video is drawn when you click Render once they are all ready.\n")
 
     def progress_cb(message: str, fraction: float) -> None:
         def apply() -> None:
@@ -726,7 +727,7 @@ def run_generation(app) -> None:
                     media_callbacks=dict(on_scene_start=_scene_start, on_scene_complete=_scene_complete, on_scene_generating=_scene_generating,
                                          on_manager_ready=_manager_ready),
                     pexels_api_key=pexels_api_key, flow_engine_manager=flow_engine_manager, flow_settings=flow_settings,
-                    flow_video_account_ids=flow_video_account_ids, on_plan=_on_plan, render_only=render_only,
+                    flow_video_account_ids=flow_video_account_ids, on_plan=_on_plan, render_only=render_only, media_only=media_only,
                 )
         except Exception as exc:
             missing = getattr(exc, "filename", None)
@@ -735,6 +736,22 @@ def run_generation(app) -> None:
         app.after(0, lambda: finish(result))
 
     def finish(result) -> None:
+        if result.ok and getattr(result, "media_ready", 0) and not app._whatif_cancel.is_set():   # the scenes are in; nothing was drawn
+            app._whatif_running = False
+            run, app._whatif_tracking = app._whatif_tracking, None
+            app._track_generation_end(run, "completed", output_path=None, validated=False, message="scenes ready")
+            app._refresh_qa_ui(immediate=True)
+            if all_assets_ready(app):
+                app._whatif_status_var.set(f"All {result.media_ready} picture(s)/clip(s) are ready. Check them in the Visual Plan, then click Render.")
+                app._append_log(f"{TAG} All {result.media_ready} picture(s)/clip(s) are ready. Nothing was rendered yet: click Render to draw the video.\n")
+                app._notify("Scenes ready. Click Render to draw the video.", tone="success")
+            else:
+                n = sum(1 for r in app._scene_rows if app._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                app._whatif_status_var.set(f"{n} scene(s) need attention — fix, retry or skip them in the Visual Plan, then Generate scenes")
+                app._append_log(f"{TAG} {n} scene(s) are not ready (failed, cancelled or queued): nothing was rendered. Fix them in the Visual Plan.\n")
+                app._goto_workflow_view("visual_plan")
+            app._sync_primary_cta()
+            return
         result = app._export_verified(result)   # never "video ready" for a missing, empty or old file
         app._whatif_running = False
         cancelled = bool(getattr(result, "cancelled", False)) or app._whatif_cancel.is_set()

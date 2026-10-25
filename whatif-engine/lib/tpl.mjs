@@ -150,6 +150,8 @@ export function defaults(template) {
 const NAMED = { cyan: '#00E5FF', info: '#00E5FF', amber: '#FFB703', gold: '#F5A640', warn: '#FFB703', red: '#FF2A4B', lethal: '#FF2A4B', white: '#FFFFFF',
   grey: '#8E99A8', gray: '#8E99A8', green: '#2EE6A8', cream: '#F3E3C3', blue: '#2F6BDF', orange: '#FF7A1A', dim: '#5A6472', black: '#000000' };
 export const hex = (c) => NAMED[String(c).toLowerCase()] || c;
+/** This video's "information" colour (spec.look.accent, whatif/variety.py): what the templates call cyan / info. */
+export function setAccent(c) { if (/^#[0-9a-f]{6}$/i.test(String(c || ''))) NAMED.cyan = NAMED.info = c; }
 function rgb(c) {
   const h = hex(c);
   if (typeof h !== 'string' || !/^#[0-9a-f]{6}$/i.test(h)) return null;

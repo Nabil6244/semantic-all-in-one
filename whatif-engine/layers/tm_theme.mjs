@@ -12,6 +12,8 @@ export const C = {
 };
 const NAMED = { cyan: C.cyan, info: C.cyan, amber: C.amber, warn: C.amber, warning: C.amber, red: C.red, alert: C.red, lethal: C.red,
   white: C.white, gray: C.label, grey: C.label, green: C.green, cream: C.cream };
+/** This video's information colour (spec.look.accent): cyan and info become it. */
+export function colourSet(c) { if (/^#[0-9a-f]{6}$/i.test(String(c || ''))) { C.cyan = c; NAMED.cyan = NAMED.info = c; } }
 /** A colour by meaning ("cyan", "lethal", ...) or as given ("#ffcc00"). */
 export const colour = (c, fallback = C.white) => (c ? NAMED[String(c).toLowerCase()] || c : fallback);
 

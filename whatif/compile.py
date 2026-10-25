@@ -464,7 +464,7 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
                 if any(L.get("typeset") and _left_text(L) and float(L["start"]) < s.end - 0.5 and s.start + 0.5 < float(L["end"]) for L in layers):
                     d["compose"] = "card_right"       # with the information block at the left: the photo as a card on the right (V3 1:46)
             fx, fy = DRIFT_FOCUS[n % len(DRIFT_FOCUS)]
-            d["drift"] = {"from": 1.0, "to": 1.04, "fx": fx, "fy": fy}
+            d["drift"] = {"from": 1.0, "to": 1.04, "fx": fx, "fy": fy, **(s.extra.get("drift") or {})}
             if s.kind == "video" and Path(s.file).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"):
                 d["kind"] = "image"                  # a clip row that got a still picture is drawn as a picture (never looped as a clip)
                 notes.append(f"shot {s.id}: its clip is a still picture ({Path(s.file).name}); shown as a picture")
@@ -510,7 +510,7 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
     layers.append(citation(shots))
     _opening_never_empty(layers, notes)
     layers = _finite_layers(layers, notes)
-    spec = {"width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3), "look": dict(LOOK), "shots": out_shots,
+    spec = {"width": width, "height": height, "fps": fps, "duration": round(plan.duration, 3), "look": {**LOOK, **(getattr(plan, "look", None) or {})}, "shots": out_shots,
             "layers": layers, "whatif": {"title": title or plan.title, "notes": notes}}
     if media_dir is not None:
         spec["media_dir"] = str(media_dir)

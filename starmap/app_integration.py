@@ -250,7 +250,7 @@ def generate_starmap_video(
     watermark: Optional[dict] = None, title: str = "", sound_design: bool = True, pixel_scale: int = 1, fps: int = 30,
     progress_cb: Optional[ProgressCallback] = None, log: Callable[[str], None] = print, cancel_check: Optional[Callable[[], bool]] = None,
     media_callbacks: Optional[dict] = None, render: Optional[Callable[..., Any]] = None, fetch: Optional[Callable[..., Any]] = None,
-    sound_catalog: Any = None, cinema: Any = None, **provider_kwargs: Any,
+    sound_catalog: Any = None, cinema: Any = None, media_only: bool = False, **provider_kwargs: Any,
 ):
     """`provider_kwargs` go to the shared media resolver (pexels_api_key, flow_engine_manager, flow_settings, flow_video_account_ids,
     youtube_clip_duration ...). `render` / `fetch` are injectable for tests. Datasets are found from the CSV (`pack` is only an
@@ -343,6 +343,12 @@ def generate_starmap_video(
     if got.missing:
         return PakmapResult(False, got.missing + ["Open the Visual Plan tab to Retry, Change source or Skip these, then Generate again. "
                                                   "Pictures and clips already found are kept."], unresolved=list(got.unresolved))
+
+    if media_only:    # the scenes are fetched first; nothing is drawn until the author clicks Render
+        for n in getattr(got, "notes", []):
+            log(f"[StarMap] {n}")
+        _report(progress_cb, "Scenes fetched: check them, then click Render", 1.0)
+        return PakmapResult(True, media_ready=len(got.media))
 
     # the author's own files (file:<name>) sit next to the CSV
     media = dict(got.media)

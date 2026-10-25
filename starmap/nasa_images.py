@@ -13,7 +13,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 SEARCH_URL = "https://images-api.nasa.gov/search"
 ASSET_URL = "https://images-api.nasa.gov/asset/{nasa_id}"
@@ -289,9 +289,19 @@ def _still_matches(rec: Dict[str, Any], row: Any) -> bool:
     return asset_record_matches(rec, row, AssetSource.STOCK_IMAGE)
 
 
+def _announce(on_found: Optional[Callable[[Any, Path], None]], row: Any, path: Any) -> None:
+    if on_found is None or not path or not Path(path).is_file():
+        return
+    try:
+        on_found(row, Path(path))
+    except Exception:                                           # a table that cannot be told never stops the fetch
+        pass
+
+
 def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, manifest_cls=None, log: Callable[[str], None] = print,
              get: Optional[Callable] = None, cancel_check: Optional[Callable[[], bool]] = None, context: "str | Dict[str, str]" = "",
-             unanswered: Optional[Dict[str, str]] = None, no_match: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+             unanswered: Optional[Dict[str, str]] = None, no_match: Optional[Dict[str, str]] = None,
+             on_found: Optional[Callable[[Any, Path], None]] = None) -> Dict[str, str]:
     """For each Visual Plan row that is still StarMap's own nasa_image row (scene number -> its description, unchanged by the
     user) and has no finished file yet, try NASA first. Returns {scene number: credit} for the ones found. A row NASA's
     server never answered for (after `patient`'s retries) goes into `unanswered` (scene number -> why): the caller must not
@@ -310,6 +320,7 @@ def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, man
             break
         rec = manifest_cls(images_dir).get(n) or {}
         if rec.get("status") == "complete" and _still_matches(rec, row):
+            _announce(on_found, row, rec.get("local_path"))     # found on an earlier run: the table shows it at once
             continue                                            # found before for this same row (a renumbered row's old file is not)
         try:
             img = fetch(want, images_dir / f"{int(n):03d}", get=get, log=log, context=context.get(n, "") if isinstance(context, dict) else context)
@@ -333,5 +344,6 @@ def prefetch(rows: Sequence, nasa_rows: Dict[str, str], images_dir: Path, *, man
             "script_segment": getattr(row, "script_segment", ""), "local_path": str(path), "status": "complete", "resolved_at": time.time(),
             "error": None, "provider_asset_id": img.nasa_id, "author": "NASA", "source_url": img.url, "credit": img.credit, "title": img.title})
         found[n] = img.credit
+        _announce(on_found, row, path)                          # the Visual Plan row turns READY now, not after every other scene is fetched
         log(f"[StarMap] Scene {n}: NASA image {img.nasa_id} ({img.title[:60]})")
     return found

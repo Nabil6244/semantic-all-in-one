@@ -248,6 +248,11 @@ if (spec.cinema) {
     'tm_phase', 'tm_survival', 'tm_wave', 'tm_template', 'tm_mission']) {
     registry.register((await import(`/wi/layers/${name}.mjs`)).default);
   }
+  // this video's information colour (whatif/variety.py pick_look): what the templates call cyan / info
+  if (spec.cinema_look?.accent) {
+    (await import('/wi/layers/tm_theme.mjs')).colourSet(spec.cinema_look.accent);
+    (await import('/wi/lib/tpl.mjs')).setAccent(spec.cinema_look.accent);
+  }
   // a What If hero scene (a lander on the plain, a descent under a parachute, an airship over clouds, a ship with engines): its own
   // composed 3D scene, rendered full-frame over the map for its window
   const { buildHero } = await import('/wi/lib/hero.mjs');
@@ -340,6 +345,45 @@ if (spec.cinema) {
       inst.cam.position.set(Math.sin(az) * Math.cos(el) * D, Math.sin(el) * D, Math.cos(az) * Math.cos(el) * D); inst.cam.lookAt(0, 0, 0);
       // composed as the references: the craft a little low and to one side of the frame, the sky above it
       inst.cam.setViewOffset(W, H, (0.5 - (d.x ?? 0.56)) * W, (0.5 - (d.y ?? 0.56)) * H, W, H);
+      renderer.render(inst.scene, inst.cam);
+      f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
+    },
+  });
+  // a textured world as its own full-frame 3D shot (Cinema variety): the planet, moon or Sun with its real map, lit from one side,
+  // an atmosphere rim, Saturn with its rings; the camera slowly orbits and closes in over the deep sky
+  registry.register({
+    type: 'cinema_globe', space: 'screen',
+    async create(def, ctx) {
+      if (!def.texture) throw new Error('cinema_globe: "texture" is required');
+      const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020306);
+      scene.add(deepSky(def.seed ?? 11));
+      const key = new THREE.DirectionalLight(0xfff3e0, def.sun ? 0 : 3.1); key.position.set(-5, 2.2, 3.5); scene.add(key);
+      scene.add(new THREE.AmbientLight(0x8899aa, def.sun ? 0 : 0.16));
+      const map = await tex(def.texture);
+      const holder = new THREE.Group(); scene.add(holder);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 96),
+        def.sun ? new THREE.MeshBasicMaterial({ map, color: 0xffe2b0 }) : new THREE.MeshStandardMaterial({ map, roughness: 0.92, metalness: 0 }));
+      body.rotation.z = (def.tilt ?? 6) * Math.PI / 180; holder.add(body);
+      if (def.rings) {
+        const rmap = await tex('2k_saturn_ring_alpha.png'), geo = new THREE.RingGeometry(1.28, 2.35, 192, 1), pos = geo.attributes.position, uv = geo.attributes.uv;
+        for (let i = 0; i < pos.count; i++) { const r = Math.hypot(pos.getX(i), pos.getY(i)); uv.setXY(i, (r - 1.28) / (2.35 - 1.28), 0.5); }
+        const ring = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: rmap, side: THREE.DoubleSide, transparent: true, depthWrite: false, opacity: 0.95 }));
+        ring.rotation.x = Math.PI / 2 - 0.2; ring.rotation.y = 0.1; holder.add(ring);
+      }
+      const rim = new THREE.Mesh(new THREE.SphereGeometry(1.03, 96, 64), new THREE.ShaderMaterial({
+        uniforms: { c: { value: new THREE.Color(def.rim || '#6fb4ff') } },
+        vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+        fragmentShader: 'uniform vec3 c; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(1.0 - abs(dot(vN, vV)), 3.2); gl_FragColor = vec4(c * r, r * 0.8); }',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide }));
+      if (def.rim !== false) holder.add(rim);
+      return { def, scene, holder, body, cam: new THREE.PerspectiveCamera(34, W / H, 0.01, 1000) };
+    },
+    draw(inst, f) {
+      const d = inst.def, k = Math.min(1, Math.max(0, (f.t - d.start) / Math.max(0.1, d.end - d.start)));
+      const az = ((d.az ?? 24) + (d.turn ?? 28) * k) * Math.PI / 180, el = (d.el ?? 10 + 5 * k) * Math.PI / 180, D = (d.from ?? (d.rings ? 6.6 : 5.6)) + ((d.to ?? (d.rings ? 5.2 : 4.1)) - (d.from ?? (d.rings ? 6.6 : 5.6))) * k;
+      inst.body.rotation.y = (d.spin ?? 0.35) * (f.t - d.start);
+      inst.cam.position.set(Math.sin(az) * Math.cos(el) * D, Math.sin(el) * D, Math.cos(az) * Math.cos(el) * D); inst.cam.lookAt(0, 0, 0);
+      inst.cam.setViewOffset(W, H, (0.5 - (d.x ?? 0.5)) * W, (0.5 - (d.y ?? 0.5)) * H, W, H);
       renderer.render(inst.scene, inst.cam);
       f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
     },
@@ -599,7 +643,7 @@ const grainTile = (() => {
 function finishLook(t) {
   if (spec.cinema?.grade) {
     // the references' grade: a little less saturated, blacks lifted towards slate (drawn over itself through a filter)
-    ctx.save(); ctx.filter = 'saturate(0.86) contrast(0.95) brightness(1.03)'; ctx.drawImage(out, 0, 0); ctx.restore();
+    ctx.save(); ctx.filter = `saturate(${spec.cinema_look?.saturate ?? 0.86}) contrast(0.95) brightness(1.03)`; ctx.drawImage(out, 0, 0); ctx.restore();
   }
   if (look.vignette) {
     const grd = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 1.05);

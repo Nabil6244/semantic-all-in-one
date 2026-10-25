@@ -51,7 +51,7 @@ export function auditSpec(spec, { step = 1 / 6, thresholds = {} } = {}) {
   const beatAt = (t) => (beatTimes.find((b) => t >= b.start && t < b.end) || {}).id || '';
 
   // Cinema's full-frame plates and hero scenes hide the map while they are up
-  const covers = (spec.layers || []).filter((L) => L.type === 'cinema_plate' || L.type === 'cinema_hero' || L.type === 'cinema_craft');
+  const covers = (spec.layers || []).filter((L) => L.type === 'cinema_plate' || L.type === 'cinema_hero' || L.type === 'cinema_craft' || L.type === 'cinema_globe');
   const covered = (t) => covers.some((L) => t >= L.start && t < L.end);
   const frames = [];
   for (let t = 0; t <= spec.duration; t += step) {

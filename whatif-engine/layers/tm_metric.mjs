@@ -21,6 +21,12 @@ export default {
     if (def.value == null && !def.text && !def.rows) throw new Error('tm_metric: "value", "text" or "rows" is required');
     return { def };
   },
+  // the screen it takes, told to the labels that place themselves round it (StarMap: a body or craft name is not drawn over a number)
+  update(inst, f) {
+    if (!f.claim || !(f.alpha > 0.05)) return;
+    const { W, H } = f, [ax, ay, align] = ANCHORS[inst.def.anchor] || ANCHORS.center, w = W * 0.46, h = H * 0.2;
+    f.claim(align === 'left' ? W * ax - 0.02 * W : align === 'right' ? W * ax - w + 0.02 * W : W * ax - w / 2, H * ay - h / 2, w, h);
+  },
   draw(inst, f) {
     const d = inst.def, { g, W, H } = f, T = tm(g, W);
     const age = f.t - (d.start ?? 0), k = quartOut(age / 0.3), s = 0.95 + 0.05 * k;
