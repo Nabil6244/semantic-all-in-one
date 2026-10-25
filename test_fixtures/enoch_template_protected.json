@@ -156,7 +156,7 @@
     "providers/research_asset_provider.py": "bde4d727d461b36d8789ab76dc2c7389553d698c1aa239ba6b9f73c697fb6bfa",
     "providers/router.py": "04616501886852f778a460c4089df0a5508ae70b8f3eb2bbe8e8b4378fe3b837",
     "providers/stock/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "providers/stock/base.py": "5ad52a4b732eaf0dda8adb47953e7008c5824060f5aaa121dc3c38fe1df6ad76",
+    "providers/stock/base.py": "d606e7062aa90914b22a9b9d7cd26c3abd640d3294bad3248e910b5ff88181a1",
     "providers/stock/cache.py": "ebbb00759fb34549a7d5139177de4640e3ae5b513bd051d0f8b9765044101e7b",
     "providers/stock/downloader.py": "408fbba8a12da4feb795bd15b52519725603942ce17cd2913d1188cb36bc2858",
     "providers/stock/factory.py": "a5ff52d315e4bd430241c427c5634648c7bbb5d0c3a7acecd83e362b3cacbb36",
