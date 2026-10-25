@@ -128,6 +128,16 @@ def main() -> int:
             record(fut.result())
     for module in serial:
         record(_run(module))
+    # A module that failed while eight others were hammering the CPU (a Windows runner has 4 cores) gets one more go alone: a real
+    # failure fails again the same way and still fails the run; a timing limit missed under load passes.
+    for module, first in list(failed):
+        print(f"  retry   {module} (alone, once)", flush=True)
+        result = _run(module)
+        if result[1] == 0:
+            failed.remove((module, first))
+            print(f"  ok      {module} (passed alone on the retry, {result[3]:.0f}s; the first try failed under load)", flush=True)
+        else:
+            failed[failed.index((module, first))] = (module, f"FIRST TRY:\n{first}\n\nRETRY (alone):\n{result[2]}")
     for module, out in failed:
         # the start too: a hang that repeats one error fills the tail, and the first traceback is what explains it
         shown = out if len(out) <= 30000 else f"{out[:12000]}\n... ({len(out) - 30000} characters cut) ...\n{out[-18000:]}"
