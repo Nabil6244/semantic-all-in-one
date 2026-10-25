@@ -75,6 +75,48 @@ def labels_outside(b, loc, frame: str, find) -> list:
     return out
 
 
+TOO_WIDE_RATIO = 4.0           # a camera view this many times wider than the places the beat shows is far too wide
+TOO_WIDE_FLOOR_KM = 120.0      # ... measured against at least this much, so one marker does not demand a street-level view
+
+
+def focus_refs(b) -> list:
+    """The places a map beat is about, as its own layers name them (markers, zone labels, fills, lines, graphics), in order, no repeats."""
+    refs: list = []
+    for l in b.layers:
+        for r in ([l.place] if l.place else []) + list(l.places or []):
+            if r and r not in refs:
+                refs.append(r)
+    return refs
+
+
+def view_width_km(loc, frame: str) -> float:
+    import math
+
+    from pakmap.geo import view_for
+
+    lon, lat, zoom = view_for(loc, frame)
+    return 40075.0 * math.cos(math.radians(lat)) / (512.0 * 2 ** zoom) * 1920.0
+
+
+def focus_extent_km(refs, find):
+    """(width km the places need on a 16:9 screen, the places' lookups) or None when any place cannot be found."""
+    import math
+
+    from pakmap.geo import GeoError
+
+    locs = []
+    for r in refs:
+        loc = find(r, "area")
+        if isinstance(loc, GeoError):
+            return None
+        locs.append(loc)
+    if not locs:
+        return None
+    w, s_, e, n = (min(l.bbox[0] for l in locs), min(l.bbox[1] for l in locs), max(l.bbox[2] for l in locs), max(l.bbox[3] for l in locs))
+    lat = (s_ + n) / 2
+    return max((e - w) * math.cos(math.radians(lat)) * 111.0, (n - s_) * 111.0 * 16.0 / 9.0), locs
+
+
 def validate(plan: HybridPlan) -> List[Finding]:
     out: List[Finding] = []
     err = lambda code, beat, msg: out.append(Finding("error", code, beat, msg))  # noqa: E731
@@ -280,6 +322,11 @@ def validate(plan: HybridPlan) -> List[Finding]:
             warn("wide_view", b.id, f"beat {b.id}: the camera stays on the {frame} (globe-like) view for {b.end - b.start:.0f}s; keep that for the first 1-2 seconds and when the story really is planet-wide, otherwise fly to the country or region")
         if frame in ("country", "region") and not loc.is_area and re.fullmatch(r"\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*", target.place or ""):
             warn("point_zoom", b.id, f"beat {b.id}: {target.place!r} is a coordinate, so the camera shows it at street-level zoom whatever the frame; name the country or region (for example 'Niger', 'Sahel') to get a proper {frame} view")
+        ext = focus_extent_km(focus_refs(b), find)
+        if ext is not None and frame in ("country", "region") and not (b.start < EPS and len(b.camera) > 1):
+            seen, need = view_width_km(loc, frame), max(ext[0], TOO_WIDE_FLOOR_KM)
+            if seen > TOO_WIDE_RATIO * need:
+                warn("view_too_wide", b.id, f"beat {b.id}: the camera view of {target.place} is about {seen:.0f} km wide but its places need about {need:.0f} km: it shows neighbouring countries and the subject is small; frame the subject itself")
         out_of_frame = labels_outside(b, loc, frame, find)
         if out_of_frame:
             warn("out_of_frame", b.id, f"beat {b.id}: {', '.join(out_of_frame)} would be outside the camera's view of {target.place} (frame {target.frame or 'region'}): widen the frame or move the camera")

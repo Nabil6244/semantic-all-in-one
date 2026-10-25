@@ -121,6 +121,55 @@ def _bottom_band(lay: Layer) -> bool:
     return lay.type == "caption" or (lay.type == "stat" and (lay.anchor or "br") in ("br", "bl"))
 
 
+_CORNER_BOX = {"br": (0.66, 1.0, 0.68, 1.0), "bl": (0.0, 0.34, 0.68, 1.0), "tr": (0.66, 1.0, 0.0, 0.30), "tl": (0.0, 0.34, 0.15, 0.42),
+               "bc": (0.2, 0.8, 0.8, 1.0)}   # (x0, x1, y0, y1) as fractions of the frame: where each text anchor draws
+
+
+def _focus_box(plan: HybridPlan, beat: Beat, camera: Optional[Tuple[str, str]]) -> Optional[Tuple[float, float, float, float]]:
+    """Where the places this map beat is about sit on screen (x0, x1, y0, y1 as fractions of the frame), given the camera it ends on."""
+    from pakmap.geo import GeoError, merc_y, view_for
+
+    from .geo import resolve
+    from .validate import focus_refs
+
+    refs = focus_refs(beat)
+    if not refs or not camera or not camera[0]:
+        return None
+    try:
+        cam = resolve(camera[0], "area")
+        clon, clat, z = view_for(cam, camera[1] or "region")
+        locs = [resolve(r, "area") for r in refs[:8]]
+    except GeoError:
+        return None
+    scale = 512.0 * 2 ** z
+    cy = merc_y(clat)
+    xs, ys = [], []
+    for loc in locs:
+        w, s_, e, n = loc.bbox
+        xs += [0.5 + (w - clon) / 360.0 * scale / 1920.0, 0.5 + (e - clon) / 360.0 * scale / 1920.0]
+        ys += [0.5 + (merc_y(n) - cy) * scale / 1080.0, 0.5 + (merc_y(s_) - cy) * scale / 1080.0]
+    return max(0.0, min(xs)), min(1.0, max(xs)), max(0.0, min(ys)), min(1.0, max(ys))
+
+
+def clear_anchor(anchor: str, focus: Optional[Tuple[float, float, float, float]], kind: str) -> str:
+    """The anchor itself when its chip would not sit on the focus place, else the nearest corner that does not. A chip over the very
+    place the narration is about hides it; with no corner free the anchor stays."""
+    if focus is None:
+        return anchor
+
+    def hits(a: str) -> bool:
+        x0, x1, y0, y1 = _CORNER_BOX.get(a, (0, 0, 0, 0))
+        return focus[0] < x1 and focus[1] > x0 and focus[2] < y1 and focus[3] > y0
+
+    if not hits(anchor):
+        return anchor
+    order = ("bc", "tl", "tr") if kind == "caption" else ("br", "bl", "tr", "tl")
+    for a in order:
+        if a != anchor and not hits(a):
+            return a
+    return anchor
+
+
 def text_collisions(plan: HybridPlan, beat: Beat, notes: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
     """Layers that would be drawn on top of each other: {layer id: {"end": seconds} or {"anchor": "tr"}}. The earlier one leaves just before
     the later one arrives when it has had time to be read; otherwise a stat chip moves to the top-right corner."""
@@ -182,9 +231,14 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
         return True
 
     prev_footage_end: Optional[float] = None  # when the previous beat was footage: where its last clip ends
+    cam_now: Optional[Tuple[str, str]] = None  # where the camera is looking as each beat ends
     for beat in plan.beats:
         if plan.is_map_mode(beat):
             prev_footage_end = None
+            for c in beat.camera:
+                if c.place:
+                    cam_now = (c.place, c.frame or "region")
+            focus = _focus_box(plan, beat, cam_now)
             for c in beat.camera:
                 params = {"zoom_delta": c.zoom_delta} if c.zoom_delta is not None else {}
                 add(f"beat {beat.id} · camera {c.action}", layer_type="camera", layer_id=f"{beat.id}_cam_{c.action}_{len(rows)}", camera_action=c.action,
@@ -204,9 +258,9 @@ def plan_to_rows(plan: HybridPlan) -> Tuple[List[Row], Dict[int, str], List[str]
                     kw.update(geo_ref=";".join(lay.places), line_kind=lay.kind)
                 elif lay.type == "stat":
                     fmt, sub = stat_text(lay.format or "#,##0", lay.sub)
-                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=fmt, sub_text=sub, anchor=clash.get(lay.id, {}).get("anchor") or lay.anchor or "br")
+                    kw.update(value_from=lay.value_from, value_to=lay.value_to, value_format=fmt, sub_text=sub, anchor=clear_anchor(clash.get(lay.id, {}).get("anchor") or lay.anchor or "br", focus, "stat"))
                 elif lay.type == "caption":
-                    kw.update(label_text=lay.text, sub_text=lay.sub, anchor=lay.anchor or "bc")
+                    kw.update(label_text=lay.text, sub_text=lay.sub, anchor=clear_anchor(lay.anchor or "bc", focus, "caption"))
                 elif lay.type == "template":
                     if not fill_template(beat, lay, kw):
                         continue

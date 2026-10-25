@@ -63,6 +63,45 @@ def _widen_camera(b) -> str:
     return ""
 
 
+def _tighten_camera(b) -> str:
+    """A map beat whose camera view is far wider than the places it shows (the south-west tip of Britain framed as all of England, with Norway
+    on screen): look at those places together, on the region frame. Only done when the new view is clearly narrower and every marker is in it."""
+    from pakmap.geo import GeoError
+
+    from .geo import resolve
+    from .validate import TOO_WIDE_FLOOR_KM, focus_extent_km, focus_refs, labels_outside, view_width_km
+
+    def find(ref, prefer):
+        try:
+            return resolve(ref, prefer)
+        except GeoError as exc:
+            return exc
+
+    step = next((c for c in reversed(b.camera) if c.place), None)
+    refs = focus_refs(b)
+    if step is None or not refs:
+        return ""
+    old_loc = find(step.place, "area")
+    if isinstance(old_loc, GeoError):
+        return ""
+    place = ";".join(refs[:6])
+    new_loc = find(place, "area")
+    if isinstance(new_loc, GeoError):
+        return ""
+    ext = focus_extent_km(refs[:6], find)
+    if ext is None or labels_outside(b, new_loc, "region", find):
+        return ""
+    if view_width_km(new_loc, "region") * 1.5 > view_width_km(old_loc, step.frame or "region") or max(ext[0], TOO_WIDE_FLOOR_KM) > view_width_km(new_loc, "region"):
+        return ""
+    old = f"{step.place} ({step.frame or 'region'})"
+    for c in b.camera:
+        if c.place == step.place:
+            c.place, c.frame = place, "region"
+    if b.cam_place:
+        b.cam_place, b.cam_frame = place, "region"
+    return f"{b.id}: tightened the camera from {old} to {place} (region) so the subject fills the screen"
+
+
 def clamp_layers(plan: HybridPlan) -> List[str]:
     """The safety net behind the import: a layer timed BEFORE its map beat (its words are spoken in the beat before) appears with its beat instead of
     stopping the plan from compiling. Nothing else moves: a layer after its beat's end is a wrong beat, which only a person can decide, so it stays
@@ -112,6 +151,11 @@ def fix(plan: HybridPlan, findings: Sequence[Finding]) -> Tuple[int, List[str]]:
                 b.cam_frame = "region"
                 recamera = True
                 done.append(f"{b.id}: closed a wide camera view to region")
+        elif f.code == "view_too_wide":
+            msg = _tighten_camera(b)
+            if msg:
+                recamera = True
+                done.append(msg)
         elif f.code == "out_of_frame":
             msg = _widen_camera(b)
             if msg:

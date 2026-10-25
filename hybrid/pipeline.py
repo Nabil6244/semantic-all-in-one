@@ -23,7 +23,7 @@ from .validate import Finding, errors, validate
 MAX_REPAIRS = 2            # the most repair cycles ever allowed
 DEFAULT_REPAIR_CYCLES = 1  # normally one creative repair cycle is all a plan gets
 CRITIC_BATCH_CHARS = 24000 # chapters are reviewed together up to about this much text per critic request
-REPAIRABLE_WARNINGS = {"out_of_frame", "layer_late", "text_too_long", "wide_view", "point_zoom"}
+REPAIRABLE_WARNINGS = {"out_of_frame", "layer_late", "text_too_long", "wide_view", "point_zoom", "view_too_wide"}
 
 
 @dataclass

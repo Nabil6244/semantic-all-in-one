@@ -1133,6 +1133,254 @@
         "GBR|Strabane"
       ],
       "parent": "United Kingdom"
+    },
+    "South West England": {
+      "admin1": [
+        "GBR|Cornwall",
+        "GBR|Isles of Scilly",
+        "GBR|Devon",
+        "GBR|Plymouth",
+        "GBR|Torbay",
+        "GBR|Somerset",
+        "GBR|North Somerset",
+        "GBR|Bath and North East Somerset",
+        "GBR|Bristol",
+        "GBR|South Gloucestershire",
+        "GBR|Dorset",
+        "GBR|Bournemouth",
+        "GBR|Poole",
+        "GBR|Gloucestershire",
+        "GBR|Wiltshire",
+        "GBR|Swindon"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Southwest England": {
+      "admin1": [
+        "GBR|Cornwall",
+        "GBR|Isles of Scilly",
+        "GBR|Devon",
+        "GBR|Plymouth",
+        "GBR|Torbay",
+        "GBR|Somerset",
+        "GBR|North Somerset",
+        "GBR|Bath and North East Somerset",
+        "GBR|Bristol",
+        "GBR|South Gloucestershire",
+        "GBR|Dorset",
+        "GBR|Bournemouth",
+        "GBR|Poole",
+        "GBR|Gloucestershire",
+        "GBR|Wiltshire",
+        "GBR|Swindon"
+      ],
+      "parent": "United Kingdom"
+    },
+    "West Country": {
+      "admin1": [
+        "GBR|Cornwall",
+        "GBR|Isles of Scilly",
+        "GBR|Devon",
+        "GBR|Plymouth",
+        "GBR|Torbay",
+        "GBR|Somerset",
+        "GBR|North Somerset",
+        "GBR|Bath and North East Somerset",
+        "GBR|Bristol",
+        "GBR|South Gloucestershire",
+        "GBR|Dorset",
+        "GBR|Bournemouth",
+        "GBR|Poole",
+        "GBR|Gloucestershire",
+        "GBR|Wiltshire",
+        "GBR|Swindon"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Cornwall and Devon": {
+      "admin1": [
+        "GBR|Cornwall",
+        "GBR|Isles of Scilly",
+        "GBR|Devon",
+        "GBR|Plymouth",
+        "GBR|Torbay"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Devon and Cornwall": {
+      "admin1": [
+        "GBR|Cornwall",
+        "GBR|Isles of Scilly",
+        "GBR|Devon",
+        "GBR|Plymouth",
+        "GBR|Torbay"
+      ],
+      "parent": "United Kingdom"
+    },
+    "East Anglia": {
+      "admin1": [
+        "GBR|Norfolk",
+        "GBR|Suffolk",
+        "GBR|Cambridgeshire",
+        "GBR|Peterborough"
+      ],
+      "parent": "United Kingdom"
+    },
+    "South East England": {
+      "admin1": [
+        "GBR|Kent",
+        "GBR|Medway",
+        "GBR|East Sussex",
+        "GBR|Brighton and Hove",
+        "GBR|West Sussex",
+        "GBR|Surrey",
+        "GBR|Hampshire",
+        "GBR|Portsmouth",
+        "GBR|Southampton",
+        "GBR|Isle of Wight",
+        "GBR|West Berkshire",
+        "GBR|Reading",
+        "GBR|Slough",
+        "GBR|Wokingham",
+        "GBR|Bracknell Forest",
+        "GBR|Oxfordshire",
+        "GBR|Buckinghamshire",
+        "GBR|Milton Keynes"
+      ],
+      "parent": "United Kingdom"
+    },
+    "East Midlands": {
+      "admin1": [
+        "GBR|Derbyshire",
+        "GBR|Derby",
+        "GBR|Nottinghamshire",
+        "GBR|Nottingham",
+        "GBR|Leicestershire",
+        "GBR|Leicester",
+        "GBR|Rutland",
+        "GBR|Lincolnshire",
+        "GBR|Northamptonshire"
+      ],
+      "parent": "United Kingdom"
+    },
+    "West Midlands": {
+      "admin1": [
+        "GBR|Birmingham",
+        "GBR|Coventry",
+        "GBR|Dudley",
+        "GBR|Sandwell",
+        "GBR|Solihull",
+        "GBR|Walsall",
+        "GBR|Wolverhampton",
+        "GBR|Staffordshire",
+        "GBR|Stoke-on-Trent",
+        "GBR|Shropshire",
+        "GBR|Telford and Wrekin",
+        "GBR|Herefordshire",
+        "GBR|Worcestershire",
+        "GBR|Warwickshire"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Midlands": {
+      "admin1": [
+        "GBR|Derbyshire",
+        "GBR|Derby",
+        "GBR|Nottinghamshire",
+        "GBR|Nottingham",
+        "GBR|Leicestershire",
+        "GBR|Leicester",
+        "GBR|Rutland",
+        "GBR|Lincolnshire",
+        "GBR|Northamptonshire",
+        "GBR|Birmingham",
+        "GBR|Coventry",
+        "GBR|Dudley",
+        "GBR|Sandwell",
+        "GBR|Solihull",
+        "GBR|Walsall",
+        "GBR|Wolverhampton",
+        "GBR|Staffordshire",
+        "GBR|Stoke-on-Trent",
+        "GBR|Shropshire",
+        "GBR|Telford and Wrekin",
+        "GBR|Herefordshire",
+        "GBR|Worcestershire",
+        "GBR|Warwickshire"
+      ],
+      "parent": "United Kingdom"
+    },
+    "North East England": {
+      "admin1": [
+        "GBR|Northumberland",
+        "GBR|Newcastle upon Tyne",
+        "GBR|North Tyneside",
+        "GBR|South Tyneside",
+        "GBR|Gateshead",
+        "GBR|Sunderland",
+        "GBR|Durham",
+        "GBR|Darlington",
+        "GBR|Hartlepool",
+        "GBR|Stockton-on-Tees",
+        "GBR|Middlesbrough",
+        "GBR|Redcar and Cleveland"
+      ],
+      "parent": "United Kingdom"
+    },
+    "North West England": {
+      "admin1": [
+        "GBR|Cumbria",
+        "GBR|Lancashire",
+        "GBR|Blackpool",
+        "GBR|Blackburn with Darwen",
+        "GBR|Merseyside",
+        "GBR|Liverpool",
+        "GBR|Knowsley",
+        "GBR|Sefton",
+        "GBR|Manchester",
+        "GBR|Salford",
+        "GBR|Stockport",
+        "GBR|Trafford",
+        "GBR|Wigan",
+        "GBR|Bolton",
+        "GBR|Bury",
+        "GBR|Oldham",
+        "GBR|Rochdale",
+        "GBR|Tameside",
+        "GBR|Cheshire East",
+        "GBR|Cheshire West and Chester",
+        "GBR|Halton",
+        "GBR|Warrington"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Yorkshire": {
+      "admin1": [
+        "GBR|North Yorkshire",
+        "GBR|York",
+        "GBR|East Riding of Yorkshire",
+        "GBR|Kingston upon Hull",
+        "GBR|Leeds",
+        "GBR|Bradford",
+        "GBR|Wakefield",
+        "GBR|Kirklees",
+        "GBR|Calderdale",
+        "GBR|Barnsley",
+        "GBR|Rotherham",
+        "GBR|Doncaster",
+        "GBR|Sheffield"
+      ],
+      "parent": "United Kingdom"
+    },
+    "Great Britain": {
+      "countries_iso": [
+        "GBR"
+      ]
+    },
+    "Britain": {
+      "countries_iso": [
+        "GBR"
+      ]
     }
   }
 }

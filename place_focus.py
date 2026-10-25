@@ -31,6 +31,9 @@ import boundary_source as BS
 
 FOCUS_COLOR = "#59D8FF"          # neutral light cyan: not a warning colour (reds, oranges, yellows) and visible on satellite imagery
 FOCUS_OPACITY = 0.32
+# One strong colour per country, kept for the whole video (Hybrid Map): vivid on satellite and terrain, apart from each other, none of them the plain dark red a fill defaults to.
+COUNTRY_PALETTE = ("#22D3EE", "#FF5A36", "#A3E635", "#E879F9", "#FACC15", "#60A5FA", "#34D399", "#FB7185")
+FILL_OPACITY = 0.5
 FOCUS_FADE_IN = 0.7
 MIN_SHOW_S = 3.0
 MAX_SHOW_S = 14.0
@@ -660,3 +663,29 @@ def frame_camera(camera: Dict[str, Any], events: Sequence[Dict[str, Any]], autho
                 moves.append({"type": "fly_to", "t": round(t1, 3), "dur": round(rdur, 3), "to": {"lon": base[0], "lat": base[1], "zoom": base[2]}})
                 prev_end, at_focus = t1 + rdur, False
     return notes
+
+
+def country_colour(country: str, assigned: Dict[str, str]) -> str:
+    """The colour of a country's highlight: the next unused palette colour the first time the country appears, the same one every time after
+    (`assigned` is the video's own memory of it). More countries than colours start the palette again."""
+    key = (country or "").strip().upper() or "-"
+    if key not in assigned:
+        assigned[key] = COUNTRY_PALETTE[len(assigned) % len(COUNTRY_PALETTE)]
+    return assigned[key]
+
+
+def colour_fills(events: List[Dict[str, Any]]) -> None:
+    """Hybrid Map: every highlighted area gets a visible translucent fill and an outline in its country's own colour. Fills the plan coloured on
+    purpose (a hex colour, or a role other than the default subject red) keep it. Counted in the order the fills appear, so the same country is
+    the same colour for the whole video."""
+    assigned: Dict[str, str] = {}
+    for ev in sorted((e for e in events if e.get("type") == "fill"), key=lambda e: e.get("t_in", 0.0)):
+        country = ev.pop("_iso", "") or (ev.get("geo_focus") or {}).get("country", "") or (ev.get("iso") or [""])[0]
+        chosen = ev.get("color") not in (None, "", FOCUS_COLOR) or ev.get("role") not in (None, "", "primary")
+        if chosen:
+            continue
+        col = country_colour(country, assigned)
+        ev.pop("role", None)
+        ev.update(color=col, outline_color=col, opacity=FILL_OPACITY)
+    for e in events:
+        e.pop("_iso", None)
