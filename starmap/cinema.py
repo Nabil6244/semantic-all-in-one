@@ -36,14 +36,14 @@ FEATURE_LABELS = {
     "type": "Type moments for big numbers",
     "photos": "Documentary photos + citation line",
     "cuts": "Cuts in narration pauses",
-    "audio": "Reference loudness (-14 LUFS) and music level",
+    "audio": "Reference loudness and music level",
     "grade": "Documentary colour grade",
     "templates": "What If templates + mission card (CSV)",
     "blocks": "Information blocks from the narration",
-    "cards": "Real photos as a card on the right, beside the type",
+    "cards": "Real photos as a card beside the type",
     "fill": "Graphics hold to the cut (no blank plates)",
-    "ambience": "Background sound follows the scene (What If beds)",
-    "variety": "Variety: 3D for named craft, fewer text cards, camera moves, a look per topic",
+    "ambience": "Background sound follows the scene",
+    "variety": "More 3D, camera moves, a look per topic",
 }
 PLATE_S, PLATE_GAP_S, PLATE_MIN_S = 6.0, 20.0, 3.5
 # what a CSV may ask for with a plate row (full frame, on a slate) or an instrument row (over the shot) -- the What If graphics

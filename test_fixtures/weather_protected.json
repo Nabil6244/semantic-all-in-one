@@ -681,7 +681,7 @@
     "starmap/catalog/bodies.json": "4d5cdf48a6a2aa9829728b7165bc42fa7428c766ee5b16e748faec05a13765bd",
     "starmap/catalog/sites.json": "7b61801625275df5eace387fb17b8cf8a9fbab66c5b3bc7cf8cf761bd9053831",
     "starmap/check.py": "73f14a946ec5aa407a5021fe5cf50fe13e399175303f6aafd0aae518122bb1f6",
-    "starmap/cinema.py": "8ee09fdcb3117e8523290dd2e53b445ededbaacf98042aac630115e322f97ae4",
+    "starmap/cinema.py": "04cd63d5cb0ffbca7963abead8f02ff6e2ae10606bf40b28f98c27b58b27a406",
     "starmap/compile.py": "d4beb08bbb9c9b95a82cf8e59dbc9e11d1f971c75e101f4a4761b65a6b20c0f8",
     "starmap/corpus_audit.py": "01910f79207dc1e466269db582f151461754976d48f88c037b6e57777ebbf029",
     "starmap/datasets.py": "193e5e488a429396475b4573ede3a1a08171bd739bcd2c860233302d5a63ae0a",
