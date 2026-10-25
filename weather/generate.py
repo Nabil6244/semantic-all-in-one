@@ -276,7 +276,7 @@ def generate_forecast_video(project: WeatherProject, voiceover_path: "str | Path
             rest = {k: v for k, v in kw.items() if k != "scene_rows"}   # the clips are numbered again from the new script
             result = generate_hybrid_video(plan, voiceover_path, output_path, work_dir=project.work_dir, whisper_words=list(whisper_words),
                                            base_dir=str(project.root), render=make_render(payload, look=style), log=log, **rest)
-    if result.ok:
+    if result.ok and not getattr(result, "media_ready", 0):   # media_only: the clips are fetched, nothing was drawn yet
         output_path.with_suffix(".numbers.txt").write_text(report, encoding="utf-8")
     return result
 

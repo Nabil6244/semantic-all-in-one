@@ -218,7 +218,7 @@ def generate_newsdoc_video(project, voiceover_path: "str | Path", output_path: "
         if not n:
             break
         log(f"[Weather] {NAME}: {n} clip(s) could not be found anywhere; they are left out and the video is made without them")
-    if result is None or not result.ok:
+    if result is None or not result.ok or getattr(result, "media_ready", 0):   # media_ready: the clips are fetched, nothing is drawn yet
         return result
     progress(f"{NAME}: drawing the graphics", 0.88)
     tmp = Path(tempfile.mkdtemp(prefix="newsdoc_", dir=str(work)))

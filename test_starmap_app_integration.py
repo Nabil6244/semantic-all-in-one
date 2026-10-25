@@ -108,12 +108,21 @@ def scenario():
     got = {}
     def fake_ok(csv_path, vo, out, **kw):
         got.update(kw, csv=str(csv_path), out=str(out))
+        if kw.get("media_only"):                                   # Generate scenes: the scenes are fetched, nothing is drawn
+            return PakmapResult(True, media_ready=3)
         kw["progress_cb"]("Drawing space…", 0.4); kw["log"]("[StarMap] fake")
         Path(out).write_bytes(b"x" * 4096)   # a finished video is never under 1 KB: the app now refuses that as cut short
         return PakmapResult(True, [], Path(out), None, ["NASA"], ["a note"])
     sai.generate_starmap_video = fake_ok
     inst._scene_rows[2].asset_type = "stock_video"; inst._scene_rows[2].stock = "moonwalk footage"      # the user changed clip 3 in the table
     shown.clear()
+    inst._on_generate()                                                  # the table is not ready yet: this click only fetches the scenes
+    yield (lambda: not inst._starmap_running)
+    emit("generate_scenes_first_draws_nothing", got.get("media_only") is True and not shown.get("info") and not Path(got["out"]).exists(), str(shown.get("info")))
+    got.clear()
+    inst._scenes_all_ready = lambda owner: True                          # every scene is ready: the button is Render and the next click draws
+    inst._sync_primary_cta()
+    emit("render_shows_once_every_scene_is_ready", inst._cta_action == "generate" and inst.generate_btn.cget("text") == "Render", inst.generate_btn.cget("text"))
     inst._on_generate()
     emit("running_state_shows_stop", inst._starmap_running and inst._cta_action == "starmap_cancel")
     yield (lambda: not inst._starmap_running)
@@ -235,7 +244,7 @@ class TestStarmapInTheApp(unittest.TestCase):
                   "the_button_says_generate", "a_csv_with_a_fault_names_its_row")
 
     def test_generation(self):
-        self._all("running_state_shows_stop", "a_run_finishes_and_the_video_is_reported", "generation_gets_the_table_as_left_the_folders_and_callbacks",
+        self._all("generate_scenes_first_draws_nothing", "render_shows_once_every_scene_is_ready", "running_state_shows_stop", "a_run_finishes_and_the_video_is_reported", "generation_gets_the_table_as_left_the_folders_and_callbacks",
                   "no_flow_question_when_no_flow_rows", "a_picture_that_needs_attention_opens_the_visual_plan", "stop_cancels_the_run")
 
     def test_persistence(self):

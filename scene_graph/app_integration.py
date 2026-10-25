@@ -56,6 +56,7 @@ class OverscaledGenerationResult:
     scene_graph: Optional[SceneGraph] = None
     timeline: Optional[EditorialTimeline] = None
     cancelled: bool = False
+    media_ready: int = 0   # media_only: every scene's file is ready and nothing was drawn (this many); the next run renders
 
 
 def _fail(errors: List[str]) -> OverscaledGenerationResult:
@@ -103,6 +104,7 @@ def generate_overscaled_video(
     use_local_planner: bool = False,
     cancel_check: Optional[Callable[[], bool]] = None,
     pixel_scale: int = 1,
+    media_only: bool = False,
 ) -> OverscaledGenerationResult:
     """Overscaled CSV + real voiceover -> a real, final MP4.
 
@@ -244,6 +246,9 @@ def generate_overscaled_video(
     if _cancelled():
         # Stopped during acquisition: don't go on to render a partial plan.
         return OverscaledGenerationResult(ok=False, errors=["Cancelled"], cancelled=True)
+    if media_only:   # the scenes are fetched first; drawing waits for the author's Render click
+        _report(progress_cb, f"All {len(resolved_media)} scene(s) ready", 1.0)
+        return OverscaledGenerationResult(ok=True, errors=[], media_ready=len(resolved_media))
 
     # From here on, run_overscaled_pipeline reports its OWN finer-grained
     # progress (layout, composition, and — the genuinely long part — one

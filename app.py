@@ -2672,9 +2672,14 @@ class VideoGeneratorApp(ctk.CTk):
             self._set_generate_btn(state="normal", text="Import Voiceover")
             return
         self._cta_action = "generate"
+        if self._scenes_all_ready(None):
+            self.stage_var.set("RENDER")
+            self.hint_var.set("Every scene is ready — click Render to draw the Overscaled video.")
+            self._set_generate_btn(state="normal", text="Render")
+            return
         self.stage_var.set("GENERATE")
-        self.hint_var.set("Ready — click Generate to render the Overscaled video.")
-        self._set_generate_btn(state="normal", text="Generate")
+        self.hint_var.set("Click Generate scenes: the pictures and clips are fetched first, then you click Render.")
+        self._set_generate_btn(state="normal", text="Generate scenes")
 
     def _on_overscaled_cancel(self) -> None:
         """Stop an Overscaled/Exp Solar run: the worker sees the event at its
@@ -2858,6 +2863,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._asset_manager = manager
             self._overscaled_run_manager = manager
 
+        overscaled_media_only = bool(self._scene_rows) and not self._scenes_all_ready(None)   # Generate fetches the scenes and stops; Render draws the video
+        self._append_log("[OVERSCALED] Getting the scenes: the video is drawn when you click Render once they are all ready.\n" if overscaled_media_only
+                         else "[OVERSCALED] Every scene is ready: rendering the video.\n")
+
         def worker() -> None:
             from scene_graph.app_integration import generate_overscaled_video
             from scene_graph.app_integration import OverscaledGenerationResult
@@ -2892,7 +2901,7 @@ class VideoGeneratorApp(ctk.CTk):
                     whisper_words = None
 
                 result = generate_overscaled_video(
-                    csv_path, str(voiceover_path), str(output_path),
+                    csv_path, str(voiceover_path), str(output_path), media_only=overscaled_media_only,
                     resolution="1920x1080", fps=30, pixel_scale=pixel_scale,
                     segment_id="overscaled_segment", work_dir=str(out_dir / "_work"),
                     style_preset_id=style_preset_id,
@@ -2914,6 +2923,27 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            if overscaled_media_only and result.ok and not self._overscaled_cancel.is_set():   # the scenes are fetched; nothing was drawn
+                self._overscaled_running = False
+                tracking_run, self._overscaled_tracking = self._overscaled_tracking, None
+                self._track_generation_end(tracking_run, "completed", output_path=None, validated=False, message="scenes fetched")
+                run_manager, self._overscaled_run_manager = self._overscaled_run_manager, None
+                if run_manager is not None:
+                    try:
+                        run_manager.reset_cancel()
+                    except Exception:
+                        pass
+                self._refresh_qa_ui(immediate=True)
+                if self._scenes_all_ready(None):
+                    self._overscaled_status_var.set("Every scene is ready. Check them in the Visual Plan, then click Render.")
+                    self._append_log("[OVERSCALED] Every scene is ready. Nothing was rendered yet: click Render to draw the video.\n")
+                    self._notify("Scenes ready. Click Render to draw the video.", tone="success")
+                else:
+                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    self._overscaled_status_var.set(f"{n} scene(s) need attention: Retry, Change source or Skip them, then click Generate scenes.")
+                    self._append_log(f"[OVERSCALED] {n} scene(s) need attention before Render. Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
+                self._sync_primary_cta()
+                return
             result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._overscaled_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._overscaled_cancel.is_set()
@@ -4437,6 +4467,16 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception:
             return False
 
+    def _scenes_all_ready(self, owner: "str | None") -> bool:
+        """Every row of the Visual Plan table (owned by `owner`'s style) has its file or was skipped by the author: the next click renders
+        instead of fetching. False when the table is empty, belongs to another style, or any row is queued, failed or cancelled."""
+        if (owner is not None and getattr(self, "_scene_rows_owner", None) != owner) or not self._scene_rows:
+            return False
+        try:
+            return all(self._row_status_from_result(r) in ("ready", "success", "skipped") for r in self._scene_rows)
+        except Exception:
+            return False
+
     def _hybrid_table_is_stale(self, plan) -> bool:
         """True when the Visual Plan table does not list exactly this plan's clips and cards (by number: a source the user changed in the table is kept)."""
         if getattr(self, "_scene_rows_owner", None) != "hybrid":
@@ -5195,11 +5235,13 @@ class VideoGeneratorApp(ctk.CTk):
         actions.grid(row=0, column=0, sticky="ew")
         self._starmap_load_btn = _make_button(actions, "Load beat CSV…", self._starmap_browse_file, variant="primary", size="lg", width=150)
         self._starmap_load_btn.grid(row=0, column=0, padx=(0, 8))
-        _make_button(actions, "Copy the CSV prompt", lambda: self._copy_csv_prompt("starmap", self._starmap_status_var),
+        _make_button(actions, "Import voiceover…", lambda: self._browse_audio(stay=True),
                      size="lg", width=150).grid(row=0, column=1, padx=(0, 8))
-        _make_button(actions, "Script doctor prompt", self._copy_starmap_doctor_prompt,
+        _make_button(actions, "Copy the CSV prompt", lambda: self._copy_csv_prompt("starmap", self._starmap_status_var),
                      size="lg", width=150).grid(row=0, column=2, padx=(0, 8))
-        self._build_csv_prompt_script_box(actions, row=1, columnspan=3)
+        _make_button(actions, "Script doctor prompt", self._copy_starmap_doctor_prompt,
+                     size="lg", width=150).grid(row=0, column=3, padx=(0, 8))
+        self._build_csv_prompt_script_box(actions, row=1, columnspan=4)
         ctk.CTkLabel(controls, text="Missions, spacecraft, planets and their dates are found from the CSV automatically (historical, current, "
                                     "planned or hypothetical): nothing to select. Check plan lists what it found.",
                      font=ctk.CTkFont(size=11), text_color=_MUTED, anchor="w", wraplength=560, justify="left").grid(row=1, column=0, sticky="w", pady=(6, 0))
@@ -5582,10 +5624,15 @@ class VideoGeneratorApp(ctk.CTk):
             self._set_generate_btn(state="normal", text="Load beat CSV")
             return
         self._cta_action = "generate"
+        if self._scenes_all_ready("starmap"):
+            self.stage_var.set("RENDER")
+            self.hint_var.set("Every scene is ready — click Render to draw the StarMap video.")
+            self._set_generate_btn(state="normal", text="Render")
+            return
         self.stage_var.set("GENERATE")
-        self.hint_var.set("Ready — click Generate to render the StarMap video." if self._starmap_ok is not False
-                          else "The last Check plan found problems: Generate repairs or leaves out those rows and lists them in the log.")
-        self._set_generate_btn(state="normal", text="Generate")
+        self.hint_var.set("Click Generate scenes: the pictures and clips are fetched first, then you click Render." if self._starmap_ok is not False
+                          else "The last Check plan found problems: Generate scenes repairs or leaves out those rows and lists them in the log.")
+        self._set_generate_btn(state="normal", text="Generate scenes")
 
     def _on_starmap_cancel(self) -> None:
         if not self._starmap_running or self._starmap_cancel.is_set():
@@ -5690,10 +5737,18 @@ class VideoGeneratorApp(ctk.CTk):
             self._asset_manager = manager
             self._starmap_run_manager = manager
 
+        starmap_media_only = bool(plan_rows) and not self._scenes_all_ready("starmap")   # Generate fetches the scenes and stops; Render draws the video
+        self._append_log("[STARMAP] Getting the scenes: the video is drawn when you click Render once they are all ready.\n" if starmap_media_only
+                         else "[STARMAP] Every scene is ready: rendering the video.\n")
+
         def worker() -> None:
             from pakmap.app_integration import PakmapResult
             from starmap.app_integration import generate_starmap_video
 
+            if starmap_media_only:
+                import functools
+
+                generate_starmap_video = functools.partial(generate_starmap_video, media_only=True)
             prun = self._production_begin("starmap")
             try:
                 try:
@@ -5716,6 +5771,22 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            if starmap_media_only and result.ok and not self._starmap_cancel.is_set():   # the scenes are fetched; nothing was drawn
+                self._starmap_running = False
+                run, self._starmap_tracking = self._starmap_tracking, None
+                self._track_generation_end(run, "completed", output_path=None, validated=False, message="scenes fetched")
+                self._refresh_qa_ui(immediate=True)
+                if self._scenes_all_ready("starmap"):
+                    self._starmap_status_var.set("Every scene is ready. Check them in the Visual Plan, then click Render.")
+                    self._append_log("[STARMAP] Every scene is ready. Nothing was rendered yet: click Render to draw the video.\n")
+                    self._notify("Scenes ready. Click Render to draw the video.", tone="success")
+                else:
+                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    self._starmap_status_var.set(f"{n} scene(s) need attention: Retry, Change source or Skip them in the Visual Plan, then click Generate scenes.")
+                    self._append_log(f"[STARMAP] {n} scene(s) need attention before Render. Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
+                    self._goto_workflow_view("visual_plan")
+                self._sync_primary_cta()
+                return
             result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._starmap_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._starmap_cancel.is_set()
@@ -6124,6 +6195,14 @@ class VideoGeneratorApp(ctk.CTk):
         self.stage_var.set("GENERATE")
         self.hint_var.set("Ready — click Generate to render the pakMap video.")
         self._set_generate_btn(state="normal", text="Generate")
+        if getattr(self, "_scene_rows_owner", None) == "pakmap" and self._scene_rows:   # a plan with pictures: fetch them all, then Render
+            if self._scenes_all_ready("pakmap"):
+                self.stage_var.set("RENDER")
+                self.hint_var.set("Every scene is ready — click Render to draw the pakMap video.")
+                self._set_generate_btn(state="normal", text="Render")
+            else:
+                self.hint_var.set("Click Generate scenes: the pictures and clips are fetched first, then you click Render.")
+                self._set_generate_btn(state="normal", text="Generate scenes")
 
     def _on_pakmap_cancel(self) -> None:
         if not self._pakmap_running or self._pakmap_cancel.is_set():
@@ -6250,10 +6329,18 @@ class VideoGeneratorApp(ctk.CTk):
             self._pakmap_run_manager = manager
 
         self._pakmap_run_manager = None
+        # Generate fetches the scenes and stops; Render (every scene ready) draws the video. No pictures in the plan: draw at once.
+        pakmap_media_only = bool(plan_rows) and not self._scenes_all_ready("pakmap")
+        if pakmap_media_only:
+            self._append_log("[PAKMAP] Getting the scenes: the video is drawn when you click Render once they are all ready.\n")
 
         def worker() -> None:
             from pakmap.app_integration import PakmapResult, generate_pakmap_video
 
+            if pakmap_media_only:
+                import functools
+
+                generate_pakmap_video = functools.partial(generate_pakmap_video, media_only=True)
             prun = self._production_begin("pakmap")
 
             try:
@@ -6277,6 +6364,23 @@ class VideoGeneratorApp(ctk.CTk):
             self.after(0, lambda: finish(result))
 
         def finish(result) -> None:
+            if pakmap_media_only and result.ok and not self._pakmap_cancel.is_set():   # the scenes were fetched; nothing was drawn
+                self._pakmap_running = False
+                run, self._pakmap_tracking = self._pakmap_tracking, None
+                self._track_generation_end(run, "completed", output_path=None, validated=False, message="scenes fetched")
+                self._refresh_qa_ui(immediate=True)
+                if self._scenes_all_ready("pakmap"):
+                    n = getattr(result, "media_ready", 0)
+                    self._pakmap_status_var.set(f"All {n} scene(s) are ready. Check them in the Visual Plan, then click Render.")
+                    self._append_log(f"[PAKMAP] All {n} scene(s) are ready. Nothing was rendered yet: click Render to draw the video.\n")
+                    self._notify("Scenes ready. Click Render to draw the video.", tone="success")
+                else:
+                    bad = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    self._pakmap_status_var.set(f"{bad} scene(s) need attention — fix them in the Visual Plan tab, then Generate scenes again")
+                    self._append_log(f"[PAKMAP] {bad} scene(s) are not ready: Retry, Change source or Skip them in the Visual Plan, then Generate scenes again.\n")
+                    self._goto_workflow_view("visual_plan")
+                self._sync_primary_cta()
+                return
             result = self._export_verified(result)   # never "video ready" for a missing, empty or old file
             self._pakmap_running = False
             cancelled = bool(getattr(result, "cancelled", False)) or self._pakmap_cancel.is_set()
@@ -12428,20 +12532,24 @@ class VideoGeneratorApp(ctk.CTk):
             menu.add_separator()
         # by state: still waiting for its picture, or a picture/clip with an error (failed, needs action, or failed the picture check)
         snap = self._qa_snapshot()
-        queued, errors = [], []
+        queued, errors, cancelled = [], [], []
         bad_visual = {i.key for i in getattr(snap, "visual_issues", []) if getattr(i, "severity", "") != "warning"}
         for scene in self._scene_rows:
             key = _scene_key(scene.scene_number)
             st = self._row_status_from_result(scene)
             if st in ("waiting", "queued", "pending"):
                 queued.append(key)
+            elif st == "cancelled":
+                cancelled.append(key)
             elif st == "needs_action" or key in bad_visual:
                 errors.append(key)
         if queued:
             menu.add_command(label=f"Queued ({len(queued)})", command=lambda ks=queued: self._select_scenes_by_source_bucket(ks))
+        if cancelled:
+            menu.add_command(label=f"Cancelled ({len(cancelled)})", command=lambda ks=cancelled: self._select_scenes_by_source_bucket(ks))
         if errors:
             menu.add_command(label=f"With error ({len(errors)})", command=lambda ks=errors: self._select_scenes_by_source_bucket(ks))
-        if queued or errors:
+        if queued or errors or cancelled:
             menu.add_separator()
         for name in (*order, *sorted(extras)):
             keys = by_bucket.get(name)

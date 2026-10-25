@@ -1263,10 +1263,15 @@ def sync_cta(app) -> None:
         app._set_generate_btn(state="normal", text="Fetch data")
         return
     app._cta_action = "generate"
+    if app._scenes_all_ready("weather"):
+        app.stage_var.set("RENDER")
+        app.hint_var.set(f"All {len(app._scene_rows)} clips are ready — click Render to draw the Weather video.")
+        app._set_generate_btn(state="normal", text="Render")
+        return
     app.stage_var.set("GENERATE")
-    app.hint_var.set("Ready — click Generate to render the Weather video." if app._weather_ok is not False
-                     else "The last Check plan found problems: fix them first (Generate will stop on them).")
-    app._set_generate_btn(state="normal", text="Generate")
+    app.hint_var.set("Click Generate scenes: the footage is fetched first, then you click Render." if app._weather_ok is not False
+                     else "The last Check plan found problems: fix them first (Generate scenes will stop on them).")
+    app._set_generate_btn(state="normal", text="Generate scenes")
 
 
 def cancel(app) -> None:
@@ -1324,14 +1329,17 @@ def run_generation(app, preview: bool = False) -> None:
     media_dir = images_dir(ws)
     lib_dir = library_dir(app)
     edit_style = current_style(app)
+    media_only = not preview and not app._scenes_all_ready("weather")   # Generate scenes: fetch the footage and stop; Render draws the video
+    speed = {**speed, "media_only": True} if media_only else speed
 
     app._weather_cancel.clear()
     app._weather_running = True
     app._weather_tracking = app._track_generation_start("weather")
     app._weather_run_manager = None
     app._sync_primary_cta()
-    app._weather_status_var.set("Starting the quick preview…" if preview else "Starting Weather generation…")
-    app._append_log("Starting the Weather quick preview (12 fps, no sound design)…\n" if preview else "Starting Weather generation…\n")
+    app._weather_status_var.set("Starting the quick preview…" if preview else ("Getting the footage…" if media_only else "Starting Weather generation…"))
+    app._append_log("Starting the Weather quick preview (12 fps, no sound design)…\n" if preview else (
+        "Getting the footage: the video is drawn when you click Render once every clip is ready.\n" if media_only else "Starting Weather generation…\n"))
     if script_note:
         app._append_log(f"{TAG} {script_note}\n")
 
@@ -1408,6 +1416,22 @@ def run_generation(app, preview: bool = False) -> None:
         app.after(0, lambda: finish(result))
 
     def finish(result) -> None:
+        if media_only and result.ok and getattr(result, "media_ready", 0) and not app._weather_cancel.is_set():   # the clips are in; nothing was drawn
+            app._weather_running = False
+            run, app._weather_tracking = app._weather_tracking, None
+            app._track_generation_end(run, "completed", output_path=None, validated=False, message="scenes ready")
+            app._refresh_qa_ui(immediate=True)
+            if app._scenes_all_ready("weather"):
+                app._weather_status_var.set(f"All {result.media_ready} clip(s) are ready. Check them in the Visual Plan, then click Render.")
+                app._append_log(f"{TAG} All {result.media_ready} clip(s) are ready. Nothing was rendered yet: click Render to draw the video.\n")
+                app._notify("Scenes ready. Click Render to draw the video.", tone="success")
+            else:
+                n = sum(1 for r in app._scene_rows if app._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                app._weather_status_var.set(f"{n} clip(s) need attention — fix, retry or skip them in the Visual Plan, then Generate scenes")
+                app._append_log(f"{TAG} {n} clip(s) are not ready (failed, cancelled or queued): nothing was rendered. Fix them in the Visual Plan.\n")
+                app._goto_workflow_view("visual_plan")
+            app._sync_primary_cta()
+            return
         result = app._export_verified(result)   # never "video ready" for a missing, empty or old file
         app._weather_running = False
         cancelled = bool(getattr(result, "cancelled", False)) or app._weather_cancel.is_set()
