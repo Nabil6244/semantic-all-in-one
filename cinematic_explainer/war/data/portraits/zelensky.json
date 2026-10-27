@@ -1,0 +1,27 @@
+{
+ "id": "zelensky",
+ "name": "Volodymyr Zelensky",
+ "status": "ok",
+ "file": "zelensky.jpg",
+ "reuse": "attribution_required",
+ "attribution_required": true,
+ "share_alike": false,
+ "licence": "CC BY 4.0",
+ "licence_url": "https://creativecommons.org/licenses/by/4.0",
+ "creator": "Press Service of the President of Ukraine",
+ "attribution": "Press Service of the President of Ukraine, CC BY 4.0",
+ "source_url": "https://commons.wikimedia.org/wiki/File:New_Year%27s_Eve_from_President_of_Ukraine_Volodymyr_Zelensky_(31-12-2025)_(cropped).jpg",
+ "commons_title": "File:New Year's Eve from President of Ukraine Volodymyr Zelensky (31-12-2025) (cropped).jpg",
+ "wikidata_qid": "Q3874799",
+ "wikidata_label": "Volodymyr Zelenskyy",
+ "wikidata_description": "President of Ukraine since 2019",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2025-12-31",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

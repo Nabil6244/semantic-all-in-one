@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..render import Layer, Shot
+from . import equipment_images as EQI
 from . import semantics as S
 from .semantics import SceneAnalysis, SentenceInfo
 
@@ -30,7 +31,7 @@ DEFAULTS: Dict[str, Any] = {
     "per_minute": 3, "per_minute_footage": 5, "same_kind_gap": 12.0, "same_kind_max": 2, "same_kind_window": 120.0, "same_fact_s": 240.0,
     "clean_floor": 0.55, "clean_floor_min_total": 60.0, "quiet_window": 20.0, "quiet_clear": 10.0, "equipment_repeat_s": 120.0,
     "headline_share": 0.40, "headline_min_s": 2.0, "headline_max_s": 4.2, "kickers": True, "check_kinds": True,
-    "narration_status": "unverified", "timeline_status": "attributed", "card_cap_s": None, "short_total_s": 120.0, "profile": "auto", "neutral_map_fallback": True, "filler_footage": None, "snapshots": [], "headlines": True,
+    "narration_status": "unverified", "timeline_status": "attributed", "card_cap_s": None, "short_total_s": 120.0, "profile": "auto", "neutral_map_fallback": True, "filler_footage": None, "snapshots": [], "headlines": True, "direction": True,
 }
 
 # logical kind -> layer kind (the card registry key)
@@ -172,11 +173,16 @@ def footage_info(meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     # generic stock/b-roll (set by integration.load_scenes from the manifest record) is never footage of a specific event: it is labelled
     # ILLUSTRATIVE FOOTAGE and gets no headline; a third-party source (YouTube) gets an UNVERIFIED · <channel> source chip
     generic = bool(m.get("generic"))
+    stock_relevant = bool(m.get("stock_relevant")) and not (recycled or mismatch)   # footage_match: generic stock whose record agrees with the narration
     if generic and not (recycled or mismatch):
-        mismatch, chip = True, "ILLUSTRATIVE FOOTAGE"
+        if stock_relevant:
+            chip = "STOCK FOOTAGE"      # relevant b-roll is shown as stock, never as footage of the specific event
+        else:
+            mismatch, chip = True, "ILLUSTRATIVE FOOTAGE"
     return {"status": "unverified" if (recycled or mismatch) and status == "confirmed" else status, "rejected": rejected, "recycled": recycled,
             "mismatch": mismatch, "chip": chip, "publisher": publisher, "published": published, "generic": generic,
-            "source_chip": bool(m.get("source_chip")) and status != "confirmed", "rights": str(m.get("rights") or "")}
+            "source_chip": (bool(m.get("source_chip")) or stock_relevant) and status != "confirmed", "rights": str(m.get("rights") or ""),
+            "reused": bool(m.get("reused")), "footage_class": str(m.get("footage_class") or "")}
 
 
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -288,7 +294,13 @@ def _portrait(ctx: _Ctx, e: S.Entity) -> Optional[str]:
     cand = ctx.assets.get("portrait:" + e.id) or S._get(e.entry, "portrait", None)
     if cand and isinstance(cand, str) and os.path.isfile(cand) and str(S._get(e.entry, "portrait_licence_reuse", "")).lower() not in ("none", "unknown"):
         return cand
-    return None
+    try:    # the cached Commons portrait for this exact person (no network here); a cache problem leaves the name plate
+        from . import portraits as _pt
+
+        hit = _pt.portrait_for(e.id)
+        return hit["path"] if hit else None
+    except Exception:
+        return None
 
 
 def _cands_quotes(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
@@ -389,6 +401,12 @@ def _cands_intro(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
     if sent.intro_figure and sent.quote is None:
         fig, role = sent.intro_figure
         s0, e0 = _window(ctx, fig.span[0], sent)
+        e0 = min(e0, fr(s0 + 4.0))               # an introduction is a few seconds, so a number later in the sentence still gets its card
+        later = [n for n in sent.numbers if n.span[0] > fig.span[1] and not n.is_year]
+        if later:                                # the introduction hands over to the number's card instead of colliding with it
+            hand = _window(ctx, later[0].span[0], sent)[0] - 0.35
+            if hand - s0 >= 2.2:
+                e0 = min(e0, fr(hand))
         params = {"name": fig.name, "role": role or S._get(fig.entry, "role", ""), "image": _portrait(ctx, fig), "statement": "", "statement_date": "",
                   "venue": "", "status": "attributed", "source": "", "role_verified": bool(role), "figure_id": fig.id}
         out.append(Candidate("figure", BASE_SCORE["figure"] - 8 + (4 if fig.subject else 0), f"{fig.name} introduced with a role in the narration",
@@ -518,6 +536,13 @@ def _cands_equipment(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
     return out
 
 
+def _equipment_photo(equip_id: str) -> Optional[dict]:
+    try:
+        return EQI.lookup(equip_id)
+    except Exception:                           # a missing or damaged photo store is a silhouette, never a failed plan
+        return None
+
+
 def _equipment_card(ctx: _Ctx, sent: SentenceInfo, e: S.Entity, has_attr: bool) -> Candidate:
     s0, e0 = _window(ctx, e.span[0], sent)
     fn = getattr(ctx.catalog, "equipment_card_params", None)
@@ -534,6 +559,10 @@ def _equipment_card(ctx: _Ctx, sent: SentenceInfo, e: S.Entity, has_attr: bool) 
                   "specs": [{"label": s["label"], "value": s["value"]} for s in entry.get("specs") or [] if s.get("source")],
                   "source": "reference data; verify before publishing", "status": "attributed"}
     params["image"] = ctx.assets.get("equipment:" + e.id)
+    if not params["image"] and ctx.cfg.get("equipment_photos", True):
+        rec = _equipment_photo(e.id)            # a stored exact-model Commons photograph, else the labelled silhouette stays
+        if rec:
+            params["image"], params["image_credit"], params["image_record"] = rec["path"], EQI.credit_line(rec), rec
     params["icon"] = params.get("class") or entry.get("class", "")
     params["confidence"] = "stated"            # the narration names the system; nothing was matched by appearance
     params["equipment_id"] = e.id
@@ -834,7 +863,7 @@ class _State:
     def check(self, c: Candidate, start: float, end: float, scene_no: Any, over_footage: bool) -> Tuple[bool, str, str]:
         cfg = self.cfg
         full = c.kind in FULL_FRAME
-        if start < cfg["first_at"] - 1e-9:
+        if start < cfg["first_at"] - 1e-9 and over_footage:     # the clean-footage opening only applies when there is footage to keep clean
             return False, "density", f"nothing before {cfg['first_at']:.0f} s"
         if end > self.total + 1e-9:
             return False, "density", "runs past the end of the video"
@@ -842,6 +871,8 @@ class _State:
             gap = cfg["full_gap"] if (full and a.full) else cfg["min_gap"]
             if c.kind == "map" and a.kind == "map":
                 gap = cfg["map_gap"]          # a geography scene may walk through several map views; same-kind spacing still applies
+            if a.scene_no == scene_no and {a.kind, c.kind} == {"figure", "number"}:
+                gap = 0.3                      # who says it, then what is said: one sequence inside a sentence, not two competing cards
             if start < a.end + gap and end > a.start - gap:
                 same_scene = a.scene_no == scene_no
                 return False, ("conflict_lost" if same_scene else "density"), (
@@ -958,6 +989,8 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
             if k not in explicit:
                 cfg[k] = v
         out.flags_profile = "short"
+    if cfg.get("direction") and "neutral_map_fallback" not in explicit:
+        cfg["neutral_map_fallback"] = False       # an empty 'neutral map' is not a visual: the direction pass finds a truthful one or logs the gap
     state = _State(total, cfg)
     kinds = _available_kinds() if cfg["check_kinds"] else None
     shots_n = 0
@@ -995,6 +1028,10 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
                 dec.flags.append("recycled")
             if finfo["mismatch"]:
                 dec.flags.append("mismatch")
+            if finfo["reused"]:
+                dec.flags.append("reused")          # a deliberate same-subject return (footage_match), not 'recycled' file footage
+            if finfo["footage_class"]:
+                dec.flags.append("footage_" + finfo["footage_class"])
             if finfo["status"] == "unverified":
                 dec.flags.append("footage_unverified")
             if finfo["generic"]:
@@ -1002,7 +1039,7 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
             if meta.get("kind") == "youtube" or (finfo["rights"] and "clearance" in finfo["rights"]):
                 dec.flags.append("rights_clearance_needed")
         else:
-            use = (fillers[len(missing_footage) % len(fillers)] if fillers else prev_path)
+            use = (fillers[len(missing_footage) % len(fillers)] if fillers else ('' if cfg.get("direction") else prev_path))   # direction: a new topic never sits on the previous clip
             dec.flags.append("no_footage")
             missing_footage.append(no)
             if use:
@@ -1068,7 +1105,14 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
             state.acc.append(_Acc(c.kind, c.start, c.end, full, c.key, no))
             if c.kind == "equipment" and c.equip_id:
                 state.seen_equipment[c.equip_id] = c.start
+                rec = c.params.get("image_record")
+                if rec and P is not None:
+                    try:
+                        cred_items.append(EQI.provenance_for(rec, str(c.params.get("name") or "")))
+                    except Exception:
+                        pass
             params = dict(c.params)
+            params.pop("image_record", None)
             ly = Layer(LAYER_KIND[c.kind], c.start, c.end, params, dim=c.kind not in NO_DIM)
             layer_made.append(ly)
             if cfg["kickers"] and not full and c.kind in KICKER:
@@ -1101,12 +1145,33 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
         dec.chosen = chosen.kind if chosen else None
         out.log.append(dec)
 
+    direction_stats: Dict[str, Any] = {}
+    if cfg.get("direction"):
+        try:
+            from . import direction as _dir
+
+            direction_stats = _dir.apply(out, rows, cfg, cat)
+        except Exception as exc:                  # the art direction is an addition: a failure leaves the planner's own plan untouched
+            direction_stats = {"error": f"{type(exc).__name__}: {exc}"}
     out.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))
     card_time = state.card_time()
     out.stats = {"scenes": len(rows), "cards": len(state.acc), "card_share": round(card_time / state.total, 4), "clean_share": round(1 - card_time / state.total, 4),
                  "headlines": headlines, "footage_shots": shots_n, "headline_share": round(headlines / shots_n, 3) if shots_n else 0.0,
-                 "missing_footage_scenes": missing_footage, "kinds_checked": kinds is not None, "total_s": total}
+                 "missing_footage_scenes": missing_footage, "kinds_checked": kinds is not None, "total_s": total, "direction": direction_stats}
     if P is not None:
+        try:
+            from . import portraits as _pt
+
+            seen_img = set()
+            for ly in out.layers:   # attribution for every cached portrait that was actually shown
+                img = (ly.params or {}).get("image") if getattr(ly, "kind", "") == "figure_card" else None
+                if isinstance(img, str) and img not in seen_img:
+                    seen_img.add(img)
+                    pp = _pt.provenance_for_path(img)
+                    if pp is not None:
+                        cred_items.append(pp)
+        except Exception:
+            pass
         try:
             out.credits = list(P.credits_lines(cred_items))
         except Exception:

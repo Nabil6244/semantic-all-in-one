@@ -1,0 +1,548 @@
+{
+ "id": "chest_heart_v1",
+ "profile": "medical_cinema",
+ "asset": {
+  "name": "chest",
+  "anchors": "anchors.json"
+ },
+ "duration": 14.0,
+ "background": [
+  0.012,
+  0.016,
+  0.03
+ ],
+ "camera": [
+  {
+   "t": 0.0,
+   "target": "body",
+   "dist": 4.0,
+   "az": -8,
+   "el": 5,
+   "fov": 30
+  },
+  {
+   "t": 2.8,
+   "target": "body",
+   "dist": 3.7,
+   "az": -3,
+   "el": 4,
+   "fov": 30
+  },
+  {
+   "t": 4.6,
+   "target": "chest",
+   "dist": 1.7,
+   "az": 0,
+   "el": 3,
+   "fov": 30
+  },
+  {
+   "t": 6.0,
+   "target": "chest",
+   "dist": 1.25,
+   "az": 4,
+   "el": 3,
+   "fov": 30
+  },
+  {
+   "t": 7.6,
+   "target": "heart",
+   "dist": 0.85,
+   "az": 6,
+   "el": 5,
+   "fov": 29,
+   "off": [
+    0,
+    0,
+    0.03
+   ]
+  },
+  {
+   "t": 9.2,
+   "target": "heart",
+   "dist": 0.62,
+   "az": 0,
+   "el": 4,
+   "fov": 29,
+   "off": [
+    0,
+    0,
+    0.035
+   ]
+  },
+  {
+   "t": 10.8,
+   "target": "heart",
+   "dist": 0.56,
+   "az": -12,
+   "el": 6,
+   "fov": 28,
+   "off": [
+    0,
+    0,
+    0.035
+   ]
+  },
+  {
+   "t": 12.2,
+   "target": "obj:Left ventricle",
+   "dist": 0.44,
+   "az": -6,
+   "el": 4,
+   "fov": 28,
+   "off": [
+    -0.01,
+    0,
+    -0.025
+   ]
+  },
+  {
+   "t": 14.0,
+   "target": "obj:Left ventricle",
+   "dist": 0.46,
+   "az": 8,
+   "el": 5,
+   "fov": 28,
+   "off": [
+    -0.01,
+    0,
+    -0.025
+   ]
+  }
+ ],
+ "layers": {
+  "Layer_Skin": [
+   [
+    0,
+    0.5
+   ],
+   [
+    2.6,
+    0.5
+   ],
+   [
+    3.3,
+    0.4
+   ],
+   [
+    4.1,
+    0.0
+   ]
+  ],
+  "Layer_Muscle": [
+   [
+    0,
+    0.0
+   ],
+   [
+    1.2,
+    0.0
+   ],
+   [
+    2.2,
+    0.9
+   ],
+   [
+    4.8,
+    0.9
+   ],
+   [
+    5.6,
+    0.0
+   ]
+  ],
+  "Layer_Skeleton": [
+   [
+    0,
+    0.0
+   ],
+   [
+    3.8,
+    0.0
+   ],
+   [
+    4.6,
+    0.9
+   ],
+   [
+    5.0,
+    0.9
+   ],
+   [
+    5.8,
+    0.0
+   ]
+  ],
+  "Layer_Lungs": [
+   [
+    0,
+    0.0
+   ],
+   [
+    5.2,
+    0.0
+   ],
+   [
+    6.1,
+    0.8
+   ],
+   [
+    6.9,
+    0.8
+   ],
+   [
+    7.6,
+    0.0
+   ]
+  ],
+  "Layer_Vessels": [
+   [
+    0,
+    0.0
+   ],
+   [
+    6.5,
+    0.0
+   ],
+   [
+    7.3,
+    1.0
+   ],
+   [
+    14,
+    1.0
+   ]
+  ],
+  "Layer_Heart": [
+   [
+    0,
+    0.0
+   ],
+   [
+    6.8,
+    0.0
+   ],
+   [
+    7.7,
+    1.0
+   ],
+   [
+    10.2,
+    1.0
+   ],
+   [
+    10.8,
+    0.0
+   ]
+  ],
+  "Layer_HeartCut": [
+   [
+    0,
+    0.0
+   ],
+   [
+    10.2,
+    0.0
+   ],
+   [
+    10.8,
+    1.0
+   ],
+   [
+    14,
+    1.0
+   ]
+  ],
+  "Layer_HeartInner": [
+   [
+    0,
+    0.0
+   ],
+   [
+    10.2,
+    0.0
+   ],
+   [
+    10.8,
+    1.0
+   ],
+   [
+    14,
+    1.0
+   ]
+  ]
+ },
+ "highlights": [],
+ "labels": [
+  {
+   "id": "chest",
+   "text": "Chest",
+   "anchor": "chest",
+   "offset": [
+    0.085,
+    -0.1,
+    0.02
+   ],
+   "t0": 2.6,
+   "t1": 4.6,
+   "side": "right",
+   "layer": "Layer_Muscle"
+  },
+  {
+   "id": "heart",
+   "text": "Heart",
+   "anchor": "heart",
+   "offset": [
+    0,
+    -0.03,
+    0.0
+   ],
+   "t0": 8.0,
+   "t1": 9.8,
+   "side": "right",
+   "layer": "Layer_Heart"
+  },
+  {
+   "id": "lv",
+   "text": "Left ventricle",
+   "anchor": "obj:Left ventricle",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "t0": 11.2,
+   "t1": 12.4,
+   "side": "right",
+   "layer": "Layer_HeartCut"
+  },
+  {
+   "id": "rv",
+   "text": "Right ventricle",
+   "anchor": "obj:Right ventricle",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "t0": 11.2,
+   "t1": 12.4,
+   "side": "left",
+   "layer": "Layer_HeartCut"
+  },
+  {
+   "id": "lv2",
+   "text": "Left ventricle",
+   "anchor": "obj:Left ventricle",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "t0": 12.5,
+   "t1": 14.0,
+   "side": "right",
+   "layer": "Layer_HeartCut"
+  }
+ ],
+ "anchor_overrides": {
+  "body": {
+   "center": [
+    0.0,
+    0.0,
+    0.88
+   ]
+  }
+ },
+ "light": {
+  "key": 900,
+  "rim": 500
+ },
+ "layer_order": [
+  "Layer_HeartInner",
+  "Layer_HeartCut",
+  "Layer_Heart",
+  "Layer_Vessels",
+  "Layer_Lungs",
+  "Layer_Skeleton",
+  "Layer_Muscle",
+  "Layer_Skin"
+ ],
+ "glow": [
+  {
+   "id": "chest",
+   "layer": "Layer_Muscle",
+   "color": [
+    1.0,
+    0.22,
+    0.12
+   ],
+   "rim": 2.6,
+   "power": 2.0,
+   "fill": 0.25,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     1.4,
+     0
+    ],
+    [
+     2.4,
+     1.0
+    ],
+    [
+     4.6,
+     1.0
+    ],
+    [
+     5.4,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "heart",
+   "layer": "Layer_Heart",
+   "color": [
+    1.0,
+    0.35,
+    0.25
+   ],
+   "rim": 2.2,
+   "power": 2.2,
+   "fill": 0.0,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     7.6,
+     0
+    ],
+    [
+     8.6,
+     1.0
+    ],
+    [
+     10.2,
+     1.0
+    ],
+    [
+     10.8,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "cut",
+   "layer": "Layer_HeartCut",
+   "color": [
+    1.0,
+    0.35,
+    0.25
+   ],
+   "rim": 1.8,
+   "power": 2.2,
+   "fill": 0.1,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     10.2,
+     0
+    ],
+    [
+     11.0,
+     1.0
+    ],
+    [
+     14,
+     1.0
+    ]
+   ]
+  },
+  {
+   "id": "vessels",
+   "layer": "Layer_Vessels",
+   "color": [
+    0.55,
+    0.7,
+    1.0
+   ],
+   "rim": 1.0,
+   "power": 2.5,
+   "fill": 0.0,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     7.2,
+     0
+    ],
+    [
+     8.4,
+     0.5
+    ],
+    [
+     14,
+     0.5
+    ]
+   ]
+  },
+  {
+   "id": "skin",
+   "layer": "Layer_Skin",
+   "color": [
+    0.5,
+    0.74,
+    1.0
+   ],
+   "rim": 1.7,
+   "power": 2.0,
+   "fill": 0.2,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     2.0,
+     0
+    ],
+    [
+     2.8,
+     1.0
+    ],
+    [
+     4.0,
+     1.0
+    ],
+    [
+     4.1,
+     0
+    ]
+   ]
+  }
+ ],
+ "bloom": {
+  "strength": 0.7,
+  "radius": 0.6,
+  "threshold": 1.0
+ },
+ "double_sided": [
+  "Layer_HeartCut"
+ ],
+ "prepass_always": [
+  "Layer_Skin",
+  "Layer_Muscle",
+  "Layer_Skeleton"
+ ]
+}

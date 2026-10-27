@@ -188,13 +188,13 @@ def _place_new(ok: Sequence[ResolvedCue], placed: Sequence[Item], clears: Sequen
             if not LY.inside(rect_v):
                 r.problems.append(f"cue {c.id}: the box {rect_v} is outside the {LY.MARGIN} px margins")
                 continue
-            hit = collides(rect_v, r.onset_clip, hide)
+            hit = collides(rect_v, r.onset_clip, hide, ignore=tuple(prm.get("over") or ()))       # a cross-out lies over its picture (schema v1.6)
             if hit:
                 r.problems.append(f"cue {c.id}: the box at {tuple(c.pos)} collides with {hit!r}, which is on screen at the same time")
                 continue
             r.slot, r.lines, r.font_px = "free", list(m["lines"]), m["px"]
             it = Item(c.id, "visual", r.onset_clip, str(c.text), c.role, (rect_v[0], rect_v[1]), c.cps, 0.0, hide, LY.clamp(LY.inflate(rect_v, 24)), r.first_frame or 0,
-                      slot="free", rect=rect_v, asset=c.asset, lines=tuple(m["lines"]), px=m["px"], style=prm.get("style", ""), tint=bool(prm.get("tint", False)), align=str(prm.get("align", "")))
+                      slot="free", rect=rect_v, asset=c.asset, lines=tuple(m["lines"]), px=m["px"], style=prm.get("style", ""), tint=bool(prm.get("tint", False)), align=str(prm.get("align", "")), vparams=dict(prm) if (prm.get("count") or "sv" in prm or "pv" in prm) else None)
             it.word_boxes = (tuple(m.get("inner", (0, 0))),)
             if r.caption:                                            # a synced typed line: each word appears when it is spoken (the caption ladder of schema v1.2)
                 it.reveal_frames = tuple(r.caption["reveal_frames"])
@@ -320,7 +320,7 @@ def _place_new(ok: Sequence[ResolvedCue], placed: Sequence[Item], clears: Sequen
         nm, rect = chosen
         r.slot, r.lines, r.font_px = nm, list(lines), px
         it = Item(c.id, c.kind, r.onset_clip, text, c.role, (rect[0], rect[1]), c.cps, r.type_duration_s or 0.0, hide, LY.clamp(LY.inflate(rect, 24)), r.first_frame or 0,
-                  slot=nm, rect=rect, asset=c.asset, lines=lines, px=px)
+                  slot=nm, rect=rect, asset=c.asset, lines=lines, px=px, vparams=dict(c.params) if (c.params or {}).get("count") else None)
         new.append(it)
         everything.append(it)
     by_id = {i.cue_id: i for i in everything}
@@ -358,7 +358,10 @@ def _place_new(ok: Sequence[ResolvedCue], placed: Sequence[Item], clears: Sequen
     return new
 
 
-def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path: Optional[str], frame_no: int, instrument: bool, narrator=None, background: str = "grey") -> Image.Image:
+def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path: Optional[str], frame_no: int, instrument: bool, narrator=None, background: str = "grey",
+               camera: str = "off", texture=False, n_frames: int = 0, fps: int = 30, camera_focus: Optional[Tuple[float, float]] = None) -> Image.Image:
+    """camera / texture (both off by default; off returns the frame exactly as before): see explainer/motion/camera.py and texture.py. The camera needs the clip's `n_frames` (and `fps`)
+    because it is a function of the clip length; it is not applied to instrumented frames (they must stay pixel-exact)."""
     W, H = size
     th = T.THEME
     if background != "grey" and font_path is None:
@@ -417,16 +420,38 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
             bit = (frame_no >> (15 - b)) & 1
             d.rectangle([b * CODE_CELL, 0, b * CODE_CELL + CODE_CELL - 1, CODE_CELL - 1], fill=(255, 255, 255) if bit else (0, 0, 0))
         d.rectangle([0, CODE_CELL, W - 1, H - 1], outline=(220, 0, 0), width=6)
+    elif camera != "off" or texture:
+        im = _finish(im, size, frame_no, camera, texture, n_frames, fps, camera_focus)
     return im
 
 
-def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int], out_path: Path, font_path: Optional[str], instrument: bool, narrator=None, background: str = "grey") -> int:
+def _finish(im: Image.Image, size: Tuple[int, int], frame_no: int, camera: str, texture, n_frames: int, fps: int, camera_focus) -> Image.Image:
+    """Opt-in camera + film texture on the finished frame (camera first, so the grain and vignette stay fixed to the screen)."""
+    from ..motion import camera as CAM
+    from ..motion import texture as TX
+    box = CAM.camera_box(camera, n_frames, frame_no, fps, size, camera_focus)
+    if box is not None:
+        im = CAM.apply(im, box)
+    mode = TX.normalize(texture)
+    if mode:
+        layer, _note = TX.get_layer(size)            # a missing asset gives layer None: plain frame (encode() reports the note)
+        im = TX.apply(im, layer, frame_no, fps, mode)
+    return im
+
+
+def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int], out_path: Path, font_path: Optional[str], instrument: bool, narrator=None, background: str = "grey",
+           camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None, notes: Optional[List[str]] = None) -> int:
+    """`notes`, when given, receives one line per degraded opt-in (for example a missing texture asset). With camera "off" and texture False nothing changes."""
     W, H = size
+    if texture:
+        from ..motion import texture as TX
+        if TX.normalize(texture) and TX.get_layer(size)[0] is None and notes is not None:
+            notes.append(TX.get_layer(size)[1])
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
            "-an", "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p", "-preset", "medium", "-movflags", "+faststart", str(out_path)]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(n_frames):
-        p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator, background).tobytes())
+        p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator, background, camera, texture, n_frames, fps, camera_focus).tobytes())
     p.stdin.close()
     try:
         return p.wait(timeout=3600)

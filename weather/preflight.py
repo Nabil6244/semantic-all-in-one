@@ -108,6 +108,14 @@ def preflight(project, words: Sequence, duration: float, *, edit_style: str = "c
     except Exception as exc:
         rep.stop("guard", f"{type(exc).__name__}: {exc}")
     total = plan.duration or 1.0
+    try:   # the storm-scene clips that Generate will look for on YouTube (weather.ytfill); the dry run itself never touches the network
+        from .ytfill import enabled as yt_on, wanted as yt_wanted
+
+        if yt_on(project) and yt_wanted(plan):
+            rep.notes.append(f"YouTube news footage: {len(yt_wanted(plan))} storm-scene clip(s) will be searched on YouTube at Generate "
+                             "(stock footage where nothing relevant is found)")
+    except Exception:
+        pass
     rep.stats.update(beats=len(plan.beats), clips=sum(len(b.clips) for b in plan.beats),
                      map_share=f"{sum(b.end - b.start for b in plan.beats if b.mode != 'footage') / total:.0%}")
     # 3. Hybrid's compile (its own plan checks)

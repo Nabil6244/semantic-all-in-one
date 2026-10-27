@@ -1,0 +1,420 @@
+{
+ "asset_id": "scenes_v2_v1",
+ "built_by": "explainer/cartoon/build_scenes_v2.py",
+ "layers_digest": "5e041425b9d275a2ca753b8e53e236435d541fd21943a774e503439dff55c701",
+ "pillow_version": "12.3.0",
+ "props": {
+  "barbed_wire": {
+   "bbox": [
+    0,
+    17,
+    520,
+    189
+   ],
+   "bytes": 9000,
+   "file": "prop_barbed_wire.png",
+   "sha256": "23869a284cf79bb052ecdf5fa466932954b7be53e0d55469a7b60414342bd209",
+   "size": [
+    520,
+    190
+   ]
+  },
+  "border_post": {
+   "bbox": [
+    95,
+    8,
+    237,
+    339
+   ],
+   "bytes": 4438,
+   "file": "prop_border_post.png",
+   "sha256": "ff6116ce9d63550bc3e624eee1d148a4b6b2e6cbda283497fa05f888199cc089",
+   "size": [
+    240,
+    340
+   ]
+  },
+  "coin_stack": {
+   "bbox": [
+    17,
+    85,
+    313,
+    260
+   ],
+   "bytes": 10085,
+   "file": "prop_coin_stack.png",
+   "sha256": "e809fd73f739176bdb56bf9f3394a9d6ad507181be76b325d59cf12341a8ecc7",
+   "size": [
+    320,
+    260
+   ]
+  },
+  "folder": {
+   "bbox": [
+    17,
+    21,
+    283,
+    231
+   ],
+   "bytes": 3748,
+   "file": "prop_folder.png",
+   "sha256": "3c114dc4c4aa86f43c79af72905fff64b4d8fce5cc2f09a2e6d052271d787bed",
+   "size": [
+    300,
+    240
+   ]
+  },
+  "gold_bars": {
+   "bbox": [
+    7,
+    27,
+    469,
+    259
+   ],
+   "bytes": 9983,
+   "file": "prop_gold_bars.png",
+   "sha256": "5bef8cae0ebd6b700b6d32a88ed934a0380480ed5d903a51f54dce9fdbcacf51",
+   "size": [
+    480,
+    270
+   ]
+  },
+  "lantern": {
+   "bbox": [
+    35,
+    1,
+    125,
+    275
+   ],
+   "bytes": 4381,
+   "file": "prop_lantern.png",
+   "sha256": "552dec80530a0809545874b1d3626feca89af2283f375c9d12b6bf59933e0d3c",
+   "size": [
+    160,
+    280
+   ]
+  },
+  "letter": {
+   "bbox": [
+    7,
+    37,
+    293,
+    203
+   ],
+   "bytes": 4859,
+   "file": "prop_letter.png",
+   "sha256": "f6652da9093b31bb818b6c89a1d6169c87d2e162ffd1f49c6d2f893ab596a544",
+   "size": [
+    300,
+    210
+   ]
+  },
+  "map_table": {
+   "bbox": [
+    17,
+    37,
+    403,
+    279
+   ],
+   "bytes": 6728,
+   "file": "prop_map_table.png",
+   "sha256": "076928447cfb069a034eebbd734e910daafebf0e6086655979f9d4e976b1fe84",
+   "size": [
+    420,
+    280
+   ]
+  },
+  "plane": {
+   "bbox": [
+    8,
+    42,
+    553,
+    268
+   ],
+   "bytes": 14485,
+   "file": "prop_plane.png",
+   "sha256": "554b0af323ec6ac898dcf57d6213fcf9ad029bfd165ff07ddac8ae956a8fa3a7",
+   "size": [
+    560,
+    270
+   ]
+  },
+  "radio": {
+   "bbox": [
+    7,
+    7,
+    293,
+    217
+   ],
+   "bytes": 7520,
+   "file": "prop_radio.png",
+   "sha256": "e9cd05f8fee934fb910b8397e97d16b99d22f54029076d0f1108ff7129fede1d",
+   "size": [
+    300,
+    220
+   ]
+  },
+  "ship": {
+   "bbox": [
+    8,
+    0,
+    693,
+    297
+   ],
+   "bytes": 6784,
+   "file": "prop_ship.png",
+   "sha256": "67f29f19693e3b898eb38a628e2f0ae035cb3b01782432bcf613d976785f9656",
+   "size": [
+    700,
+    330
+   ]
+  },
+  "tank": {
+   "bbox": [
+    27,
+    19,
+    457,
+    199
+   ],
+   "bytes": 9557,
+   "file": "prop_tank.png",
+   "sha256": "9d8a1c3f474ddde30ef1aa80398513659e2bafd7043a18dc0c9a06c358ef19b6",
+   "size": [
+    460,
+    210
+   ]
+  },
+  "train": {
+   "bbox": [
+    3,
+    47,
+    783,
+    291
+   ],
+   "bytes": 20764,
+   "file": "prop_train.png",
+   "sha256": "2a264516e75ffdd0b7251963aed036a0c7d5a977b338f51da962a1f9ed58333a",
+   "size": [
+    800,
+    300
+   ]
+  },
+  "truck": {
+   "bbox": [
+    7,
+    47,
+    487,
+    251
+   ],
+   "bytes": 9718,
+   "file": "prop_truck.png",
+   "sha256": "3b3ec6fd45adda184639db396fd5451d1a8239e0e8d6fb1517597a9de98960d8",
+   "size": [
+    500,
+    260
+   ]
+  },
+  "vault_door": {
+   "bbox": [
+    5,
+    5,
+    355,
+    355
+   ],
+   "bytes": 30900,
+   "file": "prop_vault_door.png",
+   "sha256": "933a4e11799ce689b71ab5b5486c15df652fa11f73e03ace84a387acda80c0d3",
+   "size": [
+    360,
+    360
+   ]
+  }
+ },
+ "sets": {
+  "barn": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 24300,
+     "file": "set_barn_day.png",
+     "sha256": "9f0208f3d57653378de1e22e7c06d5cebe24d10c79e85917fa9164b50976f8e3",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 22320,
+     "file": "set_barn_dusk.png",
+     "sha256": "b53145b7baacbe0484b42856901ad91c89556dcbebffa0fc6bfd8543c6598f26",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "border_wall": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 29140,
+     "file": "set_border_wall_day.png",
+     "sha256": "667bcb9a6fd967d742ea9bdc56086f6fc0372bc119eb8ca68ca78cb883f4b99a",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 28413,
+     "file": "set_border_wall_dusk.png",
+     "sha256": "9dd382b525846a7fea1ec22828b4bd50ebd12f3cbd4bf8bfa2098169ce42e604",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "mountain_pass": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 92642,
+     "file": "set_mountain_pass_day.png",
+     "sha256": "5a966e8d9b5de62420287622624b615142723f9a2d14a3101aa3309bbe39018b",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 88185,
+     "file": "set_mountain_pass_dusk.png",
+     "sha256": "9bbee53647c4f326e0d64b560bc8f94a7ea74c95b2fab7154d1457b58bafc752",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "old_town": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 38944,
+     "file": "set_old_town_day.png",
+     "sha256": "3b9be74e2c984d733bb43c4e15f37c9591c08bd40929eb3b5d8c8929b0d3cd9a",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 33948,
+     "file": "set_old_town_dusk.png",
+     "sha256": "cfac3db8eb7c9f362e8e97b8977469e2da49c8f1d0047ffbc4e20d4c1aabd715",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "snowy_village": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 99891,
+     "file": "set_snowy_village_day.png",
+     "sha256": "aa6dc1029b06051274396cf245acf5ee8652e531c7806c374213f309a016fbdb",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 98744,
+     "file": "set_snowy_village_dusk.png",
+     "sha256": "a22d657b004e74199c23887b9436278078a51bce0777517ddcc0a912f3d37116",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "station": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 29498,
+     "file": "set_station_day.png",
+     "sha256": "edca9a4d9e0ec3ed93763ac85bdf8c43023c440be426f347e943a34ee2033331",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 28527,
+     "file": "set_station_dusk.png",
+     "sha256": "ea245db24840f4c8275769dcd96d12c28ed182658d9f86983ddbfed259ac0dff",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "vault": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 77854,
+     "file": "set_vault_day.png",
+     "sha256": "67e3be10f4034c3b10e78a7702aa9efd36094d193b611fbc66cdd2454ce8e135",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 72396,
+     "file": "set_vault_dusk.png",
+     "sha256": "6509e8ea4172e827c9e720965dedc706ab7b6c23bd65cc838776ed7c310cb68d",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "village": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 68133,
+     "file": "set_village_day.png",
+     "sha256": "757711573f94b87ab3563cac34b018bf16092d1abbd8b0c257d62a2308692104",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 64553,
+     "file": "set_village_dusk.png",
+     "sha256": "faf99406f2bdc7e7e99a1af387424e4e818e546b6ea8564b89f8d4e6b44b15f6",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  }
+ },
+ "version": 1
+}

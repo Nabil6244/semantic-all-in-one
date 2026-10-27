@@ -1,0 +1,366 @@
+{
+ "narration_s": 331.816,
+ "all_on_seconds": 151.12,
+ "fx_budget": {
+  "windows_s": {
+   "stamp": 120.0,
+   "plate": 180.0,
+   "count": 90.0,
+   "cross": 180.0,
+   "line": 150.0
+  },
+  "used": {
+   "stamp": [
+    9.838,
+    132.17,
+    256.966
+   ],
+   "plate": [
+    16.236,
+    215.232
+   ],
+   "count": [
+    20.576,
+    120.074,
+    219.572,
+    319.07
+   ],
+   "cross": [
+    13.184,
+    212.18
+   ],
+   "line": []
+  },
+  "counts": {
+   "stamp": 3,
+   "plate": 2,
+   "count": 4,
+   "cross": 2,
+   "line": 0
+  },
+  "refused": [
+   {
+    "kind": "stamp",
+    "t": 32.672,
+    "why": "stamp: 23 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 43.004,
+    "why": "stamp: 33 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 49.402,
+    "why": "plate: 33 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 46.35,
+    "why": "cross: 33 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 52.16,
+    "why": "stamp: 42 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 53.742,
+    "why": "count: 33 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 57.97,
+    "why": "stamp: 48 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 65.838,
+    "why": "stamp: 56 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 64.368,
+    "why": "plate: 48 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 76.17,
+    "why": "stamp: 66 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 82.568,
+    "why": "plate: 66 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 79.516,
+    "why": "cross: 66 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 85.326,
+    "why": "stamp: 75 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 86.908,
+    "why": "count: 66 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 91.136,
+    "why": "stamp: 81 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 99.004,
+    "why": "stamp: 89 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 97.534,
+    "why": "plate: 81 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 109.336,
+    "why": "stamp: 99 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 115.734,
+    "why": "plate: 99 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 112.682,
+    "why": "cross: 99 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 118.492,
+    "why": "stamp: 109 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 124.302,
+    "why": "stamp: 114 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 130.7,
+    "why": "plate: 114 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 148.9,
+    "why": "plate: 133 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 145.848,
+    "why": "cross: 133 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 151.658,
+    "why": "stamp: 19 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 153.24,
+    "why": "count: 33 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 157.468,
+    "why": "stamp: 25 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 165.336,
+    "why": "stamp: 33 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 163.866,
+    "why": "plate: 148 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 175.668,
+    "why": "stamp: 43 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 182.066,
+    "why": "plate: 166 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 179.014,
+    "why": "cross: 166 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 184.824,
+    "why": "stamp: 53 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 186.406,
+    "why": "count: 66 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 190.634,
+    "why": "stamp: 58 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 198.502,
+    "why": "stamp: 66 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 208.834,
+    "why": "stamp: 77 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 217.99,
+    "why": "stamp: 86 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 223.8,
+    "why": "stamp: 92 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 231.668,
+    "why": "stamp: 99 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 242.0,
+    "why": "stamp: 110 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 248.398,
+    "why": "plate: 33 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 245.346,
+    "why": "cross: 33 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 251.156,
+    "why": "stamp: 119 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 252.738,
+    "why": "count: 33 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 263.364,
+    "why": "plate: 48 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 275.166,
+    "why": "stamp: 18 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 281.564,
+    "why": "plate: 66 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 278.512,
+    "why": "cross: 66 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 284.322,
+    "why": "stamp: 27 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "count",
+    "t": 285.904,
+    "why": "count: 66 s after the previous one (budget: one per 90 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 290.132,
+    "why": "stamp: 33 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 298.0,
+    "why": "stamp: 41 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 296.53,
+    "why": "plate: 81 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 308.332,
+    "why": "stamp: 51 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 314.73,
+    "why": "plate: 99 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "cross",
+    "t": 311.678,
+    "why": "cross: 99 s after the previous one (budget: one per 180 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 317.488,
+    "why": "stamp: 61 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "stamp",
+    "t": 323.298,
+    "why": "stamp: 66 s after the previous one (budget: one per 120 s)"
+   },
+   {
+    "kind": "plate",
+    "t": 329.696,
+    "why": "plate: 114 s after the previous one (budget: one per 180 s)"
+   }
+  ]
+ },
+ "stamps": [
+  [
+   9.8,
+   "e3",
+   "SURROUNDED"
+  ],
+  [
+   132.2,
+   "e28",
+   "FREED"
+  ],
+  [
+   257.0,
+   "e55",
+   "CAUGHT"
+  ]
+ ]
+}

@@ -41,11 +41,11 @@ BIG = {"quote_card", "checklist", "chart", "number", "panel", "chapter", "ring",
 FULLSCREEN = {"quote_card", "chart", "line", "rings", "hbars", "dossier", "framed", "polaroids", "forecast"}
 NUMBER_GAP_S = 12.0   # big numbers at least this far apart
 GAP_BIG_S = 7.0
-# b-roll that shows no place (it may be filmed anywhere without misleading): a stock shot of a street, a town or a landscape
-# needs proof it was filmed in the US (weather.footage_geo), so the defaults never ask for one
-DEFAULT_STOCK = {"tornado": "dark rotating storm clouds", "severe": "lightning in dark storm clouds", "flood": "heavy rain falling into water close up",
-                 "heavy_rain": "heavy rain falling close up", "hurricane": "heavy rain and strong wind close up", "tropical_storm": "heavy rain and strong wind close up",
-                 "winter": "snow falling close up", "heat": "heat haze close up", "forecast": "dark storm clouds time lapse"}
+# the last resort for a section is what its weather DID (a flooded street, a damaged roof, waves over a seawall), never a close-up of
+# clouds: the reference videos show the storm's effects, and a sky shot says nothing about the event. Only a forecast is the sky.
+DEFAULT_STOCK = {"tornado": "tornado damage debris", "severe": "storm damaged roof", "flood": "flooded street",
+                 "heavy_rain": "heavy rain falling on street", "hurricane": "hurricane storm surge flooding", "tropical_storm": "storm surge flooding street",
+                 "winter": "snowstorm on a city street", "heat": "heat haze shimmering", "forecast": "dark storm clouds time lapse"}
 VARIANTS = ("wide shot", "close up", "aerial view", "from the ground", "slow motion", "at dusk")
 
 
@@ -172,12 +172,15 @@ SCENES = [
     (r"\b(rain|rainfall|downpour)\b", "heavy rain falling on street"),
 ]
 # several shots of each weather, rotated (one request repeated for a whole section looks like one clip on loop)
-POOL = {"tornado": ["dark rotating storm clouds", "tornado funnel cloud", "supercell storm time lapse", "tornado damage debris"],
-        "severe": ["lightning in dark storm clouds", "strong wind bending trees", "heavy rain falling on street", "supercell storm time lapse",
-                   "hailstones bouncing on the ground"],
-        "flood": ["swollen muddy river flooding", "flooded farm fields", "flood water flowing over road", "heavy rain falling into water close up",
-                  "flooded neighborhood street"],
-        "heavy_rain": ["heavy rain falling on street", "flood water flowing over road", "rain on windshield driving"]}
+POOL = {"tornado": ["tornado damage debris", "damaged houses after a tornado", "tornado funnel cloud", "storm damaged roof",
+                    "supercell storm time lapse"],
+        "severe": ["storm damaged roof", "strong wind bending trees", "fallen trees after a storm", "heavy rain falling on street",
+                   "hailstones bouncing on the ground", "lightning in dark storm clouds"],
+        "flood": ["flooded street", "swollen muddy river flooding", "flooded farm fields", "flood water flowing over road",
+                  "flooded neighborhood street", "rescue crew in floodwater"],
+        "heavy_rain": ["heavy rain falling on street", "flood water flowing over road", "rain on windshield driving"],
+        "hurricane": ["hurricane storm surge flooding", "waves crashing over a seawall", "palm trees bending in hurricane wind",
+                      "flooded street after a hurricane", "storm damaged roof"]}
 
 
 def stock_request(text: str, category: str, idx: int = 0) -> str:

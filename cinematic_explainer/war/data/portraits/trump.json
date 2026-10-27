@@ -1,0 +1,27 @@
+{
+ "id": "trump",
+ "name": "Donald Trump",
+ "status": "ok",
+ "file": "trump.jpg",
+ "reuse": "free",
+ "attribution_required": false,
+ "share_alike": false,
+ "licence": "Public domain",
+ "licence_url": "",
+ "creator": "Daniel Torok",
+ "attribution": "Daniel Torok, Public domain",
+ "source_url": "https://commons.wikimedia.org/wiki/File:Official_Presidential_Portrait_of_President_Donald_J._Trump_(2025)_(3x4).jpg",
+ "commons_title": "File:Official Presidential Portrait of President Donald J. Trump (2025) (3x4).jpg",
+ "wikidata_qid": "Q22686",
+ "wikidata_label": "Donald Trump",
+ "wikidata_description": "President of the United States (2017–2021; since 2025)",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2025-06-02",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

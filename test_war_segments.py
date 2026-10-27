@@ -246,7 +246,8 @@ class FootageAttributionTests(unittest.TestCase):
             kinds = {(ly.kind, round(ly.start)) for ly in plan.layers}
             self.assertFalse(any(k == "shot_headline" and t < 5 for k, t in kinds))          # no headline claiming anything over generic stock
             chips = [ly.params["text"] for ly in plan.layers if ly.kind == "status_chip"]
-            self.assertIn("ILLUSTRATIVE FOOTAGE", chips)
+            badges = [ly.params.get("kind") for ly in plan.layers if ly.kind == "kit_badge"]     # the direction pass shows the same label as a badge
+            self.assertTrue("ILLUSTRATIVE FOOTAGE" in chips or "illustrative" in badges)
             self.assertTrue(any(c.startswith("UNVERIFIED") and "Some Channel" in c for c in chips))
             flags = {d.scene_no: d.flags for d in plan.log}
             self.assertIn("footage_generic", flags[1])

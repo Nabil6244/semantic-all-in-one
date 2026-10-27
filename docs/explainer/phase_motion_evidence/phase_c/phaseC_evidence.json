@@ -1,0 +1,12 @@
+{
+ "e4_cross": {
+  "over": "e4_tile1",
+  "negation": "no",
+  "first_frame": 51
+ },
+ "e5_count": {
+  "text": "45 percent",
+  "first_frame": 104,
+  "roll_frames": 26
+ }
+}

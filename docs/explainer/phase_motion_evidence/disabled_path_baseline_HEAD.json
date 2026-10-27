@@ -1,0 +1,68 @@
+{
+ "korea/classic": {
+  "beats": 9,
+  "clips": {
+   "e1": "board_216a191538728d9c.mp4",
+   "e2": "board_290b339e3ffbbd9b.mp4",
+   "e4": "board_8228dce28d3a8d80.mp4",
+   "e5": "board_cc5b9eb5f511f5a3.mp4",
+   "e6": "board_c8b5f70f43c30396.mp4",
+   "e7": "board_6e0515ea49c4f792.mp4",
+   "e8": "board_62d1e63ea3b3cb49.mp4",
+   "e9": "board_1967aa73514375c8.mp4"
+  },
+  "cue_specs_sha": "bbb391fe2b7eeb1b8a39a4694ba2d7bc19928d587c3ef3cade75e61e78a6645f",
+  "options_sha": "1e904dce4c72e74832422b80ca34a57bbd437b2a33f7b32174dd425ca4a72558",
+  "plan_sha": "290d6ffba4394e5610ac41e6715ac827c643cd16fcddb88273dd54055a013c99",
+  "problems": []
+ },
+ "korea/reference": {
+  "beats": 9,
+  "clips": {
+   "e1": "board_29c30106d2690eca.mp4",
+   "e2": "board_8bcac95dd73cd455.mp4",
+   "e4": "board_73aafccb9752f218.mp4",
+   "e5": "board_446135dca4d242e8.mp4",
+   "e6": "board_2f9b87794dee2d74.mp4",
+   "e7": "board_fa35c72992aa0fcc.mp4",
+   "e8": "board_062a4085701d9265.mp4",
+   "e9": "board_889d6425eeb400fe.mp4"
+  },
+  "cue_specs_sha": "0b26196a4b82e02f7b55c8b575f8ae3453f7caab4604a6030f4bee484c5740fb",
+  "options_sha": "bae61b43d0c40088286c887e11c83fd63f79f97e6760a0404720bdf8bbd1e02b",
+  "plan_sha": "5cdfd1a48d8c66a7dc88f0256b851a224f4c215980115d666cadf83f8efbbd51",
+  "problems": []
+ },
+ "verdicts/classic": {
+  "beats": 8,
+  "clips": {
+   "e2": "board_8194c31a7a264923.mp4",
+   "e3": "board_497a1f9e497a366b.mp4",
+   "e4": "board_2911cb6e02b81a3b.mp4",
+   "e5": "board_ffec0a38bc7a74f6.mp4",
+   "e6": "board_e1019b783aaf3f3e.mp4",
+   "e7": "board_02b95c7aca19125f.mp4",
+   "e8": "board_776c387dd235478c.mp4"
+  },
+  "cue_specs_sha": "2a2032cc42d226c0246ddbf31bdeb0ce379bd4970b0c20a570c4932d8ac4858a",
+  "options_sha": "1e904dce4c72e74832422b80ca34a57bbd437b2a33f7b32174dd425ca4a72558",
+  "plan_sha": "da371080471557f564906872e82b5f68b7a9208848372aa0016b191b43a41650",
+  "problems": []
+ },
+ "verdicts/reference": {
+  "beats": 8,
+  "clips": {
+   "e2": "board_1f7de1c5826a147b.mp4",
+   "e3": "board_3816a4f47ee616fa.mp4",
+   "e4": "board_f66b7415eadc0aff.mp4",
+   "e5": "board_84f2c8e68070070a.mp4",
+   "e6": "board_e173107f53a64451.mp4",
+   "e7": "board_21080ef3b6c8602d.mp4",
+   "e8": "board_8b9542562d563a4f.mp4"
+  },
+  "cue_specs_sha": "7f36ea011fe6b5fd7c67621f6c77768faf666e619a149fdfcc1851a8a84815ba",
+  "options_sha": "bae61b43d0c40088286c887e11c83fd63f79f97e6760a0404720bdf8bbd1e02b",
+  "plan_sha": "45730e720aba5e482034af47a1b529fae0be52e57e51507885eb80d86a69a94b",
+  "problems": []
+ }
+}

@@ -186,7 +186,7 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
         if b.kind != "board" or b.dur < opt.min_beat_s - 1e-6:
             continue
         toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
-        sc = scene_score(toks)
+        sc = scene_score(toks, scenes2=getattr(opt, "scenes2", False))
         if sc > 0:
             scored.append((-sc, k))
         else:

@@ -1,0 +1,172 @@
+{
+ "e4": {
+  "year": "1944",
+  "word_time_in_clip_s": 1.176,
+  "plate_first_frame_planned": 36,
+  "plate_first_frame_measured_in_encoded_clip": 36,
+  "planned_lag_s_after_word": 0.0,
+  "changed_pixel_diffs_per_frame_around_plate": [
+   [
+    33,
+    0
+   ],
+   [
+    34,
+    0
+   ],
+   [
+    35,
+    0
+   ],
+   [
+    36,
+    2514
+   ],
+   [
+    37,
+    3028
+   ],
+   [
+    38,
+    3833
+   ],
+   [
+    39,
+    3846
+   ],
+   [
+    40,
+    3881
+   ],
+   [
+    41,
+    3930
+   ]
+  ],
+  "plate_rect": [
+   1682,
+   96,
+   1824,
+   185
+  ],
+  "measured_changed_bbox_at_landing": [
+   1682,
+   96,
+   1823,
+   184
+  ],
+  "safe_area": [
+   96,
+   96,
+   1824,
+   984
+  ],
+  "inside_safe_area": true,
+  "old_element": {
+   "id": "e4_tag1",
+   "rect": [
+    1380,
+    130,
+    1597,
+    301
+   ],
+   "first_frame_off_clip": 39,
+   "ink_fraction_in_old_rect_OFF_clip": 0.4174,
+   "ink_fraction_in_old_rect_ON_clip": 0.0,
+   "old_rect_overlaps_plate_rect": false
+  },
+  "year_text_cues_in_on_board": [
+   "e4_line1",
+   "e4_plate1"
+  ],
+  "year_text_cues_in_off_board": [
+   "e4_line1",
+   "e4_tag1"
+  ]
+ },
+ "e7": {
+  "year": "1945",
+  "word_time_in_clip_s": 1.176,
+  "plate_first_frame_planned": 36,
+  "plate_first_frame_measured_in_encoded_clip": 36,
+  "planned_lag_s_after_word": 0.0,
+  "changed_pixel_diffs_per_frame_around_plate": [
+   [
+    33,
+    0
+   ],
+   [
+    34,
+    0
+   ],
+   [
+    35,
+    0
+   ],
+   [
+    36,
+    2577
+   ],
+   [
+    37,
+    3116
+   ],
+   [
+    38,
+    3910
+   ],
+   [
+    39,
+    3947
+   ],
+   [
+    40,
+    3975
+   ],
+   [
+    41,
+    4049
+   ]
+  ],
+  "plate_rect": [
+   1680,
+   96,
+   1824,
+   185
+  ],
+  "measured_changed_bbox_at_landing": [
+   1680,
+   96,
+   1823,
+   184
+  ],
+  "safe_area": [
+   96,
+   96,
+   1824,
+   984
+  ],
+  "inside_safe_area": true,
+  "old_element": {
+   "id": "e7_chip1",
+   "rect": [
+    672,
+    876,
+    929,
+    1007
+   ],
+   "first_frame_off_clip": 39,
+   "ink_fraction_in_old_rect_OFF_clip": 0.2308,
+   "ink_fraction_in_old_rect_ON_clip": 0.0,
+   "old_rect_overlaps_plate_rect": false
+  },
+  "year_text_cues_in_on_board": [
+   "e7_line1",
+   "e7_plate1"
+  ],
+  "year_text_cues_in_off_board": [
+   "e7_line1",
+   "e7_chip1"
+  ]
+ }
+}

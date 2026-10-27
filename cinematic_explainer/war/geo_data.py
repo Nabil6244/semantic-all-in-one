@@ -218,3 +218,76 @@ def great_circle(a: Tuple[float, float], b: Tuple[float, float], n: int = 48) ->
         z = A * math.sin(la1) + B * math.sin(la2)
         pts.append((math.degrees(math.atan2(y, x)), math.degrees(math.atan2(z, math.hypot(x, y)))))
     return pts
+
+
+# ---------------------------------------------------------------------------------------------------------------- context layers (rivers, lakes, cities, oblasts)
+# data/ne_context.json.gz: Natural Earth 1:50m rivers_lake_centerlines, lakes and populated_places_simple clipped to lon 8..70, lat 34..70
+# (public domain, https://www.naturalearthdata.com, retrieved 2026-10-27). Only drawing context: nothing here says anything about events.
+CONTEXT_PATH = Path(__file__).resolve().parent / "data" / "ne_context.json.gz"
+THEATRE_ISO = ("UKR", "RUS", "BLR", "POL", "ROU", "MDA", "SVK", "HUN", "LTU", "LVA", "EST", "FIN", "GEO", "TUR", "BGR", "KAZ", "AZE", "ARM")
+CONTEXT_SOURCE = "Natural Earth 1:50m rivers, lakes, populated places and admin-1 areas (public domain)"
+
+# Sea names at well-known open-water points (lat, lon), drawn as quiet labels when in view.
+SEAS: Dict[str, Tuple[float, float]] = {
+    "BLACK SEA": (43.3, 34.2), "SEA OF AZOV": (46.1, 36.9), "BALTIC SEA": (57.6, 19.6), "CASPIAN SEA": (42.0, 50.6),
+    "SEA OF MARMARA": (40.7, 28.2), "WHITE SEA": (65.5, 38.0), "BARENTS SEA": (70.5, 38.0),
+}
+# a second and third open-water point for the larger seas, so the name is still on screen when the first point is not
+SEA_ALT: Dict[str, Tuple[Tuple[float, float], ...]] = {"BLACK SEA": ((45.1, 31.6), (44.0, 30.9), (43.0, 38.6), (42.2, 31.0), (43.6, 28.8)), "BALTIC SEA": ((55.0, 17.0), (59.0, 21.0))}
+# Rivers whose names are worth printing (ne name -> printed name)
+RIVER_LABELS = {"Dnipro": "Dnipro", "Dnepre": "Dnipro", "Don": "Don", "Volga": "Volga", "Dniester": "Dniester", "Danube": "Danube", "Donau": "Danube",
+                "Vistula": "Vistula", "Neva": "Neva"}
+_CAPITALS = {"Kyiv", "Moscow", "Minsk", "Warsaw", "Bucharest", "Chisinau", "Ankara", "Vilnius", "Riga", "Tallinn", "Helsinki", "Sofia", "Budapest",
+             "Bratislava", "Tbilisi", "Berlin", "Prague", "Vienna"}
+_BIG = {"Kharkiv", "Odesa", "Dnipro", "Donetsk", "Lviv", "Zaporizhzhia", "St Petersburg", "Rostov-on-Don", "Volgograd", "Voronezh", "Istanbul",
+        "Krasnodar", "Sevastopol", "Mariupol", "Luhansk"}
+
+
+@lru_cache(maxsize=1)
+def context() -> Dict[str, object]:
+    """The clipped Natural Earth context (rivers, lakes, cities) or empty lists when the file is missing or unreadable."""
+    try:
+        with gzip.open(CONTEXT_PATH, "rt", encoding="utf-8") as fh:
+            d = json.load(fh)
+        if isinstance(d, dict):
+            return d
+    except (OSError, ValueError):
+        pass
+    return {"rivers": [], "lakes": [], "cities": [], "source": ""}
+
+
+@lru_cache(maxsize=1)
+def context_cities() -> List[Dict[str, object]]:
+    """Quiet-context cities: the curated gazetteer (weights: capital 3, big city 2, other 1) plus Natural Earth cities of 400 000 or more that are
+    not within 0.6 degrees of a gazetteer entry (weight 1.5 from a million, else 1)."""
+    out: List[Dict[str, object]] = []
+    for name, (la, lo) in GAZETTEER.items():
+        out.append({"n": name, "lat": la, "lon": lo, "w": 3.0 if name in _CAPITALS else 2.0 if name in _BIG else 1.0})
+    for c in context().get("cities", []) or []:
+        try:
+            pop = c.get("pop") or 0
+            if pop < 400_000:
+                continue
+            if any(abs(o["lat"] - c["lat"]) < 0.6 and abs(o["lon"] - c["lon"]) < 0.9 for o in out):
+                continue
+            out.append({"n": str(c["n"]).replace("  ", " "), "lat": float(c["lat"]), "lon": float(c["lon"]), "w": 1.5 if pop >= 1_000_000 else 1.0})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+@lru_cache(maxsize=1)
+def theatre_admin1() -> List[Feature]:
+    """Admin-1 areas (oblasts, regions, provinces) of the theatre's countries, as Features (built once)."""
+    seen = set()
+    out: List[Feature] = []
+    for lst in _raw_admin1().values():
+        for raw in lst:
+            if id(raw) in seen or raw.get("iso") not in THEATRE_ISO:
+                continue
+            seen.add(id(raw))
+            try:
+                out.append(Feature(raw))
+            except Exception:
+                continue
+    return out

@@ -1,0 +1,27 @@
+{
+ "id": "gerasimov",
+ "name": "Valery Gerasimov",
+ "status": "ok",
+ "file": "gerasimov.jpg",
+ "reuse": "attribution_required",
+ "attribution_required": true,
+ "share_alike": false,
+ "licence": "CC BY 4.0",
+ "licence_url": "https://creativecommons.org/licenses/by/4.0",
+ "creator": "Vadim Savitsky",
+ "attribution": "Vadim Savitsky, CC BY 4.0",
+ "source_url": "https://commons.wikimedia.org/wiki/File:%D0%9D%D0%93%D0%A8_%D0%92%D0%A1_%D0%A0%D0%A4_%D0%92.%D0%92._%D0%93%D0%B5%D1%80%D0%B0%D1%81%D0%B8%D0%BC%D0%BE%D0%B2.jpg",
+ "commons_title": "File:НГШ ВС РФ В.В. Герасимов.jpg",
+ "wikidata_qid": "Q36073",
+ "wikidata_label": "Valery Gerasimov",
+ "wikidata_description": "Chief of the General Staff of the Armed Forces of the Russian Federation",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2013-03-20",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

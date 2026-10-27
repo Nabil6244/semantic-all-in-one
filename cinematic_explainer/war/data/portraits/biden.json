@@ -1,0 +1,27 @@
+{
+ "id": "biden",
+ "name": "Joe Biden",
+ "status": "ok",
+ "file": "biden.jpg",
+ "reuse": "free",
+ "attribution_required": false,
+ "share_alike": false,
+ "licence": "Public domain",
+ "licence_url": "",
+ "creator": "Adam Schultz",
+ "attribution": "Adam Schultz, Public domain",
+ "source_url": "https://commons.wikimedia.org/wiki/File:Joe_Biden_presidential_portrait.jpg",
+ "commons_title": "File:Joe Biden presidential portrait.jpg",
+ "wikidata_qid": "Q6279",
+ "wikidata_label": "Joe Biden",
+ "wikidata_description": "46th President of the United States (2021–2025)",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2021-03-03",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

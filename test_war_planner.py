@@ -5,6 +5,23 @@ import unittest
 
 from cinematic_explainer.war import catalog as C
 from cinematic_explainer.war import planner as P
+from cinematic_explainer.war import planner as _planner_mod
+
+
+class _Planner:
+    """These tests pin the planner's own card choices; the art-direction pass (config 'direction') is tested in test_war_upgrade_planner.py."""
+
+    def __getattr__(self, name):
+        return getattr(_planner_mod, name)
+
+    @staticmethod
+    def plan(scenes, **kw):
+        cfg = dict(kw.pop("config", None) or {})
+        cfg.setdefault("direction", False)
+        return _planner_mod.plan(scenes, config=cfg, **kw)
+
+
+P = _Planner()
 from cinematic_explainer.war import semantics as S
 
 CARD_KINDS = {"evidence_card", "figure_card", "stat_number", "stat_compare", "equipment_card", "institution_card", "map_card", "timeline",
@@ -143,6 +160,20 @@ class Maps(unittest.TestCase):
 
 
 class People(unittest.TestCase):
+    def setUp(self):
+        # these tests are about the planner's rules, not about which portraits are cached on this machine
+        from cinematic_explainer.war import portraits as PT
+
+        self._pt = (PT.BUNDLED_DIR, PT.user_dir)
+        PT.BUNDLED_DIR = os.path.join(tempfile.gettempdir(), "war_no_portraits")
+        PT.BUNDLED_DIR = __import__("pathlib").Path(PT.BUNDLED_DIR)
+        PT.user_dir = lambda: PT.BUNDLED_DIR
+
+    def tearDown(self):
+        from cinematic_explainer.war import portraits as PT
+
+        PT.BUNDLED_DIR, PT.user_dir = self._pt
+
     def test_attributed_quote_gives_figure_card_with_name_plate(self):
         p = P.plan([sc(1, '"We will not move the depot," said President Volodymyr Zelensky.')])
         f = cards(p, "figure_card")

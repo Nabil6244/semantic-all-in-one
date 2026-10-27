@@ -28,6 +28,18 @@ class DirectorOptions:
     narrator_style: str = "serious"     # serious | cartoon (the original round-faced explorer)
     cartoon_share: float = 0.0          # 0 = no cartoon beats (the default: nothing changes); otherwise the largest share of the runtime that board beats may be turned into cartoon beats (scene set, cast, one prop; no narrator)
     look: str = "reference"             # "reference": large picture tiles, boxes, titles and typed lines (schema v1.3); "classic": the cream cards of Milestones 1 to 4a (kept, unchanged)
+    budget: bool = False                # opt-in phase F: every motion effect (stamp, plate, count-up, cross-out, map line) is limited per video window and rotates its entrance variant; needs the effects themselves switched on; False = nothing changes
+    variety: bool = False               # opt-in phase E: no picture-layout family three times in a row, and a lamp-lit "dossier" backdrop on beats about secrets, ciphers and intelligence; False = nothing changes
+    maplines: bool = False              # opt-in phase D: a flow line on a map beat between two places the narration joins with a relation word (to, across, invaded...); False = nothing changes
+    numbers: bool = False               # opt-in phase C (explainer/motion): a spoken quantity rolls up to its number, a spoken negation before a picture crosses it out; False = nothing changes
+    motion: bool = False                # opt-in motion kit (explainer/motion): a slammed verdict stamp on a spoken verdict word and a corner plate for a spoken year; False = nothing changes
+    fill: bool = False                  # opt-in fill pass (compose_fill): a near-empty board beat gets a staged build from its own narration (pictures, tag, boxes with an arrow, a typed line, one new element every ~1.8 s), duplicate numbers are removed and a lone fragment is extended; False = nothing changes
+    sound: bool = False                 # opt-in: a sound-effect track (and a ducked bed) built from the plan report (explainer/motion/sfx); False = nothing changes
+    dialogue: bool = False              # opt-in: a spoken quote becomes a speech bubble, a lamp-lit spot on dusk sets (compose_dialogue); False = nothing changes
+    scenes2: bool = False               # opt-in: the v2 cartoon scene pack (8 more sets, day/dusk, 15 props/tiles); False = nothing changes
+    mapoverlay: bool = False            # opt-in: outlines, arrows, pins, stamps and plates drawn over a map beat as a separate alpha clip (beats/overlay); False = nothing changes
+    camera: str = "off"                 # opt-in: off | push | drift | reframe: a slow camera on the finished board frame (motion/camera); "off" = nothing changes
+    texture: bool = False               # opt-in: grain, vignette and dust on the finished board frame (motion/texture); False = nothing changes
     # ---- plan ----
     dissolve_s: float = 0.0             # 0 = hard cuts everywhere (the reference); 0.5 = Hybrid's dissolve everywhere. Plan-wide in Hybrid
     fps: int = 30

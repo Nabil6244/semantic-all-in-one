@@ -1,0 +1,629 @@
+{
+ "_about": "Real stock clips of Weather projects #005, #006, #007 labeled by hand (2026-10-27): did the clip show what was requested? Used by test_weather_footage_geo.TheLabeledClips. Add cases when a project shows a wrong clip.",
+ "clips": [
+  {
+   "project": "2026-10-15007",
+   "scene": "012",
+   "label": "good",
+   "request": "car headlights stopping before a flooded road at night",
+   "source_url": "https://www.pexels.com/video/a-car-drives-through-a-flooded-street-at-night-9481660/",
+   "author": "Lone  Pictures"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "018",
+   "label": "good",
+   "request": "lake from above",
+   "source_url": "https://www.pexels.com/video/aerial-footage-of-placid-lake-under-blue-sky-and-white-clouds-4791609/",
+   "author": "K"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "014",
+   "label": "good",
+   "request": "dark floodwater flowing across a rural road after dusk",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-flooded-rural-landscape-34809564/",
+   "author": "NGUYỄN THÀNH NHƠN"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "004",
+   "label": "good",
+   "request": "trees bending hard in severe thunderstorm wind gusts",
+   "source_url": "https://www.pexels.com/video/swaying-trees-during-a-storm-5354605/",
+   "author": "Magda Ehlers"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "007",
+   "label": "good",
+   "request": "brown river overflowing its banks into pasture",
+   "source_url": "https://www.pexels.com/video/drone-footage-of-an-overflowing-river-causing-flood-3574631/",
+   "author": "Tom Fisk"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "019",
+   "label": "good",
+   "request": "road through the countryside",
+   "source_url": "https://www.pexels.com/video/rural-road-with-passing-truck-in-misty-countryside-29815337/",
+   "author": "Altaf Shah"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "003",
+   "label": "good",
+   "request": "debris and branches blowing across a road in violent wind",
+   "source_url": "https://www.pexels.com/video/utility-workers-clearing-storm-debris-on-road-30567549/",
+   "author": "Ibrahim Bennett"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "002",
+   "label": "good",
+   "request": "mobile home park under dark rotating storm clouds",
+   "source_url": "https://www.pexels.com/video/dramatic-storm-clouds-rolling-over-landscape-35225359/",
+   "author": "Dancing Sky"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "010",
+   "label": "good",
+   "request": "shallow floodwater covering a rural gravel road",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-flooded-rural-area-and-road-32934528/",
+   "author": "K"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "001",
+   "label": "bad",
+   "request": "person running from a car into a sturdy brick building under a dark storm sky",
+   "source_url": "https://www.pexels.com/video/aerial-footage-of-people-running-towards-a-car-6605103/",
+   "author": "Gleb Albovsky"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "017",
+   "label": "bad",
+   "request": "pea-size hail bouncing on a lawn",
+   "source_url": "https://www.pexels.com/video/cars-on-a-bridge-1051035/",
+   "author": "Kim L."
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "015",
+   "label": "bad",
+   "request": "tree limbs snapping in gusty thunderstorm wind",
+   "source_url": "https://www.pexels.com/video/tall-palm-tree-palmettos-bend-in-the-gusts-of-strong-desert-wind-19132906/",
+   "author": "Ben Garves"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "009",
+   "label": "bad",
+   "request": "farm field cut off by water in a side channel",
+   "source_url": "https://www.pexels.com/video/a-green-grass-field-9067198/",
+   "author": "Kmeel.com Videos"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "008",
+   "label": "bad",
+   "request": "oil pumpjack standing in muddy floodwater",
+   "source_url": "https://www.pexels.com/video/silhouette-of-oil-pumpjack-against-evening-sky-39051310/",
+   "author": "Andres Ormaechea"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "005",
+   "label": "bad",
+   "request": "small hailstones bouncing off a car hood",
+   "source_url": "https://www.pexels.com/video/person-opening-the-car-hood-7844139/",
+   "author": "Kampus Production"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "006",
+   "label": "bad",
+   "request": "family moving into an interior hallway of a house",
+   "source_url": "https://www.pexels.com/video/family-moving-into-a-new-house-7347884/",
+   "author": "MART  PRODUCTION"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "013",
+   "label": "bad",
+   "request": "car turning around at the edge of floodwater",
+   "source_url": "https://www.pexels.com/video/a-car-is-parked-in-the-water-with-a-tow-rope-attached-28144840/",
+   "author": "iddea photo"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "016",
+   "label": "bad",
+   "request": "patio chairs blowing across a backyard",
+   "source_url": "https://www.pexels.com/video/modern-backyard-patio-with-landscaped-garden-39334564/",
+   "author": "Luis  Erives"
+  },
+  {
+   "project": "2026-10-15007",
+   "scene": "011",
+   "label": "bad",
+   "request": "low-lying crop field with standing water",
+   "source_url": "https://www.pexels.com/video/an-aerial-view-of-a-field-with-a-large-field-17353593/",
+   "author": "wowi allinsky"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "042",
+   "label": "good",
+   "request": "homeowner reviewing a policy document",
+   "source_url": "https://www.pexels.com/video/reviewing-a-home-insurance-policy-7732811/",
+   "author": "Mikhail Nilov"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "018",
+   "label": "good",
+   "request": "state capitol building exterior",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-utah-state-capitol-building-34668546/",
+   "author": "Michael"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "023",
+   "label": "good",
+   "request": "road crew working on a mountain highway bridge",
+   "source_url": "https://www.pexels.com/video/drone-footage-of-a-road-and-mountain-9182623/",
+   "author": "Erik Mclean"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "046",
+   "label": "good",
+   "request": "engineers walking along a dam crest",
+   "source_url": "https://www.pexels.com/video/an-aerial-view-of-a-dam-and-river-16993791/",
+   "author": "DeLuca G"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "004",
+   "label": "good",
+   "request": "stack of paperwork on a desk",
+   "source_url": "https://www.pexels.com/video/stack-of-paperwork-on-the-desk-7054942/",
+   "author": "Kindel Media"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "026",
+   "label": "good",
+   "request": "person driving a rural road beside a creek",
+   "source_url": "https://www.pexels.com/video/drone-footage-of-a-car-driving-along-a-rural-road-15461158/",
+   "author": "Diko OnTop"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "005",
+   "label": "good",
+   "request": "one-lane bridge over a mountain river",
+   "source_url": "https://www.pexels.com/video/a-bridge-over-a-river-in-the-mountains-15686391/",
+   "author": "Jozef Papp"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "035",
+   "label": "good",
+   "request": "dump trucks hauling debris from a lakeshore",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-construction-site-with-trucks-31130632/",
+   "author": "K"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "025",
+   "label": "good",
+   "request": "aerial view of floodwater",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-flooded-road-surrounded-by-water-35137026/",
+   "author": "NGUYỄN THÀNH NHƠN"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "019",
+   "label": "good",
+   "request": "construction cranes at a river dam site",
+   "source_url": "https://www.pexels.com/video/construction-cranes-at-a-busy-waterfront-site-32547342/",
+   "author": "CK Seng"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "054",
+   "label": "good",
+   "request": "phone receiving an emergency alert",
+   "source_url": "https://www.pexels.com/video/notification-on-a-phone-7821643/",
+   "author": "RDNE Stock project"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "002",
+   "label": "good",
+   "request": "empty construction site fenced off in a mountain river valley",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-construction-site-in-scenic-landscape-38780369/",
+   "author": "TR Studio"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "001",
+   "label": "good",
+   "request": "earthen embankment beside a concrete dam spillway",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-a-massive-dam-structure-39637447/",
+   "author": "David Pickup |  Advertising & Marketing  🇬🇧"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "017",
+   "label": "good",
+   "request": "engineers reviewing dam design plans",
+   "source_url": "https://www.pexels.com/video/engineers-checking-construction-plans-6285685/",
+   "author": "Gustavo Fring"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "003",
+   "label": "good",
+   "request": "old concrete arch dam with water spilling over",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-water-flowing-over-dam-spillway-28963707/",
+   "author": "K"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "052",
+   "label": "good",
+   "request": "person typing a comment on a phone",
+   "source_url": "https://www.pexels.com/video/person-typing-on-a-mobile-phone-4671883/",
+   "author": "Vilkenson Thimothée"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "048",
+   "label": "good",
+   "request": "bridge construction site in the mountains",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-bridge-construction-in-mountain-region-37855246/",
+   "author": "Yunus Terk"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "045",
+   "label": "good",
+   "request": "aerial view of a large concrete dam",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-a-majestic-dam-in-lush-valley-29811173/",
+   "author": "Chakrit Tariya"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "007",
+   "label": "good",
+   "request": "vintage motorboats on a mountain lake",
+   "source_url": "https://www.pexels.com/video/scenic-boat-ride-on-serene-mountain-lake-30016531/",
+   "author": "Kęstutis Akmanavičius"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "030",
+   "label": "good",
+   "request": "water releasing through dam gates",
+   "source_url": "https://www.pexels.com/video/river-water-flowing-from-the-dam-gates-3820576/",
+   "author": "Erkan Avanoğlu"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "016",
+   "label": "good",
+   "request": "muddy floodwater eroding an earthen bank",
+   "source_url": "https://www.pexels.com/video/muddy-stream-water-flowing-outdoors-37415701/",
+   "author": "Huey Freeman"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "024",
+   "label": "good",
+   "request": "road closed sign beside a bridge",
+   "source_url": "https://www.pexels.com/video/road-closed-sign-in-forest-13039628/",
+   "author": "Darina Evstafeva"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "022",
+   "label": "good",
+   "request": "small town main street",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-quaint-small-town-main-street-33845059/",
+   "author": "EJ Merl"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "010",
+   "label": "good",
+   "request": "mountains reflected in calm lake water",
+   "source_url": "https://www.pexels.com/video/beautiful-scenery-of-a-calm-lake-across-the-mountains-under-cloudy-sky-5383179/",
+   "author": "Amay Jain"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "009",
+   "label": "bad",
+   "request": "real estate for sale sign in front of a lake home",
+   "source_url": "https://www.pexels.com/video/person-holding-a-for-sale-placard-7816454/",
+   "author": "Pavel Danilyuk"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "015",
+   "label": "bad",
+   "request": "sand wall washing away in water",
+   "source_url": "https://www.pexels.com/video/close-up-footage-of-a-sand-in-the-beach-4998525/",
+   "author": "Jyoti  Pur"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "031",
+   "label": "bad",
+   "request": "dam operator in a control room",
+   "source_url": "https://www.pexels.com/video/a-director-in-a-production-control-room-5028976/",
+   "author": "ALL IZ Well"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "036",
+   "label": "bad",
+   "request": "boat dock resting on dry mud lakebed",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-boat-on-serene-lake-waters-31851442/",
+   "author": "Kenan Turguç"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "038",
+   "label": "bad",
+   "request": "drained lake with cracked mud",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-frozen-lake-with-cracking-ice-36352970/",
+   "author": "Efrem  Efre"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "029",
+   "label": "bad",
+   "request": "river gauge sensor mounted on a bridge",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-a-footbridge-over-river-thames-34930926/",
+   "author": "Mark Holmes"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "028",
+   "label": "bad",
+   "request": "river water rising near a house door",
+   "source_url": "https://www.pexels.com/video/weathered-vintage-house-door-and-window-39226628/",
+   "author": "İsmail Ünlü"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "051",
+   "label": "bad",
+   "request": "small town lakeside street",
+   "source_url": "https://www.pexels.com/video/scenic-aerial-view-of-lakeside-mediterranean-town-39426166/",
+   "author": "Enrico Smeraldi"
+  },
+  {
+   "project": "2026-10-14006",
+   "scene": "027",
+   "label": "bad",
+   "request": "person checking a stream bank by hand",
+   "source_url": "https://www.pexels.com/video/a-person-is-holding-a-green-bowl-filled-with-water-24838309/",
+   "author": "Alex Moliski"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "004",
+   "label": "good",
+   "request": "long ocean swells rolling toward a beach",
+   "source_url": "https://www.pexels.com/video/dramatic-ocean-waves-on-a-sunny-day-31273548/",
+   "author": "Dr. Mohammad  Hoque"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "005",
+   "label": "good",
+   "request": "storm clouds over the open ocean",
+   "source_url": "https://www.pexels.com/video/storm-clouds-over-vast-sea-10589414/",
+   "author": "Numan Gilgil"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "006",
+   "label": "good",
+   "request": "waves breaking in repeating sets on a beach",
+   "source_url": "https://www.pexels.com/video/top-view-of-breaking-waves-on-a-beach-10650850/",
+   "author": "Lucius Crick"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "008",
+   "label": "good",
+   "request": "aerial drone view of waves on the coast",
+   "source_url": "https://www.pexels.com/video/aerial-footage-of-sea-waves-crashing-on-the-rocks-11743179/",
+   "author": "Luz Calor Som"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "009",
+   "label": "good",
+   "request": "aerial drone view of waves on the coast, close up",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-ocean-waves-crashing-on-shore-31879939/",
+   "author": "David Pickup |  Advertising & Marketing  🇬🇧"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "010",
+   "label": "bad",
+   "request": "high surf washing over a beachfront street",
+   "source_url": "https://www.pexels.com/video/an-aerial-view-of-a-beach-and-houses-26459485/",
+   "author": "Marc Espejo"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "011",
+   "label": "bad",
+   "request": "waves breaking over a damaged wooden boardwalk",
+   "source_url": "https://www.pexels.com/video/a-wooden-lifeguard-post-overlooking-the-sea-3337291/",
+   "author": "Engin Akyurt"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "012",
+   "label": "good",
+   "request": "aerial drone view of waves on the coast",
+   "source_url": "https://www.pexels.com/video/aerial-footage-of-sea-waves-crashing-on-the-rocks-11743179/",
+   "author": "Luz Calor Som"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "014",
+   "label": "bad",
+   "request": "emergency tape on a coastal home",
+   "source_url": "https://www.pexels.com/video/a-life-preserver-with-a-rope-on-it-20621921/",
+   "author": "Şemsi Belli"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "019",
+   "label": "bad",
+   "request": "crane lifting large sandbags beside a seawall",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-a-large-bridge-construction-site-34601079/",
+   "author": "Toàn BDS"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "020",
+   "label": "good",
+   "request": "hurricane winds and heavy rain bending palm trees",
+   "source_url": "https://www.pexels.com/video/palm-trees-under-heavy-rain-6107944/",
+   "author": "Ankittt Bhattacharjee"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "021",
+   "label": "good",
+   "request": "waves repeatedly striking a weathered seawall",
+   "source_url": "https://www.pexels.com/video/top-view-of-crashing-waves-on-a-concrete-seawall-14515579/",
+   "author": "Traveling on  the Go"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "022",
+   "label": "good",
+   "request": "worn wooden pilings in surf",
+   "source_url": "https://www.pexels.com/video/serene-ocean-waves-and-wooden-pilings-40103462/",
+   "author": "Maryna"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "025",
+   "label": "good",
+   "request": "river flowing from mountains toward the sea",
+   "source_url": "https://www.pexels.com/video/drone-footage-of-river-flowing-into-the-sea-17903618/",
+   "author": "Luz Calor Som"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "026",
+   "label": "bad",
+   "request": "sandy bluffs shedding sand onto a beach",
+   "source_url": "https://www.pexels.com/video/aerial-shot-of-a-landscape-6028974/",
+   "author": "Pavel Danilyuk"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "027",
+   "label": "good",
+   "request": "slow waves moving sand along a shoreline",
+   "source_url": "https://www.pexels.com/video/a-slow-motion-video-of-beach-waves-crashing-on-sand-15029730/",
+   "author": "Mario Krimer"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "028",
+   "label": "good",
+   "request": "gentle waves running up a wide sandy beach",
+   "source_url": "https://www.pexels.com/video/gentle-waves-lapping-on-sandy-shoreline-33705957/",
+   "author": "Mario Krimer"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "034",
+   "label": "bad",
+   "request": "waves scouring the base of a coastal bluff",
+   "source_url": "https://www.pexels.com/video/aerial-view-of-beach-and-coastal-pathway-39188554/",
+   "author": "Paige Goode"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "036",
+   "label": "bad",
+   "request": "aerial view of floodwater in city streets",
+   "source_url": "https://www.pexels.com/video/drone-view-of-flooded-agricultural-fields-35137025/",
+   "author": "NGUYỄN THÀNH NHƠN"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "037",
+   "label": "bad",
+   "request": "aerial view of floodwater in city streets, close up",
+   "source_url": "https://www.pexels.com/video/close-up-video-of-water-flowing-on-a-fountain-5549393/",
+   "author": "gusat silviu"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "038",
+   "label": "bad",
+   "request": "waves slamming into a vertical concrete seawall",
+   "source_url": "https://www.pexels.com/video/an-aerial-view-of-a-road-with-a-bridge-18561634/",
+   "author": "Lay-Z Owl"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "039",
+   "label": "bad",
+   "request": "eroded beach in front of a seawall",
+   "source_url": "https://www.pexels.com/video/video-footage-of-a-lake-on-a-gloomy-sky-4289928/",
+   "author": "WeStarMoney  Rec"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "046",
+   "label": "good",
+   "request": "bulldozers spreading sand on a beach",
+   "source_url": "https://www.pexels.com/video/bulldozers-on-sand-13381952/",
+   "author": "Tom Fisk"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "048",
+   "label": "good",
+   "request": "large waves crashing over a pier",
+   "source_url": "https://www.pexels.com/video/a-pier-with-waves-crashing-over-it-and-a-building-20221892/",
+   "author": "veysel kartalkuş"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "055",
+   "label": "good",
+   "request": "ocean waves rolling onto a beach at sunset",
+   "source_url": "https://www.pexels.com/video/dramatic-ocean-waves-at-sunset-37620070/",
+   "author": "Mario Krimer"
+  },
+  {
+   "project": "2026-10-14 #005",
+   "scene": "056",
+   "label": "good",
+   "request": "calm shoreline at golden hour",
+   "source_url": "https://www.pexels.com/video/scenery-of-beach-during-golden-hour-7480342/",
+   "author": "G media"
+  }
+ ]
+}

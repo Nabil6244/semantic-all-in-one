@@ -15,7 +15,9 @@ from . import layout as LY
 from . import theme as T
 
 TH = T.THEME
-STYLES = ("tile", "circle", "box", "lite", "tag", "scroll", "line", "set", "figure", "crowd", "prop")
+STYLES = ("tile", "circle", "box", "lite", "tag", "scroll", "line", "set", "figure", "crowd", "prop", "stamp", "plate", "cross", "bubble", "spot")
+MOTION_STYLES = ("stamp", "plate", "cross")                       # schema v1.5: the motion kit (explainer/motion); drawn and animated there
+BUBBLE_STYLES = ("bubble", "spot")                                  # opt-in dialogue (explainer/motion/bubbles.py): a speech bubble and a stage spotlight
 CARTOON_STYLES = ("set", "figure", "crowd", "prop")      # schema v1.4: the cartoon kit (explainer/cartoon); drawn from prebuilt assets
 ROLE_TEXT = {"blue": (52, 84, 160), "green": (44, 124, 86), "gold": (172, 116, 22), "red": (176, 52, 60), "ink": TH.ink}
 ROLE_FILL = {"blue": (48, 100, 200), "green": (46, 140, 92), "gold": (226, 170, 40), "red": (204, 66, 64), "ink": (60, 62, 70)}
@@ -35,6 +37,12 @@ def measure(style: str, text: str, params: Dict[str, Any], asset: str = "") -> O
     text = (text or "").strip()
     if style in CARTOON_STYLES:
         return measure_cartoon(style, params)
+    if style in BUBBLE_STYLES:
+        from ..motion import bubbles as BU
+        return {"bubble": BU.measure_bubble, "spot": BU.measure_spot}[style](text, params)
+    if style in MOTION_STYLES:
+        from ..motion import sprites as MS
+        return {"stamp": MS.measure_stamp, "plate": MS.measure_plate, "cross": MS.measure_cross}[style](text, params)
     if style == "line":
         width = int(params.get("width", 900))
         fit = LY.fit_text(text, width, 10 ** 4, "body", int(params.get("px", 56)), 40, int(params.get("lines", 1)))

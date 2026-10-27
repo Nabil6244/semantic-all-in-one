@@ -1,0 +1,316 @@
+{
+ "id": "brain_journey_v1",
+ "profile": "medical_cinema",
+ "duration": 16.0,
+ "background": [
+  0.012,
+  0.016,
+  0.03
+ ],
+ "camera": [
+  {
+   "t": 0.0,
+   "target": "head",
+   "dist": 0.95,
+   "az": -24,
+   "el": 8,
+   "fov": 30
+  },
+  {
+   "t": 3.2,
+   "target": "head",
+   "dist": 0.78,
+   "az": -10,
+   "el": 6,
+   "fov": 30
+  },
+  {
+   "t": 5.4,
+   "target": "brain",
+   "dist": 0.52,
+   "az": 2,
+   "el": 6,
+   "fov": 29
+  },
+  {
+   "t": 8.4,
+   "target": "brain",
+   "dist": 0.44,
+   "az": -30,
+   "el": 9,
+   "fov": 28
+  },
+  {
+   "t": 11.0,
+   "target": "arteries",
+   "dist": 0.62,
+   "az": 18,
+   "el": 3,
+   "fov": 29
+  },
+  {
+   "t": 13.6,
+   "target": "circle_of_willis",
+   "dist": 0.34,
+   "az": 8,
+   "el": 22,
+   "fov": 28
+  },
+  {
+   "t": 16.0,
+   "target": "arteries",
+   "dist": 0.58,
+   "az": -6,
+   "el": 6,
+   "fov": 29
+  }
+ ],
+ "layers": {
+  "Layer_Skull": [
+   [
+    0,
+    0.55
+   ],
+   [
+    3.4,
+    0.55
+   ],
+   [
+    5.0,
+    0.0
+   ]
+  ],
+  "Layer_Cortex": [
+   [
+    0,
+    0.0
+   ],
+   [
+    2.8,
+    0.0
+   ],
+   [
+    4.4,
+    1.0
+   ],
+   [
+    9.6,
+    1.0
+   ],
+   [
+    11.2,
+    0.3
+   ],
+   [
+    16,
+    0.3
+   ]
+  ],
+  "Layer_Cerebellum": [
+   [
+    0,
+    0.0
+   ],
+   [
+    2.8,
+    0.0
+   ],
+   [
+    4.4,
+    1.0
+   ],
+   [
+    9.6,
+    1.0
+   ],
+   [
+    11.2,
+    0.3
+   ],
+   [
+    16,
+    0.3
+   ]
+  ],
+  "Layer_Arteries": [
+   [
+    0,
+    0.0
+   ],
+   [
+    9.0,
+    0.0
+   ],
+   [
+    10.4,
+    1.0
+   ],
+   [
+    16,
+    1.0
+   ]
+  ]
+ },
+ "layer_order": [
+  "Layer_Arteries",
+  "Layer_Cerebellum",
+  "Layer_Cortex",
+  "Layer_Skull"
+ ],
+ "prepass_always": [
+  "Layer_Skull",
+  "Layer_Cortex",
+  "Layer_Cerebellum"
+ ],
+ "highlights": [],
+ "glow": [
+  {
+   "id": "skull",
+   "layer": "Layer_Skull",
+   "color": [
+    0.5,
+    0.74,
+    1.0
+   ],
+   "rim": 1.2,
+   "power": 2.0,
+   "fill": 0.15,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     0.4,
+     1.0
+    ],
+    [
+     3.4,
+     1.0
+    ],
+    [
+     5.0,
+     0
+    ]
+   ]
+  },
+  {
+   "id": "brain",
+   "layer": "Layer_Cortex",
+   "color": [
+    1.0,
+    0.55,
+    0.5
+   ],
+   "rim": 1.1,
+   "power": 2.2,
+   "fill": 0.0,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     4.8,
+     0
+    ],
+    [
+     5.8,
+     1.0
+    ],
+    [
+     9.6,
+     1.0
+    ],
+    [
+     11.0,
+     0.45
+    ],
+    [
+     16,
+     0.45
+    ]
+   ]
+  },
+  {
+   "id": "arteries",
+   "layer": "Layer_Arteries",
+   "color": [
+    1.0,
+    0.25,
+    0.2
+   ],
+   "rim": 2.2,
+   "power": 2.0,
+   "fill": 0.1,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     9.8,
+     0
+    ],
+    [
+     10.8,
+     1.0
+    ],
+    [
+     16,
+     1.0
+    ]
+   ]
+  }
+ ],
+ "bloom": {
+  "strength": 0.45,
+  "radius": 0.5,
+  "threshold": 1.0
+ },
+ "labels": [
+  {
+   "id": "brain",
+   "text": "Brain",
+   "anchor": "cortex",
+   "offset": [
+    0.0,
+    -0.04,
+    0.045
+   ],
+   "t0": 6.0,
+   "t1": 8.2,
+   "side": "right",
+   "layer": "Layer_Cortex"
+  },
+  {
+   "id": "ica",
+   "text": "Internal carotid artery",
+   "anchor": "obj:Internal carotid artery.r",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "t0": 11.4,
+   "t1": 13.4,
+   "side": "left",
+   "layer": "Layer_Arteries"
+  },
+  {
+   "id": "mca",
+   "text": "Middle cerebral artery",
+   "anchor": "obj:Middle cerebral artery (M1-segment).l",
+   "offset": [
+    0,
+    0,
+    0
+   ],
+   "t0": 14.0,
+   "t1": 15.8,
+   "side": "right",
+   "layer": "Layer_Arteries"
+  }
+ ],
+ "exposure": 0.78
+}

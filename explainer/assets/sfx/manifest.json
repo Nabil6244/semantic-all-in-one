@@ -1,0 +1,84 @@
+{
+ "asset_id": "explainer_sfx_v1",
+ "files": {
+  "bed_neutral.wav": {
+   "bytes": 1323044,
+   "kind": "bed",
+   "loop": true,
+   "mood": "neutral",
+   "seconds": 30,
+   "sha256": "7836a64f7a31523d813938f76ff253e15b7d55806982c79040cc1960ad03a8f5",
+   "sr": 22050
+  },
+  "bed_tense.wav": {
+   "bytes": 1323044,
+   "kind": "bed",
+   "loop": true,
+   "mood": "tense",
+   "seconds": 30,
+   "sha256": "7003d73b7fadf01da50b0b7df1a4f8094418d6c175f0e717ec4c197d1c57d7d2",
+   "sr": 22050
+  },
+  "bed_warm.wav": {
+   "bytes": 1323044,
+   "kind": "bed",
+   "loop": true,
+   "mood": "warm",
+   "seconds": 30,
+   "sha256": "d004440cff82113c34ad9e1c144d6e4aa49a41b00ed9e8a1d6cdf5423a677918",
+   "sr": 22050
+  },
+  "count_tick.wav": {
+   "bytes": 4454,
+   "kind": "effect",
+   "seconds": 0.05,
+   "sha256": "6a55321fe9fe99613622197dbd26aee34b9a9982dee094df3bd7ca6d3f83d8a9",
+   "sr": 44100
+  },
+  "cross_scratch.wav": {
+   "bytes": 31796,
+   "kind": "effect",
+   "seconds": 0.36,
+   "sha256": "4e4789cd484da9433b08a016a2648bce73fd0b8f2454b881484a0ef70a731bbb",
+   "sr": 44100
+  },
+  "paper_rustle.wav": {
+   "bytes": 31796,
+   "kind": "effect",
+   "seconds": 0.36,
+   "sha256": "f3cae16bf44e20bbaea33341700f4b530e897e897f919ec1c13e5c2b53c6062f",
+   "sr": 44100
+  },
+  "pop.wav": {
+   "bytes": 14156,
+   "kind": "effect",
+   "seconds": 0.16,
+   "sha256": "46b8be715d9321e4fd3a5e7473fd1270c8cee333b2717a89d28786c13026988c",
+   "sr": 44100
+  },
+  "reveal_riser.wav": {
+   "bytes": 97064,
+   "kind": "effect",
+   "seconds": 1.1,
+   "sha256": "411964427c05988f7c5933d23039a73d4a16e0639408dd26cb5f5637c95e77da",
+   "sr": 44100
+  },
+  "slide_whoosh.wav": {
+   "bytes": 37088,
+   "kind": "effect",
+   "seconds": 0.42,
+   "sha256": "423228c9be84a9cd019f5cdcceeca775e8f34f0b782f4d76e5a6791efbe50301",
+   "sr": 44100
+  },
+  "stamp_thump.wav": {
+   "bytes": 33560,
+   "kind": "effect",
+   "seconds": 0.38,
+   "sha256": "666aaf548b0ba806f23d338fef0bcf187743685bc441c0c998f66ce1f2090935",
+   "sr": 44100
+  }
+ },
+ "note": "synthesised; peak -6 dBFS effects, -18 dBFS RMS beds; not listened to",
+ "numpy": "2",
+ "total_bytes": 4219046
+}

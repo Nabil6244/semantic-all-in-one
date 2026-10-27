@@ -1,0 +1,285 @@
+{
+ "images": {
+  "bayraktar-tb2": {
+   "attribution": "Photo: Ministry of Defence of Ukraine · CC BY 4.0 · Wikimedia Commons",
+   "commons_title": "File:Bayraktar TB2 of UAF, 2020, 09.jpg",
+   "creator": "Ministry of Defence of Ukraine",
+   "description": "Bayraktar TB2 of Ukrainian Air Force",
+   "file": "bayraktar-tb2.jpg",
+   "id": "bayraktar-tb2",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by/4.0",
+   "name": "Bayraktar TB2",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Bayraktar_TB2_of_UAF%2C_2020%2C_09.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    600
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:Bayraktar_TB2_of_UAF,_2020,_09.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "f-16": {
+   "attribution": "Photo: Ukrainian Air Force · CC BY 4.0 · Wikimedia Commons",
+   "commons_title": "File:F-16AM Ukrainian Air Force during take off.jpg",
+   "creator": "Ukrainian Air Force",
+   "description": "A General Dynamics F-16AM Fighting Falcon of the Ukrainian Air Force during take off, carrying five AIM-9 Sidewinder air-to-air missiles.",
+   "file": "f-16.jpg",
+   "id": "f-16",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by/4.0",
+   "name": "F-16",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/35/F-16AM_Ukrainian_Air_Force_during_take_off.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    450
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:F-16AM_Ukrainian_Air_Force_during_take_off.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "iskander-m": {
+   "attribution": "Photo: Vitaly V. Kuzmin · CC BY-SA 4.0 · Wikimedia Commons",
+   "commons_title": "File:Army2016demo-075.jpg",
+   "creator": "Vitaly V. Kuzmin",
+   "description": "Самоходная пусковая установка 9П78-1 ОТРК 9К720 Искандер-М с ракетами 9М723К5 (9P78-1 TEL of 9K720 Iskander-M SRBM system with 9M723K5 missiles)",
+   "file": "iskander-m.jpg",
+   "id": "iskander-m",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY-SA 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "name": "9K720 Iskander-M",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Army2016demo-075.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    521
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:Army2016demo-075.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "leopard-2": {
+   "attribution": "Photo: U.S. Army Europe photo by Visual Information Specialist Markus Rauchenberger · Public domain · Wikimedia Commons",
+   "commons_title": "File:German Army Leopard 2A6 tank in Oct. 2012.jpg",
+   "creator": "U.S. Army Europe photo by Visual Information Specialist Markus Rauchenberger",
+   "description": "A German Army Leopard 2 tank, assigned to 104th Panzer Battalion, moves through the Joint Multinational Readiness Center during Saber Junction 2012 in Hohenfels, Germany, Oct. 25. The U.S. Army Europe",
+   "file": "leopard-2.jpg",
+   "id": "leopard-2",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "Leopard 2",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/8/87/German_Army_Leopard_2A6_tank_in_Oct._2012.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    536
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:German_Army_Leopard_2A6_tank_in_Oct._2012.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "m1-abrams": {
+   "attribution": "Photo: Spc. Kali Ecton · Public domain · Wikimedia Commons",
+   "commons_title": "File:M1A2 SEP v3.jpg",
+   "creator": "Spc. Kali Ecton",
+   "description": "U.S. Army soldiers assigned to Bravo ‘Bad Bet’ Company, 2nd Battalion, 12th Cavalry Regiment, 1st Armored Brigade Combat Team, 1st Cavalry Division, conduct Table V exercises with the M1A2 Abrams Tank",
+   "file": "m1-abrams.jpg",
+   "id": "m1-abrams",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "M1 Abrams",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/0b/M1A2_SEP_v3.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    450
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:M1A2_SEP_v3.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "m142-himars": {
+   "attribution": "Photo: U.S. Army photo · Public domain · Wikimedia Commons",
+   "commons_title": "File:HIMARS - missile launched.jpg",
+   "creator": "U.S. Army photo",
+   "description": "The High Mobility Artillery Rocket System fires the U.S. Army's new guided Multiple Launch Rocket System during testing at White Sands Missile Range.",
+   "file": "m142-himars.jpg",
+   "id": "m142-himars",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "M142 HIMARS",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/8/83/HIMARS_-_missile_launched.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    600
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:HIMARS_-_missile_launched.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "m777": {
+   "attribution": "Photo: Lance Cpl. Katelyn Hunter · Public domain · Wikimedia Commons",
+   "commons_title": "File:United States Marine Corps M777A2-155mm-howitzer.jpg",
+   "creator": "Lance Cpl. Katelyn Hunter",
+   "description": "U.S. Marines fire an M777A2 155 mm howitzer during a demonstration for local government officials and media at the North Fuji Maneuver Area, Shizuoka prefecture, Japan.",
+   "file": "m777.jpg",
+   "id": "m777",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "M777",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/5/51/United_States_Marine_Corps_M777A2-155mm-howitzer.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    358
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:United_States_Marine_Corps_M777A2-155mm-howitzer.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "pantsir-s1": {
+   "attribution": "Photo: Vitaly V. Kuzmin · CC BY-SA 4.0 · Wikimedia Commons",
+   "commons_title": "File:Pantsir-S1 Weapon System with radar antenna.jpg",
+   "creator": "Vitaly V. Kuzmin",
+   "description": "Pantsir-S1 Weapon System. In the Center the EHF phased-array tracking Radar. Two twin-barrel 2A38M automatic anti-aircraft guns and 12 ready to launch missile-containers each containing one 57E6-E com",
+   "file": "pantsir-s1.jpg",
+   "id": "pantsir-s1",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY-SA 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "name": "Pantsir-S1",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Pantsir-S1_Weapon_System_with_radar_antenna.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    528
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:Pantsir-S1_Weapon_System_with_radar_antenna.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "patriot": {
+   "attribution": "Photo: DoD Photo By Glenn Fawcett · Public domain · Wikimedia Commons",
+   "commons_title": "File:U-s-service-members-stand-by-a-patriot-missile-battery-in-gaziantep-turkey.jpg",
+   "creator": "DoD Photo By Glenn Fawcett",
+   "description": "U.S. Service members stand by a Patriot missile battery in Gaziantep, Turkey, Feb. 4, 2013, during a visit from U.S. Deputy Secretary of Defense Ashton B. Carter, not shown. U.S. and NATO Patriot miss",
+   "file": "patriot.jpg",
+   "id": "patriot",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "MIM-104 Patriot",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/2f/U-s-service-members-stand-by-a-patriot-missile-battery-in-gaziantep-turkey.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    435
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:U-s-service-members-stand-by-a-patriot-missile-battery-in-gaziantep-turkey.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "s-400": {
+   "attribution": "Photo: Vitaly V. Kuzmin · CC BY-SA 4.0 · Wikimedia Commons",
+   "commons_title": "File:13April-Rehersal-Alabino-34.jpg",
+   "creator": "Vitaly V. Kuzmin",
+   "description": "S-400 Triumf air defence system transporter erector launcher",
+   "file": "s-400.jpg",
+   "id": "s-400",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY-SA 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "name": "S-400 Triumf",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/13April-Rehersal-Alabino-34.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    514
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:13April-Rehersal-Alabino-34.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "shahed-136": {
+   "attribution": "Photo: Mohammadreza Jabbari · CC BY 4.0 · Wikimedia Commons",
+   "commons_title": "File:2023 IRGC Aerospace Force achievements Exhibition in Qom (33).jpg",
+   "creator": "Mohammadreza Jabbari",
+   "description": "This photo shows a front view of a Shahed-136 drone at the Islamic Revolutionary Guard Corps Aerospace Force achievements exhibition in the garden of the Museum of the Islamic Revolution and Holy Defe",
+   "file": "shahed-136.jpg",
+   "id": "shahed-136",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by/4.0",
+   "name": "Shahed-136 / Geran-2",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/3/37/2023_IRGC_Aerospace_Force_achievements_Exhibition_in_Qom_%2833%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    530
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:2023_IRGC_Aerospace_Force_achievements_Exhibition_in_Qom_(33).jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "storm-shadow": {
+   "attribution": "Photo: Corrado Baldassi · CC BY-SA 3.0 · Wikimedia Commons",
+   "commons_title": "File:StormShadow-Hendon 1.jpg",
+   "creator": "Corrado Baldassi",
+   "description": "Storm Shadow - Royal Air Force - Standoff Missile - display at RAF Museum Hendon - London.",
+   "file": "storm-shadow.jpg",
+   "id": "storm-shadow",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY-SA 3.0",
+   "licence_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+   "name": "Storm Shadow / SCALP-EG",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/StormShadow-Hendon_1.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    600
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:StormShadow-Hendon_1.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "su-34": {
+   "attribution": "Photo: Doomych · Public domain · Wikimedia Commons",
+   "commons_title": "File:Sukhoi Su-34 at the MAKS-2013 (03).jpg",
+   "creator": "Doomych",
+   "description": "Fighter-bomber Sukhoi Su-34 Fullback (The international aerospace salon MAKS-2013)",
+   "file": "su-34.jpg",
+   "id": "su-34",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "Public domain",
+   "licence_url": "",
+   "name": "Su-34",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/Sukhoi_Su-34_at_the_MAKS-2013_%2803%29.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    628
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:Sukhoi_Su-34_at_the_MAKS-2013_(03).jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  },
+  "t-72": {
+   "attribution": "Photo: Ministry of Defence of the Russian Federation · CC BY 4.0 · Wikimedia Commons",
+   "commons_title": "File:T-72B in Chebarkul training ground.jpg",
+   "creator": "Ministry of Defence of the Russian Federation",
+   "description": "Т-72Б на Чебаркульском полигоне.",
+   "file": "t-72.jpg",
+   "id": "t-72",
+   "identity_basis": "exact designation in the Commons file title or description",
+   "licence": "CC BY 4.0",
+   "licence_url": "https://creativecommons.org/licenses/by/4.0",
+   "name": "T-72",
+   "original_url": "https://upload.wikimedia.org/wikipedia/commons/9/97/T-72B_in_Chebarkul_training_ground.jpg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+   "retrieved": "2026-10-27",
+   "size": [
+    800,
+    533
+   ],
+   "source_url": "https://commons.wikimedia.org/wiki/File:T-72B_in_Chebarkul_training_ground.jpg",
+   "verification": "licence and creator as reported by Wikimedia Commons; not independently verified"
+  }
+ },
+ "version": 1
+}

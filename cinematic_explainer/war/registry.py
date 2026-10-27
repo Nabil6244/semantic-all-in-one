@@ -107,7 +107,7 @@ def all_cards() -> Dict[str, Any]:
     from .. import cards as base
 
     out: Dict[str, Any] = dict(base.CARDS)
-    for mod, attr in (("cards", "WAR_CARDS"), ("maps", "MAP_CARDS")):
+    for mod, attr in (("cards", "WAR_CARDS"), ("maps", "MAP_CARDS"), ("cards_kit", "KIT_CARDS"), ("maps_tactical", "TACTICAL_CARDS"), ("layouts", "LAYOUT_CARDS")):
         try:
             m = __import__(f"{__package__}.{mod}", fromlist=[attr])
             out.update(getattr(m, attr))

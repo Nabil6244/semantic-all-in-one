@@ -100,6 +100,8 @@ from ui import views as ui_views
 from ui import theme as _ui_theme
 from ui import scene_list as _scene_list
 from ui.widgets import make_button as _make_button
+from ui import style_registry as _style_registry
+from ui import style_pages as _style_pages
 import editorial_timeline_edit as _tl_edit
 
 
@@ -1096,6 +1098,7 @@ class VideoGeneratorApp(ctk.CTk):
         # grid_remove()'d) per spec — only its CSV picker/Generate button
         # are gated behind the switch.
         self._build_style_picker(self._view_visual_director.content, row=0)
+        self._shell._on_renav = lambda _k: _style_pages.change_style(self)   # Visual Director clicked again: back to the style picker
         self._build_overscaled_section(self._view_visual_director.content, row=1)
         self._build_pakmap_section(self._view_visual_director.content, row=2)
         self._build_hybrid_section(self._view_visual_director.content, row=3)
@@ -3006,8 +3009,9 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If", "War Documentary")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If", "War Documentary", "Health Cinema")
     STYLE_BLURBS = {
+        "Health Cinema": "Full-length 16:9 health videos: cinematic 3D anatomy, evidence and statistic cards with sources, claims flagged for review.",
         "War Documentary": "Narration-driven war and geopolitics documentaries: maps, equipment cards, attributed statements, statistics, sources.",
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
         "Modern Tech News": "Technology news: fast cuts, the real product, reports and UI footage, few effects. Same workflow as Normal.",
@@ -3024,6 +3028,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     STYLE_CARDS = {
         # icon, one-line pitch, what it needs, what it suits
+        "Health Cinema": ("\u271A", "3D anatomy, evidence cards and honest labels", "Voiceover (scenes file optional)", "Heart, diabetes, ageing and other health topics"),
         "War Documentary": ("\u25C8", "Maps, equipment, statements, statistics and sources", "Voiceover (scenes file optional)", "Conflict and geopolitics analysis"),
         "Normal video": ("\u25A4", "Scenes cut to your script", "Script + voiceover", "Explainers on any topic"),
         "Modern Tech News": ("\u25A3", "Fast, product-first tech edit", "Script + voiceover", "Launches, leaks, specs, comparisons"),
@@ -3036,6 +3041,10 @@ class VideoGeneratorApp(ctk.CTk):
         "Enoch Template": ("\u2766", "Manuscripts, art and cards; checked claims", "Script + voiceover", "Ancient texts, hidden books"),
         "Weather": ("\u2601", "Forecast maps, real data, footage", "A Weather plan + your voiceover", "US forecasts, weather news"),
     }
+    # StarMap Cinema and Explainer are their own cards (StarMap / Hybrid Map with their look on); the picker groups the cards
+    STYLE_CHOICES = _style_registry.with_extras(STYLE_CHOICES)
+    STYLE_BLURBS.update(_style_registry.EXTRA_BLURBS)
+    STYLE_CARDS.update(_style_registry.EXTRA_CARDS)
 
     def _build_style_picker(self, parent, *, row: int) -> None:
         """The one place a style is chosen: a card per style (what it makes, what it needs, what it suits). It drives the styles' own
@@ -3071,6 +3080,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_picker = _StylePickerState(self)
         self._style_blurb_var = ctk.StringVar(value=self.STYLE_BLURBS["Normal video"])
         self._style_picker.set("Normal video")
+        _style_pages.build(self, block)   # the chosen style's own page: header + Change style (ui/style_pages.py)
 
     def _make_style_card(self, parent, name: str):
         icon, pitch, needs, suits = self.STYLE_CARDS[name]
@@ -3105,6 +3115,8 @@ class VideoGeneratorApp(ctk.CTk):
         return card
 
     def _layout_style_cards(self, width: int) -> None:
+        if _style_pages.layout(self, width):   # the cards under group titles (General, Maps, Space, ...)
+            return
         cols = 6 if width >= 1250 else 3 if width >= 620 else 2
         if cols == self._style_grid_cols:
             return
@@ -3136,8 +3148,13 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
+        if getattr(self, "_health_active", False):   # Health Cinema (health_cinema/): opt-in, per session
+            return "Health Cinema"
         if getattr(self, "_war_active", False):   # War Documentary (cinematic_explainer/war): opt-in, per session
             return "War Documentary"
+        _variant = _style_pages.active_variant(self, getattr(self, "generation_mode", "normal"))   # StarMap Cinema / Explainer
+        if _variant:
+            return _variant
         mode = getattr(self, "generation_mode", "normal")
         if mode == "overscaled":
             return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
@@ -3168,6 +3185,7 @@ class VideoGeneratorApp(ctk.CTk):
             return False
 
     def _on_style_pick(self, choice: str) -> None:
+        _style_pages.picked(self, choice)   # leave the picker for the chosen style's page
         if choice == self._active_style():
             return
         if (getattr(self, "_overscaled_running", False) or getattr(self, "_pakmap_running", False) or getattr(self, "_hybrid_running", False)
@@ -3175,16 +3193,33 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
-        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False) or getattr(self, "_war_running", False):
+        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False) or getattr(self, "_war_running", False) or getattr(self, "_health_running", False):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        choice, _look_only = _style_pages.pick_variant(self, choice)   # StarMap Cinema / Explainer: StarMap / Hybrid Map with their look on
+        if _look_only:
+            self._sync_style_picker()
+            self._sync_primary_cta()
+            return
         if choice != "War Documentary":
             self._war_deactivate()
+        if choice != "Health Cinema":
+            self._health_deactivate()
         if choice != "Weather":
             self._weather_deactivate()
         if choice != "What If":
             self._whatif_deactivate()
+        if choice == "Health Cinema":   # its own branch (health_cinema/app_section.py), loaded only now
+            self._health_activate()
+            ws = getattr(self, "_workspace", None)
+            if ws is not None:
+                try:
+                    ws.set_editing_system("")
+                except Exception:
+                    pass
+            self._sync_primary_cta()
+            return
         if choice == "War Documentary":   # its own branch (cinematic_explainer/war/app_section.py), loaded only now
             self._war_activate()
             ws = getattr(self, "_workspace", None)
@@ -3296,6 +3331,10 @@ class VideoGeneratorApp(ctk.CTk):
         war_block = getattr(self, "_war_block", None)
         if war_block is not None:
             war_block.grid() if active == "War Documentary" else war_block.grid_remove()
+        health_block = getattr(self, "_health_block", None)
+        if health_block is not None:
+            health_block.grid() if active == "Health Cinema" else health_block.grid_remove()
+        _style_pages.sync(self, active)   # the picker or the active style's page
 
     def _style_card_header(self, block, title: str, description: str) -> None:
         """A style card's title with a one-line description under it (row 0 of the card), so a collapsed card says what it is."""
@@ -3651,11 +3690,11 @@ class VideoGeneratorApp(ctk.CTk):
 
         def worker() -> None:
             try:
-                from explainer.integration import direct_plan
+                from explainer.integration import direct_plan, full_look
                 from pakmap.app_integration import voiceover_duration
 
                 words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
-                out = direct_plan(words, script or None, self._settings, work_dir=work_dir, duration=voiceover_duration(voiceover_path),
+                out = direct_plan(words, script or None, full_look(self._settings), work_dir=work_dir, duration=voiceover_duration(voiceover_path),
                                   log=lambda m: post(lambda: self._append_log(f"[HYBRID] {m}\n")))
                 post(lambda: finish(out, None))
             except BaseException as exc:  # incl. SystemExit: the panel must never be left busy
@@ -5318,6 +5357,7 @@ class VideoGeneratorApp(ctk.CTk):
         for i, key in enumerate(FEATURES):
             ctk.CTkCheckBox(tab, text=FEATURE_LABELS[key], variable=self._starmap_cinema_feats[key], command=self._save_starmap_cinema,
                             font=ctk.CTkFont(size=11), text_color=_TEXT).grid(row=2 + i // 2, column=i % 2, sticky="w", padx=8, pady=3)
+        self._starmap_cinema_tabs = tabs   # shown only on the StarMap Cinema card's page (ui/style_pages.py)
 
     def _starmap_cinema_settings(self) -> "dict | None":
         """The Cinema option as Generate takes it: {"enabled": True, feature: on ...}, or None when it is off."""
@@ -5928,6 +5968,31 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "_war_active", False):
             self._war_active = False
             block = getattr(self, "_war_block", None)
+            if block is not None:
+                block.grid_remove()
+
+    # ---------- Health Cinema (opt-in; all of it lives in health_cinema/, imported only when picked) ----------
+
+    def _health_activate(self) -> None:
+        from health_cinema import app_section
+
+        if getattr(self, "_health_running", False):
+            return
+        self._war_deactivate()
+        self._pakmap_deactivate()          # also steps Hybrid and StarMap aside, like War Documentary
+        if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+            self._overscaled_enabled_var.set(False)
+            self._overscaled_controls.grid_remove()
+        self.generation_mode = "normal"
+        if getattr(self, "_health_block", None) is None:
+            app_section.build(self, self._view_visual_director.content, row=8)
+        self._health_active = True
+        app_section.activate(self)
+
+    def _health_deactivate(self) -> None:
+        if getattr(self, "_health_active", False):
+            self._health_active = False
+            block = getattr(self, "_health_block", None)
             if block is not None:
                 block.grid_remove()
 
@@ -7103,6 +7168,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_starmap_cancel()
         elif action == "whatif_cancel":
             self._on_whatif_cancel()
+        elif action in ("health_render", "health_cancel"):
+            from health_cinema import app_section as _health
+
+            _health.cta(self, action)
         elif action in ("war_render", "war_cancel"):
             from cinematic_explainer.war import app_section as _war
 
@@ -7876,6 +7945,11 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
+        if getattr(self, "_health_active", False) and getattr(self, "_health_block", None) is not None:
+            from health_cinema import app_section as _health
+
+            _health.sync_cta(self)
+            return
         if getattr(self, "_war_active", False) and getattr(self, "_war_block", None) is not None:
             from cinematic_explainer.war import app_section as _war
 
@@ -8695,6 +8769,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._restore_weather(ws)
         self._restore_whatif(ws)
         self._war_deactivate()   # War Documentary is chosen per session, never restored with a project
+        self._health_deactivate()   # Health Cinema likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16273,7 +16348,7 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.configure(state="disabled")
 
     _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running",
-                  "_war_running")
+                  "_war_running", "_health_running")
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

@@ -82,5 +82,14 @@ def install(app: Any, actions: Any) -> None:
                                  width=130 if key == "source" else 90, font=ctk.CTkFont(size=11))
         menu.grid(row=0, column=2 * col + 1)
         app._hybrid_explainer_opt_menus.append(menu)
+    try:   # the Explainer's own Copy the CSV prompt (same prompt as Hybrid's); a missing widget kit never stops the options
+        prompt_row = ctk.CTkFrame(actions, fg_color="transparent")   # row 4: the Explainer's own Copy the CSV prompt (same prompt as Hybrid's)
+        prompt_row.grid(row=4, column=0, columnspan=5, sticky="w", pady=(8, 0))
+        from ui.widgets import make_button
+        make_button(prompt_row, "Copy the CSV prompt", lambda: app._copy_csv_prompt("hybrid", app._hybrid_status_var, graphics=False),
+                    size="lg", width=150).grid(row=0, column=0, padx=(0, 10))
+        ctk.CTkLabel(prompt_row, text="Paste it into any AI with your script, then load the CSV it writes.", font=ctk.CTkFont(size=11)).grid(row=0, column=1)
+    except Exception:
+        pass
     app._hybrid_explainer_var.trace_add("write", lambda *a: sync(app))
     sync(app)

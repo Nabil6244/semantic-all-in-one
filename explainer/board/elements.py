@@ -118,9 +118,18 @@ def draw_icon(im: Image.Image, it, age: float) -> None:
         _text_block(d, it.lines, it.px, (it.rect[0], top + 200, it.rect[2], it.rect[3] - 10), "center")
 
 
+def _counted(it, age: float) -> str:
+    """The text to draw: for an element with params.count (schema v1.6, explainer/motion) the number rolled up to its age; otherwise exactly the item's own text."""
+    spec = (it.vparams or {}).get("count") if getattr(it, "vparams", None) else None
+    if not spec:
+        return it.text
+    from ..motion import presets as MP
+    return MP.count_text(age, spec)
+
+
 def draw_chip(im: Image.Image, it, age: float) -> None:
     w, h = it.rect[2] - it.rect[0], it.rect[3] - it.rect[1]
-    paste_scaled(im, chip_sprite(it.text, it.px, w, h), it.rect, scale_at(age))
+    paste_scaled(im, chip_sprite(_counted(it, age), it.px, w, h), it.rect, scale_at(age))
 
 
 @lru_cache(maxsize=256)
@@ -163,6 +172,14 @@ def draw_visual(im: Image.Image, it, age: float, frame_no: int = 0) -> None:
     if it.style == "line":
         ST.draw_line(im, it, age, frame_no)
         return
+    if it.style in ST.BUBBLE_STYLES:                                     # opt-in dialogue: speech bubbles and spotlights (explainer/motion/bubbles.py)
+        from ..motion import bubbles as BU
+        BU.draw(im, it, age)
+        return
+    if it.style in ST.MOTION_STYLES:                                     # schema v1.5: stamps and plates (explainer/motion)
+        from ..motion import sprites as MS
+        MS.draw(im, it, age)
+        return
     if it.style in ST.CARTOON_STYLES:                                    # schema v1.4: prebuilt art, no drawing here
         sp = ST.cartoon_sprite(it.style, it.vparams or {})
         if it.style == "set":
@@ -173,7 +190,9 @@ def draw_visual(im: Image.Image, it, age: float, frame_no: int = 0) -> None:
         paste_scaled(im, sp, (it.rect[0], it.rect[1] + dy, it.rect[2], it.rect[3] + dy), scale_at(age))
         return
     inner = it.word_boxes[0] if it.word_boxes else (0, 0)
-    sp = ST.sprite(it.style, it.text, it.role, it.asset, it.rect[2] - it.rect[0], it.rect[3] - it.rect[1], it.px, tuple(it.lines), tuple(inner))
+    txt = _counted(it, age)
+    lines = tuple(it.lines) if txt == it.text else (txt,)
+    sp = ST.sprite(it.style, txt, it.role, it.asset, it.rect[2] - it.rect[0], it.rect[3] - it.rect[1], it.px, lines, tuple(inner))
     paste_scaled(im, sp, it.rect, scale_at(age))
 
 

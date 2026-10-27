@@ -1,0 +1,27 @@
+{
+ "id": "putin",
+ "name": "Vladimir Putin",
+ "status": "ok",
+ "file": "putin.jpg",
+ "reuse": "attribution_required",
+ "attribution_required": true,
+ "share_alike": false,
+ "licence": "CC BY 4.0",
+ "licence_url": "https://creativecommons.org/licenses/by/4.0",
+ "creator": "Пресс-служба Президента РФ",
+ "attribution": "Пресс-служба Президента РФ, CC BY 4.0",
+ "source_url": "https://commons.wikimedia.org/wiki/File:%D0%92%D0%BB%D0%B0%D0%B4%D0%B8%D0%BC%D0%B8%D1%80_%D0%9F%D1%83%D1%82%D0%B8%D0%BD_(08-03-2024)_(cropped)_(higher_res)_2.jpg",
+ "commons_title": "File:Владимир Путин (08-03-2024) (cropped) (higher res) 2.jpg",
+ "wikidata_qid": "Q7747",
+ "wikidata_label": "Vladimir Putin",
+ "wikidata_description": "President of the Russian Federation",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2024-03-08",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

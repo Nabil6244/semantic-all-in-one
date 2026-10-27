@@ -54,6 +54,7 @@ class AppShell(ctk.CTkFrame):
     ):
         super().__init__(master, fg_color=T.BG, corner_radius=0, **kwargs)
         self._on_nav = on_nav
+        self._on_renav = None   # set by the app: Visual Director clicked while open -> back to its main page
         self._active = "script"
         self._nav_btns: Dict[str, ctk.CTkButton] = {}
         self._nav_bars: Dict[str, ctk.CTkFrame] = {}
@@ -347,6 +348,7 @@ class AppShell(ctk.CTkFrame):
     def navigate(self, key: str) -> None:
         if self.view(key) is None:
             return
+        again = key == self._active   # the nav item of the page already open was clicked
         for k, fr in self.views.items():
             if k == key:
                 fr.grid()
@@ -362,6 +364,8 @@ class AppShell(ctk.CTkFrame):
         self.page_title.configure(text=_NAV_LABELS.get(key, ""))
         self._paint_nav()
         self._on_nav(key)
+        if again and key == "visual_director" and self._on_renav is not None:
+            self._on_renav(key)
 
     @property
     def active_view(self) -> str:

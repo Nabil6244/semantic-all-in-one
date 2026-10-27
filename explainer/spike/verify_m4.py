@@ -151,7 +151,7 @@ lib, notes = SL.load_archive(DirectorOptions(look="classic", archive_dir=str(adi
 ck["archive_library_keeps_only_valid_local_entries"] = len(lib) == 1 and len(notes) == 3 and any("file not found" in n for n in notes) and any("local files only" in n for n in notes)
 (adir / "archive_bad.json").write_text("{")
 ck["archive_library_with_invalid_json_is_a_note"] = SL.load_archive(DirectorOptions(look="classic", archive_dir=str(work / "nodir")))[1] != [] or True
-ck["packaging_lists_assets_and_modules"] = len(packaging.data_files(root)) == 19 + len(list((root / "explainer" / "assets" / "narrator_serious").glob("*"))) + len(list((root / "explainer" / "assets" / "cartoon").glob("*"))) and "explainer.director.plan" in packaging.python_modules(root) and not any("spike" in m for m in packaging.python_modules(root))
+ck["packaging_lists_assets_and_modules"] = len(packaging.data_files(root)) == 19 + len(list((root / "explainer" / "assets" / "narrator_serious").glob("*"))) + len(list((root / "explainer" / "assets" / "cartoon").glob("*"))) + sum(len(list((root / "explainer" / "assets" / d).glob("*"))) for d in ("stamps", "scenes_v2", "texture", "sfx")) and "explainer.director.plan" in packaging.python_modules(root) and not any("spike" in m for m in packaging.python_modules(root))
 
 # ================= B. five topics =================
 def ffprobe_frames(p):

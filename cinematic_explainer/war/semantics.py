@@ -610,7 +610,7 @@ def _intro_figure(text: str, ents: Sequence[Entity]) -> Optional[Tuple[Entity, s
         if e.kind != "figure":
             continue
         tail = text[e.span[1]:e.span[1] + 70]
-        m = re.match(r",\s+(?:the\s+)?((?:" + "|".join(ROLE_WORDS) + r")\b[^,.;]{0,50})", tail, flags=re.IGNORECASE)
+        m = re.match(r",\s+(?:the\s+)?(?:[A-Z][\w-]+(?:'s|\u2019s)\s+)?((?:" + "|".join(ROLE_WORDS) + r")\b[^,.;]{0,50})", tail, flags=re.IGNORECASE)
         if m:
             return e, m.group(1).strip()
         before = text[max(0, e.span[0] - 40):e.span[0]]

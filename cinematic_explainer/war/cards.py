@@ -182,6 +182,11 @@ def equipment_card(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     _chip(img, (ix0 + iw - 10, iy0 + 10), status, align="right")
     if fallback:
         _chip(img, (ix0 + 10, iy0 + ih - CHIP_H - 10), "illustrative", "ILLUSTRATIVE SILHOUETTE")
+    elif p.get("image_credit"):     # a licensed photograph carries its credit on the picture
+        fc = T.font("regular", 14)
+        ctext = _fit(d, str(p["image_credit"]), fc, iw - 16)
+        d.rectangle([ix0, iy0 + ih - 22, ix0 + int(d.textlength(ctext, font=fc)) + 16, iy0 + ih], fill=(10, 12, 16, 235))
+        d.text((ix0 + 8, iy0 + ih - 20), ctext, font=fc, fill=T.CREAM)
     # callouts: fixed screen-space leader lines, only on a real photo of a confirmed or stated identification
     if photo is not None and identified:
         fl = T.font("bold", 16)
@@ -392,7 +397,12 @@ def figure_card(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         img.alpha_composite(ring, (cx - size // 2 - 6, top + 134 - size // 2 - 6))
         img.alpha_composite(_circle(portrait, size), (cx - size // 2, top + 134 - size // 2))
         py = top + 134 + size // 2 + 16
-        nw = int(min(330, _sw(d, name.upper(), fn, 0.04) + 34))
+        for fs in (42, 38, 34, 30, 27):           # a long name shrinks before it is ever cut
+            fn_try = T.font("display", fs) if fs != 42 else fn
+            if _sw(d, name.upper(), fn_try, 0.04) + 34 <= 420:
+                fn = fn_try
+                break
+        nw = int(min(420, _sw(d, name.upper(), fn, 0.04) + 34))
         d.rectangle([cx - nw // 2, py, cx + nw // 2, py + 50], fill=T.RED)
         _spaced(d, (cx - nw // 2 + 17, py + 3), _fit(d, name.upper(), fn, nw - 34), fn, T.CREAM, 0.04)
         for i, line in enumerate(_wrap(d, role, fr, 300)[:2]):

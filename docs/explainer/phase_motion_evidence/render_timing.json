@@ -1,0 +1,37 @@
+{
+ "script": "explainer/spike/test_motion_kit.py SCRIPT (37.1 s synthetic words, look=reference, fresh work_dir each run, materialize=True: plan + board-clip encode, alternating off/on)",
+ "off_seconds": [
+  14.513,
+  14.315,
+  15.732,
+  14.193,
+  14.508,
+  13.812
+ ],
+ "on_seconds": [
+  15.292,
+  15.393,
+  14.896,
+  14.584,
+  14.263,
+  14.927
+ ],
+ "clip_md5_off": {
+  "e2": "54989537f952ae77fb03804490d7ec14",
+  "e3": "1c8d07800907b986e68672ac8db26b1c",
+  "e4": "4fa819493de3a7fadc0d7c11b5f55244",
+  "e5": "3a30b9af6b01a022add4975fb374aedb",
+  "e6": "52535c2c29589c91ef333ba6f0f8ed6a",
+  "e7": "9b78d5bde85b60e2415e875bc4bc446b",
+  "e8": "af7c0a4827f6e9fafdd7b5f4f607852c"
+ },
+ "clip_md5_on": {
+  "e2": "54989537f952ae77fb03804490d7ec14",
+  "e3": "6327ecba2bc36169114eeedfc807bcaa",
+  "e4": "4fa819493de3a7fadc0d7c11b5f55244",
+  "e5": "3a30b9af6b01a022add4975fb374aedb",
+  "e6": "640935f690e2b33513c9164010255f11",
+  "e7": "9b78d5bde85b60e2415e875bc4bc446b",
+  "e8": "af7c0a4827f6e9fafdd7b5f4f607852c"
+ }
+}

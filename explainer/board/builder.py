@@ -42,6 +42,7 @@ class BoardBuild:
     manifest_path: Optional[Path] = None
     tail_frames: int = 0
     narrator: Optional[NarratorTrack] = None
+    notes: List[str] = field(default_factory=list)       # opt-in layers that degraded (a missing texture asset); empty by default
 
     def manifest(self) -> Dict[str, Any]:
         bb = {it.cue_id: list(it.bbox) for it in self.items}
@@ -52,7 +53,7 @@ class BoardBuild:
             d["planned_video_frame"] = None if r.onset_abs is None else math.ceil(round(r.onset_abs * self.fps, 6) - 1e-9)
             cues.append(d)
         return {"schema_version": ("1.4" if any(r.cue.kind == "visual" and (r.cue.params or {}).get("style") in ("set", "figure", "crowd", "prop") and not r.problems for r in self.resolved) else "1.3" if any(r.cue.kind == "visual" and not r.problems for r in self.resolved) else "1.2" if any(r.cue.kind == "caption" and not r.problems for r in self.resolved) else "1.1" if self.narrator is not None else SCHEMA_VERSION), "clip": str(self.clip_path), "clip_origin_s": self.clip_origin_s, "clip_length_s": self.clip_length_s, "n_frames": self.n_frames, "fps": self.fps,
-                "size": list(self.size), "instrument": self.instrument, "tail_frames": self.tail_frames, "problems": self.problems, "cues": cues, "plan_fragment": self.plan_fragment, **({"narrator": self.narrator.summary()} if self.narrator is not None else {})}
+                "size": list(self.size), "instrument": self.instrument, "tail_frames": self.tail_frames, "problems": self.problems, "cues": cues, "plan_fragment": self.plan_fragment, **({"narrator": self.narrator.summary()} if self.narrator is not None else {}), **({"notes": self.notes} if self.notes else {})}
 
 
 def clip_geometry(beat_start: float, beat_end: float, dissolve_s: float) -> Tuple[float, float]:
@@ -65,7 +66,8 @@ def clip_geometry(beat_start: float, beat_end: float, dissolve_s: float) -> Tupl
 def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: float, beat_end: float, out_path: "str | Path", *, dissolve_s: float = 0.0,
                      fps: int = 30, size: Tuple[int, int] = (1920, 1080), instrument: bool = False, strict: bool = True, beat_id: str = "board",
                      purpose: str = "", font_path: "str | Path | None" = None, manifest_path: "str | Path | None" = None,
-                     sentences: Optional[Sequence[Tuple[float, float]]] = None, tail_frames: int = 0, background: str = "grey") -> BoardBuild:
+                     sentences: Optional[Sequence[Tuple[float, float]]] = None, tail_frames: int = 0, background: str = "grey",
+                     camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None) -> BoardBuild:
     """Resolve the cues against `words`, draw the clip, write it to `out_path`.
 
     strict=True  (default): any cue problem raises BoardCueError before anything is drawn (nothing is guessed).
@@ -83,13 +85,14 @@ def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: flo
         raise BoardCueError(problems)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    rc = encode(items, n_frames, fps, size, out_path, font, instrument, track, background)
+    notes: List[str] = []
+    rc = encode(items, n_frames, fps, size, out_path, font, instrument, track, background, camera, texture, camera_focus, notes)
     if rc != 0:
         raise RuntimeError(f"ffmpeg could not encode the board clip (exit {rc})")
     fragment = {"beat": {"id": beat_id, "mode": "footage", "start": beat_start, "end": beat_end, "purpose": purpose or "board clip",
                          "footage": {"clips": [{"asset": str(out_path), "reason": "Explainer board clip, word-timed"}]}},
                 "settings": {"dissolve_s": float(dissolve_s)}}
-    build = BoardBuild(out_path, origin, length, n_frames, fps, size, instrument, resolved, items, problems, fragment, tail_frames=max(0, int(tail_frames)), narrator=track)
+    build = BoardBuild(out_path, origin, length, n_frames, fps, size, instrument, resolved, items, problems, fragment, tail_frames=max(0, int(tail_frames)), narrator=track, notes=notes)
     if manifest_path:
         build.manifest_path = Path(manifest_path)
         build.manifest_path.write_text(json.dumps(build.manifest(), indent=1, sort_keys=True))

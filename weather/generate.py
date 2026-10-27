@@ -242,6 +242,11 @@ def generate_forecast_video(project: WeatherProject, voiceover_path: "str | Path
         from .teamplate.footage import fix_relevance
 
         fix_relevance(plan, lib_notes)   # footage that does not match its beat is re-asked for, never a reason to stop
+    news_credits: List[str] = []
+    if kw.get("media_resolver") is None:   # YouTube news footage of the event for the storm-impact scenes (weather.ytfill)
+        from .ytfill import fill_from_youtube
+
+        _n, news_credits = fill_from_youtube(plan, project, whisper_words, duration, log, lib_notes)
     if bad:   # a clip Weather may not use that autofix could not turn into stock footage: left out, never a reason to stop
         from .guard import drop_clips, make_safe
 
@@ -278,5 +283,11 @@ def generate_forecast_video(project: WeatherProject, voiceover_path: "str | Path
                                            base_dir=str(project.root), render=make_render(payload, look=style), log=log, **rest)
     if result.ok and not getattr(result, "media_ready", 0):   # media_only: the clips are fetched, nothing was drawn yet
         output_path.with_suffix(".numbers.txt").write_text(report, encoding="utf-8")
+        if news_credits:   # the YouTube news footage used, as News Doc lists it
+            try:
+                output_path.with_name(f"{output_path.stem} - credits.txt").write_text(
+                    "\n".join(list(getattr(result, "credits", None) or []) + news_credits) + "\n", encoding="utf-8")
+            except OSError:
+                pass
     return result
 

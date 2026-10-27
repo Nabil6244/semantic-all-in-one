@@ -1,0 +1,14 @@
+{
+ "dossier_beats": [
+  "e4",
+  "e8"
+ ],
+ "clips_on": {
+  "e4": "board_59b81bc01a0c61cc.mp4",
+  "e8": "board_93335c4f95bcce3a.mp4"
+ },
+ "clips_off": {
+  "e4": "board_a191b8c3d12b79a0.mp4",
+  "e8": "board_d3c555eb995942a2.mp4"
+ }
+}

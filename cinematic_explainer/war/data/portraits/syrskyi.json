@@ -1,0 +1,27 @@
+{
+ "id": "syrskyi",
+ "name": "Oleksandr Syrskyi",
+ "status": "ok",
+ "file": "syrskyi.jpg",
+ "reuse": "free",
+ "attribution_required": false,
+ "share_alike": false,
+ "licence": "Public domain",
+ "licence_url": "",
+ "creator": "Міністерство оборони України",
+ "attribution": "Міністерство оборони України, Public domain",
+ "source_url": "https://commons.wikimedia.org/wiki/File:OleskandrSyrskyiColonelGeneral.jpg",
+ "commons_title": "File:OleskandrSyrskyiColonelGeneral.jpg",
+ "wikidata_qid": "Q64737357",
+ "wikidata_label": "Oleksandr Syrskyi",
+ "wikidata_description": "Ukrainian general (born 1965)",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2021-03-22 19:48:08",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

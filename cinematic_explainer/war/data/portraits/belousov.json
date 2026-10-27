@@ -1,0 +1,27 @@
+{
+ "id": "belousov",
+ "name": "Andrei Belousov",
+ "status": "ok",
+ "file": "belousov.jpg",
+ "reuse": "attribution_required",
+ "attribution_required": true,
+ "share_alike": false,
+ "licence": "CC BY 4.0",
+ "licence_url": "https://creativecommons.org/licenses/by/4.0",
+ "creator": "Ministry of Defence",
+ "attribution": "Ministry of Defence, CC BY 4.0",
+ "source_url": "https://commons.wikimedia.org/wiki/File:Belousov-HR.jpg",
+ "commons_title": "File:Belousov-HR.jpg",
+ "wikidata_qid": "Q4082839",
+ "wikidata_label": "Andrei Belousov",
+ "wikidata_description": "Minister of Defense of the Russian Federation",
+ "resolution": "Wikidata human (Q5) whose English label/alias equals the catalogue name; image is that item's own P18",
+ "licence_status": "licence as reported by Commons, not independently verified",
+ "date_taken": "2024-05-13",
+ "retrieved": "2026-10-27",
+ "size": [
+  512,
+  512
+ ],
+ "crop": "top-anchored square from the Commons thumbnail"
+}

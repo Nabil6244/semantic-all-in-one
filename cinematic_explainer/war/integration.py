@@ -110,7 +110,7 @@ def footage_meta_for(rec: dict, explicit: Optional[dict] = None, *, scene_file: 
 
     meta: Dict[str, Any] = {}
     keep = ("source", "provider", "provider_asset_id", "author", "source_url", "license", "video_title", "channel", "width", "height", "duration",
-            "type", "local_path", "stock_query")
+            "type", "local_path", "stock_query", "query", "title", "description", "tags", "keywords", "location", "country", "event")
     for k in keep:
         if rec.get(k) not in (None, ""):
             meta[k] = rec[k]
@@ -119,6 +119,8 @@ def footage_meta_for(rec: dict, explicit: Optional[dict] = None, *, scene_file: 
     else:   # a file named by the scene itself, with no asset record
         c = {"kind": "user", "generic": False, "user_supplied": True, "rights": "user-supplied file; rights not recorded", "rights_known": False,
              "licence": P.UNKNOWN, "source_chip": False}
+    if c["kind"] == "generated":
+        meta["ai_generated"] = True                     # a generated clip is an illustration: footage_match classes it ai_generated
     meta.update({"kind": c["kind"], "generic": c["generic"], "user_supplied": c["user_supplied"], "rights": c["rights"],
                  "rights_known": c["rights_known"], "source_chip": c["source_chip"], "verification": "unverified"})
     if scene_file:
@@ -127,7 +129,20 @@ def footage_meta_for(rec: dict, explicit: Optional[dict] = None, *, scene_file: 
     return meta
 
 
-def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None) -> List[dict]:
+def _clip_pool(manifest: Dict[str, dict], project_dir: Path) -> List[dict]:
+    """Every usable video record of the project's manifest as a {path, meta} candidate (same records the app's providers wrote; nothing new)."""
+    pool: List[dict] = []
+    for _k, rec in manifest.items():
+        if not isinstance(rec, dict):
+            continue
+        p, _why = footage_from_record(rec, project_dir)
+        if p:
+            pool.append({"path": p, "meta": footage_meta_for(rec, None, scene_file=Path(p).name)})
+    return pool
+
+
+def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None, *, match: bool = True, config: Optional[dict] = None,
+                discovery_provider: Any = None) -> List[dict]:
     """Scene dicts with footage resolved from the explicit list, war_scenes.json and the project's asset manifest (same scene numbering as the
     app). Footage paths are made absolute; a missing, failed or still-image asset gives footage None (a labelled graphic is used instead)."""
     project_dir = Path(project_dir)
@@ -165,6 +180,37 @@ def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None) -> List[
             sc["footage_meta"].setdefault("no_footage_reason", why)
         sc.setdefault("scene_no", no)
         out.append(sc)
+    if match:
+        try:       # estimate which clip fits each narration (metadata only); a failure leaves every scene exactly as resolved above
+            from . import footage_match as FM
+
+            for sc in out:       # explicit candidate files get the same honest metadata as manifest clips
+                cands = []
+                for c in sc.get("footage_candidates") or []:
+                    c = {"path": c} if isinstance(c, str) else dict(c or {})
+                    p = c.get("path") or c.get("footage")
+                    if p:
+                        q = Path(p) if Path(p).is_absolute() else project_dir / p
+                        if q.is_file():
+                            c["path"] = str(q)
+                            c["meta"] = footage_meta_for(c.get("meta") if isinstance(c.get("meta"), dict) else {}, None, scene_file=q.name)
+                            cands.append(c)
+                sc["footage_candidates"] = cands
+            disc: Dict[str, dict] = {}
+            if (config or {}).get("discover_footage") or discovery_provider is not None:
+                try:       # opt-in: narration-derived searches through the app's own stock provider; never needed for a render
+                    from . import footage_discovery as FD
+
+                    out, disc = FD.discover(out, project_dir, config, provider=discovery_provider)
+                except Exception as exc:
+                    log.warning("footage discovery skipped: %s", exc)
+            matched = FM.match_scenes(out, _clip_pool(manifest, project_dir))
+            for sc in matched:
+                if str(sc.get("scene_no")) in disc:
+                    sc["footage_discovery"] = disc[str(sc.get("scene_no"))]
+            out = matched
+        except Exception as exc:
+            log.warning("footage relevance estimate skipped: %s", exc)
     return out
 
 
@@ -191,13 +237,17 @@ def build_report(scenes: List[dict], plan: Any) -> Dict[str, Any]:
             asset = {"file": Path(foot).name, "kind": meta.get("kind"), "provider": meta.get("provider") or meta.get("source"),
                      "provider_asset_id": meta.get("provider_asset_id"), "author": meta.get("author") or meta.get("channel"),
                      "source_url": meta.get("source_url"), "licence": prov.licence, "rights": meta.get("rights"), "generic": bool(meta.get("generic")),
-                     "status": "illustrative" if meta.get("generic") else str(meta.get("verification") or "unverified")}
+                     "status": "illustrative" if meta.get("generic") else str(meta.get("verification") or "unverified"),
+                     "footage_class": meta.get("footage_class"), "ai_generated": bool(meta.get("ai_generated"))}
             if counted:
                 entries.append({"scene_no": no, "prov": prov, "kind": meta.get("kind"), "rights": meta.get("rights"),
                                 "rights_known": bool(meta.get("rights_known")), "file": Path(foot).name})
         s0, s1 = float(sc.get("start", 0) or 0), float(sc.get("end", 0) or 0)
         layer_kinds = [ly.kind for ly in getattr(plan, "layers", []) if ly.start < s1 and ly.end > s0 and ly.kind not in ("kicker", "status_chip")]
+        fm = sc.get("footage_match") or {}
         rows.append({"scene_no": no, "visual": d.get("chosen"), "layers": layer_kinds, "asset": asset, "flags": d.get("flags", []),
+                     "footage_relevance": {k: fm.get(k) for k in ("class", "score", "reasons", "contradictions", "reused_from_scene", "uses", "note")} if fm else None,
+                     "footage_discovery": sc.get("footage_discovery"),
                      "reason": d.get("fallback_reason") or "", "no_footage_reason": meta.get("no_footage_reason", "")})
     return {"scenes": rows, "entries": entries}
 
@@ -219,7 +269,7 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
         from . import planner
 
         plan_fn = planner.plan
-    sc = load_scenes(pd, scenes)
+    sc = load_scenes(pd, scenes, config=config)
     if not sc:
         raise ValueError("no scenes to render")
     if progress_cb:

@@ -31,8 +31,24 @@ def scene_for(tokens: Sequence[str]) -> Optional[str]:
     return best
 
 
-def scene_score(tokens: Sequence[str]) -> int:
-    """How well a beat suits a cartoon: 0 when it names no scene; otherwise scene words plus people words."""
+def _v2_ready() -> bool:
+    """scenes2 needs the v2 pack: when it is missing or damaged the beat is authored exactly as with the flag off (never-stop)."""
+    try:
+        from ..cartoon import kit_v2
+        return bool(kit_v2.install())
+    except Exception:
+        return False
+
+
+def scene_score(tokens: Sequence[str], scenes2: bool = False) -> int:
+    """How well a beat suits a cartoon: 0 when it names no scene; otherwise scene words plus people words. `scenes2` (default off) uses the v2 tables (more scenes, no default)."""
+    if scenes2 and _v2_ready():
+        from . import lexicon_v2 as LV
+        if LV.choose_scene_v2(tokens) is None:
+            return 0
+        strong = LV.scene_strength_v2(tokens)
+        people = sum(1 for t in tokens if t in LX.PEOPLE_WORDS)
+        return 0 if people == 0 and strong < 2 else strong + 2 * people
     if scene_for(tokens) is None:
         return 0
     strong = sum(1 for t in tokens if any(t in w for w in LX.SET_WORDS.values()) and t not in LX.SCENE_WEAK)
@@ -48,9 +64,15 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
     toks = [norm(words[g][0]) for g in bw]
     res = BoardResult([])
     cues: List[Cue] = []
-    name = scene_for(toks) or "town"      # only reached for a beat the selection already judged to have a scene
+    v2 = bool(getattr(opt, "scenes2", False)) and _v2_ready()
+    if v2:
+        from . import lexicon_v2 as LV
+        name = LV.choose_scene_v2(toks)     # None when no word names a scene: then there is no set at all (no default)
+    else:
+        name = scene_for(toks) or "town"      # only reached for a beat the selection already judged to have a scene
     tod = "dusk" if any(t in LX.DUSK_WORDS for t in toks) else "day"
-    cues.append(Cue(f"{beat_id}_set1", "visual", {"index": 0}, pos=(0, 0), offset_s=0.0, params={"style": "set", "set": name, "tod": tod}))
+    if name is not None:
+        cues.append(Cue(f"{beat_id}_set1", "visual", {"index": 0}, pos=(0, 0), offset_s=0.0, params={"style": "set", "set": name, "tod": tod}))
 
     def at_fraction(f: float) -> int:
         return min(len(bw) - 1, int(f * len(bw)))
@@ -61,7 +83,7 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
     pose1 = POSE_BY_LABEL.get(label, "idle" if variant % 2 else "point")
     second = {"red": "red", "green": "green"}.get(role_s, "gold")
     # at most one prop, on the first word that suggests it
-    prop = next(((p, i) for i, t in enumerate(toks) for p, ws in LX.PROP_WORDS.items() if t in ws), None)
+    prop = LV.prop_for_v2(toks) if v2 else next(((p, i) for i, t in enumerate(toks) for p, ws in LX.PROP_WORDS.items() if t in ws), None)
     n_people = sum(1 for t in toks if t in LX.PEOPLE_WORDS)
     crowd_word = next((i for i, t in enumerate(toks) if t in LX.PEOPLE_WORDS), None)
     if crowd_word is not None and len(bw) >= 10:           # a beat about many people: two figures on the left, a row of small ones on the right
@@ -71,7 +93,18 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
         layout = [(560, "blue", pose1, 0.0), (1060, second, "idle" if pose1 != "idle" else "point", 0.28)]
         if len(bw) >= 14:
             layout.append((1560, "green" if second != "green" else "gold", "idle", 0.5))
-    if prop:
+    if prop and v2:
+        pp = {"style": "prop", "prop": prop[0], "height": LV.PROP_HEIGHT.get(prop[0], 260)}
+        m = ST.measure_cartoon("prop", pp)
+        if m:                                   # a wide picture goes where no figure stands; if neither side is free it is left out
+            busy = [(x - 20, x + 230) for x, _r, _p, _f in layout]
+            if crowd_word is not None:
+                busy.append((1240, 1920))
+            sides = [100, 1820 - m["w"]] if variant % 2 == 0 else [1820 - m["w"], 100]
+            side = next((x for x in sides if all(x + m["w"] + 30 <= lo or x >= hi + 30 for lo, hi in busy)), None)
+            if side is not None:
+                cues.append(Cue(f"{beat_id}_prop1", "visual", {"index": prop[1]}, pos=(side, STAGE_Y - m["h"]), params=pp))
+    elif prop:
         side = 150 if variant % 2 == 0 else 1500
         pp = {"style": "prop", "prop": prop[0], "height": 300}
         cues.append(Cue(f"{beat_id}_prop1", "visual", {"index": prop[1]}, pos=(side, STAGE_Y - ST.measure_cartoon("prop", pp)["h"]), params=pp))

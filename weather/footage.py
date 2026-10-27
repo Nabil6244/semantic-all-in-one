@@ -4,14 +4,15 @@ existing providers and listed in the existing Visual Plan table.
 Which sources a Weather video may use (docs/weather/weather_style_plan.md §6):
   - stock video and stock pictures (Pexels, Pixabay) and the user's own files: generic weather b-roll ("rain on a city street");
   - NEVER generated footage (Flow): a weather video must not show made-up weather as if it were real;
-  - YouTube and other event footage arrive with Weather News (phase 3), with per-clip licence checks and approval.
+  - YouTube news footage of the event (weather.ytfill, News Doc's search) and a `youtube_video:` row of your own: allowed (2026-10-27:
+    the first version refused it as a licence precaution; the owner is allowed to use news clips).
 Stock b-roll is generic, so it is never presented as footage of a particular event."""
 
 from __future__ import annotations
 
 from typing import List
 
-ALLOWED = ("stock_video", "stock_image")
+ALLOWED = ("stock_video", "stock_image", "youtube_video")
 REFUSED = {
     "flow_video": "generated (Flow) video is never used in a weather video: it would show weather that did not happen",
     "flow_image": "generated (Flow) pictures are never used in a weather video: they would show weather that did not happen",

@@ -182,7 +182,7 @@ def resolve_cues(cues: Sequence[Cue], words: Sequence[Word], beat_start: float, 
                     rc.problems.append(f"cue {cue.id}: a {st} cue needs pos (the top-left corner of the figure's visible pixels)")
                     continue
             else:
-                if not (str(cue.text).strip() or cue.asset):
+                if st != "cross" and not (str(cue.text).strip() or cue.asset):             # a cross-out (schema v1.6) is two strokes over another cue: no text
                     rc.problems.append(f"cue {cue.id}: a visual cue needs text or an icon asset")
                     continue
                 if cue.pos is None:

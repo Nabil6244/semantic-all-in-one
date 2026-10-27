@@ -1,0 +1,218 @@
+{
+ "id": "eye_journey_v1",
+ "profile": "medical_cinema",
+ "duration": 12.0,
+ "background": [
+  0.012,
+  0.016,
+  0.03
+ ],
+ "camera": [
+  {
+   "t": 0.0,
+   "target": "head",
+   "dist": 0.8,
+   "az": -10,
+   "el": 4,
+   "fov": 30
+  },
+  {
+   "t": 3.5,
+   "target": "eyes",
+   "dist": 0.34,
+   "az": -6,
+   "el": 3,
+   "fov": 29
+  },
+  {
+   "t": 7.0,
+   "target": "eye_l",
+   "dist": 0.17,
+   "az": 8,
+   "el": 3,
+   "fov": 28
+  },
+  {
+   "t": 12.0,
+   "target": "eye_l",
+   "dist": 0.14,
+   "az": 22,
+   "el": 4,
+   "fov": 28
+  }
+ ],
+ "layers": {
+  "Layer_Skull": [
+   [
+    0,
+    0.5
+   ],
+   [
+    3.0,
+    0.5
+   ],
+   [
+    5.5,
+    0.12
+   ],
+   [
+    12,
+    0.12
+   ]
+  ],
+  "Layer_Eyes": [
+   [
+    0,
+    0.0
+   ],
+   [
+    1.4,
+    1.0
+   ],
+   [
+    12,
+    1.0
+   ]
+  ],
+  "Layer_Cortex": [
+   [
+    0,
+    0.0
+   ],
+   [
+    12,
+    0.0
+   ]
+  ],
+  "Layer_Cerebellum": [
+   [
+    0,
+    0.0
+   ],
+   [
+    12,
+    0.0
+   ]
+  ],
+  "Layer_Arteries": [
+   [
+    0,
+    0.0
+   ],
+   [
+    12,
+    0.0
+   ]
+  ]
+ },
+ "layer_order": [
+  "Layer_Eyes",
+  "Layer_Cortex",
+  "Layer_Cerebellum",
+  "Layer_Arteries",
+  "Layer_Skull"
+ ],
+ "prepass_always": [
+  "Layer_Skull",
+  "Layer_Eyes"
+ ],
+ "highlights": [],
+ "glow": [
+  {
+   "id": "skull",
+   "layer": "Layer_Skull",
+   "color": [
+    0.5,
+    0.74,
+    1.0
+   ],
+   "rim": 1.0,
+   "power": 2.0,
+   "fill": 0.15,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     0.4,
+     1.0
+    ],
+    [
+     5.5,
+     1.0
+    ],
+    [
+     6.0,
+     0.4
+    ]
+   ]
+  },
+  {
+   "id": "eyes",
+   "layer": "Layer_Eyes",
+   "color": [
+    0.7,
+    0.85,
+    1.0
+   ],
+   "rim": 0.9,
+   "power": 2.2,
+   "fill": 0.0,
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     1.6,
+     0
+    ],
+    [
+     3.0,
+     1.0
+    ],
+    [
+     12,
+     1.0
+    ]
+   ]
+  }
+ ],
+ "bloom": {
+  "strength": 0.35,
+  "radius": 0.5,
+  "threshold": 1.0
+ },
+ "labels": [
+  {
+   "id": "eye",
+   "text": "Left eye",
+   "anchor": "eye_l",
+   "offset": [
+    0,
+    -0.012,
+    0.0
+   ],
+   "t0": 4.4,
+   "t1": 8.2,
+   "side": "right",
+   "layer": "Layer_Eyes"
+  },
+  {
+   "id": "eyer",
+   "text": "Right eye",
+   "anchor": "eye_r",
+   "offset": [
+    0,
+    -0.012,
+    0.0
+   ],
+   "t0": 4.8,
+   "t1": 7.4,
+   "side": "left",
+   "layer": "Layer_Eyes"
+  }
+ ],
+ "exposure": 0.62
+}

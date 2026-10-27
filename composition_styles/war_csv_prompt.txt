@@ -1,0 +1,35 @@
+You are preparing the footage plan for a war / geopolitics documentary. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
+
+HEADER (exactly this):
+scene_number,script_segment,asset_type,prompt
+
+COLUMNS
+- scene_number: 1, 2, 3 ...
+- script_segment: the scene's narration copied EXACTLY from the script, every word in order. One scene = one sentence, or two short ones about the same thing. Never reword, shorten or merge across a change of topic. Every word of the script must appear in exactly one row.
+- asset_type: one of
+    youtube_video   real news / archive / official footage of THIS event (most scenes that describe what happened)
+    archive_video   historical footage (past wars, years, earlier events)
+    stock_video     generic footage of what the sentence describes (only when no real footage would exist)
+    nasa_video      satellite or space imagery
+    local           I will attach the file myself (leave prompt empty)
+    none            no footage: the scene is data, a map, a statistic, a quote card or a figure. The editor draws a labelled map or graphic from the narration.
+- prompt:
+    youtube_video / archive_video: 2 search phrases separated by " || ", most specific first, e.g. "Pokrovsk Ukraine frontline drone footage || Donetsk oblast fighting". Name the real place, event and equipment the sentence names.
+    stock_video: 2 to 5 words, one filmable subject, no place, no date, no name (e.g. "armored column on road").
+    nasa_video / local / none: empty.
+
+RULES FOR WHAT GETS FOOTAGE
+- Aim for footage on 50 to 60 percent of the scenes. A scene whose main content is a number, a percentage, a date range, a territory change, a place on a map, an equipment spec list, a ranking, a comparison, or a quote from a named person is asset_type none: the editor builds the map or card from the narration, and a graphic must not be hidden under footage.
+- Footage must match the sentence: if it names a system (HIMARS, S-400, Leopard 2), search for that system, not "missile". If it describes a city under attack, search for that city. Never ask for a place, side, equipment or year the sentence does not mention.
+- Never request footage of another war or the other side to fill a gap. If you cannot name a real clip that would exist, use none instead of a vague stock clip.
+- Do not request graphic or animated content (maps, infographics, "animation of ..."). Those come from none.
+- Never invent numbers, names, quotes, dates or places. The prompt column uses only words from the script.
+- The first scene is the title or hook: footage if it opens on an event, none if it opens on a statement or figure.
+- No more than three none scenes in a row: vary with footage so there is motion every few seconds.
+
+FORMAT
+- Quote any cell that contains a comma or a line break, and double any quote inside it.
+- One row for every scene, exactly 4 cells per row, no blank lines, no comments.
+
+SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

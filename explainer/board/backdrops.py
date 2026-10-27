@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 
 STYLES = ("grey", "paper", "grid", "warm")
+DOSSIER = "dossier"                      # per-beat look (DirectorOptions.variety), not a user choice: not in STYLES
 GREY = (192, 192, 192)
 
 
@@ -21,8 +22,16 @@ def _vignette(h: int, w: int, strength: float) -> np.ndarray:
 
 @lru_cache(maxsize=8)
 def _build(name: str, w: int, h: int) -> bytes:
-    rs = np.random.RandomState({"paper": 11, "grid": 12, "warm": 13}.get(name, 0))
-    if name == "paper":                 # warm off-white paper: fine grain, a few soft fibres, darker edges
+    rs = np.random.RandomState({"paper": 11, "grid": 12, "warm": 13, "dossier": 14}.get(name, 0))
+    if name == "dossier":               # aged file paper under a desk lamp: a bright soft cone right of centre (where the content sits), dark edges; the ink stays readable in the cone
+        base = np.empty((h, w, 3), np.float32)
+        base[:] = (206, 192, 166)
+        grain = rs.normal(0, 2.6, (h, w, 1)).astype(np.float32)
+        y, x = np.mgrid[0:h, 0:w].astype(np.float32)
+        d = np.sqrt(((x - w * 0.62) / (w * 0.62)) ** 2 + ((y - h * 0.5) / (h * 0.62)) ** 2)
+        cone = (0.74 + 0.26 * np.clip(1.0 - d, 0, 1) ** 0.6)[..., None]
+        img = (base + grain) * cone * _vignette(h, w, 0.12)[..., None]
+    elif name == "paper":                 # warm off-white paper: fine grain, a few soft fibres, darker edges
         base = np.empty((h, w, 3), np.float32)
         base[:] = (231, 225, 212)
         grain = rs.normal(0, 2.2, (h, w, 1)).astype(np.float32)
@@ -47,7 +56,7 @@ def _build(name: str, w: int, h: int) -> bytes:
 
 def image(name: str, size: Tuple[int, int]) -> Image.Image:
     """The background as an RGB image of `size` (a fresh copy: callers draw on it)."""
-    if name not in STYLES:
+    if name not in STYLES and name != DOSSIER:
         raise ValueError(f"unknown background {name!r} (use {', '.join(STYLES)})")
     w, h = int(size[0]), int(size[1])
     if name == "grey":

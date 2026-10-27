@@ -47,6 +47,7 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
     last_asset = [""]
     flip = variant
     explain_flip = 0
+    beat_assets: set = set()                     # opt.fill only: a picture already shown in this beat is not shown again for a synonym ("town" then "village" give the same house)
     for si, s in enumerate(sents):
         sidx = [g for g in s.widx if g in pos]
         if not sidx:
@@ -66,9 +67,12 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
                 concepts.append((g, t, table[t]))
         first_new = len(cues)
         concepts = concepts[:3]
+        if opt.fill:
+            concepts = [c for c in concepts if c[2] not in beat_assets]
         if len(concepts) > 1 or (concepts and concepts[0][2] != last_asset[0]):
             concepts = [c for c in concepts if c[2] != last_asset[0]] or concepts           # vary the picture from one sentence to the next when the sentence offers another
         last_asset[0] = concepts[0][2] if concepts else ""
+        beat_assets.update(c[2] for c in concepts)
         covered = set()
         used_text = set()
 

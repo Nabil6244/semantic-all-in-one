@@ -130,24 +130,24 @@ class ResourceGovernor:
 
         # Base defaults — platform-aware, never unbounded.
         if p.is_windows:
-            download = 3 if mem_gb < 12 else 4
+            download = 4 if mem_gb < 12 or pressure else 6
             ffmpeg = 1 if mem_gb < 12 or pressure else 2
             flow = 8 if mem_gb < 16 or pressure else 10
             processing = 3 if pressure else min(4, max(2, p.cpu_count // 2))
         elif p.is_apple_silicon:
-            download = 4 if not pressure else 3
+            download = 6 if not pressure else 4
             ffmpeg = 2 if not pressure else 1
             flow = 10 if not pressure else 8
             processing = min(4, max(2, p.cpu_count // 2))
         else:  # Intel macOS / Linux
-            download = 3 if pressure else 4
+            download = 4 if pressure else 6
             ffmpeg = 1 if pressure else 2
             flow = 8 if pressure else 10
             processing = min(4, max(2, p.cpu_count // 2))
 
         if long_form or mem_gb < 8:
             # Prioritize sustained throughput / stability for ~40min docs.
-            download = min(download, 3)
+            download = min(download, 4 if mem_gb < 8 else 6)
             ffmpeg = min(ffmpeg, 1)
             flow = min(flow, 8)
             processing = min(processing, 3)

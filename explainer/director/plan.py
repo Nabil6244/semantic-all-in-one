@@ -38,15 +38,33 @@ def _cue_key(c) -> Dict[str, Any]:
             "slot": c.slot, "pos": c.pos, "params": c.params, "cps": c.cps}
 
 
-def clip_name(cues, beat_words, start: float, end: float, opt: DirectorOptions, beat_id: str) -> str:
+OPT_OMIT_WHEN_OFF = ("motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
+
+
+def _finish_key(opt: DirectorOptions) -> Dict[str, Any]:
+    """The opt-in camera and texture are part of a board clip's identity; both off adds nothing, so every earlier clip name stays."""
+    out: Dict[str, Any] = {}
+    if getattr(opt, "camera", "off") not in ("off", "", None, False):
+        out["camera"] = opt.camera
+    if getattr(opt, "texture", False):
+        from ..motion import texture as _TX
+        out["texture"] = [str(opt.texture), _TX.manifest_digest()]
+    return out
+
+
+def clip_name(cues, beat_words, start: float, end: float, opt: DirectorOptions, beat_id: str, background: Optional[str] = None) -> str:
+    background = opt.background if background is None else background
     nstyle = next(((c.params or {}).get("style", "cartoon") for c in cues if c.kind == "narrator" and (c.params or {}).get("action") == "show"), "cartoon")
     man = rig.load_assets(nstyle).manifest_sha256 if any(c.kind == "narrator" for c in cues) else ""
     if any(c.kind == "visual" and (c.params or {}).get("style") in ("set", "figure", "crowd", "prop") for c in cues):      # the cartoon kit: an edited asset must not reuse an old clip
         from ..cartoon import kit
         man += kit.manifest()["layers_digest"]
+    if any(c.kind == "visual" and (c.params or {}).get("style") == "stamp" and (c.params or {}).get("texture") for c in cues):      # the motion kit: an edited texture must not reuse an old clip
+        from ..motion import sprites as MS
+        man += hashlib.sha256(json.dumps(MS.manifest().get("masks", {}), sort_keys=True).encode()).hexdigest()[:16]
     blob = json.dumps({"v": EXPLAINER_VERSION, "schema": SCHEMA_VERSION, "assets": man, "id": beat_id, "cues": [_cue_key(c) for c in cues], "words": [[w[0], round(w[1], 4), round(w[2], 4)] for w in beat_words],
                        "start": round(start, 4), "end": round(end, 4), "dissolve": opt.dissolve_s, "fps": opt.fps, "size": list(opt.size),
-                       **({"bg": opt.background} if opt.background != "grey" else {})}, sort_keys=True, default=str)
+                       **({"bg": background} if background != "grey" else {}), **_finish_key(opt)}, sort_keys=True, default=str)
     return f"board_{hashlib.sha256(blob.encode()).hexdigest()[:16]}.mp4"
 
 
@@ -147,6 +165,15 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     SG.compute_breaks(sents, words)
     cased = SG.casing(script)
     table = {**LX.ICONS, **{k.lower(): v for k, v in opt.metaphors.items()}}
+    if opt.scenes2:
+        try:
+            from .compose_cartoon import _v2_ready
+            if _v2_ready():
+                from . import lexicon_v2 as LV2
+                table = {**LX.ICONS, **LV2.scenes2_tables()["icons"], **{k.lower(): v for k, v in opt.metaphors.items()}}
+        except Exception as exc:                 # never stop: the v1 table is used
+            info_scenes2 = f"scenes2 icons not merged: {exc}"
+            res.warnings.append(info_scenes2)
     roles = {k.lower(): v for k, v in opt.roles.items()}
     beats = SL.group(sents, total, opt)
     info = SL.choose_kinds(beats, words, script, total, opt)
@@ -163,6 +190,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     sentence_ends = {s_.widx[-1] for s_ in sents}                  # a phrase never runs across the end of a sentence, in a repair as in the first pass
     evidence_subjects: Dict[str, Dict[str, List[str]]] = {}
     beat_notes: Dict[str, Any] = {}
+    motion_state: Dict[str, Any] = {"stamps": [], "plates": []}
+    if opt.budget:
+        from ..motion.budget import Budget
+        motion_state["budget"] = Budget()
     first_map = True
     cur_view = None
     country_roles: Dict[str, str] = {}      # each filled country keeps one colour for the whole video (the same recurring-metaphor rule as the picture roles)
@@ -183,6 +214,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 for note in cam["notes"]:
                     b.notes.append("camera: " + note)
                 markers, fills, zones = [], [], []
+                drawn: set = set()                      # the places that really got a fill or a marker on this map (a relation line joins only these)
                 label_boxes: List[Tuple[str, Tuple[float, float, float, float]]] = []
                 for h in shown:
                     wait = max(0.0, cam["ready"].get(h.name, 0.0) - h.match["start"])      # the layer waits until the camera is where the place can be seen
@@ -194,6 +226,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                         if h.name not in country_roles:
                             country_roles[h.name] = FILL_PALETTE[len(country_roles) % len(FILL_PALETTE)]
                         fills.append({"place": h.name, "offset_s": round(wait, 3), "role": country_roles[h.name]})
+                        drawn.add(h.name)
                         if cam.get("wide") and cam.get("view"):          # on a world view the names must not pile up: a label that would sit on an earlier one is left out, and why is recorded
                             try:
                                 from ..beats import framing as _fr
@@ -213,13 +246,26 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                         zones.append({"place": h.name, "offset_s": round(max(0.3, wait + 0.3), 3)})
                     else:
                         markers.append({"place": h.name, "offset_s": round(max(0.1, wait), 3)})
+                        drawn.add(h.name)
+                map_lines: List[Dict[str, Any]] = []
+                if opt.maplines:
+                    from .compose_maplines import relation_lines
+                    map_lines, ln_notes = relation_lines([h for h in shown if h.name in drawn], cam, words, sents, {h.name: max(0.0, cam["ready"].get(h.name, 0.0) - h.match["start"]) for h in shown})
+                    b.notes += ln_notes
+                    if map_lines and "budget" in motion_state:
+                        ok_b, why_b = motion_state["budget"].allow("line", b.start)
+                        if ok_b:
+                            motion_state["budget"].commit("line", b.start)
+                        else:
+                            b.notes.append("map line not drawn: " + why_b)
+                            map_lines = []
                 stats = _stats_for(b, words)
                 frame = "country" if pl.kind in ("country", "region") else "region"
                 if not hits:                                    # no place with a spoken word (the arbitrary opening map): its own camera, nothing to draw
                     cam = {"start": {"place": pl.name, "frame": frame} if first_map else None, "moves": [{"action": "fly_to", "t": round(bstart + 0.05, 3), "dur": 2.0, "place": pl.name, "frame": frame}] if not first_map else [], "view": None}
                 caps: List[Dict[str, Any]] = []
                 for _round in range(3):          # still-time repair for maps: a whole-phrase caption of the words inside the longest gap (the camera drift is not counted as a change)
-                    beat, ev, probs = make_map_beat(b.id, b.start, b.end, words, camera_start=cam["start"] if first_map else None, fills=fills, markers=markers, zone_labels=zones,
+                    beat, ev, probs = make_map_beat(b.id, b.start, b.end, words, camera_start=cam["start"] if first_map else None, fills=fills, markers=markers, zone_labels=zones, lines=map_lines,
                                                     stats=stats, camera_steps=cam["moves"], captions=caps, purpose="map: " + ", ".join(h.name for h in b.places),
                                                     geo_intent="where " + pl.name + " is", strict=False)
                     if probs:
@@ -248,6 +294,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 cur_view = cam.get("view") or cur_view
                 plan_beats.append(beat)
                 beat_notes[b.id] = {"kind": "map", "places": [h.name for h in b.places]}
+                if opt.mapoverlay:
+                    try:
+                        from ..beats import overlay as OV
+                        ov = OV.plan_overlay(beat, words, OV.suggest_cues(beat))
+                        beat_notes[b.id]["overlay"] = ov
+                    except Exception as exc:         # never stop: the map is used without an overlay
+                        b.notes.append(f"map overlay not planned: {type(exc).__name__}: {str(exc)[:80]}")
                 first_map = False
                 map_places_done.update(h.name for h in b.places)
             except Exception as exc:
@@ -300,6 +353,14 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     metaphor_uses: List[Dict[str, str]] = []
     carry = "idle"
     board_info: Dict[str, Any] = {}
+    motion_rec: Dict[str, Any] = {}
+    numbers_rec: Dict[str, Any] = {}
+    variety_rec: Dict[str, Any] = {}
+    fill_rec: Dict[str, Any] = {}
+    dialogue_rec: Dict[str, Any] = {}
+    dlg_state = None
+    sig_hist: List[Tuple[str, ...]] = []        # the picture-layout family of each board beat so far (opt.variety)
+    dossier_hist: List[bool] = []
     for k, b in enumerate(beats):
         if plan_beats[k] is not None:
             beat = plan_beats[k]
@@ -321,6 +382,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             br = author_ref(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry, variant=k)
         else:
             br = CP.author(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry)
+        beat_bg = opt.background
+        if opt.variety and opt.look == "reference" and b.kind != "cartoon":
+            from .compose_variety import variety_pass
+            br, beat_bg, variety_rec[b.id] = variety_pass(br, b, k, words, cased, opt, table, roles, modes[k], carry, sig_hist, dossier_hist)
         resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         if b.kind == "cartoon":                 # a cartoon beat has no repair: its elements arrive on spread-out words; the gaps are measured and reported
             ev_s, ev_a = CP.change_events(resolved, b.start, b.end, strict=True), CP.change_events(resolved, b.start, b.end)
@@ -334,6 +399,32 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             resolved = repair_still_ref(br, b.id, b.start, b.end, words, cased, opt, resolved, table, roles, set().union(*[s_.breaks for s_ in b.sents]) | sentence_ends)
         else:
             resolved = CP.repair_still(br, b.id, b.start, b.end, words, cased, opt, resolved, table, roles, set().union(*[s_.breaks for s_ in b.sents]) | sentence_ends)
+        if (opt.motion or opt.numbers) and opt.look == "reference" and b.kind != "cartoon":
+            if opt.motion:
+                from .compose_motion import motion_pass
+                motion_rec[b.id] = motion_pass(br, b.id, b.start, b.end, b.sents, words, opt, motion_state)
+            if opt.numbers:
+                from .compose_numbers import numbers_pass
+                numbers_rec[b.id] = numbers_pass(br, b.id, b.start, b.end, b.sents, words, opt, motion_state)
+            resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
+        if opt.fill and opt.look == "reference" and b.kind != "cartoon":
+            from .compose_fill import fill_pass
+            fill_rec[b.id] = fill_pass(br, b.id, b.start, b.end, b.sents, words, cased, opt, table, roles)
+            resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
+            if fill_rec[b.id].get("changed"):
+                ev_s = CP.change_events(resolved, b.start, b.end, strict=True)
+                ev_a = CP.change_events(resolved, b.start, b.end)
+                br.still_gap_strict_s = br.still_gap_s = max(y - x for x, y in zip(ev_s, ev_s[1:]))
+                br.still_gap_all_s = max(y - x for x, y in zip(ev_a, ev_a[1:]))
+        if opt.dialogue and opt.look == "reference":
+            from .compose_dialogue import dialogue_pass, new_state
+            if dlg_state is None:
+                dlg_state = new_state()
+            try:
+                dialogue_rec[b.id] = dialogue_pass(br, b.id, b.start, b.end, b.sents, words, opt, dlg_state)
+            except Exception as exc:             # never stop: the beat keeps its cues
+                dialogue_rec[b.id] = {"bubbles": [], "spots": [], "poses": [], "skipped": [f"dialogue pass failed: {type(exc).__name__}: {str(exc)[:80]}"]}
+            resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         carry = br.last_pose
         _p, _r, _items = dry_build(br.cues, words, b.start, b.end, dissolve_s=opt.dissolve_s, fps=opt.fps, beat_id=b.id)
         CONTENT = 1104 * 780.0                                         # the content area right of the narrator zone, inside the margins (x 720..1824, y 110..890)
@@ -353,13 +444,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if modes[k] != "none" and any(c.kind == "narrator" for c in br.cues):
             narrator_spans.append((b.start, b.end))
         metaphor_uses += br.metaphor_uses
-        name = clip_name(br.cues, bw, b.start, b.end, opt, b.id)
+        name = clip_name(br.cues, bw, b.start, b.end, opt, b.id, beat_bg)
         clip_path = str((out_dir / name).resolve()) if out_dir else f"explainer/{name}"
         built = False
         if materialize:
             f = out_dir / name
             if not (f.is_file() and f.stat().st_size > 0):
-                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=opt.background)
+                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg, camera=opt.camera, texture=opt.texture)
                 if bb.problems:
                     br.problems += bb.problems
             built = True
@@ -370,7 +461,18 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         board_info[b.id] = {"cues": len(br.cues), "kinds": sorted({c.kind for c in br.cues}), "dropped": br.dropped, "rescued": br.rescued, "lost": br.lost, "repairs": br.repairs, "still_gap_s": round(br.still_gap_s, 2), "still_gap_all_s": round(br.still_gap_all_s, 2), "still_gap_strict_s": round(br.still_gap_strict_s, 2),
                             "narrator": modes[k], "labels": [s.label for s in b.sents], "phrases": br.phrases, "peak_occupancy_share": br.peak_occupancy, "clip": name, "built": built, "problems": br.problems, "cue_specs": [_cue_key(c) for c in br.cues],
                             "layout": [{"cue": r.cue.id, "kind": r.cue.kind, "slot": r.slot, "font_px": r.font_px, "lines": r.lines, "first_frame": r.first_frame} for r in resolved if not r.problems and r.cue.kind not in ("clear", "narrator")]}
+    for bid_, rec_ in motion_rec.items():
+        board_info[bid_]["motion"] = rec_
+    for bid_, rec_ in numbers_rec.items():
+        board_info[bid_]["numbers"] = rec_
+    for bid_, rec_ in variety_rec.items():
+        board_info[bid_]["variety"] = rec_
+    for bid_, rec_ in fill_rec.items():
+        board_info[bid_]["fill"] = rec_
+    for bid_, rec_ in dialogue_rec.items():
+        board_info[bid_]["dialogue"] = rec_
     plan = assemble_plan(total, plan_beats, {"dissolve_s": float(opt.dissolve_s)})
+    fx_budget = motion_state["budget"].summary() if "budget" in motion_state else None
     # ---- gates ----
     rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
                      allow_sources=LX.FOOTAGE_SOURCES if opt.footage_share > 0 else ()) if materialize else None
@@ -404,11 +506,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                      "explicit": None if hit is None else (True if tag == "question" else hit.explicit if tag != "hook" else False), "basis": ("position: the first sentence" if tag == "hook" else "a cue word or phrase in the narration or script punctuation")}
     story["hook_within_30s"] = story["hook"]["present"] and story["hook"]["at_s"] <= 30.0
     story["question_within_120s"] = story["question"]["present"] and story["question"]["at_s"] <= 120.0
-    res.report = {"explainer_version": EXPLAINER_VERSION, "options": {k: v for k, v in opt.__dict__.items() if k not in ("places",)}, "duration_s": round(total, 3), "sentences": len(sents),
+    res.report = {"explainer_version": EXPLAINER_VERSION, "options": {k: v for k, v in opt.__dict__.items() if k not in ("places",) and not (k in OPT_OMIT_WHEN_OFF and (not v or v == "off"))}, "duration_s": round(total, 3), "sentences": len(sents),
                   "sentence_labels": [{"i": s.index, "label": s.label, "trigger": s.trigger, "start": round(s.start, 2), "end": round(s.end, 2), "text": s.text[:160], "words": len(s.widx)} for s in sents],
                   "selection": {**info, "beats": kinds, "notes": {b.id: b.notes for b in beats if b.notes}}, "beat_details": {**beat_notes, **board_info}, "story": story,
                   "pacing": PC.metrics([{"kind": b.kind, "start": b.start, "end": b.end} for b in beats], all_events, narrator_spans, total, opt, strict_events),
                   "metaphors": PC.metaphor_report(metaphor_uses), "change_events_s": [round(e, 3) for e in sorted(all_events)], "meaningful_change_events_s": [round(e, 3) for e in sorted(strict_events)], "relevance_records": len(rep.records) if rep else 0, "hybrid_validate": editorial, "validate_plan_problems": rep.validate_plan_problems if rep else []}
+    if fx_budget is not None:
+        res.report["fx_budget"] = fx_budget
     res.plan = plan if not res.problems else None
     if res.problems:
         res.report["plan_withheld"] = "a gate failed: nothing is installed"

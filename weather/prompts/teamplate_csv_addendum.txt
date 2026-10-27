@@ -13,6 +13,14 @@ and full-screen footage carries the sentences that describe what the weather loo
   Never name a place, a storm or a date in the request (stock footage is generic, never "footage of" this event). Never
   ask for a setting the narration does not have (no palm trees or beaches in a Wyoming wind story). Approved event clips
   (file paths) are still preferred where the user gave them.
+- Ask for what the weather DID, not for the sky: a flooded street, waves breaking over a seawall, a damaged roof, fallen trees,
+  sandbags, crews clearing debris, a closed road. Close-ups of clouds, rain drops or lightning only when the sentence is about the
+  sky itself. The reference videos show the storm's effects; a clip of clouds says nothing about the event.
+- At Generate, the app replaces storm-scene stock requests (flooded streets, damage, waves, wind) by YouTube news footage of the
+  event (local reports, storm chasers), and keeps your stock request where nothing relevant is found: write the request as usual.
+- KEEP EACH REQUEST SHORT: 2 to 5 words naming the one main subject ("flooded street", "waves over seawall", "hail on a car",
+  "damaged roof"). Stock sites index simple subjects; a 12-word scene ("small hailstones bouncing off a car hood") is matched on
+  one loose word and returns the wrong clip. One subject per request, never two things at once.
 - A footage beat of 9 seconds or more may have two clip rows (two angles of the same subject); the app also cuts a long
   single stock shot into ~5 s shots itself.
 - Weather layers (row=weather) still never belong to a stock footage beat: move a layer's vo_anchor to its map beat.

@@ -44,7 +44,7 @@ from providers.local_provider import LocalProvider
 from providers.router import SceneAssetRouter
 
 def _default_parallel_scenes() -> int:
-    """Ask the resource governor; fall back to env / 4."""
+    """Ask the resource governor; fall back to env / 6."""
     env_raw = os.environ.get("ASSET_PARALLEL_SCENES", "").strip()
     if env_raw:
         try:
@@ -56,7 +56,7 @@ def _default_parallel_scenes() -> int:
 
         return int(get_governor().recommend_download_workers())
     except Exception:
-        return 4
+        return 6
 
 
 DEFAULT_PARALLEL_SCENES = _default_parallel_scenes()

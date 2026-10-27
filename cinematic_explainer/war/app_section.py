@@ -97,7 +97,43 @@ def build(app, parent, *, row: int) -> None:
                  text_color=M._MUTED).grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(controls, textvariable=app._war_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
                  justify="left").grid(row=3, column=0, sticky="ew", pady=(8, 0))
+    bar = ctk.CTkFrame(controls, fg_color="transparent")
+    bar.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+    bar.grid_columnconfigure(1, weight=1)
+    M._make_button(bar, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="lg", width=150).grid(row=0, column=0, sticky="w")
+    ctk.CTkLabel(bar, text="Paste it into any AI to get the footage CSV for your script.", font=ctk.CTkFont(size=11), text_color=M._MUTED,
+                 anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
+    app._build_csv_prompt_script_box(bar, row=1, columnspan=2)
     block.grid_remove()
+
+
+def csv_prompt_text(script: str = "") -> str:
+    """The War Documentary CSV prompt (composition_styles/war_csv_prompt.txt) with the script in place of its placeholder."""
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    text = (base / "composition_styles" / "war_csv_prompt.txt").read_text(encoding="utf-8")
+    script = (script or "").strip()
+    return text.replace("<<<PASTE THE SCRIPT HERE>>>", script) if script else text
+
+
+def copy_csv_prompt(app) -> None:
+    M = _m(app)
+    for box in getattr(app, "_csv_prompt_script_boxes", []):
+        try:
+            if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None):
+                app._on_csv_prompt_script_edited(box)   # typed in but not yet left: the click must not lose it
+                break
+        except Exception:
+            pass
+    script = app._main_script_text()
+    try:
+        text = csv_prompt_text(script)
+    except OSError as exc:
+        M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}")
+        return
+    app.clipboard_clear()
+    app.clipboard_append(text)
+    app._war_status_var.set("War Documentary prompt copied with your script. Paste it into any AI to get the footage CSV." if script else
+                            "War Documentary prompt copied. Paste it into any AI and replace its last line with your script.")
 
 
 def browse_scenes(app) -> None:

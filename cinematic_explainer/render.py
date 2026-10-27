@@ -24,6 +24,8 @@ class Shot:
     start: float
     end: float
     seek: float = 0.0
+    treat: Optional[dict] = None      # War Documentary only (see war/segments.py): slow push/pan, grade, vignette, grain; None = untouched
+    dissolve_in: float = 0.0          # War Documentary only: seconds the previous shot cross-fades into this one
 
 
 @dataclass

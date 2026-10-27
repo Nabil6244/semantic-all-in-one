@@ -187,6 +187,13 @@ from whatif.packaging import data_files as whatif_data_files, python_modules as 
 
 datas += whatif_data_files(ROOT)
 
+# Health Cinema: health_cinema/ (opt-in style; the Three.js anatomy renderer reuses StarMap's three.js, flow-engine's Playwright and the bundled Node/ffmpeg).
+# The 3D model is NOT shipped (licence review pending): without it every 3D scene falls back to a text card. See health_cinema/packaging.py.
+from health_cinema.packaging import data_files as health_data_files, python_modules as health_modules  # noqa: E402
+
+datas += health_data_files(ROOT)
+hiddenimports += health_modules(ROOT)   # app.py imports it only inside methods
+
 # Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the
 # weather package's data and prompts (see weather/packaging.py, which is unit-tested).
 from weather.packaging import data_files as weather_data_files, python_modules as weather_modules  # noqa: E402

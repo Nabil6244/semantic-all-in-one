@@ -1,0 +1,28 @@
+{
+ "asset_id": "stamp_texture_v1",
+ "built_by": "explainer/motion/build_assets.py",
+ "masks": {
+  "a": {
+   "bytes": 90065,
+   "file": "grunge_a.png",
+   "seed": 7001,
+   "sha256": "61481f28395c5982bf871969ab6b9495bc19e1957719adfb767b10e291eeb164",
+   "size": [
+    1024,
+    512
+   ]
+  },
+  "b": {
+   "bytes": 91443,
+   "file": "grunge_b.png",
+   "seed": 7002,
+   "sha256": "6e4f05e45742e97e2575ddbcd50cff68311e1ec88ed5dfe4992cc3b8ac31f705",
+   "size": [
+    1024,
+    512
+   ]
+  }
+ },
+ "pillow_version": "12.3.0",
+ "version": 1
+}

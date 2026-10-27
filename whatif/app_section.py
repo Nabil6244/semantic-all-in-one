@@ -122,38 +122,44 @@ def build(app, parent, *, row: int) -> None:
     controls.grid_columnconfigure(0, weight=1)
     app._whatif_controls = controls
 
-    # choose the files, then Generate: choosing a file only remembers it (no planning, no transcribing, no screen change)
-    actions = ctk.CTkFrame(controls, fg_color="transparent")
-    actions.grid(row=0, column=0, sticky="ew")
-    ghost = lambda text, cmd: ctk.CTkButton(actions, text=text, height=36, corner_radius=6, fg_color="transparent", border_width=1,  # noqa: E731
-                                            border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12), command=cmd)
-    for col, (text, cmd) in enumerate((("Upload voiceover…", lambda: upload_voiceover(app)), ("Load shot CSV (optional)…", lambda: browse(app)),
-                                       ("Copy the CSV prompt", lambda: app._copy_csv_prompt("whatif", app._whatif_status_var)),
+    # the whole video on this page, in order (ui/style_kit.py): choosing a file only remembers it (no planning, no transcribing)
+    from ui import style_kit as K
+
+    ghost = lambda parent, text, cmd: ctk.CTkButton(parent, text=text, height=36, corner_radius=6, fg_color="transparent", border_width=1,  # noqa: E731
+                                                    border_color=M._BORDER, text_color=M._MUTED, hover_color=M._ACCENT_SEL, font=ctk.CTkFont(size=12), command=cmd)
+    vo = K.section(controls, 0, 1, "Voiceover", "the narration the video is cut to")
+    app._path_row(0, "", app.audio_var, lambda: upload_voiceover(app), parent=vo, placeholder_text="None yet: Browse to choose your voiceover")
+
+    app._whatif_script_kit = K.script_panel(app, K.section(controls, 1, 2, "Script", "the words of your voiceover (the same script as the Script page)"))
+
+    plan = K.section(controls, 2, 3, "Plan", "optional: the shots are planned from the narration")
+    actions = ctk.CTkFrame(plan, fg_color="transparent")
+    actions.grid(row=0, column=0, sticky="w")
+    for col, (text, cmd) in enumerate((("Load shot CSV…", lambda: browse(app)), ("Copy the CSV prompt", lambda: app._copy_csv_prompt("whatif", app._whatif_status_var)),
                                        ("Edit CSV", lambda: open_csv(app)), ("Check the plan", lambda: check_plan(app)))):
-        ghost(text, cmd).grid(row=0, column=col, padx=(0, 8))
-    app._path_row(1, "Voiceover", app.audio_var, lambda: upload_voiceover(app), parent=controls, placeholder_text="None yet: Upload voiceover")
-    app._path_row(2, "Shot CSV", app._whatif_file_var, lambda: browse(app), parent=controls, placeholder_text="None: the shots are planned from the narration")
+        ghost(actions, text, cmd).grid(row=0, column=col, padx=(0, 8))
+    app._path_row(1, "Shot CSV", app._whatif_file_var, lambda: browse(app), parent=plan, placeholder_text="None: the shots are planned from the narration")
+    app._whatif_plan_box = ctk.CTkTextbox(plan, height=170, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
+    app._whatif_plan_box.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+    app._whatif_plan_box.configure(state="disabled")
 
-    opts = ctk.CTkFrame(controls, fg_color="transparent")
-    opts.grid(row=3, column=0, sticky="ew", pady=(10, 0))
-    ctk.CTkLabel(opts, text="Pictures for illustrated shots", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 10))
+    opts = K.section(controls, 3, 4, "Sound & look")
+    ctk.CTkLabel(opts, text="Pictures for illustrated shots", font=ctk.CTkFont(size=11, weight="bold"), text_color=M._MUTED).grid(row=0, column=0, sticky="w")
     ctk.CTkSegmentedButton(opts, values=[HERO_IMAGE, HERO_BOTH, HERO_VIDEO], variable=app._whatif_hero_var, height=26, font=ctk.CTkFont(size=11),
-                           command=lambda _v: on_flow_mode(app)).grid(row=0, column=1)
+                           command=lambda _v: on_flow_mode(app)).grid(row=1, column=0, sticky="w", pady=(4, 0))
     ctk.CTkSwitch(opts, text="Sound effects + ambience", variable=app._whatif_sound_var, command=lambda: save_state(app),
-                  font=ctk.CTkFont(size=11)).grid(row=0, column=2, padx=(18, 0))
+                  font=ctk.CTkFont(size=11)).grid(row=2, column=0, sticky="w", pady=(8, 0))
 
-    go = ctk.CTkFrame(controls, fg_color="transparent")
-    go.grid(row=4, column=0, sticky="ew", pady=(14, 0))
-    app._whatif_generate_btn = ctk.CTkButton(go, text="Generate video", width=190, height=40, corner_radius=6, fg_color=M._ACCENT,
+    go = K.section(controls, 4, 5, "Render")
+    top = ctk.CTkFrame(go, fg_color="transparent")
+    top.grid(row=0, column=0, sticky="ew")
+    app._whatif_generate_btn = ctk.CTkButton(top, text="Generate video", width=190, height=40, corner_radius=6, fg_color=M._ACCENT,
                                              hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_generate_click(app))
     app._whatif_generate_btn.grid(row=0, column=0, padx=(0, 12))
-    ctk.CTkLabel(go, text="Nothing starts until you press Generate.", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=1, sticky="w")
-
-    app._whatif_plan_box = ctk.CTkTextbox(controls, height=210, font=ctk.CTkFont(family="Menlo", size=11), wrap="none")
-    app._whatif_plan_box.grid(row=5, column=0, sticky="ew", pady=(12, 0))
-    app._whatif_plan_box.configure(state="disabled")
-    ctk.CTkLabel(controls, textvariable=app._whatif_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
-                 justify="left").grid(row=6, column=0, sticky="ew", pady=(6, 0))
+    ctk.CTkLabel(top, text="Nothing starts until you press Generate.", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=1, sticky="w")
+    ctk.CTkLabel(go, textvariable=app._whatif_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
+                 justify="left").grid(row=1, column=0, sticky="ew", pady=(6, 0))
+    K.render_panel(app, go, row=2)
     controls.grid_remove()
     block.grid_remove()
     show_intro(app)
@@ -190,7 +196,7 @@ def on_generate_click(app) -> None:
 
 
 def show_intro(app) -> None:
-    set_text(app, "No plan yet.\n\n1. Upload voiceover (and paste your script on the Script page).\n2. Optional: Copy the CSV prompt, paste it with your script "
+    set_text(app, "No plan yet.\n\n1. Choose your voiceover (step 1) and paste your script (step 2).\n2. Optional: Copy the CSV prompt, paste it with your script "
                   "into any AI, save the CSV it writes and Load shot CSV.\n3. Press Generate video. Nothing starts before that: choosing files only "
                   "remembers them.\n\nCheck the plan (optional) lists the shots and every picture in the Visual Plan first, without making the video.")
 

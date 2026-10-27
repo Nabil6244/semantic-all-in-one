@@ -1,0 +1,29 @@
+{
+ "asset_id": "film_texture_v1",
+ "built_by": "explainer/motion/build_texture.py",
+ "files": {
+  "dust_l.png": {
+   "bytes": 530,
+   "sha256": "379590ee71cf338b3e150f6faa287c43d125ade9129fd50dfd86182ded96914e"
+  },
+  "dust_m.png": {
+   "bytes": 293,
+   "sha256": "84a231e2ee5941e0ef0c8f0f68f54143cedd122c001b7dc245ef23ed9d656bfd"
+  },
+  "dust_s.png": {
+   "bytes": 167,
+   "sha256": "b276317af223dda171a8f1121475e7dfa0b6b24f42de7c7693b41c6a0af04e14"
+  },
+  "grain_tile.png": {
+   "bytes": 221343,
+   "sha256": "912a7038b7f8949cfff6cf7d350a04eef0e781701cf3487c288c848fdea1cb32"
+  },
+  "vignette.png": {
+   "bytes": 10885,
+   "sha256": "e85fd70852e8dc0bc7ba56384b2e2d75eebf3efd97e99d4b4f6ab8c7b5dd1b98"
+  }
+ },
+ "numpy_version": "2.5.1",
+ "pillow_version": "12.3.0",
+ "version": 1
+}
