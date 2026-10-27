@@ -140,6 +140,8 @@ def render_card_clip(kind: str, params: dict, prof: P.Profile, W: int, H: int, f
         if rc != 0: raise RuntimeError(f"ffmpeg exit {rc}")
         tmp.replace(out)
     except BaseException:
-        try: p.kill()
+        try: p.kill(); p.wait(timeout=30)   # Windows keeps the file locked until ffmpeg has really exited
         except Exception: pass
-        tmp.unlink(missing_ok=True); raise
+        try: tmp.unlink(missing_ok=True)
+        except OSError: pass   # a leftover .part file must not hide why the render stopped
+        raise

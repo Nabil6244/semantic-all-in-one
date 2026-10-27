@@ -164,7 +164,7 @@ class RenderTests(unittest.TestCase):
             self.assertTrue(any("boom" in e for e in r["card_errors"]))
 
     def test_clip_shorter_than_shot_keeps_exact_length(self):
-        short = ROOT / "Images" / "007.mp4"            # 2.9 s
+        short = clip("007.mp4")            # 2.9 s
         with tempfile.TemporaryDirectory() as td:
             r = S.render_segmented([Shot(str(short), 0.0, 4.0, seek=2.0)], [], str(Path(td) / "o.mp4"), temp_dir=td)
             self.assertAlmostEqual(_probe(r["out"]), 4.0, delta=0.05)

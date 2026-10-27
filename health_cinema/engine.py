@@ -139,7 +139,9 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         else: shutil.copy2(joined, tmp_out)
         os.replace(tmp_out, out_path)
     except BaseException:
-        tmp_out.unlink(missing_ok=True); raise      # never leave a half-written video behind
+        try: tmp_out.unlink(missing_ok=True)      # never leave a half-written video behind
+        except OSError: pass                        # (a file Windows still holds must not hide why it stopped)
+        raise
     finally:
         stop_watch.set(); shutil.rmtree(work, ignore_errors=True)
     used3d = any(r["used_kind"] == "anatomy_3d" for r in results); credits = [CREDIT_Z] if used3d else []

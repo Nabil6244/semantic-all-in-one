@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-_SPECS = {"008.mp4": ("1280x720", 8.0, True), "013.mp4": ("1920x1080", 10.6, False)}   # name -> size, seconds, has audio
+_SPECS = {"007.mp4": ("1920x1080", 2.93, True), "008.mp4": ("1280x720", 8.0, True), "013.mp4": ("1920x1080", 10.6, False)}   # name -> size, seconds, has audio
 _DIR = Path(tempfile.gettempdir()) / "war_test_media"
 
 
