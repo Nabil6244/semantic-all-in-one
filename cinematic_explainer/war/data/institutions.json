@@ -1,0 +1,245 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "id": "kremlin",
+   "name": "Kremlin",
+   "aliases": [
+    "Kremlin",
+    "the Kremlin",
+    "Кремль"
+   ],
+   "kind": "government",
+   "country": "Russia"
+  },
+  {
+   "id": "mod-russia",
+   "name": "Ministry of Defence of Russia",
+   "aliases": [
+    "Russian Ministry of Defence",
+    "Russian Defence Ministry",
+    "Russian Defense Ministry",
+    "Minoborony",
+    "Минобороны"
+   ],
+   "kind": "ministry",
+   "country": "Russia"
+  },
+  {
+   "id": "general-staff-russia",
+   "name": "General Staff of the Russian Armed Forces",
+   "aliases": [
+    "Russian General Staff",
+    "General Staff of Russia",
+    "Генштаб"
+   ],
+   "kind": "military",
+   "country": "Russia"
+  },
+  {
+   "id": "mfa-russia",
+   "name": "Ministry of Foreign Affairs of Russia",
+   "aliases": [
+    "Russian Foreign Ministry",
+    "Russian Ministry of Foreign Affairs"
+   ],
+   "kind": "ministry",
+   "country": "Russia"
+  },
+  {
+   "id": "security-council-russia",
+   "name": "Security Council of Russia",
+   "aliases": [
+    "Russian Security Council"
+   ],
+   "kind": "government",
+   "country": "Russia"
+  },
+  {
+   "id": "black-sea-fleet",
+   "name": "Black Sea Fleet",
+   "aliases": [
+    "Black Sea Fleet",
+    "Черноморский флот"
+   ],
+   "kind": "military",
+   "country": "Russia"
+  },
+  {
+   "id": "mod-ukraine",
+   "name": "Ministry of Defence of Ukraine",
+   "aliases": [
+    "Ukrainian Ministry of Defence",
+    "Ukrainian Defence Ministry",
+    "Ukrainian Defense Ministry"
+   ],
+   "kind": "ministry",
+   "country": "Ukraine"
+  },
+  {
+   "id": "general-staff-ukraine",
+   "name": "General Staff of the Armed Forces of Ukraine",
+   "aliases": [
+    "Ukrainian General Staff",
+    "General Staff of Ukraine",
+    "Генштаб ЗСУ"
+   ],
+   "kind": "military",
+   "country": "Ukraine"
+  },
+  {
+   "id": "office-president-ukraine",
+   "name": "Office of the President of Ukraine",
+   "aliases": [
+    "Office of the President of Ukraine",
+    "Presidential Office of Ukraine"
+   ],
+   "kind": "government",
+   "country": "Ukraine"
+  },
+  {
+   "id": "verkhovna-rada",
+   "name": "Verkhovna Rada",
+   "aliases": [
+    "Verkhovna Rada",
+    "Ukrainian parliament",
+    "Верховна Рада"
+   ],
+   "kind": "parliament",
+   "country": "Ukraine"
+  },
+  {
+   "id": "nato",
+   "name": "NATO",
+   "aliases": [
+    "NATO",
+    "North Atlantic Treaty Organization",
+    "НАТО"
+   ],
+   "kind": "alliance",
+   "country": ""
+  },
+  {
+   "id": "eu",
+   "name": "European Union",
+   "aliases": [
+    "=EU",
+    "European Union",
+    "Євросоюз"
+   ],
+   "kind": "alliance",
+   "country": ""
+  },
+  {
+   "id": "european-commission",
+   "name": "European Commission",
+   "aliases": [
+    "European Commission"
+   ],
+   "kind": "institution",
+   "country": ""
+  },
+  {
+   "id": "un",
+   "name": "United Nations",
+   "aliases": [
+    "=UN",
+    "United Nations",
+    "ООН"
+   ],
+   "kind": "international",
+   "country": ""
+  },
+  {
+   "id": "un-security-council",
+   "name": "UN Security Council",
+   "aliases": [
+    "UN Security Council",
+    "Security Council"
+   ],
+   "kind": "international",
+   "country": ""
+  },
+  {
+   "id": "iaea",
+   "name": "IAEA",
+   "aliases": [
+    "IAEA",
+    "International Atomic Energy Agency",
+    "МАГАТЭ"
+   ],
+   "kind": "international",
+   "country": ""
+  },
+  {
+   "id": "osce",
+   "name": "OSCE",
+   "aliases": [
+    "OSCE",
+    "Organization for Security and Co-operation in Europe"
+   ],
+   "kind": "international",
+   "country": ""
+  },
+  {
+   "id": "icc",
+   "name": "International Criminal Court",
+   "aliases": [
+    "=ICC",
+    "International Criminal Court"
+   ],
+   "kind": "international",
+   "country": ""
+  },
+  {
+   "id": "white-house",
+   "name": "White House",
+   "aliases": [
+    "White House"
+   ],
+   "kind": "government",
+   "country": "United States"
+  },
+  {
+   "id": "pentagon",
+   "name": "US Department of Defense",
+   "aliases": [
+    "Pentagon",
+    "US Department of Defense",
+    "Defense Department"
+   ],
+   "kind": "ministry",
+   "country": "United States"
+  },
+  {
+   "id": "us-state-department",
+   "name": "US State Department",
+   "aliases": [
+    "State Department",
+    "US State Department"
+   ],
+   "kind": "ministry",
+   "country": "United States"
+  },
+  {
+   "id": "g7",
+   "name": "G7",
+   "aliases": [
+    "G7",
+    "Group of Seven"
+   ],
+   "kind": "alliance",
+   "country": ""
+  },
+  {
+   "id": "isw",
+   "name": "Institute for the Study of War",
+   "aliases": [
+    "Institute for the Study of War",
+    "=ISW"
+   ],
+   "kind": "think tank",
+   "country": "United States"
+  }
+ ]
+}

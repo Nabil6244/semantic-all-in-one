@@ -1,0 +1,316 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "id": "zelensky",
+   "name": "Volodymyr Zelensky",
+   "aliases": [
+    "Zelensky",
+    "Zelenskyy",
+    "Zelenskiy",
+    "Volodymyr Zelensky",
+    "Зеленський",
+    "Зеленский"
+   ],
+   "role": "President of Ukraine (in office since 2019)",
+   "country": "Ukraine",
+   "institution": "Office of the President of Ukraine",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "putin",
+   "name": "Vladimir Putin",
+   "aliases": [
+    "Putin",
+    "Vladimir Putin",
+    "Путин",
+    "Путін"
+   ],
+   "role": "President of Russia",
+   "country": "Russia",
+   "institution": "Kremlin",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "zaluzhny",
+   "name": "Valerii Zaluzhnyi",
+   "aliases": [
+    "Zaluzhnyi",
+    "Zaluzhny",
+    "Zaluzhnyy",
+    "Valerii Zaluzhnyi",
+    "Залужний",
+    "Залужный"
+   ],
+   "role": "Commander-in-Chief of the Armed Forces of Ukraine, 2021 to 2024",
+   "country": "Ukraine",
+   "institution": "Armed Forces of Ukraine",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "syrskyi",
+   "name": "Oleksandr Syrskyi",
+   "aliases": [
+    "Syrskyi",
+    "Syrsky",
+    "Oleksandr Syrskyi",
+    "Сирський",
+    "Сырский"
+   ],
+   "role": "Commander-in-Chief of the Armed Forces of Ukraine since February 2024",
+   "country": "Ukraine",
+   "institution": "Armed Forces of Ukraine",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "gerasimov",
+   "name": "Valery Gerasimov",
+   "aliases": [
+    "Gerasimov",
+    "Valery Gerasimov",
+    "Герасимов"
+   ],
+   "role": "Chief of the General Staff of the Russian Armed Forces (since 2012)",
+   "country": "Russia",
+   "institution": "General Staff of Russia",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "shoigu",
+   "name": "Sergei Shoigu",
+   "aliases": [
+    "Shoigu",
+    "Sergei Shoigu",
+    "Шойгу"
+   ],
+   "role": "Minister of Defence of Russia, 2012 to 2024; Secretary of the Security Council from 2024",
+   "country": "Russia",
+   "institution": "Security Council of Russia",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "belousov",
+   "name": "Andrei Belousov",
+   "aliases": [
+    "Belousov",
+    "Andrei Belousov",
+    "Белоусов"
+   ],
+   "role": "Minister of Defence of Russia (appointed May 2024)",
+   "country": "Russia",
+   "institution": "Ministry of Defence of Russia",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "lavrov",
+   "name": "Sergei Lavrov",
+   "aliases": [
+    "Lavrov",
+    "Sergei Lavrov",
+    "Лавров"
+   ],
+   "role": "Minister of Foreign Affairs of Russia",
+   "country": "Russia",
+   "institution": "Ministry of Foreign Affairs of Russia",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "peskov",
+   "name": "Dmitry Peskov",
+   "aliases": [
+    "Peskov",
+    "Dmitry Peskov",
+    "Песков"
+   ],
+   "role": "Press secretary of the Russian president",
+   "country": "Russia",
+   "institution": "Kremlin",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "medvedev",
+   "name": "Dmitry Medvedev",
+   "aliases": [
+    "Medvedev",
+    "Dmitry Medvedev",
+    "Медведев"
+   ],
+   "role": "Deputy Chairman of the Security Council of Russia",
+   "country": "Russia",
+   "institution": "Security Council of Russia",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "umerov",
+   "name": "Rustem Umerov",
+   "aliases": [
+    "Umerov",
+    "Rustem Umerov",
+    "Умєров"
+   ],
+   "role": "Minister of Defence of Ukraine from September 2023",
+   "country": "Ukraine",
+   "institution": "Ministry of Defence of Ukraine",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "biden",
+   "name": "Joe Biden",
+   "aliases": [
+    "Biden",
+    "Joe Biden",
+    "President Biden"
+   ],
+   "role": "President of the United States, 2021 to 2025",
+   "country": "United States",
+   "institution": "White House",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "trump",
+   "name": "Donald Trump",
+   "aliases": [
+    "Trump",
+    "Donald Trump",
+    "President Trump"
+   ],
+   "role": "President of the United States (2017 to 2021 and from 2025)",
+   "country": "United States",
+   "institution": "White House",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "blinken",
+   "name": "Antony Blinken",
+   "aliases": [
+    "Blinken",
+    "Antony Blinken"
+   ],
+   "role": "US Secretary of State, 2021 to 2025",
+   "country": "United States",
+   "institution": "US State Department",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "austin",
+   "name": "Lloyd Austin",
+   "aliases": [
+    "Lloyd Austin",
+    "Austin"
+   ],
+   "role": "US Secretary of Defense, 2021 to 2025",
+   "country": "United States",
+   "institution": "US Department of Defense",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "macron",
+   "name": "Emmanuel Macron",
+   "aliases": [
+    "Macron",
+    "Emmanuel Macron"
+   ],
+   "role": "President of France",
+   "country": "France",
+   "institution": "Elysee",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "scholz",
+   "name": "Olaf Scholz",
+   "aliases": [
+    "Scholz",
+    "Olaf Scholz"
+   ],
+   "role": "Chancellor of Germany, 2021 to 2025",
+   "country": "Germany",
+   "institution": "Federal Chancellery",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "stoltenberg",
+   "name": "Jens Stoltenberg",
+   "aliases": [
+    "Stoltenberg",
+    "Jens Stoltenberg"
+   ],
+   "role": "NATO Secretary General, 2014 to 2024",
+   "country": "NATO",
+   "institution": "NATO",
+   "portrait": null,
+   "verify_role": false
+  },
+  {
+   "id": "rutte",
+   "name": "Mark Rutte",
+   "aliases": [
+    "Rutte",
+    "Mark Rutte"
+   ],
+   "role": "NATO Secretary General (from October 2024)",
+   "country": "NATO",
+   "institution": "NATO",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "von-der-leyen",
+   "name": "Ursula von der Leyen",
+   "aliases": [
+    "von der Leyen",
+    "Ursula von der Leyen"
+   ],
+   "role": "President of the European Commission",
+   "country": "European Union",
+   "institution": "European Commission",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "guterres",
+   "name": "Antonio Guterres",
+   "aliases": [
+    "Guterres",
+    "Antonio Guterres",
+    "Antonio Guterres",
+    "António Guterres"
+   ],
+   "role": "UN Secretary-General",
+   "country": "United Nations",
+   "institution": "United Nations",
+   "portrait": null,
+   "verify_role": true
+  },
+  {
+   "id": "erdogan",
+   "name": "Recep Tayyip Erdogan",
+   "aliases": [
+    "Erdogan",
+    "Erdoğan",
+    "Recep Tayyip Erdogan"
+   ],
+   "role": "President of Turkey",
+   "country": "Turkey",
+   "institution": "Presidency of Turkey",
+   "portrait": null,
+   "verify_role": true
+  }
+ ]
+}

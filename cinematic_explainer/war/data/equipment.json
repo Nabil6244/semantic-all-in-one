@@ -1,0 +1,2229 @@
+{
+ "version": 1,
+ "generic": {
+  "tank": [
+   "tank",
+   "tanks",
+   "main battle tank",
+   "battle tanks",
+   "armored tank"
+  ],
+  "ifv": [
+   "infantry fighting vehicle",
+   "infantry fighting vehicles",
+   "fighting vehicle",
+   "fighting vehicles",
+   "ifv",
+   "ifvs"
+  ],
+  "apc": [
+   "armored personnel carrier",
+   "armoured personnel carrier",
+   "apc",
+   "apcs",
+   "armored carrier"
+  ],
+  "artillery": [
+   "artillery",
+   "howitzer",
+   "howitzers",
+   "self-propelled gun",
+   "self-propelled gun"
+  ],
+  "rocket_artillery": [
+   "rocket launcher",
+   "rocket launchers",
+   "rocket artillery",
+   "multiple rocket launcher",
+   "mlrs launcher"
+  ],
+  "mortar": [
+   "mortar",
+   "mortars"
+  ],
+  "missile_ballistic": [
+   "ballistic missile",
+   "ballistic missiles"
+  ],
+  "missile_cruise": [
+   "cruise missile",
+   "cruise missiles"
+  ],
+  "air_defense": [
+   "air defense",
+   "air defence",
+   "air-defense system",
+   "air defense system",
+   "air defence system",
+   "anti-aircraft",
+   "surface-to-air missile",
+   "sam system"
+  ],
+  "interceptor": [
+   "interceptor",
+   "interceptors",
+   "interceptor missile"
+  ],
+  "drone": [
+   "drone",
+   "drones",
+   "uav",
+   "uavs",
+   "unmanned aircraft",
+   "loitering munition",
+   "fpv drone",
+   "fpv drones"
+  ],
+  "fighter": [
+   "fighter jet",
+   "fighter jets",
+   "fighter aircraft",
+   "warplane",
+   "warplanes"
+  ],
+  "helicopter": [
+   "helicopter",
+   "helicopters",
+   "gunship"
+  ],
+  "bomber": [
+   "bomber",
+   "bombers",
+   "strategic bomber"
+  ],
+  "ship": [
+   "warship",
+   "warships",
+   "naval vessel",
+   "cruiser",
+   "destroyer",
+   "frigate",
+   "corvette"
+  ],
+  "radar": [
+   "radar",
+   "radars",
+   "radar station"
+  ],
+  "ew": [
+   "electronic warfare",
+   "jammer",
+   "jammers",
+   "jamming system"
+  ],
+  "logistics": [
+   "supply trucks",
+   "supply convoy",
+   "logistics convoy",
+   "military truck",
+   "military trucks"
+  ]
+ },
+ "entries": [
+  {
+   "id": "t-72",
+   "name": "T-72",
+   "aliases": [
+    "T-72",
+    "T72",
+    "Т-72"
+   ],
+   "class": "tank",
+   "origin_country": "Soviet Union",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "125 mm smoothbore",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "T-72 main battle tank",
+   "look_alikes": [
+    "t-80",
+    "t-90",
+    "t-64"
+   ],
+   "topics": [
+    "armour",
+    "tank battles"
+   ]
+  },
+  {
+   "id": "t-80",
+   "name": "T-80",
+   "aliases": [
+    "T-80",
+    "T80",
+    "Т-80"
+   ],
+   "class": "tank",
+   "origin_country": "Soviet Union",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "125 mm smoothbore",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "T-80 main battle tank",
+   "look_alikes": [
+    "t-72",
+    "t-90"
+   ],
+   "topics": [
+    "armour"
+   ]
+  },
+  {
+   "id": "t-90",
+   "name": "T-90",
+   "aliases": [
+    "T-90",
+    "T90",
+    "Т-90",
+    "Proryv"
+   ],
+   "class": "tank",
+   "origin_country": "Russia",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "125 mm smoothbore",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "T-90 main battle tank",
+   "look_alikes": [
+    "t-72",
+    "t-80"
+   ],
+   "topics": [
+    "armour"
+   ]
+  },
+  {
+   "id": "t-64",
+   "name": "T-64",
+   "aliases": [
+    "T-64",
+    "T64",
+    "Т-64"
+   ],
+   "class": "tank",
+   "origin_country": "Soviet Union",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "T-64 main battle tank",
+   "look_alikes": [
+    "t-72",
+    "t-80"
+   ],
+   "topics": [
+    "armour"
+   ]
+  },
+  {
+   "id": "leopard-2",
+   "name": "Leopard 2",
+   "aliases": [
+    "Leopard 2",
+    "Leopard2",
+    "Leopard-2",
+    "Леопард 2"
+   ],
+   "class": "tank",
+   "origin_country": "Germany",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": "supplied by several countries"
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "120 mm smoothbore",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Leopard 2 main battle tank",
+   "look_alikes": [
+    "m1-abrams",
+    "challenger-2"
+   ],
+   "topics": [
+    "western tanks",
+    "tank coalition"
+   ]
+  },
+  {
+   "id": "m1-abrams",
+   "name": "M1 Abrams",
+   "aliases": [
+    "M1 Abrams",
+    "Abrams",
+    "M1A1",
+    "M1A2",
+    "М1 Абрамс"
+   ],
+   "class": "tank",
+   "origin_country": "United States",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "120 mm smoothbore",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "M1 Abrams tank",
+   "look_alikes": [
+    "leopard-2",
+    "challenger-2"
+   ],
+   "topics": [
+    "western tanks"
+   ]
+  },
+  {
+   "id": "challenger-2",
+   "name": "Challenger 2",
+   "aliases": [
+    "Challenger 2",
+    "Challenger2",
+    "Challenger-2"
+   ],
+   "class": "tank",
+   "origin_country": "United Kingdom",
+   "role": "main battle tank",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Main gun",
+     "value": "120 mm rifled",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Challenger 2 tank",
+   "look_alikes": [
+    "leopard-2",
+    "m1-abrams"
+   ],
+   "topics": [
+    "western tanks"
+   ]
+  },
+  {
+   "id": "bmp-2",
+   "name": "BMP-2",
+   "aliases": [
+    "BMP-2",
+    "BMP2",
+    "БМП-2"
+   ],
+   "class": "ifv",
+   "origin_country": "Soviet Union",
+   "role": "infantry fighting vehicle",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Autocannon",
+     "value": "30 mm 2A42",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "BMP-2 infantry fighting vehicle",
+   "look_alikes": [
+    "bmp-3",
+    "m2-bradley"
+   ],
+   "topics": [
+    "infantry vehicles"
+   ]
+  },
+  {
+   "id": "bmp-3",
+   "name": "BMP-3",
+   "aliases": [
+    "BMP-3",
+    "BMP3",
+    "БМП-3"
+   ],
+   "class": "ifv",
+   "origin_country": "Soviet Union",
+   "role": "infantry fighting vehicle",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "BMP-3 infantry fighting vehicle",
+   "look_alikes": [
+    "bmp-2"
+   ],
+   "topics": [
+    "infantry vehicles"
+   ]
+  },
+  {
+   "id": "m2-bradley",
+   "name": "M2 Bradley",
+   "aliases": [
+    "M2 Bradley",
+    "Bradley",
+    "M2A2",
+    "M2A2 ODS"
+   ],
+   "class": "ifv",
+   "origin_country": "United States",
+   "role": "infantry fighting vehicle",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Autocannon",
+     "value": "25 mm M242",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "M2 Bradley fighting vehicle",
+   "look_alikes": [
+    "bmp-2",
+    "marder"
+   ],
+   "topics": [
+    "western vehicles"
+   ]
+  },
+  {
+   "id": "marder",
+   "name": "Marder",
+   "aliases": [
+    "Marder",
+    "Marder 1A3"
+   ],
+   "class": "ifv",
+   "origin_country": "Germany",
+   "role": "infantry fighting vehicle",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Marder infantry fighting vehicle",
+   "look_alikes": [
+    "m2-bradley"
+   ],
+   "topics": [
+    "western vehicles"
+   ]
+  },
+  {
+   "id": "cv90",
+   "name": "CV90",
+   "aliases": [
+    "CV90",
+    "CV-90",
+    "Combat Vehicle 90"
+   ],
+   "class": "ifv",
+   "origin_country": "Sweden",
+   "role": "infantry fighting vehicle",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2024",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "CV90 infantry fighting vehicle",
+   "look_alikes": [
+    "m2-bradley"
+   ],
+   "topics": [
+    "western vehicles"
+   ]
+  },
+  {
+   "id": "m113",
+   "name": "M113",
+   "aliases": [
+    "M113",
+    "M-113"
+   ],
+   "class": "apc",
+   "origin_country": "United States",
+   "role": "armoured personnel carrier",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "M113 armoured personnel carrier",
+   "look_alikes": [
+    "btr-80"
+   ],
+   "topics": [
+    "infantry vehicles"
+   ]
+  },
+  {
+   "id": "btr-80",
+   "name": "BTR-80",
+   "aliases": [
+    "BTR-80",
+    "BTR80",
+    "БТР-80"
+   ],
+   "class": "apc",
+   "origin_country": "Soviet Union",
+   "role": "wheeled armoured personnel carrier",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "BTR-80 armoured personnel carrier",
+   "look_alikes": [
+    "m113"
+   ],
+   "topics": [
+    "infantry vehicles"
+   ]
+  },
+  {
+   "id": "2s19-msta",
+   "name": "2S19 Msta-S",
+   "aliases": [
+    "2S19",
+    "2S19 Msta",
+    "Msta-S",
+    "2С19",
+    "Мста-С"
+   ],
+   "class": "artillery",
+   "origin_country": "Soviet Union",
+   "role": "self-propelled howitzer",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Calibre",
+     "value": "152 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "2S19 Msta-S howitzer",
+   "look_alikes": [
+    "pzh-2000",
+    "caesar"
+   ],
+   "topics": [
+    "artillery duels"
+   ]
+  },
+  {
+   "id": "m777",
+   "name": "M777",
+   "aliases": [
+    "M777",
+    "M-777",
+    "M777 howitzer"
+   ],
+   "class": "artillery",
+   "origin_country": "United Kingdom / United States",
+   "role": "towed howitzer",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Calibre",
+     "value": "155 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "M777 howitzer",
+   "look_alikes": [
+    "pzh-2000"
+   ],
+   "topics": [
+    "artillery duels",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "pzh-2000",
+   "name": "PzH 2000",
+   "aliases": [
+    "PzH 2000",
+    "PzH2000",
+    "Panzerhaubitze 2000"
+   ],
+   "class": "artillery",
+   "origin_country": "Germany",
+   "role": "self-propelled howitzer",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Calibre",
+     "value": "155 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "PzH 2000 howitzer",
+   "look_alikes": [
+    "caesar",
+    "2s19-msta"
+   ],
+   "topics": [
+    "artillery duels",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "caesar",
+   "name": "CAESAR",
+   "aliases": [
+    "CAESAR",
+    "Caesar howitzer",
+    "Caesar SPG"
+   ],
+   "class": "artillery",
+   "origin_country": "France",
+   "role": "truck-mounted howitzer",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Calibre",
+     "value": "155 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "CAESAR self-propelled howitzer",
+   "look_alikes": [
+    "pzh-2000"
+   ],
+   "topics": [
+    "artillery duels",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "2s3-akatsiya",
+   "name": "2S3 Akatsiya",
+   "aliases": [
+    "2S3",
+    "2S3 Akatsiya",
+    "Akatsiya",
+    "2С3"
+   ],
+   "class": "artillery",
+   "origin_country": "Soviet Union",
+   "role": "self-propelled howitzer",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Calibre",
+     "value": "152 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "2S3 Akatsiya howitzer",
+   "look_alikes": [
+    "2s19-msta"
+   ],
+   "topics": [
+    "artillery duels"
+   ]
+  },
+  {
+   "id": "bm-21-grad",
+   "name": "BM-21 Grad",
+   "aliases": [
+    "BM-21",
+    "BM-21 Grad",
+    "BM21",
+    "Grad",
+    "БМ-21",
+    "Град"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "Soviet Union",
+   "role": "multiple rocket launcher",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rocket calibre",
+     "value": "122 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    },
+    {
+     "label": "Tubes",
+     "value": "40 (standard BM-21)",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "BM-21 Grad rocket launcher",
+   "look_alikes": [
+    "bm-27-uragan",
+    "bm-30-smerch"
+   ],
+   "topics": [
+    "rocket artillery"
+   ]
+  },
+  {
+   "id": "bm-27-uragan",
+   "name": "BM-27 Uragan",
+   "aliases": [
+    "BM-27",
+    "BM-27 Uragan",
+    "Uragan",
+    "Ураган"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "Soviet Union",
+   "role": "multiple rocket launcher",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rocket calibre",
+     "value": "220 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "BM-27 Uragan rocket launcher",
+   "look_alikes": [
+    "bm-21-grad"
+   ],
+   "topics": [
+    "rocket artillery"
+   ]
+  },
+  {
+   "id": "bm-30-smerch",
+   "name": "BM-30 Smerch",
+   "aliases": [
+    "BM-30",
+    "BM-30 Smerch",
+    "Smerch",
+    "Смерч"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "Soviet Union",
+   "role": "long-range multiple rocket launcher",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rocket calibre",
+     "value": "300 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "BM-30 Smerch rocket launcher",
+   "look_alikes": [
+    "bm-27-uragan"
+   ],
+   "topics": [
+    "rocket artillery"
+   ]
+  },
+  {
+   "id": "tos-1a",
+   "name": "TOS-1A Solntsepyok",
+   "aliases": [
+    "TOS-1A",
+    "TOS-1",
+    "Solntsepyok",
+    "ТОС-1А",
+    "Солнцепёк"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "Russia",
+   "role": "heavy flamethrower / thermobaric rocket system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rocket calibre",
+     "value": "220 mm",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    },
+    {
+     "label": "Tubes",
+     "value": "24",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "TOS-1A Solntsepyok",
+   "look_alikes": [],
+   "topics": [
+    "thermobaric weapons"
+   ]
+  },
+  {
+   "id": "m142-himars",
+   "name": "M142 HIMARS",
+   "aliases": [
+    "HIMARS",
+    "M142",
+    "M142 HIMARS",
+    "High Mobility Artillery Rocket System"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "United States",
+   "role": "wheeled rocket launcher",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Load",
+     "value": "six GMLRS rockets or one ATACMS missile",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "M142 HIMARS launcher",
+   "look_alikes": [
+    "m270-mlrs"
+   ],
+   "topics": [
+    "western weapons",
+    "precision strikes"
+   ]
+  },
+  {
+   "id": "m270-mlrs",
+   "name": "M270 MLRS",
+   "aliases": [
+    "M270",
+    "M270 MLRS",
+    "MLRS"
+   ],
+   "class": "rocket_artillery",
+   "origin_country": "United States",
+   "role": "tracked rocket launcher",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rockets per pod pair",
+     "value": "12",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "M270 MLRS launcher",
+   "look_alikes": [
+    "m142-himars"
+   ],
+   "topics": [
+    "western weapons"
+   ]
+  },
+  {
+   "id": "iskander-m",
+   "name": "9K720 Iskander-M",
+   "aliases": [
+    "Iskander",
+    "Iskander-M",
+    "9K720",
+    "SS-26",
+    "SS-26 Stone",
+    "Искандер"
+   ],
+   "class": "missile_ballistic",
+   "origin_country": "Russia",
+   "role": "short-range ballistic missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Iskander-M missile launcher",
+   "look_alikes": [
+    "tochka-u"
+   ],
+   "topics": [
+    "missile strikes",
+    "ballistic missiles"
+   ]
+  },
+  {
+   "id": "tochka-u",
+   "name": "9K79 Tochka-U",
+   "aliases": [
+    "Tochka",
+    "Tochka-U",
+    "9K79",
+    "SS-21",
+    "SS-21 Scarab",
+    "Точка-У"
+   ],
+   "class": "missile_ballistic",
+   "origin_country": "Soviet Union",
+   "role": "short-range ballistic missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Tochka-U missile launcher",
+   "look_alikes": [
+    "iskander-m"
+   ],
+   "topics": [
+    "ballistic missiles"
+   ]
+  },
+  {
+   "id": "atacms",
+   "name": "MGM-140 ATACMS",
+   "aliases": [
+    "ATACMS",
+    "MGM-140",
+    "Army Tactical Missile System"
+   ],
+   "class": "missile_ballistic",
+   "origin_country": "United States",
+   "role": "tactical ballistic missile",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "ATACMS missile",
+   "look_alikes": [
+    "iskander-m"
+   ],
+   "topics": [
+    "western weapons",
+    "long-range strikes"
+   ]
+  },
+  {
+   "id": "kalibr",
+   "name": "3M-14 Kalibr",
+   "aliases": [
+    "Kalibr",
+    "Kalibr missile",
+    "3M-14",
+    "3M-54",
+    "Калибр"
+   ],
+   "class": "missile_cruise",
+   "origin_country": "Russia",
+   "role": "naval-launched cruise missile family",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Kalibr cruise missile",
+   "look_alikes": [
+    "kh-101"
+   ],
+   "topics": [
+    "cruise missiles",
+    "missile strikes"
+   ]
+  },
+  {
+   "id": "kh-101",
+   "name": "Kh-101",
+   "aliases": [
+    "Kh-101",
+    "Kh101",
+    "Х-101"
+   ],
+   "class": "missile_cruise",
+   "origin_country": "Russia",
+   "role": "air-launched cruise missile",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Kh-101 cruise missile",
+   "look_alikes": [
+    "kalibr"
+   ],
+   "topics": [
+    "cruise missiles",
+    "missile strikes"
+   ]
+  },
+  {
+   "id": "kh-47m2-kinzhal",
+   "name": "Kh-47M2 Kinzhal",
+   "aliases": [
+    "Kinzhal",
+    "Kh-47M2",
+    "Кинжал"
+   ],
+   "class": "missile_ballistic",
+   "origin_country": "Russia",
+   "role": "air-launched missile (aeroballistic, as described by Russia)",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Kinzhal missile",
+   "look_alikes": [
+    "iskander-m"
+   ],
+   "topics": [
+    "missile strikes",
+    "hypersonic claims"
+   ]
+  },
+  {
+   "id": "storm-shadow",
+   "name": "Storm Shadow / SCALP-EG",
+   "aliases": [
+    "Storm Shadow",
+    "SCALP",
+    "SCALP-EG"
+   ],
+   "class": "missile_cruise",
+   "origin_country": "United Kingdom / France",
+   "role": "air-launched cruise missile",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Storm Shadow missile",
+   "look_alikes": [
+    "kalibr"
+   ],
+   "topics": [
+    "western weapons",
+    "long-range strikes"
+   ]
+  },
+  {
+   "id": "s-300",
+   "name": "S-300",
+   "aliases": [
+    "S-300",
+    "S300",
+    "С-300"
+   ],
+   "class": "air_defense",
+   "origin_country": "Soviet Union",
+   "role": "long-range surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "S-300 air defense system",
+   "look_alikes": [
+    "s-400"
+   ],
+   "topics": [
+    "air defence"
+   ]
+  },
+  {
+   "id": "s-400",
+   "name": "S-400 Triumf",
+   "aliases": [
+    "S-400",
+    "S400",
+    "Triumf",
+    "С-400",
+    "Триумф"
+   ],
+   "class": "air_defense",
+   "origin_country": "Russia",
+   "role": "long-range surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "S-400 air defense system",
+   "look_alikes": [
+    "s-300"
+   ],
+   "topics": [
+    "air defence"
+   ]
+  },
+  {
+   "id": "pantsir-s1",
+   "name": "Pantsir-S1",
+   "aliases": [
+    "Pantsir",
+    "Pantsir-S1",
+    "Pantsir S1",
+    "Панцирь",
+    "SA-22"
+   ],
+   "class": "air_defense",
+   "origin_country": "Russia",
+   "role": "short-range gun-missile air defence system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Pantsir-S1 air defense",
+   "look_alikes": [
+    "tor-m2"
+   ],
+   "topics": [
+    "air defence",
+    "point defence"
+   ]
+  },
+  {
+   "id": "tor-m2",
+   "name": "Tor-M2",
+   "aliases": [
+    "Tor",
+    "Tor-M2",
+    "Tor-M1",
+    "Тор-М2"
+   ],
+   "class": "air_defense",
+   "origin_country": "Russia",
+   "role": "short-range surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Tor-M2 air defense",
+   "look_alikes": [
+    "pantsir-s1"
+   ],
+   "topics": [
+    "air defence"
+   ]
+  },
+  {
+   "id": "buk-m",
+   "name": "Buk",
+   "aliases": [
+    "Buk",
+    "Buk-M1",
+    "Buk-M2",
+    "Бук"
+   ],
+   "class": "air_defense",
+   "origin_country": "Soviet Union",
+   "role": "medium-range surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Buk missile system",
+   "look_alikes": [
+    "s-300"
+   ],
+   "topics": [
+    "air defence"
+   ]
+  },
+  {
+   "id": "patriot",
+   "name": "MIM-104 Patriot",
+   "aliases": [
+    "Patriot",
+    "MIM-104",
+    "Patriot battery",
+    "PAC-3",
+    "Патриот"
+   ],
+   "class": "air_defense",
+   "origin_country": "United States",
+   "role": "surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Patriot missile system",
+   "look_alikes": [
+    "s-300",
+    "nasams"
+   ],
+   "topics": [
+    "air defence",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "nasams",
+   "name": "NASAMS",
+   "aliases": [
+    "NASAMS",
+    "National Advanced Surface-to-Air Missile System"
+   ],
+   "class": "air_defense",
+   "origin_country": "Norway / United States",
+   "role": "surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "NASAMS air defense",
+   "look_alikes": [
+    "patriot"
+   ],
+   "topics": [
+    "air defence",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "iris-t-slm",
+   "name": "IRIS-T SLM",
+   "aliases": [
+    "IRIS-T",
+    "IRIS-T SLM",
+    "IRIS T"
+   ],
+   "class": "air_defense",
+   "origin_country": "Germany",
+   "role": "surface-to-air missile system",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "IRIS-T SLM launcher",
+   "look_alikes": [
+    "nasams"
+   ],
+   "topics": [
+    "air defence",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "stinger",
+   "name": "FIM-92 Stinger",
+   "aliases": [
+    "Stinger",
+    "FIM-92",
+    "Стингер"
+   ],
+   "class": "air_defense",
+   "origin_country": "United States",
+   "role": "man-portable air-defence system",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Stinger MANPADS",
+   "look_alikes": [],
+   "topics": [
+    "air defence",
+    "man-portable weapons"
+   ]
+  },
+  {
+   "id": "gepard",
+   "name": "Flakpanzer Gepard",
+   "aliases": [
+    "Gepard",
+    "Flakpanzer Gepard",
+    "Gepard SPAAG"
+   ],
+   "class": "air_defense",
+   "origin_country": "Germany",
+   "role": "self-propelled anti-aircraft gun",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Guns",
+     "value": "two 35 mm cannon",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Gepard anti-aircraft tank",
+   "look_alikes": [],
+   "topics": [
+    "air defence",
+    "drone defence"
+   ]
+  },
+  {
+   "id": "shahed-136",
+   "name": "Shahed-136 / Geran-2",
+   "aliases": [
+    "Shahed",
+    "Shahed-136",
+    "Shahed 136",
+    "Geran-2",
+    "Geran 2",
+    "Герань-2",
+    "Шахед"
+   ],
+   "class": "drone",
+   "origin_country": "Iran",
+   "role": "one-way attack drone",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": "2022",
+     "note": "used by Russia as Geran-2, per public reporting"
+    }
+   ],
+   "specs": [
+    {
+     "label": "Wingspan",
+     "value": "about 2.5 m",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Shahed-136 drone",
+   "look_alikes": [
+    "lancet"
+   ],
+   "topics": [
+    "one-way attack drones",
+    "drone strikes"
+   ]
+  },
+  {
+   "id": "bayraktar-tb2",
+   "name": "Bayraktar TB2",
+   "aliases": [
+    "Bayraktar",
+    "Bayraktar TB2",
+    "TB2",
+    "TB-2",
+    "Bayrakhtar",
+    "Байрактар"
+   ],
+   "class": "drone",
+   "origin_country": "Turkey",
+   "role": "armed reconnaissance drone",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Wingspan",
+     "value": "about 12 m",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Bayraktar TB2 drone",
+   "look_alikes": [
+    "orlan-10"
+   ],
+   "topics": [
+    "drones",
+    "armed drones"
+   ]
+  },
+  {
+   "id": "orlan-10",
+   "name": "Orlan-10",
+   "aliases": [
+    "Orlan-10",
+    "Orlan 10",
+    "Orlan",
+    "Орлан-10"
+   ],
+   "class": "drone",
+   "origin_country": "Russia",
+   "role": "reconnaissance drone",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Orlan-10 drone",
+   "look_alikes": [
+    "bayraktar-tb2"
+   ],
+   "topics": [
+    "reconnaissance drones"
+   ]
+  },
+  {
+   "id": "lancet",
+   "name": "ZALA Lancet",
+   "aliases": [
+    "Lancet",
+    "ZALA Lancet",
+    "Lancet-3",
+    "Ланцет"
+   ],
+   "class": "drone",
+   "origin_country": "Russia",
+   "role": "loitering munition",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Lancet loitering munition",
+   "look_alikes": [
+    "shahed-136"
+   ],
+   "topics": [
+    "loitering munitions"
+   ]
+  },
+  {
+   "id": "switchblade",
+   "name": "Switchblade",
+   "aliases": [
+    "Switchblade",
+    "Switchblade 300",
+    "Switchblade 600"
+   ],
+   "class": "drone",
+   "origin_country": "United States",
+   "role": "loitering munition",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Switchblade loitering munition",
+   "look_alikes": [
+    "lancet"
+   ],
+   "topics": [
+    "loitering munitions",
+    "western weapons"
+   ]
+  },
+  {
+   "id": "dji-mavic",
+   "name": "DJI Mavic",
+   "aliases": [
+    "Mavic",
+    "DJI Mavic",
+    "DJI Mavic 3"
+   ],
+   "class": "drone",
+   "origin_country": "China",
+   "role": "commercial quadcopter",
+   "operators": [],
+   "specs": [],
+   "image_hint": "DJI Mavic drone",
+   "look_alikes": [],
+   "topics": [
+    "commercial drones",
+    "reconnaissance drones"
+   ]
+  },
+  {
+   "id": "su-34",
+   "name": "Su-34",
+   "aliases": [
+    "Su-34",
+    "Su34",
+    "Су-34",
+    "Fullback"
+   ],
+   "class": "fighter",
+   "origin_country": "Russia",
+   "role": "strike fighter-bomber",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Crew",
+     "value": "two, side by side",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Su-34 strike aircraft",
+   "look_alikes": [
+    "su-35"
+   ],
+   "topics": [
+    "air strikes"
+   ]
+  },
+  {
+   "id": "su-35",
+   "name": "Su-35",
+   "aliases": [
+    "Su-35",
+    "Su35",
+    "Су-35"
+   ],
+   "class": "fighter",
+   "origin_country": "Russia",
+   "role": "multirole fighter",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Su-35 fighter",
+   "look_alikes": [
+    "su-34"
+   ],
+   "topics": [
+    "air combat"
+   ]
+  },
+  {
+   "id": "su-25",
+   "name": "Su-25",
+   "aliases": [
+    "Su-25",
+    "Su25",
+    "Су-25",
+    "Frogfoot"
+   ],
+   "class": "fighter",
+   "origin_country": "Soviet Union",
+   "role": "close-air-support aircraft",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Su-25 attack aircraft",
+   "look_alikes": [],
+   "topics": [
+    "close air support"
+   ]
+  },
+  {
+   "id": "mig-29",
+   "name": "MiG-29",
+   "aliases": [
+    "MiG-29",
+    "MiG29",
+    "МиГ-29",
+    "Fulcrum"
+   ],
+   "class": "fighter",
+   "origin_country": "Soviet Union",
+   "role": "fighter",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "MiG-29 fighter",
+   "look_alikes": [],
+   "topics": [
+    "air combat"
+   ]
+  },
+  {
+   "id": "f-16",
+   "name": "F-16",
+   "aliases": [
+    "F-16",
+    "F16",
+    "Fighting Falcon",
+    "F-16 Fighting Falcon"
+   ],
+   "class": "fighter",
+   "origin_country": "United States",
+   "role": "multirole fighter",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2024",
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Engines",
+     "value": "one",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "F-16 fighter",
+   "look_alikes": [
+    "mig-29"
+   ],
+   "topics": [
+    "western weapons",
+    "air combat"
+   ]
+  },
+  {
+   "id": "ka-52",
+   "name": "Ka-52",
+   "aliases": [
+    "Ka-52",
+    "Ka52",
+    "Ка-52",
+    "Alligator"
+   ],
+   "class": "helicopter",
+   "origin_country": "Russia",
+   "role": "attack helicopter",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Rotors",
+     "value": "coaxial, two-seat cockpit",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Ka-52 helicopter",
+   "look_alikes": [
+    "mi-24"
+   ],
+   "topics": [
+    "attack helicopters"
+   ]
+  },
+  {
+   "id": "mi-24",
+   "name": "Mi-24",
+   "aliases": [
+    "Mi-24",
+    "Mi24",
+    "Ми-24",
+    "Hind"
+   ],
+   "class": "helicopter",
+   "origin_country": "Soviet Union",
+   "role": "attack helicopter",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Mi-24 helicopter",
+   "look_alikes": [
+    "ka-52"
+   ],
+   "topics": [
+    "attack helicopters"
+   ]
+  },
+  {
+   "id": "tu-95ms",
+   "name": "Tu-95MS",
+   "aliases": [
+    "Tu-95",
+    "Tu-95MS",
+    "Ту-95",
+    "Bear"
+   ],
+   "class": "bomber",
+   "origin_country": "Soviet Union",
+   "role": "strategic bomber",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Engines",
+     "value": "four turboprops",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Tu-95MS bomber",
+   "look_alikes": [
+    "tu-160"
+   ],
+   "topics": [
+    "strategic bombers",
+    "cruise missile carriers"
+   ]
+  },
+  {
+   "id": "tu-160",
+   "name": "Tu-160",
+   "aliases": [
+    "Tu-160",
+    "Tu160",
+    "Ту-160",
+    "Blackjack"
+   ],
+   "class": "bomber",
+   "origin_country": "Soviet Union",
+   "role": "strategic bomber",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [
+    {
+     "label": "Wing",
+     "value": "variable-sweep",
+     "source": "manufacturer / public reference data",
+     "as_of": null,
+     "status": "attributed"
+    }
+   ],
+   "image_hint": "Tu-160 bomber",
+   "look_alikes": [
+    "tu-95ms"
+   ],
+   "topics": [
+    "strategic bombers"
+   ]
+  },
+  {
+   "id": "tu-22m3",
+   "name": "Tu-22M3",
+   "aliases": [
+    "Tu-22M3",
+    "Tu-22",
+    "Ту-22М3",
+    "Backfire"
+   ],
+   "class": "bomber",
+   "origin_country": "Soviet Union",
+   "role": "long-range bomber",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Tu-22M3 bomber",
+   "look_alikes": [
+    "tu-160"
+   ],
+   "topics": [
+    "strategic bombers"
+   ]
+  },
+  {
+   "id": "slava-class",
+   "name": "Slava-class cruiser",
+   "aliases": [
+    "Slava-class",
+    "Slava class cruiser",
+    "Project 1164",
+    "Moskva"
+   ],
+   "class": "ship",
+   "origin_country": "Soviet Union",
+   "role": "guided-missile cruiser class",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Slava-class cruiser",
+   "look_alikes": [],
+   "topics": [
+    "black sea fleet",
+    "naval warfare"
+   ]
+  },
+  {
+   "id": "krasukha-4",
+   "name": "Krasukha-4",
+   "aliases": [
+    "Krasukha",
+    "Krasukha-4",
+    "Красуха"
+   ],
+   "class": "ew",
+   "origin_country": "Russia",
+   "role": "electronic warfare system",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Krasukha-4 electronic warfare",
+   "look_alikes": [],
+   "topics": [
+    "electronic warfare"
+   ]
+  },
+  {
+   "id": "zoopark-1",
+   "name": "1L219 Zoopark-1",
+   "aliases": [
+    "Zoopark",
+    "Zoopark-1",
+    "1L219",
+    "Зоопарк"
+   ],
+   "class": "radar",
+   "origin_country": "Russia",
+   "role": "counter-battery radar",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Zoopark-1 radar",
+   "look_alikes": [],
+   "topics": [
+    "radar",
+    "counter-battery"
+   ]
+  },
+  {
+   "id": "an-tpq-36",
+   "name": "AN/TPQ-36 Firefinder",
+   "aliases": [
+    "AN/TPQ-36",
+    "Firefinder",
+    "TPQ-36"
+   ],
+   "class": "radar",
+   "origin_country": "United States",
+   "role": "counter-battery radar",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "AN/TPQ-36 Firefinder radar",
+   "look_alikes": [],
+   "topics": [
+    "radar",
+    "counter-battery"
+   ]
+  },
+  {
+   "id": "ural-4320",
+   "name": "Ural-4320",
+   "aliases": [
+    "Ural-4320",
+    "Ural 4320",
+    "Урал-4320",
+    "Ural truck"
+   ],
+   "class": "logistics",
+   "origin_country": "Soviet Union",
+   "role": "military cargo truck",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    },
+    {
+     "country": "Ukraine",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Ural-4320 truck",
+   "look_alikes": [
+    "kamaz"
+   ],
+   "topics": [
+    "logistics",
+    "supply trucks"
+   ]
+  },
+  {
+   "id": "kamaz",
+   "name": "KamAZ truck",
+   "aliases": [
+    "KamAZ",
+    "Kamaz",
+    "КамАЗ"
+   ],
+   "class": "logistics",
+   "origin_country": "Russia",
+   "role": "military cargo truck",
+   "operators": [
+    {
+     "country": "Russia",
+     "as_of": null,
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "KamAZ military truck",
+   "look_alikes": [
+    "ural-4320"
+   ],
+   "topics": [
+    "logistics",
+    "supply trucks"
+   ]
+  }
+ ]
+}

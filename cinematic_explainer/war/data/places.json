@@ -1,0 +1,648 @@
+{
+ "version": 1,
+ "entries": [
+  {
+   "id": "kyiv",
+   "name": "Kyiv",
+   "aliases": [
+    "Kyiv",
+    "Kiev",
+    "Київ",
+    "Киев"
+   ],
+   "lat": 50.45,
+   "lon": 30.52,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "kharkiv",
+   "name": "Kharkiv",
+   "aliases": [
+    "Kharkiv",
+    "Kharkov",
+    "Харків",
+    "Харьков"
+   ],
+   "lat": 49.99,
+   "lon": 36.23,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "odesa",
+   "name": "Odesa",
+   "aliases": [
+    "Odesa",
+    "Odessa",
+    "Одеса",
+    "Одесса"
+   ],
+   "lat": 46.48,
+   "lon": 30.73,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "lviv",
+   "name": "Lviv",
+   "aliases": [
+    "Lviv",
+    "Lvov",
+    "Львів",
+    "Львов"
+   ],
+   "lat": 49.84,
+   "lon": 24.03,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "dnipro",
+   "name": "Dnipro",
+   "aliases": [
+    "Dnipro",
+    "Dnipropetrovsk",
+    "Дніпро"
+   ],
+   "lat": 48.46,
+   "lon": 35.05,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "zaporizhzhia",
+   "name": "Zaporizhzhia",
+   "aliases": [
+    "Zaporizhzhia",
+    "Zaporozhye",
+    "Запоріжжя",
+    "Запорожье"
+   ],
+   "lat": 47.84,
+   "lon": 35.14,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "kherson",
+   "name": "Kherson",
+   "aliases": [
+    "Kherson",
+    "Херсон"
+   ],
+   "lat": 46.64,
+   "lon": 32.62,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "mariupol",
+   "name": "Mariupol",
+   "aliases": [
+    "Mariupol",
+    "Маріуполь",
+    "Мариуполь"
+   ],
+   "lat": 47.1,
+   "lon": 37.54,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "donetsk",
+   "name": "Donetsk",
+   "aliases": [
+    "Donetsk",
+    "Донецьк",
+    "Донецк"
+   ],
+   "lat": 48.0,
+   "lon": 37.8,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "luhansk",
+   "name": "Luhansk",
+   "aliases": [
+    "Luhansk",
+    "Lugansk",
+    "Луганськ",
+    "Луганск"
+   ],
+   "lat": 48.57,
+   "lon": 39.31,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "bakhmut",
+   "name": "Bakhmut",
+   "aliases": [
+    "Bakhmut",
+    "Артемівськ",
+    "Бахмут"
+   ],
+   "lat": 48.59,
+   "lon": 38.0,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "avdiivka",
+   "name": "Avdiivka",
+   "aliases": [
+    "Avdiivka",
+    "Avdeevka",
+    "Авдіївка"
+   ],
+   "lat": 48.14,
+   "lon": 37.75,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "pokrovsk",
+   "name": "Pokrovsk",
+   "aliases": [
+    "Pokrovsk",
+    "Покровськ"
+   ],
+   "lat": 48.28,
+   "lon": 37.18,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "kramatorsk",
+   "name": "Kramatorsk",
+   "aliases": [
+    "Kramatorsk",
+    "Краматорськ"
+   ],
+   "lat": 48.72,
+   "lon": 37.55,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "sloviansk",
+   "name": "Sloviansk",
+   "aliases": [
+    "Sloviansk",
+    "Slavyansk",
+    "Слов'янськ"
+   ],
+   "lat": 48.87,
+   "lon": 37.62,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "mykolaiv",
+   "name": "Mykolaiv",
+   "aliases": [
+    "Mykolaiv",
+    "Nikolaev",
+    "Миколаїв"
+   ],
+   "lat": 46.97,
+   "lon": 32.0,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "chernihiv",
+   "name": "Chernihiv",
+   "aliases": [
+    "Chernihiv",
+    "Chernigov",
+    "Чернігів"
+   ],
+   "lat": 51.49,
+   "lon": 31.29,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "sumy",
+   "name": "Sumy",
+   "aliases": [
+    "Sumy",
+    "Суми"
+   ],
+   "lat": 50.91,
+   "lon": 34.8,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "chernobyl",
+   "name": "Chernobyl",
+   "aliases": [
+    "Chernobyl",
+    "Chornobyl",
+    "Чорнобиль"
+   ],
+   "lat": 51.39,
+   "lon": 30.1,
+   "type": "site",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "zaporizhzhia-npp",
+   "name": "Zaporizhzhia Nuclear Power Plant",
+   "aliases": [
+    "Zaporizhzhia nuclear power plant",
+    "Zaporizhzhia NPP",
+    "ZNPP",
+    "Zaporizhzhia nuclear plant"
+   ],
+   "lat": 47.51,
+   "lon": 34.59,
+   "type": "site",
+   "region": "Ukraine",
+   "approximate": false
+  },
+  {
+   "id": "snake-island",
+   "name": "Snake Island",
+   "aliases": [
+    "Snake Island",
+    "Zmiinyi Island",
+    "Zmiinyi"
+   ],
+   "lat": 45.26,
+   "lon": 30.2,
+   "type": "site",
+   "region": "Black Sea",
+   "approximate": false
+  },
+  {
+   "id": "sevastopol",
+   "name": "Sevastopol",
+   "aliases": [
+    "Sevastopol",
+    "Севастополь"
+   ],
+   "lat": 44.62,
+   "lon": 33.52,
+   "type": "city",
+   "region": "Crimea",
+   "approximate": false
+  },
+  {
+   "id": "simferopol",
+   "name": "Simferopol",
+   "aliases": [
+    "Simferopol",
+    "Сімферополь"
+   ],
+   "lat": 44.95,
+   "lon": 34.1,
+   "type": "city",
+   "region": "Crimea",
+   "approximate": false
+  },
+  {
+   "id": "kerch",
+   "name": "Kerch",
+   "aliases": [
+    "Kerch",
+    "Керч"
+   ],
+   "lat": 45.36,
+   "lon": 36.47,
+   "type": "city",
+   "region": "Crimea",
+   "approximate": false
+  },
+  {
+   "id": "crimean-bridge",
+   "name": "Kerch Strait Bridge",
+   "aliases": [
+    "Crimean Bridge",
+    "Kerch Bridge",
+    "Kerch Strait Bridge",
+    "Crimea Bridge"
+   ],
+   "lat": 45.31,
+   "lon": 36.51,
+   "type": "site",
+   "region": "Crimea",
+   "approximate": false
+  },
+  {
+   "id": "crimea",
+   "name": "Crimea",
+   "aliases": [
+    "Crimea",
+    "Krym",
+    "Крим",
+    "Крым"
+   ],
+   "lat": 45.3,
+   "lon": 34.2,
+   "type": "region",
+   "region": "Ukraine",
+   "approximate": true
+  },
+  {
+   "id": "donbas",
+   "name": "Donbas",
+   "aliases": [
+    "Donbas",
+    "Donbass",
+    "Донбас",
+    "Донбасс"
+   ],
+   "lat": 48.3,
+   "lon": 38.0,
+   "type": "region",
+   "region": "Ukraine",
+   "approximate": true
+  },
+  {
+   "id": "black-sea",
+   "name": "Black Sea",
+   "aliases": [
+    "Black Sea",
+    "Чорне море",
+    "Чёрное море"
+   ],
+   "lat": 43.5,
+   "lon": 34.0,
+   "type": "sea",
+   "region": "",
+   "approximate": true
+  },
+  {
+   "id": "sea-of-azov",
+   "name": "Sea of Azov",
+   "aliases": [
+    "Sea of Azov",
+    "Azov Sea",
+    "Азовське море"
+   ],
+   "lat": 46.0,
+   "lon": 36.5,
+   "type": "sea",
+   "region": "",
+   "approximate": true
+  },
+  {
+   "id": "kursk",
+   "name": "Kursk",
+   "aliases": [
+    "Kursk",
+    "Курск"
+   ],
+   "lat": 51.73,
+   "lon": 36.19,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "belgorod",
+   "name": "Belgorod",
+   "aliases": [
+    "Belgorod",
+    "Белгород"
+   ],
+   "lat": 50.6,
+   "lon": 36.59,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "bryansk",
+   "name": "Bryansk",
+   "aliases": [
+    "Bryansk",
+    "Брянск"
+   ],
+   "lat": 53.24,
+   "lon": 34.36,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "voronezh",
+   "name": "Voronezh",
+   "aliases": [
+    "Voronezh",
+    "Воронеж"
+   ],
+   "lat": 51.67,
+   "lon": 39.18,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "rostov-on-don",
+   "name": "Rostov-on-Don",
+   "aliases": [
+    "Rostov-on-Don",
+    "Rostov",
+    "Ростов-на-Дону"
+   ],
+   "lat": 47.24,
+   "lon": 39.72,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "novorossiysk",
+   "name": "Novorossiysk",
+   "aliases": [
+    "Novorossiysk",
+    "Новороссийск"
+   ],
+   "lat": 44.72,
+   "lon": 37.77,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "moscow",
+   "name": "Moscow",
+   "aliases": [
+    "Moscow",
+    "Москва"
+   ],
+   "lat": 55.76,
+   "lon": 37.62,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "st-petersburg",
+   "name": "St Petersburg",
+   "aliases": [
+    "St Petersburg",
+    "Saint Petersburg",
+    "St. Petersburg",
+    "Санкт-Петербург"
+   ],
+   "lat": 59.93,
+   "lon": 30.34,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "kaliningrad",
+   "name": "Kaliningrad",
+   "aliases": [
+    "Kaliningrad",
+    "Калининград"
+   ],
+   "lat": 54.71,
+   "lon": 20.51,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false
+  },
+  {
+   "id": "minsk",
+   "name": "Minsk",
+   "aliases": [
+    "Minsk",
+    "Мінск",
+    "Минск"
+   ],
+   "lat": 53.9,
+   "lon": 27.57,
+   "type": "city",
+   "region": "Belarus",
+   "approximate": false
+  },
+  {
+   "id": "warsaw",
+   "name": "Warsaw",
+   "aliases": [
+    "Warsaw",
+    "Warszawa"
+   ],
+   "lat": 52.23,
+   "lon": 21.01,
+   "type": "city",
+   "region": "Poland",
+   "approximate": false
+  },
+  {
+   "id": "bucharest",
+   "name": "Bucharest",
+   "aliases": [
+    "Bucharest"
+   ],
+   "lat": 44.43,
+   "lon": 26.1,
+   "type": "city",
+   "region": "Romania",
+   "approximate": false
+  },
+  {
+   "id": "ankara",
+   "name": "Ankara",
+   "aliases": [
+    "Ankara"
+   ],
+   "lat": 39.93,
+   "lon": 32.86,
+   "type": "city",
+   "region": "Turkey",
+   "approximate": false
+  },
+  {
+   "id": "istanbul",
+   "name": "Istanbul",
+   "aliases": [
+    "Istanbul"
+   ],
+   "lat": 41.01,
+   "lon": 28.98,
+   "type": "city",
+   "region": "Turkey",
+   "approximate": false
+  },
+  {
+   "id": "berlin",
+   "name": "Berlin",
+   "aliases": [
+    "Berlin"
+   ],
+   "lat": 52.52,
+   "lon": 13.4,
+   "type": "city",
+   "region": "Germany",
+   "approximate": false
+  },
+  {
+   "id": "brussels",
+   "name": "Brussels",
+   "aliases": [
+    "Brussels"
+   ],
+   "lat": 50.85,
+   "lon": 4.35,
+   "type": "city",
+   "region": "Belgium",
+   "approximate": false
+  },
+  {
+   "id": "ukraine",
+   "name": "Ukraine",
+   "aliases": [
+    "Ukraine",
+    "Україна",
+    "Украина"
+   ],
+   "lat": 49.0,
+   "lon": 32.0,
+   "type": "country",
+   "region": "",
+   "approximate": true
+  },
+  {
+   "id": "russia",
+   "name": "Russia",
+   "aliases": [
+    "Russia",
+    "Россия"
+   ],
+   "lat": 60.0,
+   "lon": 60.0,
+   "type": "country",
+   "region": "",
+   "approximate": true
+  }
+ ]
+}

@@ -3006,8 +3006,9 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If", "War Documentary")
     STYLE_BLURBS = {
+        "War Documentary": "Narration-driven war and geopolitics documentaries: maps, equipment cards, attributed statements, statistics, sources.",
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
         "Modern Tech News": "Technology news: fast cuts, the real product, reports and UI footage, few effects. Same workflow as Normal.",
         "Overscaled": "Photo and video cards arranged around the narration, from a simple CSV.",
@@ -3023,6 +3024,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     STYLE_CARDS = {
         # icon, one-line pitch, what it needs, what it suits
+        "War Documentary": ("\u25C8", "Maps, equipment, statements, statistics and sources", "Voiceover (scenes file optional)", "Conflict and geopolitics analysis"),
         "Normal video": ("\u25A4", "Scenes cut to your script", "Script + voiceover", "Explainers on any topic"),
         "Modern Tech News": ("\u25A3", "Fast, product-first tech edit", "Script + voiceover", "Launches, leaks, specs, comparisons"),
         "Overscaled": ("\u25A6", "A collage of photo and video cards", "A simple CSV", "Lists, rankings, comparisons"),
@@ -3134,6 +3136,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
+        if getattr(self, "_war_active", False):   # War Documentary (cinematic_explainer/war): opt-in, per session
+            return "War Documentary"
         mode = getattr(self, "generation_mode", "normal")
         if mode == "overscaled":
             return "Exp Solar" if getattr(self, "_overscaled_style_preset_id", "overscaled") == "exp_solar" else "Overscaled"
@@ -3171,14 +3175,32 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
-        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False):
+        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False) or getattr(self, "_war_running", False):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if choice != "War Documentary":
+            self._war_deactivate()
         if choice != "Weather":
             self._weather_deactivate()
         if choice != "What If":
             self._whatif_deactivate()
+        if choice == "War Documentary":   # its own branch (cinematic_explainer/war/app_section.py), loaded only now
+            self._war_activate()
+            ws = getattr(self, "_workspace", None)
+            if ws is not None:
+                try:
+                    ws.set_editing_system("")
+                except Exception:
+                    pass
+                try:
+                    from ancient_texts import integration as _enoch
+
+                    _enoch.deselect(ws)
+                except Exception as exc:
+                    self._append_log(f"[ENOCH TEMPLATE] Style not saved ({exc})\n")
+            self._sync_primary_cta()
+            return
         if choice == "Weather":   # its own branch: the chain below stays as it was
             self._weather_activate()
             ws = getattr(self, "_workspace", None)
@@ -3271,6 +3293,9 @@ class VideoGeneratorApp(ctk.CTk):
         whatif_block = getattr(self, "_whatif_block", None)
         if whatif_block is not None:
             whatif_block.grid() if active == "What If" else whatif_block.grid_remove()
+        war_block = getattr(self, "_war_block", None)
+        if war_block is not None:
+            war_block.grid() if active == "War Documentary" else war_block.grid_remove()
 
     def _style_card_header(self, block, title: str, description: str) -> None:
         """A style card's title with a one-line description under it (row 0 of the card), so a collapsed card says what it is."""
@@ -5882,6 +5907,30 @@ class VideoGeneratorApp(ctk.CTk):
 
         app_section.cancel(self)
 
+    # ---------- War Documentary (opt-in; all of it lives in cinematic_explainer/war/, imported only when picked) ----------
+
+    def _war_activate(self) -> None:
+        from cinematic_explainer.war import app_section
+
+        if getattr(self, "_war_running", False):
+            return
+        self._pakmap_deactivate()          # also steps Hybrid and StarMap aside, like What If
+        if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+            self._overscaled_enabled_var.set(False)
+            self._overscaled_controls.grid_remove()
+        self.generation_mode = "normal"
+        if getattr(self, "_war_block", None) is None:
+            app_section.build(self, self._view_visual_director.content, row=7)
+        self._war_active = True
+        app_section.activate(self)
+
+    def _war_deactivate(self) -> None:
+        if getattr(self, "_war_active", False):
+            self._war_active = False
+            block = getattr(self, "_war_block", None)
+            if block is not None:
+                block.grid_remove()
+
     def _build_weather_section(self, parent, *, row: int) -> None:
         from weather import app_section
 
@@ -7054,6 +7103,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_starmap_cancel()
         elif action == "whatif_cancel":
             self._on_whatif_cancel()
+        elif action in ("war_render", "war_cancel"):
+            from cinematic_explainer.war import app_section as _war
+
+            _war.cta(self, action)
         elif action in ("weather_load", "weather_fetch", "weather_cancel"):
             self._weather_action(action)
         else:
@@ -7823,6 +7876,11 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
+        if getattr(self, "_war_active", False) and getattr(self, "_war_block", None) is not None:
+            from cinematic_explainer.war import app_section as _war
+
+            _war.sync_cta(self)
+            return
         if self.generation_mode == "overscaled":
             self._sync_primary_cta_overscaled()
             return
@@ -8636,6 +8694,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._restore_starmap(ws)
         self._restore_weather(ws)
         self._restore_whatif(ws)
+        self._war_deactivate()   # War Documentary is chosen per session, never restored with a project
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16213,7 +16272,8 @@ class VideoGeneratorApp(ctk.CTk):
         self.log_box.delete("1.0", "end")
         self.log_box.configure(state="disabled")
 
-    _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running")
+    _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running",
+                  "_war_running")
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long
