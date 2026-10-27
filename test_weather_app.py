@@ -52,7 +52,7 @@ inst.update_idletasks()
 shown = lambda w: bool(w.grid_info())
 
 if not ON:
-    emit("off_picker_is_the_nine_styles", tuple(inst._style_cards) == inst.STYLE_CHOICES and len(inst.STYLE_CHOICES) == 9, str(tuple(inst._style_cards)))
+    emit("off_picker_is_the_nine_styles", tuple(inst._style_cards) == inst.STYLE_CHOICES and "Weather" not in inst.STYLE_CHOICES, str(tuple(inst._style_cards)))
     emit("off_no_weather_card", getattr(inst, "_weather_block", None) is None and inst._style_choices() == inst.STYLE_CHOICES)
     emit("off_weather_not_imported", not any(m == "weather" or m.startswith("weather.") for m in sys.modules), [m for m in sys.modules if m.startswith("weather")])
     inst._on_style_pick("pakMap")

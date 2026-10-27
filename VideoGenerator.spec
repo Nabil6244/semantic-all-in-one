@@ -155,6 +155,12 @@ for _p in list(_MAP_DATA_DIR.glob("*.json.gz")) + list(_MAP_DATA_DIR.glob("*.jso
     datas.append((str(_p), "map_scene/data"))
 if not (_MAP_DATA_DIR / "admin1.json.gz").is_file():
     raise SystemExit(f"Missing {_MAP_DATA_DIR} place data — run scripts/build_map_data.py.")
+# War Documentary: the files its package reads at run time from cinematic_explainer/war/data (catalog, equipment images,
+# portraits, the CSV prompt), kept at the same relative path in the bundle.
+_WAR_DATA_DIR = ROOT / "cinematic_explainer" / "war" / "data"
+for _p in sorted(_WAR_DATA_DIR.rglob("*")):
+    if _p.is_file() and "__pycache__" not in _p.parts:
+        datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 
 # pakMap: pakmap-engine/ (the Node renderer for continuous satellite-map videos) with exactly the files it loads at
 # run time (see pakmap/packaging.py, which is unit-tested). It shares map_scene/data (country outlines) and

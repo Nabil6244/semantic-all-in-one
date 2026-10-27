@@ -20,7 +20,8 @@ NOT_IMPLEMENTED_HIGH_END = ["word-level caption timing (phrase boundaries snap t
 from .render_journey import Cancelled, run_cancellable   # one cancellation type for the whole style (the app catches engine.Cancelled)
 
 def _probe_duration(path: str) -> float:
-    r = subprocess.run([assets.ffprobe_path() or "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+    try: r = subprocess.run([assets.ffprobe_path() or "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired: return 0.0
     try: return float(r.stdout.strip())
     except ValueError: return 0.0
 

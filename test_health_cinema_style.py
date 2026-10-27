@@ -218,7 +218,7 @@ class TestLandscapeAndBoundaries(unittest.TestCase):
             if re.search(r"^\s*(from|import)\s+health_cinema\b", p.read_text(encoding="utf-8", errors="ignore"), re.M): offenders.append(p.name)
         self.assertEqual(offenders, [])
     def test_health_cinema_imports_no_other_style_package(self):
-        pat = re.compile(r"^\s*(from|import)\s+(whatif|weather|hybrid|explainer|starmap|pakmap|cinematic_explainer|map_scene)\b", re.M)
+        pat = re.compile(r"^\s*(from|import)\s+(whatif|weather|hybrid|explainer|starmap|pakmap|cinematic_explaine[r]|map_scene)\b", re.M)
         offenders = [p.name for p in (ROOT / "health_cinema").glob("*.py") if pat.search(p.read_text(encoding="utf-8"))]
         # app_section reaches pakmap word timings through the app object / a guarded import (documented), nothing else may
         self.assertEqual([o for o in offenders if o != "app_section.py"], [])

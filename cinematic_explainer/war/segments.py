@@ -526,10 +526,12 @@ def _render_piece(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: 
             proc.stdin.write(data)
         proc.stdin.close()
         err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
-        rc = proc.wait()
+        try: rc = proc.wait(timeout=900)
+        except subprocess.TimeoutExpired: raise RenderError(f"ffmpeg timed out on piece {piece.index}")   # the BaseException handler below kills it
     except BrokenPipeError:
         err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
-        rc = proc.wait()
+        try: rc = proc.wait(timeout=60)
+        except subprocess.TimeoutExpired: proc.kill(); rc = -9
         raise RenderError(f"ffmpeg stopped early on piece {piece.index}: {err[-600:]}")
     except RenderCancelled:
         _kill(proc)
@@ -569,8 +571,11 @@ def _concat_path_text(p: Path) -> str:
 def _join(parts: Sequence[Path], out_path: Path) -> None:
     lst = out_path.with_suffix(".list.txt")
     lst.write_text("".join(f"file '{_concat_path_text(p)}'\n" for p in parts), encoding="utf-8")
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_path)],
-                       capture_output=True, text=True)
+    try:
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_path)],
+                           capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        lst.unlink(missing_ok=True); raise RenderError("join timed out")
     lst.unlink(missing_ok=True)
     if r.returncode != 0:
         raise RenderError(f"join failed: {r.stderr[-600:]}")
@@ -578,9 +583,12 @@ def _join(parts: Sequence[Path], out_path: Path) -> None:
 
 def _mux_audio(video: Path, audio: str, out_path: Path, duration: float) -> None:
     """Attach the voiceover/music once: video stream copied, audio AAC, padded or cut to the exact video length."""
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
-                        "-af", "apad", "-c:a", "aac", "-b:a", "192k", "-t", f"{duration:.4f}", "-movflags", "+faststart", str(out_path)],
-                       capture_output=True, text=True)
+    try:
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+                            "-af", "apad", "-c:a", "aac", "-b:a", "192k", "-t", f"{duration:.4f}", "-movflags", "+faststart", str(out_path)],
+                           capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        raise RenderError("audio mux timed out")
     if r.returncode != 0:
         raise RenderError(f"audio mux failed: {r.stderr[-600:]}")
 
@@ -689,7 +697,7 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
             futs = [ex.submit(one, p) for p in pieces]
             try:
                 for f in cf.as_completed(futs):
-                    f.result()
+                    f.result(timeout=60)   # as_completed only yields finished futures
             except BaseException:
                 for f in futs:
                     f.cancel()

@@ -102,7 +102,7 @@ def render_high_end(scenes, voiceover: str, out_path: str, project_dir: Path, *,
         with ThreadPoolExecutor(max_workers=max(1, min(workers, len(todo)))) as ex:
             futs = [ex.submit(job, sh, p) for sh, p in todo]
             try:
-                for f_ in futs: f_.result()
+                for f_ in futs: f_.result(timeout=3600)
             except BaseException:
                 cancel.set(); [f_.cancel() for f_ in futs]; raise
     shots_s = time.time() - t_s

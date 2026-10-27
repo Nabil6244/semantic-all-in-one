@@ -55,7 +55,7 @@ def run(frames_json, frame_dir, out_mp4, fps, ffmpeg=None):
                 im = draw_caption(im, text, im.height, alpha=min(1.0, (fr["t"] - a) / 0.15, (b - fr["t"]) / 0.15)); break
         im.save(tmp / p.name)
     ff = ffmpeg or shutil.which("ffmpeg")
-    subprocess.run([ff, "-y", "-v", "error", "-framerate", str(fps), "-i", str(tmp / "f%05d.png"), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_mp4)], check=True)
+    subprocess.run([ff, "-y", "-v", "error", "-framerate", str(fps), "-i", str(tmp / "f%05d.png"), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_mp4)], check=True, timeout=3600)
     shutil.rmtree(tmp, ignore_errors=True)   # the labelled PNGs are only an intermediate
 
 if __name__ == "__main__":

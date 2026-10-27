@@ -134,7 +134,9 @@ def render_card_clip(kind: str, params: dict, prof: P.Profile, W: int, H: int, f
             key = (frame_state(kind, params, i / fps, fps), _cap_index(params, i / fps))
             if key != last_key: last = draw_card(kind, params, prof, W, H, i / fps).tobytes(); last_key = key
             p.stdin.write(last)
-        p.stdin.close(); rc = p.wait()
+        p.stdin.close()
+        try: rc = p.wait(timeout=900)
+        except subprocess.TimeoutExpired: p.kill(); p.wait(timeout=30); raise RuntimeError('ffmpeg timed out')
         if rc != 0: raise RuntimeError(f"ffmpeg exit {rc}")
         tmp.replace(out)
     except BaseException:

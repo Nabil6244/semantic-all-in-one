@@ -511,10 +511,14 @@ def composite_over(map_clip: "str | Path", overlay_clip: "str | Path", out_path:
     fc = fc.replace("{w}", str(w)).replace("{h}", str(h))
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(map_clip), "-i", str(overlay_clip), "-filter_complex", fc, "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p",
            "-preset", "medium", "-c:a", "copy", "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1", "-movflags", "+faststart", str(out_path)]
-    return subprocess.run(cmd).returncode
+    try: return subprocess.run(cmd, timeout=3600).returncode
+    except subprocess.TimeoutExpired: return -1
 
 
 def probe_size(path: "str | Path") -> Tuple[int, int]:
-    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(path)], capture_output=True, text=True)
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(path)], capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"ffprobe timed out on {path}")
     a, b = r.stdout.strip().split("x")
     return int(a), int(b)

@@ -7,9 +7,9 @@ from PIL import Image
 
 def run(mp4, frames_json, work=None):
     work = Path(work or tempfile.mkdtemp()); shutil.rmtree(work, ignore_errors=True); work.mkdir(parents=True)
-    pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=width,height,nb_read_frames,r_frame_rate", "-of", "json", str(mp4)], capture_output=True, text=True)
+    pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=width,height,nb_read_frames,r_frame_rate", "-of", "json", str(mp4)], capture_output=True, text=True, timeout=900)
     st = json.loads(pr.stdout)["streams"][0]
-    subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp4), str(work / "f%05d.png")], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp4), str(work / "f%05d.png")], check=True, timeout=900)
     fr = json.load(open(frames_json))["frames"]; files = sorted(work.glob("f*.png")); prev = None; diffs = []; blank = []; lab_ok = lab_bad = 0
     for k, p in enumerate(files):
         im = Image.open(p).convert("RGB"); a = np.asarray(im.convert("L").resize((480, 270))).astype(np.int16)

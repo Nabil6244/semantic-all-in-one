@@ -108,9 +108,8 @@ def build(app, parent, *, row: int) -> None:
 
 
 def csv_prompt_text(script: str = "") -> str:
-    """The War Documentary CSV prompt (composition_styles/war_csv_prompt.txt) with the script in place of its placeholder."""
-    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
-    text = (base / "composition_styles" / "war_csv_prompt.txt").read_text(encoding="utf-8")
+    """The War Documentary CSV prompt (cinematic_explainer/war/data/war_csv_prompt.txt) with the script in place of its placeholder."""
+    text = (Path(__file__).resolve().parent / "data" / "war_csv_prompt.txt").read_text(encoding="utf-8")
     script = (script or "").strip()
     return text.replace("<<<PASTE THE SCRIPT HERE>>>", script) if script else text
 

@@ -14,6 +14,9 @@ HUMAN_REVIEW = ["Does each stock clip fit its line and avoid implying the person
                 "Is each caption/graphic accurate to the narration and medically appropriate? (not automated)",
                 "Overall pacing, taste and emotional fit of transitions and sound. (not automated)"]
 
+QC_TIMEOUT_S = 900   # one full-video ffmpeg analysis pass; killed (and raised) past this
+
+
 def plan_checks(plan: dict) -> List[dict]:
     out: List[dict] = []; shots, trans, phrases = plan["shots"], plan["transitions"], plan["phrases"]
     def add(code, sev, where, msg): out.append({"code": code, "severity": sev, "where": where, "message": msg})
@@ -51,9 +54,9 @@ def plan_checks(plan: dict) -> List[dict]:
 
 def output_checks(mp4: str, shots: List[dict], trans: List[Transition], total_frames: int) -> dict:
     ff = media.ffmpeg(); rep: Dict = {}
-    r = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vf", "blackdetect=d=0.06:pix_th=0.08", "-an", "-f", "null", "-"], capture_output=True, text=True)
+    r = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vf", "blackdetect=d=0.06:pix_th=0.08", "-an", "-f", "null", "-"], capture_output=True, timeout=QC_TIMEOUT_S, text=True)
     rep["black_intervals"] = [(float(a), float(b)) for a, b in re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", r.stderr)]
-    r = subprocess.run([ff, "-v", "error", "-i", mp4, "-vf", "scale=64:36,format=gray", "-f", "rawvideo", "-"], capture_output=True); a = np.frombuffer(r.stdout, np.uint8).reshape(-1, 36, 64).astype(np.float32)
+    r = subprocess.run([ff, "-v", "error", "-i", mp4, "-vf", "scale=64:36,format=gray", "-f", "rawvideo", "-"], capture_output=True, timeout=QC_TIMEOUT_S); a = np.frombuffer(r.stdout, np.uint8).reshape(-1, 36, 64).astype(np.float32)
     rep["frames_decoded"] = int(len(a)); d = np.abs(np.diff(a, axis=0)).mean(axis=(1, 2)); lum = a.mean(axis=(1, 2))
     cuts = [round(s["t0"] * media.FPS) for s in shots[1:]]; hard = [c for c, t in zip(cuts, trans) if t.frames == 0]
     thr = max(10.0, float(np.median(d)) * 6); spikes = [int(i) + 1 for i in np.where(d > thr)[0]]
@@ -62,9 +65,9 @@ def output_checks(mp4: str, shots: List[dict], trans: List[Transition], total_fr
     unexplained = [s for s in spikes if not any(abs(s - c) <= 2 for c in hard) and not any(a <= s <= b for a, b in windows + panel)]
     rep["frame_jump_threshold"] = round(thr, 2); rep["jumps_at_planned_transitions"] = [s for s in spikes if s not in unexplained]; rep["unexplained_jumps"] = [{"frame": s, "t": round(s / media.FPS, 2), "delta": round(float(d[s - 1]), 1)} for s in unexplained]
     rep["median_frame_delta"] = round(float(np.median(d)), 2); rep["min_mean_luma"] = round(float(lum.min()), 1)
-    fz = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vf", "freezedetect=n=-55dB:d=2.5", "-an", "-f", "null", "-"], capture_output=True, text=True)
+    fz = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vf", "freezedetect=n=-55dB:d=2.5", "-an", "-f", "null", "-"], capture_output=True, timeout=QC_TIMEOUT_S, text=True)
     rep["frozen_intervals"] = [(float(x)) for x in re.findall(r"freeze_start: ([\d.]+)", fz.stderr)]
-    au = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vn", "-af", "ebur128=peak=true,silencedetect=noise=-60dB:d=0.4", "-f", "null", "-"], capture_output=True, text=True).stderr
+    au = subprocess.run([ff, "-hide_banner", "-i", mp4, "-vn", "-af", "ebur128=peak=true,silencedetect=noise=-60dB:d=0.4", "-f", "null", "-"], capture_output=True, timeout=QC_TIMEOUT_S, text=True).stderr
     m = re.search(r"Integrated loudness:\s+I:\s+(-?[\d.]+) LUFS.*?Loudness range:\s+LRA:\s+([\d.]+) LU.*?True peak:\s+Peak:\s+(-?[\d.]+) dBFS", au, re.S)
     rep["audio"] = {"integrated_lufs": float(m.group(1)), "lra": float(m.group(2)), "true_peak_dbfs": float(m.group(3))} if m else {}
     rep["audio_silent_gaps"] = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", au)]

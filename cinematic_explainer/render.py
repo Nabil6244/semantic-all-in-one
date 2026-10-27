@@ -116,7 +116,8 @@ def render(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, crf
             proc.stdin.write(data)
         proc.stdin.close()
         err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
-        rc = proc.wait()
+        try: rc = proc.wait(timeout=3600)
+        except subprocess.TimeoutExpired: proc.kill(); proc.wait(timeout=30); raise RuntimeError('ffmpeg timed out after 3600 s')
     finally:
         Path(script).unlink(missing_ok=True)
     if rc != 0:

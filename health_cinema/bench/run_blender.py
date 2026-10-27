@@ -10,6 +10,6 @@ spec, A, frames = journey.sample(Path(__file__).parent / "journey_chest_heart.js
 out = B / f"out_{name}"; out.mkdir(exist_ok=True)
 (out / "frames.json").write_text(json.dumps({"spec": spec, "anchors": A, "frames": frames}))
 cmd = [BL, "-b", str(B / "chest.blend"), "--python", str(Path(__file__).parent / "render_blender.py"), "--", str(out / "frames.json"), str(out), str(W), str(H), eng, str(samples)] + rng
-t = time.time(); p = subprocess.run(cmd, capture_output=True, text=True); dt = time.time() - t
+t = time.time(); p = subprocess.run(cmd, capture_output=True, text=True, timeout=3600); dt = time.time() - t
 print("\n".join(l for l in p.stdout.splitlines() if "RENDER" in l or "Error" in l or "Traceback" in l), p.stderr[-500:])
 print("wall", round(dt, 1), "peak MB (children)", resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss // (1024 * 1024))

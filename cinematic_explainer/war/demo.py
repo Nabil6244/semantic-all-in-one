@@ -34,8 +34,8 @@ SCRIPT = [
 
 def _say(text: str, out: Path) -> float:
     voice = ["-v", "Daniel"] if shutil.which("say") else []
-    subprocess.run(["say", *voice, "-r", "165", "-o", str(out), text], check=True)
-    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)], capture_output=True, text=True)
+    subprocess.run(["say", *voice, "-r", "165", "-o", str(out), text], check=True, timeout=300)
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)], capture_output=True, text=True, timeout=120)
     return float(r.stdout.strip())
 
 
@@ -66,20 +66,20 @@ def build_scenes(tmp: Path) -> tuple[List[Dict[str, Any]], str]:
     lst = tmp / "audio.txt"
     sil = tmp / "sil.wav"
     gapf = tmp / "gap.wav"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", "0.6", str(sil)], check=True)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", str(gap), str(gapf)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", "0.6", str(sil)], check=True, timeout=120)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", str(gap), str(gapf)], check=True, timeout=120)
     # make every part the same format
     fixed: List[Path] = []
     for i, p in enumerate(parts):
         q = tmp / f"p{i}.wav"
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(p), "-ar", "22050", "-ac", "1", str(q)], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(p), "-ar", "22050", "-ac", "1", str(q)], check=True, timeout=120)
         fixed.append(q)
     seq = [sil]
     for q in fixed:
         seq += [q, gapf]
     lst.write_text("".join(f"file '{p}'\n" for p in seq), encoding="utf-8")
     audio = tmp / "voice.wav"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(audio)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(audio)], check=True, timeout=120)
     scenes[-1]["end"] = round(scenes[-1]["end"] + 0.6, 3)
     return scenes, str(audio)
 

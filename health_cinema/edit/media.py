@@ -18,7 +18,8 @@ def ffprobe() -> str:
 class Cancelled(RuntimeError): pass
 
 def probe(path: str) -> dict:
-    r = subprocess.run([ffprobe(), "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate,nb_frames:format=duration", "-of", "json", path], capture_output=True, text=True)
+    try: r = subprocess.run([ffprobe(), "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate,nb_frames:format=duration", "-of", "json", path], capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired: return {"w": 0, "h": 0, "duration": 0.0}
     import json
     try:
         j = json.loads(r.stdout); s = (j.get("streams") or [{}])[0]; return {"w": int(s.get("width", 0)), "h": int(s.get("height", 0)), "duration": float(j["format"]["duration"])}
@@ -42,12 +43,14 @@ def read_frames(path: str, W: int, H: int, start: float, count: int, loop: bool 
         except Exception: pass
         try: p.stdout.close()
         except Exception: pass
-        p.wait()
+        try: p.wait(timeout=30)
+        except Exception: pass
 
 @functools.lru_cache(maxsize=64)
 def poster(path: str, t: float, W: int = 640, H: int = 360) -> Image.Image:
-    r = subprocess.run([ffmpeg(), "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", path, "-frames:v", "1", "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}",
-                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True)
+    try: r = subprocess.run([ffmpeg(), "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", path, "-frames:v", "1", "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}",
+                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, timeout=120)
+    except subprocess.TimeoutExpired: raise RuntimeError(f"poster from {path} timed out")
     if len(r.stdout) < W * H * 3: raise RuntimeError(f"no poster from {path}")
     return Image.frombytes("RGB", (W, H), r.stdout[: W * H * 3])
 
@@ -64,18 +67,22 @@ class Encoder:
         try: self.p.stdin.write(im.tobytes()); self.n += 1
         except BrokenPipeError: raise RuntimeError("ffmpeg encoder stopped: " + b"".join(self._err).decode("utf-8", "ignore")[-300:])
     def close(self) -> None:
-        self.p.stdin.close(); rc = self.p.wait()
+        self.p.stdin.close()
+        try: rc = self.p.wait(timeout=3600)
+        except subprocess.TimeoutExpired: self.p.kill(); self.p.wait(timeout=30); raise RuntimeError('ffmpeg encoder timed out')
         if rc != 0: raise RuntimeError(f"ffmpeg exit {rc}: " + b"".join(self._err).decode("utf-8", "ignore")[-300:])
     def abort(self) -> None:
         try: self.p.kill()
         except Exception: pass
         try: self.p.stdin.close()
         except Exception: pass
-        self.p.wait()
+        try: self.p.wait(timeout=30)
+        except Exception: pass
 
 def detect_pauses(wav: str, noise_db: int = -30, min_s: float = 0.08) -> List[Tuple[float, float]]:
     """(start, end) of near-silent gaps in the narration (breaths and comma pauses); used only to snap caption phrase boundaries."""
-    r = subprocess.run([ffmpeg(), "-hide_banner", "-i", wav, "-af", f"silencedetect=noise={noise_db}dB:d={min_s}", "-f", "null", "-"], capture_output=True, text=True)
+    try: r = subprocess.run([ffmpeg(), "-hide_banner", "-i", wav, "-af", f"silencedetect=noise={noise_db}dB:d={min_s}", "-f", "null", "-"], capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired: return []
     starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", r.stderr)]; ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", r.stderr)]
     return list(zip(starts, ends))
 
@@ -94,4 +101,5 @@ def read_frames_exact(path: str, W: int, H: int, first: int, count: int, cancel=
         except Exception: pass
         try: p.stdout.close()
         except Exception: pass
-        p.wait()
+        try: p.wait(timeout=30)
+        except Exception: pass

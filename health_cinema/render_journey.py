@@ -64,7 +64,10 @@ def run_cancellable(cmd, cancel: Optional[threading.Event] = None, timeout: Opti
             if timeout is not None and time.time() - t0 > timeout: raise TimeoutError(f"timed out after {timeout}s")
             time.sleep(0.05)
     except BaseException:
-        _kill_tree(p); p.wait(); raise
+        _kill_tree(p)
+        try: p.wait(timeout=30)
+        except Exception: pass
+        raise
     finally:
         th.join(timeout=2)
     out = "".join(lines)

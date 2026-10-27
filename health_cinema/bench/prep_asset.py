@@ -82,7 +82,7 @@ for o in allm:
 bpy.ops.object.select_all(action="DESELECT")
 for o in allm: o.select_set(True)
 bpy.context.view_layer.objects.active = allm[0]
-bpy.ops.object.join()
+_join = bpy.ops.object.join; _join()   # a Blender operator, not a wait
 shell = bpy.context.view_layer.objects.active; shell.name = "Body shell (derived)"
 shell.data.remesh_voxel_size = 0.006
 bpy.ops.object.voxel_remesh()

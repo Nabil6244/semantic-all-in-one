@@ -14,8 +14,9 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 def _decode(path: str, channels: int, start: float = 0.0, dur: Optional[float] = None) -> np.ndarray:
     cmd = [media.ffmpeg(), "-v", "error", "-ss", f"{start:.3f}"] + (["-t", f"{dur:.3f}"] if dur else []) + ["-i", str(path), "-f", "f32le", "-ac", str(channels), "-ar", str(SR), "-"]
-    r = subprocess.run(cmd, capture_output=True)
-    a = np.frombuffer(r.stdout, dtype=np.float32)
+    try: out = subprocess.run(cmd, capture_output=True, timeout=900).stdout
+    except subprocess.TimeoutExpired: out = b""   # a stuck decode gives no samples, like a failed one
+    a = np.frombuffer(out, dtype=np.float32)
     return a.reshape(-1, channels) if channels > 1 else a
 
 def _db(x: float) -> float: return 10 ** (x / 20.0)
@@ -64,10 +65,12 @@ def _pick_sfx(kind: str) -> Optional[Path]:
     return None
 
 def _loudnorm(src: Path, dst: Path, target: float = -16.0, tp: float = -1.5) -> dict:
-    ff = media.ffmpeg(); r = subprocess.run([ff, "-hide_banner", "-i", str(src), "-af", f"loudnorm=I={target}:TP={tp}:LRA=11:print_format=json", "-f", "null", "-"], capture_output=True, text=True)
-    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr, re.S); j = json.loads(m.group(0)) if m else {}
+    ff = media.ffmpeg()
+    try: err = subprocess.run([ff, "-hide_banner", "-i", str(src), "-af", f"loudnorm=I={target}:TP={tp}:LRA=11:print_format=json", "-f", "null", "-"], capture_output=True, text=True, timeout=900).stderr
+    except subprocess.TimeoutExpired: err = ""   # no measurement -> plain loudnorm below
+    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", err, re.S); j = json.loads(m.group(0)) if m else {}
     flt = f"loudnorm=I={target}:TP={tp}:LRA=11:measured_I={j.get('input_i')}:measured_TP={j.get('input_tp')}:measured_LRA={j.get('input_lra')}:measured_thresh={j.get('input_thresh')}:offset={j.get('target_offset')}:linear=true" if j else f"loudnorm=I={target}:TP={tp}"
-    subprocess.run([ff, "-y", "-v", "error", "-i", str(src), "-af", flt, "-ar", str(SR), "-ac", "2", str(dst)], check=True); return j
+    subprocess.run([ff, "-y", "-v", "error", "-i", str(src), "-af", flt, "-ar", str(SR), "-ac", "2", str(dst)], check=True, timeout=900); return j
 
 def mix(voiceover: str, plan: dict, total_s: float, out_wav: Path, text: str, seed: str, music: bool = True, accents: bool = True, log=lambda m: None) -> dict:
     """-> report {music: [stems], credit, accents: [...], loudnorm: {...}, notes: [...]}. Writes a 48 kHz stereo wav of exactly total_s."""
@@ -94,5 +97,5 @@ def mix(voiceover: str, plan: dict, total_s: float, out_wav: Path, text: str, se
     pk = float(np.max(np.abs(mixbuf)));
     if pk > 0.89: mixbuf *= 0.89 / pk; notes.append(f"peak protection reduced the mix by {20 * np.log10(0.89 / pk):.1f} dB before normalisation")
     tmp = out_wav.with_suffix(".raw.wav"); pcm = (np.clip(mixbuf, -1, 1) * 32767).astype("<i2")
-    subprocess.run([media.ffmpeg(), "-y", "-v", "error", "-f", "s16le", "-ar", str(SR), "-ac", "2", "-i", "-", str(tmp)], input=pcm.tobytes(), check=True)
+    subprocess.run([media.ffmpeg(), "-y", "-v", "error", "-f", "s16le", "-ar", str(SR), "-ac", "2", "-i", "-", str(tmp)], input=pcm.tobytes(), check=True, timeout=900)
     rep["loudnorm"] = _loudnorm(tmp, out_wav); tmp.unlink(missing_ok=True); return rep
