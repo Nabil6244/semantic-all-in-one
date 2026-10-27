@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+
+from war_test_media import clip
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,8 +16,8 @@ from cinematic_explainer.render import Layer, Shot
 from cinematic_explainer.war import integration, segments as S
 
 ROOT = Path(__file__).resolve().parent
-A = str(ROOT / "Images" / "008.mp4")
-B = str(ROOT / "Images" / "013.mp4")
+A = clip("008.mp4")   # Images/ when present, else a generated stand-in (Images/ is not in git)
+B = clip("013.mp4")
 HAVE_FFMPEG = bool(shutil.which("ffmpeg"))
 
 

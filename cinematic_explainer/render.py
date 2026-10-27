@@ -6,6 +6,7 @@ footage by one expression K(T), so it moves with the footage, costs no per-frame
 
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -47,6 +48,22 @@ def dim_spans(layers: Sequence[Layer]) -> List[Tuple[float, float]]:
         else:
             merged.append((a, b))
     return merged
+
+
+_FILTER_SCRIPT_OPT: Optional[str] = None
+
+
+def filter_script_option() -> str:
+    """The ffmpeg option that reads a filter graph from a file: -/filter_complex since ffmpeg 7 (9 dropped -filter_complex_script),
+    the old option on builds that predate it. Asked once per process."""
+    global _FILTER_SCRIPT_OPT
+    if _FILTER_SCRIPT_OPT is None:
+        try:
+            err = subprocess.run(["ffmpeg", "-hide_banner", "-filter_complex_script", os.devnull], capture_output=True, text=True, timeout=30).stderr
+        except (OSError, subprocess.SubprocessError):
+            err = ""
+        _FILTER_SCRIPT_OPT = "-/filter_complex" if "Unrecognized option" in err else "-filter_complex_script"
+    return _FILTER_SCRIPT_OPT
 
 
 def filter_graph(shots: Sequence[Shot], layers: Sequence[Layer]) -> str:
@@ -103,7 +120,7 @@ def render(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, crf
     for s in shots:
         cmd += ["-ss", f"{s.seek:.3f}", "-t", f"{s.end - s.start + 0.5:.3f}", "-i", s.path]
     cmd += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-            "-filter_complex_script", script, "-map", "[out]", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+            filter_script_option(), script, "-map", "[out]", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
             "-movflags", "+faststart", "-frames:v", str(frames), out_path]
     t0 = time.time()
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)

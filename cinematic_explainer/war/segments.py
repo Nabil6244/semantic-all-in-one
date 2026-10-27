@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .. import look as L
-from ..render import Layer, Shot, dim_spans
+from ..render import Layer, Shot, dim_spans, filter_script_option
 from .. import cards as _phase1_cards
 
 log = logging.getLogger("cinematic_explainer.war.segments")
@@ -489,7 +489,7 @@ def _render_piece(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: 
         if phave and pseek > phave - 0.1:
             pseek = max(0.0, phave - 0.1)
         cmd += ["-ss", f"{pseek:.3f}", "-t", f"{piece.dissolve + 0.5:.3f}", "-i", piece.prev_path]
-    cmd += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-filter_complex_script", str(script),
+    cmd += ["-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", filter_script_option(), str(script),
             "-map", "[out]", "-an"] + _encoder_args(codec) + ["-frames:v", str(piece.frames), str(out_path)]
     active_all = [ly for ly in layers if ly.end > piece.start and ly.start < piece.end]
     blank = bytes(W * H * 4)

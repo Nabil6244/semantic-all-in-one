@@ -102,7 +102,8 @@ class TimelineTests(unittest.TestCase):
 @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg needed")
 class RenderTests(unittest.TestCase):
     def test_short_render_has_exact_length_and_no_blank_frames(self):
-        shots = [Shot(str(ROOT / "Images" / "008.mp4"), 0.0, 2.0), Shot(str(ROOT / "Images" / "013.mp4"), 2.0, 4.0, seek=1.0)]
+        from war_test_media import clip   # Images/ is not in git: generated stand-ins on CI
+        shots = [Shot(clip("008.mp4"), 0.0, 2.0), Shot(clip("013.mp4"), 2.0, 4.0, seek=1.0)]
         layers = [Layer("kicker", 2.2, 3.8, {"text": "Test"}), Layer("number", 2.2, 3.8, {"value": 5, "label": "x", "sub": ""}, dim=True)]
         with tempfile.TemporaryDirectory() as td:
             out = str(Path(td) / "t.mp4")
