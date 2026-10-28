@@ -713,6 +713,8 @@ def run_generation(app) -> None:
         app._apply_footage_quality(manager)
         app._asset_manager = manager
         app._whatif_run_manager = manager
+        if app._whatif_cancel.is_set():          # a manager made after Stop was clicked must hear it too
+            manager.request_cancel()
 
     def worker() -> None:
         from pakmap.app_integration import PakmapResult

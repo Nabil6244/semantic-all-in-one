@@ -346,7 +346,7 @@ class RemainingGaps(unittest.TestCase):
                                    notes=[], credits=[])
 
         with tempfile.TemporaryDirectory() as d:
-            got = wm.fetch([shot], Path(d), log=lambda m: None, fetcher=fetcher, on_scene_complete=lambda sc, r: seen.append(sc.scene_number))
+            got = wm.fetch([shot], Path(d), log=lambda m: None, fetcher=fetcher, ai_stand_ins=True, on_scene_complete=lambda sc, r: seen.append(sc.scene_number))
         self.assertEqual(calls, [["nasa_image"], ["commons_image"], ["flow_image"]])
         self.assertTrue(shot.file and shot.cite[0] == "AI ILLUSTRATION")
         self.assertEqual(seen, ["1"], "the AI pass reports on the row the Visual Plan shows, not its own number")
@@ -489,13 +489,36 @@ class Media(unittest.TestCase):
             return SimpleNamespace(media=media_, unresolved=[], notes=[], credits=[])
 
         s = planner.Shot(id="s1", start=0, end=6, kind="image", asset="nasa_image:Venera 13 first colour photo", name="VENERA 13", text="Venera 13 sent home the first colour photos")
-        media.fetch([s], Path("/tmp/x"), fetcher=fake, log=lambda m: None)
+        media.fetch([s], Path("/tmp/x"), fetcher=fake, log=lambda m: None, ai_stand_ins=True)
         self.assertTrue(calls[0][0], "the mission is named, so NASA's answer stands (no stock search)")
         self.assertTrue(s.asset.startswith("flow_image:") and s.cite[0] == "AI ILLUSTRATION" and s.file.endswith(".png"))
         p = planner.Shot(id="s2", start=0, end=6, kind="image", asset="nasa_image:the team in mission control", name="", text="the engineers in the control room cheered")
-        media.fetch([p], Path("/tmp/x"), fetcher=fake, log=lambda m: None)
+        media.fetch([p], Path("/tmp/x"), fetcher=fake, log=lambda m: None, ai_stand_ins=True)
         self.assertEqual(p.file, "", "people are never illustrated")
 
+
+    def test_no_flow_picture_is_started_unasked_and_stop_ends_the_passes(self):
+        from types import SimpleNamespace
+
+        from whatif import media
+
+        calls = []
+
+        def fake(plan, images_dir, **kw):
+            calls.append([c.asset for b in plan.beats for c in b.clips])
+            return SimpleNamespace(media={}, unresolved=[], notes=[], credits=[])
+
+        def miss():
+            return planner.Shot(id="s1", start=0, end=6, kind="image", asset="nasa_image:Venera 13 first colour photo", name="VENERA 13", text="Venera 13 sent home photos")
+
+        s = miss()
+        got = media.fetch([s], Path("/tmp/x"), fetcher=fake, log=lambda m: None)
+        self.assertFalse(any(a.startswith("flow_image:") for c in calls for a in c), "no Flow picture without being asked")
+        self.assertEqual(s.file, "")
+        self.assertTrue(got.unresolved, "the miss is listed so the author can retry it")
+        calls.clear()
+        media.fetch([miss()], Path("/tmp/x"), fetcher=fake, log=lambda m: None, ai_stand_ins=True, cancel_check=lambda: True)
+        self.assertEqual(len(calls), 1, "after Stop no later pass (Commons, AI) starts")
 
     def test_each_fetch_pass_gets_its_own_scene_numbers_so_files_never_overwrite(self):
         """A Flow 001.png from the AI pass once replaced (and deleted) the NASA 001.jpg of the first pass: FileNotFoundError at render."""

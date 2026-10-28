@@ -291,6 +291,10 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
 
     if kw.pop("render_only", False):
         return _from_saved(shots, Path(images_dir), log)
+    # Flow pictures are never started on their own: a stock search that timed out once sent 5 AI illustrations to Flow that the
+    # author had not asked for (project #039). Off unless the run asks for them (ai_stand_ins=True); the miss is listed as unresolved.
+    ai_stand_ins = bool(kw.pop("ai_stand_ins", False))
+    stopped = lambda: bool(callable(kw.get("cancel_check")) and kw["cancel_check"]())   # noqa: E731
     as_plan(shots)                       # numbers the shots' rows as the Visual Plan does
     _take_visual_plan_sources(shots, kw.get("scene_rows"), log)
     # a ready row is the author's choice: never set aside or searched again at Generate (see starmap.media.recheck_cached_media)
@@ -314,6 +318,8 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     first = max([x.row for x in shots if x.row] or [0]) + 1
     later_rows: set = set()                                     # the numbers the later passes gave them (never shown in the table)
     named = [s for s in missed if s.name and not PEOPLE.search(s.name + " " + s.text)]
+    if stopped():       # Stop ends the run here: each later pass makes its own manager, which never heard the Stop (project #039)
+        named = []
     if named:
         for s in named:
             s.extra["_nasa_asset"] = s.asset
@@ -333,7 +339,7 @@ def fetch(shots: Sequence[Any], images_dir: Path, *, log: Callable[[str], None] 
     redo = []
     # every miss gets its AI picture, not only those in the opening (FLOW_OPEN_S): a later miss used to be left out, and the video
     # was rendered with a title card where its picture should be (project #016: 9 of 11 misses). One still per miss, never a clip.
-    for s in [s for s in missed if not s.file]:
+    for s in ([s for s in missed if not s.file] if ai_stand_ins and not stopped() else []):
         alt = _illustration_for(s)
         if alt:
             log(f"[What If] shot {s.id}: no real picture of {s.name or s.place or 'this'} was found; an AI illustration stands in (labelled on screen)")
