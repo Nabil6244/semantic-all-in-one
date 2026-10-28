@@ -257,7 +257,10 @@ def on_render_click(app) -> None:
             if scenes_path and scenes_path.lower().endswith(".csv"):
                 from . import scenes_csv
 
-                sentences = scenes_csv.read_scenes_csv(scenes_path)
+                notes: List[str] = []
+                sentences = scenes_csv.read_scenes_csv(scenes_path, notes)
+                for n in notes:
+                    log(n)
                 log(f"{len(sentences)} scenes read from {Path(scenes_path).name}")
                 if scenes_csv.needs_alignment(sentences):
                     words, total = narration_words()

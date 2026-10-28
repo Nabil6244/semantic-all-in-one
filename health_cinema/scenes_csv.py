@@ -83,22 +83,31 @@ def _header_map(fields: Sequence[str]) -> Dict[str, str]:
     return out
 
 
-def parse_csv_text(content: str) -> List[dict]:
-    """Rows -> [{text, start?, end?, chapter?, footage?, sources?}]. `start`/`end` are present on every row or on none. Raises ValueError naming the row."""
-    content = content.lstrip("﻿")
+def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict]:
+    """Rows -> [{text, start?, end?, chapter?, footage?, sources?}]. `start`/`end` are present on every row or on none. Raises ValueError naming the row.
+    A row with more fields than the header almost always has an unquoted comma inside its text (an LLM forgot the quotes): the extra pieces are joined back
+    into the text and the repair is appended to `notes`."""
+    content = content.lstrip("\ufeff")
     if not content.strip():
         raise ValueError("the scenes CSV is empty")
     try:
         dialect = csv.Sniffer().sniff(content[:4096], delimiters=",;\t")
     except csv.Error:
         dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(content), dialect=dialect)
-    hm = _header_map(reader.fieldnames or [])
+    table = list(csv.reader(io.StringIO(content), dialect=dialect))
+    fieldnames = table[0] if table else []
+    hm = _header_map(fieldnames)
     if "text" not in hm:
-        raise ValueError("the scenes CSV needs a 'text' column (also accepted: narration, sentence, script); found: " + ", ".join(reader.fieldnames or ["nothing"]))
+        raise ValueError("the scenes CSV needs a 'text' column (also accepted: narration, sentence, script); found: " + ", ".join(fieldnames or ["nothing"]))
+    idx = {k: fieldnames.index(col) for k, col in hm.items()}
     rows: List[dict] = []
-    for lineno, raw in enumerate(reader, start=2):
-        row = {k: (raw.get(col) or "").strip() for k, col in hm.items()}
+    for lineno, cells in enumerate(table[1:], start=2):
+        if len(cells) > len(fieldnames):
+            extra = len(cells) - len(fieldnames); ti = idx["text"]
+            cells = cells[:ti] + [",".join(cells[ti:ti + extra + 1])] + cells[ti + extra + 1:]
+            if notes is not None:
+                notes.append(f"row {lineno}: an unquoted comma in the text was repaired (\"{cells[ti][:50]}\")")
+        row = {k: (cells[i].strip() if i < len(cells) else "") for k, i in idx.items()}
         if not any(row.values()):
             continue
         where = f"row {lineno}"
@@ -135,13 +144,13 @@ def parse_csv_text(content: str) -> List[dict]:
     return rows
 
 
-def read_scenes_csv(path: str) -> List[dict]:
+def read_scenes_csv(path: str, notes: Optional[List[str]] = None) -> List[dict]:
     raw = Path(path).read_bytes()
     try:
         content = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         content = raw.decode("cp1252")      # older Excel exports
-    return parse_csv_text(content)
+    return parse_csv_text(content, notes)
 
 
 def needs_alignment(rows: Sequence[dict]) -> bool:
@@ -178,7 +187,9 @@ def align_to_words(rows: Sequence[dict], words: Sequence[Any], total_s: float = 
             match[blk.a + k] = blk.b + k
     frac = len(match) / len(stok)
     if frac < MIN_MATCH:
-        raise ValueError(f"only {frac:.0%} of the CSV's words are in the voiceover: this CSV does not look like this narration (check the voiceover file, or fill start and end)")
+        raise ValueError(f"only {frac:.0%} of the CSV's words are in the voiceover: this CSV does not look like this narration "
+                         f"(CSV: {len(stok)} words, opens \"{' '.join(stok[:8])}…\"; voiceover: {len(wtok)} words, opens \"{' '.join(wtok[:8])}…\"). "
+                         f"Record the voiceover from the CSV's text column, or fill start and end")
     first: List[Optional[int]] = [None] * len(rows)       # transcript word index at each row's first/last matched token
     last: List[Optional[int]] = [None] * len(rows)
     for si, wi in sorted(match.items()):

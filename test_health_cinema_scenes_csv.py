@@ -45,6 +45,14 @@ class Parse(unittest.TestCase):
                 C.parse_csv_text(txt)
             self.assertIn(frag, str(cm.exception), txt)
 
+    def test_unquoted_comma_in_text_is_repaired(self):
+        notes = []
+        rows = C.parse_csv_text(HEAD + "It beats about 100,000 times a day.,,,,,,,,,,\nNext line here.,,,Chapter two,,,,,,,\n", notes)
+        self.assertEqual(rows[0]["text"], "It beats about 100,000 times a day."); self.assertEqual(rows[1]["chapter"], "Chapter two")
+        self.assertTrue(C.needs_alignment(rows)); self.assertEqual(len(notes), 1); self.assertIn("row 2", notes[0])
+        timed = C.parse_csv_text(HEAD + "Over 1,000 people took part.,0:00,0:05,,,Study,Cit,,2020,,\n")
+        self.assertEqual((timed[0]["text"], timed[0]["end"], timed[0]["sources"][0]["year"]), ("Over 1,000 people took part.", 5.0, 2020))
+
     def test_cp1252_file(self):
         d = Path(tempfile.mkdtemp()); p = d / "s.csv"; p.write_bytes("text\nCafé olé tonight friend.\n".encode("cp1252"))
         self.assertEqual(C.read_scenes_csv(str(p))[0]["text"], "Café olé tonight friend.")
