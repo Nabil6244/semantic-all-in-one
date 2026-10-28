@@ -56,9 +56,18 @@ def group(sents: Sequence[Sent], duration: float, opt: DirectorOptions) -> List[
             cur = []
     if cur:
         groups.append(cur)
-    if len(groups) > 1 and (duration - groups[-1][0].start) < 2.0:
-        last = groups.pop()
-        groups[-1] += last
+    # a beat under 2 s (a one-line paragraph, the tail) cannot be taken in and fails the Hybrid validator: fold it into its neighbour
+    k = 0
+    while len(groups) > 1 and k < len(groups):
+        end_k = groups[k + 1][0].start if k + 1 < len(groups) else duration
+        if end_k - groups[k][0].start < 2.0:
+            if k + 1 < len(groups):
+                groups[k] += groups.pop(k + 1)
+            else:
+                groups[k - 1] += groups.pop(k)
+                k -= 1
+            continue
+        k += 1
     beats = []
     for k, g in enumerate(groups):
         start = 0.0 if k == 0 else g[0].start
