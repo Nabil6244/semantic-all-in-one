@@ -5,9 +5,10 @@
 //   craft   a 3D model (GLB) drifting in a star field                      { model, cam: { az0, az1, el, dist, roll } }
 //   globe   a textured world with rim light                                { texture, cam, atmosphere, rotate_deg_s }
 //   hero    a composed procedural 3D scene (lib/hero.mjs): a lander on the plain, a descent under a parachute, a ray-traced black hole { scene, cam }
+//   scene   a 3D scene generated from a JSON spec (lib/scene_gen.mjs): any world, craft, clouds, particles, camera path { scene_spec }
 //   black   black (a death, a silence)
 // Every shot: { id, start, end, kind, credit?, exit?: "cut" | "push", grade?: {...} }. Pure functions of narration time t.
-export const KINDS = ['image', 'video', 'plate', 'craft', 'globe', 'hero', 'product', 'black'];
+export const KINDS = ['image', 'video', 'plate', 'craft', 'globe', 'hero', 'scene', 'product', 'black'];
 export const HERO_SCENES = ['venera_ground', 'venera_descent', 'cloud_airship', 'ship_engine', 'blackhole_disc', 'blackhole_top', 'blackhole_ring', 'blackhole_lensing', 'blackhole_horizon',
   'ring_station', 'cylinder_interior', 'cylinder_exterior'];
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -39,7 +40,7 @@ export function sanitizeShots(spec) {
     if (!Number.isFinite(s.start) || !Number.isFinite(s.end) || !(s.end > s.start)) { notes.push(`shot ${id}: no length; left out`); continue; }
     const why = !KINDS.includes(s.kind) ? `unknown kind ${s.kind}` : ['image', 'video'].includes(s.kind) && !s.file ? `${s.kind} without a file`
       : s.kind === 'craft' && !s.model ? 'craft without a model' : s.kind === 'globe' && !s.texture ? 'globe without a texture'
-        : s.kind === 'hero' && !HERO_SCENES.includes(s.scene) ? `unknown hero scene ${s.scene}` : null;
+        : s.kind === 'hero' && !HERO_SCENES.includes(s.scene) ? `unknown hero scene ${s.scene}` : s.kind === 'scene' && (!s.scene_spec || typeof s.scene_spec !== 'object') ? 'scene without a scene_spec' : null;
     if (why) { notes.push(`shot ${id}: ${why}; drawn as a plate`); s.kind = 'plate'; }
     out.push(s);
   }

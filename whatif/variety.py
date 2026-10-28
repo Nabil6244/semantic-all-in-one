@@ -18,7 +18,24 @@ TEXT_IDS = {"kicker_headline", "lower_third", "side_note", "key_word", "underlin
 THREE_D_MAX = 0.32           # at most this share of the shots is a 3D model or globe (the rest stays real footage and pictures)
 TEXT_SHARE_MAX = 0.28        # plain text cards, of all the graphics
 GRAPHIC_TYPES = ("tm_template", "tm_caption", "tm_metric", "tm_annotate", "tm_bars", "tm_compare", "tm_timeline", "tm_logaxis", "tm_composition")
-CARRY = re.compile(r"\b(the (probe|spacecraft|craft|machine|lander|rover|telescope|satellite|orbiter)|this (probe|spacecraft|craft|machine))\b", re.I)
+_CARRY = re.compile(r"\b(the (probe|spacecraft|craft|machine|lander|rover|telescope|satellite|orbiter)|this (probe|spacecraft|craft|machine))\b", re.I)
+SAME_MODEL_GAP_S = 6.0       # the same model or globe is not drawn again within this many seconds (the same shot over and over is the bug)
+SAME_MODEL_MAX = 6           # nor more than this many times in one video (its angle changes each time, planner.vary)
+
+
+class _Carry:
+    """"the probe ..." continues the craft the story is about -- unless the sentence is about what happens inside a world (a descent, a parachute,
+    pressure), where the orbiter's model is the wrong picture. Same .search() as the plain pattern, so callers need no change."""
+
+    def search(self, text: str):
+        from . import planner as pl
+
+        if pl.INSIDE.search(text or ""):
+            return None
+        return _CARRY.search(text or "")
+
+
+CARRY = _Carry()
 
 
 # ---- 3D instead of a stock picture ----------------------------------------------------------------------------------------------------
@@ -32,10 +49,14 @@ def upgrade_3d(shots: List[Any], notes: List[str]) -> int:
         return s.kind in ("craft", "globe")
 
     count = sum(1 for s in shots if is3d(s))
-    done, topic = 0, ""
+    done, topic, topic_end = 0, "", 0.0
+    seen: Dict[str, List[float]] = {}
+    for s in shots:
+        if is3d(s) and (s.model or s.texture):
+            seen.setdefault(s.model or s.texture, []).append(s.start)
     for i, s in enumerate(shots):
         if is3d(s):
-            topic = s.name or topic
+            topic, topic_end = s.name or topic, s.end
             continue
         if s.kind not in ("image", "video") or s.length < 3.0 or s.asset.lower().startswith(("flow_", "file:")):
             continue
@@ -47,18 +68,23 @@ def upgrade_3d(shots: List[Any], notes: List[str]) -> int:
         if pl.PHOTO.search(text):                               # "the photo showed ..." stays the photograph
             continue
         named = bool(pl._craft(text) or pl._world(text))
-        if not named and not (CARRY.search(text) and topic):
-            continue                                            # "the probe ..." is still the craft the story is about, else nothing is named
+        if not named and not (CARRY.search(text) and topic and s.start - topic_end <= 20.0):
+            continue                                            # "the probe ..." is still the craft the story is about (just seen), else nothing is named
         got = pl.classify(text if named else f"{topic} {text}", flow_video=False)
         if got.get("kind") not in ("craft", "globe"):
             continue
+        key = got.get("model") or got.get("texture") or ""
+        prior = seen.get(key, [])
+        if len(prior) >= SAME_MODEL_MAX or any(abs(s.start - t) < SAME_MODEL_GAP_S for t in prior):
+            continue                                            # the same model again and again is a generic shot, not an illustration
         for k in pl._LOOK:
             if k in got:
                 setattr(s, k, got[k])
         s.kind, s.asset, s.file, s.credit = got["kind"], "", "", ""
         s.extra.pop("full_bleed", None)
+        seen.setdefault(key, []).append(s.start)
         if is3d(s):
-            topic = s.name or topic
+            topic, topic_end = s.name or topic, s.end
         count += 1
         done += 1
     if done:

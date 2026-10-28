@@ -1124,6 +1124,9 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
         info_blocks(spec, plan, notes, cards=bool(fl.get("cards") and fl.get("photos")))
     if fl.get("variety"):
         variety(spec, plan, notes)
+        from visual_composer import cinema as composer      # a relevance gate on the 3D shots + a graphic composed for each showable sentence (any niche)
+
+        composer.enrich_spec(spec, plan, notes)
     declutter(spec, notes)
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens

@@ -1,0 +1,123 @@
+{
+ "id": "atom_grid",
+ "family": "descent",
+ "use": "A lattice of atoms (protons orange, electrons cyan) with a caption under it: the plain picture of what a material is made of (Jupiter reference: hydrogen, then metallic hydrogen with the electrons freed). label = the caption; sub = the small line; value_to 0..1 = how far the electrons have left their atoms.",
+ "tags": [
+  "descent",
+  "matter",
+  "atoms",
+  "structure"
+ ],
+ "plate": true,
+ "hold": 7,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "HYDROGEN - THE LIGHTEST ELEMENT",
+   "from": "label"
+  },
+  "sub": {
+   "default": "",
+   "from": "sub"
+  },
+  "free": {
+   "default": 0,
+   "from": "value_to"
+  },
+  "cells": {
+   "default": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39
+   ]
+  }
+ },
+ "items": [
+  {
+   "p": "particles",
+   "mode": "stars",
+   "count": 120,
+   "alpha": 0.35,
+   "in": 0,
+   "appear": "cut",
+   "seed": 7
+  },
+  {
+   "p": "dot",
+   "each": "cells",
+   "style": "plain",
+   "r": 6,
+   "color": "orange",
+   "at": [
+    "=0.12+0.76*({i}-8*floor({i}/8))/7",
+    "=0.16+0.5*floor({i}/8)/4"
+   ],
+   "in": 0.2,
+   "stagger": 0.03
+  },
+  {
+   "p": "dot",
+   "each": "cells",
+   "style": "plain",
+   "r": 3.2,
+   "color": "cyan",
+   "at": [
+    "=0.12+0.76*({i}-8*floor({i}/8))/7+0.02",
+    "=0.16+0.5*floor({i}/8)/4+0.025"
+   ],
+   "in": 0.5,
+   "stagger": 0.03
+  },
+  {
+   "p": "text",
+   "text": "{label}",
+   "at": [
+    0.5,
+    0.86
+   ],
+   "align": "center",
+   "size": 22,
+   "sub": "{sub}",
+   "in": 0.6
+  }
+ ],
+ "triggers": "\\b(hydrogen|atoms?|protons?|electrons?|metallic)\\b"
+}

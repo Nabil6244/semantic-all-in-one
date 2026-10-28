@@ -41,14 +41,14 @@ PLATE_HUDS = ("tm_gauge", "tm_survival")     # instruments that step back over p
 CRAFT: List[Tuple[str, str, str]] = [
     (r"\bvoyager ?2\b", "voyager.glb", "VOYAGER 2"), (r"\bvoyager( ?1)?\b", "voyager.glb", "VOYAGER 1"), (r"\bcassini\b", "cassini.glb", "CASSINI"),
     (r"\bjuno\b", "juno.glb", "JUNO"), (r"\bgalileo (probe|spacecraft|orbiter)\b|\bgalileo\b(?! galilei)", "galileo.glb", "GALILEO"),
-    (r"\bmagellan\b", "magellan.glb", "MAGELLAN"), (r"\bparker( solar)?( probe)?\b", "parker.glb", "PARKER SOLAR PROBE"),
-    (r"\bperseverance\b", "perseverance.glb", "PERSEVERANCE"), (r"\bviking( lander| 1| 2)?\b", "viking_lander.glb", "VIKING LANDER"),
-    (r"\bwebb\b|\bjwst\b", "jwst.glb", "JAMES WEBB SPACE TELESCOPE"), (r"\bhubble\b", "hubble.glb", "HUBBLE SPACE TELESCOPE"),
-    (r"\blunar module\b|\beagle\b", "apollo_lm.glb", "APOLLO LUNAR MODULE"), (r"\bsaturn v\b", "saturn_v.glb", "SATURN V"),
+    (r"\bmagellan (probe|spacecraft|orbiter|mission|radar)\b|\bmagellan\b(?= .{0,40}\bvenus\b)", "magellan.glb", "MAGELLAN"), (r"\bparker solar probe\b|\bparker probe\b", "parker.glb", "PARKER SOLAR PROBE"),
+    (r"\bperseverance (rover|landed|lander|mission)\b|\bthe perseverance\b", "perseverance.glb", "PERSEVERANCE"), (r"\bviking( lander| ?1| ?2)\b", "viking_lander.glb", "VIKING LANDER"),
+    (r"\bwebb\b|\bjwst\b", "jwst.glb", "JAMES WEBB SPACE TELESCOPE"), (r"\bhubble\b(?!'?s? (law|constant|tension|flow|parameter|time|radius|sphere))", "hubble.glb", "HUBBLE SPACE TELESCOPE"),
+    (r"\blunar module\b|\bthe eagle (landed|lander|module)\b", "apollo_lm.glb", "APOLLO LUNAR MODULE"), (r"\bsaturn v\b", "saturn_v.glb", "SATURN V"),
     (r"\bdeep space network\b|\bdsn\b|\bradio dish\b|\b70[- ]metre\b", "dsn_70m.glb", "DEEP SPACE NETWORK"), (r"\bdawn\b(?= (probe|spacecraft|mission))", "dawn.glb", "DAWN"),
     (r"\bmessenger\b", "messenger.glb", "MESSENGER"), (r"\brosetta\b", "rosetta.glb", "ROSETTA"), (r"\bulysses\b", "ulysses.glb", "ULYSSES"),
-    (r"\bingenuity\b", "ingenuity.glb", "INGENUITY"), (r"\binsight\b", "insight.glb", "INSIGHT"), (r"\bspace station\b|\biss\b", "iss.glb", "INTERNATIONAL SPACE STATION"),
-    (r"\bpioneer( ?1[01])?\b", "pioneer10.glb", "PIONEER 10"), (r"\bdeep space 1\b", "deep_space_1.glb", "DEEP SPACE 1"), (r"\bstardust\b", "stardust.glb", "STARDUST"),
+    (r"\bingenuity\b", "ingenuity.glb", "INGENUITY"), (r"\binsight (lander|mission|probe|spacecraft)\b|\bnasa'?s insight\b", "insight.glb", "INSIGHT"), (r"\bspace station\b|\biss\b", "iss.glb", "INTERNATIONAL SPACE STATION"),
+    (r"\bpioneer ?1[01]\b", "pioneer10.glb", "PIONEER 10"), (r"\bdeep space 1\b", "deep_space_1.glb", "DEEP SPACE 1"), (r"\bstardust\b", "stardust.glb", "STARDUST"),
 ]
 # worlds with a texture for a globe shot: pattern -> (texture, name, atmosphere colour, tint of diagram plates about it)
 WORLDS: List[Tuple[str, str, str, Optional[str]]] = [
@@ -56,7 +56,7 @@ WORLDS: List[Tuple[str, str, str, Optional[str]]] = [
     (r"\bmercury\b", "2k_mercury.jpg", "MERCURY", None), (r"\bjupiter\b", "jupiter_cassini_pia07782.jpg", "JUPITER", None),
     (r"\buranus\b", "2k_uranus.jpg", "URANUS", "#a8e0e8"), (r"\bneptune\b", "2k_neptune.jpg", "NEPTUNE", "#6a8ae8"),
     (r"\bearth\b", "earth_bluemarble_5400.jpg", "EARTH", "#7fb0ff"), (r"\bmoon\b", "moon_lroc_4096.jpg", "THE MOON", None),
-    (r"\bthe sun\b|\bsunlight\b", "2k_sun.jpg", "THE SUN", "#ffcf80"),
+    (r"\bthe sun\b", "2k_sun.jpg", "THE SUN", "#ffcf80"),
 ]
 # a unit that is about an image or an event is not a "world in general": it needs a real or illustrated picture
 EVENT = re.compile(r"\b(photo\w*|pictures?|images?|panorama|footage|film|first colou?r|landed|landing|touched down|launch\w*|lifted off|crash\w*|parachute\w*|"
@@ -182,13 +182,27 @@ def _craft(text: str) -> Optional[Tuple[str, str]]:
     return None
 
 
+# a world named only as a yardstick ("22 times Earth's air pressure", "Earth-sized", "like Mars") is not the subject of the sentence
+YARDSTICK = re.compile(r"\b(times|x|twice|half|double|triple|percent|per ?cent|like|unlike|than|compared (?:to|with)|versus|vs\.?|equal to|same as)\s+(?:that of\s+|the\s+|on\s+|at\s+|in\s+)?"
+                       r"(earth|mars|venus|mercury|jupiter|saturn|uranus|neptune|moon|sun)\b(?:'s)?|\b(earth|mars|venus|jupiter|saturn|moon)(?:'s|-sized|-like| days?| years?| gravity| masses?| air)\b", re.I)
+# the narration is inside the world (a descent through its sky, its pressure, its core): a globe seen from space shows the wrong place
+INSIDE = re.compile(r"\b(inside|within|beneath|below|deep (?:in|inside|within|down)|(?:through|into|under|beyond) the (?:clouds?|atmosphere|sky|surface|crust|ocean|layers?)|"
+                    r"descen\w*|falls?|falling|fell|sinks?|sinking|crush\w*|melt\w*|pressure|depths?|layers?|core|interior|clouds?|haze|storms?|lightning|"
+                    r"parachute\w*|drift\w*|breath\w*|float\w*|km (?:down|deep|below))\b", re.I)
+
+
 def _world(text: str) -> Optional[Tuple[str, str, str]]:
+    """The world a unit is ABOUT (texture, name, atmosphere colour), or None. A world named as a yardstick ("than Earth", "22 times Earth's pressure")
+    does not count, nor does one the narration is inside of (a descent through Jupiter's clouds is not a picture of Jupiter from space)."""
     low = re.sub(r"\bthan (?:on |at |in |for )?(?:the )?\w+", " ", text.lower())     # "harder than on Earth": Earth is the yardstick
+    low = YARDSTICK.sub(" ", low)
     best = None
     for pat, tex, name, atm in WORLDS:
         m = re.search(pat, low)
         if m and (best is None or m.start() < best[0]):
             best = (m.start(), tex, name, atm or "")
+    if best and INSIDE.search(low):
+        return None
     return best[1:] if best else None
 
 
@@ -596,7 +610,7 @@ def hook(shots: List[Shot], words: Sequence[Word], layers: Sequence[Dict[str, An
 
 
 LIGHT_KM_S = 299792.458
-MOVING = ("video", "craft", "globe", "hero")
+MOVING = ("video", "craft", "globe", "hero", "scene")
 _LOOK = ("kind", "asset", "cite", "name", "model", "texture", "scene", "cam", "atmosphere", "file", "credit")
 
 
@@ -759,6 +773,7 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
          extra_plates: Optional[List[Shot]] = None, auto: bool = True) -> ShotPlan:
     """Narration -> ShotPlan. `shots` (from a shot CSV) are used as written; without them the planner builds the shot list."""
     notes: List[str] = []
+    authored_shots = shots is not None          # a shot CSV's 3D shots are the author's choice: only the planner's own are gated for relevance
     mode = flow_mode(flow_video)
     flow_video = mode == "videos"
     words = nr.words_of(raw_words, script)
@@ -1121,6 +1136,9 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
         from . import variety
 
         look = variety.apply(shots, layers, title, text_all, notes)
+        from visual_composer import apply as vc
+
+        vc.apply(shots, layers, words, duration, notes, gate=not authored_shots)      # relevance gate on 3D shots + a graphic composed for each showable sentence (any niche)
     shots = split_long_videos(shots, words, layers, notes)
     limit_flow(shots, notes)
     for i, s in enumerate(shots, 1):

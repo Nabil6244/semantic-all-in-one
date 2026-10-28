@@ -388,6 +388,19 @@ if (spec.cinema) {
       f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
     },
   });
+  // a 3D scene generated from a sentence (whatif-engine/lib/scene_gen.mjs, the What If engine's `scene` shot): any world, craft, clouds, cutaway or field,
+  // full frame over the footage for its window
+  const { buildScene } = await import('/wi/lib/scene_gen.mjs');
+  registry.register({
+    type: 'cinema_scene', space: 'screen',
+    create: (def) => ({ def, gen: buildScene(THREE, { scene_spec: def.scene_spec || {} }, { stars: deepSky }), cam: new THREE.PerspectiveCamera(34, W / H, 0.01, 1000) }),
+    draw(inst, f) {
+      const d = inst.def, k = Math.min(1, Math.max(0, (f.t - d.start) / Math.max(0.1, d.end - d.start)));
+      inst.gen.place(inst.cam, k, f.t - d.start);
+      renderer.render(inst.gen.scene, inst.cam);
+      f.g.save(); f.g.globalAlpha = f.alpha; f.g.drawImage(glCanvas, 0, 0); f.g.restore();
+    },
+  });
   // the heliosphere as the references draw it: a bubble round the Sun that glows at its rim (a fresnel shell, additive)
   registry.register({
     type: 'cinema_bubble', space: 'world',

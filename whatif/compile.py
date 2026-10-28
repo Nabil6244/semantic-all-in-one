@@ -479,6 +479,8 @@ def compile_spec(plan: ShotPlan, *, width: int = WIDTH, height: int = HEIGHT, fp
             d["lockup"] = bool(s.extra.get("lockup"))            # a typographic stand-in: the act's instruments stay on over it
         elif s.kind == "hero":
             d["scene"], d["cam"] = s.scene, s.cam
+        elif s.kind == "scene":
+            d["scene_spec"] = s.extra.get("scene_spec") or {}
         elif s.kind == "craft":
             d["model"], d["cam"] = s.model, s.cam
             d["spin_deg_s"] = float(s.extra.get("spin_deg_s", 0))

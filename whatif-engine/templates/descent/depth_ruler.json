@@ -1,0 +1,157 @@
+{
+ "id": "depth_ruler",
+ "family": "descent",
+ "use": "A descent HUD over footage: a vertical depth ruler on the right with named layers (text = LAYER=label|0..1 where 0 is the top and 1 the bottom), a probe marker sinking down it and a live depth readout (Jupiter descent reference). Use while something falls through an atmosphere, an ocean or a planet.",
+ "tags": [
+  "descent",
+  "depth",
+  "overlay",
+  "hud"
+ ],
+ "plate": false,
+ "hold": 8,
+ "cite": "ILLUSTRATION",
+ "tint": "cool",
+ "slots": {
+  "label": {
+   "default": "DEPTH",
+   "from": "label"
+  },
+  "unit": {
+   "default": "KM",
+   "from": "format"
+  },
+  "depth_from": {
+   "default": 0,
+   "from": "value_from"
+  },
+  "depth_to": {
+   "default": 300,
+   "from": "value_to"
+  },
+  "layers": {
+   "default": [
+    {
+     "name": "CLOUD TOPS",
+     "value": "0 KM",
+     "num": 0.0
+    },
+    {
+     "name": "DEEP ATMOSPHERE",
+     "value": "150 KM",
+     "num": 0.45
+    },
+    {
+     "name": "LIQUID HYDROGEN",
+     "value": "1,000 KM",
+     "num": 0.8
+    }
+   ],
+   "from": "text",
+   "kind": "pairs"
+  }
+ },
+ "items": [
+  {
+   "p": "line",
+   "from": [
+    0.94,
+    0.14
+   ],
+   "to": [
+    0.94,
+    0.86
+   ],
+   "color": "rgba(255,255,255,0.55)",
+   "width": 1.6,
+   "in": 0
+  },
+  {
+   "p": "line",
+   "each": "layers",
+   "from": [
+    0.925,
+    "=0.14+0.72*{it.num}"
+   ],
+   "to": [
+    0.955,
+    "=0.14+0.72*{it.num}"
+   ],
+   "color": "rgba(255,255,255,0.7)",
+   "width": 1.4,
+   "in": 0.3,
+   "stagger": 0.25
+  },
+  {
+   "p": "text",
+   "each": "layers",
+   "text": "{it.name}",
+   "at": [
+    0.915,
+    "=0.14+0.72*{it.num}+0.012"
+   ],
+   "align": "right",
+   "size": 14,
+   "sub": "{it.value}",
+   "in": 0.3,
+   "stagger": 0.25
+  },
+  {
+   "p": "dot",
+   "at": [
+    0.94,
+    0.14
+   ],
+   "r": 7,
+   "color": "cyan",
+   "in": 0.4,
+   "anim": {
+    "at": [
+     [
+      0.8,
+      [
+       0.94,
+       0.14
+      ]
+     ],
+     [
+      "end-0.6",
+      [
+       0.94,
+       0.84
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "p": "number",
+   "at": [
+    0.06,
+    0.9
+   ],
+   "align": "left",
+   "size": 54,
+   "unit": "{unit}",
+   "sub": "{label}",
+   "decimals": 0,
+   "in": 0.4,
+   "anim": {
+    "value": {
+     "keys": [
+      [
+       0.8,
+       "{depth_from}"
+      ],
+      [
+       "end-0.6",
+       "{depth_to}"
+      ]
+     ],
+     "ease": "smooth"
+    }
+   }
+  }
+ ],
+ "triggers": "\\b(descen\\w*|falls? (through|into)|sinks?|parachute\\w*|km (below|down|deep)|dive\\w* (into|through))\\b"
+}
