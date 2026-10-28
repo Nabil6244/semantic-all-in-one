@@ -44,7 +44,7 @@ def code_version(files=CODE_FILES) -> str:
     return _sha((VERSION + "".join(file_hash(f) for f in files if Path(f).exists())).encode())[:16]
 
 def cache_key(spec_path, anchors_path, model_path, W, H, fps, backend="threejs", settings: Optional[dict] = None, code: Optional[str] = None) -> str:
-    spec = json.dumps(json.load(open(spec_path)), sort_keys=True, separators=(",", ":"))
+    spec = json.dumps(json.loads(Path(spec_path).read_text(encoding="utf-8")), sort_keys=True, separators=(",", ":"))
     parts = [spec, file_hash(anchors_path), file_hash(model_path), f"{int(W)}x{int(H)}@{int(fps)}", backend,
              json.dumps(settings or {}, sort_keys=True), code or code_version()]
     return _sha("\x1f".join(parts).encode())[:24]
@@ -70,6 +70,9 @@ def run_cancellable(cmd, cancel: Optional[threading.Event] = None, timeout: Opti
         raise
     finally:
         th.join(timeout=2)
+        if not th.is_alive():      # the reader is done: release the pipe now instead of leaving one open per child process until GC
+            try: p.stdout.close()
+            except Exception: pass
     out = "".join(lines)
     if p.returncode != 0: raise RuntimeError(f"exit {p.returncode}: {out[-800:]}")
     return out

@@ -37,6 +37,34 @@ def footage_lookup(project_dir: Path) -> Callable[[dict], Optional[str]]:
         return None
     return find
 
+def _retry_footage(sc, d: dict, acquirer: Callable, allow_youtube: bool, allow_flow: bool, settings: Optional[dict], log: Callable[[str], None], acquisition: dict, rounds: int = 2) -> bool:
+    """A scene's footage was not found: ask the visual direction for other searches and try again (scene numbers 1000+ keep the retry apart from the
+    failed manifest entry). True when a clip was found. Only when every retry fails does the caller fall back to a card."""
+    import dataclasses
+    tried = list(d.get("queries") or []) + [sc.visual.get("query", "")]
+    for rnd in range(1, rounds + 1):
+        alts = direction.alternative_queries(d, tried, settings, log)
+        if not alts: return False
+        q = alts[0]; tried.append(q); no = int(sc.dscene_ids[0]); key = 1000 * rnd + no
+        scn = dataclasses.replace(d["scene"], search_queries=[q]) if d.get("scene") is not None else None
+        if scn is None: return False
+        d2 = dict(d, queries=[q], scene=scn)
+        if rnd == rounds and allow_youtube: d2["asset_type"] = "youtube_video"
+        acquisition["requested"] += 1
+        res = acquirer(ACQ.rows_for({key: d2}, allow_youtube, allow_flow)).get(key, {})
+        log(f"scene {sc.scene_no}: footage retry {rnd} with '{q[:60]}': {'found' if res.get('ok') else 'nothing'}")
+        if res.get("ok"):
+            sc.asset = res; sc.visual["path"] = res["path"]; sc.visual["query"] = q; acquisition["ok"] += 1; acquisition["retried_ok"] = acquisition.get("retried_ok", 0) + 1
+            src = res.get("provider") or res.get("source") or "?"; acquisition["sources"][src] = acquisition["sources"].get(src, 0) + 1
+            sc.decisions.append(f"first footage search found nothing; alternative search '{q[:50]}' succeeded")
+            return True
+    return False
+
+def _kind_counts(scenes) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    for sc in scenes: out[sc.kind] = out.get(sc.kind, 0) + 1
+    return out
+
 def timeline(sentences: List[dict], total_s: float) -> List[dict]:
     """Make the scenes contiguous from 0 to the voiceover length (gaps are absorbed by the previous scene, the last scene runs to the end)."""
     ss = sorted((dict(s) for s in sentences), key=lambda s: float(s["start"]))
@@ -63,12 +91,15 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     sents = timeline(sentences, total)
     ready = assets.anatomy_ready() if frame_renderer is None else assets.anatomy_assets() is not None
     director_on = (acquirer is not None or settings is not None) if use_director is None else use_director
+    anatomy = assets.anatomy_status()
+    if not anatomy["usable"]:      # never silent: without the 3D path every anatomy scene is footage or a card
+        log("3D anatomy is NOT available (" + ("no model found in " + ", ".join(anatomy["dirs"]) if not any(anatomy["ready"].values()) else "Node/three.js/browser missing: " + ", ".join(anatomy["threejs_missing"] or ["browser"])) + "): anatomy scenes will use footage instead")
     acquisition: Dict = {"requested": 0, "ok": 0, "failed": 0, "sources": {}, "flow_used": False, "youtube_allowed": allow_youtube}
     dscenes: List[dict] = []
     if director_on:
         prog(0.0, "planning scenes from the narration (the app's visual director)")
         script = script_text or " ".join(s["text"] for s in sents)
-        dscenes = direction.plan_visuals(script, settings, str(project_dir / "state"), log)
+        dscenes = direction.plan_visuals(script, settings, str(project_dir / "state"), log, cancel=lambda: cancel.is_set() or cancelled())
         tpl_ok = (lambda t: assets.template_ready(t)) if frame_renderer is not None else (lambda t: assets.template_ready(t) and assets.threejs_ready())
         plan = planner.plan_directed(sents, profile, dscenes, tpl_ok, allow_footage=acquirer is not None, title=title)
     else:
@@ -92,6 +123,8 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                     sc.asset = r; sc.visual["path"] = r["path"]; acquisition["ok"] += 1; acquisition["sources"][r.get("provider") or r.get("source") or "?"] = acquisition["sources"].get(r.get("provider") or r.get("source") or "?", 0) + 1
                     acquisition["flow_used"] = acquisition["flow_used"] or "flow" in str(r.get("source", "")).lower()
                 else:
+                    got_alt = _retry_footage(sc, by_id[sc.dscene_ids[0]], acquirer, allow_youtube, allow_flow, settings, log, acquisition)
+                    if got_alt: continue
                     acquisition["failed"] += 1; why = r.get("error") or "no result"
                     sc.flags.append({"code": "footage_unavailable", "severity": "note", "message": f"Footage could not be acquired ({str(why)[:120]}); a typographic card is shown instead."})
                     sc.kind = "text_card"; sc.visual = {"text": sc.text, "beats": [{"text": x["text"], "t0": round(x["start"] - sc.start, 3)} for x in sc.sentences]}
@@ -108,7 +141,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
             if a.get("path"): credits.append(f"Footage (scene {s.scene_no}): {a.get('provider') or a.get('source')} - {a.get('author') or 'unknown author'} {a.get('source_url') or ''} [query: {a.get('query', '')[:60]}]".strip())
         if er["audio"].get("credit"): credits.append(er["audio"]["credit"])
         rep = {"ok": True, "out": str(out_path), "profile": prof.id, "quality": quality, "size": [W, H], "fps": clips.FPS, "seconds": round(time.time() - t0, 2), "edit": "high_end",
-               "scenes": [s.as_dict() for s in scenes], "plan_log": plan["log"], "review_flags": [dict(f, scene=s.scene_no) for s in scenes for f in s.flags] + er["flags"], "acquisition": acquisition,
+               "scenes": [s.as_dict() for s in scenes], "plan_log": plan["log"], "review_flags": [dict(f, scene=s.scene_no) for s in scenes for f in s.flags] + er["flags"], "acquisition": acquisition, "anatomy": anatomy, "kind_counts": _kind_counts(scenes),
                "visual_director": (dscenes[0]["plan_source"] if dscenes else "off"), "review_note": REVIEW_NOTE, "not_implemented": NOT_IMPLEMENTED_HIGH_END, "credits": credits,
                "rights_not_established": bool(credits and credits[0] == CREDIT_Z), "rights_note": "3D anatomy is a CC BY-SA derivative evaluated locally; do not distribute until the licence review clears commercial use." if credits and credits[0] == CREDIT_Z else "",
                "high_end": er}
@@ -151,7 +184,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     flags = [dict(f, scene=s.scene_no) for s in scenes for f in s.flags]
     rep = {"ok": True, "out": str(out_path), "profile": prof.id, "quality": quality, "size": [W, H], "fps": clips.FPS, "seconds": round(time.time() - t0, 2),
            "scenes": [dict(s.as_dict(), clip=r["path"], cache_hit=r["cache_hit"], fallback=r["fallback"]) for s, r in zip(scenes, results)], "plan_log": plan["log"],
-           "review_flags": flags, "acquisition": acquisition, "visual_director": (dscenes[0]["plan_source"] if dscenes else "off"), "review_note": REVIEW_NOTE, "not_implemented": NOT_IMPLEMENTED, "credits": credits, "rights_not_established": used3d,
+           "review_flags": flags, "acquisition": acquisition, "anatomy": anatomy, "kind_counts": _kind_counts(scenes), "visual_director": (dscenes[0]["plan_source"] if dscenes else "off"), "review_note": REVIEW_NOTE, "not_implemented": NOT_IMPLEMENTED, "credits": credits, "rights_not_established": used3d,
            "rights_note": "3D anatomy is a CC BY-SA derivative evaluated locally; do not distribute until the licence review clears commercial use." if used3d else ""}
     if write_report: Path(str(out_path) + ".health_cinema.json").write_text(json.dumps(rep, indent=1))
     prog(1.0, "done"); return rep

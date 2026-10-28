@@ -9,7 +9,7 @@ from typing import Callable, Dict, List, Optional
 
 def _norm(t: str) -> str: return re.sub(r"[^a-z0-9% ]+", "", t.lower()).strip()
 
-def plan_visuals(script: str, settings: Optional[dict], state_dir: Optional[str], log: Callable[[str], None] = lambda m: None) -> List[dict]:
+def plan_visuals(script: str, settings: Optional[dict], state_dir: Optional[str], log: Callable[[str], None] = lambda m: None, cancel: Optional[Callable[[], bool]] = None) -> List[dict]:
     """-> [{scene_id, narration, asset_type, queries, description, goal}] from the app's VisualDirector."""
     from visual_director.director import VisualDirector
     llm = None
@@ -20,14 +20,19 @@ def plan_visuals(script: str, settings: Optional[dict], state_dir: Optional[str]
     except Exception as exc:
         log(f"Gemini planner not available ({str(exc)[:80]}); using the app's deterministic planner")
     import time
+    from .render_journey import Cancelled
     plan = None
-    for attempt in range(3):      # Gemini sometimes answers "high demand": wait and ask again before accepting the planner's rule-based fallback
+    for attempt in range(3):
+        if cancel is not None and cancel(): raise Cancelled("cancelled")      # Gemini sometimes answers "high demand": wait and ask again before accepting the planner's rule-based fallback
         plan = VisualDirector(llm=llm, settings=settings or {}).plan(script, state_dir=state_dir)
         failed = llm is not None and any("gemini_failure" in str(w) or "deterministic fallback" in str(w) for w in (plan.warnings or []))
         for w in (plan.warnings or [])[:3]: log(f"visual director: {str(w)[:140]}")
         if not failed: break
         if attempt < 2:
-            log(f"visual director: Gemini unavailable, retrying in {10 * (attempt + 1)} s ({attempt + 1}/2)"); time.sleep(10 * (attempt + 1))
+            log(f"visual director: Gemini unavailable, retrying in {10 * (attempt + 1)} s ({attempt + 1}/2)")
+            for _ in range(40 * (attempt + 1)):      # the wait is sliced so Stop is heard within a quarter second
+                if cancel is not None and cancel(): raise Cancelled("cancelled")
+                time.sleep(0.25)
     plan_source = "gemini" if llm is not None and not failed else "deterministic-fallback"
     out = []
     for sc in plan.scenes:
@@ -88,3 +93,35 @@ def retime(dscenes: List[dict], sentences: List[dict]) -> List[List[dict]]:
     if flat: flat[0]["start"] = 0.0
     if flat and sentences: flat[-1]["end"] = max(flat[-1]["end"], float(sentences[-1]["end"]))
     return groups
+
+
+_ALT_SYSTEM = ("You are a documentary visual director for health films. A search for footage failed or returned nothing usable. Give alternative stock-footage search "
+               "queries that show what the narration says (real people, places, procedures, medical animation, microscopy, anatomy diagrams). Never invent facts. "
+               "Answer with a JSON array of at most 3 short queries (3 to 7 words each) and nothing else.")
+
+def alternative_queries(d: dict, tried: List[str], settings: Optional[dict], log: Callable[[str], None] = lambda m: None) -> List[str]:
+    """Other searches for a scene whose footage could not be found: asked of Gemini's visual direction when it is configured (told what already failed),
+    otherwise built from the scene's own description and the body part it names. Never returns a query that was already tried."""
+    import json as _json
+    tried_l = {t.strip().lower() for t in tried}; out: List[str] = []
+    def add(q):
+        q = re.sub(r"\s+", " ", str(q or "")).strip()
+        if q and q.lower() not in tried_l and q.lower() not in {x.lower() for x in out}: out.append(q)
+    try:
+        from visual_director.llm import GeminiLLM, gemini_configured
+        st = settings or {}
+        if st.get("gemini_enabled", True) and gemini_configured(st):
+            user = f"Narration: {d.get('narration', '')}\nVisual goal: {d.get('goal', '')}\nDescription: {d.get('description', '')}\nQueries that already failed: {tried}"
+            raw = GeminiLLM(settings=st).complete(_ALT_SYSTEM, user, thinking_level="low", max_output_tokens=512)
+            m = re.search(r"\[.*\]", raw, re.S)
+            for q in (_json.loads(m.group(0)) if m else [])[:3]: add(q)
+    except Exception as exc:
+        log(f"visual direction for alternative footage unavailable ({str(exc)[:80]}); using the scene's own wording")
+    desc = (d.get("description") or "").strip()
+    if desc: add(" ".join(desc.split()[:7]))
+    from .planner import _anatomy_topic
+    organ = _anatomy_topic(d.get("narration", ""))
+    if organ: add(f"{organ} anatomy medical animation"); add(f"{organ} medical illustration")
+    add(" ".join(_tokens(d.get("narration", ""))[:6]))
+    return out[:4]
+

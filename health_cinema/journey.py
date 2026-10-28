@@ -77,7 +77,7 @@ def label_visible(xy, W, H, margin=SAFE):
     return xy is not None and W * margin <= xy[0] <= W * (1 - margin) and H * margin <= xy[1] <= H * (1 - margin)
 
 def sample(spec_path, anchors_path, fps, W, H):
-    spec = json.load(open(spec_path)); A = json.load(open(anchors_path))["anchors"]
+    spec = json.loads(Path(spec_path).read_text(encoding="utf-8")); A = json.loads(Path(anchors_path).read_text(encoding="utf-8"))["anchors"]
     for k, v in spec.get("anchor_overrides", {}).items(): A[k] = dict(A.get(k, {}), **v)
     n = int(round(spec["duration"] * fps)); frames = []
     for i in range(n):
