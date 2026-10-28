@@ -4,7 +4,7 @@ The picker hooks in app.py are small and additive (see the `_health_*` methods t
 Opt-in per session: nothing is saved by this module except what the render itself writes (the video, its .health_cinema.json report, and cached
 clips under <project>/state/health_cinema). 16:9 landscape only: Final is 1920x1080, Preview is 1280x720.
 
-Scenes come from (1) a scenes JSON you choose (list of {text, start, end, sources?, footage?, chapter?}), else (2) the voiceover's own transcript cut
+Scenes come from (1) a scenes JSON (list of {text, start, end, sources?, footage?, chapter?}) or scenes CSV (see scenes_csv.py; no timings needed, rows are aligned to the voiceover) you choose, else (2) the voiceover's own transcript cut
 into sentences. Sources attached to a sentence are what lets a statistic or study appear as a card; without them the scene is flagged for review.
 """
 from __future__ import annotations
@@ -92,7 +92,7 @@ def build(app, parent, *, row: int) -> None:
     controls.grid_columnconfigure(0, weight=1)
     app._path_row(0, "Voiceover", app.audio_var, lambda: app._browse_audio(stay=True), parent=controls, placeholder_text="None yet: use Import Voiceover")
     app._path_row(1, "Scenes file", app._health_scenes_var, lambda: browse_scenes(app), parent=controls,
-                  placeholder_text="Optional: scenes JSON with sources; otherwise planned from the narration")
+                  placeholder_text="Optional: scenes CSV or JSON with sources; otherwise planned from the narration")
     opts = ctk.CTkFrame(controls, fg_color="transparent")
     opts.grid(row=2, column=0, sticky="ew", pady=(10, 0))
     ctk.CTkLabel(opts, text="Profile", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
@@ -133,7 +133,7 @@ def edit_kwargs(app) -> dict:
 
 def browse_scenes(app) -> None:
     M = _m(app)
-    path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes JSON", "*.json"), ("All files", "*.*")])
+    path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes CSV or JSON", "*.csv *.json"), ("All files", "*.*")])
     if path:
         app._health_scenes_var.set(path)
 
@@ -243,9 +243,7 @@ def on_render_click(app) -> None:
         result: Optional[dict] = None
         error = ""
         try:
-            if scenes_path:
-                sentences = read_scenes_file(scenes_path, project_dir)
-            else:
+            def narration_words():
                 log("Reading the narration's word times…")
                 words = app._pakmap_get_words(voiceover, model, state_dir, log)
                 try:
@@ -254,6 +252,21 @@ def on_render_click(app) -> None:
                     total = float(voiceover_duration(voiceover) or 0.0)
                 except Exception:
                     total = 0.0
+                return words, total
+
+            if scenes_path and scenes_path.lower().endswith(".csv"):
+                from . import scenes_csv
+
+                sentences = scenes_csv.read_scenes_csv(scenes_path)
+                log(f"{len(sentences)} scenes read from {Path(scenes_path).name}")
+                if scenes_csv.needs_alignment(sentences):
+                    words, total = narration_words()
+                    sentences, frac = scenes_csv.align_to_words(sentences, words, total)
+                    log(f"Scenes aligned to the voiceover: {scenes_csv.match_note(frac)}")
+            elif scenes_path:
+                sentences = read_scenes_file(scenes_path, project_dir)
+            else:
+                words, total = narration_words()
                 sentences = sentences_from_words(words, total)
                 if not sentences:
                     raise RuntimeError("the narration has no words to plan from")
