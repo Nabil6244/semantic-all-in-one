@@ -84,7 +84,7 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
       if (!e) { e = await build(shot); cache.set(shot.id, e); }
       const k = Math.min(1, Math.max(0, (t - shot.start) / Math.max(0.5, shot.end - shot.start)));
       if (e.product) { e.product.place(camera, k, t - shot.start); e.product.render(renderer, camera, k, t - shot.start); return canvas; }
-      if (e.gen) { e.gen.place(camera, k, t - shot.start); if (shot.frame_x) camera.setViewOffset(W, H, -shot.frame_x * W, 0, W, H); else camera.clearViewOffset(); renderer.render(e.gen.scene, camera); anchor = null; return canvas; }
+      if (e.gen) { camera.up.set(0, 1, 0); e.gen.place(camera, k, t - shot.start); if (shot.frame_x) camera.setViewOffset(W, H, -shot.frame_x * W, 0, W, H); else camera.clearViewOffset(); renderer.render(e.gen.scene, camera); anchor = null; return canvas; }
       if (e.hero) { e.hero.place(camera, k, W, H); renderer.render(e.hero.scene, camera); return canvas; }
       const c = shot.cam || {}, az = ((c.az0 ?? -24) + ((c.az1 ?? 24) - (c.az0 ?? -24)) * k) * Math.PI / 180, el = (c.el ?? 12) * Math.PI / 180;
       const dist = (c.dist ?? (shot.kind === 'globe' ? 3.9 : 3.0)) * (1 - 0.06 * k);

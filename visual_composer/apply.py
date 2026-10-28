@@ -118,6 +118,8 @@ def enrich(shots: Sequence[Any], layers: List[Dict[str, Any]], words: Sequence[A
         host = _shot_at(shots, t0)
         on_plate = host is not None and host.kind == "plate"
         t1 = min(duration - 0.3, max(words[b].end + 0.6, t0 + 3.5), t0 + 8.0)
+        if on_plate:
+            t1 = min(t1, host.end)                       # a full-frame layout never runs on into the next shot
         if t1 - t0 < 3.0 or _covered(layers, t0, t1):
             continue
         t = (compose.author(text, c, author) if author else None) or compose.compose(c, plate=on_plate)

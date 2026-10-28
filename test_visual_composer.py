@@ -184,6 +184,44 @@ class CinemaAdapter(unittest.TestCase):
         self.assertTrue(notes)
 
 
+class ReviewRegressions(unittest.TestCase):
+    """Real false positives found in review: ordinary sentences must not become cards, lists, stats or scenes."""
+
+    def test_pronoun_sentences_are_not_definitions(self):
+        for t in ("It is the largest planet in the solar system.", "That is why it matters.", "There are many reasons for this.", "He is a very good man.", "We are going to find out."):
+            self.assertNotEqual(concepts.analyze(t).kind, "term", t)
+
+    def test_interjections_are_not_a_list(self):
+        for t in ("But, as it turns out, the probe survived.", "However, in 1969, the crew landed safely.", "Well, honestly, it was fine."):
+            self.assertNotEqual(concepts.analyze(t).kind, "list", t)
+        self.assertEqual(concepts.analyze("Shipping, banking, retail and farming all depend on it.").kind, "list")
+
+    def test_a_number_inside_a_name_is_not_a_stat(self):
+        for t in ("Voyager 2 passed Neptune in 1989.", "Apollo 11 landed on the Moon.", "Sputnik 1 orbited the Earth."):
+            self.assertNotEqual(concepts.analyze(t).kind, "stat", t)
+        self.assertEqual(concepts.analyze("The company earned 4 billion last year.").kind, "stat")
+
+    def test_huge_numbers_do_not_crash(self):
+        concepts.analyze("1" * 400 + " apples were eaten.")
+
+    def test_ordinary_sentences_do_not_become_scenes(self):
+        from visual_composer.scene import scene_for
+
+        for t in ("Scientists on Earth worry about it.", "The Earth's population grew by 3 billion people.", "The company launched a new product last week.", "Robots will take many jobs.",
+                  "The ship sailed across the Atlantic.", "He looked in the mirror.", "The storm of criticism hit the company.", "The surface of the problem is large."):
+            got = scene_for(t)
+            self.assertTrue(got is None or got[1] < 0.65, (t, got and got[1]))
+        self.assertGreaterEqual(scene_for("The ship slipped out of orbit around the planet.")[1], 0.65)
+
+    def test_possessive_subject_keeps_its_globe(self):
+        from whatif import planner as pl
+
+        self.assertEqual(pl._world("Earth's magnetic field protects us from the solar wind.")[1], "EARTH")
+        self.assertEqual(pl._world("Mars is smaller than Earth.")[1], "MARS")
+        self.assertIsNone(pl._world("The pressure is 22 times Earth's air pressure."))
+        self.assertEqual(pl._craft("NASA's Perseverance collected a rock sample.")[1], "PERSEVERANCE")
+
+
 class CinemaScenes(unittest.TestCase):
     def plan_spec(self):
         from types import SimpleNamespace as NS

@@ -12,7 +12,7 @@ COVERING = {"tm_template", "tm_metric", "tm_annotate", "tm_bars", "tm_compare", 
 
 
 def _stem(w: str) -> str:
-    w = w.lower().strip("'s")
+    w = re.sub(r"'s$", "", w.lower())
     return re.sub(r"(ing|ed|es|s)$", "", w) if len(w) > 4 else w
 
 

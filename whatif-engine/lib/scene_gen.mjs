@@ -30,6 +30,14 @@ const DEFAULT_PALETTE = {
 /** Repair a scene spec in place and say what was repaired: -> notes. A bad value becomes a sensible default; nothing here can stop a render. */
 export function repairScene(sp) {
   const notes = [];
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  for (const k of ['world', 'craft', 'env', 'camera', 'motion', 'light']) if (sp[k] != null && !isObj(sp[k])) { notes.push(`${k} is not an object; left out`); delete sp[k]; }
+  if (sp.env && sp.env.particles != null && !isObj(sp.env.particles)) delete sp.env.particles;
+  if (sp.env && sp.env.clouds != null && !Array.isArray(sp.env.clouds)) delete sp.env.clouds;
+  if (sp.env && Array.isArray(sp.env.clouds)) sp.env.clouds = sp.env.clouds.filter(isObj);
+  if (sp.world && sp.world.cutaway != null && !isObj(sp.world.cutaway)) delete sp.world.cutaway;
+  if (sp.world && sp.world.field != null && !isObj(sp.world.field)) delete sp.world.field;
+  if (sp.world && sp.world.rings != null && !isObj(sp.world.rings)) delete sp.world.rings;
   if (!LAYOUTS.includes(sp.layout)) {
     if (sp.layout) notes.push(`layout ${sp.layout} unknown`);
     sp.layout = sp.world && sp.craft ? 'craft_over_planet' : sp.craft ? 'craft' : 'planet';
@@ -286,8 +294,10 @@ function particles(THREE, P, seed) {
   for (let i = 0; i < n; i++) base.set([(r() - 0.5) * 24, r(), (r() - 0.5) * 24], i * 3);
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: P.color, size: P.mode === 'streaks' ? 1.4 : 2.2, sizeAttenuation: false, transparent: true, opacity: P.mode === 'dust' ? 0.5 : 0.8, depthWrite: false }));
-  const H = 16, dir = P.mode === 'embers' ? 1 : -1;
+  const H = 16;
   pts.userData.update = (t, fallSpeed) => {
+    // rain, snow and dust fall; embers rise; for a FALLING craft everything streams upward past it
+    const dir = P.mode === 'embers' || fallSpeed > 0 ? -1 : 1;       // y moves by -dir * speed: dir 1 = falling
     for (let i = 0; i < n; i++) {
       const sp = (P.speed + fallSpeed * 0.4) * (P.mode === 'dust' ? 0.15 : 1) * (0.6 + 0.8 * base[i * 3 + 1]);
       const y = ((base[i * 3 + 1] + (-dir) * sp * t / H) % 1 + 1) % 1;

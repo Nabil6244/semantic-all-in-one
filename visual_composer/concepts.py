@@ -10,6 +10,8 @@ STOP = set("""a an the and or but if so of to in on at by for with from as is ar
 his her their our your you we i not no yes do does did done have has had will would can could may might must should than then also just very more most much
 many some any all each every both other another such only own same too into onto over under about after before between through during while when where which
 who whom whose what why how up down out off again once because until against among within without around across per via""".split())
+PRONOUNS = {"it", "he", "she", "they", "we", "you", "i", "this", "that", "these", "those", "there", "here", "who", "what", "one", "everyone", "nobody", "something", "nothing", "everything"}
+LEAD_NOT_ITEM = {"but", "however", "well", "honestly", "so", "then", "now", "as", "in", "on", "at", "by", "for", "with", "yes", "no", "also", "still", "maybe", "perhaps", "actually", "anyway", "meanwhile", "instead", "though", "while", "when", "if", "after", "before", "because"}
 DISCOURSE = {"first", "second", "third", "next", "finally", "however", "meanwhile", "today", "yesterday", "now", "imagine", "suddenly", "later", "soon", "still", "yet", "even", "once", "last"}
 ICONS = (("heart", r"heart|cardiac|love|health"), ("brain", r"brain|mind|think\w*|memory|intelligen\w*|learn\w*"), ("cell", r"cells?|bacteri\w*|virus\w*|disease|biolog\w*"),
          ("atom", r"atoms?|molecul\w*|chemi\w*|particle\w*|physics"), ("tree", r"trees?|forest|plants?|nature|crops?|farm\w*|food|wood"),
@@ -89,6 +91,11 @@ def quantities(text: str) -> List[Tuple[float, str, str, str]]:
         t = re.sub(rf"\b{w}\b(?=\s+(?:percent|per ?cent|times|million|billion|thousand))", str(n), t, flags=re.I)
     out = []
     for m in QUANT.finditer(t):
+        before = t[:m.start()].split()[-1] if t[:m.start()].strip() else ""
+        if before[:1].isupper() and re.fullmatch(r"\d{1,3}", m.group("num")) and not (m.group("cur") or m.group("mag") or (m.group("unit") or "") in ("%", "percent")) and before.lower() not in DISCOURSE:
+            continue                                  # "Voyager 2", "Apollo 11", "Sputnik 1": a number inside a name
+        if len(m.group("num").replace(",", "")) > 15:
+            continue
         if YEAR.fullmatch(m.group("num")) and not (m.group("cur") or m.group("unit") in ("%", "percent")):
             continue
         unit = (m.group("unit") or "").strip()
@@ -118,7 +125,9 @@ def _items(text: str) -> List[str]:
     parts = []
     for p in raw:
         parts += [x.strip() for x in re.split(r"\s+(?:and|or)\s+", p) if x.strip()]
-    parts = [p for p in parts if p and len(p.split()) <= 4]
+    parts = [p for p in parts if p and len(p.split()) <= 4 and p.split()[0].lower() not in LEAD_NOT_ITEM]
+    if len(parts) < 3:
+        return []
     return parts[:6] if len(parts) >= 3 else []
 
 
@@ -191,7 +200,7 @@ def analyze(text: str) -> Concept:
     if len(set(years)) == 1 and re.search(r"\b(?:in|by|since|until|during|around|from)\s+" + str(years[0]), t):
         return Concept("timeline", headline=_headline(t, r"\b\d{4}\b"), strength=0.5, years=years, **base)
     d = DEFINE.match(t)
-    if d and len(d.group("term").split()) <= 3:
+    if d and len(d.group("term").split()) <= 3 and d.group("term").split()[0].lower() not in STOP | DISCOURSE | PRONOUNS:
         return Concept("term", headline=_clean(d.group("term")).upper(), sub=_clean(d.group("what")).upper()[:90], strength=0.6, **base)
     return Concept("keyword", headline=_headline(t), strength=0.2, **base)
 

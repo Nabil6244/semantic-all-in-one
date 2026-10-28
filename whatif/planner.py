@@ -42,7 +42,7 @@ CRAFT: List[Tuple[str, str, str]] = [
     (r"\bvoyager ?2\b", "voyager.glb", "VOYAGER 2"), (r"\bvoyager( ?1)?\b", "voyager.glb", "VOYAGER 1"), (r"\bcassini\b", "cassini.glb", "CASSINI"),
     (r"\bjuno\b", "juno.glb", "JUNO"), (r"\bgalileo (probe|spacecraft|orbiter)\b|\bgalileo\b(?! galilei)", "galileo.glb", "GALILEO"),
     (r"\bmagellan (probe|spacecraft|orbiter|mission|radar)\b|\bmagellan\b(?= .{0,40}\bvenus\b)", "magellan.glb", "MAGELLAN"), (r"\bparker solar probe\b|\bparker probe\b", "parker.glb", "PARKER SOLAR PROBE"),
-    (r"\bperseverance (rover|landed|lander|mission)\b|\bthe perseverance\b", "perseverance.glb", "PERSEVERANCE"), (r"\bviking( lander| ?1| ?2)\b", "viking_lander.glb", "VIKING LANDER"),
+    (r"\bperseverance (rover|landed|lander|mission)\b|\bthe perseverance\b|\bnasa'?s perseverance\b|\bperseverance\b(?=\W+(?:collected|drilled|drove|touched|sampled|captured|found|rover))", "perseverance.glb", "PERSEVERANCE"), (r"\bviking( lander| ?1| ?2)\b", "viking_lander.glb", "VIKING LANDER"),
     (r"\bwebb\b|\bjwst\b", "jwst.glb", "JAMES WEBB SPACE TELESCOPE"), (r"\bhubble\b(?!'?s? (law|constant|tension|flow|parameter|time|radius|sphere))", "hubble.glb", "HUBBLE SPACE TELESCOPE"),
     (r"\blunar module\b|\bthe eagle (landed|lander|module)\b", "apollo_lm.glb", "APOLLO LUNAR MODULE"), (r"\bsaturn v\b", "saturn_v.glb", "SATURN V"),
     (r"\bdeep space network\b|\bdsn\b|\bradio dish\b|\b70[- ]metre\b", "dsn_70m.glb", "DEEP SPACE NETWORK"), (r"\bdawn\b(?= (probe|spacecraft|mission))", "dawn.glb", "DAWN"),
@@ -184,11 +184,11 @@ def _craft(text: str) -> Optional[Tuple[str, str]]:
 
 # a world named only as a yardstick ("22 times Earth's air pressure", "Earth-sized", "like Mars") is not the subject of the sentence
 YARDSTICK = re.compile(r"\b(times|x|twice|half|double|triple|percent|per ?cent|like|unlike|than|compared (?:to|with)|versus|vs\.?|equal to|same as)\s+(?:that of\s+|the\s+|on\s+|at\s+|in\s+)?"
-                       r"(earth|mars|venus|mercury|jupiter|saturn|uranus|neptune|moon|sun)\b(?:'s)?|\b(earth|mars|venus|jupiter|saturn|moon)(?:'s|-sized|-like| days?| years?| gravity| masses?| air)\b", re.I)
+                       r"(earth|mars|venus|mercury|jupiter|saturn|uranus|neptune|moon|sun)\b(?:'s)?|\b(earth|mars|venus|jupiter|saturn|moon)(?:-sized|-like| days?| years?| masses?)\b", re.I)
 # the narration is inside the world (a descent through its sky, its pressure, its core): a globe seen from space shows the wrong place
 INSIDE = re.compile(r"\b(inside|within|beneath|below|deep (?:in|inside|within|down)|(?:through|into|under|beyond) the (?:clouds?|atmosphere|sky|surface|crust|ocean|layers?)|"
-                    r"descen\w*|falls?|falling|fell|sinks?|sinking|crush\w*|melt\w*|pressure|depths?|layers?|core|interior|clouds?|haze|storms?|lightning|"
-                    r"parachute\w*|drift\w*|breath\w*|float\w*|km (?:down|deep|below))\b", re.I)
+                    r"descen\w*|falls?|falling|fell|sinks?|sinking|crush\w*|melt\w*|pressure|depths?|layers?|core|interior|clouds?|haze|lightning|"
+                    r"parachute\w*|km (?:down|deep|below))\b", re.I)
 
 
 def _world(text: str) -> Optional[Tuple[str, str, str]]:

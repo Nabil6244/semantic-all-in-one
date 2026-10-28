@@ -29,9 +29,12 @@ TYPE_WORDS = (("sun", r"\b(sun|star|stellar|sunlike|solar surface|photosphere)\b
               ("rock", r"\b(rock\w*|crater\w*|desert|barren|dusty|regolith|asteroid|moon|dead world|surface)\b"))
 COLOURS = {"red": "#b8402a", "orange": "#d9793a", "yellow": "#e0c050", "green": "#4f9a5a", "blue": "#2f62c8", "purple": "#7a4ab8", "violet": "#7a4ab8", "pink": "#d878a0",
            "white": "#e8eaee", "black": "#16161a", "grey": "#8a8d92", "gray": "#8a8d92", "brown": "#7a5236", "gold": "#d8b050", "golden": "#d8b050", "crimson": "#a8203a", "teal": "#2a9a9a"}
-CRAFTS = (("capsule", r"\b(capsule|re-?entry|heat ?shield|crew module)\b"), ("lander", r"\b(lander|touch(?:ed)? down|landing (?:craft|gear))\b"), ("rover", r"\b(rover|wheels?)\b"),
-          ("rocket", r"\b(rocket|launch\w*|booster|liftoff|lift-?off|stage separation)\b"), ("telescope", r"\b(telescope|observatory|mirror)\b"), ("satellite", r"\b(satellite|orbiter|space station)\b"),
-          ("probe", r"\b(probe|spacecraft|craft|vessel|ship|capsule|machine|robot\w*)\b"))
+CRAFTS = (("capsule", r"\b(capsule|re-?entry|heat ?shield|crew module)\b"), ("lander", r"\b(lander|landing (?:craft|gear))\b"), ("rover", r"\b(rover)\b"),
+          ("rocket", r"\b(rocket|booster|liftoff|lift-?off|stage separation)\b"), ("telescope", r"\b(space telescope|observatory)\b"), ("satellite", r"\b(satellite|orbiter|space station)\b"),
+          ("probe", r"\b(probe|spacecraft)\b"))
+WEAK_CRAFTS = (("rocket", r"\b(launch\w*|touch(?:ed)? down)\b"), ("probe", r"\b(craft|vessel|ship|machine|robot\w*)\b"), ("telescope", r"\b(telescope|mirror)\b"), ("lander", r"\b(touch(?:ed)? down)\b"))
+SPACE_CONTEXT = re.compile(r"\b(space|orbit\w*|planet\w*|moon|mars|venus|jupiter|saturn|neptune|uranus|mercury|pluto|nasa|esa|mission|solar|stars?|galax\w*|asteroid|comet|cosmic|atmosphere|surface of|crater\w*|light-?years?)\b", re.I)
+WORLD_CONTEXT = re.compile(r"\b(planet\w*|worlds?|moons?|orbit\w*|surface of (?:the |a )?(?:planet|world|moon|star|sun)|atmospher\w*|clouds?|storms? (?:on|in) (?:the |a )?(?:planet|world|jupiter|saturn|neptune|mars|venus)|rings?|core|magnetic|globe|sphere|crater\w*|ocean\w*|continents?|sunlight|space|solar system|spins?|rotat\w*)\b", re.I)
 PARTICLES = (("rain", r"\b(rain\w*|downpour|acid)\b"), ("snow", r"\b(snow\w*|blizzard|ice crystals?)\b"), ("embers", r"\b(embers?|sparks?|fire|burn\w*|inferno)\b"),
              ("dust", r"\b(dust\w*|sandstorm|ash|debris|particles?)\b"), ("streaks", r"\b(rush\w*|plung\w*|fall\w*|hurtl\w*|speed\w*|fast)\b"))
 FALL = re.compile(r"\b(fall\w*|fell|descen\w*|plung\w*|sink\w*|sank|dive\w*|dropp\w*|parachut\w*|crush\w*|deeper|drift\w* down)\b", re.I)
@@ -78,6 +81,8 @@ def scene_for(text: str) -> Optional[Tuple[Dict[str, Any], float]]:
     best = max(counts)
     tp = best[2] if best[0] else None
     craft_kind = next((k for k, rx in CRAFTS if re.search(rx, low)), None)
+    if craft_kind is None and SPACE_CONTEXT.search(low):                     # generic words ("ship", "launch") only count in a space context
+        craft_kind = next((k for k, rx in WEAK_CRAFTS if re.search(rx, low)), None)
     sky = bool(SKY.search(low))
     falling = bool(FALL.search(low))
     structural = bool(FIELD.search(low) or (CUT.search(low) and re.search(r"\b(planet|world|moon|star|earth|sun)\b", low)))
@@ -103,6 +108,11 @@ def scene_for(text: str) -> Optional[Tuple[Dict[str, Any], float]]:
             w["atmosphere"] = (w.get("palette") or ["#9fb8ff", "#9fb8ff"])[1]
         spec["world"] = w
         conf = 0.9 if world_name else 0.65
+        ctx = bool(WORLD_CONTEXT.search(low))
+        if world_name in ("earth", "sun", "moon") and not ctx and not craft_kind:      # "scientists on Earth worry", "the sun rose": a place, not a picture of the world
+            return None
+        if not world_name and not ctx and not structural:                           # a type word alone ("a storm of criticism") is not a world
+            conf = 0.55
     if craft_kind:
         spec["craft"] = {"kind": craft_kind, "scale": 1.0, "parachute": bool(re.search(r"\bparachut\w*", low))}
         if spec["craft"]["parachute"] and craft_kind == "probe":
@@ -177,6 +187,17 @@ def problems(spec: Any) -> list:
     if not isinstance(spec, dict) or not spec:
         return ["empty"]
     p = []
+    for k in ("world", "craft", "env", "camera", "motion", "light"):
+        if k in spec and not isinstance(spec[k], dict):
+            p.append(f"{k} must be an object")
+    env = spec.get("env")
+    if isinstance(env, dict):
+        if "clouds" in env and not (isinstance(env["clouds"], list) and all(isinstance(c, dict) for c in env["clouds"])):
+            p.append("env.clouds")
+        if "particles" in env and not isinstance(env["particles"], dict):
+            p.append("env.particles")
+    if p:
+        return p
     if spec.get("layout") not in LAYOUTS:
         p.append("layout")
     w, c = spec.get("world"), spec.get("craft")
