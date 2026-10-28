@@ -72,6 +72,8 @@ export function scopeOf(outputDir) {
 
 export function generationKey({ mediaKind, prompt, settings = {}, slot = 0, scope = "" }) {
   const picked = IDENTITY_SETTINGS.map((k) => [k, settings[k] ?? null]);
+  // reference images are part of an image's identity only when set, so every key made without them stays exactly as it was
+  if (settings.referenceKey) picked.push(["referenceKey", settings.referenceKey]);
   const raw = JSON.stringify([scope, mediaKind, String(prompt).trim(), picked, slot]);
   return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 32);
 }

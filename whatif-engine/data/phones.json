@@ -1,0 +1,955 @@
+{
+ "_note": "Approximate dimensions and colours for code-built phones (lib/phone_models.mjs). mm; lens coords in mm from the top-left of the back seen from behind. Concept entries are not real products.",
+ "phones": [
+  {
+   "id": "galaxy_s27_ultra",
+   "brand": "Samsung",
+   "name": "Galaxy S27 Ultra",
+   "aliases": [
+    "s27 ultra",
+    "galaxy",
+    "samsung s27 ultra"
+   ],
+   "concept": true,
+   "w_mm": 77.6,
+   "h_mm": 162.8,
+   "d_mm": 7.9,
+   "corner_mm": 9.5,
+   "frame": "flat",
+   "frame_finish": "satin",
+   "frame_color": "#5d6a80",
+   "back_color": "#2f3a50",
+   "back_finish": "satin",
+   "camera": {
+    "layout": "galaxy_s27_video",
+    "flash": true
+   },
+   "wordmark": "SAMSUNG",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.0
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Navy",
+     "frame_color": "#5d6a80",
+     "back_color": "#2f3a50"
+    },
+    {
+     "name": "Sky Blue",
+     "frame_color": "#a9bdd2",
+     "back_color": "#93b1d3"
+    },
+    {
+     "name": "Pink",
+     "frame_color": "#d9c0c4",
+     "back_color": "#e3c4cb"
+    },
+    {
+     "name": "White",
+     "frame_color": "#d4d6d8",
+     "back_color": "#e8e8e5"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#4a4d52",
+     "back_color": "#26272a"
+    }
+   ]
+  },
+  {
+   "id": "galaxy_s25_ultra",
+   "brand": "Samsung",
+   "name": "Galaxy S25 Ultra",
+   "aliases": [
+    "s25 ultra"
+   ],
+   "w_mm": 77.6,
+   "h_mm": 162.8,
+   "d_mm": 8.2,
+   "corner_mm": 9.5,
+   "frame": "flat",
+   "frame_finish": "brushed",
+   "frame_color": "#9ea3a8",
+   "back_color": "#3b4148",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "galaxy_ultra",
+    "flash": true
+   },
+   "wordmark": "SAMSUNG",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.3
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Titanium Silverblue",
+     "frame_color": "#a3adb9",
+     "back_color": "#5a6879"
+    },
+    {
+     "name": "Titanium Black",
+     "frame_color": "#3b3e43",
+     "back_color": "#24272b"
+    },
+    {
+     "name": "Titanium Gray",
+     "frame_color": "#8e9196",
+     "back_color": "#6f7276"
+    },
+    {
+     "name": "Titanium Whitesilver",
+     "frame_color": "#d2d4d6",
+     "back_color": "#e0e1df"
+    }
+   ]
+  },
+  {
+   "id": "galaxy_s25",
+   "brand": "Samsung",
+   "name": "Galaxy S25",
+   "aliases": [
+    "s25"
+   ],
+   "w_mm": 70.5,
+   "h_mm": 146.9,
+   "d_mm": 7.2,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#b8c2cf",
+   "back_color": "#a9b9cf",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "galaxy_s",
+    "flash": true
+   },
+   "wordmark": "SAMSUNG",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.5
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Icyblue",
+     "frame_color": "#b8c2cf",
+     "back_color": "#a9b9cf"
+    },
+    {
+     "name": "Navy",
+     "frame_color": "#3a4252",
+     "back_color": "#2a3346"
+    },
+    {
+     "name": "Mint",
+     "frame_color": "#c3d3cb",
+     "back_color": "#bcd5c8"
+    },
+    {
+     "name": "Silver Shadow",
+     "frame_color": "#c9cacc",
+     "back_color": "#c4c6c9"
+    }
+   ]
+  },
+  {
+   "id": "iphone_17_pro",
+   "brand": "Apple",
+   "name": "iPhone 17 Pro",
+   "aliases": [
+    "iphone",
+    "17 pro"
+   ],
+   "w_mm": 71.9,
+   "h_mm": 150.0,
+   "d_mm": 8.75,
+   "corner_mm": 11.5,
+   "frame": "flat",
+   "frame_finish": "brushed",
+   "frame_color": "#c26a3a",
+   "back_color": "#c86d3c",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "iphone_pro",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.15
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Cosmic Orange",
+     "frame_color": "#c26a3a",
+     "back_color": "#c86d3c"
+    },
+    {
+     "name": "Deep Blue",
+     "frame_color": "#2f3a52",
+     "back_color": "#38455f"
+    },
+    {
+     "name": "Silver",
+     "frame_color": "#d2d3d5",
+     "back_color": "#e2e3e4"
+    }
+   ]
+  },
+  {
+   "id": "iphone_17_pro_max",
+   "brand": "Apple",
+   "name": "iPhone 17 Pro Max",
+   "aliases": [
+    "17 pro max"
+   ],
+   "w_mm": 78.0,
+   "h_mm": 163.4,
+   "d_mm": 8.75,
+   "corner_mm": 12.5,
+   "frame": "flat",
+   "frame_finish": "brushed",
+   "frame_color": "#c26a3a",
+   "back_color": "#c86d3c",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "iphone_pro",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.15
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Cosmic Orange",
+     "frame_color": "#c26a3a",
+     "back_color": "#c86d3c"
+    },
+    {
+     "name": "Deep Blue",
+     "frame_color": "#2f3a52",
+     "back_color": "#38455f"
+    },
+    {
+     "name": "Silver",
+     "frame_color": "#d2d3d5",
+     "back_color": "#e2e3e4"
+    }
+   ]
+  },
+  {
+   "id": "iphone_17",
+   "brand": "Apple",
+   "name": "iPhone 17",
+   "aliases": [
+    "17"
+   ],
+   "w_mm": 71.5,
+   "h_mm": 149.6,
+   "d_mm": 7.95,
+   "corner_mm": 11.5,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#b6a9cf",
+   "back_color": "#c9bfe0",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "vertical_pill",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.2
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Lavender",
+     "frame_color": "#b6a9cf",
+     "back_color": "#c9bfe0"
+    },
+    {
+     "name": "Sage",
+     "frame_color": "#a7b39c",
+     "back_color": "#bac6ad"
+    },
+    {
+     "name": "Mist Blue",
+     "frame_color": "#9fb4cc",
+     "back_color": "#b4c7dc"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#2e2f33",
+     "back_color": "#2a2b2f"
+    }
+   ]
+  },
+  {
+   "id": "iphone_16_pro",
+   "brand": "Apple",
+   "name": "iPhone 16 Pro",
+   "aliases": [
+    "16 pro"
+   ],
+   "w_mm": 71.5,
+   "h_mm": 149.6,
+   "d_mm": 8.25,
+   "corner_mm": 11.5,
+   "frame": "flat",
+   "frame_finish": "brushed",
+   "frame_color": "#c4b29b",
+   "back_color": "#c8b8a2",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "iphone_pro",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.15
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Desert Titanium",
+     "frame_color": "#c4b29b",
+     "back_color": "#c8b8a2"
+    },
+    {
+     "name": "Natural Titanium",
+     "frame_color": "#b5b0a8",
+     "back_color": "#bdb8af"
+    },
+    {
+     "name": "Black Titanium",
+     "frame_color": "#3a3a3c",
+     "back_color": "#38383a"
+    },
+    {
+     "name": "White Titanium",
+     "frame_color": "#dcdad6",
+     "back_color": "#e6e4df"
+    }
+   ]
+  },
+  {
+   "id": "pixel_10_pro",
+   "brand": "Google",
+   "name": "Pixel 10 Pro",
+   "aliases": [
+    "pixel pro"
+   ],
+   "w_mm": 72.0,
+   "h_mm": 152.8,
+   "d_mm": 8.6,
+   "corner_mm": 12.5,
+   "frame": "rounded",
+   "frame_finish": "polished",
+   "frame_color": "#c9c6bd",
+   "back_color": "#e8e4d9",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "pixel_bar",
+    "flash": true
+   },
+   "wordmark": "G",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.5
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Porcelain",
+     "frame_color": "#c9c6bd",
+     "back_color": "#e8e4d9"
+    },
+    {
+     "name": "Moonstone",
+     "frame_color": "#7f8894",
+     "back_color": "#6f7b8a"
+    },
+    {
+     "name": "Jade",
+     "frame_color": "#b7c7b5",
+     "back_color": "#cddcc9"
+    },
+    {
+     "name": "Obsidian",
+     "frame_color": "#2b2c2e",
+     "back_color": "#1f2022"
+    }
+   ]
+  },
+  {
+   "id": "pixel_10",
+   "brand": "Google",
+   "name": "Pixel 10",
+   "aliases": [
+    "pixel"
+   ],
+   "w_mm": 72.0,
+   "h_mm": 152.8,
+   "d_mm": 8.6,
+   "corner_mm": 12.5,
+   "frame": "rounded",
+   "frame_finish": "matte",
+   "frame_color": "#6c4fa0",
+   "back_color": "#8a6cc4",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "pixel_bar",
+    "flash": true
+   },
+   "wordmark": "G",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.8
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Indigo",
+     "frame_color": "#3e4370",
+     "back_color": "#4a5190"
+    },
+    {
+     "name": "Frost",
+     "frame_color": "#b9c9d6",
+     "back_color": "#cddbe6"
+    },
+    {
+     "name": "Lemongrass",
+     "frame_color": "#c7cc84",
+     "back_color": "#dde39a"
+    },
+    {
+     "name": "Obsidian",
+     "frame_color": "#2b2c2e",
+     "back_color": "#1f2022"
+    }
+   ]
+  },
+  {
+   "id": "oneplus_13",
+   "brand": "OnePlus",
+   "name": "OnePlus 13",
+   "aliases": [
+    "oneplus"
+   ],
+   "w_mm": 76.5,
+   "h_mm": 162.9,
+   "d_mm": 8.5,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#2b2d33",
+   "back_color": "#1b2433",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "OnePlus",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.4
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Midnight Ocean",
+     "frame_color": "#2b2d33",
+     "back_color": "#1b2433"
+    },
+    {
+     "name": "Arctic Dawn",
+     "frame_color": "#c7c9cc",
+     "back_color": "#dfe2e6"
+    },
+    {
+     "name": "Black Eclipse",
+     "frame_color": "#26272a",
+     "back_color": "#151618"
+    }
+   ]
+  },
+  {
+   "id": "xiaomi_15_ultra",
+   "brand": "Xiaomi",
+   "name": "Xiaomi 15 Ultra",
+   "aliases": [
+    "xiaomi ultra"
+   ],
+   "w_mm": 75.3,
+   "h_mm": 161.3,
+   "d_mm": 9.35,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#b7b9bb",
+   "back_color": "#e8e6e0",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "Xiaomi",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.4
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Silver Chrome",
+     "frame_color": "#b7b9bb",
+     "back_color": "#e8e6e0"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#2a2b2d",
+     "back_color": "#18191b"
+    },
+    {
+     "name": "White",
+     "frame_color": "#d6d6d4",
+     "back_color": "#f0efec"
+    }
+   ]
+  },
+  {
+   "id": "vivo_x200_pro",
+   "brand": "vivo",
+   "name": "Vivo X200 Pro",
+   "aliases": [
+    "x200 pro"
+   ],
+   "w_mm": 75.95,
+   "h_mm": 162.4,
+   "d_mm": 8.5,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#8a8f96",
+   "back_color": "#2c3036",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "vivo",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.6
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Cosmos Black",
+     "frame_color": "#3a3d42",
+     "back_color": "#1d1f23"
+    },
+    {
+     "name": "Titanium Grey",
+     "frame_color": "#8a8f96",
+     "back_color": "#6c7077"
+    },
+    {
+     "name": "Moonlight White",
+     "frame_color": "#d9d9d6",
+     "back_color": "#eeede9"
+    }
+   ]
+  },
+  {
+   "id": "oppo_find_x8_pro",
+   "brand": "OPPO",
+   "name": "Oppo Find X8 Pro",
+   "aliases": [
+    "find x8 pro"
+   ],
+   "w_mm": 76.7,
+   "h_mm": 162.3,
+   "d_mm": 8.24,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#c8c9cb",
+   "back_color": "#e9e8e4",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "OPPO",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.45
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Pearl White",
+     "frame_color": "#c8c9cb",
+     "back_color": "#e9e8e4"
+    },
+    {
+     "name": "Space Black",
+     "frame_color": "#2c2d30",
+     "back_color": "#18191b"
+    }
+   ]
+  },
+  {
+   "id": "honor_magic_7_pro",
+   "brand": "HONOR",
+   "name": "Honor Magic 7 Pro",
+   "aliases": [
+    "magic 7 pro"
+   ],
+   "w_mm": 77.1,
+   "h_mm": 162.7,
+   "d_mm": 8.8,
+   "corner_mm": 12,
+   "frame": "rounded",
+   "frame_finish": "polished",
+   "frame_color": "#7c8590",
+   "back_color": "#5d6773",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "HONOR",
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.3
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Lunar Shadow Grey",
+     "frame_color": "#7c8590",
+     "back_color": "#5d6773"
+    },
+    {
+     "name": "Breeze Blue",
+     "frame_color": "#9cb2c4",
+     "back_color": "#b7cbdb"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#2a2b2e",
+     "back_color": "#18191b"
+    }
+   ]
+  },
+  {
+   "id": "nothing_phone_3",
+   "brand": "Nothing",
+   "name": "Nothing Phone 3",
+   "aliases": [
+    "nothing",
+    "phone 3"
+   ],
+   "w_mm": 75.6,
+   "h_mm": 160.6,
+   "d_mm": 9.0,
+   "corner_mm": 10,
+   "frame": "flat",
+   "frame_finish": "brushed",
+   "frame_color": "#b9bbbd",
+   "back_color": "#d7d8d9",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "square_island",
+    "lenses": [
+     {
+      "x": 13,
+      "y": 13,
+      "r": 6.2
+     },
+     {
+      "x": 28,
+      "y": 22,
+      "r": 6.2
+     },
+     {
+      "x": 13,
+      "y": 31,
+      "r": 5.2
+     }
+    ],
+    "flash": true
+   },
+   "wordmark": "NOTHING",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.4
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "White",
+     "frame_color": "#b9bbbd",
+     "back_color": "#d7d8d9"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#2a2b2d",
+     "back_color": "#202124"
+    }
+   ]
+  },
+  {
+   "id": "motorola_edge_50_ultra",
+   "brand": "Motorola",
+   "name": "Motorola Edge 50 Ultra",
+   "aliases": [
+    "edge 50 ultra",
+    "moto"
+   ],
+   "w_mm": 72.4,
+   "h_mm": 161.1,
+   "d_mm": 8.6,
+   "corner_mm": 12,
+   "frame": "rounded",
+   "frame_finish": "matte",
+   "frame_color": "#6e6052",
+   "back_color": "#8a7461",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "square_island",
+    "flash": true
+   },
+   "wordmark": "M",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.6
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Nordic Wood",
+     "frame_color": "#6e6052",
+     "back_color": "#8a7461"
+    },
+    {
+     "name": "Forest Grey",
+     "frame_color": "#4d5550",
+     "back_color": "#56605a"
+    },
+    {
+     "name": "Peach Fuzz",
+     "frame_color": "#d79a7f",
+     "back_color": "#f0b195"
+    }
+   ]
+  },
+  {
+   "id": "sony_xperia_1_vi",
+   "brand": "Sony",
+   "name": "Sony Xperia 1 VI",
+   "aliases": [
+    "xperia",
+    "xperia 1"
+   ],
+   "w_mm": 74.0,
+   "h_mm": 162.0,
+   "d_mm": 8.2,
+   "corner_mm": 6,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#2b2e33",
+   "back_color": "#25282d",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "vertical_pill",
+    "lenses": [
+     {
+      "x": 12,
+      "y": 12,
+      "r": 5.4
+     },
+     {
+      "x": 12,
+      "y": 25,
+      "r": 5.4
+     },
+     {
+      "x": 12,
+      "y": 38,
+      "r": 5.4
+     }
+    ],
+    "flash": true
+   },
+   "wordmark": "SONY",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 3.5
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Black",
+     "frame_color": "#2b2e33",
+     "back_color": "#25282d"
+    },
+    {
+     "name": "Platinum Silver",
+     "frame_color": "#b4b6b8",
+     "back_color": "#c5c7c9"
+    },
+    {
+     "name": "Khaki Green",
+     "frame_color": "#5c6450",
+     "back_color": "#6c7560"
+    }
+   ]
+  },
+  {
+   "id": "huawei_mate_70_pro",
+   "brand": "Huawei",
+   "name": "Huawei Mate 70 Pro",
+   "aliases": [
+    "mate 70 pro"
+   ],
+   "w_mm": 75.3,
+   "h_mm": 163.0,
+   "d_mm": 8.5,
+   "corner_mm": 12,
+   "frame": "rounded",
+   "frame_finish": "polished",
+   "frame_color": "#3a3f47",
+   "back_color": "#2c3139",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "round_island",
+    "flash": true
+   },
+   "wordmark": "HUAWEI",
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.4
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Obsidian Black",
+     "frame_color": "#3a3f47",
+     "back_color": "#2c3139"
+    },
+    {
+     "name": "Spruce Green",
+     "frame_color": "#59705f",
+     "back_color": "#6b8573"
+    },
+    {
+     "name": "Snowy White",
+     "frame_color": "#d6d6d4",
+     "back_color": "#ecebe8"
+    }
+   ]
+  },
+  {
+   "id": "iphone_16",
+   "brand": "Apple",
+   "name": "iPhone 16",
+   "aliases": [
+    "16"
+   ],
+   "w_mm": 71.6,
+   "h_mm": 147.6,
+   "d_mm": 7.8,
+   "corner_mm": 11.5,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#4b7fa0",
+   "back_color": "#5c95b9",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "vertical_pill",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.3
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Teal",
+     "frame_color": "#4b7fa0",
+     "back_color": "#5c95b9"
+    },
+    {
+     "name": "Ultramarine",
+     "frame_color": "#4d5bc4",
+     "back_color": "#6070d8"
+    },
+    {
+     "name": "Pink",
+     "frame_color": "#d9a3b8",
+     "back_color": "#eab8cb"
+    },
+    {
+     "name": "White",
+     "frame_color": "#e0e0de",
+     "back_color": "#f1f1ef"
+    }
+   ]
+  },
+  {
+   "id": "iphone_13",
+   "brand": "Apple",
+   "name": "iPhone 13",
+   "aliases": [
+    "13"
+   ],
+   "w_mm": 71.5,
+   "h_mm": 146.7,
+   "d_mm": 7.65,
+   "corner_mm": 11,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#2f4f6b",
+   "back_color": "#3c6584",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "iphone_base",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "notch",
+    "bezel_mm": 1.9
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Blue",
+     "frame_color": "#2f4f6b",
+     "back_color": "#3c6584"
+    },
+    {
+     "name": "Midnight",
+     "frame_color": "#2a2d33",
+     "back_color": "#23262c"
+    },
+    {
+     "name": "Starlight",
+     "frame_color": "#e3ddd2",
+     "back_color": "#f0ebe2"
+    }
+   ]
+  }
+ ]
+}

@@ -57,7 +57,7 @@ const loadModel = async (name) => {
   return (await new GLTFLoader().setDRACOLoader(draco).loadAsync(`/models/${encodeURIComponent(name)}`)).scene;
 };
 let scene3d = null;
-if ((spec.shots || []).some((s) => ['craft', 'globe', 'hero'].includes(s.kind))) {
+if ((spec.shots || []).some((s) => ['craft', 'globe', 'hero', 'product'].includes(s.kind))) {
   try {
     const { createScene3d } = await import('/lib/scene3d.mjs');
     scene3d = await createScene3d({ W, H, loadModel, loadTexture });

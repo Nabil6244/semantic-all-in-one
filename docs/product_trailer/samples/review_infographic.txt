@@ -1,0 +1,11 @@
+# Galaxy S27 Ultra charging, explained
+## Charging
+The S27 Ultra keeps the same 60 watt charging as last year.
+[flat: CHARGING SPEED | Galaxy S26 Ultra=60W@95 | Galaxy S27 Ultra=60W@99]
+But a bigger battery should take longer to fill.
+[tweet: Walle @WalleGalaxy | This stems from the new charging optimization, allowing the phone to sustain 55W longer. | sustain 55W longer]
+So the real speed comes from how long it holds the peak.
+## Network
+Uploads are where the two phones differ the most.
+[gauge: UPLOAD SPEED | Mbps | 200 | iPhone 18 Pro=30.12 | iPhone 17 Pro=127.51]
+[stat: 1h40min | Full charge, as tested]

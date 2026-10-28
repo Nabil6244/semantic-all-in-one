@@ -15,6 +15,7 @@ import path from "node:path";
 import { waitForFlowReady } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
 import { resolveAsbImage } from "./flow-ui-experiment.js";
+import { attachReferenceImages } from "./flow-references.js";
 
 const PROMPT_EDITOR_SELECTOR = 'div.ProseMirror[aria-label="What do you want to create?"], div.ProseMirror';
 const GENERATE_BUTTON_SELECTOR = 'button[aria-label="Start generation"]';
@@ -431,6 +432,7 @@ export async function generateAgentBatchViaUI(page, {
   timeoutMs = 300000,
   shouldStop = null,
   outputDir = null,
+  referenceImages = [],
 } = {}) {
   const startedAt = Date.now();
   const diag = {
@@ -465,6 +467,20 @@ export async function generateAgentBatchViaUI(page, {
         new Error("Flow UI Agent toggle could not be turned on (would Create one image instead of a bulk batch)"),
         Submission.NOT_SUBMITTED,
       );
+    }
+
+    if (referenceImages && referenceImages.length) {
+      diag.stage = "attaching_references";
+      try {
+        const ref = await attachReferenceImages(page, referenceImages);
+        diag.references = ref.attached;
+        diag.referencesUploaded = ref.uploaded;
+      } catch (e) {
+        // Never send the scenes without the pictures that were asked for.
+        diag.outcome = "references_not_attached";
+        diag.error = e?.message || String(e);
+        throw tagSubmission(new Error(`Reference images were not attached, nothing was sent: ${diag.error}`), Submission.NOT_SUBMITTED);
+      }
     }
 
     diag.stage = "locating_prompt_editor";

@@ -25,6 +25,7 @@ import {
 import { resetAccountLocks, runBatchSlice } from "./batch-runner.js";
 import { activeAgentScenes, agentSceneKey, runAgentSlice } from "./agent-runner.js";
 import { planImageJob, runAgentPool } from "./agent-pool.js";
+import { withReferenceSettings } from "./flow-references.js";
 import { accountIdentity } from "./profile-identity.js";
 import { DOWNLOADS_ROOT } from "./paths.js";
 import { agent as agentConfig, timing } from "../config.js";
@@ -586,6 +587,9 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   const stopped = () => stopAll || mySeq !== runSeq;
   // One id per run: the ledger uses it to tell "the user was told in an earlier run and asked again" from "this run".
   settings = { ...settings, _runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+  // Reference images (a phone render, a character sheet): validated here, so a bad path stops the run before anything is sent, and the
+  // run goes the UI agent route, the only one that can attach them (even for a single scene).
+  settings = withReferenceSettings(settings);
 
   const agentRequested = String(settings?.generationMode || "").toLowerCase() === "agent" && String(settings?.mediaKind || "").toLowerCase() !== "video";
   // Scenes still inside an agent request that has not returned: a second request (Retry, a rerun, either path) could make
@@ -594,7 +598,8 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
   let poolItems = [];
   let agentPool = false;
   if (String(settings?.mediaKind || "").toLowerCase() !== "video" && (agentRequested || activeAgentScenes.size)) {
-    const plan = planImageJob({ prompts, promptKeys, settings, ledger: await defaultLedger(), active: activeAgentScenes, keyOf: agentSceneKey, agentRequested });
+    const plan = planImageJob({ prompts, promptKeys, settings, ledger: await defaultLedger(), active: activeAgentScenes, keyOf: agentSceneKey, agentRequested,
+      minScenes: settings.referenceKey ? 1 : agentConfig.minScenes });
     for (const { index, prompt, by } of plan.busy) {
       busyIndices.add(index);
       broadcast({ type: "PROMPT_RESULT", index, prompt, status: "failed", needsAction: true,

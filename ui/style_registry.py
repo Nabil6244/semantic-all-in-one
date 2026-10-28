@@ -11,13 +11,16 @@ GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     ("General", ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar")),
     ("Maps", ("pakMap", "Hybrid Map")),
     ("Space", ("StarMap", "StarMap Cinema")),
-    ("Explainers", ("What If", "Explainer")),
+    ("Explainers", ("What If", "Explainer", "Product Trailer")),
     ("Documentary", ("War Documentary", "Enoch Template")),
     ("Specialist", ("Health Cinema", "Weather")),
 )
 
 STARMAP_CINEMA = "StarMap Cinema"
 EXPLAINER = "Explainer"
+PRODUCT_TRAILER = "Product Trailer"
+# styles of their own engine that app.STYLE_CHOICES does not list (their page lives in ui/): appended after the app's choices
+STANDALONE: Tuple[str, ...] = (PRODUCT_TRAILER,)
 # card-only style -> the style whose engine it runs (with its look switched on)
 BUILT_ON: Dict[str, str] = {STARMAP_CINEMA: "StarMap", EXPLAINER: "Hybrid Map"}
 
@@ -26,12 +29,15 @@ EXTRA_BLURBS: Dict[str, str] = {
                     "numbers as type, documentary photos with a source line, cuts in the narration's pauses.",
     EXPLAINER: "Explainer videos on a board: drawn clips, a narrator, captions. Planned from your narration (Hybrid Map's engine "
                "with the Explainer look).",
+    PRODUCT_TRAILER: "Phone launch trailers built in code: the phone in 3D on a star field, one feature at a time, cut to your "
+                     "music, a disclaimer card at the end. From a short feature CSV.",
 }
 
 # icon, one-line pitch, what it needs, what it suits (the same shape as app.STYLE_CARDS)
 EXTRA_CARDS: Dict[str, Tuple[str, str, str, str]] = {
     STARMAP_CINEMA: ("✸", "StarMap with the What If documentary look", "A StarMap beat CSV", "Space stories told like a documentary"),
     EXPLAINER: ("\u270E", "Board clips, a narrator and captions", "Your voiceover", "Explainers on any topic"),
+    PRODUCT_TRAILER: ("\u25AF", "A phone launch trailer, cut to music", "A feature CSV (+ music)", "Phone launches, concept trailers"),
 }
 
 
@@ -41,6 +47,7 @@ def with_extras(choices: Tuple[str, ...]) -> Tuple[str, ...]:
     for name in choices:
         out.append(name)
         out.extend(extra for extra, base in BUILT_ON.items() if base == name and extra not in choices)
+    out.extend(name for name in STANDALONE if name not in out)
     return tuple(out)
 
 

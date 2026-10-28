@@ -321,6 +321,7 @@ export async function runAgentSlice(params) {
             timeoutMs: replyTimeoutMs,
             shouldStop,
             outputDir: outDir,
+            referenceImages: standardSettings.referenceImages || [],
           });
         } catch (err) {
           const sub = submissionOf(err);

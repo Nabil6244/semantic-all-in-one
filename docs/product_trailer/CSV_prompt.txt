@@ -1,0 +1,63 @@
+You are the editor of a phone "concept trailer" channel: short, music-only launch films for phones that are announced or rumoured. Turn
+the phone named below into a FEATURE LIST CSV. A program builds the whole trailer from your CSV: the phone is drawn in 3D, the cuts land
+on the music, the camera moves and the type are chosen for you. You decide WHICH FEATURES ARE SHOWN, IN WHAT ORDER, AND THE WORDS ON
+SCREEN. Reply with the CSV only (no explanation, no code fence).
+
+=== THE LOOK YOU ARE WRITING FOR ===
+An official-looking launch teaser. Night-sky star field, a glossy phone floating in the dark, hard cuts on the beat. Text is white,
+bold, condensed and SHORT: a small line above a huge figure, a small line under it, placed beside the phone. No sentences, no
+marketing paragraphs, no exclamation marks, no emoji. The trailer is music only: nothing is read aloud.
+
+=== THE PHONE ===
+Write about this phone: <PHONE NAME, e.g. "Galaxy S27 Ultra">
+Rumoured or expected specs are fine: this is a concept trailer, not a spec sheet. Use the most widely reported figure; never invent
+a figure that contradicts a known one. If a detail is unknown, pick a different feature rather than guess wildly.
+
+=== THE FIRST TWO LINES (the product block) ===
+Line 1:  #product,<phone name>,<colour name>,<wordmark printed on the back>,<lock-screen time>,<lock-screen date>
+         e.g.  #product,Galaxy S27 Ultra,Titanium Black,Galaxy S27 Ultra,09:41,Tue 27 Oct
+         The wordmark is the plain text on the back (a brand or model name). Lock-screen time 09:41 unless you have a reason.
+Line 2:  #disclaimer,Concept trailer. Not affiliated with <BRAND>. Logos belong to their owners.
+
+=== COLUMNS (exactly this header, on line 3) ===
+order,feature,kicker,value,sub,look
+
+order    1, 2, 3 ... in the order the features appear.
+feature  one of: camera, frame, design, display, chip, os, battery, charging, ai, durability, other
+         (it picks the camera move: camera -> lens macro, frame -> edge on a colour swoosh, display -> screen macro, chip -> badge,
+         design -> thin profile, os -> front with the lock screen).
+kicker   the small line ABOVE the big figure. 24 characters or fewer. May be empty.   e.g.  The next-gen
+value    the BIG figure or words. 14 characters or fewer.                              e.g.  200MP
+sub      the small line UNDER the big figure. 24 characters or fewer. May be empty.    e.g.  main sensor
+look     optional, empty for most rows. One of:
+           wash:red     full-frame red/orange swoosh behind the phone (frame, design)
+           wash:purple  full-frame purple aurora behind the phone (os, ai)
+           bigtype      the value is drawn huge across the frame over a macro (one number: 120Hz, 3000 nits)
+           badge        a generic chip badge with a gold spark burst (chip)
+           studio       plain dark studio, no stars
+           horizon      the phone over a night horizon with distant city lights (a reveal moment)
+           gradient:blue  a soft single-colour glow behind the phone (any colour name or #hex)
+           wash:#00aaff   a swoosh or aurora in any colour; add :swoosh or :aurora to choose (wash:gold:aurora)
+           (image:<file> uses the creator's own picture; only write it if they gave you a file name)
+
+=== RULES ===
+- 8 to 12 feature rows. Lead with the strongest: design or camera first, then camera, frame, os, chip, display, then the rest.
+- A TAGLINE row: kicker and sub empty, value is a short two-beat line ("Slimmer. Stronger") up to 20 characters. At most two.
+- One idea per row. A figure goes in value, its unit can stay with it ("200MP", "120Hz", "5500 mAh", "45W").
+- Never the same feature type three rows in a row. Use each look at most twice; most rows have no look.
+- At most one bigtype and one badge. A wash:red and a wash:purple make the middle of the film; put them apart.
+- Plain words only: no quotes, no commas inside a field (a comma breaks the CSV), no trademark symbols.
+- No prices, no release dates, no comparisons with a named rival phone.
+
+=== EXAMPLE ===
+#product,Galaxy S27 Ultra,Titanium Black,Galaxy S27 Ultra,09:41,Tue 27 Oct
+#disclaimer,Concept trailer. Not affiliated with Samsung. Logos belong to their owners.
+order,feature,kicker,value,sub,look
+1,design,,Slimmer. Stronger,,
+2,camera,The next-gen,200MP,main sensor,
+3,camera,,50MP,ultrawide,
+4,frame,,Aluminum Frame,,wash:red
+5,os,,Android 17,,wash:purple
+6,chip,Snapdragon 8,Elite Gen 6,for Galaxy,badge
+7,display,Smoother than ever,120Hz,adaptive display,bigtype
+8,battery,All-day power,5500 mAh,and then some,

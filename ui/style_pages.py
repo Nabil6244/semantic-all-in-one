@@ -16,7 +16,7 @@ from .style_registry import BUILT_ON, EXPLAINER, STARMAP_CINEMA, grouped
 from .widgets import make_button
 
 _RUNNING_FLAGS = ("_overscaled_running", "_pakmap_running", "_hybrid_running", "_starmap_running", "_weather_running", "_whatif_running",
-                  "_war_running", "_health_running")
+                  "_war_running", "_health_running", "_pt_running")
 _CINEMA_TAB_OLD, _CINEMA_TAB_NEW = "Cinema (What If visuals)", "Cinema options"
 
 
@@ -113,7 +113,7 @@ def sync(app: Any, active: str) -> None:
 
 
 _STYLE_BLOCKS = ("_overscaled_block", "_pakmap_block", "_hybrid_block", "_starmap_block", "_weather_block", "_whatif_block", "_war_block",
-                 "_health_block")
+                 "_health_block", "_pt_block")
 
 
 def _tidy_style_blocks(app: Any) -> None:

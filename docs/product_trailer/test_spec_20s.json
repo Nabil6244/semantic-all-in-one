@@ -1,0 +1,41 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 20,
+  "look": { "saturate": 0.95, "contrast": 1.06, "lift": "#040508", "vignette": 0.38, "grain": 0.03 },
+  "shots": [
+    { "id": "pt01_island", "start": 0.0, "end": 2.4, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "island",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.5 },
+    { "id": "pt02_monolith", "start": 2.4, "end": 4.6, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "monolith",
+      "backdrop": "stars", "tone": "#2b2f36", "wash": "#3a5cff", "wash_at": [0.25, -0.1], "bloom": 0.45 },
+    { "id": "pt03_profile", "start": 4.6, "end": 6.8, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "profile",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.4 },
+    { "id": "pt04_monolith_b", "start": 6.8, "end": 9.0, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "monolith",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.45 },
+    { "id": "pt05_edge", "start": 9.0, "end": 11.2, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "edge",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.5 },
+    { "id": "pt06_hero_lock", "start": 11.2, "end": 13.6, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "hero",
+      "backdrop": "stars", "tone": "#2b2f36", "screen": { "time": "09:41", "date": "Tue 27 Oct" }, "bloom": 0.4 },
+    { "id": "pt07_profile_tag", "start": 13.6, "end": 16.0, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "profile",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.4 },
+    { "id": "pt08_island_200", "start": 16.0, "end": 18.0, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "island",
+      "backdrop": "stars", "tone": "#2b2f36", "bloom": 0.55 },
+    { "id": "pt09_edge_frame", "start": 18.0, "end": 20.0, "kind": "product", "object": "phone", "phone": "galaxy s27 ultra", "move": "edge",
+      "backdrop": "wash", "wash_style": "swoosh", "wash": "#ff4a1f", "wash_at": [0.25, -0.1], "tone": "#2b2f36", "bloom": 0.55 }
+  ],
+  "layers": [
+    { "type": "pt_tagline", "text": "Slimmer. Stronger", "side": "right", "start": 13.9, "end": 15.8 },
+    { "type": "pt_feature", "kicker": "The next-gen", "value": "200MP", "sub": "main sensor", "side": "left", "start": 16.2, "end": 17.9 },
+    { "type": "pt_feature", "kicker": "", "value": "Aluminum Frame", "sub": "", "side": "right", "start": 18.2, "end": 19.9 },
+    { "type": "pt_bigtype", "text": "200MP", "y": 0.5, "start": 16.0, "end": 16.25 }
+  ],
+  "product_trailer": {
+    "title": "Galaxy S27 Ultra - 20 s look-match test",
+    "notes": [
+      "Hand-written Phase 1 spec: cold open 0-13.6 s (no text), lock screen at 11.2 s, tagline, then the 200MP feature beat and the Aluminum Frame wash beat.",
+      "Music is muxed after render (renderer ignores audio); cuts are on a ~2.2 s grid standing in for the beat grid.",
+      "The pt_bigtype layer is a 0.25 s flash test of the layer only; drop it if it reads as clutter."
+    ]
+  }
+}

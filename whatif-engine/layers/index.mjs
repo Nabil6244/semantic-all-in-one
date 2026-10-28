@@ -23,8 +23,27 @@ import tm_discmap from './tm_discmap.mjs';
 import tm_annotate from './tm_annotate.mjs';
 import tm_template from './tm_template.mjs';
 import tm_mission from './tm_mission.mjs';
+import pt_bench from './pt_bench.mjs';
+import pt_feature from './pt_feature.mjs';
+import pt_tagline from './pt_tagline.mjs';
+import pt_bigtype from './pt_bigtype.mjs';
+import pt_reveal from './pt_reveal.mjs';
+import pt_card from './pt_card.mjs';
+import pt_subtitle from './pt_subtitle.mjs';
+import pt_curve from './pt_curve.mjs';
+import pt_compare3 from './pt_compare3.mjs';
+import pt_badge from './pt_badge.mjs';
+import pt_caption from './pt_caption.mjs';
+import pt_paper from './pt_paper.mjs';
+import pt_flatphones from './pt_flatphones.mjs';
+import pt_gauge from './pt_gauge.mjs';
+import pt_tweet from './pt_tweet.mjs';
+import pt_thermal from './pt_thermal.mjs';
+import pt_coststack from './pt_coststack.mjs';
+import pt_doc from './pt_doc.mjs';
+import pt_glass from './pt_glass.mjs';
 
-export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission];
+export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission, pt_bench, pt_feature, pt_tagline, pt_bigtype, pt_reveal, pt_card, pt_badge, pt_caption, pt_subtitle, pt_curve, pt_compare3, pt_paper, pt_flatphones, pt_gauge, pt_tweet, pt_thermal, pt_coststack, pt_doc, pt_glass];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

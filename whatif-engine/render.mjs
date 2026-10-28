@@ -54,6 +54,7 @@ function startServer(spec, specDir, cutter) {
     if (url.pathname === '/' || url.pathname === '/index.html') file = path.join(HERE, 'page.html');
     else if (url.pathname === '/page.js') file = path.join(HERE, 'page.js');
     else if (/^\/(lib|layers)\/[\w-]+\.mjs$/.test(url.pathname)) file = path.join(HERE, url.pathname);
+    else if (/^\/data\/[\w-]+\.json$/.test(url.pathname)) file = path.join(HERE, url.pathname);   // phones.json for lib/phone_models.mjs
     else if (/^\/footage\/\d+\/\d+\.jpg$/.test(url.pathname) && cutter) { const [, , i, k] = url.pathname.split('/'); file = cutter.frameFile(Number(i), parseInt(k, 10)); }
     else if (url.pathname.startsWith('/media/')) file = safe(mediaDir, url.pathname.slice(7));
     else if (url.pathname.startsWith('/models/')) file = safe(modelDir, url.pathname.slice(8));

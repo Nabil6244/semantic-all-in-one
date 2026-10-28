@@ -102,6 +102,7 @@ from ui import scene_list as _scene_list
 from ui.widgets import make_button as _make_button
 from ui import style_registry as _style_registry
 from ui import style_pages as _style_pages
+from ui import product_trailer_section as _pt_section
 import editorial_timeline_edit as _tl_edit
 
 
@@ -3148,6 +3149,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
+        if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
+            return "Product Trailer"
         if getattr(self, "_health_active", False):   # Health Cinema (health_cinema/): opt-in, per session
             return "Health Cinema"
         if getattr(self, "_war_active", False):   # War Documentary (cinematic_explainer/war): opt-in, per session
@@ -3197,6 +3200,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_pt_running", False):
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         choice, _look_only = _style_pages.pick_variant(self, choice)   # StarMap Cinema / Explainer: StarMap / Hybrid Map with their look on
         if _look_only:
             self._sync_style_picker()
@@ -3210,6 +3217,12 @@ class VideoGeneratorApp(ctk.CTk):
             self._weather_deactivate()
         if choice != "What If":
             self._whatif_deactivate()
+        if choice != "Product Trailer":
+            _pt_section.deactivate(self)
+        if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
+            _pt_section.activate(self)
+            self._sync_primary_cta()
+            return
         if choice == "Health Cinema":   # its own branch (health_cinema/app_section.py), loaded only now
             self._health_activate()
             ws = getattr(self, "_workspace", None)
@@ -3334,6 +3347,9 @@ class VideoGeneratorApp(ctk.CTk):
         health_block = getattr(self, "_health_block", None)
         if health_block is not None:
             health_block.grid() if active == "Health Cinema" else health_block.grid_remove()
+        pt_block = getattr(self, "_pt_block", None)
+        if pt_block is not None:
+            pt_block.grid() if active == "Product Trailer" else pt_block.grid_remove()
         _style_pages.sync(self, active)   # the picker or the active style's page
 
     def _style_card_header(self, block, title: str, description: str) -> None:
@@ -7168,6 +7184,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_starmap_cancel()
         elif action == "whatif_cancel":
             self._on_whatif_cancel()
+        elif action in ("pt_generate", "pt_render", "pt_cancel"):
+            _pt_section.cta(self, action)
         elif action in ("health_render", "health_cancel"):
             from health_cinema import app_section as _health
 
@@ -7945,6 +7963,9 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
+        pt_on = getattr(self, "_pt_active", False) and getattr(self, "_pt_block", None) is not None
+        if pt_on:   # Product Trailer (ui/product_trailer_section.py) owns the button while its page is up
+            return _pt_section.sync_cta(self)
         if getattr(self, "_health_active", False) and getattr(self, "_health_block", None) is not None:
             from health_cinema import app_section as _health
 
@@ -8770,6 +8791,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._restore_whatif(ws)
         self._war_deactivate()   # War Documentary is chosen per session, never restored with a project
         self._health_deactivate()   # Health Cinema likewise
+        _pt_section.deactivate(self)   # Product Trailer likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16349,6 +16371,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running",
                   "_war_running", "_health_running")
+    _RUN_FLAGS = _RUN_FLAGS + ("_pt_running",)   # Product Trailer: the stall watchdog and quit guard see it too
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long
