@@ -4,7 +4,8 @@ Paste the prompt into any LLM, fill in the three fields at the top, save the rep
 
 - Leave `start` and `end` empty (the prompt does this). The app then aligns every row to the voiceover's real word times, so the timings are exact.
 - Record the voiceover from the CSV's `text` column, word for word. If under half the CSV's words are in the voiceover, the app stops and says so instead of guessing.
-- Columns: `text` (required), `start`, `end`, `chapter`, `footage`, `source_title`, `source_citation`, `source_url`, `source_year`, `source_population`, `source_context`. Several sources in one row go in the same cell separated by ` | `, lined up by position.
+- **The CSV directs the visuals.** When any row fills `visual`, `organ`, `shot`, `footage`, `footage_alt` or `source`, the app plans the scenes from the CSV and makes no AI planning call. Rows you leave empty get plain-rule defaults (the body part named in the sentence, or its key words as the footage search). AI is only used afterwards, if a footage search finds nothing, to suggest other searches.
+- Columns: `text` (required), `start`, `end`, `chapter`, `footage`, `visual`, `organ`, `shot`, `footage_alt`, `source`, `source_title`, `source_citation`, `source_url`, `source_year`, `source_population`, `source_context`. Several sources in one row go in the same cell separated by ` | `, lined up by position.
 
 ## Prompt
 
@@ -22,7 +23,7 @@ OUTPUT FORMAT
 Output ONLY the CSV, in one code block, nothing before or after. First line
 exactly:
 
-text,start,end,chapter,footage,source_title,source_citation,source_url,source_year,source_population,source_context
+text,start,end,chapter,footage,visual,organ,shot,footage_alt,source,source_title,source_citation,source_url,source_year,source_population,source_context
 
 Rules for the file:
 - Comma separated, UTF-8. Put every field that contains a comma or a quote in
@@ -34,9 +35,17 @@ Rules for the file:
   voiceover later.
 - "chapter": a short chapter title on the FIRST row of each chapter, empty on
   other rows.
-- "footage": leave empty unless the sentence is about people or daily life; then
-  a 3 to 6 word stock-footage search phrase (for example: woman walking in park
-  morning). Never clinical, patient or surgical imagery.
+- "visual": what the scene shows. One of: footage | 3d | text | chapter | counter | bar | timeline | flow | youtube. Leave empty for auto. Use "3d" when the
+  sentence is about a body part we have a model for (organs: brain, eye, heart, lungs, liver, gallbladder, pancreas, stomach, intestines, spleen, bladder;
+  joints and bones: knee, hip, shoulder, elbow, spine, skeleton). Use "footage" for people, places and daily life. "counter" is for "every N seconds"
+  sentences, "bar" for percentages, "timeline" for a run of time-ordered story sentences.
+- "organ": for every "3d" row, and for any footage row that must SHOW a body part, the part's name (one of the list above).
+- "shot": only for "3d" rows, optional: orbit | zoom | peel | isolate. peel = outer layers fade to reveal the organ; isolate = organ alone (damage, disease);
+  zoom = from the body in to the organ; orbit = camera circles it. Vary the shot between 3d rows of the same organ.
+- "footage": for every "footage" row, a 3 to 6 word stock search that names exactly what is on screen (woman climbing stairs slowly). No abstract words.
+  Never clinical, patient or surgical imagery.
+- "footage_alt": two other searches for the same shot, separated by " | ", tried in order if the first finds nothing.
+- "source": stock (default) | youtube | flow.
 - "source_*" columns: fill them on EVERY row that states a statistic, a
   percentage, "X in Y people", or says a study, trial or researchers found
   something. Use real, checkable sources only:
@@ -63,8 +72,8 @@ CONTENT RULES
    treatment comes up add a sentence like "Talk to your doctor before changing
    anything."
 3. Do not present supplements as a replacement for treatment.
-4. Name the organ (heart, lungs, brain, liver, kidneys, gut) in the sentence
-   where it is the subject, so 3D anatomy scenes can trigger.
+4. Name the organ (heart, lungs, brain, eye, liver, pancreas, stomach, gut, knee, hip, spine) in the sentence where it is the subject, and fill visual=3d and organ for
+   that row. At least a third of the rows should be 3d or footage rows that carry a real search; never leave a long run of empty rows.
 5. Structure: a hook in the first 20 seconds, four to six chapters, one clear
    takeaway, a "see a doctor if..." sentence, and a final sentence: "This video
    is for education and is not medical advice."

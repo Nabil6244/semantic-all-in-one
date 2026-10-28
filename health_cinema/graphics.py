@@ -74,7 +74,7 @@ def draw_bar(d, p, prof, W, H, t, sz) -> None:
 def draw_timeline(d, p, prof, W, H, t, sz) -> None:
     ev = p.get("events", []); m = round(W * 0.08); acc = prof.accent; n = max(1, len(ev))
     a = ease(t / 0.6); d.text((m, H * 0.12), p.get("kicker", "WHAT HAPPENED, IN ORDER").upper(), font=_font(sz["label"]), fill=(*acc, round(255 * a)))
-    y = round(H * 0.42); x0, x1 = m + 230, W - m - 230; d.line([x0, y, x1, y], fill=(*TRACK, 255), width=8)
+    y = round(H * 0.46); x0, x1 = m + 230, W - m - 230; d.line([x0, y, x1, y], fill=(*TRACK, 255), width=8)
     cur = max([i for i, e in enumerate(ev) if t >= e["t0"]] or [-1])
     prog = x0 if cur < 0 else x0 + (x1 - x0) * (cur + ease((t - ev[cur]["t0"]) / 0.8)) / max(1, n - 1) if n > 1 else x0
     d.line([x0, y, min(prog, x1), y], fill=(*acc, 255), width=8)
@@ -85,7 +85,9 @@ def draw_timeline(d, p, prof, W, H, t, sz) -> None:
         up = i % 2 == 0; ty = y - 70 if up else y + 70; anchor = "mb" if up else "mt"
         al = round(255 * (0.35 + 0.65 * k))
         d.text((x, ty), e.get("when", ""), font=_font(round(sz["body"] * 1.1)), fill=(*(WHITE if on else MUTED), al), anchor=anchor)
-        lines = _wrap(d, e.get("label", ""), _font(sz["label"]), max(300, colw * 0.9 if n > 1 else 800))[:3]
+        room = max(1, int((ty - sz["body"] * 1.6 - (H * 0.12 + sz["label"] * 1.8)) // (sz["label"] * 1.25) + 1)) if up else 3      # labels above the line stop short of the heading
+        lines = _wrap(d, e.get("label", ""), _font(sz["label"]), max(300, colw * 0.9 if n > 1 else 800)); cap = min(3, room)
+        if len(lines) > cap: lines = lines[:cap]; lines[-1] = lines[-1].rstrip(" ,.;:") + "\u2026"
         for j, ln in enumerate(lines):
             yy = (ty - sz["body"] * 1.6 - (len(lines) - 1 - j) * sz["label"] * 1.25) if up else ty + sz["body"] * 1.5 + j * sz["label"] * 1.25
             d.text((x, yy), ln, font=_font(sz["label"]), fill=(*(SOFT if on else MUTED), al), anchor=anchor)

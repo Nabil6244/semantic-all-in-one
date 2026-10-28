@@ -12,7 +12,7 @@ from typing import List, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL, ANCHORS = "chest.glb", "anchors.json"   # legacy names of the chest asset
-ASSET_FILES = {"chest": ("chest.glb", "anchors.json"), "head": ("head.glb", "anchors_head.json")}
+ASSET_FILES = {"chest": ("chest.glb", "anchors.json"), "head": ("head.glb", "anchors_head.json"), "abdomen": ("abdomen.glb", "anchors_abdomen.json"), "msk": ("msk.glb", "anchors_msk.json")}   # see library.py
 TEMPLATE_ASSET = {"heart_journey": "chest", "chest_journey": "chest", "brain_journey": "head", "eye_journey": "head"}
 # three.js files page.js imports (GLTFLoader and the bloom post-processing chain), relative to three/examples/jsm: see packaging.py
 THREE_ADDONS = ("loaders/GLTFLoader.js", "utils/BufferGeometryUtils.js", "postprocessing/EffectComposer.js", "postprocessing/MaskPass.js", "postprocessing/OutputPass.js",
@@ -32,17 +32,54 @@ def _find(rel: str) -> Optional[Path]:
         if p.exists(): return p
     return None
 
-def asset_dir() -> Path:
+LOCAL_LIBRARY = Path.home() / "HealthCinemaTools" / "bench"     # where the prepped chest/head GLBs live on a dev machine (not shipped, not downloaded)
+
+def asset_dirs() -> List[Path]:
+    """Folders searched for the anatomy models, best first. HEALTH_CINEMA_ASSET_DIR is authoritative when set (tests and packaged installs point it
+    somewhere exact); otherwise the per-user folder, then the local model library the models are prepared in."""
     env = os.environ.get("HEALTH_CINEMA_ASSET_DIR")
-    return Path(env).expanduser() if env else Path.home() / ".semantic_yt_studio" / "health_cinema" / "assets"
+    if env: return [Path(env).expanduser()]
+    return [Path.home() / ".semantic_yt_studio" / "health_cinema" / "assets", LOCAL_LIBRARY]
+
+def asset_dir() -> Path:
+    """The first searched folder that holds any anatomy model, else the first one (kept for callers that want a single path)."""
+    ds = asset_dirs()
+    for d in ds:
+        if any((d / f).is_file() for pair in ASSET_FILES.values() for f in pair): return d
+    return ds[0]
 
 def anatomy_assets(kind: str = "chest") -> Optional[dict]:
-    mf, af = ASSET_FILES[kind]; d = asset_dir(); m, a = d / mf, d / af
-    return {"model": str(m), "anchors": str(a)} if m.is_file() and a.is_file() else None
+    if kind == "micro":      # procedural scenes (blood flow, plaque, clot, cell): no model file, just their anchors, shipped with the templates
+        p = ROOT / "health_cinema" / "templates" / "micro_anchors.json"
+        return {"model": str(p), "anchors": str(p)} if p.is_file() else None
+    mf, af = ASSET_FILES[kind]
+    for d in asset_dirs():
+        m, a = d / mf, d / af
+        if m.is_file() and a.is_file(): return {"model": str(m), "anchors": str(a)}
+    return None
+
+def anatomy_status() -> dict:
+    """What the 3D path can use right now, for the report and the log: which journeys are ready and why the others are not."""
+    ready = {t: template_ready(t) for t in TEMPLATE_ASSET}; miss = missing_threejs_files()
+    return {"ready": ready, "library": __import__("health_cinema.library", fromlist=["x"]).available(template_ready), "dirs": [str(d) for d in asset_dirs()], "threejs_missing": miss, "browser": browser_ready(), "usable": bool(any(ready.values()) and not miss and browser_ready())}
+
+def model_for_template(template: str) -> Optional[str]:
+    """Model kind a journey template needs: the four hand-authored ones, or a generated `auto:<organ>:<shot>` from the library."""
+    if template in TEMPLATE_ASSET: return TEMPLATE_ASSET[template]
+    from . import library
+    return library.model_of(template)
 
 def template_ready(template: str) -> bool:
-    """The anatomy asset behind a journey template exists locally (the Three.js runtime is checked separately)."""
-    return template in TEMPLATE_ASSET and anatomy_assets(TEMPLATE_ASSET[template]) is not None
+    """The anatomy asset behind a journey template exists locally (the Three.js runtime is checked separately). For generated templates the organ's anchor and
+    layers must also be in the prepared model."""
+    kind = model_for_template(template)
+    a = anatomy_assets(kind) if kind else None
+    if not a: return False
+    if template in TEMPLATE_ASSET: return True
+    try:
+        from . import library
+        library.build_spec(template, a["anchors"]); return True
+    except Exception: return False
 
 def node_path() -> Optional[str]:
     name = "node.exe" if sys.platform == "win32" else "node"

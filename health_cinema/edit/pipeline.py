@@ -77,7 +77,7 @@ def render_high_end(scenes, voiceover: str, out_path: str, project_dir: Path, *,
     t_j = time.time()
     for k, sh in enumerate(list(shots_)):
         if sh["kind"] != "anatomy": continue
-        a = assets.anatomy_assets(assets.TEMPLATE_ASSET.get(sh["template"], "chest")); ok = bool(a and (frame_renderer is not None or assets.threejs_ready()))
+        a = assets.anatomy_assets(assets.model_for_template(sh["template"]) or "chest"); ok = bool(a and (frame_renderer is not None or assets.threejs_ready()))
         if ok:
             try:
                 spec = C.scale_spec(C.template_spec(sh["template"]), sh["t1"] - sh["t0"]); spec["footer"] = ""; spec["captions"] = []

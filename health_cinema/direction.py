@@ -9,6 +9,12 @@ from typing import Callable, Dict, List, Optional
 
 def _norm(t: str) -> str: return re.sub(r"[^a-z0-9% ]+", "", t.lower()).strip()
 
+class _GeminiOff:
+    """Stands in for Gemini when it is switched off or not configured: fails at once, so the director goes cache -> its built-in planner with no network wait."""
+    def complete(self, system: str, user: str, **_k) -> str:
+        from visual_director.llm import LLMError
+        raise LLMError("Gemini is switched off for this run")
+
 def plan_visuals(script: str, settings: Optional[dict], state_dir: Optional[str], log: Callable[[str], None] = lambda m: None, cancel: Optional[Callable[[], bool]] = None) -> List[dict]:
     """-> [{scene_id, narration, asset_type, queries, description, goal}] from the app's VisualDirector."""
     from visual_director.director import VisualDirector
@@ -22,15 +28,17 @@ def plan_visuals(script: str, settings: Optional[dict], state_dir: Optional[str]
     import time
     from .render_journey import Cancelled
     plan = None
-    for attempt in range(3):
+    off = llm is None                                   # no Gemini: never build one (the director would otherwise create its own and wait on the network)
+    if off: log("visual director: Gemini is off or not set up; using the built-in planner (no waiting)")
+    for attempt in range(1 if off else 2):
         if cancel is not None and cancel(): raise Cancelled("cancelled")      # Gemini sometimes answers "high demand": wait and ask again before accepting the planner's rule-based fallback
-        plan = VisualDirector(llm=llm, settings=settings or {}).plan(script, state_dir=state_dir)
+        plan = VisualDirector(llm=_GeminiOff() if off else llm, settings=settings or {}).plan(script, state_dir=state_dir)
         failed = llm is not None and any("gemini_failure" in str(w) or "deterministic fallback" in str(w) for w in (plan.warnings or []))
         for w in (plan.warnings or [])[:3]: log(f"visual director: {str(w)[:140]}")
         if not failed: break
-        if attempt < 2:
-            log(f"visual director: Gemini unavailable, retrying in {10 * (attempt + 1)} s ({attempt + 1}/2)")
-            for _ in range(40 * (attempt + 1)):      # the wait is sliced so Stop is heard within a quarter second
+        if attempt < 1:
+            log("visual director: Gemini unavailable, retrying once in 10 s")
+            for _ in range(40):      # the wait is sliced so Stop is heard within a quarter second
                 if cancel is not None and cancel(): raise Cancelled("cancelled")
                 time.sleep(0.25)
     plan_source = "gemini" if llm is not None and not failed else "deterministic-fallback"
@@ -107,6 +115,8 @@ def alternative_queries(d: dict, tried: List[str], settings: Optional[dict], log
     def add(q):
         q = re.sub(r"\s+", " ", str(q or "")).strip()
         if q and q.lower() not in tried_l and q.lower() not in {x.lower() for x in out}: out.append(q)
+    for q in d.get("queries") or []: add(q)         # the scene's own other searches (a CSV's footage_alt) come before anything a model suggests
+    if len(out) >= 2: return out[:4]
     try:
         from visual_director.llm import GeminiLLM, gemini_configured
         st = settings or {}
@@ -125,3 +135,38 @@ def alternative_queries(d: dict, tried: List[str], settings: Optional[dict], log
     add(" ".join(_tokens(d.get("narration", ""))[:6]))
     return out[:4]
 
+
+
+# ---- CSV-directed planning: the scenes file decides the visuals, no model call ----------------------------------------------------------------
+_STOP = set("a an the and or but of to in on at for with from by is are was were be been it its this that these those there their they he she his her we you i as not no do does did has have had will would can could may might than then so such into over under about after before while when where which who what how why more most some any each very just also up out off".split())
+
+def default_queries(text: str, organ: Optional[str]) -> List[str]:
+    """Search phrases for a row that gives none: the body part when there is one, else the narration's own content words. Plain rules, no model."""
+    if organ: return [f"{organ} anatomy medical animation", f"{organ} medical illustration"]
+    words = [w for w in _tokens(text) if w not in _STOP and not w.isdigit() and len(w) > 2]
+    return [" ".join(words[:5])] if words else []
+
+def dscenes_from_rows(sentences: List[dict]) -> List[dict]:
+    """One director scene per CSV row (consecutive undirected short rows are merged so a cut is never shorter than a sentence can be read). Same shape as
+    plan_visuals' output, plus `hint` (visual / organ / shot) that the planner obeys, and plan_source 'csv'."""
+    from visual_director.schema import VisualScene
+    from .planner import _anatomy_topic
+    rows: List[dict] = []
+    for s in sentences:
+        directed = any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source"))
+        prev = rows[-1] if rows else None
+        if prev is not None and not directed and not prev["directed"] and prev["end"] - prev["start"] < 4.0:
+            prev["text"] += " " + s["text"]; prev["end"] = float(s["end"]); continue
+        rows.append({"text": s["text"], "start": float(s["start"]), "end": float(s["end"]), "row": s, "directed": directed})
+    out: List[dict] = []
+    for i, r in enumerate(rows, 1):
+        s = r["row"]; visual = s.get("visual") or "auto"; organ = s.get("organ") or _anatomy_topic(r["text"])
+        qs = ([s["footage"]] if s.get("footage") else []) + list(s.get("footage_alt") or [])
+        if not qs and visual in ("auto", "footage", "flow", "youtube", "3d"): qs = default_queries(r["text"], organ if (s.get("organ") or visual != "auto") else None)      # a 3D row keeps a search ready in case its model is not installed
+        src = s.get("source") or ("youtube" if visual == "youtube" else "flow" if visual == "flow" else "stock")
+        asset = {"youtube": "youtube_video", "flow": "flow_video"}.get(src, "stock_video")
+        vs = VisualScene(scene_id=i, narration=r["text"], visual_goal="", visual_description="", asset_type=asset, provider_preference="stock", search_queries=list(qs), timestamp_needed=False,
+                         timestamp_hint="", duration=max(1.5, min(6.0, r["end"] - r["start"])), importance="medium", fallbacks=[], visual_treatment="", transition="")
+        out.append({"scene_id": str(i), "narration": r["text"], "asset_type": asset, "queries": list(qs), "description": "", "goal": "", "scene": vs, "plan_source": "csv",
+                    "hint": {"visual": visual, "organ": organ if (s.get("organ") or visual == "3d") else None, "shot": s.get("shot"), "source": src}})
+    return out

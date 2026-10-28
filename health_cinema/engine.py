@@ -8,12 +8,12 @@ import json, os, shutil, subprocess, tempfile, threading, time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
-from . import acquire as ACQ, assets, clips, direction, planner, profiles as P
+from . import acquire as ACQ, assets, clips, direction, planner, profiles as P, relevance as RL
 
 REVIEW_NOTE = ("Review flags come from keyword rules that point at wording needing a human check (unsourced statistics, causal or absolute wording, medication or "
                "supplement advice, preliminary research). They do not verify any medical claim and an empty list is not a clearance.")
 NOT_IMPLEMENTED = ["sound design and music (narration only)", "word-level caption timing (captions are phrase-level, timed within each spoken sentence)"]
-CREDIT_Z = "3D anatomy: Z-Anatomy (CC BY-SA 4.0) built on BodyParts3D (CC BY-SA 2.1 Japan). 3D illustration, not clinical imagery."
+CREDIT_Z = "3D anatomy: Z-Anatomy (CC BY-SA 4.0) built on BodyParts3D (CC BY-SA 2.1 Japan); kidneys, ureters and adrenal glands: BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution 4.0 International. 3D illustration, not clinical imagery."
 
 NOT_IMPLEMENTED_HIGH_END = ["word-level caption timing (phrase boundaries snap to detected pauses; word times inside a phrase are estimated)", "tracking-style callouts exist only for the 3D labels (projected from the camera); footage is not object-tracked", "footage depth is simulated with layered plates and motes, not a depth map"]
 
@@ -37,22 +37,28 @@ def footage_lookup(project_dir: Path) -> Callable[[dict], Optional[str]]:
         return None
     return find
 
-def _retry_footage(sc, d: dict, acquirer: Callable, allow_youtube: bool, allow_flow: bool, settings: Optional[dict], log: Callable[[str], None], acquisition: dict, rounds: int = 2) -> bool:
+def _judge(rec: dict, sc, d: dict, settings: Optional[dict], ff: str, log: Callable[[str], None]) -> dict:
+    """Relevance check (health_cinema/relevance.py) for scenes about a named body part: title first, then frames when a vision key exists."""
+    organ = sc.visual.get("anatomy_wanted")      # only scenes whose visual IS the body part (a person with knee pain is judged by the app's own QA)
+    return RL.check(rec, sc.text, d.get("query") or sc.visual.get("query") or (d.get("queries") or [""])[0], organ, settings, ff, log)
+
+def _retry_footage(sc, d: dict, acquirer: Callable, allow_youtube: bool, allow_flow: bool, settings: Optional[dict], log: Callable[[str], None], acquisition: dict, rounds: int = 2, better_than: Optional[dict] = None) -> bool:
     """A scene's footage was not found: ask the visual direction for other searches and try again (scene numbers 1000+ keep the retry apart from the
     failed manifest entry). True when a clip was found. Only when every retry fails does the caller fall back to a card."""
     import dataclasses
-    tried = list(d.get("queries") or []) + [sc.visual.get("query", "")]
+    tried = [sc.visual.get("query", "") or (d.get("queries") or [""])[0]]
     for rnd in range(1, rounds + 1):
         alts = direction.alternative_queries(d, tried, settings, log)
         if not alts: return False
         q = alts[0]; tried.append(q); no = int(sc.dscene_ids[0]); key = 1000 * rnd + no
         scn = dataclasses.replace(d["scene"], search_queries=[q]) if d.get("scene") is not None else None
         if scn is None: return False
-        d2 = dict(d, queries=[q], scene=scn)
+        d2 = dict(d, queries=[q], scene=scn, query=q)
         if rnd == rounds and allow_youtube: d2["asset_type"] = "youtube_video"
         acquisition["requested"] += 1
-        res = acquirer(ACQ.rows_for({key: d2}, allow_youtube, allow_flow)).get(key, {})
+        res = _judge(acquirer(ACQ.rows_for({key: d2}, allow_youtube, allow_flow)).get(key, {}), sc, d2, settings, assets.ffmpeg_path() or "ffmpeg", log)
         log(f"scene {sc.scene_no}: footage retry {rnd} with '{q[:60]}': {'found' if res.get('ok') else 'nothing'}")
+        if res.get("ok") and better_than is not None and (ACQ.is_weak(res) or float((res.get("qa") or {}).get("semantic_match") or 0) <= float((better_than.get("qa") or {}).get("semantic_match") or 0)): continue
         if res.get("ok"):
             sc.asset = res; sc.visual["path"] = res["path"]; sc.visual["query"] = q; acquisition["ok"] += 1; acquisition["retried_ok"] = acquisition.get("retried_ok", 0) + 1
             src = res.get("provider") or res.get("source") or "?"; acquisition["sources"][src] = acquisition["sources"].get(src, 0) + 1
@@ -99,7 +105,13 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     if director_on:
         prog(0.0, "planning scenes from the narration (the app's visual director)")
         script = script_text or " ".join(s["text"] for s in sents)
-        dscenes = direction.plan_visuals(script, settings, str(project_dir / "state"), log, cancel=lambda: cancel.is_set() or cancelled())
+        csv_directed = any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source")) for s in sents)
+        if csv_directed:      # the scenes CSV decides the visuals: no model call is made to plan them
+            log("visuals planned from the scenes CSV (no AI planning call)"); dscenes = direction.dscenes_from_rows(sents)
+        else: dscenes = direction.plan_visuals(script, settings, str(project_dir / "state"), log, cancel=lambda: cancel.is_set() or cancelled())
+        if dscenes and dscenes[0].get("plan_source") != "gemini" and (settings or {}).get("gemini_enabled", True):
+            settings = dict(settings or {}, gemini_enabled=False)                  # Gemini just failed: do not wait on it again for every footage retry
+            log("Gemini was unavailable for planning: the rest of this run uses the built-in planner")
         tpl_ok = (lambda t: assets.template_ready(t)) if frame_renderer is not None else (lambda t: assets.template_ready(t) and assets.threejs_ready())
         plan = planner.plan_directed(sents, profile, dscenes, tpl_ok, allow_footage=acquirer is not None, title=title)
     else:
@@ -111,7 +123,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     if acquirer is not None and dscenes:
         by_id = {d["scene_id"]: d for d in dscenes}; want = {}
         for sc in scenes:
-            if sc.kind == "footage": want[int(sc.dscene_ids[0])] = by_id[sc.dscene_ids[0]]
+            if sc.kind == "footage": want[int(sc.dscene_ids[0])] = dict(by_id[sc.dscene_ids[0]], query=sc.visual.get("query") or "")
         if want:
             prog(0.0, f"getting footage for {len(want)} scenes through the app's asset sources")
             rows = ACQ.rows_for(want, allow_youtube, allow_flow); acquisition["requested"] = len(rows)
@@ -121,9 +133,17 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                 r = got.get(int(sc.dscene_ids[0]), {})
                 if r.get("ok"):
                     sc.asset = r; sc.visual["path"] = r["path"]; acquisition["ok"] += 1; acquisition["sources"][r.get("provider") or r.get("source") or "?"] = acquisition["sources"].get(r.get("provider") or r.get("source") or "?", 0) + 1
+                r = _judge(r, sc, by_id[sc.dscene_ids[0]], settings, ff, log)
+                retried = False
+                if r.get("ok") and ACQ.is_weak(r):
+                    if _retry_footage(sc, by_id[sc.dscene_ids[0]], acquirer, allow_youtube, allow_flow, settings, log, acquisition, better_than=r): continue      # a better clip was found
+                    retried = True
+                    if sc.visual.get("anatomy_wanted"):      # a clip of the wrong body part is worse than no clip: never show it as if it explained the narration
+                        r = dict(r, ok=False, error=f"the only clips found show a different subject (QA {r['qa']['semantic_match']:.2f})")
                     acquisition["flow_used"] = acquisition["flow_used"] or "flow" in str(r.get("source", "")).lower()
+                    if ACQ.is_weak(r): sc.flags.append({"code": "footage_weak_match", "severity": "review", "message": f"The footage matches the narration poorly (visual QA {r['qa']['semantic_match']:.2f}) and no better clip was found; replace it before publishing."})
                 else:
-                    got_alt = _retry_footage(sc, by_id[sc.dscene_ids[0]], acquirer, allow_youtube, allow_flow, settings, log, acquisition)
+                    got_alt = (not retried) and _retry_footage(sc, by_id[sc.dscene_ids[0]], acquirer, allow_youtube, allow_flow, settings, log, acquisition)
                     if got_alt: continue
                     acquisition["failed"] += 1; why = r.get("error") or "no result"
                     sc.flags.append({"code": "footage_unavailable", "severity": "note", "message": f"Footage could not be acquired ({str(why)[:120]}); a typographic card is shown instead."})

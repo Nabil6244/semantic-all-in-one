@@ -84,6 +84,9 @@ def sample(spec_path, anchors_path, fps, W, H):
         t = i / fps; cam, look, fov = _cam_state(spec, A, t)
         alpha = {k: _curve(v, t) for k, v in spec["layers"].items()}
         fr = {"i": i, "t": t, "cam": cam, "look": look, "fov": fov, "alpha": alpha,
+              "proc": {k: _curve(v, t) for k, v in spec.get("tracks", {}).items()},      # named 0..1 tracks the procedural scenes read (plaque, clot, lipid, flow)
+              "tint": {k: [_curve([(kt, kv[c]) for kt, kv in v], t) for c in range(3)] for k, v in spec.get("tints", {}).items()},     # pathology colour per layer/object
+
               "highlight": {h["id"]: _curve(h["strength"], t) for h in spec.get("highlights", [])},
               "glow": {g["id"]: _curve(g["strength"], t) for g in spec.get("glow", [])}, "labels": []}
         for lb in spec.get("labels", []):

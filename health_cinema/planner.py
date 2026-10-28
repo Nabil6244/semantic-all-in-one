@@ -22,7 +22,7 @@ ANATOMY = {  # organ -> keywords; `template` is the journey the current asset su
     "lungs": (["lung", "lungs", "breathing", "breathe", "respiratory", "airway", "oxygen"], "chest_journey"),
     "brain": (["brain", "memory", "dementia", "alzheimer", "neuron", "cognitive"], None),
     "pancreas": (["pancreas", "insulin", "blood sugar", "glucose", "diabetes"], None),
-    "joints": (["knee", "joint", "arthritis", "cartilage", "bone", "bones", "osteoporosis", "hip"], None),
+    "joints": (["knee", "joint", "arthritis", "osteoarthritis", "cartilage", "bone", "bones", "osteoporosis", "hip"], None),
     "liver": (["liver", "kidney", "kidneys"], None),
 }
 PEOPLE_RE = re.compile(r"\b(patients?|people|family|grandparents?|older adults?|walking|sleep|meal|diet|exercise|doctor|nurse|caregiver|morning|daily)\b", re.I)
@@ -163,13 +163,28 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             if rx.search(text) and tpl not in used3d and template_ready(tpl): return tpl
         org = detect_organ(text)
         if org and ANATOMY[org][1] and ANATOMY[org][1] not in used3d and template_ready(ANATOMY[org][1]): return ANATOMY[org][1]
+        from . import library      # any other body part the 3D library covers (liver, pancreas, gut, knee, spine ...): a generated journey, each organ once per video
+        lo = library.find_organ(text)
+        if lo and lo not in used3d:
+            tpl = library.template_for(lo, template_ready, text=text)
+            if tpl: used3d.add(lo); return tpl
         return None
     for it in items:
         text, d, why = it["text"], it["d"], []
         m = EVERY_RE.search(text); pc = None
         for sent in it["g"]:
             pc = pc or PCT_RE.search(sent["text"])
-        tpl = organ_template(text)
+        hint = d.get("hint") or {}; hv = hint.get("visual")
+        if hv == "3d":
+            from . import library
+            tpl = library.template_for(hint.get("organ") or _anatomy_topic(text) or "", template_ready, shot=hint.get("shot"), text=text)      # an explicit 3D row is honoured: no once-per-video limit
+        else: tpl = organ_template(text)
+        wanted = None if tpl else (hint.get("organ") or _anatomy_topic(text))
+        if hv == "text":
+            it["kind"] = "text_card"; it["visual"] = {"text": text, "beats": [{"text": x["text"].strip(), "t0": round(float(x["start"]) - it["start"], 3)} for x in it["g"]]}; why.append("CSV: visual=text"); it["why"] = why; continue
+        if hv == "chapter":
+            it["kind"] = "chapter_card"; it["visual"] = {"title": text[:80]}; why.append("CSV: visual=chapter"); it["why"] = why; continue
+        if hv in ("footage", "flow", "youtube") and (d["queries"] or d["description"]): m = pc = None      # explicit footage: no counter/bar guessing
         if m:
             sent = next(x for x in it["g"] if EVERY_RE.search(x["text"])); ev = re.search(r"\b(?:has|have|suffers?|dies?)\s+an?\s+(\w+)", text, re.I)
             it["kind"] = "counter_card"; it["visual"] = {"interval": int(m.group(1)), "unit": m.group(2).lower() + "s", "context": sent["text"].strip(), "event": (ev.group(1) + "s") if ev else "events"}
@@ -179,22 +194,35 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             it["visual"] = {"value": float(pc.group(2)), "qualifier": ((pc.group(1) or "")[:1].upper() + (pc.group(1) or "")[1:].lower()), "context": sent["text"].strip()}
             why.append("a percentage -> animated bar")
         elif tpl:
-            it["kind"] = "anatomy_3d"; it["visual"] = {"template": tpl, "organ": {"brain_journey": "brain", "eye_journey": "eye", "heart_journey": "heart", "chest_journey": "lungs"}[tpl]}; used3d.add(tpl)
+            it["kind"] = "anatomy_3d"; it["visual"] = {"template": tpl, "organ": {"brain_journey": "brain", "eye_journey": "eye", "heart_journey": "heart", "chest_journey": "lungs"}.get(tpl, hint.get("organ") or tpl)}; used3d.add(tpl)
+            if hint.get("shot"): it["visual"]["shot"] = hint["shot"]
             why.append(f"anatomy topic -> {tpl}")
-        elif allow_footage and d["asset_type"] in ("stock_video", "youtube_video", "archive_video", "nasa_video") and (d["queries"] or d["description"]):
-            it["kind"] = "footage"; it["visual"] = {"scene_id": d["scene_id"], "query": (d["queries"] or [d["description"]])[0], "asset_type": d["asset_type"]}
-            why.append(f"director asked for {d['asset_type']}: {it['visual']['query'][:50]}")
+        elif allow_footage and (d["queries"] or d["description"]) and (d["asset_type"] in FOOTAGE_TYPES or d["asset_type"] in GENERATED_TYPES or wanted):
+            # a missing 3D model (or a director asset type we cannot fetch directly) must never turn into a card: the scene still gets real footage,
+            # searched with the organ named so stock results show the right part of the body (engine.acquire retries with alternatives if it fails)
+            q = d["queries"][0] if d["queries"] else (f"{wanted} anatomy medical animation" if wanted else _short(d["description"], 70))      # a director description is a sentence, not a search
+            if wanted and d["asset_type"] not in FOOTAGE_TYPES and wanted not in q.lower(): q = f"{wanted} anatomy medical animation"
+            it["kind"] = "footage"; it["visual"] = {"scene_id": d["scene_id"], "query": q, "asset_type": d["asset_type"] if d["asset_type"] in FOOTAGE_TYPES else "stock_video"}
+            if wanted and (d["asset_type"] not in FOOTAGE_TYPES or hv == "3d"): it["visual"]["anatomy_wanted"] = wanted      # the visual IS the body part (a stock scene of a person holding a knee is not)
+            why.append(f"director asked for {d['asset_type']}: {it['visual']['query'][:50]}" + (f"; no 3D model for the {wanted} here, so footage instead" if it["visual"].get("anatomy_wanted") else ""))
         else:
             it["kind"] = "text_card"; it["visual"] = {"text": text, "beats": [{"text": x["text"].strip(), "t0": round(float(x["start"]) - it["start"], 3)} for x in it["g"]]}
             why.append("no suitable footage or data graphic: typographic card")
         it["why"] = why
+    # consecutive explicit 3D rows about the same body part are one scene (the shot of the first): a 3 second flight round an organ is not watchable
+    k = 0
+    while k + 1 < len(items):
+        a, b = items[k], items[k + 1]
+        if a["kind"] == b["kind"] == "anatomy_3d" and (a["d"].get("hint") or {}).get("visual") == (b["d"].get("hint") or {}).get("visual") == "3d" and a["visual"].get("organ") == b["visual"].get("organ") and b["end"] - a["start"] <= 16.0:
+            a["g"] += b["g"]; a["end"] = b["end"]; a["text"] += " " + b["text"]; a["why"].append("next row is the same body part: one scene"); del items[k + 1]
+        else: k += 1
     # extend 3D scenes forward to a watchable length (never over a data graphic)
     i = 0
     while i < len(items):
         it = items[i]
         if it["kind"] == "anatomy_3d":
-            need = MIN_3D_S[it["visual"]["template"]]
-            while it["end"] - it["start"] < need and i + 1 < len(items) and items[i + 1]["kind"] in ("footage", "text_card", "anatomy_3d"):
+            need = MIN_3D_S.get(it["visual"]["template"], 10.0)
+            while it["end"] - it["start"] < need and i + 1 < len(items) and items[i + 1]["kind"] in ("footage", "text_card", "anatomy_3d") and (items[i + 1]["d"].get("hint") or {}).get("visual") in (None, "auto"):      # never over a row the CSV directed
                 nx = items.pop(i + 1); it["g"] += nx["g"]; it["end"] = nx["end"]; it["text"] += " " + nx["text"]; it["d"] = it["d"]; it["why"].append("extended over the next scene for watchable length")
         i += 1
     # timeline: a story with time-ordered markers ("one afternoon ... 3 days later ... 4 months") becomes one timeline over the scenes from the first
@@ -228,10 +256,25 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         ev = evidence.analyze(it["text"], sc_sources)
         sc = Scene(n, it["start"], it["end"], it["text"], it["kind"], prof.id, visual=it["visual"], flags=list(ev["flags"]), evidence_level=ev["evidence_level"], decisions=it["why"],
                    sentences=[{"text": x["text"], "start": float(x["start"]), "end": float(x["end"])} for x in it["g"]], dscene_ids=[it["d"]["scene_id"]])
-        if it["kind"] == "anatomy_3d": sc.illustrative = evidence.illustrative_label("anatomy_3d")
+        if it["kind"] == "anatomy_3d":
+            sc.illustrative = evidence.illustrative_label("anatomy_3d")
+            if it["end"] - it["start"] < 0.5 * MIN_3D_S.get(it["visual"].get("template", ""), 10.0):
+                sc.flags.append({"code": "3d_short", "severity": "note", "message": f"This 3D scene is only {it['end'] - it['start']:.1f} s long, so its camera move is compressed. Give the row a longer sentence or follow it with another row for the same body part."})
         if it["kind"] in ("counter_card", "bar_card") and not sc.sources: sc.flags.append({"code": "figure_unsourced", "severity": "review", "message": "This figure is shown with 'Source needed': attach the study, population and year before publishing."})
         scenes.append(sc)
     if scenes: scenes[0].chapter = title
     return {"scenes": scenes, "log": log, "profile": prof.id}
+
+FOOTAGE_TYPES = ("stock_video", "youtube_video", "archive_video", "nasa_video")
+GENERATED_TYPES = ("video", "flow_video", "image", "flow_image", "stock_image")   # the director wanted a generated/illustrative visual: without a generator, footage of the same idea
+
+def _anatomy_topic(text: str) -> Optional[str]:
+    """The body part a scene is about when it is clearly about one (so a missing 3D model is answered with matching footage, not a card)."""
+    from . import library
+    lo = library.find_organ(text)
+    if lo and not (EYE_RE.search(text) or BRAIN_RE.search(text)): return lo
+    if EYE_RE.search(text): return "eye"
+    if BRAIN_RE.search(text): return "brain"
+    return detect_organ(text)
 
 def _short(t: str, n: int) -> str: return t if len(t) <= n else t[: n - 1].rsplit(" ", 1)[0] + "\u2026"

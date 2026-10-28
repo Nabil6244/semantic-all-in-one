@@ -3,6 +3,13 @@
 Columns (header names are case-insensitive; `,` `;` or tab separated; Excel/Sheets exports with a BOM are fine):
   text (required; also: narration, sentence, script)   start, end (optional, seconds or m:ss; all rows or none)   chapter   footage
   source_title, source_citation, source_url, source_year, source_population, source_context   several sources in one row are separated by ` | `, lined up by position.
+Visual direction columns (optional; when any row fills one, the app plans the visuals from the CSV itself and does NOT ask Gemini to plan them):
+  visual   what the scene shows: auto (default) | footage | 3d | text | chapter | counter | bar | timeline | flow | youtube
+  organ    the body part or region the scene is about (brain, eye, heart, lungs, liver, pancreas, stomach, intestines, knee, hip, shoulder, spine ...):
+           picks the 3D model when `visual` is 3d, and is used to check that footage really shows that part
+  shot     3D camera move: orbit | zoom | peel | isolate; or a condition: fatty | inflamed (the organ changes colour as it develops). Optional; default chosen from the narration
+  footage  stock search for this scene (3 to 6 words);  footage_alt  other searches tried in order if the first finds nothing, separated by ` | `
+  source   where footage comes from: stock (default) | youtube | flow
 Without start/end the rows are aligned to the voiceover's own word times (`align_to_words`), so the timings are the real ones, not estimates.
 Nothing here invents text, numbers or sources: it only reads and validates what the file holds.
 """
@@ -16,7 +23,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 ALIASES = {"text": ("text", "narration", "sentence", "script"), "start": ("start", "start_s", "start_time"), "end": ("end", "end_s", "end_time"),
-           "chapter": ("chapter", "section"), "footage": ("footage", "footage_query", "clip")}
+           "chapter": ("chapter", "section"), "footage": ("footage", "footage_query", "clip"), "visual": ("visual", "scene_type", "kind"),
+           "organ": ("organ", "anatomy", "body_part", "region"), "shot": ("shot", "camera"), "footage_alt": ("footage_alt", "alt_footage", "footage_fallback"),
+           "source": ("source", "footage_source", "asset_source")}
+VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "flow", "youtube")
+SHOTS = ("orbit", "zoom", "peel", "cutaway", "isolate", "fatty", "inflamed")
+SOURCES = ("stock", "youtube", "flow")
+HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source")
 SOURCE_FIELDS = ("title", "citation", "url", "year", "population", "context")
 MIN_MATCH = 0.5      # below this share of script words found in the voiceover, the CSV is not this narration
 WARN_MATCH = 0.8
@@ -123,6 +136,17 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
         for k in ("chapter", "footage"):
             if row.get(k):
                 sc[k] = row[k]
+        for k, allowed in (("visual", VISUALS), ("shot", SHOTS), ("source", SOURCES)):
+            v = (row.get(k) or "").strip().lower().replace(" ", "")
+            if v:
+                v = {"3d": "3d", "anatomy": "3d", "stock": "stock", "animation": "3d"}.get(v, v)
+                if v not in allowed:
+                    raise ValueError(f"{where}: {k} '{row[k]}' is not one of: {', '.join(allowed)}")
+                sc[k] = v
+        if row.get("organ"):
+            sc["organ"] = re.sub(r"\s+", " ", row["organ"].strip().lower())
+        if row.get("footage_alt"):
+            sc["footage_alt"] = [q for q in _split(row["footage_alt"]) if q]
         src = _sources(row, where)
         if src:
             sc["sources"] = src
@@ -237,3 +261,8 @@ def align_to_words(rows: Sequence[dict], words: Sequence[Any], total_s: float = 
 
 def match_note(frac: float) -> str:
     return f"{frac:.0%} of the CSV's words matched the voiceover" + ("" if frac >= WARN_MATCH else ": some scenes were placed by estimate, check their timing")
+
+
+def has_direction(rows: Sequence[dict]) -> bool:
+    """True when the CSV itself directs the visuals (any row fills a visual direction column): the app then plans from it instead of asking Gemini."""
+    return any(any(r.get(k) for k in HINT_COLUMNS) for r in rows)

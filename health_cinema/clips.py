@@ -14,6 +14,9 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 CLIP_VERSION = "1"
 
 def template_spec(name: str) -> dict:
+    if name.startswith(("auto:", "micro:")):      # generated from the library: needs the model's anchors
+        from . import library
+        return library.build_spec(name, assets.anatomy_assets(library.model_of(name))["anchors"])
     if name in ("brain_journey", "eye_journey"): return json.loads((TEMPLATES / f"{name}.json").read_text())
     spec = json.loads((TEMPLATES / "heart_journey.json").read_text())
     if name == "heart_journey": return spec
@@ -37,6 +40,8 @@ def scale_spec(spec: dict, seconds: float) -> dict:
     for g in s.get("glow", []): g["strength"] = [[t * k, v] for t, v in g["strength"]]
     for h in s.get("highlights", []): h["strength"] = [[t * k, v] for t, v in h["strength"]]
     for l in s.get("labels", []): l["t0"] *= k; l["t1"] *= k
+    for name, keys in s.get("tracks", {}).items(): s["tracks"][name] = [[t * k, v] for t, v in keys]      # procedural-scene tracks and pathology tints follow the stretched timeline too
+    for name, keys in s.get("tints", {}).items(): s["tints"][name] = [[t * k, v] for t, v in keys]
     return s
 
 def captions_for(sc: Scene):
@@ -74,7 +79,7 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
     is_cancelled = (lambda: bool(cancel and cancel.is_set()))
     kind, visual, fallback = sc.kind, dict(sc.visual), ""
     if kind == "anatomy_3d":
-        a = assets.anatomy_assets(assets.TEMPLATE_ASSET.get(sc.visual.get("template", "heart_journey"), "chest"))
+        a = assets.anatomy_assets(assets.model_for_template(sc.visual.get("template", "heart_journey")) or "chest")
         if not a or (frame_renderer is None and not assets.threejs_ready()):
             fallback = "3D assets or Node/three.js not available"; kind = "text_card"; visual = {"text": sc.text, "illustrative": ""}
         else:

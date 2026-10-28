@@ -22,9 +22,17 @@ def rows_for(dscenes_by_no: Dict[int, dict], allow_youtube: bool, allow_flow: bo
         if at in ("image", "flow_image", "stock_image"): at = "stock_video"
         if at not in ALLOWED and not (at in ("video", "flow_video") and allow_flow): at = "stock_video"
         sc.asset_type = at; row = sc.to_scene_row(); row.scene_number = str(no)
+        if d.get("query"): row.stock = d["query"]      # the planner's own search (organ named, short) beats the director's sentence-long description
         if not (row.stock or row.prompt): row.stock = d.get("description") or d.get("narration", "")[:80]
         rows.append(row)
     return rows
+
+WEAK_MATCH = 0.30     # a clip the app's own visual QA looked at (vision_used) and scored below this does not show what the narration says
+
+def is_weak(rec: dict) -> bool:
+    qa = rec.get("qa") or {}
+    if rec.get("ok") and qa.get("status") == "FAIL": return True       # the app's own QA failed the clip (any scene): it does not show what the narration says
+    return bool(rec.get("ok") and qa.get("vision_used") and qa.get("semantic_match") is not None and float(qa["semantic_match"]) < WEAK_MATCH)
 
 def make_acquirer(build_manager: Callable, images_dir: Path, log: Callable[[str], None] = lambda m: None, cancel: Optional[Callable[[], bool]] = None) -> Callable:
     def acquire(rows: List) -> Dict[int, dict]:
@@ -53,7 +61,7 @@ def make_acquirer(build_manager: Callable, images_dir: Path, log: Callable[[str]
             ok = rec.get("status") == "complete" and p and Path(p).is_file()
             out[no] = {"ok": bool(ok), "path": p if ok else "", "source": rec.get("source", ""), "provider": rec.get("provider", ""), "asset_id": rec.get("provider_asset_id", ""),
                        "author": rec.get("author", ""), "source_url": rec.get("source_url", ""), "query": rec.get("stock_query") or rec.get("prompt") or "", "error": rec.get("error") or "",
-                       "type": rec.get("type", "")}
+                       "type": rec.get("type", ""), "qa": {k: (rec.get("visual_qa") or {}).get(k) for k in ("semantic_match", "vision_used", "overall_score", "status")}}
         return out
     return acquire
 

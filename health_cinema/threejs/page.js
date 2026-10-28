@@ -13,8 +13,9 @@ try {
   renderer.setSize(W, H, false); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = spec.exposure ?? 1.0;
   window.__gl = renderer.getContext().getParameter(renderer.getContext().VERSION) + ' | ' + (renderer.getContext().getExtension('WEBGL_debug_renderer_info') ? renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL) : '?');
   const scene = new THREE.Scene(); scene.background = new THREE.Color().setRGB(...spec.background, THREE.LinearSRGBColorSpace);
-  const gltf = await new GLTFLoader().loadAsync('/chest.glb'); scene.add(gltf.scene);
-  const layers = {}; gltf.scene.traverse((o) => { if (o.name.startsWith('Layer_')) layers[o.name] = o; });
+  const gltf = spec.no_model ? null : await new GLTFLoader().loadAsync('/chest.glb'); if (gltf) scene.add(gltf.scene);      // procedural scenes (micro:*) have no model
+  const proc = spec.procedural ? (await import('/procedural.js')).build(THREE, scene, spec) : null;
+  const layers = {}; if (gltf) gltf.scene.traverse((o) => { if (o.name.startsWith('Layer_')) layers[o.name] = o; });
   // Translucent layers: inner layers draw first, and every translucent mesh gets a colour-less depth pre-pass, so each layer shows only its
   // nearest surface (no milky stacking of a layer's own far side or lobes) while layers in front still blend over the ones behind.
   // Layer order is the compositing order (innermost first). A layer that fades out over another (Heart over its cut-away) must come LATER in the order,
@@ -61,6 +62,9 @@ try {
     for (const [id, m] of Object.entries(hl)) { const s = f.highlight[id] ?? 0; m.visible = s >= 0.01; m.material.opacity = (spec.highlight_opacity ?? 0.3) * s; }
     for (const g of Object.values(glowCfg)) { const u = rimU[g.layer]; if (!u) continue; const v = f.glow?.[g.id] ?? 0; u.color.value.setRGB(...g.color); u.strength.value = v * (g.rim ?? 2.0); u.power.value = g.power ?? 2.5;
       layerMats[g.layer]?.forEach((m) => { if (m.emissive) { m.emissive.setRGB(...g.color); m.emissiveIntensity = v * (g.fill ?? 0.0); } }); }
+    // pathology tint: [layer or 'Layer:Object'] -> colour, per frame (an object whose name starts with the part after the colon)
+    for (const [key, rgb] of Object.entries(f.tint || {})) { const [ln, on] = key.split(':'); layers[ln]?.traverse((o) => { if (o.isMesh && (!on || o.name.startsWith(on))) o.material.color.setRGB(...rgb); }); }
+    proc?.update(f);
     composer.render(); return canvas.toDataURL('image/png');
   };
   window.__ready = true;
