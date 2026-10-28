@@ -57,7 +57,7 @@ def detect_organ(text: str) -> Optional[str]:
         if n > hit: best, hit = organ, n
     return best
 
-def _choose(profile: P.Profile, sent: dict, ev: dict, organ: Optional[str], has_footage: bool, assets_ok: bool, log: List[str]):
+def _choose(profile: P.Profile, sent: dict, ev: dict, organ: Optional[str], has_footage: bool, assets_ok: bool, log: List[str], history: Optional[List[str]] = None):
     w = profile.weights; sources = sent.get("sources") or []
     cands: Dict[str, float] = {}
     if ev["has_stat"]:
@@ -73,6 +73,10 @@ def _choose(profile: P.Profile, sent: dict, ev: dict, organ: Optional[str], has_
     if has_footage: cands["footage"] = w["footage"] + 0.7
     elif PEOPLE_RE.search(sent["text"]) and w["footage"] >= 0.8: cands["footage"] = w["footage"] * 0.6
     if not cands: cands["text_card"] = w["text_card"] + 0.1
+    if history is not None and profile.id in P.VARIETY_PROFILES:   # variety rule: favour kinds not used yet, avoid a third identical scene in a row
+        for k in cands:
+            if k not in history: cands[k] += 0.5
+            if len(history) >= 2 and history[-1] == history[-2] == k: cands[k] -= 1.0
     kind = max(cands, key=lambda k: (cands[k], k)); return kind, cands
 
 def plan(sentences: List[dict], profile_id: str = P.DEFAULT_PROFILE, *, assets_ok: bool = False, footage_for: Optional[Callable[[dict], Optional[str]]] = None,
@@ -84,7 +88,7 @@ def plan(sentences: List[dict], profile_id: str = P.DEFAULT_PROFILE, *, assets_o
         if not text or float(s["end"]) <= float(s["start"]): continue
         ev = evidence.analyze(text, s.get("sources")); organ = detect_organ(text)
         fp = s.get("footage") or (footage_for(s) if footage_for else None)
-        local: List[str] = []; kind, cands = _choose(prof, s, ev, organ, bool(fp), assets_ok, local)
+        local: List[str] = []; kind, cands = _choose(prof, s, ev, organ, bool(fp), assets_ok, local, [r["kind"] for r in raw])
         raw.append({"s": s, "text": text, "ev": ev, "organ": organ, "kind": kind, "footage": fp, "log": local, "cands": cands})
     # group neighbours that share kind+organ (same visual idea), up to max_scene_s; keep anatomy/evidence/stat scenes single-sentence
     groups: List[List[dict]] = []

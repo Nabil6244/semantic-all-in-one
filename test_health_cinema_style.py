@@ -127,12 +127,21 @@ class TestAppIntegration(unittest.TestCase):
 
 
 class TestProfiles(unittest.TestCase):
-    def test_five_profiles_share_one_engine(self):
-        self.assertEqual(list(P.PROFILES), ["medical_cinema", "human_story", "future_science", "anatomy_explainer", "health_investigative"])
+    def test_six_profiles_share_one_engine(self):
+        self.assertEqual(list(P.PROFILES), ["mix", "medical_cinema", "human_story", "future_science", "anatomy_explainer", "health_investigative"])
         for p in P.PROFILES.values():
             self.assertEqual(set(p.weights), set(P.SCENE_KINDS)); self.assertTrue(all(0 <= v <= 1 for v in p.weights.values()))
         self.assertEqual(P.get_profile("Medical Cinema").id, "medical_cinema")
         with self.assertRaises(KeyError): P.get_profile("nope")
+
+    def test_mix_profile_rotates_kinds_but_never_invents(self):
+        def S(t, a, b, **k): return dict(text=t, start=a, end=b, **k)
+        s = [S("The heart has four chambers.", 0, 6), S("About 40 percent of adults are affected.", 6, 12, sources=[{"title": "WHO", "population": "adults"}]), S("A study found it lowered risk.", 12, 18, sources=[{"title": "Lancet", "population": "adults"}]),
+             S("Patients walk every morning.", 18, 24), S("Rest matters too.", 24, 30), S("Sleep helps recovery.", 30, 36), S("Eat well.", 36, 42)]
+        kinds = [x.kind for x in planner.plan(s, "mix", assets_ok=True, footage_for=lambda x: "c.mp4" if "walk" in x["text"] else None)["scenes"]]
+        self.assertGreaterEqual(len(set(kinds)), 4, kinds)
+        self.assertFalse(any(kinds[i] == kinds[i + 1] == kinds[i + 2] for i in range(len(kinds) - 2)), kinds)
+        self.assertNotIn("stat_card", [x.kind for x in planner.plan([S("About 40 percent of adults are affected.", 0, 6)], "mix")["scenes"]])   # unsourced number is still not a big card
 
     def test_profiles_differ_where_it_matters(self):
         self.assertEqual(max(P.PROFILES["medical_cinema"].weights, key=P.PROFILES["medical_cinema"].weights.get), "anatomy_3d")

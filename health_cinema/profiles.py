@@ -1,4 +1,4 @@
-"""The five Health Cinema visual profiles. One shared engine; a profile only configures it (scene-kind weights, typography, pace, glow, evidence
+"""The Health Cinema visual profiles (five focused ones plus Mix). One shared engine; a profile only configures it (scene-kind weights, typography, pace, glow, evidence
 strictness). Profiles are not topic categories: the planner may use any scene kind whatever the profile, scaled by these weights."""
 from __future__ import annotations
 from dataclasses import dataclass, field, replace
@@ -28,6 +28,8 @@ class Profile:
     notes: str = ""
 
 PROFILES: Dict[str, Profile] = {p.id: p for p in (
+    Profile("mix", "Mix (everything)", "A bit of everything: 3D anatomy, footage, evidence, statistics and text, rotated so no one look repeats.",
+            {k: 0.6 for k in SCENE_KINDS}, (200, 160, 255), (0.7, 0.55, 1.0), sound="soft bed, light accents", notes="variety rule on"),
     Profile("medical_cinema", "Medical Cinema", "Cinematic anatomy, organs and how the body works.",
             {"anatomy_3d": 1.0, "footage": 0.5, "evidence_card": 0.4, "stat_card": 0.5, "text_card": 0.3, "chapter_card": 0.4},
             (255, 96, 80), (1.0, 0.35, 0.25), sound="low drone, soft impacts"),
@@ -45,6 +47,7 @@ PROFILES: Dict[str, Profile] = {p.id: p for p in (
             (255, 200, 70), (1.0, 0.8, 0.3), evidence_label="Claim versus evidence", block_unsourced_stats=True, sound="dry, minimal"),
 )}
 DEFAULT_PROFILE = "medical_cinema"
+VARIETY_PROFILES = ("mix",)                   # planner adds a variety rule (rotate kinds, favour unused ones) for these
 
 def get_profile(pid: str) -> Profile:
     if pid in PROFILES: return PROFILES[pid]
