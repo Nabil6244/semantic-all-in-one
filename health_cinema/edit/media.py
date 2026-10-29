@@ -25,10 +25,10 @@ def probe(path: str) -> dict:
         j = json.loads(r.stdout); s = (j.get("streams") or [{}])[0]; return {"w": int(s.get("width", 0)), "h": int(s.get("height", 0)), "duration": float(j["format"]["duration"])}
     except Exception: return {"w": 0, "h": 0, "duration": 0.0}
 
-def read_frames(path: str, W: int, H: int, start: float, count: int, loop: bool = False, cancel: Optional[threading.Event] = None) -> Iterator[Image.Image]:
+def read_frames(path: str, W: int, H: int, start: float, count: int, loop: bool = False, cancel: Optional[threading.Event] = None, speed: float = 1.0) -> Iterator[Image.Image]:
     """Exactly `count` RGB frames at 24 fps, cover-scaled to W x H, from `start` seconds. Past the end of the file the last frame is held (or the file loops)."""
     cmd = [ffmpeg(), "-v", "error", "-ss", f"{max(0.0, start):.3f}"] + (["-stream_loop", "-1"] if loop else []) + ["-i", path, "-vf",
-           f"fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}", "-frames:v", str(count), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+           (f"setpts={speed:.4f}*PTS," if abs(speed - 1.0) > 1e-3 else "") + f"fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}", "-frames:v", str(count), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=W * H * 3 * 2); n = W * H * 3; last = None; got = 0
     try:
         while got < count:

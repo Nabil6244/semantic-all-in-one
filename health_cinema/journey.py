@@ -97,6 +97,13 @@ def sample(spec_path, anchors_path, fps, W, H):
             layer_a = alpha.get(lb.get("layer", ""), 1.0) if lb.get("layer") else 1.0
             if layer_a < LABEL_MIN_LAYER_ALPHA or not label_visible(q, W, H): continue
             fr["labels"].append({"id": lb["id"], "text": lb["text"], "xy": q, "a": max(0.0, fade), "t": t, "side": lb.get("side", "right")})
+        fr["cards"] = []
+        for cd in spec.get("cards", []):      # an illustration pinned to an anatomical anchor (body-map scenes): pin position follows the camera, the overlay draws the card and its leader line
+            if not (cd["t0"] <= t <= cd["t1"]): continue
+            a = A[cd["anchor"]]["center"]; q = project(cam, look, fov, [a[j] + cd.get("offset", [0, 0, 0])[j] for j in range(3)], W, H)
+            if q is None: continue
+            fr["cards"].append({"id": cd["id"], "image": cd["image"], "title": cd.get("title", ""), "tag": cd.get("tag", ""), "foot": cd.get("foot", ""), "xy": q, "side": cd.get("side", "right"),
+                                "age": t - cd["t0"], "left": cd["t1"] - t, "dist": math.dist(cam, look)})
         frames.append(fr)
     return spec, A, frames
 

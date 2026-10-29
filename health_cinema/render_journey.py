@@ -15,7 +15,7 @@ VERSION = "1"
 DEFAULT_SIZE = (1920, 1080)   # Health Cinema is a landscape 16:9 style; this is the default export
 PREVIEW_SIZE = (1280, 720)
 HERE = Path(__file__).resolve().parent
-CODE_FILES = (HERE / "journey.py", HERE / "overlay.py", HERE / "threejs" / "page.js", HERE / "threejs" / "procedural.js", HERE / "threejs" / "page.html", HERE / "threejs" / "render.mjs")
+CODE_FILES = (HERE / "journey.py", HERE / "overlay.py", HERE / "threejs" / "page.js", HERE / "threejs" / "procedural.js", HERE / "threejs" / "atmosphere.js", HERE / "threejs" / "bodymap.js", HERE / "threejs" / "page.html", HERE / "threejs" / "render.mjs")
 
 class Cancelled(RuntimeError): pass
 

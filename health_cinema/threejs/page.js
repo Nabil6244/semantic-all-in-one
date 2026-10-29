@@ -14,7 +14,7 @@ try {
   window.__gl = renderer.getContext().getParameter(renderer.getContext().VERSION) + ' | ' + (renderer.getContext().getExtension('WEBGL_debug_renderer_info') ? renderer.getContext().getParameter(renderer.getContext().getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL) : '?');
   const scene = new THREE.Scene(); scene.background = new THREE.Color().setRGB(...spec.background, THREE.LinearSRGBColorSpace);
   const gltf = spec.no_model ? null : await new GLTFLoader().loadAsync('/chest.glb'); if (gltf) scene.add(gltf.scene);      // procedural scenes (micro:*) have no model
-  const proc = spec.procedural ? (await import('/procedural.js')).build(THREE, scene, spec) : null;
+  const proc = spec.procedural ? (await import(spec.procedural.kind === 'bodymap' ? '/bodymap.js' : '/procedural.js')).build(THREE, scene, spec) : null;
   const layers = {}; if (gltf) gltf.scene.traverse((o) => { if (o.name.startsWith('Layer_')) layers[o.name] = o; });
   // Translucent layers: inner layers draw first, and every translucent mesh gets a colour-less depth pre-pass, so each layer shows only its
   // nearest surface (no milky stacking of a layer's own far side or lobes) while layers in front still blend over the ones behind.
@@ -45,10 +45,12 @@ try {
   const tb = (p) => new THREE.Vector3(p[0], p[2], -p[1]);   // Blender (Z up, front -Y) -> three (Y up)
   const hl = {};
   for (const h of spec.highlights || []) {
-    const c = data.anchors[h.anchor].center; const m = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(...h.color), transparent: true, opacity: 0, depthWrite: false, blending: THREE.NormalBlending }));
+    const c = data.anchors[h.anchor].center; const m = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(...h.color), transparent: true, opacity: 0, depthWrite: false, blending: spec.highlight_additive ? THREE.AdditiveBlending : THREE.NormalBlending }));
     m.position.copy(tb([c[0] + h.offset[0], c[1] + h.offset[1], c[2] + h.offset[2]])); m.scale.set(h.scale[0], h.scale[2], h.scale[1]); m.renderOrder = 99; scene.add(m); hl[h.id] = m;
   }
-  const cam = new THREE.PerspectiveCamera(30, W / H, 0.02, 30);
+  const cam = new THREE.PerspectiveCamera(30, W / H, 0.02, 60);
+  const d0 = (() => { const a = data.frames[0]; return Math.hypot(a.cam[0] - a.look[0], a.cam[1] - a.look[1], a.cam[2] - a.look[2]) || 1; })();
+  const atmo = spec.atmosphere === false ? null : (await import('/atmosphere.js')).build(THREE, scene, spec, d0);      // graded backdrop + depth fog + floating motes (atmosphere.js)
   // Glow: emissive layers + a restrained bloom (high threshold, so only emissive parts bloom).
   const composer = new EffectComposer(renderer); composer.setSize(W, H); composer.addPass(new RenderPass(scene, cam));
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), spec.bloom?.strength ?? 0.55, spec.bloom?.radius ?? 0.6, spec.bloom?.threshold ?? 0.82)); composer.addPass(new OutputPass());
@@ -56,7 +58,9 @@ try {
   const sun = [['key', 3.0, [0.9, 0.7, 0.9]], ['fill', 0.9, [-1, 0.2, 0.7]], ['rim', 2.2, [0, 0.5, -1]]].map(([n, e, d]) => { const l = new THREE.DirectionalLight(0xffffff, e); scene.add(l); scene.add(l.target); return { l, d: new THREE.Vector3(...d).normalize() }; });
   scene.add(new THREE.HemisphereLight(0x8899bb, 0x221111, 0.45));
   window.renderFrame = (i) => {
-    const f = data.frames[i]; cam.fov = f.fov; cam.updateProjectionMatrix(); cam.position.copy(tb(f.cam)); cam.lookAt(tb(f.look)); cam.updateMatrixWorld();
+    const f = data.frames[i]; cam.fov = f.fov; cam.updateProjectionMatrix(); cam.position.copy(tb(f.cam)); const lk = tb(f.look);
+    const dd = cam.position.distanceTo(lk) * (spec.sway ?? 0.012); cam.position.add(new THREE.Vector3(Math.sin(f.t * 0.7) * dd, Math.sin(f.t * 0.93 + 1.3) * dd * 0.7, Math.sin(f.t * 0.51 + 2.1) * dd));      // a trace of handheld drift
+    cam.lookAt(lk); cam.updateMatrixWorld(); atmo?.update(f, lk);
     const qn = cam.quaternion; sun.forEach(({ l, d }) => { l.position.copy(cam.position).add(d.clone().applyQuaternion(qn).multiplyScalar(3)); l.target.position.copy(tb(f.look)); });
     for (const [ln, node] of Object.entries(layers)) { const a = f.alpha[ln] ?? 0; node.visible = a >= 0.01; layerPre[ln].forEach((pm) => { pm.visible = a < 0.99 && (a >= (spec.prepass_min_alpha ?? 0.5) || (spec.prepass_always || []).includes(ln)); }); layerMats[ln].forEach((m) => { m.opacity = a; const solid = a >= 0.99; if (m.transparent === solid) { m.transparent = !solid; m.depthWrite = solid; m.needsUpdate = true; } }); }
     for (const [id, m] of Object.entries(hl)) { const s = f.highlight[id] ?? 0; m.visible = s >= 0.01; m.material.opacity = (spec.highlight_opacity ?? 0.3) * s; }

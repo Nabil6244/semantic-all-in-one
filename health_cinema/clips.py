@@ -13,7 +13,11 @@ SIZES = {"final": (1920, 1080), "preview": (1280, 720)}
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 CLIP_VERSION = "1"
 
-def template_spec(name: str) -> dict:
+def template_spec(name: str, variant: int = 0) -> dict:
+    from . import library
+    return library.apply_variant(_template_spec(name), int(variant or 0))
+
+def _template_spec(name: str) -> dict:
     if name.startswith(("auto:", "micro:")):      # generated from the library: needs the model's anchors
         from . import library
         return library.build_spec(name, assets.anatomy_assets(library.model_of(name))["anchors"])
@@ -84,7 +88,13 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
             fallback = "3D assets or Node/three.js not available"; kind = "text_card"; visual = {"text": sc.text, "illustrative": ""}
         else:
             try:
-                spec = scale_spec(template_spec(sc.visual["template"]), frames / FPS); spec["footer"] = sc.illustrative; spec["captions"] = captions_for(sc)
+                if sc.visual.get("body_rows"):      # one continuous body-map shot built from the CSV beats (bodymap.py); invalid beats never reach a frame
+                    from . import bodymap
+                    beats = bodymap.beats_from_rows(sc.visual["body_rows"], sc.start); chk = bodymap.validate(beats, bodymap.load_anchors(a["anchors"]))
+                    if chk["errors"]: raise ValueError("body-map beats are not valid: " + "; ".join(chk["errors"])[:200])
+                    spec = bodymap.build_spec(beats, bodymap.load_anchors(a["anchors"]), frames / FPS)
+                else: spec = scale_spec(template_spec(sc.visual["template"], sc.visual.get("variant", 0)), frames / FPS)
+                spec["footer"] = sc.illustrative; spec["captions"] = captions_for(sc)
                 sp = cache_dir / f"spec_{clip_key(sc, W, H, 'spec')}.json"; sp.write_text(json.dumps(spec))
                 r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, FPS, cache_dir / "journeys", cancel=cancel, frame_renderer=frame_renderer or RJ.threejs_frames,
                                       on_line=None)
@@ -101,7 +111,7 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
         if kind in ("counter_card", "bar_card", "timeline_card"): prm["captions"] = captions_for(sc); prm["source_line"] = _source_line(sc)
         if kind == "stat_card": prm.update(_stat_params(sc))
         if kind == "evidence_card": prm.update({"level": sc.evidence_level, "source_line": _source_line(sc)})
-        if kind == "chapter_card": prm = {"title": sc.chapter or sc.text[:80], "kicker": "Chapter"}
+        if kind == "chapter_card": prm = {"title": visual.get("title") or sc.chapter or sc.text[:80], "kicker": visual.get("kicker") or "Chapter"}
         cards.render_card_clip(kind, prm, prof, W, H, FPS, frames, out, ff, cancel=is_cancelled)
     return {"path": str(out), "cache_hit": False, "used_kind": kind, "fallback": fallback}
 
@@ -111,5 +121,5 @@ def _source_line(sc: Scene) -> str:
     return " · ".join(b for b in bits if b)
 
 def _stat_params(sc: Scene) -> dict:
-    num = (sc.visual.get("number") or "").replace(",", ""); unit = "%" if "%" in sc.text or "percent" in sc.text.lower() else ""
+    num = (sc.visual.get("number") or "").replace(",", ""); unit = sc.visual.get("unit") or ("%" if "%" in sc.text or "percent" in sc.text.lower() else "")
     return {"number": num, "unit": unit, "source_line": _source_line(sc), "context": sc.text}

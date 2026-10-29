@@ -9,7 +9,7 @@ const { chromium } = createRequire(path.join(ROOT, 'flow-engine', 'package.json'
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split('?')[0]); let f = null;
-  if (u === '/index.html') f = path.join(HERE, 'page.html'); else if (u === '/page.js') f = path.join(HERE, 'page.js'); else if (u === '/procedural.js') f = path.join(HERE, 'procedural.js');
+  if (u === '/index.html') f = path.join(HERE, 'page.html'); else if (u === '/page.js') f = path.join(HERE, 'page.js'); else if (u === '/procedural.js') f = path.join(HERE, 'procedural.js'); else if (u === '/atmosphere.js') f = path.join(HERE, 'atmosphere.js'); else if (u === '/bodymap.js') f = path.join(HERE, 'bodymap.js');
   else if (u === '/chest.glb') f = path.resolve(glbPath); else if (u === '/frames.json') f = path.resolve(framesPath);
   else if (u === '/three/three.module.min.js') f = path.join(THREE, 'build', 'three.module.min.js');
   else if (u === '/three/three.core.min.js') f = path.join(THREE, 'build', 'three.core.min.js');

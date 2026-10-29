@@ -12,7 +12,7 @@ from typing import List, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL, ANCHORS = "chest.glb", "anchors.json"   # legacy names of the chest asset
-ASSET_FILES = {"chest": ("chest.glb", "anchors.json"), "head": ("head.glb", "anchors_head.json"), "abdomen": ("abdomen.glb", "anchors_abdomen.json"), "msk": ("msk.glb", "anchors_msk.json")}   # see library.py
+ASSET_FILES = {"chest": ("chest.glb", "anchors.json"), "head": ("head.glb", "anchors_head.json"), "abdomen": ("abdomen.glb", "anchors_abdomen.json"), "msk": ("msk.glb", "anchors_msk.json"), "body": ("body.glb", "anchors_body.json")}   # see library.py; body = the whole-body stage for body-map scenes (bench/prep_body.py)
 TEMPLATE_ASSET = {"heart_journey": "chest", "chest_journey": "chest", "brain_journey": "head", "eye_journey": "head"}
 # three.js files page.js imports (GLTFLoader and the bloom post-processing chain), relative to three/examples/jsm: see packaging.py
 THREE_ADDONS = ("loaders/GLTFLoader.js", "utils/BufferGeometryUtils.js", "postprocessing/EffectComposer.js", "postprocessing/MaskPass.js", "postprocessing/OutputPass.js",
@@ -75,7 +75,7 @@ def template_ready(template: str) -> bool:
     kind = model_for_template(template)
     a = anatomy_assets(kind) if kind else None
     if not a: return False
-    if template in TEMPLATE_ASSET: return True
+    if template in TEMPLATE_ASSET or template.startswith("body:"): return True      # a body-map scene is built from the CSV beats and validated by bodymap.validate
     try:
         from . import library
         library.build_spec(template, a["anchors"]); return True

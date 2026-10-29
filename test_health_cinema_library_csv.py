@@ -144,4 +144,44 @@ class TestPathology(unittest.TestCase):
         with self.assertRaises(ValueError): C.parse_csv_text("text,shot\nHi.,melt\n")
 
 
+class TestRepeatedScenesDiffer(unittest.TestCase):
+    def test_second_use_of_a_template_gets_a_variant_and_a_different_camera(self):
+        rows = C.parse_csv_text("text,visual,organ,shot\n\"Blood flows.\",3d,blood flow,zoom\n\"Rest.\",text,,\n\"Blood flows again.\",3d,blood flow,zoom\n\"And again here.\",3d,blood flow,zoom\n")
+        for i, s in enumerate(rows): s["start"], s["end"] = i * 8.0, i * 8.0 + 8.0
+        sc = [s for s in planner.plan_directed(rows, "mix", direction.dscenes_from_rows(rows), lambda t: True, allow_footage=True)["scenes"] if s.kind == "anatomy_3d"]
+        self.assertEqual([s.visual.get("variant", 0) for s in sc], [0, 1])      # the last two rows are consecutive rows of one organ: one scene
+        anchors = str(assets.ROOT / "health_cinema" / "templates" / "micro_anchors.json"); a, b = (library.apply_variant(library.build_spec(s.visual["template"], anchors), s.visual.get("variant", 0)) for s in sc[:2])
+        self.assertNotEqual(a["camera"][0]["az"], b["camera"][0]["az"]); self.assertEqual(b["procedural"]["variant"], 1); self.assertNotIn("variant", a["procedural"])
+        self.assertEqual(library.apply_variant(library.build_spec("micro:clot:orbit", anchors), 0)["camera"], library.build_spec("micro:clot:orbit", anchors)["camera"])      # first use unchanged: cache stays valid
+
+
+class TestCsvCards(unittest.TestCase):
+    CSV = ('text,visual,stat,stat_unit,stat_label,stat_kicker,events,card_title,card_kicker\n'
+           '"It beats about 100,000 times a day.",stat,"100,000",,heartbeats every day,Your heart,,,\n'
+           '"Around 20 to 30 minutes in, the first heart cells begin to die. They are replaced by scar tissue.",timeline,,,,,"20 to 30 minutes: the first cells die | scar tissue: replaces the muscle",,The heart muscle\n'
+           '"Here is what you can control.",chapter,,,,,,What you can control,Prevention\n')
+    def rows(self):
+        r = C.parse_csv_text(self.CSV)
+        for i, s in enumerate(r): s["start"], s["end"] = i * 9.0, i * 9.0 + 9.0
+        return r
+    def test_columns_are_parsed_and_validated(self):
+        r = self.rows(); self.assertEqual((r[0]["stat"], r[0]["stat_label"]), ("100,000", "heartbeats every day")); self.assertEqual(r[1]["events"][1], {"when": "scar tissue", "label": "replaces the muscle"})
+        self.assertTrue(C.has_direction(r))
+        with self.assertRaisesRegex(ValueError, "needs the number"): C.parse_csv_text("text,visual,stat\nHi.,stat,\n")
+        with self.assertRaisesRegex(ValueError, "when: what happens"): C.parse_csv_text("text,visual,events\nHi.,timeline,just one thing\n")
+        with self.assertRaisesRegex(ValueError, "at least two events"): C.parse_csv_text("text,visual,events\nHi.,timeline,\"a: b\"\n")
+    def test_planner_builds_cards_from_the_rows_only(self):
+        sent = self.rows(); sc = planner.plan_directed(sent, "mix", direction.dscenes_from_rows(sent), lambda t: True, allow_footage=True)["scenes"]
+        self.assertEqual([s.kind for s in sc], ["stat_card", "timeline_card", "chapter_card"])
+        self.assertEqual(sc[0].visual["number"], "100,000"); self.assertEqual(sc[0].visual["context"], "heartbeats every day"); self.assertEqual(sc[0].visual["source_line"], "From the narration")
+        ev = sc[1].visual["events"]; self.assertEqual([e["when"] for e in ev], ["20 to 30 minutes", "scar tissue"]); self.assertLess(ev[0]["t0"], ev[1]["t0"]); self.assertGreaterEqual(ev[1]["t0"] - ev[0]["t0"], 0.9)
+        self.assertEqual((sc[2].visual["title"], sc[2].visual["kicker"]), ("What you can control", "Prevention"))
+    def test_high_end_director_gives_the_cards_their_own_text(self):
+        from health_cinema.edit import director as D
+        sent = self.rows(); sc = planner.plan_directed(sent, "mix", direction.dscenes_from_rows(sent), lambda t: True, allow_footage=True)["scenes"]
+        p = D.build(sc, (255, 96, 80), src_duration=lambda path: 10.0); g = [s["gfx"] for s in p["shots"]]
+        self.assertEqual((g[0]["number"], g[0]["context"], g[0]["kicker"], g[0]["source_line"]), ("100,000", "heartbeats every day", "Your heart", "From the narration"))
+        self.assertEqual(g[1]["kicker"], "The heart muscle" if False else g[1]["kicker"]); self.assertEqual(len(g[1]["events"]), 2); self.assertEqual((g[2]["title"], g[2]["kicker"]), ("What you can control", "Prevention"))
+
+
 if __name__ == "__main__": unittest.main()

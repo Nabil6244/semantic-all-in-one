@@ -47,7 +47,7 @@ class FootageShot(_Base):
         super().__init__(spec, W, H, handle); cm = spec.get("camera") or {}; n = round(self.dur * media.FPS) + 2 * handle
         self.cam = M.camera_path(cm.get("move", "push_in"), self.dur, cm.get("amount", 0.12), tuple(cm.get("focus", (0.5, 0.5))), self.hs, int(spec.get("seed", 0)))
         self.SW, self.SH = _even(W * 1.4), _even(H * 1.4); self.base_zoom = float((spec.get("camera") or {}).get("base", 1.0))
-        self.reader = media.read_frames(spec["src"], self.SW, self.SH, spec["src_in"] - self.hs, n, loop=True, cancel=cancel)
+        sp_ = float(spec.get("speed", 1.0)); self.reader = media.read_frames(spec["src"], self.SW, self.SH, spec["src_in"] - self.hs / sp_, n, loop=True, cancel=cancel, speed=sp_)
         pf = media.poster(spec["src"], spec["src_in"] + self.dur / 2); self.gain = grade.exposure_gain(grade.measure_luma(pf)) if spec.get("normalize", True) else 1.0
         self.look = spec.get("look", "neutral"); self.dust = _dust_sheet(W, H, int(spec.get("seed", 0)) + 11); self.layout = spec.get("layout", "full")
         self.bokeh = spec.get("dust", True)

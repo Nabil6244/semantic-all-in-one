@@ -178,12 +178,27 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         if hv == "3d":
             from . import library
             tpl = library.template_for(hint.get("organ") or _anatomy_topic(text) or "", template_ready, shot=hint.get("shot"), text=text)      # an explicit 3D row is honoured: no once-per-video limit
+        elif hv == "body": tpl = "body:skin" if template_ready("body:skin") else None      # body-map beat: the whole-body model; without it the row falls back to footage of the named region (never a card)
+        elif hv in ("footage", "flow", "youtube", "text", "chapter", "counter", "bar", "timeline"): tpl = None      # an explicit non-3D row is never turned into a 3D organ because its sentence names one
         else: tpl = organ_template(text)
         wanted = None if tpl else (hint.get("organ") or _anatomy_topic(text))
         if hv == "text":
             it["kind"] = "text_card"; it["visual"] = {"text": text, "beats": [{"text": x["text"].strip(), "t0": round(float(x["start"]) - it["start"], 3)} for x in it["g"]]}; why.append("CSV: visual=text"); it["why"] = why; continue
         if hv == "chapter":
-            it["kind"] = "chapter_card"; it["visual"] = {"title": text[:80]}; why.append("CSV: visual=chapter"); it["why"] = why; continue
+            it["kind"] = "chapter_card"; it["visual"] = {"title": hint.get("card_title") or text[:80], "kicker": hint.get("card_kicker") or "Chapter"}; why.append("CSV: visual=chapter"); it["why"] = why; continue
+        if hv == "stat" and hint.get("stat"):
+            num = str(hint["stat"]).strip(); it["kind"] = "stat_card"; why.append("CSV: visual=stat")
+            it["visual"] = {"number": num, "unit": hint.get("stat_unit") or "", "context": hint.get("stat_label") or text, "kicker": hint.get("stat_kicker") or "The figure", "source_line": hint.get("stat_source") or "From the narration"}
+            if re.sub(r"\D", "", num) and re.sub(r"\D", "", num) not in re.sub(r"\D", "", text): why.append("the number is not written as digits in this sentence: check it matches what is said")
+            it["why"] = why; continue
+        if hv == "timeline" and hint.get("events"):
+            dur_ = max(1.0, it["end"] - it["start"]); low = text.lower(); evs = []; last = 0.0; n_ = len(hint["events"])
+            for k_, e in enumerate(hint["events"]):      # an event appears when its first word is spoken (position in the sentence text); evenly spaced when the word is not found
+                pos = low.find(str(e["when"]).lower().split()[0]) if e.get("when") else -1
+                t0 = (pos / max(1, len(low))) * dur_ if pos >= 0 else dur_ * (k_ + 0.3) / n_
+                t0 = round(max(0.4, t0, last + 0.9), 2); last = t0; evs.append({"when": e["when"], "label": e["label"], "t0": min(t0, dur_ - 1.0)})
+            it["kind"] = "timeline_card"; it["visual"] = {"events": evs, "kicker": hint.get("card_kicker") or "In order", "source_line": hint.get("stat_source") or "From the narration. Order of events only; spacing is not to scale."}
+            why.append("CSV: visual=timeline"); it["why"] = why; continue
         if hv in ("footage", "flow", "youtube") and (d["queries"] or d["description"]): m = pc = None      # explicit footage: no counter/bar guessing
         if m:
             sent = next(x for x in it["g"] if EVERY_RE.search(x["text"])); ev = re.search(r"\b(?:has|have|suffers?|dies?)\s+an?\s+(\w+)", text, re.I)
@@ -196,6 +211,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         elif tpl:
             it["kind"] = "anatomy_3d"; it["visual"] = {"template": tpl, "organ": {"brain_journey": "brain", "eye_journey": "eye", "heart_journey": "heart", "chest_journey": "lungs"}.get(tpl, hint.get("organ") or tpl)}; used3d.add(tpl)
             if hint.get("shot"): it["visual"]["shot"] = hint["shot"]
+            if tpl.startswith("body:"): it["visual"]["body_rows"] = [{"start": it["start"], "end": it["end"], "text": text, "hint": hint}]; it["visual"]["organ"] = hint.get("body_region") or "body"
             why.append(f"anatomy topic -> {tpl}")
         elif allow_footage and (d["queries"] or d["description"]) and (d["asset_type"] in FOOTAGE_TYPES or d["asset_type"] in GENERATED_TYPES or wanted):
             # a missing 3D model (or a director asset type we cannot fetch directly) must never turn into a card: the scene still gets real footage,
@@ -209,6 +225,13 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             it["kind"] = "text_card"; it["visual"] = {"text": text, "beats": [{"text": x["text"].strip(), "t0": round(float(x["start"]) - it["start"], 3)} for x in it["g"]]}
             why.append("no suitable footage or data graphic: typographic card")
         it["why"] = why
+    # consecutive body-map rows are ONE continuous shot: the camera travels between their regions, the narration timing drives each beat
+    k = 0
+    while k + 1 < len(items):
+        a, b = items[k], items[k + 1]
+        if a["kind"] == b["kind"] == "anatomy_3d" and a["visual"].get("body_rows") and b["visual"].get("body_rows"):
+            a["visual"]["body_rows"] += b["visual"]["body_rows"]; a["g"] += b["g"]; a["end"] = b["end"]; a["text"] += " " + b["text"]; a["why"].append("next row is another beat of the same body-map shot"); del items[k + 1]
+        else: k += 1
     # consecutive explicit 3D rows about the same body part are one scene (the shot of the first): a 3 second flight round an organ is not watchable
     k = 0
     while k + 1 < len(items):
@@ -220,6 +243,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
     i = 0
     while i < len(items):
         it = items[i]
+        if it["kind"] == "anatomy_3d" and it["visual"].get("body_rows"): i += 1; continue      # a body-map shot is exactly as long as its beats
         if it["kind"] == "anatomy_3d":
             need = MIN_3D_S.get(it["visual"]["template"], 10.0)
             while it["end"] - it["start"] < need and i + 1 < len(items) and items[i + 1]["kind"] in ("footage", "text_card", "anatomy_3d") and (items[i + 1]["d"].get("hint") or {}).get("visual") in (None, "auto"):      # never over a row the CSV directed
@@ -258,12 +282,29 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
                    sentences=[{"text": x["text"], "start": float(x["start"]), "end": float(x["end"])} for x in it["g"]], dscene_ids=[it["d"]["scene_id"]])
         if it["kind"] == "anatomy_3d":
             sc.illustrative = evidence.illustrative_label("anatomy_3d")
-            if it["end"] - it["start"] < 0.5 * MIN_3D_S.get(it["visual"].get("template", ""), 10.0):
+            if it["visual"].get("body_rows"): _body_flags(sc, it)
+            elif it["end"] - it["start"] < 0.5 * MIN_3D_S.get(it["visual"].get("template", ""), 10.0):
                 sc.flags.append({"code": "3d_short", "severity": "note", "message": f"This 3D scene is only {it['end'] - it['start']:.1f} s long, so its camera move is compressed. Give the row a longer sentence or follow it with another row for the same body part."})
         if it["kind"] in ("counter_card", "bar_card") and not sc.sources: sc.flags.append({"code": "figure_unsourced", "severity": "review", "message": "This figure is shown with 'Source needed': attach the study, population and year before publishing."})
         scenes.append(sc)
+    seen3d: Dict[str, int] = {}
+    for sc in scenes:      # the n-th use of one 3D template in a video gets variant n: another camera side, another random arrangement (library.apply_variant)
+        if sc.kind == "anatomy_3d" and sc.visual.get("template"):
+            n_ = seen3d.get(sc.visual["template"], 0); seen3d[sc.visual["template"]] = n_ + 1
+            if n_: sc.visual["variant"] = n_
     if scenes: scenes[0].chapter = title
     return {"scenes": scenes, "log": log, "profile": prof.id}
+
+def _body_flags(sc, it) -> None:
+    """Check the body-map beats against the body's real anchors and the illustration library BEFORE any frame is rendered. Problems become review flags on the scene
+    (`bodymap_error` makes the renderer fall back to footage/text instead of a wrong picture; a missing illustration only omits its card and says what to generate)."""
+    from . import assets, bodymap
+    a = assets.anatomy_assets("body")
+    if not a: return
+    beats = bodymap.beats_from_rows(it["visual"]["body_rows"], it["start"]); res = bodymap.validate(beats, bodymap.load_anchors(a["anchors"]))
+    sc.visual["body_check"] = {"errors": res["errors"], "warnings": res["warnings"], "missing_illustrations": res["missing_illustrations"]}
+    for e in res["errors"]: sc.flags.append({"code": "bodymap_error", "severity": "review", "message": e})
+    for w_ in res["warnings"]: sc.flags.append({"code": "bodymap_note", "severity": "note", "message": w_})
 
 FOOTAGE_TYPES = ("stock_video", "youtube_video", "archive_video", "nasa_video")
 GENERATED_TYPES = ("video", "flow_video", "image", "flow_image", "stock_image")   # the director wanted a generated/illustrative visual: without a generator, footage of the same idea

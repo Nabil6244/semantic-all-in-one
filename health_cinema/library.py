@@ -97,6 +97,7 @@ def model_of(template: str) -> Optional[str]:
     """The model kind a template id needs (chest/head/abdomen/msk)."""
     for tpl, model in AUTHORED.values():
         if template == tpl: return model
+    if template.startswith("body:"): return "body"
     if template.startswith("auto:"):
         o = ORGANS.get(template.split(":")[1]); return o.model if o else None
     if template.startswith("micro:"): return "micro" if template.split(":")[1] in MICRO else None
@@ -135,6 +136,15 @@ def available(ready: Callable[[str], bool]) -> Dict[str, List[str]]:
 
 def _diag(b: dict) -> float: return math.sqrt(sum((b["max"][i] - b["min"][i]) ** 2 for i in range(3)))
 
+def apply_variant(spec: dict, variant: int) -> dict:
+    """A repeat of the same template in one video must not look like the same clip: the camera comes in from a different side and height. (Procedural scenes also
+    re-seed their contents, see procedural.js.) variant 0 leaves the spec untouched, so first uses keep their cached renders."""
+    if not variant: return spec
+    off = [0, 32, -32, 58, -58][variant % 5]; spec["id"] = f"{spec.get('id', '')}_var{variant}"
+    for c in spec["camera"]: c["az"] = c["az"] + off; c["el"] = c["el"] + 2 * (variant % 3)
+    if "procedural" in spec: spec["procedural"]["variant"] = variant
+    return spec
+
 def _build_micro(template: str, anchors_path: str) -> dict:
     _, key, shot = (template.split(":") + ["orbit"])[:3]; m = MICRO[key]
     A = json.loads(Path(anchors_path).read_text(encoding="utf-8"))["anchors"]
@@ -142,9 +152,11 @@ def _build_micro(template: str, anchors_path: str) -> dict:
     D = DURATION; fov = 30.0; d = m.dist
     cam = [(0, d * 1.15, -30, 8), (D * 0.5, d, -6, 10), (D, d * 0.82, 22, 8)] if shot != "zoom" else [(0, d * 1.5, -12, 8), (D, d * 0.7, 6, 10)]
     tracks = {n: [[round(t * D, 2), v] for t, v in keys] for n, keys in m.tracks}
+    if shot == "zoom" and key in ("plaque", "clot"):      # the second look at a condition starts from an advanced stage (a story's "later" beat), not from nothing
+        n = "plaque" if key == "plaque" else "clot"; tracks[n] = [[0.0, 0.65], [round(D * 0.9, 2), 1.0], [D, 1.0]]
     labels = [{"id": f"l{i}", "text": text, "anchor": an, "offset": [0, 0, 0], "t0": round(D * lb[2], 2), "t1": round(D * lb[3], 2) if len(lb) > 3 else round(D - 0.6, 2), "side": "right" if i % 2 == 0 else "left"} for i, lb in enumerate(m.labels) for text, an in [lb[:2]] if an in A]
     return {"id": f"{template}_v1", "profile": "medical_cinema", "duration": D, "background": [0.012, 0.016, 0.03], "no_model": True, "camera": [{"t": round(t, 2), "target": m.target, "dist": round(dd, 3), "az": az, "el": el, "fov": fov} for t, dd, az, el in cam],
-            "layers": {}, "layer_order": [], "prepass_always": [], "highlights": [], "glow": [], "bloom": {"strength": 0.3, "radius": 0.5, "threshold": 1.0}, "labels": labels, "exposure": 0.9,
+            "layers": {}, "layer_order": [], "prepass_always": [], "highlights": [], "glow": [], "bloom": {"strength": 0.3, "radius": 0.5, "threshold": 1.0}, "labels": labels, "exposure": 0.85, "theme": "cell" if m.kind == "cell" else "blood", "fog_density": 0.35,
             "tracks": tracks, "procedural": {"kind": m.kind, "radius": 0.5, "length": 8, "illustration": "Conceptual illustration, not to scale."}}
 
 def build_spec(template: str, anchors_path: str) -> dict:

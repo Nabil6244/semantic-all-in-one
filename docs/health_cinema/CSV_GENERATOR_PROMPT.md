@@ -79,3 +79,11 @@ CONTENT RULES
    is for education and is not medical advice."
 6. Sentences of 8 to 25 words, written for the ear.
 ```
+
+## Body-map beats (optional, visual=body)
+For a video that explains a condition on a 3D body, write the story as consecutive rows with `visual=body` and the columns `body_region`, `body_scale`, `body_focus`, `body_effect`, `body_label`, `card_type`, `card_ref`,
+`card_prompt`, `card_at`. Start with one `whole` beat, then `region` and `close` beats at the real place the narration names (use only region names listed in docs/health_cinema/BODYMAP.md), one beat per spoken sentence.
+Give every illustration card a stable `card_ref` (lower_snake_case with a topic and view, e.g. `skin_infection_lesion_v1`) and a one-sentence `card_prompt` describing a non-graphic medical illustration; reuse the same `card_ref`
+whenever the same picture fits another video. Use `skin_layers` then `spread` only for an infection that enters through the skin; use `organ` focus (with `fatty` / `inflamed` where they apply) for organ diseases.
+Never invent an anatomical region at render time: if no listed region fits the sentence, use a normal footage row.
+

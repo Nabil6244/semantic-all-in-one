@@ -80,7 +80,13 @@ def render_high_end(scenes, voiceover: str, out_path: str, project_dir: Path, *,
         a = assets.anatomy_assets(assets.model_for_template(sh["template"]) or "chest"); ok = bool(a and (frame_renderer is not None or assets.threejs_ready()))
         if ok:
             try:
-                spec = C.scale_spec(C.template_spec(sh["template"]), sh["t1"] - sh["t0"]); spec["footer"] = ""; spec["captions"] = []
+                if sh.get("body_rows"):      # a body-map shot: one continuous camera move built from the CSV beats (bodymap.py), validated before any frame is drawn
+                    from health_cinema import bodymap
+                    A_ = bodymap.load_anchors(a["anchors"]); beats = bodymap.beats_from_rows(sh["body_rows"], sh["scene_start"]); chk = bodymap.validate(beats, A_)
+                    if chk["errors"]: raise ValueError("body-map beats are not valid: " + "; ".join(chk["errors"])[:200])
+                    spec = bodymap.build_spec(beats, A_, sh["t1"] - sh["t0"])
+                else: spec = C.scale_spec(C.template_spec(sh["template"], sh.get("variant", 0)), sh["t1"] - sh["t0"])
+                spec["footer"] = ""; spec["captions"] = []
                 sp = cache / f"spec_{hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:16]}.json"; sp.write_text(json.dumps(spec))
                 progress(0.05 + 0.1 * k / len(shots_), f"3D journey for scene {sh['scene_no']}")
                 r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, C.FPS, cache.parent / "journeys", cancel=cancel, frame_renderer=frame_renderer or (lambda *a, **k: RJ.threejs_frames(*a, **dict(k, timeout=JOURNEY_TIMEOUT_S)))); log(f"3D journey scene {sh['scene_no']}: {'cache hit' if r['cache_hit'] else 'rendered in %.0fs' % r['seconds']}"); sh["clip"] = r["path"]; sh["journey_cache_hit"] = r["cache_hit"]; continue

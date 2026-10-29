@@ -1,6 +1,6 @@
 """Shared label overlay + encode for 3D journey frames (backend-neutral). Labels come from journey.sample(); sizes scale with frame height
 (1080p base: label 40 px). Usage: overlay.py FRAMES_JSON FRAME_DIR OUT_MP4 FPS"""
-import json, subprocess, sys, shutil
+import json, math, subprocess, sys, shutil
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -38,6 +38,50 @@ def draw_labels(im, labels, H):
         d.text(org, lb["text"], font=f, fill=(255, 255, 255, a))
     return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
 
+CARD_W_1080 = 640      # card width at 1080p (landscape illustration + header + footer); scaled with the frame and, slightly, with the camera distance
+
+_CARD_CACHE: dict = {}
+
+def _card_plate(path, title, tag, foot, w, H):
+    """The finished card (RGBA): dark glass plate, hairline cyan border with corner brackets, an 'ILLUSTRATION' chip + title, the picture, a footer line. Cached per card and size."""
+    key = (path, title, tag, foot, w, H)
+    if key in _CARD_CACHE: return _CARD_CACHE[key]
+    k = H / 1080; pad = round(14 * k); head = round(48 * k); footh = round(40 * k); img = Image.open(path).convert("RGB"); iw = w - 2 * pad; ih = round(iw * img.height / img.width)
+    img = img.resize((iw, ih), Image.LANCZOS); h = pad + head + ih + footh + pad // 2
+    plate = Image.new("RGBA", (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(plate); r = round(10 * k)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=r, fill=(7, 13, 26, 232), outline=(110, 200, 255, 210), width=max(1, round(1.5 * k)))
+    bl = round(22 * k); lw = max(2, round(3 * k)); c = (170, 225, 255, 255)
+    for (x, y, dx, dy) in ((0, 0, 1, 1), (w - 1, 0, -1, 1), (0, h - 1, 1, -1), (w - 1, h - 1, -1, -1)):
+        d.line([(x, y), (x + dx * bl, y)], fill=c, width=lw); d.line([(x, y), (x, y + dy * bl)], fill=c, width=lw)
+    f1, f2 = _font(round(24 * k)), _font(round(21 * k)); tw = d.textlength(tag, font=f1)
+    d.rounded_rectangle((pad, pad, pad + tw + 2 * round(10 * k), pad + head - round(6 * k)), radius=round(5 * k), fill=(60, 150, 220, 235))
+    d.text((pad + round(10 * k), pad + round(3 * k)), tag, font=f1, fill=(255, 255, 255, 255))
+    d.text((pad + tw + 3 * round(10 * k), pad + round(4 * k)), title, font=f1, fill=(235, 244, 255, 255))
+    plate.paste(img, (pad, pad + head)); d.rectangle((pad, pad + head, pad + iw, pad + head + ih), outline=(90, 170, 230, 160), width=max(1, round(k)))
+    d.text((pad, pad + head + ih + round(7 * k)), foot, font=f2, fill=(170, 190, 215, 255))
+    _CARD_CACHE[key] = plate
+    if len(_CARD_CACHE) > 12: _CARD_CACHE.pop(next(iter(_CARD_CACHE)))
+    return plate
+
+def draw_cards(im, cards, H):
+    """Illustration cards pinned to anatomy: a leader line from the pin on the body to the card edge, an entrance (scale, fade, scan from the top), a trace of float. The card sits on its
+    side of the frame (`side`), away from the centre where the camera keeps the anatomy, and its size follows the camera distance a little."""
+    if not cards: return im
+    W = im.width; k = H / 1080; ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
+    for cd in cards:
+        enter = min(1.0, cd["age"] / 0.8); leave = min(1.0, max(0.0, cd["left"] / 0.5)); a = enter * leave
+        if a <= 0.01: continue
+        ease = enter * enter * (3 - 2 * enter); cw = round(CARD_W_1080 * k * (0.92 + 0.08 * ease) * min(1.12, max(0.9, (0.9 / max(0.3, cd["dist"])) ** 0.12)))
+        plate = _card_plate(cd["image"], cd["title"], cd["tag"], cd["foot"], cw, H); ph = plate.height
+        m = round(W * 0.035); x0 = W - m - cw if cd["side"] == "right" else m
+        px, py = cd["xy"]; cy = min(max(py, H * 0.06 + ph / 2), H * 0.94 - ph / 2) + 5 * k * math.sin(cd["age"] * 1.3); y0 = round(cy - ph / 2)
+        reveal = max(0.02, ease); vis = plate.crop((0, 0, cw, max(1, round(ph * reveal)))); vis = vis.copy(); vis.putalpha(vis.getchannel("A").point(lambda v: int(v * a)))
+        ex = x0 if cd["side"] == "right" else x0 + cw; ey = y0 + round(54 * k); bend = ex - (50 * k if cd["side"] == "right" else -50 * k)
+        la = int(235 * a * min(1.0, cd["age"] / 0.4)); lw = max(2, round(2.5 * k)); pts = [(px, py), (bend, ey), (ex, ey)]
+        d.line(pts, fill=(150, 215, 255, la), width=lw, joint="curve"); r0 = max(5, round(7 * k)); d.ellipse([px - r0, py - r0, px + r0, py + r0], outline=(255, 255, 255, la), width=lw)
+        d.ellipse([px - r0 / 2, py - r0 / 2, px + r0 / 2, py + r0 / 2], fill=(255, 90, 80, la)); ov.alpha_composite(vis, (x0, y0))
+    return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
+
 def draw_footer(im, text, H):
     if not text: return im
     d = ImageDraw.Draw(im, "RGBA"); px = max(22, round(30 * H / 1080)); f = _font(px); m = round(im.width * 0.03)
@@ -48,7 +92,7 @@ def run(frames_json, frame_dir, out_mp4, fps, ffmpeg=None):
     for fr in frames:
         p = fd / f"f{fr['i']:05d}.png"
         if not p.exists(): continue
-        im = Image.open(p); im = draw_footer(draw_labels(im, fr["labels"], im.height), footer, im.height)
+        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height), fr.get("cards", []), im.height), footer, im.height)
         for a, b, text in caps:
             if a <= fr["t"] < b:
                 from .graphics import draw_caption

@@ -10,6 +10,12 @@ Visual direction columns (optional; when any row fills one, the app plans the vi
   shot     3D camera move: orbit | zoom | peel | isolate; or a condition: fatty | inflamed (the organ changes colour as it develops). Optional; default chosen from the narration
   footage  stock search for this scene (3 to 6 words);  footage_alt  other searches tried in order if the first finds nothing, separated by ` | `
   source   where footage comes from: stock (default) | youtube | flow
+  visual=body  one beat of a continuous 3D body-map shot (consecutive body rows are ONE scene; the camera travels between their regions):
+           body_region (an anchor of the body: body, head, neck, chest, heart, abdomen, pelvis, forearm_l/r, upper_arm_l/r, hand_l/r, thigh_l/r, shin_l/r, foot_l/r, shoulder_l ...)
+           body_scale whole|region|close   body_focus body|skin|vessels|organ   body_effect none|skin_layers|spread   body_label (text pinned to the region)
+           card_type none|lesion|microscopic|mechanism|anatomy|treatment|test   card_ref (id of an illustration in the library)   card_prompt (what to generate when card_ref is new)   card_at (seconds into the beat)
+  Cards (from numbers and words IN the narration only): visual=stat with stat (the number as spoken), stat_unit (short: %, seconds), stat_label, stat_kicker, stat_source;
+  visual=timeline with events (`when: what happens | when: what happens`); visual=chapter with card_title and card_kicker
 Without start/end the rows are aligned to the voiceover's own word times (`align_to_words`), so the timings are the real ones, not estimates.
 Nothing here invents text, numbers or sources: it only reads and validates what the file holds.
 """
@@ -25,11 +31,15 @@ from typing import Any, Dict, List, Optional, Sequence
 ALIASES = {"text": ("text", "narration", "sentence", "script"), "start": ("start", "start_s", "start_time"), "end": ("end", "end_s", "end_time"),
            "chapter": ("chapter", "section"), "footage": ("footage", "footage_query", "clip"), "visual": ("visual", "scene_type", "kind"),
            "organ": ("organ", "anatomy", "body_part", "region"), "shot": ("shot", "camera"), "footage_alt": ("footage_alt", "alt_footage", "footage_fallback"),
-           "source": ("source", "footage_source", "asset_source")}
-VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "flow", "youtube")
+           "source": ("source", "footage_source", "asset_source"),
+           "stat": ("stat", "number", "stat_value"), "stat_unit": ("stat_unit", "unit"), "stat_label": ("stat_label", "label"), "stat_kicker": ("stat_kicker", "kicker"), "stat_source": ("stat_source",),
+           "events": ("events", "timeline_events"), "card_title": ("card_title", "title"), "card_kicker": ("card_kicker",),
+           "body_region": ("body_region",), "body_scale": ("body_scale",), "body_focus": ("body_focus",), "body_effect": ("body_effect",), "body_label": ("body_label",),
+           "card_type": ("card_type",), "card_ref": ("card_ref", "illustration"), "card_prompt": ("card_prompt",), "card_at": ("card_at",)}
+VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "stat", "flow", "youtube", "body")
 SHOTS = ("orbit", "zoom", "peel", "cutaway", "isolate", "fatty", "inflamed")
 SOURCES = ("stock", "youtube", "flow")
-HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source")
+HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region")
 SOURCE_FIELDS = ("title", "citation", "url", "year", "population", "context")
 MIN_MATCH = 0.5      # below this share of script words found in the voiceover, the CSV is not this narration
 WARN_MATCH = 0.8
@@ -143,6 +153,34 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
                 if v not in allowed:
                     raise ValueError(f"{where}: {k} '{row[k]}' is not one of: {', '.join(allowed)}")
                 sc[k] = v
+        for k in ("stat", "stat_unit", "stat_label", "stat_kicker", "stat_source", "card_title", "card_kicker"):
+            if row.get(k):
+                sc[k] = " ".join(row[k].split())
+        if row.get("events"):
+            evs = []
+            for part in _split(row["events"]):
+                if not part:
+                    continue
+                if ":" not in part:
+                    raise ValueError(f"{where}: each timeline event is 'when: what happens', events separated by ' | ' (got '{part[:40]}')")
+                w_, l_ = part.split(":", 1)
+                evs.append({"when": w_.strip(), "label": l_.strip()})
+            sc["events"] = evs
+        for k in ("body_region", "body_scale", "body_focus", "body_effect", "card_type"):      # body-map beats (visual=body): enumerations are checked against the body's anchors by bodymap.validate before rendering
+            if row.get(k):
+                sc[k] = row[k].strip().lower().replace(" ", "_")
+        for k in ("body_label", "card_ref", "card_prompt"):
+            if row.get(k):
+                sc[k] = " ".join(row[k].split())
+        if row.get("card_at"):
+            try: sc["card_at"] = float(row["card_at"])
+            except ValueError: raise ValueError(f"{where}: card_at '{row['card_at']}' must be seconds into the beat, like 0.8") from None
+        if sc.get("visual") == "body" and not sc.get("body_region"):
+            raise ValueError(f"{where}: visual=body needs body_region (forearm_l, heart, chest, head ...); see docs/health_cinema/CSV_GENERATOR_PROMPT.md")
+        if sc.get("visual") == "stat" and not sc.get("stat"):
+            raise ValueError(f"{where}: visual=stat needs the number in the stat column (as spoken in the narration)")
+        if sc.get("visual") == "timeline" and "events" in sc and len(sc["events"]) < 2:
+            raise ValueError(f"{where}: a timeline needs at least two events in the events column")
         if row.get("organ"):
             sc["organ"] = re.sub(r"\s+", " ", row["organ"].strip().lower())
         if row.get("footage_alt"):

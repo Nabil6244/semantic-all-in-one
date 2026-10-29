@@ -52,9 +52,15 @@ class Director(unittest.TestCase):
         moves = [s["camera"]["move"] for s in sh if s["kind"] == "footage"]; self.assertTrue(all(a != b for a, b in zip(moves, moves[1:])))
         self.assertEqual(len(p["transitions"]), len(sh) - 1); self.assertTrue(any(t.name == "cut" for t in p["transitions"]))
         self.assertLessEqual(len(p["cues"]), 6)
-    def test_long_footage_scene_is_split_with_a_closer_second_shot(self):
+    def test_a_long_stock_clip_plays_straight_through_in_one_shot(self):
         p = director.build(self.scenes(), (255, 96, 80), src_duration=lambda path: 30.0); f = [s for s in p["shots"] if s["scene_no"] == 3]
-        self.assertEqual(len(f), 2); self.assertGreater(f[1]["camera"].get("base", 1.0), f[0]["camera"].get("base", 1.0)); self.assertEqual(f[0]["src_in"] + 0 < f[1]["src_in"], True)
+        self.assertEqual(len(f), 1); self.assertEqual(f[0]["speed"], 1.0)      # no jump cut inside one clip
+    def test_a_clip_shorter_than_its_scene_is_slowed_not_looped_or_repeated(self):
+        p = director.build(self.scenes(), (255, 96, 80), src_duration=lambda path: 5.0); f = [s for s in p["shots"] if s["scene_no"] == 3]
+        self.assertEqual(len(f), 1); self.assertGreater(f[0]["speed"], 1.0); self.assertLessEqual(f[0]["speed"], 2.5); self.assertEqual(f[0]["src_in"], 0.0)
+    def test_reader_speed_stretches_time_through_the_filter(self):
+        from health_cinema.edit import media
+        import inspect; self.assertIn("setpts", inspect.getsource(media.read_frames)); self.assertIn("speed", inspect.signature(media.read_frames).parameters)
     def test_plan_qc_flags_missing_source_and_has_no_crash(self):
         p = director.build(self.scenes(), (255, 96, 80), src_duration=lambda path: 30.0); codes = {c["code"] for c in qc.plan_checks(p)}; self.assertIn("figure_without_source", codes)
 

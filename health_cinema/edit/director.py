@@ -86,18 +86,16 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
         if kind == "footage":
             src = sc.visual["path"]; sd = (src_duration or (lambda p: media.probe(p)["duration"]))(src) or 10.0
             prof = _profile_rows(sc); cuts = [t0, t1]
-            if dur > 5.6 or prof:
-                if prof: cut = f(prof["sentence"]["start"])
-                else:
-                    mids = [f(s["start"]) for s in sc.sentences[1:] if 2.4 <= s["start"] - t0 <= dur - 2.4]; cut = min(mids, key=lambda c: abs(c - (t0 + dur / 2))) if mids else f(t0 + dur / 2)
-                if t0 + 1.8 <= cut <= t1 - 1.8: cuts = [t0, cut, t1]; why.append(f"long footage scene split at {cut:.2f}s with a reframe (wide then closer)")
-            src_in = 1.0; seg_in = []
+            if prof:      # the split-screen profile still needs its own shot, but the footage under both shots is ONE continuous run of the clip
+                cut = f(prof["sentence"]["start"])
+                if t0 + 1.8 <= cut <= t1 - 1.8: cuts = [t0, cut, t1]; why.append(f"profile split at {cut:.2f}s (same clip, no jump)")
+            # a stock clip plays straight through for the whole scene: no cut inside it, no skipped seconds, no restart. A clip shorter than the scene is slowed
+            # (up to 2.5x) to cover it instead of looping or repeating an earlier part.
+            need = (t1 - t0) + 1.2; start = max(0.0, min(1.0, sd - need)); speed = 1.0
+            if sd - start < need: start = 0.0 if sd < need else start; speed = min(2.5, need / max(1.0, sd)); why.append(f"the clip ({sd:.1f}s) is shorter than the scene: played {speed:.2f}x slower, not looped")
+            seg_in = [round(start + (cuts[k] - t0) / speed, 3) for k in range(len(cuts) - 1)]
             for k in range(len(cuts) - 1):
-                d = cuts[k + 1] - cuts[k]; need = d + 1.2
-                if src_in + need > sd: src_in = max(0.7, min(src_in, sd - need))
-                seg_in.append(round(src_in, 3)); src_in += d + 0.6
-            for k in range(len(cuts) - 1):
-                s0, s1 = cuts[k], cuts[k + 1]; d = s1 - s0; cam = rot.pick(a["role"], a["intensity"], d); sh = dict(base, kind="footage", t0=s0, t1=s1, src=src, src_in=seg_in[k], look=look, camera=cam, layout="full", overlays=[], dust=True, why=list(why))
+                s0, s1 = cuts[k], cuts[k + 1]; d = s1 - s0; cam = rot.pick(a["role"], a["intensity"], d); sh = dict(base, kind="footage", t0=s0, t1=s1, src=src, src_in=seg_in[k], speed=speed, look=look, camera=cam, layout="full", overlays=[], dust=True, why=list(why))
                 if k == 1: cam["base"] = 1.3; cam["focus"] = [0.56, 0.46]; sh["why"].append("closer framing than the first shot (wide -> medium)")
                 sh["overlays"].append({"type": "tag", "text": "Illustrative stock footage", "t0": 0.4, "t1": min(3.6, d - 0.2), "quiet": True})
                 if prof and k == len(cuts) - 2:
@@ -114,7 +112,7 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                     sh["why"].append("key word set large over the picture, then cleared")
                 last_layout = sh["layout"]; shots.append(sh)
         elif kind == "anatomy":
-            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
+            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), variant=sc.visual.get("variant", 0), body_rows=sc.visual.get("body_rows"), scene_start=sc.start, illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
             used = 0; last_c = -9.0
             for p in phrases:
                 if not (t0 + 1.0 < p.t0 < t1 - 2.5) or used >= 2: continue
@@ -140,11 +138,11 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                 ev = []; last = -1.0
                 for e in v.get("events", []):
                     tt = max(e["t0"], 0.05, last + 0.38); ev.append(dict(e, t0=round(tt, 3))); last = tt
-                sh["gfx"] = {"events": ev, "source_line": src_line}; sh["why"].append("events revealed progressively; planner times spaced at least 0.38 s apart")
+                sh["gfx"] = {"events": ev, "source_line": v.get("source_line") or src_line, "kicker": v.get("kicker") or "What happened, in order"}; sh["why"].append("events revealed progressively; planner times spaced at least 0.38 s apart")
             elif kind == "statement": sh["gfx"] = {"beats": v.get("beats") or [{"text": sc.text, "t0": 0.0}]}
-            elif kind == "stat": sh["gfx"] = {"number": v.get("number", ""), "unit": "%" if "%" in sc.text else "", "context": sc.text, "source_line": src_line}
+            elif kind == "stat": sh["gfx"] = {"number": v.get("number", ""), "unit": v.get("unit") or ("%" if "%" in sc.text else ""), "context": v.get("context") or sc.text, "source_line": v.get("source_line") or src_line, "kicker": v.get("kicker") or "The figure"}
             elif kind == "evidence": sh["gfx"] = {"claim": v.get("claim", sc.text), "heading": v.get("heading", "What the evidence says"), "level": sc.evidence_level, "source_line": src_line}
-            else: sh["gfx"] = {"title": sc.chapter or sc.text[:80], "kicker": "Chapter"}
+            else: sh["gfx"] = {"title": v.get("title") or sc.chapter or sc.text[:80], "kicker": v.get("kicker") or "Chapter"}
             if sc.illustrative: sh["illustrative"] = sc.illustrative
             shots.append(sh)
     shots[0]["t0"] = 0.0
