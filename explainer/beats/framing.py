@@ -77,13 +77,17 @@ def project(lon: float, lat: float, view: Sequence[float], w: int = 1920, h: int
 
 def place_bbox(name: str) -> Tuple[float, float, float, float]:
     loc = _geo().resolve(name)
-    if getattr(loc, "is_area", False):
+    if getattr(loc, "is_area", False) or getattr(loc, "kind", "") == "sea":      # a sea has no outline to fill but a known extent the camera must hold
         return tuple(loc.bbox)
     return (loc.lon - 0.02, loc.lat - 0.02, loc.lon + 0.02, loc.lat + 0.02)
 
 
 def step_view(place: str, frame: str) -> Tuple[float, float, float]:
-    return _pk().view_for(_geo().resolve(place), frame)
+    loc = _geo().resolve(place)
+    v = _pk().view_for(loc, frame)
+    if frame in ("country", "region") and getattr(loc, "is_area", False) and v[2] < MIN_SINGLE_ZOOM:      # "Europe" fitted to its bounding box (Svalbard to the Azores) is a polar globe with Italy off the edge: a continent gets its centre at a readable scale
+        return _pk().view_for(loc, "continental")
+    return v
 
 
 def plan_views(beats: Sequence[Dict[str, Any]]) -> List[Tuple[float, Tuple[float, float, float], str]]:
@@ -117,6 +121,15 @@ def view_at(views, t: float) -> Optional[Tuple[float, float, float]]:
     return cur
 
 
+def _is_continent(name: str) -> bool:
+    """A place so large that fitting its bounding box leaves less than a readable zoom (Europe with Svalbard and the Azores): it is shown centred, not boxed in."""
+    try:
+        loc = _geo().resolve(name)
+        return bool(getattr(loc, "is_area", False)) and _pk().view_for(loc, "country")[2] < MIN_SINGLE_ZOOM
+    except Exception:
+        return False
+
+
 def check_framing(plan: Dict[str, Any]) -> List[str]:
     """Findings (empty when every place a map layer outlines, labels or marks is fully inside the view in force when the layer appears)."""
     views = plan_views(plan.get("beats", []))
@@ -134,11 +147,25 @@ def check_framing(plan: Dict[str, Any]) -> List[str]:
             except Exception as exc:
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} cannot be located ({str(exc)[:60]})")
                 continue
-            if v is not None and wide and shown_wide(view_box(*v), bb):
+            if v is not None and (wide or _is_continent(lay["place"])) and shown_wide(view_box(*v), bb):
                 continue
             if v is None or not inside(view_box(*v), bb):
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} is not fully inside the camera view when the layer appears at {float(lay['t']):.1f} s")
     return found
+
+
+TOO_WIDE = 1.0                   # a view already in force counts as showing a place only when it is no more than this many zoom steps wider than the place's own country frame
+
+
+def _tight_zoom(names: Sequence[str]) -> float:
+    """The zoom of the widest country frame among the places (the least zoom that still shows each of them well)."""
+    zs = []
+    for n in names:
+        try:
+            zs.append(step_view(n, "country")[2])
+        except Exception:
+            pass
+    return min(zs) if zs else 0.0
 
 
 def _candidates(places: Sequence[str], frames: Sequence[str] = FRAMES):
@@ -174,7 +201,7 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
     names = [tg["name"] for tg in live]
     first_t = min(float(tg["t"]) for tg in live)
     # 1. the view already in force (a later map beat of the same story) shows everything
-    if current is not None and all(inside(view_box(*current), boxes[n]) for n in names):
+    if current is not None and current[2] >= max(MIN_SINGLE_ZOOM, _tight_zoom(names) - TOO_WIDE) - 1e-9 and all(inside(view_box(*current), boxes[n]) for n in names):   # a wide view (a continent, zoom 3.3) "contains" Italy but shows it as a speck: the camera must still go in
         out["notes"].append("the camera already shows every place: no move")
         out["ready"] = {n: 0.0 for n in names}
         return out
@@ -237,9 +264,9 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
     last_view = current
     for i, tg in enumerate(live):
         n, tt = tg["name"], float(tg["t"])
-        fr = "country" if getattr(_geo().resolve(n), "is_area", False) else "region"
+        fr = "continental" if _is_continent(n) else "country" if getattr(_geo().resolve(n), "is_area", False) else "region"      # the compiler resolves the frame name itself: a continent must be asked for as one
         v = step_view(n, fr)
-        if not inside(view_box(*v), boxes[n]):
+        if not inside(view_box(*v), boxes[n]) and not (fr == "continental" and shown_wide(view_box(*v), boxes[n])):      # a continent's bounding box reaches its far islands: centred in frame with most of it visible is a whole continent
             out["rejected"].append({"place": n, "reason": "even a camera centred on it does not show the whole place"})
             continue
         if last_view is not None and inside(view_box(*last_view), boxes[n]):

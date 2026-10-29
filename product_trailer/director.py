@@ -160,7 +160,12 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra") -> Optional[Dict[str, 
         if battery and n["unit"] in ("W", "%"):
             return _scene(phones=[{"label": name, "color": DARK, "cams": 3, "cable": True, "side": {"text": fig, "size": 96}}], title="Charging")
         return _scene(phones=[{"label": name, "color": DARK, "cams": 3, "side": {"text": fig, "size": 96}}])
-    # 7. 3D shots
+    return three_d_for(text)
+
+
+def three_d_for(text: str) -> Optional[Dict[str, Any]]:
+    """The 3D shot a sentence about the phone's inside, hinge, chip, camera, display or frame calls for, or None."""
+    t = text.lower()
     if _has(t, "inside", "teardown", "internal", "silicon-carbon", "silicon carbon", "cell"):
         return {"kind": "xray", "text": "Inside the phone"}
     if _has(t, "hinge", "fold", "folds", "crease"):

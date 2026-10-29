@@ -43,8 +43,8 @@ class Assets(unittest.TestCase):
             self.assertEqual((V2_DIR / n).read_bytes(), b, n)
         self.assertEqual({p.name for p in V2_DIR.glob("*")}, set(files))
         m = V.manifest()
-        self.assertEqual((len(m["sets"]), len(m["props"])), (8, 15))
-        self.assertEqual(len(files), 8 * 2 + 15 + 1)
+        self.assertEqual((len(m["sets"]), len(m["props"])), (9, 15))
+        self.assertEqual(len(files), 9 * 2 + 15 + 1)
 
     def test_manifest_hashes_verify(self):
         m = V.manifest()

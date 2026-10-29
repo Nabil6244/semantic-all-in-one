@@ -10,16 +10,54 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..board import styles as ST
 from ..board.cues import Cue
 from . import lexicon as LX
-from .compose import (BoardResult, POSE_BY_LABEL, Phrase, _clauses, _disp, asset_for, best_phrases, key_phrase, role_for)
+from .compose import (BoardResult, POSE_BY_LABEL, Phrase, _clauses, _disp, asset_for, best_phrases as _best_phrases, key_phrase as _key_phrase, role_for)
 from .options import DirectorOptions
 from .segment import Sent, norm
 
 ICON_ROLE = {"icon:drop": "blue", "icon:coin": "gold", "icon:house": "gold", "icon:person": "blue", "icon:gear": "blue", "icon:document": "gold", "icon:clock": "blue",
              "icon:warning": "red", "prop:note": "gold", "prop:scale": "gold", "prop:magnifier": "blue", "prop:book": "blue", "prop:key": "gold", "prop:flag": "red",
-             "prop:chest": "gold", "prop:bulb": "gold"}
+             "prop:chest": "gold", "prop:bulb": "gold", "prop:crown": "gold", "prop:swords": "red", "prop:cannon": "red", "prop:castle": "gold", "prop:sailship": "blue"}
 RING_ROLE = {"red": "red", "green": "green"}        # tile ring: orange (gold) unless the sentence is about loss or gain
 X0, X1 = 720, 1810
 GENERIC = frozenset("year years time day days age century decade way thing things".split())      # real words, but a picture of a clock says nothing about the point
+
+
+# A contraction whose apostrophe the transcript dropped reads as a misspelling on a board ("youll"); a lone generic word says nothing; a phrase cut off on a participle that the sentence goes on
+# to use ("very little farmland limited | natural resources") is not a complete thought. None of these is shown as text (the narration says them; the board does not need to quote them).
+NO_APOSTROPHE = frozenset("youll youre youve theyll theyre theyve weve wed itll thats whats theres heres hes shes ive dont doesnt didnt cant wont isnt arent wasnt werent hasnt havent hadnt wouldnt couldnt shouldnt lets".split())
+
+
+def _junk_text(text: str) -> bool:
+    toks = [norm(t) for t in text.split()]
+    toks = [t for t in toks if t]
+    if not toks or any(t in NO_APOSTROPHE for t in toks):
+        return True
+    return len(toks) == 1 and (toks[0] in GENERIC or toks[0] in LX.STOP or toks[0] in LX.WEAK)
+
+
+def _cut_on_participle(text: str, idxs: Sequence[int], words) -> bool:
+    """True when every place the quote occurs in idxs ends on an -ed word that the sentence continues past with a content word."""
+    q = [norm(t) for t in text.split()]
+    n, hits = len(q), []
+    for a in range(len(idxs) - n + 1):
+        if [norm(words[g][0]) for g in idxs[a:a + n]] == q:
+            nxt = norm(words[idxs[a + n]][0]) if a + n < len(idxs) else ""
+            hits.append(bool(nxt) and nxt not in LX.STOP and nxt not in LX.WEAK and q[-1].endswith("ed") and len(q[-1]) > 4 and n >= 2)
+    return bool(hits) and all(hits)
+
+
+def best_phrases(idxs, words, cased, table, breaks, *, fit=None, **kw):
+    """compose.best_phrases that never offers a junk fragment (see above)."""
+    ix = list(idxs)
+
+    def ok(text: str) -> bool:
+        return not _junk_text(text) and not _cut_on_participle(text, ix, words) and (fit is None or fit(text))
+    return _best_phrases(idxs, words, cased, table, breaks, fit=ok, **kw)
+
+
+def key_phrase(idxs, words, cased, table, breaks=None, fit=None):
+    got = best_phrases(idxs, words, cased, table, breaks or set(), k=1, fit=fit, min_score=3.0)
+    return got[0] if got else None
 
 
 def _line_fit(width: int, px: int = 56, lines: int = 1):
@@ -334,7 +372,7 @@ def rescue_text_ref(res: BoardResult, beat_id: str, start: float, end: float, se
         return None
     def best_for(idxs, breaks) -> Optional[Phrase]:
         for (ms, mw, fit_w) in ((5.0, 2, 1080), (3.0, 2, 1080), (0.0, 1, 1080)):
-            got = best_phrases(idxs, words, cased, table, breaks, k=1, max_words=7, fit=_line_fit(fit_w, 48, 2), min_score=ms, min_words=mw)
+            got = best_phrases(idxs, words, cased, table, breaks, k=1, max_words=7, fit=_line_fit(fit_w, 48, 2), min_score=ms, min_words=mw, require_clause_end=bool(getattr(res, "recipe", "")))
             if got:
                 return got[0]
         return None
@@ -434,6 +472,8 @@ def repair_still_ref(res: BoardResult, beat_id: str, start: float, end: float, w
         # 2. a typed line with the best leftover phrase: a narrow two-line block first, then wider one-line strips (the busy area decides what fits)
         for (lw_, ln_, px_) in ((560, 2, 64), (900, 1, 56), (1080, 1, 48)):
             got = best_phrases(inside, words, cased, table, breaks or set(), k=1, max_words=6, fit=_line_fit(lw_, px_, ln_), min_score=4.0, min_words=2)
+            if got and getattr(res, "recipe", "") and got[0].last not in (breaks or set()):       # a recipe beat: never add a trailing fragment that leaves its clause unfinished
+                got = []
             if not got:
                 continue
             mm = ST.measure("line", got[0].text, {"width": lw_, "px": px_, "lines": ln_}) or {"h": 150}

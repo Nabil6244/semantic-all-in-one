@@ -1,0 +1,904 @@
+{
+ "asset_id": "characters_v1",
+ "built_by": "explainer/cartoon/build_characters.py",
+ "canvas": [
+  440,
+  560
+ ],
+ "characters": {
+  "doctor": {
+   "idle": {
+    "bbox": [
+     107,
+     49,
+     333,
+     551
+    ],
+    "bytes": 48228,
+    "file": "char_doctor_idle.png",
+    "sha256": "0da9887df000cd8898c300d1217ccc2a7989c2ad7c52744deb8b9eb89ca8f6f3",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     49,
+     439,
+     551
+    ],
+    "bytes": 53060,
+    "file": "char_doctor_point.png",
+    "sha256": "08bd056f1c71667caf9d9832e46b7da098232cf82bcfd03814fa51e83ce077d1",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     49,
+     364,
+     551
+    ],
+    "bytes": 57573,
+    "file": "char_doctor_surprise.png",
+    "sha256": "658f636019150ce8791ab193e100bcce0ad1f7d8091417fa6b8e7a335c5bae42",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     49,
+     351,
+     551
+    ],
+    "bytes": 50150,
+    "file": "char_doctor_think.png",
+    "sha256": "816c3b024cceeaa5e6e89bf4a59e9b4c3c08992ada891267be487ed4784eeb7a",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "farmer": {
+   "idle": {
+    "bbox": [
+     89,
+     5,
+     351,
+     551
+    ],
+    "bytes": 49032,
+    "file": "char_farmer_idle.png",
+    "sha256": "8d91acd8c544b0994f0c1b923c69b712bf4b1425a56dc404a078755969ca2808",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     89,
+     5,
+     439,
+     551
+    ],
+    "bytes": 53489,
+    "file": "char_farmer_point.png",
+    "sha256": "5c78be1e99e28a24fdb3d5efe460e090fe3b464516566f5addb1a2b30275386a",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     5,
+     364,
+     551
+    ],
+    "bytes": 56830,
+    "file": "char_farmer_surprise.png",
+    "sha256": "cab64325ea11bc831b3a102f07db898c3bd13112d1d487c5ee2811643aa2c558",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     89,
+     5,
+     351,
+     551
+    ],
+    "bytes": 51092,
+    "file": "char_farmer_think.png",
+    "sha256": "b8cb0a1a48611ec1c24dfd54fab3a2b476de2a01de047c19e9ceab336fc29bdf",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "guard": {
+   "idle": {
+    "bbox": [
+     107,
+     1,
+     333,
+     551
+    ],
+    "bytes": 48591,
+    "file": "char_guard_idle.png",
+    "sha256": "ce5da2a2518f03b19093a7f6e2d720cb04700ae048cf9ab578ec3b2a756ded10",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     1,
+     439,
+     551
+    ],
+    "bytes": 53077,
+    "file": "char_guard_point.png",
+    "sha256": "94ad629eb1752cf6cdc1f356b6ef160dfca03b9f2ee0670e6856217d8c0295d0",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     1,
+     364,
+     551
+    ],
+    "bytes": 55287,
+    "file": "char_guard_surprise.png",
+    "sha256": "2b398b76527d3bb6baa0c2879770364d2f453b13ea5b5ee4e6b1e5fbb5cff4d9",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     1,
+     351,
+     551
+    ],
+    "bytes": 50917,
+    "file": "char_guard_think.png",
+    "sha256": "c86943ea3f3220c810757eb5f3dc4ea5688b1f73b48b8c26c722519a1b28b828",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "judge": {
+   "idle": {
+    "bbox": [
+     98,
+     27,
+     342,
+     551
+    ],
+    "bytes": 45660,
+    "file": "char_judge_idle.png",
+    "sha256": "859f420150babd20fa37a82c09dbba04f0c08fce3b16015ac31350d7fede90fc",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     98,
+     27,
+     439,
+     551
+    ],
+    "bytes": 48299,
+    "file": "char_judge_point.png",
+    "sha256": "cd048363028768eb39e7c946c990724d28b9bcebc986ca3c6db31345f0ee66c8",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     27,
+     364,
+     551
+    ],
+    "bytes": 48307,
+    "file": "char_judge_surprise.png",
+    "sha256": "ba7426736db455e1d66add051980f2a7f9da7802c392061aca718b83997c0f00",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     98,
+     27,
+     351,
+     551
+    ],
+    "bytes": 46221,
+    "file": "char_judge_think.png",
+    "sha256": "ebaaea3d487bc9ca4c20209e858de175a986a584c7c031e9a6273cba7f179978",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "king": {
+   "idle": {
+    "bbox": [
+     107,
+     0,
+     333,
+     551
+    ],
+    "bytes": 44729,
+    "file": "char_king_idle.png",
+    "sha256": "d261574677c9f12d461404132e5dc68f43c9f6a8030cb780e779cf03a5b8b633",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     0,
+     439,
+     551
+    ],
+    "bytes": 48614,
+    "file": "char_king_point.png",
+    "sha256": "4e839cfc4597c79b2268c5eafd27caf64da9d1b7e011689386f37a559f77dede",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     0,
+     364,
+     551
+    ],
+    "bytes": 52152,
+    "file": "char_king_surprise.png",
+    "sha256": "c9c624f3cddd48b5b1224b400d1df1dbcbe8d38e6988ce5dd0264037fe88b88c",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     0,
+     351,
+     551
+    ],
+    "bytes": 46341,
+    "file": "char_king_think.png",
+    "sha256": "47e56057a96c31786792c8724657431320bbc54d3aa0407740dc9c1b70dbf4e0",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "merchant": {
+   "idle": {
+    "bbox": [
+     107,
+     3,
+     333,
+     551
+    ],
+    "bytes": 37713,
+    "file": "char_merchant_idle.png",
+    "sha256": "4f79a7faeb7bf14c6738d66bcdbc7459e60007fe6888345c000223e8d6f7faf9",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     3,
+     439,
+     551
+    ],
+    "bytes": 41004,
+    "file": "char_merchant_point.png",
+    "sha256": "77f02bc2091e802f13c91441f5d0940cc366b7b0ca24a8d4b49ab1f425bf29dc",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     3,
+     364,
+     551
+    ],
+    "bytes": 43948,
+    "file": "char_merchant_surprise.png",
+    "sha256": "3cfd57be2637f1b1e8acfad561dac2951bb15d9348093252db39c5dca2ec2c03",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     3,
+     351,
+     551
+    ],
+    "bytes": 38070,
+    "file": "char_merchant_think.png",
+    "sha256": "489f6edc2f5373db4c06de4a5fc3889158d4e3ed3c77d0cb4102da9b34af5d3f",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "officer": {
+   "idle": {
+    "bbox": [
+     98,
+     18,
+     342,
+     551
+    ],
+    "bytes": 45667,
+    "file": "char_officer_idle.png",
+    "sha256": "4c49fb878ed69d3fd0e882f0c23668dddf179215328742858cc090c00759a825",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     98,
+     18,
+     439,
+     551
+    ],
+    "bytes": 50379,
+    "file": "char_officer_point.png",
+    "sha256": "218f67156142f3cbef0cfde274da7f023ba16ce83daba7c1789e44715f562aac",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     18,
+     364,
+     551
+    ],
+    "bytes": 52559,
+    "file": "char_officer_surprise.png",
+    "sha256": "262fa5882f5f22d4a1964d7e66844ac2bb012ba11822efe1716d2dd38ee2ed80",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     98,
+     18,
+     351,
+     551
+    ],
+    "bytes": 47560,
+    "file": "char_officer_think.png",
+    "sha256": "d56837ae87bc70aee2e52dc8e205b07ea9a0630f4245208adc4ce42367b8f8c1",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "police": {
+   "idle": {
+    "bbox": [
+     107,
+     19,
+     333,
+     551
+    ],
+    "bytes": 39455,
+    "file": "char_police_idle.png",
+    "sha256": "33c6a6803c6415331c8b7b5356da798248b2f27f581ff5c6260495127fc69ef7",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     19,
+     439,
+     551
+    ],
+    "bytes": 42412,
+    "file": "char_police_point.png",
+    "sha256": "6617165155b2cbe542f8e152a4cb619ba07c9a3b9ebc1bb019f1ace2a7a83809",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     19,
+     364,
+     551
+    ],
+    "bytes": 45132,
+    "file": "char_police_surprise.png",
+    "sha256": "570ef251b1242f7498228370908ff25b726f803f24766c9e946501d89ab6ad13",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     19,
+     351,
+     551
+    ],
+    "bytes": 41396,
+    "file": "char_police_think.png",
+    "sha256": "ad723210302d2b100ec0d60b83886de4851f3d12a2366e816fcab79751821f58",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "priest": {
+   "idle": {
+    "bbox": [
+     107,
+     49,
+     333,
+     551
+    ],
+    "bytes": 34747,
+    "file": "char_priest_idle.png",
+    "sha256": "92cff67a5d9ffbe9ac369d8085d321be8a6f1896f815e18368bec80e45cf3a51",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     49,
+     439,
+     551
+    ],
+    "bytes": 36847,
+    "file": "char_priest_point.png",
+    "sha256": "6c533fe3971c309b03266d8ef1b28f691adc5dab7e911c0f8da9c5fa7fc2788e",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     49,
+     364,
+     551
+    ],
+    "bytes": 40693,
+    "file": "char_priest_surprise.png",
+    "sha256": "5fb9e126a32be2c9db1fb0ea8aca9965c55509603418280cf1c2a7f74584705c",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     118,
+     49,
+     351,
+     551
+    ],
+    "bytes": 34839,
+    "file": "char_priest_think.png",
+    "sha256": "f9260351bf861aa4ad9eb38e971c709299bcf828ad6326ade8478c7d5631e5b5",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "revolutionary": {
+   "idle": {
+    "bbox": [
+     107,
+     10,
+     333,
+     551
+    ],
+    "bytes": 42763,
+    "file": "char_revolutionary_idle.png",
+    "sha256": "733f69d3f7e760e182c292916b9333dce449c7793797b9ab6b426e48b02df833",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     10,
+     439,
+     551
+    ],
+    "bytes": 47741,
+    "file": "char_revolutionary_point.png",
+    "sha256": "e5b58c68c0688b1cee1e55b71179bc301c5dccd8ca10027e7c454e4c6cf90770",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     10,
+     364,
+     551
+    ],
+    "bytes": 52496,
+    "file": "char_revolutionary_surprise.png",
+    "sha256": "3bc7e10884dc485b62779ea14583ffe61e20031ca8cc0683c97d07652bfbf7b8",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     10,
+     351,
+     551
+    ],
+    "bytes": 46175,
+    "file": "char_revolutionary_think.png",
+    "sha256": "0fdb02068ea915201299c09585346cd0166f3e14a4093960551be2b56de76595",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "sailor": {
+   "idle": {
+    "bbox": [
+     107,
+     25,
+     333,
+     551
+    ],
+    "bytes": 48205,
+    "file": "char_sailor_idle.png",
+    "sha256": "2d1c757860d2aa86606a35ae9758ef4f10dd71cba7ee0930cf9b6ceba0081f1d",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     25,
+     439,
+     551
+    ],
+    "bytes": 51771,
+    "file": "char_sailor_point.png",
+    "sha256": "f42eb34e7d218dcf2d26a22f8b4dad9d8061b90acaae440f22f1b0d15dd4d426",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     25,
+     364,
+     551
+    ],
+    "bytes": 57256,
+    "file": "char_sailor_surprise.png",
+    "sha256": "88b7d21ea8a7d0155cdadf82f148e7b6fdb028b2c41fc13dc0ec70615487a667",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     25,
+     351,
+     551
+    ],
+    "bytes": 49727,
+    "file": "char_sailor_think.png",
+    "sha256": "4829916f3809aacd1de04b1d5777dd64f5c0ad25f40a8dc1ab127491fa50d963",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "soldier": {
+   "idle": {
+    "bbox": [
+     107,
+     1,
+     333,
+     551
+    ],
+    "bytes": 46433,
+    "file": "char_soldier_idle.png",
+    "sha256": "e11109f115f66acf157c45cb7a1f43ed65dc012518b0268550e41b9c42c4d6bf",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     1,
+     439,
+     551
+    ],
+    "bytes": 51097,
+    "file": "char_soldier_point.png",
+    "sha256": "5d0a9ce346106e48f1c58ab156fffd67933057c72f2d6534ab562e108103cb71",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     1,
+     364,
+     551
+    ],
+    "bytes": 52992,
+    "file": "char_soldier_surprise.png",
+    "sha256": "e164576ca1fba071e7100f6eb92d7bba51dbc358c5f87214269c79743b2e9338",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     1,
+     351,
+     551
+    ],
+    "bytes": 48540,
+    "file": "char_soldier_think.png",
+    "sha256": "a88f455579a395a6f9758da8ea7def8a29da586188fc767344c1eb237a8de1c3",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "woman": {
+   "idle": {
+    "bbox": [
+     104,
+     13,
+     336,
+     551
+    ],
+    "bytes": 46455,
+    "file": "char_woman_idle.png",
+    "sha256": "7f826b7883c636b2e9471f838380a44e0ed33cf7b35628de5f68c28d7bca8fac",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     13,
+     439,
+     551
+    ],
+    "bytes": 50916,
+    "file": "char_woman_point.png",
+    "sha256": "611a8fb7bf173f96caf6669fbd398ae069d8d6aaa470f238b0850b66ac524874",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     13,
+     364,
+     551
+    ],
+    "bytes": 50025,
+    "file": "char_woman_surprise.png",
+    "sha256": "582500891706d901d8a84ad43c536069f69f68f6f4249aaa47a9e002d1255d68",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     104,
+     13,
+     351,
+     551
+    ],
+    "bytes": 49258,
+    "file": "char_woman_think.png",
+    "sha256": "fd068d4c1d81c1edc517683a441fd8a761a14b53efda0a68da7ab6fc8491df8d",
+    "size": [
+     440,
+     560
+    ]
+   }
+  },
+  "worker": {
+   "idle": {
+    "bbox": [
+     107,
+     15,
+     333,
+     551
+    ],
+    "bytes": 40161,
+    "file": "char_worker_idle.png",
+    "sha256": "cea3b2818d5fd420835d82e83777d85e59daaf60fe3c827244390ee6c101d0ff",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "point": {
+    "bbox": [
+     102,
+     15,
+     439,
+     551
+    ],
+    "bytes": 41422,
+    "file": "char_worker_point.png",
+    "sha256": "a27ad3e0207937086a18c6f56f09d7d16fe6352b92d1c749e20e7ed855fdbe01",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "surprise": {
+    "bbox": [
+     76,
+     15,
+     364,
+     551
+    ],
+    "bytes": 47130,
+    "file": "char_worker_surprise.png",
+    "sha256": "f9c8c11abdf5c5c42e0d64ee896108197313c7d91ad9e68d9c30e31c58a79370",
+    "size": [
+     440,
+     560
+    ]
+   },
+   "think": {
+    "bbox": [
+     120,
+     15,
+     351,
+     551
+    ],
+    "bytes": 39967,
+    "file": "char_worker_think.png",
+    "sha256": "1dcd2fab3b9d7464b54a69f10c413c5214fc14f1c207d1093e855baf9d88c7c0",
+    "size": [
+     440,
+     560
+    ]
+   }
+  }
+ },
+ "feet_y": 548,
+ "layers_digest": "4a3e9db1771dfc15ee3a1debd4026ba1856e6036e927b529433fd251d7c4aae3",
+ "pillow_version": "12.3.0",
+ "poses": [
+  "idle",
+  "point",
+  "surprise",
+  "think"
+ ],
+ "types": [
+  "soldier",
+  "officer",
+  "king",
+  "police",
+  "worker",
+  "farmer",
+  "merchant",
+  "sailor",
+  "doctor",
+  "revolutionary",
+  "guard",
+  "judge",
+  "woman",
+  "priest"
+ ],
+ "version": 1
+}

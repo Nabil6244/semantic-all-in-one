@@ -200,6 +200,12 @@ from health_cinema.packaging import data_files as health_data_files, python_modu
 datas += health_data_files(ROOT)
 hiddenimports += health_modules(ROOT)   # app.py imports it only inside methods
 
+# Rep Theory: reptheory/ (opt-in style; reuses the bundled ffmpeg, Pillow, numpy and fonts; its pictures ship in assets/reptheory; a user library in ~/RepTheoryAssets is optional). See reptheory/packaging.py.
+from reptheory.packaging import data_files as reptheory_data_files, python_modules as reptheory_modules  # noqa: E402
+
+datas += reptheory_data_files(ROOT)   # the four bundled pictures (assets/reptheory)
+hiddenimports += reptheory_modules(ROOT)   # app.py imports it only inside methods
+
 # Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the
 # weather package's data and prompts (see weather/packaging.py, which is unit-tested).
 from weather.packaging import data_files as weather_data_files, python_modules as weather_modules  # noqa: E402

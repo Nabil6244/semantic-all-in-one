@@ -113,8 +113,15 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
 
             from . import footage, llm_director
 
+            from . import balance
+
+            for ch in parsed["chapters"]:
+                for it in ch["items"]:
+                    if it["kind"] != "line":
+                        it["_own"] = True                      # a directive the author wrote is never swapped by the variety pass
             new = llm_director.llm_direct(parsed, phone, llm_run, log) if llm_run else None
             parsed = new or director.auto_direct(parsed, phone)          # the AI's scenes, or the built-in rules when it is not available
+            parsed = balance.balance(parsed, phone, footage=bool(stock_settings))        # keep every reference look in rotation
             if stock_settings:
                 got = footage.resolve_footage(parsed, out, stock_settings, log)
                 log(f"Stock footage: {got['found']} clip(s) found, {got['missing']} not found")

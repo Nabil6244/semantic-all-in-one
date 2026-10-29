@@ -48,6 +48,43 @@ class StopDuringGeminiRetry(unittest.TestCase):
         self.assertEqual(self.calls, 0)
 
 
+class GeminiIsOptional(unittest.TestCase):
+    SCRIPT = ("Your heart pumps blood around the body every second of the day. It never rests, even when you sleep. "
+              "Inside the arteries a smooth lining keeps blood moving freely. Over many years that lining can become damaged. "
+              "High blood pressure and smoking are linked to this damage. A doctor can check your risk with simple tests.")
+
+    def test_off_makes_no_gemini_call_and_still_plans(self):
+        import visual_director.llm as vl
+        saved = vl.GeminiLLM.complete
+        vl.GeminiLLM.complete = lambda *a, **k: (_ for _ in ()).throw(AssertionError("Gemini was called while switched off"))
+        self.addCleanup(setattr, vl.GeminiLLM, "complete", saved)
+        logs = []
+        t0 = time.time()
+        out = direction.plan_visuals(self.SCRIPT, {"gemini_enabled": False}, None, logs.append)
+        self.assertLess(time.time() - t0, 5.0)
+        self.assertTrue(out); self.assertTrue(all(d["plan_source"] == "deterministic-fallback" for d in out))
+        self.assertTrue(any("built-in planner" in m for m in logs))
+
+    def test_failed_gemini_gets_one_retry_only(self):
+        import visual_director.director as vd
+        import visual_director.llm as vl
+        calls = []
+
+        class Fail:
+            def __init__(self, **k): pass
+            def plan(self, script, state_dir=None):
+                calls.append(1)
+                return SimpleNamespace(warnings=["gemini_failure: high demand"], scenes=[])
+
+        saved = (vd.VisualDirector, vl.GeminiLLM, vl.gemini_configured)
+        vd.VisualDirector, vl.GeminiLLM, vl.gemini_configured = Fail, (lambda settings=None: object()), (lambda st: True)
+        self.addCleanup(lambda: (setattr(vd, "VisualDirector", saved[0]), setattr(vl, "GeminiLLM", saved[1]), setattr(vl, "gemini_configured", saved[2])))
+        time_mod = __import__("time"); orig = time_mod.sleep; time_mod.sleep = lambda s: None
+        self.addCleanup(setattr, time_mod, "sleep", orig)
+        direction.plan_visuals("A script.", {"gemini_enabled": True}, None)
+        self.assertEqual(len(calls), 2)       # first try + one retry, then the built-in planner
+
+
 class NoLeakedFiles(unittest.TestCase):
     def test_cache_key_closes_its_spec_file(self):
         d = Path(tempfile.mkdtemp())

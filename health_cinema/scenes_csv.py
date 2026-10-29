@@ -16,6 +16,10 @@ Visual direction columns (optional; when any row fills one, the app plans the vi
            card_type none|lesion|microscopic|mechanism|anatomy|treatment|test   card_ref (id of an illustration in the library)   card_prompt (what to generate when card_ref is new)   card_at (seconds into the beat)
   Cards (from numbers and words IN the narration only): visual=stat with stat (the number as spoken), stat_unit (short: %, seconds), stat_label, stat_kicker, stat_source;
   visual=timeline with events (`when: what happens | when: what happens`); visual=chapter with card_title and card_kicker
+Paper-cutout puppet columns (optional, used only when the Puppet switch is on in the app; blank = the planner decides; a bad value is a warning, never an error):
+  character_action  what the character does in this scene: walk | run | stand_idle | look_around | point | turn | pick_up | put_down | wave | stop, or a phrase like
+                    walk_in_from_left, stand_and_look, pick_up_box (the verb is understood, left/right sets the direction); `none` keeps this scene plain
+  character         which character (a name from the cast; blank = Auto)
 Without start/end the rows are aligned to the voiceover's own word times (`align_to_words`), so the timings are the real ones, not estimates.
 Nothing here invents text, numbers or sources: it only reads and validates what the file holds.
 """
@@ -35,7 +39,8 @@ ALIASES = {"text": ("text", "narration", "sentence", "script"), "start": ("start
            "stat": ("stat", "number", "stat_value"), "stat_unit": ("stat_unit", "unit"), "stat_label": ("stat_label", "label"), "stat_kicker": ("stat_kicker", "kicker"), "stat_source": ("stat_source",),
            "events": ("events", "timeline_events"), "card_title": ("card_title", "title"), "card_kicker": ("card_kicker",),
            "body_region": ("body_region",), "body_scale": ("body_scale",), "body_focus": ("body_focus",), "body_effect": ("body_effect",), "body_label": ("body_label",),
-           "card_type": ("card_type",), "card_ref": ("card_ref", "illustration"), "card_prompt": ("card_prompt",), "card_at": ("card_at",)}
+           "card_type": ("card_type",), "card_ref": ("card_ref", "illustration"), "card_prompt": ("card_prompt",), "card_at": ("card_at",),
+           "character_action": ("character_action", "puppet_action", "char_action"), "character": ("character", "puppet", "puppet_character"), "character_ground": ("character_ground", "ground", "ground_y")}
 VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "stat", "flow", "youtube", "body")
 SHOTS = ("orbit", "zoom", "peel", "cutaway", "isolate", "fatty", "inflamed")
 SOURCES = ("stock", "youtube", "flow")
@@ -90,6 +95,40 @@ def _sources(row: Dict[str, str], where: str) -> List[dict]:
         elif src:
             raise ValueError(f"{where}: source {i + 1} has details but no title, citation or url")
     return out
+
+
+def _puppet_cells(row: Dict[str, str], sc: Dict[str, Any], where: str, notes: Optional[List[str]]) -> None:
+    """Optional puppet columns -> sc['character_action'] (a known action, or 'none'), sc['character_direction'] and sc['character']. Anything unknown is
+    dropped with a note: a bad cell here must never stop a CSV that otherwise works."""
+    raw_a, raw_c = (row.get("character_action") or "").strip(), (row.get("character") or "").strip()
+    raw_g = (row.get("character_ground") or "").strip()
+    if raw_g:
+        try:
+            g = float(raw_g.rstrip("%")) / (100.0 if raw_g.endswith("%") or float(raw_g.rstrip("%")) > 1 else 1.0)
+            if 0.5 <= g <= 0.97:
+                sc["character_ground"] = g
+            elif notes is not None:
+                notes.append(f"{where}: character_ground {raw_g!r} must be between 50% and 97% of the picture height, ignored")
+        except ValueError:
+            if notes is not None:
+                notes.append(f"{where}: character_ground {raw_g!r} is not a number, ignored")
+    if not (raw_a or raw_c):
+        return
+    from . import puppet_plan
+    if raw_a:
+        action, direction, warn = puppet_plan.parse_action(raw_a)
+        if warn and notes is not None:
+            notes.append(f"{where}: {warn}")
+        if action:
+            sc["character_action"] = action
+            if direction:
+                sc["character_direction"] = direction
+    if raw_c:
+        name, warn = puppet_plan.parse_character(raw_c)
+        if warn and notes is not None:
+            notes.append(f"{where}: {warn}")
+        if name:
+            sc["character"] = name
 
 
 def _header_map(fields: Sequence[str]) -> Dict[str, str]:
@@ -185,6 +224,7 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
             sc["organ"] = re.sub(r"\s+", " ", row["organ"].strip().lower())
         if row.get("footage_alt"):
             sc["footage_alt"] = [q for q in _split(row["footage_alt"]) if q]
+        _puppet_cells(row, sc, where, notes)
         src = _sources(row, where)
         if src:
             sc["sources"] = src

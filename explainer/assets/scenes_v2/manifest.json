@@ -1,7 +1,7 @@
 {
  "asset_id": "scenes_v2_v1",
  "built_by": "explainer/cartoon/build_scenes_v2.py",
- "layers_digest": "5e041425b9d275a2ca753b8e53e236435d541fd21943a774e503439dff55c701",
+ "layers_digest": "0210b14fc5e9ea67892ec723ce7b35f41b361ee82eb15712e0a02b7695b1ba4d",
  "pillow_version": "12.3.0",
  "props": {
   "barbed_wire": {
@@ -316,6 +316,29 @@
      "bytes": 33948,
      "file": "set_old_town_dusk.png",
      "sha256": "cfac3db8eb7c9f362e8e97b8977469e2da49c8f1d0047ffbc4e20d4c1aabd715",
+     "size": [
+      1920,
+      1080
+     ]
+    }
+   }
+  },
+  "shallows": {
+   "ground_y": 880,
+   "tod": {
+    "day": {
+     "bytes": 53704,
+     "file": "set_shallows_day.png",
+     "sha256": "04e8ba1096a1a853652cb5b9363a83456c267a986615fef3475e279d8a277a37",
+     "size": [
+      1920,
+      1080
+     ]
+    },
+    "dusk": {
+     "bytes": 52161,
+     "file": "set_shallows_dusk.png",
+     "sha256": "d0beec3567d2ff9af6b0acaca503be95ece112aa68888cc5ed65b3552aaa88fa",
      "size": [
       1920,
       1080

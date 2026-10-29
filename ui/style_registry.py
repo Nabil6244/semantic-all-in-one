@@ -11,7 +11,7 @@ GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
     ("General", ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar")),
     ("Maps", ("pakMap", "Hybrid Map")),
     ("Space", ("StarMap", "StarMap Cinema")),
-    ("Explainers", ("What If", "Explainer", "Product Trailer")),
+    ("Explainers", ("What If", "Explainer", "Rep Theory", "Product Trailer")),
     ("Documentary", ("War Documentary", "Enoch Template")),
     ("Specialist", ("Health Cinema", "Weather")),
 )

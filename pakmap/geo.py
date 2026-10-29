@@ -23,6 +23,8 @@ from typing import Any, List, Optional, Tuple
 
 from map_scene.places import PlaceNotFound, _dataset, find_place
 
+from . import waters as _waters
+
 
 
 def _engine_data(name: str) -> Path:
@@ -151,6 +153,10 @@ def resolve(ref: str, prefer: str = "area") -> Located:
     ref = (ref or "").strip()
     if not ref:
         raise GeoError("geo_ref is empty")
+    if ";" not in ref:
+        alias = _waters.override(ref)          # "Balkan" is a province of Turkmenistan in the atlas; the script means the Balkans
+        if alias:
+            ref = alias
     if ";" in ref:   # "Cornwall;Devon": one view that holds all of them (a camera target; fills and lines split the list themselves)
         parts = [resolve(part, prefer) for part in ref.split(";") if part.strip()]
         if len(parts) > 1:
@@ -193,6 +199,10 @@ def resolve(ref: str, prefer: str = "area") -> Located:
     c = _city(ref)
     if c:
         return c
+    w = _waters.find(ref)                      # a sea, gulf, strait or lagoon: the atlas has no polygon, the camera frames its box and a label names it
+    if w:
+        bb = w[1]
+        return Located(w[0], "sea", (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, bb)
     tips = _suggest_city(ref)
     raise GeoError(f"can't find {ref!r}" + (f" (did you mean {', '.join(tips)}?)" if tips else "")
                    + ". Use a country, state, county or named region, a city (city:Name), an ISO code, or lat,lon.")
@@ -233,6 +243,9 @@ def view_for(loc: Located, frame: str = "", width: int = 1920, height: int = 108
     """(lon, lat, zoom) for showing a place. Areas fit their shape, cities and points sit at local scale."""
     if frame in ("globe", "continental"):
         return loc.lon, loc.lat, FRAME_ZOOM[frame]
+    if loc.kind == "sea" and frame != "local":          # a water body is framed by its box, though it has no outline to fill
+        pad = 0.25 if frame == "region" else 0.18
+        return fit(loc.bbox, width, height, pad)
     if frame == "local" or not loc.is_area:
         return loc.lon, loc.lat, FRAME_ZOOM["local"]
     pad = 0.25 if frame == "region" else 0.18

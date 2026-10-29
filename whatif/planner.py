@@ -1136,9 +1136,6 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
         from . import variety
 
         look = variety.apply(shots, layers, title, text_all, notes)
-        from visual_composer import apply as vc
-
-        vc.apply(shots, layers, words, duration, notes, gate=not authored_shots)      # relevance gate on 3D shots + a graphic composed for each showable sentence (any niche)
     shots = split_long_videos(shots, words, layers, notes)
     limit_flow(shots, notes)
     for i, s in enumerate(shots, 1):
@@ -1148,6 +1145,10 @@ def plan(raw_words: Sequence[Any], script: str, duration: float, title: str = ""
     for i, s in enumerate(shots, 1):
         s.id = f"s{i}"
     changed = vary(shots)
+    if auto:
+        from visual_composer import apply as vc
+
+        vc.apply(shots, layers, words, duration, notes, gate=not authored_shots)      # once the shots are final: relevance gate on 3D shots, scenes generated from sentences, a graphic composed for each showable sentence
     notes.append(f"plan: {len(shots)} shots (median {sorted(x.length for x in shots)[len(shots) // 2]:.1f} s), "
                  f"{sum(1 for s in shots if s.kind == 'plate')} diagram plate(s), {sum(1 for L in layers if L['type'] == 'tm_metric')} callout(s), "
                  f"{fills} context lockup(s), {changed} repeat(s) re-framed")

@@ -327,6 +327,10 @@ def generate_starmap_video(
         from .media import fetch_media
 
         extra = {}
+        if fetch is None and not media_only:
+            # Render: every scene was checked when the scenes were fetched and the author then saw them ready in the Visual Plan.
+            # Re-judging them here threw ready scenes out and stopped the render ("not the asked-for picture"); the doubt is only logged.
+            extra["recheck_warn_only"] = True
         if fetch is None and cinema:
             from .cinema import flags as _cfl
 

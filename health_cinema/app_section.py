@@ -76,8 +76,12 @@ def build(app, parent, *, row: int) -> None:
     app._health_preview_var = ctk.BooleanVar(value=False)
     app._health_youtube_var = ctk.BooleanVar(value=False)
     app._health_flow_var = ctk.BooleanVar(value=False)
+    app._health_gemini_var = ctk.BooleanVar(value=True)                      # off = the built-in planner for everything: no Gemini calls, no waiting
     app._health_edit_var = ctk.StringVar(value="Classic")                    # Classic (default) / High-end; session-only like the other options here
     app._health_music_var = ctk.BooleanVar(value=True)                       # only used by High-end
+    app._health_puppet_var = ctk.BooleanVar(value=False)                     # paper-cutout character on some stills; OFF by default, session-only like the other options
+    app._health_puppet_intensity_var = ctk.StringVar(value="Medium")         # Low / Medium / High: share of shots and amount of motion
+    app._health_puppet_character_var = ctk.StringVar(value="Auto")
     app._health_cancel = threading.Event()
     app._health_running = getattr(app, "_health_running", False)
     block = ctk.CTkFrame(parent, fg_color=M._CARD, corner_radius=10, border_width=1, border_color=M._BORDER)
@@ -105,7 +109,17 @@ def build(app, parent, *, row: int) -> None:
         row=2, column=1, sticky="w", pady=(8, 0))
     app._health_music_cb = ctk.CTkCheckBox(opts, text="Music (High-end)", variable=app._health_music_var)
     app._health_music_cb.grid(row=2, column=2, sticky="w", pady=(8, 0))
+    ctk.CTkCheckBox(opts, text="Use Gemini for planning (off = built-in planner, never waits)", variable=app._health_gemini_var).grid(
+        row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    ctk.CTkCheckBox(opts, text="Paper-cutout character on some stills (Classic edit)", variable=app._health_puppet_var, command=lambda: sync_puppet_options(app)).grid(
+        row=4, column=0, columnspan=3, sticky="w", pady=(8, 0))
+    app._health_puppet_menus = [ctk.CTkOptionMenu(opts, values=list(PUPPET_INTENSITY), variable=app._health_puppet_intensity_var, width=110),
+                                ctk.CTkOptionMenu(opts, values=puppet_character_choices(), variable=app._health_puppet_character_var, width=160)]
+    app._health_puppet_menus[0].grid(row=5, column=0, sticky="w", pady=(4, 0))
+    app._health_puppet_menus[1].grid(row=5, column=1, sticky="w", pady=(4, 0))
+    ctk.CTkLabel(opts, text="Amount of shots and motion  /  Character", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=5, column=2, sticky="w", padx=(8, 0), pady=(4, 0))
     sync_edit_options(app)
+    sync_puppet_options(app)
     go = ctk.CTkFrame(controls, fg_color="transparent")
     go.grid(row=3, column=0, sticky="ew", pady=(12, 0))
     app._health_render_btn = ctk.CTkButton(go, text="Render Health Cinema", width=230, height=40, corner_radius=6, fg_color=M._ACCENT, hover_color=M._ACCENT_HOV,
@@ -122,6 +136,32 @@ def sync_edit_options(app) -> None:
     cb = getattr(app, "_health_music_cb", None)           # Music only matters for High-end
     if cb is not None:
         cb.configure(state="normal" if app._health_edit_var.get() == "High-end" else "disabled")
+
+
+PUPPET_INTENSITY = ("Low", "Medium", "High")
+
+
+def puppet_character_choices() -> List[str]:
+    """Auto plus the cast's names. Reading the cast is a cheap lookup; if the puppet engine is missing the list is just Auto."""
+    try:
+        from . import puppet_plan
+
+        return ["Auto"] + puppet_plan.vocab()["characters"]
+    except Exception:  # noqa: BLE001 - the picker must always open
+        return ["Auto"]
+
+
+def sync_puppet_options(app) -> None:
+    for w in getattr(app, "_health_puppet_menus", []):      # intensity and character only matter when the switch is on
+        w.configure(state="normal" if app._health_puppet_var.get() else "disabled")
+
+
+def puppet_kwargs(app) -> dict:
+    """Extra run_health_cinema kwargs: empty while the switch is off (the call is then unchanged)."""
+    var = getattr(app, "_health_puppet_var", None)
+    if var is None or not var.get():
+        return {}
+    return {"puppet": {"enabled": True, "intensity": app._health_puppet_intensity_var.get().lower(), "character": app._health_puppet_character_var.get()}}
 
 
 def edit_kwargs(app) -> dict:
@@ -219,7 +259,7 @@ def on_render_click(app) -> None:
     profile = app._health_profile_var.get()
     quality = "preview" if app._health_preview_var.get() else "final"
     allow_youtube, allow_flow = bool(app._health_youtube_var.get()), bool(app._health_flow_var.get())
-    extra = edit_kwargs(app)
+    extra = dict(edit_kwargs(app), **puppet_kwargs(app))
     images_dir = project_dir / "state" / "health_cinema" / "assets"      # its own asset folder + manifest: never mixes with Normal video's Images/
     try:
         manager = app._build_asset_manager(images_dir, [])                # the app's own provider wiring and settings (built here: it reads Tk variables)
@@ -279,7 +319,7 @@ def on_render_click(app) -> None:
             acquirer = acquire.make_acquirer(lambda _dir, _rows: manager, images_dir, log, cancel=app._health_cancel.is_set)
             result = engine.run_health_cinema(project_dir, sentences, str(voiceover), str(out_path), profile=profile, quality=quality,
                                               cancel_check=app._health_cancel.is_set, progress_cb=progress, log=log, script_text=" ".join(s["text"] for s in sentences),
-                                              settings=app._settings, acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow, **extra)
+                                              settings=app._settings, use_gemini=bool(getattr(app, "_health_gemini_var", None) is None or app._health_gemini_var.get()), acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow, **extra)
         except engine.Cancelled:
             error = "Stopped."
         except Exception as exc:  # noqa: BLE001 - shown to the user, never a silent failure

@@ -226,9 +226,35 @@ def fetch_scenes(
                 result.fetched += 1
         else:
             result.missing[n] = err_text or error or "no picture was found for it"
+    _vet_period_pictures(scenes, result, images_dir, manifest_cls)
     if on_complete is not None:
         _report_unreported(scenes, result, reported, on_complete)
     return result
+
+
+def _vet_period_pictures(scenes: Sequence[Any], result: "FetchResult", images_dir: Path, manifest_cls: Any) -> None:
+    """An Explainer picture asked for with era words ("... historical painting" / "... antique engraving", added when the narration is about a time before 1800) must come back looking old: a fetched
+    photograph the provider describes as modern (a ferry, a cityscape) is reported as missing, so the Visual Plan offers Retry (another candidate), Change source or Skip instead of drawing it. A
+    prompt without those words, or any failure of the check, changes nothing."""
+    try:
+        from explainer.director import compose_pictures as CPX
+    except Exception:
+        return
+    for sc in scenes:
+        n = str(sc.scene_number)
+        prompt = " ".join(str(_row_dict(sc).get("prompt") or "").lower().split())
+        year = 1000 if prompt.endswith("historical painting") else 1650 if prompt.endswith("antique engraving") else None
+        if year is None or n not in result.paths:
+            continue
+        try:
+            meta = dict(_record(manifest_cls, images_dir, n))
+            ok, why = CPX.vet_picture(meta, year, prompt.rsplit(" ", 2)[0])
+        except Exception:
+            continue
+        if not ok:
+            result.paths.pop(n, None)
+            result.fetched = max(0, result.fetched - 1)
+            result.missing[n] = f"the picture does not look like a period picture ({why}); Retry fetches another, or Change source / Skip"
 
 
 def _report_unreported(scenes: Sequence[Any], result: "FetchResult", reported: set, on_complete: Callable[[Any, Any], None]) -> None:

@@ -319,3 +319,9 @@ def _anatomy_topic(text: str) -> Optional[str]:
     return detect_organ(text)
 
 def _short(t: str, n: int) -> str: return t if len(t) <= n else t[: n - 1].rsplit(" ", 1)[0] + "\u2026"
+
+
+def puppet_plan(scenes, settings, rows=None, has_still=None, log=None, module=None) -> Dict[int, dict]:
+    """Which scenes get the paper-cutout character move and with what (see puppet_plan.py). {} when the feature is off; never changes the scenes themselves."""
+    from . import puppet_plan as PP
+    return PP.plan_puppet(scenes, settings, rows, has_still, log, module)

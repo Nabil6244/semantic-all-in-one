@@ -86,9 +86,7 @@ def _num(m: "re.Match[str]") -> float:
 
 def quantities(text: str) -> List[Tuple[float, str, str, str]]:
     """[(value, unit text, prefix, raw)] of every figure in the sentence (digits, with k/million/billion and %, currency)."""
-    t = text or ""
-    for w, n in WORDNUM.items():
-        t = re.sub(rf"\b{w}\b(?=\s+(?:percent|per ?cent|times|million|billion|thousand))", str(n), t, flags=re.I)
+    t = _number_words(text or "")
     out = []
     for m in QUANT.finditer(t):
         before = t[:m.start()].split()[-1] if t[:m.start()].strip() else ""
@@ -113,6 +111,19 @@ def quantities(text: str) -> List[Tuple[float, str, str, str]]:
             val = float(m.group("num").replace(",", ""))
         out.append((val, shown_unit.strip(), m.group("cur") or "", m.group(0).strip()))
     return out
+
+
+_ONES = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9}
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+
+
+def _number_words(t: str) -> str:
+    """Spelled-out figures before a unit word -> digits: "twenty two times" -> "22 times", "forty percent" -> "40 percent", "ten million" -> "10 million"."""
+    unit = r"(?=\s+(?:percent|per ?cent|times|million|billion|trillion|thousand|hundred))"
+    t = re.sub(rf"\b({'|'.join(_TENS)})[ -]({'|'.join(_ONES)})\b{unit}", lambda m: str(_TENS[m.group(1).lower()] + _ONES[m.group(2).lower()]), t, flags=re.I)
+    for w, n in WORDNUM.items():
+        t = re.sub(rf"\b{w}\b{unit}", str(n), t, flags=re.I)
+    return t
 
 
 def _items(text: str) -> List[str]:
@@ -148,7 +159,7 @@ def _headline(text: str, drop: str = "") -> str:
 
 def analyze(text: str) -> Concept:
     """The concept of one sentence (or two). Order: quote, change, comparison, percent, timeline, sequence, list, plain figure, definition, keyword."""
-    t = _clean_sentence(text)
+    t = _number_words(_clean_sentence(text))
     qs = quantities(ERA.sub(" ", t))
     years = [-int(n) if e.upper().startswith("BC") else int(n) for n, e in ERA.findall(t)] + [int(y) for y in YEAR.findall(ERA.sub(" ", t))]
     if ERA.search(t):
@@ -196,7 +207,14 @@ def analyze(text: str) -> Concept:
         return Concept("list", headline="", strength=0.7, items=[i.upper() for i in items], **base)
     if qs:
         v, unit, cur, raw = qs[0]
-        return Concept("stat", headline=_fmt(v), sub=_headline(t, re.escape(raw)), strength=0.7, values=[v], unit=unit, prefix=cur, **base)
+        tn = _number_words(t)
+        at = tn.find(raw)
+        near = ""
+        if at >= 0:
+            before = content_words(tn[:at])[-3:]
+            after = content_words(tn[at + len(raw):])[:2]
+            near = " ".join(before + after).upper()
+        return Concept("stat", headline=_fmt(v), sub=near or _headline(t, re.escape(raw)), strength=0.7, values=[v], unit="×" if unit in ("TIMES", "X") else unit, prefix=cur, **base)
     if len(set(years)) == 1 and re.search(r"\b(?:in|by|since|until|during|around|from)\s+" + str(years[0]), t):
         return Concept("timeline", headline=_headline(t, r"\b\d{4}\b"), strength=0.5, years=years, **base)
     d = DEFINE.match(t)

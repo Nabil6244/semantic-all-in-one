@@ -90,6 +90,39 @@ def _trim(run: List[Tuple[str, Optional[int]]], n: int) -> List[Tuple[str, Optio
     return part
 
 
+ECHO_MIN_BEAT_S = 4.0
+ECHO_WORDS = (2, 5)             # an in-world line is a short phrase
+
+
+def _echo(sents: Sequence[Any], words, pos: Dict[int, int]) -> List[Dict[str, Any]]:
+    """An in-world line for the cast when the script quotes nobody (the references act the narration out: the villagers say the key phrase themselves): the most telling run of 2 to 4 content
+    words of the beat, taken word for word from the narration (nothing is invented), starting after the first third of the beat so the figures are on stage. Shown as speech with an exclamation mark."""
+    from ..director import lexicon as LX
+    gs = [g for s in sents for g in s.widx if g in pos]
+    if len(gs) < 8:
+        return []
+    best, best_score = None, 0
+    for a in range(len(gs) // 3, len(gs) - ECHO_WORDS[0] + 1):
+        for n in range(ECHO_WORDS[1], ECHO_WORDS[0] - 1, -1):
+            run = gs[a:a + n]
+            if len(run) < n or any(run[k + 1] != run[k] + 1 for k in range(n - 1)):
+                continue
+            toks = [norm(words[g][0]) for g in run]
+            if toks[0] in LX.STOP or toks[-1] in LX.STOP or any(not t for t in toks):
+                continue
+            content = sum(1 for t in toks if t not in LX.STOP)
+            ends = any(run[-1] == s.widx[-1] for s in sents if s.widx)
+            score = content * 10 + sum(len(t) for t in toks) - (3 if toks[0] in LX.WEAK else 0) + (8 if ends else 0) - (9 if toks[-1].endswith("ed") or toks[0].endswith("ed") else 0)
+            if content >= 2 and score > best_score:
+                best, best_score = run, score
+    if best is None:
+        return []
+    cas = {norm(t): re.sub(r"[^\w'-]", "", t) for sn in sents for t in (getattr(sn, "text", "") or "").split() if t[:1].isupper() and norm(t)}      # the script's own capitals (Napoleon, Venice)
+    ws = [cas.get(norm(words[g][0]), re.sub(r"[^\w'-]", "", words[g][0])) for g in best]
+    text = " ".join(ws)
+    return [{"kind": "echo", "g": best[0], "run": [(w, g) for w, g in zip(ws, best)], "text": text[:1].upper() + text[1:] + "!", "shout": False}]
+
+
 def candidates(sents: Sequence[Any], words, pos: Dict[int, int]) -> List[Dict[str, Any]]:
     """Every speech or cry in the beat, in spoken order: {kind, g (first word), words [(text, g)], text, shout}."""
     out: List[Dict[str, Any]] = []
@@ -166,6 +199,9 @@ def dialogue_pass(br, beat_id: str, start: float, end: float, sents: Sequence[An
     pos = {g: k for k, g in enumerate(bw)}
     done = state.setdefault("bubbles", [])
     cands = candidates(sents, words, pos)
+    echo = False
+    if not cands and end - start >= ECHO_MIN_BEAT_S and any((c.params or {}).get("style") == "figure" for c in br.cues if c.kind == "visual"):
+        cands, echo = _echo(sents, words, pos), True          # no quoted speech: the cast says the key phrase of its own narration
     if not cands:
         return rec
     probs, resolved, items = dry_build(br.cues, words, start, end, dissolve_s=opt.dissolve_s, fps=opt.fps, beat_id=beat_id)
@@ -205,6 +241,8 @@ def dialogue_pass(br, beat_id: str, start: float, end: float, sents: Sequence[An
             if tx_ and tx_ not in seen:
                 seen.add(tx_)
                 texts.append(tx_)
+        if cand["kind"] == "echo":
+            texts = [cand["text"]]
         placed = None
         for sp in order:
             fig_cue = next((c for c in br.cues if c.id == sp.cue_id), None)

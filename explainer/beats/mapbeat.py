@@ -14,7 +14,7 @@ MARKER_OFFSET_S, FILL_OFFSET_S, LINE_OFFSET_S = 0.1, 0.0, 0.0
 def make_map_beat(beat_id: str, start: float, end: float, words: Sequence[Word], *, camera_start: Optional[Dict[str, str]] = None, fly_to: Sequence[Dict[str, Any]] = (),
                   markers: Sequence[Dict[str, Any]] = (), fills: Sequence[Dict[str, Any]] = (), lines: Sequence[Dict[str, Any]] = (), captions: Sequence[Dict[str, Any]] = (),
                   purpose: str = "", geo_intent: str = "", strict: bool = True, resolve_offline: bool = True, camera_steps: Sequence[Dict[str, Any]] = (),
-                  zone_labels: Sequence[Dict[str, Any]] = (), stats: Sequence[Dict[str, Any]] = ()) -> Tuple[Dict[str, Any], Dict[str, Any], List[str]]:
+                  zone_labels: Sequence[Dict[str, Any]] = (), stats: Sequence[Dict[str, Any]] = (), direction_cues: bool = True) -> Tuple[Dict[str, Any], Dict[str, Any], List[str]]:
     """Returns (beat dict in the Hybrid plan schema, evidence, problems). Item dicts:
     marker  {place, label=None (default PLACE), occurrence=1, offset_s=0.1, until='beat_end'}      fill {place, role='subject', occurrence, offset_s, until}
     line    {places=[a, b], kind, offset_s, until}                                              caption {text, anchor_word, occurrence=1, offset_s=0.0, role}
@@ -42,6 +42,15 @@ def make_map_beat(beat_id: str, start: float, end: float, words: Sequence[Word],
                 return None
         return m
 
+    _seen_water: set = set()
+    _mk: list = []
+    for mk in markers:                                      # "Adriatic" and "Adriatic Sea" are one place: one marker, not two stacked on the same point
+        _k = " ".join(w for w in str(mk["place"]).lower().split() if w not in ("sea", "ocean", "gulf", "bay"))
+        if _k in _seen_water and _k != str(mk["place"]).lower():
+            continue
+        _seen_water.add(_k)
+        _mk.append(mk)
+    markers = [m_ for m_ in _mk if not any(o is not m_ and " ".join(w for w in str(o["place"]).lower().split() if w not in ("sea", "ocean", "gulf", "bay")) == " ".join(w for w in str(m_["place"]).lower().split() if w not in ("sea", "ocean", "gulf", "bay")) and len(str(o["place"])) > len(str(m_["place"])) for o in _mk)]
     for mk in markers:
         n += 1
         m = place_match(mk["place"], int(mk.get("occurrence", 1)), f"marker {n}")
@@ -84,6 +93,10 @@ def make_map_beat(beat_id: str, start: float, end: float, words: Sequence[Word],
         lay = {"id": f"{beat_id}_caption{n}", "type": "caption", "t": t, "text": cp["text"], "until": cp.get("until", "beat_end")}
         layers.append(lay)
         ev["layers"].append({"layer": lay["id"], "type": "caption", "caption": ct.to_dict(), "t": t})
+    caps_ = sorted((l for l in layers if l["type"] == "caption"), key=lambda l: l["t"])
+    for a_, b_ in zip(caps_, caps_[1:]):                     # one caption at a time: a later phrase replaces the one before it, they are never drawn on top of each other
+        if b_["t"] - a_["t"] >= 0.5 and a_.get("until") == "beat_end":
+            a_["until"] = round(b_["t"], 4)
     for zl in zone_labels:
         n += 1
         m = place_match(zl["place"], int(zl.get("occurrence", 1)), f"zone label {n}")
@@ -93,6 +106,19 @@ def make_map_beat(beat_id: str, start: float, end: float, words: Sequence[Word],
         lay = {"id": f"{beat_id}_zone{n}", "type": "zone_label", "t": t, "place": zl["place"], "label": zl.get("label") or zl["place"].upper(), "until": zl.get("until", "beat_end")}
         layers.append(lay)
         ev["layers"].append({"layer": lay["id"], "type": "zone_label", "match": m, "t": t})
+    if direction_cues:
+        from .geography import direction_cue
+        from .framing import _geo
+        for ly in list(layers):                                  # "look east across the Adriatic": the named water or region gets a flow line across it in that direction
+            if ly["type"] not in ("marker", "zone_label", "fill") or any(x["id"].endswith("_dir1") for x in layers):
+                continue
+            m = find_phrase(tk, ly["place"], 1)
+            cue = direction_cue(tk, ly["place"], m, _geo().resolve) if m else None
+            if cue:
+                n += 1
+                lay = {"id": f"{beat_id}_dir1", "type": "line", "t": max(float(start), cue["t"]), "places": cue["places"], "kind": "flow", "until": "beat_end"}
+                layers.append(lay)
+                ev["layers"].append({"layer": lay["id"], "type": "line", "direction": cue["direction"], "toward": ly["place"], "t": lay["t"]})
     for st in stats:
         n += 1
         phrase = f"{st['anchor_word']} {st.get('unit', '')}".strip()

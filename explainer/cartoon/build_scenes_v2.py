@@ -28,7 +28,7 @@ OUT = Path(__file__).resolve().parents[1] / "assets" / "scenes_v2"
 ASSET_ID = "scenes_v2_v1"
 G = 880                                         # the feet line, as in v1
 TODS = ("day", "dusk")
-SETS = ("border_wall", "mountain_pass", "vault", "station", "barn", "snowy_village", "village", "old_town")
+SETS = ("border_wall", "mountain_pass", "vault", "station", "barn", "snowy_village", "village", "old_town", "shallows")
 PROPS = ("coin_stack", "gold_bars", "vault_door", "folder", "letter", "train", "truck", "tank", "plane", "ship", "barbed_wire", "border_post", "radio", "lantern", "map_table")
 
 SKY = {"day": (186, 222, 244), "dusk": (246, 186, 146)}
@@ -326,8 +326,46 @@ def s_old_town(c, tod):
         c.ell(x - 14, 536, x + 22, 572, (255, 232, 150))
 
 
+def s_shallows(c, tod):
+    """A shore whose water is too shallow to sail: the deep sea far off, a pale shoal band with sandbars breaking the surface, rocks and ripples, a ship run aground and tilted on a
+    sandbar, and the dry sand where people would have to land. (The 'shallow water kept the invaders out' picture.)"""
+    d = tod == "dusk"
+    sky_sun(c, tod, (330, 250))
+    deep, mid, pale = ((80, 110, 160), (110, 146, 178), (150, 178, 186)) if d else ((96, 160, 206), (126, 190, 214), (176, 222, 224))
+    bar, wet, sand = ((196, 150, 108), (170, 126, 92), (200, 150, 110)) if d else ((232, 208, 160), (206, 180, 134), (226, 200, 150))
+    c.rect(0, 520, W, 600, deep)                                   # deep water far off
+    c.rect(0, 600, W, 700, mid)                                    # getting shallow
+    c.rect(0, 700, W, 780, pale)                                   # the shoal: the bottom shows through
+    for k in range(14):                                            # ripples
+        x = (k * 167) % W
+        y = 540 + (k * 41) % 220
+        c.rect(x, y, x + 70, y + 7, tuple(min(255, v + 34) for v in (deep if y < 600 else mid if y < 700 else pale)))
+    for x0, x1, y0 in ((40, 360, 722), (520, 760, 740), (840, 1080, 716), (1760, 1920, 730)):      # sandbars just under and above the surface
+        c.ell(x0, y0, x1, y0 + 46, bar)
+        c.ell(x0 + 14, y0 + 6, x1 - 14, y0 + 30, tuple(min(255, v + 12) for v in bar))
+    for x, y in ((120, 700), (610, 716), (950, 696), (1840, 706)):                               # rocks and reeds breaking the surface
+        c.ell(x, y, x + 46, y + 26, (118, 118, 126))
+        c.ell(x + 8, y + 4, x + 30, y + 14, (150, 150, 158))
+    # the sandbar the ship is stuck on, and the ship tilted on it (hull low and slanted, mast leaning, sail slack)
+    c.ell(1180, 668, 1800, 760, bar)
+    c.ell(1220, 676, 1760, 742, tuple(min(255, v + 12) for v in bar))
+    hull = [(1260, 600), (1700, 640), (1650, 724), (1330, 704)]
+    c.poly(hull, (110, 70, 52))
+    c.poly([(1260, 600), (1700, 640), (1694, 656), (1262, 616)], (84, 52, 40))
+    c.poly([(1480, 622), (1494, 628), (1560, 396), (1544, 392)], (90, 60, 44))
+    c.poly([(1548, 410), (1690, 560), (1520, 600)], (236, 230, 214))
+    c.poly([(1536, 440), (1420, 560), (1500, 604)], (222, 214, 196))
+    # the dry beach where the troops stand
+    c.rect(0, 780, W, H, wet)
+    c.rect(0, 800, W, H, sand)
+    for x in range(0, W, 210):
+        c.rect(x, 940 + (x // 210) % 3 * 40, x + 60, 948 + (x // 210) % 3 * 40, T((200, 172, 126), tod))
+    for k in range(8):
+        c.rect((k * 263) % W, 782 + (k % 2) * 4, (k * 263) % W + 120, 794, tuple(min(255, v + 30) for v in pale))     # foam at the edge
+
+
 SET_FNS: Dict[str, Callable] = {"border_wall": s_border_wall, "mountain_pass": s_mountain_pass, "vault": s_vault, "station": s_station, "barn": s_barn, "snowy_village": s_snowy_village,
-                                "village": s_village, "old_town": s_old_town}
+                                "village": s_village, "old_town": s_old_town, "shallows": s_shallows}
 
 
 def draw_set(name: str, tod: str) -> Image.Image:

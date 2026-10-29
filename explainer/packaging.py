@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Tuple
 
-DATA_DIRS = ("assets/narrator", "assets/narrator_serious", "assets/cartoon", "assets/fonts", "assets/stamps", "assets/scenes_v2", "assets/texture", "assets/sfx")
+DATA_DIRS = ("assets/narrator", "assets/narrator_serious", "assets/cartoon", "assets/fonts", "assets/stamps", "assets/scenes_v2", "assets/texture", "assets/sfx", "assets/characters")
 
 
 def data_files(root: Path) -> List[Tuple[str, str]]:

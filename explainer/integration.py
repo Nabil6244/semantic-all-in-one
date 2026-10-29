@@ -45,8 +45,8 @@ def extras(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     (booleans) and `explainer_camera` ("push", "drift" or "reframe"; anything else is "off")."""
     cam = settings.get("explainer_camera", "off") if isinstance(settings, dict) else "off"
     cam = cam.strip().lower() if isinstance(cam, str) else "off"
-    return {"sound": _flag(settings, "explainer_sound"), "dialogue": _flag(settings, "explainer_dialogue"), "scenes2": _flag(settings, "explainer_scenes2"),
-            "mapoverlay": _flag(settings, "explainer_mapoverlay"), "texture": _flag(settings, "explainer_texture"), "camera": cam if cam in ("push", "drift", "reframe") else "off"}
+    return {"sound": _flag(settings, "explainer_sound"), "dialogue": _flag(settings, "explainer_dialogue"), "scenes2": _flag(settings, "explainer_scenes2"), "meaning": _flag(settings, "explainer_meaning"), "recipes": _flag(settings, "explainer_recipes"), "continuity": _flag(settings, "explainer_continuity"), "animate": _flag(settings, "explainer_animate"), "pictures": _flag(settings, "explainer_pictures"),
+            "mapoverlay": _flag(settings, "explainer_mapoverlay"), "alive": _flag(settings, "explainer_alive"), "texture": _flag(settings, "explainer_texture"), "camera": cam if cam in ("push", "drift", "reframe") else "off"}
 
 
 def map_share(settings: Optional[Dict[str, Any]]) -> float:
@@ -93,6 +93,45 @@ def composite_map_overlays(report: Dict[str, Any], map_clips: Dict[str, str], ou
     return done
 
 
+def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
+    """After the whole video is drawn (map, board clips, presenter): lays each map beat's overlay (outlines, arrows, stamps, plates) over it at the beat's time, and builds the sound track
+    (effects + ducked bed + the voice) from the plan the director left in <work>/explainer/render_report.json (or beside work). Returns {"video": path, "audio": path or None}; anything that
+    fails keeps the video / the voice as they were and says so in the log (never raises)."""
+    from pathlib import Path as _P
+    out: Dict[str, Any] = {"video": video, "audio": None}
+    try:
+        rr = next((p for p in (_P(work) / "explainer" / "render_report.json", _P(work).parent / "explainer" / "render_report.json") if p.is_file()), None)
+        if rr is None:
+            return out
+        import json
+        data = json.loads(rr.read_text(encoding="utf-8"))
+        report, words, total = data["report"], data["words"], float(data["total"])
+        cur = _P(video)
+        from .beats import overlay as OV
+        n = 0
+        for bid, info in sorted((report.get("beat_details") or {}).items()):
+            plan = (info or {}).get("overlay")
+            if not plan or not plan.get("cues"):
+                continue
+            try:
+                mov, nxt = rr.parent / f"{bid}_overlay.mov", rr.parent / f"{cur.stem.split('__ov')[0]}__ov{n}.mp4"
+                if OV.render_overlay(plan, mov)["returncode"] == 0 and OV.composite_over(cur, mov, nxt, start_s=float(plan["start"])) == 0 and nxt.is_file():
+                    cur, n = nxt, n + 1
+            except Exception as exc:
+                log(f"[Explainer] the map overlay of {bid} could not be laid on ({str(exc)[:100]}); the map is used as it is")
+        if n:
+            log(f"[Explainer] {n} map overlay(s) laid on the video")
+            out["video"] = cur
+        if (report.get("options") or {}).get("sound") and voice_path:
+            snd = build_sound(report, words, total, str(rr.parent / "explainer_audio.wav"), voice_path=str(voice_path))
+            if snd:
+                out["audio"] = snd
+                log("[Explainer] sound effects and a quiet bed are mixed under the narration")
+    except Exception as exc:
+        log(f"[Explainer] the finishing step could not run ({str(exc)[:100]}); the video is used as it is")
+    return out
+
+
 def footage_settings(settings: Optional[Dict[str, Any]]):
     """(share, source) from `explainer_footage_share` (0 to 0.6, default 0: none) and `explainer_footage_source` (one of the application's footage sources, default stock_video)."""
     from .director.lexicon import FOOTAGE_SOURCES
@@ -115,9 +154,10 @@ def look_settings(settings: Optional[Dict[str, Any]]):
 
 
 # The Explainer is meant to be full: every visual option is on unless the user saved a choice for it (the library defaults stay off).
-FULL_LOOK = {"explainer_motion": True, "explainer_numbers": True, "explainer_maplines": True, "explainer_variety": True, "explainer_budget": True,
+FULL_LOOK = {"explainer_sound": True, "explainer_motion": True, "explainer_numbers": True, "explainer_maplines": True, "explainer_variety": True, "explainer_budget": True,
              "explainer_fill": True, "explainer_scenes2": True, "explainer_mapoverlay": True, "explainer_texture": True, "explainer_dialogue": True,
-             "explainer_camera": "drift", "explainer_cartoon_share": 0.25, "explainer_footage_share": 0.2}
+             "explainer_meaning": True, "explainer_recipes": True, "explainer_continuity": True, "explainer_animate": True, "explainer_alive": True, "explainer_pictures": True,
+             "explainer_camera": "drift", "explainer_cartoon_share": 0.33, "explainer_footage_share": 0.0}
 
 
 def full_look(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -128,6 +168,12 @@ def full_look(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any], *, work_dir: str, duration: Optional[float] = None, places: Sequence[str] = (),
                 archive_dir: Optional[str] = None, dissolve_s: float = 0.0, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
     """Returns {"plan": dict | None, "problems": [...], "warnings": [...], "report": {...}}. `settings` is the application's settings dict (read only; the one key read is `explainer_cartoon_share`, default 0)."""
+    if archive_dir is None and _flag(settings, "explainer_pictures"):     # the people the narration names get a vetted portrait (Wikimedia Commons, public domain), kept in the work folder; none found = none shown
+        try:
+            from .director.portraits import build_library
+            archive_dir = build_library(script, places, work_dir, log)
+        except Exception:
+            archive_dir = None
     opt = DirectorOptions(work_dir=work_dir, places=list(places), archive_dir=archive_dir, dissolve_s=float(dissolve_s), cartoon_share=cartoon_share(settings),
                           footage_share=footage_settings(settings)[0], footage_source=footage_settings(settings)[1],
                           background=look_settings(settings)[0], narrator_style=look_settings(settings)[1], motion=motion_enabled(settings), fill=fill_enabled(settings), **motion_pack(settings), **extras(settings), max_map_share=map_share(settings))

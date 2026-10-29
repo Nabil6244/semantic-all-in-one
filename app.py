@@ -3010,8 +3010,9 @@ class VideoGeneratorApp(ctk.CTk):
     # ---------- pakMap (a third, independent video style) ----------
 
     # ---- one picker for the video style ------------------------------------------------------------------------------
-    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If", "War Documentary", "Health Cinema")
+    STYLE_CHOICES = ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar", "pakMap", "Hybrid Map", "StarMap", "Enoch Template", "What If", "War Documentary", "Health Cinema", "Rep Theory")
     STYLE_BLURBS = {
+        "Rep Theory": "Gym and calisthenics explainers on a near-black canvas: original manga-style trainee art, anatomy highlights, props with orange rings, equations, tier lists.",
         "Health Cinema": "Full-length 16:9 health videos: cinematic 3D anatomy, evidence and statistic cards with sources, claims flagged for review.",
         "War Documentary": "Narration-driven war and geopolitics documentaries: maps, equipment cards, attributed statements, statistics, sources.",
         "Normal video": "The standard workflow: script, voiceover and the Visual Plan from the Script page.",
@@ -3029,6 +3030,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     STYLE_CARDS = {
         # icon, one-line pitch, what it needs, what it suits
+        "Rep Theory": ("\u25B2", "Trainee art, anatomy, props, equations and tier lists", "Voiceover (scenes file optional)", "Gym, calisthenics and fitness explainers"),
         "Health Cinema": ("\u271A", "3D anatomy, evidence cards and honest labels", "Voiceover (scenes file optional)", "Heart, diabetes, ageing and other health topics"),
         "War Documentary": ("\u25C8", "Maps, equipment, statements, statistics and sources", "Voiceover (scenes file optional)", "Conflict and geopolitics analysis"),
         "Normal video": ("\u25A4", "Scenes cut to your script", "Script + voiceover", "Explainers on any topic"),
@@ -3151,6 +3153,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _active_style(self) -> str:
         if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
             return "Product Trailer"
+        if getattr(self, "_rt_active", False):   # Rep Theory (reptheory/): opt-in, per session
+            return "Rep Theory"
         if getattr(self, "_health_active", False):   # Health Cinema (health_cinema/): opt-in, per session
             return "Health Cinema"
         if getattr(self, "_war_active", False):   # War Documentary (cinematic_explainer/war): opt-in, per session
@@ -3196,7 +3200,7 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
-        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False) or getattr(self, "_war_running", False) or getattr(self, "_health_running", False):
+        if getattr(self, "_weather_running", False) or getattr(self, "_whatif_running", False) or getattr(self, "_war_running", False) or getattr(self, "_health_running", False) or getattr(self, "_rt_running", False):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
@@ -3213,6 +3217,8 @@ class VideoGeneratorApp(ctk.CTk):
             self._war_deactivate()
         if choice != "Health Cinema":
             self._health_deactivate()
+        if choice != "Rep Theory":
+            self._reptheory_deactivate()
         if choice != "Weather":
             self._weather_deactivate()
         if choice != "What If":
@@ -3221,6 +3227,16 @@ class VideoGeneratorApp(ctk.CTk):
             _pt_section.deactivate(self)
         if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
             _pt_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice == "Rep Theory":   # its own branch (reptheory/app_section.py), loaded only now
+            self._reptheory_activate()
+            ws = getattr(self, "_workspace", None)
+            if ws is not None:
+                try:
+                    ws.set_editing_system("")
+                except Exception:
+                    pass
             self._sync_primary_cta()
             return
         if choice == "Health Cinema":   # its own branch (health_cinema/app_section.py), loaded only now
@@ -3347,6 +3363,9 @@ class VideoGeneratorApp(ctk.CTk):
         health_block = getattr(self, "_health_block", None)
         if health_block is not None:
             health_block.grid() if active == "Health Cinema" else health_block.grid_remove()
+        rt_block = getattr(self, "_rt_block", None)
+        if rt_block is not None:
+            rt_block.grid() if active == "Rep Theory" else rt_block.grid_remove()
         pt_block = getattr(self, "_pt_block", None)
         if pt_block is not None:
             pt_block.grid() if active == "Product Trailer" else pt_block.grid_remove()
@@ -3696,6 +3715,13 @@ class VideoGeneratorApp(ctk.CTk):
         whisper_model = self.model_var.get().strip() or "base"
         whisper_state_dir = getattr(self._workspace, "state_dir", None)
         work_dir = str(self._workspace.hybrid_dir)
+        csv_text = ""
+        csv_path = self._hybrid_file_var.get().strip()
+        if csv_path.lower().endswith(".csv"):   # the CSV loaded in the Hybrid panel
+            try:
+                csv_text = Path(csv_path).read_text(encoding="utf-8-sig")
+            except OSError:
+                csv_text = ""
         self._hybrid_busy = True
         self._hybrid_explainer_btn.configure(state="disabled", text="Directing…")
         self._append_log("[HYBRID] Directing with the Explainer look…\n")
@@ -3710,8 +3736,20 @@ class VideoGeneratorApp(ctk.CTk):
                 from pakmap.app_integration import voiceover_duration
 
                 words = self._pakmap_get_words(voiceover_path, whisper_model, whisper_state_dir, lambda m: post(lambda: self._append_log(m + "\n")))
-                out = direct_plan(words, script or None, full_look(self._settings), work_dir=work_dir, duration=voiceover_duration(voiceover_path),
+                dur = voiceover_duration(voiceover_path)
+                hints = None
+                if csv_text:   # a loaded CSV guides the footage and the places; a CSV that cannot be read never stops the Explainer plan
+                    try:
+                        from explainer import csv_hints
+
+                        hints = csv_hints.read(csv_text, words, dur)
+                    except BaseException as exc:
+                        post(lambda e=exc: self._append_log(f"[HYBRID] The loaded CSV could not guide the Explainer ({str(e)[:200]}); directing from the narration alone.\n"))
+                out = direct_plan(words, script or None, full_look(self._settings), work_dir=work_dir, duration=dur, places=(hints or {}).get("places") or (),
                                   log=lambda m: post(lambda: self._append_log(f"[HYBRID] {m}\n")))
+                if hints and out.get("plan"):
+                    for m in csv_hints.apply(out["plan"], hints):
+                        post(lambda m=m: self._append_log(f"[HYBRID] {m}\n"))
                 post(lambda: finish(out, None))
             except BaseException as exc:  # incl. SystemExit: the panel must never be left busy
                 post(lambda e=exc: finish(None, e))
@@ -5090,6 +5128,11 @@ class VideoGeneratorApp(ctk.CTk):
         if voiceover_path is None:
             messagebox.showerror("Cannot start", "Select or import a voiceover first (same voiceover control used for the other styles).")
             return
+        from explainer import ui_options as _xo  # explainer/ui_options.py
+
+        if self._hybrid_explainer_var.get() and not _xo.is_explainer_plan(plan):   # Explainer is a look on the Hybrid engine: only its director makes the board/narrator plan
+            messagebox.showerror("This plan is not an Explainer plan", "The Explainer style is on, but the current plan was not made by the Explainer director, so it would render as a plain Hybrid Map video.\n\nClick \"Direct with Explainer\" to make the Explainer plan (a loaded CSV is used to place the footage), then render again.")
+            return
         from hybrid.validate import errors as _hy_errors, validate as _hy_validate
 
         from hybrid.local_fix import clamp_layers as _hy_clamp
@@ -6004,6 +6047,32 @@ class VideoGeneratorApp(ctk.CTk):
             app_section.build(self, self._view_visual_director.content, row=8)
         self._health_active = True
         app_section.activate(self)
+
+    # ---------- Rep Theory (opt-in; all of it lives in reptheory/, imported only when picked) ----------
+
+    def _reptheory_activate(self) -> None:
+        from reptheory import app_section
+
+        if getattr(self, "_rt_running", False):
+            return
+        self._war_deactivate()
+        self._health_deactivate()
+        self._pakmap_deactivate()          # also steps Hybrid and StarMap aside, like Health Cinema
+        if hasattr(self, "_overscaled_enabled_var") and self._overscaled_enabled_var.get():
+            self._overscaled_enabled_var.set(False)
+            self._overscaled_controls.grid_remove()
+        self.generation_mode = "normal"
+        if getattr(self, "_rt_block", None) is None:
+            app_section.build(self, self._view_visual_director.content, row=8)
+        self._rt_active = True
+        app_section.activate(self)
+
+    def _reptheory_deactivate(self) -> None:
+        if getattr(self, "_rt_active", False):
+            self._rt_active = False
+            block = getattr(self, "_rt_block", None)
+            if block is not None:
+                block.grid_remove()
 
     def _health_deactivate(self) -> None:
         if getattr(self, "_health_active", False):
@@ -7186,6 +7255,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_whatif_cancel()
         elif action in ("pt_generate", "pt_render", "pt_cancel"):
             _pt_section.cta(self, action)
+        elif action in ("rt_render", "rt_cancel"):
+            from reptheory import app_section as _rt
+
+            _rt.cta(self, action)
         elif action in ("health_render", "health_cancel"):
             from health_cinema import app_section as _health
 
@@ -7966,6 +8039,11 @@ class VideoGeneratorApp(ctk.CTk):
         pt_on = getattr(self, "_pt_active", False) and getattr(self, "_pt_block", None) is not None
         if pt_on:   # Product Trailer (ui/product_trailer_section.py) owns the button while its page is up
             return _pt_section.sync_cta(self)
+        if getattr(self, "_rt_active", False) and getattr(self, "_rt_block", None) is not None:
+            from reptheory import app_section as _rt
+
+            _rt.sync_cta(self)
+            return
         if getattr(self, "_health_active", False) and getattr(self, "_health_block", None) is not None:
             from health_cinema import app_section as _health
 
@@ -8791,6 +8869,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._restore_whatif(ws)
         self._war_deactivate()   # War Documentary is chosen per session, never restored with a project
         self._health_deactivate()   # Health Cinema likewise
+        self._reptheory_deactivate()   # Rep Theory likewise
         _pt_section.deactivate(self)   # Product Trailer likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
@@ -11445,6 +11524,16 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _set_normal_hybrid_style(self, on: bool) -> None:
         self._settings["normal_hybrid_style"] = bool(on)
+        save_settings(self._settings)
+
+    def _set_puppet_stills(self, on: bool) -> None:
+        """The "Paper-Cutout Characters" switch (Audio & Effects > Smart editing, settings.json "puppet_stills", off by default): puppet_stills.py."""
+        self._settings["puppet_stills"] = bool(on)
+        save_settings(self._settings)
+
+    def _set_story_video(self, on: bool) -> None:
+        """The "Story Video (shots, links, motion)" switch (Audio & Effects > Smart editing, settings.json "story_video", off by default): story_pipeline.py."""
+        self._settings["story_video"] = bool(on)
         save_settings(self._settings)
 
     def _flow_agent_images_on(self) -> bool:
@@ -15512,6 +15601,29 @@ class VideoGeneratorApp(ctk.CTk):
                     vg, render_audio, work_dir / "hybrid_style_sound.wav", float(audio_end), _starts, _by_idx,
                     template_events=_gfx_prepared.events if _gfx_prepared else (), spec_filter=_gfx_prepared.hook_specs if _gfx_prepared else None))
                 print("[HYBRID STYLE] Hybrid Map graphics & sound: ON (Doc Style look, Hybrid Map sound design).")
+            try:   # paper-cutout characters on some stills: off unless settings.json "puppet_stills" is true; a failure leaves every still as it is
+                if self._settings.get("puppet_stills"):
+                    import puppet_stills as _puppet_stills
+
+                    _puppet_map = _puppet_stills.prepare(aligned, vg._scene_durations(aligned, audio_end), config["images_dir"], state_dir, self._settings, log=print)
+                    _hybrid_stack.enter_context(_puppet_stills.applied(vg, _puppet_map))
+            except Exception as exc:
+                print(f"[PUPPET] skipped ({exc})")
+            _story_run = None
+            try:   # story video: shots + links + motion; off unless settings.json "story_video" is true; a failure leaves the normal render
+                if self._settings.get("story_video"):
+                    import story_pipeline as _story_pipeline
+
+                    _story_run = _story_pipeline.build_story(
+                        Path(state_dir).parent,
+                        {**self._settings, "rows": config["rows"], "words": whisper_words, "aligned": aligned, "audio_end": float(audio_end),
+                         "images_dir": str(config["images_dir"]), "audio_path": str(config["audio_path"]),
+                         "resolution": config.get("resolution") or "1920x1080"},
+                        log=print, cancel=None,
+                        dry_run=bool(self._settings.get("story_dry_run", True)))
+                    _hybrid_stack.enter_context(_story_pipeline.applied_story(vg, _story_run))
+            except Exception as exc:
+                print(f"[STORY] skipped ({exc})")
             _render_job = ledger.create("render", reuse_active=False)
             ledger.start(_render_job.id)
             vg.render_video(
@@ -15547,6 +15659,13 @@ class VideoGeneratorApp(ctk.CTk):
                 _gfx_done = bool(_gfx_prepared) and _gfx_prepared.composite(config["output_path"])
                 print(_gfx_prepared.final_line(_gfx_done) if _gfx_prepared is not None
                       else "[GFX] RESULT: the animated template graphics could not be planned; the video uses the Doc Style look.")
+            if self._settings.get("story_video") and _story_run is not None:
+                try:
+                    import story_audit
+                    story_audit.audit_all(config["output_path"], plan=_story_run.plan, aligned=aligned, words=whisper_words, print_fn=print,
+                                          sheets_dir=Path(state_dir).parent / "state" / "story")
+                except Exception as exc:
+                    print(f"[STORY AUDIT] skipped ({exc})")
             ledger.complete(_render_job.id, outputs=[config["output_path"]])
             if config.get("enoch_template"):  # opt-in audio finishing + QC report, this style only
                 try:
@@ -16371,7 +16490,7 @@ class VideoGeneratorApp(ctk.CTk):
 
     _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running",
                   "_war_running", "_health_running")
-    _RUN_FLAGS = _RUN_FLAGS + ("_pt_running",)   # Product Trailer: the stall watchdog and quit guard see it too
+    _RUN_FLAGS = _RUN_FLAGS + ("_pt_running", "_rt_running")   # Product Trailer: the stall watchdog and quit guard see it too
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

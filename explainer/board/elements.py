@@ -9,6 +9,7 @@ from typing import List, Tuple
 
 from PIL import Image, ImageDraw
 
+from . import anim as AN
 from . import icons as I
 from . import layout as L
 from . import theme as T
@@ -172,6 +173,13 @@ def draw_visual(im: Image.Image, it, age: float, frame_no: int = 0) -> None:
     if it.style == "line":
         ST.draw_line(im, it, age, frame_no)
         return
+    if it.style == "bars":                                               # opt-in recipes (director/compose_recipes.py)
+        ST.draw_bar(im, it, age)
+        return
+    if it.style == "photo":
+        sp = ST.photo_sprite(str((it.vparams or {}).get("image", "")), it.rect[2] - it.rect[0], it.rect[3] - it.rect[1], it.text, it.px, it.role)
+        paste_scaled(im, sp, it.rect, (1.0 if AN.nopop(it.vparams) else scale_at(age)))
+        return
     if it.style in ST.BUBBLE_STYLES:                                     # opt-in dialogue: speech bubbles and spotlights (explainer/motion/bubbles.py)
         from ..motion import bubbles as BU
         BU.draw(im, it, age)
@@ -187,13 +195,13 @@ def draw_visual(im: Image.Image, it, age: float, frame_no: int = 0) -> None:
             return
         from ..narrator.timeline import BOB, BOB_PERIOD
         dy = BOB[(frame_no - it.first_frame) % BOB_PERIOD] if it.style == "figure" else 0       # the same integer bob table as the narrator: deterministic, no rounding ties
-        paste_scaled(im, sp, (it.rect[0], it.rect[1] + dy, it.rect[2], it.rect[3] + dy), scale_at(age))
+        paste_scaled(im, sp, (it.rect[0], it.rect[1] + dy, it.rect[2], it.rect[3] + dy), (1.0 if AN.nopop(it.vparams) else scale_at(age)))
         return
     inner = it.word_boxes[0] if it.word_boxes else (0, 0)
     txt = _counted(it, age)
     lines = tuple(it.lines) if txt == it.text else (txt,)
     sp = ST.sprite(it.style, txt, it.role, it.asset, it.rect[2] - it.rect[0], it.rect[3] - it.rect[1], it.px, lines, tuple(inner))
-    paste_scaled(im, sp, it.rect, scale_at(age))
+    paste_scaled(im, sp, it.rect, (1.0 if AN.nopop(it.vparams) else scale_at(age)))
 
 
 def draw_arrow(im: Image.Image, it, age: float) -> None:

@@ -6,6 +6,7 @@ Paste the prompt into any LLM, fill in the three fields at the top, save the rep
 - Record the voiceover from the CSV's `text` column, word for word. If under half the CSV's words are in the voiceover, the app stops and says so instead of guessing.
 - **The CSV directs the visuals.** When any row fills `visual`, `organ`, `shot`, `footage`, `footage_alt` or `source`, the app plans the scenes from the CSV and makes no AI planning call. Rows you leave empty get plain-rule defaults (the body part named in the sentence, or its key words as the footage search). AI is only used afterwards, if a footage search finds nothing, to suggest other searches.
 - Columns: `text` (required), `start`, `end`, `chapter`, `footage`, `visual`, `organ`, `shot`, `footage_alt`, `source`, `source_title`, `source_citation`, `source_url`, `source_year`, `source_population`, `source_context`. Several sources in one row go in the same cell separated by ` | `, lined up by position.
+- **Optional puppet columns** (only read when the Puppet switch is on in the app; existing CSVs without them behave exactly as before): `character_action` (`walk`, `run`, `stand_idle`, `look_around`, `point`, `turn`, `pick_up`, `put_down`, `wave`, `stop`, or a phrase such as `walk_in_from_left`, `stand_and_look`, `pick_up_box`; `none` keeps a scene plain) and `character` (a cast name; blank = Auto). Blank cells let the planner decide; an unknown value gives a warning and is ignored. See `docs/health_cinema/puppet.md`.
 
 ## Prompt
 
@@ -45,6 +46,9 @@ Rules for the file:
 - "footage": for every "footage" row, a 3 to 6 word stock search that names exactly what is on screen (woman climbing stairs slowly). No abstract words.
   Never clinical, patient or surgical imagery.
 - "footage_alt": two other searches for the same shot, separated by " | ", tried in order if the first finds nothing.
+- "character_action" and "character": OPTIONAL. Only add these two columns (at the end of the header) if the user asked for the paper-cutout puppet; otherwise omit
+  them. "character_action" is one of walk | run | stand_idle | look_around | point | turn | pick_up | put_down | wave | stop | none (a phrase like walk_in_from_left
+  also works) and only for sentences about a person doing something; leave it empty elsewhere and for maps, crowds, statistics and diagrams. "character": leave empty.
 - "source": stock (default) | youtube | flow.
 - "source_*" columns: fill them on EVERY row that states a statistic, a
   percentage, "X in Y people", or says a study, trial or researchers found

@@ -2240,6 +2240,13 @@ def get_cached_whisper_words(state_dir: Path, audio_path: Path | str) -> Optiona
     words = plan.get("whisper_words")
     if not words:
         return None
+    # A transcript with one word per several seconds is a broken one (Hindi narration used to be cleaned down to a
+    # single word, 2026-10-29): transcribe again instead of aligning against it.
+    try:
+        if float(words[-1][2]) / len(words) > 3.0:
+            return None
+    except (TypeError, ValueError, IndexError):
+        return None
     return list(words)
 
 

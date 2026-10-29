@@ -125,12 +125,12 @@ def render_panel(app: Any, parent: Any, *, row: int = 0) -> None:
 # for Normal video and its looks, the Plan) above the style's card and Render below it, each only where the card lacks it.
 
 _NORMAL = ("Normal video", "Modern Tech News", "Enoch Template")
-_OWN_VOICEOVER = ("War Documentary", "Health Cinema", "Weather", "What If")
-_NO_SCRIPT = ("Overscaled", "Exp Solar", "War Documentary", "Health Cinema", "What If")
-_OWN_RENDER_BUTTON = ("War Documentary", "Health Cinema", "What If")
+_OWN_VOICEOVER = ("War Documentary", "Health Cinema", "Rep Theory", "Weather", "What If")
+_NO_SCRIPT = ("Overscaled", "Exp Solar", "War Documentary", "Health Cinema", "Rep Theory", "What If")
+_OWN_RENDER_BUTTON = ("War Documentary", "Health Cinema", "Rep Theory", "What If")
 _BLOCKS = {"Overscaled": "_overscaled_block", "Exp Solar": "_overscaled_block", "pakMap": "_pakmap_block", "Hybrid Map": "_hybrid_block",
            "Explainer": "_hybrid_block", "StarMap": "_starmap_block", "StarMap Cinema": "_starmap_block", "Weather": "_weather_block",
-           "War Documentary": "_war_block", "Health Cinema": "_health_block"}
+           "War Documentary": "_war_block", "Health Cinema": "_health_block", "Rep Theory": "_rt_block"}
 _TOP_ROW, _BLOCK_ROW, _BOTTOM_ROW = 20, 21, 22
 
 

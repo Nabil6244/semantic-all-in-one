@@ -1,0 +1,50 @@
+[
+ {
+  "id": "rep_stand_v1",
+  "kind": "character",
+  "subject": "Full-body front view of an original manga-style young man: lean, skinny beginner build, short messy dark hair with a swept fringe and strong white rim-light highlights, narrow face, bare torso, plain charcoal-grey training shorts with an orange waistband, barefoot, sharp black-ink linework with soft grey cel shading, standing relaxed, arms hanging at his sides, calm focused expression",
+  "prompt": "Full-body front view of an original manga-style young man: lean, skinny beginner build, short messy dark hair with a swept fringe and strong white rim-light highlights, narrow face, bare torso, plain charcoal-grey training shorts with an orange waistband, barefoot, sharp black-ink linework with soft grey cel shading, standing relaxed, arms hanging at his sides, calm focused expression. Hand-drawn manga illustration, clean line art, restrained palette of greys and white with a single orange accent, solid pure black background (#000000), no text, no letters, no numbers, no logos, no watermark, no border, no other people, subject fully inside the frame with space around it.",
+  "style": "rep-manga-v1",
+  "source": "flow",
+  "file": "rep_stand_v1.png",
+  "sha256": "815bc881e891ff56afccad2a0a0c10fd4529eeef3648fcfc03d804f567edf78f",
+  "created": "2026-10-29T18:01:07",
+  "notes": "flow ui 2026-10-29"
+ },
+ {
+  "id": "rep_hang_v1",
+  "kind": "character",
+  "subject": "Full-body front view of an original manga-style young man: lean, skinny beginner build, short messy dark hair with a swept fringe and strong white rim-light highlights, narrow face, bare torso, plain charcoal-grey training shorts with an orange waistband, barefoot, sharp black-ink linework with soft grey cel shading, hanging from a plain horizontal steel pull-up bar that is fully visible across the top of the picture, arms straight overhead, gripping the bar",
+  "prompt": "Full-body front view of an original manga-style young man: lean, skinny beginner build, short messy dark hair with a swept fringe and strong white rim-light highlights, narrow face, bare torso, plain charcoal-grey training shorts with an orange waistband, barefoot, sharp black-ink linework with soft grey cel shading, hanging from a plain horizontal steel pull-up bar that is fully visible across the top of the picture, arms straight overhead, gripping the bar. Hand-drawn manga illustration, clean line art, restrained palette of greys and white with a single orange accent, solid pure black background (#000000), no text, no letters, no numbers, no logos, no watermark, no border, no other people, subject fully inside the frame with space around it.",
+  "style": "rep-manga-v1",
+  "source": "flow",
+  "file": "rep_hang_v1.png",
+  "sha256": "abcd3d5daaf345ff613ebc321c5b19265dc245bb606eac4d412652f0a6e8d650",
+  "created": "2026-10-29T18:01:07",
+  "notes": "flow ui 2026-10-29"
+ },
+ {
+  "id": "prop_bottle_2l_v1",
+  "kind": "prop",
+  "subject": "A full 2 litre clear plastic water bottle with a blue screw cap and a plain blank label, standing upright, centred",
+  "prompt": "A full 2 litre clear plastic water bottle with a blue screw cap and a plain blank label, standing upright, centred. Realistic detailed illustration with studio lighting, solid pure black background (#000000), no text, no letters, no numbers, no brand logos, no watermark, subject fully inside the frame.",
+  "style": "rep-manga-v1",
+  "source": "flow",
+  "file": "prop_bottle_2l_v1.png",
+  "sha256": "f790896a5ce2c2bb4f6432d120daa5e7cb70055cda12fd1a2023dc006763abbd",
+  "created": "2026-10-29T18:01:07",
+  "notes": "flow ui 2026-10-29"
+ },
+ {
+  "id": "anat_forearm_v1",
+  "kind": "anatomy",
+  "subject": "Both human forearms and hands in front (palm-up) view, drawn as a muscle-anatomy illustration with the flexor muscles and tendons visible, forearms upright and symmetrical, hands open",
+  "prompt": "Both human forearms and hands in front (palm-up) view, drawn as a muscle-anatomy illustration with the flexor muscles and tendons visible, forearms upright and symmetrical, hands open. Realistic detailed illustration with studio lighting, solid pure black background (#000000), no text, no letters, no numbers, no brand logos, no watermark, subject fully inside the frame.",
+  "style": "rep-manga-v1",
+  "source": "flow",
+  "file": "anat_forearm_v1.png",
+  "sha256": "dce426bdde9dc0136126d27c17e013ccf7c1dced149f30359814e2f1e69f9ef1",
+  "created": "2026-10-29T18:02:27",
+  "notes": "flow ui 2026-10-29"
+ }
+]

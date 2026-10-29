@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
+from . import anim as AN
 from . import elements as E
 from . import layout as LY
 from . import theme as T
@@ -70,6 +71,14 @@ def _font(path: str, px: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(path, max(6, int(px)))
 
 
+def title_px(text: str, cx: int, base_px: float, sw: int, font_for) -> float:
+    """The title size that keeps the whole word line inside the frame (80 px side margin around its centre cx); the usual size when it already fits."""
+    f = font_for(base_px)
+    x0, _y0, x1, _y1 = ImageDraw.Draw(Image.new("L", (4, 4))).textbbox((0, 0), text, font=f, anchor="mm", stroke_width=sw)
+    half = max(1, min(cx, 1920 - cx) - 80)
+    return base_px if (x1 - x0) <= 2 * half else base_px * (2 * half) / (x1 - x0)
+
+
 def _overshoot(k: float) -> float:
     k = max(0.0, min(1.0, k))
     s = 1.5
@@ -102,9 +111,9 @@ def layout(resolved: Sequence[ResolvedCue], font_path: Optional[str], fps: int, 
         elif c.kind == "title":
             pos = c.pos or TITLE_C
             if font_path is None:
-                f, sw = T.font("title", T.THEME.title_px * 1.15), 8
+                f, sw = T.font("title", title_px(c.text, pos[0], T.THEME.title_px * 1.15, 8, lambda q: T.font("title", q))), 8
             else:
-                f, sw = _font(font_path, 120 * 1.15), 6
+                f, sw = _font(font_path, title_px(c.text, pos[0], 120 * 1.15, 6, lambda q: _font(font_path, q))), 6
             x0, y0, x1, y1 = dummy.textbbox(pos, c.text, font=f, anchor="mm", stroke_width=sw)
             bbox = (x0 - 4, y0 - 4, x1 + 4, y1 + 4)
         else:   # pop
@@ -194,7 +203,7 @@ def _place_new(ok: Sequence[ResolvedCue], placed: Sequence[Item], clears: Sequen
                 continue
             r.slot, r.lines, r.font_px = "free", list(m["lines"]), m["px"]
             it = Item(c.id, "visual", r.onset_clip, str(c.text), c.role, (rect_v[0], rect_v[1]), c.cps, 0.0, hide, LY.clamp(LY.inflate(rect_v, 24)), r.first_frame or 0,
-                      slot="free", rect=rect_v, asset=c.asset, lines=tuple(m["lines"]), px=m["px"], style=prm.get("style", ""), tint=bool(prm.get("tint", False)), align=str(prm.get("align", "")), vparams=dict(prm) if (prm.get("count") or "sv" in prm or "pv" in prm) else None)
+                      slot="free", rect=rect_v, asset=c.asset, lines=tuple(m["lines"]), px=m["px"], style=prm.get("style", ""), tint=bool(prm.get("tint", False)), align=str(prm.get("align", "")), vparams=dict(prm) if (prm.get("count") or "sv" in prm or "pv" in prm or prm.get("style") in ("bars", "photo") or prm.get("motion")) else None)
             it.word_boxes = (tuple(m.get("inner", (0, 0))),)
             if r.caption:                                            # a synced typed line: each word appears when it is spoken (the caption ladder of schema v1.2)
                 it.reveal_frames = tuple(r.caption["reveal_frames"])
@@ -375,6 +384,8 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
     d = ImageDraw.Draw(im)
     if narrator is not None:
         narrator.draw(im, frame_no)
+    if any(AN.has_motion(i_.vparams) for i_ in items if i_.vparams):          # layers (bg/mid/fg) of moving elements: a stable sort, so everything else keeps its cue order
+        items = sorted(items, key=lambda i_: AN.layer_of(i_.vparams))
     for it in items:
         if it.kind == "narrator" or it.style == "set":
             continue
@@ -385,7 +396,10 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
             if it.kind == "caption":
                 E.draw_caption(im, it, age, frame_no)
             elif it.kind == "visual":
-                E.draw_visual(im, it, age, frame_no)
+                if it.vparams and AN.has_motion(it.vparams):                 # opt-in per-element motion (board/anim.py): only a cue with params["motion"] takes this path
+                    AN.draw_moving(im, E.draw_visual, it, age, frame_no)
+                else:
+                    E.draw_visual(im, it, age, frame_no)
             else:
                 {"header": E.draw_header, "card": E.draw_card, "icon": E.draw_icon, "chip": E.draw_chip, "arrow": E.draw_arrow}[it.kind](im, it, age)
             d = ImageDraw.Draw(im)
@@ -399,6 +413,7 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
         elif it.kind == "title":
             s = 0.3 + 0.7 * _overshoot(age / TITLE_IN_S)
             if font_path is None:
+                s *= title_px(it.text, it.pos[0], th.title_px * 1.15, 8, lambda q: T.font("title", q)) / (th.title_px * 1.15)
                 d.text(it.pos, it.text, font=T.font("title", th.title_px * s), fill=th.title_fill, anchor="mm", stroke_width=max(1, int(8 * s)), stroke_fill=th.title_stroke)
             else:
                 d.text(it.pos, it.text, font=_font(font_path, 120 * s), fill=(240, 200, 40), anchor="mm", stroke_width=max(1, int(6 * s)), stroke_fill=(60, 40, 20))

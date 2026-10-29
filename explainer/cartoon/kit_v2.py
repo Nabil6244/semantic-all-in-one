@@ -170,6 +170,11 @@ def install() -> bool:
         K.problem, K.set_image, K.ground_y, K.prop_sprite = problem_, set_, ground_, prop_
         _INSTALLED = True
     try:
+        from . import characters
+        characters.install()
+    except Exception:
+        pass
+    try:
         from ..board import icons_v2
         icons_v2.register()
     except Exception:

@@ -38,7 +38,7 @@ def _cue_key(c) -> Dict[str, Any]:
             "slot": c.slot, "pos": c.pos, "params": c.params, "cps": c.cps}
 
 
-OPT_OMIT_WHEN_OFF = ("motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
+OPT_OMIT_WHEN_OFF = ("alive", "meaning", "recipes", "continuity", "animate", "pictures", "motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
 
 
 def _finish_key(opt: DirectorOptions) -> Dict[str, Any]:
@@ -59,6 +59,9 @@ def clip_name(cues, beat_words, start: float, end: float, opt: DirectorOptions, 
     if any(c.kind == "visual" and (c.params or {}).get("style") in ("set", "figure", "crowd", "prop") for c in cues):      # the cartoon kit: an edited asset must not reuse an old clip
         from ..cartoon import kit
         man += kit.manifest()["layers_digest"]
+        from ..cartoon import characters as _ch
+        if any((c.params or {}).get("cast") in _ch.types() or (c.params or {}).get("kind") in _ch.types() for c in cues if c.kind == "visual"):      # a character: an edited pack must not reuse an old clip
+            man += _ch.layers_digest()
     if any(c.kind == "visual" and (c.params or {}).get("style") == "stamp" and (c.params or {}).get("texture") for c in cues):      # the motion kit: an edited texture must not reuse an old clip
         from ..motion import sprites as MS
         man += hashlib.sha256(json.dumps(MS.manifest().get("masks", {}), sort_keys=True).encode()).hexdigest()[:16]
@@ -127,6 +130,72 @@ def _cap_text_layers(beat: Dict[str, Any], info: Dict[str, Any], beat_id: str) -
 _QUANTITY = ("million", "billion", "thousand", "trillion", "percent", "hundred")
 
 
+WATER_KINDS = ("sea", "ocean", "gulf", "strait", "bay", "water")      # a body of water is the map itself, not a photograph
+CARD_MIN_BEAT_S = 3.5
+CARD_MAX_SAME = 2
+
+
+def _map_cards(b, words, hits, info: Dict[str, Any], opt, n_labels: int = 0) -> List[Dict[str, Any]]:
+    """Small photo cards for a map beat (Hybrid's own `support` and `more_cards`: a card on the map with a leader line to its place): each named person or event spoken in the beat (a portrait, a
+    painting) and each specific place (a city, an island, a river; a country or a continent is already the map). Every query word is spoken inside the beat, the card appears on the first of
+    them and stays to the end of the beat; one subject is not carded more than twice in a video, and a beat shows at most three."""
+    from ..beats.relevance import beat_tokens as _bt, toks as _toks
+    from .lexicon import FOOTAGE_STILL_SOURCES
+    if b.dur < CARD_MIN_BEAT_S or b.start < 1.0:      # the opening map stays clean
+        return []
+    tk = _bt(words, b.start, b.end)
+    btoks = [t["tok"] for t in tk]
+    named = set(info.get("named_subjects", ()))
+    lead = next((h.name for h in hits if h.kind not in ("region",) and h.name.lower() not in {"republic", "europe", "asia"}), "")      # the place a person's card points to
+    wants: List[Tuple[str, str, str]] = []              # (query, label, leader place)
+    i = 0
+    if opt.pictures:                                    # opt-in: full names from the script ("Napoleon Bonaparte"), at most two cards with a name caption, the second only when the beat is long and the map is not crowded with labels
+        from . import compose_pictures as CPX
+        pic = info.get("pictures", {})
+        wants = [(q_, l_, lead) for q_, l_ in CPX.map_card_names(btoks, pic.get("phrases", []), named, pic.get("cased", {}), info.setdefault("map_card_count", {}))]
+        i = len(btoks)
+        water = {w for h in hits if h.kind in WATER_KINDS for w in (h.name.lower(), h.name.lower().replace(" sea", ""))}
+        wants = [w_ for w_ in wants if w_[0].lower() not in water]
+    while i < len(btoks):
+        if btoks[i] in named:
+            q = [btoks[i]] + ([btoks[i + 1]] if i + 1 < len(btoks) and btoks[i + 1] in named else [])
+            wants.append((" ".join(q), " ".join(q).upper(), lead))
+            i += len(q)
+        else:
+            i += 1
+    for h in hits:
+        if h.kind not in ("country", "region", "county", *WATER_KINDS) and h.name.lower() not in {"republic", "europe", "asia"}:      # a body of water is the map itself, not a photograph
+            wants.append((h.name.lower(), h.name.upper(), h.name))
+    src = opt.footage_source if opt.footage_source in FOOTAGE_STILL_SOURCES else "stock_image"
+    used = info.setdefault("map_card_count", {})
+    out: List[Dict[str, Any]] = []
+    last_t = -9.0
+    for query, label, place in wants:
+        if len(out) >= (2 if opt.pictures else 3) or (opt.pictures and len(out) == 1 and (b.dur < 5.0 or n_labels > 2)) or any(c["asset"] == f"{src}:{query}" for c in out) or used.get(query.lower() if opt.pictures else query, 0) >= CARD_MAX_SAME or not _toks(query):
+            continue
+        first = next((t for t in tk if t["tok"] == _toks(query)[0]), None)
+        if first is None:
+            continue
+        t = max(b.start + 0.4, float(first["start"]) - 0.2, last_t + 0.9)
+        if t > b.end - 1.2:
+            continue
+        uk = query.lower() if opt.pictures else query
+        used[uk] = used.get(uk, 0) + 1
+        last_t = t
+        q_asset = query
+        if opt.pictures:                                # a narration before 1800: a stock photograph of a place is the modern one, so the search asks for old art (only when the relevance gate accepts the era words)
+            from . import compose_pictures as CPX_
+            era_ = CPX_.era_of_beat(words, b)
+            mod_ = CPX_.era_modifier(era_["year"])
+            if mod_ and CPX_.relevance_accepts_era():
+                q_asset = query + " " + " ".join(mod_)
+        card = {"asset": f"{src}:{q_asset}", "t": round(t, 3), "label": label, "reason": f"shows {query}: the narration says it here"}
+        if place:
+            card["place"] = place
+        out.append(card)
+    return out
+
+
 def _stats_for(b, words) -> List[Dict[str, Any]]:
     """At most one statistic for a map beat: a whole number spoken with a quantity word ("40 million people", "30 percent"), never a year. Its words are quoted from the narration."""
     from ..beats.relevance import beat_tokens
@@ -158,7 +227,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     if opt.narrator_style not in ("serious", "cartoon"):
         res.problems.append(f"unknown narrator style {opt.narrator_style!r} (serious or cartoon)")
         return res
-    if opt.footage_share > 0 and opt.footage_source not in LX.FOOTAGE_SOURCES:
+    if (opt.footage_share > 0 or opt.pictures) and opt.footage_source not in LX.FOOTAGE_SOURCES:
         res.problems.append(f"unknown footage source {opt.footage_source!r} (use one of {', '.join(LX.FOOTAGE_SOURCES)})")
         return res
     SG.label_sentences(sents, words, script)
@@ -184,6 +253,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         return res
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
+        from ..beats import map_narrator as MN
+        (MN.write_marker(out_dir, opt.narrator_style) if opt.narrator else MN.clear_marker(out_dir))      # the presenter over the map stretches is laid on after the map is drawn
 
     # ---- narrator runs over board beats (kinds are final after map/archive building, so build those first) ----
     plan_beats: List[Dict[str, Any]] = []
@@ -207,6 +278,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 hits = all_hits[:8] if len(all_hits) >= 4 else all_hits[:3]          # a sentence that lists many countries is drawn whole (up to 8) on one world view
                 bstart = b.start + (opt.dissolve_s / 2)
                 cam = FR.plan_camera([{"name": h.name, "t": h.match["start"]} for h in hits], bstart, b.end, first_map, cur_view)
+                _i = beats.index(b)
+                if not first_map and _i and beats[_i - 1].kind != "map" and cam["moves"] and cam["moves"][0]["action"] == "fly_to":      # the map comes in after a full-screen board: the camera sat still at its old (globe) view meanwhile, so the first move is a cut, not a flight through the globe
+                    cam["moves"][0].update(t=round(b.start, 3), dur=0.04)
                 for rj in cam["rejected"]:
                     b.notes.append(f"{rj['place']} is not drawn: {rj['reason']}")
                     info["map_layers_rejected"].append({"beat": b.id, **rj})
@@ -260,7 +334,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                             b.notes.append("map line not drawn: " + why_b)
                             map_lines = []
                 stats = _stats_for(b, words)
-                frame = "country" if pl.kind in ("country", "region") else "region"
+                frame = ("continental" if FR._is_continent(pl.name) else "country") if pl.kind in ("country", "region") else "region"
                 if not hits:                                    # no place with a spoken word (the arbitrary opening map): its own camera, nothing to draw
                     cam = {"start": {"place": pl.name, "frame": frame} if first_map else None, "moves": [{"action": "fly_to", "t": round(bstart + 0.05, 3), "dur": 2.0, "place": pl.name, "frame": frame}] if not first_map else [], "view": None}
                 caps: List[Dict[str, Any]] = []
@@ -279,7 +353,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                     cands_ = CP.best_phrases([i for i, w in enumerate(words) if a0 + 0.6 <= w[1] <= min(a1 - 0.5, b.end - 2.6)], words, cased, table, sentence_ends | set().union(*[s_.breaks for s_ in sents]), k=1, max_words=6,
                                              min_score=4.0, min_words=2, strict_edges=True)
                     kp = cands_[0] if cands_ else None
-                    if kp is None:
+                    if kp is None or any(kp.text.lower() in c_["text"].lower() for c_ in caps):      # a phrase already on screen is not repeated as a fragment
                         break
                     occ = 1 + sum(1 for w in words if b.start - 1e-6 <= w[1] < words[kp.first][1] - 1e-9 and SG.norm(w[0]) == kp.tokens[0])
                     caps.append({"text": kp.text, "anchor_word": kp.tokens[0], "occurrence": occ})
@@ -288,10 +362,19 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                     beat["camera"] = [{"action": "start", "place": pl.name, "frame": frame}]
                 if cam.get("wide"):
                     _cap_text_layers(beat, info, b.id)
-                bad = FR.check_framing({"beats": [x for x in plan_beats if x and x.get("mode") == "map"] + [beat]}) if hits else []
+                bad = FR.check_framing({"beats": [x for x in plan_beats if x and x.get("mode") in ("map", "map_footage")] + [beat]}) if hits else []
                 if bad:                                         # the geometry said it fits and the check says it does not: never render it, say so
                     raise ValueError("camera framing: " + "; ".join(bad))
                 cur_view = cam.get("view") or cur_view
+                if opt.footage_share > 0 or opt.pictures:       # the picture sources are on: the map gets small photo cards of who and what the sentence names (map_footage)
+                    cards = _map_cards(b, words, hits, info, opt, n_labels=sum(1 for l_ in beat.get("layers", []) if l_.get("type") in ("marker", "zone_label")))
+                    if cards:
+                        beat["mode"], beat["support"] = "map_footage", cards[0]
+                        if len(cards) > 1:
+                            beat["more_cards"] = cards[1:]
+                        beat["footage_intent"] = cards[0]["reason"]
+                        b.notes.append("photo cards: " + ", ".join(c["asset"] for c in cards))
+                        info.setdefault("map_cards", {})[b.id] = [c["asset"] for c in cards]
                 plan_beats.append(beat)
                 beat_notes[b.id] = {"kind": "map", "places": [h.name for h in b.places]}
                 if opt.mapoverlay:
@@ -325,7 +408,31 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 from ..beats.footage import CAPTION_MIN_READ_S, make_footage_beat, pick_query
                 from ..beats.relevance import beat_tokens as _bt
                 btoks = [t["tok"] for t in _bt(words, b.start, b.end)]
-                pq = pick_query(btoks, LX.CONCRETE_STRONG, LX.STOP, LX.CONCRETE_WEAK)
+                pq = None
+                src_ = b.source or opt.footage_source
+                if opt.pictures:                                 # opt-in: the query of the picture pass, else a better one (full names, only spoken words, no vague words) than the first keyword
+                    from . import compose_pictures as CPX
+                    _pic = info.get("pictures", {})
+                    bq = None
+                    if b.picture_query:
+                        pq = (b.picture_query, 0)
+                    else:
+                        bq = CPX.build_query(btoks, _pic.get("phrases", []), set(info.get("named_subjects", ())), _pic.get("cased", {}), avoid=info.setdefault("footage_query_count", {}))
+                        if bq is not None and not bq["vague"]:
+                            pq = (bq["query"], 0)
+                            info["footage_query_count"][bq["query"].lower()] = info["footage_query_count"].get(bq["query"].lower(), 0) + 1
+                nm = [t for t in btoks if t in set(info.get("named_subjects", ()))] if pq is None else []
+                if nm:                                           # a named person or event (Napoleon Bonaparte, Elba, Waterloo) is searched by its name, before any filmable noun
+                    i0 = btoks.index(nm[0])
+                    q = [btoks[i0]] + ([btoks[i0 + 1]] if i0 + 1 < len(btoks) and btoks[i0 + 1] in nm else [])
+                    pq = (" ".join(q), i0)
+                if pq is not None and not opt.pictures:          # one subject's picture is not shown over and over: the third beat on the same query falls back to a filmable noun, or stays a board
+                    _used = info.setdefault("footage_query_count", {})
+                    _used[pq[0]] = _used.get(pq[0], 0) + 1
+                    if _used[pq[0]] > 2:
+                        pq = None
+                if pq is None:
+                    pq = pick_query(btoks, LX.CONCRETE_STRONG, LX.STOP, LX.CONCRETE_WEAK)
                 if pq is None:
                     raise ValueError("no word a camera can film")
                 allidx = [g for s_ in b.sents for g in s_.widx if b.start - 1e-6 <= words[g][1] < b.end - 1e-6]
@@ -334,10 +441,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 cap = next((c_ for c_ in cands_ if words[c_.first][1] <= b.end - CAPTION_MIN_READ_S), None)
                 if cap is None:
                     raise ValueError("no phrase to show over the clip early enough to read")
-                beat = make_footage_beat(b.id, b.start, b.end, words, source=opt.footage_source, query=pq[0], caption={"text": cap.text, "t": words[cap.first][1]}, still_sources=LX.FOOTAGE_STILL_SOURCES)
+                beat = make_footage_beat(b.id, b.start, b.end, words, source=src_, query=pq[0], caption={"text": cap.text, "t": words[cap.first][1]}, still_sources=LX.FOOTAGE_STILL_SOURCES)
                 plan_beats.append(beat)
-                beat_notes[b.id] = {"kind": "footage", "source": opt.footage_source, "query": pq[0], "caption": cap.text}
-                info.setdefault("footage_queries", {})[b.id] = f"{opt.footage_source}:{pq[0]}"
+                beat_notes[b.id] = {"kind": "footage", "source": src_, "query": pq[0], "caption": cap.text}
+                info.setdefault("footage_queries", {})[b.id] = f"{src_}:{pq[0]}"
             except Exception as exc:
                 b.notes.append(f"footage beat could not be built, board beat instead: {exc}")
                 b.kind = "board"
@@ -353,11 +460,18 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     metaphor_uses: List[Dict[str, str]] = []
     carry = "idle"
     board_info: Dict[str, Any] = {}
+    pic_metrics: Dict[str, Any] = {}
     motion_rec: Dict[str, Any] = {}
     numbers_rec: Dict[str, Any] = {}
     variety_rec: Dict[str, Any] = {}
     fill_rec: Dict[str, Any] = {}
+    recipe_rec: Dict[str, Any] = {}
+    animate_rec: Dict[str, Any] = {}
     dialogue_rec: Dict[str, Any] = {}
+    creg, continuity_rec = None, {}                                  # opt.continuity: the scene registry and its per-beat decisions
+    if opt.continuity:
+        from .scene_registry import SceneRegistry
+        creg = SceneRegistry()
     dlg_state = None
     sig_hist: List[Tuple[str, ...]] = []        # the picture-layout family of each board beat so far (opt.variety)
     dossier_hist: List[bool] = []
@@ -376,10 +490,38 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         bw = [w for w in words if b.start - 1e-6 <= w[1] < b.end - 1e-6]
         if b.kind == "cartoon":
             from .compose_cartoon import author_cartoon
-            br = author_cartoon(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, variant=k)
+            if creg is not None:
+                from .compose_cartoon import continuity_plan
+                continuity_rec[b.id] = continuity_plan(creg, b, words, opt, roles, k)
+                br = author_cartoon(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, variant=k, scene=b.scene_hint, plan=continuity_rec[b.id])
+                try:                                                    # the set the composer really drew (harbour -> shallows when something blocks the way) is what the registry remembers
+                    drawn = next(((c.params or {}).get("set") for c in br.cues if c.kind == "visual" and (c.params or {}).get("style") == "set"), None)
+                    rec_ = continuity_rec[b.id]
+                    if drawn and drawn != rec_.get("scene"):
+                        rec_.setdefault("reasons", []).append(f"drawn as {drawn} (the words make {rec_.get('scene')} the shallows)")
+                        rec_["scene"] = drawn
+                        rec_["ident"] = rec_["ident"].replace(f"{rec_['ident'].split('|')[0]}|", f"{drawn}|", 1)
+                        for h_ in reversed(creg.history):
+                            if h_.get("id") == b.id:
+                                h_["scene"], h_["ident"] = drawn, rec_["ident"]
+                                break
+                except Exception:
+                    pass
+            else:
+                br = author_cartoon(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, variant=k, scene=b.scene_hint)
         elif opt.look == "reference":
-            from .compose_ref import author_ref
-            br = author_ref(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry, variant=k)
+            br = None
+            if opt.recipes and b.kind == "board":                       # opt-in: a cause, a comparison, a count, a rank order, dated events or numbers get a multi-element composition
+                from .compose_recipes import author_recipe
+                try:
+                    br = author_recipe(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry, variant=k, idea=b.idea)
+                except Exception:                                      # never stop: the beat keeps its ordinary composition
+                    br = None
+                if br is not None:
+                    recipe_rec[b.id] = {"recipe": getattr(br, "recipe", ""), "idea": b.idea}
+            if br is None:
+                from .compose_ref import author_ref
+                br = author_ref(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry, variant=k)
         else:
             br = CP.author(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, modes[k], carry)
         beat_bg = opt.background
@@ -425,7 +567,15 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             except Exception as exc:             # never stop: the beat keeps its cues
                 dialogue_rec[b.id] = {"bubbles": [], "spots": [], "poses": [], "skipped": [f"dialogue pass failed: {type(exc).__name__}: {str(exc)[:80]}"]}
             resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
+        if opt.animate and (opt.look == "reference" or b.kind == "cartoon"):
+            from .compose_anim import animate_pass
+            _hist = creg.history if creg is not None else []
+            animate_rec[b.id] = animate_pass(br, b.id, b.start, b.end, b.sents, words, opt, variant=k, kind="cartoon" if b.kind == "cartoon" else "board", continuity=continuity_rec.get(b.id),
+                                             prev_cast=(_hist[-2]["cast"] if b.kind == "cartoon" and len(_hist) > 1 else None))
+            resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         carry = br.last_pose
+        if creg is not None and b.kind != "cartoon":
+            creg.note_board(b.id, b.start, b.end, sorted({p_["as"] for p_ in br.phrases}))
         _p, _r, _items = dry_build(br.cues, words, b.start, b.end, dissolve_s=opt.dissolve_s, fps=opt.fps, beat_id=b.id)
         CONTENT = 1104 * 780.0                                         # the content area right of the narrator zone, inside the margins (x 720..1824, y 110..890)
         pts = sorted({0.0, *[it.onset for it in _items if it.kind not in ("narrator", "arrow") and it.style != "set"]})
@@ -439,6 +589,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 tot += max(0, rr[2] - rr[0]) * max(0, rr[3] - rr[1]) if it.kind != "title" else 760 * 170
             peak = max(peak, tot)
         br.peak_occupancy = round(min(1.0, peak / CONTENT), 3)
+        if opt.pictures and b.kind == "board":
+            from . import compose_pictures as CPX
+            pic_metrics[b.id] = CPX.thin_beat_metrics(_items, b.dur)
         all_events += CP.change_events(resolved, b.start, b.end)
         strict_events += CP.change_events(resolved, b.start, b.end, strict=True)
         if modes[k] != "none" and any(c.kind == "narrator" for c in br.cues):
@@ -469,13 +622,19 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         board_info[bid_]["variety"] = rec_
     for bid_, rec_ in fill_rec.items():
         board_info[bid_]["fill"] = rec_
+    for bid_, rec_ in recipe_rec.items():
+        board_info[bid_]["recipe"] = rec_
+    for bid_, rec_ in animate_rec.items():
+        board_info[bid_]["animate"] = rec_
+    for bid_, rec_ in continuity_rec.items():
+        board_info[bid_]["continuity"] = rec_
     for bid_, rec_ in dialogue_rec.items():
         board_info[bid_]["dialogue"] = rec_
     plan = assemble_plan(total, plan_beats, {"dissolve_s": float(opt.dissolve_s)})
     fx_budget = motion_state["budget"].summary() if "budget" in motion_state else None
     # ---- gates ----
     rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
-                     allow_sources=LX.FOOTAGE_SOURCES if opt.footage_share > 0 else ()) if materialize else None
+                     allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures) else ()) if materialize else None
     if rep is not None:
         res.problems += rep.problems
         res.warnings += rep.warnings
@@ -497,6 +656,11 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         res.warnings += [f"hybrid.validate: {m}" for m in editorial["warnings"]]
     except Exception as exc:
         res.warnings.append(f"hybrid.validate could not run: {exc!r}")
+    pic_rec = info.pop("pictures", None) if opt.pictures else None
+    if pic_rec is not None:
+        pic_rec.pop("cased", None)
+        pic_rec["board_metrics"] = pic_metrics
+        pic_rec["thin_boards_left"] = sorted(k_ for k_, v_ in pic_metrics.items() if v_["thin"])
     kinds = [{"id": b.id, "kind": b.kind, "start": b.start, "end": b.end} for b in beats]
     # ---- report ----
     story = {}
@@ -511,9 +675,18 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                   "selection": {**info, "beats": kinds, "notes": {b.id: b.notes for b in beats if b.notes}}, "beat_details": {**beat_notes, **board_info}, "story": story,
                   "pacing": PC.metrics([{"kind": b.kind, "start": b.start, "end": b.end} for b in beats], all_events, narrator_spans, total, opt, strict_events),
                   "metaphors": PC.metaphor_report(metaphor_uses), "change_events_s": [round(e, 3) for e in sorted(all_events)], "meaningful_change_events_s": [round(e, 3) for e in sorted(strict_events)], "relevance_records": len(rep.records) if rep else 0, "hybrid_validate": editorial, "validate_plan_problems": rep.validate_plan_problems if rep else []}
+    if pic_rec is not None:
+        res.report["pictures"] = pic_rec
     if fx_budget is not None:
         res.report["fx_budget"] = fx_budget
+    if creg is not None:
+        res.report["continuity"] = creg.to_dict()
     res.plan = plan if not res.problems else None
+    if out_dir is not None and not res.problems:           # what the render step needs after the map is drawn: the sound plan (explainer.integration.build_sound) and the map overlays
+        try:
+            (out_dir / "render_report.json").write_text(json.dumps({"report": {k: v for k, v in res.report.items() if k != "candidate_plan"}, "words": [list(w) for w in words], "total": total}, default=str), encoding="utf-8")
+        except Exception:
+            pass
     if res.problems:
         res.report["plan_withheld"] = "a gate failed: nothing is installed"
         res.report["candidate_plan"] = plan

@@ -86,8 +86,12 @@ def normalize_word(w: str) -> str:
     """Lowercase, strip punctuation/possessives. Keeps letters+digits only; accented letters fold to their base letter
     (caminó -> camino, ángeles -> angeles) instead of being dropped, so non-English narration aligns and reads intact."""
     w = unicodedata.normalize("NFKD", w.lower().strip())
-    w = "".join(ch for ch in w if not unicodedata.combining(ch))
-    w = re.sub(r"[^a-z0-9']", "", w)
+    # Devanagari (Hindi) keeps its vowel signs and virama, which are what make the word; only the nukta is dropped
+    # (Whisper and scripts disagree on it) and chandrabindu folds to anusvara. Digits become ASCII so they match.
+    w = w.replace("\u093c", "").replace("\u0901", "\u0902")
+    w = "".join(str(unicodedata.digit(ch)) if "\u0966" <= ch <= "\u096f" else ch for ch in w)
+    w = "".join(ch for ch in w if "\u0900" <= ch <= "\u097f" or not unicodedata.combining(ch))
+    w = re.sub(r"[^a-z0-9'\u0900-\u0963\u0970-\u097f]", "", w)
     if w.endswith("'s"):
         w = w[:-2]
     elif w.endswith("s'") and len(w) > 2:
@@ -343,6 +347,10 @@ STOPWORDS = {
     "my", "our", "us", "them", "his", "her", "if", "than", "then", "when",
     "what", "who", "how", "just", "up", "out", "all", "can", "will", "do",
     "does", "did", "get", "got", "like", "one", "into", "about", "youre",
+    # Hindi function words (Devanagari): too common to anchor a row on
+    "में", "है", "हैं", "था", "थी", "थे", "और", "कि", "को", "से", "पर", "का", "की", "के", "यह", "वह", "ये", "वे",
+    "भी", "तो", "जो", "एक", "कर", "रहा", "रही", "रहे", "होता", "होती", "होते", "नहीं", "लेकिन", "जब", "तब",
+    "आप", "आपको", "आपका", "आपकी", "हम", "उस", "इस", "कोई", "किसी", "ऐसे", "ऐसा", "जहाँ", "जहां", "फिर",
 }
 
 # Magnitude/currency words that recur constantly in numbers-heavy scripts
@@ -384,7 +392,13 @@ def _align_words_match(a: str, b: str) -> bool:
     """words_match, plus simple inflection tolerance: Whisper hears "towers" where the script says "tower"."""
     if words_match(a, b):
         return True
-    return bool(_inflection_stems(a) & _inflection_stems(b))
+    if _inflection_stems(a) & _inflection_stems(b):
+        return True
+    # Hindi: Whisper spells loan words and long words its own way (आमजोन for अमेज़न), so close spellings count
+    if len(a) >= 4 and len(b) >= 4 and "\u0900" <= a[0] <= "\u097f" and "\u0900" <= b[0] <= "\u097f":
+        import difflib
+        return difflib.SequenceMatcher(None, a, b).ratio() >= 0.75
+    return False
 
 
 def align_rows(rows, whisper_words):

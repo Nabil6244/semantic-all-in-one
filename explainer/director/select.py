@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..beats.relevance import beat_tokens, find_phrase, local_file_problem
 from .options import DirectorOptions
 from . import lexicon as LX
+from . import meaning as MN
 from .segment import Sent, norm
 
 
@@ -33,6 +34,10 @@ class BeatPlan:
     archive: Optional[Dict[str, Any]] = None
     notes: List[str] = field(default_factory=list)
     comparisons: List[str] = field(default_factory=list)      # places spoken here only as a yardstick ("the size of England"): never a map trigger
+    scene_hint: Optional[str] = None                          # a cartoon beat whose words name no scene stands its cast on this stage (v2 fallback)
+    idea: str = ""                                            # the idea the beat carries (meaning.py): spatial | quantitative | comparative | dialogue | evidence | cause; "" = no clear signal (only with DirectorOptions.meaning)
+    source: str = ""                                          # a footage beat made by the picture pass (compose_pictures) names its own source here; "" = DirectorOptions.footage_source
+    picture_query: str = ""                                   # ... and its query (only with DirectorOptions.pictures)
 
     @property
     def dur(self) -> float:
@@ -109,6 +114,9 @@ def place_candidates(script: Optional[str], opt: DirectorOptions, limit: int = 6
     return out[:limit], weak
 
 
+NOT_PLACES = frozenset("republic empire kingdom now back grand today arsenal union state states federation league council".split())
+
+
 def resolve_places(cands: Sequence[str], weak: set = frozenset(), allow: Sequence[str] = ()) -> Tuple[Dict[str, Tuple[str, bool]], List[str]]:
     """Names the offline lookup knows. A single direction word ("South", "North") is not a place on its own: the lookup answers with some region called that (South Lebanon), which is
     wrong for "The South is blazing"; it counts only when the caller lists it (`allow`) and is otherwise ignored with that reason. A name the lookup cannot find is ignored, never replaced by a near match."""
@@ -117,6 +125,9 @@ def resolve_places(cands: Sequence[str], weak: set = frozenset(), allow: Sequenc
     ok: Dict[str, Tuple[str, bool]] = {}
     ignored: List[str] = []
     for c in cands:
+        if c.strip().lower() in NOT_PLACES and c not in allow:
+            ignored.append(c + " (a common word the lookup would take for some small county, not a place the narration means)")
+            continue
         if c.strip().lower() in LX.OCEAN_WORDS and c not in allow:
             ignored.append(c + " (an ocean, not a place the map can mark)")
             continue
@@ -183,6 +194,15 @@ def load_archive(opt: DirectorOptions) -> Tuple[List[Dict[str, Any]], List[str]]
     return good, notes
 
 
+def _run(beats, k: int, step: int, kind: str) -> int:
+    """How many beats of `kind` sit right next to beat k on one side (a run, not a total)."""
+    n, j = 0, k + step
+    while 0 <= j < len(beats) and beats[j].kind == kind:
+        n += 1
+        j += step
+    return n
+
+
 def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: DirectorOptions, info: Dict[str, Any]) -> None:
     """Opt-in: the board beats that suit a cartoon best (scene words and people words said inside them) become cartoon beats, up to `cartoon_share` of the runtime, never three in a row."""
     from .compose_cartoon import scene_score
@@ -196,8 +216,12 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
             continue
         toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
         sc = scene_score(toks, scenes2=getattr(opt, "scenes2", False))
+        if opt.meaning and b.idea in MN.NOT_CARTOON and sc > 0:
+            skipped.append({"beat": b.id, "reason": f"meaning: the beat explains a {b.idea} idea, so a board diagram shows it better than the cartoon scene its words suggest"})
+            info.setdefault("meaning_effects", []).append({"beat": b.id, "effect": f"kept off cartoon ({b.idea} idea)"})
+            continue
         if sc > 0:
-            scored.append((-sc, k))
+            scored.append((-(sc + (MN.CARTOON_BONUS.get(b.idea, 0) if opt.meaning else 0)), k))
         else:
             skipped.append({"beat": b.id, "reason": "the words name no scene (family, people or rain alone do not choose one): it stays a board"})
     chosen = []
@@ -205,17 +229,64 @@ def _assign_cartoons(beats: List[BeatPlan], words, duration: float, opt: Directo
         b = beats[k]
         if used + b.dur > cap + 1e-9:
             continue
-        run_l = sum(1 for j in range(k - 1, -1, -1) if beats[j].kind == "cartoon")
+        run_l = _run(beats, k, -1, "cartoon")
         if run_l >= 2 or (k + 1 < len(beats) and beats[k + 1].kind == "cartoon" and k + 2 < len(beats) and beats[k + 2].kind == "cartoon"):
             continue
         if run_l == 1 and k + 1 < len(beats) and beats[k + 1].kind == "cartoon":
             continue
         b.kind = "cartoon"
         b.notes.append("cartoon beat: the words suggest a scene and people")
+        if opt.meaning and MN.CARTOON_BONUS.get(b.idea):
+            info.setdefault("meaning_effects", []).append({"beat": b.id, "effect": f"preferred for a cartoon scene ({b.idea} idea: people speak or deal with each other)"})
         used += b.dur
         chosen.append(b.id)
+    if getattr(opt, "scenes2", False):             # a story of people (a general, an emperor, a revolt) names few stages: the cast still stands on a plain town square, up to the same share of the runtime
+        from . import lexicon_v2 as LV
+        named = set(info.get("named_subjects", ()))
+        extra = []
+        for k, b in enumerate(beats):
+            if b.kind != "board" or b.dur < opt.min_beat_s - 1e-6 or any(s_.label in ("hook", "question") for s_ in b.sents):
+                continue
+            toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
+            who = sum(1 for t in toks if t in LV.PEOPLE_V2) + sum(1 for t in toks if t in named)
+            if opt.meaning and b.idea in MN.NOT_CARTOON:
+                continue
+            if who:
+                extra.append((-who, k))
+        for _s, k in sorted(extra):
+            b = beats[k]
+            if used + b.dur > cap + 1e-9 or _run(beats, k, -1, "cartoon") >= 1 or _run(beats, k, 1, "cartoon") >= 1:
+                continue
+            b.kind, b.scene_hint = "cartoon", "old_town"
+            b.notes.append("cartoon beat: people are named but no scene word is: the cast stands in the town square")
+            used += b.dur
+            chosen.append(b.id)
     info["cartoon_beats"] = sorted(chosen)
     info["cartoon_skipped"] = skipped
+
+
+def named_subjects(script: str, places=()) -> set:
+    """Lower-case words the script writes with a capital in the middle of a sentence (Napoleon, Bonaparte, Waterloo, Elba): the people and events a picture of the subject can show. Words that are
+    only a nationality or a place the map shows are left to the map."""
+    import re
+    out = set()
+    for m in re.finditer(r"(?<=[a-z,;] )([A-Z][a-z]{2,})", script or ""):
+        t = m.group(1).lower()
+        if t not in LX.STOP and not t.endswith(("ian", "ish", "ans", "ch")) and t not in {"revolution", "republic", "prussia", "countries", "ocean", "sea", "channel", "battle", "emperor", "congress", "south", "low", "atlantic", "mediterranean", "september", "october", "november", "december", "january", "february", "march", "april", "june", "july", "august", "french", "british", "english", "prussian", "russian", "austrian", "european", "spanish", "german", "italian"}:
+            out.add(t)
+    return out - {str(p_).lower() for p_ in places}
+
+
+def footage_blocked(b: BeatPlan, toks: Sequence[str]) -> bool:
+    """The opening hook, a question and a beat with a quantity stay boards (a year does not count as a quantity: history is dated). Shared by the footage and the picture passes."""
+    return bool({s.label for s in b.sents} & {"hook", "question"}) or any(t.isdigit() and not (len(t) == 4 and 1000 <= int(t) <= 2100) for t in toks)
+
+
+def footage_run_blocked(beats: List[BeatPlan], k: int) -> bool:
+    """True when making beat k a footage beat would put three footage beats in a row."""
+    run_l = _run(beats, k, -1, "footage")
+    run_r = _run(beats, k, 1, "footage")
+    return run_l + run_r >= 2 or (run_l >= 1 and run_r >= 1)
 
 
 def _assign_footage(beats: List[BeatPlan], words, duration: float, opt: DirectorOptions, info: Dict[str, Any]) -> None:
@@ -228,22 +299,29 @@ def _assign_footage(beats: List[BeatPlan], words, duration: float, opt: Director
         if b.kind != "board" or b.dur < opt.min_beat_s - 1e-6:
             continue
         toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
-        if {s.label for s in b.sents} & {"hook", "question"} or any(ch.isdigit() for t in toks for ch in t):
+        if footage_blocked(b, toks):
             skipped.append({"beat": b.id, "reason": "an opening, a question or a number: it stays a board"})
             continue
+        if opt.meaning and b.idea in MN.NOT_FOOTAGE:
+            skipped.append({"beat": b.id, "reason": f"meaning: the beat explains a {b.idea} idea, so a diagram says it and a camera cannot"})
+            info.setdefault("meaning_effects", []).append({"beat": b.id, "effect": f"kept off footage ({b.idea} idea)"})
+            continue
         strong = sum(1 for t in toks if t in LX.CONCRETE_STRONG)
+        named = sum(1 for t in toks if t in info.get("named_subjects", ()))
+        bonus = MN.FOOTAGE_BONUS.get(b.idea, 0) if opt.meaning else 0
+        if strong == 0 and named:
+            scored.append((-(named + bonus), k))          # a person or an event is named: a picture of the subject (a portrait, a painting) is the footage
+            continue
         if strong == 0:
             skipped.append({"beat": b.id, "reason": "nothing a camera can film is said (a title or a single object is better as a board): it stays a board"})
             continue
-        scored.append((-(2 * strong + sum(1 for t in toks if t in LX.CONCRETE_WEAK)), k))
+        scored.append((-(2 * strong + sum(1 for t in toks if t in LX.CONCRETE_WEAK) + bonus), k))
     chosen = []
     for _s, k in sorted(scored):
         b = beats[k]
         if used + b.dur > cap + 1e-9:
             continue
-        run_l = sum(1 for j in range(k - 1, -1, -1) if beats[j].kind == "footage")
-        run_r = sum(1 for j in range(k + 1, len(beats)) if beats[j].kind == "footage")
-        if run_l + run_r >= 2 or (run_l >= 1 and run_r >= 1):
+        if footage_run_blocked(beats, k):
             continue
         b.kind = "footage"
         b.notes.append("footage beat: the words name something a camera can film")
@@ -251,6 +329,18 @@ def _assign_footage(beats: List[BeatPlan], words, duration: float, opt: Director
         chosen.append(b.id)
     info["footage_beats"] = sorted(chosen)
     info["footage_skipped"] = skipped
+
+
+def annotate_meaning(beats: List[BeatPlan], words, named: Sequence[str]) -> Dict[str, Any]:
+    """Opt-in: give every beat the idea its narration carries (meaning.py) and return the per-beat scores for the report."""
+    out: Dict[str, Any] = {}
+    named_set = set(named)
+    for b in beats:
+        toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
+        m = MN.classify(toks, " ".join(s_.text for s_ in b.sents), has_place=bool(b.places), has_named=any(t in named_set for t in toks))
+        b.idea = m.idea
+        out[b.id] = m.to_dict()
+    return out
 
 
 def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: DirectorOptions) -> Dict[str, Any]:
@@ -261,12 +351,25 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
     map_s = arch_s = 0.0
     run_maps = 0
     info: Dict[str, Any] = {"place_candidates": cands, "places_resolved": {k: list(v) for k, v in resolved.items()}, "places_ignored": ignored, "archive_notes": lib_notes, "warnings": [], "places_comparison": [], "places_not_shown": []}
-    for b in beats:
+    from ..beats import geography as GEO
+    _cands = []
+    _people = set(named_subjects(script or "", list(resolved)))      # a beat that names a person AND a place is the one where a portrait card beside the map earns its place
+    for _k, b in enumerate(beats):
         b.places = places_in(b, words, resolved)
         info["places_comparison"] += [f"{b.id}: {c}" for c in b.comparisons]
         b.notes += [f"{c}" for c in b.comparisons]
+        if b.places and b.dur >= opt.map_min_beat_s:
+            _sc, _why = GEO.map_priority(beat_tokens(words, b.start, b.end), b.places)
+            _cands.append({"idx": _k, "id": b.id, "dur": b.dur, "score": _sc})
+            if _people & {t["tok"] for t in beat_tokens(words, b.start, b.end)}:
+                _sc += 2
+                _why.append("a named person is spoken with the place: a portrait card goes beside the map")
+            if _sc:
+                b.notes.append("geography beat (priority " + str(_sc) + "): " + "; ".join(_why))
+    map_ids = set(GEO.pick_map_beats(_cands, len(beats), opt.max_map_share * duration))
+    for b in beats:
         tk = beat_tokens(words, b.start, b.end)
-        if b.places and b.dur >= opt.map_min_beat_s and (map_s + b.dur) <= opt.max_map_share * duration + 1e-9 and run_maps < 2:
+        if b.id in map_ids:
             b.kind = "map"
             map_s += b.dur
             run_maps += 1
@@ -291,10 +394,10 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
             b.kind, b.archive = "archive", hit
             used_assets.add(hit["asset"])
             arch_s += b.dur
-    if opt.cartoon_share > 0:
-        _assign_cartoons(beats, words, duration, opt, info)
-    if opt.footage_share > 0:
-        _assign_footage(beats, words, duration, opt, info)
+    info["named_subjects"] = sorted(named_subjects(script or "", [h.name for b_ in beats for h in b_.places]))
+    if opt.meaning:
+        info["meaning"] = annotate_meaning(beats, words, info["named_subjects"])
+    # the required opening map is decided BEFORE the cartoon/footage budgets are spent: it used to turn an already chosen cartoon beat into the map afterwards, and the share it had used stayed spent
     if not any(b.kind == "map" for b in beats):
         first = beats[0]
         fp = None
@@ -310,4 +413,11 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
             first.kind, first.places, first.archive = "map", [fp], None
             first.notes.append(f"no place is spoken anywhere: the required opening map shows the fallback place {opt.fallback_place!r} (arbitrary)")
             info["warnings"].append(f"no place qualified: the opening map shows the arbitrary fallback place {opt.fallback_place!r}")
+    if opt.cartoon_share > 0:
+        _assign_cartoons(beats, words, duration, opt, info)
+    if opt.footage_share > 0:
+        _assign_footage(beats, words, duration, opt, info)
+    if opt.pictures:                                          # opt-in: thin boards that name a pictureable subject become still/footage beats (director/compose_pictures.py)
+        from . import compose_pictures as CPX
+        info["pictures"] = CPX.upgrade_boards(beats, words, script, duration, opt, info)
     return info

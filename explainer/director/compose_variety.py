@@ -26,7 +26,9 @@ def variety_pass(br, b, k: int, words, cased, opt, table, roles, narrator_mode: 
     """Returns (board result to use, background for this clip, record)."""
     rec: Dict[str, Any] = {}
     sig = signature(br)
-    if sig and len(sig_hist) >= MAX_SAME_FAMILY and all(h == sig for h in sig_hist[-MAX_SAME_FAMILY:]):
+    if getattr(br, "recipe", "") and sig and len(sig_hist) >= MAX_SAME_FAMILY and all(h == sig for h in sig_hist[-MAX_SAME_FAMILY:]):
+        rec["family_kept"] = f"a {br.recipe} composition is never swapped for the ordinary layout (it explains a relationship the ordinary layout cannot)"
+    elif sig and len(sig_hist) >= MAX_SAME_FAMILY and all(h == sig for h in sig_hist[-MAX_SAME_FAMILY:]):
         from .compose_ref import author_ref
         alt = author_ref(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, narrator_mode, carry, variant=k + 1)
         sig2 = signature(alt)

@@ -18,7 +18,7 @@ class DirectorOptions:
     narrator_every_s: float = 30.0      # the narrator is back at least this often
     narrator_share: float = 0.45        # the narrator starts a new run while its share of the runtime so far is below this (runs of at least 2 beats overshoot it a little; scorecard target 35 to 60%)
     # ---- mix ----
-    max_map_share: float = 0.30
+    max_map_share: float = 0.36
     max_archive_share: float = 0.12
     map_min_beat_s: float = 2.8
     narrator: bool = True
@@ -38,6 +38,12 @@ class DirectorOptions:
     dialogue: bool = False              # opt-in: a spoken quote becomes a speech bubble, a lamp-lit spot on dusk sets (compose_dialogue); False = nothing changes
     scenes2: bool = False               # opt-in: the v2 cartoon scene pack (8 more sets, day/dusk, 15 props/tiles); False = nothing changes
     mapoverlay: bool = False            # opt-in: outlines, arrows, pins, stamps and plates drawn over a map beat as a separate alpha clip (beats/overlay); False = nothing changes
+    meaning: bool = False               # opt-in: each beat is classified by the idea it carries (director/meaning.py) and that steers cartoon/footage/board choices; False = nothing changes
+    recipes: bool = False               # opt-in: a beat whose idea is a cause, a comparison, a quantity or a hierarchy gets a multi-element composition (director/compose_recipes.py); False = nothing changes
+    continuity: bool = False            # opt-in: scene and cast registry: related beats reuse the same set/cast with a new light, and the same composition is not repeated (director/scene_registry.py); False = nothing changes
+    animate: bool = False               # opt-in: independent entrances/emphasis/exits for recipe elements and cartoon characters (director/compose_anim.py + board/anim.py); False = nothing changes
+    alive: bool = False                 # opt-in: cartoon figures bob and sway all the time and the speaker bounces while it talks (board/anim idle + talk); needs `animate`; False = nothing changes
+    pictures: bool = False              # opt-in: thin boards are upgraded to a real picture, map card or evidence card where the narration names a subject (director/compose_pictures.py); False = nothing changes
     camera: str = "off"                 # opt-in: off | push | drift | reframe: a slow camera on the finished board frame (motion/camera); "off" = nothing changes
     texture: bool = False               # opt-in: grain, vignette and dust on the finished board frame (motion/texture); False = nothing changes
     # ---- plan ----

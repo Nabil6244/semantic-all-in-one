@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 Word = Tuple[str, float, float]
 LOCAL_EXT = (".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".m4v")
 T_BEFORE_S, T_AFTER_S = 0.2, 0.6          # a layer may start this long before / after its place's word starts (provisional)
+_LATLON = re.compile(r"^-?\d+(\.\d+)?,-?\d+(\.\d+)?$")
 REMOTE_PREFIXES = ("stock_image", "stock_video", "flow_image", "flow_video", "youtube_video")
 
 
@@ -24,7 +25,7 @@ class PlanBuildError(ValueError):
 
 
 def toks(text: str) -> List[str]:
-    return re.findall(r"[a-z0-9']+", str(text).lower())
+    return [t.replace("'", "") for t in re.findall(r"[a-z0-9']+", str(text).lower()) if t.replace("'", "")]   # no apostrophe: the script says "you'll", Whisper writes "youll"
 
 
 def beat_tokens(words: Sequence[Word], start: float, end: float) -> List[Dict[str, Any]]:
@@ -117,6 +118,9 @@ def _resolvable(place: str) -> Tuple[bool, str]:
         return False, str(e)[:120]
 
 
+ERA_QUERY_WORDS = frozenset({"historical", "painting", "antique", "engraving"})      # appended by the picture planner for narration before 1800; they ask a search engine for old art and are not narration words
+
+
 def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optional[Dict[str, Dict[str, List[str]]]] = None, base_dir: Optional[Path] = None,
                resolve_offline: bool = True, allow_sources: Sequence[str] = ()) -> Report:
     """Check a plan dict (the Hybrid JSON shape) against the narration. `subjects` = {beat_id: {clip_index (as text): [subject phrases]}} for archive clips."""
@@ -172,6 +176,8 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                 places = [lay.place] if lay.type in ("marker", "zone_label", "fill") else list(lay.places) if lay.type == "line" else []
                 starts = []
                 for pl in places:
+                    if lay.type == "line" and str(lay.id).endswith("_dir1") and _LATLON.match(pl.replace(" ", "")):      # the direction cue's own ends are coordinates; the claim it makes is the direction word + the named place checked below
+                        continue
                     m = find_phrase(tk, pl)
                     if m is None:
                         rep.problems.append(f"beat {b.id}: layer {lay.id}: the place {pl!r} is not spoken inside this beat's narration ({b.start:g} to {b.end:g} s); "
@@ -227,6 +233,13 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                 if c.action == "fly_to" and c.place and find_phrase(tk, c.place) is None:
                     rep.warnings.append(f"beat {b.id}: camera fly_to {c.place!r} is not spoken inside this beat (warning only; the opening start camera is exempt)")
             for k, card in enumerate(b.cards):
+                src_c, sep_c, query_c = (card.asset or "").partition(":")
+                if allow_sources and sep_c and src_c in allow_sources:      # a reference for the application's own source: every query word must be spoken inside this beat
+                    spoken_c = {t["tok"] for t in tk} | ERA_QUERY_WORDS
+                    miss_c = [w for w in toks(query_c) if w not in spoken_c]
+                    if not toks(query_c) or miss_c:
+                        rep.problems.append(f"beat {b.id}: photo card {k + 1}: the query {query_c!r} has words that are not spoken inside this beat's narration: {', '.join(miss_c) or '(none)'}")
+                    continue
                 why = local_file_problem(card.asset, base_dir)
                 if why:
                     rep.problems.append(f"beat {b.id}: photo card {k + 1}: {why}")
@@ -236,7 +249,7 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                 src, _sep, query = (c.asset or "").partition(":")
                 if allow_sources and _sep and src in allow_sources:        # a reference for the application's own source: its query must be about this beat's own words
                     q = toks(query)
-                    spoken = {t["tok"] for t in tk}
+                    spoken = {t["tok"] for t in tk} | ERA_QUERY_WORDS
                     missing = [w for w in q if w not in spoken]
                     if not q:
                         rep.problems.append(f"beat {b.id}: clip {k + 1}: the {src} reference has no query")

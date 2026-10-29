@@ -56,7 +56,7 @@ SET_WORDS = {
     "field": "farm farms farmer farmers farming field fields crop crops harvest wheat grain plantation soil".split(),
     "town": "village villages town towns home homes house houses desert square".split(),
     "city": "city cities market markets bank banks capital street streets factory factories shop shops office offices".split(),
-    "harbour": "harbour harbor port ports ship ships sea boat boats sail sailors sailing dock docks voyage".split(),
+    "harbour": "harbour harbor port ports ship ships sea boat boats sail sailors sailing dock docks voyage water waters shallow lagoon lagoons marsh marshes island islands shore shoreline canal canals".split(),
     "room": "room rooms school classroom parliament court palace throne meeting council ministry students teacher king queen".split(),
 }
 # hints that never choose a scene on their own: "a family business" or "the people were afraid" says nothing about where the scene is

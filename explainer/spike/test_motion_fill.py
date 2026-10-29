@@ -25,8 +25,8 @@ from explainer.director import lexicon as LX                                    
 PINNED_OFF = {
     "aqueducts": "2d4a75de2ac722b9",
     "coffee": "ef1cb3771c544c93",
-    "glaciers": "75593782da568f0e",
-    "inflation": "ded60ea6f0284dcc",
+    "glaciers": "94da58c9f68b4b9c",
+    "inflation": "c99179b6c45892a9",
     "printing": "8b6139b01172c1e8",
 }
 

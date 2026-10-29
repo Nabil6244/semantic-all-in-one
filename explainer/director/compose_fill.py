@@ -24,8 +24,8 @@ from ..board.builder import clip_geometry
 from ..board.cues import Cue
 from ..board.dry import dry_build
 from . import lexicon as LX
-from .compose import _disp, role_for, best_phrases
-from .compose_ref import GENERIC, ICON_ROLE, RING_ROLE, _line_fit
+from .compose import _disp, role_for
+from .compose_ref import best_phrases, GENERIC, ICON_ROLE, RING_ROLE, _line_fit
 from .segment import norm
 
 FILL_BELOW = 0.65               # a moment whose busiest instant covers less than this share of the content area is near-empty

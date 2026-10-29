@@ -83,7 +83,8 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                       title: str = "", cancel_check: Optional[Callable[[], bool]] = None, progress_cb: Optional[Callable[[float, str], None]] = None,
                       log: Callable[[str], None] = lambda m: None, frame_renderer: Optional[Callable] = None, write_report: bool = True,
                       script_text: Optional[str] = None, settings: Optional[dict] = None, acquirer: Optional[Callable] = None, allow_youtube: bool = False,
-                      allow_flow: bool = False, use_director: Optional[bool] = None, edit: str = "classic", music: bool = True) -> Dict:
+                      allow_flow: bool = False, use_director: Optional[bool] = None, edit: str = "classic", music: bool = True, use_gemini: bool = True,
+                      puppet: Optional[dict] = None, puppet_module=None) -> Dict:
     t0 = time.time(); project_dir = Path(project_dir); cancel = threading.Event(); cancelled = cancel_check or (lambda: False)
     stop_watch = threading.Event()
     def _watch():   # the caller's cancel flag also stops a render that is in the middle of a scene (kills the node/Chromium/ffmpeg children)
@@ -102,6 +103,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         log("3D anatomy is NOT available (" + ("no model found in " + ", ".join(anatomy["dirs"]) if not any(anatomy["ready"].values()) else "Node/three.js/browser missing: " + ", ".join(anatomy["threejs_missing"] or ["browser"])) + "): anatomy scenes will use footage instead")
     acquisition: Dict = {"requested": 0, "ok": 0, "failed": 0, "sources": {}, "flow_used": False, "youtube_allowed": allow_youtube}
     dscenes: List[dict] = []
+    if not use_gemini: settings = dict(settings or {}, gemini_enabled=False)      # one switch: the director, footage retries and everything else stay on the built-in planner
     if director_on:
         prog(0.0, "planning scenes from the narration (the app's visual director)")
         script = script_text or " ".join(s["text"] for s in sents)
@@ -131,8 +133,6 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
             for sc in scenes:
                 if sc.kind != "footage": continue
                 r = got.get(int(sc.dscene_ids[0]), {})
-                if r.get("ok"):
-                    sc.asset = r; sc.visual["path"] = r["path"]; acquisition["ok"] += 1; acquisition["sources"][r.get("provider") or r.get("source") or "?"] = acquisition["sources"].get(r.get("provider") or r.get("source") or "?", 0) + 1
                 r = _judge(r, sc, by_id[sc.dscene_ids[0]], settings, ff, log)
                 retried = False
                 if r.get("ok") and ACQ.is_weak(r):
@@ -140,8 +140,10 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                     retried = True
                     if sc.visual.get("anatomy_wanted"):      # a clip of the wrong body part is worse than no clip: never show it as if it explained the narration
                         r = dict(r, ok=False, error=f"the only clips found show a different subject (QA {r['qa']['semantic_match']:.2f})")
-                    acquisition["flow_used"] = acquisition["flow_used"] or "flow" in str(r.get("source", "")).lower()
+                if r.get("ok"):
                     if ACQ.is_weak(r): sc.flags.append({"code": "footage_weak_match", "severity": "review", "message": f"The footage matches the narration poorly (visual QA {r['qa']['semantic_match']:.2f}) and no better clip was found; replace it before publishing."})
+                    sc.asset = r; sc.visual["path"] = r["path"]; acquisition["ok"] += 1; acquisition["sources"][r.get("provider") or r.get("source") or "?"] = acquisition["sources"].get(r.get("provider") or r.get("source") or "?", 0) + 1
+                    acquisition["flow_used"] = acquisition["flow_used"] or "flow" in str(r.get("source", "")).lower()
                 else:
                     got_alt = (not retried) and _retry_footage(sc, by_id[sc.dscene_ids[0]], acquirer, allow_youtube, allow_flow, settings, log, acquisition)
                     if got_alt: continue
@@ -149,6 +151,8 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                     sc.flags.append({"code": "footage_unavailable", "severity": "note", "message": f"Footage could not be acquired ({str(why)[:120]}); a typographic card is shown instead."})
                     sc.kind = "text_card"; sc.visual = {"text": sc.text, "beats": [{"text": x["text"], "t0": round(x["start"] - sc.start, 3)} for x in sc.sentences]}
                     log(f"scene {sc.scene_no}: footage failed ({str(why)[:100]}): typographic fallback")
+    if not (puppet and puppet.get("enabled")) and any(x.get("character_action") for x in sents): log("puppet: the scenes file has character_action cells but the paper-cutout switch is off, so they are ignored")
+    if puppet and puppet.get("enabled") and edit == "high_end": log("puppet: the paper-cutout character is used by the Classic edit only; this High-end render has none")
     if edit == "high_end":   # opt-in: the layered compositing / editorial pipeline (health_cinema/edit); the classic path below is unchanged
         from .edit import pipeline, media as EM
         try:
@@ -169,6 +173,13 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         prog(1.0, "done"); return rep
     cache_dir = project_dir / "state" / "health_cinema" / quality; cache_dir.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="hc_", dir=str(cache_dir)))
+    pplan: Dict[int, dict] = {}; prunner = None; by_no = {sc.scene_no: sc for sc in scenes}
+    if puppet and puppet.get("enabled"):      # opt-in paper-cutout character on some stills (health_cinema/puppet_plan.py); any problem there falls back to the normal scene render
+        try:
+            from . import puppet_plan as PP
+            pplan = planner.puppet_plan(scenes, puppet, sents, PP.still_for, log, puppet_module)
+            if pplan: prunner = PP.Runner(cache_dir, W, H, clips.FPS, cancel, log, module=puppet_module, cancel_exc=Cancelled)
+        except Exception as exc: pplan = {}; log(f"puppet: planning failed ({type(exc).__name__}: {str(exc)[:120]}); no character in this run")
     def _run(args, what):
         try: run_cancellable([ff, "-y", "-v", "error"] + args, cancel, 1800)
         except Cancelled: raise
@@ -179,11 +190,16 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         for i, sc in enumerate(scenes):
             if cancelled() or cancel.is_set(): cancel.set(); raise Cancelled("cancelled")
             prog(i / len(scenes), f"scene {sc.scene_no}/{len(scenes)}: {sc.kind}")
-            r = clips.render_scene(sc, prof, cache_dir, quality=quality, cancel=cancel, log=log, frame_renderer=frame_renderer)
+            r = None
+            if prunner is not None and sc.scene_no in pplan:
+                ent = pplan[sc.scene_no]
+                r = prunner.render(sc, ent, by_no.get(ent.get("transition_from")), clips.captions_for(sc), round(sc.end * clips.FPS) - round(sc.start * clips.FPS))
+                if r is None: sc.flags.append({"code": "puppet_fallback", "severity": "note", "message": "The character move could not be rendered; the scene is shown without it."})
+            if r is None: r = clips.render_scene(sc, prof, cache_dir, quality=quality, cancel=cancel, log=log, frame_renderer=frame_renderer)
             if r["fallback"]: sc.flags.append({"code": "3d_fallback", "severity": "note", "message": r["fallback"]}); sc.kind = r["used_kind"]
             results.append(r)
         if cancelled(): raise Cancelled("cancelled")
-        lst = work / "list.txt"; lst.write_text("".join(f"file '{Path(r['path']).as_posix()}'\n" for r in results))
+        lst = work / "list.txt"; lst.write_text("".join(f"file '{Path(p).as_posix()}'\n" for r in results for p in list(r.get("pre") or []) + [r["path"]]))      # a puppet scene may open with its transition clip
         joined = work / "joined.mp4"
         _run(["-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(joined)], "joining the scene clips")
         if voiceover_path:
@@ -203,8 +219,9 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         if a.get("path"): credits.append(f"Footage (scene {s.scene_no}): {a.get('provider') or a.get('source')} - {a.get('author') or 'unknown author'} {a.get('source_url') or ''} [query: {a.get('query', '')[:60]}]".strip())
     flags = [dict(f, scene=s.scene_no) for s in scenes for f in s.flags]
     rep = {"ok": True, "out": str(out_path), "profile": prof.id, "quality": quality, "size": [W, H], "fps": clips.FPS, "seconds": round(time.time() - t0, 2),
-           "scenes": [dict(s.as_dict(), clip=r["path"], cache_hit=r["cache_hit"], fallback=r["fallback"]) for s, r in zip(scenes, results)], "plan_log": plan["log"],
+           "scenes": [dict(s.as_dict(), clip=r["path"], cache_hit=r["cache_hit"], fallback=r["fallback"], **({"puppet": r["puppet"]} if r.get("puppet") else {})) for s, r in zip(scenes, results)], "plan_log": plan["log"],
            "review_flags": flags, "acquisition": acquisition, "anatomy": anatomy, "kind_counts": _kind_counts(scenes), "visual_director": (dscenes[0]["plan_source"] if dscenes else "off"), "review_note": REVIEW_NOTE, "not_implemented": NOT_IMPLEMENTED, "credits": credits, "rights_not_established": used3d,
            "rights_note": "3D anatomy is a CC BY-SA derivative evaluated locally; do not distribute until the licence review clears commercial use." if used3d else ""}
+    if prunner is not None: rep["puppet"] = dict(prunner.stats, planned_scenes=sorted(pplan))
     if write_report: Path(str(out_path) + ".health_cinema.json").write_text(json.dumps(rep, indent=1))
     prog(1.0, "done"); return rep

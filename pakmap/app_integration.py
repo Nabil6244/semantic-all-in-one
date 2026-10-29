@@ -251,6 +251,12 @@ def generate_pakmap_video(
                 n = str(o.scene_number)
                 if n not in got.paths and n not in got.skipped and n not in got.missing:
                     got.missing[n] = "it was never fetched"
+            for n_ in list(got.missing):   # a supporting photo card the picture check turned down (wrong period or subject) is left out; the map beneath it explains the beat on its own. A full-screen picture still stops for the author
+                row_ = next((r for r in rows if str(r.scene_number) == n_), None)
+                seg_ = str(getattr(row_, "script_segment", "") or "")
+                if "does not look like a period picture" in str(got.missing[n_]) and ("supporting card" in seg_ or "photo card" in seg_):
+                    log(f"[pakMap] picture {n_} was left out: {got.missing.pop(n_)}")
+                    got.skipped.add(n_) if hasattr(got.skipped, "add") else got.skipped.append(n_)
             if got.missing:
                 by_n = {str(o.scene_number): o for o in occs}
                 lines = [f"Picture {n} ({by_n[n].description}, script row {by_n[n].line}): {why}" for n, why in got.missing.items()]
@@ -325,6 +331,14 @@ def generate_pakmap_video(
         return PakmapResult(False, [f"unexpected error while drawing the map: {exc!r}"], report=res.report)
     if cancelled():
         return PakmapResult(False, ["Cancelled"], report=res.report, cancelled=True)
+    try:   # an Explainer plan: the presenter stands over the map stretches (explainer/beats/map_narrator.py; never stops the render)
+        from explainer.beats.map_narrator import apply_if_marked
+
+        _with_presenter = apply_if_marked(silent, spec, work, log)
+        if _with_presenter is not None:
+            silent = _with_presenter
+    except Exception:
+        pass
 
     # ---- Phase 7: pakMap's own sound design (narration + SFX + ambience; generic SFX/ambience/zoom-blur are not used) ----
     audio_plan, mix, narration_for_export, sound_notes, sound_failed = None, None, voiceover_path, [], None
@@ -354,6 +368,15 @@ def generate_pakmap_video(
         sound_notes.append(f"sound design failed, so the video has the narration only: {reason}")
     for note in sound_notes:
         log(f"[pakMap] {note}")
+    try:   # an Explainer plan: map overlays over the finished video and its own sound track (explainer.integration.post_render; never stops the render)
+        from explainer.integration import post_render
+
+        _fin = post_render(silent, work, voiceover_path, log)
+        silent = _fin["video"]
+        if _fin.get("audio"):
+            narration_for_export = _fin["audio"]
+    except Exception:
+        pass
     _report(progress_cb, "Adding the narration…", 0.92)
     try:
         from scene_graph.app_integration import _export_via_existing_renderer

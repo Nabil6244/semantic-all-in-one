@@ -61,6 +61,16 @@ def needs_scenes(plan: Any) -> bool:
     return False
 
 
+def is_explainer_plan(plan: Any) -> bool:
+    """True when the plan was made by the Explainer director: its board and cartoon clips are files under <hybrid dir>/explainer/ (a plan from Write plan with AI or a loaded CSV has none)."""
+    for beat in getattr(plan, "beats", None) or []:
+        for clip in getattr(beat, "clips", None) or []:
+            asset = str(getattr(clip, "asset", "") or "").replace("\\", "/")
+            if "/explainer/" in asset or asset.startswith("explainer/"):
+                return True
+    return False
+
+
 def status_after_plan(app: Any, plan: Any) -> None:
     """The status line after an Explainer plan: it asks for 'Get scenes' only when there is something to fetch (board and cartoon clips are already files)."""
     if not needs_scenes(plan):

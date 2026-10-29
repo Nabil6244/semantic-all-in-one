@@ -31,7 +31,9 @@ Types (use exactly these fields):
 
 Rules: use only numbers and names that are in the sentence; if a picture needs a number the sentence does not give (a curve), put "(illustrative)" in its title.
 Certification, regulator, database or listing sentences -> "doc". A named tipster, leaker or account -> "tweet". Spec comparisons -> "phones" with the figures on the phones and a badge for the difference.
-Colour lists -> "phones" in those colours in the order named. Mix the types: phones and doc and footage and 3D, not only one kind."""
+Colour lists -> "phones" in those colours in the order named. Mix the types: phones and doc and footage and 3D, not only one kind.
+Balance: use every type the script gives a reason for, never the same type three times in a row, and no type for more than 40% of the scenes. A longer script (6+ scenes)
+should have at least one 3D render, one bench set and one footage scene wherever a sentence fits them."""
 
 KINDS_3D = ("xray", "fold", "chip", "macro", "lineup")
 ROOMS = ("loft", "gallery", "studio", "terrace", "desk")
