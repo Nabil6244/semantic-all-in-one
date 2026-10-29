@@ -222,6 +222,57 @@ class ReviewRegressions(unittest.TestCase):
         self.assertEqual(pl._craft("NASA's Perseverance collected a rock sample.")[1], "PERSEVERANCE")
 
 
+class ReferenceBalance(unittest.TestCase):
+    def test_real_photos_and_models_keep_their_share(self):
+        shots = [Shot(id="a", start=0, end=5, kind="image", text="A frozen world of ice.", asset="nasa_image:Europa", cite=("REAL IMAGE", "")),
+                 Shot(id="b", start=5, end=10, kind="craft", model="voyager.glb", name="VOYAGER 1", text="Voyager 1 flew on."),
+                 Shot(id="c", start=10, end=15, kind="image", text="A frozen world of ice.", asset="flow_image:ice"),
+                 Shot(id="d", start=15, end=20, kind="plate", text="x"), Shot(id="e", start=20, end=25, kind="image", text="A frozen world of ice again.", asset="flow_image:ice")]
+        vc.upgrade_scenes(shots, [])
+        self.assertEqual(shots[0].kind, "image")                    # the real photograph stays
+        self.assertEqual(shots[1].kind, "craft")                    # the NASA model stays
+        self.assertLessEqual(sum(1 for s in shots if s.kind == "scene") / len(shots), vc.SCENE_SHARE_MAX)
+        notes = []
+        mix = vc.balance_report(shots, notes)
+        self.assertIn("generated scenes", mix)
+
+    def test_scenes_never_exceed_their_share(self):
+        shots = [Shot(id=f"s{i}", start=i * 5, end=i * 5 + 5, kind="image" if i % 2 == 0 else "plate", text="A frozen world of ice.", asset="flow_image:x") for i in range(40)]
+        vc.upgrade_scenes(shots, [])
+        self.assertLessEqual(sum(1 for s in shots if s.kind == "scene") / len(shots), vc.SCENE_SHARE_MAX + 1e-9)
+
+
+class ExistingFirst(unittest.TestCase):
+    """The engine's own best scenes, NASA models, real textures and 80+ templates come before anything generated."""
+
+    def test_spelled_out_numbers(self):
+        c = concepts.analyze("The pressure grew twenty two times Earth's.")
+        self.assertEqual((c.kind, c.values, c.unit), ("stat", [22.0], "×"))
+        self.assertEqual(concepts.analyze("Sales rose forty percent.").values, [40.0])
+
+    def test_hero_craft_and_world_come_before_a_generated_scene(self):
+        shots = [Shot(id="a", start=0, end=5, kind="image", text="The Venera lander touched down on the hot plain of Venus.", asset="flow_image:x"),
+                 Shot(id="b", start=5, end=10, kind="plate", text="x"),
+                 Shot(id="c", start=10, end=15, kind="image", text="Cassini circled the giant ringed planet for years.", asset="flow_image:x"),
+                 Shot(id="d", start=15, end=20, kind="plate", text="x"),
+                 Shot(id="e", start=20, end=25, kind="image", text="A frozen invented world of ice drifted in silence.", asset="flow_image:x")]
+        vc.upgrade_scenes(shots, [])
+        self.assertEqual([s.kind for s in shots][::2], ["hero", "craft", "scene"])
+        self.assertEqual(shots[0].scene.startswith("venera"), True)
+        self.assertEqual(shots[2].name, "CASSINI")
+
+    def test_a_sentence_an_existing_template_covers_is_left_to_the_template(self):
+        from whatif import templates as tpl
+
+        sentence = "Light bends around the black hole."
+        if tpl.match(sentence, (), sentence) is None:
+            self.skipTest("no auto template triggers on this sentence")
+        words = [type("W", (), {"text": w, "norm": w.lower(), "start": 5.0 + i * 0.3, "end": 5.25 + i * 0.3})() for i, w in enumerate(sentence.split())]
+        layers = []
+        vc.enrich([Shot(id="a", start=0, end=30, kind="image")], layers, words, 30.0, [])
+        self.assertEqual(layers, [])
+
+
 class CinemaScenes(unittest.TestCase):
     def plan_spec(self):
         from types import SimpleNamespace as NS
@@ -229,9 +280,9 @@ class CinemaScenes(unittest.TestCase):
         beats = [NS(text="A frozen world of cracked ice drifted in silence under a thin blue atmosphere.", start=0.0, end=8.0, mode="footage", place=None),
                  NS(text="Then prices rose 20 percent across the whole country last year.", start=8.0, end=16.0, mode="footage", place=None),
                  NS(text="Inside the planet the core is wrapped in thick layers of molten rock.", start=16.0, end=24.0, mode="footage", place=None)] + [
-            NS(text="Wages rose slowly across the whole country that year.", start=24.0 + 8 * i, end=32.0 + 8 * i, mode="footage", place=None) for i in range(3)]
+            NS(text="Wages rose slowly across the whole country that year.", start=24.0 + 8 * i, end=32.0 + 8 * i, mode="footage", place=None) for i in range(5)]
         plan = NS(beats=beats, words=timed(" ".join(b.text for b in beats)), title="x")
-        spec = {"duration": 48.0, "footage": [{"start": b.start, "end": b.end} for b in beats], "layers": []}
+        spec = {"duration": 72.0, "footage": [{"start": b.start, "end": b.end} for b in beats], "layers": []}
         return plan, spec
 
     def test_footage_about_drawable_things_gets_a_scene_layer_once_the_engine_can_draw_it(self):
@@ -251,6 +302,25 @@ class CinemaScenes(unittest.TestCase):
         self.assertTrue(all(L["over_footage"] and L["scene_spec"] for L in got))
         self.assertEqual(got[0]["scene_spec"]["world"]["type"], "ice")
         self.assertTrue(got[1]["scene_spec"]["world"].get("cutaway"))
+
+    def test_a_narration_triggered_template_lands_on_a_cinema_spec_with_a_slate_and_respects_the_gap(self):
+        from types import SimpleNamespace as NS
+
+        from visual_composer import cinema as vcc
+        from whatif import narration as nr
+
+        script = ("Wages rose slowly across the whole country that year and nobody noticed at all for a long time. " * 5
+                  + "Light bends around the black hole and the sky warps behind it. " + "Mass curves spacetime like a bowling ball on a sheet. ")
+        words = nr.words_of(timed(script), script)
+        spec = {"duration": words[-1].end + 3, "footage": [], "layers": []}
+        notes = []
+        self.assertEqual(vcc.templates(spec, NS(), notes, words), 1)               # the second trigger is inside the 40 s gap
+        tm = [L for L in spec["layers"] if L["type"] == "tm_template"]
+        self.assertEqual(tm[0]["template"]["id"], "light_bends")
+        self.assertTrue(any(L["type"] == "cinema_plate" and L["start"] == tm[0]["start"] for L in spec["layers"]))
+        self.assertEqual(vcc.templates(spec, NS(), notes, words), 0)               # a second pass adds nothing
+        off = {"duration": 100.0, "footage": [], "layers": [], "cinema": {"templates": False}}
+        self.assertEqual(vcc.templates(off, NS(), [], words), 0)
 
 
 if __name__ == "__main__":

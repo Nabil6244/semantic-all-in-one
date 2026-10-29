@@ -43,7 +43,8 @@ def gate_layers(spec: Dict[str, Any], plan: Any, notes: List[str]) -> int:
 
 
 ENGINE_FILE = Path(__file__).resolve().parent.parent / "starmap-engine" / "page.js"
-SCENE_SHARE_MAX = 0.45
+SCENE_SHARE_MAX = 0.30
+THREE_D_SHARE_MAX = 0.50
 THREE_D = ("cinema_craft", "cinema_globe", "cinema_hero", "cinema_scene")
 
 
@@ -79,8 +80,10 @@ def scenes(spec: Dict[str, Any], plan: Any, notes: List[str], *, author: Any = N
             continue
         if any(x < z + 3.0 and a - 3.0 < y for x, y in spans()):
             continue
-        if (taken + made + 1) / max(1, len(footage)) > SCENE_SHARE_MAX:
+        if taken + made + 1 > max(3, THREE_D_SHARE_MAX * len(footage)) or made + 1 > max(2, SCENE_SHARE_MAX * len(footage)):
             break
+        if wp._craft(text) or wp._world(text):                   # a NASA craft model or a real world texture covers it (Cinema's own 3D pass, variety)
+            continue
         got = scene_mod.scene_for(text)
         if (not got or got[1] < SCENE_MIN_CONF) and author is not None and asked < MAX_AI_CALLS and len(content_words(text)) >= 5:
             asked += 1
@@ -94,14 +97,62 @@ def scenes(spec: Dict[str, Any], plan: Any, notes: List[str], *, author: Any = N
     return made
 
 
+TEMPLATE_GAP_S = 40.0
+PLATE_TYPES = ("cinema_plate", "cinema_hero", "cinema_plate_hero")
+
+
+def templates(spec: Dict[str, Any], plan: Any, notes: List[str], words: List[Any]) -> int:
+    """What If's narration-triggered templates (whatif/templates.py match: light bending, a spacetime well, the river of space ...) on a Cinema spec: one each,
+    at most one every TEMPLATE_GAP_S, never the same twice, never over a plate, a hero scene, a 3D shot or another template. A plate template gets a slate under it."""
+    from whatif import narration as nr
+    from whatif import planner as wp
+    from whatif import templates as tpl
+
+    if not words or (spec.get("cinema") or {}).get("templates") is False:
+        return 0
+    layers = spec["layers"]
+    dur = float(spec.get("duration") or 0) or words[-1].end + 1.0
+    used = [L["template"]["id"] for L in layers if L.get("type") == "tm_template" and isinstance(L.get("template"), dict)]
+    text_all = " ".join(w.text for w in words)
+    busy = lambda a, b: any(float(L["start"]) < b and a < float(L["end"]) for L in layers if L.get("type") in PLATE_TYPES + THREE_D + ("tm_template",))      # noqa: E731
+    last = max((float(L["start"]) for L in layers if L.get("type") == "tm_template"), default=-1e9)
+    made = 0
+    for a, b in nr.sentences(words):
+        t0 = max(0.0, words[a].start - 0.06)
+        if t0 - last < TEMPLATE_GAP_S or t0 < wp.HOOK_S:
+            continue
+        sent = nr.span_text(words, a, b)
+        t = tpl.match(sent, used, text_all)
+        if t is None:
+            continue
+        t1 = min(t0 + max(float(t.get("hold", 6)), words[b].end + 0.4 - t0), t0 + float(t.get("max_s", 12)), dur - 0.5)
+        later = [float(L["start"]) for L in layers if L.get("type") in PLATE_TYPES + THREE_D + ("tm_template",) and float(L["start"]) > t0 + 0.5]
+        if later:
+            t1 = min(t1, min(later) - 0.05)
+        if t1 - t0 < 3.5 or busy(t0, t1):
+            continue
+        row = type("Row", (), {"id": t["id"], "hold": t1 - t0, "extra": {}, "_auto": True, **{c: None for c in tpl.COLUMNS}})()
+        L, plate = tpl.layer_for(row, t0, t1, words)
+        if plate:
+            kind, text = plate.get("cite") or ("DIAGRAM", "")
+            layers.append({"type": "cinema_plate", "start": round(t0, 3), "end": round(t1, 3), "fade_in": 0.25, "fade_out": 0.3, "_cite": f"{kind} · {text}".rstrip(" ·")})
+        layers.append(L)
+        used.append(t["id"])
+        last = t0
+        made += 1
+        notes.append(f"Cinema template {t['id']} at {t0:.1f}s for: {sent[:70]}")
+    return made
+
+
 def enrich_spec(spec: Dict[str, Any], plan: Any, notes: List[str]) -> int:
     from starmap.cinema import _wi_words
 
     gate_layers(spec, plan, notes)
     from .ai import author_from_settings
 
-    scenes(spec, plan, notes, author=author_from_settings())
     words = _wi_words(plan)
+    templates(spec, plan, notes, words)
+    scenes(spec, plan, notes, author=author_from_settings())
     layers = spec["layers"]
     hosts = [SimpleNamespace(kind="image", start=float(f["start"]), end=float(f["end"])) for f in (spec.get("footage") or [])]
     hosts += [SimpleNamespace(kind="plate" if L["type"] == "cinema_plate" else "craft", start=float(L["start"]), end=float(L["end"]))
