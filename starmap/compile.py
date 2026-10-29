@@ -44,12 +44,12 @@ JUMP_LEAD_S, JUMP_TAIL_S, JUMP_CUT_S = 0.45, 1.8, 0.02
 UNIVERSE_VIEW_LY = 4.2e10          # the universe frame: far enough out to see the 13.8-billion-light-year ball whole
 KM_PER_LY, KM_PER_AU, C_KM_S = 9.4607e12, 1.496e8, 299792.458
 _SCALE_WORDS = {"thousand": 1e3, "million": 1e6, "billion": 1e9}
-_LIGHT_S = {"second": 1, "minute": 60, "hour": 3600, "day": 86400, "week": 604800}
+_LIGHT_S = {"second": 1, "minute": 60, "hour": 3600, "day": 86400, "week": 604800, "month": 2629800}
 
 
 def ring_radius(text: str) -> Dict[str, float]:
     """ "1 light-hour", "13 billion light-years", "100 AU", "384,400 km" -> an engine distance."""
-    m = re.fullmatch(r"\s*([\d.,]+)\s*(thousand|million|billion)?\s*(light[- ]?(second|minute|hour|day|week|year)s?|ly|au|km)\s*", text.lower())
+    m = re.fullmatch(r"\s*([\d.,]+)\s*(thousand|million|billion)?\s*(light[- ]?(second|minute|hour|day|week|month|year)s?|ly|au|km)\s*", text.lower())
     if not m:
         raise CatalogError(f"a ring is a number and a unit, like 1 light-hour, 1 light-year, 100 AU or 13 billion light-years (got {text!r})")
     n = float(m.group(1).replace(",", "")) * _SCALE_WORDS.get(m.group(2) or "", 1)
@@ -575,6 +575,7 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             prev_km = km
             continue
         else:
+            squeezed = False
             if vary:
                 # held for a while already: this beat sees the same subject from a new angle (a glide round it), not the
                 # same picture again
@@ -584,7 +585,12 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                 first = _scaled(shot, push(length)) if creep else shot
                 glide = min(4.0, max(1.0, 0.5 * length))
             else:
-                glide = 0.0 if b.id in cut_in else min(max(2.5, 2.5 + 0.55 * abs(math.log10(km / prev_km))), 6.0, max(1.0, 0.7 * length))
+                orders = abs(math.log10(km / prev_km))
+                allowed = min(6.0, max(1.0, 0.7 * length))
+                # a flight over many orders of size needs about half a second per order to be followed; squeezed into less (the
+                # galaxy to the Earth in 6 s, the Sun, a black frame and the Earth all inside one second) it is one clean cut instead
+                squeezed = orders >= 4.0 and allowed < 0.9 * (2.5 + 0.55 * orders)
+                glide = 0.0 if (b.id in cut_in or squeezed) else min(max(2.5, 2.5 + 0.55 * orders), allowed)
                 if creep and not fix.get("creep") and b.id not in journey and "path" not in shot and length - glide >= 5.0:
                     name, k = RECIPES[recipe_n % len(RECIPES)]
                     recipe_n += 1
@@ -593,7 +599,7 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
                         first["fit"] = max(1.05, first["fit"])      # a pair revealed from close still has both ends in frame
             if creep and length - glide - 0.3 < 1.0:
                 first = shot                                      # too short to creep: glide straight to the shot
-            wide = _travel_via(moves[-1]["to"] if moves else start, first, glide, length) if mv and b.id not in cut_in else None
+            wide = _travel_via(moves[-1]["to"] if moves else start, first, glide, length) if mv and b.id not in cut_in and not squeezed else None
             if wide is not None:
                 # Cinema: between two bodies the camera pulls out over the solar system, then closes in on the next
                 # (zoom out, cross, zoom in) instead of a straight slide

@@ -28,7 +28,7 @@ from .compile import Compiled, compile_plan, strip_private
 
 ENGINE = Path(__file__).resolve().parent.parent / "starmap-engine"
 WEIGHT = {"empty": 3.0, "cut": 2.5, "offframe": 1.0, "still": 1.5, "repeat": 1.0, "track_off": 1.0, "flat": 0.5}   # track_off: review only
-PASSES = 3
+PASSES = 4
 
 
 @dataclass
@@ -74,7 +74,7 @@ def _remedies(issue: Dict[str, Any], is_action: bool) -> List[Dict[str, Any]]:
     if k == "empty":
         if is_action:
             return [{"stretch": 6.0}, {"fit": 2.0}] if nothing else [{"stretch": 0.35}, {"stretch": 0.15}, {"fit": 0.75}]
-        return [{"scale": 2.5}, {"scale": 0.45}] if nothing else [{"scale": 0.45}, {"scale": 0.25}]
+        return [{"scale": 2.5}, {"scale": 0.45}] if nothing else [{"scale": 0.45}, {"scale": 0.25}, {"scale": 0.02, "creep": 1.25, "spin": 3.0}, {"scale": 0.001, "creep": 1.3, "spin": 3.5}]
     if k == "flat":
         return [] if is_action else [{"cuts": 3}, {"cuts": 2}]
     if k == "cut":

@@ -32,6 +32,17 @@ export default {
     }
     return { def, tpl, items, images };
   },
+  update(inst, f) {
+    // a template's headline text claims its box before the map's labels are placed (labels move aside instead of printing over it)
+    if (!f.claim || !(f.alpha > 0.05)) return;
+    const { W, H } = f, S = W / 1920;
+    for (const it of inst.items) {
+      if ((it.p !== 'text' && it.p !== 'number') || !it.size || !Array.isArray(it.at) || typeof it.at[0] !== 'number' || (it.p === 'text' && !String(it.text || '').trim())) continue;
+      const w = Math.min(0.8, it.maxw ?? (it.p === 'number' ? 0.4 : 0.3)) * W, h = it.size * 1.5 * S * (it.p === 'number' ? 1.2 : 1);
+      const x = it.align === 'center' ? it.at[0] * W - w / 2 : it.align === 'right' ? it.at[0] * W - w : it.at[0] * W;
+      f.claim(x, it.at[1] * H - h * 0.8, w, h);
+    }
+  },
   draw(inst, f) {
     const { g, W, H } = f, T = tm(g, W), d = inst.def, tr = f.t - (d.start ?? 0);
     g.save();

@@ -104,6 +104,8 @@ function motionKeys(it, t0, dur) {
 export function build(template, slotValues = {}, { len = 6, cues = {} } = {}) {
   if (!template || !Array.isArray(template.items)) throw new Error('template: "items" must be a list');
   const vars = { ...defaults(template), ...Object.fromEntries(Object.entries(slotValues || {}).filter(([, v]) => v !== undefined && v !== null && v !== '')) };
+  // a CSV number format ("#,##0 STAR GAPS", "0.0 MILLION KM") is a pattern, not text: only its words are the unit shown beside the number
+  if (typeof vars.format === 'string') vars.format = vars.format.replace(/^\s*[#0][#0,]*(?:\.0+)?/, '').trim();
   vars.len = len;
   const out = [];
   let auto = 0;

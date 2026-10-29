@@ -626,10 +626,13 @@ def _earth_vec(utc: str) -> List[float]:
     return [X * r * 1.495978707e8, Z * r * 1.495978707e8, -Y * r * 1.495978707e8]
 
 
+CLOCK_LINGER_S = 8.0       # the light clock stays this long after the craft leaves the screen
+
+
 def light_clock(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, Any]) -> None:
     """What If's LIGHT FROM EARTH clock, top-left, for a story that follows a craft round the Sun: the real light time from Earth
     to the craft for the date on screen (its trajectory, Earth's place that day), running between keys; the year and the craft
-    under it. From the craft's first appearance to the end."""
+    under it. Only while the craft is on screen (and a few seconds after)."""
     from .compile import _clock_utc
     from .temporal import parse_iso
 
@@ -641,26 +644,36 @@ def light_clock(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict
     if traj is None:
         return
     samples = [x for x in traj.data.get("samples") or [] if x.get("km") and x.get("anchor", "sun") == "sun"]
-    shown = [L["start"] for L in spec["layers"] if L.get("type") in ("spacecraft", "tracker") and L.get("trajectory", L.get("id", "")) and
-             (L.get("trajectory") == traj.id)]
-    if len(samples) < 2 or not shown:
+    spans = sorted((float(L["start"]), float(L.get("end", L["start"]))) for L in spec["layers"]
+                   if L.get("type") in ("spacecraft", "tracker") and L.get("trajectory") == traj.id)
+    if len(samples) < 2 or not spans:
         return
-    t0, D = min(shown), float(spec["duration"])
-    keys, notes = [], []
-    t = t0
-    while t <= D + 1e-6:
-        utc = _clock_utc(clock, t)
-        if utc and utc >= samples[0]["utc"]:
-            c, e = _craft_vec(samples, utc), _earth_vec(utc)
-            sec = math.dist(c, e) / C_KM_S
-            keys.append({"t": round(t, 3), "seconds": round(sec, 1)})
-            yr = parse_iso(utc).year
-            if not notes or notes[-1]["text"] != f"{yr} · {str(label or '').upper()}":
-                notes.append({"t": round(t, 3), "text": f"{yr} · {str(label or '').upper()}"})
-        t += 4.0
-    if keys:
-        spec["layers"].append({"type": "tm_clock", "mode": "light", "label": "LIGHT FROM EARTH", "keys": keys, "notes": notes,
-                               "start": round(keys[0]["t"], 3), "end": round(D, 3), "fade_in": 0.4, "z": 5})
+    D = float(spec["duration"])
+    # the clock belongs to the craft: it is on screen while the craft is (and a few seconds after), not for the rest of the video
+    # (sollar: a Voyager clock stuck at 44:19:19 over 13 minutes of galaxy-scale shots, covering the text drawn in the same corner)
+    windows: List[List[float]] = []
+    for a0, b0 in spans:
+        b0 = min(D, b0 + CLOCK_LINGER_S)
+        if windows and a0 <= windows[-1][1] + 1.0:
+            windows[-1][1] = max(windows[-1][1], b0)
+        else:
+            windows.append([a0, b0])
+    for w0, w1 in windows:
+        keys, notes = [], []
+        t = w0
+        while t <= w1 + 1e-6:
+            utc = _clock_utc(clock, t)
+            if utc and utc >= samples[0]["utc"]:
+                c, e = _craft_vec(samples, utc), _earth_vec(utc)
+                sec = math.dist(c, e) / C_KM_S
+                keys.append({"t": round(t, 3), "seconds": round(sec, 1)})
+                yr = parse_iso(utc).year
+                if not notes or notes[-1]["text"] != f"{yr} · {str(label or '').upper()}":
+                    notes.append({"t": round(t, 3), "text": f"{yr} · {str(label or '').upper()}"})
+            t += 4.0 if t + 4.0 <= w1 else max(0.5, w1 - t) if w1 - t > 1e-6 else 4.0
+        if keys:
+            spec["layers"].append({"type": "tm_clock", "mode": "light", "label": "LIGHT FROM EARTH", "keys": keys, "notes": notes,
+                                   "start": round(keys[0]["t"], 3), "end": round(w1, 3), "fade_in": 0.4, "z": 5})
 
 
 def headlines(spec: Dict[str, Any], plan: Any, cat: Any) -> None:

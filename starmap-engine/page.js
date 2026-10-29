@@ -545,6 +545,8 @@ function drawMap(t, date) {
     },
     /** Screen space for labels: a layer asks for a w x h box at (x, y) and gets the nearest free y (above or below), so
      *  chips from different layers never cover each other. First come, first served (layer order). */
+    // corner instruments the templates' text keeps clear of (fractions of the frame: x0, y0, x1, y1): the light clock, top left
+    reserved: layers.some((L) => L.def.type === 'tm_clock' && L.def.mode === 'light' && t >= (L.def.start ?? 0) && t <= (L.def.end ?? 1e9)) ? [[0.02, 0.03, 0.225, 0.14]] : [],
     claims: [],
     place(x, y, w, h, pad = 6) { return frame.placeAny([x], y, w, h, pad).y; },
     /** As place, trying each candidate x (e.g. right of a pin, then left of it) before moving further up or down. */

@@ -5,6 +5,9 @@ export function drawPointer(f, p, label, sub, { color = '#FBE040' } = {}) {
   if (!p) return;
   const s = f.project(p), { u, g, W, H } = f;
   if (!s.front || s.x < 0 || s.x > W || s.y < 0 || s.y > H || f.hidden(p)) return;
+  // the same words drawn twice in one frame (the galaxy guide's "YOU ARE HERE" and a CSV pointer to the Sun) are drawn once
+  const shown = (f.claims.labels ||= new Set()), key = String(label || '').trim().toUpperCase();
+  if (key) { if (shown.has(key)) return; shown.add(key); }
   g.save(); g.globalAlpha *= 1;
   u.pin(s.x, s.y, color);
   f.claim(s.x - 14 * u.S, s.y - 14 * u.S, 28 * u.S, 28 * u.S);

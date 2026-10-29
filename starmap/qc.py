@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 FROZEN_S = 1.5            # a stretch with no visible change for longer than this is reported
+QC_TIMEOUT_S = 300.0      # the frozen-frame scan gives up after this long
 DARK = 0.01               # footage whose mean brightness is under 1% is reported
 
 
@@ -33,8 +34,13 @@ def _ffmpeg() -> str:
 
 def frozen_stretches(video: Path, *, min_s: float = FROZEN_S, noise: float = 0.0005) -> List[tuple]:
     """(start, end) of every stretch longer than min_s where no frame differs visibly from the last (ffmpeg freezedetect)."""
-    out = subprocess.run([_ffmpeg(), "-hide_banner", "-nostats", "-i", str(video), "-map", "0:v", "-vf", f"freezedetect=n={noise}:d={min_s}",
-                          "-f", "null", "-"], capture_output=True, text=True, check=False).stderr
+    # decoded at 10 fps and 480 px wide, not full size: a 15 min 1080p30 render took 14 min here and the stall watchdog flagged it
+    try:
+        out = subprocess.run([_ffmpeg(), "-hide_banner", "-nostats", "-i", str(video), "-map", "0:v", "-vf",
+                              f"fps=10,scale=480:-2,freezedetect=n={noise}:d={min_s}", "-f", "null", "-"],
+                             capture_output=True, text=True, check=False, timeout=max(120.0, QC_TIMEOUT_S)).stderr
+    except subprocess.TimeoutExpired:
+        return []       # the check is advice; a render is never held up by it
     starts = [float(x) for x in re.findall(r"freeze_start: ([\d.]+)", out)]
     ends = [float(x) for x in re.findall(r"freeze_end: ([\d.]+)", out)]
     dur = re.search(r"Duration: (\d+):(\d+):([\d.]+)", out)

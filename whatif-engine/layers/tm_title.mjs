@@ -8,6 +8,12 @@ export default {
   type: 'tm_title',
   space: 'screen',
   create: (def) => { if (!def.line1 && !def.line2) throw new Error('tm_title: "line1" or "line2" is required'); return { def }; },
+  update(inst, f) {
+    // the title's box is taken before the map's labels are placed, so a label never sits on the words
+    if (!f.claim || !(f.alpha > 0.05)) return;
+    const { W, H } = f, y = H * (inst.def.y ?? 0.2), h = H * (inst.def.sub ? 0.24 : 0.19);
+    f.claim(W * 0.1, y - H * 0.07, W * 0.8, h);
+  },
   draw(inst, f) {
     const d = inst.def, { g, W, H } = f, T = tm(g, W);
     const age = f.t - (d.start ?? 0), k1 = quartOut(age / 0.45), k2 = quartOut((age - 0.25) / 0.45);
