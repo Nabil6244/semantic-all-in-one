@@ -77,7 +77,16 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow", max(2, int(total / 30)))
     hist: List[str] = []; last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}
     for i, sc in enumerate(scenes):
-        k = sc["kind"]; free = k in UPGRADABLE and not (k == "trainee" and sc.get("art") not in ("", None, "rep_stand_v1")) and not SYNTH_RX.search(sc.get("text", ""))
+        k = sc["kind"]
+        if sc.get("directed_look"):      # the scenes CSV chose this scene's look (reptheory/direction.py): it is used as asked and counts toward the spacing of the others
+            look = sc["look"]; hist.append(look)
+            if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]
+            elif look == "flow": flows += 1
+            else:
+                from .direction import build_card
+                build_card(sc)
+            continue
+        free = k in UPGRADABLE and not (k == "trainee" and sc.get("art") not in ("", None, "rep_stand_v1")) and not SYNTH_RX.search(sc.get("text", ""))
         if not free: hist.append(k); sc["look"] = k; continue
         ev = evidence(sc, last=i == len(scenes) - 1, role=roles.get(i, ""))
         if not three_d or sc["start"] - last3 < gap3 or hist[-1:] == ["3d"]: ev.pop("3d", None)

@@ -23,11 +23,36 @@ def _draw_overlays(im: Image.Image, spec: dict, U: Units, t: float, dur: float, 
             k.draw(im, int(U.W * o.get("x", 0.0625)), int(U.H * o.get("y", 0.30)), t, o["t0"], 0.08, 0.7, o.get("t_out"), 0.4)
         elif ty == "kicker":
             typo.kicker(im, o["text"], U.margin, int(U.H * o.get("y", 0.2)), U.u(26), accent, t, o["t0"])
+        elif ty.startswith("pic_"):      # a figure / label / heart-rate line over the picture (planner overlay_for); same look as the Classic edit
+            a = M.fade_inout(t, o.get("t0", 0.6), o.get("t1", dur - 0.6), 0.45, 0.4)
+            if a > 0.01:
+                layer, strip = _pic_layers(o, U.W, U.H, accent)
+                gfx.paste(im, layer, 0, 0, a)
+                if strip is not None:
+                    from health_cinema import graphics as HG
+                    bw, bh = HG.pulse_box(U.W, U.H)
+                    try: bpm = float(str(o.get("bpm") or 70).split("-")[0])
+                    except ValueError: bpm = 70.0
+                    x0 = int((max(0.0, t) * (bw / 2) / (60.0 / max(30.0, min(180.0, bpm)))) % bw)
+                    gfx.paste(im, strip.crop((x0, 0, x0 + bw, bh)), U.W - round(U.W * 0.05) - bw, round(U.H * 0.07) + round(56 * U.H / 1080), a)
         elif ty == "tag":      # small honest label on stock footage that is not the person in the story
             a = M.fade_inout(t, o["t0"], o["t1"], 0.4, 0.5)
             if a > 0.01:
                 tile = gfx.text_tile(o["text"].upper(), U.u(22), "demi", MUTED if o.get("quiet") else SOFT, 4, 0.14); pad = int(U.u(22) * 0.35) + 8
                 gfx.paste(im, tile, U.W - U.margin - (tile.width - 2 * pad) - pad, U.u(54) - pad, a * 0.9)
+
+_PIC: Dict[str, tuple] = {}
+
+
+def _pic_layers(o: dict, W: int, H: int, accent):
+    import json
+    from health_cinema import graphics as HG
+    key = json.dumps([{k: v for k, v in o.items() if k not in ("t0", "t1")}, W, H, list(accent)], sort_keys=True, default=str)
+    if key not in _PIC:
+        ov = dict(o, type=o["type"][4:])
+        _PIC[key] = (HG.overlay_layer(ov, W, H, tuple(accent)), HG.pulse_strip(W, H, tuple(accent)) if ov["type"] == "pulse" else None)
+    return _PIC[key]
+
 
 def _dust_sheet(W: int, H: int, seed: int) -> Image.Image:
     """Out-of-focus motes on a sheet wider than the frame; panned at a different rate from the footage to read as foreground depth."""
@@ -274,7 +299,18 @@ class ChapterShot(DataShot):
         typo.kicker(im, g.get("kicker", "Chapter"), U.margin, int(H * 0.40), U.u(26), acc, t, 0.1)
         words = g.get("title", "").split(); kin = typo.Kinetic(g.get("title", ""), U.u(96), int(W * 0.76), acc, "bold", "left", typo.emphasis_indices(words, 1)); kin.draw(im, U.margin, int(H * 0.40) + U.u(60), t, 0.3, 0.08, 0.75)
 
-KINDS = {"footage": FootageShot, "anatomy": AnatomyShot, "counter": CounterShot, "bar": BarShot, "timeline": TimelineShot, "statement": StatementShot, "stat": StatShot,
+class _CardShot(DataShot):
+    """Checklist / steps / do-don't: the Classic card's drawing (health_cinema.cards) on the High-end backdrop, items timed to the narration."""
+    def draw(self, im, t):
+        from health_cinema import cards as HC, profiles as HP
+        sz = HP.type_sizes(HP.get_profile(HP.DEFAULT_PROFILE), self.H); d = ImageDraw.Draw(im, "RGBA"); acc = tuple(self.accent)
+        fn = HC._draw_list if self.spec["kind"] == "list" else HC._draw_compare
+        fn(d, self.spec["gfx"], sz, self.W, self.H, t, self.U.margin, acc, M.out_cubic(t / 0.6))
+
+class ListShot(_CardShot): pass
+class CompareShot(_CardShot): pass
+
+KINDS = {"list": ListShot, "compare": CompareShot, "footage": FootageShot, "anatomy": AnatomyShot, "counter": CounterShot, "bar": BarShot, "timeline": TimelineShot, "statement": StatementShot, "stat": StatShot,
          "evidence": EvidenceShot, "chapter": ChapterShot}
 
 def render_shot(spec: dict, W: int, H: int, out, handle: int, cancel=None) -> None:

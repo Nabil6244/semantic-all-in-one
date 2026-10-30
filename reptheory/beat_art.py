@@ -23,6 +23,12 @@ def prompt_for(text: str) -> str:
     return (f"A single scene from a fitness explainer video, illustrating exactly this narration: \"{text}\". Show {A.CHARACTER}, doing or demonstrating what is described, with any named object or "
             f"equipment drawn clearly, the whole action visible. {A.STYLE}.")
 
+def own_prompt(text: str) -> str:
+    """The scenes CSV's own picture description, in the same style and with the same trainee as every other picture of the video."""
+    text = re.sub(r"\s+", " ", text).strip().rstrip(".")
+    if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she)\b", text, re.I): return f"{text}, {A.REAL_STYLE}."
+    return f"{text}. If a person is shown, it is {A.CHARACTER}. {A.STYLE}."
+
 def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:12]
 
 def eligible(sc: dict) -> bool:
@@ -38,11 +44,12 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0, "chosen": 0}
     prev = None
     for sc in scenes:
-        if directed and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
+        asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
+        if (directed or asked) and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
         sig = (sc["kind"], sc.get("art"), sc.get("prop")); repeat = sc["kind"] in REPEAT_KINDS and prev == sig; prev = sig
-        if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not directed: stat["skipped"] += 1; continue
+        if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not (directed or asked): stat["skipped"] += 1; continue
         if not eligible(sc): stat["skipped"] += 1; continue
-        p = prompt_for(sc["text"]); i = art_id(p); sc["_illus"] = (i, p)
+        p = own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else prompt_for(sc["text"]); i = art_id(p); sc["_illus"] = (i, p)
         if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path")}); continue
         pick = (chosen or {}).get(sc["no"])
         if pick and pick.get("ok") and _same(pick.get("narration"), sc["text"]):

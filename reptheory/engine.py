@@ -56,6 +56,13 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             log(f"beat planner failed ({type(ex).__name__}: {ex}); using the legacy planner"); plan_info = {"planner": "legacy", "fallback_from": "beats", "fallback_reason": f"{type(ex).__name__}: {ex}"}
     if scenes is None: scenes = P.plan(sents, title=title)
     if not scenes: raise ValueError("no scenes to render")
+    from . import direction as DR
+    if DR.has_direction(sents):      # the scenes CSV's look / prompt / muscle / chapter columns (reptheory/direction.py); blank cells stay the app's choice
+        for msg in DR.check_rows(sents): log(f"[REP THEORY CSV] {msg}")
+        log(f"[REP THEORY CSV] direction: {DR.apply(scenes, sents, log=log)}")
+        if not variety:      # without the variety director, the asked card looks and 3D clips are set here
+            for sc in scenes:
+                if sc.get("directed_look"): DR.build_card(sc); sc["want3d"] = sc.get("look") == "3d"
     if variety:      # which look each scene gets, so a long video keeps changing (reptheory/variety.py); 3D clips and Flow pictures below then only fill the scenes it chose
         from . import variety as V
         try:

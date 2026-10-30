@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field, asdict
 from typing import Callable, Dict, List, Optional
 
-from . import evidence, profiles as P
+from . import evidence, profiles as P, spoken as SP
 
 ANATOMY = {  # organ -> keywords; `template` is the journey the current asset supports (None = no asset yet)
     "heart": (["heart", "cardiac", "cardiovascular", "blood pressure", "artery", "arteries", "coronary", "ventricle", "atrium", "heartbeat", "circulation", "valve", "valves", "chambers", "pumping", "blood flow"], "heart_journey"),
@@ -136,6 +136,37 @@ MIN_3D_S = {"heart_journey": 9.0, "chest_journey": 8.0, "brain_journey": 10.0, "
 
 def _sentences_text(g): return " ".join(x["text"].strip() for x in g)
 
+def _absorb(a: dict, b: dict) -> None:
+    """Row b joins scene a (same organ, or extending a 3D shot): b's overlays and illustration cards come along, timed from where b starts in the joined scene;
+    a's last overlay leaves just before b's first one arrives."""
+    off = float(b["start"]) - float(a["start"]); va, vb = a.get("visual") or {}, b.get("visual") or {}
+    ovs = list(va.get("overlays") or [])
+    if ovs and vb.get("overlays"): ovs[-1] = dict(ovs[-1], t1=round(max(ovs[-1]["t0"] + 1.0, off - 0.3), 2))
+    ovs += [dict(o, t0=round(o["t0"] + off, 2), **({"t1": round(o["t1"] + off, 2)} if "t1" in o else {})) for o in vb.get("overlays") or []]
+    if ovs and "visual" in a: a["visual"]["overlays"] = ovs
+    for c in vb.get("cards") or []:
+        a["visual"].setdefault("cards", []).append(dict(c, at=round(off + float(c["at"] if c.get("at") not in (None, "") else 1.2), 2)))
+
+
+def overlay_for(hint: dict, it: dict) -> Optional[dict]:
+    """The graphic over a footage or 3D scene: what the CSV asks (overlay stat | label | pulse), or, when it asks nothing, a number the narration says
+    (digits or words) with its unit. overlay=none and short scenes get nothing. Times are seconds into the scene."""
+    ov = hint.get("overlay"); dur = it["end"] - it["start"]
+    if ov == "none" or dur < 3.0: return None
+    if ov == "stat" and hint.get("stat"):
+        sp = SP.spoken_number(it["text"]) or {}
+        return {"type": "stat", "number": str(hint["stat"]), "unit": hint.get("stat_unit") or "", "label": hint.get("stat_label") or "",
+                "t0": SP.number_time(sp["word"], it["g"], it["start"]) if sp else 0.6}
+    if ov == "label" and hint.get("overlay_text"): return {"type": "label", "text": hint["overlay_text"], "t0": 0.6}
+    if ov == "pulse":
+        sp = SP.spoken_number(it["text"]) or {}
+        return {"type": "pulse", "bpm": sp.get("number") if "minute" in sp.get("unit", "") else "", "t0": 0.4}
+    if hint.get("visual") in ("stat", "timeline"): return None
+    sp = SP.spoken_number(it["text"])
+    if sp: return {"type": "stat", "number": sp["number"], "unit": sp["unit"], "label": "", "t0": SP.number_time(sp["word"], it["g"], it["start"]), "auto": True}
+    return None
+
+
 def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], template_ready: Callable[[str], bool], *, allow_footage: bool = True, title: str = "") -> Dict:
     """Scenes from the director's grouping. Rules (first match wins): 'every N <unit>' -> counter; a percentage -> bar; brain/carotid -> brain journey; eye/vision -> eye
     journey; heart/lungs -> their journeys; director footage query -> footage; else a typographic card. Each 3D template is used at most once per video, 3D scenes are
@@ -179,7 +210,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             from . import library
             tpl = library.template_for(hint.get("organ") or _anatomy_topic(text) or "", template_ready, shot=hint.get("shot"), text=text)      # an explicit 3D row is honoured: no once-per-video limit
         elif hv == "body": tpl = "body:skin" if template_ready("body:skin") else None      # body-map beat: the whole-body model; without it the row falls back to footage of the named region (never a card)
-        elif hv in ("footage", "flow", "youtube", "text", "chapter", "counter", "bar", "timeline"): tpl = None      # an explicit non-3D row is never turned into a 3D organ because its sentence names one
+        elif hv in ("footage", "flow", "youtube", "text", "chapter", "counter", "bar", "timeline", "checklist", "steps", "compare"): tpl = None      # an explicit non-3D row is never turned into a 3D organ because its sentence names one
         else: tpl = organ_template(text)
         wanted = None if tpl else (hint.get("organ") or _anatomy_topic(text))
         if hv == "text":
@@ -199,6 +230,13 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
                 t0 = round(max(0.4, t0, last + 0.9), 2); last = t0; evs.append({"when": e["when"], "label": e["label"], "t0": min(t0, dur_ - 1.0)})
             it["kind"] = "timeline_card"; it["visual"] = {"events": evs, "kicker": hint.get("card_kicker") or "In order", "source_line": hint.get("stat_source") or "From the narration. Order of events only; spacing is not to scale."}
             why.append("CSV: visual=timeline"); it["why"] = why; continue
+        if hv in ("checklist", "steps") and hint.get("items"):      # items appear one by one, each when the narration says it
+            it["kind"] = "list_card"; it["visual"] = {"style": hv, "title": hint.get("card_title") or "", "items": SP.times_for(hint["items"], it["g"], it["start"], it["end"] - it["start"])}
+            why.append(f"CSV: visual={hv}"); it["why"] = why; continue
+        if hv == "compare" and hint.get("do") and hint.get("dont"):
+            both = SP.times_for(list(hint["dont"]) + list(hint["do"]), it["g"], it["start"], it["end"] - it["start"]); nd = len(hint["dont"])
+            it["kind"] = "compare_card"; it["visual"] = {"title": hint.get("card_title") or "", "dont": both[:nd], "do": both[nd:]}
+            why.append("CSV: visual=compare"); it["why"] = why; continue
         if hv in ("footage", "flow", "youtube") and (d["queries"] or d["description"]): m = pc = None      # explicit footage: no counter/bar guessing
         if m:
             sent = next(x for x in it["g"] if EVERY_RE.search(x["text"])); ev = re.search(r"\b(?:has|have|suffers?|dies?)\s+an?\s+(\w+)", text, re.I)
@@ -224,6 +262,12 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         else:
             it["kind"] = "text_card"; it["visual"] = {"text": text, "beats": [{"text": x["text"].strip(), "t0": round(float(x["start"]) - it["start"], 3)} for x in it["g"]]}
             why.append("no suitable footage or data graphic: typographic card")
+        if it["kind"] in ("footage", "anatomy_3d"):
+            ov = overlay_for(hint, it)
+            if ov: it["visual"]["overlays"] = [ov]; why.append(f"graphic over the picture: {ov['type']}" + (" (a number the narration says)" if ov.get("auto") else ""))
+        if it["kind"] == "anatomy_3d" and not it["visual"].get("body_rows") and (hint.get("card_type") or "none") != "none" and (hint.get("card_ref") or hint.get("card_prompt")):
+            it["visual"]["cards"] = [{"type": hint["card_type"], "ref": hint.get("card_ref") or "", "prompt": hint.get("card_prompt") or "", "at": hint.get("card_at")}]
+            why.append(f"illustration card pinned to the organ: {hint.get('card_ref') or hint.get('card_prompt', '')[:40]}")
         it["why"] = why
     # consecutive body-map rows are ONE continuous shot: the camera travels between their regions, the narration timing drives each beat
     k = 0
@@ -237,7 +281,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
     while k + 1 < len(items):
         a, b = items[k], items[k + 1]
         if a["kind"] == b["kind"] == "anatomy_3d" and (a["d"].get("hint") or {}).get("visual") == (b["d"].get("hint") or {}).get("visual") == "3d" and a["visual"].get("organ") == b["visual"].get("organ") and b["end"] - a["start"] <= 16.0:
-            a["g"] += b["g"]; a["end"] = b["end"]; a["text"] += " " + b["text"]; a["why"].append("next row is the same body part: one scene"); del items[k + 1]
+            _absorb(a, b); a["g"] += b["g"]; a["end"] = b["end"]; a["text"] += " " + b["text"]; a["why"].append("next row is the same body part: one scene"); del items[k + 1]
         else: k += 1
     # extend 3D scenes forward to a watchable length (never over a data graphic)
     i = 0
@@ -247,7 +291,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         if it["kind"] == "anatomy_3d":
             need = MIN_3D_S.get(it["visual"]["template"], 10.0)
             while it["end"] - it["start"] < need and i + 1 < len(items) and items[i + 1]["kind"] in ("footage", "text_card", "anatomy_3d") and (items[i + 1]["d"].get("hint") or {}).get("visual") in (None, "auto"):      # never over a row the CSV directed
-                nx = items.pop(i + 1); it["g"] += nx["g"]; it["end"] = nx["end"]; it["text"] += " " + nx["text"]; it["d"] = it["d"]; it["why"].append("extended over the next scene for watchable length")
+                nx = items.pop(i + 1); _absorb(it, nx); it["g"] += nx["g"]; it["end"] = nx["end"]; it["text"] += " " + nx["text"]; it["d"] = it["d"]; it["why"].append("extended over the next scene for watchable length")
         i += 1
     # timeline: a story with time-ordered markers ("one afternoon ... 3 days later ... 4 months") becomes one timeline over the scenes from the first
     # "N <unit> later" marker to the last duration marker; earlier markers (even inside a 3D scene) appear first, as already-happened events

@@ -3,33 +3,59 @@ You are the scene planner for a long-form health video. Turn the SCRIPT at the e
 HOW IT WORKS
 One row per sentence of the script, in order. The app aligns the rows to the voiceover by their words, so do NOT write start or end times.
 The "text" column must be the script's own words, unchanged. Never reword, add, drop or merge anything. Never invent a number, a study or a source:
-use only numbers and studies that are already in the script.
+use only numbers, items and studies that are already in the script. The app makes no AI call when you give this CSV: everything the viewer sees comes from it.
 
 HEADER (exactly this, in this order)
-text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,card_title,card_kicker,source_title,source_citation,source_url,source_year,source_population,source_context
+text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,items,do,dont,overlay,overlay_text,card_title,card_kicker,card_type,card_ref,card_prompt,source_title,source_citation,source_url,source_year,source_population,source_context
 
 Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep all the commas).
+
+THE VIEWER MUST SEE INFORMATION, NOT ONLY PICTURES
+A health video that is only footage and 3D feels empty. Turn what the narration SAYS into graphics wherever it says something a graphic can show:
+- A number or amount said out loud (digits or words: "seventy times a minute", "three main vessels", "one in five", "80 percent") -> visual=stat, or overlay=stat on a footage / 3d row.
+- Several moments in order ("in seconds ... within minutes ... after thirty minutes", "day one ... a week later") -> visual=timeline.
+- A list of signs, symptoms, causes, risk factors or foods -> visual=checklist (items in the order they are said).
+- An order of actions ("first ... second ... then ...", "step one") -> visual=steps.
+- Don't-versus-do, myth-versus-fact, wrong-versus-right ("not a relative, not a neighbor: emergency services") -> visual=compare.
+- A named body part, artery, process or condition on a 3d or footage row -> overlay=label with its name, and on a 3d row an illustration card (card_type / card_ref / card_prompt) when a picture would explain it better.
+- The heartbeat, pulse or heart rate -> overlay=pulse.
+Aim for a graphic (a stat / timeline / checklist / steps / compare / chapter row, or an overlay) at least every 20 to 30 seconds of narration (about every 3 to 5 sentences),
+and never more than 4 rows in a row with no graphic and no overlay. Never make a graphic from a number or a list the script does not say.
 
 COLUMNS
 - text: one script sentence, word for word.
 - chapter: a short section name on the FIRST row of each section only (4 to 8 sections in a long video). Empty on the other rows.
 - visual: what the scene shows. One of:
-    footage   real stock footage of people, places and everyday life (the default choice for most sentences)
-    3d        a cinematic 3D model of one organ, for sentences that explain what an organ does or what goes wrong in it
-    stat      a big number card, only when the sentence says a number out loud
-    timeline  a short timeline, only when the sentence gives several points in time
-    chapter   a full-screen title card on the first row of a section (card_title, card_kicker)
-    text      a plain statement card, for a warning or a one-line takeaway
-    auto      let the app decide (use when unsure)
-  Mix them: no more than 3 footage rows in a row, 3d only where an organ is the subject, stat only for real numbers.
+    footage    real stock footage of people, places and everyday life
+    3d         a cinematic 3D model of one organ, for sentences that explain what an organ does or what goes wrong in it
+    stat       a big number card, when the sentence says a number out loud (fill stat, stat_unit, stat_label)
+    timeline   a short timeline, when the sentence gives several points in time (fill events)
+    checklist  items ticked one by one as they are said: signs, symptoms, causes, risk factors (fill items, card_title)
+    steps      numbered actions in order (fill items, card_title)
+    compare    a DON'T column and a DO column (fill dont, do, card_title)
+    chapter    a full-screen title card on the first row of a section (card_title, card_kicker)
+    text       a plain statement card, for a warning or a one-line takeaway (use sparingly: a stat, checklist or compare says more)
+    auto       let the app decide (use when unsure)
+  Mix them: no more than 3 footage rows in a row, 3d only where an organ is the subject.
 - organ: for visual=3d, the body part: brain, eye, heart, lungs, liver, pancreas, stomach, intestines, kidney, knee, hip, shoulder, spine. Also fill it on a footage row when the scene is about that body part, so the footage is checked against it.
 - shot: for visual=3d only, optional: orbit, zoom, peel, isolate (camera moves), or fatty / inflamed (the organ changes as the condition develops).
 - footage: a stock search of 3 to 6 plain words for what a camera could film ("older man walking park morning"). Never a person's name, never a brand, no words that need text on screen.
-  Fill it on EVERY footage, auto and 3d row (on a 3d row it is the backup if the 3D model is missing). The app makes no AI call when you give this CSV,
-  so these searches are the only ones it has: they decide the quality of the video.
+  Fill it on EVERY footage, auto and 3d row (on a 3d row it is the backup if the 3D model is missing): these searches are the only ones the app has, so they decide the quality of the video.
 - footage_alt: exactly two other searches, tried in order if the first finds nothing or the wrong thing, separated by " | ". Fill it wherever footage is filled.
   Make each one a different angle on the same meaning, from specific to broad: a close-up, a wider scene, then a medical-animation or clinic version
   ("doctor checking pulse wrist close up | senior couple walking park | heart beating medical animation").
+- source: stock (default, leave empty), youtube, or flow. Leave empty unless the script needs something no stock library has.
+- stat, stat_unit, stat_label, stat_kicker, stat_source: for visual=stat or overlay=stat. stat is the number exactly as the sentence says it, written in digits ("70", "20-30", "1 in 3"). stat_unit is short (%, minutes, beats a minute). stat_label says what it counts in a few words. stat_source names the study the script mentions.
+- events: only for visual=timeline, as "when: what happens | when: what happens", using only times the sentence gives (2 to 5 events).
+- items: for visual=checklist or steps: 2 to 6 short items (2 to 6 words each) separated by " | ", in the order the sentence says them, in its own words.
+- do, dont: for visual=compare: each 1 to 4 short items separated by " | ", from the sentence's own words.
+- overlay: on a footage, 3d or auto row only: stat (a figure the sentence says, with the stat columns), label (a short name in overlay_text), pulse (a heart-rate line), or none. Empty = the app may show a number the sentence says.
+- overlay_text: for overlay=label: 2 to 5 words naming what is on screen ("Left coronary artery", "Plaque rupture").
+- card_title, card_kicker: the heading of a chapter, checklist, steps or compare card (card_kicker only for chapter).
+- card_type, card_ref, card_prompt: on a 3d row, an illustration card pinned to the organ: card_type is mechanism, microscopic, lesion, anatomy, treatment or test;
+  card_ref is a short id for the picture (lowercase_words_v1, reused if the same picture is needed again); card_prompt describes the picture in one sentence (no text in it).
+  The app makes the picture once and keeps it. Use 1 card per 3 to 6 3d rows, where a close-up drawing explains more than the model.
+- source_title, source_citation, source_url, source_year, source_population, source_context: fill these ONLY when the script itself names a study or source. source_year must be four digits. Several sources in one row are separated by " | " and line up by position. If the script gives no source, leave them all empty: an unsourced claim is flagged for review by the app, which is correct.
 
 GOOD FOOTAGE SEARCHES
 - Name what is visible: who (age, setting), doing what, where, and the shot if it matters (close up, slow motion, aerial). "middle aged woman checking blood pressure at home" beats "hypertension".
@@ -37,28 +63,27 @@ GOOD FOOTAGE SEARCHES
 - For a body part or condition, use words a stock site tags: "heart medical animation", "artery plaque 3d animation", "x ray knee joint", "red blood cells microscope".
 - Match the mood and the subject of the sentence, not one keyword in it: a sentence about fear after a diagnosis is a worried patient, not a hospital building.
 - Keep searches varied across the video: do not reuse the same search on two rows; for a run of rows on one topic, change the person, place or shot each time.
-- source: stock (default, leave empty), youtube, or flow. Leave empty unless the script needs something no stock library has.
-- stat, stat_unit, stat_label, stat_kicker, stat_source: only for visual=stat. stat is the number exactly as the sentence says it ("40", "1 in 3"). stat_unit is short (%, years). stat_label says what it counts. stat_source names the study the script mentions.
-- events: only for visual=timeline, as "when: what happens | when: what happens", using only times the sentence gives.
-- card_title, card_kicker: only for visual=chapter.
-- source_title, source_citation, source_url, source_year, source_population, source_context: fill these ONLY when the script itself names a study or source. source_year must be four digits. Several sources in one row are separated by " | " and line up by position. If the script gives no source, leave them all empty: an unsourced claim is flagged for review by the app, which is correct.
 
 RULES
 1. Every row has a non-empty text and a visual.
 2. Do not change the order or the wording of the script.
 3. Pick the picture for the meaning of the sentence, not for a keyword in it.
-4. A general health claim with no source stays a plain footage or text row. Never make it a stat card.
+4. A general health claim with no number and no source stays a footage or text row. Never invent a figure to make a stat card.
 5. Output is the CSV only.
 
 EXAMPLE
 Script:
-Your heart beats about one hundred thousand times a day. In a large study of adults, resting heart rate was linked to longer life. Talk to your doctor before changing anything.
+Your heart beats about seventy times a minute. Inside its arteries, fatty plaque can build up for years without a sign. In seconds a clot forms, within minutes the muscle struggles, and after twenty to thirty minutes it starts to die. The warning signs are chest pressure, an ache in the jaw or arm, and sudden shortness of breath. Do not call a relative or a neighbor; call emergency services first. Then unlock the door, sit down, and chew an aspirin only if they tell you to. In a large study of adults, a lower resting heart rate was linked to a longer life.
 
 CSV:
-text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,card_title,card_kicker,source_title,source_citation,source_url,source_year,source_population,source_context
-Your heart beats about one hundred thousand times a day.,Your heart,3d,heart,zoom,human heart beating medical animation,heart anatomy 3d rotation | doctor listening heartbeat stethoscope,,,,,,,,,,,,,,,
-"In a large study of adults, resting heart rate was linked to longer life.",,footage,heart,,older couple walking park morning,senior man jogging sunrise | doctor checking pulse wrist close up,,,,,,,,,,Resting heart rate study,,,,large adult study,
-Talk to your doctor before changing anything.,Before you change anything,footage,,,doctor talking with patient clinic,older woman listening to doctor | doctor explaining chart to patient,,,,,,,,,,,,,,,
+text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,items,do,dont,overlay,overlay_text,card_title,card_kicker,card_type,card_ref,card_prompt,source_title,source_citation,source_url,source_year,source_population,source_context
+Your heart beats about seventy times a minute.,Your heart,3d,heart,zoom,human heart beating medical animation,heart anatomy 3d rotation | doctor listening heartbeat stethoscope,,70,beats a minute,a resting heart,,,,,,,stat,,,,,,,,,,,,
+"Inside its arteries, fatty plaque can build up for years without a sign.",,3d,heart,peel,artery plaque 3d animation,cholesterol in blood vessel animation | doctor showing heart model,,,,,,,,,,,label,Plaque in a coronary artery,,,mechanism,coronary_plaque_buildup_v1,a cross-section of a coronary artery narrowed by a yellow fatty plaque,,,,,,
+"In seconds a clot forms, within minutes the muscle struggles, and after twenty to thirty minutes it starts to die.",The heart attack,timeline,,,,,,,,,,,In seconds: a clot forms | Within minutes: the muscle struggles | 20-30 minutes: muscle starts to die,,,,,,,,,,,,,,,,
+"The warning signs are chest pressure, an ache in the jaw or arm, and sudden shortness of breath.",,checklist,,,,,,,,,,,,Chest pressure | Ache in the jaw or arm | Sudden shortness of breath,,,,,Warning signs,,,,,,,,,,
+Do not call a relative or a neighbor; call emergency services first.,What to do,compare,,,,,,,,,,,,,Call emergency services first,Call a relative | Call a neighbor,,,Who to call first,,,,,,,,,,
+"Then unlock the door, sit down, and chew an aspirin only if they tell you to.",,steps,,,,,,,,,,,,Unlock the door | Sit down | Aspirin only if told,,,,,While you wait,,,,,,,,,,
+"In a large study of adults, a lower resting heart rate was linked to a longer life.",,footage,heart,,older couple walking park morning,senior man jogging sunrise | doctor checking pulse wrist close up,,,,,,,,,,,pulse,,,,,,,Resting heart rate study,,,,large adult study,
 
 NOW WRITE THE SCENES CSV FOR THIS SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>

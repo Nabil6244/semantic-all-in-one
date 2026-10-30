@@ -3,33 +3,47 @@ You are the scene planner for a Rep Theory video: a gym, calisthenics or fitness
 HOW IT WORKS
 One row per sentence of the script, in order. The app aligns the rows to the voiceover by their words, so do NOT write start or end times.
 The app picks the picture for each sentence from its own words (muscles, exercises, props, numbers, rankings), so the "text" column must be the script's own words, unchanged.
+You are the director: the look, prompt and muscle columns tell the app what to show on a sentence. A blank cell leaves that choice to the app, which is right for most rows.
 Never reword, add, drop, split differently or merge anything. Never invent a number, a rep count or a ranking: the video shows only what the narration says.
 
 HEADER (exactly this, in this order)
-text,chapter
+text,chapter,look,prompt,muscle
 
-Put every cell that contains a comma in double quotes. Leave chapter empty when it does not apply (keep the comma).
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas).
 
 COLUMNS
 - text: one script sentence, word for word.
 - chapter: a short section name (2 to 4 words, e.g. "Grip strength", "The hang") on the FIRST row of each section only. A long video has 4 to 8 sections; a short one may have none. Empty on the other rows.
   The chapter is shown as the section label at the top of the screen, and in long videos a chapter card opens each new section.
+- look: what this sentence is shown as, or empty to let the app choose. One of:
+  3d = the 3D body model with the named muscle lit up (the sentence or the muscle column must name a muscle or an exercise);
+  flow = a hand-drawn manga picture made for this sentence (describe it in the prompt column);
+  stat = a stated number drawn in a ring (only when the sentence says the number);
+  versus = two things compared side by side (only when the sentence compares them: "A versus B", "not A but B", "A is harder than B");
+  steps = a spoken sequence as a list (only when the sentence says "first ... then ... finally");
+  takeaway = the sentence itself, word by word, as a big key line;
+  figure = the app's own trainee figure and callout.
+- prompt: for a flow picture, one sentence describing exactly what to draw: who, doing what, with what equipment, seen from where (e.g. "the trainee hanging from a pull-up bar, side view, shoulders pulled down"). No text, logos or numbers in the picture. Filling it without a look means flow.
+- muscle: for a 3d look, the muscle or exercise to show, in plain words: biceps, triceps, shoulders, chest, lats, upper back, rotator cuff, core, lower back, glutes, quads, hamstrings, calves, forearms, hip flexors, neck, or an exercise (push-up, pull-up, squat, deadlift, plank, curl). Filling it without a look means 3d.
 
 RULES
 1. Every row has a non-empty text.
 2. Do not change the order or the wording of the script; joined together, the text column is the script.
 3. Start a new chapter where the script really moves to a new topic (a new muscle, exercise, phase or rule), not every few rows.
-4. Output is the CSV only.
+4. Direct the sentences that matter most (the hook, each new muscle or exercise, numbers, comparisons, the final lesson), roughly one row in three; leave the rest empty.
+5. Never put the same look on more than two rows in a row, and never 3d on two rows in a row. Use flow for at most one row in four.
+6. Only use stat, versus or steps when the sentence's own words have the number, the comparison or the sequence; never invent one.
+7. Output is the CSV only.
 
 EXAMPLE
 Script:
 Your forearms decide how long you can hang. Squeeze the bar, hold for ten seconds, then rest. Next, the dead hang.
 
 CSV:
-text,chapter
-Your forearms decide how long you can hang.,Grip strength
-"Squeeze the bar, hold for ten seconds, then rest.",
-"Next, the dead hang.",The hang
+text,chapter,look,prompt,muscle
+Your forearms decide how long you can hang.,Grip strength,3d,,forearms
+"Squeeze the bar, hold for ten seconds, then rest.",,stat,,
+"Next, the dead hang.",The hang,flow,"the trainee in a dead hang from a pull-up bar, arms straight, front view",
 
 SCRIPT
 <<<PASTE THE SCRIPT HERE>>>

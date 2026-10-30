@@ -111,8 +111,13 @@ class HealthCinemaPrompt(unittest.TestCase):
         self.assertTrue(scenes_csv.needs_alignment(rows))          # no times asked for: aligned to the voiceover
         self.assertTrue(text.rstrip().endswith(PLACEHOLDER))
         self.assertTrue(any(r.get("sources") for r in rows))
-        # a CSV run makes no AI call: every visual row carries its own search and two backups
-        self.assertTrue(all(r.get("footage") and len(r.get("footage_alt") or []) == 2 for r in rows), rows)
+        # a CSV run makes no AI call: every picture row (footage / 3d) carries its own search and two backups
+        pics = [r for r in rows if r.get("visual") in ("footage", "3d", "auto")]
+        self.assertTrue(pics and all(r.get("footage") and len(r.get("footage_alt") or []) == 2 for r in pics), rows)
+        # and the example shows every kind of graphic the prompt asks for
+        self.assertTrue({"stat", "label", "pulse"} <= {r.get("overlay") for r in rows})
+        self.assertTrue({"timeline", "checklist", "steps", "compare"} <= {r.get("visual") for r in rows})
+        self.assertTrue(any(r.get("card_ref") and r.get("card_prompt") for r in rows if r.get("visual") == "3d"))
 
 
 if __name__ == "__main__":

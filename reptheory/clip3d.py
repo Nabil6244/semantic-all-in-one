@@ -133,10 +133,13 @@ def prepare(scenes: list, log=print, max_clips: int = 12, fps: int = 24, mix: bo
     from . import beat_art as BA
     stat = {"rendered": 0, "reused": 0, "skipped": 0, "failed": 0}; n = 0; prev3d = False
     for sc in scenes:
-        txt = sc.get("text", ""); was3d, prev3d = prev3d, False
-        if directed and not sc.get("want3d"): stat["skipped"] += 1; continue      # the variety director chose which scenes get a 3D clip
-        if mix and was3d and region_for(txt): sc["want_picture"] = True; stat["skipped"] += 1; continue      # mixed with Flow pictures: a 3D scene is never followed by another, the next body-part scene gets its Flow picture
-        if sc["kind"] in BA.SKIP_KINDS or BA.SYNTH_RX.search(txt) or not region_for(txt) or (n >= max_clips and not directed): stat["skipped"] += 1; continue
+        txt = sc.get("muscle") or sc.get("text", ""); was3d, prev3d = prev3d, False      # the scenes CSV's muscle column, when filled, says which muscle the clip shows
+        if sc.get("directed_look"):      # the scenes CSV chose this scene's look: a clip only where it asked for 3D, whatever the spacing and count rules say
+            if sc.get("look") != "3d": stat["skipped"] += 1; continue
+        elif directed and not sc.get("want3d"): stat["skipped"] += 1; continue      # the variety director chose which scenes get a 3D clip
+        asked = bool(sc.get("directed_look"))
+        if mix and was3d and region_for(txt) and not asked: sc["want_picture"] = True; stat["skipped"] += 1; continue      # mixed with Flow pictures: a 3D scene is never followed by another, the next body-part scene gets its Flow picture
+        if sc["kind"] in BA.SKIP_KINDS or BA.SYNTH_RX.search(sc.get("text", "")) or not region_for(txt) or (n >= max_clips and not (directed or asked)): stat["skipped"] += 1; continue
         dur = sc["end"] - sc["start"]
         if dur < 2.0: stat["skipped"] += 1; continue
         try:

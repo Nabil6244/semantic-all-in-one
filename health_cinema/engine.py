@@ -80,9 +80,25 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
         s["scene_no"] = s.get("scene_no") or i + 1
     return ss
 
+def illustrations_wanted(scenes) -> List[dict]:
+    """Every illustration card the plan pins on a 3D scene (organ cards and body-map beats), once per id: [{ref, prompt, type, topic, narration}].
+    Generate scenes lists them in the Visuals tab; the ones the library already holds are shown there as done."""
+    from . import illustrations as ILL
+    out: Dict[str, dict] = {}
+    for sc in scenes:
+        if sc.kind != "anatomy_3d": continue
+        want = list(sc.visual.get("cards") or []) + [{"type": r["hint"].get("card_type"), "ref": r["hint"].get("card_ref") or "", "prompt": r["hint"].get("card_prompt") or "", "topic": r["hint"].get("body_label") or r["hint"].get("body_region") or ""}
+                                                     for r in sc.visual.get("body_rows") or [] if (r.get("hint") or {}).get("card_type") not in (None, "", "none")]
+        for c in want:
+            ref = c.get("ref") or ""
+            if not ref or ref in out or not (c.get("prompt") or ILL.find(ref)): continue
+            out[ref] = {"ref": ref, "prompt": c.get("prompt") or "", "type": c.get("type") or "mechanism", "topic": c.get("topic") or sc.visual.get("organ") or "", "narration": sc.text[:120]}
+    return list(out.values())
+
+
 def csv_directs(sentences: List[dict]) -> bool:
     """True when the scenes CSV picks the visuals itself: then nothing in the run calls Gemini."""
-    return any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source")) for s in sentences)
+    return any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source", "overlay", "items")) for s in sentences)
 
 def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, profile: str = P.DEFAULT_PROFILE, quality: str = "final",
                       title: str = "", cancel_check: Optional[Callable[[], bool]] = None, progress_cb: Optional[Callable[[float, str], None]] = None,
@@ -177,7 +193,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                 key = (sc.asset or {}).get("scene_key")
                 if sc.kind == "footage" and key and man.get(str(key)):      # a retry found the clip: it becomes the scene's own row
                     man.set(str(int(sc.dscene_ids[0])), dict(man.get(str(key)), scene_number=str(int(sc.dscene_ids[0]))))
-        return {"ok": True, "media_only": True, "rows": table_rows, "acquisition": acquisition, "scenes": [s.as_dict() for s in scenes],
+        return {"ok": True, "media_only": True, "rows": table_rows, "acquisition": acquisition, "scenes": [s.as_dict() for s in scenes], "illustrations": illustrations_wanted(scenes),
                 "visual_director": (dscenes[0]["plan_source"] if dscenes else "off")}
     if not (puppet and puppet.get("enabled")) and any(x.get("character_action") for x in sents): log("puppet: the scenes file has character_action cells but the paper-cutout switch is off, so they are ignored")
     if puppet and puppet.get("enabled") and edit == "high_end": log("puppet: the paper-cutout character is used by the Classic edit only; this High-end render has none")

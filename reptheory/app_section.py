@@ -228,7 +228,7 @@ def fetch_pictures(manager, folder: Path, requests: list, cancelled, log) -> lis
     import shutil
     from asset_manager import AssetManifest
     from providers.base import SceneRow
-    rows = [SceneRow(scene_number=str(r["no"]), script_segment=r["text"], asset_type="flow_image", prompt=r["prompt"]) for r in requests]
+    rows = [SceneRow(scene_number=str(r["no"]), script_segment=r["text"], asset_type="image", prompt=r["prompt"]) for r in requests]
     if not rows: return rows
     folder.mkdir(parents=True, exist_ok=True); man = AssetManifest(folder)
     for r, row in zip(requests, rows):

@@ -732,7 +732,7 @@ def _ai_rows_after_make(app: Any, pack: Dict[str, Any], results: Dict[Any, Any])
         if sc.get("source") != "ai_still":
             continue
         n = int(sc["n"])
-        rows.append(SceneRow(scene_number=str(n), script_segment=str(sc.get("caption") or sc.get("feature") or sc.get("type") or ""), asset_type="flow_image", prompt=str(sc.get("prompt") or "")))
+        rows.append(SceneRow(scene_number=str(n), script_segment=str(sc.get("caption") or sc.get("feature") or sc.get("type") or ""), asset_type="image", prompt=str(sc.get("prompt") or "")))
         r = results.get(n) or results.get(str(n)) or {}
         if r.get("status") == "done":
             visual_bridge.seed(folder, str(n), r.get("path") or "", "flow_image", prompt=rows[-1].prompt, provider="flow")

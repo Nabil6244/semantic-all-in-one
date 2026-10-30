@@ -130,3 +130,49 @@ def caption_overlay_png(text: str, W: int, H: int) -> Image.Image:
     d.rounded_rectangle([(W - wmax) / 2 - 24, y0 - 12, (W + wmax) / 2 + 24, y0 + h + 6], radius=14, fill=(6, 10, 20, 190))
     for i, l in enumerate(lines): d.text((W / 2, y0 + i * px * 1.3), l, font=f, fill=(255, 255, 255, 255), anchor="ma", stroke_width=1, stroke_fill=(0, 0, 0, 255))
     return ov
+
+
+# ---- graphics over the picture (footage / 3D): a figure the narration says, a label, a heart-rate line -------------------------------------------------
+def _panel(d: ImageDraw.ImageDraw, box, accent, radius: int) -> None:
+    d.rounded_rectangle(box, radius=radius, fill=(6, 10, 20, 196), outline=(*accent, 150), width=2)
+    d.rectangle([box[0], box[1] + radius, box[0] + max(4, radius // 3), box[3] - radius], fill=(*accent, 255))
+
+
+def overlay_layer(ov: dict, W: int, H: int, accent) -> Image.Image:
+    """The still part of an overlay as a transparent full-frame RGBA layer, top left (captions own the bottom of the frame)."""
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(im); m = round(W * 0.05); y = round(H * 0.07); k = H / 1080
+    if ov["type"] == "stat":
+        fn, fu, fl = _font(round(118 * k)), _font(round(40 * k)), _font(round(28 * k))
+        num, unit, label = str(ov.get("number", "")), _trim(str(ov.get("unit", "")), 28), _trim(str(ov.get("label", "")), 44)
+        wn = d.textlength(num, font=fn); wu = d.textlength(unit, font=fu); wl = d.textlength(label, font=fl) if label else 0
+        w = round(max(wn + wu + 70 * k, wl + 60 * k)); h = round((150 + (44 if label else 0)) * k)
+        _panel(d, [m, y, m + w, y + h], accent, round(18 * k))
+        d.text((m + 36 * k, y + 14 * k), num, font=fn, fill=(*accent, 255))
+        d.text((m + 46 * k + wn, y + 78 * k), unit, font=fu, fill=(245, 247, 252, 255))
+        if label: d.text((m + 36 * k, y + 148 * k), label, font=fl, fill=(205, 214, 232, 255))
+    elif ov["type"] == "label":
+        f = _font(round(38 * k)); txt = _trim(str(ov.get("text", "")), 48); w = round(d.textlength(txt, font=f) + 92 * k); h = round(72 * k)
+        d.rounded_rectangle([m, y, m + w, y + h], radius=h // 2, fill=(6, 10, 20, 196), outline=(*accent, 150), width=2)
+        r = round(9 * k); cy = y + h // 2; d.ellipse([m + 28 * k - r, cy - r, m + 28 * k + r, cy + r], fill=(*accent, 255))
+        d.text((m + 54 * k, cy), txt, font=f, fill=(245, 247, 252, 255), anchor="lm")
+    elif ov["type"] == "pulse":
+        bw, bh = pulse_box(W, H); x0 = W - m - bw
+        _panel(d, [x0 - round(20 * k), y, W - m + round(10 * k), y + bh + round(70 * k)], accent, round(18 * k))
+        f = _font(round(26 * k)); d.text((x0, y + 14 * k), "HEART RATE" + (f"  {ov['bpm']} BPM" if ov.get("bpm") else ""), font=f, fill=(*accent, 255))
+    return im
+
+
+def pulse_box(W: int, H: int) -> Tuple[int, int]:
+    return round(W * 0.24), round(H * 0.10)
+
+
+def pulse_strip(W: int, H: int, accent) -> Image.Image:
+    """Two periods of an ECG trace, side by side: scrolled by ffmpeg (crop x = t * speed mod period) it never jumps."""
+    bw, bh = pulse_box(W, H); im = Image.new("RGBA", (bw * 2, bh), (0, 0, 0, 0)); d = ImageDraw.Draw(im); mid = bh * 0.62; beats = 2
+    shape = [(0.00, 0), (0.30, 0), (0.34, -0.08), (0.38, 0), (0.44, 0), (0.47, 0.18), (0.50, -0.95), (0.53, 0.32), (0.56, 0), (0.68, 0), (0.74, -0.16), (0.80, 0), (1.00, 0)]
+    pts = []
+    for rep in range(beats * 2):
+        period = bw / beats
+        pts += [(rep * period + x * period, mid + y * bh * 0.55) for x, y in shape]
+    d.line(pts, fill=(*accent, 90), width=max(6, bh // 10)); d.line(pts, fill=(*accent, 255), width=max(2, bh // 30))
+    return im

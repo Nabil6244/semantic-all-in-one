@@ -16,6 +16,10 @@ Visual direction columns (optional; when any row fills one, the app plans the vi
            card_type none|lesion|microscopic|mechanism|anatomy|treatment|test   card_ref (id of an illustration in the library)   card_prompt (what to generate when card_ref is new)   card_at (seconds into the beat)
   Cards (from numbers and words IN the narration only): visual=stat with stat (the number as spoken), stat_unit (short: %, seconds), stat_label, stat_kicker, stat_source;
   visual=timeline with events (`when: what happens | when: what happens`); visual=chapter with card_title and card_kicker
+  visual=checklist / steps with items (`item | item | item`, each shown as it is spoken) and an optional card_title;
+  visual=compare with dont (`item | item`) and do (`item | item`) and an optional card_title
+  On a footage, 3d or auto row: overlay stat|label|pulse puts a graphic over the picture (stat: the stat columns; label: overlay_text; pulse: a heart-rate line).
+  On a 3d row, card_type / card_ref / card_prompt / card_at pin an illustration card to the organ, as on a body beat.
 Paper-cutout puppet columns (optional, used only when the Puppet switch is on in the app; blank = the planner decides; a bad value is a warning, never an error):
   character_action  what the character does in this scene: walk | run | stand_idle | look_around | point | turn | pick_up | put_down | wave | stop, or a phrase like
                     walk_in_from_left, stand_and_look, pick_up_box (the verb is understood, left/right sets the direction); `none` keeps this scene plain
@@ -39,12 +43,14 @@ ALIASES = {"text": ("text", "narration", "sentence", "script"), "start": ("start
            "stat": ("stat", "number", "stat_value"), "stat_unit": ("stat_unit", "unit"), "stat_label": ("stat_label", "label"), "stat_kicker": ("stat_kicker", "kicker"), "stat_source": ("stat_source",),
            "events": ("events", "timeline_events"), "card_title": ("card_title", "title"), "card_kicker": ("card_kicker",),
            "body_region": ("body_region",), "body_scale": ("body_scale",), "body_focus": ("body_focus",), "body_effect": ("body_effect",), "body_label": ("body_label",),
+           "items": ("items", "list_items"), "do": ("do", "do_items"), "dont": ("dont", "don't", "dont_items"), "overlay": ("overlay",), "overlay_text": ("overlay_text",),
            "card_type": ("card_type",), "card_ref": ("card_ref", "illustration"), "card_prompt": ("card_prompt",), "card_at": ("card_at",),
            "character_action": ("character_action", "puppet_action", "char_action"), "character": ("character", "puppet", "puppet_character"), "character_ground": ("character_ground", "ground", "ground_y")}
-VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "stat", "flow", "youtube", "body")
+VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeline", "stat", "flow", "youtube", "body", "checklist", "steps", "compare")
+OVERLAYS = ("none", "stat", "label", "pulse")
 SHOTS = ("orbit", "zoom", "peel", "cutaway", "isolate", "fatty", "inflamed")
 SOURCES = ("stock", "youtube", "flow")
-HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region")
+HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region", "items", "do", "dont", "overlay")
 SOURCE_FIELDS = ("title", "citation", "url", "year", "population", "context")
 MIN_MATCH = 0.5      # below this share of script words found in the voiceover, the CSV is not this narration
 WARN_MATCH = 0.8
@@ -214,6 +220,24 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
         if row.get("card_at"):
             try: sc["card_at"] = float(row["card_at"])
             except ValueError: raise ValueError(f"{where}: card_at '{row['card_at']}' must be seconds into the beat, like 0.8") from None
+        for k in ("items", "do", "dont"):
+            if row.get(k):
+                sc[k] = [" ".join(x.split()) for x in _split(row[k]) if x.strip()]
+        ov = (row.get("overlay") or "").strip().lower()
+        if ov:
+            if ov not in OVERLAYS:
+                raise ValueError(f"{where}: overlay '{row['overlay']}' is not one of: {', '.join(OVERLAYS)}")
+            sc["overlay"] = ov      # "none" is kept: it tells the planner not to add a figure over this picture
+        if row.get("overlay_text"):
+            sc["overlay_text"] = " ".join(row["overlay_text"].split())
+        if sc.get("visual") in ("checklist", "steps") and len(sc.get("items") or []) < 2:
+            raise ValueError(f"{where}: visual={sc['visual']} needs at least two items, separated by ' | '")
+        if sc.get("visual") == "compare" and not (sc.get("do") and sc.get("dont")):
+            raise ValueError(f"{where}: visual=compare needs both the dont and the do columns (items separated by ' | ')")
+        if sc.get("overlay") == "stat" and not sc.get("stat"):
+            raise ValueError(f"{where}: overlay=stat needs the number in the stat column (as spoken in the narration)")
+        if sc.get("overlay") == "label" and not sc.get("overlay_text"):
+            raise ValueError(f"{where}: overlay=label needs the words in overlay_text")
         if sc.get("visual") == "body" and not sc.get("body_region"):
             raise ValueError(f"{where}: visual=body needs body_region (forearm_l, heart, chest, head ...); see docs/health_cinema/CSV_GENERATOR_PROMPT.md")
         if sc.get("visual") == "stat" and not sc.get("stat"):

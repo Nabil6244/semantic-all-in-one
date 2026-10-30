@@ -87,6 +87,7 @@ def render_high_end(scenes, voiceover: str, out_path: str, project_dir: Path, *,
                     spec = bodymap.build_spec(beats, A_, sh["t1"] - sh["t0"])
                 else: spec = C.scale_spec(C.template_spec(sh["template"], sh.get("variant", 0)), sh["t1"] - sh["t0"])
                 spec["footer"] = ""; spec["captions"] = []
+                if sh.get("cards") and not sh.get("body_rows"): spec["cards"] = C.organ_cards(sh["cards"], spec, json.loads(Path(a["anchors"]).read_text())["anchors"], log)
                 sp = cache / f"spec_{hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:16]}.json"; sp.write_text(json.dumps(spec))
                 progress(0.05 + 0.1 * k / len(shots_), f"3D journey for scene {sh['scene_no']}")
                 r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, C.FPS, cache.parent / "journeys", cancel=cancel, frame_renderer=frame_renderer or (lambda *a, **k: RJ.threejs_frames(*a, **dict(k, timeout=JOURNEY_TIMEOUT_S)))); log(f"3D journey scene {sh['scene_no']}: {'cache hit' if r['cache_hit'] else 'rendered in %.0fs' % r['seconds']}"); sh["clip"] = r["path"]; sh["journey_cache_hit"] = r["cache_hit"]; continue

@@ -344,10 +344,14 @@ def on_render_click(app) -> None:
             from . import acquire
 
             acquirer = acquire.make_acquirer(lambda _dir, _rows: manager, images_dir, log, cancel=app._health_cancel.is_set)
+            if not media_only:
+                to_library(visual_bridge.rows(app, OWNER), images_dir, log)      # the illustration pictures as the Visuals tab holds them
             result = engine.run_health_cinema(project_dir, sentences, str(voiceover), str(out_path), profile=profile, quality=quality,
                                               cancel_check=app._health_cancel.is_set, progress_cb=progress, log=log, script_text=" ".join(s["text"] for s in sentences),
                                               settings=app._settings, use_gemini=bool(getattr(app, "_health_gemini_var", None) is None or app._health_gemini_var.get()), acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow,
                                               media_only=media_only, table=table, **extra)
+            if media_only and result.get("illustrations"):
+                result["rows"] = list(result.get("rows") or []) + illustration_rows(result["illustrations"], manager, images_dir, app._health_cancel.is_set, log)
         except engine.Cancelled:
             error = "Stopped."
         except Exception as exc:  # noqa: BLE001 - shown to the user, never a silent failure
@@ -396,3 +400,48 @@ def on_render_click(app) -> None:
         app.after(0, finish)
 
     threading.Thread(target=worker, name="health-cinema-render", daemon=True).start()
+
+
+# ---- illustration cards on the 3D scenes: made in Generate scenes, checked in the Visuals tab, filed in the illustration library on Render ----
+ILLUSTRATION_BASE = 5000      # Visuals rows 5001, 5002 ... (footage rows are the scene numbers; footage retries use 1000-2999)
+
+
+def illustration_rows(wanted: List[dict], manager, folder: Path, cancelled, log) -> List:
+    """One Visuals row per illustration card. A picture the library already holds is filed as done; the rest are made through the app's AssetManager
+    (its Flow image provider), into Health Cinema's own folder. The row keeps the card id in visual_description ("illustration:<id>|<type>")."""
+    import shutil
+    import visual_bridge
+    from providers.base import SceneRow
+    from . import illustrations as ILL
+    rows = []
+    for i, w in enumerate(wanted, 1):
+        no = str(ILLUSTRATION_BASE + i)
+        row = SceneRow(scene_number=no, script_segment=f"Illustration card: {w['ref']} ({w['narration'][:80]})", asset_type="image",
+                       prompt=ILL.full_prompt(w["prompt"] or w["topic"] or w["ref"].replace("_", " ")), visual_description=f"illustration:{w['ref']}|{w['type']}|{w['topic']}")
+        hit = ILL.find(w["ref"])
+        if hit:
+            dst = Path(folder) / f"{no}{Path(hit['path']).suffix or '.png'}"
+            if not dst.is_file(): Path(folder).mkdir(parents=True, exist_ok=True); shutil.copyfile(hit["path"], dst)
+            visual_bridge.seed(folder, no, str(dst), "flow_image", prompt=row.prompt, provider="library")
+        rows.append(row)
+    todo = [r for r in rows if not visual_bridge.records(folder, [r])]
+    log(f"{len(rows)} illustration card(s): {len(rows) - len(todo)} already in the library, {len(todo)} to make through Flow")
+    if todo and not cancelled():
+        try: manager.resolve_all(todo)
+        except Exception as exc: log(f"illustration pictures could not be made ({type(exc).__name__}: {str(exc)[:120]}); fix them in the Visuals tab")      # noqa: BLE001
+    return rows
+
+
+def to_library(rows: List, folder: Path, log) -> None:
+    """Render: each illustration row's finished file becomes that card's picture in the illustration library (what the 3D cards draw)."""
+    import visual_bridge
+    from . import illustrations as ILL
+    ill = [r for r in rows if str(getattr(r, "visual_description", "")).startswith("illustration:")]
+    for no, rec in visual_bridge.records(folder, ill).items():
+        row = next(r for r in ill if int(str(r.scene_number)) == no)
+        ref, kind, topic = (row.visual_description.split(":", 1)[1].split("|") + ["", ""])[:3]
+        have = ILL.find(ref)
+        if have and have.get("sha256") == ILL.sha256(rec["path"]): continue
+        ILL.register(rec["path"], id=ref, topic=topic or ref.replace("_", " "), view=kind or "mechanism", kind=kind or "mechanism", prompt=row.prompt,
+                     source="supplied" if rec.get("user_override") else "flow", notes="from the Visuals tab")
+        log(f"illustration '{ref}' filed in the library from the Visuals tab")

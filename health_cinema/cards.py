@@ -66,6 +66,10 @@ def frame_state(kind, params, t, fps):
     if kind == "text_card":
         beats = params.get("beats") or [{"t0": 0.0}]; bi = _beat_index(beats, t); return (bi, round(min(max(t - beats[bi]["t0"], 0), 0.6) * fps))
     if kind == "counter_card": return round(t * fps)                                    # the ring never stops
+    if kind in ("list_card", "compare_card"):      # changes while an item is entering; still between items
+        its = (params.get("items") or []) if kind == "list_card" else (params.get("dont") or []) + (params.get("do") or [])
+        shown = [x["t0"] for x in its if x["t0"] <= t]; k = round(min((t - (shown[-1] if shown else 0.0)) / 0.5, 1.0) * 12)
+        return (len(shown), k, round(min(t, ANIM_S) * fps))
     if kind == "bar_card": return round(min(t, 2.5) * fps)
     if kind == "timeline_card":
         last = max([e["t0"] for e in params.get("events", [])] or [0]) + 1.2; cap = [i for i, (a, b, _) in enumerate(params.get("captions") or []) if a <= t < b]
@@ -83,6 +87,12 @@ def draw_card(kind: str, params: dict, prof: P.Profile, W: int, H: int, t: float
     dy = round((1 - a) * H * 0.02)
     if kind in ("counter_card", "bar_card", "timeline_card"):
         {"counter_card": G.draw_counter, "bar_card": G.draw_bar, "timeline_card": G.draw_timeline}[kind](d, params, prof, W, H, t, sz)
+        return _with_caption(im, params, t, H)
+    if kind == "list_card":
+        _draw_list(d, params, sz, W, H, t, m, acc, a)
+        return _with_caption(im, params, t, H)
+    if kind == "compare_card":
+        _draw_compare(d, params, sz, W, H, t, m, acc, a)
         return _with_caption(im, params, t, H)
     if kind == "chapter_card":
         d.text((m, H * 0.40 + dy), params.get("kicker", "").upper(), font=_font(sz["label"]), fill=(*acc, round(255 * a)))
@@ -120,6 +130,59 @@ def draw_card(kind: str, params: dict, prof: P.Profile, W: int, H: int, t: float
     if params.get("illustrative"):
         d.text((m, H - m * 0.55), params["illustrative"], font=_font(sz["source"]), fill=(*MUTED, 255))
     return _with_caption(im, params, t, H)
+
+GOOD, BAD = (88, 206, 150), (236, 94, 94)
+
+
+def _tick(d, x, y, s, col, k):
+    """A check mark drawn in as k goes 0 -> 1."""
+    p0, p1, p2 = (x + s * 0.18, y + s * 0.52), (x + s * 0.42, y + s * 0.76), (x + s * 0.84, y + s * 0.26); w = max(3, round(s * 0.12))
+    if k > 0: d.line([p0, (p0[0] + (p1[0] - p0[0]) * min(1, k * 2), p0[1] + (p1[1] - p0[1]) * min(1, k * 2))], fill=col, width=w)
+    if k > 0.5: q = (k - 0.5) * 2; d.line([p1, (p1[0] + (p2[0] - p1[0]) * q, p1[1] + (p2[1] - p1[1]) * q)], fill=col, width=w)
+
+
+def _cross(d, x, y, s, col, k):
+    w = max(3, round(s * 0.12)); a, b = s * 0.24, s * 0.76
+    if k > 0: d.line([(x + a, y + a), (x + a + (b - a) * min(1, k * 2), y + a + (b - a) * min(1, k * 2))], fill=col, width=w)
+    if k > 0.5: q = (k - 0.5) * 2; d.line([(x + b, y + a), (x + b - (b - a) * q, y + a + (b - a) * q)], fill=col, width=w)
+
+
+def _item_rows(d, items, x, y, w, row_h, t, sz, mark):
+    """Items slide in when they are spoken; mark(d, x, y, size, k, index) draws the box / number / cross. Returns the y under the last row."""
+    px = sz["body"] + 8; f = _font(px)
+    for i, it in enumerate(items):
+        if t < it["t0"]: break
+        k = _ease((t - it["t0"]) / 0.5); s = round(min(row_h * 0.62, px * 1.6)); yy = y + i * row_h; xx = x + round((1 - k) * 40); my = yy + (row_h - s) / 2
+        mark(d, xx, my, s, k, i)
+        lines = wrap(d, it["text"][:1].upper() + it["text"][1:], f, w - s * 1.6)[:2]; lh = round(px * 1.18); ty = my + s / 2 - len(lines) * lh / 2
+        for j, ln in enumerate(lines): d.text((xx + s * 1.45, ty + j * lh), ln, font=f, fill=(*WHITE, round(255 * k)))
+    return y + len(items) * row_h
+
+
+def _draw_list(d, p, sz, W, H, t, m, acc, a):
+    style = p.get("style", "checklist"); items = p.get("items") or []
+    kick = (p.get("title") or ("Warning signs" if style == "checklist" else "What to do")).upper()
+    row_h = min(H * 0.14, (H * 0.66) / max(1, len(items))); y0 = max(H * 0.22, (H - len(items) * row_h) / 2 + H * 0.03)      # the block sits in the middle of the frame
+    d.text((m, y0 - sz["label"] * 2.2), kick, font=_font(sz["label"]), fill=(*acc, round(255 * a)))
+    def mark(dd, x, y, s, k, i):
+        if style == "steps":
+            dd.ellipse([x, y, x + s, y + s], outline=(*acc, round(255 * k)), width=max(3, round(s * 0.08)))
+            num = str(i + 1); fn = _font(round(s * 0.55)); dd.text((x + s / 2, y + s / 2), num, font=fn, fill=(*acc, round(255 * k)), anchor="mm")
+        else:
+            dd.rounded_rectangle([x, y, x + s, y + s], radius=round(s * 0.18), outline=(*acc, round(255 * k)), width=max(3, round(s * 0.08))); _tick(dd, x, y, s, (*acc, 255), k)
+    _item_rows(d, items, m, y0, W - 2 * m, row_h, t, sz, mark)
+
+
+def _draw_compare(d, p, sz, W, H, t, m, acc, a):
+    n = max(len(p.get("dont") or []), len(p.get("do") or []), 1); row_h = min(H * 0.13, (H * 0.52) / n)
+    col_w = (W - 2 * m) / 2 - m * 0.3; y0 = max(H * 0.26, (H - n * row_h) / 2)
+    if p.get("title"): d.text((m, y0 - sz["label"] * 4.0), p["title"].upper(), font=_font(sz["label"]), fill=(*acc, round(255 * a)))
+    for side, items, col, head, mk in ((0, p.get("dont") or [], BAD, "DON'T", _cross), (1, p.get("do") or [], GOOD, "DO", _tick)):
+        x = m + side * ((W - 2 * m) / 2 + m * 0.3); first = items[0]["t0"] if items else 0.0; ha = _ease((t - max(0.0, first - 0.4)) / 0.5)
+        d.rounded_rectangle([x - 18, y0 - sz["label"] * 2.3, x + col_w, y0 + n * row_h + sz["label"] * 0.9], radius=22, outline=(*col, round(140 * ha)), width=3)
+        d.text((x + 6, y0 - sz["label"] * 1.75), head, font=_font(sz["label"] + 4), fill=(*col, round(255 * ha)))
+        _item_rows(d, items, x + 6, y0 + sz["label"] * 0.2, col_w - 12, row_h, t, sz, lambda dd, xx, yy, s, k, i, col=col, mk=mk: mk(dd, xx, yy, s, (*col, 255), k))
+
 
 def render_card_clip(kind: str, params: dict, prof: P.Profile, W: int, H: int, fps: int, frames: int, out: Path, ffmpeg: str,
                      cancel: Optional[Callable[[], bool]] = None) -> None:

@@ -153,7 +153,7 @@ def dscenes_from_rows(sentences: List[dict]) -> List[dict]:
     from .planner import _anatomy_topic
     rows: List[dict] = []
     for s in sentences:
-        directed = any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region"))
+        directed = any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region", "items", "do", "dont", "overlay"))
         prev = rows[-1] if rows else None
         if prev is not None and not directed and not prev["directed"] and prev["end"] - prev["start"] < 4.0:
             prev["text"] += " " + s["text"]; prev["end"] = float(s["end"]); continue
@@ -168,5 +168,5 @@ def dscenes_from_rows(sentences: List[dict]) -> List[dict]:
         vs = VisualScene(scene_id=i, narration=r["text"], visual_goal="", visual_description="", asset_type=asset, provider_preference="stock", search_queries=list(qs), timestamp_needed=False,
                          timestamp_hint="", duration=max(1.5, min(6.0, r["end"] - r["start"])), importance="medium", fallbacks=[], visual_treatment="", transition="")
         out.append({"scene_id": str(i), "narration": r["text"], "asset_type": asset, "queries": list(qs), "description": "", "goal": "", "scene": vs, "plan_source": "csv",
-                    "hint": dict({k: s.get(k) for k in ("stat", "stat_unit", "stat_label", "stat_kicker", "stat_source", "events", "card_title", "card_kicker", "body_region", "body_scale", "body_focus", "body_effect", "body_label", "card_type", "card_ref", "card_prompt", "card_at")}, visual=visual, organ=organ if (s.get("organ") or visual == "3d") else None, shot=s.get("shot"), source=src)})
+                    "hint": dict({k: s.get(k) for k in ("stat", "stat_unit", "stat_label", "stat_kicker", "stat_source", "events", "card_title", "card_kicker", "body_region", "body_scale", "body_focus", "body_effect", "body_label", "card_type", "card_ref", "card_prompt", "card_at", "items", "do", "dont", "overlay", "overlay_text")}, visual=visual, organ=organ if (s.get("organ") or visual == "3d") else None, shot=s.get("shot"), source=src)})
     return out

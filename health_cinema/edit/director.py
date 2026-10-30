@@ -12,9 +12,9 @@ from . import media, typo
 from .transitions import Transition
 
 FPS = media.FPS
-DATA = {"counter", "bar", "timeline", "statement", "stat", "evidence", "chapter"}
+DATA = {"counter", "bar", "timeline", "statement", "stat", "evidence", "chapter", "list", "compare"}
 KIND_MAP = {"counter_card": "counter", "bar_card": "bar", "timeline_card": "timeline", "text_card": "statement", "stat_card": "stat", "evidence_card": "evidence",
-            "chapter_card": "chapter", "footage": "footage", "anatomy_3d": "anatomy"}
+            "chapter_card": "chapter", "footage": "footage", "anatomy_3d": "anatomy", "list_card": "list", "compare_card": "compare"}
 STORY_RE = re.compile(r"\b(he|she|his|her|him|frank|picture this|a man|a woman|named)\b", re.I)
 TENSE_RE = re.compile(r"\b(dark|never|closed|major|ischemic|stroke|dismiss\w*|ignore\w*|suddenly|gone|lost)\b", re.I)
 HOPE_RE = re.compile(r"\b(preventable|prevent|recover\w*|safe|early|window)\b", re.I)
@@ -110,9 +110,10 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                 elif a["key_phrase"] and a["role"] in ("statistic", "hook", "transition", "consequence") and d >= 3.0 and s0 - last_title_end > 8:
                     sh["overlays"].append({"type": "title", "text": a["key_phrase"].capitalize(), "t0": 0.7, "t_out": min(d - 0.5, 3.4), "px": 150, "max_w": 0.6, "y": 0.34, "emph": [0]}); last_title_end = s0 + min(d - 0.5, 3.4)
                     sh["why"].append("key word set large over the picture, then cleared")
+                if k == 0: sh["overlays"] += [dict(o, type="pic_" + o["type"], t1=min(float(o.get("t1", d - 0.6)), d - 0.6)) for o in sc.visual.get("overlays") or []]      # the figures / labels / pulse the planner put over this picture
                 last_layout = sh["layout"]; shots.append(sh)
         elif kind == "anatomy":
-            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), variant=sc.visual.get("variant", 0), body_rows=sc.visual.get("body_rows"), scene_start=sc.start, illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
+            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), variant=sc.visual.get("variant", 0), body_rows=sc.visual.get("body_rows"), scene_start=sc.start, cards=sc.visual.get("cards"), illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
             used = 0; last_c = -9.0
             for p in phrases:
                 if not (t0 + 1.0 < p.t0 < t1 - 2.5) or used >= 2: continue
@@ -124,6 +125,7 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                 txt = re.sub(r"[^\w%' -]", "", " ".join(words[lo:hi])).strip(); txt = txt[:1].upper() + txt[1:]
                 if len(txt.split()) < 2 and len(txt) < 6: continue
                 at = max(p.words[lo][1] - 0.15, p.t0) - t0; sh["overlays"].append({"type": "chip", "text": txt, "t0": round(at, 3), "t1": round(at + 2.6, 3), "pos": "tl"}); used += 1; last_c = p.t0
+            sh["overlays"] += [dict(o, type="pic_" + o["type"], t1=min(float(o.get("t1", dur - 0.6)), dur - 0.6)) for o in sc.visual.get("overlays") or []]
             shots.append(sh)
         else:
             sh = dict(base, kind=kind, t0=t0, t1=t1, overlays=[], why=list(why)); v = sc.visual; pl = plate_for(i)
@@ -141,6 +143,8 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                 sh["gfx"] = {"events": ev, "source_line": v.get("source_line") or src_line, "kicker": v.get("kicker") or "What happened, in order"}; sh["why"].append("events revealed progressively; planner times spaced at least 0.38 s apart")
             elif kind == "statement": sh["gfx"] = {"beats": v.get("beats") or [{"text": sc.text, "t0": 0.0}]}
             elif kind == "stat": sh["gfx"] = {"number": v.get("number", ""), "unit": v.get("unit") or ("%" if "%" in sc.text else ""), "context": v.get("context") or sc.text, "source_line": v.get("source_line") or src_line, "kicker": v.get("kicker") or "The figure"}
+            elif kind == "list": sh["gfx"] = {"style": v.get("style", "checklist"), "title": v.get("title", ""), "items": v.get("items") or []}
+            elif kind == "compare": sh["gfx"] = {"title": v.get("title", ""), "dont": v.get("dont") or [], "do": v.get("do") or []}
             elif kind == "evidence": sh["gfx"] = {"claim": v.get("claim", sc.text), "heading": v.get("heading", "What the evidence says"), "level": sc.evidence_level, "source_line": src_line}
             else: sh["gfx"] = {"title": v.get("title") or sc.chapter or sc.text[:80], "kicker": v.get("kicker") or "Chapter"}
             if sc.illustrative: sh["illustrative"] = sc.illustrative
