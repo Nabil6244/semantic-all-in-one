@@ -12,12 +12,19 @@ tac_map params (all optional):
            params["_skipped"]; nothing is guessed. `zone` is a dashed highlight circle, never a crosshair.
   routes   [{from, to, style: dashed_blue|dashed_red|arrow, label?, start?, length?}]  between two resolvable places only; the label chip always
            carries ILLUSTRATIVE (a route is a drawing between two named places, not a track)
-  glyphs   [{place, kind: drone|explosion|ring, heading_to?: place, dx?, dy?, start?}]  small symbols at a named place; use only for what the
-           narration states
+  glyphs   [{place, kind: drone|explosion|ring|swarm, heading_to?: place, dx?, dy?, start?}]  small symbols at a named place; use only
+           for what the narration states. `swarm`: a few small arrows flying in toward the place (drones named by the narration)
   focus    [place | [place, ...], ...]   camera steps: one frame per entry, the camera pushes/pans between them over the card
            (without focus the camera frames every resolved place; without places, `frame` (maps.py presets) or Ukraine)
-  frame, theme, fills [{name|iso3, role: blue|red|neutral}], graticule (bool), badge (text; never empty),
-  chips    [{title, sub?, variant: dark|red|blue|white, start?}]   note chips stacked on the right
+  frame, theme, fills [{name|iso3, role: blue|red|neutral|gold|teal|brown|purple|pink|green|orange|slate, start?}], graticule (bool),
+           badge (text; never empty). A fill with `start` > 0 fades in at that time (the country lights up when it is named);
+           country_roles() gives every country one colour for a whole video (Russia red, Ukraine blue, Belarus brown, the rest in order)
+  chips    [{title, sub?, variant: dark|red|blue|white, start?, group?}]   note chips stacked on the right; with `group`, only the latest
+           group that has started is shown, so the stack clears and builds again
+  focus    may also hold {"country": name|iso3}: the camera frames that country's mainland
+  focus_times [s, ...]  when each focus step begins (narration sync); without it the steps share the card evenly
+  t_offset, total_dur   one long map split around other cards: each piece renders at t + t_offset of a map total_dur long, so markers,
+           cards and camera carry on instead of starting again
 tac_route params: from, to, label?, style?, theme?  (frames both places, draws one illustrative route and a straight-line distance panel)
 
 Honesty: no frontline, unit position or event is ever drawn from nothing; the badge ILLUSTRATIVE MAP - APPROXIMATE POSITIONS is always on.
@@ -59,7 +66,28 @@ POL_BLUE = (30, 66, 150, 255)
 POL_RED = (152, 34, 56, 255)
 POL_NEUTRAL = (36, 40, 48, 255)
 POL_EDGE = {"blue": (92, 132, 214, 255), "red": (222, 96, 112, 255), "neutral": OUTLINE}
-POL_FILL = {"blue": POL_BLUE, "red": POL_RED, "neutral": POL_NEUTRAL, "a": POL_RED, "b": POL_BLUE}
+POL_FILL = {"blue": POL_BLUE, "red": POL_RED, "neutral": POL_NEUTRAL, "a": POL_RED, "b": POL_BLUE,
+            "gold": (150, 118, 26, 255), "teal": (26, 116, 104, 255), "brown": (112, 74, 44, 255), "purple": (88, 66, 150, 255),
+            "pink": (150, 80, 124, 255), "green": (62, 112, 52, 255), "orange": (164, 88, 32, 255), "slate": (70, 96, 118, 255)}
+FIXED_ROLES = {"RUS": "red", "UKR": "blue", "BLR": "brown"}
+ROLE_ORDER = ("gold", "teal", "purple", "pink", "green", "orange", "slate")
+
+
+def country_roles(names: Sequence[str], assigned: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """{ISO3: colour role} for the countries named, in order of first mention: Russia red, Ukraine blue, Belarus brown, the others take the
+    next free colour. Pass the same `assigned` dict for a whole video so a country keeps its colour from map to map. Unknown names are skipped."""
+    out = assigned if assigned is not None else {}
+    for nm in names:
+        f = G.find_country(str(nm))
+        if f is None or f.iso in out:
+            continue
+        if f.iso in FIXED_ROLES:
+            out[f.iso] = FIXED_ROLES[f.iso]
+            continue
+        used = set(out.values())
+        free = [r for r in ROLE_ORDER if r not in used]
+        out[f.iso] = free[0] if free else ROLE_ORDER[len(out) % len(ROLE_ORDER)]
+    return out
 COLOURS = {"white": WHITE, "red": RED, "blue": BLUE, "amber": AMBER}
 
 # Well known towns the catalogue and gazetteer do not hold yet (approximate town-centre coordinates; lat, lon).
@@ -203,7 +231,14 @@ def _gather(params: dict) -> Dict[str, Any]:
     steps: List[List[Dict[str, Any]]] = []
     for f in params.get("focus") or []:
         refs = f if isinstance(f, (list, tuple)) else [f]
-        pts = [x for x in (get(r, "focus") for r in refs) if x]
+        pts = []
+        for r in refs:
+            if isinstance(r, dict) and r.get("country"):
+                pts += _country_points(str(r["country"]))
+            else:
+                x = get(r, "focus")
+                if x:
+                    pts.append(x)
         if pts:
             steps.append(pts)
     if not steps:
@@ -213,6 +248,18 @@ def _gather(params: dict) -> Dict[str, Any]:
         if pts:
             steps = [pts]
     return {"places": places, "routes": routes, "glyphs": glyphs, "regions": regions, "steps": steps, "skipped": skipped}
+
+
+_MAINLAND = {"RUS": (28.0, 44.0, 50.0, 62.0), "USA": (-125.0, 25.0, -67.0, 49.0), "FRA": (-5.0, 42.3, 8.2, 51.1), "NOR": (4.5, 57.9, 31.0, 71.2)}
+
+
+def _country_points(name: str) -> List[Dict[str, Any]]:
+    """Two corners of a country's mainland (its largest polygon; western Russia for Russia) for the camera; [] when unknown."""
+    f = G.find_country(name)
+    if f is None or not f.polys:
+        return []
+    bb = _MAINLAND.get(f.iso) or max((p[0].bbox for p in f.polys), key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
+    return [{"lon": bb[0], "lat": bb[1]}, {"lon": bb[2], "lat": bb[3]}]
 
 
 # ---------------------------------------------------------------------------------------------------------------- framing
@@ -296,12 +343,19 @@ def _cine(view: MP.View, g: Dict[str, Any], t: float, dur: float) -> MP.View:
     return MP.View(cx, cy, view.hw * m, view.w, view.h)
 
 
-def _camera(views: List[MP.View], t: float, dur: float) -> Tuple[MP.View, bool]:
-    """Static-ish push inside each step, eased pan/zoom between steps. Returns (view, moving)."""
+def _camera(views: List[MP.View], t: float, dur: float, times: Optional[Sequence[float]] = None) -> Tuple[MP.View, bool]:
+    """Static-ish push inside each step, eased pan/zoom between steps. Returns (view, moving). `times`: when each step begins."""
     n = len(views)
-    sd = dur / n if dur > 0 else 1.0
-    i = min(n - 1, max(0, int(t / sd)))
-    local = t - i * sd
+    if times is not None and len(times) == n and n > 1:
+        starts = [0.0] + [max(0.0, float(x)) for x in list(times)[1:]]
+        i = max(j for j in range(n) if starts[j] <= t) if t >= 0 else 0
+        nxt = starts[i + 1] if i + 1 < n else max(dur, starts[i] + 0.1)
+        sd = max(0.5, nxt - starts[i])
+        local = t - starts[i]
+    else:
+        sd = dur / n if dur > 0 else 1.0
+        i = min(n - 1, max(0, int(t / sd)))
+        local = t - i * sd
     push = lambda f: 1.0 - 0.04 * max(0.0, min(1.0, f))                   # noqa: E731  gentle push-in, 4 % per step
     if i > 0:
         mv = min(1.6, 0.55 * sd)
@@ -621,11 +675,14 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     views = _views(params, g, (W, H), info["warnings"], theme, panel_on)
     look = str(params.get("look") or "night")
     look = look if look in FX.LOOKS else "night"
-    view, _moving = _camera(views, t, max(dur, 0.1))
+    ft = params.get("focus_times") if g["steps"] and len(params.get("focus_times") or []) == len(views) else None
+    view, _moving = _camera(views, t, max(dur, 0.1), ft)
     view = _cine(view, g, t, dur)
     info["view"] = view.key()
     fills = _fills(params, theme)
-    mosaic, mv = _mosaic(views + [_scaled(v, WIDE) for v in views], theme, fills, params.get("graticule", True) is not False, look)
+    late = [f for f in fills if float(f.get("start") or 0.0) > 0.0]       # these light up when named; the rest are in the base map
+    mosaic, mv = _mosaic(views + [_scaled(v, WIDE) for v in views], theme, [f for f in fills if f not in late],
+                         params.get("graticule", True) is not False, look)
     img = _crop(mosaic, mv, view)
     basecrop = img.copy()                                                  # the bare map, to test whether a label anchor really is open water
     named_px = [view.pt(pl["lat"], pl["lon"]) for pl in g["places"]]
@@ -642,9 +699,17 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     def P(lat: float, lon: float) -> Tuple[float, float]:
         return view.pt(lat, lon, SS)
 
+    vb_now = view.bounds()
+    for fl in late:                                                        # a country named later fills in with its colour
+        k = M.ease_out(M.ramp(t, float(fl["start"]), 0.6))
+        feat = G.find_country(str(fl.get("iso3") or fl.get("name") or ""))
+        if k <= 0 or feat is None or not MP._intersects(feat.bbox, vb_now):
+            continue
+        col = tuple(POL_FILL.get(str(fl.get("role")), NEIGH_P + (255,)))[:3]
+        MP._draw_feature(od, feat, view, vb_now, col + (int(255 * k),), (236, 238, 242, int(235 * k)), (0, 0, 0, 0), SS, 2 * SS)
+
     # region highlights (the first layer after the base map): a soft tint, a clean outline, a name tag
     region_tags: List[Tuple[str, Tuple[float, float], float]] = []
-    vb_now = view.bounds()
     for rg in g["regions"]:
         k = M.ease_out(M.ramp(t, rg["start"], 0.7))
         if k <= 0:
@@ -718,6 +783,19 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
             size = max(8, int(40 * SS * k))
             stk = ST.draw_sticker(gl["name"] or "question", size)
             ov.alpha_composite(stk, (int(sx - size / 2), int(sy - size / 2)))
+        elif gl["kind"] == "swarm":
+            ang = -0.6 + math.pi                                    # from the east unless a heading is given
+            if gl["h"]:
+                hx, hy = P(gl["h"]["lat"], gl["h"]["lon"])
+                ang = math.atan2(cy - hy, cx - hx)
+            for j in range(4):                                      # four arrows fly in toward the place, one after another, and repeat
+                u = ((t - gl["start"]) / 2.6 + j * 0.23) % 1.0
+                dist = (150 - 130 * M.ease_out(u)) * SS
+                spread = (j - 1.5) * 16 * SS
+                px_ = cx + math.cos(ang) * dist - math.sin(ang) * spread
+                py_ = cy + math.sin(ang) * dist + math.cos(ang) * spread
+                a_ = int(255 * k * min(1.0, 4 * (1 - u)) * min(1.0, 5 * u))
+                _chevron(od, px_, py_, ang + math.pi, 9 * SS, (236, 214, 200, a_))
         elif gl["kind"] == "drone":
             ang = -0.6
             if gl["h"]:
@@ -774,10 +852,20 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     L.spaced(d, (31, 22), badge_text, fb, (224, 228, 234, 255), 0.08)
     reserved = [badge]
     chips = _chip_defaults(params)
+    if any("group" in c for c in chips):                                   # the stack clears: only the latest group that has started
+        firsts: Dict[Any, float] = {}
+        for c in chips:
+            firsts[c.get("group")] = min(firsts.get(c.get("group"), 1e9), float(c["start"]))
+        live = [gk for gk, s0 in firsts.items() if s0 <= t]
+        cur = max(live, key=lambda gk: firsts[gk]) if live else min(firsts, key=lambda gk: firsts[gk])
+        chips = [c for c in chips if c.get("group") == cur]
     if chips:
         first = min(float(c["start"]) for c in chips)
         layout = _chip_stack(img, chips, t, W - 24 - 14, 76, draw=False)
-        reserved.append(_panel(img, t, first, max((r[3] for r in layout), default=200)))
+        if any("group" in c for c in chips):                               # building-map cards float on the map (no column behind them)
+            reserved.append((min(r[0] for r in layout), 76, W - 24, max((r[3] for r in layout), default=200)))
+        else:
+            reserved.append(_panel(img, t, first, max((r[3] for r in layout), default=200)))
         reserved += _chip_stack(img, chips, t, W - 24 - 14, 76)
     if extra_panel:
         reserved.append(_number_panel(img, extra_panel, t))
@@ -786,7 +874,8 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     if loc:
         reserved.append(loc)
     if theme == "political":
-        reserved.append((20, H - 128, 330, H - 82))                       # the fill legend
+        n_leg = min(4, len(_fills(params, theme)))
+        reserved.append((20, H - 84 - 22 * n_leg, 330, H - 82))           # the fill legend
     for pl in g["places"]:                                                # labels never sit on any marker (placed or not yet dropped)
         mx0, my0 = view.pt(pl["lat"], pl["lon"])
         reserved.append((int(mx0 - 21), int(my0 - 21), int(mx0 + 21), int(my0 + 21)))
@@ -900,9 +989,10 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     img = Image.alpha_composite(img, L.fade(ctx, k_ctx * 0.82))
     d = ImageDraw.Draw(img)
     if theme == "political":
-        lx, ly = 26, H - 124
+        shown_f = [f for f in fills if float(f.get("start") or 0.0) <= t][:4]
+        lx, ly = 26, H - 80 - 22 * len(shown_f)
         fl2 = T.font("bold", 14)
-        for i, fl in enumerate(fills[:2]):
+        for i, fl in enumerate(shown_f):
             nm = str(fl.get("name") or fl.get("iso3") or "").title()
             feat = G.find_country(str(fl.get("iso3") or fl.get("name") or ""))
             nm = feat.name if feat is not None else nm
@@ -935,7 +1025,9 @@ def _number_panel(img: Image.Image, spec: dict, t: float) -> Tuple[int, int, int
 
 
 def tac_map(t: float, dur: float, params: dict) -> Optional[Image.Image]:
-    return _render(params if isinstance(params, dict) else {}, t, dur)[0]
+    p = params if isinstance(params, dict) else {}
+    off, tot = float(p.get("t_offset") or 0.0), float(p.get("total_dur") or 0.0)
+    return _render(p, t + off, tot if tot > 0 else dur)[0]
 
 
 def tac_route(t: float, dur: float, params: dict) -> Optional[Image.Image]:
@@ -960,7 +1052,9 @@ def tac_route(t: float, dur: float, params: dict) -> Optional[Image.Image]:
 
 def render_info(params: dict, t: float, dur: float = 8.0) -> dict:
     """What a frame contains (resolved places, skipped names, label rectangles) for tests and the plan report."""
-    return _render(dict(params), t, dur)[1]
+    p = dict(params)
+    off, tot = float(p.get("t_offset") or 0.0), float(p.get("total_dur") or 0.0)
+    return _render(p, t + off, tot if tot > 0 else dur)[1]
 
 
 TACTICAL_CARDS = {"tac_map": tac_map, "tac_route": tac_route}

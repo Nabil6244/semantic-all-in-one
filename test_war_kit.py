@@ -19,6 +19,11 @@ P = {
     "kit_scale": {"n": 10, "label": "10 soldiers single file", "bar_label": "A pipe"},
     "kit_badge": {"kind": "ai", "channel": "Channel"},
     "kit_grain": {},
+    "kit_chapter": {"label": "Chapter two", "sub": "The Black Sea"},
+    "kit_speaker": {"name": "Michel Hofman", "role": "Belgian analyst"},
+    "kit_versus": {"a": "18", "a_label": "this year", "b": "6", "b_label": "the year before"},
+    "kit_icons": {"icons": [{"name": "drone", "label": "drones"}, {"name": "crate", "label": "ammunition"}], "link": "arrow", "title": "Small, slow, cheap"},
+    "kit_flag": {"iso3": "UKR"},
 }
 DUR = 3.2
 
@@ -44,7 +49,7 @@ class Cards(unittest.TestCase):
                 self.assertEqual(a.size, (1280, 720), kind)
                 self.assertEqual(a.mode, "RGBA", kind)
                 self.assertEqual(h(a), h(b), f"{kind} not deterministic at {t}")
-                if kind in ("kit_ribbon", "kit_grain", "kit_bignum"):   # bignum has a full-height scrim that bleeds off the left edge by design
+                if kind in ("kit_ribbon", "kit_grain", "kit_bignum", "kit_versus", "kit_icons", "kit_flag"):   # bignum and versus have a full-height scrim that bleeds off the left edge by design
                     continue
                 bb = a.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
                 if bb:

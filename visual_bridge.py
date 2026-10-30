@@ -1,4 +1,4 @@
-"""The Visuals tab for styles that render from their own page (Health Cinema, Rep Theory, Product Trailer).
+"""The Visuals tab for styles that render from their own page (Health Cinema, Rep Theory, Product Trailer, War Documentary).
 
 pakMap, Hybrid, StarMap, Weather and What If each fill the shared Visual Plan table themselves (app._scene_rows + app._scene_rows_owner) and
 point the table's actions at their own asset folder. This module does the same for any other style in one place:
@@ -31,11 +31,16 @@ def _pt_dir(ws) -> Path:
     return Path(ws.root) / "state" / "product_trailer" / "assets"
 
 
+def _war_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "war" / "assets"
+
+
 # owner -> (the app flag that says the style is the active one, its asset folder in a project)
 OWNERS: Dict[str, Tuple[str, Callable]] = {
     "health_cinema": ("_health_active", _hc_dir),
     "reptheory": ("_rt_active", _rt_dir),
     "product_trailer": ("_pt_active", _pt_dir),
+    "war": ("_war_active", _war_dir),
 }
 
 

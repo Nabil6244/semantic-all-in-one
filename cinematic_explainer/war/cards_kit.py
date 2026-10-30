@@ -173,6 +173,25 @@ def _out_alpha(t: float, dur: float) -> float:
 
 # ------------------------------------------------------------------------------------------------ tag -------------------------------
 
+def _hook_element(text: str, size: int, max_w: int) -> Image.Image:
+    """The reference look for a short hook phrase: white label, thick red border, dark type (REFERENCE_PATTERNS item 14)."""
+    f = T.font("display", size)
+    padx, pady, bd = 20, 10, 4
+    lines = _wrap(text.upper(), f, max_w - 2 * padx, 0.06, 2)
+    lh = int(size * 1.02)
+    w = int(max(_sw(ln, f, 0.06) for ln in lines)) + 2 * padx
+    h = lh * len(lines) + 2 * pady
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=5, fill=(214, 36, 52, 255))
+    d.rounded_rectangle([bd, bd, w - 1 - bd, h - 1 - bd], radius=3, fill=(250, 248, 244, 255))
+    y = pady - 2
+    for ln in lines:
+        L.spaced(d, (padx, y), ln, f, (196, 30, 46, 255), 0.06)
+        y += lh
+    return im
+
+
 def _tag_element(text: str, sub: str, size: int, max_w: int) -> Image.Image:
     f = T.font("display", size)
     padx, pady = 22, 11
@@ -202,8 +221,10 @@ def kit_tag(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     if not text:
         return None
     size = int(_num(p.get("size"), 34))
-    tilt = _num(p.get("tilt"), -1.5)
-    el = _memo(_key("tag", p, "text", "sub", "size", "tilt"), lambda: _shadowed(_rotated_cache("tagr" + text + str(size) + str(tilt) + str(p.get("sub")), _tag_element(text, str(p.get("sub") or ""), size, int(W * 0.62)), tilt), 5, (0, 4), 110))
+    hook = str(p.get("style") or "") == "hook" and not p.get("sub")
+    tilt = _num(p.get("tilt"), -3.0 if hook else -1.5)
+    build = (lambda: _hook_element(text, size, int(W * 0.56))) if hook else (lambda: _tag_element(text, str(p.get("sub") or ""), size, int(W * 0.62)))
+    el = _memo(_key("tag", p, "text", "sub", "size", "tilt", "style"), lambda: _shadowed(_rotated_cache("tagr" + text + str(size) + str(tilt) + str(p.get("sub")) + str(hook), build(), tilt), 5, (0, 4), 110))
     k = M.ease_out(t / 0.42)
     cw = max(1, int(el.width * k))
     part = el.crop((0, 0, cw, el.height))
@@ -568,6 +589,50 @@ def kit_bignum(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     return L.fade(img, 1.0) if ob >= 0.999 else L.fade(img, ob)
 
 
+def kit_versus(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """Two stated figures side by side (18 VS 6), each with its own label, an optional title above: the reference's comparison card."""
+    p = p or {}
+    a, b = str(p.get("a") or "").strip(), str(p.get("b") or "").strip()
+    if not a or not b:
+        return None
+    ob = _out_alpha(t, dur) if dur > 0 else 1.0
+    img = _canvas()
+    img.alpha_composite(_memo("scrim", lambda: _scrim(int(W * 0.72))), (0, 0))
+    layer = _canvas()
+    d = ImageDraw.Draw(layer)
+    x, y = int(W * 0.06), int(H * 0.30)
+    title = str(p.get("title") or "").strip().upper()
+    if title:
+        ft = T.font("display", 36)
+        L.spaced(d, (x, y - 58), _fit(title, ft, int(W * 0.55), 0.05), ft, (236, 56, 56, 255), 0.05)
+    f, fl, fv = T.font("display", 150), T.font("bold", 26), T.font("display", 54)
+    cols = (YELLOW, (250, 248, 244, 255))
+    cx = x
+    for i, (val, lab) in enumerate(((a, str(p.get("a_label") or "")), (b, str(p.get("b_label") or "")))):
+        k = M.ease_out(M.ramp(t, 0.1 + 0.5 * i, 0.4))
+        if k <= 0:
+            break
+        w_ = int(_sw(val, f, 0.02))
+        part = _canvas()
+        pd_ = ImageDraw.Draw(part)
+        L.spaced(pd_, (cx + 4, y + 5), val, f, (0, 0, 0, 150), 0.02)
+        L.spaced(pd_, (cx, y), val, f, cols[i], 0.02)
+        if lab:
+            for j, ln in enumerate(_wrap(lab.upper(), fl, max(w_, 150), 0.05, 2)):
+                L.spaced(pd_, (cx, y + 160 + j * 30), ln, fl, (250, 248, 244, 255), 0.05)
+        layer.alpha_composite(L.fade(ImageChops.offset(part, 0, int(20 * (1 - k))), k))
+        cx += max(w_, 150) + 24
+        if i == 0 and t >= 0.5:
+            L.spaced(d, (cx - 10, y + 50), "VS", fv, (236, 56, 56, 255), 0.04)
+            cx += int(_sw("VS", fv, 0.04)) + 30
+    sub = str(p.get("sub") or "").strip()
+    if sub:
+        fs = T.font("regular", 24)
+        d.text((x, y + 236), _fit(sub, fs, int(W * 0.55), 0.0), font=fs, fill=T.CREAM)
+    img.alpha_composite(L.fade(layer, M.ease_out(t / 0.35) * ob))
+    return img
+
+
 # ------------------------------------------------------------------------------------------------ scale diagram -------------------
 
 def kit_scale(t: float, dur: float, p: dict) -> Optional[Image.Image]:
@@ -696,5 +761,187 @@ def kit_grain(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     return L.fade(im, a) if a < 0.999 else im
 
 
-KIT_CARDS = {"kit_tag": kit_tag, "kit_stamp": kit_stamp, "kit_chips": kit_chips, "kit_recap": kit_recap, "kit_sticker": kit_sticker,
+# ------------------------------------------------------------------------------------------------ icon explainer / flag ------------
+
+def _bokeh_plate(seed: int) -> Image.Image:
+    """A soft out-of-focus dark plate (the reference's blurred photo behind flat icons), deterministic per seed."""
+    import random
+
+    from PIL import ImageFilter
+
+    rnd = random.Random(seed)
+    im = Image.new("RGBA", (W // 4, H // 4), (20, 24, 32, 255))
+    d = ImageDraw.Draw(im)
+    for _ in range(26):
+        x, y, r = rnd.uniform(0, W / 4), rnd.uniform(0, H / 4), rnd.uniform(6, 30)
+        c = rnd.choice(((70, 84, 100), (96, 92, 80), (52, 64, 84), (120, 110, 90)))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=c + (rnd.randint(60, 140),))
+    im = im.filter(ImageFilter.GaussianBlur(9)).resize((W, H), Image.BICUBIC)
+    vg = Image.radial_gradient("L").resize((W, H)).point(lambda v: int(v * 0.75))
+    shade = Image.new("RGBA", (W, H), (6, 8, 12, 255))
+    shade.putalpha(vg)
+    im.alpha_composite(shade)
+    return im
+
+
+def kit_icons(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """Flat icons over a blurred plate, for an idea that is not a place or a number (REFERENCE_PATTERNS item 19).
+    params: icons [{name, label, start}] (2-4, sticker names), link "arrow" | "vs" | "" between them, title (the narration's words)."""
+    from . import stickers as ST
+
+    p = p or {}
+    icons = [i for i in (p.get("icons") or []) if isinstance(i, dict) and i.get("name") in ST.NAMES][:4]
+    if len(icons) < 2:
+        return None
+    img = _memo("bokeh" + str(p.get("seed", 0)), lambda: _bokeh_plate(int(p.get("seed", 0) or 0))).copy()
+    n = len(icons)
+    gap = W * 0.62 / max(1, n - 1)
+    x0, cy = W / 2 - gap * (n - 1) / 2, H * 0.52
+    link = str(p.get("link") or "")
+    d = ImageDraw.Draw(img)
+    fl = T.font("display", 30)
+    for i, ic in enumerate(icons):
+        k = _ease_back(min(1.0, max(0.0, (t - float(ic.get("start", 0.3 + 0.5 * i))) / 0.45)))
+        if k <= 0:
+            continue
+        cx = x0 + gap * i
+        if i > 0 and link:
+            mx = cx - gap / 2
+            a = min(1.0, k * 1.5)
+            if link == "vs":
+                L.spaced(d, (mx - 26, cy - 30), "VS", T.font("display", 54), (236, 56, 56, int(255 * a)), 0.04)
+            else:
+                d.line([(mx - gap * 0.22, cy), (mx + gap * 0.18 * a, cy)], fill=(236, 56, 56, int(255 * a)), width=7)
+                tip = mx + gap * 0.18 * a
+                d.polygon([(tip + 22, cy), (tip - 4, cy - 16), (tip - 4, cy + 16)], fill=(236, 56, 56, int(255 * a)))
+        disc = _memo("icdisc" + ic["name"], lambda: _shadowed(_icon_disc(ST.draw_sticker(ic["name"], 150)), 8, (0, 6), 140))
+        _place(img, disc, cx, cy, 0.0, 0.6 + 0.4 * k, min(1.0, k))
+        lab = str(ic.get("label") or "").upper()
+        if lab and k >= 0.6:
+            tw = _sw(lab, fl, 0.06)
+            L.spaced(d, (int(cx - tw / 2), int(cy + 112)), lab, fl, (250, 248, 244, 255), 0.06)
+    title = str(p.get("title") or "").strip()
+    if title and t >= 0.2:
+        el = _memo(_key("ictitle", p, "title"), lambda: _shadowed(_rotated_cache("ict" + title, _hook_element(title, 34, int(W * 0.6)), -2.0), 5, (0, 4), 110))
+        _blit(img, el, (W - el.width) // 2, 60)
+    return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
+
+
+def _icon_disc(icon: Image.Image) -> Image.Image:
+    size = icon.width + 60
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse([0, 0, size - 1, size - 1], fill=(246, 244, 238, 255), outline=(255, 255, 255, 255), width=3)
+    im.alpha_composite(icon, (30, 30))
+    return im
+
+
+FLAGS = {   # stripe flags only (drawn exactly from their stripes): (orientation, colours, weights)
+    "UKR": ("h", ((0, 87, 183), (255, 215, 0)), (1, 1)), "RUS": ("h", ((255, 255, 255), (0, 57, 166), (213, 43, 30)), (1, 1, 1)),
+    "POL": ("h", ((255, 255, 255), (220, 20, 60)), (1, 1)), "DEU": ("h", ((0, 0, 0), (221, 0, 0), (255, 206, 0)), (1, 1, 1)),
+    "FRA": ("v", ((0, 85, 164), (255, 255, 255), (239, 65, 53)), (1, 1, 1)), "LTU": ("h", ((253, 185, 19), (0, 106, 68), (193, 39, 45)), (1, 1, 1)),
+    "ROU": ("v", ((0, 43, 127), (252, 209, 22), (206, 17, 38)), (1, 1, 1)), "BGR": ("h", ((255, 255, 255), (0, 150, 110), (214, 38, 18)), (1, 1, 1)),
+    "EST": ("h", ((0, 114, 206), (0, 0, 0), (255, 255, 255)), (1, 1, 1)), "LVA": ("h", ((158, 48, 57), (255, 255, 255), (158, 48, 57)), (2, 1, 2)),
+    "NLD": ("h", ((174, 28, 40), (255, 255, 255), (33, 70, 139)), (1, 1, 1)), "BEL": ("v", ((0, 0, 0), (253, 218, 36), (239, 51, 64)), (1, 1, 1)),
+    "ITA": ("v", ((0, 146, 70), (255, 255, 255), (206, 43, 55)), (1, 1, 1)), "HUN": ("h", ((206, 41, 57), (255, 255, 255), (71, 112, 80)), (1, 1, 1)),
+    "AUT": ("h", ((200, 16, 46), (255, 255, 255), (200, 16, 46)), (1, 1, 1)),
+}
+
+
+def _flag_base(iso: str) -> Image.Image:
+    o, cols, wts = FLAGS[iso]
+    w, h = W + 160, H + 160
+    im = Image.new("RGBA", (w, h))
+    d = ImageDraw.Draw(im)
+    tot, pos = sum(wts), 0.0
+    for c, wt in zip(cols, wts):
+        a, b = pos / tot, (pos + wt) / tot
+        if o == "h":
+            d.rectangle([0, int(a * h), w, int(b * h) + 1], fill=c + (255,))
+        else:
+            d.rectangle([int(a * w), 0, int(b * w) + 1, h], fill=c + (255,))
+        pos += wt
+    return im
+
+
+def kit_flag(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """A full-screen waving flag between chapters (REFERENCE_PATTERNS item 20): stripe flags only; an unknown country draws nothing."""
+    iso = str((p or {}).get("iso3") or "").upper()
+    if iso not in FLAGS:
+        return None
+    base = _memo("flag" + iso, lambda: _flag_base(iso))
+    img = _canvas()
+    strip = 16
+    ph = t * 5.0
+    for x in range(0, W, strip):
+        u = x / W
+        dy = 34 * math.sin(u * 5.2 - ph) * (0.35 + 0.65 * u)
+        shade = 0.82 + 0.18 * math.cos(u * 5.2 - ph)
+        col = base.crop((x + 80, int(80 - dy), x + 80 + strip, int(80 - dy) + H))
+        if shade < 0.999:
+            col = Image.eval(col.convert("RGB"), lambda v, s_=shade: int(v * s_)).convert("RGBA")
+        img.paste(col, (x, 0))
+    a = min(1.0, t / 0.18, max(0.0, (dur - t) / 0.18)) if dur > 0 else 1.0
+    return L.fade(img, a)
+
+
+# ------------------------------------------------------------------------------------------------ chapter / speaker -----------------
+
+def kit_chapter(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """A chapter opener over whatever is on screen: yellow chip (CHAPTER TWO) and a short white subtitle, centred in the upper third."""
+    label = str((p or {}).get("label") or "").strip().upper()
+    if not label:
+        return None
+    sub = str(p.get("sub") or "").strip()
+
+    def build() -> Image.Image:
+        f, fs = T.font("display", 40), T.font("bold", 24)
+        tw = int(_sw(label, f, 0.08))
+        sub_l = _wrap(sub.upper(), fs, int(W * 0.6), 0.06, 1) if sub else []
+        sw = int(_sw(sub_l[0], fs, 0.06)) if sub_l else 0
+        w = max(tw + 48, sw + 20)
+        im = Image.new("RGBA", (w, 120), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        x0 = (w - tw - 48) // 2
+        d.rounded_rectangle([x0, 0, x0 + tw + 47, 58], radius=6, fill=YELLOW)
+        L.spaced(d, (x0 + 24, 8), label, f, INK, 0.08)
+        if sub_l:
+            L.spaced(d, ((w - sw) // 2, 74), sub_l[0], fs, (250, 248, 244, 255), 0.06)
+        return _shadowed(im, 8, (0, 4), 150)
+    el = _memo(_key("chapter", p, "label", "sub"), build)
+    k = _ease_back(min(1.0, t / 0.5))
+    img = _canvas()
+    _place(img, el, W / 2, H * 0.36, 0.0, 0.9 + 0.1 * k, min(1.0, t / 0.3))
+    return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
+
+
+def kit_speaker(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """Who is speaking: white card, name in bold, role underneath, top right (sliding in from the edge)."""
+    name = str((p or {}).get("name") or "").strip().upper()
+    if not name:
+        return None
+    role = str(p.get("role") or "").strip()
+
+    def build() -> Image.Image:
+        fn, fr_ = T.font("bold", 24), T.font("regular", 18)
+        lines = _wrap(role, fr_, 300, 0.0, 2) if role else []
+        w = int(max([_sw(name, fn, 0.04)] + [_sw(x, fr_, 0.0) for x in lines])) + 40
+        h = 24 + 30 + 24 * len(lines) + 12
+        im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=8, fill=(248, 246, 240, 250), outline=(255, 255, 255, 255), width=2)
+        L.spaced(d, (20, 14), name, fn, (20, 20, 24, 255), 0.04)
+        y = 48
+        for x in lines:
+            d.text((20, y), x, font=fr_, fill=(70, 70, 76, 255))
+            y += 24
+        return _shadowed(im, 6, (0, 4), 130)
+    el = _memo(_key("speaker", p, "name", "role"), build)
+    k = M.ease_out(min(1.0, t / 0.4))
+    img = _canvas()
+    _blit(img, el, W - T.MARGIN_X - el.width + int((1 - k) * 60), 64)
+    return L.fade(img, (_out_alpha(t, dur) if dur > 0 else 1.0) * k)
+
+
+KIT_CARDS = {"kit_icons": kit_icons, "kit_flag": kit_flag, "kit_versus": kit_versus, "kit_chapter": kit_chapter, "kit_speaker": kit_speaker, "kit_tag": kit_tag, "kit_stamp": kit_stamp, "kit_chips": kit_chips, "kit_recap": kit_recap, "kit_sticker": kit_sticker,
              "kit_ribbon": kit_ribbon, "kit_bignum": kit_bignum, "kit_scale": kit_scale, "kit_badge": kit_badge, "kit_grain": kit_grain}

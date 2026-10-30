@@ -299,7 +299,7 @@ def match_scenes(scenes: Sequence[Dict[str, Any]], pool: Optional[Iterable[Any]]
             if pinned:
                 best = cands[0]
             reused_from = ""
-            if allow_reuse and not pinned and narr.subjects:
+            if allow_reuse and not pinned and narr.subjects and not s.get("no_footage"):      # a CSV `none` scene keeps its graphic clear
                 cur = best["scored"]["score"] if best else -1.0
                 for p in pool_entries:
                     if p["path"] == (best or {}).get("path") or uses.get(p["path"], 0) >= MAX_USES:

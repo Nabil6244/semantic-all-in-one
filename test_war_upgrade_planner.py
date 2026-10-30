@@ -36,12 +36,37 @@ class Treatment(unittest.TestCase):
 
     def test_cold_grade_for_generic_neutral_for_user(self):
         p = P.plan([sc(1, "Engineers rebuilt the bridge.", 0, 8, "g.mp4", {"generic": True, "mismatch": True}), sc(2, "Engineers rebuilt the road.", 8, 16, "u.mp4")])
-        self.assertEqual([s.treat["grade"] for s in p.shots], ["cold", "neutral"])
+        self.assertEqual({s.path: s.treat["grade"] for s in p.shots}, {"g.mp4": "film", "u.mp4": "neutral"})     # one film look; the user's clip untouched
+        old = P.plan([sc(1, "Engineers rebuilt the bridge.", 0, 8, "g.mp4", {"generic": True, "mismatch": True}), sc(2, "Engineers rebuilt the road.", 8, 16, "u.mp4")],
+                     config={"film_grade": False, "split_shots": False})
+        self.assertEqual([s.treat["grade"] for s in old.shots], ["cold", "neutral"])
 
     def test_no_footage_scene_gets_the_plate_not_the_previous_clip(self):
         p = P.plan([sc(1, "Engineers rebuilt the bridge.", 0, 8, "a.mp4"), sc(2, "Winter makes it harder because drones watch every road.", 8, 16)])
-        self.assertEqual([s.path for s in p.shots], ["a.mp4"])
+        self.assertEqual({s.path for s in p.shots}, {"a.mp4"})
+        self.assertLessEqual(max(s.end for s in p.shots), 8.0)
         self.assertIn("no_footage", p.log[1].flags)
+
+    def test_a_long_shot_is_cut_into_three_to_six_second_shots(self):
+        from cinematic_explainer.render import Shot
+        from cinematic_explainer.war import direction as D
+
+        class Pl:
+            shots = [Shot("long.mp4", 0.0, 14.0, 2.0), Shot("short.mp4", 14.0, 19.0)]
+        meta = {0.0: {"generic": True}}
+        D._split_long_shots(Pl, meta, {}, probe=lambda p: 60.0)
+        cuts = [(s.path, s.start, s.end) for s in Pl.shots]
+        self.assertEqual(cuts[-1], ("short.mp4", 14.0, 19.0))                          # 7 s or less: one shot
+        long_ = [s for s in Pl.shots if s.path == "long.mp4"]
+        self.assertEqual((long_[0].start, long_[-1].end), (0.0, 14.0))
+        self.assertTrue(all(3.0 <= s.end - s.start <= 6.0 for s in long_))
+        self.assertEqual(len({s.seek for s in long_}), len(long_))                      # a different moment of the clip in each cut
+        self.assertTrue(all(s.seek + (s.end - s.start) <= 60.0 for s in long_))
+        self.assertTrue(all(meta.get(s.start) == {"generic": True} for s in long_))      # every cut keeps the clip's provenance
+        class Short:
+            shots = [Shot("tiny.mp4", 0.0, 12.0, 0.0)]
+        D._split_long_shots(Short, {}, {}, probe=lambda p: 12.5)                        # too short to spread: it runs on, cut by framing
+        self.assertEqual([s.seek for s in Short.shots], [s.start for s in Short.shots])
 
 
 class Rules(unittest.TestCase):

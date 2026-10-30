@@ -137,6 +137,135 @@ class TestSceneHelpers(unittest.TestCase):
         (d / "t.json").write_text('[{"text": "x", "start": 0, "end": 1}]', encoding="utf-8")
         self.assertEqual(len(read_scenes_file(str(d / "t.json"), d)), 1)
 
+    def test_scenes_csv_from_the_prompt_is_accepted_and_aligned(self):
+        from cinematic_explainer.war.app_section import needs_alignment, read_scenes_file
+        from health_cinema import scenes_csv
+
+        d = Path(tempfile.mkdtemp())
+        (d / "s.csv").write_text('﻿```csv\nScene_Number,script_segment,asset_type,prompt\n'
+                                 '1,"Russia struck Kharkiv overnight, again.",youtube_video,Kharkiv strike || Ukraine missile\n'
+                                 '3,Losses rose by ten percent.,none,\n```\n', encoding="utf-8")
+        sc = read_scenes_file(str(d / "s.csv"), d)
+        self.assertEqual([s["scene_no"] for s in sc], [1, 3])           # scene numbers kept: the Visuals tab's footage lines up
+        self.assertEqual(sc[0]["text"], "Russia struck Kharkiv overnight, again.")
+        self.assertEqual((sc[0]["asset_type"], sc[1]["asset_type"]), ("youtube_video", "none"))
+        self.assertTrue(needs_alignment(sc))
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate("Russia struck Kharkiv overnight, again. Losses rose by ten percent.".split())]
+        timed, frac = scenes_csv.align_to_words(sc, words, 6.0)
+        self.assertEqual(frac, 1.0)
+        self.assertEqual((timed[0]["start"], timed[1]["start"], timed[1]["end"]), (0.0, 2.5, 6.0))
+        self.assertEqual(timed[1]["scene_no"], 3)
+        (d / "bad.csv").write_text("scene_number,prompt\n1,x\n", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            read_scenes_file(str(d / "bad.csv"), d)
+        (d / "timed.csv").write_text("text;start;end\nA b c.;0;1.5\n", encoding="utf-8")
+        t = read_scenes_file(str(d / "timed.csv"), d)
+        self.assertEqual((t[0]["start"], t[0]["end"]), (0.0, 1.5))
+        self.assertFalse(needs_alignment(t))
+
+
+class _FakeManager:
+    """Stands in for the app's AssetManager: 'downloads' a clip per row into the manifest, records what it was asked for."""
+
+    def __init__(self, images_dir: Path, fail=()):
+        self.images_dir, self.fail, self.asked, self.settings = Path(images_dir), set(fail), [], {}
+
+    def validate_rows(self, rows):
+        return []
+
+    def request_cancel(self):
+        pass
+
+    def resolve_all(self, rows):
+        from asset_manager import AssetManifest
+
+        man = AssetManifest(self.images_dir)
+        for r in rows:
+            self.asked.append((r.scene_number, r.asset_type, r.stock or r.prompt))
+            if r.scene_number in self.fail:
+                man.set(r.scene_number, {"scene_number": r.scene_number, "status": "failed", "error": "no result"})
+                continue
+            clip = self.images_dir / f"scene_{r.scene_number}.mp4"
+            clip.write_bytes(b"x")
+            man.set(r.scene_number, {"scene_number": r.scene_number, "status": "complete", "source": r.asset_type, "type": "video",
+                                     "local_path": str(clip), "stock_query": r.stock or r.prompt, "provider": "pexels"})
+
+
+class TestCsvFootage(unittest.TestCase):
+    """A scenes CSV run fetches its footage with the CSV's own searches (the render with no footage at all was the bug), lists it in the
+    Visuals tab, keeps what the user picked there, and leaves `none` scenes clear for their map or card."""
+
+    def scenes(self):
+        return [{"scene_no": 1, "text": "Russia struck Kharkiv overnight.", "start": 0.0, "end": 3.0, "asset_type": "youtube_video",
+                 "prompt": "Kharkiv strike footage || Kharkiv missile"},
+                {"scene_no": 2, "text": "Losses rose by ten percent.", "start": 3.0, "end": 6.0, "asset_type": "none"},
+                {"scene_no": 3, "text": "Convoys moved along the road.", "start": 6.0, "end": 9.0, "asset_type": "stock_video",
+                 "prompt": "military convoy road"},
+                {"scene_no": 4, "text": "My own clip here.", "start": 9.0, "end": 12.0, "asset_type": "local"}]
+
+    def test_footage_rows_are_fetched_with_the_csv_searches(self):
+        from cinematic_explainer.war.app_section import fetch_csv_footage
+
+        d = Path(tempfile.mkdtemp())
+        mgr = _FakeManager(d)
+        out, rows = fetch_csv_footage(self.scenes(), mgr, d)
+        self.assertEqual([r.scene_number for r in rows], ["1", "3", "4"])          # none is not a Visuals row; local is (attach it there)
+        self.assertEqual([a[:2] for a in mgr.asked], [("1", "youtube_video"), ("3", "stock_video")])
+        self.assertIn("military convoy road", mgr.asked[1][2])
+        self.assertTrue(out[0]["footage"].endswith("scene_1.mp4") and out[2]["footage"].endswith("scene_3.mp4"))
+        self.assertTrue(out[1].get("no_footage") and not out[1].get("footage"))
+        self.assertFalse(out[3].get("footage"))
+        mgr2 = _FakeManager(d)
+        fetch_csv_footage(self.scenes(), mgr2, d)
+        self.assertEqual(mgr2.asked, [])                                          # already in the table: nothing fetched twice
+
+    def test_a_failed_search_leaves_the_scene_on_graphics_and_the_users_pick_is_kept(self):
+        from asset_manager import AssetManifest
+        from cinematic_explainer.war.app_section import fetch_csv_footage
+
+        d = Path(tempfile.mkdtemp())
+        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d, fail={"3"}), d)
+        self.assertFalse(out[2].get("footage"))
+        mine = d / "mine.mp4"
+        mine.write_bytes(b"x")
+        AssetManifest(d).set("4", {"scene_number": "4", "status": "complete", "source": "manual", "type": "video", "local_path": str(mine),
+                                   "user_override": True})
+        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d), d)
+        self.assertEqual(out[3]["footage"], str(mine))
+        self.assertTrue(out[3]["footage_meta"].get("user_supplied"))
+        self.assertTrue(out[2]["footage"].endswith("scene_3.mp4"))                 # the failed row is searched again on the next Render
+
+    def test_none_scene_takes_no_manifest_or_pool_clip(self):
+        from cinematic_explainer.war.integration import load_scenes
+
+        d = Path(tempfile.mkdtemp())
+        (d / "Images").mkdir()
+        clip = d / "Images" / "scene_2.mp4"
+        clip.write_bytes(b"x")
+        (d / "Images" / ".asset_manifest.json").write_text('{"2": {"status": "complete", "local_path": "%s", "type": "video", '
+                                                           '"stock_query": "losses percent"}}' % clip, encoding="utf-8")
+        sc = load_scenes(d, [{"scene_no": 2, "text": "Losses rose by ten percent.", "start": 0.0, "end": 3.0, "no_footage": True}])
+        self.assertIsNone(sc[0]["footage"])
+        sc = load_scenes(d, [{"scene_no": 2, "text": "Losses rose by ten percent.", "start": 0.0, "end": 3.0}])
+        self.assertEqual(sc[0]["footage"], str(clip))                              # without the CSV flag the manifest clip is still used
+
+    def test_war_owns_its_visuals_rows(self):
+        import visual_bridge
+
+        self.assertIn("war", visual_bridge.OWNERS)
+        ws = type("W", (), {"root": "/p"})()
+        self.assertEqual(visual_bridge.folder("war", ws), Path("/p/state/war/assets"))
+
+
+class TestNoEmptyStretch(unittest.TestCase):
+    def test_a_long_sentence_without_commas_still_gives_a_tag(self):
+        from cinematic_explainer.war.direction import _phrase_or_lead
+
+        self.assertEqual(_phrase_or_lead("Over the same few weeks Russia moved battalions toward the southern front near the river."),
+                         "Over the same few weeks Russia")
+        self.assertEqual(_phrase_or_lead("150 km up."), "150 km up")              # a natural phrase is still preferred
+        self.assertEqual(_phrase_or_lead("Go now."), "")                          # too short: nothing invented
+
 
 class TestBackdropGaps(unittest.TestCase):
     def test_gaps_are_filled_and_nothing_is_invented_over_footage(self):

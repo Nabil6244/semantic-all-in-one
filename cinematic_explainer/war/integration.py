@@ -159,7 +159,10 @@ def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None, *, match
         rec = _record_for(manifest, no)
         explicit = sc.get("footage")
         why = ""
-        if explicit:
+        if sc.get("no_footage"):            # the scenes CSV asks for no footage here (asset_type none): its map or card is not hidden under a clip
+            foot, why, use_rec = None, "the scenes CSV asks for no footage here", {}
+            sc["footage_candidates"] = []
+        elif explicit:
             p = Path(explicit)
             if not p.is_absolute():
                 p = project_dir / p

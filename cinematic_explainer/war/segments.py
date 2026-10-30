@@ -13,7 +13,7 @@ bt709 clips), and format=yuva420p before the last overlay when a piece has no di
 FOOTAGE TREATMENT (optional, per shot; a shot without it renders exactly as before)
     Shot.treat = {"motion": "push_in" | "push_out" | "pan_left" | "pan_right" | "none",   # slow camera move over the whole shot
                   "z0": 1.0, "z1": 1.06,         # zoom at the start / end of the shot (clamped to 1.0..1.08; 1.0..1.03 for sources under 540 px high)
-                  "grade": "cold" | "warm_archive" | "neutral",
+                  "grade": "cold" | "warm_archive" | "neutral" | "film",
                   "vignette": 0..1,              # 0 = none (0.85 is about the dim plates' own vignette)
                   "grain": 0..1,                 # fine deterministic noise (0.5 = noise strength 6)
                   "blur_fill": "auto" | True | False}   # contained foreground over a blurred copy instead of a centre crop (auto: only for odd aspects)
@@ -233,7 +233,7 @@ def _dims(path: str) -> Tuple[int, int]:
 
 
 MOTIONS = ("push_in", "push_out", "pan_left", "pan_right", "none")
-GRADES = ("cold", "warm_archive", "neutral")
+GRADES = ("cold", "warm_archive", "neutral", "film")
 ZOOM_MAX, ZOOM_MAX_LOWRES = 1.08, 1.03
 FILL_BELOW, FILL_ABOVE = 1.5, 2.1       # source aspect ratios outside this band get blur-fill instead of a hard centre crop (16:9 = 1.78)
 
@@ -277,6 +277,8 @@ def _shot_treat(shot: Shot, f0: int, f1: int) -> Optional[str]:
 def _grade_filters(g: str) -> str:
     if g == "cold":
         return "eq=contrast=1.05:gamma=0.97,lutyuv=u='(val-128)*0.72+128+4':v='(val-128)*0.72+128-3',"
+    if g == "film":       # one documentary look for every source: muted colour, teal shadows, a little more contrast (REFERENCE_PATTERNS item 17)
+        return "eq=contrast=1.08:gamma=0.96:saturation=0.78,lutyuv=u='(val-128)*0.8+128+5':v='(val-128)*0.8+128-3',"
     if g == "warm_archive":
         return "eq=contrast=1.03,lutyuv=u='(val-128)*0.6+128-4':v='(val-128)*0.6+128+5',"
     return ""

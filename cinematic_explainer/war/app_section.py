@@ -1,11 +1,13 @@
 """War Documentary in the app's style picker: the card, its controls and the render worker. Imported only when the style is picked.
 
 The picker hooks in app.py are small and additive (see the `_war_*` methods there); everything the style does lives here.
-Opt-in per session: nothing is saved by this module except what the render itself writes (the video and its .plan.json next to it).
+Opt-in per session: nothing is saved by this module except what the render itself writes (the video and its .plan.json next to it) and,
+for a scenes CSV, the footage its searches fetch (state/war/assets, listed in the Visuals tab; the next Render uses what the tab holds).
 
-Scenes come from (1) a scenes JSON you choose (list of {text, start, end, words, footage, footage_meta}; footage paths may be relative to the
-project), else (2) the voiceover's own transcript, cut into sentences, with the footage the project's scene manifest holds for the same
+Scenes come from (1) a scenes CSV or JSON you choose (JSON: list of {text, start, end, words, footage, footage_meta}; footage paths may be
+relative to the project; CSV: what "Copy the CSV prompt" asks for, untimed rows aligned to the voiceover, scene numbers kept), else (2) the voiceover's own transcript, cut into sentences, with the footage the project's scene manifest holds for the same
 scene number when there is one. Without footage a scene gets a truthful map/card or no visual, never an unrelated clip.
+A CSV run makes no Gemini call: the CSV's prompt column is the search.
 """
 
 from __future__ import annotations
@@ -56,14 +58,160 @@ def sentences_from_words(words: List[Any], total_s: float = 0.0) -> List[Dict[st
     return out
 
 
+_CSV_TEXT = ("script_segment", "text", "narration", "script", "sentence", "vo_text")
+_CSV_NO = ("scene_number", "scene_no", "scene", "no", "#")
+
+
+def read_scenes_csv(path: str) -> List[dict]:
+    """The CSV "Copy the CSV prompt" asks for (scene_number, script_segment, asset_type, prompt) -> scene dicts. Header names are case-insensitive;
+    `,` `;` or tab separated; a ```csv fence pasted along with the AI's reply is ignored. start/end (seconds) are optional: all rows or none;
+    untimed rows are aligned to the voiceover at Render. The scene number is kept, so footage the Visuals tab fetched for that scene is used."""
+    import csv
+    import io
+
+    p = Path(path)
+    raw = p.read_bytes()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        content = raw.decode("cp1252")      # older Excel exports
+    lines = [ln for ln in content.splitlines() if ln.strip() and not ln.strip().startswith("```")]
+    if not lines:
+        raise ValueError(f"{p.name} is empty")
+    try:
+        dialect = csv.Sniffer().sniff(lines[0], delimiters=",;\t")
+    except csv.Error:
+        dialect = csv.excel
+    reader = csv.DictReader(io.StringIO("\n".join(lines)), dialect=dialect)
+    cols = {(k or "").strip().lower(): k for k in (reader.fieldnames or [])}
+    text_col = next((cols[a] for a in _CSV_TEXT if a in cols), None)
+    if text_col is None:
+        raise ValueError(f"{p.name} needs a script_segment (or text) column; its header is: {', '.join(reader.fieldnames or [])}")
+    no_col = next((cols[a] for a in _CSV_NO if a in cols), None)
+    start_col, end_col = cols.get("start"), cols.get("end")
+    out: List[dict] = []
+    for r in reader:
+        text = (r.get(text_col) or "").strip()
+        if not text:
+            continue
+        sc: Dict[str, Any] = {"text": text}
+        no = (r.get(no_col) or "").strip() if no_col else ""
+        sc["scene_no"] = int(no) if no.isdigit() else len(out) + 1
+        for key in ("asset_type", "prompt", "footage"):
+            if key in cols and (r.get(cols[key]) or "").strip():
+                sc[key] = r[cols[key]].strip()
+        if start_col and end_col and (r.get(start_col) or "").strip() and (r.get(end_col) or "").strip():
+            try:
+                sc["start"], sc["end"] = float(r[start_col]), float(r[end_col])
+            except ValueError:
+                raise ValueError(f"{p.name} scene {sc['scene_no']}: start/end must be seconds, got {r[start_col]!r} / {r[end_col]!r}") from None
+        out.append(sc)
+    if not out:
+        raise ValueError(f"{p.name} has no scenes with narration text")
+    if any("start" in x for x in out) and not all("start" in x for x in out):
+        raise ValueError("start/end are filled on some rows but not all: fill them on every row, or clear them on all rows to align to the voiceover")
+    return out
+
+
 def read_scenes_file(path: str, project_dir: Path) -> List[dict]:
     import json
 
     p = Path(path)
+    if p.suffix.lower() in (".csv", ".tsv", ".txt"):
+        return read_scenes_csv(path)
     data = json.loads(p.read_text(encoding="utf-8"))
     if not isinstance(data, list):
         raise ValueError(f"{p.name} must hold a JSON list of scenes")
     return data
+
+
+def needs_alignment(scenes: List[dict]) -> bool:
+    return bool(scenes) and any("start" not in sc or "end" not in sc for sc in scenes)
+
+
+# ---- CSV footage (fetched through the app's AssetManager, listed in the Visuals tab) ------------------------------------------
+OWNER = "war"      # its CSV footage rows in the Visuals tab (visual_bridge)
+FETCH_TYPES = ("stock_video", "youtube_video", "archive_video", "nasa_video", "commons_video")
+LOCAL_TYPES = ("local", "local_video")
+
+
+def csv_rows(scenes: List[dict]) -> List[Any]:
+    """Visuals-tab rows (the app's SceneRow) for the CSV scenes that ask for footage. `none` rows get a map or card from the narration and
+    are left out; `local` rows are listed so the user can attach the clip there."""
+    from providers.base import SceneRow
+
+    rows = []
+    for sc in scenes:
+        at = str(sc.get("asset_type") or "").strip().lower()
+        if at in FETCH_TYPES or at in LOCAL_TYPES:
+            prompt = str(sc.get("prompt") or "").strip()
+            if at == "nasa_video" and not prompt:
+                prompt = str(sc.get("text") or "")[:80]
+            rows.append(SceneRow.from_csv_row({"scene_number": str(sc.get("scene_no")), "script_segment": str(sc.get("text") or ""),
+                                               "asset_type": at, "prompt": prompt}))
+    return rows
+
+
+def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None) -> "tuple[List[dict], List[Any]]":
+    """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
+    hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic."""
+    import visual_bridge
+    from asset_manager import AssetManifest
+    from . import integration
+
+    rows = csv_rows(scenes)
+    todo = []
+    for r in rows:
+        if r.asset_type in LOCAL_TYPES or visual_bridge.records(images_dir, [r]):
+            continue
+        errs = manager.validate_rows([r])
+        if errs:
+            log(f"scene {r.scene_number}: not searched ({'; '.join(errs)})")
+            continue
+        todo.append(r)
+    if todo:
+        log(f"Fetching footage for {len(todo)} scenes with the CSV's searches…")
+        Path(images_dir).mkdir(parents=True, exist_ok=True)
+        stop = threading.Event()
+        if cancel is not None:
+            def watch() -> None:
+                while not stop.wait(0.3):
+                    if cancel():
+                        try:
+                            manager.request_cancel()
+                        except Exception:
+                            pass
+                        return
+
+            threading.Thread(target=watch, daemon=True, name="war-asset-cancel").start()
+        try:
+            manager.resolve_all(todo)
+        except Exception as exc:  # noqa: BLE001 - a failed fetch leaves those scenes on maps/cards; the render still runs
+            log(f"footage fetch stopped early: {type(exc).__name__}: {exc}")
+        finally:
+            stop.set()
+    man = AssetManifest(Path(images_dir)) if Path(images_dir).is_dir() else None
+    out: List[dict] = []
+    got = 0
+    for sc in scenes:
+        sc = dict(sc)
+        at = str(sc.get("asset_type") or "").strip().lower()
+        if at == "none":
+            sc["no_footage"] = True
+        rec = (man.get(str(sc.get("scene_no"))) or {}) if man is not None and (at in FETCH_TYPES or at in LOCAL_TYPES) else {}
+        foot, _why = integration.footage_from_record(rec, Path(images_dir)) if rec else (None, "")
+        if foot:
+            sc["footage"] = foot
+            meta = integration.footage_meta_for(rec, sc.get("footage_meta"), scene_file=Path(foot).name)
+            if rec.get("user_override") or rec.get("source") == "manual":
+                meta["user_supplied"] = True       # picked in the Visuals tab: never swapped for another clip
+            sc["footage_meta"] = meta
+            got += 1
+        out.append(sc)
+    want = sum(1 for r in rows if r.asset_type not in LOCAL_TYPES)
+    if rows:
+        log(f"Footage from the CSV: {got} of {len(rows)} scenes have a clip" + (f" ({want} searched)" if want != len(rows) else ""))
+    return out, rows
 
 
 # ---- build / show / hide ---------------------------------------------------------------------------------------------------
@@ -87,7 +235,7 @@ def build(app, parent, *, row: int) -> None:
     app._path_row(0, "Voiceover", app.audio_var, lambda: app._browse_audio(stay=True), parent=controls,
                   placeholder_text="None yet: use Import Voiceover")
     app._path_row(1, "Scenes file", app._war_scenes_var, lambda: browse_scenes(app), parent=controls,
-                  placeholder_text="Optional: scenes JSON with footage; otherwise planned from the narration")
+                  placeholder_text="Optional: the scenes CSV (from Copy the CSV prompt) or JSON; otherwise planned from the narration")
     go = ctk.CTkFrame(controls, fg_color="transparent")
     go.grid(row=2, column=0, sticky="ew", pady=(12, 0))
     app._war_render_btn = ctk.CTkButton(go, text="Render War Documentary", width=230, height=40, corner_radius=6, fg_color=M._ACCENT,
@@ -101,7 +249,7 @@ def build(app, parent, *, row: int) -> None:
     bar.grid(row=4, column=0, sticky="ew", pady=(10, 0))
     bar.grid_columnconfigure(1, weight=1)
     M._make_button(bar, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="lg", width=150).grid(row=0, column=0, sticky="w")
-    ctk.CTkLabel(bar, text="Paste it into any AI to get the footage CSV for your script.", font=ctk.CTkFont(size=11), text_color=M._MUTED,
+    ctk.CTkLabel(bar, text="Paste it into any AI, then choose the CSV it writes as the Scenes file.", font=ctk.CTkFont(size=11), text_color=M._MUTED,
                  anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
     app._build_csv_prompt_script_box(bar, row=1, columnspan=2)
     block.grid_remove()
@@ -137,7 +285,7 @@ def copy_csv_prompt(app) -> None:
 
 def browse_scenes(app) -> None:
     M = _m(app)
-    path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes JSON", "*.json"), ("All files", "*.*")])
+    path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes CSV or JSON", "*.csv *.json"), ("All files", "*.*")])
     if path:
         app._war_scenes_var.set(path)
 
@@ -147,12 +295,21 @@ def activate(app) -> None:
         return
     app._war_block.grid()
     app._war_status_var.set("")
+    import visual_bridge
+
+    visual_bridge.restore(app, OWNER)      # the CSV footage of the last Render, back in the Visuals tab
 
 
 def deactivate(app) -> None:
     block = getattr(app, "_war_block", None)
     if block is not None:
         block.grid_remove()
+    try:
+        import visual_bridge
+
+        visual_bridge.clear(app, OWNER)
+    except Exception:
+        pass
 
 
 # ---- primary button ---------------------------------------------------------------------------------------------------------
@@ -222,6 +379,18 @@ def on_render_click(app) -> None:
     project_dir = Path(ws.root)
     model = app.model_var.get().strip() or "base"
     state_dir = getattr(ws, "state_dir", None)
+    manager = None
+    images_dir = None
+    if scenes_path.lower().endswith((".csv", ".tsv", ".txt")):      # the CSV's searches are fetched through the app's own providers
+        import visual_bridge
+
+        images_dir = visual_bridge.folder(OWNER, ws)
+        try:
+            manager = app._build_asset_manager(images_dir, [])        # built here: it reads Tk variables
+            manager.settings["gemini_enabled"] = False                  # the CSV directs the scenes: no Gemini call in this run
+        except Exception as exc:  # noqa: BLE001
+            M.messagebox.showerror("Cannot start", f"The app's asset sources could not be set up:\n{exc}")
+            return
     app._war_cancel.clear()
     app._war_running = True
     app._war_status_var.set("Starting…")
@@ -239,10 +408,10 @@ def on_render_click(app) -> None:
 
         result: Optional[dict] = None
         error = ""
+        rows: List[Any] = []
         try:
-            if scenes_path:
-                scenes = read_scenes_file(scenes_path, project_dir)
-            else:
+            scenes = read_scenes_file(scenes_path, project_dir) if scenes_path else None
+            if scenes is None or needs_alignment(scenes):
                 log("Reading the narration's word times…")
                 words = app._pakmap_get_words(voiceover, model, state_dir, log)
                 try:
@@ -251,6 +420,17 @@ def on_render_click(app) -> None:
                     total = float(voiceover_duration(voiceover) or 0.0)
                 except Exception:
                     total = 0.0
+            if scenes is not None and needs_alignment(scenes):     # untimed CSV rows (what "Copy the CSV prompt" asks for): the voiceover's real times
+                from health_cinema import scenes_csv
+
+                scenes, frac = scenes_csv.align_to_words(scenes, words, total)
+                log(f"{len(scenes)} scenes from the CSV, aligned to the voiceover: {scenes_csv.match_note(frac)}")
+            if scenes is not None and manager is not None:
+                progress(0.0, "fetching the CSV's footage")
+                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set)
+                if app._war_cancel.is_set():
+                    raise segments.RenderCancelled()
+            elif scenes is None:
                 scenes = sentences_from_words(words, total)
                 if not scenes:
                     raise RuntimeError("the narration has no words to plan from")
@@ -266,6 +446,10 @@ def on_render_click(app) -> None:
 
         def finish() -> None:
             app._war_running = False
+            if rows:
+                import visual_bridge
+
+                visual_bridge.fill(app, OWNER, rows)      # check or change the clips there; the next Render uses what the tab holds
             from export_state import run_outcome
 
             done = run_outcome(error, out_path if result else None)

@@ -17,6 +17,12 @@ Rules (each fires only when the narration gives a reason; nothing decorates ever
  9 provenance badge   generic / illustrative / AI / archive / user footage -> kit_badge (replaces the equivalent old illustrative chip)
 10 variety            the same decoration kind never appears in consecutive scenes; nothing is added over an existing card
 11 no empty stretch   a scene without footage gets a truthful element at least every ~6 s, or the gap is logged
+12 map build          a stretch of scenes without footage gets one political map that builds with the narration (map_build.py; config "map_build")
+13 speaker / chapter  a named person with a role -> kit_speaker over footage (a white card on a map); 'Chapter 1, ...' -> kit_chapter
+14 ratio / versus     'eight in ten X' -> kit_bignum '8 in 10'; '18 compared with 6', '106 for and 18 against' -> kit_versus
+16 icons / flag      two to four things named over missing footage, no place -> kit_icons; a chapter opener -> a waving stripe flag before it
+15 cuts and grade     a footage shot over 7 s is cut into 3-6 s shots; every clip but the user's own gets one film grade (config "split_shots",
+                      "film_grade")
 """
 
 from __future__ import annotations
@@ -71,6 +77,22 @@ def _phrase(sentence: str) -> str:
     return ""
 
 
+_STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "was",
+             "were", "its", "their", "his", "her", "this", "these", "those"}
+
+
+def _phrase_or_lead(sentence: str) -> str:
+    """_phrase, else the sentence's first 3-6 words ending on a content word (verbatim): a long sentence with no comma still gives a tag."""
+    h = _phrase(sentence)
+    if h:
+        return h
+    w = sentence.strip(" .\"'").split()
+    for n in range(min(6, len(w)), 2, -1):
+        if w[n - 1].strip(",;:").lower() not in _STOP_END:
+            return " ".join(w[:n]).rstrip(",;:")
+    return ""
+
+
 def fr(t: float) -> float:
     return round(float(t) * FPS) / FPS
 
@@ -117,12 +139,56 @@ def _meta_class(meta: Dict[str, Any]) -> str:
     return ""
 
 
-def _grade(cls: str) -> str:
-    return "neutral" if cls in ("user", "") else "cold"
+def _grade(cls: str, film: bool = False) -> str:
+    if cls == "user":
+        return "neutral"                       # the user's own clip is shown as they gave it
+    if film:
+        return "warm_archive" if cls == "archive" else "film"
+    return "neutral" if cls == "" else "cold"
+
+
+CUT_MIN, CUT_MAX, SPLIT_OVER = 3.0, 6.0, 7.0      # a footage scene longer than SPLIT_OVER s is cut into shots of CUT_MIN..CUT_MAX s
+
+
+def _clip_seconds(path: str) -> Optional[float]:
+    import subprocess
+
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", path], capture_output=True,
+                           text=True, timeout=15)
+        return float(r.stdout.strip())
+    except Exception:
+        return None
+
+
+def _split_long_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], counts: Dict[str, int], probe=_clip_seconds) -> None:
+    """Rule 15 (REFERENCE_PATTERNS item 18): one clip never holds the screen for 10 s. A long footage shot becomes 3-6 s cuts; when the clip is
+    long enough each cut shows a different moment of it (spread over the clip), otherwise the clip runs on and the cut is a change of framing."""
+    out: List[Shot] = []
+    lengths: Dict[str, Optional[float]] = {}
+    for sh in sorted(plan.shots, key=lambda s: s.start):
+        dur = sh.end - sh.start
+        if dur <= SPLIT_OVER:
+            out.append(sh)
+            continue
+        n = max(2, int(round(dur / ((CUT_MIN + CUT_MAX) / 2))))
+        if sh.path not in lengths:
+            lengths[sh.path] = probe(sh.path)
+        clip_len = lengths[sh.path]
+        piece = dur / n
+        spread = clip_len is not None and clip_len - sh.seek >= dur + 2.0
+        meta = meta_by_start.get(fr(sh.start)) or {}
+        for i in range(n):
+            a, b = fr(sh.start + i * piece), fr(sh.end if i == n - 1 else sh.start + (i + 1) * piece)
+            seek = sh.seek + (i * (clip_len - sh.seek - piece - 0.5) / max(1, n - 1) if spread else (a - sh.start))
+            out.append(Shot(sh.path, a, b, round(max(0.0, seek), 3), dissolve_in=sh.dissolve_in if i == 0 else 0.0))
+            meta_by_start.setdefault(a, meta)
+        counts["split_shots"] = counts.get("split_shots", 0) + 1
+    plan.shots[:] = out
 
 
 def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cuts: Sequence[float], full_spans: Sequence[Tuple[float, float]],
-                 counts: Dict[str, int]) -> None:
+                 counts: Dict[str, int], film: bool = False) -> None:
     prev: Optional[Shot] = None
     last_motion = ""
     n = 0
@@ -136,7 +202,7 @@ def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cut
         last_motion = motion
         dur = sh.end - sh.start
         z1 = 1.04 if dur < 4 else 1.06
-        sh.treat = {"motion": motion, "z0": 1.0, "z1": z1, "grade": _grade(cls), "vignette": 0.25, "grain": 0.3, "blur_fill": "auto"}
+        sh.treat = {"motion": motion, "z0": 1.0, "z1": z1, "grade": _grade(cls, film), "vignette": 0.25, "grain": 0.3, "blur_fill": "auto"}
         counts["treated_shots"] = counts.get("treated_shots", 0) + 1
         if prev is not None and abs(prev.end - sh.start) < 1.0 / FPS and prev.path != sh.path and dur >= 1.6 and (prev.end - prev.start) >= 1.6:
             cut = any(abs(sh.start - c) < 0.2 for c in hard_cuts)
@@ -260,7 +326,7 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
             if row:
                 A2 = S.analyze_scene(str(row.get("text") or ""), cat, row.get("words"), row["_start"], row["_end"])
                 sent = next((x for x in A2.sentences if A2.time_at(x.span[0]) - 0.2 <= w0 + 0.6 <= A2.end_time_of(x.span) + 0.6), A2.sentences[-1] if A2.sentences else None)
-                h = _phrase(sent.text) if sent is not None else ""
+                h = _phrase_or_lead(sent.text) if sent is not None else ""
             dec = log_by_no.get(str(row["_no"])) if row else None
             if not h or dec is None:
                 notes.append(f"nothing truthful to show at {w0:.1f}s")
@@ -269,7 +335,7 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
                 t = w0 + 3.6
                 continue
             a = fr(w0 + 0.6)
-            ly = Layer("kit_tag", a, fr(a + 3.2), {"text": h, "pos": "top-left" if flip % 2 == 0 else "lower-left"}, dim=False)
+            ly = Layer("kit_tag", a, fr(a + 3.2), {"text": h, "pos": "top-left" if flip % 2 == 0 else "lower-left", "style": "hook"}, dim=False)
             flip += 1
             plan.layers.append(ly)
             busy.add(ly.start, ly.end, "kit_tag")
@@ -287,7 +353,7 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
 # Supply language that names two or more chain links -> logistics diagram. Two full-frame compositions never meet within FULL_GAP s.
 LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay_equipment_compare", "lay_stat_split", "lay_timeline", "lay_claim",
                 "lay_logistics"}
-FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare"} | LAYOUT_KINDS
+FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS
 FULL_GAP = 1.2
 _LOGISTICS = [(r"\brefiner(?:y|ies)\b", "Refinery", "flame"), (r"\b(?:pipeline|pipelines)\b", "Pipeline", "pipe"), (r"\b(?:rail|railway|railways|train|trains)\b", "Rail", "truck"),
               (r"\b(?:trucks?|convoys?)\b", "Trucks", "truck"), (r"\b(?:depot|depots|warehouse|warehouses|stockpiles?)\b", "Depot", "shield"),
@@ -446,6 +512,128 @@ def _extend_into_plate(plan: Any, rows: Sequence[Dict[str, Any]], max_extra: flo
             return
 
 
+def _chapter_flag(rows: Sequence[Dict[str, Any]], row: Dict[str, Any], cat: Any) -> str:
+    """The flag of the first country the chapter's opening (its row and the next two) names, if it is a stripe flag; else Ukraine when the
+    video is about Ukraine; else '' (no flag is ever guessed)."""
+    from .cards_kit import FLAGS
+    from .maps_tactical import G
+
+    i = next((k for k, x in enumerate(rows) if x is row), 0)
+    for x in rows[i:i + 3]:
+        A = S.analyze_scene(str(x.get("text") or ""), cat, x.get("words"), x["_start"], x["_end"])
+        for sent in A.sentences:
+            for c in _countries(sent):
+                f = G.find_country(c.name)
+                if f is not None and f.iso in FLAGS:
+                    return f.iso
+    every = " ".join(str(x.get("text") or "") for x in rows)
+    return "UKR" if re.search(r"\bukrain", every, re.IGNORECASE) else ""
+
+
+_ICON_LINK_VS = re.compile(r"\b(vs|versus|against|than|compared)\b", re.IGNORECASE)
+_ICON_LINK_ARROW = re.compile(r"\b(into|then|leads?|turns?|becomes?|so|sent|shipped|moved|feeds?|empt\w*|drain\w*|forc\w*)\b", re.IGNORECASE)
+
+
+def _icon_scenes(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], maps_rebuilt: bool = False) -> None:
+    """Rule 16 (REFERENCE_PATTERNS item 19): a sentence over missing footage that names two to four things the icon set has (drones, air
+    defence, ammunition ...) and no place becomes flat icons on a blurred plate, labelled with the narration's own words, linked by an arrow
+    (one leads to the next) or VS. At most one per 30 s; never over another full-frame card."""
+    last = -999.0
+    block = FULL_KINDS - ({"tac_map", "tac_route", "map_card"} if maps_rebuilt else set())     # short maps give way: map_build redraws them
+    for r in rows:
+        dec = log_by_no.get(str(r["_no"]))
+        if dec is None or "no_footage" not in dec.flags or not str(r.get("text") or "").strip():
+            continue
+        A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            if _places(sent) or _countries(sent):
+                continue                                   # a place belongs on the map
+            found: List[Tuple[int, str, str]] = []
+            for rx, name, _lab in _STICKERS:
+                mm = re.search(rx, sent.text, re.IGNORECASE)
+                if mm and name not in [f[1] for f in found] and not any(f[0] <= mm.start() < f[0] + 12 for f in found):
+                    found.append((mm.start(), name, mm.group(0)))
+            if not 2 <= len(found) <= 4:
+                continue
+            found.sort()
+            a, b = _sent_window(A, sent, r["_start"], r["_end"])
+            b = max(b, a + 3.6)
+            if a - last < 30.0 or any(ly.kind in block and ly.start < b and ly.end > a for ly in plan.layers):
+                continue
+            icons = [{"name": nm, "label": word, "start": fr(max(0.3, A.time_at(sent.span[0] + pos) - a))} for pos, nm, word in found]
+            link = "vs" if _ICON_LINK_VS.search(sent.text) else "arrow" if _ICON_LINK_ARROW.search(sent.text) else ""
+            plan.layers.append(Layer("kit_icons", fr(a), fr(min(b, a + 6.0)), {"icons": icons, "link": link, "title": _phrase(sent.text), "seed": int(r["_no"]) if str(r["_no"]).isdigit() else 0}, dim=False))
+            dec.flags.append("dir:icons")
+            dec.candidates.append({"kind": "kit_icons", "score": 0.0, "reason": f"direction: {len(icons)} things named, no place: icon explainer",
+                                   "accepted": True, "start": fr(a), "end": fr(min(b, a + 6.0))})
+            counts["icons"] = counts.get("icons", 0) + 1
+            last = a
+            break
+
+
+def _speakers(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> None:
+    """Rule 13: a named person introduced with a role over footage gets a speaker card (name, role) top right for 4 s, in the narration's words.
+    On a building map the same person is a white card in the stack (map_build.card_for); a card already in that corner is never covered."""
+    from .map_build import speaker_of
+
+    corner = ("kit_stamp", "kit_chips", "kit_speaker", "evidence_card", "figure_card") + tuple(FULL_KINDS)
+    for r in rows:
+        dec = log_by_no.get(str(r["_no"]))
+        if dec is None or "no_footage" in dec.flags or not str(r.get("text") or "").strip():
+            continue
+        A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            spk = speaker_of(sent.text)
+            if not spk:
+                continue
+            a = fr(max(r["_start"], A.time_at(sent.span[0]) + 0.2))
+            b = fr(min(r["_end"] + 0.5, a + 4.0))
+            if b - a < 1.5 or any(ly.kind in corner and ly.start < b and ly.end > a for ly in plan.layers):
+                continue
+            plan.layers.append(Layer("kit_speaker", a, b, {"name": spk[0], "role": spk[1]}, dim=False))
+            dec.flags.append("dir:speaker")
+            dec.candidates.append({"kind": "kit_speaker", "score": 0.0, "reason": f"direction: {spk[0]} introduced as {spk[1]}", "accepted": True, "start": a, "end": b})
+            counts["speaker"] = counts.get("speaker", 0) + 1
+            break
+
+
+def _ratios_and_versus(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> None:
+    """Rule 14: 'eight in ten X' -> the big-number card '8 in 10' with what it counts; two figures set against each other ('18 compared with
+    6', '106 for and 18 against', 'from 6 to 18') -> kit_versus. A plain number card at the same moment is replaced (this one says more);
+    a layout or other full-frame card is never covered. At most one per 20 s."""
+    from .map_build import ratio_of, versus_of
+
+    block = FULL_KINDS - {"tac_map", "tac_route", "map_card"}
+    last = -999.0
+    for r in rows:
+        dec = log_by_no.get(str(r["_no"]))
+        if dec is None or not str(r.get("text") or "").strip():
+            continue
+        A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            vs = versus_of(sent.text)
+            rt = None if vs else ratio_of(sent.text)
+            if not (vs or rt):
+                continue
+            a = fr(max(r["_start"], A.time_at(sent.span[0]) + 0.2))
+            b = fr(min(r["_end"] + 0.5, a + 4.2))
+            if b - a < 2.0 or a - last < 20.0 or any(ly.kind in block and ly.start < b and ly.end > a for ly in plan.layers):
+                continue
+            plan.layers[:] = [ly for ly in plan.layers if not (ly.kind in ("stat_number", "kit_bignum", "kicker") and ly.start < b and ly.end > a)]
+            if vs:
+                plan.layers.append(Layer("kit_versus", a, b, dict(vs, title=""), dim=True))
+            else:
+                plan.layers.append(Layer("kit_bignum", a, b, {"value": rt["value"], "label": rt["label"].upper(), "sub": rt["sub"], "colour": "yellow",
+                                                              "count": False}, dim=True))
+            rule = "versus" if vs else "ratio"
+            dec.flags.append("dir:" + rule)
+            dec.candidates.append({"kind": "kit_versus" if vs else "kit_bignum", "score": 0.0, "reason": f"direction: {rule} stated in the narration",
+                                   "accepted": True, "start": a, "end": b})
+            counts[rule] = counts.get(rule, 0) + 1
+            last = a
+            break
+
+
 # ------------------------------------------------------------------------------------------------ the pass ----------------------------
 def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: Any) -> Dict[str, Any]:
     counts: Dict[str, int] = {}
@@ -493,7 +681,20 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         # ---- 8 ribbon (topic change) -----------------------------------------------------------------------------------------
         first = A.sentences[0] if A.sentences else None
         topic_change = bool(first and _TOPIC.search(first.text))
-        if topic_change and not first_scene and st - last_at.get("kit_ribbon", -999) >= 60.0:
+        from .map_build import chapter_of
+
+        chap = chapter_of(first.text) if first else None
+        if chap:                          # a chapter opener: yellow chip and subtitle over whatever is on screen
+            a0 = max(st, A.time_at(first.span[0]))
+            iso = _chapter_flag(rows, r, cat) if cfg.get("flags", True) and a0 >= 1.0 else ""
+            if iso:                       # the flag waves for a moment before the chapter opens
+                add("kit_flag", a0 - 0.9, a0, {"iso3": iso}, dec, "flag", f"{iso} flag before {chap[0].title()}", en, dim=False)
+            plan.layers[:] = [ly for ly in plan.layers if not (ly.kind in ("stat_number", "kit_bignum", "lay_stat_split", "kicker")      # 'Chapter 2' is
+                                                                and ly.start < a0 + 3.6 and ly.end > a0 and st - 0.01 <= ly.start < en)]  # not a statistic
+            if add("kit_chapter", a0, a0 + 3.6, {"label": chap[0], "sub": chap[1]}, dec, "chapter", f"'{chap[0].title()}' opens a chapter", en + 3.0, dim=False):
+                last_at["kit_ribbon"] = st
+                ribbon_cuts.append(st)
+        elif topic_change and not first_scene and st - last_at.get("kit_ribbon", -999) >= 60.0:
             m = _TOPIC.search(first.text)
             key = m.group(1).lower()
             label = _RIBBON_TEXT.get(key, "NEXT")
@@ -577,7 +778,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             if (idx == 0 and topic_change and not first_scene) or _POINT.search(sent.text):
                 h = _phrase(sent.text)
                 if h:
-                    proposals.append((6, "kit_tag", max(a, st + 0.3), min(b, max(a, st + 0.3) + 3.0), {"text": h, "pos": "top-left"}, "tag", "the point of a section", False))
+                    proposals.append((6, "kit_tag", max(a, st + 0.3), min(b, max(a, st + 0.3) + 3.0), {"text": h, "pos": "top-left", "style": "hook"}, "tag", "the point of a section", False))
 
         proposals.sort(key=lambda x: x[0])
         # an existing plain map card of this scene (no territorial control layer, no snapshot) is upgraded in place to the tactical map
@@ -628,6 +829,14 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     for i, ly in enumerate(sorted((x for x in plan.layers if x.kind in ("tac_map", "tac_route")), key=lambda x: x.start)):
         if isinstance(ly.params, dict) and not ly.params.get("look") and ly.params.get("theme") != "political":
             ly.params["look"] = cfg.get("map_look") or looks[i % 3]
+    if cfg.get("icons", True):
+        _icon_scenes(plan, rows, cat, log_by_no, counts, maps_rebuilt=bool(cfg.get("map_build", True)))
+    if cfg.get("map_build", True):     # one map that builds across each stretch without footage (map_build.py)
+        from . import map_build as _mb
+
+        _mb.build(plan, rows, cat, log_by_no, counts, gap_notes, tuple(FULL_KINDS - {"tac_map", "tac_route", "map_card"}))
+    _speakers(plan, rows, cat, log_by_no, counts)
+    _ratios_and_versus(plan, rows, cat, log_by_no, counts)
     if cfg.get("layouts", True):
         _extend_into_plate(plan, rows)
     for ov in [x for x in plan.layers if x.kind in ("kit_stamp",)]:       # a stamp lands on the footage or plate, never on top of a layout panel
@@ -662,6 +871,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
 
     # ---- 1 treatment ------------------------------------------------------------------------------------------------------------------
     hard = [x for x in ribbon_cuts]
-    _treat_shots(plan, meta_by_start, hard, full_spans, counts)
+    if cfg.get("split_shots", True):
+        _split_long_shots(plan, meta_by_start, counts)
+    _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)))
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes}
