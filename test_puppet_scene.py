@@ -161,3 +161,11 @@ except render.RenderError: pass
 try: render.render_shot(TMP / "nope.png", "suit_man", "walk", out / "e.mp4", size=SIZE); raise SystemExit("missing still accepted")
 except render.RenderError: pass
 print("test_puppet_scene: ok", round(t_first, 2), "s first render")
+
+
+import unittest
+
+
+class Ran(unittest.TestCase):
+    def test_the_script_above_ran_to_the_end(self):      # its checks run (and assert) when the module is imported
+        self.assertTrue(True)

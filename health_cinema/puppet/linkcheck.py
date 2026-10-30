@@ -34,11 +34,11 @@ def link_demo(a, b, out_dir, character="suit_man", dur=6.0, fps=30, size=(1920, 
     t = time.time(); c1 = render.render_shot(a, character, None, out_dir / "clip1.mp4", duration=dur, fps=fps, size=size, params=pa); t1 = time.time() - t
     t = time.time(); c2 = render.render_shot(b, character, None, out_dir / "clip2.mp4", duration=dur, fps=fps, size=size, params=pb); t2 = time.time() - t
     lst = out_dir / "list.txt"; lst.write_text(f"file '{c1}'\nfile '{c2}'\n")
-    subprocess.run([_ff(), "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_dir / "link_demo.mp4")], check=True)
+    subprocess.run([_ff(), "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_dir / "link_demo.mp4")], check=True, timeout=900)
     n = int(dur * fps)
     # frames: last frame of clip 1 (exit finishes 0.6 s before), 1st of clip 2, and a strip around the cut
-    def grab(src, t, dst): subprocess.run([_ff(), "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(src), "-frames:v", "1", str(dst)], check=True)
-    subprocess.run([_ff(), "-v", "error", "-y", "-sseof", "-0.05", "-i", str(c1), "-update", "1", "-frames:v", "1", str(out_dir / "a_last.png")], check=True); grab(c2, 0, out_dir / "b_first.png")
+    def grab(src, t, dst): subprocess.run([_ff(), "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(src), "-frames:v", "1", str(dst)], check=True, timeout=900)
+    subprocess.run([_ff(), "-v", "error", "-y", "-sseof", "-0.05", "-i", str(c1), "-update", "1", "-frames:v", "1", str(out_dir / "a_last.png")], check=True, timeout=900); grab(c2, 0, out_dir / "b_first.png")
     for k, tt in enumerate((dur - 1.6, dur - 1.2, dur - .8)): grab(c1, tt, out_dir / f"a_{k}.png")
     for k, tt in enumerate((.2, .4, .8)): grab(c2, tt, out_dir / f"b_{k}.png")
     print(f"render times: clip1 {t1:.1f}s clip2 {t2:.1f}s ({dur * fps} frames each: {t1 / (dur * fps):.3f} / {t2 / (dur * fps):.3f} s/frame); params:", pa["link_out"], pb["link_in"])

@@ -270,7 +270,16 @@ def contact_sheet(files: Dict[str, bytes], path: str) -> None:
 def main(argv) -> int:
     files = build()
     if "--check" in argv:
-        bad = [n for n, b in files.items() if not (OUT / n).is_file() or (OUT / n).read_bytes() != b]
+        def same(n, b):
+            disk = OUT / n
+            if not disk.is_file():
+                return False
+            if n == "manifest.json":         # the Pillow that built it is a note, not content: CI machines carry another version
+                a, c = json.loads(disk.read_bytes()), json.loads(b)
+                a.pop("pillow_version", None), c.pop("pillow_version", None)
+                return a == c
+            return disk.read_bytes() == b
+        bad = [n for n, b in files.items() if not same(n, b)]
         print("characters pack: " + ("matches the files on disk" if not bad else f"DIFFERS in {len(bad)} file(s): {', '.join(bad[:6])}"))
         return 1 if bad else 0
     if "--sheet" in argv:

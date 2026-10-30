@@ -1,6 +1,4 @@
 """Named seas and regions are map places; geography beats win the map budget; a direction in the narration becomes a flow line across the named area."""
-import pytest
-
 from explainer.beats import geography as GEO
 from explainer.beats.mapbeat import make_map_beat
 from explainer.beats.relevance import beat_tokens, find_phrase
@@ -24,8 +22,11 @@ def test_named_waters_resolve():
 
 def test_unlisted_water_words_are_not_guessed():
     for name in ("Lagoon", "Sea", "Atlantis Sea"):
-        with pytest.raises(geo.GeoError):
+        try:
             geo.resolve(name)
+        except geo.GeoError:
+            continue
+        raise AssertionError(f"{name} should not resolve")
 
 
 def test_balkan_is_the_balkans_not_a_turkmen_province():
@@ -73,7 +74,7 @@ def test_direction_cue_is_a_flow_line_east_across_the_sea():
     cue = GEO.direction_cue(tk, "Adriatic", hits[0].match, geo.resolve)
     (la, lo), (lb, lob) = [tuple(map(float, p.split(","))) for p in cue["places"]]
     assert lob > lo and abs(lb - la) < 1e-6 and cue["direction"] == "east"
-    assert cue["t"] == pytest.approx(1.4, abs=0.01)                          # when "east" is spoken
+    assert abs(cue["t"] - 1.4) <= 0.01                          # when "east" is spoken
     assert GEO.direction_cue(tk, "Balkan", hits[1].match, geo.resolve) is None   # no direction word right before it
 
 

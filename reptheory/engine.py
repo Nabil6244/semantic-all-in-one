@@ -39,7 +39,7 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
 
 def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, quality: str = "final", title: str = "", cancel_check: Optional[Callable[[], bool]] = None,
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
-                   end_card: Optional[dict] = None, planner: str = "legacy") -> Dict:
+                   end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, flow_mode: str = "agent") -> Dict:
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -49,12 +49,16 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     if planner == "beats":      # the narrative beat planner; any failure falls back to the legacy sentence planner and says so (never a silent switch)
         try:
             from . import beats as B
-            res = B.plan(sents, title=title); scenes = res["scenes"]; plan_info = {"planner": "beats", "summary": res["summary"]}
+            res = B.plan(sents, title=title, per_beat=per_beat); scenes = res["scenes"]; plan_info = {"planner": "beats", "summary": res["summary"]}
             if write_report: C.write_report(Path(str(out_path) + ".plan"), res)
         except Exception as ex:
             log(f"beat planner failed ({type(ex).__name__}: {ex}); using the legacy planner"); plan_info = {"planner": "legacy", "fallback_from": "beats", "fallback_reason": f"{type(ex).__name__}: {ex}"}
     if scenes is None: scenes = P.plan(sents, title=title)
     if not scenes: raise ValueError("no scenes to render")
+    if illustrate:      # a picture per beat from the narration, generated once through Flow and cached (reptheory/beat_art.py)
+        from . import beat_art as BA
+        try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log)}")
+        except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
     for sc in scenes: log(f"scene {sc['no']} {sc['start']:.1f}-{sc['end']:.1f}s {sc['kind']} ({sc['art'] or 'no art'}): {'; '.join(sc['decisions'][:2])}")
     end_s = scenes[-1]["end"] if not max_seconds else min(scenes[-1]["end"], max_seconds); n_narr = round(end_s * T.FPS); ctx = D.Ctx(W, H)
     card = None if max_seconds else end_card_config(end_card, title, log)      # optional: off (None / not enabled) keeps the ending exactly as it was
@@ -81,7 +85,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
             proc.stdin.write(img.tobytes())
             if f % 24 == 0: prog(f / n_frames, f"scene {sc['no']}/{len(scenes)}: {sc['kind']}")
-        proc.stdin.close(); rc = proc.wait(); th.join(5); proc.stderr.close()
+        proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()
         if rc != 0: raise RuntimeError("ffmpeg failed: " + (err[0].decode(errors="replace")[-400:] if err else str(rc)))
         os.replace(tmp, out_path)
     except BaseException:

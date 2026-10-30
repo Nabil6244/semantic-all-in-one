@@ -902,7 +902,7 @@ def _run(rend: TravelRenderer, outs: List[Tuple[str, int, int]], size, fps, crf,
         for pr in procs.values():
             pr.stdin.close()
         for pr in procs.values():
-            if pr.wait() != 0:
+            if pr.wait(timeout=7200) != 0:
                 raise RuntimeError("ffmpeg failed")
         if progress is not None:
             progress(1.0)
@@ -913,7 +913,7 @@ def _run(rend: TravelRenderer, outs: List[Tuple[str, int, int]], size, fps, crf,
             except Exception:
                 pass
             try:
-                pr.kill(); pr.wait()
+                pr.kill(); pr.wait(timeout=7200)
             except Exception:
                 pass
         for p, _, _ in outs:

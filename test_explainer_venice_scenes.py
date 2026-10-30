@@ -101,3 +101,7 @@ def test_fallback_opening_map_is_decided_before_cartoon_budget():
     from explainer.director import select
     src = inspect.getsource(select.choose_kinds)
     assert src.index("fallback_place") < src.index("_assign_cartoons(")
+
+
+from unittest_adopt import adopt
+adopt(globals())

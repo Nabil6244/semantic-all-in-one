@@ -138,12 +138,12 @@ class Wiring(unittest.TestCase):
     def test_packaging_lists_every_module(self):
         mods = packaging.python_modules(ROOT); self.assertIn("reptheory.engine", mods); self.assertIn("reptheory.app_section", mods)
     def test_registered_in_the_app_and_kit(self):
-        src = (ROOT / "app.py").read_text(); self.assertIn('"Health Cinema", "Rep Theory")', src); self.assertIn("_reptheory_activate", src)
-        self.assertIn('"Rep Theory": "_rt_block"', (ROOT / "ui" / "style_kit.py").read_text()); self.assertIn("Rep Theory", (ROOT / "ui" / "style_registry.py").read_text())
-        self.assertIn("reptheory_modules", (ROOT / "VideoGenerator.spec").read_text())
-        spec = (ROOT / "VideoGenerator.spec").read_text(); self.assertIn("datas += reptheory_data_files(ROOT)", spec)
+        src = (ROOT / "app.py").read_text(encoding="utf-8"); self.assertIn('"Health Cinema", "Rep Theory")', src); self.assertIn("_reptheory_activate", src)
+        self.assertIn('"Rep Theory": "_rt_block"', (ROOT / "ui" / "style_kit.py").read_text(encoding="utf-8")); self.assertIn("Rep Theory", (ROOT / "ui" / "style_registry.py").read_text(encoding="utf-8"))
+        self.assertIn("reptheory_modules", (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"))
+        spec = (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"); self.assertIn("datas += reptheory_data_files(ROOT)", spec)
         df = packaging.data_files(ROOT); self.assertEqual(sorted(Path(s).name for s, _ in df), ["anat_forearm_v1.png", "index.json", "prop_bottle_2l_v1.png", "rep_hang_v1.png", "rep_stand_v1.png"]); self.assertEqual({d for _, d in df}, {"assets/reptheory"})
-        import json; idx = json.loads((ROOT / "assets" / "reptheory" / "index.json").read_text()); self.assertEqual(sorted(e["id"] for e in idx), ["anat_forearm_v1", "prop_bottle_2l_v1", "rep_hang_v1", "rep_stand_v1"])
+        import json; idx = json.loads((ROOT / "assets" / "reptheory" / "index.json").read_text(encoding="utf-8")); self.assertEqual(sorted(e["id"] for e in idx), ["anat_forearm_v1", "prop_bottle_2l_v1", "rep_hang_v1", "rep_stand_v1"])
         for e in idx: self.assertEqual(L.sha256(ROOT / "assets" / "reptheory" / e["file"]), e["sha256"])      # the bundled pictures are the ones in the index
 
 class Polish(unittest.TestCase):
@@ -334,7 +334,7 @@ class BeatPlanner(unittest.TestCase):
         from reptheory import cadence as C
         with tempfile.TemporaryDirectory() as d:
             C.write_report(Path(d) / "x.mp4.plan", self.plan(self.WRIST)); import json
-            j = json.loads((Path(d) / "x.mp4.plan.json").read_text()); self.assertIn("beats", j); self.assertIn("metrics", j); self.assertIn("## Beats", (Path(d) / "x.mp4.plan.md").read_text())
+            j = json.loads((Path(d) / "x.mp4.plan.json").read_text(encoding="utf-8")); self.assertIn("beats", j); self.assertIn("metrics", j); self.assertIn("## Beats", (Path(d) / "x.mp4.plan.md").read_text(encoding="utf-8"))
 
     def test_engine_falls_back_to_the_legacy_planner_and_says_so(self):
         from reptheory import beats

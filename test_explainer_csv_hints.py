@@ -30,3 +30,7 @@ def test_read_takes_footage_spans_and_place_names(monkeypatch):
     monkeypatch.setattr("hybrid.beat_csv.import_beats", lambda t, w, d: N(plan=plan, notes=[]))
     got = csv_hints.read("x", [], 12.0)
     assert got["places"] == ["Egypt"] and got["spans"] == [{"start": 4.0, "end": 9.0, "clips": [{"asset": "stock_video:nile", "reason": "from the loaded CSV"}]}]
+
+
+from unittest_adopt import adopt
+adopt(globals())

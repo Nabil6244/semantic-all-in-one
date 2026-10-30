@@ -18,3 +18,7 @@ def test_latin_unchanged():
 def test_hindi_close_spelling_aligns():
     assert v._align_words_match("मैदानो", "मैदानों")
     assert not v._align_words_match("गोदाम", "विमान")
+
+
+from unittest_adopt import adopt
+adopt(globals())

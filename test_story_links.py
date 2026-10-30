@@ -151,3 +151,11 @@ for trial in range(40):
     for s_ in tl["segments"]:
         if s_["kind"] == "shot": assert s_["frames"] >= .4 * 30 - 1, (trial, s_)
 print("OK story links", TMP)
+
+
+import unittest
+
+
+class Ran(unittest.TestCase):
+    def test_the_script_above_ran_to_the_end(self):      # its checks run (and assert) when the module is imported
+        self.assertTrue(TMP)

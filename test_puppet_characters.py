@@ -161,3 +161,7 @@ if __name__ == "__main__":
     for k, f in list(globals().items()):
         if k.startswith("test_"): f(); print("ok", k)
     contact_sheet(); print("contact sheet written")
+
+
+from unittest_adopt import adopt
+adopt(globals())

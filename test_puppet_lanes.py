@@ -67,3 +67,11 @@ with tempfile.TemporaryDirectory() as td:
     if r is not None:
         _check_lane(r); assert r["y"] >= 0.7
 print("test_puppet_lanes OK")
+
+
+import unittest
+
+
+class Ran(unittest.TestCase):
+    def test_the_script_above_ran_to_the_end(self):      # its checks run (and assert) when the module is imported
+        self.assertTrue(True)

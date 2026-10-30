@@ -73,7 +73,7 @@ def _gray_frames(video: "str | Path", fps: float, w: int = _W, h: int = _H, star
         except Exception:       # noqa: BLE001
             pass
         p.kill()
-        p.wait()
+        p.wait(timeout=7200)
 
 
 def _blur(a: np.ndarray) -> np.ndarray:

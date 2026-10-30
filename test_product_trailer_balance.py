@@ -47,3 +47,7 @@ def test_footage_only_when_enabled():
         items += [_flat(f"{i}W") if i % 2 else {"kind": "tweet", "author": "A", "handle": "", "text": "x", "highlight": ""}, _line("It feels great in the hand." if i == 3 else f"Line {i}.")]
     assert "footage" not in {balance.family(x) for x in balance.balance(_doc(items), footage=False)["chapters"][0]["items"]}
     assert "footage" in {balance.family(x) for x in balance.balance(_doc(items), footage=True)["chapters"][0]["items"]}
+
+
+from unittest_adopt import adopt
+adopt(globals())

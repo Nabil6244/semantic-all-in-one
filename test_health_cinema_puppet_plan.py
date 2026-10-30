@@ -166,3 +166,7 @@ if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
             fn(); print("ok", name)
+
+
+from unittest_adopt import adopt
+adopt(globals())

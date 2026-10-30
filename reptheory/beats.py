@@ -8,7 +8,7 @@ from __future__ import annotations
 import copy, re
 from typing import Dict, List, Optional, Tuple
 
-from . import cadence as C, lexicon as LX, library as L, narrative as N, planner as P
+from . import cadence as C, lexicon as LX, library as L, narrative as N, planner as P, sketch as K
 
 MIN_BEAT_S, SPLIT_MIN_S, MIN_CLAUSE_WORDS, MIN_CLAUSE_S = 1.8, 4.0, 3, 1.2
 MERGE_MAX_S, COMP_MAX_S, DEVELOP_MAX_S = 9.0, 11.0, 14.0
@@ -92,6 +92,21 @@ def _word_t(ws: List[dict], token: str, default: float) -> float:
     return P.time_of(ws, rf"^{re.escape(_clean(token.split()[0]))}$", default) if token else default
 
 _STOP_BEFORE = {"the", "a", "an", "is", "are", "for", "of", "and", "to", "by", "in", "on", "your", "it", "that", "this", "mistake", "hold", "do", "these", "then", "but", "with"}
+
+SK_RX = (("pushup", r"push[- ]?ups?"), ("pullup", r"pull[- ]?ups?|chin[- ]?ups?"), ("squat", r"squats?"), ("plank", r"planks?"), ("gym", r"\bgym\b"))
+HI_PARTS = {"arms": {"arm", "shoulder", "chest", "hand", "finger", "forearm", "wrist", "elbow"}, "legs": {"leg", "knee", "calf", "glute", "hip", "ankle"}, "torso": {"core", "back", "spine", "lat", "scapula", "trapezius"}}
+
+def sketch_spec(b: dict) -> Optional[dict]:
+    """The scene to draw for a beat that names an exercise or setting (read from its words): {move, variant, highlight}. Drawn in code (sketch.py): no stored art, so any script gets its own scene."""
+    low = b["text"].lower()
+    for mv, rx in SK_RX:
+        if re.search(rx, low):
+            var = ""
+            if mv == "pushup": var = "wall" if "wall" in low else "incline" if "incline" in low else "knee" if "knee" in low else "onearm" if re.search(r"one[- ]arm", low) else "full"
+            if mv == "plank": var = "knee" if "knee" in low else "full"
+            parts = {x["part"] for x in b["entities"]["body"]}; hi = [k for k, v in HI_PARTS.items() if parts & v] or ({"pushup": ["arms"], "pullup": ["arms"], "squat": ["legs"], "plank": ["torso"]}.get(mv, []))
+            return {"move": mv, "variant": var, "highlight": hi}
+    return None
 
 def _at_pos(ws: List[dict], text: str, part: str, default: float) -> float:
     """Time of the first word of `part` at its own place in `text` (not its first occurrence anywhere in the beat)."""
@@ -267,6 +282,14 @@ def candidates(b: dict, leg: dict, mark: Optional[dict], art_ok, last_part: str 
         out.append(_cand("callout", "callout", rel, f"callout built from the beat's own {what}", True, build_c)); out[-1]["develops"] = True; out[-1]["text_only"] = True
     elif b["role"] in KICKER or mark:
         out.append(_cand("callout", "callout", 0.35, "only a role label could be shown: the narration gives nothing to put on screen", False, lambda leg=leg, page=page: dict(leg, kind="callout", art="", prop="", rings=[], glow=None, pages=[page])))
+    spec = sketch_spec(b) if leg["kind"] not in ("tier", "equation") else None
+    if spec:      # the exercise or place the beat names, drawn in code from its own words
+        sp, _c = callout_page(b, ws, e, mark)
+        if not sp["headline"]: sp = dict(sp, headline=K.label(spec), headline_at=b["t0"] + 0.1, src="drawn scene")
+        def build_s(leg=leg, spec=spec, sp=sp):
+            return dict(leg, kind="sketch", art="", prop="", rings=[], glow=None, grip_at=None, flip_at=None, squeezes=[], equations=[], tier=None, tier_marks=[], sketch=spec, pages=[sp], missing_art=None)
+        out.append(_cand(f"sketch:{spec['move']}:{spec['variant']}", "sketch", 0.82, f"the narration names {K.label(spec).lower()}: a scene drawn in code from the beat's words", True, build_s, approx="drawn in code (line figure), not an illustration"))
+        out[-1]["develops"] = True
     if POSTURE_RX.search(text) and art_ok("rep_stand_v1") and leg["kind"] in ("trainee",):
         out.append(_cand("trainee:rep_stand_v1:", "trainee", 0.9, "the narration is about gym / posture / body-weight training: the trainee is relevant here", True, lambda: leg, art="rep_stand_v1"))
     out.append(_cand("trainee:rep_stand_v1:", "trainee", 0.15, "generic trainee: the beat names nothing the library can show", False, lambda: dict(leg, kind="trainee", art="rep_stand_v1", prop="", pages=[]), art="rep_stand_v1"))
@@ -317,7 +340,7 @@ def evaluate(b: dict) -> dict:
         fail = "missing_asset" if (e["body"] or e["props"]) and ex != "caption" else "architectural" if b.get("relations") else "ambiguity" if not ents else "architectural"
     return {"meaning": meaning, "supported_by": ents[:6], "exactness": ex, "unsupported_information": unsupported, "failure_class": fail}
 
-def plan(sentences: List[dict], title: str = "", art_ok=None, workdir=None) -> dict:
+def plan(sentences: List[dict], title: str = "", art_ok=None, workdir=None, per_beat: bool = False) -> dict:
     """The beat plan: {scenes, beats, narrative, metrics, summary, problems}. Raises nothing for odd narration: beats that cannot be resolved are reported, not hidden."""
     art_ok = art_ok or (lambda a: L.find(a) is not None); ss = sorted((dict(s) for s in sentences), key=lambda s: float(s["start"]))
     beats = make_beats(ss, art_ok); problems = check_words(ss, beats)
@@ -361,7 +384,7 @@ def plan(sentences: List[dict], title: str = "", art_ok=None, workdir=None) -> d
             if comp is not None: _merge_scene(comp, sc, "beat continues the previous composition", keep_pages=bool(carry_chips) or comp["kind"] in ("prop", "hold", "pose", "anatomy", "trainee", "callout")); comp["beats"].append(b["id"])
             b["visual"] = {"key": comp["key"] if comp else best["key"], "kind": comp["kind"] if comp else best["kind"], "relevance": 0.0 if status == "continued" else 0.4 if status == "captioned" else best["relevance"], "rationale": why, "alternatives": [{"key": r["key"], "score": r["score"]} for r in ranked[:3]], "approximation": best["approx"] if status == "captioned" else ""}
             b["status"], b["reason"] = status, reason; b["scene_sc"] = snap; continue
-        join = comp is not None and best["key"] == comp["key"] and best["kind"] not in ("equation",) and (b["t1"] - comp["start"]) <= (DEVELOP_MAX_S if best.get("develops") and best["kind"] == "anatomy" else COMP_MAX_S)
+        join = comp is not None and best["key"] == comp["key"] and best["kind"] not in ("equation",) and (not per_beat or best["kind"] == "tier") and (b["t1"] - comp["start"]) <= (DEVELOP_MAX_S if best.get("develops") and best["kind"] == "anatomy" else COMP_MAX_S)
         if join:
             _merge_scene(comp, sc, "same composition continues"); comp["beats"].append(b["id"])
             if best["kind"] == "tier" and sc.get("tier") and sc["tier"].get("letter"): comp["tier"] = sc["tier"]; comp["art"] = comp["art"] or sc["art"]

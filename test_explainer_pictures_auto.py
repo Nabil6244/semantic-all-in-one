@@ -176,7 +176,7 @@ class Hops(unittest.TestCase):
             Image.new("RGB", (1920, 1080), (120, 90, 60)).save(f)
             media_map = {(i["occ"].line, i["occ"].part): str(f) for i in _scene_map(hp)}
             c = compile_plan(hp, validate=False, base_dir=td, media_map=media_map)
-            self.assertIn(str(f), json.dumps(c.spec, default=str))
+            self.assertIn(json.dumps(str(f))[1:-1], json.dumps(c.spec, default=str))
             self.assertNotIn("stock_image:", json.dumps(c.spec, default=str))
 
 

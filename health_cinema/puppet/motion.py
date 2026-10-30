@@ -520,9 +520,9 @@ def _Rig(still, size, fps, duration, seed, params):
 # ---------------------------------------------------------------- warp energy: how much of the motion is NOT a rigid camera move
 def _frames_of(src, max_w=960):
     if isinstance(src, (str, os.PathLike)):
-        probe = subprocess.run([_ffmpeg(), "-v", "error", "-i", str(src), "-vf", f"scale={max_w}:-2,format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True)
+        probe = subprocess.run([_ffmpeg(), "-v", "error", "-i", str(src), "-vf", f"scale={max_w}:-2,format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True, timeout=900)
         if probe.returncode != 0: raise MotionError(f"cannot decode {src}: {probe.stderr.decode('utf8', 'replace')[-300:]}")
-        info = subprocess.run([_ffmpeg(), "-i", str(src)], capture_output=True).stderr.decode("utf8", "replace")
+        info = subprocess.run([_ffmpeg(), "-i", str(src)], capture_output=True, timeout=900).stderr.decode("utf8", "replace")
         import re
         m = re.search(r"Stream.*Video.* (\d{2,5})x(\d{2,5})", info); ow, oh = int(m.group(1)), int(m.group(2))
         w = max_w; h = int(round(oh * max_w / ow / 2)) * 2
@@ -599,7 +599,7 @@ class _Sink:
         try:
             if self.p.stdin and not self.p.stdin.closed: self.p.stdin.close()
         except OSError: pass
-        rc = self.p.wait(); msg = self._msg(); self.err.close()
+        rc = self.p.wait(timeout=7200); msg = self._msg(); self.err.close()
         if rc != 0: raise MotionError(f"ffmpeg failed ({rc}): {msg}")
     def abort(self):
         try: self.p.kill()

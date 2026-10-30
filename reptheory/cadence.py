@@ -11,9 +11,10 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
-def _sig(sc: dict) -> tuple: return (sc["kind"], sc.get("art") or "", sc.get("prop") or "")
+def _sig(sc: dict) -> tuple:
+    sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
 
 def events(scenes: List[dict]) -> List[dict]:
     """[{t, type: primary|secondary, what, scene, meaningful}] sorted by time.

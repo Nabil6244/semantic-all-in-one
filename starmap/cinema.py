@@ -1051,6 +1051,42 @@ def _text_zone(L: Dict[str, Any]) -> Optional[Tuple[float, float, float, float]]
     return None
 
 
+HOLD_BARE_NUMBER_S = 3.0      # a plain number card ("4 HOURS", no caption line) is read in a moment; longer it is a still screen
+FADE_FULL_S = (0.55, 0.6)     # a full-screen shot dissolves in/out over at least this long: 0.2 s dissolves read as flashes
+FADE_TEXT_S = (0.25, 0.35)    # a number or headline fades in/out over at least this long (some popped in over 0.05 s)
+_FULL_SCREEN = ("cinema_plate", "cinema_scene", "cinema_globe", "cinema_craft")
+
+
+def pace(spec: Dict[str, Any], notes: List[str]) -> None:
+    """Scenes that come and go too fast, and a number card that stays too long. (1) A bare number card is cut to HOLD_BARE_NUMBER_S,
+    and the plate under it with it, so the map (and its line to Neptune) comes back. (2) Dissolves in and out of full-screen shots and
+    text are lengthened (never beyond a third of the shot), so a shot never appears to flash."""
+    layers = spec["layers"]
+    cut = 0
+    for L in layers:
+        if L.get("type") == "tm_metric" and not L.get("sub") and L.get("start") is not None and L.get("end") is not None \
+                and L["end"] - L["start"] > HOLD_BARE_NUMBER_S + 0.3:
+            a, z = L["start"], L["end"]
+            for M in layers:
+                if M is L or M.get("type") == "cinema_plate" and abs(M.get("start", -1) - a) < 0.01 and abs(M.get("end", -1) - z) < 0.01:
+                    M["end"] = round(a + HOLD_BARE_NUMBER_S, 3)
+            cut += 1
+    fixed = 0
+    for L in layers:
+        t = L.get("type")
+        mins = FADE_FULL_S if t in _FULL_SCREEN else FADE_TEXT_S if t in ("tm_metric", "tm_template") else None
+        if mins is None or L.get("start") is None or L.get("end") is None:
+            continue
+        cap = max(0.2, (L["end"] - L["start"]) / 3.0)
+        fi, fo = L.get("fade_in", 0.0) or 0.0, L.get("fade_out", 0.0) or 0.0
+        ni, no = max(fi, min(mins[0], cap)), max(fo, min(mins[1], cap))
+        if (ni, no) != (fi, fo):
+            L["fade_in"], L["fade_out"] = round(ni, 3), round(no, 3)
+            fixed += 1
+    if cut or fixed:
+        notes.append(f"Cinema pacing: {cut} bare number card(s) shortened, {fixed} shot(s) given longer dissolves")
+
+
 def declutter(spec: Dict[str, Any], notes: List[str]) -> None:
     """Two big texts must not sit on top of each other (a caption on a big number, a title over a caption). When two overlap in time
     AND on screen, the earlier one leaves a moment sooner, else the later one arrives a moment later; a number that fits neither way goes."""
@@ -1141,6 +1177,7 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
 
         composer.enrich_spec(spec, plan, notes)
     declutter(spec, notes)
+    pace(spec, notes)
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens
     spec["shots"] = [{"start": L["start"], "end": L["end"], "kind": "plate"} for L in layers if L.get("type") == "cinema_plate"]

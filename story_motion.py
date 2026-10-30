@@ -175,7 +175,7 @@ def render_clips(jobs, out_dir, log=None, cancel=None, workers=1, puppet_rendere
         else:
             with ThreadPoolExecutor(max_workers=workers) as ex:
                 futs = [ex.submit(one, j) for j in batch]
-                for f in futs: f.result()
+                for f in futs: f.result(timeout=7200)
     return {k: res[k] for k in [j["shot_id"] for j in jobs if j["shot_id"] in res]}
 
 # ---------------------------------------------------------------- timeline

@@ -223,7 +223,7 @@ class TestLandscapeAndBoundaries(unittest.TestCase):
     def test_only_app_and_tests_import_health_cinema(self):
         offenders = []
         for p in ROOT.glob("*.py"):
-            if p.name in ("app.py",) or p.name.startswith("test_health_cinema"): continue
+            if p.name in ("app.py", "puppet_stills.py", "puppet_story.py", "story_motion.py") or p.name.startswith(("test_health_cinema", "test_puppet", "test_story")): continue   # the puppet story pipeline is built on health_cinema
             if re.search(r"^\s*(from|import)\s+health_cinema\b", p.read_text(encoding="utf-8", errors="ignore"), re.M): offenders.append(p.name)
         self.assertEqual(offenders, [])
     def test_health_cinema_imports_no_other_style_package(self):

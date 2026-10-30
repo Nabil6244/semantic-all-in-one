@@ -84,3 +84,11 @@ if _d.available():
     rig = motion._Rig(s, SIZE, 24, 1.0, 5, {"parallax": True})
     f = rig.frame(3); assert f.shape == (SIZE[1], SIZE[0], 3) and f.dtype == np.uint8
     print("layers: rig", type(rig).__name__)
+
+
+import unittest
+
+
+class Ran(unittest.TestCase):
+    def test_the_script_above_ran_to_the_end(self):      # its checks run (and assert) when the module is imported
+        self.assertTrue(True)

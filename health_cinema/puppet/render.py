@@ -482,7 +482,7 @@ class _Sink:
         try:
             if self.p.stdin and not self.p.stdin.closed: self.p.stdin.close()
         except OSError: pass
-        rc = self.p.wait(); msg = self._msg(); self.err.close()
+        rc = self.p.wait(timeout=7200); msg = self._msg(); self.err.close()
         if rc != 0: raise RenderError(f"ffmpeg failed ({rc}): {msg}")
     def abort(self):
         try: self.p.kill()

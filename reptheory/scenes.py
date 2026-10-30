@@ -93,6 +93,11 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind == "callout":      # no picture: the narration's own words, large, on the left; an orange rule draws down beside them
         d = ImageDraw.Draw(cv, "RGBA"); rp = T.ease_out(t / 0.9); d.rectangle((ctx.px(150), int(ctx.H * 0.5 - ctx.px(250) * rp), ctx.px(158), int(ctx.H * 0.5 + ctx.px(250) * rp)), fill=T.ORANGE + (230,))
         callouts(cv, ctx, sc, t, 230)
+    elif kind == "illus":      # a picture generated from this beat's narration (beat_art.py), callouts to its right
+        im = ctx.art(sc["art"]); frac = min(0.80, 0.52 * ctx.W / (im.width / im.height) / ctx.H); box = D.paste_art(cv, ctx, sc["art"], 0.29, 0.52, frac, zoom, 1.0, dx, dy)
+        callouts(cv, ctx, sc, t, max(760, (box[2] / ctx.S) + 90))
+    elif kind == "sketch":      # a scene drawn in code from the beat's own words (see sketch.py), callouts on the right
+        from . import sketch as K; K.draw(cv, ctx, sc["sketch"], t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "tier":
         tr = sc["tier"]; D.tier_board(cv, ctx, tr, t, sc["art"] or None, tr.get("item", ""), _rel(sc, tr["at"]), t - _rel(sc, tr["at"]) - 0.8, [(m["letter"], _rel(sc, m["at"])) for m in sc.get("tier_marks", [])])
     if tag: D.section_tag(cv, ctx, sc["section"], t, prev_section, 0.0)

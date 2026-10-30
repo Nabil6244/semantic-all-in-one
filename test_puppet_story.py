@@ -191,3 +191,7 @@ if __name__ == "__main__":
         if n.startswith("test_"):
             f()
             print("ok", n)
+
+
+from unittest_adopt import adopt
+adopt(globals())
