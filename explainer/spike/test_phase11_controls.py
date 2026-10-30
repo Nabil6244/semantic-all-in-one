@@ -82,7 +82,8 @@ class PatchShape(unittest.TestCase):
 
     def test_the_real_app_holds_either_no_patch_v2_or_exactly_its_four_lines(self):
         text = (ROOT / "app.py").read_text()
-        self.assertEqual(text.count("explainer.ui_options"), 2 if APPLIED else 0)
+        # patch v2's two imports, plus Load beat CSV's take_scene_csv (a scene CSV is kept for Direct with Explainer, not imported)
+        self.assertEqual(text.count("explainer.ui_options"), 3 if APPLIED else 0)
 
 
 class FakeCtk:

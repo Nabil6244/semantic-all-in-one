@@ -4715,6 +4715,9 @@ class VideoGeneratorApp(ctk.CTk):
                                                                                        ("All files", "*.*")], initialdir=str(_browse_start_dir()))
         if not path:
             return
+        from explainer.ui_options import take_scene_csv  # explainer/ui_options.py: an Explainer scene CSV is kept for Direct with Explainer, not imported
+        if take_scene_csv(self, path):
+            return
         if Path(path).suffix.lower() == ".json" or (self._hybrid_is_beat_csv(path) and not self._hybrid_beat_csv_needs_words(path)):
             self._hybrid_load_plan_file(path)  # a plan, as JSON or as a beat CSV in seconds (Open plan file): loaded exactly as written
         else:
@@ -11638,7 +11641,9 @@ class VideoGeneratorApp(ctk.CTk):
         try:
             if slot["key"] != (_audio_fingerprint(config["audio_path"]), str(config["model"])):
                 return None
-            slot["thread"].join()
+            slot["thread"].join(timeout=3600)      # never wait forever: a transcription still running after an hour is left, and Generate transcribes itself
+            if slot["thread"].is_alive():
+                return None
             return slot["words"] or None
         except Exception:
             return None

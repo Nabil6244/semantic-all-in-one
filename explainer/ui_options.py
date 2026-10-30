@@ -44,11 +44,81 @@ def save(app: Any, _value: Any = None) -> None:
         pass
 
 
+HINT = "Copy the CSV prompt, paste it into any AI with your script and save the reply as a .csv. Then click Load beat CSV and pick it, then Direct with Explainer."
+
+
+def _show(widget: Any, on: bool) -> None:
+    """grid() / grid_remove(): a hidden widget keeps its place and comes back exactly where it was."""
+    if widget is None:
+        return
+    try:
+        if not on:
+            widget.grid_remove()
+            widget._explainer_hidden = True
+        elif getattr(widget, "_explainer_hidden", False):   # only a widget this hid is put back
+            widget.grid()
+            widget._explainer_hidden = False
+    except Exception:
+        pass
+
+
+def _hint_label(app: Any) -> Any:
+    """The one-line help under the Hybrid buttons (app.py builds it after install runs, so it is found when first needed)."""
+    label = getattr(app, "_hybrid_hint_label", None)
+    if label is not None:
+        return label
+    controls = getattr(getattr(app, "_hybrid_explainer_opt_row", None), "master", None)
+    controls = getattr(controls, "master", None)
+    for w in (controls.grid_slaves(row=3, column=0) if controls is not None else []):
+        try:
+            if str(w.cget("text")).startswith("Load beat CSV:"):
+                app._hybrid_hint_label, app._hybrid_hint_text = w, w.cget("text")
+                return w
+        except Exception:
+            pass
+    return None
+
+
 def sync(app: Any, *_args: Any) -> None:
-    """The menus are usable only while the Explainer switch is on."""
+    """The Explainer switch decides which buttons the panel shows. On: Load beat CSV, Copy the CSV prompt (the Explainer scene prompt),
+    Direct with Explainer and the four menus. Off: the Hybrid Map buttons only. Write plan with AI and Copy graphics prompt make Hybrid
+    Map plans, so the Explainer page does not show them."""
     on = bool(app._hybrid_explainer_var.get())
     for menu in getattr(app, "_hybrid_explainer_opt_menus", []):
         menu.configure(state="normal" if on else "disabled")
+    _show(getattr(app, "_hybrid_plan_btn", None), not on)
+    _show(getattr(app, "_hybrid_copy_graphics_btn", None), not on)
+    _show(getattr(app, "_hybrid_explainer_btn", None), on)
+    _show(getattr(app, "_hybrid_explainer_opt_row", None), on)
+    copy_btn = getattr(app, "_hybrid_copy_csv_btn", None)
+    if copy_btn is not None:
+        style = "explainer_scenes" if on else "hybrid"
+        copy_btn.configure(command=lambda: app._copy_csv_prompt(style, app._hybrid_status_var, graphics=False))
+    label = _hint_label(app)
+    if label is not None:
+        label.configure(text=HINT if on else getattr(app, "_hybrid_hint_text", ""))
+
+
+def take_scene_csv(app: Any, path: str) -> bool:
+    """Load beat CSV picked the Explainer's scene CSV (explainer/scene_csv.py): it is not a Hybrid plan, so it is not imported. It is kept
+    as the loaded file, and Direct with Explainer reads it. -> False for any other file (the Hybrid import goes on as before)."""
+    from . import scene_csv
+
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            text = f.read()
+    except OSError:
+        return False
+    if not scene_csv.is_scene_csv(text):
+        return False
+    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+    if not bool(app._hybrid_explainer_var.get()):
+        app._hybrid_status_var.set(f"{name} is an Explainer scene CSV. Turn on the Explainer look, then load it again.")
+        return True
+    scenes = sum(1 for line in text.splitlines() if line.lstrip().lower().startswith("scene,"))
+    app._hybrid_file_var.set(str(path))
+    app._hybrid_status_var.set(f"Scene CSV loaded: {name}, {scenes} scene(s). Click Direct with Explainer to make the plan.")
+    return True
 
 
 def needs_scenes(plan: Any) -> bool:
@@ -92,17 +162,13 @@ def install(app: Any, actions: Any) -> None:
                                  width=130 if key == "source" else 90, font=ctk.CTkFont(size=11))
         menu.grid(row=0, column=2 * col + 1)
         app._hybrid_explainer_opt_menus.append(menu)
-    try:   # the Explainer's own Copy the CSV prompt (same prompt as Hybrid's); a missing widget kit never stops the options
-        prompt_row = ctk.CTkFrame(actions, fg_color="transparent")   # row 4: the Explainer's own Copy the CSV prompt (same prompt as Hybrid's)
-        prompt_row.grid(row=4, column=0, columnspan=5, sticky="w", pady=(8, 0))
-        from ui.widgets import make_button
-        make_button(prompt_row, "Copy the CSV prompt", lambda: app._copy_csv_prompt("hybrid", app._hybrid_status_var, graphics=False),
-                    size="lg", width=150).grid(row=0, column=0, padx=(0, 10))
-        make_button(prompt_row, "Copy the scene prompt", lambda: app._copy_csv_prompt("explainer_scenes", app._hybrid_status_var, graphics=False),
-                    size="lg", width=170).grid(row=0, column=1, padx=(0, 10))
-        ctk.CTkLabel(prompt_row, text="Paste either into any AI with your script, then load the CSV it writes. The scene prompt gives each scene its own place, period and cast.",
-                     font=ctk.CTkFont(size=11)).grid(row=0, column=2)
+    app._hybrid_explainer_opt_row = opts
+    # The panel's one Copy the CSV prompt (row 0, column 2): sync points it at the scene prompt while the Explainer look is on.
+    try:
+        app._hybrid_copy_csv_btn = next(iter(actions.grid_slaves(row=0, column=2)), None)
     except Exception:
-        pass
+        app._hybrid_copy_csv_btn = None
     app._hybrid_explainer_var.trace_add("write", lambda *a: sync(app))
     sync(app)
+    if hasattr(actions, "after_idle"):
+        actions.after_idle(lambda: sync(app))   # again once app.py has built the hint line under the buttons
