@@ -10,7 +10,7 @@ import json
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
@@ -186,5 +186,8 @@ def run_batches(batches: Sequence[Any], call: Callable[[Any], Any], *, workers: 
         return []
     with ThreadPoolExecutor(max_workers=max(1, min(int(workers), len(batches)))) as ex:
         for f in [ex.submit(one, i) for i in range(len(batches))]:
-            f.result()
+            try:
+                f.result(timeout=900)      # a batch stuck past 15 minutes is left out (its rows keep the rule-based reading), never waited on forever
+            except FuturesTimeout:
+                pass
     return [r for r in results if r is not None]

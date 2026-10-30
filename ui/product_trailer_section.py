@@ -125,7 +125,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     tools = ctk.CTkFrame(body, fg_color="transparent")
     tools.grid(row=3, column=0, sticky="ew", pady=(6, 0))
     app._pt_prompt_status = ctk.StringVar(value="")
-    make_button(tools, "Copy CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
+    make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
     ctk.CTkLabel(tools, textvariable=app._pt_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
                  text="").grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(body, text="Paste the prompt into any AI chat with your phone's specs; save its answer as a .csv and choose it above "

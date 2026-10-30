@@ -116,7 +116,7 @@ k = C.job_key(job("push_in"))
 ok(len(k) == 32 and k == C.job_key(job("push_in")) and k == C.job_key(job("push_in", shot_id="other")), "job_key stable, ignores shot_id")
 ok(len({k, C.job_key(job("push_in", seed=8)), C.job_key(job("pull_out")), C.job_key(job("push_in", duration=1.6)), C.job_key(job("push_in", env=["dust"])),
         C.job_key(job("push_in", tparams={"amount": .9})), C.job_key(job("push_in", intensity="high")), C.job_key(job("push_in", size=(320, 180))),
-        C.job_key(job("push_in", fps=24)), C.job_key(job("push_in", still=portrait))}) == 10, "job_key sensitive to each input")
+        C.job_key(job("push_in", fps=24)), C.job_key(job("push_in", still=tiny if base == portrait else portrait))}) == 10, "job_key sensitive to each input")      # another picture than base (on CI, with no real pictures, base IS the portrait)
 ok(C.job_key(job("no_such_move")) == k, "unknown treatment behaves as push_in")
 
 # missing picture

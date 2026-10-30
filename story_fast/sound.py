@@ -563,7 +563,10 @@ def render_fx_stem(plan: dict, out_wav: str, ffmpeg: str = "ffmpeg", window_s: f
 
 # --------------------------------------------------------------------------------------------- final mix
 def _probe_duration(path: str) -> float:
-    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return 0.0
     try:
         return float(r.stdout.strip())
     except ValueError:

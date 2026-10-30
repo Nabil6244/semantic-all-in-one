@@ -138,3 +138,11 @@ ok("900 plan+assemble < 2s", time.time() - t0 < 2, time.time() - t0)
 shutil.rmtree(TMP, ignore_errors=True)
 if FAILS: print("FAILED:", FAILS); sys.exit(1)
 print("ALL OK")
+
+import unittest
+
+
+class StoryFastRunnerChecks(unittest.TestCase):
+    """The checks above run when the file is loaded; this reports them to unittest (CI), which fails a module where no test ran."""
+    def test_all_checks_passed(self):
+        self.assertEqual(FAILS, [])

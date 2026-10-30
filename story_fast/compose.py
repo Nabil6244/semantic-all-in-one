@@ -614,13 +614,13 @@ def _run(cmd, N, cancel, progress, tmp_err):
         try:
             for line in p.stdout:
                 if cancel and cancel():
-                    p.kill(); p.wait(); raise Cancelled("cancelled")
+                    p.kill(); p.wait(timeout=30); raise Cancelled("cancelled")
                 if line.startswith("frame=") and progress:
                     try: progress(min(1.0, int(line.split("=")[1]) / max(1, N)))
                     except Exception: pass
-            rc = p.wait()
+            rc = p.wait(timeout=300)      # its output has ended: ffmpeg is only finishing the file
         except BaseException:
-            if p.poll() is None: p.kill(); p.wait()
+            if p.poll() is None: p.kill(); p.wait(timeout=30)
             raise
     if cancel and cancel(): raise Cancelled("cancelled")
     return rc

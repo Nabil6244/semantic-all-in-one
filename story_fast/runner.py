@@ -403,7 +403,7 @@ def render_clips(jobs, out_dir, log=None, cancel=None, workers=1, puppet_rendere
             for gid, grp in by.items(): one_strip(gid, grp)
         else:
             with ThreadPoolExecutor(max_workers=sw) as ex:
-                for f in [ex.submit(one_strip, g, grp) for g, grp in by.items()]: f.result()
+                for f in [ex.submit(one_strip, g, grp) for g, grp in by.items()]: f.result(timeout=3600)      # a strip stuck for an hour stops the render with an error, never a silent hang
     report("start")
     try:
         render_strips()

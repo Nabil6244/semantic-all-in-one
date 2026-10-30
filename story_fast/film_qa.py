@@ -165,7 +165,9 @@ def video_pass(path: str, start: float, dur: float) -> dict:
         gg = np.concatenate([prev[None], g]) if prev is not None else np.concatenate([g[:1], g])
         diff.append(np.abs(gg[1:] - gg[:-1]).mean((1, 2)))
         prev = g[-1]
-    p.stdout.close(); p.wait()
+    p.stdout.close()
+    try: p.wait(timeout=120)
+    except subprocess.TimeoutExpired: p.kill()
     if not rgb:
         return {"n": 0}
     rgb, wp, diff = np.concatenate(rgb), np.concatenate(wp), np.concatenate(diff)
