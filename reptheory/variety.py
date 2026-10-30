@@ -8,9 +8,12 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from . import clip3d as C3, narrative as N, planner as P
+from . import clip3d as C3, lexicon as LX, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
+FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage")      # cards that fill the frame; the narration's next phrase follows in a caption strip
+SIDE_CARDS = ("stat", "dial", "study", "graph", "bars")      # cards on the left, the beat's words as callouts on the right
+CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
 TIME_UNITS = {"S", "SEC", "MIN", "H", "HR"}; COUNT_UNITS = {"SET", "REP", "WEEK", "DAY", "TIME", "ROUND", "X"}
 VS_RX = (re.compile(r"(.{3,48}?)\s+(?:versus|vs\.?|rather than|instead of|compared (?:to|with))\s+(.{3,48})", re.I), re.compile(r"\bnot\s+(.{3,32}?),?\s+but\s+(.{3,32})", re.I),
@@ -51,6 +54,156 @@ def _steps(sc: dict, text: str) -> Optional[List[dict]]:
         if len(ws) >= 1: items.append({"text": " ".join(ws[:5]).upper(), "at": _at(sc, text, cuts[i])})
     return items[:4] if len(items) >= 2 else None
 
+# ---------------------------------------------------------------- Step 4 cards: each needs its sentence shape, never a topic word
+TIME_MARK_RX = re.compile(rf"\b{LX.NUM}\s*(seconds?|secs?|minutes?|mins?)?\s*(?:in\b|,)", re.I)
+MISTAKE_RX = re.compile(r"\bmistakes?\b(?:\s+\w+){0,4}?\s+(?:is|are|was)\s+(.+?)(?=[.!?;]|$)", re.I)
+FIX_RX = re.compile(r"(?:^|[.!?]\s+)(?:instead,?\s+)?((?:keep|stay|squeeze|pull|push|breathe|go|use|do|try|leave|hold|start|count|lock|press|stand|sit)\b[^.!?]*)", re.I)
+EASY_RX = re.compile(r"\btoo (?:hard|difficult|heavy)\?\s*([^.!?]+)", re.I); HARD_RX = re.compile(r"\btoo (?:easy|light)\?\s*([^.!?]+)", re.I)
+DIAL_RX = re.compile(rf"\b{LX.NUM}\s+out of\s+(?:10|ten)\b", re.I); EFFORT_PCT_RX = re.compile(rf"\b{LX.NUM}\s*(?:%|percent)\s+(?:of your )?(?:effort|intensity|max\w*)", re.I)
+STUDY_RX = re.compile(rf"\b(review|study|trial|analysis|meta-analysis|survey)\s+of\s+{LX.NUM}\s+(studies|trials|papers|people|adults|men|women|participants|athletes|runners|lifters)\b", re.I)
+
+def _words_after(text: str, pos: int, n: int = 4, lead: bool = True) -> str:
+    """Up to n words from pos to the end of its clause, without leading / trailing function words."""
+    piece = re.split(r"[,.;:!?]", text[pos:].lstrip(" ,;:"), maxsplit=1)[0]; ws = re.findall(r"[A-Za-z0-9][A-Za-z0-9'%-]*", piece)
+    while lead and ws and ws[0].lower() in N.STOP | {"in"}: ws.pop(0)      # an instruction keeps its verb (lead=False)
+    if len(ws) <= n + 2: return " ".join(ws).upper()      # a short whole clause is shown whole ("BRAIN STARTS ASKING YOU TO QUIT")
+    ws = ws[:n]
+    while ws and ws[-1].lower() in N.DANGLING: ws.pop()
+    return " ".join(ws).upper()
+
+def _num_of(s: str) -> float:
+    try: return float(LX.num(s))
+    except Exception: return 0.0
+
+def _timeline(sc: dict, text: str) -> Optional[dict]:
+    marks = []
+    for m in TIME_MARK_RX.finditer(text):
+        v = _num_of(m.group(1)); unit = (m.group(2) or "").lower()
+        if v <= 0 or (not marks and not (unit and m.group(0).rstrip().lower().endswith("in"))): continue      # it starts with "N seconds in"; later marks may drop the unit ("20, ...")
+        v = v * 60 if unit.startswith("min") else v; feel = _words_after(text, m.end())
+        if feel and (not marks or v > marks[-1]["value"]): marks.append({"value": v, "mark": f"{v:g}S" if v < 60 else f"{v / 60:g} MIN", "text": feel, "at": _at(sc, text, m.start())})
+    return {"items": marks[:4]} if len(marks) >= 2 else None
+
+def _mistake(sc: dict, text: str) -> Optional[dict]:
+    m = MISTAKE_RX.search(text)
+    if not m: return None
+    wrong = _words_after(m.group(1), 0, 7)
+    if len(wrong.split()) < 2: return None
+    out = {"wrong": {"text": wrong, "at": _at(sc, text, m.start(1))}}
+    f = FIX_RX.search(text, m.end())
+    if f: right = _words_after(f.group(1), 0, 5, lead=False); out["right"] = {"text": right, "at": _at(sc, text, f.start(1))} if len(right.split()) >= 2 else None
+    return out
+
+def _slider(sc: dict, text: str) -> Optional[dict]:
+    e, h = EASY_RX.search(text), HARD_RX.search(text)
+    if not (e or h): return None
+    out = {"easier": {"text": _words_after(e.group(1), 0, 4, lead=False), "at": _at(sc, text, e.start(1))} if e else None, "harder": {"text": _words_after(h.group(1), 0, 4, lead=False), "at": _at(sc, text, h.start(1))} if h else None}
+    return out if any(v and v["text"] for v in out.values()) else None
+
+def _dial(sc: dict, text: str) -> Optional[dict]:
+    m = DIAL_RX.search(text)
+    if m: v = _num_of(m.group(1)); return {"value": v, "max": 10, "label": "EFFORT" if re.search(r"\beffort|intensity|hard\b", text, re.I) else "OUT OF 10", "at": _at(sc, text, m.start())} if 0 < v <= 10 else None
+    m = EFFORT_PCT_RX.search(text)
+    if m: v = _num_of(m.group(1)); return {"value": v / 10, "max": 10, "label": f"{v:g}% EFFORT", "at": _at(sc, text, m.start())} if 0 < v <= 100 else None
+    return None
+
+def _study(sc: dict, text: str) -> Optional[dict]:
+    m = STUDY_RX.search(text)
+    if not m: return None
+    v = _num_of(m.group(2)); return {"kind": m.group(1).upper(), "value": v, "noun": m.group(3).upper(), "at": _at(sc, text, m.start())} if v >= 2 else None
+
+TREND = {"up": r"rises?|rising|rose|climbs?|climbing|goes up|go up|increases?|increasing|jumps?|doubles?|spikes?|peaks?|soars?", "down": r"drops?|dropping|dropped|falls?|falling|fell|goes down|go down|decreases?|declines?|crashes|dips?|shrinks?",
+         "flat": r"levels? off|plateaus?|flattens?|stays? flat|stalls?"}
+TREND_RX = re.compile(r"\b(?:" + "|".join(f"(?P<{k}>{v})" for k, v in TREND.items()) + r")\b", re.I)
+OVER_TIME_RX = re.compile(r"\b(?:over|after|within|for|by|each|every|per|in|across)\s+(?:the\s+|a\s+|an\s+|more than\s+(?:a\s+)?|the next\s+|\w+\s+)?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|night|time|sessions?|workouts?)\b", re.I)
+FROM_TO_RX = re.compile(rf"\bfrom\s+(?:about\s+)?{LX.NUM}\s*(%|\w+)?\s+to\s+{LX.NUM}\s*(%|\w+)?", re.I)
+PEOPLE = r"people|adults|men|women|lifters|runners|athletes|beginners|participants|of us|patients|kids|children|players"
+DOTS_RX = (re.compile(rf"\b{LX.NUM}\s+(?:in|out of)\s+(?:every\s+)?{LX.NUM}\s+({PEOPLE})\b", re.I), re.compile(rf"\b{LX.NUM}\s*(?:%|percent)\s+of\s+(?:all\s+)?({PEOPLE})\b", re.I))
+DAY_NAMES = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+DAYS_RX = re.compile(r"\b(" + "|".join(DAY_NAMES) + r")s?\b", re.I); PER_WEEK_RX = re.compile(rf"\b{LX.NUM}\s+(days?|times|sessions?|workouts?|runs?)\s+(?:a|per|each|every)\s+week\b", re.I)
+SPREAD = {2: (0, 3), 3: (0, 2, 4), 4: (0, 1, 3, 4), 5: (0, 1, 2, 3, 4), 6: (0, 1, 2, 3, 4, 5), 7: (0, 1, 2, 3, 4, 5, 6)}      # n sessions in a week, rest days between them
+TIER_RX = re.compile(rf"\b(?:(?P<lo>under|less than|below|fewer than)\s+{LX.NUM}|{LX.NUM}\s*(?:to|-)\s*{LX.NUM}|(?P<hi>over|more than|above|beyond)\s+{LX.NUM}|{LX.NUM}\s*(?:or more|\+|and up|and over))\s*(seconds?|secs?|minutes?|mins?|reps?|kg|%|percent)?\s*,", re.I)
+HURT_RX = re.compile(r"\b(?:hurts?|pain\w*|sharp|dizzy|dizziness|injur\w*|numb\w*|tingl\w*|doctor|physio\w*|swell\w*|swollen|unsafe|safely|faint)\b", re.I)
+RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ease off|back off|skip)\b[^,.;!?]*)", re.I)
+CTA_RX = (("comment", re.compile(r"\b(comment|let me know|tell me)\b", re.I)), ("like", re.compile(r"\b(?:tap|hit|smash|press|leave|give (?:it|this|the video))\s+(?:the\s+|a\s+)?like\b", re.I)), ("subscribe", re.compile(r"\bsubscribe\b", re.I)))
+
+def _graph(sc: dict, text: str) -> Optional[dict]:
+    """A change over time drawn as a line: each rise / drop / levelling-off the sentence names bends the curve on its word ("your strength drops for a week, then climbs past where it was")."""
+    segs = [{"dir": next(k for k in TREND if m.group(k)), "at": _at(sc, text, m.start())} for m in TREND_RX.finditer(text)]
+    if not segs or not (len(segs) >= 2 or OVER_TIME_RX.search(text) or FROM_TO_RX.search(text)): return None
+    pre = text[:TREND_RX.search(text).start()]; subj = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", re.split(r"[,.;:!?]", pre)[-1]) if w.lower() not in N.STOP and w.lower() not in N.DANGLING][-2:]
+    if not subj: return None      # a rise of nothing named ("it goes up") has no axis to label
+    ft = FROM_TO_RX.search(text); out = {"label": " ".join(subj).upper(), "segs": segs[:4]}
+    if ft: out["from"], out["to"] = [f"{_num_of(ft.group(i)):g}{'%' if (ft.group(i + 1) or '').lower() in ('%', 'percent') else ''}" for i in (1, 3)]
+    return out
+
+def _noun_after(text: str, pos: int) -> str:
+    """The content words right after a number, up to the first function word ("20% MORE STRENGTH", "8 HOURS" -> ""): a bar's label, never a cut clause."""
+    out = []
+    for w in re.findall(r"[A-Za-z][A-Za-z'-]*|\S", re.split(r"[,.;:!?]", text[pos:], maxsplit=1)[0])[:3]:
+        if not w[0].isalpha() or w.lower() in N.STOP or w.lower() in N.DANGLING: break
+        out.append(w)
+    return " ".join(out).upper()
+
+def _bars(sc: dict, text: str) -> Optional[dict]:
+    """Stated shares as a grid of dots ("1 in 3 adults", "40% of lifters"), or two or more numbers of one unit as bars, each labelled with its own words."""
+    for rx in DOTS_RX:
+        m = rx.search(text)
+        if m:
+            g = m.groups(); lit = _num_of(g[0]); of = _num_of(g[1]) if len(g) == 3 else 100.0
+            if 0 < lit < of <= 100: return {"mode": "dots", "lit": lit, "of": of, "label": f"{lit:g} IN {of:g}" if of != 100 else f"{lit:g}%", "noun": g[-1].upper(), "at": _at(sc, text, m.start())}
+    nums = [n for n in N.entities(text)["numbers"] if n["unit"]]
+    if len(nums) < 2 or len({n["unit"].lower() for n in nums[:3]}) != 1: return None
+    items = []
+    for n in nums[:3]:
+        v = _num_of(str(n["value"]))
+        if v <= 0: return None
+        items.append({"value": v, "text": f"{v:g}{'%' if n['unit'] == '%' else ' ' + n['unit'].upper()}", "label": _noun_after(text, n["pos"] + len(n["text"])), "at": _at(sc, text, n["pos"])})
+    return {"mode": "bars", "items": items} if len({i["value"] for i in items}) >= 2 else None
+
+def _calendar(sc: dict, text: str) -> Optional[dict]:
+    """A week that fills in: the days the sentence names (three or more), or "N days a week" spread with rest days between."""
+    named = []
+    for m in DAYS_RX.finditer(text):
+        d = DAY_NAMES.index(m.group(1).lower())
+        if d not in [x["day"] for x in named]: named.append({"day": d, "at": _at(sc, text, m.start())})
+    if len(named) >= 3: return {"days": named, "total": f"{len(named)} DAYS A WEEK"}
+    m = PER_WEEK_RX.search(text)
+    if not m: return None
+    n = int(_num_of(m.group(1)))
+    if n not in SPREAD: return None
+    at = _at(sc, text, m.start()); return {"days": [{"day": d, "at": at + 0.22 * i} for i, d in enumerate(SPREAD[n])], "total": f"{n} {m.group(2).upper().rstrip('S')}S A WEEK"}
+
+def _result(sc: dict, text: str) -> Optional[dict]:
+    """A result board: the bands the sentence states ("under 20 seconds, ... 20 to 40, ... over 40, ..."), each revealed with what it means as it is said."""
+    tiers = []
+    for m in TIER_RX.finditer(text):
+        g = [x for x in m.groups() if x]; nums = [f"{_num_of(x):g}" for x in g if re.match(LX.NUM + "$", x, re.I)]; unit = (m.groups()[-1] or "").lower()
+        u = "S" if unit.startswith("s") else " MIN" if unit.startswith("m") else "%" if unit in ("%", "percent") else ""
+        mark = (f"UNDER {nums[0]}{u}" if m.group("lo") else f"{nums[0]}{u}+" if m.group("hi") or len(nums) == 1 else f"{nums[0]}-{nums[1]}{u}")
+        meaning = _words_after(text, m.end(), 4)
+        if meaning: tiers.append({"mark": mark, "text": meaning, "at": _at(sc, text, m.start())})
+    return {"tiers": tiers[:4]} if len(tiers) >= 2 else None
+
+def _warning(sc: dict, text: str) -> Optional[dict]:
+    """Safety rules stacked as warning cards: each sentence that names a sign of harm (pain, dizziness, an injury) and says what to do about it."""
+    rules, pos = [], 0
+    for s in re.split(r"(?<=[.!?])\s+", text):
+        if HURT_RX.search(s):
+            m = RULE_RX.search(s)
+            if m:
+                r = _words_after(m.group(1), 0, 6, lead=False)
+                if len(r.split()) >= 2: rules.append({"text": r, "at": _at(sc, text, pos + m.start(1))})
+        pos += len(s) + 1
+    return {"rules": rules[:3]} if rules else None
+
+def _engage(sc: dict, text: str) -> Optional[dict]:
+    """The call to action as the screen it asks for: the comment being typed in, the like button pressed, the subscribe button and its bell."""
+    for kind, rx in CTA_RX:
+        m = rx.search(text)
+        if m: return {"kind": kind, "text": _words_after(text, m.start(), 5, lead=False) if kind == "comment" else "", "at": _at(sc, text, m.start())}
+    return None
+
 def _takeaway(sc: dict, text: str, last: bool, role: str) -> Optional[dict]:
     ws = sc.get("words") or []; dur = sc["end"] - sc["start"]
     if not (4 <= len(ws) <= 20 and 2.5 <= dur <= 10.0): return None
@@ -63,7 +216,9 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if not text.strip() or SYNTH_RX.search(text): return ev
     g, by_ex = C3.groups_for(text)
     if g: ev["3d"] = (0.7 if by_ex else 0.9, None)
-    for look, fn, base in (("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
+    for look, fn, base in (("timeline", lambda: _timeline(sc, text), 0.95), ("mistake", lambda: _mistake(sc, text), 0.9), ("slider", lambda: _slider(sc, text), 0.9),
+                           ("dial", lambda: _dial(sc, text), 0.9), ("study", lambda: _study(sc, text), 0.88), ("result", lambda: _result(sc, text), 0.95), ("calendar", lambda: _calendar(sc, text), 0.9),
+                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
         if got: ev[look] = (base, got)
     if N.key_phrase(text, 3)[0]: ev["flow"] = (0.5, None)
@@ -72,10 +227,15 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
         if 4 <= len(ws) <= 22 and sc["end"] - sc["start"] >= 3.0: ev["takeaway"] = (0.55, {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]})
     return ev
 
-def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None) -> dict:
+RECENT_W = 0.25      # per recent video that had this look at this place in its opening (channel memory, Rule 3)
+JITTER = 0.5      # how far a script's own seed moves a look's score: enough to change close calls, never to pick a look the words do not support
+
+def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow", max(2, int(total / 30)))
-    hist: List[str] = []; last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}
+    hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
+    import zlib; seed = zlib.crc32(" ".join(sc.get("text", "") for sc in scenes).encode())      # each script its own mix (same script, same video)
+    jit = lambda i, look: ((zlib.crc32(f"{seed}:{i}:{look}".encode()) % 1000) / 1000 - 0.5) * JITTER
     for i, sc in enumerate(scenes):
         k = sc["kind"]
         if sc.get("directed_look"):      # the scenes CSV chose this scene's look (reptheory/direction.py): it is used as asked and counts toward the spacing of the others
@@ -91,19 +251,19 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         ev = evidence(sc, last=i == len(scenes) - 1, role=roles.get(i, ""))
         if not three_d or sc["start"] - last3 < gap3 or hist[-1:] == ["3d"]: ev.pop("3d", None)
         if not flow or flows >= max_flow or hist[-2:] == ["flow", "flow"]: ev.pop("flow", None)
-        ev["stock"] = (0.3, None); scored = []
+        ev["stock"] = (0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []      # the figure with the named part lit already shows the words
         for look, (base, payload) in ev.items():
             if hist[-2:] == [look, look]: continue      # never a third in a row
-            score = base + (0.5 if look not in hist[-3:] else 0.0) + (0.2 if look not in hist[-6:] else 0.0) - (0.8 if hist[-1:] == [look] else 0.0); scored.append((score, -list(ev).index(look), look, payload))
+            score = base + (0.5 if look not in hist[-3:] else 0.0) + (0.2 if look not in hist[-6:] else 0.0) - (0.8 if hist[-1:] == [look] else 0.0) + jit(i, look) - RECENT_W * sum(1 for op in (recent or []) if i < len(op) and op[i] == look); scored.append((score, -list(ev).index(look), look, payload))
         if not scored: scored = [(0, 0, "stock", None)]
         _, _, look, payload = max(scored); sc["look"] = look; hist.append(look)
         if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]; sc["decisions"].append("variety: 3D body clip")
         elif look == "flow": flows += 1; sc["decisions"].append("variety: Flow picture from the narration")
-        elif look in ("stat", "steps", "versus", "takeaway"):
+        elif look in CARD_LOOKS:
             sc[look] = payload; sc["was_kind"] = k; sc["kind"] = look; sc["decisions"].append(f"variety: {look} card ({k} -> {look})")
-            if look == "stat":
+            if look in ("stat", "bars"):
                 for pg in sc["pages"]: pg["value"] = ""      # the ring shows the number: the callout column does not repeat it
-            if look in ("steps", "versus", "takeaway"): sc["pages"] = []
+            if look in FULL_CARDS: sc["pages"] = []      # the card fills the frame (a caption strip follows the narration: states.develop)
         else: sc["decisions"].append("variety: stock look kept")
     chap = lambda sc: sc["section"] if sc.get("section") and sc["section"] != sc.get("topic") and not sc["section"].startswith("TIER LIST") else ""      # a part of the video = a unit the narration announced (Part one, Week two ...)
     chapters: List[str] = []

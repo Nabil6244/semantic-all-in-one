@@ -22,6 +22,17 @@ COLUMNS
   versus = two things compared side by side (only when the sentence compares them: "A versus B", "not A but B", "A is harder than B");
   steps = a spoken sequence as a list (only when the sentence says "first ... then ... finally");
   takeaway = the sentence itself, word by word, as a big key line;
+  timeline = a stopwatch with what you feel at each mark (only when the sentence says "10 seconds in, ... 20 seconds, ..." with at least two marks);
+  mistake = a red WRONG panel and, when the next sentence gives the fix, a green RIGHT panel (only when the sentence says "the mistake is ...");
+  slider = an easier-to-harder track (only when the sentence says "too hard? ... too easy? ...");
+  dial = an effort gauge (only when the sentence says "N out of 10" or "N% effort");
+  study = a stack of papers with the count (only when the sentence says "a review / study of N studies / people / adults");
+  graph = a line that draws itself and bends with each change (only when the sentence says something rises, drops or levels off over time: "your strength drops for a week, then climbs");
+  bars = bars for two or more stated numbers of one unit, or a grid of dots for a stated share ("1 in 3 adults", "40% of lifters");
+  calendar = a week that fills in (only when the sentence names three or more days, or says "N days / times a week");
+  result = a result board (only when the sentence states two or more bands: "under 20 seconds, ... 20 to 40, ... over 40, ...");
+  warning = safety rules as warning cards (only when the sentence names pain, dizziness or an injury and says what to do: "stop if it hurts");
+  engage = the call to action as its screen (only when the sentence asks the viewer to comment, tap like or subscribe);
   figure = the app's own trainee figure and callout.
 - prompt: for a flow picture, one sentence describing exactly what to draw: who, doing what, with what equipment, seen from where (e.g. "the trainee hanging from a pull-up bar, side view, shoulders pulled down"). No text, logos or numbers in the picture. Filling it without a look means flow.
 - muscle: for a 3d look, the muscle or exercise to show, in plain words: biceps, triceps, shoulders, chest, lats, upper back, rotator cuff, core, lower back, glutes, quads, hamstrings, calves, forearms, hip flexors, neck, or an exercise (push-up, pull-up, squat, deadlift, plank, curl). Filling it without a look means 3d.
@@ -29,7 +40,7 @@ COLUMNS
 RULES
 1. Every row has a non-empty text.
 2. Do not change the order or the wording of the script; joined together, the text column is the script.
-3. Start a new chapter where the script really moves to a new topic (a new muscle, exercise, phase or rule), not every few rows.
+3. Start a new chapter where the script really moves to a new topic (a new muscle, exercise, phase or rule), not every few rows. In a Full Guide script, each unit the script names ("Move 1, ...", "Tip 2, ...") is its own chapter, plus the rule, the questions, the week plan and the result; the app then shows a NEXT teaser at the end of each unit.
 4. Direct the sentences that matter most (the hook, each new muscle or exercise, numbers, comparisons, the final lesson), roughly one row in three; leave the rest empty.
 5. Never put the same look on more than two rows in a row, and never 3d on two rows in a row. Use flow for at most one row in four.
 6. Only use stat, versus or steps when the sentence's own words have the number, the comparison or the sequence; never invent one.

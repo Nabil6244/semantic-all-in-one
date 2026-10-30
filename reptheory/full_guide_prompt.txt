@@ -1,0 +1,45 @@
+You are writing the voiceover script for a Rep Theory "Full Guide" video: a fitness explainer drawn on a near-black canvas, where every picture is built from the words of the script. Write the script for the TOPIC at the end. Output the script only, as plain sentences, nothing before or after it.
+
+WHY THE WORDING MATTERS
+The app draws each sentence from its own shape, so say things in the shapes below whenever the content is really there. Never invent a number, a study or a result to fill a shape: a shape the topic does not have is simply left out.
+- A number to reach: say the number and its unit ("aim for 8 hours", "hold for 30 seconds", "3 sets of 10").
+- A body part: name it plainly ("your hamstrings", "your lower back", "your heart").
+- A mistake: "The most common mistake is ...", then the fix in the next sentence, starting with a verb ("Keep ...", "Push ...").
+- What you feel over time: "10 seconds in, ... 20 seconds, ... 30, ...".
+- Easier or harder: "Too hard? ... Too easy? ...".
+- Effort: "a 7 out of 10 effort" or "80% effort".
+- Evidence: "A review of N studies ..." or "A study of N people ..." (only real studies you are sure of).
+- A change over time: "your strength drops for a week, then climbs past where it was".
+- Shares and comparisons: "1 in 3 adults ...", "X versus Y", "not X, but Y", "X is harder than Y".
+- A schedule: "3 days a week" or the days by name.
+- A result scale: "Under N seconds, ... N to M, ... over M, ...".
+- Safety: name the sign and what to do ("Stop if you feel sharp pain.").
+- Emphasis: now and then a short sentence of 2 to 4 words on its own ("That's normal." "Every single day.").
+
+STRUCTURE (the Full Guide blueprint; fit it to the number of units the topic really has: 3 tips, 5 moves, 6 foods ...)
+1. Hook (about 15 s): a counter-intuitive claim, then "By the end you'll know ..." and a roadmap of what is coming ("the N moves, the one rule, and a week you can copy").
+2. Premise (about 20 s): why it works, with one number or one real study.
+3. An early test the viewer can do right now ("Test your ... right now and remember your time"). Tell them the result comes at the end.
+4. The units, each introduced by its name in one short sentence ("Move 1, the wall sit." / "Tip 2, protein at breakfast."), each in this order, skipping a slot the unit does not have:
+   a. Setup: numbered steps ("First ..., then ..., finally ...").
+   b. What it works: the body part(s) by name.
+   c. The feeling: what you feel at 10, 20, 30 seconds (only for holds or efforts).
+   d. The cue: one short instruction to remember.
+   e. The prescription: the number (time, sets, reps, grams, days).
+   f. Easier / harder: "Too hard? ... Too easy? ...".
+   g. The mistake and its fix.
+   h. Optional: a science aside, or a call to action woven into the content ("Be honest: have you been doing it the easy way? Tap like if so.").
+   End each unit (except the last) with one line teasing the next one.
+5. The rule: the one principle that ties the units together, with the 2 or 3 ways people get it wrong.
+6. Questions everyone asks: 3 to 5 short questions in the viewer's words, each answered in one or two sentences.
+7. A week you can copy: which days, how long, a short version for busy days.
+8. What to expect and safety: how soon results come, then 2 or 3 safety rules.
+9. Your test result: the result scale for the early test ("Under N, ... N to M, ... over M, ..."), then "comment your result and retest in N weeks".
+10. Close: call back to the hook in one line, and a one-line sign-off.
+
+STYLE
+Second person. Sentences of 5 to 16 words. Plain words. No headings, no lists, no stage directions: only what the narrator says.
+One video, one topic: no content from other videos, no fixed examples from this prompt unless they are true for the topic.
+
+TOPIC
+<<<PASTE THE TOPIC HERE>>>

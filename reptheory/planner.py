@@ -3,20 +3,30 @@ fits; adjacent sentences about the same thing share one scene, and each sentence
 equation terms and tier letters are copied from the narration, never invented, and every animated element is timed to the word it comes from. A sentence dict may carry its own `headline`,
 `value`, `chips`, `chapter` (a scenes file can direct the visuals); those win."""
 from __future__ import annotations
-import re
+import difflib, re
 from typing import Dict, List
 
-from . import lexicon as LX, library as L
+from . import lexicon as LX, library as L, narrative as N
 
 MIN_SCENE_S, MAX_MERGE_S = 2.6, 10.0
 BOTTLE = "prop_bottle_2l_v1"
 
+def respell(text: str, words: List[dict]) -> List[dict]:
+    """The transcript's words with the script's own spelling ("can't", "spot-reduce" where the voice matched them) and the script's punctuation after each word as `p`: what is shown
+    comes from the script, the timing from the voice. Words the script does not have keep the transcript's spelling; the number and times of words never change."""
+    ws = [dict(w) for w in words]; st = text.split(); norm = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())
+    for blk in difflib.SequenceMatcher(None, [norm(t) for t in st], [norm(w["w"]) for w in ws], autojunk=False).get_matching_blocks():
+        for k in range(blk.size):
+            tok, w = st[blk.a + k], ws[blk.b + k]; m = re.match(r"^([^\w%]*)(.*?)([^\w%]*)$", tok); core = m.group(2) or tok
+            w["w"] = core.lower() if w["w"] == w["w"].lower() else core; w["p"] = m.group(3)
+    return ws
+
 def words_of(s: dict) -> List[dict]:
-    """[{w, t0, t1}] for a sentence: its own word times when given, else spread over the sentence by character count."""
-    if s.get("words"): return [dict(w) for w in s["words"]]
+    """[{w, t0, t1, p}] for a sentence: its own word times when given (spelled as the script spells them), else spread over the sentence by character count."""
+    if s.get("words"): return respell(s.get("text", ""), s["words"])
     toks = s["text"].split(); t0, t1 = float(s["start"]), float(s["end"]); wts = [max(1, len(re.sub(r"\W", "", t))) for t in toks]; tot = sum(wts) or 1; out, c = [], t0
     for t, w in zip(toks, wts): d = (t1 - t0) * w / tot; out.append({"w": t, "t0": c, "t1": c + d}); c += d
-    return out
+    return respell(s["text"], out)
 
 def time_of(words: List[dict], rx: str, default: float, which: str = "t0") -> float:
     """Start of the first word matching rx (so an element appears as the word is said); `default` when the narration never says it."""
@@ -52,6 +62,7 @@ def _page(s: dict, text: str, ws: List[dict], t0: float, kind: str, label: str, 
     for k in ("headline", "value"):
         if s.get(k): page[k] = s[k]
     if s.get("chips"): page["chips"] = [{"text": c.upper(), "at": t0 + 0.6 + i * 0.5} for i, c in enumerate(s["chips"])]
+    if s.get("headline") or s.get("chips"): page["given"] = True      # written in the scenes file: shown as written
     return page
 
 def _scene_of(s: dict, art_ok) -> dict:
@@ -119,14 +130,44 @@ def plan(sentences: List[dict], title: str = "", art_ok=None) -> List[dict]:
         scenes.append(sc)
     return _finish(scenes, title, art_ok)
 
-def _finish(scenes: List[dict], title: str, art_ok) -> List[dict]:
-    """Everything after the merge: repeated headlines and chips dropped, art carried into equations, section/topic/numbering, scene ends, tier board hold. Shared by the legacy planner and the beat planner."""
-    seen_head: List[str] = []; seen_chip: set = set()
-    for i, sc in enumerate(scenes):      # every scene adds something new: a headline already used in the last scenes, or a chip already shown, is dropped
+LABELS = frozenset({w for _k, lab in LX.HOLD_HEAD for w in lab.split()} | {w for c in LX.CONCEPTS.values() for w in c["label"].split()} | {"NO", "GYM", "ALL", "YOU", "NEED", "NEXT", "UP"})
+
+def shape_text(sc: dict, keep: frozenset = LABELS) -> None:
+    """Every headline and chip of the scene made a phrase of the script (narrative.phrase); a headline dropped for being no phrase gives way to the page's first chip."""
+    ws = sc.get("words") or []
+    for pg in sc["pages"]:
+        if pg.get("src") == "overview" or pg.get("given"): continue
+        before = (pg["headline"], [c["text"] for c in pg["chips"]])
+        pg["headline"] = N.phrase(pg["headline"], ws, keep) if pg["headline"] else ""
+        pg["chips"] = [dict(c, text=t) for c in pg["chips"] for t in [N.phrase(c["text"], ws, keep)] if t and t != pg["headline"]]
+        if before[0] and not pg["headline"] and not pg["value"] and pg["chips"]: pg["headline"], pg["headline_at"] = pg["chips"][0]["text"], pg["chips"][0]["at"]; pg["chips"] = pg["chips"][1:]
+        if before != (pg["headline"], [c["text"] for c in pg["chips"]]): sc["decisions"].append(f"on-screen text kept to phrases of the script: {before[0]!r} -> {pg['headline']!r}")
+
+def never_empty(scenes: List[dict]) -> List[dict]:
+    """Run last, after every look is chosen: a text-only scene with nothing on it gets the opening phrase of its own words; with none it joins the scene before. Never an empty frame."""
+    out: List[dict] = []
+    for sc in scenes:
+        if sc["kind"] == "callout" and (not sc["pages"] or _empty(sc)):
+            head = N.short_clause(sc.get("words") or [], min_content=0) or N.lead_phrase(sc.get("words") or [])
+            if head:
+                pg = sc["pages"][0] if sc["pages"] else {"at": sc["start"], "value": "", "chips": [], "kicker": ""}; pg.update(headline=head, headline_at=sc["start"] + 0.2)
+                sc["pages"] = sc["pages"] or [pg]; sc["headline"] = head; sc["decisions"].append("nothing to show: its opening phrase is its headline")
+            elif out: out[-1]["end"] = sc["end"]; out[-1]["decisions"].append(f"scene {sc.get('no')} had nothing to show: this one continues"); continue
+        out.append(sc)
+    for i, sc in enumerate(out): sc["no"] = i + 1
+    return out
+
+def _finish(scenes: List[dict], title: str, art_ok, keep: frozenset = LABELS) -> List[dict]:
+    """Everything after the merge: on-screen texts kept to phrases of the script, repeated headlines and chips dropped, art carried into equations, section/topic/numbering, scene ends,
+    tier board hold. Shared by the legacy planner and the beat planner."""
+    seen_head: List[str] = []; seen_chip: set = set(); recent: List[set] = []
+    for i, sc in enumerate(scenes):      # every scene adds something new: a headline already used in the last scenes (or in either of the two before, whatever their section), or a chip already shown, is dropped
+        shape_text(sc, keep)
         for pg in sc["pages"]:
-            if pg["headline"] and (sc.get("_sec", ""), pg["headline"]) in seen_head: pg["headline"] = ""; sc["decisions"].append("repeated headline dropped")
+            if pg["headline"] and ((sc.get("_sec", ""), pg["headline"]) in seen_head or any(pg["headline"] in r for r in recent[-2:])): pg["headline"] = ""; sc["decisions"].append("repeated headline dropped")
             if pg["headline"]: seen_head.append((sc.get("_sec", ""), pg["headline"]))      # per section: a routine may name the same exercise again in its next week
             pg["chips"] = [c for c in pg["chips"] if c["text"] not in seen_chip]; seen_chip.update(c["text"] for c in pg["chips"])
+        recent.append({pg["headline"] for pg in sc["pages"] if pg["headline"]})
         if sc["pages"] and _empty(sc) and i and sc["kind"] in ("trainee", "pose", "hold", "prop") and sc["end"] - sc["start"] < 6.0: sc["_drop"] = True      # nothing new to show: the previous picture simply goes on
     out: List[dict] = []
     for sc in scenes:

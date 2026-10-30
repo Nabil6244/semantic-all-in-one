@@ -19,6 +19,5 @@ def model_data_files(root) -> List[Tuple[str, str]]:
     return [(str(p), "assets/reptheory_3d") for p in sorted(src.glob("*")) if p.is_file() and p.suffix.lower() in (".glb", ".json", ".txt")]
 
 def prompt_files(root) -> List[Tuple[str, str]]:
-    """The "Copy the CSV prompt" text (reptheory/scenes_csv_prompt.txt), next to the package where app_section.PROMPT_FILE looks."""
-    src = Path(root) / "reptheory" / "scenes_csv_prompt.txt"
-    return [(str(src), "reptheory")] if src.is_file() else []
+    """The "Copy the CSV prompt" and "Copy the script prompt" texts (reptheory/*.txt), next to the package where app_section looks."""
+    return [(str(p), "reptheory") for p in (Path(root) / "reptheory" / n for n in ("scenes_csv_prompt.txt", "full_guide_prompt.txt")) if p.is_file()]

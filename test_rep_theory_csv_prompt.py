@@ -48,7 +48,7 @@ class RepTheoryCsvPrompt(unittest.TestCase):
         self.assertNotIn(SCRIPT_PLACEHOLDER, text); self.assertTrue(text.rstrip().endswith("Hang from the bar."))
 
     def test_prompt_file_is_bundled(self):
-        self.assertEqual(packaging.prompt_files(ROOT), [(str(ROOT / "reptheory" / "scenes_csv_prompt.txt"), "reptheory")])
+        self.assertEqual(packaging.prompt_files(ROOT), [(str(ROOT / "reptheory" / n), "reptheory") for n in ("scenes_csv_prompt.txt", "full_guide_prompt.txt")])
         self.assertIn("datas += reptheory_prompt_files(ROOT)", (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"))
 
 if __name__ == "__main__":

@@ -56,6 +56,16 @@ def copy_prompt(app) -> None:
     app._rt_status_var.set("Rep Theory prompt copied with your script. Paste it into any AI, save the reply as a .csv, then choose it as the Scenes file." if script else
                            "Rep Theory prompt copied. Paste it into any AI, replace its last line with your script, save the reply as a .csv, then choose it as the Scenes file.")
 
+GUIDE_PROMPT_FILE = Path(__file__).with_name("full_guide_prompt.txt")      # the "Full Guide" script blueprint (Step 6), bundled like the CSV prompt
+
+def copy_script_prompt(app) -> None:
+    """"Copy the script prompt": the Full Guide blueprint an AI fills in for any topic, so the script's sentences have shapes the app can draw."""
+    M = _m(app)
+    try: text = GUIDE_PROMPT_FILE.read_text(encoding="utf-8")
+    except OSError as exc: M.messagebox.showerror("Copy the script prompt", f"The prompt file could not be read: {exc}"); return
+    app.clipboard_clear(); app.clipboard_append(text)
+    app._rt_status_var.set("Full Guide script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.")
+
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
     app._rt_scenes_var = ctk.StringVar(value=""); app._rt_status_var = ctk.StringVar(value=""); app._rt_title_var = ctk.StringVar(value=""); app._rt_preview_var = ctk.BooleanVar(value=False)
@@ -90,6 +100,8 @@ def build(app, parent, *, row: int) -> None:
     M._make_button(bar, "Copy the CSV prompt", lambda: copy_prompt(app), size="lg", width=150).grid(row=0, column=0, sticky="w")
     ctk.CTkLabel(bar, text="Paste it into any AI, then choose the CSV it writes as the Scenes file.", font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
     app._build_csv_prompt_script_box(bar, row=1, columnspan=2)
+    M._make_button(bar, "Copy the script prompt", lambda: copy_script_prompt(app), size="lg", width=150).grid(row=2, column=0, sticky="w", pady=(8, 0))
+    ctk.CTkLabel(bar, text="A Full Guide script for any topic, written in the shapes the app can draw.", font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w").grid(row=2, column=1, sticky="w", padx=(10, 8), pady=(8, 0))
     block.grid_remove()
 
 def browse_scenes(app) -> None:

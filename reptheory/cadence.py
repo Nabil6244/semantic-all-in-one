@@ -11,7 +11,7 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
 def _sig(sc: dict) -> tuple:
     sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
@@ -44,10 +44,24 @@ def events(scenes: List[dict]) -> List[dict]:
         for k2, key in (("steps", "items"), ("versus", None)):      # cards that build item by item: each item arriving is a change of what is communicated
             c = sc.get(k2)
             if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} item", "scene": n, "target": x["text"], "meaningful": True} for x in (c if key else [c["a"], c["b"]])]
+        if sc.get("timeline"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "time mark", "scene": n, "target": x["mark"], "meaningful": True} for x in sc["timeline"]["items"]]
+        for k2 in ("mistake", "slider"):
+            c = sc.get(k2)
+            if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} panel", "scene": n, "target": x["text"], "meaningful": True} for x in c.values() if x]
+        for k2 in ("dial", "study"):
+            if sc.get(k2): ev.append({"t": float(sc[k2]["at"]), "type": "secondary", "what": f"{k2} value", "scene": n, "meaningful": True})
+        for k2, key, what in (("graph", "segs", "graph bend"), ("calendar", "days", "calendar day"), ("result", "tiers", "result band"), ("warning", "rules", "warning card")):
+            if sc.get(k2): ev += [{"t": float(x["at"]), "type": "secondary", "what": what, "scene": n, "meaningful": True} for x in sc[k2][key]]
+        if sc.get("bars"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "bar", "scene": n, "meaningful": True} for x in (sc["bars"].get("items") or [sc["bars"]])]
+        if sc.get("engage"): ev.append({"t": float(sc["engage"]["at"]), "type": "secondary", "what": f"{sc['engage']['kind']} press" if sc["engage"]["kind"] != "comment" else "comment typed", "scene": n, "meaningful": True})
         if sc.get("stat"): ev.append({"t": float(sc["stat"]["at"]), "type": "secondary", "what": "stat number", "scene": n, "target": f"{sc['stat']['value']:g} {sc['stat']['unit']}", "meaningful": True})
         if sc.get("takeaway"): ev += [{"t": float(w["t0"]), "type": "secondary", "what": "spoken word lights", "scene": n, "meaningful": False} for w in sc["takeaway"]["words"][::4]]
         if sc.get("grip_at") is not None: ev.append({"t": float(sc["grip_at"]), "type": "secondary", "what": "grip ring", "scene": n, "meaningful": True})
         if sc.get("flip_at") is not None: ev.append({"t": float(sc["flip_at"]), "type": "secondary", "what": "hand switch", "scene": n, "meaningful": True})
+        if sc.get("teaser"): ev.append({"t": float(sc["teaser"]["at"]), "type": "secondary", "what": "next teaser", "scene": n, "target": sc["teaser"]["text"], "meaningful": True})
+        if sc.get("lock"): ev.append({"t": float(sc["lock"]["at"]), "type": "secondary", "what": "test lock", "scene": n, "meaningful": True})
+        if sc.get("stamp"): ev.append({"t": float(sc["stamp"]["at"]), "type": "secondary", "what": "stamp", "scene": n, "target": sc["stamp"]["text"], "meaningful": True})
+        if sc.get("tint"): ev.append({"t": float(sc["tint"]["at"]), "type": "secondary", "what": "tint", "scene": n, "meaningful": True})
         for c in sc.get("cues", []): ev.append({"t": float(c["at"]), "type": "secondary", "what": c.get("what", "cue"), "scene": n, "meaningful": True})
         prev = sc
     return sorted(ev, key=lambda e: (e["t"], e["type"] != "primary"))

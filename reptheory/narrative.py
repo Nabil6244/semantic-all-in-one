@@ -168,6 +168,70 @@ def key_phrase(text: str, n: int = 3) -> Tuple[str, int]:
         else: cur.append(t)
     best = None
     for pos, run, det in runs:
-        run = run[:n]; score = sum(len(w) for w in run) + (4 if det else 0) + (2 if len(run) > 1 else 0)
+        while run and run[-1].lower() in DANGLING: run = run[:-1]      # "six months gives": a run never ends on its verb
+        if not run or len(run) > n: continue      # a longer run cut to n words is a fragment ("OUTPERFORM SIX BRUTAL"): not a phrase
+        score = sum(len(w) for w in run) + (4 if det else 0) + (2 if len(run) > 1 else 0)
         if best is None or score > best[0]: best = (score, pos, run)
     return (" ".join(best[2]).upper(), best[1]) if best else ("", -1)
+
+# ---------------------------------------------------------------- on-screen phrases
+# Every headline / chip is a phrase of the script: one clause (never across a comma or full stop), not cut out of a longer phrase, not starting on a conjunction, not ending on a verb
+# or a function word. Words carry the script's punctuation as `p` (planner.respell); without it the whole word list is one clause.
+DANGLING = STOP | set("""give gives gave beat beats feel feels lose loses eat eats burn burns help helps grow grows build builds work works change changes show shows find finds found
+add adds hold holds slightly really half twice lower upper front inner outer cant can't dont don't wont won't isnt isn't arent aren't doesnt doesn't didnt didn't shouldnt shouldn't""".split())
+LEAD = {"that", "and", "but", "so", "or", "then", "also", "plus"}      # a subordinate start ("while you sleep", "if it hurts") is a phrase; a coordinating one is not
+PHRASE_MAX = 6
+_nw = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())
+
+def _clause_spans(ws: List[dict]) -> List[Tuple[int, int]]:
+    out, a = [], 0
+    for i, w in enumerate(ws):
+        if re.search(r"[,.;:?!]", w.get("p", "")): out.append((a, i + 1)); a = i + 1
+    if a < len(ws): out.append((a, len(ws)))
+    return out
+
+def _shown(ws: List[dict], a: int, b: int) -> str:
+    q = "?" if "?" in ws[b - 1].get("p", "") else ""; return " ".join(re.sub(r"^[^\w%]+|[^\w%']+$", "", w["w"]) for w in ws[a:b]).upper() + q
+
+def _content(ws: List[dict], a: int, b: int) -> int: return sum(1 for w in ws[a:b] if _nw(w["w"]) not in DANGLING)
+
+def short_clause(ws: List[dict], max_words: int = PHRASE_MAX, min_content: int = 1) -> str:
+    """The first whole clause of 2..max_words words with at least one content word ("YOU CAN'T SPOT-REDUCE FAT", "WANT TO LOSE FAT?"), or ""."""
+    for a, b in _clause_spans(ws):
+        while a < b - 1 and _nw(ws[a]["w"]) in LEAD: a += 1
+        if 2 <= b - a <= max_words and _content(ws, a, b) >= min_content: return _shown(ws, a, b)
+    return ""
+
+def lead_phrase(ws: List[dict], max_words: int = PHRASE_MAX) -> str:
+    """Last resort for a scene that would otherwise show nothing: the opening words of its first clause, cut back to the last content word ("NO WORKOUT BEATS A BAD DIET")."""
+    for a, b in _clause_spans(ws):
+        e = min(b, a + max_words)
+        while e > a and _nw(ws[e - 1]["w"]) in DANGLING: e -= 1
+        while a < e and _nw(ws[a]["w"]) in LEAD: a += 1
+        if e - a >= 2 and _content(ws, a, e) >= 1: return _shown(ws, a, e)
+    return ""
+
+def phrase(text: str, ws: List[dict], keep: frozenset = frozenset()) -> str:
+    """`text` as it may be shown, or "" when it is no phrase of the script. Texts made only of the planner's own labels (`keep`) or carrying a number pass as they are; a text
+    whose words are not all the scene's words is dropped ("-REDUCE FAT"). Found in the words: trimmed to one clause, leading conjunctions and trailing function words / verbs
+    dropped; a clause of up to 4 words is shown whole; a text cut out of a longer phrase or ending on its verb becomes its whole clause when that is short, else what is left
+    when it still says something, else nothing."""
+    toks = [_nw(t) for t in text.split() if _nw(t)]
+    if not toks or {t.upper() for t in text.split()} <= keep: return text
+    nw = [_nw(w["w"]) for w in ws]; at = next((i for i in range(len(nw) - len(toks) + 1) if nw[i:i + len(toks)] == toks), -1)
+    if any(t.startswith("-") or t.endswith("-") for t in text.split()): return ""      # half of a hyphenated word ("-REDUCE FAT")
+    if at < 0: return "" if all(t in set(nw) for t in toks) and not any(c.isdigit() for c in text) else text      # its words picked from here and there in these words ("SIDE SIDE", "WEEK RUN") is no phrase; a text from elsewhere (a label, a neighbouring sentence) is not judged here
+    a, b = at, at + len(toks); spans = _clause_spans(ws)
+    parts = [(max(a, x), min(b, y)) for x, y in spans if max(a, x) < min(b, y)]
+    a, b = max(parts, key=lambda r: (_content(ws, *r), r[1] - r[0]))      # across a comma / full stop: the part that says most
+    ca, cb = next((x, y) for x, y in spans if x <= a < y)
+    if (a, b) == (ca, cb) and cb - ca <= PHRASE_MAX: return text if (a, b) == (at, at + len(toks)) else _shown(ws, ca, cb)      # a whole clause of the script is a phrase as it is ("AS LONG AS YOU CAN")
+    while ca < cb - 1 and nw[ca] in LEAD: ca += 1
+    whole = 2 <= cb - ca <= PHRASE_MAX and _content(ws, ca, cb) >= 1
+    if whole and cb - ca <= 4: return _shown(ws, ca, cb)
+    while a < b and nw[a] in LEAD: a += 1
+    cut_verb = False
+    while b < cb and b > a and nw[b - 1] in DANGLING: cut_verb = cut_verb or nw[b - 1] not in STOP; b -= 1      # a text that runs to its clause's end ("AS LONG AS YOU CAN.") was cut from nothing
+    cut_out = b < cb and b > a and nw[b] not in DANGLING and b - a >= 2
+    if cut_out or (cut_verb and b - a < 2) or b <= a or (b - a == 1 and nw[a] in DANGLING): return _shown(ws, ca, cb) if whole else ""
+    return _shown(ws, a, b)

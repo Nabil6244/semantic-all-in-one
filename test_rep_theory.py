@@ -279,7 +279,7 @@ class BeatPlanner(unittest.TestCase):
         r = self.plan(self.WRIST)
         for b in r["beats"]:
             for k in ("id", "t0", "t1", "text", "words", "timing", "role", "entities", "visual", "status", "confidence", "scene", "development", "cues"): self.assertIn(k, b)
-            self.assertIn(b["timing"], ("word", "estimated")); self.assertIn(b["status"], ("grounded", "continued", "weak_callout", "generic_fallback"))
+            self.assertIn(b["timing"], ("word", "estimated")); self.assertIn(b["status"], ("grounded", "continued", "captioned", "weak_callout", "generic_fallback"))
         self.assertEqual(len({b["id"] for b in r["beats"]}), len(r["beats"]))
 
     def test_estimated_timing_is_labelled_and_word_timing_is_used(self):

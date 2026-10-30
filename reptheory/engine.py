@@ -37,10 +37,27 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
         s["start"] = 0.0 if i == 0 else float(ss[i - 1]["end"]); s["end"] = float(ss[i + 1]["start"]) if i + 1 < len(ss) else max(float(s["end"]), total_s or float(s["end"])); s["scene_no"] = i + 1
     return ss
 
+HISTORY_FILE, HISTORY_N, OPENING_S = ".rep_theory_recent.json", 10, 60.0
+
+def _history_path(project_dir) -> Path: return Path(project_dir).resolve().parent / HISTORY_FILE      # beside the project folders: the channel's videos share it
+
+def recent_openings(project_dir) -> List[List[str]]:
+    """The first-minute look sequences of the last HISTORY_N rendered videos (newest last); [] when there are none or the file is unreadable."""
+    try: return [list(x["looks"]) for x in json.loads(_history_path(project_dir).read_text())[-HISTORY_N:]]
+    except Exception: return []
+
+def remember_opening(project_dir, scenes: List[dict], title: str = "") -> None:
+    """After a finished render: this video's opening looks go into the channel memory (never fails the render)."""
+    try:
+        p = _history_path(project_dir); old = json.loads(p.read_text()) if p.is_file() else []
+        looks = [sc.get("look") if sc.get("look") not in (None, "stock") else sc["kind"] for sc in scenes if sc["start"] < OPENING_S]
+        p.write_text(json.dumps((old + [{"title": title, "looks": looks, "at": time.strftime("%Y-%m-%d %H:%M")}])[-HISTORY_N:], indent=1))
+    except Exception: pass
+
 def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, quality: str = "final", title: str = "", cancel_check: Optional[Callable[[], bool]] = None,
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
                    end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, variety: bool = False, flow_mode: str = "agent", flow_settings: Optional[dict] = None, flow_accounts=None,
-                   media_only: bool = False, table: Optional[Dict[int, dict]] = None) -> Dict:
+                   media_only: bool = False, table: Optional[Dict[int, dict]] = None, sound: bool = True) -> Dict:
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -56,6 +73,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             log(f"beat planner failed ({type(ex).__name__}: {ex}); using the legacy planner"); plan_info = {"planner": "legacy", "fallback_from": "beats", "fallback_reason": f"{type(ex).__name__}: {ex}"}
     if scenes is None: scenes = P.plan(sents, title=title)
     if not scenes: raise ValueError("no scenes to render")
+    from . import states as ST
+    log(f"[REP THEORY STATES] {ST.apply(scenes, lambda a: L.find(a) is not None)}")      # body parts lit on the figure, warning tint (reptheory/states.py)
     from . import direction as DR
     if DR.has_direction(sents):      # the scenes CSV's look / prompt / muscle / chapter columns (reptheory/direction.py); blank cells stay the app's choice
         for msg in DR.check_rows(sents): log(f"[REP THEORY CSV] {msg}")
@@ -66,9 +85,13 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     if variety:      # which look each scene gets, so a long video keeps changing (reptheory/variety.py); 3D clips and Flow pictures below then only fill the scenes it chose
         from . import variety as V
         try:
-            vm = V.direct(scenes, total_s=scenes[-1]["end"], three_d=clips3d, flow=illustrate); log(f"[REP THEORY VARIETY] {vm}")
+            recent = recent_openings(project_dir); vm = V.direct(scenes, total_s=scenes[-1]["end"], three_d=clips3d, flow=illustrate, recent=recent); log(f"[REP THEORY VARIETY] {vm} (steered away from {len(recent)} recent openings)")
             if write_report: Path(str(out_path) + ".variety.json").write_text(__import__("json").dumps(vm, indent=1))
         except Exception as ex: log(f"[REP THEORY VARIETY] unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment"); variety = False
+    scenes = P.never_empty(scenes)      # after every look is chosen: no scene renders with nothing on it
+    log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
+    from . import blueprint as BP
+    log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3
         try: log(f"[REP THEORY 3D] body clips: {C3.prepare(scenes, log=log, mix=illustrate, directed=variety)}")
@@ -86,7 +109,13 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     n_frames = n_narr + (round(D.END_CARD_S * T.FPS) if card else 0)
     out_path = Path(out_path); out_path.parent.mkdir(parents=True, exist_ok=True); tmp = out_path.with_name(out_path.name + ".rendering.mp4")
     cmd = [_ff(), "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(T.FPS), "-i", "-"]
-    if voiceover_path: cmd += ["-i", voiceover_path, "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-t", f"{n_frames / T.FPS:.3f}"]
+    audio = voiceover_path; audio_dir = None
+    if voiceover_path and sound:      # event sounds + music bed under the voice, mastered to -14 LUFS (reptheory/sound.py); any failure keeps the narration alone
+        from . import sound as SND
+        import tempfile; audio_dir = tempfile.mkdtemp(prefix="rt_audio_")      # removed when the render ends, finished or not
+        audio, notes = SND.mix(scenes, voiceover_path, Path(audio_dir), end_s, title=title, ffmpeg=_ff(), log=log)
+        for n in notes: log(f"[REP THEORY SOUND] {n}")
+    if voiceover_path: cmd += ["-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-t", f"{n_frames / T.FPS:.3f}"]
     cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(tmp)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE); err: List[bytes] = []
     th = threading.Thread(target=lambda: err.append(proc.stderr.read()), daemon=True); th.start()
@@ -115,6 +144,9 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
         try: tmp.unlink(missing_ok=True)
         except OSError: pass
         raise
+    finally:
+        if audio_dir: __import__("shutil").rmtree(audio_dir, ignore_errors=True)
+    if not max_seconds and Path(project_dir).resolve().parent != Path(__import__("tempfile").gettempdir()).resolve(): remember_opening(project_dir, scenes, title)      # a throwaway project (tests, previews) is not one of the channel's videos
     for sc in scenes: counts[sc["kind"]] = counts.get(sc["kind"], 0) + 1
     rep = {"ok": True, "out": str(out_path), "quality": quality, "size": [W, H], "fps": T.FPS, "frames": n_frames, "end_card": bool(card), "plan": plan_info, "cadence": C.metrics(scenes, n_narr / T.FPS), "seconds": round(time.time() - t0, 2), "video_seconds": round(n_frames / T.FPS, 2),
            "scenes": [{k: v for k, v in sc.items() if k not in ("words",)} for sc in scenes], "kind_counts": counts, "art_used": sorted({sc["art"] for sc in scenes if sc["art"]}), "art_source": {a: (L.find(a) or {}).get("source") for a in {sc["art"] for sc in scenes if sc["art"]}},

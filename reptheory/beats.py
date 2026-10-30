@@ -22,6 +22,7 @@ FOCUS = {      # body part -> (label, glow ellipses (cx, cy, w, h) as fractions 
     "tendon": ("TENDONS", ((0.27, 0.38, 0.14, 0.34), (0.73, 0.38, 0.14, 0.34)), True),
     "bone": ("BONE", ((0.27, 0.50, 0.18, 0.12), (0.73, 0.50, 0.18, 0.12)), True),
 }
+GENERIC_PARTS = {"muscle"}      # words for tissue in general, not a part of the body: they never pick the anatomy plate on their own
 OFF_PLATE = {"back", "leg", "knee", "core", "shoulder", "chest", "calf", "lat", "scapula", "trapezius", "spine", "hip", "glute", "neck", "ankle", "elbow"}      # regions the forearm / hands plate does not show: it must never stand in for them
 KICKER = {"evidence": "STUDY", "mistake": "MISTAKE", "progression": "PROGRESSION", "routine": "ROUTINE", "benchmark": "TEST", "cue": "CUE"}
 REL_KICKER = {"limitation": "LIMIT", "comparison": "COMPARE", "attribution": "BELIEF", "warning": "WARNING"}      # the argument's own move, labelled; only used where the beat has no better label
@@ -38,7 +39,7 @@ def _toks(text: str) -> List[str]: return text.split()
 # ---------------------------------------------------------------- beats
 def _spans(ws: List[dict]) -> List[List[int]]:
     """Clause spans [i0, i1) over a sentence's words: cut after , ; : . ? !, then clauses that are too short (words or seconds) fold into their neighbour."""
-    n = len(ws); cuts = [i + 1 for i, w in enumerate(ws[:-1]) if re.search(r"[,;:.!?]$", w["w"])]; spans: List[List[int]] = []; a = 0
+    n = len(ws); cuts = [i + 1 for i, w in enumerate(ws[:-1]) if re.search(r"[,;:.!?]$", w["w"] + w.get("p", ""))]; spans: List[List[int]] = []; a = 0
     for c in cuts + [n]: spans.append([a, c]); a = c
     dur = lambda sp: ws[sp[1] - 1]["t1"] - ws[sp[0]]["t0"]
     k = 0
@@ -63,7 +64,7 @@ def make_beats(sentences: List[dict], art_ok) -> List[dict]:
         spans = [[0, len(ws)]] if (atomic or t_e - t_s < SPLIT_MIN_S or len(ws) < 2 * MIN_CLAUSE_WORDS) else _spans(ws)
         for k, (a, b) in enumerate(spans):
             w = ws[a:b]; t0 = t_s if k == 0 else float(w[0]["t0"]); t1 = t_e if k == len(spans) - 1 else float(ws[spans[k + 1][0]]["t0"])
-            beats.append({"sentence": si, "t0": t0, "t1": t1, "text": " ".join(x["w"] for x in w), "words": w, "timing": timing, "atomic": atomic, "src": s if atomic else None})
+            beats.append({"sentence": si, "t0": t0, "t1": t1, "text": " ".join(x["w"] + x.get("p", "") for x in w), "words": w, "timing": timing, "atomic": atomic, "src": s if atomic else None})
     out: List[dict] = []      # short beats join the previous one when they belong together (same continuous demonstration), never across a unit marker or an atomic structure
     for b in beats:
         p = out[-1] if out else None
@@ -83,7 +84,8 @@ def make_beats(sentences: List[dict], art_ok) -> List[dict]:
 
 def check_words(sentences: List[dict], beats: List[dict]) -> List[str]:
     """Problems (empty list = fine): the beats' words, in order, must equal the sentences' words in order."""
-    want = [t for s in sorted(sentences, key=lambda s: float(s["start"])) for t in _toks(s["text"])]; got = [t for b in beats for t in _toks(b["text"])]
+    norm = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())      # compared as words: the beats carry the script's spelling and punctuation, the transcript may not
+    want = [norm(t) for s in sorted(sentences, key=lambda s: float(s["start"])) for t in _toks(s["text"]) if norm(t)]; got = [norm(t) for b in beats for t in _toks(b["text"]) if norm(t)]
     if want == got: return []
     return [f"narration differs: {len(want)} words in, {len(got)} words in beats" + (f"; first difference at word {next(i for i, (a, c) in enumerate(zip(want, got)) if a != c)}" if len(want) == len(got) or want[:len(got)] != got else "")]
 
@@ -241,7 +243,7 @@ def candidates(b: dict, leg: dict, mark: Optional[dict], art_ok, last_part: str 
     elif leg["kind"] in ("prop", "hold", "pose", "anatomy") and not leg.get("missing_art"):
         out.append(_cand(f"{leg['kind']}:{leg['art']}:{leg['prop']}", leg["kind"], 0.95, f"the narration names {', '.join(LX.concepts_in(text))}: existing {leg['kind']} treatment", True, lambda: leg, art=leg["art"], prop=leg["prop"]))
     elif leg.get("missing_art"): out.append(_cand("none", "trainee", 0.0, f"the narration names a concept whose art ('{leg['missing_art']}') is not in the library", False, lambda: leg))
-    parts = [x["part"] for x in e["body"] if x["part"] in FOCUS]; off = [x for x in e["body"] if x["part"] in OFF_PLATE]
+    parts = [x["part"] for x in e["body"] if x["part"] in FOCUS and x["part"] not in GENERIC_PARTS]; off = [x for x in e["body"] if x["part"] in OFF_PLATE]      # "muscle is built from it" names no part: no anatomy picture for it
     if b["role"] in ("cue", "progression", "routine") and (e["props"] or e["exercises"] or parts[:1] == ["hand"]): parts = []      # "switch to the other hand" is an instruction, not a lesson about the hand
     if off and parts and leg["kind"] != "anatomy": out.append(_cand("none", "trainee", 0.0, f"the narration names the {off[0]['text']}, which the forearm / hands plate does not show: that picture is not used for it", False, lambda: leg))
     elif parts and leg["kind"] != "anatomy" and art_ok(ANATOMY_ART) and not off:
@@ -397,7 +399,7 @@ def plan(sentences: List[dict], title: str = "", art_ok=None, workdir=None, per_
         if status != "grounded" and best["kind"] in ("trainee", "callout"): b["reason"] = reason
     for c in comps:      # the unit a composition belongs to decides where a repeated headline counts as a repeat (a new week may name the same exercise again)
         fb = next((b for b in beats if b["id"] == c["beats"][0]), None); c["_sec"] = (fb.get("unit") or "") if fb else ""
-    scenes = P._finish(comps, title, art_ok)
+    scenes = P._finish(comps, title, art_ok, keep=P.LABELS | frozenset(LABEL_WORDS) | frozenset(w for x in STRUCTURAL for w in x.split()) | frozenset(w for lab, _r, _a in FOCUS.values() for w in lab.split()))
     for c in scenes: c.pop("_sec", None)
     for sc in scenes:      # section tag: the unit the scene belongs to (first beat decides); beats before any unit keep the video title
         first = next((b for b in beats if b["id"] == sc["beats"][0]), None); u = units.get(first.get("unit")) if first else None
