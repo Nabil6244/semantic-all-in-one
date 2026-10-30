@@ -271,7 +271,16 @@ def sync_report(aligned: Sequence[dict], words: Sequence[Sequence[Any]], tol: fl
         akey_fn, sim_fn = _sa.phon_key, getattr(_sa, "_key_sim", None)
     except Exception:       # noqa: BLE001
         pass
-    rows = list(aligned)
+    rows = []
+    for r in aligned:      # one sentence over several pictures (the CSV repeats its text on each row): one scene spanning those rows, not several short ones each owed all the words
+        key = " ".join(str(r.get("script_segment", "")).lower().split())
+        if rows and key and key == rows[-1][0]:
+            rows[-1][1]["end_time"] = _f(r, "end_time", "end", default=_f(r, "start_time", "start"))
+            rows[-1][1].pop("end", None)
+            rows[-1][1]["scene_number"] = f"{rows[-1][2]}-{r.get('scene_number', '')}"
+        else:
+            rows.append([key, dict(r), r.get("scene_number", len(rows) + 1)])
+    rows = [x[1] for x in rows]
     wins = []
     for i, r in enumerate(rows):
         s = _f(r, "start_time", "start")

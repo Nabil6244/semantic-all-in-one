@@ -30,6 +30,15 @@ def _dilate(m: np.ndarray, r: int) -> np.ndarray:
     b = scene._box(scene._box((sm > .3).astype(np.float32), max(1, r // q)), max(1, r // q // 2)) > .02
     return np.asarray(Image.fromarray(b.astype(np.uint8) * 255).resize((W, H), Image.BILINEAR)) > 100
 
+def _warp(img: Image.Image, sz, co, resample=Image.BILINEAR):
+    """Zoom+pan of img onto an sz canvas. Same sampling as an AFFINE transform when the map has no rotation and stays inside the picture (PIL's resize-with-box is about twice as fast); anything else takes the transform."""
+    a, b, c, d, e, f = co
+    if b == 0.0 and d == 0.0 and a > 0 and e > 0 and resample == Image.BILINEAR:
+        box = (c, f, c + a * sz[0], f + e * sz[1])
+        if box[0] >= 0 and box[1] >= 0 and box[2] <= img.width and box[3] <= img.height:
+            return img.resize(sz, Image.BILINEAR, box=box)
+    return img.transform(sz, Image.Transform.AFFINE, co, resample)
+
 class LayerRig:
     def __init__(self, fit_rgb: Image.Image, d: np.ndarray, size, fps, duration, seed, params):
         p = dict(params or {}); self.size = tuple(size); W, H = self.size; self.fps = fps; self.T = max(duration, 1e-3); sc = W / 1920.0; self.sc = sc
@@ -90,13 +99,12 @@ class LayerRig:
         for i, (rgb, a) in enumerate(self.layers):
             co = self.affine(i, t)
             if a is None:
-                out = rgb.transform(self.size, Image.Transform.AFFINE, co, Image.BILINEAR); continue
+                out = _warp(rgb, self.size, co); continue
             bx = self._box(i)
             if bx is None: continue
             x0, y0, x1, y1 = bx; sz = (x1 - x0, y1 - y0); a_, b_, c_, d_, e_, f_ = co
             rc = (a_, b_, c_ + a_ * x0 + b_ * y0, d_, e_, f_ + d_ * x0 + e_ * y0)
-            tr = rgb.transform(sz, Image.Transform.AFFINE, rc, Image.BILINEAR)
-            out.paste(tr, (x0, y0), a.transform(sz, Image.Transform.AFFINE, rc, Image.BILINEAR))
+            out.paste(_warp(rgb, sz, rc), (x0, y0), _warp(a, sz, rc))
         ph = self.lphase; Wo, Ho = self.size; gy, gx = np.mgrid[0:27, 0:48].astype(np.float32)
         lx = 24 + 16 * math.sin(t * .31 + ph[0]); ly = 13 + 7 * math.sin(t * .23 + ph[1])
         L = 1 + .055 * np.exp(-(((gx - lx) / 15) ** 2 + ((gy - ly) / 9) ** 2)) - .02

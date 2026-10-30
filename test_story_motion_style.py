@@ -28,4 +28,20 @@ ps = S.pipeline_settings(app)
 ok(ps["story_video"] and ps["story_dry_run"] is False and ps["story_motion_intensity"] == "medium", "default settings")
 txt = S.prompt_text()
 ok("scene_number" in txt and len(txt) > 500, "csv prompt loaded")
+
+# saved in the project: reopening keeps it, another project does not inherit it
+import tempfile
+from pathlib import Path
+from project_workspace import ProjectWorkspace
+with tempfile.TemporaryDirectory() as d:
+    ws = ProjectWorkspace(project_id="p1", title="p1", seq=1, root=Path(d) / "p1"); ws.ensure_dirs()
+    a = NS(generation_mode="normal", _workspace=ws)
+    P.pick_variant(a, "Story Motion")
+    ok(ws.story_motion() and S.is_active(a), "pick saves story_motion in the project")
+    ws2 = ProjectWorkspace(project_id="p1", title="p1", seq=1, root=Path(d) / "p1")
+    ok(S.is_active(NS(_workspace=ws2)) and P.active_variant(NS(_workspace=ws2), "normal") == "Story Motion", "reopened project is still Story Motion")
+    other = ProjectWorkspace(project_id="p2", title="p2", seq=2, root=Path(d) / "p2"); other.ensure_dirs()
+    ok(not S.is_active(NS(_workspace=other, _story_motion_active=True)), "another project does not inherit the session flag")
+    P.pick_variant(a, "Overscaled")
+    ok(not ws.story_motion(), "picking another style clears it")
 print("FAILED" if fails else "ALL OK"); raise SystemExit(1 if fails else 0)

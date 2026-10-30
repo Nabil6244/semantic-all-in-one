@@ -432,6 +432,21 @@ class ProjectWorkspace:
             data.pop("editing_system", None)
         self._write_meta(data)
 
+    def story_motion(self) -> bool:
+        """True when this project was set up as Story Motion (shots, parallax, links); saved so reopening the project keeps it."""
+        return bool(self.read_meta().get("story_motion"))
+
+    def set_story_motion(self, on: bool) -> None:
+        data = self.read_meta()
+        if bool(data.get("story_motion")) == bool(on):
+            return
+        data.update(self.to_dict())
+        if on:
+            data["story_motion"] = True
+        else:
+            data.pop("story_motion", None)
+        self._write_meta(data)
+
     def style_resolution(self) -> dict:
         data = self.read_meta().get("style_resolution")
         return dict(data) if isinstance(data, dict) else {}

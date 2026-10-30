@@ -13,6 +13,14 @@ from __future__ import annotations
 import csv, json
 from pathlib import Path
 
+def _no_motion_tag(prompt):
+    """The optional 'MOTION: ...' hint at the end of a CSV prompt is for the director, never for the image model."""
+    try:
+        from story_fast.direct import strip_motion
+        return strip_motion(prompt)
+    except Exception:
+        return prompt
+
 def export(plan, out_dir, name="project", start_no=101, character=False, protagonist=None):
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     rows, mp = [], {}
@@ -20,7 +28,7 @@ def export(plan, out_dir, name="project", start_no=101, character=False, protago
     for s in plan.get("shots", []):
         if s.get("picture") != "new" or s.get("character"):
             continue
-        rows.append({"scene_number": n, "script_segment": s.get("text", ""), "asset_type": "image", "prompt": s.get("prompt_en", "")})
+        rows.append({"scene_number": n, "script_segment": s.get("text", ""), "asset_type": "image", "prompt": _no_motion_tag(s.get("prompt_en", ""))})
         mp[str(s["shot_id"])] = str(n); n += 1
     files = {"count": len(rows)}
     p = out / f"{name}_flow_pictures.csv"

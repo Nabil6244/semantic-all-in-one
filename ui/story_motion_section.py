@@ -1,6 +1,5 @@
 """Story Motion: the style page's own box (Check plan, a few options; the CSV prompt button is the Plan step's). The style is the Normal video engine with the story pipeline on
-(shots that follow the narration, layered depth parallax, links, the quality audit): picking the card sets `app._story_motion_active` for the session,
-nothing is saved as a project setting and nothing runs until Generate. All the work lives in story_pipeline / story_check; this file is only the page.
+(shots that follow the narration, layered depth parallax, links, the quality audit): picking the card sets `app._story_motion_active` and saves "story_motion" in project.json (reopening keeps it); nothing runs until Generate. All the work lives in story_pipeline / story_check; this file is only the page.
 
 app.py / style_pages call: sync(app, active), is_active(app), pipeline_settings(app)."""
 from __future__ import annotations
@@ -22,7 +21,24 @@ _PROMPT_DOC = Path(__file__).resolve().parents[1] / "docs" / "story" / "dense_cs
 
 
 def is_active(app: Any) -> bool:
+    """The project's saved choice when a project is open (so reopening it keeps Story Motion), else the session flag."""
+    ws = getattr(app, "_workspace", None)
+    if ws is not None and hasattr(ws, "story_motion"):
+        try:
+            return bool(ws.story_motion())
+        except Exception:
+            pass
     return getattr(app, "_story_motion_active", False) is True      # exactly True: a stand-in object whose attributes are all truthy must not switch the prompt
+
+
+def remember(app: Any, on: bool) -> None:
+    """Save the pick in the open project (project.json "story_motion"); no project open = session flag only."""
+    ws = getattr(app, "_workspace", None)
+    if ws is not None and hasattr(ws, "set_story_motion"):
+        try:
+            ws.set_story_motion(bool(on))
+        except Exception:
+            pass
 
 
 def prompt_text() -> str:
@@ -37,10 +53,15 @@ def pipeline_settings(app: Any) -> Dict[str, Any]:
     out: Dict[str, Any] = {"story_video": True, "story_dry_run": False, "story_audit": bool(o["audit"]),
                            "story_motion_intensity": STRENGTH.get(o["strength"], "medium"), "story_motion_parallax": bool(o["parallax"])}
     # the motion clips are CPU work and there are hundreds (492 shots for a 24-minute video): one at a time took about two hours; a setting of
-    # story_workers in settings.json wins over this default (half the cores, at most 4)
-    out["story_workers"] = int(getattr(app, "_settings", {}).get("story_workers") or max(1, min(4, (os.cpu_count() or 2) // 2)))
+    # story_workers in settings.json wins over this default (cores minus 2, at most 8)
+    out["story_workers"] = int(getattr(app, "_settings", {}).get("story_workers") or max(1, min(8, (os.cpu_count() or 2) - 2)))
+    # real image-to-video is OFF unless settings.json says story_ai_video_live: true (default: shots are only recorded and counted)
+    for k in ("story_ai_video_live", "story_ai_video_max", "story_ai_video_live_max", "story_ai_video_start_image"):
+        if k in getattr(app, "_settings", {}):
+            out[k] = app._settings[k]
     if not o["links"]:
         out["story_shot_link_ratio"] = 0.0
+        out["story_cuts_only"] = True
     return out
 
 
@@ -59,8 +80,8 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     block.grid(row=row, column=0, sticky="ew", pady=(12, 0))
     block.grid_columnconfigure(0, weight=1)
     ctk.CTkLabel(block, text="Story Motion", font=ctk.CTkFont(size=14, weight="bold"), text_color=T.TEXT, anchor="w").grid(row=0, column=0, sticky="w", padx=16, pady=(14, 0))
-    ctk.CTkLabel(block, text="Every row of your CSV is one picture and one narration phrase (2-5 s). Each picture moves with layered depth parallax, and "
-                             "pictures are joined by short links. Nothing starts until Generate; Check plan below only reads your CSV.",
+    ctk.CTkLabel(block, text="Every row of your CSV is one picture. The app directs each shot from what the narration says: a camera move that fits it (push, track, tilt, reveal, "
+                             "parallax), environment effects where they belong, and transitions that follow the story. Nothing starts until Generate; Check plan below only reads your CSV.",
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=640).grid(row=1, column=0, sticky="w", padx=16, pady=(2, 8))
     tools = ctk.CTkFrame(block, fg_color="transparent")
     tools.grid(row=2, column=0, sticky="ew", padx=16)
@@ -71,7 +92,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     ctk.CTkLabel(opts, text="Motion", font=ctk.CTkFont(size=12), text_color=T.TEXT).grid(row=0, column=0, padx=(0, 8))
     ctk.CTkSegmentedButton(opts, values=list(STRENGTH), variable=app._story_vars["strength"]).grid(row=0, column=1, padx=(0, 18))
     ctk.CTkCheckBox(opts, text="Depth parallax", variable=app._story_vars["parallax"], font=ctk.CTkFont(size=12)).grid(row=0, column=2, padx=(0, 14))
-    ctk.CTkCheckBox(opts, text="Links between pictures", variable=app._story_vars["links"], font=ctk.CTkFont(size=12)).grid(row=0, column=3, padx=(0, 14))
+    ctk.CTkCheckBox(opts, text="Soft transitions (off = hard cuts only)", variable=app._story_vars["links"], font=ctk.CTkFont(size=12)).grid(row=0, column=3, padx=(0, 14))
     ctk.CTkCheckBox(opts, text="Quality check after render", variable=app._story_vars["audit"], font=ctk.CTkFont(size=12)).grid(row=0, column=4)
     app._story_plan_box = ctk.CTkTextbox(block, height=170, font=ctk.CTkFont(family="Menlo", size=11), wrap="word")
     app._story_plan_box.grid(row=4, column=0, sticky="ew", padx=16, pady=(10, 14))

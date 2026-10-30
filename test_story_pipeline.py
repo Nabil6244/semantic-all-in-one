@@ -226,7 +226,7 @@ class BuildStory(unittest.TestCase):
         self.proj = _make_project(self.root)
         self.counter = {}
         self.saved = _fake_modules(self.counter)
-        self.settings = {"words": WORDS, "audio_end": 20.0, "story_video": True}
+        self.settings = {"words": WORDS, "audio_end": 20.0, "story_video": True, "story_engine": "classic"}   # these tests pin the classic engine; story_fast has its own tests
 
     def tearDown(self):
         _restore(self.saved)
@@ -303,7 +303,7 @@ class EndToEnd(unittest.TestCase):
         try:
             root = Path(tmp.name)
             proj = _make_project(root)
-            run = sp.build_story(proj, {"words": WORDS, "audio_end": 20.0}, log=lambda m: None, dry_run=False)
+            run = sp.build_story(proj, {"words": WORDS, "audio_end": 20.0, "story_engine": "classic"}, log=lambda m: None, dry_run=False)
             self.assertEqual(len(run.clips), 7)                            # 6 shot clips + the link between sh1 and sh2
             self.assertEqual([g["kind"] for g in run.timeline["segments"]], ["shot", "shot", "link", "shot", "shot", "shot", "shot"])
             self.assertAlmostEqual(run.timeline["seconds"], 20.0, delta=0.05)

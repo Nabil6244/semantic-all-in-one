@@ -11629,16 +11629,24 @@ class VideoGeneratorApp(ctk.CTk):
             return None
 
     def _story_on(self) -> bool:
-        """Story pipeline for this render: the Story Motion style page is up (per session), or settings.json "story_video" (advanced, off by default)."""
-        return bool(getattr(self, "_story_motion_active", False) or self._settings.get("story_video"))
+        """Story pipeline for this render: the project's Story Motion style (saved in project.json), or settings.json "story_video" (advanced, off by default)."""
+        from ui import story_motion_section as _sm
+
+        return bool(_sm.is_active(self) or self._settings.get("story_video"))
+
+    def _story_motion_picked(self) -> bool:
+        """The Story Motion style itself is picked for this project (not just the advanced settings.json switch)."""
+        from ui import story_motion_section as _sm
+
+        return _sm.is_active(self)
 
     def _story_settings(self) -> dict:
         """What the Story Motion page adds to the story_pipeline settings (ui/story_motion_section.py); empty when the style is not picked."""
-        if not getattr(self, "_story_motion_active", False):
+        from ui import story_motion_section as _sm
+
+        if not _sm.is_active(self):
             return {}
         try:
-            from ui import story_motion_section as _sm
-
             return _sm.pipeline_settings(self)
         except Exception:
             return {"story_video": True, "story_dry_run": False}
@@ -15318,13 +15326,12 @@ class VideoGeneratorApp(ctk.CTk):
                         str(config["audio_path"]),
                         config["model"],
                     )
+            aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
             if self._story_on():   # Story Motion: story_align (phonetic, Hindi-safe) instead of exact-word matching; any failure keeps the app's aligner
                 import story_align as _story_align
 
                 with _story_align.applied(vg):
                     aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
-            else:
-                aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
             visual_plan = getattr(self, "_visual_plan", None)
             resolved_style = self._resolve_project_style(
@@ -15743,7 +15750,14 @@ class VideoGeneratorApp(ctk.CTk):
                         log=print, cancel=None,
                         dry_run=bool({**self._settings, **self._story_settings()}.get("story_dry_run", True)))
                     _hybrid_stack.enter_context(_story_pipeline.applied_story(vg, _story_run))
+                elif (Path(state_dir) / "story" / "shots.json").exists():   # a motion project must never quietly turn into a plain Ken Burns video
+                    raise RuntimeError("This project has Story Motion shots but the Story Motion style is not picked, so the render would have no motion. "
+                                       "Pick the Story Motion card and render again.")
             except Exception as exc:
+                if not self._story_motion_picked() and isinstance(exc, RuntimeError) and "Story Motion style is not picked" in str(exc):
+                    raise
+                if self._story_motion_picked():
+                    raise RuntimeError(f"Story Motion could not be built, so the render was stopped instead of making a video without motion: {exc}") from exc
                 print(f"[STORY] skipped ({exc})")
             _render_job = ledger.create("render", reuse_active=False)
             ledger.start(_render_job.id)

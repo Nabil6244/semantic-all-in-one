@@ -976,7 +976,7 @@ def render_travel(stills, schedule: Schedule, out_path: str, fps: float = 30, si
 def render_travel_slices(stills_by_scene: Dict, scene_windows: Dict, out_dir: str, margin: float = 0.5, fps: float = 30, size=(1920, 1080),
                          walker: Optional[str] = "silhouette", seed: int = 0, cancel=None, progress=None, walker_opts: Optional[dict] = None,
                          schedule: Optional[Schedule] = None, seam_style: str = "torn", fx: Optional[dict] = None, crf: int = 17,
-                         motion_blur: float = 0.0, use_cache: bool = True, **plan_kw) -> Dict:
+                         motion_blur: float = 0.0, use_cache: bool = True, zoom: Optional[Tuple[float, float]] = None, **plan_kw) -> Dict:
     """The travel rendered once, cut into per-scene mp4 slices (scene window +- margin, whole frames).  -> {scene_no: mp4 path}.
 
     stills_by_scene {scene_no: still}, scene_windows {scene_no: (start, end)}; scenes are ordered by start.  A slice covers frames
@@ -990,7 +990,7 @@ def render_travel_slices(stills_by_scene: Dict, scene_windows: Dict, out_dir: st
     ends = [float(scene_windows[s][1]) for s in scenes]
     sched = schedule or plan_schedule(starts, ends, **plan_kw)
     total = _frames(sched, fps)
-    key = _key(stills, sched, size, fps, walker, walker_opts, seed, (seam_style, fx and sorted(fx.items()), crf, motion_blur))
+    key = _key(stills, sched, size, fps, walker, walker_opts, seed, (seam_style, fx and sorted(fx.items()), crf, motion_blur) + ((("zoom",) + tuple(zoom)) if zoom else ()))
     os.makedirs(out_dir, exist_ok=True)
     wins, paths = {}, {}
     for s, (a, b) in zip(scenes, [scene_windows[x] for x in scenes]):
@@ -1002,7 +1002,7 @@ def render_travel_slices(stills_by_scene: Dict, scene_windows: Dict, out_dir: st
         paths[s] = os.path.join(out_dir, "travel_%s_%s_%d_%d.mp4" % (key, str(s), f0, f1))
     todo = [s for s in scenes if not (use_cache and os.path.exists(paths[s]) and os.path.getsize(paths[s]) > 0)]
     if todo:
-        strip = build_strip(stills, size, seam_style, seed=seed, dirs=sched.dirs)
+        strip = build_strip(stills, size, seam_style, seed=seed, dirs=sched.dirs, zoom=zoom)
         rend = TravelRenderer(strip, sched, _make_walker(walker, size, walker_opts, len(stills)), seed, fps, fx, motion_blur)
         outs = [(paths[s] + ".part.mp4", wins[s][0], wins[s][1]) for s in todo]
         _run(rend, outs, tuple(size), fps, crf, cancel, progress)

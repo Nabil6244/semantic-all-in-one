@@ -290,6 +290,8 @@ class StoryRun:
     risks: List[str] = field(default_factory=list)
     cancelled: bool = False
     state_dir: Optional[Path] = None
+    timer: Any = None                                    # story_fast.progress.StageTimer when the fast engine runs
+    ai_video_report: dict = field(default_factory=dict)  # story_fast.animate dry-run / live report (empty when no shot was flagged)
 
     @property
     def shots(self) -> List[dict]:
@@ -342,6 +344,9 @@ class StoryRun:
             ai = [j for j in jobs if j.get("type") == "ai_video_job"]
             if ai:
                 est["AI video jobs (credits, NOT run here)"] = f"{len(ai)} for {sum(float(j.get('seconds') or 0) for j in ai):.0f}s"
+            if self.ai_video_report.get("text"):
+                est["AI video (story_ai_video_live)"] = self.ai_video_report["text"] if not self.ai_video_report.get("live") else (
+                    f"live: {self.ai_video_report.get('animated', 0)} animated, {self.ai_video_report.get('cached', 0)} cached, {self.ai_video_report.get('failed', 0)} fell back to the camera clip")
         return est
 
 
@@ -485,6 +490,11 @@ def _generated_pictures(sd: Path, settings: dict, shots: Sequence[dict]) -> Dict
     return out
 
 
+def _fast_engine(settings: dict) -> bool:
+    """Story Motion's engine: 'fast' (story_fast: directed treatments, ffmpeg compositor, resumable runner; the default) or 'classic' (story_motion + per-frame python)."""
+    return str((settings or {}).get("story_engine") or "fast").lower() != "classic"
+
+
 def _motion_settings(settings: dict) -> dict:
     st = {k[len("story_motion_"):]: v for k, v in settings.items() if k.startswith("story_motion_")}
     try:
@@ -494,6 +504,36 @@ def _motion_settings(settings: dict) -> dict:
         pass
     st.setdefault("fps", int(settings.get("fps") or 30))
     return st
+
+
+def _project_grade(run, sd: Path, settings: dict, mset: dict, log) -> None:
+    """One colour grade per project, measured once from the pictures and cached in state/story/grade.json (re-measured only when the pictures change)."""
+    if str(settings.get("story_grade", "on")).lower() in ("off", "false", "0", "no"):
+        return
+    try:
+        from story_fast import grade as G
+        files = sorted({str(p) for p in (run.images or {}).values() if p and Path(str(p)).is_file()})
+        if not files:
+            return
+        sig = _sha([(f, Path(f).stat().st_size, int(Path(f).stat().st_mtime)) for f in files], "grade-1")
+        gp = sd / "grade.json"
+        g = G.load(str(gp))
+        if g is None or _read_sig(gp) != sig:
+            g = G.compute_project_grade(files)
+            sd.mkdir(parents=True, exist_ok=True)
+            d = g.to_dict(); d["sig"] = sig
+            gp.write_text(json.dumps(d, indent=1), encoding="utf-8")
+            log(f"[STORY] project grade measured from {g.stills} pictures")
+        mset["grade_path"] = str(gp); mset["grade_sig"] = sig
+    except Exception as exc:        # noqa: BLE001
+        log(f"[STORY] project grade skipped: {exc}")
+
+
+def _read_sig(p: Path):
+    try:
+        return json.loads(p.read_text(encoding="utf-8")).get("sig")
+    except (OSError, ValueError):
+        return None
 
 
 def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log: Callable[[str], None] = print,
@@ -509,6 +549,12 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
     project = Path(project_dir)
     run = StoryRun(project_dir=project, settings=settings, dry_run=bool(dry_run), state_dir=project / "state" / "story")
     sd = run.state_dir
+    if _fast_engine(settings):
+        try:
+            from story_fast.progress import StageTimer
+            run.timer = StageTimer()
+        except Exception:   # noqa: BLE001
+            run.timer = None
     csv_p, imgs, audio, timing = _find_inputs(project, settings)
     cancelled = lambda: bool(cancel and cancel())       # noqa: E731
 
@@ -530,6 +576,8 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
             run.risks.append(f"{name} failed: {exc}")
             log(f"[STORY] {name} failed: {exc}")
         st.seconds = time.time() - t0
+        if run.timer is not None and name in ("inputs", "align", "shots", "direct"):
+            run.timer.add("csv", st.seconds, 0)      # CSV processing = reading, aligning to the narration, shot plan and direction (local, no Flow)
         return True
 
     # ---- inputs
@@ -609,16 +657,47 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
     if not step("shots", s_shots):
         return run
 
+    # ---- B2: visual direction (story_fast): per shot treatment, environment, transition and continuity; the old motion engine keeps shot_director's own choices
+    def s_direct():
+        if not _fast_engine(settings):
+            return "skipped", "story_engine is 'classic'"
+        mod = _import("story_fast.direct")
+        if mod is None or not hasattr(mod, "direct"):
+            return "skipped", "story_fast.direct missing - the runner rotates simple treatments"
+        key = _sha([(s.get("shot_id"), s.get("start"), s.get("end"), s.get("text"), s.get("prompt_en")) for s in run.shots],
+                   {k: v for k, v in settings.items() if k.startswith("story_ai_video") or k == "story_seed"}, _module_stamp("story_fast.direct"))
+        hit = _load_cache(sd, "direct", key)
+        if hit:
+            run.plan["shots"] = hit["shots"]
+            run.plan["bible"] = hit.get("bible", {})
+            return "cached", f"{len(run.shots)} shots directed"
+        try:        # stretches of the same or near-identical picture (the director reframes them instead of repeating one move)
+            from story_fast import similar
+            import video_generator as _vg0
+            run.plan["shots"] = similar.annotate(run.shots, _scene_images(_vg0, imgs, run.aligned))
+        except Exception as exc:        # noqa: BLE001
+            log(f"[STORY] picture-repeat check skipped ({exc})")
+        res = _call(mod.direct, run.shots, {k: v for k, v in settings.items() if k.startswith("story_")}, int(settings.get("story_seed") or 0))
+        run.plan["shots"] = res["shots"]
+        run.plan["bible"] = res.get("bible", {})
+        run.plan["direction_stats"] = res.get("stats", {})
+        _save_cache(sd, "direct", key, {"shots": run.plan["shots"], "bible": run.plan["bible"]})
+        return "done", f"{len(run.shots)} shots directed: {res.get('stats', {}).get('summary', '')}".strip()
+    if _fast_engine(settings):
+        step("direct", s_direct)
+
     import video_generator as _vg
     run.images = _scene_images(_vg, imgs, run.aligned)
     made = _generated_pictures(sd, settings, run.shots)
     run.images.update(made)
     new_total = sum(1 for s in run.shots if s.get("picture") == "new")
-    if new_total and len(made) < new_total:
+    if new_total and len(made) < new_total and not _fast_engine(settings):
         run.risks.append(f"{new_total - len(made)} of {new_total} 'new' pictures do not exist yet: those shots show their scene's picture until the pictures are made")
 
     # ---- C: generation plan (never generates, in either mode)
     def s_gen():
+        if _fast_engine(settings):
+            return "skipped", "pictures come from your CSV (Flow); the director reframes them, so no extra pictures are planned"
         key = _sha([(s.get("shot_id"), s.get("picture"), s.get("character"), s.get("prompt_en")) for s in run.shots], run.plan.get("protagonist"),
                    settings.get("story_budget"), sorted(made), _module_stamp("story_character"))
         hit = _load_cache(sd, "gen_plan", key)
@@ -639,29 +718,45 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
 
     # ---- D: clip jobs, then (live only) the local clips and the timeline
     def s_clips():
+        fast = _fast_engine(settings)
         mset = _motion_settings(settings)
-        key = _sha([(s.get("shot_id"), s["start"], s["end"], s.get("motion_tier"), s.get("camera"), s.get("transition_in"), s.get("link_to_next")) for s in run.shots],
-                   sorted(run.images.items()), mset, dry_run, _module_stamp("story_motion", "health_cinema.puppet.links", "health_cinema.puppet.motion"))
+        if fast:
+            _project_grade(run, sd, settings, mset, log)
+        stamps = ("story_fast.runner", "story_fast.compose", "story_fast.direct") if fast else ("story_motion", "health_cinema.puppet.links", "health_cinema.puppet.motion")
+        key = _sha([(s.get("shot_id"), s["start"], s["end"], s.get("motion_tier"), s.get("camera"), s.get("transition_in"), s.get("link_to_next"), s.get("treatment"),
+                     s.get("tparams"), s.get("env")) for s in run.shots], sorted(run.images.items()), mset, dry_run, fast, _module_stamp(*stamps),
+                    *(["ai-live", settings.get("story_ai_video_max"), settings.get("story_ai_video_live_max")] if settings.get("story_ai_video_live") else []))
         hit = _load_cache(sd, "clips", key)
         if hit is not None and (dry_run or hit.get("timeline")):
             run.clip_plan, run.clips, run.timeline = hit.get("plan"), hit.get("clips", {}), hit.get("timeline")
+            run.ai_video_report = hit.get("ai_video_report") or {}
             files_ok = all(Path(p).is_file() for p in run.clips.values())
             if files_ok:
                 return "cached", f"{len(run.clips)} clips" if run.clips else "clip jobs (cached)"
             run.clips, run.timeline = {}, None
-        mod = _import("story_motion") or _import("health_cinema.puppet.story_motion")
+        mod = (_import("story_fast.runner") if fast else None) or _import("story_motion") or _import("health_cinema.puppet.story_motion")
         if mod is None or not hasattr(mod, "plan_clips"):
             return "skipped", "story_motion missing - no clip jobs"
         run.clip_plan = _call(mod.plan_clips, run.shots, run.images, mset)
+        if fast:
+            run.ai_video_report = _ai_video_report(run.clip_plan, settings)
         if dry_run or not hasattr(mod, "render_clips"):
-            _save_cache(sd, "clips", key, {"plan": run.clip_plan, "clips": {}, "timeline": None})
+            _save_cache(sd, "clips", key, {"plan": run.clip_plan, "clips": {}, "timeline": None, "ai_video_report": run.ai_video_report})
             return "done", f"{len(run.clip_plan)} clip jobs planned (nothing rendered)"
+        kw = {}
+        if fast:
+            kw = dict(progress=settings.get("story_progress"), state_path=str(sd / "fast_state.json"))
+            if run.timer is not None and hasattr(mod, "set_timer"):
+                mod.set_timer(run.timer)
+        workers = int(settings.get("story_workers") or (4 if fast else 1))
         run.clips = _clips_map(_call(mod.render_clips, run.clip_plan, sd / "clips", log=lambda *a, **k: log("[STORY] " + " ".join(str(x) for x in a)),
-                                     cancel=cancel, workers=int(settings.get("story_workers") or 1)))
+                                     cancel=cancel, workers=workers, **kw))
+        if fast:
+            run.clips = _animate_clips(run, sd / "clips", settings, cancel, log)
         if hasattr(mod, "assemble_timeline"):
             run.timeline = mod.assemble_timeline(run.shots, run.clips, mset)
-        _save_cache(sd, "clips", key, {"plan": run.clip_plan, "clips": run.clips, "timeline": run.timeline})
-        return "done", f"{len(run.clips)} clips rendered, timeline {len((run.timeline or {}).get('segments', []))} segments"
+        _save_cache(sd, "clips", key, {"plan": run.clip_plan, "clips": run.clips, "timeline": run.timeline, "ai_video_report": run.ai_video_report})
+        return "done", f"{len(run.clips)} clips rendered ({'story_fast' if fast else 'classic'}), timeline {len((run.timeline or {}).get('segments', []))} segments"
     if not step("clips", s_clips):
         return run
 
@@ -675,6 +770,36 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
         return "done", "pass" if run.audit.get("ok") else f"FAIL: {', '.join(failed)}"
     step("audit", s_audit)
     return _finish(run, log)
+
+
+def _ai_video_report(plan: Any, settings: dict) -> dict:
+    """Dry-run numbers for the flagged ai_video shots ("would animate N shots, ~S seconds"); {} when none were flagged. Sends nothing."""
+    try:
+        from story_fast import animate
+        rep = animate.dry_run_report([j for j in (plan or []) if isinstance(j, dict)], settings)
+        return rep if rep.get("candidates") else {}
+    except Exception:
+        return {}
+
+
+def _animate_clips(run: "StoryRun", clip_dir: Path, settings: dict, cancel: Any, log: Any) -> Dict[str, str]:
+    """After the local clips exist: with story_ai_video_live, real image-to-video for the selected shots (failures keep the local clip); otherwise only
+    ai_video_jobs.json is completed and the dry-run report kept. Never raises."""
+    try:
+        from story_fast import animate
+        jobs = [j for j in (run.clip_plan or []) if isinstance(j, dict)]
+        if not any(j.get("type") == "ai_video_job" for j in jobs):
+            return run.clips
+        out = animate.animate_jobs(jobs, run.clips, str(clip_dir), settings, log=lambda *a, **k: log(" ".join(str(x) for x in a)), cancel=cancel)
+        run.ai_video_report = out["report"]
+        if out["report"].get("cancelled"):
+            run.cancelled = True
+        if out["report"].get("failed"):
+            run.risks.append(f"ai video: {out['report']['failed']} shot(s) kept the camera clip (see ai_video_jobs.json)")
+        return out["clips"]
+    except Exception as e:
+        run.risks.append(f"ai video step skipped: {type(e).__name__}: {e}")
+        return run.clips
 
 
 def _clips_map(out: Any) -> Dict[str, str]:
@@ -700,6 +825,12 @@ def _clips_map(out: Any) -> Dict[str, str]:
 
 
 def _finish(run: StoryRun, log: Callable[[str], None]) -> StoryRun:
+    if run.timer is not None and run.state_dir is not None:
+        try:
+            run.timer.save(run.state_dir / "bench.json")
+            log(run.timer.report())
+        except Exception:   # noqa: BLE001
+            pass
     sh = run.shots
     if sh:
         if not run.clips:
@@ -709,6 +840,25 @@ def _finish(run: StoryRun, log: Callable[[str], None]) -> StoryRun:
 
 
 # =============================================================== applied_story
+
+def _sound_mix(run: StoryRun, voice: Any, audio_end: float) -> Optional[str]:
+    """Music bed, ambience and effects under the narration (story_fast.sound); None = keep the narration as it is. Never raises."""
+    try:
+        if not voice or not Path(str(voice)).is_file() or not run.shots or not (run.settings or {}).get("story_sound", True):
+            return None
+        from story_fast import sound
+        sd = (run.state_dir or Path(".")); sd.mkdir(parents=True, exist_ok=True)
+        plan = sound.build_plan(run.shots, float(audio_end), seed=int((run.settings or {}).get("story_seed") or 0))
+        res = sound.render_mix(plan, str(voice), str(sd / "mix.m4a"), work_dir=str(sd / "mix_work"))
+        if res.get("ok") and not res.get("fallback"):
+            run.sound_credits = res.get("credits")
+            print(f"[STORY] sound: mix rendered ({len(plan.get('ambience', []) if isinstance(plan, dict) else [])} beds)")
+            return str(sd / "mix.m4a")
+        print(f"[STORY] sound: narration only ({res.get('reason')})")
+    except Exception as exc:        # noqa: BLE001
+        print(f"[STORY] sound skipped ({exc})")
+    return None
+
 
 @contextlib.contextmanager
 def applied_story(vg: Any, run: Optional[StoryRun]):
@@ -776,6 +926,9 @@ def applied_story(vg: Any, run: Optional[StoryRun]):
                    "camera_by_scene": expand_camera(a.get("camera_by_scene"), units) or None,
                    "edit_decisions_by_scene": expand_edit_decisions(a.get("edit_decisions_by_scene"), wins, units, clip_ix) or None}
             a.update(new)
+            mixed = _sound_mix(run, a.get("audio_path"), audio_end)
+            if mixed:
+                a["audio_path"] = mixed
             if "visual_transitions" in a:
                 a["visual_transitions"] = bool(new["transition_by_scene"])
             print(f"[STORY] render: {len(old_rows)} scenes -> {len(rows)} units ({len(clip_ix)} clips, {len(media) - len(clip_ix)} own pictures)")
