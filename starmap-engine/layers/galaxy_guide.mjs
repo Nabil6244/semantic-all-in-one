@@ -4,7 +4,7 @@
 // enough out to see the disk whole and near enough that the galaxy is more than a dot.
 //   { "type": "galaxy_guide" }
 import { inBodyAxes } from '../lib/overlay.mjs';
-import { drawPointer } from './pointer.mjs';
+import { claimPin, drawPointer } from './pointer.mjs';
 
 const ramp = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 
@@ -12,6 +12,15 @@ export default {
   type: 'galaxy_guide',
   space: 'world',
   create: (def, ctx) => ({ def, galaxies: [...ctx.world.nodes.values()].filter((n) => n.kind === 'galaxy' && Array.isArray(n.features)) }),
+  pins(inst, f) {
+    for (const n of inst.galaxies) {
+      const c = f.locate(n.id);
+      if (!c) continue;
+      const k = Math.hypot(...c) / n.radiusKm;
+      if (f.alpha * ramp(k, 1.4, 2.2) * (1 - ramp(k, 7, 11)) <= 0.01) continue;
+      for (const ft of n.features) claimPin(f, ft.at ? f.locate(ft.at) : inBodyAxes(f, n.id, ft.at_ly[0], ft.at_ly[1]));
+    }
+  },
   draw(inst, f) {
     for (const n of inst.galaxies) {
       const c = f.locate(n.id);

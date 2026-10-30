@@ -98,7 +98,10 @@ def install(app: Any, actions: Any) -> None:
         from ui.widgets import make_button
         make_button(prompt_row, "Copy the CSV prompt", lambda: app._copy_csv_prompt("hybrid", app._hybrid_status_var, graphics=False),
                     size="lg", width=150).grid(row=0, column=0, padx=(0, 10))
-        ctk.CTkLabel(prompt_row, text="Paste it into any AI with your script, then load the CSV it writes.", font=ctk.CTkFont(size=11)).grid(row=0, column=1)
+        make_button(prompt_row, "Copy the scene prompt", lambda: app._copy_csv_prompt("explainer_scenes", app._hybrid_status_var, graphics=False),
+                    size="lg", width=170).grid(row=0, column=1, padx=(0, 10))
+        ctk.CTkLabel(prompt_row, text="Paste either into any AI with your script, then load the CSV it writes. The scene prompt gives each scene its own place, period and cast.",
+                     font=ctk.CTkFont(size=11)).grid(row=0, column=2)
     except Exception:
         pass
     app._hybrid_explainer_var.trace_add("write", lambda *a: sync(app))

@@ -1,0 +1,40 @@
+You are the scene planner for a documentary video. You receive the narration script. Write ONE CSV (no commentary, no code fence) that says, for every stretch of the story, where it happens, when, in what architecture, and who is there. The tool turns each scene into a picture made for exactly that place and time, so be specific and never generic.
+
+HEADER (first row, exactly):
+row,scene,vo_anchor,id,name,look,place,type,region,period,architecture,background,people,activity,objects,mood,continues,route
+
+TWO KINDS OF ROW
+cast  - a recurring person, written once. Fill id (one lowercase word), name, look. The look is a fixed description reused in every picture with that person: age, face, hair, and clothing correct for the period. Example:
+cast,,,doge,The Doge,"old man, white beard, crimson robe and horn-shaped cap",,,,,,,,,,,,
+scene - one stretch of narration. Fill scene (1, 2, 3...), vo_anchor, and the scene columns.
+
+SCENE COLUMNS
+vo_anchor     the first 3 to 6 words of the narration this scene starts on, copied exactly from the script, in order. The scene lasts until the next scene's words.
+place         what the place is: "canal city on a lagoon", "hill village", "frontier river crossing".
+type          exactly one of: farm, village, town, street, coast, sea, mountain, border, station.
+region        the real country, city or region.
+period        the year of the story (a number; use a number followed by BC for ancient times).
+architecture  the real building style of that place and time ("Gothic palazzi", "Joseon hanok"). Leave empty only for plain modern places.
+background    a short phrase for the backdrop that makes THIS scene different from the one before.
+people        cast ids, comma-separated. Reuse the same ids whenever the same person appears.
+activity      what they are doing. objects: what is in the scene. mood: light and feeling ("dusk, tense").
+continues     yes only when the narration stays in the exact same scene as the row before. Otherwise leave empty.
+route         leave empty. Use flow only to force a made picture.
+
+RULES
+1. Every scene has its own place or backdrop. Two scenes in a row must never look the same unless continues is yes.
+2. Period and architecture must be true for the story. Never use a modern look for an old story.
+3. Keep clothing and faces consistent: always describe a person through their cast row, never in the scene row.
+4. Give a scene to every sentence that shows people in a place. Skip sentences that are maps, numbers or documents; the tool handles those itself.
+5. Use plain commas inside a cell. Quote a cell only when it must contain a comma, in standard CSV.
+
+EXAMPLE
+Script: "In 1450 the merchants of Venice sailed into the lagoon at dusk. Then the farmers of the Veneto loaded wheat at the village market."
+row,scene,vo_anchor,id,name,look,place,type,region,period,architecture,background,people,activity,objects,mood,continues,route
+cast,,,doge,The Doge,"old man, white beard, crimson robe and horn-shaped cap",,,,,,,,,,,,
+cast,,,farmer,The farmer,"weathered man in his forties, rough linen tunic and straw hat",,,,,,,,,,,,
+scene,1,In 1450 the merchants,,,,canal city on a lagoon,coast,Venice,1450,Gothic palazzi,green lagoon crowded with galleys,doge,sailing in,galleys and cargo,"dusk, calm",,
+scene,2,Then the farmers,,,,hill village market,village,Veneto,1450,timber-framed houses,market square with stalls,farmer,loading wheat,sacks of wheat,morning light,,
+
+NOW WRITE THE SCENE CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

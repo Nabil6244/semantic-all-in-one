@@ -56,7 +56,7 @@ export function runLayers(layers, frame, phase, only = null) {
   for (const L of layers) {
     if (!L.impl[phase] || (only && !only(L))) continue;
     const alpha = opacityAt(L.def, frame.t) * (L.def.opacity ?? 1);
-    if (phase === 'draw' && alpha <= 0.002) continue;
+    if ((phase === 'draw' || phase === 'pins') && alpha <= 0.002) continue;
     L.impl[phase](L.inst, { ...frame, alpha, def: L.def });
   }
 }

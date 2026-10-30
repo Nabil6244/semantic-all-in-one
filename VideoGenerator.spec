@@ -201,9 +201,10 @@ datas += health_data_files(ROOT)
 hiddenimports += health_modules(ROOT)   # app.py imports it only inside methods
 
 # Rep Theory: reptheory/ (opt-in style; reuses the bundled ffmpeg, Pillow, numpy and fonts; its pictures ship in assets/reptheory; a user library in ~/RepTheoryAssets is optional). See reptheory/packaging.py.
-from reptheory.packaging import data_files as reptheory_data_files, python_modules as reptheory_modules  # noqa: E402
+from reptheory.packaging import data_files as reptheory_data_files, model_data_files as reptheory_model_files, python_modules as reptheory_modules  # noqa: E402
 
 datas += reptheory_data_files(ROOT)   # the four bundled pictures (assets/reptheory)
+datas += reptheory_model_files(ROOT)   # the 3D gym body for muscle clips (assets/reptheory_3d, Z-Anatomy CC BY-SA 4.0 with its notice)
 hiddenimports += reptheory_modules(ROOT)   # app.py imports it only inside methods
 
 # Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the

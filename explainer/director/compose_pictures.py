@@ -90,7 +90,10 @@ HISTORIC_HEADS = frozenset("""empire empires kingdom kingdoms dynasty dynasties 
 council coronation emperor emperors king queen pharaoh sultan caesar legion legions knights knight cathedral basilica fortress castle temple pyramid pyramids ruins manuscript fresco mosaic""".split())
 MODERN_WORDS = frozenset("""vaporetto vaporettos ferry ferries cruise cruiseship tourist tourists tourism modern skyline skyscraper skyscrapers drone aerial car cars bus buses traffic train tram airport
 airplane plane motorboat speedboat yacht yachts jetski kayak kayaks paddleboard cafe restaurant hotel shopping smartphone selfie neon nightlife wedding bride fashion business office laptop cityscape
-urban apartment""".split())
+urban apartment toy toys model models diorama dioramas reenactment reenactments reenactor reenactors reenacting figurine figurines lego cosplay costume costumes replica replicas souvenir souvenirs
+gladiators-show actor actors actress""".split())
+ART_WORDS = frozenset("""painting paintings painted engraving engravings etching etchings woodcut woodcuts lithograph lithographs illustration illustrations drawing drawings sketch fresco frescoes mural mosaic
+manuscript tapestry portrait portraits artwork oil canvas parchment map maps print prints""".split())     # what a fetched picture must SAY it is: "historic"/"antique" alone also describe a modern photo of ruins or a toy army
 PERIOD_WORDS = frozenset("""painting paintings painted engraving engravings etching etchings illustration illustrations drawing drawings sketch fresco mosaic manuscript miniature tapestry sculpture sculpted statue
 bust relief antique vintage old ancient historic historical medieval renaissance roman ruins ruin map maps cartography parchment oil canvas gallery museum artwork art""".split())
 
@@ -168,7 +171,21 @@ def subject_words(query: str) -> Set[str]:
     return out
 
 
-def vet_picture(meta: Mapping[str, Any], year: Optional[int], subject: Optional[str] = None) -> Tuple[bool, str]:
+def request_year(prompt: str) -> Optional[int]:
+    """The period a picture REQUEST asks for: the planner ends the query with ERA_MODIFIERS ("... historical painting" before 1500, "... antique engraving" 1500-1800). None for any other request."""
+    p = " ".join(str(prompt or "").lower().split())
+    for (a, b), yr in zip(ERA_MODIFIERS, (1000, 1650)):
+        if p.endswith(f"{a} {b}"):
+            return yr
+    return None
+
+
+def request_subject(prompt: str) -> str:
+    """The query without its two era words."""
+    return " ".join(str(prompt or "").split()[:-2])
+
+
+def vet_picture(meta: Mapping[str, Any], year: Optional[int], subject: Optional[str] = None, curated: bool = False) -> Tuple[bool, str]:
     """Cheap period check of a FETCHED picture from what the provider says about it (the words of its page URL, its alt text/tags/title as recorded by the application's manifest). For a beat before
     ERA_BEFORE_YEAR the picture must say it is old art or a historic place (PERIOD_WORDS) and must not say it is modern (MODERN_WORDS); otherwise any picture passes. Unknown metadata fails: a
     picture nobody can vouch for does not replace an illustration."""
@@ -181,9 +198,11 @@ def vet_picture(meta: Mapping[str, Any], year: Optional[int], subject: Optional[
     bad = sorted(ws & MODERN_WORDS)
     if bad:
         return False, f"it looks modern for a narration about the year {year}: {', '.join(bad)}"
-    good = sorted(ws & PERIOD_WORDS)
+    good = sorted(ws & ART_WORDS)
+    if curated and not good:                      # a Wikimedia Commons result found for "<subject> painting/engraving": its title rarely says "painting", so subject + nothing modern is the test
+        good = ["wikimedia commons"]
     if not good:
-        return False, f"nothing says it is old art or a historic place (year {year})"
+        return False, f"nothing says it is a painting, engraving or other period artwork (year {year})"
     want = subject_words(subject) if subject else set()
     if want and not (ws & want):
         return False, f"it is old art but nothing says it shows the subject ({', '.join(sorted(want)[:4])})"

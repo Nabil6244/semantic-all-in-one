@@ -21,3 +21,5 @@ def ease_in_out(t: float) -> float:
     t = min(1.0, max(0.0, t)); return 3 * t * t - 2 * t ** 3
 def ease_back(t: float) -> float:      # overshoots a little, then settles: used for pop-in of numbers and symbols
     t = min(1.0, max(0.0, t)); c = 1.70158; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2
+
+MODEL_CREDIT = "3D MODEL · Z-ANATOMY · CC BY-SA 4.0"      # shown under every 3D body panel (the shipped model is a Z-Anatomy derivative)

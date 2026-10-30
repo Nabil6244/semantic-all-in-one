@@ -16,6 +16,15 @@ def cartoon_share(settings: Optional[Dict[str, Any]]) -> float:
     return 0.0 if v != v or v <= 0 else min(v, 0.5)
 
 
+def scene_flow_share(settings: Optional[Dict[str, Any]]) -> float:
+    """`explainer_scene_flow_share`: the largest share of the runtime Flow images made for scenes may take (0 to 1, default 0.5; a bad value keeps 0.5)."""
+    try:
+        v = float((settings or {}).get("explainer_scene_flow_share", 0.5))
+    except (TypeError, ValueError, AttributeError):
+        return 0.5
+    return 0.5 if v != v else min(max(v, 0.0), 1.0)
+
+
 def _flag(settings: Optional[Dict[str, Any]], key: str) -> bool:
     """A switch from the application's settings: only a real True (or "true"/"1"/"yes"/"on", or the number 1) turns it on; missing or any bad value means False."""
     v = settings.get(key, False) if isinstance(settings, dict) else False
@@ -157,7 +166,7 @@ def look_settings(settings: Optional[Dict[str, Any]]):
 FULL_LOOK = {"explainer_sound": True, "explainer_motion": True, "explainer_numbers": True, "explainer_maplines": True, "explainer_variety": True, "explainer_budget": True,
              "explainer_fill": True, "explainer_scenes2": True, "explainer_mapoverlay": True, "explainer_texture": True, "explainer_dialogue": True,
              "explainer_meaning": True, "explainer_recipes": True, "explainer_continuity": True, "explainer_animate": True, "explainer_alive": True, "explainer_pictures": True,
-             "explainer_camera": "drift", "explainer_cartoon_share": 0.33, "explainer_footage_share": 0.0}
+             "explainer_scene_intel": True, "explainer_camera": "drift", "explainer_cartoon_share": 0.33, "explainer_footage_share": 0.0}
 
 
 def full_look(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -166,7 +175,7 @@ def full_look(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any], *, work_dir: str, duration: Optional[float] = None, places: Sequence[str] = (),
-                archive_dir: Optional[str] = None, dissolve_s: float = 0.0, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
+                archive_dir: Optional[str] = None, dissolve_s: float = 0.0, scene_notes: Sequence = (), log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
     """Returns {"plan": dict | None, "problems": [...], "warnings": [...], "report": {...}}. `settings` is the application's settings dict (read only; the one key read is `explainer_cartoon_share`, default 0)."""
     if archive_dir is None and _flag(settings, "explainer_pictures"):     # the people the narration names get a vetted portrait (Wikimedia Commons, public domain), kept in the work folder; none found = none shown
         try:
@@ -176,6 +185,6 @@ def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any]
             archive_dir = None
     opt = DirectorOptions(work_dir=work_dir, places=list(places), archive_dir=archive_dir, dissolve_s=float(dissolve_s), cartoon_share=cartoon_share(settings),
                           footage_share=footage_settings(settings)[0], footage_source=footage_settings(settings)[1],
-                          background=look_settings(settings)[0], narrator_style=look_settings(settings)[1], motion=motion_enabled(settings), fill=fill_enabled(settings), **motion_pack(settings), **extras(settings), max_map_share=map_share(settings))
+                          background=look_settings(settings)[0], narrator_style=look_settings(settings)[1], motion=motion_enabled(settings), fill=fill_enabled(settings), **motion_pack(settings), **extras(settings), scene_intel=_flag(settings, "explainer_scene_intel"), scene_flow_share=scene_flow_share(settings), scene_notes=[dict(n) for n in scene_notes or ()], max_map_share=map_share(settings))
     r = direct(words, script, opt, duration=duration, log=log)
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

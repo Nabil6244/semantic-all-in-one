@@ -11,7 +11,7 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
 def _sig(sc: dict) -> tuple:
     sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
@@ -41,6 +41,11 @@ def events(scenes: List[dict]) -> List[dict]:
         seen_g: set = set()
         for g in sorted((sc.get("glows") or ([sc["glow"]] if sc.get("glow") else [])), key=lambda g: g["at"]):
             key = (g.get("label"), tuple(map(tuple, g.get("regions", ())))); ev.append({"t": float(g["at"]), "type": "secondary", "what": "glow", "scene": n, "target": g.get("label", ""), "meaningful": key not in seen_g}); seen_g.add(key)
+        for k2, key in (("steps", "items"), ("versus", None)):      # cards that build item by item: each item arriving is a change of what is communicated
+            c = sc.get(k2)
+            if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} item", "scene": n, "target": x["text"], "meaningful": True} for x in (c if key else [c["a"], c["b"]])]
+        if sc.get("stat"): ev.append({"t": float(sc["stat"]["at"]), "type": "secondary", "what": "stat number", "scene": n, "target": f"{sc['stat']['value']:g} {sc['stat']['unit']}", "meaningful": True})
+        if sc.get("takeaway"): ev += [{"t": float(w["t0"]), "type": "secondary", "what": "spoken word lights", "scene": n, "meaningful": False} for w in sc["takeaway"]["words"][::4]]
         if sc.get("grip_at") is not None: ev.append({"t": float(sc["grip_at"]), "type": "secondary", "what": "grip ring", "scene": n, "meaningful": True})
         if sc.get("flip_at") is not None: ev.append({"t": float(sc["flip_at"]), "type": "secondary", "what": "hand switch", "scene": n, "meaningful": True})
         for c in sc.get("cues", []): ev.append({"t": float(c["at"]), "type": "secondary", "what": c.get("what", "cue"), "scene": n, "meaningful": True})

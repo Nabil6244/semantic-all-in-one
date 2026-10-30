@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from . import art as A, library as L
 
-SKIP_KINDS = {"tier", "equation"}      # these keep their own graphic
+SKIP_KINDS = {"tier", "equation", "stat", "steps", "versus", "takeaway"}      # these keep their own graphic
 REPEAT_KINDS = {"anatomy", "prop", "hold", "pose", "trainee"}      # a stored picture is kept for the first scene, but never shown again in the next scene: that scene gets its own picture
 SYNTH_RX = re.compile(r"\b(synthetic|made[- ]up|fictional|invented|test study)\b", re.I)
 TISSUE_RX = re.compile(r"\b(muscle|muscles|tendon|tendons|bone|bones|fibre|fibres|fiber|fibers|ligament|joint|nerve|blood flow|tissue)\b", re.I)
@@ -28,13 +28,14 @@ def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf
 def eligible(sc: dict) -> bool:
     return sc["kind"] not in SKIP_KINDS and sc["kind"] != "clip3d" and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
 
-def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True) -> Dict[str, int]:
+def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True, directed: bool = False) -> Dict[str, int]:
     """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`)."""
     todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0}
     prev = None
     for sc in scenes:
+        if directed and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
         sig = (sc["kind"], sc.get("art"), sc.get("prop")); repeat = sc["kind"] in REPEAT_KINDS and prev == sig; prev = sig
-        if sc["kind"] in REPEAT_KINDS and not repeat: stat["skipped"] += 1; continue
+        if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not directed: stat["skipped"] += 1; continue
         if not eligible(sc): stat["skipped"] += 1; continue
         p = prompt_for(sc["text"]); i = art_id(p); sc["_illus"] = (i, p)
         if L.find(i): stat["reused"] += 1

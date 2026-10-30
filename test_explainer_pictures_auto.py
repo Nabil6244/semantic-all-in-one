@@ -102,20 +102,24 @@ class PlanningByPeriod(unittest.TestCase):
 class Vet(unittest.TestCase):
     FERRY = {"source_url": "https://www.pexels.com/photo/ferry-navigates-venetian-lagoon-waters-39487501/", "provider": "pexels"}
     RUINS = {"source_url": "https://www.pexels.com/photo/ancient-roman-forum-with-ruins-in-rome-36713239/"}
+    ART = {"source_url": "https://commons.wikimedia.org/wiki/File:Roman_forum_oil_painting.jpg", "alt": "Roman Forum, oil painting on canvas"}      # says it is artwork AND names the subject
+    TOYS = {"alt": "Roman army toy soldiers in a diorama", "tags": "roman, army, historical, antique"}
     PAINT = {"source_url": "https://www.pexels.com/photo/oil-painting-of-venice-lagoon-1/"}
 
     def test_modern_refused_for_old_narration(self):
         ok, why = CP.vet_picture(self.FERRY, 550)
         self.assertFalse(ok)
         self.assertIn("ferry", why)
-        self.assertTrue(CP.vet_picture(self.RUINS, 550)[0])
+        self.assertTrue(CP.vet_picture(self.ART, 550)[0])
+        self.assertFalse(CP.vet_picture(self.RUINS, 550)[0])                  # a modern photo of ruins is not period artwork
+        self.assertFalse(CP.vet_picture(self.TOYS, 550)[0])                   # "historical" and "antique" tags alone do not make a toy army old art
         self.assertTrue(CP.vet_picture(self.PAINT, 550)[0])
 
     def test_old_art_must_show_the_subject(self):
         tomb = {"source_url": "https://www.pexels.com/photo/close-up-shot-of-a-painting-7512535/"}
         q = "Western Roman Empire historical painting".rsplit(" ", 2)[0]
         self.assertFalse(CP.vet_picture(tomb, 476, q)[0])                      # old art, wrong subject
-        self.assertTrue(CP.vet_picture(self.RUINS, 476, q)[0])                 # roman forum / rome
+        self.assertTrue(CP.vet_picture(self.ART, 476, q)[0])                   # roman forum / rome
         self.assertFalse(CP.vet_picture({"source_url": "https://www.pexels.com/photo/scenic-view-of-nin-with-historical-ruins-1/"}, 476, "adriatic")[0])
         self.assertTrue(CP.vet_picture(tomb, 476)[0])                          # no subject given: era check only
 
@@ -147,7 +151,7 @@ class Vet(unittest.TestCase):
 
     def test_accepted_stays(self):
         p = self.plan()
-        res = CP.vet_plan_pictures(p, {"era": {"e7": {"year": 550}}}, {"stock_image:Venetian Lagoon": self.RUINS})
+        res = CP.vet_plan_pictures(p, {"era": {"e7": {"year": 550}}}, {"stock_image:Venetian Lagoon": self.ART})
         self.assertEqual(res["refused"], [])
         self.assertEqual(p["beats"][0]["footage"]["clips"][0]["asset"], "stock_image:Venetian Lagoon")
 
@@ -210,9 +214,46 @@ class FetchVetsPeriodPictures(unittest.TestCase):
         self.assertIn("Retry", r.missing["1"])
 
     def test_period_photo_is_kept(self):
-        r = self.run_fetch("Western Roman Empire historical painting", "https://www.pexels.com/photo/ancient-roman-forum-with-ruins-in-rome-36713239/")
+        r = self.run_fetch("Western Roman Empire historical painting", "https://www.pexels.com/photo/roman-forum-oil-painting-on-canvas-36713239/")
         self.assertIn("1", r.paths)
+
+    def test_modern_photo_of_ruins_is_refused(self):
+        r = self.run_fetch("Western Roman Empire historical painting", "https://www.pexels.com/photo/ancient-roman-forum-with-ruins-in-rome-36713239/")
+        self.assertEqual(r.paths, {})
 
     def test_prompt_without_era_words_is_untouched(self):
         r = self.run_fetch("Adriatic Sea", "https://www.pexels.com/photo/cityscape-of-piran-croatia-6726262/")
         self.assertIn("1", r.paths)
+
+
+class PeriodGateAtPick(unittest.TestCase):
+    """The stock picker drops candidates that are not period artwork of the subject BEFORE ranking, so the next real result wins instead of a toy army or a modern photo."""
+
+    def cand(self, i, alt, tags="", url=""):
+        from types import SimpleNamespace
+        return SimpleNamespace(asset_id=str(i), source_url=url, extra={"alt": alt, "tags": tags})
+
+    def gate(self, stock, cands):
+        from providers.stock.base import StockProvider
+        from types import SimpleNamespace
+        sp = StockProvider.__new__(StockProvider)
+        sc = SimpleNamespace(stock=stock, stock_media_type="image", scene_number="1")
+        return [c.asset_id for c in sp._period_gate(sc, cands, lambda m: None)]
+
+    def test_only_artwork_of_the_subject_passes(self):
+        cs = [self.cand(1, "Colorful fresco depicting ancient Roman life in Pompeii"), self.cand(2, "Miniature toy soldiers in a battle diorama", "roman, historical"),
+              self.cand(3, "Aerial view of Rome skyline"), self.cand(4, "Oil painting of the Mongol cavalry")]
+        self.assertEqual(self.gate("Western Roman Empire historical painting", cs), ["1"])
+
+    def test_commons_result_needs_subject_and_nothing_modern_not_an_art_word(self):
+        a = self.cand(1, "Siege of Constantinople 1453 - Byzantine Empire")
+        a.extra["collection"] = "wikimedia"
+        b = self.cand(2, "Byzantine Empire souvenir shop")
+        b.extra["collection"] = "wikimedia"
+        c = self.cand(3, "Siege of Rome 1527")
+        c.extra["collection"] = "wikimedia"
+        self.assertEqual(self.gate("Byzantine Empire historical painting", [a, b, c]), ["1"])
+
+    def test_requests_without_era_words_are_untouched(self):
+        cs = [self.cand(1, "Aerial view of Rome skyline")]
+        self.assertEqual(self.gate("Rome skyline", cs), ["1"])

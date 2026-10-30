@@ -171,7 +171,9 @@ def pill(cv: Image.Image, ctx: Ctx, x: float, y: float, text: str, p: float, acc
 def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0):
     """Right-hand callout: bold headline, key value (orange), outlined chips. Each piece slides up and fades in as its own time arrives. Stack is centred on anchor_y."""
     d = ImageDraw.Draw(cv, "RGBA"); hf, vf = ctx.font(T.HEAD_FONT, 104), ctx.font(T.HEAD_FONT, 168); x = ctx.px(x)
-    lines = _wrap(d, headline, hf, ctx.W - x - ctx.px(80)) if headline else []; hh = len(lines) * ctx.px(112); vh = ctx.px(180) if value else 0; ch = len(chips) * ctx.px(96)
+    room = ctx.W - x - ctx.px(80); size = 104
+    while headline and size > 56 and max(_text_w(d, w, hf, ctx_sp(hf)) for w in headline.split()) > room: size -= 6; hf = ctx.font(T.HEAD_FONT, size)      # a single long word ("STRAIGHTEN") in a narrow column shrinks instead of running off the frame
+    lines = _wrap(d, headline, hf, room) if headline else []; hh = len(lines) * ctx.px(112); vh = ctx.px(180) if value else 0; ch = len(chips) * ctx.px(96)
     kh = ctx.px(48) if kicker else 0; total = kh + hh + (ctx.px(14) if lines else 0) + vh + ch + (ctx.px(26) if chips and (lines or value) else 0); y = int(ctx.H * anchor_y - total / 2)
     if kicker: text_spaced(d, (x, y + int((1 - T.ease_out(k_p)) * 16 * ctx.S)), kicker, ctx.font(T.BODY_FONT, 28), T.ORANGE + (int(255 * min(1, k_p * 1.6)),), ctx.px(4)); y += kh
     hl_p, val_p = min(1.0, max(floor if headline else 0.0, hl_p)), min(1.0, max(floor if (value and not headline) else 0.0, val_p))      # the page's main element is legible from its first frame (floor), its entrance only moves it into place

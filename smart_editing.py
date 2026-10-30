@@ -34,7 +34,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 16  # 16: text pops dedupe on the spoken word ("1822," == "1822"); 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
+SMART_EDITING_VERSION = 17  # 17: ambience from the semantic engine (context, picture + narration, AI only for conflicts), event sounds; 16: text pops dedupe on the spoken word ("1822," == "1822"); 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -1873,6 +1873,8 @@ def refresh_stale_ambience(
 def _apply_editorial_ambience_hints(
     profiles: List[dict],
     editorial_plan: Any,
+    rows: Optional[Sequence[dict]] = None,
+    aligned_rows: Optional[Sequence[dict]] = None,
 ) -> List[dict]:
     profile_map = getattr(editorial_plan, "ambience_profile_map", None)
     if not callable(profile_map):
@@ -1880,6 +1882,26 @@ def _apply_editorial_ambience_hints(
     hints = profile_map()
     if not hints:
         return profiles
+    if rows is not None:
+        # The editorial builder fills every scene's ambience_profile with a plain substring check ("car" in "cards" -> traffic, "wind" in
+        # "window" -> nature, "people" -> crowd) and, applied here, it used to overwrite the planned bed for EVERY scene. A hint that is just
+        # what that check gives for the scene is a default, not a decision: the planned bed stands. A hint that differs (set by the AI
+        # director or edited by the operator) is deliberate and still wins.
+        try:
+            from editorial.builder import _heuristic_ambience as _builder_default
+
+            by_num = {str(r.get("scene_number")): r for r in rows}
+            aligned_by = {str(a.get("scene_number")): a for a in (aligned_rows or ())}
+            kept: Dict[str, str] = {}
+            for sn, profile in hints.items():
+                text, prompt = _scene_context(by_num.get(str(sn)) or {}, aligned_by.get(str(sn)) or {})
+                if profile and str(profile) != _builder_default(text, prompt):
+                    kept[sn] = profile
+            hints = kept
+        except Exception:
+            pass
+        if not hints:
+            return profiles
     out = [dict(p) for p in profiles]
     by_sn = {str(p.get("scene_number")): i for i, p in enumerate(out)}
     for sn, profile in hints.items():
@@ -1903,6 +1925,7 @@ def plan_scene_ambience(
     audio_end: Optional[float] = None,
     gemini_settings: Optional[Mapping[str, Any]] = None,
     editorial_plan: Any = None,
+    cache_dir: Optional[Path] = None,
 ) -> List[dict]:
     if not settings.scene_ambience or not aligned_rows:
         return []
@@ -1911,15 +1934,26 @@ def plan_scene_ambience(
         return []
     end_time = float(audio_end if audio_end is not None else aligned_rows[-1].get("end_time") or 0.0)
     display_windows = _display_window_by_scene(aligned_rows, end_time)
-    ai = _ai_scene_ambience(rows, aligned_rows, gemini_settings)
-    if ai is not None:
-        profiles = _smooth_ambience_profiles(ai)
-        print(f"[SMART] AI picked ambience for {len(profiles)} scene(s).")
-    else:
-        profiles = _smooth_ambience_profiles(_heuristic_scene_ambience(rows, aligned_rows))
-        print(f"[SMART] Heuristic ambience for {len(profiles)} scene(s).")
+    profiles = None
+    try:   # the semantic engine: context-aware rules, Gemini only for scenes whose evidence conflicts (semantic_intel/ambience.py)
+        from semantic_intel import ambience as _semantic_ambience
+
+        picked, _report = _semantic_ambience.plan_profiles(rows, aligned_rows, settings=gemini_settings, catalog=cat, cache_dir=cache_dir)
+        profiles = _smooth_ambience_profiles(picked)
+        print(f"[SMART] Ambience planned for {len(profiles)} scene(s) ({_report['ai'] + _report['cache']} from AI, {_report['asked']} asked).")
+    except Exception as exc:   # never let the new planner stop a video: the previous one still works
+        print(f"[SMART] Semantic ambience unavailable ({exc}); using the previous planner.")
+        profiles = None
+    if profiles is None:
+        ai = _ai_scene_ambience(rows, aligned_rows, gemini_settings)
+        if ai is not None:
+            profiles = _smooth_ambience_profiles(ai)
+            print(f"[SMART] AI picked ambience for {len(profiles)} scene(s).")
+        else:
+            profiles = _smooth_ambience_profiles(_heuristic_scene_ambience(rows, aligned_rows))
+            print(f"[SMART] Heuristic ambience for {len(profiles)} scene(s).")
     if editorial_plan is not None:
-        profiles = _apply_editorial_ambience_hints(profiles, editorial_plan)
+        profiles = _apply_editorial_ambience_hints(profiles, editorial_plan, rows, aligned_rows)
     beds = _resolve_ambience_beds(
         profiles,
         aligned_rows,
@@ -2056,10 +2090,23 @@ def plan_sfx_events(
         )
         _remember(entry)
 
+    # Event sounds: only where the narration or the picture shows something the library can voice (semantic_intel/sfx.py). They take the place
+    # of generic accents below, so the total does not grow and no sound is planned just to fill a silence.
+    event_sfx: List[dict] = []
+    try:
+        from semantic_intel import sfx as _semantic_sfx
+
+        event_sfx = _semantic_sfx.plan_event_sfx(
+            aligned_rows, cat, existing=events, base_volume=base_vol, sfx_gain_cap=0.32 * SFX_GAIN, avoid_ids=recent_ids,
+            request_factory=lambda category: SfxRequest("scene_beat", category, (), settings.sfx_intensity(), 2.0), entry_to_event=_entry_to_event,
+        )
+    except Exception as exc:   # never let the new planner stop a video
+        print(f"[SMART] Event sounds skipped ({exc})")
+    events.extend(event_sfx)
     # Mid-scene accents — especially when Text Effects are off (still sparse).
-    beat_budget = _beat_budget(
+    beat_budget = max(0, _beat_budget(
         len(aligned_rows), settings.sfx_intensity(), text_effects_on=bool(text_effects),
-    )
+    ) - len(event_sfx))
     if beat_budget > 0:
         fx_times: Dict[str, List[float]] = {}
         for fx in text_effects:
@@ -2194,6 +2241,7 @@ def build_plan(
             audio_end=audio_end,
             gemini_settings=gemini_settings,
             editorial_plan=editorial_plan,
+            cache_dir=(Path(state_dir) / "semantic_cache") if state_dir is not None else None,
         )
         if settings.scene_ambience
         else []

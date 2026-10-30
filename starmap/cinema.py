@@ -1040,15 +1040,40 @@ _TEXT_GAP = 0.12        # seconds between one text leaving and the next arriving
 _TEXT_MIN = 1.2         # a text is never cut shorter than this
 
 
-def _text_zone(L: Dict[str, Any]) -> Optional[Tuple[float, float, float, float]]:
+_CHIP_ZONE = {"bl": (0.0, 0.80, 0.30, 0.93), "br": (0.68, 0.80, 1.0, 0.93), "tl": (0.0, 0.12, 0.30, 0.26), "tr": (0.68, 0.12, 1.0, 0.26)}
+_RANK = {"stat_chip": 0, "tm_metric": 1, "tm_caption": 2}      # who yields when two overlap: a chip first, then a number, never a caption / template / title
+
+
+def _template_zones(L: Dict[str, Any]) -> List[Tuple[float, float, float, float]]:
+    """Where a text template's words and numbers sit (from the template's own items), one box each."""
+    out: List[Tuple[float, float, float, float]] = []
+    for it in (L.get("template") or {}).get("items", ()):
+        at = it.get("at")
+        if it.get("p") not in ("text", "number") or not isinstance(at, list) or len(at) != 2 or not all(isinstance(v, (int, float)) for v in at):
+            continue
+        x, y = float(at[0]), float(at[1])
+        w = float(it.get("maxw") or (0.3 if it.get("p") == "number" else 0.4))
+        h = float(it.get("size") or 40) * 1.5 / 1080.0 + (0.05 if it.get("p") == "text" else 0.0)      # (a sub-line follows a text)
+        align = it.get("align")
+        x0 = x - w / 2 if align == "center" else x - w if align == "right" else x
+        out.append((max(0.0, x0), max(0.0, y - h / 2), min(1.0, x0 + w), min(1.0, y + h / 2)))
+    return out
+
+
+def _text_zones(L: Dict[str, Any]) -> List[Tuple[float, float, float, float]]:
     t = L.get("type")
+    z: Optional[Tuple[float, float, float, float]] = None
     if t == "tm_caption":
-        return _CAPTION_ZONE.get(str(L.get("anchor") or "bl"))
-    if t == "tm_metric":
-        return _METRIC_ZONE.get(str(L.get("anchor") or "center"))
-    if t in ("tm_title", "tm_section"):
-        return (0.15, 0.30, 0.85, 0.70)
-    return None
+        z = _CAPTION_ZONE.get(str(L.get("anchor") or "bl"))
+    elif t == "tm_metric":
+        z = _METRIC_ZONE.get(str(L.get("anchor") or "center"))
+    elif t in ("tm_title", "tm_section"):
+        z = (0.15, 0.30, 0.85, 0.70)
+    elif t == "stat_chip":
+        z = _CHIP_ZONE.get(str(L.get("corner") or "bl")) if L.get("x") is None else None
+    elif t == "tm_template":
+        return _template_zones(L)
+    return [z] if z else []
 
 
 HOLD_BARE_NUMBER_S = 3.0      # a plain number card ("4 HOURS", no caption line) is read in a moment; longer it is a still screen
@@ -1091,31 +1116,101 @@ def declutter(spec: Dict[str, Any], notes: List[str]) -> None:
     """Two big texts must not sit on top of each other (a caption on a big number, a title over a caption). When two overlap in time
     AND on screen, the earlier one leaves a moment sooner, else the later one arrives a moment later; a number that fits neither way goes."""
     layers = spec["layers"]
-    texts = [L for L in layers if _text_zone(L) is not None and L.get("start") is not None and L.get("end") is not None]
+    texts = [L for L in layers if _text_zones(L) and L.get("start") is not None and L.get("end") is not None]
     texts.sort(key=lambda L: (L["start"], L["end"]))
     moved = dropped = 0
     for i, b in enumerate(texts):
         for a in texts[:i]:
-            if a in layers and b in layers and a is not b:
-                za, zb = _text_zone(a), _text_zone(b)
-                if not (za[0] < zb[2] and zb[0] < za[2] and za[1] < zb[3] and zb[1] < za[3]):
-                    continue
-                if min(a["end"], b["end"]) - max(a["start"], b["start"]) <= 0.05:
-                    continue
-                if b["start"] - _TEXT_GAP - a["start"] >= _TEXT_MIN:                        # the earlier one leaves a moment sooner
-                    a["end"] = round(b["start"] - _TEXT_GAP, 3)
+            if a not in layers or b not in layers or a is b:
+                continue
+            if not any(za[0] < zb[2] and zb[0] < za[2] and za[1] < zb[3] and zb[1] < za[3] for za in _text_zones(a) for zb in _text_zones(b)):
+                continue
+            if min(a["end"], b["end"]) - max(a["start"], b["start"]) <= 0.05:
+                continue
+            ra, rb = _RANK.get(a.get("type"), 3), _RANK.get(b.get("type"), 3)
+            weak = a if ra < rb else b if rb < ra else None                 # the one that gives way first: a chip, then a number (none: equals)
+            other = b if weak is a else a
+            if weak is not None:
+                if weak["start"] < other["start"] and other["start"] - _TEXT_GAP - weak["start"] >= _TEXT_MIN:
+                    weak["end"] = round(other["start"] - _TEXT_GAP, 3)       # it leaves before the other arrives
                     moved += 1
-                elif b["end"] - (a["end"] + _TEXT_GAP) >= _TEXT_MIN:                       # the later one arrives a moment later
-                    b["start"] = round(a["end"] + _TEXT_GAP, 3)
+                    continue
+                if weak["end"] > other["end"] and weak["end"] - (other["end"] + _TEXT_GAP) >= _TEXT_MIN:
+                    weak["start"] = round(other["end"] + _TEXT_GAP, 3)       # it waits until the other has gone
                     moved += 1
-                else:                                                                       # neither fits: a plain number goes, never a caption
-                    gone = b if b.get("type") == "tm_metric" else a if a.get("type") == "tm_metric" else None
-                    if gone is not None:
-                        layers.remove(gone)
-                        dropped += 1
+                    continue
+            if b["start"] - _TEXT_GAP - a["start"] >= _TEXT_MIN:             # else the earlier leaves a moment sooner ...
+                a["end"] = round(b["start"] - _TEXT_GAP, 3)
+                moved += 1
+            elif b["end"] - (a["end"] + _TEXT_GAP) >= _TEXT_MIN:             # ... or the later arrives a moment later
+                b["start"] = round(a["end"] + _TEXT_GAP, 3)
+                moved += 1
+            elif weak is not None and _RANK.get(weak.get("type"), 3) <= 1:   # only a chip or a plain number goes; a caption / template / title stays
+                layers.remove(weak)
+                dropped += 1
+            elif weak is None and (a.get("type") == "tm_metric" or b.get("type") == "tm_metric"):
+                layers.remove(b if b.get("type") == "tm_metric" else a)
+                dropped += 1
     if moved or dropped:
         notes.append(f"Cinema: {moved} text(s) moved by a moment and {dropped} left out so no two overlap on screen")
 
+
+
+SLIVER_S = 1.5               # a bare map view shorter than this between two full-screen shots (or a camera cut and a shot) is a flash, not a scene
+MIN_CARD_S = 2.4             # a number chip / title card / photo card cut shorter than this by the overlap rules is dropped instead: nobody can read it
+
+
+def close_slivers(spec: Dict[str, Any], notes: List[str]) -> None:
+    """Scenes that come for a split second. A full-screen shot (footage, plate, scene, globe) that ends 0.2-1 s before the next one starts, or
+    a camera cut that lands 0.3 s before / after a shot, leaves a sliver of map on screen: it holds the first shot to the next one's start
+    (or lets the later shot begin at the cut). Text cards the overlap rules cut down to a moment are dropped, with the dead zero-length cards."""
+    layers = spec["layers"]
+    shots = [f for f in spec.get("footage", []) if f.get("start") is not None and f.get("end") is not None]
+    shots += [L for L in layers if L.get("type") in _FULL_SCREEN and L.get("start") is not None and L.get("end") is not None]
+    cuts = sorted(float(m["t"]) for m in (spec.get("camera") or {}).get("moves", []) if not m.get("dur"))
+    held = 0
+    shots.sort(key=lambda x: (x["start"], x["end"]))
+    for a, b in zip(shots, shots[1:]):
+        gap = b["start"] - a["end"]
+        if 0.04 < gap <= SLIVER_S:
+            a["end"] = round(b["start"], 3)
+            held += 1
+    for c in cuts:
+        if any(x["start"] - 0.02 <= c <= x["end"] + 0.02 for x in shots):
+            continue
+        after = [x for x in shots if 0 < x["start"] - c <= 1.0]
+        before = [x for x in shots if 0 < c - x["end"] <= 1.0]
+        if after:
+            min(after, key=lambda x: x["start"])["start"] = round(c, 3)       # the shot opens on the cut
+            held += 1
+        elif before:
+            max(before, key=lambda x: x["end"])["end"] = round(c, 3)          # the shot stays up until the cut
+            held += 1
+    # footage hands over to a plate / scene / globe (or the other way round) in one move: a clip that dissolves out over the map and a globe that
+    # dissolves in over it again are three looks in under a second, so the two meet on a clean cut instead
+    foot = [f for f in spec.get("footage", []) if f.get("start") is not None and f.get("end") is not None]
+    for L in layers:
+        if L.get("type") not in _FULL_SCREEN or L.get("start") is None or L.get("end") is None:
+            continue
+        for f in foot:
+            if 0 <= L["start"] - f["end"] <= 0.6 and not any(0 <= g["start"] - f["end"] < 0.05 for g in foot if g is not f):
+                f["transition_out"] = "cut"
+                L["fade_in"] = 0.0
+                held += 1
+            if 0 <= f["start"] - L["end"] <= 0.6 and not any(0 <= f["start"] - g["end"] < 0.05 for g in foot if g is not f):
+                f["transition_in"] = "cut"
+                L["fade_out"] = 0.0
+                held += 1
+    scr = sorted((L for L in layers if L.get("type") in _FULL_SCREEN and L.get("start") is not None and L.get("end") is not None), key=lambda L: (L["start"], L["end"]))
+    for a, b in zip(scr, scr[1:]):
+        if 0 <= b["start"] - a["end"] <= 0.05:                                   # two full-screen layers meet: no half-faded pair with the map showing through
+            a["fade_out"], b["fade_in"] = 0.0, 0.0
+            held += 1
+    gone = [L for L in layers if L.get("type") in ("stat_chip", "tm_title", "photo_card", "tm_metric") and L.get("start") is not None and L.get("end") is not None
+            and L["end"] - L["start"] < MIN_CARD_S and not (L.get("type") == "tm_metric" and L.get("sub"))]
+    layers[:] = [L for L in layers if not any(L is g for g in gone)]
+    if held or gone:
+        notes.append(f"Cinema: {held} sliver(s) of map between shots closed, {len(gone)} card(s) too short to read left out")
 
 
 def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, Any], fl: Dict[str, bool], notes: List[str]) -> None:
@@ -1178,6 +1273,7 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
         composer.enrich_spec(spec, plan, notes)
     declutter(spec, notes)
     pace(spec, notes)
+    close_slivers(spec, notes)
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens
     spec["shots"] = [{"start": L["start"], "end": L["end"], "kind": "plate"} for L in layers if L.get("type") == "cinema_plate"]

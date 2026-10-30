@@ -24,6 +24,7 @@ CSV_PROMPTS = {
     "starmap": "starmap_beats_prompt.txt",
     "whatif": "whatif_csv_prompt.txt",
     "enoch_template": "enoch_template_csv_prompt.txt",
+    "explainer_scenes": "explainer_scene_csv_prompt.txt",
 }
 
 # the prompts of the styles that can use the universal graphics (gfx-core templates): the longer text, with the template list and an example row,
@@ -34,7 +35,7 @@ CSV_PROMPTS_GRAPHICS = {
 }
 
 STYLE_NAMES = {"normal": "Normal", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map", "starmap": "StarMap", "whatif": "What If",
-               "enoch_template": "Enoch Template"}
+               "enoch_template": "Enoch Template", "explainer_scenes": "Explainer scenes"}
 
 
 def prompt_path(style: str, graphics: bool = False) -> Path:

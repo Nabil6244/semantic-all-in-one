@@ -75,6 +75,10 @@ class StockBackend:
         raise NotImplementedError
 
 
+COMMONS_TIMEOUT_S = 15.0        # the extra Wikimedia search for period pictures must never hold a scene for long
+COMMONS_MAX_FAILURES = 2
+
+
 class StockProvider(AssetProvider):
     name = "stock"
     source = AssetSource.STOCK
@@ -118,6 +122,59 @@ class StockProvider(AssetProvider):
             candidates.extend(results)
         return candidates
 
+    def _period_commons(self, scene: SceneRow, media_type: str, log: LogFn) -> List[Candidate]:
+        """Stock sites hold almost no period artwork. For an Explainer period request ("... historical painting") Wikimedia Commons (through Openverse, no key) is searched as well, for the subject
+        plus the kind of art, and its results join the pool; the period gate then keeps only what says it is artwork of that subject. Never raises; any other request returns nothing."""
+        if media_type == "video" or any(getattr(b, "source", "") == "wikimedia" for b in self.backends):
+            return []
+        try:
+            from explainer.director import compose_pictures as cp
+            from .openverse import OpenverseBackend
+        except Exception:
+            return []
+        year = cp.request_year(scene.stock)
+        if year is None:
+            return []
+        query = f"{cp.request_subject(scene.stock)} {'painting' if year < 1500 else 'engraving'}"
+        cached = self.cache.get_search("wikimedia", query, "image")
+        if cached is not None:
+            return list(cached)
+        if getattr(self, "_commons_failures", 0) >= COMMONS_MAX_FAILURES:
+            return []                                    # a 40-minute video asks for dozens of period pictures: once the service has failed twice it is not asked again in this run
+        try:
+            backend = OpenverseBackend(source="wikimedia")
+            backend.timeout = COMMONS_TIMEOUT_S
+            results = backend.search(query, media_type="image", per_page=20)
+            self._commons_failures = 0
+        except Exception as exc:
+            self._commons_failures = getattr(self, "_commons_failures", 0) + 1
+            log(f"[STOCK] wikimedia search failed for \"{query}\": {redact_url_secrets(str(exc))}")
+            return []
+        for r in results:
+            r.extra["collection"] = "wikimedia"
+        self.cache.set_search("wikimedia", query, results, "image")
+        return results
+
+    def _period_gate(self, scene: SceneRow, candidates: List[Candidate], log: LogFn) -> List[Candidate]:
+        """An Explainer picture request for a time before 1800 ends with era words ("... historical painting"). Only results whose own text says they are period artwork of that subject
+        (not a toy army, a reenactment or a modern photo of ruins) may be picked; the rest are dropped here, so the next-best real result wins. Any other request is untouched."""
+        if scene.stock_media_type == "video" or not candidates:
+            return candidates
+        try:
+            from explainer.director import compose_pictures as cp
+        except Exception:
+            return candidates
+        year = cp.request_year(scene.stock)
+        if year is None:
+            return candidates
+        keep = []
+        for c in candidates:
+            meta = {"source_url": c.source_url, "alt": c.extra.get("alt", ""), "tags": c.extra.get("tags", ""), "title": c.extra.get("title", "")}
+            if cp.vet_picture(meta, year, cp.request_subject(scene.stock), curated=c.extra.get("collection") == "wikimedia")[0]:
+                keep.append(c)
+        log(f"[STOCK] Scene {scene.scene_number} -> period gate kept {len(keep)} of {len(candidates)} results")
+        return keep
+
     def _pick(self, scene: SceneRow, log: LogFn, exclude_ids: Optional[Set[str]] = None) -> Optional[Candidate]:
         exclude_ids = exclude_ids or set()
         media_type = scene.stock_media_type  # "image" | "video" | "all" — see SceneRow
@@ -145,11 +202,14 @@ class StockProvider(AssetProvider):
             suffix = " (broadened)" if i else ""
             log(f"[STOCK] Scene {scene.scene_number} -> searching {media_type} \"{query}\"{suffix}")
             candidates = [c for c in self._search_all(query, media_type, log) if c.asset_id not in exclude_ids]
+            if i == 0:
+                candidates += [c for c in self._period_commons(scene, media_type, log) if c.asset_id not in exclude_ids]
             # Defense in depth: backends are expected to honor media_type already,
             # but never let a wrong-kind candidate through the picker regardless.
             if media_type != "all":
                 candidates = [c for c in candidates if c.media_type.value == media_type]
             filtered = filter_candidates(candidates)
+            filtered = self._period_gate(scene, filtered, log)
             if resolved is not None:
                 from style_engine.visual_selection import style_candidate_gate
 

@@ -38,7 +38,7 @@ class OpenverseBackend(StockBackend):
                 "license": "cc0,pdm,by,by-sa",
                 **({"source": self.source} if self.source else {}),
             },
-            timeout=TIMEOUT,
+            timeout=getattr(self, "timeout", TIMEOUT),
         )
         if resp.status_code == 429:
             raise RuntimeError("Openverse rate limit reached (429) — try again later.")

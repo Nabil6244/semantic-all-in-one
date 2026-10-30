@@ -11,13 +11,21 @@ FOOTAGE_MODES = ("footage", "map_footage")
 
 def read(text: str, words: Sequence, duration: float) -> Dict[str, Any]:
     """-> {"spans": [{"start", "end", "clips": [{"asset", "reason"}]}], "places": [...], "notes": [...]}. Raises what the importers raise (a CSV with problems)."""
+    from . import scene_csv
+    if scene_csv.is_scene_csv(text):                    # the Explainer's own scene CSV: scene notes and places only; the director still builds every beat
+        got_ = scene_csv.read(text, words, duration)
+        return {"spans": [], "places": got_["places"], "scene_notes": got_["scene_notes"], "notes": got_["problems"] + got_["notes"]}
     from hybrid.beat_csv import import_beats, is_beat_csv
     from hybrid.csv_import import plan_from_csv
 
     got = (import_beats if is_beat_csv(text) else plan_from_csv)(text, words, duration)
     spans: List[Dict[str, Any]] = []
     places: List[str] = []
+    scene_notes: List[Dict[str, Any]] = []
     for b in got.plan.beats:
+        why = str(getattr(b, "purpose", "") or "")
+        if "place:" in why.lower() or "period:" in why.lower():            # a CSV beat's `why` may carry a scene note (explainer/scene_intel.from_notes)
+            scene_notes.append({"start": float(b.start), "end": float(b.end), "text": why})
         clips = [{"asset": c.asset, "reason": c.reason or "from the loaded CSV"} for c in b.clips if str(c.asset or "").strip()]
         if b.mode in FOOTAGE_MODES and clips:
             spans.append({"start": float(b.start), "end": float(b.end), "clips": clips})
@@ -25,7 +33,7 @@ def read(text: str, words: Sequence, duration: float) -> Dict[str, Any]:
             name = (name or "").strip()
             if name and name not in places and not _is_coordinate(name):
                 places.append(name)
-    return {"spans": spans, "places": places, "notes": list(getattr(got, "notes", []) or [])}
+    return {"spans": spans, "places": places, "scene_notes": scene_notes, "notes": list(getattr(got, "notes", []) or [])}
 
 
 def _is_coordinate(name: str) -> bool:

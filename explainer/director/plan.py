@@ -38,7 +38,7 @@ def _cue_key(c) -> Dict[str, Any]:
             "slot": c.slot, "pos": c.pos, "params": c.params, "cps": c.cps}
 
 
-OPT_OMIT_WHEN_OFF = ("alive", "meaning", "recipes", "continuity", "animate", "pictures", "motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
+OPT_OMIT_WHEN_OFF = ("scene_intel", "scene_flow_share", "scene_notes", "alive", "meaning", "recipes", "continuity", "animate", "pictures", "motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
 
 
 def _finish_key(opt: DirectorOptions) -> Dict[str, Any]:
@@ -209,6 +209,38 @@ def _stats_for(b, words) -> List[Dict[str, Any]]:
     return []
 
 
+def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
+    """Read every cartoon beat (its words, then the CSV scene note over it when there is one) and turn the ones the library cannot show truthfully into Flow image beats, up to
+    `opt.scene_flow_share` of the runtime. Returns the per-beat record for the report. Never raises: a beat that cannot be read stays as it was."""
+    full = " ".join(str(w[0]) for w in words)
+    ctx = SI.from_words(full).year
+    total = sum(b.end - b.start for b in beats) or 1.0
+    used, rec = 0.0, {}
+    for b in beats:
+        if b.kind != "cartoon":
+            continue
+        try:
+            text = " ".join(s_.text for s_ in b.sents)
+            spec = SI.from_words(text, context_year=ctx)
+            mid = (b.start + b.end) / 2
+            note = " ; ".join(n["text"] for n in opt.scene_notes if n["start"] - 1e-6 <= mid < n["end"] + 1e-6)
+            spec = SI.from_notes(note, spec) or spec
+            d = SI.decide(spec)
+            entry = {"route": d.route, "set": d.set_name, "reasons": d.reasons, "source": spec.source, "year": spec.year, "place_type": spec.place_type}
+            if d.route == "flow":
+                if (used + (b.end - b.start)) / total <= opt.scene_flow_share:
+                    used += b.end - b.start
+                    b.kind, b.source, b.picture_query = "footage", "flow_image", SI.flow_prompt(spec)
+                    entry["prompt"] = b.picture_query
+                else:
+                    entry["route"] = "cartoon (Flow share reached)"
+                    b.notes.append("scene needs a Flow image but the share of runtime is used up: kept as a cartoon")
+            rec[b.id] = entry
+        except Exception as exc:
+            b.notes.append(f"scene reading failed, beat unchanged: {exc}")
+    return rec
+
+
 def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> DirectorResult:
     words = [(str(w[0]), float(w[1]), float(w[2])) for w in words]
     res = DirectorResult(None)
@@ -270,6 +302,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     country_roles: Dict[str, str] = {}      # each filled country keeps one colour for the whole video (the same recurring-metaphor rule as the picture roles)
     map_places_done = set()
     info.setdefault("map_layers_rejected", [])
+    if opt.scene_intel:                                  # opt-in: read each cartoon beat; what the library cannot show truthfully becomes a Flow image beat (capped by share of runtime)
+        from .. import scene_intel as SI
+        info["scene_intel"] = scene_intel_pass(beats, words, opt, SI)
     for b in beats:
         if b.kind == "map":
             try:
@@ -410,7 +445,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 btoks = [t["tok"] for t in _bt(words, b.start, b.end)]
                 pq = None
                 src_ = b.source or opt.footage_source
-                if opt.pictures:                                 # opt-in: the query of the picture pass, else a better one (full names, only spoken words, no vague words) than the first keyword
+                scene_flow = opt.scene_intel and src_ == "flow_image" and bool(b.picture_query)
+                if scene_flow:
+                    pq = (b.picture_query, 0)
+                if opt.pictures and not scene_flow:              # opt-in: the query of the picture pass, else a better one (full names, only spoken words, no vague words) than the first keyword
                     from . import compose_pictures as CPX
                     _pic = info.get("pictures", {})
                     bq = None
@@ -426,7 +464,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                     i0 = btoks.index(nm[0])
                     q = [btoks[i0]] + ([btoks[i0 + 1]] if i0 + 1 < len(btoks) and btoks[i0 + 1] in nm else [])
                     pq = (" ".join(q), i0)
-                if pq is not None and not opt.pictures:          # one subject's picture is not shown over and over: the third beat on the same query falls back to a filmable noun, or stays a board
+                if pq is not None and not opt.pictures and not scene_flow:          # one subject's picture is not shown over and over: the third beat on the same query falls back to a filmable noun, or stays a board
                     _used = info.setdefault("footage_query_count", {})
                     _used[pq[0]] = _used.get(pq[0], 0) + 1
                     if _used[pq[0]] > 2:
@@ -475,7 +513,11 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     dlg_state = None
     sig_hist: List[Tuple[str, ...]] = []        # the picture-layout family of each board beat so far (opt.variety)
     dossier_hist: List[bool] = []
+    from . import compose_pictures as CPX_r                              # only period pictures (the ones likely to be refused) get a drawn stand-in: a 40-minute video has dozens of picture beats
     for k, b in enumerate(beats):
+        saved_pic = None
+        if plan_beats[k] is not None and b.kind == "footage" and b.picture_query and opt.pictures and materialize and CPX_r.request_year(b.picture_query) is not None:
+            saved_pic, plan_beats[k], b.kind = plan_beats[k], None, "board"        # the picture beat keeps its place, but the board it replaced is drawn too: the stand-in if no picture can be had
         if plan_beats[k] is not None:
             beat = plan_beats[k]
             if b.kind == "map":
@@ -610,6 +652,12 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer {'cartoon' if b.kind == 'cartoon' else 'board'}: {b.sents[0].label}",
                 "footage": {"clips": [{"asset": clip_path, "reason": "explainer board clip drawn from this beat's own narration"}]}}
         plan_beats[k] = beat
+        if saved_pic is not None:
+            from .. import fallbacks as FB
+            FB.record(out_dir, b.picture_query, clip_path)
+            plan_beats[k], b.kind = saved_pic, "footage"
+            board_info[b.id] = {"cues": len(br.cues), "stand_in_for": b.picture_query, "clip": name, "built": built}
+            continue
         evidence_subjects[b.id] = {"0": [br.subject]}
         board_info[b.id] = {"cues": len(br.cues), "kinds": sorted({c.kind for c in br.cues}), "dropped": br.dropped, "rescued": br.rescued, "lost": br.lost, "repairs": br.repairs, "still_gap_s": round(br.still_gap_s, 2), "still_gap_all_s": round(br.still_gap_all_s, 2), "still_gap_strict_s": round(br.still_gap_strict_s, 2),
                             "narrator": modes[k], "labels": [s.label for s in b.sents], "phrases": br.phrases, "peak_occupancy_share": br.peak_occupancy, "clip": name, "built": built, "problems": br.problems, "cue_specs": [_cue_key(c) for c in br.cues],
@@ -681,6 +729,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         res.report["fx_budget"] = fx_budget
     if creg is not None:
         res.report["continuity"] = creg.to_dict()
+    if opt.scene_intel and info.get("scene_intel") is not None:
+        res.report["scene_intel"] = info["scene_intel"]
     res.plan = plan if not res.problems else None
     if out_dir is not None and not res.problems:           # what the render step needs after the map is drawn: the sound plan (explainer.integration.build_sound) and the map overlays
         try:

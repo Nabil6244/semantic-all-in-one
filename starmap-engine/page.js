@@ -571,6 +571,7 @@ function drawMap(t, date) {
     },
   };
   window.__lastInfo = info.map((b) => ({ id: b.id, sx: Math.round(b.sx), sy: Math.round(b.sy), px: +b.px.toFixed(2), front: b.front, ly: +(b.dist / 9.4607e12).toFixed(3) }));
+  runLayers(layers, frame, 'pins');     // every pin takes its box first, whatever order the labels are then drawn in
   runLayers(layers, frame, 'update');
   renderer.render(scene, camera);
   ctx.drawImage(glCanvas, 0, 0);

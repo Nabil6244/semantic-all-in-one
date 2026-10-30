@@ -32,6 +32,11 @@ Every row says which beat it belongs to (beat = b1, b2, b3 ... in order) and wha
     frame      (map beats) country, region or local (local = a city or a site)
     type       (map beats, optional) push_in for a slow zoom in, hold to keep the camera still
     why        one short phrase: what this beat does ("where Lesotho is", "feel the winter")
+               Explainer look only (optional): a beat that shows a scene of people in a place may put a scene note in `why` instead, as key: value pairs
+               separated by semicolons: place: canal city; type: coast; period: 1450; architecture: Gothic palazzi; people: merchant, doge;
+               clothing: wool cloaks; mood: dusk. type is one of farm, village, town, street, coast, sea, mountain, border, station. Give period and
+               architecture whenever the story is older than 1850 or set in a particular country; the tool then makes a picture for that exact
+               place and time. Leave it out for modern, generic scenes.
   A beat ends where the next beat starts. The first beat starts the video.
 
 - row=layer: something drawn on the map (map and map_footage beats only).

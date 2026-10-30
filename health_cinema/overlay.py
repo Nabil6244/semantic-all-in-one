@@ -25,8 +25,8 @@ def label_box(text_w, px, x, y, side, W, H):
     m = 0.03; bx0 = min(max(bx0, W * m), W * (1 - m) - bw); ty = min(max(ty, H * m + pad * 0.4), H * (1 - m) - px * 1.25 - pad * 0.4)
     return (bx0, ty - pad * 0.4, bx0 + bw, ty + px * 1.25 + pad * 0.4), (bx0 + pad, ty)
 
-def draw_labels(im, labels, H):
-    W = im.width; px = label_px(min(W, H)); f = _font(px); ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
+def draw_labels(im, labels, H, k=1.0):      # k: a spec's label_scale (a clip shown small inside another layout asks for bigger labels); 1.0 for every Health Cinema scene
+    W = im.width; px = round(label_px(min(W, H)) * k); f = _font(px); ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
     for lb in labels:
         a = int(255 * lb["a"]); x, y = lb["xy"]; w = d.textlength(lb["text"], font=f)
         box, org = label_box(w, px, x, y, lb["side"], W, H); ex = box[0] if lb["side"] == "right" else box[2]
@@ -88,11 +88,11 @@ def draw_footer(im, text, H):
     d.text((m, im.height - m - px), text, font=f, fill=(190, 202, 225, 235)); return im
 
 def run(frames_json, frame_dir, out_mp4, fps, ffmpeg=None):
-    data = json.loads(Path(frames_json).read_text()); frames = data["frames"]; footer = (data.get("spec") or {}).get("footer", ""); caps = (data.get("spec") or {}).get("captions", []); fd = Path(frame_dir); tmp = fd.parent / (fd.name + "_lbl"); tmp.mkdir(exist_ok=True)
+    data = json.loads(Path(frames_json).read_text()); frames = data["frames"]; footer = (data.get("spec") or {}).get("footer", ""); caps = (data.get("spec") or {}).get("captions", []); lk = float((data.get("spec") or {}).get("label_scale", 1.0)); fd = Path(frame_dir); tmp = fd.parent / (fd.name + "_lbl"); tmp.mkdir(exist_ok=True)
     for fr in frames:
         p = fd / f"f{fr['i']:05d}.png"
         if not p.exists(): continue
-        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height), fr.get("cards", []), im.height), footer, im.height)
+        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height, lk), fr.get("cards", []), im.height), footer, im.height)
         for a, b, text in caps:
             if a <= fr["t"] < b:
                 from .graphics import draw_caption

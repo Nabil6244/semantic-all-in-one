@@ -36,6 +36,7 @@ def read_scenes_file(path: str):
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
     app._rt_scenes_var = ctk.StringVar(value=""); app._rt_status_var = ctk.StringVar(value=""); app._rt_title_var = ctk.StringVar(value=""); app._rt_preview_var = ctk.BooleanVar(value=False)
+    app._rt_smart_var = ctk.BooleanVar(value=True); app._rt_3d_var = ctk.BooleanVar(value=True); app._rt_flow_var = ctk.BooleanVar(value=False); app._rt_variety_var = ctk.BooleanVar(value=True)
     app._rt_end_var = ctk.BooleanVar(value=False); app._rt_end_title = ctk.StringVar(value=""); app._rt_end_url = ctk.StringVar(value=""); app._rt_end_image = ctk.StringVar(value="")
     app._rt_cancel = threading.Event(); app._rt_running = getattr(app, "_rt_running", False)
     block = ctk.CTkFrame(parent, fg_color=M._CARD, corner_radius=10, border_width=1, border_color=M._BORDER); block.grid(row=row, column=0, sticky="ew", pady=(0, 12)); block.grid_columnconfigure(0, weight=1)
@@ -49,17 +50,19 @@ def build(app, parent, *, row: int) -> None:
     ctk.CTkLabel(opts, text="Section label", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
     ctk.CTkEntry(opts, textvariable=app._rt_title_var, width=260, placeholder_text="e.g. Grip · No Gym").grid(row=0, column=1, padx=(0, 16))
     ctk.CTkCheckBox(opts, text="Preview (1280x720)", variable=app._rt_preview_var).grid(row=0, column=2)
-    end = ctk.CTkFrame(controls, fg_color="transparent"); end.grid(row=3, column=0, sticky="ew", pady=(10, 0)); end.grid_columnconfigure(1, weight=1)      # optional product end card: off by default, the ending is then unchanged
+    mix = ctk.CTkFrame(controls, fg_color="transparent"); mix.grid(row=3, column=0, sticky="ew", pady=(10, 0))      # what each scene may be drawn with (long videos: keep all on)
+    for i, (txt, var) in enumerate((("Scene per idea (smart planner)", app._rt_smart_var), ("3D muscle clips", app._rt_3d_var), ("Flow pictures", app._rt_flow_var), ("Mix looks for long videos", app._rt_variety_var))): ctk.CTkCheckBox(mix, text=txt, variable=var).grid(row=0, column=i, padx=(0, 16), sticky="w")
+    end = ctk.CTkFrame(controls, fg_color="transparent"); end.grid(row=4, column=0, sticky="ew", pady=(10, 0)); end.grid_columnconfigure(1, weight=1)      # optional product end card: off by default, the ending is then unchanged
     ctk.CTkCheckBox(end, text="Product end card (5 s)", variable=app._rt_end_var).grid(row=0, column=0, padx=(0, 12), sticky="w")
     ctk.CTkEntry(end, textvariable=app._rt_end_title, placeholder_text="Title (default: section label)").grid(row=0, column=1, columnspan=2, sticky="ew")
     ctk.CTkEntry(end, textvariable=app._rt_end_url, placeholder_text="URL").grid(row=1, column=0, columnspan=2, sticky="ew", padx=(0, 8), pady=(6, 0))
     ctk.CTkEntry(end, textvariable=app._rt_end_image, placeholder_text="Picture (optional)").grid(row=1, column=2, columnspan=2, sticky="ew", pady=(6, 0))
     ctk.CTkButton(end, text="Browse", width=70, command=lambda: browse_end_image(app)).grid(row=1, column=4, padx=(8, 0), pady=(6, 0))
-    go = ctk.CTkFrame(controls, fg_color="transparent"); go.grid(row=4, column=0, sticky="ew", pady=(12, 0))
+    go = ctk.CTkFrame(controls, fg_color="transparent"); go.grid(row=5, column=0, sticky="ew", pady=(12, 0))
     app._rt_render_btn = ctk.CTkButton(go, text="Render Rep Theory", width=230, height=40, corner_radius=6, fg_color=M._ACCENT, hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_render_click(app))
     app._rt_render_btn.grid(row=0, column=0, padx=(0, 12))
     ctk.CTkLabel(go, text="Landscape 16:9 only. The trainee, bottle, forearm and bar-hang pictures ship with the app.", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=1, sticky="w")
-    ctk.CTkLabel(controls, textvariable=app._rt_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=5, column=0, sticky="ew", pady=(8, 0))
+    ctk.CTkLabel(controls, textvariable=app._rt_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=6, column=0, sticky="ew", pady=(8, 0))
     block.grid_remove()
 
 def browse_scenes(app) -> None:
@@ -111,6 +114,13 @@ def on_render_click(app) -> None:
     if scenes_path and not Path(scenes_path).is_file(): M.messagebox.showerror("Cannot start", f"The scenes file was not found:\n{scenes_path}"); return
     out_path = ws.next_final_path(); app.output_var.set(str(out_path)); project_dir = Path(ws.root); model = app.model_var.get().strip() or "base"; state_dir = getattr(ws, "state_dir", None)
     quality = "preview" if app._rt_preview_var.get() else "final"; title = app._rt_title_var.get().strip(); end_card = end_card_settings(app)
+    smart, want3d, wantflow, mixlooks = bool(app._rt_smart_var.get()), bool(app._rt_3d_var.get()), bool(app._rt_flow_var.get()), bool(app._rt_variety_var.get()); flow_settings, flow_accounts = None, None
+    if wantflow:
+        try: flow_settings, flow_accounts = app._image_flow_run_settings()      # the app's own Flow switches (agent / UI mode) and the video profile's accounts
+        except Exception as exc: app._append_log(f"{TAG} Flow settings unavailable ({exc}); Flow pictures use agent mode defaults.\n")
+    if want3d:
+        from . import clip3d
+        if not clip3d.available(): app._append_log(f"{TAG} 3D body model or renderer not found on this machine: scenes about body parts keep their usual look (see docs/rep_theory).\n")
     app._rt_cancel.clear(); app._rt_running = True; app._rt_status_var.set("Starting…"); app._sync_primary_cta()
     def log(msg: str) -> None: app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
     def progress(k: float, msg: str) -> None: app.after(0, lambda: app._rt_status_var.set(f"{int(k * 100)}%  {msg}"))
@@ -128,7 +138,8 @@ def on_render_click(app) -> None:
                 sentences = sentences_from_words(words, total)
                 if not sentences: raise RuntimeError("the narration has no words to plan from")
                 log(f"{len(sentences)} sentences read from the narration")
-            result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card)
+            result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card, planner="beats" if smart else "legacy", per_beat=smart, illustrate=wantflow, clips3d=want3d, variety=mixlooks and smart,
+                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts)
         except engine.Cancelled: error = "Stopped."
         except Exception as exc: error = f"{type(exc).__name__}: {exc}"      # shown to the user, never a silent failure
         def finish() -> None:

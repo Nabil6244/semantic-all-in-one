@@ -1,0 +1,4 @@
+3D gym body model (body_gym.glb, anchors_gym.json)
+Derived from Z-Anatomy (https://www.z-anatomy.com): skin shell, skeleton and muscle groups of the Z-Anatomy atlas, simplified (decimated, regrouped into training muscle groups, plain materials)
+for Rep Theory clips. Z-Anatomy is licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+This derived model is distributed under the same licence. Full licence text of the source: LICENSE_Z-Anatomy.txt. Rebuild: health_cinema/bench/prep_muscles.py + build_gym_body.py --slim.

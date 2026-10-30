@@ -44,6 +44,9 @@ class DirectorOptions:
     animate: bool = False               # opt-in: independent entrances/emphasis/exits for recipe elements and cartoon characters (director/compose_anim.py + board/anim.py); False = nothing changes
     alive: bool = False                 # opt-in: cartoon figures bob and sway all the time and the speaker bounces while it talks (board/anim idle + talk); needs `animate`; False = nothing changes
     pictures: bool = False              # opt-in: thin boards are upgraded to a real picture, map card or evidence card where the narration names a subject (director/compose_pictures.py); False = nothing changes
+    scene_intel: bool = False           # opt-in: each cartoon beat is read for place, period and architecture (explainer/scene_intel.py); one the library cannot show truthfully becomes a Flow image beat; False = nothing changes
+    scene_flow_share: float = 0.5       # the most runtime Flow images may take (a long video must not need hundreds of images); beyond it a beat stays a cartoon and says so
+    scene_notes: List[Dict[str, Any]] = field(default_factory=list)   # CSV scene notes [{"start", "end", "text"}] (`place: ...; period: ...; architecture: ...`): they win over the words for the beats they cover
     camera: str = "off"                 # opt-in: off | push | drift | reframe: a slow camera on the finished board frame (motion/camera); "off" = nothing changes
     texture: bool = False               # opt-in: grain, vignette and dust on the finished board frame (motion/texture); False = nothing changes
     # ---- plan ----

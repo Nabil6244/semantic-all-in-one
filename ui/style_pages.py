@@ -179,9 +179,15 @@ def active_variant(app: Any, mode: str) -> str:
         return STARMAP_CINEMA
     if mode == "hybrid" and _var(app, "_hybrid_explainer_var"):
         return EXPLAINER
-    if mode == "normal" and getattr(app, "_story_motion_active", False):   # ui/story_motion_section.py: per session, nothing saved
+    if mode == "normal" and _story_active(app):   # ui/story_motion_section.py: saved in the project
         return "Story Motion"
     return ""
+
+
+def _story_active(app: Any) -> bool:
+    from . import story_motion_section as _sm
+
+    return _sm.is_active(app)
 
 
 def _set_look(app: Any, mode: str, on: bool) -> None:
@@ -201,6 +207,9 @@ def pick_variant(app: Any, choice: str):
     """-> (choice for the app's own handler, done). Sets the look for StarMap/Hybrid and their card-only styles; when the engine is
     already the active one, switching the look is all there is to do (done=True)."""
     app._story_motion_active = choice == "Story Motion"
+    from . import story_motion_section as _sm
+
+    _sm.remember(app, app._story_motion_active)
     if choice == "Story Motion":   # Normal video with the story pipeline on (ui/story_motion_section.py)
         return ("Normal video", False) if getattr(app, "generation_mode", "normal") != "normal" else (choice, True)
     if choice not in _PAIRS:

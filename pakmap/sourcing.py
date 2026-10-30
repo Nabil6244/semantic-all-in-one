@@ -227,6 +227,7 @@ def fetch_scenes(
         else:
             result.missing[n] = err_text or error or "no picture was found for it"
     _vet_period_pictures(scenes, result, images_dir, manifest_cls)
+    _illustrate_missing(scenes, result, images_dir, log)
     if on_complete is not None:
         _report_unreported(scenes, result, reported, on_complete)
     return result
@@ -243,18 +244,38 @@ def _vet_period_pictures(scenes: Sequence[Any], result: "FetchResult", images_di
     for sc in scenes:
         n = str(sc.scene_number)
         prompt = " ".join(str(_row_dict(sc).get("prompt") or "").lower().split())
-        year = 1000 if prompt.endswith("historical painting") else 1650 if prompt.endswith("antique engraving") else None
+        year = CPX.request_year(prompt)
         if year is None or n not in result.paths:
             continue
         try:
             meta = dict(_record(manifest_cls, images_dir, n))
-            ok, why = CPX.vet_picture(meta, year, prompt.rsplit(" ", 2)[0])
+            ok, why = CPX.vet_picture(meta, year, CPX.request_subject(prompt))
         except Exception:
             continue
         if not ok:
             result.paths.pop(n, None)
             result.fetched = max(0, result.fetched - 1)
             result.missing[n] = f"the picture does not look like a period picture ({why}); Retry fetches another, or Change source / Skip"
+
+
+def _illustrate_missing(scenes: Sequence[Any], result: "FetchResult", images_dir: Path, log: Callable[[str], None]) -> None:
+    """A picture the Explainer asked for that nothing passed (not found, or refused as not period art) is replaced by the illustrated scene drawn for that beat, so the run goes on instead of
+    stopping. Only pictures with a drawn stand-in (Explainer picture beats) are touched; a picture the author skipped stays skipped; every other missing picture is still reported."""
+    try:
+        from explainer import fallbacks
+    except Exception:
+        return
+    for sc in scenes:
+        n = str(sc.scene_number)
+        if n not in result.missing or n in result.paths:
+            continue
+        try:
+            clip = fallbacks.lookup(str(_row_dict(sc).get("prompt") or ""), images_dir)
+        except Exception:
+            clip = None
+        if clip:
+            log(f"[Sourcing] picture {n}: {result.missing.pop(n)} -> the illustrated scene is used instead")
+            result.paths[n] = clip
 
 
 def _report_unreported(scenes: Sequence[Any], result: "FetchResult", reported: set, on_complete: Callable[[Any, Any], None]) -> None:

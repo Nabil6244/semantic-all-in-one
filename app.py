@@ -4865,6 +4865,11 @@ class VideoGeneratorApp(ctk.CTk):
     def _gemini_settings(self) -> dict:
         """The Gemini keys the user has set: the main one, plus the backup keys (Settings). Environment keys GEMINI_API_KEY_1..4 are read by the client itself."""
         out = {"gemini_api_key": self.gemini_key_var.get().strip()}
+        for _flag in ("ai_planning", "editorial_ai"):   # the central AI planning switch (semantic_intel/core.py) and the older editorial flag
+            if self._settings.get(_flag) is not None:
+                out[_flag] = self._settings[_flag]
+        if str(out.get("ai_planning") or "").strip().lower() == "off":   # off means off for the original editorial director too
+            out["editorial_ai"] = False
         for i, var in enumerate(self.gemini_backup_vars, 1):
             v = var.get().strip()
             if v:
@@ -15399,10 +15404,25 @@ class VideoGeneratorApp(ctk.CTk):
                 from editorial.countdown import narrations_by_scene
 
                 editorial_plan.narrations_by_scene = narrations_by_scene(config["rows"])
+                # AI editorial director through the Semantic Intelligence Engine (semantic_intel/): every scene's answer is cached on its own
+                # input, only changed scenes are asked, batches run side by side and fail alone, and a scene Gemini cannot answer uses the
+                # editorial rules. settings.json "ai_planning": "off" (or "editorial_ai": false, or no key) never calls Gemini here.
+                _gs = self._gemini_settings()   # carries "ai_planning" / "editorial_ai": the original director honours editorial_ai false too
+                _sem_reasoner = None
+                try:
+                    from semantic_intel import core as _sem_core
+                    from semantic_intel.editorial import SceneCachedEditorialReasoner
+
+                    if _sem_core.ai_allowed(_gs, "editorial"):
+                        _sem_reasoner = SceneCachedEditorialReasoner(
+                            _gs, cache_dir=(Path(state_dir) / "semantic_cache") if state_dir is not None else None, style_key=str(style_fp or ""))
+                except Exception as _sem_exc:
+                    print(f"[SEMANTIC] editorial engine unavailable ({_sem_exc}); using the original director")
                 editorial_plan = compile_editorial_plan(
                     editorial_plan,
                     images_dir=Path(config["images_dir"]),
                     gemini_settings=self._gemini_settings(),
+                    reasoner=_sem_reasoner,
                 )
                 if state_dir is not None:
                     save_editorial_plan(state_dir, editorial_plan)
