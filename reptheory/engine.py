@@ -39,7 +39,8 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
 
 def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, quality: str = "final", title: str = "", cancel_check: Optional[Callable[[], bool]] = None,
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
-                   end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, variety: bool = False, flow_mode: str = "agent", flow_settings: Optional[dict] = None, flow_accounts=None) -> Dict:
+                   end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, variety: bool = False, flow_mode: str = "agent", flow_settings: Optional[dict] = None, flow_accounts=None,
+                   media_only: bool = False, table: Optional[Dict[int, dict]] = None) -> Dict:
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -67,7 +68,10 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
         except Exception as ex: log(f"[REP THEORY 3D] body clips unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
     if illustrate:      # a picture per beat from the narration, generated once through Flow and cached (reptheory/beat_art.py)
         from . import beat_art as BA
-        try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts)}")
+        if media_only:      # Generate scenes: the pictures this script wants are listed for the Visuals tab (made there through the app's Flow); Render uses what the tab holds
+            wanted: list = []; BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, collect=wanted)
+            return {"ok": True, "media_only": True, "requests": wanted, "scenes": len(scenes)}
+        try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts, chosen=table, generate_missing=table is None)}")      # after Generate scenes, a missing picture is retried in the Visuals tab, never here
         except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
     for sc in scenes: log(f"scene {sc['no']} {sc['start']:.1f}-{sc['end']:.1f}s {sc['kind']} ({sc['art'] or 'no art'}): {'; '.join(sc['decisions'][:2])}")
     end_s = scenes[-1]["end"] if not max_seconds else min(scenes[-1]["end"], max_seconds); n_narr = round(end_s * T.FPS); ctx = D.Ctx(W, H)

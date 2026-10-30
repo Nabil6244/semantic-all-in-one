@@ -60,6 +60,7 @@ def _retry_footage(sc, d: dict, acquirer: Callable, allow_youtube: bool, allow_f
         log(f"scene {sc.scene_no}: footage retry {rnd} with '{q[:60]}': {'found' if res.get('ok') else 'nothing'}")
         if res.get("ok") and better_than is not None and (ACQ.is_weak(res) or float((res.get("qa") or {}).get("semantic_match") or 0) <= float((better_than.get("qa") or {}).get("semantic_match") or 0)): continue
         if res.get("ok"):
+            res["scene_key"] = key      # Generate scenes moves this clip to the scene's own row in the Visuals table
             sc.asset = res; sc.visual["path"] = res["path"]; sc.visual["query"] = q; acquisition["ok"] += 1; acquisition["retried_ok"] = acquisition.get("retried_ok", 0) + 1
             src = res.get("provider") or res.get("source") or "?"; acquisition["sources"][src] = acquisition["sources"].get(src, 0) + 1
             sc.decisions.append(f"first footage search found nothing; alternative search '{q[:50]}' succeeded")
@@ -88,7 +89,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                       log: Callable[[str], None] = lambda m: None, frame_renderer: Optional[Callable] = None, write_report: bool = True,
                       script_text: Optional[str] = None, settings: Optional[dict] = None, acquirer: Optional[Callable] = None, allow_youtube: bool = False,
                       allow_flow: bool = False, use_director: Optional[bool] = None, edit: str = "classic", music: bool = True, use_gemini: bool = True,
-                      puppet: Optional[dict] = None, puppet_module=None) -> Dict:
+                      puppet: Optional[dict] = None, puppet_module=None, media_only: bool = False, table: Optional[Dict[int, dict]] = None) -> Dict:
     t0 = time.time(); project_dir = Path(project_dir); cancel = threading.Event(); cancelled = cancel_check or (lambda: False)
     stop_watch = threading.Event()
     def _watch():   # the caller's cancel flag also stops a render that is in the middle of a scene (kills the node/Chromium/ffmpeg children)
@@ -106,7 +107,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     if not anatomy["usable"]:      # never silent: without the 3D path every anatomy scene is footage or a card
         log("3D anatomy is NOT available (" + ("no model found in " + ", ".join(anatomy["dirs"]) if not any(anatomy["ready"].values()) else "Node/three.js/browser missing: " + ", ".join(anatomy["threejs_missing"] or ["browser"])) + "): anatomy scenes will use footage instead")
     acquisition: Dict = {"requested": 0, "ok": 0, "failed": 0, "sources": {}, "flow_used": False, "youtube_allowed": allow_youtube}
-    dscenes: List[dict] = []
+    dscenes: List[dict] = []; table_rows: List = []
     if not use_gemini: settings = dict(settings or {}, gemini_enabled=False)      # one switch: the director, footage retries and everything else stay on the built-in planner
     if director_on:
         prog(0.0, "planning scenes from the narration (the app's visual director)")
@@ -131,12 +132,22 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         by_id = {d["scene_id"]: d for d in dscenes}; want = {}
         for sc in scenes:
             if sc.kind == "footage": want[int(sc.dscene_ids[0])] = dict(by_id[sc.dscene_ids[0]], query=sc.visual.get("query") or "")
+        def _same(a, b): return " ".join(str(a or "").split()).lower() == " ".join(str(b or "").split()).lower()
+        chosen = {no: rec for no, rec in (table or {}).items() if no in want and rec.get("ok") and _same(rec.get("narration"), want[no].get("narration"))}      # the clips the Visuals tab holds
+        table_rows = ACQ.rows_for(want, allow_youtube, allow_flow) if media_only else []
         if want:
-            prog(0.0, f"getting footage for {len(want)} scenes through the app's asset sources")
-            rows = ACQ.rows_for(want, allow_youtube, allow_flow); acquisition["requested"] = len(rows)
-            got = acquirer(rows)
+            prog(0.0, f"getting footage for {len(want) - len(chosen)} scenes through the app's asset sources" + (f" ({len(chosen)} chosen in the Visuals tab)" if chosen else ""))
+            rows = ACQ.rows_for({no: d for no, d in want.items() if no not in chosen}, allow_youtube, allow_flow); acquisition["requested"] = len(rows) + len(chosen)
+            got = acquirer(rows) if rows else {}
             for sc in scenes:
                 if sc.kind != "footage": continue
+                rec = chosen.get(int(sc.dscene_ids[0]))
+                if rec is not None:      # the Visuals tab's clip is the user's (or the last Generate's) choice: used as it is, never judged or replaced
+                    sc.asset = rec; sc.visual["path"] = rec["path"]; acquisition["ok"] += 1; src = rec.get("provider") or rec.get("source") or "?"
+                    acquisition["sources"][src] = acquisition["sources"].get(src, 0) + 1; acquisition["flow_used"] = acquisition["flow_used"] or "flow" in str(rec.get("source", "")).lower()
+                    sc.decisions.append("clip taken from the Visuals tab")
+                    if ACQ.is_weak(rec) and not rec.get("user_override"): sc.flags.append({"code": "footage_weak_match", "severity": "review", "message": "The footage matches the narration poorly; replace it in the Visuals tab before publishing."})
+                    continue
                 r = got.get(int(sc.dscene_ids[0]), {})
                 r = _judge(r, sc, by_id[sc.dscene_ids[0]], settings, ff, log)
                 retried = False
@@ -156,6 +167,18 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                     sc.flags.append({"code": "footage_unavailable", "severity": "note", "message": f"Footage could not be acquired ({str(why)[:120]}); a typographic card is shown instead."})
                     sc.kind = "text_card"; sc.visual = {"text": sc.text, "beats": [{"text": x["text"], "t0": round(x["start"] - sc.start, 3)} for x in sc.sentences]}
                     log(f"scene {sc.scene_no}: footage failed ({str(why)[:100]}): typographic fallback")
+    if media_only:      # Generate scenes: the footage is fetched and listed for the Visuals tab; Render makes the video from what the tab holds
+        stop_watch.set()
+        folder = getattr(acquirer, "images_dir", None)
+        if folder is not None:
+            from asset_manager import AssetManifest
+            man = AssetManifest(Path(folder))
+            for sc in scenes:
+                key = (sc.asset or {}).get("scene_key")
+                if sc.kind == "footage" and key and man.get(str(key)):      # a retry found the clip: it becomes the scene's own row
+                    man.set(str(int(sc.dscene_ids[0])), dict(man.get(str(key)), scene_number=str(int(sc.dscene_ids[0]))))
+        return {"ok": True, "media_only": True, "rows": table_rows, "acquisition": acquisition, "scenes": [s.as_dict() for s in scenes],
+                "visual_director": (dscenes[0]["plan_source"] if dscenes else "off")}
     if not (puppet and puppet.get("enabled")) and any(x.get("character_action") for x in sents): log("puppet: the scenes file has character_action cells but the paper-cutout switch is off, so they are ignored")
     if puppet and puppet.get("enabled") and edit == "high_end": log("puppet: the paper-cutout character is used by the Classic edit only; this High-end render has none")
     if edit == "high_end":   # opt-in: the layered compositing / editorial pipeline (health_cinema/edit); the classic path below is unchanged

@@ -27,6 +27,8 @@ DEFAULT_COLOURS = ("Titanium Black", "Titanium Silver", "Titanium Blue", "Titani
 DEFAULT_DISCLAIMER = ("This is a conceptual trailer made by a fan. It is not affiliated with, endorsed by or sponsored by the "
                       "manufacturer. Product names and trademarks belong to their owners.")
 _ROOT = Path(__file__).resolve().parent.parent
+OWNER = "product_trailer"      # its AI pictures and stock clips in the Visuals tab (visual_bridge)
+FOOTAGE_BASE = 1000            # stock clips are Visuals rows 1001, 1002, ... so they never share a number with an AI scene
 
 
 def _root() -> Path:
@@ -268,11 +270,17 @@ def activate(app: Any) -> None:
     _load_options(app)
     app._pt_block.grid()
     _sync_buttons(app)
+    import visual_bridge
+
+    visual_bridge.restore(app, OWNER)      # the pictures and clips of the last Make AI scenes / Generate, back in the Visuals tab
 
 
 def deactivate(app: Any) -> None:
     if getattr(app, "_pt_active", False):
         app._pt_active = False
+        import visual_bridge
+
+        visual_bridge.clear(app, "product_trailer")
         block = getattr(app, "_pt_block", None)
         if block is not None:
             block.grid_remove()
@@ -407,7 +415,8 @@ def _spec_path_of(result: Any, out_dir: Path) -> Path:
     raise RuntimeError(f"build_spec returned {type(result).__name__}, not a spec path")
 
 
-def _start(app: Any, name: str, job, done) -> None:
+def _start(app: Any, name: str, job, done, end=None) -> None:
+    """end(error): called last, on the main thread, whatever happened ("" when the job finished)."""
     app._pt_cancel.clear()
     app._pt_running = True
     app._sync_primary_cta()
@@ -429,6 +438,8 @@ def _start(app: Any, name: str, job, done) -> None:
                     done(result)
                 except Exception as exc:  # noqa: BLE001
                     app._pt_status_var.set(f"{type(exc).__name__}: {exc}")
+            if end is not None:
+                end(error)
             app._sync_primary_cta()
 
         app.after(0, finish)
@@ -436,7 +447,7 @@ def _start(app: Any, name: str, job, done) -> None:
     threading.Thread(target=worker, name=name, daemon=True).start()
 
 
-def _progress_cb(app: Any):
+def _progress_cb(app: Any, export: bool = False):
     def cb(*args, **kwargs) -> None:
         frac = next((a for a in args if isinstance(a, (int, float))), kwargs.get("fraction"))
         msg = next((a for a in args if isinstance(a, str)), kwargs.get("message", ""))
@@ -444,7 +455,8 @@ def _progress_cb(app: Any):
         try:
             k = float(frac) if frac is not None else None
             app.after(0, lambda: (app._pt_status_var.set(text.strip()),
-                                  k is not None and app.progress.set(k if k <= 1 else k / 100.0)))
+                                  k is not None and app.progress.set(k if k <= 1 else k / 100.0),
+                                  export and k is not None and app._export_progress(k if k <= 1 else k / 100.0, msg or "")))
         except Exception:
             pass
     return cb
@@ -481,6 +493,10 @@ def on_generate(app: Any) -> None:
     app._append_log(f"{TAG} Generate: {o['film_type']}{' + AI scenes' if o['use_ai'] else ''}, {o['width']}x{o['height']} @ {o['fps']} fps\n")
     new_modes = review_film or o["use_ai"] or o["film_type"] == "Reveal" or bool(o["voiceover"])
     whisper_model = (app.model_var.get().strip() if hasattr(app, "model_var") else "") or "base"
+    if o["use_ai"]:
+        _visuals_into_results(app, out_dir)      # the AI pictures as the Visuals tab holds them
+    footage_chosen = _footage_chosen(app)       # and the stock clips
+    planned: Dict[str, Any] = {}
 
     def job():
         if new_modes:   # Reveal, Review and AI scenes go through the film back end; a plain Trailer keeps the original call
@@ -496,7 +512,9 @@ def on_generate(app: Any) -> None:
                     app.after(0, lambda exc=exc: app._append_log(f"{TAG} Could not read the voice-over words ({exc}); lines spread evenly.\n"))
             r = studio.plan_film(o["film_type"], out_dir=out_dir, csv=o["csv"] or None, script=o["script"], phone=o["phone"], colour=o["colour"],
                                  music=o["music"] or None, disclaimer=o["disclaimer"], disclaimer_on=o["disclaimer_on"], width=o["width"],
-                                 height=o["height"], fps=o["fps"], use_ai=o["use_ai"], voiceover=o["voiceover"] or None, words=words, style=o["style"], **_ai_args(app, o))
+                                 height=o["height"], fps=o["fps"], use_ai=o["use_ai"], voiceover=o["voiceover"] or None, words=words, style=o["style"],
+                                 footage_chosen=footage_chosen, **_ai_args(app, o))
+            planned.update(r)
             app.after(0, lambda: app._pt_status_var.set(r["summary"]))
             for n in r.get("notes", [])[:20]:
                 app._append_log(f"{TAG} {n}\n")
@@ -513,7 +531,11 @@ def on_generate(app: Any) -> None:
             (out_dir / "options.json").write_text(json.dumps({**o, "spec_path": str(spec)}, indent=2), encoding="utf-8")
         except Exception:
             pass
-        app._pt_status_var.set(f"Planned: {spec.name}. Click Render to make the video.")
+        if planned.get("footage"):
+            _show_in_visuals(app, footage_rows=_footage_rows(app, planned["footage"]))
+        else:
+            _show_in_visuals(app)
+        app._pt_status_var.set(f"Planned: {spec.name}. Its pictures and clips are in the Visuals tab; click Render to make the video.")
         app._append_log(f"{TAG} Spec written: {spec}\n")
 
     _start(app, "product-trailer-generate", job, done)
@@ -532,6 +554,12 @@ def on_render(app: Any) -> None:
     if not spec or not Path(spec).is_file():
         messagebox.showerror("Cannot start", "Click Generate first: Render needs the planned trailer.")
         return
+    import visual_bridge
+
+    rows = visual_bridge.rows(app, OWNER)
+    if rows and visual_bridge.snapshot(visual_bridge.folder(OWNER, ws), rows) != getattr(app, "_pt_table_snapshot", None):
+        messagebox.showinfo("Click Generate first", "You changed pictures or clips in the Visuals tab. Click Generate to put them in the trailer, then Render.")
+        return
     pt = _package()
     if pt is None:
         return
@@ -539,7 +567,15 @@ def on_render(app: Any) -> None:
     app.output_var.set(str(out_path))
     app._pt_status_var.set("Rendering…")
     app._append_log(f"{TAG} Render: {Path(spec).name} -> {out_path.name}\n")
-    cb = _progress_cb(app)
+    cb = _progress_cb(app, export=True)
+    run = app._track_generation_start(OWNER)      # the Export page follows the render
+
+    def end(error: str) -> None:
+        from export_state import run_outcome
+
+        done = run_outcome(error, out_path if Path(out_path).is_file() else None, stopped=app._pt_cancel.is_set())
+        app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
+                                  message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
     def job():
         return pt.render(str(spec), str(out_path), progress=cb, cancel=app._pt_cancel.is_set)   # render() calls it: pass the check, not the Event
@@ -552,7 +588,7 @@ def on_render(app: Any) -> None:
         app._pt_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
 
-    _start(app, "product-trailer-render", job, done)
+    _start(app, "product-trailer-render", job, done, end)
 
 
 # ---- film type and AI scenes ------------------------------------------------------------------------------------------------
@@ -656,7 +692,85 @@ def on_make_scenes(app: Any) -> None:
 
     def done(results) -> None:
         ok = sum(1 for r in results.values() if r["status"] == "done")
-        app._pt_status_var.set(f"AI scenes: {ok} of {len(results)} made. Tick 'Use AI scenes' and click Generate; the rest become 3D shots.")
+        _show_in_visuals(app, ai_rows=_ai_rows_after_make(app, pack, results))
+        app._pt_status_var.set(f"AI scenes: {ok} of {len(results)} made and listed in the Visuals tab (change any there). Tick 'Use AI scenes' and click Generate; the rest become 3D shots.")
+        try:
+            app._goto_workflow_view("visual_plan")
+        except Exception:  # noqa: BLE001
+            pass
 
     app._pt_status_var.set("Making the AI scenes in Flow…")
     _start(app, "product-trailer-make-scenes", job, done)
+
+
+# ---- the Visuals tab: AI pictures (rows = scene n) and stock clips (rows = FOOTAGE_BASE + n) ----------------------------------------------
+
+def _visual_rows(app: Any, footage: bool) -> List:
+    import visual_bridge
+
+    return [r for r in visual_bridge.rows(app, OWNER) if (int(str(r.scene_number)) > FOOTAGE_BASE) == footage]
+
+
+def _show_in_visuals(app: Any, ai_rows: Optional[List] = None, footage_rows: Optional[List] = None) -> None:
+    """Main thread. One kind of rows is replaced; the other kind already in the table is kept."""
+    import visual_bridge
+
+    ai = ai_rows if ai_rows is not None else _visual_rows(app, False)
+    ft = footage_rows if footage_rows is not None else _visual_rows(app, True)
+    visual_bridge.fill(app, OWNER, list(ai) + list(ft))
+    app._pt_table_snapshot = visual_bridge.snapshot(visual_bridge.folder(OWNER, app._workspace), app._scene_rows)
+
+
+def _ai_rows_after_make(app: Any, pack: Dict[str, Any], results: Dict[Any, Any]) -> List:
+    """The AI scenes Flow was asked for, filed in this style's Visuals folder (each picture keeps its own file)."""
+    import visual_bridge
+    from providers.base import SceneRow
+
+    folder = visual_bridge.folder(OWNER, app._workspace)
+    rows = []
+    for sc in pack.get("scenes") or []:
+        if sc.get("source") != "ai_still":
+            continue
+        n = int(sc["n"])
+        rows.append(SceneRow(scene_number=str(n), script_segment=str(sc.get("caption") or sc.get("feature") or sc.get("type") or ""), asset_type="flow_image", prompt=str(sc.get("prompt") or "")))
+        r = results.get(n) or results.get(str(n)) or {}
+        if r.get("status") == "done":
+            visual_bridge.seed(folder, str(n), r.get("path") or "", "flow_image", prompt=rows[-1].prompt, provider="flow")
+    return rows
+
+
+def _visuals_into_results(app: Any, out_dir: Path) -> None:
+    """Before Generate: the AI pictures the Visuals tab holds (Retry / Change source / Local clip there) become the film's pictures."""
+    import visual_bridge
+    from product_trailer import studio
+
+    rows = _visual_rows(app, False)
+    if not rows:
+        return
+    results = studio.load_results(out_dir)
+    for n, rec in visual_bridge.records(visual_bridge.folder(OWNER, app._workspace), rows).items():
+        results[n] = {"status": "done", "path": rec["path"]}
+    studio.save_results(out_dir, results)
+
+
+def _footage_chosen(app: Any) -> Dict[int, Dict[str, str]]:
+    import visual_bridge
+
+    rows = _visual_rows(app, True)
+    recs = visual_bridge.records(visual_bridge.folder(OWNER, app._workspace), rows)
+    by_no = {int(str(r.scene_number)): r for r in rows}
+    return {no - FOOTAGE_BASE: {"query": by_no[no].stock, "path": rec["path"]} for no, rec in recs.items()}
+
+
+def _footage_rows(app: Any, items: List[Dict[str, Any]]) -> List:
+    import visual_bridge
+    from providers.base import SceneRow
+
+    folder = visual_bridge.folder(OWNER, app._workspace)
+    rows = []
+    for it in items:
+        no = str(FOOTAGE_BASE + int(it["n"]))
+        rows.append(SceneRow(scene_number=no, script_segment=str(it.get("text") or it["query"]), asset_type="stock_video", stock=str(it["query"])))
+        if it.get("path"):
+            visual_bridge.seed(folder, no, it["path"], "stock_video", stock=str(it["query"]))
+    return rows

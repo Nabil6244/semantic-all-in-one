@@ -11,6 +11,7 @@ from typing import Optional
 
 STYLE_NAME = "Rep Theory"
 TAG = "[REP THEORY]"
+OWNER = "reptheory"      # its Flow pictures in the Visuals tab (visual_bridge)
 
 def _m(app): return sys.modules[type(app).__module__]
 
@@ -105,6 +106,16 @@ def end_card_settings(app) -> dict:
 def activate(app) -> None:
     if getattr(app, "_rt_running", False): return
     app._rt_block.grid(); app._rt_status_var.set("")
+    import visual_bridge
+    visual_bridge.restore(app, OWNER)      # the pictures of the last Generate scenes, back in the Visuals tab
+
+def _inputs_key(app) -> tuple:
+    """What Generate scenes listed pictures for: other inputs need Generate scenes again before Render."""
+    return (app._rt_scenes_var.get().strip(), str(app._current_voiceover_path() or ""), bool(app._rt_smart_var.get()), bool(app._rt_3d_var.get()), bool(app._rt_variety_var.get()), app._rt_title_var.get().strip())
+
+def needs_scenes(app) -> bool:
+    """Flow pictures are the assets Rep Theory fetches: with them on, Generate scenes puts them in the Visuals tab first. Without them nothing is fetched."""
+    return bool(app._rt_flow_var.get()) and getattr(app, "_rt_ready_key", None) != _inputs_key(app)
 
 def deactivate(app) -> None:
     block = getattr(app, "_rt_block", None)
@@ -120,7 +131,10 @@ def sync_cta(app) -> None:
         app._cta_action = "picker"; app.stage_var.set("SETUP"); app.hint_var.set("Choose a project to get started."); app._set_generate_btn(state="normal", text="Choose project"); return
     if app._current_voiceover_path() is None:
         app._cta_action = "import_audio"; app.stage_var.set("PLAN"); app.hint_var.set("Select or import a voiceover to continue."); app._set_generate_btn(state="normal", text="Import Voiceover"); return
-    app._cta_action = "rt_render"; app.stage_var.set("RENDER"); app.hint_var.set("Click Render Rep Theory: the visuals are planned from the narration, then rendered."); app._set_generate_btn(state="normal", text="Render Rep Theory")
+    app._cta_action = "rt_render"
+    if needs_scenes(app): app.stage_var.set("PLAN"); app.hint_var.set("Click Generate scenes: the Flow pictures are made into the Visuals tab for you to check before rendering."); app._set_generate_btn(state="normal", text="Generate scenes"); return
+    hint = "The pictures are in the Visuals tab: change any there, then click Render Rep Theory." if app._rt_flow_var.get() else "Click Render Rep Theory: the visuals are planned from the narration, then rendered."
+    app.stage_var.set("RENDER"); app.hint_var.set(hint); app._set_generate_btn(state="normal", text="Render Rep Theory")
 
 def cta(app, action: str) -> None:
     cancel(app) if action == "rt_cancel" else on_render_click(app)
@@ -147,9 +161,17 @@ def on_render_click(app) -> None:
     if want3d:
         from . import clip3d
         if not clip3d.available(): app._append_log(f"{TAG} 3D body model or renderer not found on this machine: scenes about body parts keep their usual look (see docs/rep_theory).\n")
-    app._rt_cancel.clear(); app._rt_running = True; app._rt_status_var.set("Starting…"); app._sync_primary_cta()
+    import visual_bridge
+    media_only = needs_scenes(app); folder = visual_bridge.folder(OWNER, ws); inputs = _inputs_key(app)
+    table = visual_bridge.records(folder, visual_bridge.rows(app, OWNER)) if (wantflow and not media_only) else None
+    manager = None
+    if media_only:
+        try: manager = app._build_asset_manager(folder, [])      # the app's own Flow wiring and settings (built here: it reads Tk variables)
+        except Exception as exc: M.messagebox.showerror("Cannot start", f"The app's asset sources could not be set up:\n{exc}"); return
+    app._rt_cancel.clear(); app._rt_running = True; app._rt_status_var.set("Making the Flow pictures for the Visuals tab…" if media_only else "Starting…")
+    run = None if media_only else app._track_generation_start(OWNER); app._sync_primary_cta()      # the Export page follows the render (not Generate scenes)
     def log(msg: str) -> None: app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
-    def progress(k: float, msg: str) -> None: app.after(0, lambda: app._rt_status_var.set(f"{int(k * 100)}%  {msg}"))
+    def progress(k: float, msg: str) -> None: app.after(0, lambda: (app._rt_status_var.set(f"{int(k * 100)}%  {msg}"), run is not None and app._export_progress(k, msg)))
     def worker() -> None:
         from . import engine
         result: Optional[dict] = None; error = ""
@@ -174,15 +196,48 @@ def on_render_click(app) -> None:
                 if not sentences: raise RuntimeError("the narration has no words to plan from")
                 log(f"{len(sentences)} sentences read from the narration")
             result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card, planner="beats" if smart else "legacy", per_beat=smart, illustrate=wantflow, clips3d=want3d, variety=mixlooks and smart,
-                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts)
+                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table)
+            if media_only: result = dict(result, rows=fetch_pictures(manager, folder, result.get("requests") or [], app._rt_cancel.is_set, log))
         except engine.Cancelled: error = "Stopped."
         except Exception as exc: error = f"{type(exc).__name__}: {exc}"      # shown to the user, never a silent failure
         def finish() -> None:
             app._rt_running = False
+            if not media_only:
+                from export_state import run_outcome
+                done = run_outcome(error, out_path if result else None)
+                app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
             if error: app._rt_status_var.set(error); app._append_log(f"{TAG} {error}\n")
+            elif result and result.get("media_only"):
+                rows = result.get("rows") or []; visual_bridge.fill(app, OWNER, rows); app._rt_ready_key = inputs
+                ok = len(visual_bridge.records(folder, rows))
+                msg = f"Scenes ready: {ok} of {len(rows)} Flow pictures made. Check them in the Visuals tab, then click Render Rep Theory." if rows else "Scenes ready (no scene wants a Flow picture). Click Render Rep Theory."
+                app._rt_status_var.set(msg); app._append_log(f"{TAG} {msg}\n")
+                if rows:
+                    try: app._goto_workflow_view("visual_plan")
+                    except Exception: pass
             elif result:
                 msg = f"Done: {out_path.name} ({len(result['scenes'])} scenes, {result['size'][0]}x{result['size'][1]}, {result['video_seconds']}s)"; app._rt_status_var.set(msg)
                 app._append_log(f"{TAG} {msg}; report: {out_path}.rep_theory.json\n{TAG} Not implemented yet: {', '.join(result.get('not_implemented') or [])}.\n")
             app._sync_primary_cta()
         app.after(0, finish)
     threading.Thread(target=worker, name="rep-theory-render", daemon=True).start()
+
+def fetch_pictures(manager, folder: Path, requests: list, cancelled, log) -> list:
+    """Generate scenes: one Visuals-tab row per picture. A picture already in the Rep Theory library is filed as done (nothing is generated twice);
+    the rest are made through the app's AssetManager (its Flow provider, settings and accounts), into this style's own folder."""
+    import shutil
+    from asset_manager import AssetManifest
+    from providers.base import SceneRow
+    rows = [SceneRow(scene_number=str(r["no"]), script_segment=r["text"], asset_type="flow_image", prompt=r["prompt"]) for r in requests]
+    if not rows: return rows
+    folder.mkdir(parents=True, exist_ok=True); man = AssetManifest(folder)
+    for r, row in zip(requests, rows):
+        rec = man.get(row.scene_number) or {}
+        if r.get("cached") and not (rec.get("status") == "complete" and rec.get("user_override")) and Path(r["cached"]).is_file():
+            dst = folder / f"{int(row.scene_number):03d}{Path(r['cached']).suffix or '.png'}"
+            if not dst.is_file(): shutil.copyfile(r["cached"], dst)
+            man.set(row.scene_number, {"scene_number": row.scene_number, "status": "complete", "source": "flow_image", "type": "image", "local_path": str(dst), "prompt": row.prompt, "provider": "flow"})
+    todo = [row for row in rows if (man.get(row.scene_number) or {}).get("status") != "complete"]
+    log(f"{len(rows) - len(todo)} picture(s) already in the library; {len(todo)} to make through Flow")
+    if todo and not cancelled(): manager.resolve_all(rows)
+    return rows

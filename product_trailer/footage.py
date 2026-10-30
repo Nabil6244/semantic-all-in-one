@@ -34,7 +34,9 @@ def _usable(c: Any, used: set) -> bool:
 
 
 def resolve_footage(parsed: Dict[str, Any], out_dir: Any, settings: Dict[str, Any], log: Callable[[str], None] = print, backends: Optional[List[Any]] = None,
-                    download: Optional[Callable[..., Path]] = None) -> Dict[str, int]:
+                    download: Optional[Callable[..., Path]] = None, chosen: Optional[Dict[int, Dict[str, str]]] = None, items: Optional[list] = None) -> Dict[str, int]:
+    """chosen: {footage n: {"query", "path"}} the clips the Visuals tab holds; used as they are when the query is still the same.
+    items: filled with {"n", "query", "text", "path"} for every footage sentence (path "" when nothing was found), for the Visuals tab."""
     from providers.stock.downloader import download_candidate
 
     dl = download or download_candidate
@@ -49,6 +51,13 @@ def resolve_footage(parsed: Dict[str, Any], out_dir: Any, settings: Dict[str, An
             if it.get("kind") != "footage" or it.get("path"):
                 continue
             n += 1
+            pick = (chosen or {}).get(n) or {}
+            if pick.get("path") and Path(pick["path"]).is_file() and pick.get("query") == it["query"]:
+                it["path"] = pick["path"]
+                found += 1
+                if items is not None:
+                    items.append({"n": n, "query": it["query"], "text": it.get("text") or it["query"], "path": it["path"]})
+                continue
             cand = None
             for b in bks:
                 try:
@@ -62,13 +71,19 @@ def resolve_footage(parsed: Dict[str, Any], out_dir: Any, settings: Dict[str, An
             if cand is None:
                 missing += 1
                 log(f"no footage found for '{it['query']}'")
+                if items is not None:
+                    items.append({"n": n, "query": it["query"], "text": it.get("text") or it["query"], "path": ""})
                 continue
             try:
                 it["path"] = str(dl(cand, d, str(n), log=log))
                 used.add(cand.asset_id)
                 found += 1
+                if items is not None:
+                    items.append({"n": n, "query": it["query"], "text": it.get("text") or it["query"], "path": it["path"]})
                 log(f"footage {n}: '{it['query']}' -> {cand.provider} {cand.asset_id}")
             except Exception as exc:  # noqa: BLE001
                 missing += 1
                 log(f"footage '{it['query']}' could not be downloaded ({type(exc).__name__})")
+                if items is not None:
+                    items.append({"n": n, "query": it["query"], "text": it.get("text") or it["query"], "path": ""})
     return {"found": found, "missing": missing}

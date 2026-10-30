@@ -63,6 +63,7 @@ def make_acquirer(build_manager: Callable, images_dir: Path, log: Callable[[str]
                        "author": rec.get("author", ""), "source_url": rec.get("source_url", ""), "query": rec.get("stock_query") or rec.get("prompt") or "", "error": rec.get("error") or "",
                        "type": rec.get("type", ""), "qa": {k: (rec.get("visual_qa") or {}).get(k) for k in ("semantic_match", "vision_used", "overall_score", "status")}}
         return out
+    acquire.images_dir = images_dir      # where the files are: Generate scenes lists them in the Visuals tab from this folder's manifest
     return acquire
 
 def settings_stock_manager(settings: dict):

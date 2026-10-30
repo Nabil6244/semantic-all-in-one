@@ -225,13 +225,14 @@ def on_render_click(app) -> None:
     app._war_cancel.clear()
     app._war_running = True
     app._war_status_var.set("Starting…")
+    run = app._track_generation_start("war")      # the Export page follows the render
     app._sync_primary_cta()
 
     def log(msg: str) -> None:
         app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
 
     def progress(k: float, msg: str) -> None:
-        app.after(0, lambda: app._war_status_var.set(f"{int(k * 100)}%  {msg}"))
+        app.after(0, lambda: (app._war_status_var.set(f"{int(k * 100)}%  {msg}"), app._export_progress(k, msg)))
 
     def worker() -> None:
         from . import integration, segments
@@ -265,6 +266,10 @@ def on_render_click(app) -> None:
 
         def finish() -> None:
             app._war_running = False
+            from export_state import run_outcome
+
+            done = run_outcome(error, out_path if result else None)
+            app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
             if error:
                 app._war_status_var.set(error)
                 app._append_log(f"{TAG} {error}\n")

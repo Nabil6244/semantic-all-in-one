@@ -19,6 +19,7 @@ from . import profiles as P
 
 STYLE_NAME = "Health Cinema"
 TAG = "[HEALTH CINEMA]"
+OWNER = "health_cinema"      # its rows in the Visuals tab (visual_bridge)
 
 
 def _m(app):
@@ -184,6 +185,18 @@ def activate(app) -> None:
         return
     app._health_block.grid()
     app._health_status_var.set("")
+    import visual_bridge
+
+    visual_bridge.restore(app, OWNER)      # the clips of the last Generate scenes, back in the Visuals tab
+
+
+def _inputs_key(app) -> tuple:
+    """What Generate scenes fetched for: a different scenes file or voiceover needs Generate scenes again before Render."""
+    return (app._health_scenes_var.get().strip(), str(app._current_voiceover_path() or ""))
+
+
+def scenes_ready(app) -> bool:
+    return getattr(app, "_health_ready_key", None) == _inputs_key(app)
 
 
 def deactivate(app) -> None:
@@ -216,9 +229,14 @@ def sync_cta(app) -> None:
         app._set_generate_btn(state="normal", text="Import Voiceover")
         return
     app._cta_action = "health_render"
-    app.stage_var.set("RENDER")
-    app.hint_var.set("Click Render Health Cinema: the visuals are planned from the narration, then rendered.")
-    app._set_generate_btn(state="normal", text="Render Health Cinema")
+    if scenes_ready(app):
+        app.stage_var.set("RENDER")
+        app.hint_var.set("The clips are in the Visuals tab: change any there (Retry, Change source, Local clip), then click Render Health Cinema.")
+        app._set_generate_btn(state="normal", text="Render Health Cinema")
+    else:
+        app.stage_var.set("PLAN")
+        app.hint_var.set("Click Generate scenes: the scenes are planned and their footage is fetched into the Visuals tab for you to check before rendering.")
+        app._set_generate_btn(state="normal", text="Generate scenes")
 
 
 def cta(app, action: str) -> None:
@@ -261,7 +279,12 @@ def on_render_click(app) -> None:
     quality = "preview" if app._health_preview_var.get() else "final"
     allow_youtube, allow_flow = bool(app._health_youtube_var.get()), bool(app._health_flow_var.get())
     extra = dict(edit_kwargs(app), **puppet_kwargs(app))
-    images_dir = project_dir / "state" / "health_cinema" / "assets"      # its own asset folder + manifest: never mixes with Normal video's Images/
+    import visual_bridge
+
+    images_dir = visual_bridge.folder(OWNER, ws)      # its own asset folder + manifest: never mixes with Normal video's Images/; the Visuals tab shows it
+    media_only = not scenes_ready(app)               # first Generate scenes (footage into the Visuals tab), then Render from what the tab holds
+    table = {} if media_only else visual_bridge.records(images_dir, visual_bridge.rows(app, OWNER))
+    inputs = _inputs_key(app)
     try:
         manager = app._build_asset_manager(images_dir, [])                # the app's own provider wiring and settings (built here: it reads Tk variables)
     except Exception as exc:  # noqa: BLE001
@@ -269,14 +292,15 @@ def on_render_click(app) -> None:
         return
     app._health_cancel.clear()
     app._health_running = True
-    app._health_status_var.set("Starting…")
+    app._health_status_var.set("Fetching the footage for the Visuals tab…" if media_only else "Starting…")
+    run = None if media_only else app._track_generation_start(OWNER)      # the Export page follows the render (not Generate scenes)
     app._sync_primary_cta()
 
     def log(msg: str) -> None:
         app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
 
     def progress(k: float, msg: str) -> None:
-        app.after(0, lambda: app._health_status_var.set(f"{int(k * 100)}%  {msg}"))
+        app.after(0, lambda: (app._health_status_var.set(f"{int(k * 100)}%  {msg}"), run is not None and app._export_progress(k, msg)))
 
     def worker() -> None:
         from . import engine
@@ -322,7 +346,8 @@ def on_render_click(app) -> None:
             acquirer = acquire.make_acquirer(lambda _dir, _rows: manager, images_dir, log, cancel=app._health_cancel.is_set)
             result = engine.run_health_cinema(project_dir, sentences, str(voiceover), str(out_path), profile=profile, quality=quality,
                                               cancel_check=app._health_cancel.is_set, progress_cb=progress, log=log, script_text=" ".join(s["text"] for s in sentences),
-                                              settings=app._settings, use_gemini=bool(getattr(app, "_health_gemini_var", None) is None or app._health_gemini_var.get()), acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow, **extra)
+                                              settings=app._settings, use_gemini=bool(getattr(app, "_health_gemini_var", None) is None or app._health_gemini_var.get()), acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow,
+                                              media_only=media_only, table=table, **extra)
         except engine.Cancelled:
             error = "Stopped."
         except Exception as exc:  # noqa: BLE001 - shown to the user, never a silent failure
@@ -330,9 +355,28 @@ def on_render_click(app) -> None:
 
         def finish() -> None:
             app._health_running = False
+            if not media_only:
+                from export_state import run_outcome
+
+                done = run_outcome(error, out_path if result else None)
+                app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
             if error:
                 app._health_status_var.set(error)
                 app._append_log(f"{TAG} {error}\n")
+            elif result and result.get("media_only"):
+                rows = result.get("rows") or []
+                acq = result.get("acquisition") or {}
+                visual_bridge.fill(app, OWNER, rows)
+                app._health_ready_key = inputs
+                msg = (f"Scenes ready: {acq.get('ok', 0)} of {len(rows)} clips found. Check them in the Visuals tab, then click Render Health Cinema."
+                       if rows else "Scenes ready (no footage scenes to check). Click Render Health Cinema.")
+                app._health_status_var.set(msg)
+                app._append_log(f"{TAG} {msg}\n")
+                if rows:
+                    try:
+                        app._goto_workflow_view("visual_plan")
+                    except Exception:
+                        pass
             elif result:
                 n = len(result.get("scenes") or [])
                 review = len(result.get("review_flags") or [])

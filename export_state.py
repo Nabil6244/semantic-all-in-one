@@ -24,7 +24,17 @@ MTIME_SLACK_S = 5.0
 STYLE_LABELS = {
     "normal": "Normal video", "overscaled": "Overscaled", "exp_solar": "Exp Solar", "pakmap": "pakMap", "hybrid": "Hybrid Map",
     "starmap": "StarMap", "whatif": "What If", "weather": "Weather",
+    "health_cinema": "Health Cinema", "reptheory": "Rep Theory", "product_trailer": "Product Trailer", "war": "War Documentary",
 }
+
+
+def run_outcome(error: str, output_path=None, stopped: bool = False) -> str:
+    """How a style's run ended, for the Export page: "cancelled", "failed" or "completed" (the file itself is verified by the app)."""
+    if stopped or error == "Stopped.":
+        return "cancelled"
+    if error or not output_path:
+        return "failed"
+    return "completed"
 
 
 @dataclasses.dataclass

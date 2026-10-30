@@ -28,9 +28,14 @@ def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf
 def eligible(sc: dict) -> bool:
     return sc["kind"] not in SKIP_KINDS and sc["kind"] != "clip3d" and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
 
-def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True, directed: bool = False) -> Dict[str, int]:
-    """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`)."""
-    todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0}
+def _same(a, b) -> bool: return " ".join(str(a or "").split()).lower() == " ".join(str(b or "").split()).lower()
+
+def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True, directed: bool = False,
+            collect: Optional[list] = None, chosen: Optional[Dict[int, dict]] = None) -> Dict[str, int]:
+    """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`).
+    collect (Generate scenes): nothing is generated; each scene that wants a picture is appended as {no, text, prompt, cached} for the Visuals tab.
+    chosen (Render): {scene no: the Visuals tab's finished file record}; that file is the scene's picture, whatever made it."""
+    todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0, "chosen": 0}
     prev = None
     for sc in scenes:
         if directed and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
@@ -38,6 +43,13 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not directed: stat["skipped"] += 1; continue
         if not eligible(sc): stat["skipped"] += 1; continue
         p = prompt_for(sc["text"]); i = art_id(p); sc["_illus"] = (i, p)
+        if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path")}); continue
+        pick = (chosen or {}).get(sc["no"])
+        if pick and pick.get("ok") and _same(pick.get("narration"), sc["text"]):
+            same = str(pick.get("source")) in ("flow_image", "image") and _same(pick.get("query"), p)      # the picture made for this prompt: kept under its own id, reused by other scripts
+            pid = i if same else "pick_" + hashlib.sha1(f"{p}|{pick['path']}|{Path(pick['path']).stat().st_size}".encode("utf-8")).hexdigest()[:12]
+            if not L.find(pid): L.register(pick["path"], id=pid, kind="scene", subject=p[:120], prompt=p, source="flow" if same else "supplied", notes="from the Visuals tab")
+            sc["_illus"] = (pid, p); stat["chosen"] += 1; continue
         if L.find(i): stat["reused"] += 1
         elif generate_missing: todo[i] = p
     if todo:

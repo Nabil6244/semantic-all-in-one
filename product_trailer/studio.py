@@ -88,7 +88,7 @@ def plan_pack(film_type: str, *, csv: Optional[str] = None, script: Optional[str
 def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Optional[str] = None, phone: str = "", colour: str = "", music: Optional[str] = None,
               disclaimer: Optional[str] = None, disclaimer_on: bool = True, width: int = 1920, height: int = 1080, fps: int = 30, use_ai: bool = False,
               max_clips: int = 3, voiceover: Optional[str] = None, words: Optional[Sequence[Any]] = None, voice_seconds: Optional[float] = None, style: str = "mixed", llm_run: Optional[Callable[[str, str], str]] = None,
-              stock_settings: Optional[Dict[str, Any]] = None, log: Callable[[str], None] = print) -> Dict[str, Any]:
+              stock_settings: Optional[Dict[str, Any]] = None, log: Callable[[str], None] = print, footage_chosen: Optional[Dict[int, Dict[str, str]]] = None) -> Dict[str, Any]:
     """Write the film's spec and return {"spec_path", "summary", "pack", "notes"}. use_ai uses the pictures make_scenes() saved (a missing one is 3D)."""
     from . import mixed, review, scenepack
     from .planner import build_spec
@@ -98,6 +98,7 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     pack, notes, summary = None, [], ""
+    footage_items: List[Dict[str, Any]] = []      # the stock clips, listed for the Visuals tab
     media = out / "media"
     if film_type == "Review":
         script = review.review_source(script, csv)
@@ -123,7 +124,7 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
             parsed = new or director.auto_direct(parsed, phone)          # the AI's scenes, or the built-in rules when it is not available
             parsed = balance.balance(parsed, phone, footage=bool(stock_settings))        # keep every reference look in rotation
             if stock_settings:
-                got = footage.resolve_footage(parsed, out, stock_settings, log)
+                got = footage.resolve_footage(parsed, out, stock_settings, log, chosen=footage_chosen, items=footage_items)
                 log(f"Stock footage: {got['found']} clip(s) found, {got['missing']} not found")
             style = "follow"
         results = load_results(out) if use_ai else {}
@@ -166,7 +167,7 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
     e = pack["estimate"]
     summary = (f"{film_type}: {len(spec['shots'])} shots, {spec['duration']:.0f} s; {e['ai_images']} AI scenes, {e['three_d_shots']} 3D"
                + (f", {len(notes)} fell back to 3D" if notes else ""))
-    return {"spec_path": str(path), "summary": summary, "pack": pack, "notes": notes}
+    return {"spec_path": str(path), "summary": summary, "pack": pack, "notes": notes, "footage": footage_items}
 
 
 def estimate_text(pack: Dict[str, Any]) -> str:

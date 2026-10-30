@@ -6087,6 +6087,9 @@ class VideoGeneratorApp(ctk.CTk):
     def _reptheory_deactivate(self) -> None:
         if getattr(self, "_rt_active", False):
             self._rt_active = False
+            import visual_bridge
+
+            visual_bridge.clear(self, "reptheory")
             block = getattr(self, "_rt_block", None)
             if block is not None:
                 block.grid_remove()
@@ -6094,6 +6097,9 @@ class VideoGeneratorApp(ctk.CTk):
     def _health_deactivate(self) -> None:
         if getattr(self, "_health_active", False):
             self._health_active = False
+            import visual_bridge
+
+            visual_bridge.clear(self, "health_cinema")
             block = getattr(self, "_health_block", None)
             if block is not None:
                 block.grid_remove()
@@ -10528,6 +10534,10 @@ class VideoGeneratorApp(ctk.CTk):
             return  # and Weather (its footage); see weather.app_section.populate_visual_plan
         if self.generation_mode == "whatif":
             return  # and What If (its pictures); see whatif.app_section.populate_visual_plan
+        import visual_bridge
+
+        if visual_bridge.owns(self):
+            return  # and Health Cinema / Rep Theory / Product Trailer (their assets); see visual_bridge.fill
         if not self._running and self._scene_rows:
             sig = self._scene_preview_disk_signature()
             if sig is not None and sig == self._scene_preview_cache_sig:
@@ -12031,6 +12041,11 @@ class VideoGeneratorApp(ctk.CTk):
         CSV, saw asset_type=flow_image again (the CSV itself is
         untouched), found no manifest record in overscaled_images_dir,
         and asked Flow for it again, discarding the user's choice."""
+        import visual_bridge
+
+        bridged = visual_bridge.images_dir(self)   # Health Cinema / Rep Theory / Product Trailer: the style's own folder while it holds the table
+        if bridged is not None:
+            return bridged
         if self.generation_mode == "overscaled" and self._workspace is not None:
             return self._workspace.overscaled_images_dir
         if self.generation_mode == "pakmap" and self._workspace is not None:

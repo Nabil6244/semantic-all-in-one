@@ -161,5 +161,13 @@ class TestBackdropGaps(unittest.TestCase):
         self.assertEqual(Path(p1).stat().st_mtime_ns, m)
 
 
+
+class ExportPage(unittest.TestCase):
+    def test_the_render_reports_to_the_export_page(self):
+        text = (Path(__file__).resolve().parent / "cinematic_explainer" / "war" / "app_section.py").read_text(encoding="utf-8")
+        for call in ("_track_generation_start(", "_track_generation_end(", "_export_progress("):
+            self.assertIn(call, text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -73,11 +73,16 @@ if e2e and (Path(e2e) / "narration.wav").is_file():
     emit("e2e_voiceover_seen", have_vo, str(inst._current_voiceover_path()))
     if have_vo:
         inst._sync_primary_cta(); emit("e2e_cta_ready", inst._cta_action == "health_render", inst._cta_action)
-        t0 = time.time(); inst._health_render_btn.invoke()
-        def _poll():   # a real event loop (the worker reports through app.after); `update()` can spin forever on the app's own re-posting callbacks
-            if (not inst._health_running and time.time() - t0 > 1) or time.time() - t0 > 300: inst.quit()
-            else: inst.after(200, _poll)
-        inst.after(200, _poll); inst.mainloop()
+        def _click_and_wait():
+            t0 = time.time(); inst._health_render_btn.invoke()
+            def _poll():   # a real event loop (the worker reports through app.after); `update()` can spin forever on the app's own re-posting callbacks
+                if (not inst._health_running and time.time() - t0 > 1) or time.time() - t0 > 300: inst.quit()
+                else: inst.after(200, _poll)
+            inst.after(200, _poll); inst.mainloop()
+        _click_and_wait()      # Generate scenes: the footage goes into the Visuals tab, no video yet
+        emit("e2e_scenes_ready", inst._health_status_var.get().startswith("Scenes ready") and getattr(inst, "_scene_rows_owner", None) == "health_cinema", inst._health_status_var.get())
+        inst._sync_primary_cta(); emit("e2e_cta_render", inst.generate_btn.cget("text") == "Render Health Cinema", inst.generate_btn.cget("text"))
+        _click_and_wait()      # Render from what the Visuals tab holds
         out = Path(inst.output_var.get()); rep = Path(str(out) + ".health_cinema.json")
         emit("e2e_output_exists", out.is_file() and out.stat().st_size > 1000, f"{out} {inst._health_status_var.get()}")
         if out.is_file():
@@ -122,7 +127,7 @@ class TestAppIntegration(unittest.TestCase):
 
     def test_real_render_through_the_app_button(self):
         if "e2e_voiceover_seen" not in self._results: self.skipTest("end-to-end inputs not present on this machine")
-        for n in ("e2e_voiceover_seen", "e2e_cta_ready", "e2e_output_exists", "e2e_is_720p_landscape", "e2e_report_written", "e2e_status_done"):
+        for n in ("e2e_voiceover_seen", "e2e_cta_ready", "e2e_scenes_ready", "e2e_cta_render", "e2e_output_exists", "e2e_is_720p_landscape", "e2e_report_written", "e2e_status_done"):
             with self.subTest(n): self._check(n)
 
 
@@ -223,7 +228,7 @@ class TestLandscapeAndBoundaries(unittest.TestCase):
     def test_only_app_and_tests_import_health_cinema(self):
         offenders = []
         for p in ROOT.glob("*.py"):
-            if p.name in ("app.py", "puppet_stills.py", "puppet_story.py", "story_motion.py") or p.name.startswith(("test_health_cinema", "test_puppet", "test_story")): continue   # the puppet story pipeline is built on health_cinema
+            if p.name in ("app.py", "puppet_stills.py", "puppet_story.py", "story_motion.py") or p.name.startswith("test_"): continue   # tests may import it (as the name says)   # the puppet story pipeline is built on health_cinema
             if re.search(r"^\s*(from|import)\s+health_cinema\b", p.read_text(encoding="utf-8", errors="ignore"), re.M): offenders.append(p.name)
         self.assertEqual(offenders, [])
     def test_health_cinema_imports_no_other_style_package(self):
