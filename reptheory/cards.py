@@ -32,15 +32,17 @@ def stat(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     if 0 <= land < 0.7: q = T.ease_out(land / 0.7); rr = r * (1.0 + 0.35 * q); d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=T.ORANGE + (int(200 * (1 - q)),), width=ctx.px(6))
     D.text_spaced(d, (cx - w / 2, cy - ctx.px(122)), txt, f, (T.ORANGE if land >= 0 else T.WHITE) + (255,), 0); u = ctx.font(T.BODY_FONT, 44); uw = D._text_w(d, st["unit"], u, ctx.px(4)); D.text_spaced(d, (cx - uw / 2, cy + ctx.px(76)), st["unit"], u, T.ORANGE + (255,), ctx.px(4))
 
-def steps(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float) -> None:
-    """Numbered steps that appear as the narration reaches them, joined by a line that draws down."""
+def steps(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ticks: bool = False) -> None:
+    """Numbered steps that appear as the narration reaches them, joined by a line that draws down (a spoken list: a tick instead of the number)."""
     d = ImageDraw.Draw(cv, "RGBA"); n = len(items); x0, top, gap = ctx.px(150), int(ctx.H * 0.5 - (n - 1) * ctx.px(62)), ctx.px(124); r = ctx.px(40); f = ctx.font(T.HEAD_FONT, 76); nf = ctx.font(T.HEAD_FONT, 44)
     for i, it in enumerate(items):
         p = (t - it["at"]) / 0.5; e = T.ease_out(p); y = top + i * gap
         if i and p > -0.3:      # the line from the previous step draws down to this one
             q = T.ease_out((t - items[i - 1]["at"] - 0.2) / 0.5); d.line((x0, y - gap + r, x0, y - gap + r + (gap - 2 * r) * q), fill=T.ORANGE_DEEP + (255,), width=ctx.px(5))
         if p <= 0: d.ellipse((x0 - r, y - r, x0 + r, y + r), outline=T.DIM + (255,), width=ctx.px(4)); continue
-        d.ellipse((x0 - r, y - r, x0 + r, y + r), fill=T.ORANGE + (int(255 * min(1, p * 2)),)); lw = D._text_w(d, str(i + 1), nf, 0); D.text_spaced(d, (x0 - lw / 2, y - ctx.px(27)), str(i + 1), nf, (20, 20, 22, 255), 0)
+        d.ellipse((x0 - r, y - r, x0 + r, y + r), fill=T.ORANGE + (int(255 * min(1, p * 2)),))
+        if ticks: q = min(1.0, p); d.line((x0 - ctx.px(16), y + ctx.px(2), x0 - ctx.px(4), y + ctx.px(14) * min(1, q * 2)), fill=(20, 20, 22, 255), width=ctx.px(7)); d.line((x0 - ctx.px(4), y + ctx.px(14), x0 - ctx.px(4) + ctx.px(22) * max(0, q * 2 - 1), y + ctx.px(14) - ctx.px(28) * max(0, q * 2 - 1)), fill=(20, 20, 22, 255), width=ctx.px(7)) if q > 0.5 else None
+        else: lw = D._text_w(d, str(i + 1), nf, 0); D.text_spaced(d, (x0 - lw / 2, y - ctx.px(27)), str(i + 1), nf, (20, 20, 22, 255), 0)
         dim = 0.45 if i + 1 < n and t >= items[i + 1]["at"] else 1.0      # the step being said is bright, the ones before it step back
         D.text_spaced(d, (x0 + r + ctx.px(36) + int((1 - e) * 40 * ctx.S), y - ctx.px(48)), it["text"], f, T.WHITE + (int(255 * min(1, p * 1.6) * dim),), ctx.px(1))
 
@@ -138,7 +140,7 @@ def mistake(cv: Image.Image, ctx: D.Ctx, mk: dict, t: float) -> None:
         if p <= 0: continue
         e = T.ease_back(min(1.0, p)); col = RED if kind == "wrong" else GREEN; a = min(1, p * 1.6) * (0.55 if kind == "wrong" and len(sides) == 2 and t >= sides[1][1]["at"] + 0.3 else 1.0)
         yy = y0 + int((1 - min(1, e)) * 50 * ctx.S); d.rounded_rectangle((x0, yy, x0 + pw, yy + ph), radius=ctx.px(24), fill=col + (int(26 * a),), outline=col + (int(255 * a),), width=ctx.px(5))
-        _txt(d, ctx, (x0 + pw / 2, yy + ctx.px(24)), "WRONG" if kind == "wrong" else "RIGHT", 34, col, a, head=False, centre=True)
+        _txt(d, ctx, (x0 + pw / 2, yy + ctx.px(24)), (mk.get("labels") or ("WRONG", "RIGHT"))[0 if kind == "wrong" else 1], 34, col, a, head=False, centre=True)
         f = ctx.font(T.HEAD_FONT, 62); lines = _wrap_lines(d, s["text"], f, pw - ctx.px(80)); ly = yy + (ph - len(lines) * ctx.px(72)) // 2 + ctx.px(20)
         for ln in lines: _txt(d, ctx, (x0 + pw / 2, ly), ln, 62, T.WHITE, a, centre=True); ly += ctx.px(72)
         q = T.ease_out((t - s["at"] - 0.35) / 0.35); m = ctx.px(46); w = ctx.px(12)
@@ -185,8 +187,9 @@ def study(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
         for k in range(3): dc.rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), fill=(170, 165, 158, int(255 * min(1, q * 2))))
         card = card.rotate(ang, resample=Image.BICUBIC, expand=True); cv.paste(card, (int(cx - card.width / 2 + off), int(cy - card.height / 2)), card)
     d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_out(min(1.0, max(0.0, p))); v = st["value"] * e
+    if st.get("year"): import datetime; y0 = datetime.date.today().year; v = y0 + (st["value"] - y0) * e      # a year rolls back from today to the one stated
     _txt(d, ctx, (cx, cy - h / 2 + ctx.px(24)), st["kind"], 32, T.ORANGE_DEEP, min(1, p * 2), head=False, centre=True)
-    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:,.0f}", 130, (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, (60, 60, 62), min(1, p * 2), head=False, centre=True)
+    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, (60, 60, 62), min(1, p * 2), head=False, centre=True)
 
 def graph(cv: Image.Image, ctx: D.Ctx, gr: dict, t: float) -> None:
     """A change over time: axes draw on, then the line draws itself, bending up, down or level at each word that says so; a dot rides its head and pulses at each bend."""
@@ -314,3 +317,20 @@ def safety_chip(cv: Image.Image, ctx: D.Ctx, rule: str, t: float) -> None:
     """The script's own safety rule as a small amber chip at the bottom left, through the units."""
     d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.4) * 0.85; amber = (250, 196, 40); x, y = ctx.px(60), int(ctx.H * 0.93); s = ctx.px(13)
     d.polygon([(x + s, y), (x + 2 * s, y + 1.7 * s), (x, y + 1.7 * s)], fill=amber + (int(255 * a),)); _txt(d, ctx, (x + 2 * s + ctx.px(14), y - ctx.px(3)), f"BE SAFE · {rule}", 24, amber, a, head=False)
+
+def question(cv: Image.Image, ctx: D.Ctx, qn: dict, t: float) -> None:
+    """A question asked for the viewer, as a chat bubble: an avatar, typing dots, the question typing in, then a marker swiped behind its key words."""
+    d = ImageDraw.Draw(cv, "RGBA"); at = qn["at"]; a = min(1.0, t / 0.4); f = ctx.font(T.HEAD_FONT, 66); bw = int(ctx.W * 0.60); lines = _wrap_lines(d, qn["text"], f, bw - ctx.px(110)); bh = len(lines) * ctx.px(84) + ctx.px(90)
+    x0, y0 = int(ctx.W * 0.24), int(ctx.H * 0.46 - bh / 2); e = T.ease_back(min(1.0, t / 0.5)); y0 += int((1 - e) * 50 * ctx.S); r = ctx.px(52)
+    d.ellipse((x0 - ctx.px(150), y0 + bh - 2 * r, x0 - ctx.px(150) + 2 * r, y0 + bh), fill=T.SOFT_WHITE + (int(255 * a),)); d.ellipse((x0 - ctx.px(150) + r * 0.55, y0 + bh - 1.6 * r, x0 - ctx.px(150) + r * 1.45, y0 + bh - 0.75 * r), fill=(60, 60, 64, int(255 * a)))
+    d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(34), fill=(34, 34, 38, int(255 * a))); d.polygon([(x0, y0 + bh - ctx.px(60)), (x0 - ctx.px(30), y0 + bh), (x0 + ctx.px(50), y0 + bh - ctx.px(20))], fill=(34, 34, 38, int(255 * a)))
+    if t < at + 0.45:
+        for j in range(3): q = 0.5 + 0.5 * math.sin(t * 6 - j * 0.9); rr = ctx.px(11); cx, cy = x0 + ctx.px(70) + j * ctx.px(40), y0 + bh / 2; d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=T.SOFT_WHITE + (int(255 * a * q),))
+        return
+    k = int((t - at - 0.45) / 0.03); yy = y0 + ctx.px(45); kp = T.ease_out((t - at - 0.45 - len(qn["text"]) * 0.03 - 0.1) / 0.45)
+    for ln in lines:
+        shown = ln[:max(0, k)]; k -= len(ln) + 1; i = ln.find(qn["key"]) if qn.get("key") else -1
+        if kp > 0 and i >= 0:      # the marker swipes behind the key words once the question is typed
+            mx = x0 + ctx.px(55) + D._text_w(d, ln[:i], f, ctx.px(1)); mw = D._text_w(d, qn["key"], f, ctx.px(1)); d.rectangle((mx - ctx.px(8), yy + ctx.px(4), mx - ctx.px(8) + (mw + ctx.px(16)) * kp, yy + ctx.px(76)), fill=T.ORANGE_DEEP + (200,))
+        if shown: _txt(d, ctx, (x0 + ctx.px(55), yy), shown, 66, T.WHITE, 1)
+        yy += ctx.px(84)

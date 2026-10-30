@@ -386,6 +386,35 @@ THE END lock on an early test the script pays off later, the script's own safety
 per-unit slot report in the render log. The CSV prompt makes each Full Guide unit a chapter. None of the 13 test scripts
 has a test + payoff, so the lock fires 0 times there (Rule 4).
 
+**Gap closing + rest of 5b — done 2026-10-31 (uncommitted).** On the 13 topics, measured against commit 24e8394:
+picture share mean 82% → 90%, worst 44% → 73%; held scenes 2 → 0 (target met); still time 5.7% → 3.7% (target met);
+worst opening sameness 62% → 43% (mean 16% → 12%); bad texts / repeats / empty / anatomy-unnamed stay 0.
+What did it, all from sentence shape: three new cards (`myth`: MYTH panel + the FACT that follows; `question`: chat bubble
+typing in with its key words marked; `checklist`: a spoken list ticked off); more comparisons ("X, not Y" as parallel
+phrases, "X beats / will outperform Y", "Want to X? ... Want to Y? ..."); more trends (break down / rebuild / adds up);
+spoken numbers ("one point six", "three hundred", "one and a half") and more units (g, kcal, steps, hours); a card whose
+first element comes > 3 s into its scene is marked down; a long text scene is split at a sentence that brings its own card
+(`variety.split_for_cards`); a call to action is never a key-line card; `develop` also tries the part of a long clause
+after "and / but / because"; two-word body parts ("nervous system") now light up; the stat / dial landing and the chapter
+title count as changes. 5b: a named part glows icy blue when it relaxes / rests and red when it burns / works hard; a
+signal beam runs from the brain to the part on "tells / signals / fires"; the study card rolls back to a stated year.
+Still short: worst picture share 73% (046 script: abstract lines such as "shape comes from muscle"), opening sameness 43%
+(Flow, 3D and figure scenes count as one look each whatever they show), and planner-level ungrounded beats 20% mean /
+38% worst (connective lines with no shape to draw). Step 5's pose library is the main lever left for all three.
+
+**Step 5 — done 2026-10-31 (uncommitted).** 28 new poses of the one character generated once through Flow
+(`python3 -m reptheory.art --go`; 31 generations: 29 good first time, hip stretch and drink redone because of white
+backgrounds), bundled in `assets/reptheory` so every machine has them. `reptheory/poses.py`: which action in a sentence
+calls for which pose (push-up top / bottom, squat, lunge, plank, side plank, bridge, wall sit, pull-up, row, hinge,
+press, curl, calf raise, two stretches, run, walk, sleep, eat, drink, scale, tired, rest, flex, posture; plus point and
+think for CSV use), and a body-region map per pose, so a named part lights on the pose being shown. The pose is a look
+the variety director weighs against the cards. A sentence whose action has no pose still gets its own Flow picture
+(`beat_art.py`), saved to the library and reused, so the library never limits a script. Also: the standing figure
+gains (shoulders, chest, arms widen) on "gain muscle / bulk / get bigger" and leans out (waist narrows) on "lose fat",
+never inside a negated clause. The eval now names the pose ("pose:rep_squat_v1"): with 30 pictures, two poses are no
+longer one look. On the 13 topics: picture share mean 94%, worst 82% (target met on every script); still 2.8%; held 0;
+worst opening sameness 37.5% (mean 9%). Still short: opening sameness ≤ 30% and planner-level ungrounded beats.
+
 **Step 2 — motion layer**: push-in on every scene, focus-pull transitions, typewriter text, overshoot pops, stamp component, glitch unit titles, and the state tracks from 5b (colour / tint / saturation / focus per element, keyed to word
 times: highlight-on-mention, threshold flip, light-sweep recolour, spotlight-and-dim, background tint, streak wipe).
 Measure: ≥ 50% frames moving, no still run ≥ 4 s, and at least one state change per held picture longer than 4 s.

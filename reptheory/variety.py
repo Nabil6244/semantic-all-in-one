@@ -11,13 +11,17 @@ from typing import Dict, List, Optional
 from . import clip3d as C3, lexicon as LX, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
-FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage")      # cards that fill the frame; the narration's next phrase follows in a caption strip
+FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist")      # cards that fill the frame; the narration's next phrase follows in a caption strip
 SIDE_CARDS = ("stat", "dial", "study", "graph", "bars")      # cards on the left, the beat's words as callouts on the right
 CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
 TIME_UNITS = {"S", "SEC", "MIN", "H", "HR"}; COUNT_UNITS = {"SET", "REP", "WEEK", "DAY", "TIME", "ROUND", "X"}
 VS_RX = (re.compile(r"(.{3,48}?)\s+(?:versus|vs\.?|rather than|instead of|compared (?:to|with))\s+(.{3,48})", re.I), re.compile(r"\bnot\s+(.{3,32}?),?\s+but\s+(.{3,32})", re.I),
-         re.compile(r"(.{3,48}?)\s*,?\s+whereas\s+(.{3,48})", re.I), re.compile(r"(.{3,40}?)\s+(?:is|are)\s+(?:much |far |a lot )?(?:harder|easier|better|worse|stronger|weaker|safer|slower|faster)\s+than\s+(.{3,40})", re.I))
+         re.compile(r"(.{3,48}?)\s*,?\s+whereas\s+(.{3,48})", re.I), re.compile(r"(?:^|(?<=[,.;:!?])\s*)([A-Za-z][^,.;:!?]{2,50}?)\s+(?:beats|(?:will |can )?(?:outperforms?|outweighs?|outlasts?|trumps?)|matters more than)\s+(?:a |an |the )?([^,.;:!?]{3,60})", re.I),
+         re.compile(r"([^,.;!?]{6,40}),\s+not\s+([^,.;!?]{3,32})", re.I), re.compile(r"(.{3,40}?)\s+(?:is|are)\s+(?:much |far |a lot )?(?:harder|easier|better|worse|stronger|weaker|safer|slower|faster)\s+than\s+(.{3,40})", re.I))
+VS_BEATS, VS_NOT = VS_RX[3], VS_RX[4]
+VS_GOALS = re.compile(r"\b(?:want to|if you want to|trying to)\s+([^?.,]{3,30})[?,]\s*[^.!?]{3,60}[.!?]\s*(?:and\s+)?(?:want to|if you want to|trying to)\s+([^?.,]{3,30})[?,]", re.I)      # "Want to lose fat? ... Want to build? ...": two goals, two answers
+VS_RX = (VS_GOALS,) + VS_RX
 STEP_RX = re.compile(r"\b(?:first|second|third|then|next|after that|finally|and then)\b,?", re.I)
 
 def _widx(text: str, pos: int) -> int: return len(text[:pos].split())
@@ -38,7 +42,22 @@ def _stat(sc: dict, text: str) -> Optional[dict]:
 
 def _versus(sc: dict, text: str) -> Optional[dict]:
     for rx in VS_RX:
-        m = rx.search(text)
+        m = rx.search(text); k = 4 if rx is VS_BEATS else 5 if rx is VS_NOT else -1
+        if m and k == 4:      # "consistency beats intensity": the phrase each side starts with; "No workout beats a bad diet" says the opposite, "your heart beats faster" is not a comparison
+            b0 = m.group(2).split()[0].lower()
+            if re.match(r"\s*(?:no|nothing|never|not)\b", m.group(1), re.I) or b0.endswith(("er", "ly")) or b0 in ("per", "at", "every", "in", "up", "down", "more", "less", "faster"): continue
+            a, b = _words_after(re.split(r"\b(?:is|are|that)\b", m.group(1))[-1], 0, 3), _words_after(m.group(2), 0, 3)      # "rule five is that consistency" -> CONSISTENCY
+            if a and b and a != b: return {"a": {"text": a, "at": _at(sc, text, m.start(1))}, "b": {"text": b, "at": _at(sc, text, m.start(2))}}
+            continue
+        if m and k == 5:      # "X, not Y": the two sides are parallel ("INTO YOUR MUSCLES" / "UNDER YOUR SKIN"), so A is as long as B
+            b = _words_after(m.group(2), 0, 4, lead=False); bw = b.split(); aw = re.findall(r"[A-Za-z0-9][A-Za-z0-9'%-]*", m.group(1))[-max(1, len(bw)):]
+            a = " ".join(aw).upper()
+            if a and b and a != b and len(bw) <= 4 and aw[0].lower() not in ("and", "but", "or"): return {"a": {"text": a, "at": _at(sc, text, m.start(1) + m.group(1).rfind(aw[0]))}, "b": {"text": b, "at": _at(sc, text, m.start(2))}}
+            continue
+        if m and rx is VS_GOALS:
+            a, b = _words_after(m.group(1), 0, 3, lead=False), _words_after(m.group(2), 0, 3, lead=False)
+            if a and b and a != b: return {"a": {"text": a, "at": _at(sc, text, m.start(1))}, "b": {"text": b, "at": _at(sc, text, m.start(2))}}
+            continue
         if m:
             a, b = _phrase(m.group(1)), _phrase(m.group(2))
             if a and b and a != b: return {"a": {"text": a, "at": _at(sc, text, m.start(1))}, "b": {"text": b, "at": _at(sc, text, m.start(2))}}
@@ -107,12 +126,19 @@ def _dial(sc: dict, text: str) -> Optional[dict]:
     if m: v = _num_of(m.group(1)); return {"value": v / 10, "max": 10, "label": f"{v:g}% EFFORT", "at": _at(sc, text, m.start())} if 0 < v <= 100 else None
     return None
 
+YEAR_RX = (re.compile(r"\b(?:a|an|one|the)\s+((?:19[5-9]|20[0-3])\d)\s+(study|review|trial|paper|analysis|survey)\b", re.I), re.compile(r"\b(?:in|back in|since)\s+((?:19[5-9]|20[0-3])\d)\b,?\s+(?:a\s+)?(?:researchers?|scientists?|a study|a review|a trial|studies)\b", re.I),
+           re.compile(r"\bback in the\s+((?:19)?[5-9]0)'?s\b", re.I))
+
 def _study(sc: dict, text: str) -> Optional[dict]:
     m = STUDY_RX.search(text)
-    if not m: return None
+    if not m:      # no count, but a year: the research card rolls back to it ("a 2019 study", "back in the 70s")
+        for rx in YEAR_RX:
+            y = rx.search(text)
+            if y: v = int(y.group(1)); v = 1900 + v if v < 100 else v; return {"kind": (y.group(2) if y.lastindex and y.lastindex >= 2 else "RESEARCH").upper(), "value": float(v), "noun": "", "year": True, "at": _at(sc, text, y.start())}
+        return None
     v = _num_of(m.group(2)); return {"kind": m.group(1).upper(), "value": v, "noun": m.group(3).upper(), "at": _at(sc, text, m.start())} if v >= 2 else None
 
-TREND = {"up": r"rises?|rising|rose|climbs?|climbing|goes up|go up|increases?|increasing|jumps?|doubles?|spikes?|peaks?|soars?", "down": r"drops?|dropping|dropped|falls?|falling|fell|goes down|go down|decreases?|declines?|crashes|dips?|shrinks?",
+TREND = {"up": r"rises?|rising|rose|climbs?|climbing|goes up|go up|increases?|increasing|jumps?|doubles?|spikes?|peaks?|soars?|adds? up|builds? up|stacks? up|improves?|improving|rebuilds?|rebuilding|bounces? back|grows? back|recovers? stronger", "down": r"drops?|dropping|dropped|falls?|falling|fell|goes down|go down|decreases?|declines?|crashes|dips?|shrinks?|breaks? down|breaking down",
          "flat": r"levels? off|plateaus?|flattens?|stays? flat|stalls?"}
 TREND_RX = re.compile(r"\b(?:" + "|".join(f"(?P<{k}>{v})" for k, v in TREND.items()) + r")\b", re.I)
 OVER_TIME_RX = re.compile(r"\b(?:over|after|within|for|by|each|every|per|in|across)\s+(?:the\s+|a\s+|an\s+|more than\s+(?:a\s+)?|the next\s+|\w+\s+)?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|night|time|sessions?|workouts?)\b", re.I)
@@ -124,7 +150,7 @@ DAYS_RX = re.compile(r"\b(" + "|".join(DAY_NAMES) + r")s?\b", re.I); PER_WEEK_RX
 SPREAD = {2: (0, 3), 3: (0, 2, 4), 4: (0, 1, 3, 4), 5: (0, 1, 2, 3, 4), 6: (0, 1, 2, 3, 4, 5), 7: (0, 1, 2, 3, 4, 5, 6)}      # n sessions in a week, rest days between them
 TIER_RX = re.compile(rf"\b(?:(?P<lo>under|less than|below|fewer than)\s+{LX.NUM}|{LX.NUM}\s*(?:to|-)\s*{LX.NUM}|(?P<hi>over|more than|above|beyond)\s+{LX.NUM}|{LX.NUM}\s*(?:or more|\+|and up|and over))\s*(seconds?|secs?|minutes?|mins?|reps?|kg|%|percent)?\s*,", re.I)
 HURT_RX = re.compile(r"\b(?:hurts?|pain\w*|sharp|dizzy|dizziness|injur\w*|numb\w*|tingl\w*|doctor|physio\w*|swell\w*|swollen|unsafe|safely|faint)\b", re.I)
-RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ease off|back off|skip)\b[^,.;!?]*)", re.I)
+RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ask|ease off|back off|skip)\b[^,.;!?]*)", re.I)
 CTA_RX = (("comment", re.compile(r"\b(comment|let me know|tell me)\b", re.I)), ("like", re.compile(r"\b(?:tap|hit|smash|press|leave|give (?:it|this|the video))\s+(?:the\s+|a\s+)?like\b", re.I)), ("subscribe", re.compile(r"\bsubscribe\b", re.I)))
 
 def _graph(sc: dict, text: str) -> Optional[dict]:
@@ -204,11 +230,67 @@ def _engage(sc: dict, text: str) -> Optional[dict]:
         if m: return {"kind": kind, "text": _words_after(text, m.start(), 5, lead=False) if kind == "comment" else "", "at": _at(sc, text, m.start())}
     return None
 
+MYTH_RX = re.compile(r"\bmyth(?:\s+(?:number\s+)?\w+)?\s*:\s*([^.!?]+)[.!?]?\s*([^.!?]*)", re.I)
+QUESTION_RX = re.compile(r"(?:^|(?<=[.!?])\s+)((?:so\s+)?(?:what|how|why|which|when|is|are|do|does|can|should|will)\b[^.!?]{6,70}\?)", re.I)
+LIST_RX = re.compile(r"\b((?:[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,3},\s+){1,4}(?:[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,3},?\s+)?(?:and|or)\s+[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,3})\b", re.I)
+
+def _myth(sc: dict, text: str) -> Optional[dict]:
+    """A myth the narration names ("Myth two: it damages your kidneys.") in a grey panel that is struck out, and the fact that answers it in a green one."""
+    m = MYTH_RX.search(text)
+    if not m: return None
+    myth = _words_after(m.group(1), 0, 7, lead=False)
+    if len(myth.split()) < 2: return None
+    out = {"wrong": {"text": myth, "at": _at(sc, text, m.start(1))}, "labels": ("MYTH", "FACT")}
+    fact = _words_after(m.group(2), 0, 6, lead=False) if m.group(2) else ""
+    ok = len(fact.split()) >= 2 and (fact.split()[-1].lower() not in N.DANGLING or fact.split()[-1].lower() in ("not", "no", "never"))      # "IT IS NOT" answers the myth
+    out["right"] = {"text": fact, "at": _at(sc, text, m.start(2))} if ok else None
+    return out
+
+def _question(sc: dict, text: str) -> Optional[dict]:
+    """A question asked for the viewer ("What about ice baths?", "So how much should you drink?") in a chat bubble that types in, its key words marked."""
+    m = QUESTION_RX.search(text)
+    if not m or EASY_RX.search(m.group(1)) or HARD_RX.search(m.group(1)): return None
+    q = re.sub(r"^so\s+", "", m.group(1).strip(), flags=re.I); ws = q.split()
+    if not 3 <= len(ws) <= 12: return None
+    key = N.key_phrase(q, 3)[0].upper(); return {"text": q.upper(), "key": key, "at": _at(sc, text, m.start(1))}
+
+LEAD_STOP = N.STOP - set(LX.NUMBER_WORDS)      # "one more rep" is an item; "while you eat" is not
+
+def _checklist(sc: dict, text: str) -> Optional[dict]:
+    """A spoken list of three or more short items ("eat, sleep and recover") ticked off one by one as each is said."""
+    m = LIST_RX.search(text)
+    if not m: return None
+    raw = [p.strip() for p in re.split(r",\s*(?:and\s+|or\s+)?|\s+(?:and|or)\s+", m.group(1)) if p.strip()]; parts = [raw[-1]]
+    for p in reversed(raw[:-1]):      # from the last item back: an item longer than the list's own items is a clause that runs into it ("while you eat, sleep and recover" -> EAT)
+        w = p.split(); single = all(len(x.split()) == 1 for x in parts)
+        if len(w) <= 4 and w[0].lower() not in LEAD_STOP and not (single and len(w) > 1): parts.insert(0, p); continue
+        tail = w[-len(parts[0].split()):]
+        if tail[0].lower() not in LEAD_STOP: parts.insert(0, " ".join(tail))
+        break
+    if not 3 <= len(parts) <= 5 or parts[-1].split()[0].lower() in LEAD_STOP: return None
+    m = re.search(re.escape(parts[0]), text) or m
+    items, pos = [], m.start()
+    for p in parts:
+        i = text.find(p, pos); pos = i + len(p); items.append({"text": p.upper(), "at": _at(sc, text, i)})
+    return {"items": items, "ticks": True}
+
 def _takeaway(sc: dict, text: str, last: bool, role: str) -> Optional[dict]:
     ws = sc.get("words") or []; dur = sc["end"] - sc["start"]
     if not (4 <= len(ws) <= 20 and 2.5 <= dur <= 10.0): return None
     if not (last or role in ("hook", "claim", "cta", "mistake")): return None
     return {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]}
+
+POSE_BASE = 0.8      # a pose shows the sentence's action: as strong as a card, rotated with them by the director
+LATE_CARD_S = 3.0
+OPEN_AT_START = {"engage", "question"}      # the comment box / chat bubble is on screen (typing dots) from the scene's first frame
+
+def _first_at(p) -> float:
+    """The earliest word time anywhere in a card payload."""
+    if isinstance(p, dict): xs = [float(p["at"])] if "at" in p else []; xs += [_first_at(v) for v in p.values() if isinstance(v, (dict, list))]
+    elif isinstance(p, list): xs = [_first_at(v) for v in p]
+    else: return 1e9
+    xs = [x for x in xs if x < 1e9] + ([float(p[0]["t0"])] if isinstance(p, list) and p and isinstance(p[0], dict) and "t0" in p[0] else [])
+    return min(xs) if xs else 1e9
 
 def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     """look -> (support 0..1, payload) for what this scene's own words can honestly show."""
@@ -218,20 +300,64 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if g: ev["3d"] = (0.7 if by_ex else 0.9, None)
     for look, fn, base in (("timeline", lambda: _timeline(sc, text), 0.95), ("mistake", lambda: _mistake(sc, text), 0.9), ("slider", lambda: _slider(sc, text), 0.9),
                            ("dial", lambda: _dial(sc, text), 0.9), ("study", lambda: _study(sc, text), 0.88), ("result", lambda: _result(sc, text), 0.95), ("calendar", lambda: _calendar(sc, text), 0.9),
-                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
+                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
-        if got: ev[look] = (base, got)
+        if got: ev[look] = (base - (0.6 if look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)      # a card whose first element comes late would sit empty on screen
+    if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
+    if "engage" in ev: ev.pop("takeaway", None)      # a call to action is shown as the screen it asks for, not as a key line
     if N.key_phrase(text, 3)[0]: ev["flow"] = (0.5, None)
     if "takeaway" not in ev and not any(pg.get("headline") or pg.get("value") or pg.get("chips") for pg in sc.get("pages", [])):      # a scene with nothing written on it would be a bare figure: its own words, lit as they are spoken, are the fallback
         ws = sc.get("words") or []
         if 4 <= len(ws) <= 22 and sc["end"] - sc["start"] >= 3.0: ev["takeaway"] = (0.55, {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]})
     return ev
 
+SPLIT_MIN_S, SPLIT_CARD = 2.5, 0.85      # each half of a split scene lasts at least this long; only a strong card shape is worth a cut
+SPLIT_LOOKS = set(CARD_LOOKS) - {"takeaway", "stat"}
+
+def _t(x: dict) -> float:
+    for k in ("at", "t0", "start"):
+        if k in x: return float(x[k])
+    return -1.0
+
+def _cut(sc: dict, t: float) -> tuple:
+    """Two scenes from one text scene at time t (a sentence's first word): every timed item goes to the half it is said in."""
+    a, b = dict(sc), dict(sc); ws = sc.get("words") or []; i = next(k for k, w in enumerate(ws) if float(w["t0"]) >= t - 1e-6)
+    a["end"], b["start"] = t, t; a["words"], b["words"] = ws[:i], ws[i:]; tx = sc.get("text", "").split(); a["text"], b["text"] = (" ".join(tx[:i]), " ".join(tx[i:])) if len(tx) == len(ws) else (" ".join(w["w"] + w.get("p", "") for w in ws[:i]), " ".join(w["w"] + w.get("p", "") for w in ws[i:]))      # the script's own text, punctuation kept
+    for k, v in sc.items():
+        if isinstance(v, list) and k != "words" and v and isinstance(v[0], dict) and _t(v[0]) >= 0: a[k] = [x for x in v if _t(x) < t]; b[k] = [x for x in v if _t(x) >= t]
+    for k in ("tint",):
+        if sc.get(k): (a if _t(sc[k]) < t else b)[k] = sc[k]; (b if _t(sc[k]) < t else a)[k] = None
+    a["decisions"], b["decisions"] = list(sc["decisions"]) + ["variety: split before a sentence with its own card"], list(sc["decisions"]) + ["variety: split off to show its own card"]
+    if not b["pages"]: b["pages"] = []
+    return a, b
+
+def split_for_cards(scenes: List[dict]) -> int:
+    """A text scene that joins several sentences, where a later sentence has a card of its own ("The most common mistake is ...") that would otherwise show late or not at all,
+    is cut at that sentence's first word, so each part gets the picture its own words support. Returns how many cuts were made."""
+    n = 0; i = 0
+    while i < len(scenes):
+        sc = scenes[i]; ws = sc.get("words") or []
+        if sc["kind"] != "callout" or sc.get("directed_look") or sc.get("art") or len(ws) < 8 or sc["end"] - sc["start"] < 2 * SPLIT_MIN_S: i += 1; continue
+        cut = None
+        for k in range(1, len(ws)):
+            if not re.search(r"[.!?]", ws[k - 1].get("p", "")): continue
+            t = float(ws[k]["t0"])
+            if t - sc["start"] < SPLIT_MIN_S or sc["end"] - t < SPLIT_MIN_S: continue
+            head = {"start": sc["start"], "words": ws[:k]}; tail = {"start": t, "words": ws[k:]}; tx = sc["text"].split(); text_h, text_t = (" ".join(tx[:k]), " ".join(tx[k:])) if len(tx) == len(ws) else (" ".join(w["w"] + w.get("p", "") for w in ws[:k]), " ".join(w["w"] + w.get("p", "") for w in ws[k:]))
+            ev_t = {l: v for l, v in evidence(dict(sc, **tail, text=text_t, pages=[])).items() if l in SPLIT_LOOKS and v[0] >= SPLIT_CARD}
+            ev_h = {l for l, v in evidence(dict(sc, **head, text=text_h, end=t)).items() if l in SPLIT_LOOKS and v[0] >= SPLIT_CARD}
+            if ev_t and not (set(ev_t) <= ev_h): cut = t; break      # the later sentence brings a card the earlier part cannot show
+        if cut is None: i += 1; continue
+        a, b = _cut(sc, cut); scenes[i:i + 1] = [a, b]; n += 1; i += 1
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
+
 RECENT_W = 0.25      # per recent video that had this look at this place in its opening (channel memory, Rule 3)
 JITTER = 0.5      # how far a script's own seed moves a look's score: enough to change close calls, never to pick a look the words do not support
 
 def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
+    split = split_for_cards(scenes)
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow", max(2, int(total / 30)))
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
     import zlib; seed = zlib.crc32(" ".join(sc.get("text", "") for sc in scenes).encode())      # each script its own mix (same script, same video)
@@ -259,6 +385,8 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         _, _, look, payload = max(scored); sc["look"] = look; hist.append(look)
         if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]; sc["decisions"].append("variety: 3D body clip")
         elif look == "flow": flows += 1; sc["decisions"].append("variety: Flow picture from the narration")
+        elif look == "pose":
+            pp = payload; sc["was_kind"] = k; sc["kind"] = "pose"; sc["art"] = pp["art"]; sc["glows"] = pp["glows"]; sc.pop("morph", None); sc.pop("beam", None); sc["decisions"].append(f"variety: pose {pp['art']}")
         elif look in CARD_LOOKS:
             sc[look] = payload; sc["was_kind"] = k; sc["kind"] = look; sc["decisions"].append(f"variety: {look} card ({k} -> {look})")
             if look in ("stat", "bars"):
@@ -277,7 +405,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
             if c and c not in seen:
                 seen.append(c)
                 if len(seen) > 1: sc["chapter_card"] = {"n": len(seen), "of": len(set(chapters)), "title": c.upper()}
-    return metrics(scenes)
+    return dict(metrics(scenes), split=split)
 
 def metrics(scenes: List[dict]) -> dict:
     """What the viewer sees across the video: looks used, the longest run of one look (scenes and seconds), and how many different looks each 5-minute window has."""

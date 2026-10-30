@@ -33,6 +33,9 @@ COLUMNS
   result = a result board (only when the sentence states two or more bands: "under 20 seconds, ... 20 to 40, ... over 40, ...");
   warning = safety rules as warning cards (only when the sentence names pain, dizziness or an injury and says what to do: "stop if it hurts");
   engage = the call to action as its screen (only when the sentence asks the viewer to comment, tap like or subscribe);
+  myth = a struck-out MYTH panel and the FACT that answers it (only when the sentence says "Myth ...: ..." and the fact follows);
+  question = a chat bubble with the question typing in (only when the sentence asks the viewer a question: "What about ...?", "So how much ...?");
+  checklist = a spoken list of three or more short items ticked off as they are said ("eat, sleep and recover");
   figure = the app's own trainee figure and callout.
 - prompt: for a flow picture, one sentence describing exactly what to draw: who, doing what, with what equipment, seen from where (e.g. "the trainee hanging from a pull-up bar, side view, shoulders pulled down"). No text, logos or numbers in the picture. Filling it without a look means flow.
 - muscle: for a 3d look, the muscle or exercise to show, in plain words: biceps, triceps, shoulders, chest, lats, upper back, rotator cuff, core, lower back, glutes, quads, hamstrings, calves, forearms, hip flexors, neck, or an exercise (push-up, pull-up, squat, deadlift, plank, curl). Filling it without a look means 3d.

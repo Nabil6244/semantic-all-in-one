@@ -40,11 +40,29 @@ class Ctx:
         if ref not in self._art: self._art[ref] = L.cutout(ref)
         return self._art[ref]
 
-def paste_art(cv: Image.Image, ctx: Ctx, ref: str, cx: float, cy: float, height: float, scale: float = 1.0, alpha: float = 1.0, dx: float = 0, dy: float = 0, fade_top: float = 0.0, rot: float = 0.0, shear: float = 0.0) -> Tuple[int, int, int, int]:
+GAIN_PROFILE = ((0.0, 0.0), (0.20, 0.0), (0.27, 0.9), (0.40, 1.0), (0.52, 0.7), (0.62, 0.45), (0.85, 0.3), (1.0, 0.0))      # how much each height of the standing figure widens as it gains: shoulders, chest and arms most, head and feet not at all
+LEAN_PROFILE = ((0.0, 0.0), (0.33, 0.0), (0.42, 0.7), (0.50, 1.0), (0.58, 0.5), (0.66, 0.0), (1.0, 0.0))      # losing fat: the waist narrows
+
+def bulk(im: Image.Image, amount: float) -> Image.Image:
+    """The same picture with the body wider (amount > 0, gaining) or the waist narrower (amount < 0, leaning out): each horizontal strip is scaled about the picture's centre line."""
+    if abs(amount) < 1e-3: return im
+    prof = GAIN_PROFILE if amount > 0 else LEAN_PROFILE; W, H = im.size; out = Image.new("RGBA", (int(W * (1 + max(0.0, amount))) + 2, H), (0, 0, 0, 0)); n = 48
+    def f(y):
+        for (y0, a0), (y1, a1) in zip(prof, prof[1:]):
+            if y0 <= y <= y1: return a0 + (a1 - a0) * (y - y0) / max(1e-6, y1 - y0)
+        return 0.0
+    cx = out.width / 2
+    for i in range(n):
+        y0, y1 = H * i // n, H * (i + 1) // n; k = 1 + amount * f((y0 + y1) / 2 / H); sw = max(1, int(W * k)); strip = im.crop((0, y0, W, y1)).resize((sw, y1 - y0), Image.BILINEAR)
+        out.paste(strip, (int(cx - sw / 2), y0), strip)
+    return out
+
+def paste_art(cv: Image.Image, ctx: Ctx, ref: str, cx: float, cy: float, height: float, scale: float = 1.0, alpha: float = 1.0, dx: float = 0, dy: float = 0, fade_top: float = 0.0, rot: float = 0.0, shear: float = 0.0, gain: float = 0.0) -> Tuple[int, int, int, int]:
     """Centre a cut-out picture at (cx, cy) fractions of the canvas, `height` fraction of canvas height tall (x scale). Returns its box (x0, y0, x1, y1)."""
     im = ctx.art(ref); h = max(2, int(ctx.H * height * scale)); w = max(2, int(im.width * h / im.height))
     if w > ctx.W * 0.9: w = int(ctx.W * 0.9); h = int(im.height * w / im.width)
     r = im.resize((w, h), Image.BICUBIC)
+    if gain: r = bulk(r, gain); w = r.width      # the body changes shape on the word (states.apply: gaining / leaning out)
     if alpha < 1: a = r.getchannel("A").point(lambda v: int(v * alpha)); r.putalpha(a)
     if fade_top > 0:      # a picture that runs off its top edge (arms, limbs) fades out instead of ending in a hard line
         import numpy as np
@@ -214,17 +232,17 @@ def glow_ring(cv: Image.Image, ctx: Ctx, cx: float, cy: float, r: float, p: floa
     layer = layer.resize((size, size), Image.LANCZOS); glow = layer.filter(ImageFilter.GaussianBlur(10 * ctx.S)); a = glow.getchannel("A").point(lambda v: min(255, int(v * 1.1))); glow.putalpha(a)
     x0, y0 = int(cx - size / 2), int(cy - size / 2); cv.paste(glow, (x0, y0), glow); cv.paste(layer, (x0, y0), layer)
 
-def anatomy_glow(cv: Image.Image, ctx: Ctx, box, regions, p: float, pulse: float = 0.0):
-    """Orange glow over named regions of an anatomy picture (ellipses as fractions of the picture box), fading in then breathing."""
+def anatomy_glow(cv: Image.Image, ctx: Ctx, box, regions, p: float, pulse: float = 0.0, col=T.ORANGE):
+    """Glow (orange, or the part's state colour) over named regions of an anatomy picture (ellipses as fractions of the picture box), fading in then breathing."""
     if p <= 0: return
     x0, y0, x1, y1 = box; w, h = x1 - x0, y1 - y0; q = 4; layer = Image.new("RGBA", (ctx.W // q, ctx.H // q), (0, 0, 0, 0)); d = ImageDraw.Draw(layer)
     breathe = 0.82 + 0.18 * math.sin(pulse * 3.4)
     for (fx, fy, fw, fh) in regions:      # drawn and blurred at 1/4 size, then scaled up: the glow is a soft blur anyway, and a full-frame blur was the slowest step of the scene
-        cx, cy = (x0 + fx * w) / q, (y0 + fy * h) / q; d.ellipse((cx - fw * w / 2 / q, cy - fh * h / 2 / q, cx + fw * w / 2 / q, cy + fh * h / 2 / q), fill=T.ORANGE + (int(120 * T.ease_out(p) * breathe),))
+        cx, cy = (x0 + fx * w) / q, (y0 + fy * h) / q; d.ellipse((cx - fw * w / 2 / q, cy - fh * h / 2 / q, cx + fw * w / 2 / q, cy + fh * h / 2 / q), fill=col + (int(120 * T.ease_out(p) * breathe),))
     layer = layer.filter(ImageFilter.GaussianBlur(ctx.px(46) / q)).resize((ctx.W, ctx.H), Image.BILINEAR); cv.paste(layer, (0, 0), layer)
     d2 = ImageDraw.Draw(cv, "RGBA")
     for (fx, fy, fw, fh) in regions:      # thin outline that draws on with the glow: reads as a deliberate highlight, not a stain
-        cx, cy = x0 + fx * w, y0 + fy * h; e = T.ease_out(p); d2.ellipse((cx - fw * w / 2 * e, cy - fh * h / 2 * e, cx + fw * w / 2 * e, cy + fh * h / 2 * e), outline=T.ORANGE + (int(220 * e),), width=ctx.px(3))
+        cx, cy = x0 + fx * w, y0 + fy * h; e = T.ease_out(p); d2.ellipse((cx - fw * w / 2 * e, cy - fh * h / 2 * e, cx + fw * w / 2 * e, cy + fh * h / 2 * e), outline=col + (int(220 * e),), width=ctx.px(3))
 
 def light_sweep(cv: Image.Image, ctx: Ctx, box, p: float) -> None:
     """A soft diagonal band of light crossing a picture box left to right over p = 0..1 (a reveal); nothing outside 0..1."""
@@ -363,3 +381,11 @@ def stamp(cv: Image.Image, ctx: Ctx, text: str, t: float, col=T.ORANGE, cx: floa
     lay = lay.resize((max(1, int(lay.width * sc)), max(1, int(lay.height * sc))), Image.LANCZOS).rotate(-7, resample=Image.BICUBIC, expand=True)
     shake = math.sin(t * 90) * max(0.0, 1 - (t - 0.18) / 0.25) * ctx.px(7) if t > 0.18 else 0.0
     overlay_paste(cv, lay, a, (int(ctx.W * cx - lay.width / 2 + shake), int(ctx.H * cy - lay.height / 2)))
+
+def beam(cv: Image.Image, ctx: Ctx, p0, p1, t: float) -> None:
+    """A signal travelling from one point to another: a jagged red line draws from p0 to p1 in 0.35 s, flickers, then fades by 1.2 s."""
+    if not 0 <= t < 1.2: return
+    import random
+    rnd = random.Random(int(t * 24)); d = ImageDraw.Draw(cv, "RGBA"); q = min(1.0, t / 0.35); a = 1.0 if t < 0.8 else (1.2 - t) / 0.4; n = 9
+    pts = [(p0[0] + (p1[0] - p0[0]) * i / n * q + (rnd.uniform(-1, 1) * ctx.px(16) if 0 < i < n else 0), p0[1] + (p1[1] - p0[1]) * i / n * q + (rnd.uniform(-1, 1) * ctx.px(16) if 0 < i < n else 0)) for i in range(n + 1)]
+    d.line(pts, fill=(255, 90, 60, int(110 * a)), width=ctx.px(14), joint="curve"); d.line(pts, fill=(255, 235, 220, int(255 * a)), width=ctx.px(4), joint="curve")

@@ -178,5 +178,66 @@ class Step2StampsAndBlueprint(unittest.TestCase):
         sc = [mk("T", 0, 5), mk("MOVE 1", 5, 10), mk("MOVE 1", 10, 15), mk("MOVE 2", 15, 20)]
         n = BP.apply(sc); self.assertEqual((n["units"], n["teasers"], n["locks"], n["safety_chips"]), (2, 1, 0, 0)); self.assertEqual(sc[2]["teaser"]["text"], "MOVE 2")
 
+class GapClosers(unittest.TestCase):
+    def test_myth_question_list_and_contrast_shapes(self):
+        from reptheory import variety as V
+        sc = {"start": 0.0, "words": []}
+        my = V._myth(sc, "Myth one: it is a steroid. It is not."); self.assertEqual((my["wrong"]["text"], my["right"]["text"], my["labels"]), ("IT IS A STEROID", "IT IS NOT", ("MYTH", "FACT")))
+        self.assertEqual(V._question(sc, "What about ice baths? They help.")["key"], "ICE BATHS"); self.assertIsNone(V._question(sc, "Too hard? Use a wall."))
+        self.assertEqual([i["text"] for i in V._checklist(sc, "Recovery happens while you eat, sleep and rest.")["items"]], ["EAT", "SLEEP", "REST"])
+        vs = lambda t: (lambda v: (v["a"]["text"], v["b"]["text"]) if v else None)(V._versus(sc, t))
+        self.assertEqual(vs("Water goes into your muscles, not under your skin."), ("INTO YOUR MUSCLES", "UNDER YOUR SKIN"))
+        self.assertEqual(vs("Rule two is that patience beats intensity."), ("PATIENCE", "INTENSITY"))
+        self.assertEqual(vs("Want to lose fat? Eat a little less. Want to build? Eat a little more."), ("LOSE FAT", "BUILD"))
+        for t in ("No workout beats a bad diet.", "Your heart beats faster."): self.assertIsNone(V._versus(sc, t), t)
+        self.assertEqual([s["dir"] for s in V._graph(sc, "Muscles break down when you train and rebuild when you rest.")["segs"]], ["down", "up"])
+        y = V._study(sc, "Back in the 80s, researchers tried it."); self.assertEqual((y["value"], y["year"]), (1980.0, True))
+
+    def test_spoken_numbers_and_two_word_parts(self):
+        from reptheory import lexicon as LX, states as ST
+        self.assertEqual([LX.num(x) for x in ("one point six", "three hundred", "one and a half")], ["1.6", "300", "1.5"])
+        self.assertEqual(N.entities("aim for one point six grams a day")["numbers"][0]["unit"], "G")
+        t = "Your nervous system resets overnight."; ws = [{"w": w, "t0": i * 0.5} for i, w in enumerate(t.split())]
+        self.assertEqual(ST.parts_named(ws, t), [("brain", 0.5)])
+
+    def test_states_tone_and_beam(self):
+        from reptheory import states as ST
+        def scene(text):
+            ws = P.respell(text, [{"w": w, "t0": i * 0.4, "t1": i * 0.4 + 0.3} for i, w in enumerate(text.split())])
+            return {"kind": "callout", "art": "", "start": 0.0, "end": len(ws) * 0.4, "words": ws, "text": text, "decisions": [], "pages": []}
+        a = scene("Let your shoulders relax completely."); ST.apply([a], lambda x: True); self.assertEqual(a["glows"][0]["tone"], "ice")
+        b = scene("Your brain tells your legs to stop."); ST.apply([b], lambda x: True); self.assertIn("beam", b)
+
+    def test_a_long_text_scene_splits_at_a_card_sentence(self):
+        from reptheory import variety as V
+        text = "Water matters more than you think for training. The most common mistake is drinking a huge amount at once."
+        ws = P.respell(text, [{"w": w, "t0": i * 0.4, "t1": i * 0.4 + 0.3} for i, w in enumerate(text.split())])
+        sc = [{"kind": "callout", "art": "", "start": 0.0, "end": len(ws) * 0.4, "words": ws, "text": text, "decisions": [], "no": 1, "pages": [{"at": 0.0, "headline": "WATER MATTERS"}, {"at": 4.0, "headline": "HUGE AMOUNT"}]}]
+        self.assertEqual(V.split_for_cards(sc), 1); self.assertEqual([len(x["pages"]) for x in sc], [1, 1]); self.assertTrue(sc[1]["text"].startswith("The most common mistake"))
+        self.assertTrue(V._mistake(sc[1], sc[1]["text"]))
+
+class Step5Poses(unittest.TestCase):
+    def test_every_pose_ships_with_a_map_and_actions_pick_poses(self):
+        from reptheory import poses as PZ
+        for pid in PZ.POSES: self.assertTrue(T.art_ok(pid), pid); self.assertIn(pid, PZ.REGIONS, pid)
+        for pid, parts in PZ.REGIONS.items():
+            for part, els in parts.items():
+                for cx, cy, w, h in els: self.assertTrue(0 <= cx <= 1 and 0 <= cy <= 1, (pid, part))
+        pick = lambda t: (PZ.pick(t, T.art_ok) or (None,))[0]
+        self.assertEqual(pick("Do ten push-ups every morning."), "rep_pushup_top_v1"); self.assertEqual(pick("Lower your chest to the bottom of the push-up."), "rep_pushup_bottom_v1")
+        self.assertEqual(pick("Sleep is when you grow."), "rep_sleep_v1"); self.assertEqual(pick("Hold a side plank."), "rep_side_plank_v1")
+        self.assertIsNone(pick("Protein keeps you full."))
+
+    def test_body_gains_and_leans_on_its_word(self):
+        from PIL import Image
+        from reptheory import draw as D, states as ST
+        def scene(text):
+            ws = P.respell(text, [{"w": w, "t0": i * 0.4, "t1": i * 0.4 + 0.3} for i, w in enumerate(text.split())])
+            return {"kind": "callout", "art": "", "start": 0.0, "end": len(ws) * 0.4, "words": ws, "text": text, "decisions": [], "pages": []}
+        a = scene("Eat a little more and you will gain muscle."); ST.apply([a], T.art_ok); self.assertGreater(a["morph"]["to"], 0)
+        b = scene("Walking helps you lose fat slowly."); ST.apply([b], T.art_ok); self.assertLess(b["morph"]["to"], 0)
+        c = scene("The gym isn't where you build muscle."); ST.apply([c], T.art_ok); self.assertNotIn("morph", c)
+        im = Image.new("RGBA", (100, 200), (255, 255, 255, 255)); self.assertGreater(D.bulk(im, 0.16).width, 100)
+
 if __name__ == "__main__":
     unittest.main()

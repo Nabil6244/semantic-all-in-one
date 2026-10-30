@@ -6,15 +6,15 @@ from __future__ import annotations
 import re
 from typing import Callable, Dict, List
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage")
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist")
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
            "list": "steps", "sequence": "steps", "key line": "takeaway", "quote": "takeaway",
            "stopwatch": "timeline", "sensation": "timeline", "wrong right": "mistake", "wrong/right": "mistake", "difficulty": "slider", "easier harder": "slider",
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
-           "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage"}
-CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage")
+           "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist"}
+CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist")
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 def norm_look(v: str) -> str:

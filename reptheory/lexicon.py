@@ -25,13 +25,17 @@ TIER_TALK_RX = re.compile(r"\b(?:rank|ranks|ranking|tier list|tiers?)\b", re.I)
 NUMBER_WORDS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split())}
 NUMBER_WORDS.update({"thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100})
 _TENS = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"; _ONES = "one|two|three|four|five|six|seven|eight|nine"
-NUM = r"(\d+(?:\.\d+)?|(?:" + _TENS + r")[\s-](?:" + _ONES + r")|" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")"      # "sixty eight" / "sixty-eight" read as one number
+_SPOKEN = (rf"(?:{_ONES}|zero)\s+point\s+(?:{_ONES}|zero)|(?:{_ONES}|ten)\s+(?:hundred|thousand)|(?:{_ONES}|{_TENS})\s+and\s+a\s+half|")      # "one point six", "three hundred", "one and a half"
+NUM = r"(\d+(?:\.\d+)?|" + _SPOKEN + r"(?:" + _TENS + r")[\s-](?:" + _ONES + r")|" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")"      # "sixty eight" / "sixty-eight" read as one number
 PCT_RX = re.compile(rf"\b{NUM}\s*(?:%|percent\b|per cent\b)", re.I)
 EQ_RX = re.compile(rf"\b{NUM}\s*(?:l|litres?|liters?)\b.{{0,40}}?\b{NUM}\s*(?:kg|kilograms?|kilos?)\b", re.I)
 
 def _clip(text: str, n: int) -> str: return " ".join(text.upper().split()[:n])
 def num(tok: str) -> str:
     t = tok.lower(); parts = t.replace("-", " ").split()
+    if len(parts) == 3 and parts[1] == "point" and parts[0] in NUMBER_WORDS and parts[2] in NUMBER_WORDS: return f"{NUMBER_WORDS[parts[0]]}.{NUMBER_WORDS[parts[2]]}"
+    if len(parts) == 2 and parts[1] in ("hundred", "thousand") and parts[0] in NUMBER_WORDS: return str(NUMBER_WORDS[parts[0]] * (100 if parts[1] == "hundred" else 1000))
+    if len(parts) == 4 and parts[1:] == ["and", "a", "half"] and parts[0] in NUMBER_WORDS: return f"{NUMBER_WORDS[parts[0]]}.5"
     if len(parts) == 2 and parts[0] in NUMBER_WORDS and parts[1] in NUMBER_WORDS: return str(NUMBER_WORDS[parts[0]] + NUMBER_WORDS[parts[1]])
     return str(NUMBER_WORDS[t]) if t in NUMBER_WORDS else tok
 
@@ -39,8 +43,9 @@ def concepts_in(text: str) -> list:
     return [cid for cid, c in CONCEPTS.items() if re.search(c["rx"], text, re.I)]
 
 IMPERATIVES = {"stand", "keep", "hold", "squeeze", "pinch", "rest", "switch", "breathe", "stay", "grip", "pull", "push", "lift", "lower", "hang", "brace", "relax", "screw"}
-QTY_RX = re.compile(rf"\b{NUM}\s*(litres?|liters?|kilograms?|kilos?|kg|seconds?|reps?|sets?|weeks?|minutes?|days?|times)\b", re.I)
-UNIT_ABBR = {"litre": "L", "liter": "L", "kilogram": "KG", "kilo": "KG", "kg": "KG", "second": "S", "rep": "REPS", "week": "WEEKS", "minute": "MIN", "day": "DAYS", "set": "SETS", "time": "TIMES"}
+QTY_RX = re.compile(rf"\b{NUM}\s*(litres?|liters?|kilograms?|kilos?|kg|seconds?|reps?|sets?|weeks?|minutes?|days?|times|grams?|g|calories|kcal|steps|hours?|degrees|beats)\b", re.I)
+UNIT_ABBR = {"litre": "L", "liter": "L", "kilogram": "KG", "kilo": "KG", "kg": "KG", "second": "S", "rep": "REPS", "week": "WEEKS", "minute": "MIN", "day": "DAYS", "set": "SETS", "time": "TIMES",
+             "gram": "G", "g": "G", "calorie": "KCAL", "kcal": "KCAL", "step": "STEPS", "hour": "H", "degree": "°", "beat": "BEATS"}
 def quantity(text: str):
     """'2 L' for the first quantity the narration states (number words understood), else ''. Only what is said is shown."""
     m = QTY_RX.search(text)

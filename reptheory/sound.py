@@ -15,7 +15,7 @@ KIND_SFX = {      # what each development sounds like (cadence.events "what")
     "ring": "marker_pop", "grip ring": "marker_pop", "glow": "marker_pop", "equation term": "marker_clack", "tier mark": "marker_clack",
     "tier placement": "deep_thud", "steps item": "ui_click", "versus item": "bubble_pluck", "hand switch": "ui_click", "tint": "deep_thud", "time mark": "clock_ticking", "mistake panel": "marker_clack",
     "slider panel": "ui_click", "dial value": "counter_ticks", "study value": "paper_slide",
-    "graph bend": "marker_pop", "bar": "counter_ticks", "calendar day": "ui_click", "result band": "marker_clack", "warning card": "deep_thud", "comment typed": "bubble_pluck", "like press": "marker_pop", "subscribe press": "marker_pop", "stamp": "deep_thud", "next teaser": "fast_whoosh", "test lock": "marker_clack"}
+    "graph bend": "marker_pop", "bar": "counter_ticks", "calendar day": "ui_click", "result band": "marker_clack", "warning card": "deep_thud", "comment typed": "bubble_pluck", "like press": "marker_pop", "subscribe press": "marker_pop", "stamp": "deep_thud", "next teaser": "fast_whoosh", "test lock": "marker_clack", "myth panel": "marker_clack", "question asked": "bubble_pluck", "number lands": "marker_pop", "signal beam": "fast_whoosh", "body change": "deep_thud"}
 MAJOR = ("deep_thud", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0      # What If's restraint: up to ~48 a minute, never stacked
 MUSIC_GAIN = 0.36

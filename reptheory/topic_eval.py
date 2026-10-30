@@ -27,7 +27,8 @@ TOPICS = ROOT / "test_fixtures" / "rep_theory_topics"; BASELINE = TOPICS / "base
 SHIPPED = ROOT / "assets" / "reptheory"
 WPS = 2.6      # narration speed for the synthetic word timings (≈156 words a minute)
 STILL_S, OPENING_S = 4.0, 60.0
-PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage"}
+IS_PICTURE = lambda l: l in PICTURE or l.startswith("pose:")
+PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist"}
 TARGETS = {"bad_headlines": ("<=", 0), "empty_scenes": ("<=", 0), "repeat_headlines": ("<=", 0), "picture_share": (">=", 0.80), "fallback_share": ("<=", 0.10), "anatomy_unnamed": ("<=", 0), "still_share": ("<=", 0.05), "held_no_change": ("<=", 0), "opening_overlap_max": ("<=", 0.30)}
 BODY_RX = re.compile(r"\b(" + "|".join([      # named body parts, organs and tissues; "muscle" / "body" alone name nothing
     r"neck", r"shoulders?", r"delts?", r"deltoids?", r"traps?", r"trapezius", r"chest", r"pecs?", r"pectorals?", r"arms?", r"biceps?", r"triceps?", r"elbows?", r"forearms?", r"wrists?", r"hands?",
@@ -88,8 +89,8 @@ def headline_fault(head: str, text: str) -> str:
 def art_ok(a: str) -> bool: return bool(a) and (SHIPPED / f"{a}.png").exists()      # only the art that ships with the app, so the numbers are the same on every machine
 
 def look_of(sc: dict) -> str:
-    lk = sc.get("look") or sc["kind"]
-    return sc["kind"] if lk == "stock" else lk
+    lk = sc.get("look") or sc["kind"]; lk = sc["kind"] if lk == "stock" else lk
+    return f"pose:{sc['art']}" if lk == "pose" else lk      # 30 pose pictures (Step 5): a squat and a sleeping figure are different pictures
 
 def plan(text: str) -> tuple:
     title, ss = sentences(text); res = B.plan(transcript_words(ss), title=title, art_ok=art_ok); scenes = res["scenes"]
@@ -100,7 +101,7 @@ def measure(text: str) -> dict:
     title, ss, res, scenes = plan(text); script = " ".join(s["text"] for s in ss)
     total = scenes[-1]["end"]; beats = res["beats"]
     looks = [look_of(sc) for sc in scenes]; dur = [sc["end"] - sc["start"] for sc in scenes]
-    pic = sum(d for d, l, sc in zip(dur, looks, scenes) if l in PICTURE or (l == "trainee" and sc.get("glows"))) / total      # the figure with a named part lit is a picture of the words
+    pic = sum(d for d, l, sc in zip(dur, looks, scenes) if IS_PICTURE(l) or (l == "trainee" and (sc.get("glows") or sc.get("morph")))) / total      # the figure with a named part lit, or gaining / leaning out on the word, is a picture of the words
     unground = sum(1 for b in beats if b["status"] != "grounded") / max(1, len(beats))
     named = lambda sc, l: BODY_RX.search(sc.get("text", "")) or (l in ("3d", "clip3d") and C3.groups_for(sc.get("text", ""))[0])      # a 3D clip may also come from a named exercise's muscles (pull-up -> lats)
     anat = [sc["no"] for sc, l in zip(scenes, looks) if l in ("anatomy", "3d", "clip3d") and not named(sc, l)]

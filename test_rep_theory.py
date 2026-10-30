@@ -142,8 +142,9 @@ class Wiring(unittest.TestCase):
         self.assertIn('"Rep Theory": "_rt_block"', (ROOT / "ui" / "style_kit.py").read_text(encoding="utf-8")); self.assertIn("Rep Theory", (ROOT / "ui" / "style_registry.py").read_text(encoding="utf-8"))
         self.assertIn("reptheory_modules", (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"))
         spec = (ROOT / "VideoGenerator.spec").read_text(encoding="utf-8"); self.assertIn("datas += reptheory_data_files(ROOT)", spec)
-        df = packaging.data_files(ROOT); self.assertEqual(sorted(Path(s).name for s, _ in df), ["anat_forearm_v1.png", "index.json", "prop_bottle_2l_v1.png", "rep_hang_v1.png", "rep_stand_v1.png"]); self.assertEqual({d for _, d in df}, {"assets/reptheory"})
-        import json; idx = json.loads((ROOT / "assets" / "reptheory" / "index.json").read_text(encoding="utf-8")); self.assertEqual(sorted(e["id"] for e in idx), ["anat_forearm_v1", "prop_bottle_2l_v1", "rep_hang_v1", "rep_stand_v1"])
+        from reptheory import poses as PZ
+        df = packaging.data_files(ROOT); self.assertEqual(sorted(Path(s).name for s, _ in df), sorted(["anat_forearm_v1.png", "index.json", "prop_bottle_2l_v1.png", "rep_hang_v1.png", "rep_stand_v1.png", "rep_point_v1.png", "rep_think_v1.png"] + [f"{p}.png" for p in PZ.POSES])); self.assertEqual({d for _, d in df}, {"assets/reptheory"})
+        import json; idx = json.loads((ROOT / "assets" / "reptheory" / "index.json").read_text(encoding="utf-8")); self.assertEqual(sorted(e["id"] for e in idx), sorted(["anat_forearm_v1", "prop_bottle_2l_v1", "rep_hang_v1", "rep_stand_v1", "rep_point_v1", "rep_think_v1"] + list(PZ.POSES)))
         for e in idx: self.assertEqual(L.sha256(ROOT / "assets" / "reptheory" / e["file"]), e["sha256"])      # the bundled pictures are the ones in the index
 
 class Polish(unittest.TestCase):

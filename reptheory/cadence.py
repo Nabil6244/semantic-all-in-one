@@ -11,7 +11,7 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
 def _sig(sc: dict) -> tuple:
     sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
@@ -45,21 +45,28 @@ def events(scenes: List[dict]) -> List[dict]:
             c = sc.get(k2)
             if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} item", "scene": n, "target": x["text"], "meaningful": True} for x in (c if key else [c["a"], c["b"]])]
         if sc.get("timeline"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "time mark", "scene": n, "target": x["mark"], "meaningful": True} for x in sc["timeline"]["items"]]
-        for k2 in ("mistake", "slider"):
+        if sc.get("checklist"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "steps item", "scene": n, "target": x["text"], "meaningful": True} for x in sc["checklist"]["items"]]
+        if sc.get("question"): ev.append({"t": float(sc["question"]["at"]), "type": "secondary", "what": "question asked", "scene": n, "target": sc["question"]["text"], "meaningful": True})
+        for k2 in ("mistake", "slider", "myth"):
             c = sc.get(k2)
-            if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} panel", "scene": n, "target": x["text"], "meaningful": True} for x in c.values() if x]
+            if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} panel", "scene": n, "target": x["text"], "meaningful": True} for x in c.values() if isinstance(x, dict)]
         for k2 in ("dial", "study"):
             if sc.get(k2): ev.append({"t": float(sc[k2]["at"]), "type": "secondary", "what": f"{k2} value", "scene": n, "meaningful": True})
         for k2, key, what in (("graph", "segs", "graph bend"), ("calendar", "days", "calendar day"), ("result", "tiers", "result band"), ("warning", "rules", "warning card")):
             if sc.get(k2): ev += [{"t": float(x["at"]), "type": "secondary", "what": what, "scene": n, "meaningful": True} for x in sc[k2][key]]
         if sc.get("bars"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "bar", "scene": n, "meaningful": True} for x in (sc["bars"].get("items") or [sc["bars"]])]
         if sc.get("engage"): ev.append({"t": float(sc["engage"]["at"]), "type": "secondary", "what": f"{sc['engage']['kind']} press" if sc["engage"]["kind"] != "comment" else "comment typed", "scene": n, "meaningful": True})
+        for k2 in ("stat", "dial"):      # the number reaches what was said: it flips to orange and the ring pulses (cards.stat / cards.dial, 0.9 s after it starts)
+            if sc.get(k2) and sc["kind"] == k2: ev.append({"t": float(sc[k2]["at"]) + 0.9, "type": "secondary", "what": "number lands", "scene": n, "meaningful": True})
         if sc.get("stat"): ev.append({"t": float(sc["stat"]["at"]), "type": "secondary", "what": "stat number", "scene": n, "target": f"{sc['stat']['value']:g} {sc['stat']['unit']}", "meaningful": True})
         if sc.get("takeaway"): ev += [{"t": float(w["t0"]), "type": "secondary", "what": "spoken word lights", "scene": n, "meaningful": False} for w in sc["takeaway"]["words"][::4]]
         if sc.get("grip_at") is not None: ev.append({"t": float(sc["grip_at"]), "type": "secondary", "what": "grip ring", "scene": n, "meaningful": True})
         if sc.get("flip_at") is not None: ev.append({"t": float(sc["flip_at"]), "type": "secondary", "what": "hand switch", "scene": n, "meaningful": True})
+        if sc.get("chapter_card"): ev.append({"t": float(sc["start"]) + 0.2 + 0.035 * len(sc["chapter_card"]["title"][:34]), "type": "secondary", "what": "chapter title", "scene": n, "target": sc["chapter_card"]["title"], "meaningful": True})      # the part's title has typed on (cards.chapter)
         if sc.get("teaser"): ev.append({"t": float(sc["teaser"]["at"]), "type": "secondary", "what": "next teaser", "scene": n, "target": sc["teaser"]["text"], "meaningful": True})
         if sc.get("lock"): ev.append({"t": float(sc["lock"]["at"]), "type": "secondary", "what": "test lock", "scene": n, "meaningful": True})
+        if sc.get("morph") and sc["kind"] == "trainee": ev.append({"t": float(sc["morph"]["at"]), "type": "secondary", "what": "body change", "scene": n, "meaningful": True})
+        if sc.get("beam") and sc["kind"] == "trainee": ev.append({"t": float(sc["beam"]["at"]), "type": "secondary", "what": "signal beam", "scene": n, "meaningful": True})
         if sc.get("stamp"): ev.append({"t": float(sc["stamp"]["at"]), "type": "secondary", "what": "stamp", "scene": n, "target": sc["stamp"]["text"], "meaningful": True})
         if sc.get("tint"): ev.append({"t": float(sc["tint"]["at"]), "type": "secondary", "what": "tint", "scene": n, "meaningful": True})
         for c in sc.get("cues", []): ev.append({"t": float(c["at"]), "type": "secondary", "what": c.get("what", "cue"), "scene": n, "meaningful": True})

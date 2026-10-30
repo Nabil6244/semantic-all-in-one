@@ -21,6 +21,23 @@ REAL_STYLE = "Realistic detailed illustration with studio lighting, solid pure b
 ART = {
     "rep_stand_v1": ("character", f"Full-body front view of {CHARACTER}, standing relaxed, arms hanging at his sides, calm focused expression", STYLE),
     "rep_hang_v1": ("character", f"Full-body front view of {CHARACTER}, hanging from a plain horizontal steel pull-up bar that is fully visible across the top of the picture, arms straight overhead, gripping the bar", STYLE),
+    # Step 5: the pose library (one character, made once, reused by every video; body-region maps per pose in poses.py)
+    **{f"rep_{k}_v1": ("character", f"Full-body picture of {CHARACTER}. Pose: {v}, the whole body visible", STYLE) for k, v in {
+        "side": "side view (facing right)", "point": "front view, pointing straight at the viewer with one hand, explaining, friendly confident expression",
+        "think": "front view, standing with one hand on his chin, thinking, slightly puzzled expression",
+        "flex": "front view, flexing both biceps with a proud grin", "tired": "side view (facing right), bent over with his hands on his knees, exhausted and sweating, breathing hard",
+        "pushup_top": "side view (facing right) at the top of a push-up on the floor, arms straight, body in one straight line", "pushup_bottom": "side view (facing right) at the bottom of a push-up, chest just above the floor, elbows bent",
+        "squat": "side view (facing right) at the bottom of a bodyweight squat, thighs parallel to the floor, arms reaching forward", "lunge": "side view (facing right) in a deep forward lunge, front knee bent at ninety degrees, back knee near the floor",
+        "plank": "side view (facing right) holding a forearm plank on the floor, body in one straight line", "side_plank": "front view holding a side plank on one forearm, hips lifted, body straight",
+        "bridge": "side view (facing right) lying on his back doing a glute bridge, feet flat, hips lifted high", "pullup_top": "front view at the top of a pull-up, chin above a plain steel bar that is fully visible across the picture",
+        "row": "side view (facing right) in a bent-over row, back flat, pulling one dumbbell to his hip", "hinge": "side view (facing right) in a hip hinge holding a barbell just below his knees, back flat, hips pushed back",
+        "press": "front view pressing two dumbbells straight overhead, arms locked", "curl": "front view curling two dumbbells, elbows at his sides, forearms up",
+        "walk": "side view (facing right) walking briskly, mid-stride", "run": "side view (facing right) running, mid-stride, arms pumping",
+        "hamstring_stretch": "side view (facing right) sitting on the floor with legs straight, leaning forward to reach his toes", "hip_stretch": "side view (facing right) in a kneeling hip flexor stretch, one knee on the floor, hips pushed forward",
+        "wall_sit": "side view (facing right) in a wall sit, back flat against a plain wall, thighs parallel to the floor", "calf_raise": "side view (facing right) standing high on his toes in a calf raise",
+        "eat": "side view (facing right) sitting at a plain table eating a plate of chicken, rice and vegetables with a fork", "drink": "front view drinking from a clear water bottle",
+        "sleep": "side view asleep on his side in a plain bed with a pillow and blanket, peaceful", "scale": "front view standing on a plain bathroom scale, looking down at it",
+        "bench_rest": "side view (facing right) sitting on a plain gym bench resting between sets, a towel over his shoulder"}.items()},
     "prop_bottle_2l_v1": ("prop", "A full 2 litre clear plastic water bottle with a blue screw cap and a plain blank label, standing upright, centred", REAL_STYLE),
     "anat_forearm_v1": ("anatomy", "Both human forearms and hands in front (palm-up) view, drawn as a muscle-anatomy illustration with the flexor muscles and tendons visible, forearms upright and symmetrical, hands open", REAL_STYLE),
 }

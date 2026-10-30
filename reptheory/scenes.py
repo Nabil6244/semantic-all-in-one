@@ -16,6 +16,7 @@ def _camera(sc: dict, t: float) -> tuple:
 
 ENTRANCE_S, LATE_MAX_S = 0.45, 0.9
 from .states import STAMP_HOLD_S
+from . import states as ST
 
 def _page_layer(ctx: D.Ctx, sc: dict, pg: dict, t: float, x: float, anchor_y: float) -> Image.Image:
     """One callout page drawn on its own transparent layer (so it can fade out when the next page replaces it); times are relative to the scene.
@@ -60,13 +61,17 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         box = None
         if sc["art"]:
             h = 0.84 if kind != "prop" else 0.76; sway = {}
-            if kind == "pose": sway = {"shear": 16 * ctx.S * math.sin(t * 1.5)}          # hangs from the bar and swings gently
+            if kind == "pose" and sc["art"] != "rep_hang_v1": im_ = ctx.art(sc["art"]); h = min(0.84, 0.56 * ctx.W / (im_.width / im_.height) / ctx.H)      # a lying or wide pose keeps the left part of the frame
+            if kind == "pose" and sc["art"] == "rep_hang_v1": sway = {"shear": 16 * ctx.S * math.sin(t * 1.5)}          # hangs from the bar and swings gently
             if kind == "prop": sway = {"rot": 1.4 * math.sin(t * 1.3)}
+            if sc.get("morph") and kind == "trainee": mp = T.ease_in_out((t - _rel(sc, sc["morph"]["at"])) / 1.2); sway["gain"] = sc["morph"]["to"] * mp      # the body gains or leans out on its word
             box = D.paste_art(cv, ctx, sc["art"], 0.30, 0.54, h, zoom, 1.0, dx, dy, **sway)
             if kind in ("trainee",): D.floor_line(cv, ctx, box[0] - ctx.px(120), box[2] + ctx.px(120), box[3] + ctx.px(6), t / 0.8)
-            if kind == "trainee" and sc.get("glows"):      # the part the narration is on now lights up (reptheory/states.py)
+            if kind in ("trainee", "pose") and sc.get("glows"):      # the part the narration is on now lights up (reptheory/states.py)
                 live = [g for g in sc["glows"] if _rel(sc, g["at"]) <= t + 1e-6]
-                if live: g = live[-1]; at = _rel(sc, g["at"]); D.anatomy_glow(cv, ctx, box, g["regions"], (t - at) / 0.5, t - at)
+                if live: g = live[-1]; at = _rel(sc, g["at"]); D.anatomy_glow(cv, ctx, box, g["regions"], (t - at) / 0.5, t - at, ST.TONES.get(g.get("tone"), T.ORANGE))
+                if sc.get("beam"):      # a signal from the brain to the part it drives (states.apply)
+                    bm = sc["beam"]; w_, h_ = box[2] - box[0], box[3] - box[1]; D.beam(cv, ctx, (box[0] + bm["from"][0] * w_, box[1] + bm["from"][1] * h_), (box[0] + bm["to"][0] * w_, box[1] + bm["to"][1] * h_), t - _rel(sc, bm["at"]))
             ring = _live_ring(sc, t)
             if ring and kind == "prop": _label_ring(cv, ctx, box, ring, t, sc)
             if kind == "pose" and sc.get("grip_at") is not None:
@@ -80,7 +85,7 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         if inset:      # the trainee who is doing the squeezing, small, with a line from his gripping forearm to the picture
             ib, _n, fore = D.hold_figure(cv, ctx, "rep_stand_v1", inset, 0.80, 0.58, 0.66, t, [_rel(sc, q) for q in sc.get("squeezes", [])], 1.0, 1.0, 0, 0)      # mirrored: the gripping forearm faces the anatomy, so the line never crosses the body
         if g:
-            at = _rel(sc, g["at"]); p = (t - at) / 0.7; D.anatomy_glow(cv, ctx, box, g["regions"], p, t - at)
+            at = _rel(sc, g["at"]); p = (t - at) / 0.7; D.anatomy_glow(cv, ctx, box, g["regions"], p, t - at, ST.TONES.get(g.get("tone"), T.ORANGE))
             if gl: D.light_sweep(cv, ctx, box, (t - _rel(sc, gl[0]["at"])) / 0.9)      # the plate is revealed by a light passing over it
             fx, fy, fw, fh = g["regions"][-1]; p0 = (box[0] + (fx + fw * 0.35) * w, box[1] + fy * h)
             if fore: D.connector(cv, ctx, [p0, (p0[0] + ctx.px(120), p0[1] - ctx.px(40)), (fore[0] - ctx.px(40), fore[1] - ctx.px(10)), fore], (t - at - 0.6) / 0.9)
@@ -112,6 +117,12 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         st = sc["stat"]; K2.stat(cv, ctx, dict(st, at=_rel(sc, st["at"])), t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "steps":
         K2.steps(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["steps"]], t); _caption_strip(cv, ctx, sc, t)
+    elif kind == "checklist":
+        K2.steps(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["checklist"]["items"]], t, ticks=True); _caption_strip(cv, ctx, sc, t)
+    elif kind == "myth":
+        c = sc["myth"]; K2.mistake(cv, ctx, dict({k: dict(c[k], at=_rel(sc, c[k]["at"])) if c.get(k) else None for k in ("wrong", "right")}, labels=c["labels"]), t); _caption_strip(cv, ctx, sc, t)
+    elif kind == "question":
+        K2.question(cv, ctx, dict(sc["question"], at=_rel(sc, sc["question"]["at"])), t); _caption_strip(cv, ctx, sc, t)
     elif kind == "versus":
         v = sc["versus"]; K2.versus(cv, ctx, {k: dict(v[k], at=_rel(sc, v[k]["at"])) for k in ("a", "b")}, t); _caption_strip(cv, ctx, sc, t)
     elif kind in ("timeline", "mistake", "slider"):      # Step 4 cards that fill the frame, the narration's next phrase in a strip under them
