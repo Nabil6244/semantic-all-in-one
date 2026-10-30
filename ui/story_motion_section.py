@@ -1,4 +1,4 @@
-"""Story Motion: the style page's own box (CSV prompt, Check plan, a few options). The style is the Normal video engine with the story pipeline on
+"""Story Motion: the style page's own box (Check plan, a few options; the CSV prompt button is the Plan step's). The style is the Normal video engine with the story pipeline on
 (shots that follow the narration, layered depth parallax, links, the quality audit): picking the card sets `app._story_motion_active` for the session,
 nothing is saved as a project setting and nothing runs until Generate. All the work lives in story_pipeline / story_check; this file is only the page.
 
@@ -6,6 +6,7 @@ app.py / style_pages call: sync(app, active), is_active(app), pipeline_settings(
 from __future__ import annotations
 
 import csv
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict
@@ -21,7 +22,7 @@ _PROMPT_DOC = Path(__file__).resolve().parents[1] / "docs" / "story" / "dense_cs
 
 
 def is_active(app: Any) -> bool:
-    return bool(getattr(app, "_story_motion_active", False))
+    return getattr(app, "_story_motion_active", False) is True      # exactly True: a stand-in object whose attributes are all truthy must not switch the prompt
 
 
 def prompt_text() -> str:
@@ -35,6 +36,9 @@ def pipeline_settings(app: Any) -> Dict[str, Any]:
     o = _opts(app)
     out: Dict[str, Any] = {"story_video": True, "story_dry_run": False, "story_audit": bool(o["audit"]),
                            "story_motion_intensity": STRENGTH.get(o["strength"], "medium"), "story_motion_parallax": bool(o["parallax"])}
+    # the motion clips are CPU work and there are hundreds (492 shots for a 24-minute video): one at a time took about two hours; a setting of
+    # story_workers in settings.json wins over this default (half the cores, at most 4)
+    out["story_workers"] = int(getattr(app, "_settings", {}).get("story_workers") or max(1, min(4, (os.cpu_count() or 2) // 2)))
     if not o["links"]:
         out["story_shot_link_ratio"] = 0.0
     return out
@@ -60,9 +64,8 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=640).grid(row=1, column=0, sticky="w", padx=16, pady=(2, 8))
     tools = ctk.CTkFrame(block, fg_color="transparent")
     tools.grid(row=2, column=0, sticky="ew", padx=16)
-    make_button(tools, "Copy the CSV prompt", lambda: copy_prompt(app), size="sm", width=170).grid(row=0, column=0, padx=(0, 8))
-    make_button(tools, "Check plan", lambda: on_check_plan(app), size="sm", width=120).grid(row=0, column=1, padx=(0, 12))
-    ctk.CTkLabel(tools, textvariable=app._story_status_var, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=2, sticky="w")
+    make_button(tools, "Check plan", lambda: on_check_plan(app), size="sm", width=120).grid(row=0, column=0, padx=(0, 12))
+    ctk.CTkLabel(tools, textvariable=app._story_status_var, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=1, sticky="w")
     opts = ctk.CTkFrame(block, fg_color="transparent")
     opts.grid(row=3, column=0, sticky="ew", padx=16, pady=(10, 0))
     ctk.CTkLabel(opts, text="Motion", font=ctk.CTkFont(size=12), text_color=T.TEXT).grid(row=0, column=0, padx=(0, 8))
