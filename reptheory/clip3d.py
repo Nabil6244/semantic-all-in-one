@@ -15,7 +15,7 @@ CACHE = Path.home() / "HealthCinemaTools" / "rep_theory_clips"
 REGIONS = (
     (r"\b(forearms?|wrists?|grip|fingers?|hands?)\b", "forearm_r", "close", False, "Forearm"),
     (r"\b(biceps?|triceps?|upper arms?|arms?|elbows?)\b", "upper_arm_r", "close", False, "Arm"),
-    (r"\b(lats?|latissimus|scapula\w*|shoulder blades?|trapezius|traps|upper back|back)\b", "spine", "region", True, "Back"),
+    (r"\b(lats?|latissimus|scapula\w*|shoulder blades?|trapezius|traps|upper back|back)\b", "spine", "close", True, "Back"),
     (r"\b(shoulders?|delts?|deltoids?)\b", "shoulder_r", "region", False, "Shoulder"),
     (r"\b(chest|pecs?|pectorals?)\b", "chest", "region", False, "Chest"),
     (r"\b(core|abs|abdominals?|abdomen|belly|plank)\b", "abdomen", "region", False, "Core"),
@@ -27,9 +27,11 @@ REGIONS = (
 )
 
 def region_for(text: str) -> Optional[Tuple[str, str, bool, str]]:
-    for rx, anchor, scale, back, label in REGIONS:
-        if re.search(rx, text, re.I): return anchor, scale, back, label
-    return None
+    best = None      # the body part named first in the beat wins ("latissimus dorsi ... the arm" is the back); a tie goes to the more specific (earlier) row
+    for n, (rx, anchor, scale, back, label) in enumerate(REGIONS):
+        m = re.search(rx, text, re.I)
+        if m and (best is None or m.start() < best[0]): best = (m.start(), anchor, scale, back, label)
+    return best[1:] if best else None
 
 def spec_for(text: str, seconds: float, anchors: dict):
     got = region_for(text)

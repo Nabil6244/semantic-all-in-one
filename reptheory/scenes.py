@@ -97,11 +97,11 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         im = ctx.art(sc["art"]); frac = min(0.80, 0.52 * ctx.W / (im.width / im.height) / ctx.H); box = D.paste_art(cv, ctx, sc["art"], 0.29, 0.52, frac, zoom, 1.0, dx, dy)
         callouts(cv, ctx, sc, t, max(760, (box[2] / ctx.S) + 90))
     elif kind == "clip3d":      # the 3D body (clip3d.py): the clip's frame for this moment in a panel on the left, callouts on the right
-        c = sc["clip3d"]; fr = c["frames"]; i = min(len(fr) - 1, max(0, int(t * c["fps"]))); im = Image.open(fr[i]).convert("RGB"); pw = int(ctx.W * 0.58); ph = int(pw * im.height / im.width)
+        c = sc["clip3d"]; fr = c["frames"]; i = min(len(fr) - 1, max(0, int(t * c["fps"]))); im = Image.open(fr[i]).convert("RGB"); pw = int(ctx.W * 0.52); ph = int(pw * im.height / im.width)
         im = im.resize((pw, ph), Image.LANCZOS); x0 = ctx.px(70); y0 = (ctx.H - ph) // 2; a = min(1.0, t / 0.4)
         mask = Image.new("L", (pw, ph), 0); ImageDraw.Draw(mask).rounded_rectangle((0, 0, pw - 1, ph - 1), radius=ctx.px(18), fill=int(255 * a)); cv.paste(im, (x0, y0), mask)
         D.text_spaced(ImageDraw.Draw(cv, "RGBA"), (x0, y0 + ph + ctx.px(16)), "3D MODEL", ctx.font(T.BODY_FONT, 22), T.GREY + (int(255 * a),), ctx.px(4))
-        callouts(cv, ctx, sc, t, (x0 + pw) / ctx.S + 60)
+        callouts(cv, ctx, sc, t, (x0 + pw) / ctx.S + 40)
     elif kind == "sketch":      # a scene drawn in code from the beat's own words (see sketch.py), callouts on the right
         from . import sketch as K; K.draw(cv, ctx, sc["sketch"], t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "tier":
