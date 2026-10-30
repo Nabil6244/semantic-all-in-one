@@ -666,6 +666,19 @@ def _outlined(d: ImageDraw.ImageDraw, xy, text: str, font, fill, stroke: int = 3
     d.text(xy, text, font=font, fill=fill, stroke_width=stroke, stroke_fill=HALO)
 
 
+def _fill_in_view(fill: dict, vb: G.BBox) -> bool:
+    """The filled country shows at least a sliver in the current view (a key for Russia on a map of Bulgaria says nothing)."""
+    feat = G.find_country(str(fill.get("iso3") or fill.get("name") or ""))
+    if feat is None:
+        return False
+    y0, y1 = G.merc(vb[1]), G.merc(vb[3])
+    for p in feat.polys:                       # a border point inside the view (Russia's own box covers half the globe, so boxes say nothing)
+        r = p[0]
+        if MP._intersects(r.bbox, vb) and bool(((r.lon >= vb[0]) & (r.lon <= vb[2]) & (r.ym >= y0) & (r.ym <= y1)).any()):
+            return True
+    return False
+
+
 def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = None) -> Tuple[Image.Image, dict]:
     theme = "political" if str(params.get("theme") or "tactical") == "political" else "tactical"
     g = _gather(params)
@@ -989,7 +1002,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     img = Image.alpha_composite(img, L.fade(ctx, k_ctx * 0.82))
     d = ImageDraw.Draw(img)
     if theme == "political":
-        shown_f = [f for f in fills if float(f.get("start") or 0.0) <= t][:4]
+        shown_f = [f for f in fills if float(f.get("start") or 0.0) <= t and _fill_in_view(f, vb_now)][:4]    # a key only for what is on screen
         lx, ly = 26, H - 80 - 22 * len(shown_f)
         fl2 = T.font("bold", 14)
         for i, fl in enumerate(shown_f):
@@ -997,7 +1010,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
             feat = G.find_country(str(fl.get("iso3") or fl.get("name") or ""))
             nm = feat.name if feat is not None else nm
             d.rectangle([lx, ly + i * 22, lx + 16, ly + i * 22 + 14], fill=tuple(POL_FILL.get(str(fl.get("role")), NEIGH_P + (255,)))[:3] + (255,), outline=(236, 238, 242, 255))
-            d.text((lx + 24, ly + i * 22 - 1), nm.upper() + " · SCHEMATIC FILL", font=fl2, fill=WHITE, stroke_width=2, stroke_fill=HALO)
+            d.text((lx + 24, ly + i * 22 - 1), nm.upper(), font=fl2, fill=WHITE, stroke_width=2, stroke_fill=HALO)
     ft_ = T.font("regular", 12)
     src = "Map data: Natural Earth (public domain). Schematic."
     d.text((W - 24 - d.textlength(src, font=ft_), H - 22), src, font=ft_, fill=(150, 156, 166, 255), stroke_width=2, stroke_fill=HALO)

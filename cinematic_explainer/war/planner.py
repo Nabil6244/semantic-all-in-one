@@ -143,6 +143,29 @@ _VERIFIED = {"confirmed": "confirmed", "event_matched": "confirmed", "geolocated
              "unreviewed": "unverified", "illustrative": "illustrative"}
 
 
+DROP_BELOW = 0.1      # footage_match relevance under which a mismatched clip has nothing to do with its sentence
+
+
+def _unrelated(meta: Optional[Dict[str, Any]]) -> bool:
+    """The relevance estimate found a contradiction (another system, person, country, year) or next to nothing in common with the sentence
+    (render 047: costume soldiers for '1,500 troops', a tractor for a defence pledge). A clip never scored is not judged here."""
+    m = meta if isinstance(meta, dict) else {}
+    if m.get("relevance_contradictions") and not m.get("weak_match"):
+        return True
+    try:
+        return m.get("relevance") is not None and float(m["relevance"]) < DROP_BELOW
+    except (TypeError, ValueError):
+        return False
+
+
+def _kept_anyway(meta: Optional[Dict[str, Any]]) -> bool:
+    """A mismatched clip still shown: the user's own pick, an AI illustration they paid for, or file footage of the same event (recycled)."""
+    m = meta if isinstance(meta, dict) else {}
+    prov = str(m.get("provider") or m.get("source") or "").lower()
+    return bool(m.get("user_supplied") or m.get("user_override") or m.get("kind") in ("user", "generated") or m.get("ai_generated")
+                or prov in ("manual", "local", "flow", "flow_video") or m.get("recycled"))
+
+
 def footage_info(meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """{status, rejected, recycled, mismatch, chip, publisher, published}. The manifest's own 'status' (download state) is never read."""
     m = dict(meta or {})
@@ -905,26 +928,32 @@ class _State:
 # headline
 # ----------------------------------------------------------------------------------------------------------------------------
 
+_HL_BREAK = {"from", "to", "in", "on", "at", "with", "for", "by", "into", "over", "after", "before", "and", "but", "because", "while", "when",
+             "which", "that", "who", "of", "across", "along", "without", "since", "as", "than", "how", "if"}
+_HL_BAD_END = HEADLINE_STOP_END | {"is", "are", "was", "were", "be", "been", "has", "have", "had", "it", "its", "their", "his", "her", "this", "these",
+                                   "much", "many", "how", "what", "can", "could", "will", "would", "first", "very", "so", "too", "more", "most"}
+
+
 def headline_text(text: str) -> str:
-    """3-7 words taken verbatim from the narration's first clause; '' when no honest headline exists."""
-    sents = S.split_sentences(text or "")
+    """3-7 words taken verbatim from the narration: a whole clause, or the clause up to a natural break. '' when the words would stop mid-phrase
+    ('Russia is rehearsing how much it') or the scene opens on the tail of the previous sentence ('Out. Two sailors ...')."""
+    sents = [x[0] for x in S.split_sentences(text or "")]
+    sents = [x for x in sents if len(x.split()) >= 3] or sents       # a one- or two-word fragment carried over from the last scene is skipped
     if not sents:
         return ""
-    first = sents[0][0]
-    clause = re.split(r",|;|:| — | - |\bthat\b|\bwhich\b|\bwho\b|\bbecause\b", first)[0].strip().strip("\"“”")
+    first = sents[0]
+    if first.rstrip().endswith("?"):
+        return ""                                                     # a question is not a headline
+    clause = re.split(r",(?!\d)|;|:| — | - |\bthat\b|\bwhich\b|\bwho\b|\bbecause\b", first)[0].strip().strip("\"“”").rstrip(".!")   # '1,500' stays whole
     words = clause.split()
     while words and words[0].lower().strip(",.") in HEADLINE_STOP_START:
         words = words[1:]
-    words = words[:6]
-    while words and words[-1].lower().strip(",.") in HEADLINE_STOP_END:
-        words = words[:-1]
-    if len(words) < 3:
-        words = first.split()[:6]
-        while words and words[-1].lower().strip(",.") in HEADLINE_STOP_END:
-            words = words[:-1]
-    if len(words) < 3:
-        return ""
-    return " ".join(words[:7]).rstrip(",.;:")
+    if 3 <= len(words) <= 7 and words[-1].lower().strip(",.") not in _HL_BAD_END:
+        return " ".join(words).rstrip(",.;:")
+    for n in range(min(7, len(words) - 1), 2, -1):                    # end where the phrase breaks naturally: '... sank | in minutes'
+        if words[n].lower() in _HL_BREAK and words[n - 1].lower().strip(",.") not in _HL_BAD_END:
+            return " ".join(words[:n]).rstrip(",.;:")
+    return ""
 
 
 # ----------------------------------------------------------------------------------------------------------------------------
@@ -1014,6 +1043,9 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
         path = r.get("footage") or ""
         if path and finfo["rejected"]:
             dec.flags.append("footage_rejected")
+            path = ""
+        if path and finfo["mismatch"] and cfg.get("drop_mismatch", True) and _unrelated(meta) and not _kept_anyway(meta):
+            dec.flags.append("mismatch_dropped")        # a clip that does not show what is said is worse than the video's own map, card or footage
             path = ""
         if path:
             out.shots.append(Shot(str(path), st, en, float(meta.get("seek", 0.0) or 0.0) if isinstance(meta, dict) else 0.0))

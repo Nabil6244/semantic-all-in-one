@@ -213,6 +213,131 @@ def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cut
         prev = sh
 
 
+def _fit_short_clips(plan: Any, counts: Dict[str, int], probe=_clip_seconds) -> None:
+    """A clip shorter than its scene ends when the clip ends (YouTube cuts are 3.5 s by default): the rest of the scene is left for
+    _broll_returns instead of a held or looped last frame."""
+    lengths: Dict[str, Optional[float]] = {}
+    for sh in plan.shots:
+        if sh.path not in lengths:
+            lengths[sh.path] = probe(sh.path)
+        n = lengths[sh.path]
+        if n is None:
+            continue
+        have = n - sh.seek - 0.05
+        if have < (sh.end - sh.start) - 0.25:
+            sh.end = fr(sh.start + max(min(1.0, sh.end - sh.start), have))
+            counts["short_clips"] = counts.get("short_clips", 0) + 1
+
+
+BROLL_MIN_S, BROLL_MAX_S, BROLL_USES = 1.2, 5.0, 2
+
+
+def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any], meta_by_start: Dict[float, Dict[str, Any]],
+                   counts: Dict[str, int], probe=_clip_seconds) -> None:
+    """Where nothing is on screen (no footage, no full-frame card or map), cut back to the video's own footage: the clip of the nearest scene
+    that is not the one just shown, at a moment of it not used yet, at most BROLL_USES returns per clip. Documentaries return to their own
+    b-roll; an empty backdrop with a tag is what render 047 showed instead."""
+    total = max((r["_end"] for r in rows), default=0.0)
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    if not shots:
+        return
+    def open_gaps() -> List[Tuple[float, float]]:
+        covered = sorted([(x.start, x.end) for x in plan.shots] + [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS])
+        out_: List[Tuple[float, float]] = []
+        cur = 0.0
+        for a, b in covered:
+            if a - cur >= BROLL_MIN_S:
+                out_.append((cur, a))
+            cur = max(cur, b)
+        if total - cur >= BROLL_MIN_S:
+            out_.append((cur, total))
+        return out_
+
+    lengths: Dict[str, Optional[float]] = {}
+    used: Dict[str, List[Tuple[float, float]]] = {}
+    for x in shots:
+        used.setdefault(x.path, []).append((x.seek, x.seek + (x.end - x.start)))
+    returns: Dict[str, int] = {}
+    owners = {x.path: x for x in shots}
+
+    def seek_for(path: str, need: float) -> Optional[Tuple[float, float]]:
+        if path not in lengths:
+            lengths[path] = probe(path)
+        n = lengths[path] or 0.0
+        if n < BROLL_MIN_S:
+            return None
+        spans = sorted(used.get(path, []))
+        cur_ = 0.0
+        best = (0.0, min(need, n))                       # nothing unused left: the clip's start again (a return, not a new moment)
+        for a, b in spans + [(n, n)]:
+            if a - cur_ >= min(need, BROLL_MIN_S + 0.3):
+                return cur_, min(need, a - cur_)
+            cur_ = max(cur_, b)
+        return best
+
+    # first every clip at most BROLL_USES times; when the video has too few clips for that, a clip may return more often (a repeat beats
+    # an empty backdrop), still never the one just shown
+    for limit in (BROLL_USES, BROLL_USES * 4):
+        for g0, g1 in open_gaps():
+            t = g0
+            while g1 - t >= BROLL_MIN_S - 1e-6:
+                before = max((x for x in plan.shots if x.end <= t + 0.05), key=lambda x: x.end, default=None)
+                after = min((x for x in plan.shots if x.start >= t), key=lambda x: x.start, default=None)
+                avoid = {getattr(before, "path", None), getattr(after, "path", None)} if len(owners) > 2 else set()
+                cands = sorted((x for x in owners.values() if x.path not in avoid and returns.get(x.path, 0) < limit),
+                               key=lambda x: (min(abs(x.start - t), abs(x.end - t)), x.start))
+                pick = None
+                for c in cands:
+                    sk = seek_for(c.path, min(BROLL_MAX_S, g1 - t))
+                    if sk is not None and sk[1] >= BROLL_MIN_S - 1e-6:
+                        pick = (c, sk)
+                        break
+                if pick is None:
+                    break
+                c, (seek, dur) = pick
+                left = g1 - (t + dur)
+                if 0 < left < BROLL_MIN_S and (lengths.get(c.path) or 0.0) - seek >= g1 - t:
+                    dur = g1 - t                              # no sliver too short for another cut is left at the end of the gap
+                a, b = fr(t), fr(min(g1, t + dur))
+                plan.shots.append(Shot(c.path, a, b, round(seek, 3)))
+                if b - a >= 2.0:                              # the clip belongs to another sentence: shown as illustration, never as this one's event
+                    plan.layers.append(Layer("kit_badge", fr(a + 0.2), fr(b - 0.1), {"kind": "illustrative"}, dim=False))
+                used.setdefault(c.path, []).append((seek, seek + (b - a)))
+                returns[c.path] = returns.get(c.path, 0) + 1
+                src = meta_by_start.get(fr(c.start)) or {}
+                meta_by_start[a] = dict(src, reused=True)
+                row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), None)
+                dec = log_by_no.get(str(row["_no"])) if row else None
+                if dec is not None:
+                    dec.flags.append("dir:broll_return")
+                counts["broll_returns"] = counts.get("broll_returns", 0) + 1
+                counts["broll_s"] = round(counts.get("broll_s", 0) + (b - a), 2)
+                t = b
+    plan.shots.sort(key=lambda x: x.start)
+    _close_slivers(plan, total, lengths, probe)
+
+
+def _close_slivers(plan: Any, total: float, lengths: Dict[str, Optional[float]], probe=_clip_seconds) -> None:
+    """A gap too short for a cut of its own (under BROLL_MIN_S) is closed by holding what came before it a moment longer: the clip when it
+    has the frames, else the full-frame card or map. A second of empty backdrop between two pieces reads as a glitch."""
+    full = [ly for ly in plan.layers if ly.kind in FULL_KINDS]
+    things = sorted([("shot", x.start, x.end, x) for x in plan.shots] + [("layer", ly.start, ly.end, ly) for ly in full], key=lambda z: z[1])
+    cur, last = 0.0, None
+    for kind, a, b, obj in things + [("end", total, total, None)]:
+        gap = a - cur
+        if last is not None and 0.04 < gap < BROLL_MIN_S:
+            lk, lo = last
+            if lk == "shot":
+                if lo.path not in lengths:
+                    lengths[lo.path] = probe(lo.path)
+                if (lengths[lo.path] or 0.0) - lo.seek >= (a - lo.start):
+                    lo.end = fr(a)
+            else:
+                lo.end = fr(a)
+        if b > cur:
+            cur, last = b, (kind, obj)
+
+
 # ------------------------------------------------------------------------------------------------ sentence rules ------------------
 def _sent_window(A: Any, sent: Any, st: float, en: float, lead: float = 0.3, tail: float = 0.8) -> Tuple[float, float]:
     a = max(st, A.time_at(sent.span[0]) - lead)
@@ -834,7 +959,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     if cfg.get("map_build", True):     # one map that builds across each stretch without footage (map_build.py)
         from . import map_build as _mb
 
-        _mb.build(plan, rows, cat, log_by_no, counts, gap_notes, tuple(FULL_KINDS - {"tac_map", "tac_route", "map_card"}))
+        _mb.build(plan, rows, cat, log_by_no, counts, gap_notes, tuple(FULL_KINDS - {"tac_map", "tac_route", "map_card"}),
+                  broll=bool(cfg.get("broll", True) and plan.shots))
     _speakers(plan, rows, cat, log_by_no, counts)
     _ratios_and_versus(plan, rows, cat, log_by_no, counts)
     if cfg.get("layouts", True):
@@ -843,6 +969,9 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         for lay in plan.layers:
             if lay.kind in LAYOUT_KINDS and lay.start < ov.start < lay.end and ov.start - lay.start >= 3.0:
                 lay.end = fr(ov.start - 0.15)
+    if cfg.get("broll", True):            # short clips end with their clip; the gaps they and the map breaks leave go back to the video's own footage
+        _fit_short_clips(plan, counts)
+        _broll_returns(plan, rows, log_by_no, meta_by_start, counts)
     _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes)
 
     # ---- 9 badges (replace the equivalent old illustrative chip) ---------------------------------------------------------------------

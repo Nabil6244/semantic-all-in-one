@@ -26,13 +26,14 @@ COLUMNS
 RULES FOR WHAT GETS FOOTAGE
 - Choose the source in this order: youtube_video when real footage of the event would exist; stock_video when a generic real clip shows it;
   flow_video only when neither could, for symbolic or mood scenes. At most one scene in four is flow_video, and never two in a row.
-- Aim for footage on 50 to 60 percent of the scenes. A scene whose main content is a number, a percentage, a date range, a territory change, a place on a map, an equipment spec list, a ranking, a comparison, or a quote from a named person is asset_type none: the editor builds the map or card from the narration, and a graphic must not be hidden under footage.
+- Aim for footage on 70 to 80 percent of the scenes. Use none only when the sentence itself is the visual: it states a number or percentage, a date range, a territory change, a named place on a map, an equipment spec list, a ranking, a comparison, or a quote from a named person. The editor builds the map or card from the narration, and a graphic must not be hidden under footage. A sentence that only links ideas, asks a question or sets up what comes next ("So here's the question", "You'll see why") is not a graphic: give it footage of the story's subject.
 - Footage must match the sentence: if it names a system (HIMARS, S-400, Leopard 2), search for that system, not "missile". If it describes a city under attack, search for that city. Never ask for a place, side, equipment or year the sentence does not mention.
 - Never request footage of another war or the other side to fill a gap. If you cannot name a real clip that would exist, use none instead of a vague stock clip.
 - Do not request graphic or animated content (maps, infographics, "animation of ..."). Those come from none.
 - Never invent numbers, names, quotes, dates or places. The prompt column uses only words from the script.
 - The first scene is the title or hook: footage if it opens on an event, none if it opens on a statement or figure.
-- No more than three none scenes in a row: vary with footage so there is motion every few seconds.
+- No more than two none scenes in a row: vary with footage so there is motion every few seconds.
+- For youtube_video, search for news reports of the event itself ("ship sinking Black Sea footage"), not interviews, studio panels or explainers: a news anchor at a desk is not footage.
 
 FORMAT
 - Quote any cell that contains a comma or a line break, and double any quote inside it.

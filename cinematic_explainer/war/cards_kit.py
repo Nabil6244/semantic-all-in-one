@@ -531,7 +531,7 @@ def _parse_value(v: Any) -> Tuple[str, Optional[float], str, bool, int]:
 
 def _scrim(width: int) -> Image.Image:
     g = Image.linear_gradient("L").rotate(90).resize((width, H))          # 255 at the left edge fading to 0
-    g = g.transpose(Image.FLIP_LEFT_RIGHT).point(lambda v: int(v * 0.58))
+    g = g.transpose(Image.FLIP_LEFT_RIGHT).point(lambda v: int(min(255, v * 1.15) * 0.82))   # dark under the figure, so footage text does not ghost through it
     im = Image.new("RGBA", (width, H), (6, 8, 12, 0))
     im.putalpha(g)
     return im
@@ -562,7 +562,7 @@ def kit_bignum(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     ob = _out_alpha(t, dur) if dur > 0 else 1.0
     kin = M.ease_out(t / 0.35)
     img = _canvas()
-    img.alpha_composite(_memo("scrim", lambda: _scrim(int(W * 0.72))), (0, 0))
+    img.alpha_composite(_memo("scrim2", lambda: _scrim(int(W * 0.78))), (0, 0))
     layer = _canvas()
     d = ImageDraw.Draw(layer)
     L.spaced(d, (x + 4, y + 5), shown, f, (0, 0, 0, 150), 0.02)
@@ -597,7 +597,7 @@ def kit_versus(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         return None
     ob = _out_alpha(t, dur) if dur > 0 else 1.0
     img = _canvas()
-    img.alpha_composite(_memo("scrim", lambda: _scrim(int(W * 0.72))), (0, 0))
+    img.alpha_composite(_memo("scrim2", lambda: _scrim(int(W * 0.78))), (0, 0))
     layer = _canvas()
     d = ImageDraw.Draw(layer)
     x, y = int(W * 0.06), int(H * 0.30)

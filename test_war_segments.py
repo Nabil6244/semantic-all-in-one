@@ -209,7 +209,8 @@ class FootageAttributionTests(unittest.TestCase):
         (pd / "Images").mkdir()
         recs = {
             "001": {"source": "stock", "provider": "pexels", "provider_asset_id": "123", "author": "A Person", "source_url": "https://www.pexels.com/video/123/",
-                    "type": "video", "status": "complete", "local_path": A, "width": 1280, "height": 720, "duration": 8.0},
+                    "type": "video", "status": "complete", "local_path": A, "width": 1280, "height": 720, "duration": 8.0,
+                    "stock_query": "bridge rebuilt port"},      # related to the scene: kept and labelled (an unrelated clip is dropped)
             "002": {"source": "youtube_video", "provider": "youtube", "provider_asset_id": "abc", "channel": "Some Channel", "source_url": "https://youtu.be/abc",
                     "video_title": "A clip", "license": "Standard YouTube License", "type": "video", "status": "complete", "local_path": B},
             "003": {"source": "manual", "type": "video", "status": "complete", "local_path": A},

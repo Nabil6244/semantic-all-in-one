@@ -28,7 +28,11 @@ from . import semantics as S
 MIN_RUN_S = 6.0          # shorter stretches keep the scene-by-scene direction
 MIN_PIECE_S = 1.5        # a free gap shorter than this between cards is not worth a map piece
 MAX_STILL_S = 4.0        # the longest time nothing new lands on the map
-CHIPS_PER_GROUP = 3
+MAX_MAP_S = 12.0         # with the video's own clips to cut to, a map holds at most this long before a footage break
+BREAK_S = 4.0            # ... of this long (direction._broll_returns fills it), then the same map carries on where it was
+CONTEXT_MAP_S = 6.0      # a stretch that names no place of its own shows the story's last map only this long
+MAP_SHARE = 0.4          # with clips to cut to, maps fill at most this share of the video (render 047: 43 %, mostly one map)
+CHIPS_PER_GROUP = 2      # at most two cards on the map at once: read in the time they are up
 REPLACED = {"tac_map", "tac_route", "kit_tag", "kit_sticker", "map_card", "kit_scale"}
 
 _MONTHS = "january|february|march|april|may|june|july|august|september|october|november|december"
@@ -44,7 +48,8 @@ _SKIP = re.compile(r"\b(subscribe|this channel|a quick word|like and share|comme
 _VERB_END = {"went", "came", "have", "has", "had", "been", "is", "was", "were", "are", "made", "can", "could", "will", "would", "did", "do",
              "said", "got", "be", "being", "say", "says", "sits", "find"}
 _BOUND = {"from", "to", "in", "on", "at", "with", "for", "by", "into", "over", "after", "before", "and", "but", "because", "while", "when",
-          "which", "that", "who", "of", "across", "along", "without", "since"}
+          "which", "that", "who", "of", "across", "along", "without", "since", "near", "towards", "toward", "against", "inside",
+          "outside", "off", "under", "through", "behind", "beyond"}
 _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "it", "they", "we", "he", "she", "you", "how",
              "was", "were", "its", "their", "his", "her", "this", "these", "those", "into", "than"}
 
@@ -143,38 +148,72 @@ def _clip_words(words: List[str], lo: int, hi: int) -> str:
     return ""
 
 
+_META = re.compile(r"\b(here'?s (?:the|what|why|how)|you'?ll (?:see|find|notice)|we'?ll (?:see|get|come)|let'?s|stay with|this (?:whole )?video|"
+                   r"in this (?:video|episode)|what made|the question (?:is|this)|before we'?re done|keep watching)\b", re.IGNORECASE)
+_LEAD = re.compile(r"^(?:and|but|so|now|then|yet|also|still|meanwhile)\b[\s,]*", re.IGNORECASE)
+_FACT = re.compile(r"\d|\b[A-Z][a-z]{2,}")            # a figure or a name (a capital that does not open the clause)
+TITLE_MAX_W, SUB_MAX_W = 8, 10
+
+
+def _clauses(text: str) -> List[str]:
+    """The sentence's clauses as written (split at its own punctuation), each without a leading 'and / but / so'."""
+    out = []
+    for c in re.split(r",(?!\d)|\.(?!\d)|[;:?!—–]| - ", text):        # '1,500' and '2.5' stay whole
+        c = _LEAD.sub("", c.strip()).strip()
+        if c:
+            out.append(c)
+    return out
+
+
+_OPENERS = {"over", "after", "before", "during", "within", "across", "two", "three", "some", "many", "most", "every", "all", "both", "one", "there",
+            "here", "what", "when", "where", "why", "how", "who", "if", "once", "even", "only", "just", "for", "not", "no", "right", "until", "while"}
+
+
+def _is_fact(clause: str) -> bool:
+    """A figure, or a name: a capitalised word inside the clause, or one opening it that is not an ordinary opener ('Over', 'It', 'The')."""
+    w = clause.split()
+    if not w:
+        return False
+    first = w[0].strip("'\",")
+    return (bool(re.search(r"\d", clause)) or any(_FACT.match(x) for x in w[1:])
+            or bool(re.match(r"[A-Z][a-z]{2,}", first) and first not in _NOT_NAME and first.lower() not in _STOP_END | _OPENERS))
+
+
 def card_for(sentence: str) -> Optional[Dict[str, str]]:
-    """One stack card from a sentence, in the narration's own words: {title, sub, variant} or None for a sentence too short to say anything."""
+    """One stack card from a sentence, in the narration's own words: {title, sub, variant} or None.
+    A card is only ever whole clauses: the title is the first clause (as the narration punctuates it) that states a fact (a figure or a name)
+    in at most TITLE_MAX_W words, the sub the clause after it when that is whole and short. Rhetoric ("here's the question", "you'll see why",
+    questions) and sentences that would only give a half clause make no card: an empty map moment beats a broken sentence on screen."""
     text = sentence.strip().strip("\"'")
-    if _SKIP.search(text) or chapter_of(text):
-        return None                       # channel housekeeping is not a fact for the map; a chapter gets its own opener
+    if _SKIP.search(text) or chapter_of(text) or _META.search(text) or text.rstrip().endswith("?"):
+        return None                       # channel housekeeping and rhetoric are not facts for the map; a chapter gets its own opener
     spk = speaker_of(text)
     if spk:
         return {"title": spk[0].upper(), "sub": spk[1], "variant": "white"}
+    variant = "red" if _THREAT.search(text) else "blue" if _ALLY.search(text) else "white" if re.search(r"\d", text) else "dark"
     m = _DATE.search(text)
     if m:
         rest = (text[:m.start()] + " " + text[m.end():]).strip(" ,.;:")
         rest = re.sub(r"^(?:on|in|by|since|and|then)\s+", "", rest, flags=re.IGNORECASE)
+        rest = re.sub(r"\s+(?:on|in|by|since|at)\s*(?=[,.;]|$)", "", rest, flags=re.IGNORECASE)      # '... to the border on' once the date is out
         date = re.sub(r"^(?:in|by|since|last|this)\s+", "", m.group(0), flags=re.IGNORECASE)
-        return {"title": date.upper(), "sub": _clip_words(rest.split(), 3, 9), "variant": "dark"}
-    words = text.rstrip(".!?").split()
-    if len(words) < 3:
-        return None
-    head = re.split(r"[,;:?!.—–]| - ", text.rstrip(".!?"))[0].split()
-    if 2 <= len(head) <= 8 and len(" ".join(head)) <= 46:
-        title = " ".join(head)                                           # a short clause is the whole title
-    else:
-        title = next((" ".join(head[:n]) for n in range(min(6, len(head) - 1), 2, -1)          # end where the clause breaks naturally
-                      if head[n].lower() in _BOUND and head[n - 1].strip(",;:").lower() not in _STOP_END | _VERB_END), "")
-        title = title or _clip_words(head, 3, 6) or _clip_words(words, 3, 6)
-    if not title:
-        return None
-    rest_words = words[len(title.split()):]
-    while rest_words and not re.search(r"\w", rest_words[0]):
-        rest_words = rest_words[1:]
-    sub = _clip_words([w.strip(",;:") for w in rest_words], 3, 10) if len(rest_words) >= 3 else ""
-    variant = "red" if _THREAT.search(text) else "blue" if _ALLY.search(text) else "white" if re.search(r"\d", text) else "dark"
-    return {"title": title.upper(), "sub": sub, "variant": variant}
+        cl = _clauses(rest)
+        sub = cl[0] if cl and 3 <= len(cl[0].split()) <= SUB_MAX_W else ""
+        return {"title": date.upper(), "sub": sub, "variant": "dark"}
+    cl = _clauses(text)
+    whole = lambda c: 3 <= len(c.split()) <= SUB_MAX_W and c.split()[-1].lower() not in _STOP_END     # noqa: E731
+    for i, c in enumerate(cl):
+        w = c.split()
+        if not _is_fact(c):
+            continue
+        if 2 <= len(w) <= TITLE_MAX_W and len(c) <= 52 and w[-1].strip("'").lower() not in _STOP_END:
+            nxt = cl[i + 1] if i + 1 < len(cl) else ""
+            return {"title": c.upper(), "sub": nxt if whole(nxt) else "", "variant": variant}
+        for n in range(min(TITLE_MAX_W, len(w) - 2), 2, -1):        # a long clause breaks where its phrase does: '... a power plant | near the border'
+            rest = " ".join(w[n:])
+            if w[n].lower() in _BOUND and w[n - 1].strip(",;:").lower() not in _STOP_END | _VERB_END and whole(rest) and len(" ".join(w[:n])) <= 52:
+                return {"title": " ".join(w[:n]).upper(), "sub": rest, "variant": variant}
+    return None
 
 
 def _place_names(sent: Any) -> List[str]:
@@ -313,8 +352,34 @@ def _still_fix(params: Dict[str, Any], total: float) -> int:
     return added
 
 
+def cap_pieces(pieces: List[Tuple[float, float]], own_geo: bool) -> List[Tuple[float, float]]:
+    """Map time limited so half a video is never one map (render 047: 30 s of the same Poland map with two cards).
+    A run that names geography: at most MAX_MAP_S of map, then BREAK_S left free, and so on. A run that names none: CONTEXT_MAP_S in all."""
+    out: List[Tuple[float, float]] = []
+    on, budget = 0.0, CONTEXT_MAP_S
+    for a, b in pieces:
+        cur = a
+        while b - cur >= MIN_PIECE_S:
+            if not own_geo:
+                if budget < MIN_PIECE_S:
+                    return out
+                end = min(b, cur + budget)
+                out.append((cur, end))
+                budget -= end - cur
+                cur = end
+                continue
+            end = min(b, cur + MAX_MAP_S - on)
+            out.append((cur, end))
+            on += end - cur
+            cur = end
+            if on >= MAX_MAP_S - 1e-6:
+                cur, on = cur + BREAK_S, 0.0
+    return out
+
+
 def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], notes: List[str],
-          full_kinds: Sequence[str]) -> None:
+          full_kinds: Sequence[str], broll: bool = False) -> None:
+    """broll: the video has clips of its own to cut back to, so long maps are broken up (cap_pieces); without any, maps stay as long as needed."""
     roles: Dict[str, str] = {}
     context: Optional[Dict[str, Any]] = None
     runs = _runs(rows, log_by_no)
@@ -327,6 +392,9 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
             from . import maps_tactical as MT
 
             MT.country_roles(bt["countries"], roles)
+    budget = MAP_SHARE * max((r["_end"] for r in rows), default=0.0)
+    used_s = sum(ly.end - ly.start for ly in plan.layers if ly.kind in ("tac_map", "tac_route", "map_card") and not
+                 any(r["_start"] - 0.05 <= ly.start and ly.end <= r["_end"] + 0.6 for run in runs for r in run))
     for run in runs:
         t0, t1 = run[0]["_start"], run[-1]["_end"]
         if t1 - t0 < MIN_RUN_S:
@@ -346,8 +414,18 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
             if a - cur >= MIN_PIECE_S:
                 pieces.append((cur, a))
             cur = max(cur, b)
+        if broll:
+            pieces = cap_pieces(pieces, any(bt["places"] or bt["countries"] for bt in beats))
+            room = budget - used_s
+            kept: List[Tuple[float, float]] = []
+            for a, b in pieces:            # the video's map budget: what is left over goes back to footage
+                if room >= MIN_PIECE_S:
+                    kept.append((a, min(b, a + room)))
+                    room -= kept[-1][1] - a
+            pieces = kept
         for a, b in pieces:
             plan.layers.append(Layer("tac_map", _fr(a), _fr(b), dict(params, t_offset=_fr(a - t0), total_dur=total), dim=False))
+            used_s += b - a
         for r in run:
             dec = log_by_no.get(str(r["_no"]))
             if dec is not None and pieces:

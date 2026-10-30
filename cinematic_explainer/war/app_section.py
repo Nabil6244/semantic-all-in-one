@@ -138,6 +138,16 @@ DEFAULT_AI_CAP = 15               # AI clips made per video at most, unless the 
 AI_LOOK = ("cinematic documentary shot, desaturated muted colours, overcast moody light, shallow depth of field, slow camera move, "
            "35mm film grain, no text, no logos, no faces in close-up")
 LOCAL_TYPES = ("local", "local_video")
+WAR_YT_CLIP_S = 8.0               # War scenes run 5-10 s and are cut into 3-6 s shots: the app-wide 3.5 s YouTube cut ran out mid-scene
+
+
+def war_manager(manager: Any) -> Any:
+    """The app's AssetManager set up for War Documentary: no Gemini (the CSV directs), YouTube cuts long enough for a scene."""
+    manager.settings["gemini_enabled"] = False
+    yp = getattr(manager, "youtube_provider", None)
+    if yp is not None and float(getattr(yp, "clip_duration", 0.0) or 0.0) < WAR_YT_CLIP_S:
+        yp.clip_duration = WAR_YT_CLIP_S
+    return manager
 
 
 def csv_rows(scenes: List[dict]) -> List[Any]:
@@ -152,6 +162,8 @@ def csv_rows(scenes: List[dict]) -> List[Any]:
             prompt = str(sc.get("prompt") or "").strip()
             if at == "nasa_video" and not prompt:
                 prompt = str(sc.get("text") or "")[:80]
+            if at == "youtube_video" and prompt and not re.search(r"\b(footage|video|clip|b-?roll)\b", prompt, re.IGNORECASE):
+                prompt = " || ".join(q.strip() + " footage" for q in prompt.split("||") if q.strip())   # news footage, not a studio interview
             if at in AI_TYPES and prompt and AI_LOOK not in prompt:
                 prompt = f"{prompt.rstrip('. ')}. {AI_LOOK}"         # every AI clip in the same documentary look
             rows.append(SceneRow.from_csv_row({"scene_number": str(sc.get("scene_no")), "script_segment": str(sc.get("text") or ""),
@@ -485,8 +497,7 @@ def on_render_click(app) -> None:
             if not M.messagebox.askyesno("AI footage", msg):
                 ai_cap = 0
         try:
-            manager = app._build_asset_manager(images_dir, [])        # built here: it reads Tk variables
-            manager.settings["gemini_enabled"] = False                  # the CSV directs the scenes: no Gemini call in this run
+            manager = war_manager(app._build_asset_manager(images_dir, []))      # built here: it reads Tk variables
         except Exception as exc:  # noqa: BLE001
             M.messagebox.showerror("Cannot start", f"The app's asset sources could not be set up:\n{exc}")
             return
