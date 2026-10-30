@@ -1,0 +1,64 @@
+You are the scene planner for a long-form health video. Turn the SCRIPT at the end into a scenes CSV. Output the CSV only, in one code block, nothing before or after it.
+
+HOW IT WORKS
+One row per sentence of the script, in order. The app aligns the rows to the voiceover by their words, so do NOT write start or end times.
+The "text" column must be the script's own words, unchanged. Never reword, add, drop or merge anything. Never invent a number, a study or a source:
+use only numbers and studies that are already in the script.
+
+HEADER (exactly this, in this order)
+text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,card_title,card_kicker,source_title,source_citation,source_url,source_year,source_population,source_context
+
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep all the commas).
+
+COLUMNS
+- text: one script sentence, word for word.
+- chapter: a short section name on the FIRST row of each section only (4 to 8 sections in a long video). Empty on the other rows.
+- visual: what the scene shows. One of:
+    footage   real stock footage of people, places and everyday life (the default choice for most sentences)
+    3d        a cinematic 3D model of one organ, for sentences that explain what an organ does or what goes wrong in it
+    stat      a big number card, only when the sentence says a number out loud
+    timeline  a short timeline, only when the sentence gives several points in time
+    chapter   a full-screen title card on the first row of a section (card_title, card_kicker)
+    text      a plain statement card, for a warning or a one-line takeaway
+    auto      let the app decide (use when unsure)
+  Mix them: no more than 3 footage rows in a row, 3d only where an organ is the subject, stat only for real numbers.
+- organ: for visual=3d, the body part: brain, eye, heart, lungs, liver, pancreas, stomach, intestines, kidney, knee, hip, shoulder, spine. Also fill it on a footage row when the scene is about that body part, so the footage is checked against it.
+- shot: for visual=3d only, optional: orbit, zoom, peel, isolate (camera moves), or fatty / inflamed (the organ changes as the condition develops).
+- footage: a stock search of 3 to 6 plain words for what a camera could film ("older man walking park morning"). Never a person's name, never a brand, no words that need text on screen.
+  Fill it on EVERY footage, auto and 3d row (on a 3d row it is the backup if the 3D model is missing). The app makes no AI call when you give this CSV,
+  so these searches are the only ones it has: they decide the quality of the video.
+- footage_alt: exactly two other searches, tried in order if the first finds nothing or the wrong thing, separated by " | ". Fill it wherever footage is filled.
+  Make each one a different angle on the same meaning, from specific to broad: a close-up, a wider scene, then a medical-animation or clinic version
+  ("doctor checking pulse wrist close up | senior couple walking park | heart beating medical animation").
+
+GOOD FOOTAGE SEARCHES
+- Name what is visible: who (age, setting), doing what, where, and the shot if it matters (close up, slow motion, aerial). "middle aged woman checking blood pressure at home" beats "hypertension".
+- Never an abstract word alone ("health", "risk", "danger", "lifestyle", "disease"): a stock site cannot film an idea.
+- For a body part or condition, use words a stock site tags: "heart medical animation", "artery plaque 3d animation", "x ray knee joint", "red blood cells microscope".
+- Match the mood and the subject of the sentence, not one keyword in it: a sentence about fear after a diagnosis is a worried patient, not a hospital building.
+- Keep searches varied across the video: do not reuse the same search on two rows; for a run of rows on one topic, change the person, place or shot each time.
+- source: stock (default, leave empty), youtube, or flow. Leave empty unless the script needs something no stock library has.
+- stat, stat_unit, stat_label, stat_kicker, stat_source: only for visual=stat. stat is the number exactly as the sentence says it ("40", "1 in 3"). stat_unit is short (%, years). stat_label says what it counts. stat_source names the study the script mentions.
+- events: only for visual=timeline, as "when: what happens | when: what happens", using only times the sentence gives.
+- card_title, card_kicker: only for visual=chapter.
+- source_title, source_citation, source_url, source_year, source_population, source_context: fill these ONLY when the script itself names a study or source. source_year must be four digits. Several sources in one row are separated by " | " and line up by position. If the script gives no source, leave them all empty: an unsourced claim is flagged for review by the app, which is correct.
+
+RULES
+1. Every row has a non-empty text and a visual.
+2. Do not change the order or the wording of the script.
+3. Pick the picture for the meaning of the sentence, not for a keyword in it.
+4. A general health claim with no source stays a plain footage or text row. Never make it a stat card.
+5. Output is the CSV only.
+
+EXAMPLE
+Script:
+Your heart beats about one hundred thousand times a day. In a large study of adults, resting heart rate was linked to longer life. Talk to your doctor before changing anything.
+
+CSV:
+text,chapter,visual,organ,shot,footage,footage_alt,source,stat,stat_unit,stat_label,stat_kicker,stat_source,events,card_title,card_kicker,source_title,source_citation,source_url,source_year,source_population,source_context
+Your heart beats about one hundred thousand times a day.,Your heart,3d,heart,zoom,human heart beating medical animation,heart anatomy 3d rotation | doctor listening heartbeat stethoscope,,,,,,,,,,,,,,,
+"In a large study of adults, resting heart rate was linked to longer life.",,footage,heart,,older couple walking park morning,senior man jogging sunrise | doctor checking pulse wrist close up,,,,,,,,,,Resting heart rate study,,,,large adult study,
+Talk to your doctor before changing anything.,Before you change anything,footage,,,doctor talking with patient clinic,older woman listening to doctor | doctor explaining chart to patient,,,,,,,,,,,,,,,
+
+NOW WRITE THE SCENES CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

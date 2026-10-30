@@ -98,5 +98,22 @@ class TestCsvPrompts(unittest.TestCase):
         self.assertFalse([n for n in got.notes if "outside beat" in n], got.notes)
 
 
+
+class HealthCinemaPrompt(unittest.TestCase):
+    def test_example_loads_through_the_scenes_csv_importer_and_rebuilds_the_script(self):
+        from health_cinema import scenes_csv
+
+        text, script, csv_text = _example("health_cinema_csv_prompt.txt")
+        notes = []
+        rows = scenes_csv.parse_csv_text(csv_text, notes)
+        self.assertEqual(notes, [])
+        self.assertEqual(" ".join(r["text"] for r in rows), script)
+        self.assertTrue(scenes_csv.needs_alignment(rows))          # no times asked for: aligned to the voiceover
+        self.assertTrue(text.rstrip().endswith(PLACEHOLDER))
+        self.assertTrue(any(r.get("sources") for r in rows))
+        # a CSV run makes no AI call: every visual row carries its own search and two backups
+        self.assertTrue(all(r.get("footage") and len(r.get("footage_alt") or []) == 2 for r in rows), rows)
+
+
 if __name__ == "__main__":
     unittest.main()

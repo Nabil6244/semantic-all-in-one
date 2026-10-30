@@ -79,6 +79,10 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
         s["scene_no"] = s.get("scene_no") or i + 1
     return ss
 
+def csv_directs(sentences: List[dict]) -> bool:
+    """True when the scenes CSV picks the visuals itself: then nothing in the run calls Gemini."""
+    return any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source")) for s in sentences)
+
 def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, profile: str = P.DEFAULT_PROFILE, quality: str = "final",
                       title: str = "", cancel_check: Optional[Callable[[], bool]] = None, progress_cb: Optional[Callable[[float, str], None]] = None,
                       log: Callable[[str], None] = lambda m: None, frame_renderer: Optional[Callable] = None, write_report: bool = True,
@@ -107,11 +111,12 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     if director_on:
         prog(0.0, "planning scenes from the narration (the app's visual director)")
         script = script_text or " ".join(s["text"] for s in sents)
-        csv_directed = any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source")) for s in sents)
-        if csv_directed:      # the scenes CSV decides the visuals: no model call is made to plan them
-            log("visuals planned from the scenes CSV (no AI planning call)"); dscenes = direction.dscenes_from_rows(sents)
+        csv_directed = csv_directs(sents)
+        if csv_directed:      # the scenes CSV decides the visuals: no Gemini call anywhere in this run (planning, footage retries, frame checks)
+            settings = dict(settings or {}, gemini_enabled=False)
+            log("visuals planned from the scenes CSV (Gemini is not used for this run)"); dscenes = direction.dscenes_from_rows(sents)
         else: dscenes = direction.plan_visuals(script, settings, str(project_dir / "state"), log, cancel=lambda: cancel.is_set() or cancelled())
-        if dscenes and dscenes[0].get("plan_source") != "gemini" and (settings or {}).get("gemini_enabled", True):
+        if dscenes and dscenes[0].get("plan_source") not in ("gemini", "csv") and (settings or {}).get("gemini_enabled", True):
             settings = dict(settings or {}, gemini_enabled=False)                  # Gemini just failed: do not wait on it again for every footage retry
             log("Gemini was unavailable for planning: the rest of this run uses the built-in planner")
         tpl_ok = (lambda t: assets.template_ready(t)) if frame_renderer is not None else (lambda t: assets.template_ready(t) and assets.threejs_ready())

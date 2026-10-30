@@ -129,6 +129,7 @@ def build(app, parent, *, row: int) -> None:
                  text_color=M._MUTED).grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(controls, textvariable=app._health_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
                  justify="left").grid(row=4, column=0, sticky="ew", pady=(8, 0))
+    app._build_csv_prompt_bar(controls, style="health_cinema", status_var=app._health_status_var, row=5, pady=(10, 0))   # same "Copy the CSV prompt" as the other styles
     block.grid_remove()
 
 
@@ -302,6 +303,8 @@ def on_render_click(app) -> None:
                 for n in notes:
                     log(n)
                 log(f"{len(sentences)} scenes read from {Path(scenes_path).name}")
+                if engine.csv_directs(sentences) and getattr(manager, "settings", None) is not None:
+                    manager.settings["gemini_enabled"] = False      # the CSV directs the scenes: the downloader's frame check makes no Gemini call either
                 if scenes_csv.needs_alignment(sentences):
                     words, total = narration_words()
                     sentences, frac = scenes_csv.align_to_words(sentences, words, total)

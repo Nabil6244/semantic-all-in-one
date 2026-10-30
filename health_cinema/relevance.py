@@ -115,6 +115,7 @@ def check(rec: dict, narration: str, query: str, organ: Optional[str], settings:
         log(f"relevance: clip title/tags '{'-'.join(sorted(slug_tokens(rec) or pixabay_tags(rec, settings)))[:60]}' names nothing about the {organ}: rejected"); return rec
     if v == "match": return rec
     if qa.get("vision_used"): return rec                      # the app's QA already looked at its frames
+    if not (settings or {}).get("gemini_enabled", True): return rec      # Gemini is off (switch, or a scenes CSV run): the title check is the only check
     try:
         from visual_qa.semantic import vision_semantic_score
         frames = _frames(str(rec["path"]), ffmpeg)

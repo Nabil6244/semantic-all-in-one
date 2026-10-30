@@ -159,6 +159,8 @@ def vision_semantic_score(
     """Optional Gemini vision verification — returns None if unavailable."""
     if not frame_paths:
         return None, []
+    if settings and not settings.get("gemini_enabled", True):
+        return None, []  # Gemini switched off for this run: no vision call
     api_key = ""
     if settings:
         from visual_director.llm import resolve_gemini_api_key
