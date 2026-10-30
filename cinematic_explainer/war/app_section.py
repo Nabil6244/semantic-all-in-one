@@ -179,9 +179,10 @@ def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_A
 
 
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
-                      ai_cap: int = DEFAULT_AI_CAP) -> "tuple[List[dict], List[Any]]":
+                      ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True) -> "tuple[List[dict], List[Any]]":
     """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
-    hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic."""
+    hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic.
+    fetch=False (Render after Generate scenes) fetches nothing: the video uses exactly what the Visuals tab holds."""
     import visual_bridge
     from asset_manager import AssetManifest
     from . import integration
@@ -191,7 +192,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     if over:
         log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
     todo = []
-    for r in rows:
+    for r in (rows if fetch else []):
         if r.asset_type in LOCAL_TYPES or str(r.scene_number) in over or visual_bridge.records(images_dir, [r]):
             continue
         errs = manager.validate_rows([r])
@@ -251,6 +252,7 @@ def build(app, parent, *, row: int) -> None:
     M = _m(app)
     ctk = M.ctk
     app._war_scenes_var = ctk.StringVar(value="")
+    app._war_scenes_var.trace_add("write", lambda *_: getattr(app, "_war_running", False) or app._sync_primary_cta())   # a new CSV: Generate scenes again
     app._war_ai_cap_var = ctk.StringVar(value=str((getattr(app, "_settings", None) or {}).get("war_ai_cap", DEFAULT_AI_CAP)))
     app._war_status_var = ctk.StringVar(value="")
     app._war_cancel = threading.Event()
@@ -336,7 +338,21 @@ def activate(app) -> None:
     app._war_status_var.set("")
     import visual_bridge
 
-    visual_bridge.restore(app, OWNER)      # the CSV footage of the last Render, back in the Visuals tab
+    visual_bridge.restore(app, OWNER)      # the CSV footage of the last Generate scenes, back in the Visuals tab
+
+
+def _is_csv(path: str) -> bool:
+    return path.lower().endswith((".csv", ".tsv", ".txt"))
+
+
+def _inputs_key(app) -> tuple:
+    """What Generate scenes fetched for: a different scenes file or voiceover needs Generate scenes again before Render."""
+    return (app._war_scenes_var.get().strip(), str(app._current_voiceover_path() or ""))
+
+
+def needs_scenes(app) -> bool:
+    """A scenes CSV asks for footage: Generate scenes puts it in the Visuals tab first, then Render uses what the tab holds."""
+    return _is_csv(app._war_scenes_var.get().strip()) and getattr(app, "_war_ready_key", None) != _inputs_key(app)
 
 
 def deactivate(app) -> None:
@@ -376,9 +392,26 @@ def sync_cta(app) -> None:
         app._set_generate_btn(state="normal", text="Import Voiceover")
         return
     app._cta_action = "war_render"
+    if needs_scenes(app):
+        app.stage_var.set("PLAN")
+        app.hint_var.set("Click Generate scenes: the CSV's footage is fetched into the Visuals tab for you to check before rendering.")
+        _set_page_btn(app, "Generate scenes")
+        app._set_generate_btn(state="normal", text="Generate scenes")
+        return
     app.stage_var.set("RENDER")
-    app.hint_var.set("Click Render War Documentary: the visuals are planned from the narration, then rendered.")
+    if _is_csv(app._war_scenes_var.get().strip()):
+        app.hint_var.set("The clips are in the Visuals tab: change any there (Retry, Change source, Local clip), then click Render War Documentary.")
+    else:
+        app.hint_var.set("Click Render War Documentary: the visuals are planned from the narration, then rendered.")
+    _set_page_btn(app, "Render War Documentary")
     app._set_generate_btn(state="normal", text="Render War Documentary")
+
+
+def _set_page_btn(app, text: str) -> None:
+    try:
+        app._war_render_btn.configure(text=text)
+    except Exception:
+        pass
 
 
 def cta(app, action: str) -> None:
@@ -421,10 +454,13 @@ def on_render_click(app) -> None:
     manager = None
     images_dir = None
     ai_cap = DEFAULT_AI_CAP
-    if scenes_path.lower().endswith((".csv", ".tsv", ".txt")):      # the CSV's searches are fetched through the app's own providers
+    media_only = needs_scenes(app)       # first Generate scenes (the CSV's footage into the Visuals tab), then Render from what the tab holds
+    inputs = _inputs_key(app)
+    if _is_csv(scenes_path):
         import visual_bridge
 
         images_dir = visual_bridge.folder(OWNER, ws)
+    if media_only:                       # the CSV's searches are fetched through the app's own providers
         try:
             ai_cap = max(0, int(str(app._war_ai_cap_var.get()).strip() or DEFAULT_AI_CAP))
         except ValueError:
@@ -445,7 +481,7 @@ def on_render_click(app) -> None:
                    + (f" ({plan_ai['have']} already made, free)" if plan_ai["have"] else "") + ".\n\n"
                    f"Make {len(plan_ai['make'])} now = {plan_ai['credits']} Flow credits."
                    + (f"\n{len(plan_ai['over'])} more are over your limit of {ai_cap} and will use the map or cards." if plan_ai["over"] else "")
-                   + "\n\nYes: make them.  No: render without new AI clips.")
+                   + "\n\nYes: make them.  No: continue without new AI clips.")
             if not M.messagebox.askyesno("AI footage", msg):
                 ai_cap = 0
         try:
@@ -456,15 +492,36 @@ def on_render_click(app) -> None:
             return
     app._war_cancel.clear()
     app._war_running = True
-    app._war_status_var.set("Starting…")
-    run = app._track_generation_start("war")      # the Export page follows the render
+    app._war_status_var.set("Fetching the footage for the Visuals tab…" if media_only else "Starting…")
+    run = None if media_only else app._track_generation_start("war")      # the Export page follows the render (not Generate scenes)
     app._sync_primary_cta()
 
     def log(msg: str) -> None:
         app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
 
     def progress(k: float, msg: str) -> None:
-        app.after(0, lambda: (app._war_status_var.set(f"{int(k * 100)}%  {msg}"), app._export_progress(k, msg)))
+        app.after(0, lambda: (app._war_status_var.set(f"{int(k * 100)}%  {msg}"), run is not None and app._export_progress(k, msg)))
+
+    def return_rows(rows: List[Any]) -> None:
+        def done() -> None:      # Generate scenes ends in the Visuals tab; nothing is rendered and the Export page is not touched
+            import visual_bridge
+
+            app._war_running = False
+            visual_bridge.fill(app, OWNER, rows)
+            app._war_ready_key = inputs
+            ok = len(visual_bridge.records(images_dir, rows))
+            msg = (f"Scenes ready: {ok} of {len(rows)} clips found. Check them in the Visuals tab, then click Render War Documentary."
+                   if rows else "Scenes ready (no footage scenes to check). Click Render War Documentary.")
+            app._war_status_var.set(msg)
+            app._append_log(f"{TAG} {msg}\n")
+            if rows:
+                try:
+                    app._goto_workflow_view("visual_plan")
+                except Exception:
+                    pass
+            app._sync_primary_cta()
+
+        app.after(0, done)
 
     def worker() -> None:
         from . import integration, segments
@@ -488,11 +545,15 @@ def on_render_click(app) -> None:
 
                 scenes, frac = scenes_csv.align_to_words(scenes, words, total)
                 log(f"{len(scenes)} scenes from the CSV, aligned to the voiceover: {scenes_csv.match_note(frac)}")
-            if scenes is not None and manager is not None:
-                progress(0.0, "fetching the CSV's footage")
-                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap)
+            if scenes is not None and images_dir is not None:
+                if media_only:
+                    progress(0.0, "fetching the CSV's footage")
+                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only)
                 if app._war_cancel.is_set():
                     raise segments.RenderCancelled()
+                if media_only:
+                    return_rows(rows)
+                    return
             elif scenes is None:
                 scenes = sentences_from_words(words, total)
                 if not scenes:
@@ -513,10 +574,11 @@ def on_render_click(app) -> None:
                 import visual_bridge
 
                 visual_bridge.fill(app, OWNER, rows)      # check or change the clips there; the next Render uses what the tab holds
-            from export_state import run_outcome
+            if run is not None:
+                from export_state import run_outcome
 
-            done = run_outcome(error, out_path if result else None)
-            app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
+                done = run_outcome(error, out_path if result else None)
+                app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
             if error:
                 app._war_status_var.set(error)
                 app._append_log(f"{TAG} {error}\n")

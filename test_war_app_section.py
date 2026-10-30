@@ -257,6 +257,44 @@ class TestCsvFootage(unittest.TestCase):
         self.assertEqual(visual_bridge.folder("war", ws), Path("/p/state/war/assets"))
 
 
+class TestGenerateScenesFirst(unittest.TestCase):
+    """A scenes CSV goes through the Visuals tab: Generate scenes fetches into it, Render fetches nothing and uses what it holds."""
+
+    def app(self, csv="/p/scenes.csv", vo="/p/vo.mp3"):
+        var = type("V", (), {"get": lambda self: csv})()
+        return type("A", (), {"_war_scenes_var": var, "_current_voiceover_path": lambda self: vo})()
+
+    def test_a_csv_needs_generate_scenes_until_its_footage_is_in_the_tab(self):
+        from cinematic_explainer.war.app_section import _inputs_key, needs_scenes
+
+        app = self.app()
+        self.assertTrue(needs_scenes(app))
+        app._war_ready_key = _inputs_key(app)
+        self.assertFalse(needs_scenes(app))
+        self.assertTrue(needs_scenes(self.app(csv="/p/other.csv")))                       # another CSV: Generate scenes again
+        self.assertFalse(needs_scenes(self.app(csv="")))                                   # narration only: nothing to fetch
+        self.assertFalse(needs_scenes(self.app(csv="/p/scenes.json")))
+
+    def test_render_uses_the_table_and_fetches_nothing(self):
+        from asset_manager import AssetManifest
+        from cinematic_explainer.war.app_section import fetch_csv_footage
+
+        d = Path(tempfile.mkdtemp())
+        fetch_csv_footage(TestCsvFootage().scenes(), _FakeManager(d), d)
+        AssetManifest(d).set("3", {"scene_number": "3", "status": "skipped"})          # the user skipped it in the Visuals tab
+        mgr = _FakeManager(d)
+        out, rows = fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, fetch=False)
+        self.assertEqual(mgr.asked, [])
+        self.assertTrue(out[0]["footage"].endswith("scene_1.mp4"))
+        self.assertFalse(out[2].get("footage"))
+        self.assertEqual([r.scene_number for r in rows], ["1", "3", "4"])
+
+    def test_generate_scenes_leaves_the_export_page_alone(self):
+        text = (Path(__file__).resolve().parent / "cinematic_explainer" / "war" / "app_section.py").read_text(encoding="utf-8")
+        self.assertIn('run = None if media_only else app._track_generation_start("war")', text)
+        self.assertIn('_goto_workflow_view("visual_plan")', text)
+
+
 class TestAiFootage(unittest.TestCase):
     """AI clips (Flow, 10 credits each) only for flow_video rows, within the user's limit, priced before anything is made, labelled as AI."""
 
