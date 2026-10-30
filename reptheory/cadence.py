@@ -100,7 +100,7 @@ def write_report(path, plan: dict) -> None:
     """plan = {title, planner, timing, beats, scenes, metrics, narrative, summary}. Writes <path>.json and <path>.md next to each other."""
     path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
     slim = dict(plan); slim["scenes"] = [{k: v for k, v in s.items() if k not in ("words",)} for s in plan.get("scenes", [])]
-    Path(str(path) + ".json").write_text(json.dumps(slim, indent=1, default=str))
+    Path(str(path) + ".json").write_text(json.dumps(slim, indent=1, default=str), encoding="utf-8")
     m = plan["metrics"]; lines = [f"# Rep Theory plan: {plan.get('title', '')}", "", f"planner `{plan.get('planner')}` · timing `{plan.get('timing')}` · {m['scenes']} scenes · {m['duration']} s", ""]
     s = plan.get("summary")
     if s: lines += ["## Summary", ""] + [f"- {k}: {v}" for k, v in s.items()] + [""]
@@ -116,4 +116,4 @@ def write_report(path, plan: dict) -> None:
         lines += ["", "## Beats", "", "| id | time (timing) | role | entities | visual | status | conf | unit | text |", "|---|---|---|---|---|---|---|---|---|"] + [_row(b) for b in plan["beats"]]
         bad = [b for b in plan["beats"] if b.get("status") not in ("grounded",)]
         lines += ["", f"## Not grounded ({len(bad)})", ""] + [f"- {b['id']} [{b.get('status')}] {b['text']} → {b.get('reason', '')}" for b in bad]
-    Path(str(path) + ".md").write_text("\n".join(lines) + "\n")
+    Path(str(path) + ".md").write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -26,7 +26,7 @@ def prompt_for(text: str) -> str:
 def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:12]
 
 def eligible(sc: dict) -> bool:
-    return sc["kind"] not in SKIP_KINDS and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
+    return sc["kind"] not in SKIP_KINDS and sc["kind"] != "clip3d" and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
 
 def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True) -> Dict[str, int]:
     """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`)."""

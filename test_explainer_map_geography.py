@@ -92,3 +92,7 @@ def test_cue_passes_the_relevance_check():
     beat, _ev, _p = mk("e1", 0.0, 12.0, WORDS, camera_start={"place": "Adriatic", "frame": "region"}, zone_labels=[{"place": "Adriatic"}], strict=False)
     rep = check_plan({"version": 1, "duration": 12.0, "beats": [beat]}, WORDS, resolve_offline=True)
     assert not [p for p in rep.problems if "e1_dir1" in p], rep.problems
+
+
+from unittest_adopt import adopt
+adopt(globals())

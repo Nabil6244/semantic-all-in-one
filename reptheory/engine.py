@@ -39,7 +39,7 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
 
 def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, quality: str = "final", title: str = "", cancel_check: Optional[Callable[[], bool]] = None,
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
-                   end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, flow_mode: str = "agent") -> Dict:
+                   end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, flow_mode: str = "agent") -> Dict:
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -55,6 +55,10 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             log(f"beat planner failed ({type(ex).__name__}: {ex}); using the legacy planner"); plan_info = {"planner": "legacy", "fallback_from": "beats", "fallback_reason": f"{type(ex).__name__}: {ex}"}
     if scenes is None: scenes = P.plan(sents, title=title)
     if not scenes: raise ValueError("no scenes to render")
+    if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
+        from . import clip3d as C3
+        try: log(f"[REP THEORY 3D] body clips: {C3.prepare(scenes, log=log)}")
+        except Exception as ex: log(f"[REP THEORY 3D] body clips unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
     if illustrate:      # a picture per beat from the narration, generated once through Flow and cached (reptheory/beat_art.py)
         from . import beat_art as BA
         try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log)}")
@@ -98,5 +102,5 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     rep = {"ok": True, "out": str(out_path), "quality": quality, "size": [W, H], "fps": T.FPS, "frames": n_frames, "end_card": bool(card), "plan": plan_info, "cadence": C.metrics(scenes, n_narr / T.FPS), "seconds": round(time.time() - t0, 2), "video_seconds": round(n_frames / T.FPS, 2),
            "scenes": [{k: v for k, v in sc.items() if k not in ("words",)} for sc in scenes], "kind_counts": counts, "art_used": sorted({sc["art"] for sc in scenes if sc["art"]}), "art_source": {a: (L.find(a) or {}).get("source") for a in {sc["art"] for sc in scenes if sc["art"]}},
            "not_implemented": NOT_IMPLEMENTED}
-    if write_report: Path(str(out_path) + ".rep_theory.json").write_text(json.dumps(rep, indent=1, default=str))
+    if write_report: Path(str(out_path) + ".rep_theory.json").write_text(json.dumps(rep, indent=1, default=str), encoding="utf-8")
     prog(1.0, "done"); return rep

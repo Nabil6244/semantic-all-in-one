@@ -70,7 +70,7 @@ def build_voiceover(workdir: Path, rate: int = 145, voice: str = "Daniel", scrip
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--preview", action="store_true"); ap.add_argument("--out", default="out/rep_theory_spike"); ap.add_argument("--rate", type=int, default=145)
-    ap.add_argument("--script", default=""); ap.add_argument("--title", default=""); ap.add_argument("--planner", default="legacy", choices=["legacy", "beats"]); ap.add_argument("--align", action="store_true"); ap.add_argument("--plan-only", action="store_true"); ap.add_argument("--per-beat", action="store_true"); ap.add_argument("--illustrate", action="store_true"); ap.add_argument("--flow-mode", default="agent"); ap.add_argument("--name", default="rep_theory_spike")
+    ap.add_argument("--script", default=""); ap.add_argument("--title", default=""); ap.add_argument("--planner", default="legacy", choices=["legacy", "beats"]); ap.add_argument("--align", action="store_true"); ap.add_argument("--plan-only", action="store_true"); ap.add_argument("--per-beat", action="store_true"); ap.add_argument("--illustrate", action="store_true"); ap.add_argument("--clips3d", action="store_true"); ap.add_argument("--flow-mode", default="agent"); ap.add_argument("--name", default="rep_theory_spike")
     ap.add_argument("--end-card", action="store_true"); ap.add_argument("--end-title", default=""); ap.add_argument("--end-url", default=""); ap.add_argument("--end-image", default=""); a = ap.parse_args(argv)
     from . import engine
     out_dir = Path(a.out); out_dir.mkdir(parents=True, exist_ok=True); work = Path(tempfile.mkdtemp(prefix="rt_spike_"))
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
         if a.planner == "beats": res = B.plan(sents, title=a.title or TITLE, per_beat=a.per_beat)
         else: sc = P.plan(sents, title=a.title or TITLE); res = {"title": a.title or TITLE, "planner": "legacy", "timing": "word" if all(x.get("words") for x in sents) else "estimated", "scenes": sc, "beats": [], "metrics": C.metrics(sc), "narrative": None, "summary": {"scenes": len(sc)}}
         C.write_report(out_dir / f"{a.name}.plan", res); print(res["summary"]); return 0
-    rep = engine.run_rep_theory(out_dir, sents, str(out_dir / "voiceover.wav"), str(out_dir / f"{a.name}.mp4"), quality="preview" if a.preview else "final", title=a.title or TITLE, log=print, planner=a.planner, per_beat=a.per_beat, illustrate=a.illustrate, flow_mode=a.flow_mode, end_card={"enabled": a.end_card, "title": a.end_title, "url": a.end_url, "image": a.end_image},
+    rep = engine.run_rep_theory(out_dir, sents, str(out_dir / "voiceover.wav"), str(out_dir / f"{a.name}.mp4"), quality="preview" if a.preview else "final", title=a.title or TITLE, log=print, planner=a.planner, per_beat=a.per_beat, illustrate=a.illustrate, clips3d=a.clips3d, flow_mode=a.flow_mode, end_card={"enabled": a.end_card, "title": a.end_title, "url": a.end_url, "image": a.end_image},
                                 progress_cb=lambda k, m: print(f"{int(k * 100):3d}% {m}", flush=True) if m == "done" or int(k * 100) % 10 == 0 else None)
     print({k: rep[k] for k in ("out", "size", "video_seconds", "seconds", "kind_counts", "art_source")}); return 0
 
