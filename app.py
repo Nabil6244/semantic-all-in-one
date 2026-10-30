@@ -3746,7 +3746,7 @@ class VideoGeneratorApp(ctk.CTk):
                         hints = csv_hints.read(csv_text, words, dur)
                     except BaseException as exc:
                         post(lambda e=exc: self._append_log(f"[HYBRID] The loaded CSV could not guide the Explainer ({str(e)[:200]}); directing from the narration alone.\n"))
-                out = direct_plan(words, script or None, full_look(self._settings), work_dir=work_dir, duration=dur, places=(hints or {}).get("places") or (),
+                out = direct_plan(words, script or None, full_look(self._settings), work_dir=work_dir, duration=dur, places=(hints or {}).get("places") or (), scene_notes=(hints or {}).get("scene_notes") or (),
                                   log=lambda m: post(lambda: self._append_log(f"[HYBRID] {m}\n")))
                 if hints and out.get("plan"):
                     for m in csv_hints.apply(out["plan"], hints):
@@ -15318,7 +15318,13 @@ class VideoGeneratorApp(ctk.CTk):
                         str(config["audio_path"]),
                         config["model"],
                     )
-            aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
+            if self._story_on():   # Story Motion: story_align (phonetic, Hindi-safe) instead of exact-word matching; any failure keeps the app's aligner
+                import story_align as _story_align
+
+                with _story_align.applied(vg):
+                    aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
+            else:
+                aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
 
             visual_plan = getattr(self, "_visual_plan", None)
             resolved_style = self._resolve_project_style(
