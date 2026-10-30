@@ -305,7 +305,9 @@ def _transcribe_locked(audio_path: str, model_size: str):
             source = np.frombuffer(raw, np.float32).copy()
     except Exception as exc:  # no ffmpeg: Whisper reads the file itself, as before
         print(f"[1/4] ffmpeg could not decode the audio first ({exc}); Whisper reads the file itself")
-    segments, info = model.transcribe(source, word_timestamps=True, vad_filter=True)
+    # beam_size=1 (one pass, no candidate search): about twice as fast on the CPU with almost the same words; the timings come from
+    # the same word-timestamp pass either way (owner-approved 2026-10-30)
+    segments, info = model.transcribe(source, word_timestamps=True, vad_filter=True, beam_size=1)
     # Whisper works through the audio as the segments are read: say how far it is, or a long voiceover looks frozen
     total = float(getattr(info, "duration", 0) or 0)
     seg_list, shown, started = [], -1, time.monotonic()

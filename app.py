@@ -1395,6 +1395,7 @@ class VideoGeneratorApp(ctk.CTk):
         self._render_cache_hits = 0
         self.csv_var = ctk.StringVar()
         self.audio_var = ctk.StringVar()
+        self.audio_var.trace_add("write", lambda *_: self._whisper_early_schedule())   # background word timing, see _whisper_early_run
         self.images_var = ctk.StringVar()
         self.local_assets_var = ctk.StringVar()
         self._local_check_var = ctk.StringVar(value="Select a CSV and local assets folder to check.")
@@ -4158,6 +4159,17 @@ class VideoGeneratorApp(ctk.CTk):
         if style == "normal" and _enoch_template_active(self):
             style = "enoch_template"
         script = self._main_script_text()
+        if style == "normal":
+            from ui import story_motion_section as _story
+            if _story.is_active(self):   # Story Motion's dense prompt: this is its one "Copy the CSV prompt" button
+                text = _story.prompt_text()
+                if script:
+                    text = text.replace("<paste the full script here>", script)
+                self.clipboard_clear()
+                self.clipboard_append(text)
+                (status_var or self.status_var).set("Story Motion prompt copied" + (" with your script" if script else "")
+                                                    + ". Paste it into any AI, save the reply as a .csv, then load it above.")
+                return
         try:
             text = build_prompt(style, script)
             if graphics is None:
@@ -11531,6 +11543,91 @@ class VideoGeneratorApp(ctk.CTk):
         self._settings["puppet_stills"] = bool(on)
         save_settings(self._settings)
 
+    def _whisper_warm(self, audio, model: str, state_dir):
+        """One background transcription per (audio, model), shared by the early start (voiceover picked) and the Generate step: the words
+        go to the project's word cache (state/narration_words.json) through _pakmap_get_words. Returns its slot {key, words, thread}."""
+        key = (_audio_fingerprint(audio), str(model))
+        cur = getattr(self, "_whisper_job", None)
+        if cur and cur["key"] == key and (cur["thread"].is_alive() or cur["words"]):
+            return cur
+        slot = {"key": key, "words": None}
+
+        def _run() -> None:
+            try:
+                slot["words"] = self._pakmap_get_words(Path(str(audio)), str(model), state_dir, print)
+            except BaseException:   # SystemExit included (no words): the render path reports it itself
+                slot["words"] = None
+
+        slot["thread"] = threading.Thread(target=_run, name="whisper-prefetch", daemon=True)
+        slot["thread"].start()
+        self._whisper_job = slot
+        return slot
+
+    def _whisper_prefetch_start(self, config: dict, mode: str, state_dir) -> None:
+        """Generate step: transcribe the voiceover in a background thread while the assets are made (Flow/stock wait on the network, Whisper
+        uses the CPU), so the render finds the words ready. Skipped when there is no render, no audio, or the words are cached. Any failure
+        here is silent: the render transcribes as before."""
+        self._whisper_prefetch = None
+        try:
+            audio = config.get("audio_path")
+            if mode != "render" or not audio or not Path(str(audio)).is_file():
+                return
+            if state_dir is not None and get_cached_whisper_words(Path(state_dir), audio):
+                return
+            self._whisper_prefetch = self._whisper_warm(audio, str(config["model"]), state_dir)
+            print("[WHISPER] Transcribing the voiceover now, while the assets are made.")
+        except Exception:
+            self._whisper_prefetch = None
+
+    def _whisper_early_schedule(self) -> None:
+        """The voiceover was picked: after a short pause, transcribe it in the background so Generate finds the words ready (owner-approved
+        2026-10-30; settings.json "early_transcribe": false turns it off). Silent: no screen change, no plan. Only when nothing else is running
+        (Whisper and a render fight for the CPU), a project is open, the file exists and its words are not saved yet."""
+        if not self._settings.get("early_transcribe", True):
+            return
+        job = getattr(self, "_whisper_early_after", None)
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._whisper_early_after = self.after(2500, self._whisper_early_run)
+
+    def _whisper_early_busy(self) -> bool:
+        flags = ("_overscaled_running", "_pakmap_running", "_hybrid_running", "_starmap_running", "_whatif_running", "_weather_running",
+                 "_war_running", "_rt_running", "_health_running", "_pt_running")
+        worker = getattr(self, "_worker", None)
+        return any(getattr(self, f, False) for f in flags) or (worker is not None and worker.is_alive())
+
+    def _whisper_early_run(self) -> None:
+        try:
+            ws = getattr(self, "_workspace", None)
+            raw = (self.audio_var.get() or "").strip()
+            if ws is None or not raw or not Path(raw).is_file() or self._whisper_early_busy():
+                return
+            state_dir = Path(ws.state_dir)
+            model = (self.model_var.get() or "").strip() or "base"
+            if get_cached_whisper_words(state_dir, raw):
+                return
+            slot = self._whisper_warm(raw, model, state_dir)
+            if slot["thread"].is_alive():
+                self._append_log("[WHISPER] Reading the voiceover in the background; Generate will find the words ready.\n")
+        except Exception:
+            pass
+
+    def _whisper_prefetch_take(self, config: dict):
+        """The words the Generate step's background transcription made for this audio and model (waits for it), or None."""
+        slot, self._whisper_prefetch = getattr(self, "_whisper_prefetch", None), None
+        if not slot:
+            return None
+        try:
+            if slot["key"] != (_audio_fingerprint(config["audio_path"]), str(config["model"])):
+                return None
+            slot["thread"].join()
+            return slot["words"] or None
+        except Exception:
+            return None
+
     def _story_on(self) -> bool:
         """Story pipeline for this render: the Story Motion style page is up (per session), or settings.json "story_video" (advanced, off by default)."""
         return bool(getattr(self, "_story_motion_active", False) or self._settings.get("story_video"))
@@ -15037,6 +15134,7 @@ class VideoGeneratorApp(ctk.CTk):
             if _pplan is not None:
                 for _line in _pplan.lines():
                     print(f"[PLAN] {_line}")
+            self._whisper_prefetch_start(config, mode, state_dir_p)   # transcribe while the assets are made (CPU vs network)
             wants_numbered_local = any(s.wants_local_numbered for s in scene_rows)
             needs_asset_resolve = any(
                 s.wants_flow or s.wants_stock or s.wants_youtube
@@ -15212,6 +15310,8 @@ class VideoGeneratorApp(ctk.CTk):
                     whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
                     print("[SMART] Reusing cached word alignment.")
                 _pevents.emit("cache", cache="whisper", hit=bool(cached))
+            if whisper_words is None:
+                whisper_words = self._whisper_prefetch_take(config)   # started with the asset step, same audio + model
             if whisper_words is None:
                 with ledger.track("align"), (perf.timer("whisper") if perf is not None else contextlib.nullcontext()):
                     whisper_words = vg.transcribe_audio(
