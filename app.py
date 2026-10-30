@@ -11531,6 +11531,21 @@ class VideoGeneratorApp(ctk.CTk):
         self._settings["puppet_stills"] = bool(on)
         save_settings(self._settings)
 
+    def _story_on(self) -> bool:
+        """Story pipeline for this render: the Story Motion style page is up (per session), or settings.json "story_video" (advanced, off by default)."""
+        return bool(getattr(self, "_story_motion_active", False) or self._settings.get("story_video"))
+
+    def _story_settings(self) -> dict:
+        """What the Story Motion page adds to the story_pipeline settings (ui/story_motion_section.py); empty when the style is not picked."""
+        if not getattr(self, "_story_motion_active", False):
+            return {}
+        try:
+            from ui import story_motion_section as _sm
+
+            return _sm.pipeline_settings(self)
+        except Exception:
+            return {"story_video": True, "story_dry_run": False}
+
     def _set_story_video(self, on: bool) -> None:
         """The "Story Video (shots, links, motion)" switch (Audio & Effects > Smart editing, settings.json "story_video", off by default): story_pipeline.py."""
         self._settings["story_video"] = bool(on)
@@ -15611,16 +15626,16 @@ class VideoGeneratorApp(ctk.CTk):
                 print(f"[PUPPET] skipped ({exc})")
             _story_run = None
             try:   # story video: shots + links + motion; off unless settings.json "story_video" is true; a failure leaves the normal render
-                if self._settings.get("story_video"):
+                if self._story_on():
                     import story_pipeline as _story_pipeline
 
                     _story_run = _story_pipeline.build_story(
                         Path(state_dir).parent,
-                        {**self._settings, "rows": config["rows"], "words": whisper_words, "aligned": aligned, "audio_end": float(audio_end),
+                        {**self._settings, **self._story_settings(), "rows": config["rows"], "words": whisper_words, "aligned": aligned, "audio_end": float(audio_end),
                          "images_dir": str(config["images_dir"]), "audio_path": str(config["audio_path"]),
                          "resolution": config.get("resolution") or "1920x1080"},
                         log=print, cancel=None,
-                        dry_run=bool(self._settings.get("story_dry_run", True)))
+                        dry_run=bool({**self._settings, **self._story_settings()}.get("story_dry_run", True)))
                     _hybrid_stack.enter_context(_story_pipeline.applied_story(vg, _story_run))
             except Exception as exc:
                 print(f"[STORY] skipped ({exc})")
@@ -15659,7 +15674,7 @@ class VideoGeneratorApp(ctk.CTk):
                 _gfx_done = bool(_gfx_prepared) and _gfx_prepared.composite(config["output_path"])
                 print(_gfx_prepared.final_line(_gfx_done) if _gfx_prepared is not None
                       else "[GFX] RESULT: the animated template graphics could not be planned; the video uses the Doc Style look.")
-            if self._settings.get("story_video") and _story_run is not None:
+            if self._story_on() and _story_run is not None and self._story_settings().get("story_audit", True):
                 try:
                     import story_audit
                     story_audit.audit_all(config["output_path"], plan=_story_run.plan, aligned=aligned, words=whisper_words, print_fn=print,

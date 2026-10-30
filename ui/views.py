@@ -1905,12 +1905,6 @@ class AudioView(_BaseView):
                  "a scene that fails keeps its still.",
                  self._puppet_var, on_toggle=lambda on: app._set_puppet_stills(on) if hasattr(app, "_set_puppet_stills") else None)
 
-        self._story_var = ctk.BooleanVar(value=bool(getattr(app, "_settings", {}).get("story_video", False)))
-        _feature("Story Video (shots, links, motion)",
-                 "Splits each scene into short shots that follow the narration, moves every picture (layered depth parallax where the picture allows it), "
-                 "and joins pictures with torn-wipe / match-cut links. Off by default; any failure leaves the normal video.",
-                 self._story_var, on_toggle=lambda on: app._set_story_video(on) if hasattr(app, "_set_story_video") else None)
-
         _group("MOTION")
         _feature("Ken Burns Zoom", "Slow zoom on every still image. Intensity = how far (5% / 10% / 16%).",
                  app.zoom_var, app.ken_burns_intensity_var)

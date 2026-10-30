@@ -70,7 +70,7 @@ def plan_clips(shots, images, settings=None) -> list:
         if mode == "push_in" and cam == "diag": mode = "diag_in"
         if cam == "diag" and zlib.crc32(str(sid).encode()) % 2: mode = "diag_out"
         base_job = dict(shot_id=sid, scene_no=sh.get("scene_no"), still=still, duration=round(dur + margin, 3), shot_seconds=round(dur, 3), fps=fps, size=size, seed=_seed(base, sid),
-                        camera=cam, tier=tier, params={"mode": mode, "intensity": "low" if cam == "hold_alive" else inten})
+                        camera=cam, tier=tier, params={"mode": mode, "intensity": "low" if cam == "hold_alive" else inten, "parallax": bool(st.get("parallax", True))})
         if tier == "graphic": jobs.append(dict(base_job, type="skip", reason="graphic (drawn by the app)", est_seconds=0.0)); continue
         if not still or not os.path.isfile(str(still)): jobs.append(dict(base_job, type="skip", reason="no still found", est_seconds=0.0)); continue
         est = _est_motion(base_job["duration"], fps, size)

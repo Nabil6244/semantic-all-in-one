@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 # (group title, styles in the order they are shown). A style missing from the app's choices (Weather when it is off) is skipped.
 GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
-    ("General", ("Normal video", "Modern Tech News", "Overscaled", "Exp Solar")),
+    ("General", ("Normal video", "Story Motion", "Modern Tech News", "Overscaled", "Exp Solar")),
     ("Maps", ("pakMap", "Hybrid Map")),
     ("Space", ("StarMap", "StarMap Cinema")),
     ("Explainers", ("What If", "Explainer", "Rep Theory", "Product Trailer")),
@@ -19,12 +19,15 @@ GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
 STARMAP_CINEMA = "StarMap Cinema"
 EXPLAINER = "Explainer"
 PRODUCT_TRAILER = "Product Trailer"
+STORY_MOTION = "Story Motion"
 # styles of their own engine that app.STYLE_CHOICES does not list (their page lives in ui/): appended after the app's choices
 STANDALONE: Tuple[str, ...] = (PRODUCT_TRAILER,)
 # card-only style -> the style whose engine it runs (with its look switched on)
-BUILT_ON: Dict[str, str] = {STARMAP_CINEMA: "StarMap", EXPLAINER: "Hybrid Map"}
+BUILT_ON: Dict[str, str] = {STARMAP_CINEMA: "StarMap", EXPLAINER: "Hybrid Map", STORY_MOTION: "Normal video"}
 
 EXTRA_BLURBS: Dict[str, str] = {
+    STORY_MOTION: "Normal video where the pictures never sit still: one picture per narration phrase, layered depth parallax, short links "
+                  "between pictures, and a quality check after the render. Needs a dense CSV (one row per picture).",
     STARMAP_CINEMA: "StarMap with the What If documentary look: diagram plates where the map cannot explain, the spacecraft up close, "
                     "numbers as type, documentary photos with a source line, cuts in the narration's pauses.",
     EXPLAINER: "Explainer videos on a board: drawn clips, a narrator, captions. Planned from your narration (Hybrid Map's engine "
@@ -35,6 +38,7 @@ EXTRA_BLURBS: Dict[str, str] = {
 
 # icon, one-line pitch, what it needs, what it suits (the same shape as app.STYLE_CARDS)
 EXTRA_CARDS: Dict[str, Tuple[str, str, str, str]] = {
+    STORY_MOTION: ("\u25B6", "Moving pictures that follow the voice", "A dense CSV (one row per picture) + your voiceover", "Story videos from AI stills"),
     STARMAP_CINEMA: ("✸", "StarMap with the What If documentary look", "A StarMap beat CSV", "Space stories told like a documentary"),
     EXPLAINER: ("\u270E", "Board clips, a narrator and captions", "Your voiceover", "Explainers on any topic"),
     PRODUCT_TRAILER: ("\u25AF", "A phone launch trailer, cut to music", "A feature CSV (+ music)", "Phone launches, concept trailers"),
