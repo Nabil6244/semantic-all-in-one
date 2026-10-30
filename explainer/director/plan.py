@@ -448,6 +448,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 scene_flow = opt.scene_intel and src_ == "flow_image" and bool(b.picture_query)
                 if scene_flow:
                     pq = (b.picture_query, 0)
+                    info.setdefault("scene_flow_beats", []).append(b.id)
                 if opt.pictures and not scene_flow:              # opt-in: the query of the picture pass, else a better one (full names, only spoken words, no vague words) than the first keyword
                     from . import compose_pictures as CPX
                     _pic = info.get("pictures", {})
@@ -682,7 +683,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     fx_budget = motion_state["budget"].summary() if "budget" in motion_state else None
     # ---- gates ----
     rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
-                     allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures) else ()) if materialize else None
+                     allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures or info.get("scene_flow_beats")) else (), composed=info.get("scene_flow_beats", ())) if materialize else None
     if rep is not None:
         res.problems += rep.problems
         res.warnings += rep.warnings

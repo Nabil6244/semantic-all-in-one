@@ -122,8 +122,10 @@ ERA_QUERY_WORDS = frozenset({"historical", "painting", "antique", "engraving"}) 
 
 
 def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optional[Dict[str, Dict[str, List[str]]]] = None, base_dir: Optional[Path] = None,
-               resolve_offline: bool = True, allow_sources: Sequence[str] = ()) -> Report:
-    """Check a plan dict (the Hybrid JSON shape) against the narration. `subjects` = {beat_id: {clip_index (as text): [subject phrases]}} for archive clips."""
+               resolve_offline: bool = True, allow_sources: Sequence[str] = (), composed: Sequence[str] = ()) -> Report:
+    """Check a plan dict (the Hybrid JSON shape) against the narration. `subjects` = {beat_id: {clip_index (as text): [subject phrases]}} for archive clips. `composed` = the beat
+    ids whose Flow image prompt was written by the scene reading (explainer/scene_intel.flow_prompt): place, period, people and art style are added on purpose, so only the
+    spoken-words rule is lifted for them."""
     from hybrid.plan import HybridPlan, PlanError, validate_plan
     from ..captions.timing import resolve_caption
 
@@ -250,7 +252,7 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                 if allow_sources and _sep and src in allow_sources:        # a reference for the application's own source: its query must be about this beat's own words
                     q = toks(query)
                     spoken = {t["tok"] for t in tk} | ERA_QUERY_WORDS
-                    missing = [w for w in q if w not in spoken]
+                    missing = [] if (b.id in composed and src == "flow_image") else [w for w in q if w not in spoken]
                     if not q:
                         rep.problems.append(f"beat {b.id}: clip {k + 1}: the {src} reference has no query")
                     elif missing:
