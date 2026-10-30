@@ -257,6 +257,35 @@ class TestCsvFootage(unittest.TestCase):
         self.assertEqual(visual_bridge.folder("war", ws), Path("/p/state/war/assets"))
 
 
+class TestAiFootage(unittest.TestCase):
+    """AI clips (Flow, 10 credits each) only for flow_video rows, within the user's limit, priced before anything is made, labelled as AI."""
+
+    def scenes(self):
+        return [{"scene_no": i, "text": f"Scene {i} words here.", "start": i * 3.0, "end": i * 3.0 + 3, "asset_type": "flow_video",
+                 "prompt": f"a chess king toppling {i}"} for i in range(1, 5)] + \
+               [{"scene_no": 5, "text": "Convoys moved.", "start": 15.0, "end": 18.0, "asset_type": "stock_video", "prompt": "convoy road"}]
+
+    def test_cap_and_price(self):
+        from cinematic_explainer.war.app_section import AI_LOOK, ai_plan, csv_rows
+
+        d = Path(tempfile.mkdtemp())
+        plan = ai_plan(self.scenes(), d, cap=3)
+        self.assertEqual((plan["make"], plan["over"], plan["credits"]), (["1", "2", "3"], ["4"], 30))
+        self.assertIn(AI_LOOK, csv_rows(self.scenes())[0].prompt)                    # one documentary look for every AI clip
+        self.assertEqual(ai_plan(self.scenes(), d, cap=0)["credits"], 0)
+
+    def test_only_within_the_cap_and_labelled_ai(self):
+        from cinematic_explainer.war.app_section import ai_plan, fetch_csv_footage
+
+        d = Path(tempfile.mkdtemp())
+        mgr = _FakeManager(d)
+        out, _rows = fetch_csv_footage(self.scenes(), mgr, d, ai_cap=2)
+        self.assertEqual(sorted(a[0] for a in mgr.asked), ["1", "2", "5"])          # scenes 3 and 4 are over the limit: no credits spent
+        self.assertTrue(out[0]["footage_meta"].get("ai_generated"))
+        self.assertFalse(out[2].get("footage"))
+        self.assertEqual(ai_plan(self.scenes(), d, cap=2), {"make": ["3", "4"], "over": [], "have": 2, "credits": 20})   # made clips are free next time
+
+
 class TestNoEmptyStretch(unittest.TestCase):
     def test_a_long_sentence_without_commas_still_gives_a_tag(self):
         from cinematic_explainer.war.direction import _phrase_or_lead

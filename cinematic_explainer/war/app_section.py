@@ -131,7 +131,12 @@ def needs_alignment(scenes: List[dict]) -> bool:
 
 # ---- CSV footage (fetched through the app's AssetManager, listed in the Visuals tab) ------------------------------------------
 OWNER = "war"      # its CSV footage rows in the Visuals tab (visual_bridge)
-FETCH_TYPES = ("stock_video", "youtube_video", "archive_video", "nasa_video", "commons_video")
+FETCH_TYPES = ("stock_video", "youtube_video", "archive_video", "nasa_video", "commons_video", "flow_video")
+AI_TYPES = ("flow_video",)
+AI_CREDITS_PER_CLIP = 10          # Flow's price for one video clip
+DEFAULT_AI_CAP = 15               # AI clips made per video at most, unless the user sets another number on the War page
+AI_LOOK = ("cinematic documentary shot, desaturated muted colours, overcast moody light, shallow depth of field, slow camera move, "
+           "35mm film grain, no text, no logos, no faces in close-up")
 LOCAL_TYPES = ("local", "local_video")
 
 
@@ -147,12 +152,34 @@ def csv_rows(scenes: List[dict]) -> List[Any]:
             prompt = str(sc.get("prompt") or "").strip()
             if at == "nasa_video" and not prompt:
                 prompt = str(sc.get("text") or "")[:80]
+            if at in AI_TYPES and prompt and AI_LOOK not in prompt:
+                prompt = f"{prompt.rstrip('. ')}. {AI_LOOK}"         # every AI clip in the same documentary look
             rows.append(SceneRow.from_csv_row({"scene_number": str(sc.get("scene_no")), "script_segment": str(sc.get("text") or ""),
                                                "asset_type": at, "prompt": prompt}))
     return rows
 
 
-def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None) -> "tuple[List[dict], List[Any]]":
+def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_AI_CAP) -> Dict[str, Any]:
+    """{make: [scene nos to generate], over: [scene nos past the cap], have: n already made}. Clips already in the Visuals table cost nothing."""
+    import visual_bridge
+
+    make: List[str] = []
+    over: List[str] = []
+    have = 0
+    for r in csv_rows(scenes):
+        if r.asset_type != "video" or not str(r.scene_number):
+            continue
+        if images_dir is not None and visual_bridge.records(images_dir, [r]):
+            have += 1
+        elif len(make) < max(0, int(cap)):
+            make.append(str(r.scene_number))
+        else:
+            over.append(str(r.scene_number))
+    return {"make": make, "over": over, "have": have, "credits": len(make) * AI_CREDITS_PER_CLIP}
+
+
+def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
+                      ai_cap: int = DEFAULT_AI_CAP) -> "tuple[List[dict], List[Any]]":
     """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
     hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic."""
     import visual_bridge
@@ -160,9 +187,12 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     from . import integration
 
     rows = csv_rows(scenes)
+    over = set(ai_plan(scenes, images_dir, ai_cap)["over"])
+    if over:
+        log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
     todo = []
     for r in rows:
-        if r.asset_type in LOCAL_TYPES or visual_bridge.records(images_dir, [r]):
+        if r.asset_type in LOCAL_TYPES or str(r.scene_number) in over or visual_bridge.records(images_dir, [r]):
             continue
         errs = manager.validate_rows([r])
         if errs:
@@ -205,6 +235,8 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             meta = integration.footage_meta_for(rec, sc.get("footage_meta"), scene_file=Path(foot).name)
             if rec.get("user_override") or rec.get("source") == "manual":
                 meta["user_supplied"] = True       # picked in the Visuals tab: never swapped for another clip
+            elif at in AI_TYPES:
+                meta["ai_generated"] = True        # labelled "AI-generated illustration", never presented as footage of the event
             sc["footage_meta"] = meta
             got += 1
         out.append(sc)
@@ -219,6 +251,7 @@ def build(app, parent, *, row: int) -> None:
     M = _m(app)
     ctk = M.ctk
     app._war_scenes_var = ctk.StringVar(value="")
+    app._war_ai_cap_var = ctk.StringVar(value=str((getattr(app, "_settings", None) or {}).get("war_ai_cap", DEFAULT_AI_CAP)))
     app._war_status_var = ctk.StringVar(value="")
     app._war_cancel = threading.Event()
     app._war_running = getattr(app, "_war_running", False)
@@ -241,6 +274,12 @@ def build(app, parent, *, row: int) -> None:
     app._war_render_btn = ctk.CTkButton(go, text="Render War Documentary", width=230, height=40, corner_radius=6, fg_color=M._ACCENT,
                                         hover_color=M._ACCENT_HOV, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_render_click(app))
     app._war_render_btn.grid(row=0, column=0, padx=(0, 12))
+    cap = ctk.CTkFrame(go, fg_color="transparent")
+    cap.grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
+    ctk.CTkLabel(cap, text="Max AI clips per video", font=ctk.CTkFont(size=11)).grid(row=0, column=0, sticky="w")
+    ctk.CTkEntry(cap, textvariable=app._war_ai_cap_var, width=52, height=26).grid(row=0, column=1, padx=(8, 8))
+    ctk.CTkLabel(cap, text=f"{AI_CREDITS_PER_CLIP} Flow credits each; only for CSV rows marked flow_video. You are asked before any are made.",
+                 font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=2, sticky="w")
     ctk.CTkLabel(go, text="Without footage in the scenes, a scene gets a map or card, or no visual.", font=ctk.CTkFont(size=11),
                  text_color=M._MUTED).grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(controls, textvariable=app._war_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
@@ -381,10 +420,34 @@ def on_render_click(app) -> None:
     state_dir = getattr(ws, "state_dir", None)
     manager = None
     images_dir = None
+    ai_cap = DEFAULT_AI_CAP
     if scenes_path.lower().endswith((".csv", ".tsv", ".txt")):      # the CSV's searches are fetched through the app's own providers
         import visual_bridge
 
         images_dir = visual_bridge.folder(OWNER, ws)
+        try:
+            ai_cap = max(0, int(str(app._war_ai_cap_var.get()).strip() or DEFAULT_AI_CAP))
+        except ValueError:
+            M.messagebox.showerror("Cannot start", "Max AI clips must be a whole number (0 for none).")
+            return
+        try:
+            app._settings["war_ai_cap"] = ai_cap
+            M.save_settings(app._settings)
+        except Exception:
+            pass
+        try:
+            plan_ai = ai_plan(read_scenes_file(scenes_path, project_dir), images_dir, ai_cap)
+        except Exception as exc:  # noqa: BLE001
+            M.messagebox.showerror("Cannot start", f"The scenes file could not be read:\n{exc}")
+            return
+        if plan_ai["make"]:                # Flow credits are spent only after the user says yes, with the count and cost in front of them
+            msg = (f"This CSV asks for {len(plan_ai['make']) + len(plan_ai['over'])} AI clips"
+                   + (f" ({plan_ai['have']} already made, free)" if plan_ai["have"] else "") + ".\n\n"
+                   f"Make {len(plan_ai['make'])} now = {plan_ai['credits']} Flow credits."
+                   + (f"\n{len(plan_ai['over'])} more are over your limit of {ai_cap} and will use the map or cards." if plan_ai["over"] else "")
+                   + "\n\nYes: make them.  No: render without new AI clips.")
+            if not M.messagebox.askyesno("AI footage", msg):
+                ai_cap = 0
         try:
             manager = app._build_asset_manager(images_dir, [])        # built here: it reads Tk variables
             manager.settings["gemini_enabled"] = False                  # the CSV directs the scenes: no Gemini call in this run
@@ -427,7 +490,7 @@ def on_render_click(app) -> None:
                 log(f"{len(scenes)} scenes from the CSV, aligned to the voiceover: {scenes_csv.match_note(frac)}")
             if scenes is not None and manager is not None:
                 progress(0.0, "fetching the CSV's footage")
-                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set)
+                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap)
                 if app._war_cancel.is_set():
                     raise segments.RenderCancelled()
             elif scenes is None:
