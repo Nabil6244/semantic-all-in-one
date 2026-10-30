@@ -1,7 +1,7 @@
 """Rep Theory in the app's style picker: the card, its controls and the render worker. Imported only when the style is picked.
 
 Same shape as health_cinema/app_section.py: small additive hooks in app.py (`_reptheory_*`), everything else lives in this package. Opt-in per session; nothing starts until Render.
-16:9 landscape only: Final is 1920x1080, Preview is 1280x720. Scenes come from a scenes JSON (list of {text, start, end, ...}) or CSV you choose, else the voiceover's own transcript
+16:9 landscape only: Final is 1920x1080, Preview is 1280x720. Scenes come from a scenes JSON (list of {text, start, end, ...}) or CSV you choose (untimed CSV rows, as "Copy the CSV prompt" asks for, are aligned to the voiceover), else the voiceover's own transcript
 cut into sentences (the app's word timings). The art ships with the app (assets/reptheory); a user library (~/RepTheoryAssets or REP_THEORY_ASSET_DIR) is optional and overrides it."""
 from __future__ import annotations
 import sys
@@ -30,8 +30,30 @@ def read_scenes_file(path: str):
     for r in rows:
         r = {k.lower().strip(): (v or "").strip() for k, v in r.items() if k}
         if r.get("start") and r.get("end"): out.append(dict(r, start=float(r["start"]), end=float(r["end"])))
-        else: raise ValueError("this CSV has no start/end columns: give timings, or leave the scenes file empty to plan from the narration")
+        else: out.append({k: v for k, v in r.items() if k not in ("start", "end")})      # untimed (what "Copy the CSV prompt" asks for): aligned to the voiceover at Render
+    if any("start" in x for x in out) and not all("start" in x for x in out): raise ValueError("start/end are filled on some rows but not all: fill them on every row, or clear them on all rows to align to the voiceover")
     return out
+
+PROMPT_FILE = Path(__file__).with_name("scenes_csv_prompt.txt")      # bundled next to the package (packaging.prompt_files)
+
+def prompt_text(script: str = "") -> str:
+    from app_csv_prompts import SCRIPT_PLACEHOLDER
+    text = PROMPT_FILE.read_text(encoding="utf-8"); script = (script or "").strip()
+    return text.replace(SCRIPT_PLACEHOLDER, script) if script else text
+
+def copy_prompt(app) -> None:
+    """"Copy the CSV prompt" for Rep Theory: the scenes CSV (text, chapter) its scenes file reads, with the project's script in it."""
+    M = _m(app)
+    for box in getattr(app, "_csv_prompt_script_boxes", []):
+        try:
+            if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None): app._on_csv_prompt_script_edited(box); break      # typed in but not yet left: the click must not lose it
+        except Exception: pass
+    script = app._main_script_text()
+    try: text = prompt_text(script)
+    except OSError as exc: M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}"); return
+    app.clipboard_clear(); app.clipboard_append(text)
+    app._rt_status_var.set("Rep Theory prompt copied with your script. Paste it into any AI, save the reply as a .csv, then choose it as the Scenes file." if script else
+                           "Rep Theory prompt copied. Paste it into any AI, replace its last line with your script, save the reply as a .csv, then choose it as the Scenes file.")
 
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
@@ -45,7 +67,7 @@ def build(app, parent, *, row: int) -> None:
                            "equations, tier lists. Visuals follow your narration; numbers and rankings are only what you say. Nothing starts until you press Render.")
     controls = ctk.CTkFrame(block, fg_color="transparent"); controls.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 12)); controls.grid_columnconfigure(0, weight=1)
     app._path_row(0, "Voiceover", app.audio_var, lambda: app._browse_audio(stay=True), parent=controls, placeholder_text="None yet: use Import Voiceover")
-    app._path_row(1, "Scenes file", app._rt_scenes_var, lambda: browse_scenes(app), parent=controls, placeholder_text="Optional: scenes CSV or JSON with timings; otherwise planned from the narration")
+    app._path_row(1, "Scenes file", app._rt_scenes_var, lambda: browse_scenes(app), parent=controls, placeholder_text="Optional: scenes CSV (from Copy the CSV prompt) or JSON; otherwise planned from the narration")
     opts = ctk.CTkFrame(controls, fg_color="transparent"); opts.grid(row=2, column=0, sticky="ew", pady=(10, 0))
     ctk.CTkLabel(opts, text="Section label", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
     ctk.CTkEntry(opts, textvariable=app._rt_title_var, width=260, placeholder_text="e.g. Grip · No Gym").grid(row=0, column=1, padx=(0, 16))
@@ -63,6 +85,10 @@ def build(app, parent, *, row: int) -> None:
     app._rt_render_btn.grid(row=0, column=0, padx=(0, 12))
     ctk.CTkLabel(go, text="Landscape 16:9 only. The trainee, bottle, forearm and bar-hang pictures ship with the app.", font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(controls, textvariable=app._rt_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560, justify="left").grid(row=6, column=0, sticky="ew", pady=(8, 0))
+    bar = ctk.CTkFrame(controls, fg_color="transparent"); bar.grid(row=7, column=0, sticky="ew", pady=(10, 0)); bar.grid_columnconfigure(1, weight=1)      # same "Copy the CSV prompt" as the other styles
+    M._make_button(bar, "Copy the CSV prompt", lambda: copy_prompt(app), size="lg", width=150).grid(row=0, column=0, sticky="w")
+    ctk.CTkLabel(bar, text="Paste it into any AI, then choose the CSV it writes as the Scenes file.", font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
+    app._build_csv_prompt_script_box(bar, row=1, columnspan=2)
     block.grid_remove()
 
 def browse_scenes(app) -> None:
@@ -128,7 +154,16 @@ def on_render_click(app) -> None:
         from . import engine
         result: Optional[dict] = None; error = ""
         try:
-            if scenes_path: sentences = read_scenes_file(scenes_path)
+            if scenes_path:
+                sentences = read_scenes_file(scenes_path)
+                if sentences and "start" not in sentences[0]:      # an untimed scenes CSV: its rows take the voiceover's own word times
+                    from health_cinema import scenes_csv
+                    log("Aligning the scenes CSV to the voiceover…"); words = app._pakmap_get_words(voiceover, model, state_dir, log)
+                    try:
+                        from pakmap.app_integration import voiceover_duration
+                        total = float(voiceover_duration(voiceover) or 0.0)
+                    except Exception: total = 0.0
+                    sentences, frac = scenes_csv.align_to_words(sentences, words, total); log(f"Scenes aligned to the voiceover: {scenes_csv.match_note(frac)}")
             else:
                 log("Reading the narration's word times…"); words = app._pakmap_get_words(voiceover, model, state_dir, log)
                 try:

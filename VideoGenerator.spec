@@ -205,6 +205,8 @@ from reptheory.packaging import data_files as reptheory_data_files, model_data_f
 
 datas += reptheory_data_files(ROOT)   # the four bundled pictures (assets/reptheory)
 datas += reptheory_model_files(ROOT)   # the 3D gym body for muscle clips (assets/reptheory_3d, Z-Anatomy CC BY-SA 4.0 with its notice)
+from reptheory.packaging import prompt_files as reptheory_prompt_files  # noqa: E402
+datas += reptheory_prompt_files(ROOT)   # its "Copy the CSV prompt" text
 hiddenimports += reptheory_modules(ROOT)   # app.py imports it only inside methods
 
 # Weather: weather-engine/ (its own page + weather layers; imports pakmap-engine/lib and MapLibre, which ship above) and the

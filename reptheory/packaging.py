@@ -17,3 +17,8 @@ def model_data_files(root) -> List[Tuple[str, str]]:
     """The 3D gym body (assets/reptheory_3d: model, anchors, Z-Anatomy licence and notice, CC BY-SA 4.0) for the build; clip3d.model_dirs() looks there at run time. Without it 3D scenes keep their normal look."""
     src = Path(root) / "assets" / "reptheory_3d"
     return [(str(p), "assets/reptheory_3d") for p in sorted(src.glob("*")) if p.is_file() and p.suffix.lower() in (".glb", ".json", ".txt")]
+
+def prompt_files(root) -> List[Tuple[str, str]]:
+    """The "Copy the CSV prompt" text (reptheory/scenes_csv_prompt.txt), next to the package where app_section.PROMPT_FILE looks."""
+    src = Path(root) / "reptheory" / "scenes_csv_prompt.txt"
+    return [(str(src), "reptheory")] if src.is_file() else []
