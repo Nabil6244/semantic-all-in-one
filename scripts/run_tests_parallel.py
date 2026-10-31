@@ -25,6 +25,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 _SUMMARY_RE = re.compile(r"^Ran (\d+) tests? in", re.MULTILINE)
 _TIMEOUT_S = 1200
+# Modules that normally finish in about a minute but can hang on a headless Windows runner (a window waiting for input): a short limit
+# cuts the hang off early, so the retry alone still fits in the step's time budget. A real failure still fails the run.
+_MODULE_TIMEOUT_S = {"test_stress_settings_window": 300}
 
 # Modules that assert wall-clock speed: run alone after the parallel phase so
 # CPU contention from other tests can't push them over their limits.
@@ -86,7 +89,7 @@ def _run(module: str) -> tuple[str, int, str, float, int]:
             start_new_session=(os.name != "nt"),
         )
         try:
-            code = proc.wait(timeout=_TIMEOUT_S)
+            code = proc.wait(timeout=_MODULE_TIMEOUT_S.get(module, _TIMEOUT_S))
             timed_out = False
         except subprocess.TimeoutExpired:
             _kill_tree(proc)
@@ -94,7 +97,7 @@ def _run(module: str) -> tuple[str, int, str, float, int]:
         log.seek(0)
         out = log.read()
     if timed_out:
-        out = f"TIMEOUT after {_TIMEOUT_S}s (the module and the programs it started were stopped)\n{out}"
+        out = f"TIMEOUT after {_MODULE_TIMEOUT_S.get(module, _TIMEOUT_S)}s (the module and the programs it started were stopped)\n{out}"
     match = _SUMMARY_RE.search(out)
     return module, code, out, time.monotonic() - start, int(match.group(1)) if match else 0
 
