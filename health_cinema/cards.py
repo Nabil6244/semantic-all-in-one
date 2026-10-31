@@ -71,6 +71,7 @@ def frame_state(kind, params, t, fps):
         shown = [x["t0"] for x in its if x["t0"] <= t]; k = round(min((t - (shown[-1] if shown else 0.0)) / 0.5, 1.0) * 12)
         return (len(shown), k, round(min(t, ANIM_S) * fps))
     if kind == "bar_card": return round(min(t, 2.5) * fps)
+    if kind == "chart_card": return round(min(t, 2.6) * fps)
     if kind == "timeline_card":
         last = max([e["t0"] for e in params.get("events", [])] or [0]) + 1.2; cap = [i for i, (a, b, _) in enumerate(params.get("captions") or []) if a <= t < b]
         return (round(min(t, last) * fps), cap[0] if cap else -1, round((t * 6) % 6) if False else 0)
@@ -85,8 +86,8 @@ def draw_card(kind: str, params: dict, prof: P.Profile, W: int, H: int, t: float
         return yy
     d.rectangle([0, 0, round(W * 0.012), H], fill=(*acc, round(255 * a)))
     dy = round((1 - a) * H * 0.02)
-    if kind in ("counter_card", "bar_card", "timeline_card"):
-        {"counter_card": G.draw_counter, "bar_card": G.draw_bar, "timeline_card": G.draw_timeline}[kind](d, params, prof, W, H, t, sz)
+    if kind in ("counter_card", "bar_card", "timeline_card", "chart_card"):
+        {"counter_card": G.draw_counter, "bar_card": G.draw_bar, "timeline_card": G.draw_timeline, "chart_card": G.draw_chart}[kind](d, params, prof, W, H, t, sz)
         return _with_caption(im, params, t, H)
     if kind == "list_card":
         _draw_list(d, params, sz, W, H, t, m, acc, a)

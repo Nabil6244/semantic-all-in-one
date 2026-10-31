@@ -12,8 +12,8 @@ from . import media, typo
 from .transitions import Transition
 
 FPS = media.FPS
-DATA = {"counter", "bar", "timeline", "statement", "stat", "evidence", "chapter", "list", "compare"}
-KIND_MAP = {"counter_card": "counter", "bar_card": "bar", "timeline_card": "timeline", "text_card": "statement", "stat_card": "stat", "evidence_card": "evidence",
+DATA = {"counter", "bar", "chart", "timeline", "statement", "stat", "evidence", "chapter", "list", "compare"}
+KIND_MAP = {"counter_card": "counter", "bar_card": "bar", "chart_card": "chart", "timeline_card": "timeline", "text_card": "statement", "stat_card": "stat", "evidence_card": "evidence",
             "chapter_card": "chapter", "footage": "footage", "anatomy_3d": "anatomy", "list_card": "list", "compare_card": "compare"}
 STORY_RE = re.compile(r"\b(he|she|his|her|him|frank|picture this|a man|a woman|named)\b", re.I)
 TENSE_RE = re.compile(r"\b(dark|never|closed|major|ischemic|stroke|dismiss\w*|ignore\w*|suddenly|gone|lost)\b", re.I)
@@ -29,7 +29,7 @@ def f(t: float) -> float: return round(t * FPS) / FPS
 def analyze(sc, idx: int, n: int) -> dict:
     text = sc.text; kind = KIND_MAP.get(sc.kind, "statement")
     if idx == 0: role = "hook"
-    elif kind in ("counter", "bar", "stat", "evidence"): role = "statistic"
+    elif kind in ("counter", "bar", "chart", "stat", "evidence"): role = "statistic"
     elif REVEAL_RE.search(text) and (kind in ("anatomy", "statement") or idx == n - 1): role = "reveal"
     elif idx == n - 1: role = "conclusion"
     elif kind == "timeline": role = "consequence"
@@ -129,13 +129,14 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
             shots.append(sh)
         else:
             sh = dict(base, kind=kind, t0=t0, t1=t1, overlays=[], why=list(why)); v = sc.visual; pl = plate_for(i)
-            if pl and kind in ("bar", "counter", "statement"):
+            if pl and kind in ("bar", "chart", "counter", "statement"):
                 sh["plate"] = pl; sh["plate_t"] = 2.0; sh["why"].append("blurred plate from neighbouring footage for colour continuity")
             src_line = _source_line(sc)
             if kind == "counter":
                 ctx = re.sub(r"^\s*every\s+\d+\s+\w+,?\s*", "", v.get("context", ""), flags=re.I).strip(); ctx = ctx[:1].upper() + ctx[1:] if ctx else ""
                 sh["gfx"] = {"interval": v["interval"], "unit": v["unit"], "context": ctx, "event": v.get("event", "events"), "source_line": src_line}
             elif kind == "bar": sh["gfx"] = {"value": v["value"], "qualifier": v.get("qualifier", ""), "context": v.get("context", ""), "source_line": src_line}
+            elif kind == "chart": sh["gfx"] = {"chart": v["chart"], "kicker": v.get("kicker", ""), "context": v.get("context", ""), "source_line": src_line if sc.sources else v.get("source_line") or src_line}
             elif kind == "timeline":
                 ev = []; last = -1.0
                 for e in v.get("events", []):

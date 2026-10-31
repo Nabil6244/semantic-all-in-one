@@ -9,12 +9,21 @@ from PIL import Image, ImageDraw
 from . import gfx, motion as M
 from .gfx import WHITE, SOFT, MUTED
 
+def clean_quotes(text: str) -> str:
+    """On-screen text without doubled quote marks left over from CSV escaping (three quotes after 'muscle.' become one); an unmatched quote at either end is dropped."""
+    s = re.sub(r'"{2,}', '"', text.strip())
+    if s.count('"') % 2:
+        if s.endswith('"') and not re.search(r'\s"\S', s): s = s[:-1].rstrip()
+        elif s.startswith('"'): s = s[1:].lstrip()
+    return s
+
 class Kinetic:
     """Block of text whose words rise out of a mask line by line, staggered, with emphasised words in the accent colour and an underline sweep."""
     def __init__(self, text: str, px: int, max_w: int, accent, weight: str = "demi", align: str = "left", emphasis: Optional[Set[int]] = None,
                  color=WHITE, line_gap: float = 1.16, words: Optional[Sequence[str]] = None):
-        self.words = list(words) if words else text.split(); self.px, self.weight, self.accent, self.color = px, weight, accent, color
-        self.emph = set(emphasis or ()); self.pos, self.w, self.h = gfx.layout(self.words, px, weight, max_w, line_gap, align); self.lh = int(px * line_gap)
+        self.words = list(words) if words else clean_quotes(text).split(); self.px, self.weight, self.accent, self.color = px, weight, accent, color
+        self.emph = set(emphasis or ()); wts = ["bold" if i in self.emph else weight for i in range(len(self.words))]
+        self.pos, self.w, self.h = gfx.layout(self.words, px, weight, max_w, line_gap, align, wts); self.lh = int(px * line_gap)
         self.pad = int(px * 0.35)
     def draw(self, base: Image.Image, x: int, y: int, t: float, t0: float = 0.0, stagger: float = 0.07, dur: float = 0.6, t_out: Optional[float] = None,
              out_dur: float = 0.35, rise: Optional[int] = None, alpha: float = 1.0) -> None:
@@ -32,9 +41,16 @@ class Kinetic:
                     ww = int(gfx.text_size(w, self.px, "bold")[0] * u); yy = y + wy + int(self.px * 1.12)
                     gfx.fill_rect(base, (x + wx, yy, x + wx + ww, yy + max(3, self.px // 16)), self.accent, alpha)
 
+def _number_cells(s: str, px: int, weight: str) -> List[int]:
+    f = gfx.font(px, weight); cell = int(max(f.getlength(str(d)) for d in "0123456789")); return [cell if c.isdigit() else int(f.getlength(c)) for c in s]
+
+def number_width(s: str, px: int, weight: str = "bold") -> int:
+    """The width draw_number gives this string (tabular digits)."""
+    return sum(_number_cells(s, px, weight))
+
 def draw_number(base: Image.Image, s: str, x: int, y: int, px: int, color, align: str = "left", weight: str = "bold", alpha: float = 1.0, glow_r: int = 0) -> int:
     """Tabular number: every digit sits in a fixed cell, so a counting value never jitters. Returns the drawn width."""
-    f = gfx.font(px, weight); cell = int(max(f.getlength(str(d)) for d in "0123456789")); widths = [cell if c.isdigit() else int(f.getlength(c)) for c in s]
+    widths = _number_cells(s, px, weight)
     total = sum(widths); sx = x if align == "left" else x - total // 2 if align == "center" else x - total
     if glow_r:
         gt = gfx.text_tile(s, px, weight, tuple(color)); gl = gfx.glow(gt, glow_r, 1.4)
@@ -128,7 +144,7 @@ class CaptionTrack:
         if p is None: return
         a = min(M.smooth((t - p.t0 + 0.05) / 0.14), M.smooth((p.t1 + 0.12 - t) / 0.14))
         if a <= 0.01: return
-        U = self.U; words = [w for w, _, _ in p.words]; pos, bw, bh = gfx.layout(words, self.px, "medium", int(U.W * 0.68), 1.22, "center")
+        U = self.U; words = [w for w, _, _ in p.words]; pos, bw, bh = gfx.layout(words, self.px, "demi", int(U.W * 0.68), 1.22, "center")      # spaced at the spoken (wider) weight
         x0 = (U.W - bw) // 2; y0 = int(U.H * 0.915) - bh; rise = int((1 - M.out_cubic((t - p.t0 + 0.05) / 0.2)) * U.u(10))
         band_h = self.scrim.height; layer = Image.new("RGB", (U.W, band_h), (0, 0, 8)); region = base.crop((0, U.H - band_h, U.W, U.H))
         base.paste(Image.composite(layer, region, self.scrim.point([int(v * a) for v in range(256)])), (0, U.H - band_h))

@@ -151,3 +151,49 @@ class OrganCards(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Charts(unittest.TestCase):
+    """Some text cards become statistical graphs (bar chart, ranking, line graph, donut), only from figures the sentence says, never two in a row."""
+    def test_chart_types_from_the_sentence(self):
+        from health_cinema import charts as CH
+        b = CH.chart_for("Smokers have a 40 percent risk, while non-smokers have 15 percent.")
+        self.assertEqual((b["type"], [p["label"] for p in b["points"]], [p["value"] for p in b["points"]]), ("bar", ["Smokers", "Non-smokers"], [40, 15]))
+        r = CH.chart_for("Heart disease kills 18 million people a year, cancer 10 million, and stroke 6 million.")
+        self.assertEqual((r["type"], [p["label"] for p in r["points"]]), ("hbars", ["Heart disease", "Cancer", "Stroke"]))
+        ln = CH.chart_for("In 1990 about 12 million people died of heart disease; by 2019 it was 18.6 million.")
+        self.assertEqual((ln["type"], [p["label"] for p in ln["points"]], [p["value"] for p in ln["points"]]), ("line", ["1990", "2019"], [12, 18.6]))
+        dn = CH.donut_for("About 80 percent of heart disease is preventable.")
+        self.assertEqual((dn["points"][0]["value"], dn["points"][0]["label"]), (80, "of heart disease is preventable"))
+
+    def test_no_chart_without_two_comparable_figures(self):
+        from health_cinema import charts as CH
+        for t in ("It beats about 100,000 times a day.", "Around 20 to 30 minutes in, the first heart cells begin to die.", "In Pakistan, that's 1122.",
+                  "Men over 45 and women over 55 face higher risk.", "Your heart beats 70 times a minute and pumps 5 litres of blood.", "Two main arteries wrap around your heart."):
+            self.assertIsNone(CH.chart_for(t), t)
+        self.assertIsNone(CH.donut_for("Smokers 40 percent, non-smokers 15 percent."))      # two shares are a bar chart, not a donut
+
+    def test_planner_balances_text_and_charts(self):
+        csv_ = """text,visual,footage
+Smokers have a 40 percent risk while non-smokers have 15 percent.,text,
+Heart disease kills 18 million people a year, cancer 10 million, and stroke 6 million.,text,
+Most people never notice the warning.,text,
+In 1990 about 12 million people died of heart disease; by 2019 it was 18.6 million.,text,
+Walkers have 30 percent lower risk while runners have 45 percent lower risk.,footage,people walking park
+"""
+        kinds = [s.kind for s in plan_of(csv_)]
+        self.assertEqual(kinds[0], "chart_card"); self.assertNotEqual(kinds[1], "chart_card")      # never two charts in a row
+        self.assertEqual(kinds[2], "text_card"); self.assertEqual(kinds[3], "chart_card"); self.assertEqual(kinds[4], "footage")      # plain text and footage rows stay
+
+    def test_every_chart_draws_inside_the_frame_in_both_editors(self):
+        from health_cinema import charts as CH
+        from health_cinema.edit import shots as S
+        texts = ["Smokers have a 40 percent risk, while non-smokers have 15 percent.", "Heart disease kills 18 million people a year, cancer 10 million, and stroke 6 million.",
+                 "In 1990 about 12 million people died of heart disease; by 2019 it was 18.6 million.", "About 80 percent of heart disease is preventable."]
+        for t in texts:
+            ch = CH.chart_for(t) or CH.donut_for(t); g = {"chart": ch, "kicker": "", "context": t, "source_line": "From the narration"}
+            for at in (0.2, 1.0, 4.8):
+                im = S.KINDS["chart"]({"kind": "chart", "t0": 0, "t1": 5, "accent": (190, 120, 255), "seed": 1, "gfx": g}, 1280, 720, 0).frame(at, 0); self.assertEqual(im.size, (1280, 720))
+                edge = im.crop((1280 - 30, 0, 1280, 720)).convert("RGB")
+                self.assertEqual(sum(1 for r, g_, b in edge.get_flattened_data() if r > 120 and b > 160 and g_ < r), 0, t)
+                self.assertEqual(cards.draw_card("chart_card", dict(g, captions=[]), PROF, 1280, 720, at).size, (1280, 720))

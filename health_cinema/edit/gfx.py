@@ -83,22 +83,25 @@ def text_size(text: str, px: int, weight: str = "demi", tracking: float = 0.0) -
     f = font(px, weight); asc, desc = f.getmetrics()
     return (int(sum(f.getlength(c) + tracking * px for c in text)) if tracking else int(f.getlength(text))), asc + desc
 
-def wrap_words(words: Sequence[str], px: int, weight: str, max_w: int) -> List[List[int]]:
-    """Greedy line breaking -> list of lines, each a list of word indices."""
+def wrap_words(words: Sequence[str], px: int, weight: str, max_w: int, weights: Optional[Sequence[str]] = None) -> List[List[int]]:
+    """Greedy line breaking -> list of lines, each a list of word indices. `weights` gives a word its own weight (an emphasised word drawn bold is wider)."""
     f = font(px, weight); sp = f.getlength(" "); lines: List[List[int]] = [[]]; cur = 0.0
     for i, w in enumerate(words):
-        wl = f.getlength(w)
+        wl = font(px, weights[i]).getlength(w) if weights else f.getlength(w)
         if lines[-1] and cur + sp + wl > max_w: lines.append([]); cur = 0.0
         cur += (sp if lines[-1] else 0) + wl; lines[-1].append(i)
     return lines
 
-def layout(words: Sequence[str], px: int, weight: str, max_w: int, line_gap: float = 1.18, align: str = "left") -> Tuple[List[Tuple[int, int, int]], int, int]:
-    """-> ([(x, y, line_index) per word], block_w, block_h). x,y are text-origin (top-left of the glyph box without tile padding)."""
-    f = font(px, weight); sp = f.getlength(" "); lines = wrap_words(words, px, weight, max_w); pos: Dict[int, Tuple[int, int, int]] = {}
-    widths = [sum(f.getlength(words[i]) for i in ln) + sp * (len(ln) - 1) for ln in lines]; bw = int(max(widths) if widths else 0); lh = int(px * line_gap)
+def layout(words: Sequence[str], px: int, weight: str, max_w: int, line_gap: float = 1.18, align: str = "left",
+           weights: Optional[Sequence[str]] = None) -> Tuple[List[Tuple[int, int, int]], int, int]:
+    """-> ([(x, y, line_index) per word], block_w, block_h). x,y are text-origin (top-left of the glyph box without tile padding).
+    `weights` (one per word) spaces each word at the weight it is drawn in, so a bold word never runs into the next one."""
+    f = font(px, weight); sp = f.getlength(" "); lines = wrap_words(words, px, weight, max_w, weights); pos: Dict[int, Tuple[int, int, int]] = {}
+    wl = [font(px, weights[i]).getlength(w) if weights else f.getlength(w) for i, w in enumerate(words)]
+    widths = [sum(wl[i] for i in ln) + sp * (len(ln) - 1) for ln in lines]; bw = int(max(widths) if widths else 0); lh = int(px * line_gap)
     for li, ln in enumerate(lines):
         x = {"left": 0, "center": (bw - widths[li]) / 2, "right": bw - widths[li]}[align]
-        for i in ln: pos[i] = (int(x), li * lh, li); x += f.getlength(words[i]) + sp
+        for i in ln: pos[i] = (int(x), li * lh, li); x += wl[i] + sp
     return [pos[i] for i in range(len(words))], bw, lh * len(lines)
 
 # ---- shapes ---------------------------------------------------------------------------------------------------------------------------

@@ -70,6 +70,50 @@ def draw_bar(d, p, prof, W, H, t, sz) -> None:
         d.text((m, y), ln, font=_font(sz["body"]), fill=(*SOFT, round(255 * a))); y += sz["body"] * 1.3
     d.text((m, H * 0.80 - sz["source"] * 1.4), _trim(p.get("source_line") or "Source needed: this figure is not shown as established fact until a source is attached", 130), font=_font(sz["source"]), fill=(*MUTED, 255))
 
+# ---- chart: bar chart / ranking / line graph / donut of figures the sentence says (health_cinema.charts) -----------------------------
+def draw_chart(d, p, prof, W, H, t, sz) -> None:
+    ch = p["chart"]; pts = ch["points"]; m = round(W * 0.08); acc = prof.accent; a = ease(t / 0.6); e = ease((t - 0.5) / 1.6); top = max(q["value"] for q in pts)
+    lab_f, val_f = _font(sz["body"]), _font(round(sz["body"] * 1.4)); dim = tuple(int(c * 0.55 + 60) for c in acc)
+    d.text((m, H * 0.12), (p.get("kicker") or "By the numbers").upper(), font=_font(sz["label"]), fill=(*acc, round(255 * a)))
+    y = H * 0.18
+    for ln in _wrap(d, _trim(p.get("context", ""), 160), _font(sz["body"]), W - 2 * m)[:2]: d.text((m, y), ln, font=_font(sz["body"]), fill=(*SOFT, round(255 * a))); y += sz["body"] * 1.3
+    x0, y0, x1, y1 = m, H * 0.36, W - m, H * 0.72; base = y1 - sz["body"] * 1.8
+    if ch.get("unit") and ch["unit"] != "%": d.text((m, y0 - sz["source"] * 1.6), ch["unit"], font=_font(sz["source"]), fill=(*MUTED, 255))
+    if ch["type"] == "bar":
+        n = len(pts); bw = min(W * 0.14, (x1 - x0) / (2 * n)); gap = bw * 1.3; bx = x0 + (x1 - x0 - (n * bw + (n - 1) * gap)) / 2
+        d.line([bx - 20, base, bx + n * bw + (n - 1) * gap + 20, base], fill=(*TRACK, 255), width=3)
+        for k, q in enumerate(pts):
+            h = (base - y0 - sz["body"] * 2) * q["value"] / top * e; x = bx + k * (bw + gap)
+            if h > 2: d.rounded_rectangle([x, base - h, x + bw, base], radius=10, fill=(*(acc if q["value"] == top else dim), 255))
+            d.text((x + bw / 2, base - h - 10), q["shown"], font=val_f, fill=(*WHITE, round(255 * e)), anchor="mb")
+            d.text((x + bw / 2, base + 14), q["label"], font=lab_f, fill=(*SOFT, round(255 * a)), anchor="ma")
+    elif ch["type"] == "hbars":
+        row = min(H * 0.08, (y1 - y0) / len(pts)); bx0 = x0 + (x1 - x0) * 0.30; bmax = (x1 - x0) * 0.52; th = row * 0.56
+        for k, q in enumerate(pts):
+            yy = y0 + k * row; w = bmax * q["value"] / top * e
+            d.text((bx0 - 20, yy + th / 2), q["label"], font=lab_f, fill=(*(WHITE if k == 0 else SOFT), round(255 * a)), anchor="rm")
+            d.rounded_rectangle([bx0, yy, bx0 + bmax, yy + th], radius=th / 2, fill=(*TRACK, round(160 * a)))
+            if w > th: d.rounded_rectangle([bx0, yy, bx0 + w, yy + th], radius=th / 2, fill=(*(acc if k == 0 else dim), 255))
+            d.text((bx0 + w + 14, yy + th / 2), q["shown"], font=lab_f, fill=(*WHITE, round(255 * e)), anchor="lm")
+    elif ch["type"] == "line":
+        n = len(pts); lx0, lx1 = x0 + 60, x1 - 100; xs = [lx0 + (lx1 - lx0) * k / max(1, n - 1) for k in range(n)]; ys = [base - (base - y0 - sz["body"] * 2) * q["value"] / top for q in pts]
+        d.line([lx0 - 30, base, lx1 + 30, base], fill=(*TRACK, 255), width=3); upto = e * (n - 1); line = [(xs[0], ys[0])]
+        for k in range(1, n):
+            if upto >= k: line.append((xs[k], ys[k]))
+            elif upto > k - 1: f = upto - (k - 1); line.append((xs[k - 1] + (xs[k] - xs[k - 1]) * f, ys[k - 1] + (ys[k] - ys[k - 1]) * f)); break
+        if len(line) > 1: d.line(line, fill=(*acc, 255), width=7, joint="curve")
+        for k, q in enumerate(pts):
+            d.text((xs[k], base + 14), q["label"], font=lab_f, fill=(*SOFT, round(255 * a)), anchor="ma")
+            if upto >= k - 0.02: d.ellipse([xs[k] - 10, ys[k] - 10, xs[k] + 10, ys[k] + 10], fill=(*WHITE, 255)); d.text((xs[k], ys[k] - 18), q["shown"], font=val_f, fill=(*WHITE, 255), anchor="mb")
+    else:      # donut
+        q = pts[0]; r = (y1 - y0) * 0.5; cx, cy = x0 + r + 20, (y0 + y1) / 2; wd = round(r * 0.22)
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*TRACK, 255), width=wd)
+        if e > 0.01: d.arc([cx - r, cy - r, cx + r, cy + r], -90, -90 + 360 * q["value"] / 100 * e, fill=(*acc, 255), width=wd)
+        d.text((cx, cy), f"{q['value'] * e:.0f}%" if e < 1 else q["shown"], font=_font(round(r * 0.55)), fill=(*WHITE, round(255 * a)), anchor="mm")
+        yy = cy - sz["title"]
+        for ln in _wrap(d, q.get("label", ""), _font(sz["title"]), x1 - cx - r - 80)[:3]: d.text((cx + r + 80, yy), ln, font=_font(sz["title"]), fill=(*WHITE, round(255 * e)), anchor="lm"); yy += sz["title"] * 1.2
+    d.text((m, H * 0.80 - sz["source"] * 1.4), _trim(p.get("source_line") or "From the narration", 130), font=_font(sz["source"]), fill=(*MUTED, 255))
+
 # ---- timeline: a sequence of events (labels come from the script) -------------------------------------------------------------
 def draw_timeline(d, p, prof, W, H, t, sz) -> None:
     ev = p.get("events", []); m = round(W * 0.08); acc = prof.accent; n = max(1, len(ev))

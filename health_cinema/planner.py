@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field, asdict
 from typing import Callable, Dict, List, Optional
 
-from . import evidence, profiles as P, spoken as SP
+from . import charts as CH, evidence, profiles as P, spoken as SP
 
 ANATOMY = {  # organ -> keywords; `template` is the journey the current asset supports (None = no asset yet)
     "heart": (["heart", "cardiac", "cardiovascular", "blood pressure", "artery", "arteries", "coronary", "ventricle", "atrium", "heartbeat", "circulation", "valve", "valves", "chambers", "pumping", "blood flow"], "heart_journey"),
@@ -168,6 +168,34 @@ def overlay_for(hint: dict, it: dict) -> Optional[dict]:
     return None
 
 
+CHART_FROM = ("text_card", "stat_card", "bar_card")      # a chart only ever replaces a card; footage, 3D, lists and compare rows stay as they are
+CHART_HINTS = (None, "", "auto", "text", "stat", "bar")
+
+
+def _charts(items: List[dict]) -> None:
+    """Some typographic cards become statistical graphs, so the film is not all text: two or more comparable figures in one sentence -> a bar chart
+    (two) or a ranking (three or more), figures at years in order -> a line graph, one share of a whole -> a donut (every other percentage, so the
+    dot grid and the donut take turns). Only numbers the sentence says; never two charts in a row."""
+    prev_chart = False; last_pct = ""
+    for it in items:
+        hv = (it["d"].get("hint") or {}).get("visual")
+        if it["kind"] not in CHART_FROM or hv not in CHART_HINTS or prev_chart:
+            prev_chart = it["kind"] == "chart_card"
+            if it["kind"] == "bar_card": last_pct = "dots"
+            continue
+        text = " ".join(x["text"].strip() for x in it["g"]); ch = CH.chart_for(text); why = ""
+        if ch: why = f"{len(ch['points'])} figures in the sentence -> {'line graph' if ch['type'] == 'line' else 'ranking' if ch['type'] == 'hbars' else 'bar chart'}"
+        else:
+            dn = CH.donut_for(text)
+            if dn and last_pct != "donut": ch, why = dn, "a share of a whole -> donut"
+            if dn: last_pct = "donut" if ch else "dots"
+        if ch:
+            hint = it["d"].get("hint") or {}
+            it["visual"] = {"chart": ch, "kicker": hint.get("stat_kicker") or hint.get("card_title") or "", "context": text, "source_line": hint.get("stat_source") or "From the narration"}
+            it["kind"] = "chart_card"; it.setdefault("why", []).append(why)
+        prev_chart = bool(ch)
+
+
 def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], template_ready: Callable[[str], bool], *, allow_footage: bool = True, title: str = "") -> Dict:
     """Scenes from the director's grouping. Rules (first match wins): 'every N <unit>' -> counter; a percentage -> bar; brain/carotid -> brain journey; eye/vision -> eye
     journey; heart/lungs -> their journeys; director footage query -> footage; else a typographic card. Each 3D template is used at most once per video, 3D scenes are
@@ -280,6 +308,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             it["visual"]["cards"] = [{"type": hint["card_type"], "ref": hint.get("card_ref") or "", "prompt": hint.get("card_prompt") or "", "at": hint.get("card_at")}]
             why.append(f"illustration card pinned to the organ: {hint.get('card_ref') or hint.get('card_prompt', '')[:40]}")
         it["why"] = why
+    _charts(items)
     # consecutive body-map rows are ONE continuous shot: the camera travels between their regions, the narration timing drives each beat
     k = 0
     while k + 1 < len(items):
@@ -362,7 +391,7 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             if it["visual"].get("body_rows"): _body_flags(sc, it)
             elif it["end"] - it["start"] < 0.5 * MIN_3D_S.get(it["visual"].get("template", ""), 10.0):
                 sc.flags.append({"code": "3d_short", "severity": "note", "message": f"This 3D scene is only {it['end'] - it['start']:.1f} s long, so its camera move is compressed. Give the row a longer sentence or follow it with another row for the same body part."})
-        if it["kind"] in ("counter_card", "bar_card") and not sc.sources: sc.flags.append({"code": "figure_unsourced", "severity": "review", "message": "This figure is shown with 'Source needed': attach the study, population and year before publishing."})
+        if it["kind"] in ("counter_card", "bar_card", "chart_card") and not sc.sources: sc.flags.append({"code": "figure_unsourced", "severity": "review", "message": "This figure is shown with 'Source needed': attach the study, population and year before publishing."})
         scenes.append(sc)
     seen3d: Dict[str, int] = {}
     for sc in scenes:      # the n-th use of one 3D template in a video gets variant n: another camera side, another random arrangement (library.apply_variant)

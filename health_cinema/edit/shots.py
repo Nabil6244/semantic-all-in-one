@@ -279,10 +279,91 @@ class StatShot(DataShot):
         raw = str(g.get("number", "")); unit = g.get("unit", "")
         try: v = float(raw.replace(",", "")); s = f"{v * M.out_cubic(t / 1.5):,.{0 if v == int(v) else 1}f}" if t < 1.5 else raw
         except ValueError: s = raw
-        w = typo.draw_number(im, s, U.margin, int(H * 0.27), U.u(290), acc, "left", "bold", M.out_cubic(t / 0.5), U.u(14))
-        if unit: tile = gfx.text_tile(unit, U.u(150), "bold", acc); pad = int(U.u(150) * 0.35); gfx.paste(im, tile, U.margin + w + U.u(8) - pad, int(H * 0.27) + U.u(120) - pad, M.out_cubic(t / 0.5))
-        kk = typo.Kinetic(g.get("context", ""), U.u(44), int(W * 0.7), acc, "regular", "left", set(), SOFT); kk.draw(im, U.margin, int(H * 0.27) + U.u(360), t, 0.9, 0.04, 0.6)
+        # the figure and its unit always fit inside the margins: shrunk together (never below 60 %), and a unit that still does not fit goes under the number
+        npx, upx, gap, avail = U.u(290), U.u(150), U.u(8), W - 2 * U.margin
+        nw = typo.number_width(raw, npx); uw = gfx.text_size(unit, upx, "bold")[0] if unit else 0
+        k = min(1.0, avail / max(1, nw + (gap + uw if unit else 0))); below = k < 0.6
+        if below: k = min(1.0, avail / max(1, nw, uw))
+        npx, upx = int(npx * k), int(upx * k); y = int(H * 0.27)
+        w = typo.draw_number(im, s, U.margin, y, npx, acc, "left", "bold", M.out_cubic(t / 0.5), U.u(14))
+        ux, uy = (U.margin, y + int(npx * 1.08)) if below else (U.margin + typo.number_width(raw, npx) + gap, y + int(npx * 0.414))
+        if unit: tile = gfx.text_tile(unit, upx, "bold", acc); pad = int(upx * 0.35); gfx.paste(im, tile, ux - pad, uy - pad, M.out_cubic(t / 0.5))
+        cy = max(y + U.u(360), uy + int(upx * 1.35)) if below else y + max(U.u(230), int(U.u(400) * k))
+        kk = typo.Kinetic(g.get("context", ""), U.u(44), int(W * 0.7), acc, "regular", "left", set(), SOFT); kk.draw(im, U.margin, cy, t, 0.9, 0.04, 0.6)
         self.notes(im, t, [], g.get("source_line") or "Source needed (not shown to viewers until attached)", 0.76)
+
+class ChartShot(DataShot):
+    """A statistical graph of figures the sentence says: bar chart, ranking, line graph or donut (health_cinema.charts). Bars grow, the line draws,
+    the ring sweeps; every value is labelled with the number as said."""
+    TRACK = (44, 60, 94)
+    def _txt(self, im, text, px, weight, color, x, y, a, anchor="left"):
+        tile = gfx.text_tile(text, px, weight, tuple(color)); pad = gfx.tile_pad(px); w = tile.width - 2 * pad
+        gfx.paste(im, tile, (x if anchor == "left" else x - w // 2 if anchor == "center" else x - w) - pad, y - pad, a); return w
+    def draw(self, im, t):
+        U, W, H, g, acc = self.U, self.W, self.H, self.spec["gfx"], self.accent; ch = g["chart"]; pts = ch["points"]; unit = ch.get("unit", "")
+        typo.kicker(im, g.get("kicker") or "By the numbers", U.margin, int(H * 0.13), U.u(26), acc, t, 0.1)
+        if g.get("context"):
+            kk = typo.Kinetic(g["context"], U.u(40), int(W * 0.8), acc, "regular", "left", set(), SOFT); kk.draw(im, U.margin, int(H * 0.18), t, 0.3, 0.03, 0.5)
+        if unit and unit != "%": self._txt(im, unit.upper() if len(unit) < 4 else unit, U.u(24), "demi", MUTED, U.margin, int(H * 0.33), M.out_cubic((t - 0.4) / 0.5))
+        box = (U.margin, int(H * 0.37), W - U.margin, int(H * 0.70))
+        getattr(self, "_" + ch["type"])(im, t, pts, box)
+        self.notes(im, t, [], g.get("source_line") or "From the narration", 0.76)
+    def _bar(self, im, t, pts, box):
+        U, acc = self.U, self.accent; x0, y0, x1, y1 = box; n = len(pts); top = max(p["value"] for p in pts)
+        bw = min(U.u(280), (x1 - x0) // (2 * n)); gap = int(bw * 1.3); total = n * bw + (n - 1) * gap; bx = x0 + (x1 - x0 - total) // 2      # centred in the frame
+        base_y = y1 - U.u(50); hmax = base_y - y0 - U.u(60)
+        gfx.fill_rect(im, (bx - U.u(20), base_y, bx + total + U.u(20), base_y + max(2, U.u(3))), self.TRACK, M.out_cubic(t / 0.5))
+        for k, p in enumerate(pts):
+            e = M.out_cubic((t - 0.5 - 0.25 * k) / 1.2); h = int(hmax * p["value"] / top * e); x = bx + k * (bw + gap)
+            col = acc if p["value"] == top else tuple(int(c * 0.55 + 60) for c in acc)
+            if h > 2: gfx.paste(im, gfx.aa(bw, h, lambda d, ss, col=col, h=h: d.rounded_rectangle([0, 0, bw * ss, (h + U.u(12)) * ss], radius=U.u(12) * ss, fill=(*col, 255))), x, base_y - h, 1.0)
+            self._txt(im, p["shown"], U.u(64), "bold", WHITE, x + bw // 2, base_y - h - U.u(84), e, "center")
+            self._txt(im, p["label"], U.u(34), "medium", SOFT, x + bw // 2, base_y + U.u(18), M.out_cubic((t - 0.4) / 0.5), "center")
+    def _hbars(self, im, t, pts, box):
+        U, acc = self.U, self.accent; x0, y0, x1, y1 = box; n = len(pts); top = max(p["value"] for p in pts)
+        row = min(U.u(84), (y1 - y0) // n); lab_w = int((x1 - x0) * 0.30); bx0 = x0 + lab_w; bmax = int((x1 - x0) * 0.52); th = int(row * 0.56)
+        for k, p in enumerate(pts):
+            y = y0 + k * row; a = M.out_cubic((t - 0.3 - 0.12 * k) / 0.5); e = M.out_cubic((t - 0.5 - 0.18 * k) / 1.1); w = int(bmax * p["value"] / top * e)
+            self._txt(im, p["label"], U.u(36), "demi" if k == 0 else "medium", WHITE if k == 0 else SOFT, bx0 - U.u(24), y + (th - U.u(36)) // 2, a, "right")
+            gfx.fill_rect(im, (bx0, y, bx0 + bmax, y + th), self.TRACK, a * 0.5)
+            col = acc if k == 0 else tuple(int(c * 0.55 + 60) for c in acc)
+            if w > 2: gfx.paste(im, gfx.aa(w, th, lambda d, ss, col=col, w=w: d.rounded_rectangle([0, 0, w * ss, th * ss], radius=(th // 2) * ss, fill=(*col, 255))), bx0, y, 1.0)
+            self._txt(im, p["shown"], U.u(38), "bold", WHITE, bx0 + w + U.u(16), y + (th - U.u(38)) // 2, e)
+    def _line(self, im, t, pts, box):
+        U, acc = self.U, self.accent; x0, y0, x1, y1 = box; n = len(pts); top = max(p["value"] for p in pts)
+        lx0, lx1 = x0 + U.u(80), x1 - U.u(120); base_y = y1 - U.u(50); hmax = base_y - y0 - U.u(70)
+        xs = [lx0 + (lx1 - lx0) * k / max(1, n - 1) for k in range(n)]; ys = [base_y - hmax * p["value"] / top for p in pts]      # zero baseline: growth is shown honestly
+        gfx.fill_rect(im, (lx0 - U.u(30), base_y, lx1 + U.u(30), base_y + max(2, U.u(3))), self.TRACK, M.out_cubic(t / 0.5))
+        e = M.in_out_cubic((t - 0.5) / (0.9 + 0.35 * n)); upto = e * (n - 1)
+        line = [(xs[0], ys[0])]
+        for k in range(1, n):
+            if upto >= k: line.append((xs[k], ys[k]))
+            elif upto > k - 1: f = upto - (k - 1); line.append((xs[k - 1] + (xs[k] - xs[k - 1]) * f, ys[k - 1] + (ys[k] - ys[k - 1]) * f)); break
+        if len(line) > 1:
+            ox, oy = int(lx0 - U.u(20)), int(y0)
+            def draw(d, ss, line=line):
+                pl = [((x - ox) * ss, (y - oy) * ss) for x, y in line]
+                d.polygon(pl + [(pl[-1][0], (base_y - oy) * ss), (pl[0][0], (base_y - oy) * ss)], fill=(*acc, 46))
+                d.line(pl, fill=(*acc, 255), width=max(3, U.u(7)) * ss, joint="curve")
+            lay = gfx.aa(int(lx1 - lx0 + U.u(60)), int(base_y - y0 + 4), draw); gfx.paste(im, gfx.glow(lay, U.u(10), 0.8), ox, oy, 0.5); gfx.paste(im, lay, ox, oy, 1.0)
+        for k, p in enumerate(pts):
+            on = upto >= k - 0.02; a = M.out_back((t - 0.5 - (0.9 + 0.35 * n) * k / max(1, n - 1)) / 0.4) if on else 0.0; r = U.u(12)
+            self._txt(im, p["label"], U.u(32), "medium", SOFT, int(xs[k]), base_y + U.u(18), M.out_cubic((t - 0.3) / 0.5), "center")
+            if not on: continue
+            gfx.paste(im, gfx.aa(2 * r + 4, 2 * r + 4, lambda d, ss: d.ellipse([2 * ss, 2 * ss, (2 * r + 2) * ss, (2 * r + 2) * ss], fill=(255, 255, 255, 255))), int(xs[k]) - r - 2, int(ys[k]) - r - 2, min(1.0, a))
+            self._txt(im, p["shown"], U.u(52), "bold", WHITE, int(xs[k]), int(ys[k]) - U.u(80), min(1.0, a), "center")
+    def _donut(self, im, t, pts, box):
+        U, acc = self.U, self.accent; x0, y0, x1, y1 = box; p = pts[0]; r = int((y1 - y0) * 0.5); cx, cy = x0 + U.u(40) + r, (y0 + y1) // 2 + U.u(10)
+        e = M.in_out_cubic((t - 0.5) / 1.6); sweep = 360 * p["value"] / 100.0 * e; wd = max(8, int(r * 0.22)); size = 2 * r + 8
+        def ring(d, ss):
+            box_ = [4 * ss, 4 * ss, (size - 4) * ss, (size - 4) * ss]; d.ellipse(box_, outline=(*self.TRACK, 255), width=wd * ss)
+            if sweep > 0.5: d.arc(box_, -90, -90 + sweep, fill=(*acc, 255), width=wd * ss)
+        lay = gfx.aa(size, size, ring); a = M.out_cubic((t - 0.2) / 0.6)
+        gfx.paste(im, gfx.glow(lay, U.u(14), 0.9), cx - size // 2, cy - size // 2, 0.45 * a); gfx.paste(im, lay, cx - size // 2, cy - size // 2, a)
+        shown = f"{p['value'] * e:.0f}%" if e < 1 else p["shown"]
+        typo.draw_number(im, shown, cx, cy - int(r * 0.32), int(r * 0.58), WHITE, "center", "bold", a)
+        if p.get("label"):
+            kk = typo.Kinetic(p["label"], U.u(64), int((x1 - cx - r) * 0.85), acc, "demi", "left", set(), WHITE); kk.draw(im, cx + r + U.u(90), cy - kk.h // 2, t, 1.0, 0.06, 0.6)
 
 class EvidenceShot(DataShot):
     def draw(self, im, t):
@@ -311,7 +392,7 @@ class ListShot(_CardShot): pass
 class CompareShot(_CardShot): pass
 
 KINDS = {"list": ListShot, "compare": CompareShot, "footage": FootageShot, "anatomy": AnatomyShot, "counter": CounterShot, "bar": BarShot, "timeline": TimelineShot, "statement": StatementShot, "stat": StatShot,
-         "evidence": EvidenceShot, "chapter": ChapterShot}
+         "evidence": EvidenceShot, "chart": ChartShot, "chapter": ChapterShot}
 
 def render_shot(spec: dict, W: int, H: int, out, handle: int, cancel=None) -> None:
     """Render the shot (body + `handle` frames each side) to an intermediate clip. Written to a .part file and moved into place, so a failure leaves nothing."""

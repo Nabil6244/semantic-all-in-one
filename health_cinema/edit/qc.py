@@ -37,7 +37,7 @@ def plan_checks(plan: dict) -> List[dict]:
         for o in s.get("overlays", []):
             if o["type"] in ("chip",) and o["t1"] - o["t0"] < 1.8: add("short_lived_text", "review", f"scene {s['scene_no']}", f"chip '{o['text']}' on screen {o['t1'] - o['t0']:.1f}s")
             if o["type"] == "title" and (o.get("t_out", d) - o["t0"]) < 1.5: add("short_lived_text", "review", f"scene {s['scene_no']}", f"title '{o['text']}' on screen {(o.get('t_out', d) - o['t0']):.1f}s")
-        if s["kind"] in ("counter", "bar", "stat") and not s["gfx"].get("source_line"): add("figure_without_source", "review", f"scene {s['scene_no']}", "figure shown with a 'Source needed' label: attach the source before publishing")
+        if s["kind"] in ("counter", "bar", "chart", "stat") and not s["gfx"].get("source_line"): add("figure_without_source", "review", f"scene {s['scene_no']}", "figure shown with a 'Source needed' label: attach the source before publishing")
         if s["kind"] == "anatomy" and not s.get("illustrative"): add("missing_disclaimer", "high", f"scene {s['scene_no']}", "3D scene without the illustration disclaimer")
     for p in phrases:
         d = p.t1 - p.t0; cps = len(p.text) / max(0.1, d)

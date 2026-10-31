@@ -90,9 +90,11 @@ def _key_word(item: str) -> str:
     return ws[0] if ws else ""
 
 
+READ_S = 1.5      # every list / do-don't item stays readable this long
+
 def times_for(items: List[str], sentences: List[dict], start: float, dur: float) -> List[Dict]:
     """Each item gets the moment its key word is spoken in the scene's sentences (word position inside the sentence); never before the previous item,
-    never in the last second. An item whose word is not found is spaced evenly."""
+    on screen for at least READ_S before the scene ends (a short scene shows them early rather than for a flash). An item whose word is not found is spaced evenly."""
     out: List[Dict] = []; last = 0.2; n = max(1, len(items))
     for k, item in enumerate(items):
         key = _key_word(item); t = None
@@ -104,7 +106,7 @@ def times_for(items: List[str], sentences: List[dict], start: float, dur: float)
                 t = None
         if t is None:
             t = dur * (k + 0.4) / (n + 0.4)
-        t = round(min(max(t, last + 0.45 if out else 0.3), max(0.3, dur - 1.0)), 2); last = t
+        t = round(min(max(t, last + 0.45 if out else 0.3), max(0.3, dur - READ_S)), 2); last = t
         out.append({"text": item, "t0": t})
     return out
 

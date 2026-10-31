@@ -77,6 +77,38 @@ class Shots(unittest.TestCase):
         d = Path(tempfile.mkdtemp()); spec = {"kind": "statement", "t0": 0, "t1": 1.0, "accent": (255, 96, 80), "seed": 1, "gfx": {"beats": [{"text": "Hello there", "t0": 0.0}]}}
         out = d / "s.mp4"; S.render_shot(spec, W, H, out, 12); r = media.read_frames_exact(str(out), W, H, 0, 24 + 24); self.assertEqual(len(list(r)), 48)
 
+class TextLayout(unittest.TestCase):
+    """On-screen text: words never run into each other, quotes stay clean, a big figure never leaves the frame, card items are readable."""
+    def _no_overlap(self, words, pos, px, weights):
+        for i in range(len(words) - 1):
+            if pos[i][2] == pos[i + 1][2]:
+                end = pos[i][0] + gfx.font(px, weights[i]).getlength(words[i])
+                self.assertGreater(pos[i + 1][0], end + px * 0.1, f"{words[i]!r} runs into {words[i + 1]!r}")
+    def test_emphasised_word_keeps_its_space(self):
+        text = "But a soft plaque in a barely narrowed artery gives you no warning at all."
+        words = text.split(); emph = {words.index("warning"), words.index("plaque")}
+        k = typo.Kinetic(text, 104, 1500, (200, 120, 255), "demi", "left", emph)
+        self._no_overlap(k.words, k.pos, 104, ["bold" if i in emph else "demi" for i in range(len(words))])
+    def test_caption_words_spaced_at_spoken_weight(self):
+        words = "It beats about 100,000 times a day.".split()
+        pos, _, _ = gfx.layout(words, 42, "demi", 1300, 1.22, "center"); self._no_overlap(words, pos, 42, ["demi"] * len(words))
+    def test_doubled_quotes_cleaned(self):
+        self.assertEqual(typo.clean_quotes('over and over: "Time is muscle."""'), 'over and over: "Time is muscle."')
+        self.assertEqual(typo.clean_quotes('He said "no" twice'), 'He said "no" twice')
+        self.assertNotIn('""', " ".join(typo.Kinetic('say: ""Time is muscle.""', 60, 900, (1, 2, 3)).words))
+    def test_stat_number_and_unit_stay_inside_the_frame(self):
+        Wf, Hf = 1280, 720
+        for num, unit in (("100,000", "times a day"), ("1122", "emergency line"), ("20-30", "minutes"), ("1,000,000,000", "red blood cells every day")):
+            spec = {"kind": "stat", "t0": 0, "t1": 4.0, "accent": (190, 120, 255), "seed": 1, "gfx": {"number": num, "unit": unit, "context": "x", "kicker": "k"}}
+            im = S.KINDS["stat"](spec, Wf, Hf, 0).frame(3.0, 0); m = S.Units(Wf, Hf).margin
+            edge = im.crop((Wf - m // 2, 0, Wf, Hf)).convert("RGB")
+            hot = sum(1 for r, g, b in edge.get_flattened_data() if r > 120 and b > 160 and g < r)      # accent-coloured pixels in the right margin = text cut off
+            self.assertEqual(hot, 0, f"{num} {unit} runs off the frame")
+    def test_card_items_readable_on_a_short_scene(self):
+        from health_cinema import spoken as SP
+        s = [{"text": "If you suspect a heart attack, don't drive yourself.", "start": 0.0, "end": 3.6}]
+        for it in SP.times_for(["Drive yourself", "Call your local emergency number"], s, 0.0, 3.6): self.assertLessEqual(it["t0"], 3.6 - SP.READ_S)
+
 class Grade(unittest.TestCase):
     def test_exposure_gain_bounds_and_grain_deterministic(self):
         self.assertEqual(grade.exposure_gain(0.01), 1.45); self.assertEqual(grade.exposure_gain(0.9), 0.75)

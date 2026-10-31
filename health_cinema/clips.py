@@ -190,7 +190,7 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
         _footage_clip(visual["path"], W, H, frames, out, ff, cancel, captions_for(sc), visual.get("overlays"), prof.accent)
     else:
         prm = dict(visual); prm["illustrative"] = sc.illustrative if kind != "anatomy_3d" else ""
-        if kind in ("counter_card", "bar_card", "timeline_card"): prm["captions"] = captions_for(sc); prm["source_line"] = _source_line(sc)
+        if kind in ("counter_card", "bar_card", "timeline_card", "chart_card"): prm["captions"] = captions_for(sc); prm["source_line"] = _source_line(sc) or prm.get("source_line", "")
         if kind == "stat_card": prm.update(_stat_params(sc))
         if kind == "evidence_card": prm.update({"level": sc.evidence_level, "source_line": _source_line(sc)})
         if kind == "chapter_card": prm = {"title": visual.get("title") or sc.chapter or sc.text[:80], "kicker": visual.get("kicker") or "Chapter"}
