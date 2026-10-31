@@ -38,7 +38,7 @@ def _cue_key(c) -> Dict[str, Any]:
             "slot": c.slot, "pos": c.pos, "params": c.params, "cps": c.cps}
 
 
-OPT_OMIT_WHEN_OFF = ("scene_intel", "scene_flow_share", "scene_notes", "alive", "meaning", "recipes", "continuity", "animate", "pictures", "motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
+OPT_OMIT_WHEN_OFF = ("scene_intel", "scene_flow_share", "flow_only", "flow_backdrops", "scene_notes", "alive", "meaning", "recipes", "continuity", "animate", "pictures", "motion", "numbers", "maplines", "variety", "budget", "fill", "sound", "dialogue", "scenes2", "mapoverlay", "camera", "texture")        # opt-in switches: absent from the report while off, so a disabled report is unchanged
 
 
 def _finish_key(opt: DirectorOptions) -> Dict[str, Any]:
@@ -68,7 +68,7 @@ def clip_name(cues, beat_words, start: float, end: float, opt: DirectorOptions, 
     blob = json.dumps({"v": EXPLAINER_VERSION, "schema": SCHEMA_VERSION, "assets": man, "id": beat_id, "cues": [_cue_key(c) for c in cues], "words": [[w[0], round(w[1], 4), round(w[2], 4)] for w in beat_words],
                        "start": round(start, 4), "end": round(end, 4), "dissolve": opt.dissolve_s, "fps": opt.fps, "size": list(opt.size),
                        **({"bg": background} if background != "grey" else {}), **_finish_key(opt)}, sort_keys=True, default=str)
-    return f"board_{hashlib.sha256(blob.encode()).hexdigest()[:16]}.mp4"
+    return f"board_{hashlib.sha256(blob.encode()).hexdigest()[:16]}.{'mov' if background == 'alpha' else 'mp4'}"      # a see-through board is an RGBA QuickTime clip
 
 
 def direct(words: Sequence[Word], script: Optional[str] = None, options: Optional[DirectorOptions] = None, *, duration: Optional[float] = None,
@@ -189,6 +189,18 @@ def _map_cards(b, words, hits, info: Dict[str, Any], opt, n_labels: int = 0) -> 
             mod_ = CPX_.era_modifier(era_["year"])
             if mod_ and CPX_.relevance_accepts_era():
                 q_asset = query + " " + " ".join(mod_)
+        if opt.flow_only:                               # Flow only: the card is drawn for this moment of the story (its period), not a photograph of the place today
+            from . import compose_pictures as CPX_
+            from .. import scene_intel as SI_
+            src = "flow_image"
+            spec_ = SI_.SceneSpec(place=" ".join(w.capitalize() for w in query.split()), year=CPX_.era_of_beat(words, b)["year"], architecture="specific")
+            q_asset = SI_.flow_prompt(spec_)
+            seen_ = info.setdefault("flow_card_prompts", [])
+            if q_asset.lower() in seen_:                # the same request gives the same picture: one card per prompt in a video
+                continue
+            seen_.append(q_asset.lower())
+            if b.id not in info.setdefault("scene_flow_beats", []):
+                info["scene_flow_beats"].append(b.id)
         card = {"asset": f"{src}:{q_asset}", "t": round(t, 3), "label": label, "reason": f"shows {query}: the narration says it here"}
         if place:
             card["place"] = place
@@ -209,28 +221,142 @@ def _stats_for(b, words) -> List[Dict[str, Any]]:
     return []
 
 
+_SPECIFIC_KINDS = ("city", "admin1", "country", "county")
+_SCENE_PEOPLE = frozenset((LX.PEOPLE_WORDS - {"people", "population", "everyone", "crowd"}) | {"merchants", "merchant", "traders", "sailors", "soldiers", "armies", "army", "invaders", "crusaders", "settlers", "explorers", "refugees"})
+
+
+SET_MAX_USES = 2               # one library cartoon set (the beach with the boat) at most this often in a video: past it the beat is drawn for its own moment by Flow
+SCENE_SHOTS = ("wide establishing view", "street-level view among the people", "close-up of a telling detail", "high aerial view", "view from the water", "interior view",
+               "evening view with lamplight", "crowd in motion")      # the same place and period seen again is seen another way; past the last one the beat stays a board
+
+
+def _uniq(items) -> List[str]:
+    out: List[str] = []
+    for x in items:
+        if x not in out:
+            out.append(x)
+    return out
+
+
+def story_place(beats) -> str:
+    """The place the story is about: the town, state or country spoken in the most beats (seas and continents are where it happens, not what it is about). "" when none is spoken."""
+    n: Dict[str, int] = {}
+    for b in beats:
+        for name in {h.name for h in b.places if h.kind in _SPECIFIC_KINDS}:
+            n[name] = n.get(name, 0) + 1
+    return max(n, key=lambda k: (n[k], -list(n).index(k))) if n else ""
+
+
+def beat_place(beats, k: int) -> str:
+    """The place beat k is about: the first town, state or country it speaks, else the last one spoken in the two beats before it. "" when none."""
+    for j in range(k, max(-1, k - 3), -1):
+        hits = [h for h in beats[j].places if h.kind in _SPECIFIC_KINDS]
+        if hits:
+            return hits[0].name if j == k else hits[-1].name
+    return ""
+
+
+PLATE_RUN = 2                  # one background plate is kept for at most this many board beats in a row (same place and period); then the camera "moves" to another framing
+PLATE_LOOK = "empty scene with no people and no text, calm composition, soft focus, open quiet space on the right side"
+
+
+def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any]) -> str:
+    """The Flow background plate behind board beat k: the place it is about (its own, the story's just before it, or the story's home), its period, and a framing from SCENE_SHOTS that
+    changes when the place or period changes or after PLATE_RUN beats on the same plate. "" when the beat names no place, no period and nothing to show (a topic with no setting keeps paper)."""
+    from ..beats.relevance import beat_tokens
+    from . import compose_pictures as CPX
+    from .. import scene_intel as SI
+    b = beats[k]
+    region = beat_place(beats, k) or main
+    year = CPX.era_of_beat(words, b)["year"]
+    objs = _uniq(t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE)[:2]
+    if not region and year is None and not objs:
+        return ""
+    key = (region, None if year is None else int(year) // 50 * 50)
+    if key == state.get("key") and state.get("run", 0) < PLATE_RUN:
+        state["run"] += 1
+        return state["prompt"]
+    n = state.setdefault("shots", {}).get(key, 0)
+    state["shots"][key] = n + 1
+    spec = SI.SceneSpec(region=region, year=year, architecture="specific" if region else "generic", objects=objs if not region else [],
+                        background=SCENE_SHOTS[n % len(SCENE_SHOTS)], atmosphere=PLATE_LOOK)
+    prompt = SI.flow_prompt(spec)
+    if n >= len(SCENE_SHOTS):                       # every framing used: the place is seen again at another hour, never the same request twice
+        prompt = prompt.replace(PLATE_LOOK, PLATE_LOOK + f", variation {n // len(SCENE_SHOTS) + 1}")
+    state.update(key=key, run=1, prompt=prompt)
+    return prompt
+
+
 def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
     """Read every cartoon beat (its words, then the CSV scene note over it when there is one) and turn the ones the library cannot show truthfully into Flow image beats, up to
     `opt.scene_flow_share` of the runtime. Returns the per-beat record for the report. Never raises: a beat that cannot be read stays as it was."""
-    full = " ".join(str(w[0]) for w in words)
-    ctx = SI.from_words(full).year
+    from ..beats.relevance import beat_tokens
+    from . import compose_pictures as CPX
     total = sum(b.end - b.start for b in beats) or 1.0
     used, rec = 0.0, {}
-    for b in beats:
-        if b.kind != "cartoon":
+    main = story_place(beats)
+    prompts: set = set()
+    set_uses: Dict[str, int] = {}
+    seen_scene: Dict[Tuple[str, Optional[int]], int] = {}
+    for k, b in enumerate(beats):
+        restock = opt.flow_only and b.kind == "footage"      # Flow only: a picture or footage beat (a stock search, or a bare Flow keyword) gets a picture made for its moment instead
+        if b.kind != "cartoon" and not restock:
             continue
         try:
             text = " ".join(s_.text for s_ in b.sents)
-            spec = SI.from_words(text, context_year=ctx)
+            spec = SI.from_words(text)
+            if restock:
+                spec.route = "flow"
+            era = CPX.era_of_beat(words, b)            # the beat's own period, else the last one spoken shortly before it: never the first year of the whole video ("1204" over the 5th century)
+            if era["year"] is not None:
+                spec.year = era["year"]
+            here = beat_place(beats, k) or main            # what the picture is OF: the place this beat (or the story just before it) is about, and the people and things it names
+            if here and not spec.region:
+                spec.region, spec.architecture = here, "specific"
+            toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
+            spec.people = spec.people or _uniq(t for t in toks if t in _SCENE_PEOPLE)[:2]
+            subject = [t for t in (b.picture_query or "").lower().split() if t in toks and t not in LX.STOP] if restock else []      # the stock search's own spoken subject ("ports") leads
+            spec.objects = spec.objects or _uniq(subject + [t for t in toks if t in LX.CONCRETE and t not in _SCENE_PEOPLE])[:3]
             mid = (b.start + b.end) / 2
             note = " ; ".join(n["text"] for n in opt.scene_notes if n["start"] - 1e-6 <= mid < n["end"] + 1e-6)
             spec = SI.from_notes(note, spec) or spec
             d = SI.decide(spec)
-            entry = {"route": d.route, "set": d.set_name, "reasons": d.reasons, "source": spec.source, "year": spec.year, "place_type": spec.place_type}
+            if d.route == "compose" and set_uses.get(d.set_name, 0) >= SET_MAX_USES:      # the audience has seen this set enough: this moment gets its own picture
+                b.notes.append(f"cartoon set {d.set_name!r} already used {SET_MAX_USES} times: drawn by Flow instead")
+                spec.route = "flow"
+                d = SI.decide(spec)
+                d.reasons.append(f"the library set was used {SET_MAX_USES} times already")
+            elif d.route == "compose":
+                set_uses[d.set_name] = set_uses.get(d.set_name, 0) + 1
+            entry = {"route": d.route, "set": d.set_name, "reasons": d.reasons, "source": spec.source, "year": spec.year, "place_type": spec.place_type, "region": spec.region}
             if d.route == "flow":
-                if (used + (b.end - b.start)) / total <= opt.scene_flow_share:
+                key = (spec.region or spec.place or spec.place_type, None if spec.year is None else int(spec.year) // 50 * 50)
+                n_seen = seen_scene.get(key, 0)
+                if n_seen >= len(SCENE_SHOTS):              # every way of seeing this place in this period is used: a board, not a near-copy
+                    entry["route"] = "board (scene seen in every framing already)"
+                    b.notes.append(f"{key[0]} around {key[1]} already shown {n_seen} times: board instead of another picture of it")
+                    b.kind, b.source, b.picture_query = "board", "", ""
+                    rec[b.id] = entry
+                    continue
+                spec.background = ", ".join(x for x in (spec.background, SCENE_SHOTS[n_seen]) if x)
+                prompt = SI.flow_prompt(spec)
+                if prompt.lower() in prompts:               # the same request twice gives the same picture twice: say what this beat shows, in its own words
+                    extra = [t for t in toks if t not in LX.STOP and t not in LX.WEAK and len(t) > 3 and t not in prompt.lower()][:3]
+                    if extra:
+                        spec.activity = (spec.activity + ", " if spec.activity else "") + "showing " + " ".join(extra)
+                        prompt = SI.flow_prompt(spec)
+                if prompt.lower() in prompts:
+                    entry["route"] = ("board" if restock else "cartoon") + " (same Flow request as an earlier beat)"
+                    b.notes.append("scene would repeat an earlier Flow image word for word: kept as a " + ("board" if restock else "cartoon"))
+                    if restock:
+                        b.kind, b.source, b.picture_query = "board", "", ""
+                    rec[b.id] = entry
+                    continue
+                if opt.flow_only or (used + (b.end - b.start)) / total <= opt.scene_flow_share:
                     used += b.end - b.start
-                    b.kind, b.source, b.picture_query = "footage", "flow_image", SI.flow_prompt(spec)
+                    prompts.add(prompt.lower())
+                    seen_scene[key] = n_seen + 1
+                    b.kind, b.source, b.picture_query = "footage", "flow_image", prompt
                     entry["prompt"] = b.picture_query
                 else:
                     entry["route"] = "cartoon (Flow share reached)"
@@ -331,7 +457,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                         b.notes.append(f"{h.name} is not drawn: the camera is ready at {cam['ready'][h.name]:.1f} s, long after the word at {h.match['start']:.1f} s")
                         info["map_layers_rejected"].append({"beat": b.id, "place": h.name, "reason": "the camera cannot show it in time"})
                         continue
-                    if h.kind == "country":
+                    if h.kind == "country" or (h.is_area and h.kind in ("admin1", "region", "county") and not FR._is_continent(h.name)):      # every place with a real outline is coloured in (a state, a province, the Balkans); a continent stays a label, a sea has no outline
                         if h.name not in country_roles:
                             country_roles[h.name] = FILL_PALETTE[len(country_roles) % len(FILL_PALETTE)]
                         fills.append({"place": h.name, "offset_s": round(wait, 3), "role": country_roles[h.name]})
@@ -515,6 +641,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     sig_hist: List[Tuple[str, ...]] = []        # the picture-layout family of each board beat so far (opt.variety)
     dossier_hist: List[bool] = []
     from . import compose_pictures as CPX_r                              # only period pictures (the ones likely to be refused) get a drawn stand-in: a 40-minute video has dozens of picture beats
+    plate_main, plate_state = (story_place(beats), {}) if opt.flow_backdrops else ("", {})
     for k, b in enumerate(beats):
         saved_pic = None
         if plan_beats[k] is not None and b.kind == "footage" and b.picture_query and opt.pictures and materialize and CPX_r.request_year(b.picture_query) is not None:
@@ -571,6 +698,11 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if opt.variety and opt.look == "reference" and b.kind != "cartoon":
             from .compose_variety import variety_pass
             br, beat_bg, variety_rec[b.id] = variety_pass(br, b, k, words, cased, opt, table, roles, modes[k], carry, sig_hist, dossier_hist)
+        plate = ""
+        if opt.flow_backdrops and b.kind == "board" and saved_pic is None:      # the narrator and the cards stand in front of a picture of the story's place and period, not on paper
+            plate = backdrop_prompt(beats, k, words, plate_main, plate_state)
+            if plate:
+                beat_bg = "alpha"
         resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         if b.kind == "cartoon":                 # a cartoon beat has no repair: its elements arrive on spread-out words; the gaps are measured and reported
             ev_s, ev_a = CP.change_events(resolved, b.start, b.end, strict=True), CP.change_events(resolved, b.start, b.end)
@@ -646,12 +778,17 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if materialize:
             f = out_dir / name
             if not (f.is_file() and f.stat().st_size > 0):
-                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg, camera=opt.camera, texture=opt.texture)
+                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg,
+                                      camera="off" if plate else opt.camera, texture=False if plate else opt.texture)
                 if bb.problems:
                     br.problems += bb.problems
             built = True
         beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer {'cartoon' if b.kind == 'cartoon' else 'board'}: {b.sents[0].label}",
                 "footage": {"clips": [{"asset": clip_path, "reason": "explainer board clip drawn from this beat's own narration"}]}}
+        if plate:                                       # the plan shows the Flow plate (moving slowly); the see-through board is laid over it after the render (integration.post_render)
+            beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer board over a picture: {b.sents[0].label}",
+                    "footage": {"clips": [{"asset": "flow_image:" + plate, "kenburns": True, "reason": "the place and period this part of the story is about, behind the narrator"}]}}
+            info.setdefault("scene_flow_beats", []).append(b.id)
         plan_beats[k] = beat
         if saved_pic is not None:
             from .. import fallbacks as FB
@@ -661,6 +798,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             continue
         evidence_subjects[b.id] = {"0": [br.subject]}
         board_info[b.id] = {"cues": len(br.cues), "kinds": sorted({c.kind for c in br.cues}), "dropped": br.dropped, "rescued": br.rescued, "lost": br.lost, "repairs": br.repairs, "still_gap_s": round(br.still_gap_s, 2), "still_gap_all_s": round(br.still_gap_all_s, 2), "still_gap_strict_s": round(br.still_gap_strict_s, 2),
+                            **({"board_overlay": {"mov": clip_path, "start": b.start, "end": b.end, "plate": plate}} if plate else {}),
                             "narrator": modes[k], "labels": [s.label for s in b.sents], "phrases": br.phrases, "peak_occupancy_share": br.peak_occupancy, "clip": name, "built": built, "problems": br.problems, "cue_specs": [_cue_key(c) for c in br.cues],
                             "layout": [{"cue": r.cue.id, "kind": r.cue.kind, "slot": r.slot, "font_px": r.font_px, "lines": r.lines, "first_frame": r.first_frame} for r in resolved if not r.problems and r.cue.kind not in ("clear", "narrator")]}
     for bid_, rec_ in motion_rec.items():

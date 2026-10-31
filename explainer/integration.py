@@ -117,6 +117,18 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
         report, words, total = data["report"], data["words"], float(data["total"])
         cur = _P(video)
         from .beats import overlay as OV
+        boards = [((info or {})["board_overlay"]["mov"], float(info["board_overlay"]["start"])) for _bid, info in sorted((report.get("beat_details") or {}).items())
+                  if (info or {}).get("board_overlay") and _P(info["board_overlay"]["mov"]).is_file()]
+        if boards:                                     # the narrator and the cards in front of each board beat's Flow picture
+            nxt = rr.parent / f"{cur.stem.split('__ov')[0]}__boards.mp4"
+            try:
+                if OV.composite_many(cur, boards, nxt) == 0 and nxt.is_file():
+                    cur = nxt
+                    log(f"[Explainer] {len(boards)} board(s) laid over their pictures")
+                else:
+                    log("[Explainer] the boards could not be laid over their pictures; the pictures are shown without them")
+            except Exception as exc:
+                log(f"[Explainer] the boards could not be laid over their pictures ({str(exc)[:100]})")
         n = 0
         for bid, info in sorted((report.get("beat_details") or {}).items()):
             plan = (info or {}).get("overlay")
@@ -130,6 +142,7 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
                 log(f"[Explainer] the map overlay of {bid} could not be laid on ({str(exc)[:100]}); the map is used as it is")
         if n:
             log(f"[Explainer] {n} map overlay(s) laid on the video")
+        if cur != _P(video):
             out["video"] = cur
         if (report.get("options") or {}).get("sound") and voice_path:
             snd = build_sound(report, words, total, str(rr.parent / "explainer_audio.wav"), voice_path=str(voice_path))
@@ -166,7 +179,7 @@ def look_settings(settings: Optional[Dict[str, Any]]):
 FULL_LOOK = {"explainer_sound": True, "explainer_motion": True, "explainer_numbers": True, "explainer_maplines": True, "explainer_variety": True, "explainer_budget": True,
              "explainer_fill": True, "explainer_scenes2": True, "explainer_mapoverlay": True, "explainer_texture": True, "explainer_dialogue": True,
              "explainer_meaning": True, "explainer_recipes": True, "explainer_continuity": True, "explainer_animate": True, "explainer_alive": True, "explainer_pictures": True,
-             "explainer_scene_intel": True, "explainer_camera": "drift", "explainer_cartoon_share": 0.33, "explainer_footage_share": 0.0}
+             "explainer_scene_intel": True, "explainer_flow_only": True, "explainer_flow_backdrops": True, "explainer_camera": "drift", "explainer_cartoon_share": 0.33, "explainer_footage_share": 0.0}
 
 
 def full_look(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -186,5 +199,8 @@ def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any]
     opt = DirectorOptions(work_dir=work_dir, places=list(places), archive_dir=archive_dir, dissolve_s=float(dissolve_s), cartoon_share=cartoon_share(settings),
                           footage_share=footage_settings(settings)[0], footage_source=footage_settings(settings)[1],
                           background=look_settings(settings)[0], narrator_style=look_settings(settings)[1], motion=motion_enabled(settings), fill=fill_enabled(settings), **motion_pack(settings), **extras(settings), scene_intel=_flag(settings, "explainer_scene_intel"), scene_flow_share=scene_flow_share(settings), scene_notes=[dict(n) for n in scene_notes or ()], max_map_share=map_share(settings))
+    if _flag(settings, "explainer_flow_only"):         # Flow only: a stock photograph shows the place as it is today; every picture is made for its moment in the story instead
+        opt.flow_only, opt.scene_intel, opt.scene_flow_share, opt.footage_source = True, True, 1.0, "flow_image"
+    opt.flow_backdrops = _flag(settings, "explainer_flow_backdrops")
     r = direct(words, script, opt, duration=duration, log=log)
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

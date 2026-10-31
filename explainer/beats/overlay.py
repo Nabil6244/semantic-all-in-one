@@ -515,10 +515,45 @@ def composite_over(map_clip: "str | Path", overlay_clip: "str | Path", out_path:
     except subprocess.TimeoutExpired: return -1
 
 
+def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, crf: int = 12, per_pass: int = 8) -> int:
+    """Lay several alpha clips (path, start seconds) over a video, `per_pass` at a time in one ffmpeg call each (one full re-encode per pass, not per clip). Returns the last exit code (0 = all
+    laid on). The video's audio is kept; the result has the video's duration and size."""
+    w, h = probe_size(video)
+    cur, rc = Path(video), 0
+    groups = [list(overlays[i:i + per_pass]) for i in range(0, len(overlays), per_pass)] or [[]]
+    for gi, grp in enumerate(groups):
+        if not grp:
+            break
+        nxt = Path(out_path) if gi == len(groups) - 1 else Path(out_path).with_name(f"{Path(out_path).stem}__p{gi}.mp4")
+        parts, last = [], "0:v"
+        for j, (_mov, start) in enumerate(grp, start=1):
+            parts.append(f"[{j}:v]format=rgba,setpts=PTS-STARTPTS+{float(start):.4f}/TB,scale={w}:{h}[o{j}]")
+            parts.append(f"[{last}][o{j}]overlay=0:0:format=auto:eof_action=pass[v{j}]")
+            last = f"v{j}"
+        cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(cur)]
+        for mov, _start in grp:
+            cmd += ["-i", str(mov)]
+        cmd += ["-filter_complex", ";".join(parts), "-map", f"[{last}]", "-map", "0:a?", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", "-preset", "medium", "-c:a", "copy",
+                "-movflags", "+faststart", str(nxt)]
+        try:
+            rc = subprocess.run(cmd, timeout=3600).returncode
+        except subprocess.TimeoutExpired:
+            rc = -1
+        if rc != 0 or not nxt.is_file():
+            return rc or -1
+        if cur != Path(video):
+            try:
+                cur.unlink()
+            except OSError:
+                pass
+        cur = nxt
+    return rc
+
+
 def probe_size(path: "str | Path") -> Tuple[int, int]:
     try:
         r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(path)], capture_output=True, text=True, timeout=120)
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"ffprobe timed out on {path}")
-    a, b = r.stdout.strip().split("x")
+    a, b = [v for v in r.stdout.strip().splitlines()[0].split("x") if v.strip()][:2]      # some ffprobe builds end the line with an extra "x" (1920x1080x)
     return int(a), int(b)

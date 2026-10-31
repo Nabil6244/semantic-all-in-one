@@ -373,7 +373,9 @@ def draw_frame(items: Sequence[Item], t: float, size: Tuple[int, int], font_path
     because it is a function of the clip length; it is not applied to instrumented frames (they must stay pixel-exact)."""
     W, H = size
     th = T.THEME
-    if background != "grey" and font_path is None:
+    if background in MATTES:                           # see-through boards: the frame is drawn once on black and once on white, and the difference gives each pixel's transparency
+        im = Image.new("RGB", (W, H), MATTES[background])
+    elif background != "grey" and font_path is None:
         from . import backdrops
         im = backdrops.image(background, (W, H))
     else:
@@ -454,10 +456,56 @@ def _finish(im: Image.Image, size: Tuple[int, int], frame_no: int, camera: str, 
     return im
 
 
+MATTES = {"matte_black": (0, 0, 0), "matte_white": (255, 255, 255)}
+ALPHA = "alpha"                       # background name for a see-through board: an RGBA QuickTime clip laid over a picture after the render
+GLOW_RGB = (240, 233, 218)            # the paper colour of the soft glow behind text and cards, so dark ink reads on any picture
+GLOW_ALPHA = 0.84
+
+
+def matte_rgba(black: Image.Image, white: Image.Image, glow: bool = True) -> Image.Image:
+    """One RGBA frame from the same frame drawn on black and on white: alpha = 1 - (white - black), colour = black / alpha. Exact for anything drawn by normal blending (text, sprites,
+    shadows), with no change to the drawing code. `glow` lays a soft paper-coloured halo under every drawn element (wider than the element, feathered), so the board reads over a busy picture."""
+    import numpy as np
+    from PIL import ImageFilter
+    b = np.asarray(black, dtype=np.float32) / 255.0
+    w = np.asarray(white, dtype=np.float32) / 255.0
+    a = np.clip(1.0 - (w - b).mean(axis=2), 0.0, 1.0)
+    rgb = np.where(a[..., None] > 1e-3, np.clip(b / np.maximum(a[..., None], 1e-3), 0.0, 1.0), 0.0)
+    if glow:
+        H, W = a.shape
+        small = Image.fromarray((a * 255).astype(np.uint8)).resize((max(1, W // 8), max(1, H // 8)), Image.BILINEAR)
+        small = small.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(4))
+        s = np.asarray(small.resize((W, H), Image.BILINEAR), dtype=np.float32) / 255.0
+        s = np.clip(s * 2.0, 0.0, 1.0) * GLOW_ALPHA
+        g = np.array(GLOW_RGB, dtype=np.float32) / 255.0
+        out_a = a + s * (1.0 - a)
+        rgb = (rgb * a[..., None] + g * (s * (1.0 - a))[..., None]) / np.maximum(out_a[..., None], 1e-3)
+        a = out_a
+    return Image.fromarray(np.dstack([(np.clip(rgb, 0, 1) * 255).astype(np.uint8), (a * 255).astype(np.uint8)]), "RGBA")
+
+
 def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int], out_path: Path, font_path: Optional[str], instrument: bool, narrator=None, background: str = "grey",
            camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None, notes: Optional[List[str]] = None) -> int:
-    """`notes`, when given, receives one line per degraded opt-in (for example a missing texture asset). With camera "off" and texture False nothing changes."""
+    """`notes`, when given, receives one line per degraded opt-in (for example a missing texture asset). With camera "off" and texture False nothing changes.
+    background "alpha": an RGBA QuickTime Animation clip (no camera, no texture: the picture under it moves instead)."""
     W, H = size
+    if background == ALPHA:
+        cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", "-an", "-c:v", "qtrle", "-pix_fmt", "argb", str(out_path)]
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        last = None
+        for i in range(n_frames):
+            blk = draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_black", "off", False, n_frames, fps)
+            key = blk.tobytes()
+            if key != last:                                  # a still stretch costs one matte, not one per frame
+                frame = matte_rgba(blk, draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_white", "off", False, n_frames, fps)).tobytes()
+                last = key
+            p.stdin.write(frame)
+        p.stdin.close()
+        try:
+            return p.wait(timeout=3600)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            return -1
     if texture:
         from ..motion import texture as TX
         if TX.normalize(texture) and TX.get_layer(size)[0] is None and notes is not None:

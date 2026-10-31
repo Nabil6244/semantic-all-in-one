@@ -239,6 +239,8 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                 if allow_sources and sep_c and src_c in allow_sources:      # a reference for the application's own source: every query word must be spoken inside this beat
                     spoken_c = {t["tok"] for t in tk} | ERA_QUERY_WORDS
                     miss_c = [w for w in toks(query_c) if w not in spoken_c]
+                    if b.id in composed and src_c == "flow_image" and any(w in spoken_c for w in toks(query_c)):     # a Flow card prompt written by the director: its subject is spoken, the period and style are added on purpose
+                        miss_c = []
                     if not toks(query_c) or miss_c:
                         rep.problems.append(f"beat {b.id}: photo card {k + 1}: the query {query_c!r} has words that are not spoken inside this beat's narration: {', '.join(miss_c) or '(none)'}")
                     continue

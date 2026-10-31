@@ -98,11 +98,13 @@ PERIOD_WORDS = frozenset("""painting paintings painted engraving engravings etch
 bust relief antique vintage old ancient historic historical medieval renaissance roman ruins ruin map maps cartography parchment oil canvas gallery museum artwork art""".split())
 
 
-def era_year(tokens: Sequence[str]) -> Optional[int]:
+def era_year(tokens: Sequence[str], resets: bool = True) -> Optional[int]:
     """The year a run of spoken tokens speaks of, or None. A four-digit year (800-2100), "fifth and sixth centuries" (the middle of the latest one named), or an era word (ancient, medieval, Roman,
-    Byzantine ...). A return to the present ("today", "modern") answers 2026. The LAST such mention in the run wins (the narration moves on)."""
+    Byzantine ...). A return to the present ("today", "modern") answers 2026 unless `resets` is False. The LAST such mention in the run wins (the narration moves on), but a date or a century
+    beats an era word: "the western roman empire collapsed" in the 5th century is the 5th century, and "in 1204 ... the byzantine empire" is 1204."""
     t = list(tokens)
     found: List[Tuple[int, int]] = []                  # (position, year)
+    words_only: List[Tuple[int, int]] = []             # era words: only when no date or century is spoken
     for i, w in enumerate(t):
         if w.isdigit() and len(w) == 4 and 800 <= int(w) <= 2100:
             found.append((i, int(w)))
@@ -120,9 +122,10 @@ def era_year(tokens: Sequence[str]) -> Optional[int]:
                 n = max(ns)
                 found.append((i, -(n * 100 - 50) if bc else (n - 1) * 100 + 50))
         elif w in ERA_WORDS:
-            found.append((i, ERA_WORDS[w]))
-        elif w in ERA_RESET:
+            words_only.append((i, ERA_WORDS[w]))
+        elif w in ERA_RESET and resets:
             found.append((i, 2026))
+    found = found or words_only
     return max(found)[1] if found else None
 
 
@@ -132,7 +135,7 @@ def era_of_beat(words, b) -> Dict[str, Any]:
     if own is not None:
         return {"year": own, "why": "named in the beat's own words"}
     before = [t["tok"] for t in beat_tokens(words, max(0.0, b.start - ERA_LOOKBACK_S), b.start)]
-    y = era_year(before)
+    y = era_year(before, resets=False)                  # "today" speaks of its own sentence; it does not make the next beats modern
     return {"year": y, "why": "the last period named earlier in the narration" if y is not None else "no period named"}
 
 

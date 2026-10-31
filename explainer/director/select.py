@@ -116,6 +116,102 @@ def place_candidates(script: Optional[str], opt: DirectorOptions, limit: int = 6
 
 NOT_PLACES = frozenset("republic empire kingdom now back grand today arsenal union state states federation league council".split())
 
+# everyday words that are also the name of a state, county, city or region somewhere: in a lowercase transcript they say nothing about a place ("a major center", "reading the map")
+EVERYDAY_PLACE_WORDS = frozenset("""acre afar antique apace bade bang barb benefactor berm bloke bong bury cascade canal capital central city coast colon conn delta down encamp equator
+    equatorial federal flint ghat glacis gulf hail harrow highland hull independence jersey kans lampoon lira littoral maiden male major manche maritime mass mesa miss mobile mono mountain
+    nice oral ogre oriental para penal pest plateau plateaux pool port providence quarter reading region ruse saga sing slough split tartar tonk unity valley wash orange mercy hope victory
+    union rivers river lake lakes island islands plains hills falls buffalo charlotte jackson phoenix friday bath grace victoria florence sale nelson derby kent york""".split())
+# a country whose name is also an everyday word: in lowercase it counts only with a place word before it ("in turkey") or when spoken twice
+AMBIGUOUS_COUNTRIES = frozenset("turkey china chile chad jordan guinea georgia niger cuba malta".split())
+PLACE_CUES = frozenset("in to from across near reached reach reaching toward towards beyond around at including into through between via of sailed sailing".split())
+TRANSCRIPT_KINDS = ("country", "region", "sea", "admin1", "city")
+
+
+def lowercase_text(script: Optional[str], words) -> bool:
+    """True when the place names cannot be told by their capitals: no script, or a script/transcript (speech-to-text output) whose words are almost never capitalised inside a sentence."""
+    text = script if script else " ".join(str(w[0]) for w in words)
+    caps = total = 0
+    for sent in re.split(r"(?<=[.!?])\s+|\n+", text or ""):
+        toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", sent)[1:]
+        total += len(toks)
+        caps += sum(1 for t in toks if t[0].isupper() and t not in ("I", "I'm", "I've", "I'd", "I'll"))
+    return not script or total == 0 or caps / total < 0.005
+
+
+_KNOWN: Dict[str, Any] = {}
+
+
+def _known_place_keys() -> frozenset:
+    """Every name (lowercase) the offline lookup can answer as a country, state, named region, sea or city of 100,000 people or more, built once per process (well under a second). A word
+    outside this set is never looked up, which keeps a whole transcript's word groups to a handful of lookups."""
+    if "keys" not in _KNOWN:
+        keys: set = set()
+        try:
+            from map_scene import places as MP
+            from pakmap import geo as PG
+            from pakmap import waters as W
+            keys |= set(MP._named_regions())
+            for ds in ("countries", "admin1"):
+                for f in MP._dataset(ds):
+                    keys.update(MP._names(f))
+            for ks, _nm, _lon, _lat, pop, _iso, _reg in PG._cities():
+                if pop >= 100_000:
+                    keys |= ks
+            keys |= set(W._INDEX) | set(W.OVERRIDES)
+        except Exception:
+            keys = set()
+        _KNOWN["keys"] = frozenset(keys)
+    return _KNOWN["keys"]
+
+
+def transcript_places(words, limit: int = 60) -> Tuple[List[str], List[str]]:
+    """(place names, notes) found in narration that has no capitals to go by. A word group (three words, then two, then one) counts when the lookup knows it as a country, region, sea, state
+    or large city. One word that is a function word, a direction, an everyday word or a common noun never counts; one word that is only a state or a city ("venice", "crete") counts when a
+    place word comes right before it ("to constantinople", "including crete") or it is spoken at least twice. Names come back in title case ("Venetian Lagoon")."""
+    from hybrid import geo
+
+    known = _known_place_keys()
+    toks = [norm(w[0]).replace("'", "") for w in words]
+    count: Dict[str, int] = {}
+    for t in toks:
+        count[t] = count.get(t, 0) + 1
+    out: List[str] = []
+    notes: List[str] = []
+    seen: set = set()
+    i = 0
+    while i < len(toks):
+        took = 1
+        for n in (3, 2, 1):
+            gram = toks[i:i + n]
+            if len(gram) < n or not all(g.isalpha() for g in gram):
+                continue
+            key = " ".join(gram)
+            if key not in known or gram[0] in LX.STOP or gram[-1] in LX.STOP:
+                continue
+            if n == 1 and (key in LX.WEAK or key in LX.DIRECTION_WORDS or key in EVERYDAY_PLACE_WORDS or key in NOT_PLACES or key in LX.CONCRETE or len(key) < 4):
+                continue
+            name = " ".join(g.capitalize() for g in gram)
+            if key in seen:
+                took = n
+                break
+            try:
+                r = geo.resolve(name)
+            except Exception:
+                continue
+            kind = str(r.kind)
+            if kind not in TRANSCRIPT_KINDS:
+                continue
+            cue = i > 0 and toks[i - 1] in PLACE_CUES
+            if n == 1 and (kind not in ("country", "region", "sea") or key in AMBIGUOUS_COUNTRIES) and not cue and count.get(key, 0) < 2:
+                notes.append(f"{name} ({kind}) spoken once with no place word before it: not taken as a place")
+                continue
+            seen.add(key)
+            out.append(name)
+            took = n
+            break
+        i += took
+    return out[:limit], notes
+
 
 def resolve_places(cands: Sequence[str], weak: set = frozenset(), allow: Sequence[str] = ()) -> Tuple[Dict[str, Tuple[str, bool]], List[str]]:
     """Names the offline lookup knows. A single direction word ("South", "North") is not a place on its own: the lookup answers with some region called that (South Lebanon), which is
@@ -345,21 +441,38 @@ def annotate_meaning(beats: List[BeatPlan], words, named: Sequence[str]) -> Dict
 
 def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: DirectorOptions) -> Dict[str, Any]:
     cands, weak = place_candidates(script, opt)
+    from_transcript: List[str] = []
+    low_notes: List[str] = []
+    if lowercase_text(script, words):                # a voiceover with no script: speech-to-text writes "venice", so the capitals rule above finds nothing
+        from_transcript, low_notes = transcript_places(words)
+        cands += [c for c in from_transcript if c not in cands]
     resolved, ignored = resolve_places(cands, weak, opt.places)
     library, lib_notes = load_archive(opt)
     used_assets = set()
     map_s = arch_s = 0.0
     run_maps = 0
-    info: Dict[str, Any] = {"place_candidates": cands, "places_resolved": {k: list(v) for k, v in resolved.items()}, "places_ignored": ignored, "archive_notes": lib_notes, "warnings": [], "places_comparison": [], "places_not_shown": []}
+    info: Dict[str, Any] = {"place_candidates": cands, "places_resolved": {k: list(v) for k, v in resolved.items()}, "places_ignored": ignored + low_notes, "archive_notes": lib_notes, "warnings": [], "places_comparison": [], "places_not_shown": [],
+                            "places_from_transcript": from_transcript}
     from ..beats import geography as GEO
     _cands = []
     _people = set(named_subjects(script or "", list(resolved)))      # a beat that names a person AND a place is the one where a portrait card beside the map earns its place
+    _introduced: set = set()
+    _wide_seen: set = set()
     for _k, b in enumerate(beats):
         b.places = places_in(b, words, resolved)
         info["places_comparison"] += [f"{b.id}: {c}" for c in b.comparisons]
         b.notes += [f"{c}" for c in b.comparisons]
         if b.places and b.dur >= opt.map_min_beat_s:
             _sc, _why = GEO.map_priority(beat_tokens(words, b.start, b.end), b.places)
+            _new = [h.name for h in b.places if h.kind in ("city", "admin1", "country", "county") and h.name not in _introduced]
+            if _new:                                   # the first time a town, state or country is spoken is when the viewer needs to see where it is
+                _sc += 3
+                _why.append("first mention of " + ", ".join(_new) + ": the map introduces it")
+            elif all(h.kind in ("region", "sea") and h.name in _wide_seen for h in b.places):
+                _sc -= 2                               # a continent or a sea shown already: another wide map of it says nothing new
+                _why.append("only " + ", ".join(h.name for h in b.places) + " again: already shown")
+            _introduced.update(_new)
+            _wide_seen.update(h.name for h in b.places if h.kind in ("region", "sea"))
             _cands.append({"idx": _k, "id": b.id, "dur": b.dur, "score": _sc})
             if _people & {t["tok"] for t in beat_tokens(words, b.start, b.end)}:
                 _sc += 2

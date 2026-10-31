@@ -159,7 +159,7 @@ def decide(spec: SceneSpec) -> Decision:
 
 def flow_prompt(spec: SceneSpec, style_line: str = "flat 2D documentary cartoon illustration, muted palette, soft light, no text, 16:9") -> str:
     """The Flow image request for a beat: every scene gets the same `style_line`, so a run's images look like one film."""
-    bits = [spec.place or spec.place_type or "a place", f"{spec.region}" if spec.region else "", f"around {abs(spec.year)}{' BC' if spec.year < 0 else ''}" if spec.year is not None else "",
+    bits = [spec.place or spec.place_type or ("" if spec.region else "a place"), f"{spec.region}" if spec.region else "", f"around {abs(spec.year)}{' BC' if spec.year < 0 else ''}" if spec.year is not None else "",
             f"{spec.architecture} architecture" if spec.architecture.lower() not in ("generic", "") else "", f"people: {', '.join(spec.people)}" if spec.people else "",
             f"wearing {spec.clothing}" if spec.clothing else "", "; ".join(spec.looks), spec.background, spec.activity, f"with {', '.join(spec.objects)}" if spec.objects else "", spec.atmosphere]
     return ", ".join(b for b in bits if b) + ". " + style_line
