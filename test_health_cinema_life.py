@@ -33,14 +33,14 @@ class Pulse(unittest.TestCase):
 
 class Templates(unittest.TestCase):
     def test_heart_beats_breathes_and_its_vessels_carry_a_wave(self):
-        spec = json.loads((ROOT / "templates" / "heart_journey.json").read_text())
+        spec = json.loads((ROOT / "templates" / "heart_journey.json").read_text(encoding="utf-8"))
         beats = [p for p in spec["pulse"] if p["shape"] == "beat"]; flow = spec["flow"][0]
         self.assertIn("Layer_Heart", beats[0]["layers"]); self.assertTrue(any(p["shape"] == "breath" and "Layer_Lungs" in p["layers"] for p in spec["pulse"]))
         self.assertEqual(flow["layer"], "Layer_Vessels"); self.assertEqual(flow["rate"], beats[0]["rate"])      # one wave per beat
         self.assertGreater(flow.get("inner", 0), 0)      # the wave starts outside the heart, so it never lights the whole organ at once
 
     def test_brain_arteries_carry_a_wave_from_the_neck(self):
-        flow = json.loads((ROOT / "templates" / "brain_journey.json").read_text())["flow"][0]
+        flow = json.loads((ROOT / "templates" / "brain_journey.json").read_text(encoding="utf-8"))["flow"][0]
         self.assertEqual(flow["layer"], "Layer_Arteries"); self.assertEqual(sorted(flow["origin"]), ["carotid_l", "carotid_r"])
 
     def test_stretching_a_scene_stretches_the_envelope_not_the_heart_rate(self):

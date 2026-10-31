@@ -44,7 +44,7 @@ class Stub:
 
 class T(unittest.TestCase):
     def setUp(self):
-        self.d = tempfile.TemporaryDirectory(); self.addCleanup(self.d.cleanup); self.dir = self.d.name
+        self.d = tempfile.TemporaryDirectory(ignore_cleanup_errors=True); self.addCleanup(self.d.cleanup); self.dir = self.d.name      # Windows: the timed-out job may still hold a file when the test ends
         self.pics = {}
         for i, c in enumerate(("red", "blue", "green", "yellow")):
             p = os.path.join(self.dir, f"s{i}.png"); _png(p, c); self.pics[f"s{i}"] = p

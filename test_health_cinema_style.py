@@ -277,12 +277,12 @@ class TestClipsCachingFallbackCancel(unittest.TestCase):
         self.assertEqual(r["used_kind"], "text_card"); self.assertIn("3D render failed", r["fallback"])
     def test_health_cinema_3d_scenes_ask_for_the_tissue_lighting(self):
         bx = lambda c, h: {"center": c, "min": [c[0] - h, c[1] - h, c[2] - h], "max": [c[0] + h, c[1] + h, c[2] + h]}      # the journey sizes its shots from the anchors' boxes
-        (self.d / "a").mkdir(); (self.d / "a" / "chest.glb").write_bytes(b"x"); tpl = json.loads((Path(clips.__file__).parent / "templates" / "heart_journey.json").read_text())
+        (self.d / "a").mkdir(); (self.d / "a" / "chest.glb").write_bytes(b"x"); tpl = json.loads((Path(clips.__file__).parent / "templates" / "heart_journey.json").read_text(encoding="utf-8"))
         names = {k["target"] for k in tpl["camera"]} | {x["anchor"] for x in tpl.get("labels", []) + tpl.get("highlights", []) + tpl.get("pulse", [])}
         names |= {o for fl in tpl.get("flow", []) for o in (fl["origin"] if isinstance(fl["origin"], list) else [fl["origin"]])}
         (self.d / "a" / "anchors.json").write_text(json.dumps({"anchors": {n: bx([0, 0, 1.2], 0.08) for n in names}}))
         old = os.environ.get("HEALTH_CINEMA_ASSET_DIR"); os.environ["HEALTH_CINEMA_ASSET_DIR"] = str(self.d / "a"); seen = []
-        def spy(frames_json, *a, **k): seen.append(json.loads(Path(frames_json).read_text())["spec"]); raise RuntimeError("stop after the spec")
+        def spy(frames_json, *a, **k): seen.append(json.loads(Path(frames_json).read_text(encoding="utf-8"))["spec"]); raise RuntimeError("stop after the spec")
         try:
             clips.render_scene(self.scene(kind="anatomy_3d", organ="heart", template="heart_journey"), P.get_profile("medical_cinema"), self.d, quality="preview", frame_renderer=spy)
         finally:

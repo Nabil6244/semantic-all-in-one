@@ -162,7 +162,8 @@ def frame_hashes(path: str, ffmpeg: str = "ffmpeg") -> List[int]:
     """64-bit difference hashes of a clip's frames at SAMPLE_AT (a 9x8 grey thumbnail: each bit says whether a pixel is brighter than its right neighbour)."""
     import subprocess
     try:
-        dur = float(subprocess.run([ffmpeg.replace("ffmpeg", "ffprobe") if "ffmpeg" in ffmpeg else "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+        probe = str(Path(ffmpeg).with_name(Path(ffmpeg).name.replace("ffmpeg", "ffprobe"))) if "ffmpeg" in Path(ffmpeg).name else "ffprobe"      # only the file name: a folder called ffmpeg stays as it is
+        dur = float(subprocess.run([probe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
                                    capture_output=True, text=True, timeout=60).stdout.strip() or 0)
     except (OSError, ValueError, subprocess.SubprocessError):
         return []

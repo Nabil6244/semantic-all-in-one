@@ -91,7 +91,7 @@ class Apply(unittest.TestCase):
         sp = self.spec(); self.assertEqual(variety.apply(sp, None), sp)
 
     def test_every_look_has_a_page_palette(self):
-        js = (Path(__file__).resolve().parent / "health_cinema" / "threejs" / "atmosphere.js").read_text()
+        js = (Path(__file__).resolve().parent / "health_cinema" / "threejs" / "atmosphere.js").read_text(encoding="utf-8")
         for lk in variety.LOOKS.values(): self.assertIn(f"  {lk['palette']}: {{", js)
 
 
@@ -100,7 +100,7 @@ class RealTemplates(unittest.TestCase):
     def test_moves_keep_real_organs_in_frame(self):
         from health_cinema import clips
         for tpl in ("auto:liver:orbit", "auto:kidney:peel", "heart_journey"):
-            a = assets.anatomy_assets(library.model_of(tpl) or assets.TEMPLATE_ASSET[tpl]); A = json.loads(Path(a["anchors"]).read_text())["anchors"]
+            a = assets.anatomy_assets(library.model_of(tpl) or assets.TEMPLATE_ASSET[tpl]); A = json.loads(Path(a["anchors"]).read_text(encoding="utf-8"))["anchors"]
             for move in variety.MOVES:
                 s = variety.apply(clips.template_spec(tpl), {"move": move, "look": "steel"}); rows = framing.audit(s, A, settle=0.0)
                 self.assertLessEqual(max(r["cut"] for r in rows), 0.06, (tpl, move))

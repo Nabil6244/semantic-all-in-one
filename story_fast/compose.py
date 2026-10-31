@@ -140,9 +140,8 @@ def _sweep_parts(shots: Path):
         try:
             pid = int(f.name.split(".")[1])
             if pid == os.getpid(): continue
-            try: os.kill(pid, 0); continue                      # still running: not ours to touch
-            except ProcessLookupError: pass
-            except PermissionError: continue
+            import psutil      # never os.kill(pid, 0): on Windows signal 0 is CTRL_C_EVENT and interrupts every process on the console (it stopped the whole CI test run)
+            if psutil.pid_exists(pid): continue                 # still running: not ours to touch
             f.unlink()
         except Exception: pass
 

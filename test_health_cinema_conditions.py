@@ -78,9 +78,9 @@ class NewEveryVideo(unittest.TestCase):
         self.assertEqual(s["procedural"]["seed"], d["seed"])
 
     def test_the_renderer_serves_and_ships_the_kit(self):
-        self.assertIn("'/conditions.js'", (ROOT / "threejs" / "render.mjs").read_text())
-        self.assertIn("threejs/conditions.js", (ROOT / "packaging.py").read_text())
-        self.assertIn("spec.procedural.kit === 'conditions'", (ROOT / "threejs" / "page.js").read_text())
+        self.assertIn("'/conditions.js'", (ROOT / "threejs" / "render.mjs").read_text(encoding="utf-8"))
+        self.assertIn("threejs/conditions.js", (ROOT / "packaging.py").read_text(encoding="utf-8"))
+        self.assertIn("spec.procedural.kit === 'conditions'", (ROOT / "threejs" / "page.js").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
