@@ -29,7 +29,7 @@ class Matte(unittest.TestCase):
         grey = Image.new("RGBA", (200, 120), (90, 140, 200, 255))
         grey.alpha_composite(rgba)
         want = drawn((90, 140, 200))
-        diff = max(abs(a - b) for pa, pb in zip(grey.convert("RGB").getdata(), want.getdata()) for a, b in zip(pa, pb))
+        diff = max(abs(a - b) for pa, pb in zip(list(grey.convert("RGB").getdata()), list(want.getdata())) for a, b in zip(pa, pb))
         self.assertLessEqual(diff, 3)
 
     def test_empty_frame_is_fully_transparent_and_glow_sits_under_drawn_parts(self):
@@ -111,6 +111,55 @@ class Finishing(unittest.TestCase):
             self.assertGreater(px(0.9)[0], 150)          # red board
             self.assertGreater(px(2.0)[1], 150)          # yellow board
             self.assertGreater(px(2.8)[2], 150)          # blue again after it
+
+
+class CastOnPictures(unittest.TestCase):
+    """Phase 3: the characters the words name stand on a Flow picture of the place, when their clothes fit the period; otherwise Flow draws the people of that time."""
+
+    def run_pass(self, sentences, places):
+        from explainer import scene_intel as SI
+        from explainer.director.options import DirectorOptions
+        words = timed(" . ".join(sentences) + " .")
+        ends = [i + 1 for i, w in enumerate(words) if w[0] == "."]
+        beats = [beat(f"e{k + 1}", words, a, b, places) for k, (a, b) in enumerate(zip([0] + ends[:-1], ends))]
+        rec = PL.scene_intel_pass(beats, words, DirectorOptions(scene_intel=True, scene_flow_share=1.0, flow_only=True, flow_backdrops=True), SI)
+        return beats, rec
+
+    def test_napoleon_and_his_army_stand_on_a_picture_of_the_place(self):
+        beats, rec = self.run_pass(["in 1797 the harbour was quiet", "in 1797 napoleon and his armies entered the city"], ["Venice"])
+        self.assertEqual(rec["e2"]["route"], "cast on a Flow picture", rec)
+        self.assertIn("officer", rec["e2"]["cast"])
+        self.assertEqual(beats[1].kind, "cartoon")
+        self.assertIn("no people", beats[1].plate)
+        self.assertNotIn("armies", beats[1].plate)
+        self.assertIn("eye-level", beats[1].plate)
+
+    def test_clothes_from_a_later_century_give_a_full_picture_instead(self):
+        _beats, rec = self.run_pass(["in 1204 the harbour was busy", "in 1204 merchants and soldiers crowded the harbour"], ["Venice"])
+        self.assertNotEqual(rec["e2"]["route"], "cast on a Flow picture")
+        self.assertTrue(any("later than 1204" in r for r in rec["e2"]["reasons"]), rec["e2"])
+
+    def test_cast_scenes_never_outnumber_full_pictures(self):
+        _beats, rec = self.run_pass(["in 1850 the harbour was busy"] + ["in 1850 sailors and merchants worked the harbour"] * 4, ["Liverpool"])
+        routes = [v["route"] for v in rec.values()]
+        n_cast = sum(r == "cast on a Flow picture" for r in routes)
+        self.assertGreaterEqual(n_cast, 1)
+        self.assertLessEqual(n_cast, len(routes) - n_cast)
+        self.assertFalse(any(a == b == "cast on a Flow picture" for a, b in zip(routes, routes[1:])), routes)
+
+    def test_on_a_picture_no_library_set_and_no_stand_in_figures(self):
+        from explainer.director.compose_cartoon import author_cartoon
+        from explainer.director.options import DirectorOptions
+        from explainer.director import lexicon as LX
+        words = timed("in 1797 napoleon and his armies entered the city and the republic came to an end .")
+        from types import SimpleNamespace
+        sent = SimpleNamespace(text=" ".join(w[0] for w in words), label="explain", widx=list(range(len(words) - 1)), breaks=set(), index=0)
+        br = author_cartoon("e1", words[0][1], words[-1][2] + 0.01, [sent], words, {}, DirectorOptions(), LX.ICONS, {}, on_plate=True)
+        styles = [(c.params or {}).get("style") for c in br.cues if c.kind == "visual"]
+        self.assertNotIn("set", styles)
+        casts = [(c.params or {}).get("cast") for c in br.cues if (c.params or {}).get("style") == "figure"]
+        self.assertFalse(set(casts) & {"blue", "gold", "green", "red"}, casts)
+        self.assertTrue(any(s in ("figure", "crowd") for s in styles), styles)
 
 
 if __name__ == "__main__":

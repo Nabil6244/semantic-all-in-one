@@ -110,14 +110,16 @@ def _complete_caption(allidx, words, cased, table, brk, ends, fit) -> Optional[P
     return None
 
 
-def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent], words, cased: Dict[str, str], opt: DirectorOptions, table, roles, variant: int = 0, scene: Optional[str] = None, plan: Optional[Dict] = None) -> BoardResult:
-    """`plan` (opt-in continuity, scene_registry.plan_cartoon): the set, light, cast, crowd and prop decided across beats; None = authored exactly as always."""
+def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent], words, cased: Dict[str, str], opt: DirectorOptions, table, roles, variant: int = 0, scene: Optional[str] = None, plan: Optional[Dict] = None,
+                   on_plate: bool = False) -> BoardResult:
+    """`plan` (opt-in continuity, scene_registry.plan_cartoon): the set, light, cast, crowd and prop decided across beats; None = authored exactly as always.
+    `on_plate`: the cast stands on a Flow picture of the place, so no library set is drawn and no stand-in figure is added beside the people the words name."""
     bw = [i for i, w in enumerate(words) if start - 1e-6 <= w[1] < end - 1e-6]
     pos = {g: k for k, g in enumerate(bw)}
     toks = [norm(words[g][0]) for g in bw]
     res = BoardResult([])
     cues: List[Cue] = []
-    v2 = bool(getattr(opt, "scenes2", False)) and _v2_ready()
+    v2 = (bool(getattr(opt, "scenes2", False)) or on_plate) and _v2_ready()      # a cast on a picture is always the named characters (the kit's soldiers, merchants...), never the stand-in pair
     if v2:
         from . import lexicon_v2 as LV
         name = LV.choose_scene_v2(toks) or scene     # None when no word names a scene: then there is no set at all (no default)
@@ -131,7 +133,7 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
         from ..cartoon import kit_v2
         if kit_v2.has_set("shallows", tod):
             name = "shallows"
-    if name is not None:
+    if name is not None and not on_plate:
         cues.append(Cue(f"{beat_id}_set1", "visual", {"index": 0}, pos=(0, 0), offset_s=0.0, params={"style": "set", "set": name, "tod": tod}))
 
     def at_fraction(f: float) -> int:
@@ -158,13 +160,15 @@ def author_cartoon(beat_id: str, start: float, end: float, sents: Sequence[Sent]
     if v2 and crowd_kind is not None:                    # an army, a line of police, rebels: a leader on the left and a row of that character beside him
         lead_t = LV.lead_for_crowd(chars, crowd_kind)
         crowd_word = crowd_kind[1]
-        layout = [(420, lead_t, pose1, 0.0)]
+        layout = [] if on_plate and lead_t == "blue" else [(420, lead_t, pose1, 0.0)]      # on a picture the row stands alone unless the words name its leader
     elif v2 and chars:                                   # the people the words name stand on the stage: up to three, each when its word is spoken
         crowd_word = None
         xs = (560, 1060, 1560)
         layout = [(xs[k], t_, pose1 if k == 0 else ("idle" if pose1 != "idle" else "point"), 0.0 if k == 0 else 0.3 * k) for k, (t_, _i) in enumerate(chars[:3])]
-        if len(layout) == 1 and len(bw) >= 10:
+        if len(layout) == 1 and len(bw) >= 10 and not on_plate:
             layout.append((1060, second, "idle" if pose1 != "idle" else "point", 0.28))
+        if on_plate and len(layout) == 1 and variant % 2:          # one figure on a picture: not always at the same spot
+            layout = [(1060, layout[0][1], layout[0][2], 0.0)]
     if plan:
         if plan.get("cast"):
             layout = [(x, t_, pose1 if k == 0 else ("idle" if pose1 != "idle" else "point"), layout[k][3] if k < len(layout) else 0.3 * k) for k, (x, t_) in enumerate(plan["cast"])]

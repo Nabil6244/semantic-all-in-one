@@ -474,7 +474,7 @@ def matte_rgba(black: Image.Image, white: Image.Image, glow: bool = True) -> Ima
     if glow:
         H, W = a.shape
         small = Image.fromarray((a * 255).astype(np.uint8)).resize((max(1, W // 8), max(1, H // 8)), Image.BILINEAR)
-        small = small.filter(ImageFilter.MaxFilter(7)).filter(ImageFilter.GaussianBlur(4))
+        small = small.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(2.5))      # a soft rim about 20 px wide, not a sticker
         s = np.asarray(small.resize((W, H), Image.BILINEAR), dtype=np.float32) / 255.0
         s = np.clip(s * 2.0, 0.0, 1.0) * GLOW_ALPHA
         g = np.array(GLOW_RGB, dtype=np.float32) / 255.0

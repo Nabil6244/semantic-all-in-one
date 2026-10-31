@@ -260,6 +260,29 @@ PLATE_RUN = 2                  # one background plate is kept for at most this m
 PLATE_LOOK = "empty scene with no people and no text, calm composition, soft focus, open quiet space on the right side"
 
 
+DRESSED_FROM = {"soldier": 1750, "officer": 1750, "guard": 1750, "revolutionary": 1750, "police": 1820, "worker": 1800, "doctor": 1850, "judge": 1700, "merchant": 1780, "sailor": 1850,
+                "farmer": 1800, "woman": 1800, "priest": 1600}      # the kit's clothes (top hat, sailor stripes, Napoleonic uniform...) belong to this year or later; the king's crown and robe fit any time
+CAST_SHOTS = ("eye-level street view", "eye-level view on the waterfront", "eye-level view of a square", "eye-level view inside a workshop", "eye-level view at the edge of the water",
+              "eye-level view at dusk", "eye-level view of a courtyard", "eye-level view of a market")
+CAST_LOOK = "empty scene with no people and no text, open level ground across the lower third where figures can stand"
+
+
+def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
+    """The Flow picture a cartoon cast stands on: the beat's place, period and things (never its people: the characters are the people), seen at eye level with open ground at the bottom,
+    framed differently each time the same place and period comes back."""
+    from .. import scene_intel as SI
+    key = (spec.region or spec.place or spec.place_type, None if spec.year is None else int(spec.year) // 50 * 50)
+    n = state.setdefault(key, 0)
+    state[key] = n + 1
+    turn = state.get("_turn", 0)                     # the framing also turns across the video, so two different places do not both open on the same street view
+    state["_turn"] = turn + 1
+    from . import lexicon_v2 as LV
+    things = [o for o in spec.objects if o in LX.CONCRETE and o not in LV.CHARACTER_OF and o not in _SCENE_PEOPLE]      # the plate has no people: "armies" stay out of it, the characters bring them
+    plate = SI.SceneSpec(place=spec.place, place_type=spec.place_type, region=spec.region, year=spec.year, architecture=spec.architecture, objects=things,
+                         background=CAST_SHOTS[(n + turn) % len(CAST_SHOTS)], atmosphere=CAST_LOOK + (f", variation {n // len(CAST_SHOTS) + 1}" if n >= len(CAST_SHOTS) else ""))
+    return SI.flow_prompt(plate)
+
+
 def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any]) -> str:
     """The Flow background plate behind board beat k: the place it is about (its own, the story's just before it, or the story's home), its period, and a framing from SCENE_SHOTS that
     changes when the place or period changes or after PLATE_RUN beats on the same plate. "" when the beat names no place, no period and nothing to show (a topic with no setting keeps paper)."""
@@ -298,6 +321,9 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
     prompts: set = set()
     set_uses: Dict[str, int] = {}
     seen_scene: Dict[Tuple[str, Optional[int]], int] = {}
+    cast_seen: Dict[Tuple[str, Optional[int]], int] = {}
+    mix = {"cast": 0, "flow": 0}
+    from . import lexicon_v2 as LV
     for k, b in enumerate(beats):
         restock = opt.flow_only and b.kind == "footage"      # Flow only: a picture or footage beat (a stock search, or a bare Flow keyword) gets a picture made for its moment instead
         if b.kind != "cartoon" and not restock:
@@ -329,6 +355,17 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
             elif d.route == "compose":
                 set_uses[d.set_name] = set_uses.get(d.set_name, 0) + 1
             entry = {"route": d.route, "set": d.set_name, "reasons": d.reasons, "source": spec.source, "year": spec.year, "place_type": spec.place_type, "region": spec.region}
+            cast = [c for c, _i in LV.characters_for(toks)] if opt.flow_backdrops else []
+            if cast and spec.year is not None and any(spec.year < DRESSED_FROM.get(c, -10 ** 6) for c in cast):      # a Napoleonic uniform in 1204 is wrong: Flow draws the people of that time instead
+                entry["reasons"] = list(entry["reasons"]) + [f"the characters' clothes ({', '.join(cast)}) are later than {spec.year}: a full picture instead"]
+                cast = []
+            if cast and mix["cast"] < mix["flow"]:          # the words name who is there (merchants, soldiers, the doge): those characters stand on a picture of the place; never more often than full pictures, so the two alternate
+                mix["cast"] += 1
+                b.plate = cast_plate_prompt(spec, cast_seen)
+                b.kind, b.source, b.picture_query = "cartoon", "", ""
+                entry.update(route="cast on a Flow picture", prompt=b.plate, cast=cast)
+                rec[b.id] = entry
+                continue
             if d.route == "flow":
                 key = (spec.region or spec.place or spec.place_type, None if spec.year is None else int(spec.year) // 50 * 50)
                 n_seen = seen_scene.get(key, 0)
@@ -356,6 +393,7 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
                     used += b.end - b.start
                     prompts.add(prompt.lower())
                     seen_scene[key] = n_seen + 1
+                    mix["flow"] += 1
                     b.kind, b.source, b.picture_query = "footage", "flow_image", prompt
                     entry["prompt"] = b.picture_query
                 else:
@@ -658,7 +696,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             strict_events += evs_
             continue
         bw = [w for w in words if b.start - 1e-6 <= w[1] < b.end - 1e-6]
-        if b.kind == "cartoon":
+        if b.kind == "cartoon" and b.plate:                  # the cast on a Flow picture: no library set, no continuity stand-ins
+            from .compose_cartoon import author_cartoon
+            br = author_cartoon(b.id, b.start, b.end, b.sents, words, cased, opt, table, roles, variant=k, scene=b.scene_hint, on_plate=True)
+        elif b.kind == "cartoon":
             from .compose_cartoon import author_cartoon
             if creg is not None:
                 from .compose_cartoon import continuity_plan
@@ -703,6 +744,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             plate = backdrop_prompt(beats, k, words, plate_main, plate_state)
             if plate:
                 beat_bg = "alpha"
+        elif b.kind == "cartoon" and b.plate:
+            plate, beat_bg = b.plate, "alpha"
         resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         if b.kind == "cartoon":                 # a cartoon beat has no repair: its elements arrive on spread-out words; the gaps are measured and reported
             ev_s, ev_a = CP.change_events(resolved, b.start, b.end, strict=True), CP.change_events(resolved, b.start, b.end)
@@ -786,7 +829,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer {'cartoon' if b.kind == 'cartoon' else 'board'}: {b.sents[0].label}",
                 "footage": {"clips": [{"asset": clip_path, "reason": "explainer board clip drawn from this beat's own narration"}]}}
         if plate:                                       # the plan shows the Flow plate (moving slowly); the see-through board is laid over it after the render (integration.post_render)
-            beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer board over a picture: {b.sents[0].label}",
+            beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer {'cartoon' if b.kind == 'cartoon' else 'board'} over a picture: {b.sents[0].label}",
                     "footage": {"clips": [{"asset": "flow_image:" + plate, "kenburns": True, "reason": "the place and period this part of the story is about, behind the narrator"}]}}
             info.setdefault("scene_flow_beats", []).append(b.id)
         plan_beats[k] = beat

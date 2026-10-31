@@ -38,6 +38,7 @@ class BeatPlan:
     idea: str = ""                                            # the idea the beat carries (meaning.py): spatial | quantitative | comparative | dialogue | evidence | cause; "" = no clear signal (only with DirectorOptions.meaning)
     source: str = ""                                          # a footage beat made by the picture pass (compose_pictures) names its own source here; "" = DirectorOptions.footage_source
     picture_query: str = ""                                   # ... and its query (only with DirectorOptions.pictures)
+    plate: str = ""                                           # a cartoon beat whose cast stands on a Flow picture (DirectorOptions.flow_backdrops): that picture's request; "" = the library set
 
     @property
     def dur(self) -> float:
