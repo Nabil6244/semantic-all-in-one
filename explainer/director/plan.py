@@ -257,6 +257,14 @@ def beat_place(beats, k: int) -> str:
 
 
 PLATE_RUN = 2                  # one background plate is kept for at most this many board beats in a row (same place and period); then the camera "moves" to another framing
+PAPER_EVERY = 3                # Flow backdrops: every third board beat stays on the plain board background (grey, paper...) so the look keeps its own surface between pictures
+
+
+def keeps_paper(n_board: int) -> bool:
+    """True for the board beat that stays on the plain background: the 3rd, 6th, 9th... board beat (counted from 0, so the first board is always on a picture)."""
+    return n_board % PAPER_EVERY == PAPER_EVERY - 1
+
+
 PLATE_LOOK = "empty scene with no people and no text, calm composition, soft focus, open quiet space on the right side"
 
 
@@ -680,6 +688,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     dossier_hist: List[bool] = []
     from . import compose_pictures as CPX_r                              # only period pictures (the ones likely to be refused) get a drawn stand-in: a 40-minute video has dozens of picture beats
     plate_main, plate_state = (story_place(beats), {}) if opt.flow_backdrops else ("", {})
+    n_board = 0                                 # board beats seen so far (keeps_paper)
     for k, b in enumerate(beats):
         saved_pic = None
         if plan_beats[k] is not None and b.kind == "footage" and b.picture_query and opt.pictures and materialize and CPX_r.request_year(b.picture_query) is not None:
@@ -741,7 +750,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             br, beat_bg, variety_rec[b.id] = variety_pass(br, b, k, words, cased, opt, table, roles, modes[k], carry, sig_hist, dossier_hist)
         plate = ""
         if opt.flow_backdrops and b.kind == "board" and saved_pic is None:      # the narrator and the cards stand in front of a picture of the story's place and period, not on paper
-            plate = backdrop_prompt(beats, k, words, plate_main, plate_state)
+            n_board += 1
+            plate = "" if keeps_paper(n_board - 1) else backdrop_prompt(beats, k, words, plate_main, plate_state)
             if plate:
                 beat_bg = "alpha"
         elif b.kind == "cartoon" and b.plate:

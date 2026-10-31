@@ -81,6 +81,14 @@ class Director(unittest.TestCase):
             self.assertTrue(ov["mov"].endswith(".mov"))
             self.assertTrue(beats[bid]["footage"]["clips"][0]["asset"].startswith("flow_image:"))
 
+    def test_every_third_board_stays_on_the_plain_background(self):
+        self.assertEqual([PL.keeps_paper(n) for n in range(6)], [False, False, True, False, False, True])
+        details = self.on.report["beat_details"]
+        boards = [b["id"] for b in self.on.plan["beats"] if str(b.get("purpose", "")).startswith("explainer board")]
+        on_paper = [bid for bid in boards if not details[bid].get("board_overlay")]
+        self.assertTrue(on_paper, boards)                                     # the grey/paper board still shows, sometimes
+        self.assertTrue(len(on_paper) < len(boards) - len(on_paper), boards)  # but pictures stay the main look
+
     def test_off_means_paper_boards_as_before(self):
         self.assertFalse([k for k, v in self.off.report["beat_details"].items() if v.get("board_overlay")])
         self.assertNotIn("flow_backdrops", self.off.report["options"])
