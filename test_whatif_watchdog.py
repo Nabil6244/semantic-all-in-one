@@ -32,7 +32,8 @@ class FrameWatchdog(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"WHATIF_TEST_FREEZE_AT": "5", "WHATIF_FRAME_TIMEOUT_MS": "4000"}):
             out = Path(d) / "out.mp4"
-            outcome = render_spec(dict(SPEC, media_dir=d), out, log=lambda m: None)
+            # 20 frames take seconds: a hang fails here in 4 min with the engine's own error, not the runner's 20-min cut-off
+            outcome = render_spec(dict(SPEC, media_dir=d), out, log=lambda m: None, timeout_s=240)
             frames = subprocess.run([str(Path(_ffmpeg()).with_name("ffprobe")) if Path(_ffmpeg()).is_file() else "ffprobe", "-v", "error",
                                      "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
                                     capture_output=True, text=True).stdout.strip().strip(",")

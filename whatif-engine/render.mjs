@@ -104,7 +104,8 @@ async function main() {
   const openPage = async () => {
     const b = await chromium.launch(launchOpts);
     try {
-      const pg = await b.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+      // newPage has no time limit of its own: a browser that started but never answers (seen on a busy CI Mac) would wait forever
+      const pg = await withTimeout(b.newPage({ viewport: { width, height }, deviceScaleFactor: 1 }), 60000, 'opening the page');
       pg.on('pageerror', (e) => pageErrors.push(String(e)));
       pg.on('console', (m) => { if (m.type() === 'error') pageErrors.push(m.text()); });
       await pg.goto(`${origin}/index.html`);
@@ -169,7 +170,7 @@ async function main() {
     const code = await closed;
     if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${err.trim().slice(-500)}`);
     if (pageErrors.length) emit({ event: 'warning', message: pageErrors.slice(0, 3).join(' | ') });
-    const repairs = await page.evaluate(() => (window.__whatif && window.__whatif.warnings) || []).catch(() => []);
+    const repairs = await withTimeout(page.evaluate(() => (window.__whatif && window.__whatif.warnings) || []), 10000, 'reading the warnings').catch(() => []);
     for (const m of repairs.slice(0, 40)) emit({ event: 'warning', message: m });
     if (reused) emit({ event: 'warning', message: `${reused} frame(s) repeated the frame before them` });
     for (const m of cutter.problems) emit({ event: 'warning', message: `${m}; that shot was drawn as a plate` });

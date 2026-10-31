@@ -27,7 +27,9 @@ _SUMMARY_RE = re.compile(r"^Ran (\d+) tests? in", re.MULTILINE)
 _TIMEOUT_S = 1200
 # Modules that normally finish in about a minute but can hang on a headless Windows runner (a window waiting for input): a short limit
 # cuts the hang off early, so the retry alone still fits in the step's time budget. A real failure still fails the run.
-_MODULE_TIMEOUT_S = {"test_stress_settings_window": 300}
+_MODULE_TIMEOUT_S = {"test_stress_settings_window": 300,
+                     # a real-Chromium render of 20 frames, normally under 30 s; hung 20 min on the Apple Silicon runner (2026-10-31)
+                     "test_whatif_watchdog": 360}
 
 # Modules that assert wall-clock speed: run alone after the parallel phase so
 # CPU contention from other tests can't push them over their limits.
