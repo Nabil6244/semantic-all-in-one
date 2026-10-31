@@ -242,8 +242,9 @@ class TestCsvFootage(unittest.TestCase):
         (d / "Images").mkdir()
         clip = d / "Images" / "scene_2.mp4"
         clip.write_bytes(b"x")
-        (d / "Images" / ".asset_manifest.json").write_text('{"2": {"status": "complete", "local_path": "%s", "type": "video", '
-                                                           '"stock_query": "losses percent"}}' % clip, encoding="utf-8")
+        import json      # json.dumps, not "%s": a Windows path's backslashes must be escaped in JSON
+        (d / "Images" / ".asset_manifest.json").write_text(json.dumps({"2": {"status": "complete", "local_path": str(clip), "type": "video",
+                                                                              "stock_query": "losses percent"}}), encoding="utf-8")
         sc = load_scenes(d, [{"scene_no": 2, "text": "Losses rose by ten percent.", "start": 0.0, "end": 3.0, "no_footage": True}])
         self.assertIsNone(sc[0]["footage"])
         sc = load_scenes(d, [{"scene_no": 2, "text": "Losses rose by ten percent.", "start": 0.0, "end": 3.0}])

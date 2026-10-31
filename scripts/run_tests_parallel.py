@@ -36,6 +36,9 @@ SERIAL_MODULES = {
     # Windows runner these timed out while 8 other modules were running.
     "test_qa_ui_scoped_repaint",
     "test_asset_pipeline",
+    # Opens the Settings window and stresses it: on the Windows runner it hung for the full 20 min next to other modules,
+    # then passed alone in 37 s.
+    "test_stress_settings_window",
 }
 
 # Slowest modules (ffmpeg renders) start first so none is left running alone
@@ -122,6 +125,9 @@ def main() -> int:
         print(f"  {status:7} {module} ({ran} tests, {secs:.0f}s)", flush=True)
         if code != 0:
             failed.append((module, out))
+            # the failure's reason goes into the log now: if the step is stopped later (its time limit), the end-of-run report never prints
+            tail = out[-6000:]
+            print(f"  --- {module} (first try) ---\n" + "\n".join("    " + ln for ln in tail.splitlines()) + f"\n  --- end of {module} ---", flush=True)
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         for fut in as_completed([pool.submit(_run, m) for m in parallel]):
