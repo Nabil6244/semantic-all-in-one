@@ -18,18 +18,26 @@ def label_px(H):   # pass the SHORT side of the frame (min(W, H)) so portrait an
     """Label text size for an output height: proportional to 1080p (40 px) with a legibility floor."""
     return max(MIN_PX, round(BASE_PX_1080 * H / 1080))
 
-def label_box(text_w, px, x, y, side, W, H):
-    """Box (x0, y0, x1, y1) and text origin for a label whose dot is at (x, y); clamped inside a 3% safe margin of the frame."""
+def label_box(text_w, px, x, y, side, W, H, avoid=None):
+    """Box (x0, y0, x1, y1) and text origin for a label whose dot is at (x, y); clamped inside a 3% safe margin of the frame.
+    `avoid` is the organ's screen box [x0, y0, x1, y1]: the label sits beside it (on its `side`, or the other side when that one has no room), so the text never covers the anatomy.
+    A subject that leaves no room at either side is ignored and the label keeps its place near the dot."""
     pad = px * 0.4; dx = px * 3.2 * (1 if side == "right" else -1); tx = x + dx; ty = y - px * 1.6
     bw = text_w + 2 * pad; bx0 = tx if dx > 0 else tx - bw
-    m = 0.03; bx0 = min(max(bx0, W * m), W * (1 - m) - bw); ty = min(max(ty, H * m + pad * 0.4), H * (1 - m) - px * 1.25 - pad * 0.4)
+    m = 0.03; lo, hi = W * m, W * (1 - m) - bw
+    if avoid is not None:
+        gap = px * 0.7; right, left = avoid[2] + gap, avoid[0] - gap - bw
+        order = (("right", right), ("left", left)) if side == "right" else (("left", left), ("right", right))
+        for _, cand in order:
+            if lo <= cand <= hi: bx0 = max(cand, bx0) if cand == right else min(cand, bx0); break
+    bx0 = min(max(bx0, lo), hi); ty = min(max(ty, H * m + pad * 0.4), H * (1 - m) - px * 1.25 - pad * 0.4)
     return (bx0, ty - pad * 0.4, bx0 + bw, ty + px * 1.25 + pad * 0.4), (bx0 + pad, ty)
 
-def draw_labels(im, labels, H, k=1.0):      # k: a spec's label_scale (a clip shown small inside another layout asks for bigger labels); 1.0 for every Health Cinema scene
+def draw_labels(im, labels, H, k=1.0, subject=None):      # k: a spec's label_scale (a clip shown small inside another layout asks for bigger labels); 1.0 for every Health Cinema scene
     W = im.width; px = round(label_px(min(W, H)) * k); f = _font(px); ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
     for lb in labels:
         a = int(255 * lb["a"]); x, y = lb["xy"]; w = d.textlength(lb["text"], font=f)
-        box, org = label_box(w, px, x, y, lb["side"], W, H); ex = box[0] if lb["side"] == "right" else box[2]
+        box, org = label_box(w, px, x, y, lb["side"], W, H, subject); ex = box[0] if (box[0] + box[2]) / 2 > x else box[2]
         d.line([(x, y), (ex, (box[1] + box[3]) / 2)], fill=(255, 255, 255, a), width=max(2, round(px / 14)))
         r = max(4, round(px / 6)); d.ellipse([x - r, y - r, x + r, y + r], fill=(255, 255, 255, a))
         import math; ph = (lb.get("t", 0.0) * 1.25) % 1.0; rr = r * (2.2 + 2.2 * ph); ra = int(a * (1 - ph) * 0.9)
@@ -92,7 +100,7 @@ def run(frames_json, frame_dir, out_mp4, fps, ffmpeg=None):
     for fr in frames:
         p = fd / f"f{fr['i']:05d}.png"
         if not p.exists(): continue
-        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height, lk), fr.get("cards", []), im.height), footer, im.height)
+        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height, lk, fr.get("subject")), fr.get("cards", []), im.height), footer, im.height)
         for a, b, text in caps:
             if a <= fr["t"] < b:
                 from .graphics import draw_caption

@@ -38,6 +38,10 @@ COLUMNS
     auto       let the app decide (use when unsure)
   Mix them: no more than 3 footage rows in a row, 3d only where an organ is the subject.
 - organ: for visual=3d, the body part: brain, eye, heart, lungs, liver, pancreas, stomach, intestines, kidney, knee, hip, shoulder, spine. Also fill it on a footage row when the scene is about that body part, so the footage is checked against it.
+  For visual=3d, organ can also name a condition or process, and the app draws a new 3D scene of it for this video: cellulitis, abscess, burn,
+  third-degree burn, acne, eczema, fungal infection, psoriasis, wound healing, virus (a virus entering a cell), immune response (white blood cells
+  attacking bacteria), insulin, insulin resistance, nerve signal, cancer cells, asthma, alveoli, pneumonia, emphysema, osteoporosis, arthritis, aneurysm,
+  plaque, blood clot, blood flow. Use one when the sentence is about that process; use the organ name when it is about the organ itself.
 - shot: for visual=3d only, optional: orbit, zoom, peel, isolate (camera moves), or fatty / inflamed (the organ changes as the condition develops).
 - footage: a stock search of 3 to 6 plain words for what a camera could film ("older man walking park morning"). Never a person's name, never a brand, no words that need text on screen.
   Fill it on EVERY footage, auto and 3d row (on a 3d row it is the backup if the 3D model is missing): these searches are the only ones the app has, so they decide the quality of the video.

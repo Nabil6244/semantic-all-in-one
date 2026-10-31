@@ -47,7 +47,6 @@
   {
    "t": 7.6,
    "target": "heart",
-   "dist": 0.85,
    "az": 6,
    "el": 5,
    "fov": 29,
@@ -55,12 +54,12 @@
     0,
     0,
     0.03
-   ]
+   ],
+   "fill": 0.3
   },
   {
    "t": 9.2,
    "target": "heart",
-   "dist": 0.62,
    "az": 0,
    "el": 4,
    "fov": 29,
@@ -68,12 +67,12 @@
     0,
     0,
     0.035
-   ]
+   ],
+   "fill": 0.36
   },
   {
    "t": 10.8,
    "target": "heart",
-   "dist": 0.56,
    "az": -12,
    "el": 6,
    "fov": 28,
@@ -81,12 +80,12 @@
     0,
     0,
     0.035
-   ]
+   ],
+   "fill": 0.4
   },
   {
    "t": 12.2,
    "target": "obj:Left ventricle",
-   "dist": 0.44,
    "az": -6,
    "el": 4,
    "fov": 28,
@@ -94,12 +93,12 @@
     -0.01,
     0,
     -0.025
-   ]
+   ],
+   "fill": 0.36
   },
   {
    "t": 14.0,
    "target": "obj:Left ventricle",
-   "dist": 0.46,
    "az": 8,
    "el": 5,
    "fov": 28,
@@ -107,7 +106,8 @@
     -0.01,
     0,
     -0.025
-   ]
+   ],
+   "fill": 0.37
   }
  ],
  "layers": {
@@ -544,5 +544,62 @@
   "Layer_Skin",
   "Layer_Muscle",
   "Layer_Skeleton"
+ ],
+ "pulse": [
+  {
+   "layers": [
+    "Layer_Heart",
+    "Layer_HeartCut",
+    "Layer_HeartInner"
+   ],
+   "anchor": "heart",
+   "rate": 64,
+   "amount": 0.05,
+   "shape": "beat"
+  },
+  {
+   "layers": [
+    "Layer_Lungs"
+   ],
+   "anchor": "lungs",
+   "rate": 14,
+   "amount": 0.03,
+   "shape": "breath"
+  }
+ ],
+ "flow": [
+  {
+   "id": "blood",
+   "layer": "Layer_Vessels",
+   "origin": "heart",
+   "rate": 64,
+   "speed": 0.35,
+   "sharp": 10,
+   "reach": 0.25,
+   "color": [
+    1.0,
+    0.62,
+    0.48
+   ],
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     6.8,
+     0
+    ],
+    [
+     7.8,
+     0.9
+    ],
+    [
+     14,
+     0.9
+    ]
+   ],
+   "inner": 0.05
+  }
  ]
 }

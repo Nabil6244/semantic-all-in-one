@@ -212,7 +212,25 @@ def build_spec(beats: List[dict], anchors: dict, duration: float, *, cards_enabl
             labels.append({"id": f"cond{b['t0']}", "text": b["label"] or f"{_label_for(b['region'])}: {text.lower()}", "anchor": b["region"], "offset": [-(A[b["region"]]["max"][0] - A[b["region"]]["min"][0]) * 0.12, -(A[b["region"]]["max"][1] - A[b["region"]]["min"][1]) / 2 - 0.004, 0.0], "t0": round(b["t0"] + 1.2, 2), "t1": round(b["t1"] - 0.3, 2), "side": "left"})
     return {"id": "bodymap_v1", "profile": "medical_cinema", "duration": D, "background": [0.012, 0.016, 0.03], "camera": cam, "layers": layers, "tints": tints, "layer_order": [n for n in LAYER_ORDER if n in layers],
             "prepass_always": ["Layer_Skin"], "highlights": hl, "highlight_opacity": 0.2, "highlight_additive": True, "glow": glow, "bloom": {"strength": 0.32, "radius": 0.5, "threshold": 0.92}, "labels": labels, "cards": cards, "tracks": tracks,
-            "procedural": procedural, "anchor_overrides": ov, "exposure": 0.8, "theme": "organ", "fog_density": 0.18, "motes": 160, "sway": 0.008}
+            "procedural": procedural, "anchor_overrides": ov, "exposure": 0.8, "theme": "organ", "fog_density": 0.18, "motes": 160, "sway": 0.008, **body_life(A, D)}
+
+def body_life(A: dict, D: float) -> dict:
+    """The whole body is alive in every body-map shot: the heart beats, the lungs breathe, blood waves leave the heart through the vessels and rise to the head,
+    the gut moves slowly, and the soft parts of the joints take each step. An entry acts only while its layer is on screen; anchors missing from a model are skipped."""
+    from . import library as L
+    has = lambda *a: all(x in A for x in a)
+    pulse = [p for p in (
+        {"layers": ["Layer_Heart"], "anchor": "heart", "rate": L.HEART, "amount": 0.05, "shape": "beat"} if has("heart") else None,
+        {"layers": ["Layer_Lungs"], "anchor": "lungs", "rate": L.BREATH, "amount": 0.03, "shape": "breath"} if has("lungs") else None,
+        {"layers": ["Layer_Liver", "Layer_Stomach", "Layer_Spleen", "Layer_Pancreas"], "anchor": "abdomen", "rate": L.BREATH, "amount": 0.012, "shape": "breath"} if has("abdomen") else None,
+        {"layers": ["Layer_Discs", "Layer_Ligaments"], "anchor": "body", "rate": L.STEPS, "amount": 0.025, "shape": "beat", "per_object": True} if has("body") else None) if p]
+    wave = lambda i, layer, origin, **k: {"id": i, "layer": layer, "origin": origin, "rate": L.HEART, "speed": 0.4, "sharp": 10, "reach": 0.5, "color": [1.0, 0.62, 0.48], "strength": [[0, 0.9], [D, 0.9]], **k}
+    flow = [f for f in (
+        wave("blood", "Layer_Vessels", "heart", inner=0.05) if has("heart") else None,
+        wave("blood_abd", "Layer_AbdVessels", "heart", reach=0.6) if has("heart") else None,
+        wave("blood_head", "Layer_HeadArteries", "neck", speed=0.3, reach=0.25) if has("neck") else None,
+        wave("gut", "Layer_Intestines", "abdomen", rate=8, speed=0.03, sharp=3, reach=0.3, color=[1.0, 0.7, 0.6], strength=[[0, 0.45], [D, 0.45]]) if has("abdomen") else None) if f]
+    return {"pulse": pulse, "flow": flow}
 
 def _block_anchors(at, sgn=1):
     """The skin-tissue block floats LIFT in front of the skin spot, tilted; its layer labels point at the middle of each layer on the cut face, computed with the same transform bodymap.js uses."""

@@ -6,7 +6,7 @@ Camera path: each key is a target (anchor + optional offset), distance, azimuth,
 interpolated per channel with monotone cubic (PCHIP) splines through the keys: continuous velocity, no overshoot past a key value,
 so the dolly neither stops at every key nor swings beyond it."""
 from __future__ import annotations
-import json, math
+import itertools, json, math
 from pathlib import Path
 
 SAFE = 0.06      # label anchors must lie inside the frame minus this margin (fraction of each side)
@@ -47,14 +47,49 @@ def _pchip(ts, vs, t):
 
 def _anchor(anchors, ref): return anchors[ref]["center"]
 
-def _key_state(anchors, k):
-    c = _anchor(anchors, k["target"]); off = k.get("off", [0, 0, 0]); look = [c[i] + off[i] for i in range(3)]
-    return {"look": look, "logd": math.log(k["dist"]), "az": k["az"], "el": k["el"], "fov": k["fov"]}
+SHAPE = 0.8      # an organ fills about 80% of its axis-aligned box (rounded, not a block): fitting and the framing audit both measure the box shrunk to this
 
-def _cam_state(spec, anchors, t):
+def box_points(box, shape=SHAPE):
+    """The 8 corners of an anchor's box, pulled toward its centre by `shape` (the silhouette of a rounded organ, not of the block around it)."""
+    c = [(box["min"][i] + box["max"][i]) / 2 for i in range(3)]
+    return [[c[i] + (box["max"][i] - c[i] if m[i] else box["min"][i] - c[i]) * shape for i in range(3)] for m in itertools.product((0, 1), repeat=3)]
+
+def extent(cam, look, fov, pts, W, H):
+    """Screen box (x0, y0, x1, y1) of 3D points, or None when any is behind the camera."""
+    xy = [project(cam, look, fov, p, W, H) for p in pts]
+    if any(q is None for q in xy): return None
+    return min(q[0] for q in xy), min(q[1] for q in xy), max(q[0] for q in xy), max(q[1] for q in xy)
+
+def _orbit_pos(look, d, az, el):
+    az, el = math.radians(az), math.radians(el)
+    return [look[0] + d * math.sin(az) * math.cos(el), look[1] - d * math.cos(az) * math.cos(el), look[2] + d * math.sin(el)]
+
+def fit_dist(box, look, az, el, fov, aspect, fill, H=1080):
+    """Camera distance at which the box fills `fill` of the frame along its larger screen side (height or width, whichever is bigger): the fit the shot is
+    asked for, measured through the real projection, so an organ seen at an angle is not cut off the way a distance guessed from its size is."""
+    W = aspect * H
+    def got(d):
+        e = extent(_orbit_pos(look, d, az, el), look, fov, box_points(box), W, H)
+        return 9.0 if e is None else max((e[3] - e[1]) / H, (e[2] - e[0]) / W)
+    lo, hi = 0.01, 40.0
+    for _ in range(48):
+        mid = math.sqrt(lo * hi)
+        if got(mid) > fill: lo = mid
+        else: hi = mid
+    return math.sqrt(lo * hi)
+
+def _key_state(anchors, k, aspect=16 / 9):
+    c = _anchor(anchors, k["target"]); off = k.get("off", [0, 0, 0]); look = [c[i] + off[i] for i in range(3)]
+    dist = k["dist"] if "dist" in k else fit_dist(anchors[k["target"]], look, k["az"], k["el"], k["fov"], aspect, k["fill"])      # a key gives either a distance or how much of the frame its target should fill
+    if k.get("context_scale"):      # a small part is shown in place: the camera stays back far enough that `context_scale` times the part's box still fits the frame
+        b = anchors[k["target"]]; c = [(b["min"][i] + b["max"][i]) / 2 for i in range(3)]; h = [(b["max"][i] - b["min"][i]) / 2 * k["context_scale"] for i in range(3)]
+        dist = max(dist, fit_dist({"min": [c[i] - h[i] for i in range(3)], "max": [c[i] + h[i] for i in range(3)]}, look, k["az"], k["el"], k["fov"], aspect, 0.9))
+    return {"look": look, "logd": math.log(dist), "az": k["az"], "el": k["el"], "fov": k["fov"]}
+
+def _cam_state(spec, anchors, t, aspect=16 / 9):
     """Interpolate look point, log-distance, azimuth, elevation and fov (monotone cubic), then place the camera on that orbit.
     Log-distance makes a long dolly feel evenly paced instead of rushing as it nears the subject."""
-    ks = spec["camera"]; ts = [k["t"] for k in ks]; st = [_key_state(anchors, k) for k in ks]
+    ks = spec["camera"]; ts = [k["t"] for k in ks]; st = [_key_state(anchors, k, aspect) for k in ks]
     look = [_pchip(ts, [s["look"][i] for s in st], t) for i in range(3)]
     d = math.exp(_pchip(ts, [s["logd"] for s in st], t))
     az, el = math.radians(_pchip(ts, [s["az"] for s in st], t)), math.radians(_pchip(ts, [s["el"] for s in st], t))
@@ -76,19 +111,50 @@ def project(cam, look, fov_deg, p, W, H):
 def label_visible(xy, W, H, margin=SAFE):
     return xy is not None and W * margin <= xy[0] <= W * (1 - margin) and H * margin <= xy[1] <= H * (1 - margin)
 
+def beat_shape(phase):
+    """One heartbeat as a 0..1 contraction, phase 0..1 per beat: a strong 'lub' and a softer 'dub' shortly after, then rest (a resting heart spends most of
+    each beat filling, so the movement is brief)."""
+    p = phase % 1.0
+    return min(1.0, math.exp(-((p - 0.06) / 0.05) ** 2) + 0.55 * math.exp(-((p - 0.30) / 0.045) ** 2))
+
+def breath_shape(phase):
+    """One breath, 0 = breathed out, 1 = breathed in: a smooth rise and fall."""
+    return 0.5 - 0.5 * math.cos(2 * math.pi * (phase % 1.0))
+
+def pulse_scales(spec, t):
+    """Layer -> scale factor at time t, from spec['pulse'] ([{layers, anchor, rate (per minute), amount, shape: beat|breath, strength?, per_object?}]). A beat
+    contracts the layer (scale below 1), a breath expands it. Several entries on one layer multiply. `per_object` (page.js) scales each part of the layer
+    about its own centre instead of the whole layer about `anchor` (a muscle group holds the left and the right muscle)."""
+    out = {}
+    for p in spec.get("pulse", []):
+        ph = t * p["rate"] / 60.0 + p.get("phase", 0.0); amt = p["amount"] * (_curve(p["strength"], t) if p.get("strength") else 1.0)      # optional envelope: a muscle starts flexing when it is named
+        s = 1.0 - amt * beat_shape(ph) if p.get("shape", "beat") == "beat" else 1.0 + amt * breath_shape(ph)
+        for ln in p["layers"]: out[ln] = out.get(ln, 1.0) * s
+    return out
+
+def subject_extent(spec, A, t, cam, look, fov, W, H):
+    """Screen box [x0, y0, x1, y1] of what the shot is looking at at time t (the target of the nearest camera key), or None. Labels use it to sit beside the organ, not on it."""
+    ref = min(spec["camera"], key=lambda k: abs(k["t"] - t))["target"]; box = A.get(ref)
+    if not box or "min" not in box: return None
+    e = extent(cam, look, fov, box_points(box, 1.0), W, H)      # the whole box, not the shrunk silhouette: a label beside it must clear the organ's widest point
+    return list(e) if e else None
+
 def sample(spec_path, anchors_path, fps, W, H):
     spec = json.loads(Path(spec_path).read_text(encoding="utf-8")); A = json.loads(Path(anchors_path).read_text(encoding="utf-8"))["anchors"]
     for k, v in spec.get("anchor_overrides", {}).items(): A[k] = dict(A.get(k, {}), **v)
     n = int(round(spec["duration"] * fps)); frames = []
     for i in range(n):
-        t = i / fps; cam, look, fov = _cam_state(spec, A, t)
+        t = i / fps; cam, look, fov = _cam_state(spec, A, t, W / H)
         alpha = {k: _curve(v, t) for k, v in spec["layers"].items()}
         fr = {"i": i, "t": t, "cam": cam, "look": look, "fov": fov, "alpha": alpha,
               "proc": {k: _curve(v, t) for k, v in spec.get("tracks", {}).items()},      # named 0..1 tracks the procedural scenes read (plaque, clot, lipid, flow)
               "tint": {k: [_curve([(kt, kv[c]) for kt, kv in v], t) for c in range(3)] for k, v in spec.get("tints", {}).items()},     # pathology colour per layer/object
 
               "highlight": {h["id"]: _curve(h["strength"], t) for h in spec.get("highlights", [])},
-              "glow": {g["id"]: _curve(g["strength"], t) for g in spec.get("glow", [])}, "labels": []}
+              "glow": {g["id"]: _curve(g["strength"], t) for g in spec.get("glow", [])}, "labels": [],
+              "subject": subject_extent(spec, A, t, cam, look, fov, W, H),
+              "pulse": pulse_scales(spec, t),      # heartbeat / breathing: layer -> scale about its pulse anchor (page.js)
+              "flow": {fl["id"]: _curve(fl["strength"], t) for fl in spec.get("flow", [])}}      # blood-flow wave strength per entry (page.js draws the travelling band)
         for lb in spec.get("labels", []):
             if not (lb["t0"] <= t <= lb["t1"]): continue
             a = A[lb["anchor"]]["center"]; p = [a[j] + lb["offset"][j] for j in range(3)]

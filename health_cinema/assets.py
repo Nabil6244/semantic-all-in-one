@@ -17,7 +17,7 @@ TEMPLATE_ASSET = {"heart_journey": "chest", "chest_journey": "chest", "brain_jou
 # three.js files page.js imports (GLTFLoader and the bloom post-processing chain), relative to three/examples/jsm: see packaging.py
 THREE_ADDONS = ("loaders/GLTFLoader.js", "utils/BufferGeometryUtils.js", "postprocessing/EffectComposer.js", "postprocessing/MaskPass.js", "postprocessing/OutputPass.js",
                 "postprocessing/Pass.js", "postprocessing/RenderPass.js", "postprocessing/ShaderPass.js", "postprocessing/UnrealBloomPass.js",
-                "shaders/CopyShader.js", "shaders/LuminosityHighPassShader.js", "shaders/OutputShader.js")
+                "shaders/CopyShader.js", "environments/RoomEnvironment.js", "shaders/LuminosityHighPassShader.js", "shaders/OutputShader.js")
 
 def roots() -> List[Path]:
     try:

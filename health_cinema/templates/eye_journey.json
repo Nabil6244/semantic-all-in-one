@@ -19,26 +19,26 @@
   {
    "t": 3.5,
    "target": "eyes",
-   "dist": 0.34,
    "az": -6,
    "el": 3,
-   "fov": 29
+   "fov": 29,
+   "fill": 0.55
   },
   {
    "t": 7.0,
    "target": "eye_l",
-   "dist": 0.17,
    "az": 8,
    "el": 3,
-   "fov": 28
+   "fov": 28,
+   "fill": 0.4
   },
   {
    "t": 12.0,
    "target": "eye_l",
-   "dist": 0.14,
    "az": 22,
    "el": 4,
-   "fov": 28
+   "fov": 28,
+   "fill": 0.48
   }
  ],
  "layers": {

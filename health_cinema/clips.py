@@ -8,6 +8,8 @@ from typing import Callable, Dict, Optional, Tuple
 from . import assets, cards, graphics, profiles as P, render_journey as RJ
 from .planner import Scene
 
+LIGHTING = "tissue"      # soft studio light, wet tissue, matte bone (page.js); Rep Theory, which renders through the same page, keeps the classic look
+
 FPS = 24
 SIZES = {"final": (1920, 1080), "preview": (1280, 720)}
 TEMPLATES = Path(__file__).resolve().parent / "templates"
@@ -42,6 +44,9 @@ def scale_spec(spec: dict, seconds: float) -> dict:
     for ch in ("layers",):
         for name, keys in s[ch].items(): s[ch][name] = [[t * k, v] for t, v in keys]
     for g in s.get("glow", []): g["strength"] = [[t * k, v] for t, v in g["strength"]]
+    for fl in s.get("flow", []): fl["strength"] = [[t * k, v] for t, v in fl["strength"]]
+    for pu in s.get("pulse", []):
+        if pu.get("strength"): pu["strength"] = [[t * k, v] for t, v in pu["strength"]]      # pulse and flow rates are real-world (per minute): only their envelopes stretch
     for h in s.get("highlights", []): h["strength"] = [[t * k, v] for t, v in h["strength"]]
     for l in s.get("labels", []): l["t0"] *= k; l["t1"] *= k
     for name, keys in s.get("tracks", {}).items(): s["tracks"][name] = [[t * k, v] for t, v in keys]      # procedural-scene tracks and pathology tints follow the stretched timeline too
@@ -57,12 +62,16 @@ def organ_cards(wanted: list, spec: dict, anchors: dict, log: Callable[[str], No
         e = ILL.find(c.get("ref") or "")
         if not e: log(f"illustration card '{c.get('ref') or c.get('prompt', '')[:40]}' is not in the library yet: this 3D scene is drawn without it"); continue
         t0 = float(c["at"]) if c.get("at") not in (None, "") else min(1.6, D * 0.25); t1 = max(t0 + 1.5, D - 0.3)
+        if c.get("auto"): t0, t1 = 0.5, max(2.3, min(D * 0.36, 4.2))      # an automatic card plays during the opening move and leaves before the labels
         keys = [k for k in spec.get("camera", []) if k.get("target") in anchors] or [{"t": 0, "target": next((l["anchor"] for l in spec.get("labels", []) if l["anchor"] in anchors), None)}]
         target = ([k for k in keys if k.get("t", 0) <= (t0 + t1) / 2] or keys)[-1].get("target")
         if not target: continue
         out.append({"id": f"oc{i}", "image": e["path"], "sha256": e["sha256"], "title": e.get("title") or (e.get("topic") or "").capitalize(), "tag": "ILLUSTRATION",
                     "foot": "AI-generated medical illustration, not a clinical photograph" if e["source"] == "flow" else "Illustration",
-                    "anchor": target, "t0": round(t0, 2), "t1": round(min(D - 0.05, t1), 2), "side": "right"})
+                    "anchor": target, "t0": round(t0, 2), "t1": round(min(D - 0.05, t1), 2), "side": "left" if c.get("auto") else "right"})
+    for cd in out:      # a label on the card's side waits until the card has gone
+        for l in spec.get("labels", []):
+            if l.get("side") == cd["side"] and l["t0"] < cd["t1"] + 0.2 < l["t1"] - 1.0: l["t0"] = round(cd["t1"] + 0.2, 2)
     return out
 
 
@@ -148,17 +157,31 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
             fallback = "3D assets or Node/three.js not available"; kind = "text_card"; visual = {"text": sc.text, "illustrative": ""}
         else:
             try:
-                if sc.visual.get("body_rows"):      # one continuous body-map shot built from the CSV beats (bodymap.py); invalid beats never reach a frame
-                    from . import bodymap
-                    beats = bodymap.beats_from_rows(sc.visual["body_rows"], sc.start); chk = bodymap.validate(beats, bodymap.load_anchors(a["anchors"]))
-                    if chk["errors"]: raise ValueError("body-map beats are not valid: " + "; ".join(chk["errors"])[:200])
-                    spec = bodymap.build_spec(beats, bodymap.load_anchors(a["anchors"]), frames / FPS)
-                else: spec = scale_spec(template_spec(sc.visual["template"], sc.visual.get("variant", 0)), frames / FPS)
-                spec["footer"] = sc.illustrative; spec["captions"] = captions_for(sc)
-                if sc.visual.get("cards") and not sc.visual.get("body_rows"): spec["cards"] = organ_cards(sc.visual["cards"], spec, json.loads(Path(a["anchors"]).read_text())["anchors"], log)
-                sp = cache_dir / f"spec_{clip_key(sc, W, H, 'spec')}.json"; sp.write_text(json.dumps(spec))
-                r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, FPS, cache_dir / "journeys", cancel=cancel, frame_renderer=frame_renderer or RJ.threejs_frames,
-                                      on_line=None)
+                from . import variety as _var
+                tried = []
+                for attempt in range(2):      # a finished video's clip that repeats an earlier video's clip of the same subject is filmed another way, once
+                    if sc.visual.get("body_rows"):      # one continuous body-map shot built from the CSV beats (bodymap.py); invalid beats never reach a frame
+                        from . import bodymap
+                        beats = bodymap.beats_from_rows(sc.visual["body_rows"], sc.start); chk = bodymap.validate(beats, bodymap.load_anchors(a["anchors"]))
+                        if chk["errors"]: raise ValueError("body-map beats are not valid: " + "; ".join(chk["errors"])[:200])
+                        spec = bodymap.build_spec(beats, bodymap.load_anchors(a["anchors"]), frames / FPS)
+                    else: spec = scale_spec(template_spec(sc.visual["template"], sc.visual.get("variant", 0)), frames / FPS)
+                    from . import parts, variety
+                    if not sc.visual.get("body_rows") and not str(sc.visual.get("template", "")).startswith(("cond:", "micro:")):
+                        spec = parts.focus(spec, sc.text, a["anchors"])      # the part the sentence names (a valve, the retina, a disc ...) is where the shot ends
+                    spec = variety.apply(spec, sc.visual.get("direction"))      # this video's own camera move and mood for the scene
+                    spec["footer"] = sc.illustrative; spec["captions"] = captions_for(sc); spec["lighting"] = LIGHTING      # Health Cinema's own look (threejs/page.js)
+                    if sc.visual.get("cards") and not sc.visual.get("body_rows"): spec["cards"] = organ_cards(sc.visual["cards"], spec, {**json.loads(Path(a["anchors"]).read_text())["anchors"], **spec.get("anchor_overrides", {})}, log)      # drawn scenes keep their points in the spec
+                    sp = cache_dir / f"spec_{clip_key(sc, W, H, 'spec')}.json"; sp.write_text(json.dumps(spec))
+                    r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, FPS, cache_dir / "journeys", cancel=cancel, frame_renderer=frame_renderer or RJ.threejs_frames,
+                                          on_line=None)
+                    d_ = sc.visual.get("direction")
+                    if not (d_ and d_.get("record")) or r["cache_hit"]: break
+                    hs = _var.frame_hashes(r["path"], ff); rep = _var.too_similar(d_, hs)
+                    if rep and attempt == 0:
+                        tried.append(d_["fp"]); sc.visual["direction"] = _var.reroll(d_, tried)
+                        log(f"scene {sc.scene_no}: the 3D clip looked like one from an earlier video ({rep}); filmed again as {sc.visual['direction']['move']}/{sc.visual['direction']['look']}"); continue
+                    _var.remember_frames(d_, hs); break
                 if sc.visual.get("overlays"):      # the figures / labels / pulse over the 3D picture: a separate clip, so the journey cache stays as it is
                     ov_out = cache_dir / f"anatomy_ov_{clip_key(sc, W, H, 'ov')}.mp4"
                     if not (ov_out.exists() and ov_out.stat().st_size > 0): _with_overlay(r["path"], sc.visual["overlays"], W, H, frames, ov_out, ff, prof.accent, cancel)

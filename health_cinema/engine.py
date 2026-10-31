@@ -80,6 +80,28 @@ def timeline(sentences: List[dict], total_s: float) -> List[dict]:
         s["scene_no"] = s.get("scene_no") or i + 1
     return ss
 
+AUTO_CARD_MIN_S = 6.0      # a 3D scene shorter than this has no room for a card before its labels
+
+
+def auto_cards(scenes, log=lambda m: None) -> int:
+    """Every 3D organ / condition scene without a card gets one AI image made from its own sentence (images are free: one per scene, new in every video).
+    The card id comes from the sentence, so a later video never reuses it; Generate scenes makes it through the Flow image workflow (Visuals tab).
+    Body-map scenes keep their CSV cards. Returns how many were added."""
+    import hashlib, re as _re
+    n = 0
+    for sc in scenes:
+        if sc.kind != "anatomy_3d" or sc.visual.get("body_rows") or sc.visual.get("cards") or sc.end - sc.start < AUTO_CARD_MIN_S: continue
+        tpl = str(sc.visual.get("template") or ""); topic = (sc.visual.get("organ") or (tpl.split(":")[1] if ":" in tpl else tpl.replace("_journey", ""))).replace("_", " ")
+        if not topic: continue
+        cond = tpl.startswith(("cond:", "micro:"))
+        ref = f"auto_{_re.sub(r'[^a-z0-9]+', '_', topic.lower())[:30]}_{hashlib.sha1(' '.join(sc.text.split()).lower().encode()).hexdigest()[:10]}"
+        prompt = (f"Close-up medical illustration of {topic}, showing what this sentence describes: {sc.text.strip()}" if cond else
+                  f"Medical illustration of the {topic}, showing what this sentence describes: {sc.text.strip()}")
+        sc.visual["cards"] = [{"type": "microscopic" if cond else "mechanism", "ref": ref, "prompt": prompt, "at": None, "auto": True}]; n += 1
+    if n: log(f"{n} AI illustration card(s) planned, one per 3D scene, made from each scene's own sentence")
+    return n
+
+
 def illustrations_wanted(scenes) -> List[dict]:
     """Every illustration card the plan pins on a 3D scene (organ cards and body-map beats), once per id: [{ref, prompt, type, topic, narration}].
     Generate scenes lists them in the Visuals tab; the ones the library already holds are shown there as done."""
@@ -142,6 +164,10 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         plan = planner.plan(sents, profile, assets_ok=ready, footage_for=footage_lookup(project_dir), title=title)
     scenes = plan["scenes"]
     if not scenes: raise ValueError("no scenes to render")
+    from . import variety      # every 3D scene filmed and lit its own way, never the same combination as in an earlier video
+    auto_cards(scenes, log)      # a new AI image on every 3D scene (free; made in Generate scenes)
+    variety.assign(scenes, script_text or " ".join(s["text"] for s in sents), title, log=log, key=variety.video_key(str(project_dir.resolve()), title),      # the project folder is the video
+                   record=quality == "final" and not str(project_dir.resolve()).startswith(str(Path(tempfile.gettempdir()).resolve())))      # only finished videos are remembered
     scenes[0].start = 0.0; scenes[-1].end = max(scenes[-1].end, total)
     for a, b in zip(scenes, scenes[1:]): b.start = a.end        # contiguous, exact frame boundaries
     if acquirer is not None and dscenes:

@@ -43,26 +43,26 @@
   {
    "t": 11.0,
    "target": "arteries",
-   "dist": 0.62,
    "az": 18,
    "el": 3,
-   "fov": 29
+   "fov": 29,
+   "fill": 0.8
   },
   {
    "t": 13.6,
    "target": "circle_of_willis",
-   "dist": 0.34,
    "az": 8,
    "el": 22,
-   "fov": 28
+   "fov": 28,
+   "fill": 0.8
   },
   {
    "t": 16.0,
    "target": "arteries",
-   "dist": 0.58,
    "az": -6,
    "el": 6,
-   "fov": 29
+   "fov": 29,
+   "fill": 0.8
   }
  ],
  "layers": {
@@ -312,5 +312,42 @@
    "layer": "Layer_Arteries"
   }
  ],
- "exposure": 0.78
+ "exposure": 0.78,
+ "flow": [
+  {
+   "id": "blood",
+   "layer": "Layer_Arteries",
+   "origin": [
+    "carotid_l",
+    "carotid_r"
+   ],
+   "rate": 64,
+   "speed": 0.3,
+   "sharp": 10,
+   "reach": 0.2,
+   "color": [
+    1.0,
+    0.62,
+    0.48
+   ],
+   "strength": [
+    [
+     0,
+     0
+    ],
+    [
+     9.4,
+     0
+    ],
+    [
+     10.4,
+     1.2
+    ],
+    [
+     16,
+     1.2
+    ]
+   ]
+  }
+ ]
 }

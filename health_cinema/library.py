@@ -15,6 +15,7 @@ MODEL_FILES = {"chest": ("chest.glb", "anchors.json"), "head": ("head.glb", "anc
 AUTHORED = {"heart": ("heart_journey", "chest"), "lungs": ("chest_journey", "chest"), "brain": ("brain_journey", "head"), "eye": ("eye_journey", "head")}
 SHOTS = ("orbit", "zoom", "peel", "isolate", "cutaway", "fatty", "inflamed")      # fatty / inflamed: the organ changes colour as the condition develops (illustration)
 DURATION = 12.0
+FILL_MAX = 0.84      # the tightest an organ is framed: leaves a margin all round, so a close-up never crops it
 
 @dataclass(frozen=True)
 class Organ:
@@ -26,12 +27,14 @@ class Organ:
     aliases: Tuple[str, ...] = ()
     az: float = 0.0                      # preferred viewing azimuth (deg)
     ctx_floor: float = 0.0               # context layers never fade below this (a joint is read against its bones)
+    frame: Tuple[str, ...] = ()          # tighter boxes to frame and label the organ by, best first, when the model has them (the stomach's own box, not stomach + oesophagus)
 
 ORGANS: Dict[str, Organ] = {
     "liver": Organ("abdomen", "liver_only", ("Layer_Liver",), ("Layer_Skeleton", "Layer_Stomach", "Layer_Intestines"), (("Liver", "liver_only"), ("Gallbladder", "gallbladder")), ("fatty liver", "hepatic", "cirrhosis")),
     "gallbladder": Organ("abdomen", "gallbladder", ("Layer_Liver",), ("Layer_Skeleton",), (("Gallbladder", "gallbladder"),), ("gallstones", "bile")),
     "pancreas": Organ("abdomen", "pancreas", ("Layer_Pancreas",), ("Layer_Skeleton", "Layer_Stomach", "Layer_Intestines", "Layer_Liver"), (("Pancreas", "pancreas"),), ("insulin", "diabetes", "blood sugar", "glucose")),
-    "stomach": Organ("abdomen", "stomach", ("Layer_Stomach",), ("Layer_Skeleton", "Layer_Intestines", "Layer_Liver"), (("Stomach", "stomach"),), ("gastric", "digestion", "acid reflux", "ulcer")),
+    "stomach": Organ("abdomen", "stomach", ("Layer_Stomach",), ("Layer_Skeleton", "Layer_Intestines", "Layer_Liver"), (("Stomach", "stomach"),), ("gastric", "digestion", "acid reflux", "ulcer"),
+                     frame=("obj:Stomach.001", "obj:Stomach")),      # the 'stomach' anchor also holds the oesophagus up to the neck
     "intestines": Organ("abdomen", "intestines", ("Layer_Intestines",), ("Layer_Skeleton", "Layer_Stomach", "Layer_Liver"), (("Intestines", "intestines"),), ("gut", "bowel", "colon", "digestive", "microbiome", "small intestine", "large intestine")),
     "spleen": Organ("abdomen", "spleen", ("Layer_Spleen",), ("Layer_Skeleton", "Layer_Stomach"), (("Spleen", "spleen"),), ("immune",)),
     "kidney": Organ("abdomen", "kidneys", ("Layer_Urinary",), ("Layer_Skeleton", "Layer_Intestines", "Layer_Liver", "Layer_Bladder"), (("Right kidney", "kidney_r"), ("Left kidney", "kidney_l")),
@@ -68,6 +71,35 @@ MICRO: Dict[str, Micro] = {
     "fatty_cell": Micro("cell", (("lipid", ((0, 0.0), (0.15, 0.0), (0.85, 1.0), (1, 1.0))),), (("Nucleus", "nucleus", 0.12, 0.45), ("Fat droplets", "droplets", 0.62)), "cell", 3.3, ("fat droplets", "lipid droplets", "fatty cells", "hepatocytes"), auto=("fat droplets", "lipid droplets")),
 }
 
+# How each generated organ moves (spec `pulse` / `flow`, see journey.pulse_scales and threejs/page.js), so no organ scene is a still model whatever the video is about.
+# Kinds: breath = rides the breathing (abdominal organs move with the diaphragm); perfusion = a blood wave through the organ once per heartbeat;
+# peristalsis = a slow digestive wave over the gut wall; load = a joint's soft parts compress a little with each step (walking cadence).
+# Each entry: (kind, layers or None for the organ's own layers). These are illustrations of real rhythms (resting breath and heart rate, walking pace).
+LIFE: Dict[str, Tuple[Tuple[str, Optional[Tuple[str, ...]]], ...]] = {
+    "liver": (("breath", None), ("perfusion", None)), "gallbladder": (("breath", None),), "pancreas": (("breath", None), ("perfusion", None)),
+    "stomach": (("breath", None), ("peristalsis", None)), "intestines": (("breath", None), ("peristalsis", None)), "spleen": (("breath", None), ("perfusion", None)),
+    "kidney": (("breath", None), ("perfusion", None)), "bladder": (("breath", None),),
+    "abdomen": (("breath", None), ("peristalsis", ("Layer_Stomach", "Layer_Intestines")), ("perfusion", ("Layer_Liver", "Layer_Spleen"))),
+    "knee": (("load", None),), "hip": (("load", None),), "shoulder": (("load", None),), "elbow": (("load", None),), "spine": (("load", None),),
+}
+BREATH, HEART, STEPS = 14, 64, 52      # per minute: resting breath, resting heart, a slow walking step on one leg
+
+def life_for(organ: str, anchor: str, hero: List[str], D: float) -> dict:
+    """The organ's `pulse` and `flow` spec entries (empty for an organ with no rhythm, such as the whole skeleton)."""
+    pulse, flow = [], []
+    for kind, only in LIFE.get(organ, ()):
+        ls = [l for l in (only or hero) if l in hero]
+        if not ls: continue
+        if kind == "breath": pulse.append({"layers": ls, "anchor": anchor, "rate": BREATH, "amount": 0.014, "shape": "breath"})
+        elif kind == "load": pulse.append({"layers": ls, "anchor": anchor, "rate": STEPS, "amount": 0.03, "shape": "beat", "per_object": True})      # each meniscus, ligament, disc about its own centre: a layer holds both sides
+        else:
+            for l in ls:      # one wave per layer (page.js keeps one wave per layer)
+                cfg = {"perfusion": {"rate": HEART, "speed": 0.07, "sharp": 10, "reach": 0.1, "inner": 0.01, "color": [1.0, 0.45, 0.35], "gain": 0.35},      # a ripple a few cm apart, never a flush of the whole organ
+                       "peristalsis": {"rate": 8, "speed": 0.03, "sharp": 3, "reach": 0.3, "color": [1.0, 0.7, 0.6], "gain": 0.45}}[kind]
+                flow.append({"id": f"{kind}_{l}", "layer": l, "origin": anchor, **{k: v for k, v in cfg.items() if k != "gain"},
+                             "strength": [[0, 0.0], [1.4, 0.0], [2.6, cfg["gain"]], [D, cfg["gain"]]]})
+    return {"pulse": pulse, "flow": flow}
+
 # colours of the organs in the prepared models, so a pathology shot can move them toward a condition (key = layer or "layer:object")
 BASE_TINT = {"liver": ("Layer_Liver:Liver", (0.50, 0.14, 0.10)), "pancreas": ("Layer_Pancreas", (0.90, 0.70, 0.45)), "stomach": ("Layer_Stomach:Stomach", (0.86, 0.46, 0.42)),
              "intestines": ("Layer_Intestines", (0.88, 0.58, 0.52)), "spleen": ("Layer_Spleen", (0.45, 0.10, 0.22))}
@@ -77,18 +109,21 @@ def organ_key(name: str) -> Optional[str]:
     """'knee', 'knees', 'fatty liver', 'bone density' -> the library key, or None."""
     n = (name or "").strip().lower()
     if n in AUTHORED or n in ORGANS or n in MICRO: return n
+    from . import conditions as CN
+    if n.replace(" ", "_") in CN.CONDITIONS: return n.replace(" ", "_")      # a condition's own name beats another entry's extra word (insulin -> the insulin scene, not the pancreas)
     for k, o in ORGANS.items():
         if n in o.aliases: return k
     for k, m in MICRO.items():
         if n in m.aliases: return k
-    return None
+    return CN.key_for(n)      # condition scenes (cellulitis, asthma, osteoporosis ...): drawn fresh per video
 
 def find_organ(text: str) -> Optional[str]:
     """The library body part or pathology a sentence is about (longest matching name or alias, whole words), or None. Procedural scenes (plaque, clot ...) are
     only picked on their specific `auto` phrases here; any other wording needs an explicit `organ` in the scenes CSV."""
     import re
     low = (text or "").lower(); best, blen = None, 0
-    for k, o in list(ORGANS.items()) + list(MICRO.items()):
+    from . import conditions as CN
+    for k, o in list(CN.CONDITIONS.items()) + list(ORGANS.items()) + list(MICRO.items()):      # a condition scene wins a tie: it shows what the sentence says happens
         for name in ((k.replace("_", " "),) + o.aliases) if k in ORGANS else o.auto:
             if len(name) > blen and re.search(r"\b" + re.escape(name) + r"s?\b", low): best, blen = k, len(name)
     return best
@@ -101,6 +136,9 @@ def model_of(template: str) -> Optional[str]:
     if template.startswith("auto:"):
         o = ORGANS.get(template.split(":")[1]); return o.model if o else None
     if template.startswith("micro:"): return "micro" if template.split(":")[1] in MICRO else None
+    if template.startswith("cond:"):
+        from . import conditions as CN
+        return "micro" if template.split(":")[1] in CN.CONDITIONS else None      # no model file: the page draws it (shares the procedural scenes' anchors file)
     return None
 
 def parse(template: str) -> Tuple[str, str]:
@@ -122,6 +160,8 @@ def template_for(organ: str, ready: Callable[[str], bool], shot: Optional[str] =
     k = organ_key(organ)
     if not k: return None
     if k in MICRO: tpl = f"micro:{k}:{shot if shot in ('orbit', 'zoom') else 'orbit'}"; return tpl if ready(tpl) else None
+    from . import conditions as CN
+    if k in CN.CONDITIONS: tpl = f"cond:{k}:{shot if shot in ('orbit', 'zoom') else 'orbit'}"; return tpl if ready(tpl) else None
     if k in AUTHORED: tpl = AUTHORED[k][0]; return tpl if ready(tpl) else None
     sh = shot if shot in SHOTS else pick_shot(text, k); tpl = f"auto:{k}:{sh}"
     return tpl if ready(tpl) else None
@@ -129,9 +169,10 @@ def template_for(organ: str, ready: Callable[[str], bool], shot: Optional[str] =
 def available(ready: Callable[[str], bool]) -> Dict[str, List[str]]:
     """organ -> shots that can be rendered right now (for reports and for the planner's prompts)."""
     out: Dict[str, List[str]] = {}
-    for k in list(AUTHORED) + list(ORGANS) + list(MICRO):
-        t = AUTHORED[k][0] if k in AUTHORED else f"micro:{k}:orbit" if k in MICRO else f"auto:{k}:orbit"
-        if ready(t): out[k] = [AUTHORED[k][0]] if k in AUTHORED else ["orbit", "zoom"] if k in MICRO else [x for x in SHOTS if x not in ("cutaway", "fatty", "inflamed") or (x in CONDITION and k in CONDITION[x][2])]      # cutaway is accepted in a CSV but is a peel until a cut layer is prepared
+    from . import conditions as CN
+    for k in list(AUTHORED) + list(ORGANS) + list(MICRO) + list(CN.CONDITIONS):
+        t = AUTHORED[k][0] if k in AUTHORED else f"micro:{k}:orbit" if k in MICRO else f"cond:{k}:orbit" if k in CN.CONDITIONS else f"auto:{k}:orbit"
+        if ready(t): out[k] = [AUTHORED[k][0]] if k in AUTHORED else ["orbit", "zoom"] if k in MICRO or k in CN.CONDITIONS else [x for x in SHOTS if x not in ("cutaway", "fatty", "inflamed") or (x in CONDITION and k in CONDITION[x][2])]      # cutaway is accepted in a CSV but is a peel until a cut layer is prepared
     return out
 
 def _diag(b: dict) -> float: return math.sqrt(sum((b["max"][i] - b["min"][i]) ** 2 for i in range(3)))
@@ -160,24 +201,28 @@ def _build_micro(template: str, anchors_path: str) -> dict:
             "tracks": tracks, "procedural": {"kind": m.kind, "radius": 0.5, "length": 8, "illustration": "Conceptual illustration, not to scale."}}
 
 def build_spec(template: str, anchors_path: str) -> dict:
+    if template.startswith("cond:"):
+        from . import conditions as CN
+        return CN.build_spec(template)
     if template.startswith("micro:"): return _build_micro(template, anchors_path)
     """A journey spec (same format as templates/*.json) for `auto:<organ>:<shot>` from the model's anchors file. Distances come from the organ's own size."""
     organ, shot = parse(template); o = ORGANS[organ]
     data = json.loads(Path(anchors_path).read_text(encoding="utf-8")); A, layers = data["anchors"], data["layers"]
     if o.anchor not in A: raise KeyError(f"model has no '{o.anchor}' anchor for {organ}")
+    at = next((x for x in o.frame if x in A), o.anchor)      # the box the camera frames and the labels point at
     hero = [l for l in o.hero if l in layers]; ctx = [l for l in o.context if l in layers]
     if not hero: raise KeyError(f"model has none of the layers {o.hero} for {organ}")
-    D = DURATION; fov = 30.0; b = A[o.anchor]; k = 2 * math.tan(math.radians(fov / 2)) * 0.85
-    h, w = b["max"][2] - b["min"][2], max(b["max"][0] - b["min"][0], b["max"][1] - b["min"][1])      # Z is up: fit the organ's height and width to a 16:9 frame
-    close = max(h / k, w / (k * 16 / 9), _diag(b) * 0.45, 0.05)
-    far = close * (2.4 if ctx else 1.5); mid = close * 1.45; a0 = o.az
+    D = DURATION; fov = 30.0; a0 = o.az
     cond = shot if shot in CONDITION and organ in CONDITION[shot][2] and organ in BASE_TINT else None
     if shot == "cutaway" or shot in ("fatty", "inflamed"): shot = "peel" if shot == "cutaway" or not cond else "isolate"
-    cam = {"orbit": [(0, far * 0.62, a0 - 38, 10), (D * 0.5, mid * 0.8, a0, 12), (D, close * 1.05, a0 + 36, 9)],
-           "zoom": [(0, far, a0 - 10, 8), (D * 0.45, mid, a0 + 6, 10), (D, close * 0.9, a0 + 12, 8)],
-           "peel": [(0, far * 0.85, a0 - 22, 9), (D * 0.4, mid, a0 - 4, 10), (D, close, a0 + 24, 8)],
-           "isolate": [(0, mid * 1.1, a0 - 28, 10), (D * 0.55, close * 1.2, a0 + 4, 11), (D, close * 0.95, a0 + 30, 9)]}[shot]
-    camera = [{"t": round(t, 2), "target": o.anchor, "dist": round(d, 4), "az": az, "el": el, "fov": fov} for t, d, az, el in cam]
+    # how much of the frame the organ fills (its larger screen side), measured through the projection when the camera is placed (journey.fit_dist):
+    # a wide opening that shows the organ in its surroundings, ending on a close-up that never crops it. Without context layers the opening is already close.
+    w0 = 0.46 if ctx else 0.62
+    cam = {"orbit": [(0, w0, a0 - 38, 10), (D * 0.5, 0.70, a0, 12), (D, FILL_MAX, a0 + 36, 9)],
+           "zoom": [(0, w0 * 0.85, a0 - 10, 8), (D * 0.45, 0.60, a0 + 6, 10), (D, FILL_MAX, a0 + 12, 8)],
+           "peel": [(0, w0 + 0.06, a0 - 22, 9), (D * 0.4, 0.68, a0 - 4, 10), (D, FILL_MAX - 0.04, a0 + 24, 8)],
+           "isolate": [(0, 0.60, a0 - 28, 10), (D * 0.55, 0.78, a0 + 4, 11), (D, FILL_MAX, a0 + 30, 9)]}[shot]
+    camera = [{"t": round(t, 2), "target": at, "fill": f, "az": az, "el": el, "fov": fov} for t, f, az, el in cam]
     la: Dict[str, list] = {}
     for h in hero: la[h] = [[0, 0.0], [0.9, 1.0], [D, 1.0]]
     for c in ctx:
@@ -185,13 +230,14 @@ def build_spec(template: str, anchors_path: str) -> dict:
         la[c] = {"orbit": [[0, max(0.30, f)], [D, max(0.10, f)]], "zoom": [[0, 0.65], [D * 0.5, max(0.35, f)], [D, max(0.12, f)]], "peel": [[0, 0.9], [D * 0.18, 0.9], [D * 0.5, f], [D, f]],
                  "isolate": [[0, f], [1.2, max(0.12, f)], [D, max(0.12, f)]]}[shot]
     glow = [{"id": f"g_{h}", "layer": h, "color": [0.72, 0.86, 1.0], "rim": 0.9, "power": 2.2, "fill": 0.0, "strength": [[0, 0], [1.4, 1.0], [D, 1.0]]} for h in hero]
+    named = [(x[0], at if x[1] == o.anchor else x[1]) + tuple(x[2:]) for x in o.labels]      # a label on the organ's anchor points at its framing box
     labels = [{"id": f"l{i}", "text": x[0], "anchor": x[1], "offset": [(x[2][0] if len(x) > 2 else 0.0), -(A[x[1]]["max"][1] - A[x[1]]["min"][1]) / 2 - 0.004, (x[2][1] if len(x) > 2 else 0.0)],
-               "t0": round(3.0 + 1.2 * i, 2), "t1": round(D - 0.8, 2), "side": "right" if i % 2 == 0 else "left", "layer": hero[min(i, len(hero) - 1)]} for i, x in enumerate([x for x in o.labels if x[1] in A])]
+               "t0": round(3.0 + 1.2 * i, 2), "t1": round(D - 0.8, 2), "side": "right" if i % 2 == 0 else "left", "layer": hero[min(i, len(hero) - 1)]} for i, x in enumerate([x for x in named if x[1] in A])]
     tints = {}
     if cond:      # the organ drifts from its healthy colour toward the condition's, with a label when the change is visible
         key, base = BASE_TINT[organ]; target, text, _ = CONDITION[cond]
         tints[key] = [[0, list(base)], [2.0, list(base)], [round(D * 0.78, 2), list(target)], [D, list(target)]]
-        labels = [{"id": "cond", "text": text, "anchor": o.anchor, "offset": [-(A[o.anchor]["max"][0] - A[o.anchor]["min"][0]) * 0.12, -(A[o.anchor]["max"][1] - A[o.anchor]["min"][1]) / 2 - 0.004, (A[o.anchor]["max"][2] - A[o.anchor]["min"][2]) * 0.1], "t0": round(D * 0.5, 2), "t1": round(D - 0.6, 2), "side": "right", "layer": hero[0]}]
+        labels = [{"id": "cond", "text": text, "anchor": at, "offset": [-(A[at]["max"][0] - A[at]["min"][0]) * 0.12, -(A[at]["max"][1] - A[at]["min"][1]) / 2 - 0.004, (A[at]["max"][2] - A[at]["min"][2]) * 0.1], "t0": round(D * 0.5, 2), "t1": round(D - 0.6, 2), "side": "right", "layer": hero[0]}]
     return {"id": f"{template}_v1", "profile": "medical_cinema", "duration": D, "background": [0.012, 0.016, 0.03], "camera": camera, "layers": la, "tints": tints,
-            "layer_order": hero + [c for c in ctx if c not in hero], "prepass_always": ctx[:1] + hero, "highlights": [], "glow": glow, "bloom": {"strength": 0.35, "radius": 0.5, "threshold": 1.0},
-            "labels": labels, "exposure": 0.62}
+            "layer_order": hero + [c for c in ctx if c not in hero], "prepass_always": ctx[:1] + hero, "double_sided": hero,      # an organ is drawn from both sides: a patch of the model with inward-facing triangles (the stomach's front wall) must not show as a hole "highlights": [], "glow": glow, "bloom": {"strength": 0.35, "radius": 0.5, "threshold": 1.0},
+            "labels": labels, "exposure": 0.62, **life_for(organ, at, hero, D)}

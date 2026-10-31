@@ -74,7 +74,7 @@ class TestLibrary(unittest.TestCase):
                 sp = library.build_spec(f"auto:liver:{shot}", ap)
                 self.assertEqual(sp["duration"], library.DURATION); self.assertEqual(sp["camera"][0]["t"], 0); self.assertTrue(all(c["target"] == "liver_only" for c in sp["camera"]))
                 self.assertIn("Layer_Liver", sp["layers"]); self.assertEqual(sp["layers"]["Layer_Liver"][-1][1], 1.0)
-                self.assertTrue(all(c["dist"] > 0.1 for c in sp["camera"]))          # framed from the organ's own size
+                self.assertTrue(all(0.3 <= c["fill"] <= library.FILL_MAX for c in sp["camera"]))          # framed by how much of the frame the organ fills (journey.fit_dist)
                 self.assertEqual([l["text"] for l in sp["labels"]], ["Liver", "Gallbladder"])
             self.assertEqual(library.build_spec("auto:liver:isolate", ap)["layers"]["Layer_Skeleton"][-1][1], 0.12)
             self.assertGreater(library.build_spec("auto:liver:peel", ap)["layers"]["Layer_Skeleton"][0][1], 0.5)

@@ -70,6 +70,7 @@ def available() -> bool:
 def region_for(text: str):
     got, _ = groups_for(text); return got[0][:1] + got[0][3:4] + got[0][2:3] + got[0][1:2] if got else None      # (group, scale, back, label)
 
+REP_RATE = 24      # flexes per minute: one controlled repetition every 2.5 s
 STYLES = ("push", "orbit", "side", "xray")      # camera / look variants, so the same muscle is never shown the same way twice in a row
 
 def spec_for(text: str, seconds: float, anchors: dict, style: str = "push"):
@@ -97,6 +98,11 @@ def spec_for(text: str, seconds: float, anchors: dict, style: str = "push"):
         t = 0.9 + named[g] * step; labels.append({"id": f"l_{g}", "text": label, "anchor": anc(g), "offset": [0, 0, 0], "t0": round(t, 2), "t1": round(max(t + 0.5, D - 0.2), 2), "side": "right" if named[g] % 2 == 0 else "left"})
     if by_ex: labels.append({"id": "l_ex", "text": f"Worked in the {by_ex.lower()}", "anchor": anc(gs[-1][0]), "offset": [0, 0, -0.06], "t0": round(0.6 + len(gs) * step, 2), "t1": round(max(1.5, D - 0.2), 2), "side": "left"})
     spec["layers"] = lay; spec["layer_order"] = ["Layer_Skeleton"] + [f"Layer_M_{g}" for g in allg] + ["Layer_Skin"]; spec["glow"] = glow; spec["labels"] = labels; spec["highlights"] = []; spec["tints"] = {}
+    spec["lighting"] = "tissue"      # Health Cinema's wet-tissue lighting (health_cinema/threejs/page.js)
+    for g in named:      # a named muscle flexes at a lifting pace once it comes forward (each muscle of the pair swells about its own centre) and pumps with blood
+        n, t = f"Layer_M_{g}", 0.3 + named[g] * step; env = [[0, 0.0], [t, 0.0], [t + 0.8, 1.0], [D, 1.0]]; sides = [a for a in (f"m_{g}_l", f"m_{g}_r") if a in anchors] or [anc(g)]
+        spec["pulse"].append({"layers": [n], "anchor": anc(g), "rate": REP_RATE, "amount": 0.035, "shape": "breath", "per_object": True, "strength": env})
+        spec["flow"].append({"id": f"pump_{g}", "layer": n, "origin": sides, "rate": REP_RATE, "speed": 0.12, "sharp": 4, "reach": 0.25, "color": [1.0, 0.5, 0.35], "strength": [[k, v * 0.6] for k, v in env]})
     if "m_union" in anchors: spec.setdefault("anchor_overrides", {})["m_union"] = {"center": anchors["m_union"]["center"]}
     if back:
         for k in spec["camera"]: k["az"] = k["az"] + 180
