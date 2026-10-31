@@ -32,5 +32,21 @@ def test_read_takes_footage_spans_and_place_names(monkeypatch):
     assert got["places"] == ["Egypt"] and got["spans"] == [{"start": 4.0, "end": 9.0, "clips": [{"asset": "stock_video:nile", "reason": "from the loaded CSV"}]}]
 
 
+def test_flow_backdrop_board_plan_is_an_explainer_plan():
+    # Flow backdrops: a board beat shows a flow_image picture and the board is laid over after the render, so no clip lives under explainer/
+    from hybrid.plan import HybridPlan
+    plan = HybridPlan.from_dict({"duration": 12.0, "beats": [
+        {"id": "e1", "mode": "footage", "start": 0, "end": 6, "purpose": "explainer footage: harbor city", "footage": {"clips": [{"asset": "flow_image:harbor city"}]}},
+        {"id": "e2", "mode": "footage", "start": 6, "end": 12, "purpose": "explainer board over a picture: explain", "footage": {"clips": [{"asset": "flow_image:Egypt, wide view", "kenburns": True}]}}]})
+    assert is_explainer_plan(plan)
+
+
+def test_plain_hybrid_plan_is_not_an_explainer_plan():
+    from hybrid.plan import HybridPlan
+    plan = HybridPlan.from_dict({"duration": 6.0, "beats": [
+        {"id": "b1", "mode": "footage", "start": 0, "end": 6, "purpose": "what it looks like", "footage": {"clips": [{"asset": "stock_video:harbor"}]}}]})
+    assert not is_explainer_plan(plan)
+
+
 from unittest_adopt import adopt
 adopt(globals())

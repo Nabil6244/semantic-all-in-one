@@ -132,8 +132,11 @@ def needs_scenes(plan: Any) -> bool:
 
 
 def is_explainer_plan(plan: Any) -> bool:
-    """True when the plan was made by the Explainer director: its board and cartoon clips are files under <hybrid dir>/explainer/ (a plan from Write plan with AI or a loaded CSV has none)."""
+    """True when the plan was made by the Explainer director: its board and cartoon clips are files under <hybrid dir>/explainer/, or (Flow backdrops) a board/cartoon beat
+    shows a Flow picture and its purpose says so, the board being laid over after the render (a plan from Write plan with AI or a loaded CSV has neither)."""
     for beat in getattr(plan, "beats", None) or []:
+        if str(getattr(beat, "purpose", "") or "").startswith(("explainer board", "explainer cartoon")):   # explainer/director/plan.py names every board/cartoon beat this way
+            return True
         for clip in getattr(beat, "clips", None) or []:
             asset = str(getattr(clip, "asset", "") or "").replace("\\", "/")
             if "/explainer/" in asset or asset.startswith("explainer/"):
