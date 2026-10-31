@@ -351,7 +351,27 @@ def on_render_click(app) -> None:
                                               settings=app._settings, use_gemini=bool(getattr(app, "_health_gemini_var", None) is None or app._health_gemini_var.get()), acquirer=acquirer, allow_youtube=allow_youtube, allow_flow=allow_flow,
                                               media_only=media_only, table=table, **extra)
             if media_only and result.get("illustrations"):
-                result["rows"] = list(result.get("rows") or []) + illustration_rows(result["illustrations"], manager, images_dir, app._health_cancel.is_set, log)
+                footage_rows = list(result.get("rows") or [])
+
+                def listed(ill_rows) -> None:      # the cards are in the Visuals tab before any picture is made (Flow takes a while per picture)
+                    def show():
+                        visual_bridge.fill(app, OWNER, footage_rows + ill_rows)
+                        app._health_status_var.set(f"Scenes listed in the Visuals tab; making {len(ill_rows)} illustration card(s) through Flow...")
+                        try:
+                            app._goto_workflow_view("visual_plan")
+                        except Exception:
+                            pass
+                    app.after(0, show)
+
+                def one_done(*_a, **_k) -> None:      # each finished picture appears in the tab as it lands
+                    def refresh():
+                        try:
+                            app._hydrate_overscaled_assets_from_manifest(images_dir); app._render_scene_rows(); app._refresh_assets_cta()
+                        except Exception:
+                            pass
+                    app.after(0, refresh)
+
+                result["rows"] = footage_rows + illustration_rows(result["illustrations"], manager, images_dir, app._health_cancel.is_set, log, on_listed=listed, on_done=one_done)
         except engine.Cancelled:
             error = "Stopped."
         except Exception as exc:  # noqa: BLE001 - shown to the user, never a silent failure
@@ -406,7 +426,7 @@ def on_render_click(app) -> None:
 ILLUSTRATION_BASE = 5000      # Visuals rows 5001, 5002 ... (footage rows are the scene numbers; footage retries use 1000-2999)
 
 
-def illustration_rows(wanted: List[dict], manager, folder: Path, cancelled, log) -> List:
+def illustration_rows(wanted: List[dict], manager, folder: Path, cancelled, log, on_listed=None, on_done=None) -> List:
     """One Visuals row per illustration card. A picture the library already holds is filed as done; the rest are made through the app's AssetManager
     (its Flow image provider), into Health Cinema's own folder. The row keeps the card id in visual_description ("illustration:<id>|<type>")."""
     import shutil
@@ -426,8 +446,9 @@ def illustration_rows(wanted: List[dict], manager, folder: Path, cancelled, log)
         rows.append(row)
     todo = [r for r in rows if not visual_bridge.records(folder, [r])]
     log(f"{len(rows)} illustration card(s): {len(rows) - len(todo)} already in the library, {len(todo)} to make through Flow")
+    if on_listed: on_listed(rows)      # shown in the Visuals tab now, before the pictures are made
     if todo and not cancelled():
-        try: manager.resolve_all(todo)
+        try: manager.resolve_all(todo, on_scene_complete=on_done) if on_done else manager.resolve_all(todo)
         except Exception as exc: log(f"illustration pictures could not be made ({type(exc).__name__}: {str(exc)[:120]}); fix them in the Visuals tab")      # noqa: BLE001
     return rows
 

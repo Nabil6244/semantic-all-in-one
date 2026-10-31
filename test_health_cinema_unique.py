@@ -108,5 +108,33 @@ class Uniqueness(unittest.TestCase):
         variety.remember_frames(d, [1, 2, 3], history=self.h); self.assertFalse(self.h.exists())
 
 
+class CardsInTheVisualsTab(unittest.TestCase):
+    """Generate scenes lists the illustration cards in the Visuals tab before Flow makes them, and each finished picture refreshes the tab."""
+
+    def test_listed_before_the_pictures_are_made_and_refreshed_as_each_lands(self):
+        import os
+        from health_cinema import app_section
+        events = []
+
+        class Mgr:
+            def resolve_all(self, rows, on_scene_complete=None):
+                events.append(("make", len(rows)))
+                for r in rows: on_scene_complete(r, None)
+
+        d = tempfile.mkdtemp(); old = os.environ.get("HEALTH_CINEMA_ILLUSTRATION_DIR"); os.environ["HEALTH_CINEMA_ILLUSTRATION_DIR"] = d
+        try:
+            wanted = [{"ref": f"auto_x_{i}", "prompt": f"picture {i}", "type": "mechanism", "topic": "liver", "narration": f"Sentence {i}."} for i in range(3)]
+            rows = app_section.illustration_rows(wanted, Mgr(), Path(d) / "imgs", lambda: False, lambda m: None,
+                                                 on_listed=lambda rs: events.append(("listed", len(rs))), on_done=lambda *a: events.append(("done",)))
+        finally:
+            os.environ.pop("HEALTH_CINEMA_ILLUSTRATION_DIR") if old is None else os.environ.__setitem__("HEALTH_CINEMA_ILLUSTRATION_DIR", old)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(events[0], ("listed", 3)); self.assertEqual(events[1], ("make", 3)); self.assertEqual(events[2:], [("done",)] * 3)
+
+    def test_the_worker_lists_the_cards_before_making_them(self):
+        src = (Path(__file__).resolve().parent / "health_cinema" / "app_section.py").read_text(encoding="utf-8")
+        self.assertIn("on_listed=listed, on_done=one_done", src); self.assertIn("visual_bridge.fill(app, OWNER, footage_rows + ill_rows)", src)
+
+
 if __name__ == "__main__":
     unittest.main()

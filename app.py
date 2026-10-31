@@ -99,6 +99,7 @@ from ui.shell import AppShell
 from ui import views as ui_views
 from ui import theme as _ui_theme
 from ui import scene_list as _scene_list
+from ui.visuals_generate import generate_waiting_scenes, label_generate_button
 from ui.widgets import make_button as _make_button
 from ui import style_registry as _style_registry
 from ui import style_pages as _style_pages
@@ -13219,6 +13220,7 @@ class VideoGeneratorApp(ctk.CTk):
             by_source: dict[str, int] = {}
             failed_n = 0
             busy_n = 0
+            waiting_n = 0      # rows never tried yet (QUEUED): Generate makes them
             for scene in selected:
                 key = _scene_key(scene.scene_number)
                 status = snap.statuses.get(key, self._row_status_from_result(scene))
@@ -13226,6 +13228,8 @@ class VideoGeneratorApp(ctk.CTk):
                     failed_n += 1
                 if key in self._busy_scenes or key in self._qa.busy:
                     busy_n += 1
+                if status == "waiting":
+                    waiting_n += 1
                 src = SceneAssetRouter.classify(scene) or AssetSource.LOCAL
                 label = SOURCE_BADGE.get(src, ("Local", _MUTED, "transparent"))[0]
                 by_source[label] = by_source.get(label, 0) + 1
@@ -13260,6 +13264,9 @@ class VideoGeneratorApp(ctk.CTk):
                 self.details_stop_btn, show=any_busy,
                 state="normal" if any_busy else "disabled",
             )
+            if waiting_n and not any_busy:      # queued rows can be made from here too, not only failed ones
+                self._set_inspector_button(self.details_retry_btn, show=True, state="normal")
+            label_generate_button(self, bool(waiting_n) and not any_failed)
             return
 
         scene = selected[0]
@@ -13337,6 +13344,9 @@ class VideoGeneratorApp(ctk.CTk):
             self.details_stop_btn, show=busy,
             state="normal" if busy or "cancel" in actions else "disabled",
         )
+        if status == "waiting" and not busy:      # a queued row (never tried): the button makes it
+            self._set_inspector_button(self.details_retry_btn, show=True, state="normal")
+        label_generate_button(self, status == "waiting")
 
     def _focus_scene(self, key: str, scroll: bool = True) -> None:
         self._qa.focused_key = key
@@ -13421,6 +13431,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _details_action(self, action: str) -> None:
         scenes = self._selected_scenes()
         if not scenes:
+            return
+        if action == "retry" and generate_waiting_scenes(self, scenes):      # ui/visuals_generate.py: QUEUED rows are made too
             return
         if action == "change_source":
             self._change_source_for_focused()
