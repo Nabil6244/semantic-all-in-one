@@ -138,7 +138,12 @@ def render_scenes(scenes, pplan, prunner, by_no, prof, cache_dir, quality, cance
         futs = [p3.submit(one, i) for i in three_i] + [pc.submit(one, i) for i in rest_i]      # the slow 3D scenes start first, alongside the CPU work
         for i in puppet_i: one(i)
         try:
-            for f in futs: f.result()
+            from concurrent.futures import FIRST_EXCEPTION, wait as _wait
+            pending = set(futs)
+            while pending:      # waits in 1 s steps (never unbounded): a cancel is seen at once, the first failed scene stops the queue
+                done_, pending = _wait(pending, timeout=1.0, return_when=FIRST_EXCEPTION)
+                for f in done_: f.result(timeout=0)
+                if cancelled() or cancel.is_set(): cancel.set(); raise Cancelled("cancelled")
         except BaseException:
             cancel.set()
             for f in futs: f.cancel()
