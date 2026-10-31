@@ -19,7 +19,7 @@ class TestCsvDirection(unittest.TestCase):
         self.assertEqual(r[1]["footage_alt"], ["patient clinic desk", "doctor talking to patient"]); self.assertEqual(r[1]["source"], "stock")
         self.assertTrue(C.has_direction(r)); self.assertFalse(C.has_direction(C.parse_csv_text("text\nHello there.\n")))
         with self.assertRaisesRegex(ValueError, "visual 'hologram' is not one of"): C.parse_csv_text("text,visual\nHi.,hologram\n")
-        with self.assertRaisesRegex(ValueError, "shot 'spin' is not one of"): C.parse_csv_text("text,shot\nHi.,spin\n")
+        self.assertEqual(C.parse_csv_text("text,shot\nHi.,spin\n")[0]["shot_desc"], "spin")      # a described shot is kept as its description, never an error
 
     def sentences(self):
         r = self.rows()
@@ -141,7 +141,7 @@ class TestPathology(unittest.TestCase):
     def test_csv_accepts_condition_shots_and_pathology_organs(self):
         rows = C.parse_csv_text("text,visual,organ,shot\n\"Fat builds up.\",3d,liver,fatty\n\"Plaque.\",3d,plaque,\n")
         self.assertEqual(rows[0]["shot"], "fatty"); self.assertEqual(library.organ_key(rows[1]["organ"]), "plaque")
-        with self.assertRaises(ValueError): C.parse_csv_text("text,shot\nHi.,melt\n")
+        self.assertNotIn("shot", C.parse_csv_text("text,shot\nHi.,melt\n")[0])      # not a camera move: kept as shot_desc only
 
 
 class TestRepeatedScenesDiffer(unittest.TestCase):

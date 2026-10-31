@@ -66,7 +66,7 @@ MICRO: Dict[str, Micro] = {
     "plaque": Micro("plaque", (("flow", ((0, 1.0), (1, 1.0))), ("plaque", ((0, 0.0), (0.12, 0.0), (0.8, 1.0), (1, 1.0)))), (("Fatty plaque builds up", "plaque_site", 0.5), ("Narrowed channel", "origin", 0.78)), "plaque_site", 3.4,
                     ("plaque", "atherosclerosis", "clogged arteries", "narrowed arteries", "cholesterol", "hardening of the arteries", "blocked artery"), auto=("atherosclerosis", "plaque", "clogged arteries", "narrowed arteries", "hardening of the arteries")),
     "clot": Micro("clot", (("flow", ((0, 1.0), (1, 1.0))), ("clot", ((0, 0.0), (0.15, 0.0), (0.75, 1.0), (1, 1.0)))), (("Blood clot forms", "clot_site", 0.5), ("Flow blocked", "flow_in", 0.82)), "origin", 3.0,
-             ("blood clot", "clots", "thrombosis", "thrombus", "embolism", "ischemic stroke"), auto=("blood clot", "thrombosis", "thrombus")),
+             ("blood clot", "clots", "thrombosis", "thrombus", "embolism", "ischemic stroke", "platelets", "clot forms", "clot grows"), auto=("blood clot", "thrombosis", "thrombus")),
     "cell": Micro("cell", (("lipid", ((0, 0.0), (1, 0.0))),), (("Nucleus", "nucleus", 0.3), ("Cell membrane", "membrane", 0.55)), "cell", 3.3, ("cell", "cells", "mitochondria", "cell membrane", "cellular")),
     "fatty_cell": Micro("cell", (("lipid", ((0, 0.0), (0.15, 0.0), (0.85, 1.0), (1, 1.0))),), (("Nucleus", "nucleus", 0.12, 0.45), ("Fat droplets", "droplets", 0.62)), "cell", 3.3, ("fat droplets", "lipid droplets", "fatty cells", "hepatocytes"), auto=("fat droplets", "lipid droplets")),
 }
@@ -125,6 +125,18 @@ def find_organ(text: str) -> Optional[str]:
     from . import conditions as CN
     for k, o in list(CN.CONDITIONS.items()) + list(ORGANS.items()) + list(MICRO.items()):      # a condition scene wins a tie: it shows what the sentence says happens
         for name in ((k.replace("_", " "),) + o.aliases) if k in ORGANS else o.auto:
+            if len(name) > blen and re.search(r"\b" + re.escape(name) + r"s?\b", low): best, blen = k, len(name)
+    return best
+
+def find_process(text: str, skip_kinds: Tuple[str, ...] = ()) -> Optional[str]:
+    """The process or condition scene a sentence describes (plaque, clot, a virus entering a cell ...), matched on every name and alias, longest first; None when
+    the sentence names none. Used when a CSV row asks for 3D of a broad organ ("heart") but the sentence is about something happening in it."""
+    import re
+    from . import conditions as CN
+    low = (text or "").lower(); best, blen = None, 0
+    for k, o in list(CN.CONDITIONS.items()) + list(MICRO.items()):
+        if k in CN.CONDITIONS and CN.CONDITIONS[k].kind in skip_kinds: continue      # a skin scene never stands in for "the wound" inside an artery
+        for name in (k.replace("_", " "),) + tuple(o.aliases) + tuple(getattr(o, "auto", ()) or ()):
             if len(name) > blen and re.search(r"\b" + re.escape(name) + r"s?\b", low): best, blen = k, len(name)
     return best
 
@@ -188,7 +200,8 @@ def apply_variant(spec: dict, variant: int) -> dict:
 
 def _build_micro(template: str, anchors_path: str) -> dict:
     _, key, shot = (template.split(":") + ["orbit"])[:3]; m = MICRO[key]
-    A = json.loads(Path(anchors_path).read_text(encoding="utf-8"))["anchors"]
+    from . import asset_index
+    A = asset_index.load_json(anchors_path)["anchors"]      # read once while unchanged (asset_index)
     if m.target not in A: raise KeyError(f"no '{m.target}' anchor for {key}")
     D = DURATION; fov = 30.0; d = m.dist
     cam = [(0, d * 1.15, -30, 8), (D * 0.5, d, -6, 10), (D, d * 0.82, 22, 8)] if shot != "zoom" else [(0, d * 1.5, -12, 8), (D, d * 0.7, 6, 10)]
@@ -207,7 +220,8 @@ def build_spec(template: str, anchors_path: str) -> dict:
     if template.startswith("micro:"): return _build_micro(template, anchors_path)
     """A journey spec (same format as templates/*.json) for `auto:<organ>:<shot>` from the model's anchors file. Distances come from the organ's own size."""
     organ, shot = parse(template); o = ORGANS[organ]
-    data = json.loads(Path(anchors_path).read_text(encoding="utf-8")); A, layers = data["anchors"], data["layers"]
+    from . import asset_index
+    data = asset_index.load_json(anchors_path); A, layers = data["anchors"], data["layers"]      # read once while unchanged (asset_index)
     if o.anchor not in A: raise KeyError(f"model has no '{o.anchor}' anchor for {organ}")
     at = next((x for x in o.frame if x in A), o.anchor)      # the box the camera frames and the labels point at
     hero = [l for l in o.hero if l in layers]; ctx = [l for l in o.context if l in layers]

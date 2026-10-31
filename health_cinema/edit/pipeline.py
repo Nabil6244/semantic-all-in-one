@@ -88,17 +88,18 @@ def render_high_end(scenes, voiceover: str, out_path: str, project_dir: Path, *,
                 else: spec = C.scale_spec(C.template_spec(sh["template"], sh.get("variant", 0)), sh["t1"] - sh["t0"])
                 from .. import parts, variety
                 if not sh.get("body_rows") and not str(sh.get("template", "")).startswith(("cond:", "micro:")):
-                    spec = parts.focus(spec, sh.get("text") or "", a["anchors"])
+                    spec = parts.focus(spec, " ".join(x for x in (sh.get("subject"), sh.get("text")) if x), a["anchors"])
                 spec = variety.apply(spec, sh.get("direction"))
                 spec["footer"] = ""; spec["captions"] = []; spec["lighting"] = C.LIGHTING
                 if sh.get("cards") and not sh.get("body_rows"): spec["cards"] = C.organ_cards(sh["cards"], spec, {**json.loads(Path(a["anchors"]).read_text())["anchors"], **spec.get("anchor_overrides", {})}, log)
                 sp = cache / f"spec_{hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:16]}.json"; sp.write_text(json.dumps(spec))
                 progress(0.05 + 0.1 * k / len(shots_), f"3D journey for scene {sh['scene_no']}")
-                r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, C.FPS, cache.parent / "journeys", cancel=cancel, frame_renderer=frame_renderer or (lambda *a, **k: RJ.threejs_frames(*a, **dict(k, timeout=JOURNEY_TIMEOUT_S)))); log(f"3D journey scene {sh['scene_no']}: {'cache hit' if r['cache_hit'] else 'rendered in %.0fs' % r['seconds']}"); sh["clip"] = r["path"]; sh["journey_cache_hit"] = r["cache_hit"]; continue
+                r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, C.FPS, cache.parent / "journeys", cancel=cancel, frame_renderer=frame_renderer or (lambda *a, **k: RJ.pooled_frames(*a, **dict(k, timeout=JOURNEY_TIMEOUT_S)))); log(f"3D journey scene {sh['scene_no']}: {'cache hit' if r['cache_hit'] else 'rendered in %.0fs' % r['seconds']}"); sh["clip"] = r["path"]; sh["journey_cache_hit"] = r["cache_hit"]; continue
             except RJ.Cancelled: raise
             except Exception as exc: flags.append({"code": "3d_fallback", "scene": sh["scene_no"], "message": f"3D render failed ({str(exc)[:140]}): statement card instead"}); log(f"3D scene {sh['scene_no']} failed: {str(exc)[:120]}")
         else: flags.append({"code": "3d_fallback", "scene": sh["scene_no"], "message": "3D assets or Node/three.js not available: statement card instead"})
         sh.update(kind="statement", gfx={"beats": [{"text": next((s.text for s in scenes if s.scene_no == sh["scene_no"]), ""), "t0": 0.0}]}, overlays=[]); sh.pop("template", None)
+    RJ.close_pool()      # one browser served every 3D shot above; none is left running
     journeys_s = time.time() - t_j
     # shot clips (cached by their own content); uncached ones render in a small thread pool (Pillow and ffmpeg release the GIL)
     clips: List[Path] = []; hits = 0; todo = []; keys = []

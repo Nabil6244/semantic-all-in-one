@@ -86,10 +86,15 @@ def _key_state(anchors, k, aspect=16 / 9):
         dist = max(dist, fit_dist({"min": [c[i] - h[i] for i in range(3)], "max": [c[i] + h[i] for i in range(3)]}, look, k["az"], k["el"], k["fov"], aspect, 0.9))
     return {"look": look, "logd": math.log(dist), "az": k["az"], "el": k["el"], "fov": k["fov"]}
 
-def _cam_state(spec, anchors, t, aspect=16 / 9):
+def camera_path(spec, anchors, aspect=16 / 9):
+    """The camera keys resolved once per clip (each key's look point and distance, which may need a fitting search): (times, states)."""
+    ks = spec["camera"]; return [k["t"] for k in ks], [_key_state(anchors, k, aspect) for k in ks]
+
+def _cam_state(spec, anchors, t, aspect=16 / 9, path=None):
     """Interpolate look point, log-distance, azimuth, elevation and fov (monotone cubic), then place the camera on that orbit.
-    Log-distance makes a long dolly feel evenly paced instead of rushing as it nears the subject."""
-    ks = spec["camera"]; ts = [k["t"] for k in ks]; st = [_key_state(anchors, k, aspect) for k in ks]
+    Log-distance makes a long dolly feel evenly paced instead of rushing as it nears the subject. `path` (camera_path) skips resolving the keys again:
+    sample() resolves them once per clip instead of once per frame."""
+    ts, st = path or camera_path(spec, anchors, aspect)
     look = [_pchip(ts, [s["look"][i] for s in st], t) for i in range(3)]
     d = math.exp(_pchip(ts, [s["logd"] for s in st], t))
     az, el = math.radians(_pchip(ts, [s["az"] for s in st], t)), math.radians(_pchip(ts, [s["el"] for s in st], t))
@@ -142,9 +147,9 @@ def subject_extent(spec, A, t, cam, look, fov, W, H):
 def sample(spec_path, anchors_path, fps, W, H):
     spec = json.loads(Path(spec_path).read_text(encoding="utf-8")); A = json.loads(Path(anchors_path).read_text(encoding="utf-8"))["anchors"]
     for k, v in spec.get("anchor_overrides", {}).items(): A[k] = dict(A.get(k, {}), **v)
-    n = int(round(spec["duration"] * fps)); frames = []
+    n = int(round(spec["duration"] * fps)); frames = []; path = camera_path(spec, A, W / H)
     for i in range(n):
-        t = i / fps; cam, look, fov = _cam_state(spec, A, t, W / H)
+        t = i / fps; cam, look, fov = _cam_state(spec, A, t, W / H, path)
         alpha = {k: _curve(v, t) for k, v in spec["layers"].items()}
         fr = {"i": i, "t": t, "cam": cam, "look": look, "fov": fov, "alpha": alpha,
               "proc": {k: _curve(v, t) for k, v in spec.get("tracks", {}).items()},      # named 0..1 tracks the procedural scenes read (plaque, clot, lipid, flow)

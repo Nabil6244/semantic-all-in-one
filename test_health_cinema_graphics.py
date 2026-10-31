@@ -77,7 +77,7 @@ class Planning(unittest.TestCase):
     def test_joined_3d_rows_keep_both_overlays_and_cards(self):
         two = ("text,visual,organ,overlay,stat,stat_unit,overlay_text,card_type,card_ref,card_prompt\n"
                "Your heart beats about seventy times a minute.,3d,heart,stat,70,beats a minute,,,,\n"
-               "Plaque builds up inside its arteries.,3d,heart,label,,,Plaque,mechanism,plaque_two_v1,a plaque in an artery\n")
+               "It never stops, day or night.,3d,heart,label,,,Plaque,mechanism,plaque_two_v1,a plaque in an artery\n")      # the same subject continues: one scene (a sentence about plaque would get the plaque scene)
         sc = plan_of(two)
         self.assertEqual(len(sc), 1); ovs = sc[0].visual["overlays"]
         self.assertEqual([o["type"] for o in ovs], ["stat", "label"]); self.assertLessEqual(ovs[0]["t1"], ovs[1]["t0"]); self.assertGreaterEqual(ovs[1]["t0"], 6.0)

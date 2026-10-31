@@ -750,7 +750,7 @@
     "flow-engine/test/flow-references.test.js": "f7b9974442a9c783c2b5c31f329c5f5e7883f93f520c0fed35e66a1d607dd2c1",
     "pakmap/waters.py": "cbd5c493558e6988f80fcfa5cf35c54a9028f6308a9ef0df78c4acd3427e3d2b",
     "composition_styles/explainer_scene_csv_prompt.txt": "8c834c735f9a655c9f00ae6d5fedb339c6de5f415dfccb1a0b1acb9acec724a2",
-    "composition_styles/health_cinema_csv_prompt.txt": "40c334818ce2eaea469fb794e29fdc38c2d7d4e738ce6febd637f7468c2d4468"
+    "composition_styles/health_cinema_csv_prompt.txt": "ed91e8c3a7fc65516eb192e981ef06e0027a0d339be4c2951e41f47be1f6f42e"
   },
   "approved_importers": [
     "app.py"

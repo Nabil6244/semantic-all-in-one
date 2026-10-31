@@ -12,7 +12,7 @@ from typing import List, Tuple
 
 from .assets import THREE_ADDONS
 
-DATA_FILES = ("templates/*.json", "threejs/page.html", "threejs/page.js", "threejs/procedural.js", "threejs/conditions.js", "threejs/atmosphere.js", "threejs/bodymap.js", "threejs/render.mjs")
+DATA_FILES = ("templates/*.json", "threejs/page.html", "threejs/page.js", "threejs/procedural.js", "threejs/conditions.js", "threejs/atmosphere.js", "threejs/bodymap.js", "threejs/render.mjs", "threejs/render_worker.mjs")
 EXCLUDED_SUFFIXES = (".glb", ".gltf", ".blend", ".blend1")
 
 def python_modules(root) -> List[str]:

@@ -15,7 +15,7 @@ VERSION = "1"
 DEFAULT_SIZE = (1920, 1080)   # Health Cinema is a landscape 16:9 style; this is the default export
 PREVIEW_SIZE = (1280, 720)
 HERE = Path(__file__).resolve().parent
-CODE_FILES = (HERE / "journey.py", HERE / "overlay.py", HERE / "threejs" / "page.js", HERE / "threejs" / "procedural.js", HERE / "threejs" / "conditions.js", HERE / "threejs" / "atmosphere.js", HERE / "threejs" / "bodymap.js", HERE / "threejs" / "page.html", HERE / "threejs" / "render.mjs")
+CODE_FILES = (HERE / "journey.py", HERE / "overlay.py", HERE / "threejs" / "page.js", HERE / "threejs" / "procedural.js", HERE / "threejs" / "conditions.js", HERE / "threejs" / "atmosphere.js", HERE / "threejs" / "bodymap.js", HERE / "threejs" / "page.html", HERE / "threejs" / "render.mjs", HERE / "threejs" / "render_worker.mjs")
 
 class Cancelled(RuntimeError): pass
 
@@ -95,14 +95,103 @@ def threejs_frames(frames_json, model_path, out_dir, W, H, cancel=None, timeout=
     if ch: env["HC_BROWSER_CHANNEL"] = ch
     run_cancellable([_node(), str(script), str(frames_json), str(model_path), str(out_dir), str(W), str(H)], cancel, timeout, on_line, env=env)
 
-def render_journey(spec_path, anchors_path, model_path, W, H, fps, cache_root, *, cancel: Optional[threading.Event] = None, settings: Optional[dict] = None,
-                   frame_renderer: Callable = threejs_frames, code: Optional[str] = None, on_line=None) -> dict:
+# ---- one browser for many clips: a small pool of render_worker.mjs processes (each keeps its Chromium open between clips) ----
+class _Worker:
+    def __init__(self):
+        import queue
+        from . import assets
+        script = assets._find("health_cinema/threejs/render_worker.mjs") or (HERE / "threejs" / "render_worker.mjs")
+        env = dict(os.environ); ch = assets.browser_channel()
+        if ch: env["HC_BROWSER_CHANNEL"] = ch
+        self.p = subprocess.Popen([_node(), str(script)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1, env=env)
+        self.q: "queue.Queue" = queue.Queue(); self.n = 0
+        threading.Thread(target=self._pump, daemon=True).start()
+        self._wait(lambda m: m.get("event") == "ready", None, 90)
+
+    def _pump(self):
+        for ln in self.p.stdout:
+            try: self.q.put(json.loads(ln))
+            except ValueError: pass
+        self.q.put({"event": "exit"})
+
+    def _wait(self, want, cancel, timeout):
+        import queue
+        t0 = time.time()
+        while True:
+            if cancel is not None and cancel.is_set(): raise Cancelled("cancelled")
+            if timeout is not None and time.time() - t0 > timeout: raise TimeoutError(f"timed out after {timeout}s")
+            try: m = self.q.get(timeout=0.1)
+            except queue.Empty: continue
+            if m.get("event") == "exit": raise RuntimeError("the 3D render worker stopped")
+            if want(m): return m
+
+    def render(self, frames_json, model_path, out_dir, W, H, cancel, timeout) -> dict:
+        self.n += 1; jid = self.n
+        self.p.stdin.write(json.dumps({"id": jid, "frames": str(frames_json), "glb": str(model_path), "out": str(out_dir), "w": int(W), "h": int(H)}) + "\n"); self.p.stdin.flush()
+        m = self._wait(lambda m: m.get("id") == jid and m.get("event") in ("done", "error"), cancel, timeout)
+        if m["event"] == "error": raise RuntimeError(m.get("message", "3D render failed")[-800:])
+        return m
+
+    def kill(self):
+        try: self.p.stdin.close()
+        except Exception: pass
+        _kill_tree(self.p)
+
+
+_POOL: list = []; _POOL_LOCK = threading.Lock(); _POOL_LIVE = [0]
+POOL_MAX = max(1, int(os.environ.get("HEALTH_CINEMA_3D_WORKERS", 2)))
+
+
+def pooled_frames(frames_json, model_path, out_dir, W, H, cancel=None, timeout=1800, on_line=None) -> None:
+    """The default frame renderer: the same page and frames as threejs_frames, from a worker whose browser stays open between clips."""
+    from . import assets
+    miss = assets.missing_threejs_files()
+    if miss: raise RuntimeError("Three.js renderer files missing: " + ", ".join(miss[:4]))
+    with _POOL_LOCK:
+        w = _POOL.pop() if _POOL else None
+        if w is None: _POOL_LIVE[0] += 1
+    try:
+        if w is None: w = _Worker()
+        w.render(frames_json, model_path, out_dir, W, H, cancel, timeout)
+    except BaseException:
+        if w is not None: w.kill()      # a failed or cancelled worker is never reused
+        with _POOL_LOCK: _POOL_LIVE[0] -= 1
+        raise
+    with _POOL_LOCK: _POOL.append(w)
+
+
+def close_pool() -> None:
+    """Stop every idle worker and its browser (the engine calls this when a render ends)."""
+    with _POOL_LOCK:
+        ws = list(_POOL); _POOL.clear(); _POOL_LIVE[0] -= len(ws)
+    for w in ws: w.kill()
+
+
+import atexit
+atexit.register(close_pool)
+
+_KEY_LOCKS: dict = {}; _KEY_LOCKS_GUARD = threading.Lock()
+
+
+def _key_lock(key: str) -> threading.Lock:
+    """One lock per clip: two scenes asking for the same clip at once (parallel render) make it once; the second takes the cached file."""
+    with _KEY_LOCKS_GUARD:
+        return _KEY_LOCKS.setdefault(key, threading.Lock())
+
+
+def render_journey(spec_path, anchors_path, model_path, W, H, fps, cache_root, **kw) -> dict:
     cache_root = Path(cache_root); cache_root.mkdir(parents=True, exist_ok=True)
-    key = cache_key(spec_path, anchors_path, model_path, W, H, fps, "threejs", settings, code)
+    key = cache_key(spec_path, anchors_path, model_path, W, H, fps, "threejs", kw.get("settings"), kw.get("code"))
+    with _key_lock(key):
+        return _render_journey(spec_path, anchors_path, model_path, W, H, fps, cache_root, key, **kw)
+
+
+def _render_journey(spec_path, anchors_path, model_path, W, H, fps, cache_root, key, *, cancel: Optional[threading.Event] = None, settings: Optional[dict] = None,
+                    frame_renderer: Callable = threejs_frames, code: Optional[str] = None, on_line=None) -> dict:
     entry = cache_root / key; clip = entry / "journey.mp4"; man = entry / "manifest.json"
     if clip.exists() and clip.stat().st_size > 0 and man.exists():
         return {"path": str(clip), "cache_hit": True, "key": key, "seconds": 0.0}
-    t0 = time.time(); tmp = cache_root / f".{key}.tmp{os.getpid()}"; shutil.rmtree(tmp, ignore_errors=True); (tmp / "frames").mkdir(parents=True)
+    t0 = time.time(); tmp = cache_root / f".{key}.tmp{os.getpid()}_{threading.get_ident()}"; shutil.rmtree(tmp, ignore_errors=True); (tmp / "frames").mkdir(parents=True)      # one folder per render, also when scenes render in parallel
     try:
         spec, A, frames = journey.sample(spec_path, anchors_path, fps, W, H)
         fj = tmp / "frames.json"; fj.write_text(json.dumps({"spec": spec, "anchors": A, "frames": frames}))

@@ -20,7 +20,7 @@ def template_spec(name: str, variant: int = 0) -> dict:
     return library.apply_variant(_template_spec(name), int(variant or 0))
 
 def _template_spec(name: str) -> dict:
-    if name.startswith(("auto:", "micro:")):      # generated from the library: needs the model's anchors
+    if name.startswith(("auto:", "micro:", "cond:")):      # generated from the library (condition scenes too): needs the model's anchors
         from . import library
         return library.build_spec(name, assets.anatomy_assets(library.model_of(name))["anchors"])
     if name in ("brain_journey", "eye_journey"): return json.loads((TEMPLATES / f"{name}.json").read_text())
@@ -53,6 +53,9 @@ def scale_spec(spec: dict, seconds: float) -> dict:
     for name, keys in s.get("tints", {}).items(): s["tints"][name] = [[t * k, v] for t, v in keys]
     return s
 
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp")
+
+
 def organ_cards(wanted: list, spec: dict, anchors: dict, log: Callable[[str], None] = lambda m: None) -> list:
     """Illustration cards on an organ 3D scene (CSV card_type / card_ref on a 3d row), pinned where the camera is looking when the card appears, like a
     body-map card. A card whose picture is not in the illustration library yet is left out and said (Generate scenes makes it in the Visuals tab)."""
@@ -61,6 +64,7 @@ def organ_cards(wanted: list, spec: dict, anchors: dict, log: Callable[[str], No
     for i, c in enumerate(wanted):
         e = ILL.find(c.get("ref") or "")
         if not e: log(f"illustration card '{c.get('ref') or c.get('prompt', '')[:40]}' is not in the library yet: this 3D scene is drawn without it"); continue
+        if Path(e["path"]).suffix.lower() not in IMAGE_EXT: log(f"illustration card '{c.get('ref')}' is not a picture ({Path(e['path']).name}): this 3D scene is drawn without it"); continue      # a video put in a card row must not break the scene
         t0 = float(c["at"]) if c.get("at") not in (None, "") else min(1.6, D * 0.25); t1 = max(t0 + 1.5, D - 0.3)
         if c.get("auto"): t0, t1 = 0.5, max(2.3, min(D * 0.36, 4.2))      # an automatic card plays during the opening move and leaves before the labels
         keys = [k for k in spec.get("camera", []) if k.get("target") in anchors] or [{"t": 0, "target": next((l["anchor"] for l in spec.get("labels", []) if l["anchor"] in anchors), None)}]
@@ -165,12 +169,12 @@ def render_scene(sc: Scene, prof: P.Profile, cache_dir: Path, *, quality: str = 
                 else: spec = scale_spec(template_spec(sc.visual["template"], sc.visual.get("variant", 0)), frames / FPS)
                 from . import parts, variety
                 if not sc.visual.get("body_rows") and not str(sc.visual.get("template", "")).startswith(("cond:", "micro:")):
-                    spec = parts.focus(spec, sc.text, a["anchors"])      # the part the sentence names (a valve, the retina, a disc ...) is where the shot ends
+                    spec = parts.focus(spec, " ".join(x for x in (sc.visual.get("subject"), sc.text) if x), a["anchors"])      # the CSV's visual subject first, then the sentence      # the part the sentence names (a valve, the retina, a disc ...) is where the shot ends
                 spec = variety.apply(spec, sc.visual.get("direction"))      # this video's own camera move and mood for the scene
                 spec["footer"] = sc.illustrative; spec["captions"] = captions_for(sc); spec["lighting"] = LIGHTING      # Health Cinema's own look (threejs/page.js)
                 if sc.visual.get("cards") and not sc.visual.get("body_rows"): spec["cards"] = organ_cards(sc.visual["cards"], spec, {**json.loads(Path(a["anchors"]).read_text())["anchors"], **spec.get("anchor_overrides", {})}, log)      # drawn scenes keep their points in the spec
                 sp = cache_dir / f"spec_{clip_key(sc, W, H, 'spec')}.json"; sp.write_text(json.dumps(spec))
-                r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, FPS, cache_dir / "journeys", cancel=cancel, frame_renderer=frame_renderer or RJ.threejs_frames,
+                r = RJ.render_journey(sp, a["anchors"], a["model"], W, H, FPS, cache_dir / "journeys", cancel=cancel, frame_renderer=frame_renderer or RJ.pooled_frames,
                                       on_line=None)
                 if sc.visual.get("overlays"):      # the figures / labels / pulse over the 3D picture: a separate clip, so the journey cache stays as it is
                     ov_out = cache_dir / f"anatomy_ov_{clip_key(sc, W, H, 'ov')}.mp4"

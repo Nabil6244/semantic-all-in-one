@@ -24,7 +24,8 @@ def _slug(t: str) -> str: return re.sub(r"[^a-z0-9]+", "_", (t or "").lower()).s
 def _index_path() -> Path: return root() / "index.json"
 
 def load() -> List[dict]:
-    try: return json.loads(_index_path().read_text(encoding="utf-8"))
+    from . import asset_index
+    try: return list(asset_index.load_json(_index_path()))      # read once while the library index is unchanged
     except (OSError, ValueError): return []
 
 def _save(entries: List[dict]) -> None:

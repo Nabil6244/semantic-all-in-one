@@ -38,7 +38,9 @@ from typing import Any, Dict, List, Optional, Sequence
 
 ALIASES = {"text": ("text", "narration", "sentence", "script"), "start": ("start", "start_s", "start_time"), "end": ("end", "end_s", "end_time"),
            "chapter": ("chapter", "section"), "footage": ("footage", "footage_query", "clip"), "visual": ("visual", "scene_type", "kind"),
-           "organ": ("organ", "anatomy", "body_part", "region"), "shot": ("shot", "camera"), "footage_alt": ("footage_alt", "alt_footage", "footage_fallback"),
+           "organ": ("organ", "anatomy", "body_part", "region"), "shot": ("shot", "camera"),
+           "visual_subject": ("visual_subject", "subject", "visual_focus"), "visual_intent": ("visual_intent", "intent"),
+           "biological_process": ("biological_process", "process", "mechanism"), "visual_action": ("visual_action", "action", "on_screen_action"), "footage_alt": ("footage_alt", "alt_footage", "footage_fallback"),
            "source": ("source", "footage_source", "asset_source"),
            "stat": ("stat", "number", "stat_value"), "stat_unit": ("stat_unit", "unit"), "stat_label": ("stat_label", "label"), "stat_kicker": ("stat_kicker", "kicker"), "stat_source": ("stat_source",),
            "events": ("events", "timeline_events"), "card_title": ("card_title", "title"), "card_kicker": ("card_kicker",),
@@ -50,7 +52,8 @@ VISUALS = ("auto", "footage", "3d", "text", "chapter", "counter", "bar", "timeli
 OVERLAYS = ("none", "stat", "label", "pulse")
 SHOTS = ("orbit", "zoom", "peel", "cutaway", "isolate", "fatty", "inflamed")
 SOURCES = ("stock", "youtube", "flow")
-HINT_COLUMNS = ("visual", "organ", "shot", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region", "items", "do", "dont", "overlay")
+INTENT_COLUMNS = ("visual_subject", "visual_intent", "biological_process", "visual_action")      # what the viewer must see: the organ alone is not the subject
+HINT_COLUMNS = ("visual", "organ", "shot", "visual_subject", "biological_process", "footage", "footage_alt", "source", "stat", "events", "card_title", "body_region", "items", "do", "dont", "overlay")
 SOURCE_FIELDS = ("title", "citation", "url", "year", "population", "context")
 MIN_MATCH = 0.5      # below this share of script words found in the voiceover, the CSV is not this narration
 WARN_MATCH = 0.8
@@ -195,9 +198,14 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
             v = (row.get(k) or "").strip().lower().replace(" ", "")
             if v:
                 v = {"3d": "3d", "anatomy": "3d", "stock": "stock", "animation": "3d"}.get(v, v)
+                if k == "shot" and v not in allowed:      # a described shot (internal_cross_section, molecular_closeup ...) is kept as a description, never an error
+                    sc["shot_desc"] = " ".join(row[k].replace("_", " ").split()).lower(); continue
                 if v not in allowed:
                     raise ValueError(f"{where}: {k} '{row[k]}' is not one of: {', '.join(allowed)}")
                 sc[k] = v
+        for k in INTENT_COLUMNS:      # snake_case or plain words, kept as plain words
+            if row.get(k):
+                sc[k] = " ".join(row[k].replace("_", " ").split()).lower()
         for k in ("stat", "stat_unit", "stat_label", "stat_kicker", "stat_source", "card_title", "card_kicker"):
             if row.get(k):
                 sc[k] = " ".join(row[k].split())
@@ -267,7 +275,35 @@ def parse_csv_text(content: str, notes: Optional[List[str]] = None) -> List[dict
             prev_end = r["end"]
     for i, r in enumerate(rows, start=1):
         r["scene_no"] = i
+    if notes is not None: notes.extend(intent_notes(rows))      # checked once when the CSV is read: what each 3D row asks the viewer to see
     return rows
+
+
+def intent_notes(rows: Sequence[dict]) -> List[str]:
+    """Warnings (never errors) about what the 3D rows ask the viewer to see:
+    - consecutive 3D rows that name only an organ (the organ is not the visual subject: say what is seen),
+    - one visual_subject used for different biological processes (each process needs its own subject),
+    - a 3D row with a visual_subject but neither visual_intent nor visual_action (what must the picture show?).
+    Row numbers are the CSV's own (row 2 is the first data row)."""
+    out: List[str] = []; run: List[int] = []; organ = ""
+    def flush():
+        if len(run) >= 2: out.append(f"rows {run[0]}-{run[-1]}: {len(run)} 3D rows in a row name only the organ ({organ}); give each its visual_subject and biological_process (what is seen, not where)")
+    for r in rows:
+        n = int(r.get("scene_no") or 0) + 1
+        if r.get("visual") == "3d" and r.get("organ") and not r.get("visual_subject"):
+            if not run or r.get("organ") != organ: flush(); run, organ = [], r.get("organ")
+            run.append(n)
+        else:
+            flush(); run = []
+        if r.get("visual") == "3d" and r.get("visual_subject") and not (r.get("visual_intent") or r.get("visual_action")):
+            out.append(f"row {n}: visual_subject '{r['visual_subject']}' has no visual_intent or visual_action: say what the picture must show or change")
+    flush()
+    procs: Dict[str, Dict[str, int]] = {}
+    for r in rows:
+        if r.get("visual_subject") and r.get("biological_process"): procs.setdefault(r["visual_subject"], {}).setdefault(r["biological_process"], int(r.get("scene_no") or 0) + 1)
+    for subj, ps in procs.items():
+        if len(ps) > 1: out.append(f"visual_subject '{subj}' is used for different processes ({', '.join(f'{p} (row {n})' for p, n in ps.items())}): give each process its own subject")
+    return out
 
 
 def read_scenes_csv(path: str, notes: Optional[List[str]] = None) -> List[dict]:

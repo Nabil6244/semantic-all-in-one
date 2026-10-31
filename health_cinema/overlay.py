@@ -4,7 +4,11 @@ import json, math, subprocess, sys, shutil
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-def _font(px):
+import functools
+
+
+@functools.lru_cache(maxsize=32)
+def _font(px):      # loaded once per size (it was loaded again for every frame)
     for p in ("/System/Library/Fonts/Helvetica.ttc", "/System/Library/Fonts/Supplemental/Arial Bold.ttf", "C:/Windows/Fonts/arialbd.ttf"):
         if Path(p).exists():
             try: return ImageFont.truetype(p, px, index=1) if p.endswith(".ttc") else ImageFont.truetype(p, px)
@@ -33,8 +37,10 @@ def label_box(text_w, px, x, y, side, W, H, avoid=None):
     bx0 = min(max(bx0, lo), hi); ty = min(max(ty, H * m + pad * 0.4), H * (1 - m) - px * 1.25 - pad * 0.4)
     return (bx0, ty - pad * 0.4, bx0 + bw, ty + px * 1.25 + pad * 0.4), (bx0 + pad, ty)
 
-def draw_labels(im, labels, H, k=1.0, subject=None):      # k: a spec's label_scale (a clip shown small inside another layout asks for bigger labels); 1.0 for every Health Cinema scene
-    W = im.width; px = round(label_px(min(W, H)) * k); f = _font(px); ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
+def draw_labels(im, labels, H, k=1.0, subject=None, inplace=False):      # k: a spec's label_scale (a clip shown small inside another layout asks for bigger labels); 1.0 for every Health Cinema scene
+    if not labels: return im      # nothing to draw: no full-frame layer to composite
+    im = im if (inplace and im.mode == "RGB") else im.convert("RGB")      # each shape blended with its alpha onto the frame (no full-frame layer); a copy unless the caller owns the frame
+    W = im.width; px = round(label_px(min(W, H)) * k); f = _font(px); d = ImageDraw.Draw(im, "RGBA")
     for lb in labels:
         a = int(255 * lb["a"]); x, y = lb["xy"]; w = d.textlength(lb["text"], font=f)
         box, org = label_box(w, px, x, y, lb["side"], W, H, subject); ex = box[0] if (box[0] + box[2]) / 2 > x else box[2]
@@ -44,7 +50,7 @@ def draw_labels(im, labels, H, k=1.0, subject=None):      # k: a spec's label_sc
         d.ellipse([x - rr, y - rr, x + rr, y + rr], outline=(255, 80, 80, ra), width=max(2, round(px / 14)))
         d.rounded_rectangle(box, radius=px * 0.25, fill=(8, 14, 28, int(a * 0.86)), outline=(120, 200, 255, a), width=max(1, round(px / 20)))
         d.text(org, lb["text"], font=f, fill=(255, 255, 255, a))
-    return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
+    return im
 
 CARD_W_1080 = 640      # card width at 1080p (landscape illustration + header + footer); scaled with the frame and, slightly, with the camera distance
 
@@ -71,11 +77,12 @@ def _card_plate(path, title, tag, foot, w, H):
     if len(_CARD_CACHE) > 12: _CARD_CACHE.pop(next(iter(_CARD_CACHE)))
     return plate
 
-def draw_cards(im, cards, H):
+def draw_cards(im, cards, H, inplace=False):
     """Illustration cards pinned to anatomy: a leader line from the pin on the body to the card edge, an entrance (scale, fade, scan from the top), a trace of float. The card sits on its
     side of the frame (`side`), away from the centre where the camera keeps the anatomy, and its size follows the camera distance a little."""
     if not cards: return im
-    W = im.width; k = H / 1080; ov = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(ov)
+    im = im if (inplace and im.mode == "RGB") else im.convert("RGB")      # drawn onto the frame (no full-frame layer); a copy unless the caller owns the frame
+    W = im.width; k = H / 1080; d = ImageDraw.Draw(im, "RGBA")
     for cd in cards:
         enter = min(1.0, cd["age"] / 0.8); leave = min(1.0, max(0.0, cd["left"] / 0.5)); a = enter * leave
         if a <= 0.01: continue
@@ -87,28 +94,64 @@ def draw_cards(im, cards, H):
         ex = x0 if cd["side"] == "right" else x0 + cw; ey = y0 + round(54 * k); bend = ex - (50 * k if cd["side"] == "right" else -50 * k)
         la = int(235 * a * min(1.0, cd["age"] / 0.4)); lw = max(2, round(2.5 * k)); pts = [(px, py), (bend, ey), (ex, ey)]
         d.line(pts, fill=(150, 215, 255, la), width=lw, joint="curve"); r0 = max(5, round(7 * k)); d.ellipse([px - r0, py - r0, px + r0, py + r0], outline=(255, 255, 255, la), width=lw)
-        d.ellipse([px - r0 / 2, py - r0 / 2, px + r0 / 2, py + r0 / 2], fill=(255, 90, 80, la)); ov.alpha_composite(vis, (x0, y0))
-    return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
+        d.ellipse([px - r0 / 2, py - r0 / 2, px + r0 / 2, py + r0 / 2], fill=(255, 90, 80, la)); im.paste(vis, (x0, y0), vis)
+    return im
 
 def draw_footer(im, text, H):
     if not text: return im
     d = ImageDraw.Draw(im, "RGBA"); px = max(22, round(30 * H / 1080)); f = _font(px); m = round(im.width * 0.03)
     d.text((m, im.height - m - px), text, font=f, fill=(190, 202, 225, 235)); return im
 
+@functools.lru_cache(maxsize=64)
+def _caption_crop(text: str, W: int, H: int):
+    """A caption drawn once (graphics.caption_overlay_png) and cut to its own box: (RGBA crop, top-left)."""
+    from .graphics import caption_overlay_png
+    ov = caption_overlay_png(text, W, H); box = ov.getbbox() or (0, 0, 1, 1)
+    return ov.crop(box), box[:2]
+
+
+def _caption(im, text: str, alpha: float):
+    """The same caption as graphics.draw_caption, pasted from its cached crop (no full-frame layer per frame)."""
+    crop, (x, y) = _caption_crop(text, im.width, im.height)
+    if alpha < 0.999:
+        crop = crop.copy(); crop.putalpha(crop.getchannel("A").point(lambda v, k=max(0.0, alpha): int(v * k)))
+    im.paste(crop, (x, y), crop); return im
+
+
+def _labelled(fr, fd: Path, footer, caps, lk):
+    """One finished frame (labels, cards, footer, caption drawn), as RGB bytes; None when the frame file is missing."""
+    p = fd / f"f{fr['i']:05d}.png"
+    if not p.exists(): return None
+    im = Image.open(p).convert("RGB"); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height, lk, fr.get("subject"), inplace=True), fr.get("cards", []), im.height, inplace=True), footer, im.height)
+    for a, b, text in caps:
+        if a <= fr["t"] < b:
+            im = _caption(im, text, min(1.0, (fr["t"] - a) / 0.15, (b - fr["t"]) / 0.15)); break
+    im = im.convert("RGB"); return im.size, im.tobytes()
+
+
 def run(frames_json, frame_dir, out_mp4, fps, ffmpeg=None):
-    data = json.loads(Path(frames_json).read_text()); frames = data["frames"]; footer = (data.get("spec") or {}).get("footer", ""); caps = (data.get("spec") or {}).get("captions", []); lk = float((data.get("spec") or {}).get("label_scale", 1.0)); fd = Path(frame_dir); tmp = fd.parent / (fd.name + "_lbl"); tmp.mkdir(exist_ok=True)
-    for fr in frames:
-        p = fd / f"f{fr['i']:05d}.png"
-        if not p.exists(): continue
-        im = Image.open(p); im = draw_footer(draw_cards(draw_labels(im, fr["labels"], im.height, lk, fr.get("subject")), fr.get("cards", []), im.height), footer, im.height)
-        for a, b, text in caps:
-            if a <= fr["t"] < b:
-                from .graphics import draw_caption
-                im = draw_caption(im, text, im.height, alpha=min(1.0, (fr["t"] - a) / 0.15, (b - fr["t"]) / 0.15)); break
-        im.save(tmp / p.name)
-    ff = ffmpeg or shutil.which("ffmpeg")
-    subprocess.run([ff, "-y", "-v", "error", "-framerate", str(fps), "-i", str(tmp / "f%05d.png"), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_mp4)], check=True, timeout=3600)
-    shutil.rmtree(tmp, ignore_errors=True)   # the labelled PNGs are only an intermediate
+    """Draw the labels on every frame and encode the clip. Frames go straight into ffmpeg through a pipe (no second PNG per frame on disk), and are
+    drawn a few at a time on worker threads while ffmpeg encodes the ones before them; the pixels are the same as before."""
+    from concurrent.futures import ThreadPoolExecutor
+    data = json.loads(Path(frames_json).read_text()); frames = data["frames"]; spec = data.get("spec") or {}
+    footer = spec.get("footer", ""); caps = spec.get("captions", []); lk = float(spec.get("label_scale", 1.0)); fd = Path(frame_dir)
+    ff = ffmpeg or shutil.which("ffmpeg"); proc = None
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for got in pool.map(lambda fr: _labelled(fr, fd, footer, caps, lk), frames):
+                if got is None: continue
+                (w, h), buf = got
+                if proc is None:
+                    proc = subprocess.Popen([ff, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-framerate", str(fps), "-i", "-",
+                                             "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out_mp4)],
+                                            stdin=subprocess.PIPE)
+                proc.stdin.write(buf)
+        if proc is None: raise RuntimeError("no frames to encode")
+        proc.stdin.close(); code = proc.wait(timeout=3600)
+        if code != 0: raise subprocess.CalledProcessError(code, ff)
+    except BaseException:
+        if proc is not None and proc.poll() is None: proc.kill()
+        raise
 
 if __name__ == "__main__":
     run(sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]))

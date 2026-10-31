@@ -113,7 +113,7 @@ def build(scenes, accent, silences=(), src_duration=None) -> dict:
                 if k == 0: sh["overlays"] += [dict(o, type="pic_" + o["type"], t1=min(float(o.get("t1", d - 0.6)), d - 0.6)) for o in sc.visual.get("overlays") or []]      # the figures / labels / pulse the planner put over this picture
                 last_layout = sh["layout"]; shots.append(sh)
         elif kind == "anatomy":
-            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), variant=sc.visual.get("variant", 0), direction=sc.visual.get("direction"), text=sc.text, body_rows=sc.visual.get("body_rows"), scene_start=sc.start, cards=sc.visual.get("cards"), illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
+            sh = dict(base, kind="anatomy", t0=t0, t1=t1, template=sc.visual.get("template"), variant=sc.visual.get("variant", 0), direction=sc.visual.get("direction"), text=sc.text, subject=sc.visual.get("subject"), body_rows=sc.visual.get("body_rows"), scene_start=sc.start, cards=sc.visual.get("cards"), illustrative=sc.illustrative or "3D illustration. Not clinical imagery.", overlays=[], why=list(why) + ["3D journey kept as one continuous camera move; chips mark the key phrases"])
             used = 0; last_c = -9.0
             for p in phrases:
                 if not (t0 + 1.0 < p.t0 < t1 - 2.5) or used >= 2: continue

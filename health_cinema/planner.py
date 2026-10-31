@@ -132,6 +132,7 @@ PCT_RE = re.compile(r"(?:(up to|about|over|nearly|around|more than)\s+)?(\d+(?:\
 BRAIN_RE = re.compile(r"\b(brain|carotid|cerebral|head)\b", re.I)
 EYE_RE = re.compile(r"\b(eyes?|vision|retina|optic|sight|eyesight)\b", re.I)
 TIME_RE = re.compile(r"(\b(?:one|that|this)\s+(?:morning|afternoon|evening|night)\b|\b(?:\d+|one|two|three|four|five|six|several|a few)\s+(?:seconds?|minutes?|hours?|days?|weeks?|months?)(?:\s+(?:later|after))?\b|\b(?:\d+|one|two|three|four|five|six|several|a few)\s+years?\s+(?:later|after)\b)", re.I)
+MAX_SAME_3D = 3      # one 3D scene at most this many times per video (a 14 s journey shown 22 times reads as one clip on repeat)
 MIN_3D_S = {"heart_journey": 9.0, "chest_journey": 8.0, "brain_journey": 10.0, "eye_journey": 8.0}
 
 def _sentences_text(g): return " ".join(x["text"].strip() for x in g)
@@ -208,7 +209,15 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
         hint = d.get("hint") or {}; hv = hint.get("visual")
         if hv == "3d":
             from . import library
-            tpl = library.template_for(hint.get("organ") or _anatomy_topic(text) or "", template_ready, shot=hint.get("shot"), text=text)      # an explicit 3D row is honoured: no once-per-video limit
+            organ_ = hint.get("organ") or _anatomy_topic(text) or ""
+            intent_ = " ".join(x for x in (hint.get("visual_subject"), hint.get("biological_process"), hint.get("visual_action")) if x)      # what the viewer must see (CSV): decides before the organ
+            skin_ok = "skin" in (organ_ + " " + intent_).lower()
+            proc = library.find_process(intent_, skip_kinds=() if skin_ok else ("skin",)) if intent_ else None
+            if not proc and (library.organ_key(organ_) in library.ORGANS or library.organ_key(organ_) in library.AUTHORED):
+                proc = library.find_process(text, skip_kinds=() if skin_ok else ("skin",))
+            tpl = library.template_for(proc, template_ready, text=text) if proc else None      # "heart" + a sentence about plaque or a clot: the plaque / clot scene, not the heart again
+            if tpl: why.append(f"the {'visual subject' if intent_ else 'sentence'} is {proc.replace('_', ' ')}: that scene instead of the {organ_} itself"); hint = dict(hint, organ=proc)
+            else: tpl = library.template_for(organ_, template_ready, shot=hint.get("shot"), text=text)      # an explicit 3D row is honoured (the repeat limit below still applies)
         elif hv == "body": tpl = "body:skin" if template_ready("body:skin") else None      # body-map beat: the whole-body model; without it the row falls back to footage of the named region (never a card)
         elif hv in ("footage", "flow", "youtube", "text", "chapter", "counter", "bar", "timeline", "checklist", "steps", "compare"): tpl = None      # an explicit non-3D row is never turned into a 3D organ because its sentence names one
         else: tpl = organ_template(text)
@@ -247,8 +256,10 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             it["visual"] = {"value": float(pc.group(2)), "qualifier": ((pc.group(1) or "")[:1].upper() + (pc.group(1) or "")[1:].lower()), "context": sent["text"].strip()}
             why.append("a percentage -> animated bar")
         elif tpl:
-            it["kind"] = "anatomy_3d"; it["visual"] = {"template": tpl, "organ": {"brain_journey": "brain", "eye_journey": "eye", "heart_journey": "heart", "chest_journey": "lungs"}.get(tpl, hint.get("organ") or tpl)}; used3d.add(tpl)
+            it["kind"] = "anatomy_3d"; it["visual"] = {"template": tpl, "organ": {"brain_journey": "brain", "eye_journey": "eye", "heart_journey": "heart", "chest_journey": "lungs"}.get(tpl, hint.get("organ") or (tpl.split(":")[1].replace("_", " ") if ":" in tpl else tpl))}; used3d.add(tpl)
             if hint.get("shot"): it["visual"]["shot"] = hint["shot"]
+            if hint.get("visual_subject"):      # the subject (and process) the CSV names: part targeting reads it, and two rows merge only when it is the same
+                it["visual"]["subject"] = hint["visual_subject"]; it["visual"]["subject_key"] = f"{hint['visual_subject']}|{hint.get('biological_process') or ''}"
             if tpl.startswith("body:"): it["visual"]["body_rows"] = [{"start": it["start"], "end": it["end"], "text": text, "hint": hint}]; it["visual"]["organ"] = hint.get("body_region") or "body"
             why.append(f"anatomy topic -> {tpl}")
         elif allow_footage and (d["queries"] or d["description"]) and (d["asset_type"] in FOOTAGE_TYPES or d["asset_type"] in GENERATED_TYPES or wanted):
@@ -280,7 +291,8 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
     k = 0
     while k + 1 < len(items):
         a, b = items[k], items[k + 1]
-        if a["kind"] == b["kind"] == "anatomy_3d" and (a["d"].get("hint") or {}).get("visual") == (b["d"].get("hint") or {}).get("visual") == "3d" and a["visual"].get("organ") == b["visual"].get("organ") and b["end"] - a["start"] <= 16.0:
+        if a["kind"] == b["kind"] == "anatomy_3d" and (a["d"].get("hint") or {}).get("visual") == (b["d"].get("hint") or {}).get("visual") == "3d" and a["visual"].get("organ") == b["visual"].get("organ") \
+                and a["visual"].get("subject_key", "") == b["visual"].get("subject_key", "") and b["end"] - a["start"] <= 16.0:      # the same subject and process continuing: one shot
             _absorb(a, b); a["g"] += b["g"]; a["end"] = b["end"]; a["text"] += " " + b["text"]; a["why"].append("next row is the same body part: one scene"); del items[k + 1]
         else: k += 1
     # extend 3D scenes forward to a watchable length (never over a data graphic)
@@ -293,6 +305,27 @@ def plan_directed(sentences: List[dict], profile_id: str, dscenes: List[dict], t
             while it["end"] - it["start"] < need and i + 1 < len(items) and items[i + 1]["kind"] in ("footage", "text_card", "anatomy_3d") and (items[i + 1]["d"].get("hint") or {}).get("visual") in (None, "auto"):      # never over a row the CSV directed
                 nx = items.pop(i + 1); _absorb(it, nx); it["g"] += nx["g"]; it["end"] = nx["end"]; it["text"] += " " + nx["text"]; it["d"] = it["d"]; it["why"].append("extended over the next scene for watchable length")
         i += 1
+    # one global look at the video's 3D: no scene is shown more than MAX_SAME_3D times, and never twice in a row (a viewer sees the same clip);
+    # the extra ones become the blood-flow scene when the topic is the heart or its vessels, else footage searched for their own sentence
+    count: Dict[str, int] = {}; prev_tpl = None; prev_key = None; shown_for: Dict[str, set] = {}
+    for i, it in enumerate(items):
+        if it["kind"] != "anatomy_3d" or it["visual"].get("body_rows"): prev_tpl = prev_key = None; continue
+        tpl = it["visual"]["template"]; key = it["visual"].get("subject_key")
+        continues = bool(key) and key == prev_key      # the same subject and process going on: a continuing shot, not a repeat
+        other_process = bool(key) and bool(shown_for.get(tpl) - {key}) if tpl in shown_for else False      # this scene already showed a different process: only the camera would differ
+        if count.get(tpl, 0) >= MAX_SAME_3D or (tpl == prev_tpl and not continues) or other_process:
+            why_ = ("already shows another process; a camera move alone must not stand for a different one" if other_process else
+                    "shown twice in a row" if tpl == prev_tpl else f"already shown {MAX_SAME_3D} times")
+            alt = "micro:blood_flow:orbit" if it["visual"].get("organ") in ("heart", "lungs") or tpl in ("heart_journey", "chest_journey") else None
+            if alt and template_ready(alt) and count.get(alt, 0) < MAX_SAME_3D and alt != prev_tpl:
+                it["visual"] = dict(it["visual"], template=alt, organ="blood flow"); it["why"].append(f"{tpl} {why_}: blood flow instead"); tpl = alt
+            else:
+                from . import direction as _dir
+                q = (it["d"].get("queries") or _dir.default_queries(it["text"], None) or [it["visual"].get("organ") or "medical"])[0]
+                it["kind"] = "footage"; it["visual"] = {"scene_id": it["d"]["scene_id"], "query": q, "asset_type": "stock_video"}; it["why"].append(f"{tpl} {why_}: footage instead ({q[:40]})")
+                prev_tpl = prev_key = None; continue
+        count[tpl] = count.get(tpl, 0) + 1; prev_tpl = tpl; prev_key = key
+        if key: shown_for.setdefault(tpl, set()).add(key)
     # timeline: a story with time-ordered markers ("one afternoon ... 3 days later ... 4 months") becomes one timeline over the scenes from the first
     # "N <unit> later" marker to the last duration marker; earlier markers (even inside a 3D scene) appear first, as already-happened events
     marks = []

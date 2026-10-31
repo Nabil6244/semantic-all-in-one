@@ -76,10 +76,11 @@ def template_ready(template: str) -> bool:
     a = anatomy_assets(kind) if kind else None
     if not a: return False
     if template in TEMPLATE_ASSET or template.startswith("body:"): return True      # a body-map scene is built from the CSV beats and validated by bodymap.validate
-    try:
-        from . import library
-        library.build_spec(template, a["anchors"]); return True
-    except Exception: return False
+    from . import asset_index, library
+    def check() -> bool:
+        try: library.build_spec(template, a["anchors"]); return True
+        except Exception: return False
+    return asset_index.template_ready(template, (a["model"], a["anchors"], library.__file__), check)      # answered from the index while the model, anchors and library are unchanged
 
 def node_path() -> Optional[str]:
     name = "node.exe" if sys.platform == "win32" else "node"

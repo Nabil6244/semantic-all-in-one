@@ -460,6 +460,8 @@ def to_library(rows: List, folder: Path, log) -> None:
     ill = [r for r in rows if str(getattr(r, "visual_description", "")).startswith("illustration:")]
     for no, rec in visual_bridge.records(folder, ill).items():
         row = next(r for r in ill if int(str(r.scene_number)) == no)
+        if Path(rec["path"]).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):      # a card is a picture: a video chosen for its row is not filed (it would break the 3D scene)
+            log(f"illustration row {no} holds {Path(rec['path']).name}, not a picture: pick an image for it in the Visuals tab"); continue
         ref, kind, topic = (row.visual_description.split(":", 1)[1].split("|") + ["", ""])[:3]
         have = ILL.find(ref)
         if have and have.get("sha256") == ILL.sha256(rec["path"]): continue

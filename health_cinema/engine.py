@@ -102,6 +102,54 @@ def auto_cards(scenes, log=lambda m: None) -> int:
     return n
 
 
+def _workers() -> Dict[str, int]:
+    """Bounded worker counts. 3D scenes each run a browser on the GPU: two at once (measured on an M2: a third adds memory, not speed).
+    Footage and card clips are ffmpeg / Pillow work on the CPU: half the cores, at most 4, so encoding never starves the 3D renders.
+    HEALTH_CINEMA_3D_WORKERS / HEALTH_CINEMA_CPU_WORKERS override (benchmarks)."""
+    cpu = os.cpu_count() or 4
+    return {"3d": max(1, int(os.environ.get("HEALTH_CINEMA_3D_WORKERS", 2))), "cpu": max(1, int(os.environ.get("HEALTH_CINEMA_CPU_WORKERS", min(4, max(1, cpu // 2)))))}
+
+WORKERS = _workers()
+
+
+def render_scenes(scenes, pplan, prunner, by_no, prof, cache_dir, quality, cancel, cancelled, log, prog, frame_renderer, tm) -> List[dict]:
+    """Render every scene clip with a bounded scheduler: 3D scenes in a small pool (one browser each), the rest in a CPU pool, all at the same time.
+    Results come back in scene order. Puppet scenes (one shared character runner) render one after another, as before. The first error or a cancel
+    stops the queue."""
+    from concurrent.futures import ThreadPoolExecutor
+    n = len(scenes); results: List[Optional[dict]] = [None] * n; done = [0]; lock = threading.Lock(); per_kind: Dict[str, float] = {}
+    def one(i: int) -> None:
+        if cancelled() or cancel.is_set(): cancel.set(); raise Cancelled("cancelled")
+        sc = scenes[i]; t = time.time(); r = None
+        if prunner is not None and sc.scene_no in pplan:
+            ent = pplan[sc.scene_no]
+            r = prunner.render(sc, ent, by_no.get(ent.get("transition_from")), clips.captions_for(sc), round(sc.end * clips.FPS) - round(sc.start * clips.FPS))
+            if r is None: sc.flags.append({"code": "puppet_fallback", "severity": "note", "message": "The character move could not be rendered; the scene is shown without it."})
+        if r is None: r = clips.render_scene(sc, prof, cache_dir, quality=quality, cancel=cancel, log=log, frame_renderer=frame_renderer)
+        if r["fallback"]: sc.flags.append({"code": "3d_fallback", "severity": "note", "message": r["fallback"]}); sc.kind = r["used_kind"]
+        results[i] = r
+        with lock:
+            done[0] += 1; k = r.get("used_kind") or sc.kind; per_kind[k] = round(per_kind.get(k, 0.0) + time.time() - t, 3)
+            prog(done[0] / n, f"scene {sc.scene_no} done ({done[0]}/{n}): {sc.kind}")
+    puppet_i = [i for i, sc in enumerate(scenes) if prunner is not None and sc.scene_no in pplan]
+    three_i = [i for i, sc in enumerate(scenes) if i not in puppet_i and sc.kind == "anatomy_3d"]
+    rest_i = [i for i in range(n) if i not in puppet_i and i not in three_i]
+    with ThreadPoolExecutor(WORKERS["3d"], thread_name_prefix="hc-3d") as p3, ThreadPoolExecutor(WORKERS["cpu"], thread_name_prefix="hc-cpu") as pc:
+        futs = [p3.submit(one, i) for i in three_i] + [pc.submit(one, i) for i in rest_i]      # the slow 3D scenes start first, alongside the CPU work
+        for i in puppet_i: one(i)
+        try:
+            for f in futs: f.result()
+        except BaseException:
+            cancel.set()
+            for f in futs: f.cancel()
+            raise
+        finally:
+            from . import render_journey as _RJ
+            _RJ.close_pool()      # the render is over: no browser is left running
+    tm["scene_seconds_by_kind"] = per_kind
+    return [r for r in results]
+
+
 def illustrations_wanted(scenes) -> List[dict]:
     """Every illustration card the plan pins on a 3D scene (organ cards and body-map beats), once per id: [{ref, prompt, type, topic, narration}].
     Generate scenes lists them in the Visuals tab; the ones the library already holds are shown there as done."""
@@ -120,7 +168,7 @@ def illustrations_wanted(scenes) -> List[dict]:
 
 def csv_directs(sentences: List[dict]) -> bool:
     """True when the scenes CSV picks the visuals itself: then nothing in the run calls Gemini."""
-    return any(any(s.get(k) for k in ("visual", "organ", "shot", "footage", "footage_alt", "source", "overlay", "items")) for s in sentences)
+    return any(any(s.get(k) for k in ("visual", "organ", "shot", "visual_subject", "biological_process", "footage", "footage_alt", "source", "overlay", "items")) for s in sentences)
 
 def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, profile: str = P.DEFAULT_PROFILE, quality: str = "final",
                       title: str = "", cancel_check: Optional[Callable[[], bool]] = None, progress_cb: Optional[Callable[[float, str], None]] = None,
@@ -129,6 +177,9 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                       allow_flow: bool = False, use_director: Optional[bool] = None, edit: str = "classic", music: bool = True, use_gemini: bool = True,
                       puppet: Optional[dict] = None, puppet_module=None, media_only: bool = False, table: Optional[Dict[int, dict]] = None) -> Dict:
     t0 = time.time(); project_dir = Path(project_dir); cancel = threading.Event(); cancelled = cancel_check or (lambda: False)
+    tm: Dict[str, float] = {}; mark = [time.time()]      # stage timings for the report: each stage measured, never guessed
+    def stage(name: str) -> None:
+        now = time.time(); tm[name] = round(tm.get(name, 0.0) + now - mark[0], 3); mark[0] = now
     stop_watch = threading.Event()
     def _watch():   # the caller's cancel flag also stops a render that is in the middle of a scene (kills the node/Chromium/ffmpeg children)
         while not stop_watch.wait(0.2):
@@ -162,6 +213,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
         plan = planner.plan_directed(sents, profile, dscenes, tpl_ok, allow_footage=acquirer is not None, title=title)
     else:
         plan = planner.plan(sents, profile, assets_ok=ready, footage_for=footage_lookup(project_dir), title=title)
+    stage("planning")
     scenes = plan["scenes"]
     if not scenes: raise ValueError("no scenes to render")
     from . import variety      # every 3D scene filmed and lit its own way, never the same combination as in an earlier video
@@ -209,6 +261,7 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
                     sc.flags.append({"code": "footage_unavailable", "severity": "note", "message": f"Footage could not be acquired ({str(why)[:120]}); a typographic card is shown instead."})
                     sc.kind = "text_card"; sc.visual = {"text": sc.text, "beats": [{"text": x["text"], "t0": round(x["start"] - sc.start, 3)} for x in sc.sentences]}
                     log(f"scene {sc.scene_no}: footage failed ({str(why)[:100]}): typographic fallback")
+    stage("footage")
     if media_only:      # Generate scenes: the footage is fetched and listed for the Visuals tab; Render makes the video from what the tab holds
         stop_watch.set()
         folder = getattr(acquirer, "images_dir", None)
@@ -257,26 +310,19 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
     results: List[dict] = []; out_path = Path(out_path); out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_out = out_path.with_name(out_path.name + ".rendering.mp4")
     try:
-        for i, sc in enumerate(scenes):
-            if cancelled() or cancel.is_set(): cancel.set(); raise Cancelled("cancelled")
-            prog(i / len(scenes), f"scene {sc.scene_no}/{len(scenes)}: {sc.kind}")
-            r = None
-            if prunner is not None and sc.scene_no in pplan:
-                ent = pplan[sc.scene_no]
-                r = prunner.render(sc, ent, by_no.get(ent.get("transition_from")), clips.captions_for(sc), round(sc.end * clips.FPS) - round(sc.start * clips.FPS))
-                if r is None: sc.flags.append({"code": "puppet_fallback", "severity": "note", "message": "The character move could not be rendered; the scene is shown without it."})
-            if r is None: r = clips.render_scene(sc, prof, cache_dir, quality=quality, cancel=cancel, log=log, frame_renderer=frame_renderer)
-            if r["fallback"]: sc.flags.append({"code": "3d_fallback", "severity": "note", "message": r["fallback"]}); sc.kind = r["used_kind"]
-            results.append(r)
+        stage("before_render")
+        results = render_scenes(scenes, pplan, prunner, by_no, prof, cache_dir, quality, cancel, cancelled, log, prog, frame_renderer, tm)
+        stage("scenes")
         if cancelled(): raise Cancelled("cancelled")
         lst = work / "list.txt"; lst.write_text("".join(f"file '{Path(p).as_posix()}'\n" for r in results for p in list(r.get("pre") or []) + [r["path"]]))      # a puppet scene may open with its transition clip
         joined = work / "joined.mp4"
         _run(["-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(joined)], "joining the scene clips")
+        stage("join")
         if voiceover_path:
             _run(["-i", str(joined), "-i", voiceover_path, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
                   "-af", "apad", "-t", f"{sum(round(s.end * clips.FPS) - round(s.start * clips.FPS) for s in scenes) / clips.FPS:.3f}", str(tmp_out)], "adding the voiceover")
         else: shutil.copy2(joined, tmp_out)
-        os.replace(tmp_out, out_path)
+        os.replace(tmp_out, out_path); stage("voiceover_mux")
     except BaseException:
         try: tmp_out.unlink(missing_ok=True)      # never leave a half-written video behind
         except OSError: pass                        # (a file Windows still holds must not hide why it stopped)
@@ -292,6 +338,8 @@ def run_health_cinema(project_dir, sentences: List[dict], voiceover_path: str, o
            "scenes": [dict(s.as_dict(), clip=r["path"], cache_hit=r["cache_hit"], fallback=r["fallback"], **({"puppet": r["puppet"]} if r.get("puppet") else {})) for s, r in zip(scenes, results)], "plan_log": plan["log"],
            "review_flags": flags, "acquisition": acquisition, "anatomy": anatomy, "kind_counts": _kind_counts(scenes), "visual_director": (dscenes[0]["plan_source"] if dscenes else "off"), "review_note": REVIEW_NOTE, "not_implemented": NOT_IMPLEMENTED, "credits": credits, "rights_not_established": used3d,
            "rights_note": "3D anatomy is a CC BY-SA derivative evaluated locally; do not distribute until the licence review clears commercial use." if used3d else ""}
+    rep["timings"] = dict(tm, total=round(time.time() - t0, 3), video_s=round(scenes[-1].end, 2), realtime_x=round((time.time() - t0) / max(1.0, scenes[-1].end), 3),
+                          cache_hit_rate=round(sum(1 for r in results if r.get("cache_hit")) / max(1, len(results)), 3), workers=dict(WORKERS))
     if prunner is not None: rep["puppet"] = dict(prunner.stats, planned_scenes=sorted(pplan))
     if write_report: Path(str(out_path) + ".health_cinema.json").write_text(json.dumps(rep, indent=1))
     prog(1.0, "done"); return rep
