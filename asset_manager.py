@@ -2006,6 +2006,22 @@ class AssetManager:
             on_scene_complete=on_scene_complete,
         )
 
+        # Flow generates on Google's side and mostly waits, so its batches run alongside the downloads below instead of
+        # after them (a Hybrid run spent 8 minutes on stock before its first Flow prompt was sent, 2026-10-31).
+        flow_errors: List[BaseException] = []
+
+        def run_flow() -> None:
+            try:
+                self._resolve_flow_sources(pending, results, on_scene_start=on_scene_start,
+                                           on_scene_complete=on_scene_complete, on_scene_generating=on_scene_generating)
+            except BaseException as exc:   # re-raised on the caller's thread once the downloads are done
+                flow_errors.append(exc)
+
+        flow_thread = None
+        if pending[AssetSource.FLOW_IMAGE] or pending[AssetSource.FLOW_VIDEO]:
+            flow_thread = threading.Thread(target=run_flow, name="flow-batches", daemon=True)
+            flow_thread.start()
+
         parallel_items: List[Tuple[AssetSource, SceneRow]] = []
         for stock_source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO):
             parallel_items.extend((stock_source, scene) for scene in pending[stock_source])
@@ -2056,6 +2072,24 @@ class AssetManager:
             on_scene_complete=on_scene_complete,
         )
 
+        if flow_thread is not None:
+            flow_thread.join()
+        if flow_errors:
+            raise flow_errors[0]
+
+        ok_count = sum(1 for r in results.values() if r.ok)
+        self.log(f"[ASSET] {ok_count}/{len(rows)} scenes ready.")
+        return ResolveSummary(results=results, warnings=warnings)
+
+    def _resolve_flow_sources(
+        self,
+        pending: Dict[AssetSource, List[SceneRow]],
+        results: Dict[str, AssetResult],
+        *,
+        on_scene_start: Optional[SceneStartCallback] = None,
+        on_scene_complete: Optional[SceneCompleteCallback] = None,
+        on_scene_generating: Optional[SceneGeneratingCallback] = None,
+    ) -> None:
         # Image and video generation are separate Flow API endpoints/workflows
         # (see providers/flow/provider.py) — batch them independently so a
         # project's image scenes and video scenes never get mixed into one
@@ -2085,10 +2119,6 @@ class AssetManager:
                 on_scene_complete=on_scene_complete,
                 on_scene_generating=on_scene_generating,
             )
-
-        ok_count = sum(1 for r in results.values() if r.ok)
-        self.log(f"[ASSET] {ok_count}/{len(rows)} scenes ready.")
-        return ResolveSummary(results=results, warnings=warnings)
 
     def regenerate_scene(self, scene: SceneRow) -> AssetResult:
         # Retry / Regenerate keep the source the user chose with Change Source (saved in the manifest even when that

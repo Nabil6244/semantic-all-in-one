@@ -320,6 +320,20 @@ class StockProvider(AssetProvider):
                     candidate, images_dir, scene.scene_number, keep, max_bytes=UHD_MAX_BYTES, should_stop=stopped,
                 )
                 duration = keep
+            elif candidate.media_type == MediaType.VIDEO and (candidate.duration or 0) > keep + 1:
+                # HD too: a scene uses seconds of a clip, and whole 3-4 minute clips made a Hybrid run fetch 1.9 GB
+                # (2026-10-31). If the cut fails, the whole file is downloaded as before.
+                log(f"[STOCK] Scene {scene.scene_number} -> keeping the first {keep:.0f}s of a {candidate.duration:.0f}s clip")
+                try:
+                    path = download_first_seconds(candidate, images_dir, scene.scene_number, keep, max_bytes=MAX_BYTES,
+                                                  should_stop=stopped, timeout_s=300.0)
+                    duration = keep
+                except DownloadCancelled:
+                    raise
+                except Exception as exc:
+                    log(f"[STOCK] Scene {scene.scene_number} -> the first {keep:.0f}s could not be cut ({exc}); downloading the whole clip")
+                    path = download_candidate(candidate, images_dir, scene.scene_number, log=log, should_stop=stopped,
+                                              max_bytes=MAX_BYTES)
             else:
                 path = download_candidate(
                     candidate,

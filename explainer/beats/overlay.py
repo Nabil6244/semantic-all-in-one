@@ -490,14 +490,21 @@ def render_overlay(plan: Dict[str, Any], out_path: "str | Path", codec: str = "q
     empty = bytes(W * H * 4)
     last_key, last_bytes, drawn = None, empty, 0
     t0 = time.perf_counter()
-    for i in range(n):
-        t = plan["start"] + i / FPS
-        key = frame_key(plan, t)
-        if key != last_key:
-            last_bytes = draw_frame(plan, t).tobytes() if key else empty
-            last_key = key
-            drawn += 1
-        p.stdin.write(last_bytes)
+    try:
+        for i in range(n):
+            t = plan["start"] + i / FPS
+            key = frame_key(plan, t)
+            if key != last_key:
+                last_bytes = draw_frame(plan, t).tobytes() if key else empty
+                last_key = key
+                drawn += 1
+            p.stdin.write(last_bytes)
+    except BaseException:
+        # a frame that fails to draw must not leave ffmpeg waiting on its pipe for good (two were found still running
+        # two hours after their Hybrid render, 2026-10-31)
+        p.kill()
+        p.wait(timeout=30)
+        raise
     p.stdin.close()
     rc = p.wait(timeout=3600)
     return {"frames": n, "rendered": drawn, "seconds": round(time.perf_counter() - t0, 3), "path": str(out_path), "returncode": rc}

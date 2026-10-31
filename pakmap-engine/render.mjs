@@ -201,7 +201,7 @@ async function main() {
     let needFresh = false;
     for (const job of jobs) {
       ffmpeg = spawn(spec.ffmpeg || 'ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-        '-c:v', 'libx264', '-preset', spec.x264_preset || 'medium', '-crf', String(spec.crf ?? 18), '-pix_fmt', 'yuv420p', '-r', String(fps),
+        '-c:v', 'libx264', '-preset', spec.x264_preset || 'faster', '-crf', String(spec.crf ?? 18), '-pix_fmt', 'yuv420p', '-r', String(fps),
         '-metadata', 'comment=semantic-yt-studio:pakmap-scene', '-movflags', '+faststart', job.output], { stdio: ['pipe', 'ignore', 'pipe'] });
       let ffErr = '';
       ffmpeg.stderr.on('data', (d) => { ffErr += d; });

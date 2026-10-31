@@ -493,13 +493,18 @@ def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int]
         cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", "-an", "-c:v", "qtrle", "-pix_fmt", "argb", str(out_path)]
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         last = None
-        for i in range(n_frames):
-            blk = draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_black", "off", False, n_frames, fps)
-            key = blk.tobytes()
-            if key != last:                                  # a still stretch costs one matte, not one per frame
-                frame = matte_rgba(blk, draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_white", "off", False, n_frames, fps)).tobytes()
-                last = key
-            p.stdin.write(frame)
+        try:
+            for i in range(n_frames):
+                blk = draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_black", "off", False, n_frames, fps)
+                key = blk.tobytes()
+                if key != last:                                  # a still stretch costs one matte, not one per frame
+                    frame = matte_rgba(blk, draw_frame(items, i / fps, size, font_path, i, False, narrator, "matte_white", "off", False, n_frames, fps)).tobytes()
+                    last = key
+                p.stdin.write(frame)
+        except BaseException:   # a frame that fails must not leave ffmpeg waiting on its pipe for good
+            p.kill()
+            p.wait(timeout=30)
+            raise
         p.stdin.close()
         try:
             return p.wait(timeout=3600)
