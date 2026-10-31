@@ -4,6 +4,11 @@ on:
   push:
   workflow_dispatch:
 
+# A newer push to the same branch stops the older run: three quick pushes no longer run three full suites side by side.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-macos:
     name: ${{ matrix.name }}

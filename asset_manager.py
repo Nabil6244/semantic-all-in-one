@@ -2072,8 +2072,9 @@ class AssetManager:
             on_scene_complete=on_scene_complete,
         )
 
-        if flow_thread is not None:
-            flow_thread.join()
+        # Waits in 1 s steps, never unbounded; Flow keeps its own stuck-run cut-off and sees a cancel itself.
+        while flow_thread is not None and flow_thread.is_alive():
+            flow_thread.join(timeout=1.0)
         if flow_errors:
             raise flow_errors[0]
 
