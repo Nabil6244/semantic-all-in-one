@@ -27,9 +27,11 @@ from .semantics import SceneAnalysis, SentenceInfo
 FPS = 25
 
 DEFAULTS: Dict[str, Any] = {
-    "first_at": 4.0, "min_gap": 7.0, "full_gap": 25.0, "map_gap": 7.0, "min_card_s": 3.0, "tail_s": 1.0, "lead_s": 0.3, "late_start_s": 2.0,
-    "per_minute": 3, "per_minute_footage": 5, "same_kind_gap": 12.0, "same_kind_max": 2, "same_kind_window": 120.0, "same_fact_s": 240.0,
-    "clean_floor": 0.55, "clean_floor_min_total": 60.0, "quiet_window": 20.0, "quiet_clear": 10.0, "equipment_repeat_s": 120.0,
+    # a war explainer is mostly maps and full-frame graphics (docs/war/REFERENCE_PATTERNS.md; the owner, 2026-10-31: "maps and full frame
+    # layouts should be used more"): a full-frame graphic may follow another after 8 s, and footage needs only 30 % of the running time
+    "first_at": 4.0, "min_gap": 4.0, "full_gap": 8.0, "map_gap": 4.0, "min_card_s": 3.0, "tail_s": 1.0, "lead_s": 0.3, "late_start_s": 2.0,
+    "per_minute": 6, "per_minute_footage": 8, "same_kind_gap": 8.0, "same_kind_max": 4, "same_kind_window": 120.0, "same_fact_s": 240.0,
+    "clean_floor": 0.30, "clean_floor_min_total": 60.0, "quiet_window": 20.0, "quiet_clear": 10.0, "equipment_repeat_s": 120.0,
     "headline_share": 0.40, "headline_min_s": 2.0, "headline_max_s": 4.2, "kickers": True, "check_kinds": True,
     "narration_status": "unverified", "timeline_status": "attributed", "card_cap_s": None, "short_total_s": 120.0, "profile": "auto", "neutral_map_fallback": True, "filler_footage": None, "snapshots": [], "headlines": True, "direction": True,
 }

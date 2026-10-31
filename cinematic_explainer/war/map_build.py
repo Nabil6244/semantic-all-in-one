@@ -31,7 +31,7 @@ MAX_STILL_S = 4.0        # the longest time nothing new lands on the map
 MAX_MAP_S = 12.0         # with the video's own clips to cut to, a map holds at most this long before a footage break
 BREAK_S = 4.0            # ... of this long (direction._broll_returns fills it), then the same map carries on where it was
 CONTEXT_MAP_S = 6.0      # a stretch that names no place of its own shows the story's last map only this long
-MAP_SHARE = 0.4          # with clips to cut to, maps fill at most this share of the video (render 047: 43 %, mostly one map)
+MAP_SHARE = 0.5          # with clips to cut to, building maps fill at most this share of the video (render 047: 43 %, mostly ONE map)
 CHIPS_PER_GROUP = 2      # at most two cards on the map at once: read in the time they are up
 REPLACED = {"tac_map", "tac_route", "kit_tag", "kit_sticker", "map_card", "kit_scale"}
 

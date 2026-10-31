@@ -230,6 +230,7 @@ def _fit_short_clips(plan: Any, counts: Dict[str, int], probe=_clip_seconds) -> 
 
 
 BROLL_MIN_S, BROLL_MAX_S, BROLL_USES = 1.2, 5.0, 2
+MAX_MAP_HOLD = 12.0 + 0.5     # map_build.MAX_MAP_S and a little: a sliver is never closed by holding a map past its limit
 
 
 def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any], meta_by_start: Dict[float, Dict[str, Any]],
@@ -332,8 +333,10 @@ def _close_slivers(plan: Any, total: float, lengths: Dict[str, Optional[float]],
                     lengths[lo.path] = probe(lo.path)
                 if (lengths[lo.path] or 0.0) - lo.seek >= (a - lo.start):
                     lo.end = fr(a)
-            else:
+            elif lo.kind not in ("tac_map", "tac_route", "map_card") or a - lo.start <= MAX_MAP_HOLD:
                 lo.end = fr(a)
+            elif kind == "shot" and obj.seek >= gap:          # a map at its limit: the next clip starts a moment earlier instead
+                obj.seek, obj.start = round(obj.seek - gap, 3), fr(cur)
         if b > cur:
             cur, last = b, (kind, obj)
 
@@ -480,6 +483,8 @@ LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay
                 "lay_logistics"}
 FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS
 FULL_GAP = 1.2
+ICON_GAP = 15.0            # one icon explainer per this many seconds
+COUNTRY_MAP_GAP = 30.0     # a country on its own gets a map again only after this long (Ukraine and Russia are named in every other sentence)
 _LOGISTICS = [(r"\brefiner(?:y|ies)\b", "Refinery", "flame"), (r"\b(?:pipeline|pipelines)\b", "Pipeline", "pipe"), (r"\b(?:rail|railway|railways|train|trains)\b", "Rail", "truck"),
               (r"\b(?:trucks?|convoys?)\b", "Trucks", "truck"), (r"\b(?:depot|depots|warehouse|warehouses|stockpiles?)\b", "Depot", "shield"),
               (r"\b(?:fuel|oil|diesel|petrol)\b", "Fuel", "flame"), (r"\b(?:ammunition|shells?)\b", "Ammunition", "missile"),
@@ -504,6 +509,19 @@ def _logistics_nodes(text: str) -> List[Dict[str, str]]:
             seen.add(label)
             nodes.append({"label": label, "icon": icon})
     return nodes[:4]
+
+
+def _yield_headline(plan: Any, a: float, b: float) -> None:
+    """A full-frame map placed over a footage headline: the headline ends where the map begins, or goes when too little of it is left."""
+    keep = []
+    for ly in plan.layers:
+        if ly.kind == "shot_headline" and ly.start < b and ly.end > a:
+            if a - ly.start >= 1.5:
+                ly.end = fr(a)
+            else:
+                continue
+        keep.append(ly)
+    plan.layers[:] = keep
 
 
 def _choose_layouts(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> List[Tuple[float, float]]:
@@ -624,6 +642,9 @@ def _extend_into_plate(plan: Any, rows: Sequence[Dict[str, Any]], max_extra: flo
                 nxt_starts = [ly.start for ly in plan.layers if ly is not prev[0] and ly.start >= g0 - 0.01
                               and ly.kind not in ("kit_badge", "kicker", "shot_headline", "status_chip")]
                 limit = min([g1, g0 + max_extra] + [x - 0.35 for x in nxt_starts])   # never into the next card
+                if prev[0].kind in ("tac_map", "tac_route", "map_card"):
+                    from .map_build import MAX_MAP_S
+                    limit = min(limit, prev[0].start + MAX_MAP_S)          # a map's footage break stays a break
                 if limit - g0 < 0.4:
                     continue
                 prev[0].end = fr(limit)
@@ -662,12 +683,13 @@ _ICON_LINK_ARROW = re.compile(r"\b(into|then|leads?|turns?|becomes?|so|sent|ship
 def _icon_scenes(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], maps_rebuilt: bool = False) -> None:
     """Rule 16 (REFERENCE_PATTERNS item 19): a sentence over missing footage that names two to four things the icon set has (drones, air
     defence, ammunition ...) and no place becomes flat icons on a blurred plate, labelled with the narration's own words, linked by an arrow
-    (one leads to the next) or VS. At most one per 30 s; never over another full-frame card."""
+    (one leads to the next) or VS. At most one per ICON_GAP s; never over another full-frame card. Over footage too: the things named
+    explained as icons say more than a clip of something near them."""
     last = -999.0
     block = FULL_KINDS - ({"tac_map", "tac_route", "map_card"} if maps_rebuilt else set())     # short maps give way: map_build redraws them
     for r in rows:
         dec = log_by_no.get(str(r["_no"]))
-        if dec is None or "no_footage" not in dec.flags or not str(r.get("text") or "").strip():
+        if dec is None or not str(r.get("text") or "").strip():
             continue
         A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
         for sent in A.sentences:
@@ -683,7 +705,8 @@ def _icon_scenes(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
             found.sort()
             a, b = _sent_window(A, sent, r["_start"], r["_end"])
             b = max(b, a + 3.6)
-            if a - last < 30.0 or any(ly.kind in block and ly.start < b and ly.end > a for ly in plan.layers):
+            if a - last < ICON_GAP or any(ly.kind in block and ly.start < b and ly.end > a for ly in plan.layers) or _near_full(
+                    [(ly.start, ly.end) for ly in plan.layers if ly.kind in block], a, b):
                 continue
             icons = [{"name": nm, "label": word, "start": fr(max(0.3, A.time_at(sent.span[0] + pos) - a))} for pos, nm, word in found]
             link = "vs" if _ICON_LINK_VS.search(sent.text) else "arrow" if _ICON_LINK_ARROW.search(sent.text) else ""
@@ -873,6 +896,14 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                     proposals.append((4, "tac_map", a, max(b, a + 4.0), p1, "tacmap", "one named place and no footage: a location map", False))
             elif len(co) >= 2 and not pl:
                 proposals.append((4, "tac_map", a, max(b, a + 4.0), _tac_params(sent, [], co, True), "tacmap", "country-to-country context", False))
+            elif pl and has_footage:      # one named place over footage: a short map shows where it is, then back to the clip
+                p1 = _tac_params(sent, pl, co, False)
+                if p1:
+                    proposals.append((4, "tac_map", a, max(b, a + 4.0), p1, "tacmap", "a named place over footage: where it is", False))
+            elif co and not pl and st - max((last_at.get("country:" + c.name, -999.0) for c in co), default=-999.0) >= COUNTRY_MAP_GAP:
+                pc = _tac_params(sent, [], co, True)
+                if pc:
+                    proposals.append((5, "tac_map", a, max(b, a + 4.0), pc, "tacmap", f"{co[0].name} named: where it sits", False))
             # 6 enumeration
             if _ORDINAL.search(sent.text) and len(_ORDINAL.findall(sent.text)) >= 2:
                 segs = [s_.strip(" ,;") for s_ in re.split(r"\b(?:first|second|third|fourth)\b", sent.text, flags=re.IGNORECASE)[1:] if s_.strip(" ,;")]
@@ -923,24 +954,32 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         for pri, kind, a, b, params, rule, why, dim in proposals:
             if picked is not None and kind != "kit_stamp":
                 break
-            if kind == last_kind:
-                continue
+            if kind == last_kind and not (kind == "tac_map" and a - last_at.get("tac_map_end", -999.0) >= 4.0):
+                continue                                  # two maps in a row only with time between them
             if kind == "kit_tag" and st - last_at.get("kit_tag", -999) < 25.0:
                 continue
-            ign = ("shot_headline",) if kind in ("kit_stamp", "kit_sticker", "kit_scale", "kit_recap", "kit_chips", "kit_tag") else ()
+            ign = ("shot_headline",) if kind in ("kit_stamp", "kit_sticker", "kit_scale", "kit_recap", "kit_chips", "kit_tag", "tac_map") else ()
             need = {"tac_map": 3.6, "kit_stamp": 1.4, "kit_tag": 2.0, "kit_recap": 3.0, "kit_chips": 3.0, "kit_sticker": 2.2, "kit_scale": 3.0}.get(kind, 2.0)
             slot = busy.free(a, min(b + (1.0 if kind in ("tac_map", "kit_recap", "kit_chips") else 0.0), en + 0.5), need, ignore=ign)
             if not slot:
                 continue
             end = slot[1] if kind != "kit_stamp" else min(slot[1], slot[0] + 2.6)
             if kind == "tac_map" and _near_full([sp for sp in full_spans], slot[0], end):
-                continue                                  # no two full-frame compositions back to back
+                after = max((y for x, y in full_spans if x < end and y + FULL_GAP > slot[0]), default=slot[0])
+                if end - (after + FULL_GAP) < need:
+                    continue                              # no two full-frame compositions back to back
+                slot = (fr(after + FULL_GAP), end)        # the map waits for the card before it to clear
             if kind == "kit_tag" and has_footage and cfg.get("layouts", True):
                 kind, params, rule = "lay_inset", {"caption": params["text"], "caption_sub": "", "notes": []}, "inset"
             if add(kind, slot[0], end, params, dec, rule, why, en, dim=dim):
                 last_at[kind] = st
                 if kind == "tac_map":
                     full_spans.append((slot[0], end))
+                    last_at["tac_map_end"] = end
+                    _yield_headline(plan, slot[0], end)
+                    for sent_ in A.sentences:
+                        for c in _countries(sent_):
+                            last_at["country:" + c.name] = st
                 picked = picked or kind
                 if kind != "kit_stamp":
                     break

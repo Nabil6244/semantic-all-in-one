@@ -46,6 +46,7 @@ class Headlines(unittest.TestCase):
         self.assertEqual(headline_text("The crew abandoned ship at first light. Two were airlifted."), "The crew abandoned ship at first light")
         self.assertEqual(headline_text("Russia is rehearsing how much it can get away with."), "Russia is rehearsing")
         self.assertEqual(headline_text("What happens if the guns fall silent?"), "")
+        self.assertEqual(headline_text("Russia moved 1,500 troops toward Belarus."), "Russia moved 1,500 troops toward Belarus")   # never cut at the comma
 
 
 class Legend(unittest.TestCase):
@@ -159,7 +160,7 @@ class MismatchedFootage(unittest.TestCase):
 
 @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
 class WholePlan(unittest.TestCase):
-    """A 160 s video where two scenes in three have no footage (worse than render 047): no empty screen, no map over 12 s, maps under half."""
+    """A 160 s video where two scenes in three have no footage (worse than render 047): no empty screen, no map over 12 s, maps in proportion."""
 
     TEXT = ["A tanker sank in the Black Sea after an explosion.", "Bulgaria says the wreck sits in its waters near Varna.",
             "It belonged to Bulgaria's exclusive economic zone, and Bulgaria is a member of NATO.", "So here's the question this whole video is built around.",
@@ -180,7 +181,7 @@ class WholePlan(unittest.TestCase):
         maps = [(ly.start, ly.end) for ly in p.layers if ly.kind == "tac_map"]
         self.assertTrue(maps)
         self.assertLessEqual(max(b - a for a, b in maps), MAX_MAP_S + 0.05)
-        self.assertLess(sum(b - a for a, b in maps), 0.5 * 160.0)
+        self.assertLess(sum(b - a for a, b in maps), 0.6 * 160.0)        # maps are welcome (owner, 2026-10-31), one long one is not
         covered = sorted([(s.start, s.end) for s in p.shots] + [(ly.start, ly.end) for ly in p.layers if ly.kind in D.FULL_KINDS])
         cur, gaps = 0.0, []
         for a, b in covered + [(160.0, 160.0)]:
@@ -188,8 +189,45 @@ class WholePlan(unittest.TestCase):
                 gaps.append((cur, a))
             cur = max(cur, b)
         self.assertEqual(gaps, [])
-        heads = [ly.params.get("text") for ly in p.layers if ly.kind == "shot_headline"]
-        self.assertIn("Russia moved 1,500 troops toward Belarus", heads)      # a number is never cut at its comma
+
+
+@unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
+class MoreMapsAndLayouts(unittest.TestCase):
+    """The owner (2026-10-31): maps and full-frame layouts should be used more. Short maps over footage when a place is named, layouts spaced
+    8 s apart instead of 25 s, icon explainers over footage too; still never one long map and never a headline under a map."""
+
+    def scenes(self, texts, every=1):
+        meta = {"provider": "youtube", "kind": "youtube", "relevance": 0.5, "relevance_reasons": ["names the same place"]}
+        clips = [clip("008.mp4"), clip("013.mp4")]
+        return [{"text": t, "start": i * 6.0, "end": i * 6.0 + 6.0, "scene_no": i + 1,
+                 **({"footage": clips[i % 2], "footage_meta": meta} if i % every == 0 else {})} for i, t in enumerate(texts)]
+
+    def test_a_named_place_over_footage_gets_a_short_map_and_the_headline_gives_way(self):
+        from cinematic_explainer.war import planner
+
+        texts = ["Russian drones struck the port of Odesa overnight.", "Romania scrambled two jets over Constanta.",
+                 "The talks ended without a deal.", "Kyiv was hit by twelve missiles in February.", "Officials said repairs would take weeks.",
+                 "A tanker sank near Varna after an explosion."]
+        p = planner.plan(self.scenes(texts))
+        maps = [ly for ly in p.layers if ly.kind in ("tac_map", "map_card")]
+        self.assertGreaterEqual(len(maps), 3)
+        self.assertTrue(all(ly.end - ly.start <= 12.05 for ly in maps))
+        for h in (ly for ly in p.layers if ly.kind == "shot_headline"):
+            self.assertFalse(any(m.start < h.end - 0.01 and m.end > h.start + 0.01 for m in maps))     # no headline under a map
+
+    def test_icons_explain_things_over_footage_too(self):
+        from cinematic_explainer.war import planner
+
+        p = planner.plan(self.scenes(["The front barely moved this week.", "Cheap drones are emptying the stocks of air defence missiles.",
+                                      "Nobody expected it to last this long."]))
+        self.assertIn("kit_icons", [ly.kind for ly in p.layers])
+
+    def test_full_frame_graphics_may_come_every_8_s(self):
+        from cinematic_explainer.war.planner import DEFAULTS
+
+        self.assertLessEqual(DEFAULTS["full_gap"], 8.0)
+        self.assertLessEqual(DEFAULTS["clean_floor"], 0.30)
+        self.assertGreaterEqual(DEFAULTS["per_minute"], 6)
 
 
 class WarFetch(unittest.TestCase):
