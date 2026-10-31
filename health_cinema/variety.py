@@ -118,8 +118,7 @@ def assign(scenes, script: str, title: str = "", history: Path = HISTORY, log=la
     if not three: return
     subj = [sc.visual.get("template") or "body_map" for sc in three]
     dirs = choose(subj, key or video_key(script, title), body=[bool(sc.visual.get("body_rows")) for sc in three], history=history, record=record)
-    k = key or video_key(script, title)
-    for sc, d in zip(three, dirs): sc.visual["direction"] = dict(d, video=k, record=bool(record))      # the render's uniqueness check needs to know whose clip it is
+    for sc, d in zip(three, dirs): sc.visual["direction"] = d
     log("3D directions: " + ", ".join(f"{d['subject']}={d['move']}/{d['look']}/{d.get('lens', 'normal')}" for d in dirs))
 
 
@@ -151,72 +150,3 @@ def apply(spec: dict, direction: Optional[dict]) -> dict:
     s["direction"] = {"move": direction.get("move"), "look": direction.get("look"), "lens": direction.get("lens", "normal")}
     return s
 
-
-# ---- uniqueness check: a finished video's 3D clips are compared, frame by frame, with every earlier video's clips of the same subject ----
-SAMPLE_AT = (0.3, 0.6, 0.9)      # where in a clip its frames are sampled
-NEAR_BITS = 6                    # two 64-bit frame hashes this close (or closer) show the same picture
-NEAR_FRAMES = 2                  # ... and a clip this many near frames like one earlier clip is "the same clip again"
-
-
-def frame_hashes(path: str, ffmpeg: str = "ffmpeg") -> List[int]:
-    """64-bit difference hashes of a clip's frames at SAMPLE_AT (a 9x8 grey thumbnail: each bit says whether a pixel is brighter than its right neighbour)."""
-    import subprocess
-    try:
-        probe = str(Path(ffmpeg).with_name(Path(ffmpeg).name.replace("ffmpeg", "ffprobe"))) if "ffmpeg" in Path(ffmpeg).name else "ffprobe"      # only the file name: a folder called ffmpeg stays as it is
-        dur = float(subprocess.run([probe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
-                                   capture_output=True, text=True, timeout=60).stdout.strip() or 0)
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return []
-    out = []
-    for u in SAMPLE_AT:
-        try:
-            px = subprocess.run([ffmpeg, "-v", "error", "-ss", f"{dur * u:.3f}", "-i", path, "-frames:v", "1", "-vf", "scale=9:8:flags=area,format=gray", "-f", "rawvideo", "-"],
-                                capture_output=True, timeout=60).stdout
-        except (OSError, subprocess.SubprocessError):
-            continue
-        if len(px) < 72: continue
-        h = 0
-        for y in range(8):
-            for x in range(8): h = (h << 1) | (1 if px[y * 9 + x] > px[y * 9 + x + 1] else 0)
-        out.append(h)
-    return out
-
-
-def too_similar(direction: dict, hashes: List[int], history: Path = HISTORY) -> Optional[str]:
-    """The fingerprint of an earlier video's clip of the same subject that these frames repeat, or None."""
-    if not hashes or not direction: return None
-    data = _load(history); subj, key = direction.get("subject"), direction.get("video")
-    for rec in data.get("frames", []):
-        if rec.get("subject") != subj or rec.get("video") == key: continue
-        near = sum(1 for h in hashes if any(bin(h ^ g).count("1") <= NEAR_BITS for g in rec.get("h", [])))
-        if near >= NEAR_FRAMES: return rec.get("fp")
-    return None
-
-
-def remember_frames(direction: dict, hashes: List[int], history: Path = HISTORY) -> None:
-    if not hashes or not direction or not direction.get("record"): return
-    with _LOCK:
-        data = _load(history); fr = [r for r in data.get("frames", []) if not (r.get("video") == direction.get("video") and r.get("fp") == direction.get("fp"))]
-        fr.append({"subject": direction.get("subject"), "video": direction.get("video"), "fp": direction.get("fp"), "h": hashes, "t": time.time()})
-        data["frames"] = fr[-20000:]; _save(history, data)      # about a year of videos at 60 a month
-
-
-def reroll(direction: dict, avoid: List[str], history: Path = HISTORY) -> dict:
-    """Another direction for the same scene: none of `avoid` (the fingerprints that came out too similar), unused elsewhere if possible."""
-    subj, key = direction.get("subject"), direction.get("video") or "reroll"
-    with _LOCK:
-        data = _load(history); used = {fp for fp, rec in data["used"].items() if rec.get("video") != key} | set(avoid) | {direction.get("fp")}
-        rng = random.Random(f"{key}:{subj}:reroll:{len(avoid)}")
-        is_body = direction.get("move") == "as_designed" and subj == "body_map"
-        combos = [(m, l, z) for m in (["as_designed"] if is_body else list(MOVES)) for l in LOOKS for z in (["normal"] if is_body else list(LENSES))]; rng.shuffle(combos)
-        # the new one should differ in the look AND the move from the one that repeated
-        combos.sort(key=lambda c: (c[1] == direction.get("look")) + (c[0] == direction.get("move")))
-        pick = next((c for c in combos if fingerprint(subj, *c) not in used), combos[0])
-        new = dict(direction, move=pick[0], look=pick[1], lens=pick[2], fp=fingerprint(subj, *pick), seed=(int(direction.get("seed") or 0) * 31 + 7) % 1000003)
-        if direction.get("record"):
-            data["used"][new["fp"]] = {"video": key, "t": time.time()}
-            vids = data["videos"].get(key) or []
-            for i, d in enumerate(vids):
-                if d.get("fp") == direction.get("fp"): vids[i] = {k: v for k, v in new.items() if k not in ("video", "record")}
-            _save(history, data)
-        return new

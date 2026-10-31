@@ -1,7 +1,6 @@
 """Unique 3D in every video: the part a sentence names is where its shot ends (parts.py), every 3D scene gets its own AI image card (engine.auto_cards),
-and a finished video's clip that repeats an earlier video's clip is filmed another way (variety.too_similar / reroll)."""
+and the cards are listed in the Visuals tab before Flow makes them."""
 import json
-import subprocess
 import tempfile
 import types
 import unittest
@@ -73,39 +72,6 @@ class AutoCards(unittest.TestCase):
             os.environ.pop("HEALTH_CINEMA_ILLUSTRATION_DIR") if old is None else os.environ.__setitem__("HEALTH_CINEMA_ILLUSTRATION_DIR", old)
         self.assertEqual(cards[0]["side"], "left"); self.assertEqual(cards[0]["t0"], 0.5); self.assertLessEqual(cards[0]["t1"], 4.2)
         self.assertTrue(all(l["t0"] >= cards[0]["t1"] for l in sp["labels"] if l["side"] == "left" and l["t1"] - l["t0"] > 1.0))
-
-
-class Uniqueness(unittest.TestCase):
-    def setUp(self):
-        self.h = Path(tempfile.mkdtemp()) / "h.json"; self.ff = assets.ffmpeg_path() or "ffmpeg"
-
-    def clip(self, color, name):
-        p = Path(tempfile.mkdtemp()) / f"{name}.mp4"
-        subprocess.run([self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=size=320x180:rate=24:duration=3", "-vf", f"hue=h={color}", "-pix_fmt", "yuv420p", str(p)], check=True); return str(p)
-
-    def test_a_repeat_of_an_earlier_videos_clip_is_caught_and_refilmed_differently(self):
-        d1 = dict(variety.choose(["heart_journey"], "video-1", history=self.h)[0], video="video-1", record=True)
-        same = self.clip(0, "a"); variety.remember_frames(d1, variety.frame_hashes(same, self.ff), history=self.h)
-        d2 = dict(variety.choose(["heart_journey"], "video-2", history=self.h)[0], video="video-2", record=True)
-        self.assertEqual(variety.too_similar(d2, variety.frame_hashes(same, self.ff), history=self.h), d1["fp"])
-        new = variety.reroll(d2, [d2["fp"]], history=self.h)
-        self.assertNotEqual(new["fp"], d2["fp"]); self.assertNotEqual(new["look"], d2["look"]); self.assertNotEqual(new["move"], d2["move"])
-
-    def test_its_own_video_and_other_subjects_are_never_a_repeat(self):
-        d1 = dict(variety.choose(["heart_journey"], "v1", history=self.h)[0], video="v1", record=True); hs = variety.frame_hashes(self.clip(0, "b"), self.ff)
-        variety.remember_frames(d1, hs, history=self.h)
-        self.assertIsNone(variety.too_similar(d1, hs, history=self.h))
-        self.assertIsNone(variety.too_similar(dict(d1, subject="brain_journey", video="v2"), hs, history=self.h))
-
-    def test_different_pictures_are_not_a_repeat(self):
-        d1 = dict(variety.choose(["heart_journey"], "v1", history=self.h)[0], video="v1", record=True)
-        variety.remember_frames(d1, variety.frame_hashes(self.clip(0, "c"), self.ff), history=self.h)
-        blank = Path(tempfile.mkdtemp()) / "k.mp4"; subprocess.run([self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "mandelbrot=size=320x180:rate=24", "-t", "3", "-pix_fmt", "yuv420p", str(blank)], check=True)
-        self.assertIsNone(variety.too_similar(dict(d1, video="v2"), variety.frame_hashes(str(blank), self.ff), history=self.h))
-
-    def test_previews_are_not_remembered(self):
-        d = dict(variety.choose(["heart_journey"], "p", history=self.h, record=False)[0], video="p", record=False)
-        variety.remember_frames(d, [1, 2, 3], history=self.h); self.assertFalse(self.h.exists())
 
 
 class CardsInTheVisualsTab(unittest.TestCase):
