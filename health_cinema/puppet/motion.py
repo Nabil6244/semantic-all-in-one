@@ -14,7 +14,7 @@ params: intensity 'low'|'medium'|'high' or a number (default 'medium'), mode ('p
 warp_energy(video_or_frames) measures how much of the motion is NOT a rigid camera move (should be ~0).
 The cache key covers the still's pixels, duration, fps, size, seed, params, VERSION and puppet/*.py."""
 from __future__ import annotations
-import hashlib, json, math, os, shutil, subprocess, tempfile
+import hashlib, json, math, os, shutil, subprocess, tempfile, threading
 from collections import deque
 from pathlib import Path
 import numpy as np
@@ -626,6 +626,27 @@ def render_motion(still_path, out_path, duration, fps=30, size=(1920, 1080), see
     _intensity(params.get("intensity", "medium"))
     n = max(1, int(round(duration * fps))); out_path = str(out_path); out_dir = os.path.dirname(os.path.abspath(out_path)); os.makedirs(out_dir, exist_ok=True)
     key = _key(still_path, duration, fps, size, seed, params); CACHE_DIR.mkdir(parents=True, exist_ok=True); cached = CACHE_DIR / f"{key}.mp4"
+    with _key_lock(key):   # one thread renders a key; the others wait and copy it (Windows cannot replace a file being copied)
+        _render_cached(still_path, cached, n, size, fps, duration, seed, params, cancel, progress)
+    fd, tmp2 = tempfile.mkstemp(dir=out_dir, suffix=".part"); os.close(fd)
+    try: shutil.copyfile(cached, tmp2); os.replace(tmp2, out_path)
+    except BaseException:
+        try: os.unlink(tmp2)
+        except OSError: pass
+        raise
+    return out_path
+
+
+_KEY_LOCKS: dict = {}
+_KEY_LOCKS_GUARD = threading.Lock()
+
+
+def _key_lock(key):
+    with _KEY_LOCKS_GUARD:
+        return _KEY_LOCKS.setdefault(key, threading.Lock())
+
+
+def _render_cached(still_path, cached, n, size, fps, duration, seed, params, cancel, progress):
     if not cached.exists() or cached.stat().st_size == 0:
         if cancel and cancel(): raise Cancelled("motion render cancelled")
         rig = _Rig(still_path, size, fps, duration, seed, params)
@@ -636,16 +657,13 @@ def render_motion(still_path, out_path, duration, fps=30, size=(1920, 1080), see
                 if cancel and cancel(): raise Cancelled("motion render cancelled")
                 sink.write(rig.frame(i).tobytes())
                 if progress: progress((i + 1) / n)
-            sink.close(); os.replace(tmp, cached)
+            sink.close()
+            try: os.replace(tmp, cached)
+            except PermissionError:   # Windows: another process rendered the same key and is reading it; theirs is identical
+                if not (cached.exists() and cached.stat().st_size > 0): raise
+                os.unlink(tmp)
         except BaseException:
             sink.abort()
             try: os.unlink(tmp)
             except OSError: pass
             raise
-    fd, tmp2 = tempfile.mkstemp(dir=out_dir, suffix=".part"); os.close(fd)
-    try: shutil.copyfile(cached, tmp2); os.replace(tmp2, out_path)
-    except BaseException:
-        try: os.unlink(tmp2)
-        except OSError: pass
-        raise
-    return out_path

@@ -86,7 +86,7 @@ for i in range(600):
     t, p = rg.choice(pool)
     big.append(S(i, t, p, dur=rg.choice((1.8, 3.0, 4.0, 5.5, 7.0))))
 t0 = time.perf_counter(); R = D.direct(big, {}, 11); el = time.perf_counter() - t0
-ok(el < 1.0, "600 shots in %.3fs" % el)
+ok(el < 5.0, "600 shots in %.3fs" % el)   # catches a runaway, not a slow runner: Windows CI takes 1.0-2.2 s
 sh = R["shots"]
 ok(len(sh) == 600, "600 shots returned")
 ok(all(sh[i]["treatment"] != sh[i - 1]["treatment"] for i in range(1, 600)), "never the same treatment twice in a row")
