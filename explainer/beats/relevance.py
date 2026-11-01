@@ -142,10 +142,18 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
     try:
         from . import framing as _FR
         views = _FR.plan_views(plan.get("beats", []))
+        held = _FR.plan_views(plan.get("beats", []), skip_push=True)
     except Exception:
-        views = []
+        views, held = [], []
 
-    def framed(place: str, t: float, wide: bool = False) -> Optional[bool]:
+    def lead_fill(b) -> Optional[str]:
+        """The first filled place of a map beat that is not a world view (three or more filled or marked places)."""
+        if len({x.place for x in b.layers if x.type in ("fill", "marker") and x.place}) >= 3:
+            return None
+        fills = sorted((x for x in b.layers if x.type == "fill" and x.place), key=lambda x: x.t)
+        return fills[0].place if fills else None
+
+    def framed(place: str, t: float, wide: bool = False, sea_label: bool = False) -> Optional[bool]:
         """True/False when the camera target in force at time t (the latest step at or before t) contains `place`; None when it cannot be told."""
         cur = [s for s in steps if s[0] <= t + 1e-9]
         if not cur:
@@ -154,7 +162,10 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
             from . import framing as FR
             v = FR.view_at(views, t)
             if v is not None:
-                bb_ = FR.place_bbox(place)
+                bb_ = FR.label_bbox(place) if sea_label and FR._is_sea(place) else FR.place_bbox(place)
+                h_ = FR.view_at(held, t)
+                if h_ is not None and h_ != v and FR.inside(FR.view_box(*h_), bb_) and FR.close_enough(FR.view_box(*v), bb_):      # a slow push-in closed in on it after it was framed whole
+                    return True
                 return FR.inside(FR.view_box(*v), bb_) or (wide and FR.shown_wide(FR.view_box(*v), bb_))      # a world view of three or more places: centred in frame and mostly visible
         except Exception:
             pass
@@ -194,7 +205,8 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                             rep.problems.append(f"beat {b.id}: layer {lay.id}: the application's offline place lookup cannot find {pl!r} ({why})")
                 if resolve_offline:
                     for pl in places:
-                        fr = framed(pl, lay.t, len({x.place for x in b.layers if x.type in ("fill", "marker") and x.place}) >= 3)
+                        _n = len({x.place for x in b.layers if x.type in ("fill", "marker", "zone_label") and x.place})
+                        fr = framed(pl, lay.t, len({x.place for x in b.layers if x.type in ("fill", "marker") and x.place}) >= 3, sea_label=lay.type == "marker" and _n > 1)
                         if fr is False:
                             rep.warnings.append(f"beat {b.id}: layer {lay.id}: the camera is not looking at an area that contains {pl!r} when the layer appears, so it may be off screen "
                                                 f"(warning only: the real view is not computed)")
@@ -205,6 +217,8 @@ def check_plan(plan: Dict[str, Any], words: Sequence[Word], *, subjects: Optiona
                         lo = min(starts)
                         if not (lo - T_BEFORE_S <= lay.t <= max(starts) + T_AFTER_S):
                             rep.problems.append(f"beat {b.id}: layer {lay.id}: it starts at {lay.t:g} s but its places are spoken between {lo:.2f} and {max(starts):.2f} s")
+                    elif lay.type in ("fill", "zone_label") and lay.t < ref and lay.t >= b.start - 1e-6 and lead_fill(b) == places[0]:
+                        pass                                       # the country the map scene is about is coloured as soon as the camera lands, not seconds later on its name
                     elif not (-T_BEFORE_S - 1e-9 <= lay.t - ref <= T_AFTER_S + 1e-9):
                         rep.problems.append(f"beat {b.id}: layer {lay.id}: it starts at {lay.t:g} s but {places[0]!r} is spoken at {ref:.2f} s "
                                             f"(allowed: {-T_BEFORE_S:g} to +{T_AFTER_S:g} s)")

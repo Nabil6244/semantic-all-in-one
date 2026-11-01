@@ -31,26 +31,30 @@ class Sent:
     breaks: set = field(default_factory=set)   # global word indices after which a clause ends (script punctuation, else a pause of at least 0.25 s)
 
 
-def split_long(widx: List[int], words: Sequence[Word], max_s: float) -> List[List[int]]:
-    """Split a run of words at its longest pause near the middle until every part is at most max_s long."""
+def split_long(widx: List[int], words: Sequence[Word], max_s: float, breaks: frozenset = frozenset()) -> List[List[int]]:
+    """Split a run of words near the middle until every part is at most max_s long: at a clause end of the script (`breaks`) first, else at the longest pause, else at the
+    word boundary nearest the middle that does not leave a part ending on 'of', 'the', 'and' ('five million tons of | grain' reads as a broken line)."""
     if not widx or words[widx[-1]][2] - words[widx[0]][1] <= max_s or len(widx) < 6:
         return [widx]
     a, b = words[widx[0]][1], words[widx[-1]][2]
-    lo, hi = a + 0.25 * (b - a), a + 0.75 * (b - a)
-    best, gap = None, 0.0
-    for k in range(1, len(widx)):
-        g = words[widx[k]][1] - words[widx[k - 1]][2]
+    lo, hi, mid_t = a + 0.25 * (b - a), a + 0.75 * (b - a), (a + b) / 2
+    best, key = None, None
+    for k in range(2, len(widx) - 1):                     # never a one-word part
         mid = words[widx[k]][1]
-        if lo <= mid <= hi and g > gap:
-            best, gap = k, g
+        if not lo <= mid <= hi or mid - a < MIN_PART_S or b - words[widx[k - 1]][2] < MIN_PART_S:      # two 2 s scraps are worse than one 5 s scene
+            continue
+        g = words[widx[k]][1] - words[widx[k - 1]][2]
+        clean = norm(words[widx[k - 1]][0]) not in LX.STOP
+        kk = (widx[k - 1] in breaks, round(g, 2) if g >= 0.25 else 0.0, clean, -abs(mid - mid_t))
+        if key is None or kk > key:
+            best, key = k, kk
     if best is None:
-        for k in range(1, len(widx)):
-            g = words[widx[k]][1] - words[widx[k - 1]][2]
-            if g > gap:
-                best, gap = k, g
-    if best is None or gap < 0.25:
-        best = len(widx) // 2
-    return split_long(widx[:best], words, max_s) + split_long(widx[best:], words, max_s)
+        return [widx]
+    return split_long(widx[:best], words, max_s, breaks) + split_long(widx[best:], words, max_s, breaks)
+
+
+MIN_PART_S = 2.4                     # a split never leaves a part shorter than this
+QUOTE_SPLIT_S = 6.4                  # a sentence carrying a quotation is one spoken line: it is split only past the old, longer limit
 
 
 def sentences(words: Sequence[Word], script: Optional[str], duration: float, max_beat_s: float) -> List[Sent]:
@@ -62,8 +66,9 @@ def sentences(words: Sequence[Word], script: Optional[str], duration: float, max
         if not idx:
             continue
         claimed = idx[-1] + 1
-        parts = split_long(idx, words, max_beat_s)
         whole = _breaks_for(s.text, idx, words)             # computed on the whole sentence, so a split part keeps the script's punctuation
+        quoted = bool(re.search(r"[\"\u201c\u201d]\s*[^\"\u201c\u201d]{3,}\s*[\"\u201c\u201d]", s.text or ""))
+        parts = split_long(idx, words, max(max_beat_s, QUOTE_SPLIT_S) if quoted else max_beat_s, frozenset(whole))
         for k, part in enumerate(parts):
             sent = Sent(len(out), words[part[0]][1], words[part[-1]][2], s.text if len(parts) == 1 else " ".join(words[i][0] for i in part), s.para_end and k == len(parts) - 1, part)
             sent.breaks = {g for g in whole if g in set(part)}

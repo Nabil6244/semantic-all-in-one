@@ -19,6 +19,10 @@ WIDE_MIN_SHARE = 0.6             # on a wide view a place counts as shown when i
 FIRST_MOVE_DUR = 0.7
 LATER_MOVE_DUR = 1.4
 GAP_S = 0.1                      # two moves never overlap, and the next starts this long after the last one ends
+PUSH_MIN_BEAT_S = 2.8            # a map beat at least this long gets a slow push-in after its last move
+PUSH_DELTAS = (0.6, 0.45, 0.3, 0.2)
+PUSH_MARGIN = 0.02
+PUSH_MIN_SHARE = 0.8             # a push-in may crop a place's edges, never more than this share of it
 
 
 def _geo():
@@ -82,6 +86,22 @@ def place_bbox(name: str) -> Tuple[float, float, float, float]:
     return (loc.lon - 0.02, loc.lat - 0.02, loc.lon + 0.02, loc.lat + 0.02)
 
 
+def _is_sea(name: str) -> bool:
+    try:
+        return getattr(_geo().resolve(name), "kind", "") == "sea"
+    except Exception:
+        return False
+
+
+def label_bbox(name: str) -> Tuple[float, float, float, float]:
+    """A sea named next to land is a marker at its label point: the camera holds the label, not the whole sea (fitting the Mediterranean pulled the view back to a globe)."""
+    loc = _geo().resolve(name)
+    return (loc.lon - SEA_LABEL_LON, loc.lat - SEA_LABEL_LAT, loc.lon + SEA_LABEL_LON, loc.lat + SEA_LABEL_LAT)
+
+
+SEA_LABEL_LON, SEA_LABEL_LAT = 2.0, 1.0
+
+
 def step_view(place: str, frame: str) -> Tuple[float, float, float]:
     loc = _geo().resolve(place)
     v = _pk().view_for(loc, frame)
@@ -90,13 +110,15 @@ def step_view(place: str, frame: str) -> Tuple[float, float, float]:
     return v
 
 
-def plan_views(beats: Sequence[Dict[str, Any]]) -> List[Tuple[float, Tuple[float, float, float], str]]:
+def plan_views(beats: Sequence[Dict[str, Any]], skip_push: bool = False) -> List[Tuple[float, Tuple[float, float, float], str]]:
     """[(time the view is in force, (lon, lat, zoom), step description)] for the camera steps of the map beats, in the order the application compiles them (a `pull_back` or `push_in` with
     no place changes the zoom by `zoom_delta`, default 1)."""
     out: List[Tuple[float, Tuple[float, float, float], str]] = []
     cur: Optional[Tuple[float, float, float]] = None
     steps = sorted(((0.0 if c["action"] == "start" else float(c.get("t", b["start"])), c, b) for b in beats if b.get("mode") in ("map", "map_footage") for c in b.get("camera", [])), key=lambda x: x[0])
     for t, c, b in steps:
+        if skip_push and c["action"] == "push_in":
+            continue
         try:
             if c.get("place"):
                 v = step_view(c["place"], c.get("frame", ""))
@@ -133,21 +155,26 @@ def _is_continent(name: str) -> bool:
 def check_framing(plan: Dict[str, Any]) -> List[str]:
     """Findings (empty when every place a map layer outlines, labels or marks is fully inside the view in force when the layer appears)."""
     views = plan_views(plan.get("beats", []))
+    held = plan_views(plan.get("beats", []), skip_push=True)
     found: List[str] = []
     for b in plan.get("beats", []):
         if b.get("mode") not in ("map", "map_footage"):
             continue
+        places = {l.get("place") for l in b.get("layers", []) if l.get("type") in ("fill", "marker", "zone_label") and l.get("place")}
         wide = len({l.get("place") for l in b.get("layers", []) if l.get("type") in ("fill", "marker") and l.get("place")}) >= 3      # a world view: centre in frame and most of the place visible
         for lay in b.get("layers", []):
             if lay.get("type") not in ("fill", "marker", "zone_label") or not lay.get("place"):
                 continue
             v = view_at(views, float(lay["t"]))
             try:
-                bb = place_bbox(lay["place"])
+                bb = label_bbox(lay["place"]) if lay.get("type") == "marker" and len(places) > 1 and _is_sea(lay["place"]) else place_bbox(lay["place"])
             except Exception as exc:
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} cannot be located ({str(exc)[:60]})")
                 continue
             if v is not None and (wide or _is_continent(lay["place"])) and shown_wide(view_box(*v), bb):
+                continue
+            h = view_at(held, float(lay["t"]))
+            if v is not None and h is not None and h != v and inside(view_box(*h), bb) and close_enough(view_box(*v), bb):      # a slow push-in closed in on it after it was framed whole
                 continue
             if v is None or not inside(view_box(*v), bb):
                 found.append(f"beat {b['id']}: layer {lay['id']}: {lay['place']!r} is not fully inside the camera view when the layer appears at {float(lay['t']):.1f} s")
@@ -183,6 +210,31 @@ def _candidates(places: Sequence[str], frames: Sequence[str] = FRAMES):
                 yield p, fr, d, (base[0], base[1], base[2] - d)
 
 
+def close_enough(box: Sequence[float], bbox: Sequence[float]) -> bool:
+    """During a slow push-in a place may lose its edges to the frame, never its middle: centre in frame and most of it visible."""
+    cx, cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
+    w, s, e, n = box
+    return w <= cx <= e and s <= cy <= n and visible_share(box, bbox, PUSH_MARGIN) >= PUSH_MIN_SHARE
+
+
+def _push_in(out: Dict[str, Any], v: Sequence[float], names: Sequence[str], boxes: Dict[str, Tuple[float, float, float, float]], beat_start: float, beat_end: float) -> None:
+    """A slow push-in on every map beat that has the time: the camera keeps closing in on the place instead of sitting on a wide view."""
+    if beat_end - beat_start < PUSH_MIN_BEAT_S:
+        return
+    t_push = round(((out["moves"][-1]["t"] + out["moves"][-1]["dur"]) if out["moves"] else beat_start) + GAP_S, 3)
+    dur = round(min(3.0, beat_end - 0.3 - t_push), 3)
+    if dur < 1.5:
+        return
+    for dz in PUSH_DELTAS:
+        nv = (v[0], v[1], v[2] + dz)
+        ok = close_enough(view_box(*nv), boxes[names[0]]) if len(names) == 1 else all(inside(view_box(*nv), boxes[n], MARGIN, CAPTION_BAND) for n in names)      # two places side by side stay whole
+        if ok:
+            out["moves"].append({"action": "push_in", "t": t_push, "dur": dur, "zoom_delta": dz})
+            out["view"] = nv
+            out["notes"].append(f"slow push-in {dz:g} at {t_push:.1f} s: every place keeps its centre and most of its area in frame")
+            return
+
+
 def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: float, first_map: bool, current: Optional[Tuple[float, float, float]] = None,
                 allow_push: bool = True) -> Dict[str, Any]:
     """targets: [{name, t}] (t = the time the place's layer wants to appear), in spoken order. Returns {start, moves, view, ready, rejected, notes}:
@@ -192,7 +244,7 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
     boxes: Dict[str, Tuple[float, float, float, float]] = {}
     for tg in targets:
         try:
-            boxes[tg["name"]] = place_bbox(tg["name"])
+            boxes[tg["name"]] = label_bbox(tg["name"]) if len(targets) > 1 and _is_sea(tg["name"]) else place_bbox(tg["name"])
         except Exception as exc:
             out["rejected"].append({"place": tg["name"], "reason": f"the place cannot be located ({str(exc)[:60]})"})
     live = [tg for tg in targets if tg["name"] in boxes]
@@ -204,10 +256,13 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
     if current is not None and current[2] >= max(MIN_SINGLE_ZOOM, _tight_zoom(names) - TOO_WIDE) - 1e-9 and all(inside(view_box(*current), boxes[n]) for n in names):   # a wide view (a continent, zoom 3.3) "contains" Italy but shows it as a speck: the camera must still go in
         out["notes"].append("the camera already shows every place: no move")
         out["ready"] = {n: 0.0 for n in names}
+        if allow_push:
+            _push_in(out, current, names, boxes, beat_start, beat_end)
         return out
     # 2. one view for all of them: the tightest centre-frame-pull_back combination that holds every bounding box
     best = None
-    for p, fr, d, v in _candidates(names):
+    centres = [n for n in names if not _is_sea(n)] or names      # land is the subject: a sea named with it is a label at the edge, not the middle of the view
+    for p, fr, d, v in _candidates(centres):
         if v[2] < MIN_SINGLE_ZOOM - 1e-9:
             continue
         if not all(inside(view_box(*v), boxes[n], MARGIN, CAPTION_BAND) for n in names):
@@ -250,14 +305,8 @@ def plan_camera(targets: Sequence[Dict[str, Any]], beat_start: float, beat_end: 
         out["ready"] = {n: round(max(0.0, ready), 3) for n in names}
         out["view"] = v
         out["notes"].append(f"one view for {', '.join(names)}: {p} at frame {fr}" + (f", pulled back {d:g}" if d else "") + f" (zoom {v[2]:.2f})")
-        # a slow push-in keeps a long single view alive without losing any place
-        if allow_push and not wide and beat_end - beat_start >= 5.5:
-            t_push = round(max((out["moves"][-1]["t"] + out["moves"][-1]["dur"]) if out["moves"] else beat_start, beat_start + 0.45 * (beat_end - beat_start)) + GAP_S, 3)
-            nv = (v[0], v[1], v[2] + 0.5)
-            if t_push + 3.2 <= beat_end - 0.3 and all(inside(view_box(*nv), boxes[n], 0.08, CAPTION_BAND) for n in names):
-                out["moves"].append({"action": "push_in", "t": t_push, "dur": 3.0, "zoom_delta": 0.5})
-                out["view"] = nv
-                out["notes"].append(f"slow push-in at {t_push:.1f} s: every place stays inside the frame")
+        if allow_push and not wide:
+            _push_in(out, v, names, boxes, beat_start, beat_end)
         return out
     # 3. no single view is good enough: the camera goes to each place in turn, each fully framed on its own
     cur_end = t0 - GAP_S

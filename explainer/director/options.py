@@ -11,16 +11,16 @@ EXPLAINER_VERSION = 1            # part of every board-clip cache key: bump when
 @dataclass
 class DirectorOptions:
     # ---- pacing (scorecard T02 to T05; provisional) ----
-    min_beat_s: float = 3.2             # close a beat once it is at least this long
-    max_beat_s: float = 8.0             # never longer (a longer sentence is split at its longest pause)
-    split_over_s: float = 6.4           # a sentence longer than this is split in two at its longest pause near the middle
+    min_beat_s: float = 3.0             # close a beat once it is at least this long
+    max_beat_s: float = 4.5             # never longer (a longer sentence is split at its longest pause): scenes of 3 to 4 s, 7-8 s scenes felt slow
+    split_over_s: float = 5.0           # a sentence longer than this is split near the middle (at a comma or pause, parts of at least 2.4 s)
     max_still_s: float = 2.0            # the longest a board may sit without a change (repair adds a card, else a caption)
     narrator_every_s: float = 30.0      # the narrator is back at least this often
     narrator_share: float = 0.45        # the narrator starts a new run while its share of the runtime so far is below this (runs of at least 2 beats overshoot it a little; scorecard target 35 to 60%)
     # ---- mix ----
     max_map_share: float = 0.36
     max_archive_share: float = 0.12
-    map_min_beat_s: float = 2.8
+    map_min_beat_s: float = 2.4          # matches segment.MIN_PART_S: a split half can still be a map (its country is coloured as the camera lands)
     narrator: bool = True
     footage_share: float = 0.0          # 0 = none (the default). Otherwise the largest share of the runtime board beats may be turned into FOOTAGE beats: a source and a query for the application's own "Get the scenes" step
     footage_source: str = "stock_video"  # stock_video | youtube_video | flow_video | stock_image | flow_image: which of the application's sources the references name (the Visual Plan lets you change a row)

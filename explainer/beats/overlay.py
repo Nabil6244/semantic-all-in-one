@@ -522,7 +522,7 @@ def composite_over(map_clip: "str | Path", overlay_clip: "str | Path", out_path:
     except subprocess.TimeoutExpired: return -1
 
 
-def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, crf: int = 12, per_pass: int = 8) -> int:
+def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, crf: int = 12, per_pass: int = 32) -> int:      # each pass re-encodes the whole video: 32 per pass keeps 3-4 s beats from adding passes
     """Lay several alpha clips (path, start seconds) over a video, `per_pass` at a time in one ffmpeg call each (one full re-encode per pass, not per clip). Returns the last exit code (0 = all
     laid on). The video's audio is kept; the result has the video's duration and size."""
     w, h = probe_size(video)

@@ -339,8 +339,8 @@ class WideCountryList(unittest.TestCase):
     def test_two_and_three_place_beats_are_unchanged(self):
         words, dur = synth(TWO_KOREAS)
         r = run(words, TWO_KOREAS, dur, max_map_share=0.6)
-        self.assertEqual(map_hash(r.plan), "9dd4957c7a045b64")
-        self.assertEqual(map_hash(KoreaCache.get().plan), "3025bc75875ae4ad")
+        self.assertEqual(map_hash(r.plan), "657ab457cb347de2")      # 2026-11-01: 3-4 s scenes, the first country coloured as the camera lands
+        self.assertEqual(map_hash(KoreaCache.get().plan), "39707ea170417c10")
 
     def test_deterministic(self):
         again = run(self.words, WIDE_LIST, self.dur, max_map_share=0.9)

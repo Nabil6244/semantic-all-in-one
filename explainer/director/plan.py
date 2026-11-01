@@ -80,7 +80,16 @@ def direct(words: Sequence[Word], script: Optional[str] = None, options: Optiona
         return DirectorResult(None, {"exception": traceback.format_exc(limit=6)}, [f"the explainer director failed: {exc!r}"], [])
 
 # pakMap's own fill roles in the order countries meet them: bright red, gold, purple, orange, then green and blue (which sit weakly on satellite land and sea; the dark "primary" brown is never used)
-FILL_PALETTE = ("red", "featured", "accent", "orange", "green", "compare", "water", "primary")      # the last two only when a video fills more than six countries
+_FEATURE_WORDS = {"river", "sea", "ocean", "gulf", "bay", "lake", "mountains", "desert", "the"}
+
+
+def _same_feature(a: str, b: str) -> bool:
+    """'Nile River' and 'Nile' (or 'Adriatic Sea' and 'Adriatic') name one place."""
+    k = lambda n: " ".join(w for w in n.lower().split() if w not in _FEATURE_WORDS)
+    return a != b and k(a) != "" and k(a) == k(b)
+
+
+FILL_PALETTE = ("red", "featured", "orange", "green", "compare", "accent", "water", "primary")      # strong colours first: the engine draws fills at ~45 % and purple reads as pale pink over desert; the last two only past six countries
 MAX_TEXT_LAYERS = 5               # pakMap's renderer rule: at most five text objects (marker or zone label, caption, stat, title) on screen at once
 LABEL_HOLD_S = 2.2
 LABEL_MIN_S = 0.8
@@ -256,7 +265,7 @@ def beat_place(beats, k: int) -> str:
     return ""
 
 
-PLATE_RUN = 2                  # one background plate is kept for at most this many board beats in a row (same place and period); then the camera "moves" to another framing
+PLATE_RUN = 3                  # one background plate is kept for at most this many board beats in a row (same place and period); then the camera "moves" to another framing. 3 since beats became 3-4 s, so a plate still lasts ~10 s and the Flow picture count does not grow
 PAPER_EVERY = 3                # Flow backdrops: every third board beat stays on the plain board background (grey, paper...) so the look keeps its own surface between pictures
 
 
@@ -482,12 +491,16 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             try:
                 pl = b.places[0]
                 all_hits = [h for h in b.places if h.match]
+                all_hits = [h for h in all_hits if not any(o is not h and _same_feature(o.name, h.name) and len(o.name) > len(h.name) for o in all_hits)]      # "Nile" and "Nile River" are one place: one label, not two on top of each other
                 hits = all_hits[:8] if len(all_hits) >= 4 else all_hits[:3]          # a sentence that lists many countries is drawn whole (up to 8) on one world view
                 bstart = b.start + (opt.dissolve_s / 2)
                 cam = FR.plan_camera([{"name": h.name, "t": h.match["start"]} for h in hits], bstart, b.end, first_map, cur_view)
                 _i = beats.index(b)
                 if not first_map and _i and beats[_i - 1].kind != "map" and cam["moves"] and cam["moves"][0]["action"] == "fly_to":      # the map comes in after a full-screen board: the camera sat still at its old (globe) view meanwhile, so the first move is a cut, not a flight through the globe
                     cam["moves"][0].update(t=round(b.start, 3), dur=0.04)
+                    if len(cam["moves"]) > 1 and cam["moves"][1]["action"] == "push_in":      # the push-in follows the cut at once instead of waiting for the flight that is no longer there
+                        p_ = cam["moves"][1]
+                        p_.update(t=round(b.start + 0.15, 3), dur=round(min(3.0, p_["t"] + p_["dur"] - b.start - 0.15), 3))
                 for rj in cam["rejected"]:
                     b.notes.append(f"{rj['place']} is not drawn: {rj['reason']}")
                     info["map_layers_rejected"].append({"beat": b.id, **rj})
@@ -497,6 +510,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 markers, fills, zones = [], [], []
                 drawn: set = set()                      # the places that really got a fill or a marker on this map (a relation line joins only these)
                 label_boxes: List[Tuple[str, Tuple[float, float, float, float]]] = []
+                lead = None                             # the first place with an outline is coloured as soon as the camera is there, not seconds later when its name is spoken
                 for h in shown:
                     wait = max(0.0, cam["ready"].get(h.name, 0.0) - h.match["start"])      # the layer waits until the camera is where the place can be seen
                     if wait > 0.5:
@@ -506,7 +520,11 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                     if h.kind == "country" or (h.is_area and h.kind in ("admin1", "region", "county") and not FR._is_continent(h.name)):      # every place with a real outline is coloured in (a state, a province, the Balkans); a continent stays a label, a sea has no outline
                         if h.name not in country_roles:
                             country_roles[h.name] = FILL_PALETTE[len(country_roles) % len(FILL_PALETTE)]
-                        fills.append({"place": h.name, "offset_s": round(wait, 3), "role": country_roles[h.name]})
+                        early = 0.0
+                        if lead is None and not cam.get("wide"):        # a world-view list of countries keeps each colour on its own word
+                            lead = h.name
+                            early = min(0.0, max(bstart + 0.2, cam["ready"].get(h.name, 0.0)) - h.match["start"])
+                        fills.append({"place": h.name, "offset_s": round(wait + early, 3), "role": country_roles[h.name]})
                         drawn.add(h.name)
                         if cam.get("wide") and cam.get("view"):          # on a world view the names must not pile up: a label that would sit on an earlier one is left out, and why is recorded
                             try:
@@ -524,7 +542,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                                 label_boxes.append((h.name, box))
                             except Exception:
                                 pass
-                        zones.append({"place": h.name, "offset_s": round(max(0.3, wait + 0.3), 3)})
+                        zones.append({"place": h.name, "offset_s": round(wait + early + 0.3 if early < 0 else max(0.3, wait + 0.3), 3)})
                     else:
                         markers.append({"place": h.name, "offset_s": round(max(0.1, wait), 3)})
                         drawn.add(h.name)

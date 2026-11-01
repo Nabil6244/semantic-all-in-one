@@ -67,7 +67,8 @@ def group(sents: Sequence[Sent], duration: float, opt: DirectorOptions) -> List[
     while len(groups) > 1 and k < len(groups):
         end_k = groups[k + 1][0].start if k + 1 < len(groups) else duration
         if end_k - groups[k][0].start < 2.0:
-            if k + 1 < len(groups):
+            next_end = groups[k + 2][0].start if k + 2 < len(groups) else duration
+            if k + 1 < len(groups) and (k == 0 or next_end - groups[k][0].start <= end_k - groups[k - 1][0].start):      # into the neighbour that stays shorter
                 groups[k] += groups.pop(k + 1)
             else:
                 groups[k - 1] += groups.pop(k)
@@ -126,6 +127,13 @@ EVERYDAY_PLACE_WORDS = frozenset("""acre afar antique apace bade bang barb benef
 AMBIGUOUS_COUNTRIES = frozenset("turkey china chile chad jordan guinea georgia niger cuba malta".split())
 PLACE_CUES = frozenset("in to from across near reached reach reaching toward towards beyond around at including into through between via of sailed sailing".split())
 TRANSCRIPT_KINDS = ("country", "region", "sea", "admin1", "city")
+WATER_WORDS = {"river", "sea", "lake", "lakes", "gulf", "bay", "ocean", "delta", "strait", "canal"}
+
+
+def _water_named_province(spoken: str, resolved: str) -> bool:
+    """'Nile' -> Sudan's 'River Nile' state, 'Red Sea' -> Sudan's 'Al Bahr al Ahmar' state: the narration means the water, not the province, and the map would fly to the wrong country."""
+    said = set(spoken.lower().split())
+    return bool(said & WATER_WORDS) or bool((set(resolved.lower().split()) & WATER_WORDS) - said)
 
 
 def lowercase_text(script: Optional[str], words) -> bool:
@@ -235,6 +243,9 @@ def resolve_places(cands: Sequence[str], weak: set = frozenset(), allow: Sequenc
             r = geo.resolve(c)
             if c in weak and str(r.kind) not in ("country", "region"):
                 ignored.append(c + " (sentence start, not a country or region)")
+                continue
+            if str(r.kind) in ("admin1", "admin2") and _water_named_province(c, str(getattr(r, "name", ""))):
+                ignored.append(f"{c} (a river or sea; the lookup only knows the province named after it, {r.name})")
                 continue
             ok[c] = (str(r.kind), bool(r.is_area))
         except Exception:
