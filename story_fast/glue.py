@@ -27,8 +27,13 @@ KINDS = ("travel_right", "travel_up", "push_through", "torn_wipe")
 LINKS = ("push_through", "torn_wipe")
 MAX_PANELS = 6                # pictures per glued strip; a longer run is split with a torn wipe
 TRAVEL_S = 1.6                # the calm travel the user picked (v2)
+MIN_TRAVEL_S = 1.3            # never faster: a short picture arrives a little late instead of rushing (travel.plan_schedule squeezed it to 0.7 x the gap)
+LATE_S = 0.45                 # how long after its first words a short picture may finish arriving
+MIN_DWELL_S = 0.45            # each picture rests at least this long before the camera moves on
+SHORT_DWELL_S = 0.25          # ...or this long in a row of short pictures, so the moves keep their calm speed
 LINK_S = 1.4
-MIN_LINK_S = 0.8
+MIN_LINK_S = 1.3
+LINK_MIN_PICTURE_S = 2.0      # a push-through / torn wipe needs the picture before it on screen this long; otherwise the change is a travel
 PUSH_MAX_SHARE, PUSH_GAP = 0.12, 4      # at most 12% of the changes, at least 4 changes apart
 TORN_MAX_SHARE, TORN_GAP = 0.25, 2
 SIDEWAYS_RUN = 3              # after 3 sideways travels in a row the next travel goes up
@@ -121,6 +126,9 @@ def plan(shots: Sequence[dict], stills: Sequence[Optional[str]], usable: Sequenc
     sid_n = 0
     for chain in chains:
         kinds = choose_joins(chain)
+        for k, kind in enumerate(kinds):
+            if kind in LINKS and (bnd[chain[k]["idx"][-1] + 1] - bnd[chain[k]["idx"][0]]) < LINK_MIN_PICTURE_S * fps:
+                kinds[k] = "travel_right"          # too short to carry a calm link: travel on instead
         # split into segments at links and at MAX_PANELS (the split becomes a torn wipe)
         parts: List[Tuple[List[dict], List[str], Optional[str]]] = []
         pan, dirs = [chain[0]], []
@@ -138,7 +146,7 @@ def plan(shots: Sequence[dict], stills: Sequence[Optional[str]], usable: Sequenc
             last_f = f1 - bnd[pan[-1]["idx"][0]]
             lf = 0
             if link:
-                lf = min(int(round(LINK_S * fps)), last_f - int(round(0.6 * fps)))
+                lf = min(int(round(LINK_S * fps)), last_f - int(round(MIN_DWELL_S * fps)))
                 if lf < int(round(MIN_LINK_S * fps)):
                     link, lf = None, 0          # the last picture is too short to carry a link: a plain cut
             nxt = parts[j + 1] if link and j + 1 < len(parts) else None
@@ -176,6 +184,32 @@ def strip_zoom(still: str, size, vertical: bool) -> float:
     return max(W * zx / iw, H * zy / ih) / max(W / iw, H / ih)
 
 
+def calm_schedule(starts: Sequence[float], ends: Sequence[float], dirs: Sequence[str]):
+    """travel.Schedule whose moves are never shorter than MIN_TRAVEL_S: each travel ends when the next picture's words start (TRAVEL_S long when there is
+    room); after a short picture it starts after a MIN_DWELL_S rest and may end up to LATE_S late. Only a picture too short even for that moves faster."""
+    from health_cinema.puppet import travel as T
+
+    starts, ends = [float(s) for s in starts], [float(e) for e in ends]
+    tr: List[Tuple[float, float]] = []
+    arrived = 0.0
+    for k in range(len(starts) - 1):
+        b = starts[k + 1]
+        t1 = b
+        t0 = max(b - TRAVEL_S, arrived + MIN_DWELL_S)
+        if t1 - t0 < MIN_TRAVEL_S:                     # speed first: shorten the rest, then arrive a little late
+            t0 = max(b - MIN_TRAVEL_S, arrived + SHORT_DWELL_S)
+            t1 = max(b, min(t0 + MIN_TRAVEL_S, b + LATE_S))
+        nxt = starts[k + 2] if k + 2 < len(starts) else ends[-1]
+        t1 = min(t1, nxt - 0.2)                        # the next picture still gets its turn
+        if t1 <= t0 + 0.2:
+            t0 = max(arrived + 0.05, t1 - 0.35)
+        tr.append((t0, t1))
+        arrived = t1
+    if tr:
+        ends[-1] = max(ends[-1], tr[-1][1] + 0.3)
+    return T.Schedule(starts, ends, tr, list(dirs)[:len(tr)], ease="smooth")
+
+
 def _frames_of(path: str) -> int:
     r = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", path],
                        capture_output=True, text=True, timeout=120)
@@ -199,7 +233,7 @@ def render_segment(seg: dict, out_path: str, cancel: Optional[Callable[[], bool]
     ends = [float(p["end"]) for p in pans]
     ends[-1] = tf / fps
     stills = [p["still"] for p in pans]
-    sched = T.plan_schedule(starts, ends, travel_s=TRAVEL_S, ease="smooth", dirs=list(seg["dirs"]) if len(pans) > 1 else None)
+    sched = calm_schedule(starts, ends, seg["dirs"]) if len(pans) > 1 else T.plan_schedule(starts, ends)
     base = os.fspath(out_path)
     travel_p = base + ".travel.mp4"
     T.render_travel(stills, sched, travel_p, fps=fps, size=size, walker=None, seed=int(seg["seed"]), cancel=cancel)

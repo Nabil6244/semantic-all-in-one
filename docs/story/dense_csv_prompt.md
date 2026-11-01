@@ -21,7 +21,7 @@ RULES FOR THE ROWS
 - scene_number: 1, 2, 3 ... in order, one number per row.
 - script_segment: the exact words of the script, copied word for word, in order. Joined together the rows must give the whole script, nothing added, nothing left out. Keep the script's own language and script (Devanagari stays Devanagari).
 - Cut at natural narration breaks: sentence ends, commas, and connectors (and / but / when / then / because; in Hindi: और / लेकिन / जब / फिर / क्योंकि).
-- Every row is 6 to 10 spoken words (about 2.5 to 3.5 seconds). Never fewer than 4 words, never more than 12. Join a one- to three-word phrase to its neighbour. A long sentence becomes two or three rows, cut at its commas and connectors. A row of 13 or more words is a mistake: split it.
+- Every row is 6 to 10 spoken words (about 2.5 to 3.5 seconds). Never fewer than 5 words, never more than 12: a row of 4 words or fewer is too short for the camera to travel calmly to its picture. Join a one- to four-word phrase to its neighbour. A long sentence becomes two or three rows, cut at its commas and connectors. A row of 13 or more words is a mistake: split it.
 - asset_type is always: image
 
 RULES FOR THE PICTURE PROMPTS (the prompt column)
@@ -44,5 +44,5 @@ RULES FOR THE PICTURE PROMPTS (the prompt column)
   - needs-real-movement ONLY when a person or object truly must move for the shot to work (a fight, a rider galloping, a speech, a ceremony); use it on very few rows, most rows need none.
   All three parts are optional; leave the tag out when unsure.
 
-Before you answer, check: (1) the script_segment cells joined in order equal the script exactly; (2) no row is under 4 or over 12 words, and most rows are 6 to 10 words; (3) every recurring character and place uses the same descriptive words each time; (4) no two neighbouring prompts have the same framing; (5) no text or letters appear in any picture; (6) no face or main subject touches the left, right or top edge; (7) the number of rows is about the narration length in seconds divided by 3.
+Before you answer, check: (1) the script_segment cells joined in order equal the script exactly; (2) no row is under 5 or over 12 words, and most rows are 6 to 10 words; (3) every recurring character and place uses the same descriptive words each time; (4) no two neighbouring prompts have the same framing; (5) no text or letters appear in any picture; (6) no face or main subject touches the left, right or top edge; (7) the number of rows is about the narration length in seconds divided by 3.
 ```

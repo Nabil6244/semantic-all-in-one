@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
-MIN_WORDS, MAX_WORDS = 4, 12          # a row shows one picture for ~1.6-4.8 s of narration (the CSV prompt asks for 6-10 words, a picture every 2.5-3.5 s)
+MIN_WORDS, MAX_WORDS = 5, 12          # a row shows one picture for ~2-4.8 s of narration; shorter rows make the travel rush (the CSV prompt asks for 6-10 words, a picture every 2.5-3.5 s)
 MIN_PROMPT_WORDS = 12
 
 def _words(t: str) -> List[str]:
@@ -31,7 +31,7 @@ def check_csv(rows: Sequence[Dict[str, Any]], words: Optional[Sequence[Sequence[
     for i, r in enumerate(rows, 1):
         n = str(r.get("scene_number", i)); w = _words(r.get("script_segment", "")); p = (r.get("prompt") or "").strip(); lens.append(len(w))
         if not w: errors.append(f"Row {n}: the script text is empty (a row with no words cannot be timed).")
-        elif len(w) < MIN_WORDS: warnings.append(f"Row {n}: only {len(w)} word(s) (~{len(w) / wps:.1f} s): too short to show a picture; merge it into a neighbour.")
+        elif len(w) < MIN_WORDS: warnings.append(f"Row {n}: only {len(w)} word(s) (~{len(w) / wps:.1f} s): too short for a calm move to its picture; merge it into a neighbour.")
         elif len(w) > MAX_WORDS: warnings.append(f"Row {n}: {len(w)} words (~{len(w) / wps:.0f} s) on one picture; split it at a comma or a connector.")
         if len(_words(p)) < MIN_PROMPT_WORDS: warnings.append(f"Row {n}: the picture prompt is very short ({len(_words(p))} words).")
         if p and p in seen: warnings.append(f"Row {n}: the same prompt as row {seen[p]} (Flow would make the same picture twice).")

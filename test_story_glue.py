@@ -70,6 +70,18 @@ segs, _ = glue.plan(shots, stills, [True] * 3, 30, (640, 360))
 ok("picture too short for a link -> plain cut", all(s["link"] is None or s["link"]["frames"] >= int(glue.MIN_LINK_S * 30) for s in segs.values()))
 ok("summary counts every change", sum(glue.summary(glue.plan(*mk(8)[:2], [True] * 8, 30)[0]).values()) == 7)
 
+# ---- calm speed: short pictures never make a fast move
+st = [0.0, 2.0, 3.4, 5.0, 6.6, 10.0]; en = st[1:] + [13.0]
+s = glue.calm_schedule(st, en, ["right"] * 5)
+ok("no travel faster than MIN_TRAVEL_S", all(b - a >= glue.MIN_TRAVEL_S - 1e-6 for a, b in s.travels), s.travels)
+ok("a short picture arrives at most LATE_S late", all(b - st[k + 1] <= glue.LATE_S + 1e-6 for k, (a, b) in enumerate(s.travels)), s.travels)
+ok("a roomy picture arrives exactly when its words start, TRAVEL_S long", abs(s.travels[-1][1] - 10.0) < 1e-6 and abs(s.travels[-1][1] - s.travels[-1][0] - glue.TRAVEL_S) < 1e-6, s.travels)
+ok("every picture rests before the camera moves on", all(a >= prev + glue.SHORT_DWELL_S - 1e-6 for prev, (a, b) in zip([0.0] + [t[1] for t in s.travels], s.travels)), s.travels)
+shots, stills = mk(4, d=1.7)
+shots[1]["text"] = "But in 1930 it changed"
+segs, _ = glue.plan(shots, stills, [True] * 4, 30, (640, 360))
+ok("no link after a picture shorter than LINK_MIN_PICTURE_S", not any(s["link"] for s in segs.values()), [(s["id"], s["link"]) for s in segs.values()])
+
 # ---- zoom
 ok("strip zoom sideways 1.16", abs(glue.strip_zoom(pic(0), (640, 360), False) - 1.16) < 1e-6)
 ok("strip zoom with an up move 1.27", abs(glue.strip_zoom(pic(0), (640, 360), True) - 1.27) < 1e-6)
