@@ -64,6 +64,10 @@ class Rivers(unittest.TestCase):
 
 
 class MapCamera(unittest.TestCase):
+    def test_zone_label_after_a_late_camera_stays_inside_the_gate(self):
+        from explainer.beats import relevance as RV
+        self.assertLessEqual(PL._ZONE_LATEST_S, RV.T_AFTER_S)
+
     def test_strong_colours_first(self):
         self.assertNotIn("accent", PL.FILL_PALETTE[:5])
         self.assertEqual(PL.FILL_PALETTE[0], "red")

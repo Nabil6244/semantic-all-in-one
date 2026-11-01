@@ -89,6 +89,7 @@ def _same_feature(a: str, b: str) -> bool:
     return a != b and k(a) != "" and k(a) == k(b)
 
 
+_ZONE_LATEST_S = 0.55                         # a zone label never starts later than this after its word (the relevance gate allows +0.6 s; the camera may arrive up to 0.5 s late)
 FILL_PALETTE = ("red", "featured", "orange", "green", "compare", "accent", "water", "primary")      # strong colours first: the engine draws fills at ~45 % and purple reads as pale pink over desert; the last two only past six countries
 MAX_TEXT_LAYERS = 5               # pakMap's renderer rule: at most five text objects (marker or zone label, caption, stat, title) on screen at once
 LABEL_HOLD_S = 2.2
@@ -542,7 +543,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                                 label_boxes.append((h.name, box))
                             except Exception:
                                 pass
-                        zones.append({"place": h.name, "offset_s": round(wait + early + 0.3 if early < 0 else max(0.3, wait + 0.3), 3)})
+                        zones.append({"place": h.name, "offset_s": round(wait + early + 0.3 if early < 0 else min(max(0.3, wait + 0.3), _ZONE_LATEST_S), 3)})
                     else:
                         markers.append({"place": h.name, "offset_s": round(max(0.1, wait), 3)})
                         drawn.add(h.name)
