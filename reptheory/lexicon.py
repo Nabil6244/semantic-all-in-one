@@ -8,7 +8,7 @@ CONCEPTS = {
     "bottle": dict(rx=r"\bbottles?\b", label="BOTTLE", art="prop_bottle_2l_v1", kind="prop", rings=(("neck", (0.5, 0.085, 0.075)), ("", (0.5, 0.04, 0.07)))),   # rings = (word, (x, y, radius)) as fractions of the picture's width/height/width; first word found in the sentence wins, "" is the default
     "forearm": dict(rx=r"\bforearms?\b", label="FOREARM", art="anat_forearm_v1", kind="anatomy", glow=((0.27, 0.26, 0.26, 0.42), (0.73, 0.26, 0.26, 0.42))),   # glow = ellipses (cx, cy, rx, ry) as fractions
     "cap": dict(rx=r"\bcap\b", label="CAP ON TIGHT", art="prop_bottle_2l_v1", kind="prop", rings=(("", (0.5, 0.04, 0.07)),)),
-    "hang": dict(rx=r"\b(hang|hanging|pull-?up bar|dead hang)\b", label="BAR HANG", art="rep_hang_v1", kind="pose"),
+    "hang": dict(rx=r"\b(dead hang|bar hang|pull-?up bar|hang(?:ing)? (?:from|on|off) (?:a |the )?(?:bar|rings?)|hang (?:there|for \w+ seconds)|(?:can|you) hang(?! off| over| down))\b", label="BAR HANG", art="rep_hang_v1", kind="pose"),      # a hang from a bar: "your hand hanging off the edge" of a table is not one (render 053)
 }
 NEGATION = re.compile(r"\b(no|not|don'?t|do not|without|nothing|never)\b", re.I)
 CHIP_RULES = [   # (regex, builder) -> chip text; the captured words come straight from the narration

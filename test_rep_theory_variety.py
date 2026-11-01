@@ -106,7 +106,7 @@ class Director(unittest.TestCase):
         run = 1
         for i in range(1, len(self.scenes)):
             a, b = self.scenes[i - 1], self.scenes[i]
-            run = run + 1 if (a.get("look") == b.get("look") and a.get("look") in ("3d", "flow", "stat", "steps", "versus", "takeaway")) else 1
+            run = run + 1 if (a.get("look") == b.get("look") and a.get("look") in ("3d", "stat", "steps", "versus", "takeaway")) else 1      # a run of Flow scenes is a run of different pictures
             self.assertLessEqual(run, 2, f"scene {b['no']}: {b.get('look')} three times in a row")
 
     def test_every_five_minutes_shows_several_looks(self):
@@ -122,7 +122,8 @@ class Director(unittest.TestCase):
     def test_budgets_and_spacing(self):
         d3 = [sc for sc in self.scenes if sc.get("want3d")]; gap = min(20.0, max(6.0, self.total / 4))
         for a, b in zip(d3, d3[1:]): self.assertGreaterEqual(b["start"] - a["end"], gap - 1e-6)
-        self.assertLessEqual(sum(1 for sc in self.scenes if sc.get("look") == "flow"), max(2, int(self.total / 30)))
+        self.assertEqual(self.scenes[0].get("look"), "flow")      # no picture budget any more (docs/rep_theory/STUDY_tendons_arm_wrestling.md); the opening is the hook picture
+        self.assertTrue(all(sc.get("look") != "takeaway" for sc in self.scenes))      # with pictures on, no sentence is shown as words alone
         for a, b in zip(self.scenes, self.scenes[1:]): self.assertFalse(a.get("want3d") and b.get("want3d"))
         styles = {sc["cam3d"] for sc in d3}; self.assertGreaterEqual(len(styles), min(4, len(d3)))
 

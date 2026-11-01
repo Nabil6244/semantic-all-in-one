@@ -24,7 +24,7 @@ POSES: Dict[str, tuple] = {
     "rep_calf_raise_v1": (r"calf raises?|on your toes", "CALF RAISE"),
     "rep_hamstring_stretch_v1": (r"touch your toes|hamstring stretch|forward fold|reach (?:for|toward) your toes", "STRETCH"),
     "rep_hip_stretch_v1": (r"hip flexor stretch|kneeling stretch|stretch(?:es|ing)? (?:your|the) hips?|couch stretch", "HIP STRETCH"),
-    "rep_run_v1": (r"run(?:s|ning)?|jog(?:s|ging)?|sprint(?:s|ing)?|\d+k\b", "RUN"),
+    "rep_run_v1": (r"(?:go|went|going|start|started|you|i|we|they|he|she|to|a|for a|morning|easy|long|daily|weekly) (?:run(?:s|ning)?)\b(?! (?:all the way|along|through|from|down|up|into|across|the length|out of))|running|jog(?:s|ging)?|sprint(?:s|ing)?|\d+k\b", "RUN"),      # a person running; "tendons run all the way from your forearm" is not one (render 053 study)
     "rep_walk_v1": (r"walk(?:s|ing)?|steps a day|step count", "WALK"),
     "rep_sleep_v1": (r"sleep(?:s|ing)?|asleep|bedtime|in bed|naps?|napping", "SLEEP"),
     "rep_eat_v1": (r"eat(?:s|ing)?|meals?|breakfast|lunch|dinner|snacks?|portions?", "EAT"),

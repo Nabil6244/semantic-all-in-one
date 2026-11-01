@@ -11,7 +11,7 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
 def _sig(sc: dict) -> tuple:
     sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
@@ -24,7 +24,7 @@ def events(scenes: List[dict]) -> List[dict]:
     for sc in scenes:
         n = sc.get("no"); new_comp = prev is None or _sig(sc) != _sig(prev)
         ev.append({"t": float(sc["start"]), "type": "primary" if new_comp else "secondary", "what": f"{sc['kind']} composition" if new_comp else f"new {sc['kind']} page (cut)", "scene": n, "meaningful": new_comp or sc["kind"] == "callout", "boundary": True})
-        shown = sc["kind"] in DRAWS_PAGE_TEXT
+        shown = sc["kind"] in DRAWS_PAGE_TEXT or sc.get("look") == "flow"      # a scene given a Flow picture is drawn as one (beat_art turns it into "illus")
         for i, pg in enumerate(sc.get("pages", [])):
             if i and shown: ev.append({"t": float(pg["at"]), "type": "secondary", "what": "callout page", "scene": n, "target": pg.get("headline", ""), "meaningful": True})
             if shown and pg.get("headline") and (i or pg.get("headline_at", 0) > sc["start"] + 0.05): ev.append({"t": float(pg.get("headline_at", pg["at"])), "type": "secondary", "what": "headline", "scene": n, "target": pg["headline"], "meaningful": True})
@@ -46,6 +46,18 @@ def events(scenes: List[dict]) -> List[dict]:
             if c: ev += [{"t": float(x["at"]), "type": "secondary", "what": f"{k2} item", "scene": n, "target": x["text"], "meaningful": True} for x in (c if key else [c["a"], c["b"]])]
         if sc.get("timeline"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "time mark", "scene": n, "target": x["mark"], "meaningful": True} for x in sc["timeline"]["items"]]
         if sc.get("checklist"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "steps item", "scene": n, "target": x["text"], "meaningful": True} for x in sc["checklist"]["items"]]
+        if sc.get("slots"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "slot fills", "scene": n, "target": x["text"], "meaningful": True} for x in sc["slots"]["items"]]
+        for k2, keys in (("race", ("fast", "slow")), ("formula", ("a", "b"))):
+            if sc.get(k2): ev += [{"t": float(sc[k2][k]["at"]), "type": "secondary", "what": f"{k2} part", "scene": n, "target": sc[k2][k]["text"], "meaningful": True} for k in keys]
+        if sc.get("mechanism"): ev += [{"t": float(v), "type": "secondary", "what": f"{k} label", "scene": n, "meaningful": True} for k, v in sc["mechanism"]["labels"].items()] + ([{"t": float(sc["mechanism"]["pull_at"]), "type": "secondary", "what": "pull", "scene": n, "meaningful": True}] if sc["mechanism"].get("pull_at") is not None else [])
+        if sc.get("promise"): ev += [{"t": float(sc["promise"]["at"]), "type": "secondary", "what": "promise cells", "scene": n, "meaningful": True}, {"t": float(sc["promise"]["at"]) + 1.0, "type": "secondary", "what": "promise lock", "scene": n, "meaningful": True}]
+        if sc.get("look") == "flow" or sc["kind"] == "illus":      # a picture's red paint grows in on the word naming the part it shows (picture.py; beat_art asks Flow to paint that part red)
+            from .picture import BODY_WORD
+            w = next((w for w in sc.get("words") or [] if BODY_WORD.search(str(w.get("w", "")))), None)
+            if w is not None: ev.append({"t": float(w["t0"]), "type": "secondary", "what": "red reveal", "scene": n, "meaningful": True})
+        sw = sc.get("stopwatch")
+        if sw and sc["start"] <= sw["start"] < sc["end"]: ev.append({"t": float(sw["start"]), "type": "secondary", "what": "stopwatch starts", "scene": n, "meaningful": True})
+        if sw and sw.get("stop") is not None and sc["start"] <= sw["stop"] < sc["end"]: ev.append({"t": float(sw["stop"]), "type": "secondary", "what": "stopwatch stops", "scene": n, "meaningful": True})
         if sc.get("question"): ev.append({"t": float(sc["question"]["at"]), "type": "secondary", "what": "question asked", "scene": n, "target": sc["question"]["text"], "meaningful": True})
         for k2 in ("mistake", "slider", "myth"):
             c = sc.get(k2)

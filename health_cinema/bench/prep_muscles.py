@@ -16,7 +16,7 @@ GROUPS = {
     "glutes": (("gluteus", "piriformis"), True), "quads": (("rectus femoris", "vastus", "sartorius", "tensor fasciae latae"), True),
     "hamstrings": (("semitendinosus", "semimembranosus", "head of biceps femoris"), True), "adductors": (("adductor longus", "adductor magnus", "adductor brevis", "gracilis", "pectineus"), True),
     "calves": (("gastrocnemius", "soleus", "plantaris"), True), "shins": (("tibialis anterior", "fibularis", "extensor digitorum longus", "extensor hallucis longus"), True),
-    "forearm_flexors": (("flexor carpi", "flexor digitorum", "palmaris longus", "pronator teres", "flexor pollicis longus"), True),
+    "forearm_flexors": (("flexor carpi", "flexor digitorum superficialis", "flexor digitorum profundus", "palmaris longus", "pronator teres", "flexor pollicis longus"), True),      # not "flexor digitorum" alone: that also takes the leg's and foot's longus / brevis (the 053 render framed the thighs for "forearm")
     "forearm_extensors": (("extensor carpi", "extensor digitorum.", "extensor digiti", "brachioradialis", "supinator", "extensor indicis", "extensor pollicis", "abductor pollicis longus"), True),
     "hip_flexors": (("psoas major", "iliacus", "iliopsoas"), True), "neck": (("sternocleidomastoid", "scalenus", "splenius"), True),
 }

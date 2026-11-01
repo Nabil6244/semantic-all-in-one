@@ -188,10 +188,10 @@ def pill(cv: Image.Image, ctx: Ctx, x: float, y: float, text: str, p: float, acc
 
 TYPE_CPS = 33      # headline letters a second as they type on
 
-def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0):
+def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0, width: float = 0.0):
     """Right-hand callout: bold headline, key value (orange), outlined chips. Each piece slides up and fades in as its own time arrives. Stack is centred on anchor_y."""
     d = ImageDraw.Draw(cv, "RGBA"); hf, vf = ctx.font(T.HEAD_FONT, 104), ctx.font(T.HEAD_FONT, 168); x = ctx.px(x)
-    room = ctx.W - x - ctx.px(80); size = 104
+    room = ctx.px(width) if width else ctx.W - x - ctx.px(80); size = 104      # width (1080p px): a column on the left of a full-frame picture stops before its subject
     while headline and size > 56 and max(_text_w(d, w, hf, ctx_sp(hf)) for w in headline.split()) > room: size -= 6; hf = ctx.font(T.HEAD_FONT, size)      # a single long word ("STRAIGHTEN") in a narrow column shrinks instead of running off the frame
     lines = _wrap(d, headline, hf, room) if headline else []; hh = len(lines) * ctx.px(112); vh = ctx.px(180) if value else 0; ch = len(chips) * ctx.px(96)
     kh = ctx.px(48) if kicker else 0; total = kh + hh + (ctx.px(14) if lines else 0) + vh + ch + (ctx.px(26) if chips and (lines or value) else 0); y = int(ctx.H * anchor_y - total / 2)

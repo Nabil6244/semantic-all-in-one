@@ -20,15 +20,15 @@ import itertools, json, re, sys
 from pathlib import Path
 from typing import Dict, List
 
-from . import beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
+from . import gate as G, beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
 
 ROOT = Path(__file__).resolve().parent.parent
 TOPICS = ROOT / "test_fixtures" / "rep_theory_topics"; BASELINE = TOPICS / "baseline.json"
 SHIPPED = ROOT / "assets" / "reptheory"
 WPS = 2.6      # narration speed for the synthetic word timings (≈156 words a minute)
 STILL_S, OPENING_S = 4.0, 60.0
-IS_PICTURE = lambda l: l in PICTURE or l.startswith("pose:")
-PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist"}
+IS_PICTURE = lambda l: l in PICTURE or l.startswith(("pose:", "flow:"))
+PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise"}
 TARGETS = {"bad_headlines": ("<=", 0), "empty_scenes": ("<=", 0), "repeat_headlines": ("<=", 0), "picture_share": (">=", 0.80), "fallback_share": ("<=", 0.10), "anatomy_unnamed": ("<=", 0), "still_share": ("<=", 0.05), "held_no_change": ("<=", 0), "opening_overlap_max": ("<=", 0.30)}
 BODY_RX = re.compile(r"\b(" + "|".join([      # named body parts, organs and tissues; "muscle" / "body" alone name nothing
     r"neck", r"shoulders?", r"delts?", r"deltoids?", r"traps?", r"trapezius", r"chest", r"pecs?", r"pectorals?", r"arms?", r"biceps?", r"triceps?", r"elbows?", r"forearms?", r"wrists?", r"hands?",
@@ -90,11 +90,14 @@ def art_ok(a: str) -> bool: return bool(a) and (SHIPPED / f"{a}.png").exists()  
 
 def look_of(sc: dict) -> str:
     lk = sc.get("look") or sc["kind"]; lk = sc["kind"] if lk == "stock" else lk
+    if lk == "flow":      # a Flow picture is drawn for its own sentence: two scripts' openings never show the same one
+        from . import beat_art as BA
+        return "flow:" + BA.art_id(BA.own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else BA.prompt_for(sc.get("text", ""), hook=bool(sc.get("hook"))))
     return f"pose:{sc['art']}" if lk == "pose" else lk      # 30 pose pictures (Step 5): a squat and a sleeping figure are different pictures
 
 def plan(text: str) -> tuple:
     title, ss = sentences(text); res = B.plan(transcript_words(ss), title=title, art_ok=art_ok); scenes = res["scenes"]
-    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); BP.apply(scenes)      # the engine's order
+    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); G.repair(scenes, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); BP.apply(scenes)      # the engine's order
     return title, ss, res, scenes
 
 def measure(text: str) -> dict:

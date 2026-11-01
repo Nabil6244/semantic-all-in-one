@@ -6,15 +6,16 @@ from __future__ import annotations
 import re
 from typing import Callable, Dict, List
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist")
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
            "list": "steps", "sequence": "steps", "key line": "takeaway", "quote": "takeaway",
            "stopwatch": "timeline", "sensation": "timeline", "wrong right": "mistake", "wrong/right": "mistake", "difficulty": "slider", "easier harder": "slider",
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
-           "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist"}
-CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist")
+           "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
+           "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise"}
+CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 def norm_look(v: str) -> str:
@@ -22,7 +23,7 @@ def norm_look(v: str) -> str:
     return v if v in LOOKS else ""
 
 def has_direction(sentences: List[dict]) -> bool:
-    return any(str(s.get(k) or "").strip() for s in sentences for k in ("look", "prompt", "muscle", "chapter"))
+    return any(str(s.get(k) or "").strip() for s in sentences for k in ("look", "prompt", "muscle", "chapter", "camera", "on_screen"))
 
 def check_rows(sentences: List[dict]) -> List[str]:
     """Problems a user can fix in the CSV, one line each (never fatal: the app's own choice is used for that row)."""
@@ -34,6 +35,19 @@ def check_rows(sentences: List[dict]) -> List[str]:
         m = str(s.get("muscle") or "").strip()
         if m and not C3.groups_for(m)[0]: out.append(f"row {i}: muscle '{m}' is not a muscle or exercise the 3D body knows (e.g. lats, glutes, forearms, push-up); the sentence's own words are used")
     return out
+
+ON_SCREEN_MAX = 6
+SYMBOLS = {"=", "≠", "+", "→", "->", "vs", "x", "×", "/", "&", "<", ">"}
+
+def on_screen_ok(v, text: str) -> str:
+    """The CSV's on_screen words, upper-cased, when every word is the sentence's own (numbers and = ≠ + → may join them) and there are at most ON_SCREEN_MAX; else ""."""
+    v = re.sub(r"\s+", " ", str(v or "").strip())
+    if not v: return ""
+    said = set(re.findall(r"[a-z0-9%]+", text.lower().replace("'", "")))
+    toks = [w for w in v.split() if w.lower() not in SYMBOLS]
+    words = [re.sub(r"[^a-z0-9%]", "", w.lower().replace("'", "")) for w in toks]
+    if not words or len(words) > ON_SCREEN_MAX or any(w and w not in said for w in words): return ""
+    return v.upper().replace("->", "→")
 
 def _row_look(s: dict) -> str:
     look = norm_look(s.get("look"))
@@ -65,7 +79,7 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
     from . import clip3d as C3, planner as P, variety as V
     stat = {"directed": 0, "shared": 0, "not_buildable": 0, "locked": 0, "chapters": 0}
     if not scenes: return stat
-    ss = sorted(sentences, key=lambda s: float(s["start"])); chapter = ""; claimed: Dict[int, int] = {}
+    ss = sorted(sentences, key=lambda s: float(s["start"])); chapter = ""; claimed: Dict[int, int] = {}; prev_prompt = ""
     for s in ss:      # each directed row gets its own scene: the planner may have joined it to its neighbours
         if not _row_look(s): continue
         t0, t1 = float(s["start"]), float(s["end"]); _split_at(scenes, t0); _split_at(scenes, t1)
@@ -78,6 +92,13 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
     for ri, s in enumerate(ss, 1):
         if str(s.get("chapter") or "").strip(): chapter = str(s["chapter"]).strip(); chap_at.append((float(s["start"]), chapter))
         look = _row_look(s)
+        shown = on_screen_ok(s.get("on_screen"), s.get("text", ""))
+        if str(s.get("on_screen") or "").strip() and not shown: log(f"[REP THEORY CSV] row {ri}: on_screen '{s.get('on_screen')}' uses words the sentence does not say (or more than {ON_SCREEN_MAX} words); the app picks the words")
+        if shown:      # the words this row puts on screen, as its scene's first headline (never invented: every word is the sentence's own)
+            hs = scene_at(float(s["start"]), float(s["end"]))
+            if hs.get("pages"): hs["pages"][0]["headline"] = shown; hs["pages"][0]["headline_at"] = max(float(hs["pages"][0].get("at", hs["start"])), float(s["start"]))
+            else: hs["pages"] = [{"at": float(s["start"]), "headline": shown, "headline_at": float(s["start"]), "value": "", "chips": []}]
+            hs["on_screen"] = shown
         if not look: continue
         sc = scene_at(float(s["start"]), float(s["end"]))
         if sc["no"] in claimed: stat["shared"] += 1; log(f"[REP THEORY CSV] row {ri} shares scene {sc['no']} with row {claimed[sc['no']]}: row {claimed[sc['no']]}'s direction is used"); continue
@@ -86,7 +107,10 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         muscle = str(s.get("muscle") or "").strip()
         if muscle and C3.groups_for(muscle)[0]: sc["muscle"] = muscle
         prompt = str(s.get("prompt") or "").strip()
-        if prompt: sc["flow_prompt"] = prompt
+        if prompt.lower() in ("same", "same picture", "previous", "same as above") and prev_prompt: prompt = prev_prompt      # the row before's picture again, re-framed (camera column)
+        if prompt: sc["flow_prompt"] = prompt; prev_prompt = prompt
+        cam = str(s.get("camera") or "").strip()
+        if cam: sc["camera"] = cam
         if look == "3d" and not C3.groups_for(sc.get("muscle") or sc.get("text", ""))[0]:
             stat["not_buildable"] += 1; log(f"[REP THEORY CSV] row {ri}: look 3d but neither the muscle column nor the sentence names a muscle or exercise; the app chooses"); continue
         if look in CARDS:

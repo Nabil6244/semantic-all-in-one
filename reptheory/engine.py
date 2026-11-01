@@ -88,6 +88,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             recent = recent_openings(project_dir); vm = V.direct(scenes, total_s=scenes[-1]["end"], three_d=clips3d, flow=illustrate, recent=recent); log(f"[REP THEORY VARIETY] {vm} (steered away from {len(recent)} recent openings)")
             if write_report: Path(str(out_path) + ".variety.json").write_text(__import__("json").dumps(vm, indent=1))
         except Exception as ex: log(f"[REP THEORY VARIETY] unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment"); variety = False
+    from . import gate as G
+    log(f"[REP THEORY GATE] {G.summary(G.repair(scenes, flow=illustrate))}")      # plan-only quality check + repair (reptheory/gate.py): milliseconds, before anything is drawn
     scenes = P.never_empty(scenes)      # after every look is chosen: no scene renders with nothing on it
     log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
     from . import blueprint as BP
@@ -103,6 +105,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             return {"ok": True, "media_only": True, "requests": wanted, "scenes": len(scenes)}
         try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts, chosen=table, generate_missing=table is None)}")      # after Generate scenes, a missing picture is retried in the Visuals tab, never here
         except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
+    from . import picture as PIC
+    log(f"[REP THEORY PICTURES] full-frame framing planned; {PIC.plan(scenes)} shot(s) re-frame the picture before them")      # camera, re-framing, red reveal (reptheory/picture.py)
     for sc in scenes: log(f"scene {sc['no']} {sc['start']:.1f}-{sc['end']:.1f}s {sc['kind']} ({sc['art'] or 'no art'}): {'; '.join(sc['decisions'][:2])}")
     end_s = scenes[-1]["end"] if not max_seconds else min(scenes[-1]["end"], max_seconds); n_narr = round(end_s * T.FPS); ctx = D.Ctx(W, H)
     card = None if max_seconds else end_card_config(end_card, title, log)      # optional: off (None / not enabled) keeps the ending exactly as it was

@@ -30,7 +30,8 @@ def stat(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     shown = v * e; txt = (f"{shown:.0f}" if abs(v - round(v)) < 1e-6 else f"{shown:.1f}"); f = ctx.font(T.HEAD_FONT, 190); w = D._text_w(d, txt, f, 0)
     land = t - st["at"] - 0.9      # the number has reached what was said: it flips to orange and the ring throws a pulse
     if 0 <= land < 0.7: q = T.ease_out(land / 0.7); rr = r * (1.0 + 0.35 * q); d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=T.ORANGE + (int(200 * (1 - q)),), width=ctx.px(6))
-    D.text_spaced(d, (cx - w / 2, cy - ctx.px(122)), txt, f, (T.ORANGE if land >= 0 else T.WHITE) + (255,), 0); u = ctx.font(T.BODY_FONT, 44); uw = D._text_w(d, st["unit"], u, ctx.px(4)); D.text_spaced(d, (cx - uw / 2, cy + ctx.px(76)), st["unit"], u, T.ORANGE + (255,), ctx.px(4))
+    if t >= st["at"] - 0.1: D.text_spaced(d, (cx - w / 2, cy - ctx.px(122)), txt, f, (T.ORANGE if land >= 0 else T.WHITE) + (255,), 0)      # the number rolls in on its word, never a 0 the narrator did not say
+    u = ctx.font(T.BODY_FONT, 44); uw = D._text_w(d, st["unit"], u, ctx.px(4)); D.text_spaced(d, (cx - uw / 2, cy + ctx.px(76)), st["unit"], u, T.ORANGE + (255,), ctx.px(4))
 
 def steps(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ticks: bool = False) -> None:
     """Numbered steps that appear as the narration reaches them, joined by a line that draws down (a spoken list: a tick instead of the number)."""
@@ -176,7 +177,7 @@ def dial(cv: Image.Image, ctx: D.Ctx, dl: dict, t: float) -> None:
     d.line((cx, cy, cx + (r - ctx.px(40)) * math.cos(ang), cy + (r - ctx.px(40)) * math.sin(ang)), fill=T.WHITE + (255,), width=ctx.px(8)); d.ellipse((cx - ctx.px(16), cy - ctx.px(16), cx + ctx.px(16), cy + ctx.px(16)), fill=T.WHITE + (255,))
     land = t - dl["at"] - 0.9
     if 0 <= land < 0.7: q = T.ease_out(land / 0.7); rr = r * (1.0 + 0.15 * q); d.arc((cx - rr, cy - rr, cx + rr, cy + rr), 180, 360, fill=T.ORANGE + (int(200 * (1 - q)),), width=ctx.px(6))
-    _txt(d, ctx, (cx, cy + ctx.px(26)), f"{v:.0f}" if dl["max"] == 10 else f"{v:.0f}", 120, T.ORANGE if land >= 0 else T.WHITE, 1, centre=True); _txt(d, ctx, (cx, cy + ctx.px(160)), dl["label"], 34, T.GREY, a, head=False, centre=True)
+    _txt(d, ctx, (cx, cy + ctx.px(26)), f"{v:.0f}", 120, T.ORANGE if land >= 0 else T.WHITE, 1 if t >= dl["at"] - 0.1 else 0, centre=True); _txt(d, ctx, (cx, cy + ctx.px(160)), dl["label"], 34, T.GREY, a, head=False, centre=True)
 
 def study(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     """The evidence: a stack of papers that fans in, its count rolling up to the stated number, what was studied under it."""
@@ -334,3 +335,114 @@ def question(cv: Image.Image, ctx: D.Ctx, qn: dict, t: float) -> None:
             mx = x0 + ctx.px(55) + D._text_w(d, ln[:i], f, ctx.px(1)); mw = D._text_w(d, qn["key"], f, ctx.px(1)); d.rectangle((mx - ctx.px(8), yy + ctx.px(4), mx - ctx.px(8) + (mw + ctx.px(16)) * kp, yy + ctx.px(76)), fill=T.ORANGE_DEEP + (200,))
         if shown: _txt(d, ctx, (x0 + ctx.px(55), yy), shown, 66, T.WHITE, 1)
         yy += ctx.px(84)
+
+# Cards from the arm-wrestling study (docs/rep_theory/STUDY_tendons_arm_wrestling.md, sections 3-5): each one acts out a sentence shape any fitness script has.
+
+def _dashed_box(d, box, col, width, dash):
+    x0, y0, x1, y1 = box
+    for a, b, horiz in ((x0, x1, True), (y0, y1, False)):
+        p = a
+        while p < b:
+            q = min(b, p + dash)
+            if horiz: d.line((p, y0, q, y0), fill=col, width=width); d.line((p, y1, q, y1), fill=col, width=width)
+            else: d.line((x0, p, x0, q), fill=col, width=width); d.line((x1, p, x1, q), fill=col, width=width)
+            p += dash * 2
+
+def slots(cv: Image.Image, ctx: D.Ctx, sl: dict, t: float) -> None:
+    """A spoken count ("four moments", "three mistakes"): the heading, N empty dashed slots, then each slot fills with its item card as the item is named;
+    the item being said is lit, the ones before step back. Items not named in the scene are numbered."""
+    d = ImageDraw.Draw(cv, "RGBA"); n = len(sl["items"]); a = min(1.0, (t - sl["at"] + 0.2) / 0.4)
+    _txt(d, ctx, (ctx.W / 2, ctx.H * 0.20), sl["kicker"], 34, T.SOFT_WHITE, a, head=False, centre=True); _txt(d, ctx, (ctx.W / 2, ctx.H * 0.26), sl["title"], 92, T.WHITE, a, centre=True)
+    bw = min(ctx.px(300), int(ctx.W * 0.82 / n) - ctx.px(30)); gap = ctx.px(30); x0 = (ctx.W - (n * bw + (n - 1) * gap)) / 2; y0 = int(ctx.H * 0.46); bh = int(bw * 0.95)
+    live = [i for i, it in enumerate(sl["items"]) if t >= it["at"]]
+    for i, it in enumerate(sl["items"]):
+        box = (int(x0 + i * (bw + gap)), y0, int(x0 + i * (bw + gap) + bw), y0 + bh); p = (t - it["at"]) / 0.45
+        if p <= 0: _dashed_box(d, box, T.DIM + (int(255 * a),), ctx.px(3), ctx.px(12)); continue
+        e = T.ease_back(min(1.0, p)); cur = live and i == live[-1]; s = 0.85 + 0.15 * e; cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2; w2, h2 = bw * s / 2, bh * s / 2
+        d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(14), fill=(24, 24, 27, 255), outline=(T.RED if cur else (70, 70, 74)) + (255,), width=ctx.px(5 if cur else 3))
+        dim = 1.0 if cur else 0.55
+        _txt(d, ctx, (cx, cy - h2 + ctx.px(18)), f"{sl['noun']} {i + 1}", 26, T.GREY, dim, head=False, centre=True)
+        f = ctx.font(T.HEAD_FONT, 38); lines = _wrap_lines(d, it["text"], f, bw - ctx.px(30))[:2] if it["text"] else []
+        num = str(i + 1); _txt(d, ctx, (cx, cy - ctx.px(80) - (ctx.px(20) if len(lines) > 1 else 0)), num, 96, T.ORANGE if cur else T.SOFT_WHITE, dim * min(1, p * 2), centre=True)
+        for k, ln in enumerate(lines): _txt(d, ctx, (cx, cy + h2 - ctx.px(58) - (len(lines) - 1 - k) * ctx.px(44)), ln, 38, T.WHITE, dim * min(1, p * 2), centre=True)
+
+def race(cv: Image.Image, ctx: D.Ctx, rc: dict, t: float) -> None:
+    """Fast against slow ("stiff tendons get it there fast ... late loses"): a start burst, two lanes to a finish line; the fast one arrives (green tick), the slow one is
+    still on its way and gets LATE."""
+    d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.35); xs, xf = int(ctx.W * 0.22), int(ctx.W * 0.80); ys = (int(ctx.H * 0.42), int(ctx.H * 0.60)); h = ctx.px(46)
+    _txt(d, ctx, (ctx.W / 2, ctx.H * 0.20), rc.get("title") or "", 40, T.SOFT_WHITE, a, head=False, centre=True)
+    for x in (xs, xf):
+        for y in range(ys[0] - ctx.px(60), ys[1] + ctx.px(60), ctx.px(18)): d.line((x, y, x, y + ctx.px(9)), fill=(T.GREY if x == xs else (250, 196, 40)) + (int(200 * a),), width=ctx.px(3))
+    _txt(d, ctx, (xf, ys[0] - ctx.px(110)), rc.get("finish") or "FINISH", 28, (250, 196, 40), a, head=False, centre=True)
+    st = (t - rc["at"]) / 0.3      # the start burst
+    if st > 0: r = ctx.px(40) * T.ease_back(min(1.0, st)); cx, cy = xs - ctx.px(80), (ys[0] + ys[1]) / 2; d.regular_polygon((cx, cy, r), 12, fill=T.RED + (255,)); _txt(d, ctx, (cx, cy - ctx.px(20)), "GO", 34, T.WHITE, 1, centre=True)
+    for k, (lane, y) in enumerate(zip((rc["fast"], rc["slow"]), ys)):
+        d.rounded_rectangle((xs, y - h / 2, xf, y + h / 2), radius=h // 2, fill=(30, 30, 33, int(255 * a)))
+        reach = T.ease_in_out(max(0.0, (t - rc["at"]) / 0.9)) if k == 0 else 0.6 * T.ease_in_out(max(0.0, (t - rc["at"]) / 1.2)) + 0.4 * T.ease_in_out(max(0.0, (t - max(rc["at"] + 1.2, lane["at"])) / 1.5))      # the slow one is still on its way when the fast one has arrived
+        x = xs + (xf - xs) * min(1.0, reach)
+        if x > xs + h: d.rounded_rectangle((xs, y - h / 2, x, y + h / 2), radius=h // 2, fill=(T.RED if k == 0 else (150, 150, 150)) + (255,))
+        lw = D._text_w(d, lane["text"], ctx.font(T.HEAD_FONT, 28), ctx.px(1)); _txt(d, ctx, (max(xs + ctx.px(20), x - lw - ctx.px(24)), y - ctx.px(17)), lane["text"], 28, T.WHITE if k == 0 else (30, 30, 32), 1 if x > xs + lw + ctx.px(40) else 0, head=False)
+        if k == 0 and reach >= 1: p = min(1.0, (t - rc["at"] - 0.9) / 0.3); d.line((xf + ctx.px(26), y, xf + ctx.px(40), y + ctx.px(16) * p), fill=GREEN + (255,), width=ctx.px(7)); d.line((xf + ctx.px(40), y + ctx.px(16), xf + ctx.px(40) + ctx.px(26) * p, y - ctx.px(22) * p), fill=GREEN + (255,), width=ctx.px(7))
+        if k == 1 and t >= lane["at"] and reach < 1: D.pill(cv, ctx, xf / ctx.S - 150, y + ctx.px(40), "LATE", min(1.0, (t - lane["at"]) / 0.4))
+
+def formula(cv: Image.Image, ctx: D.Ctx, fm: dict, t: float) -> None:
+    """A claim as a formula ("a big bicep can't save you" -> BIG BICEP ≠ SAFE... built only from the sentence's words): left side, the sign slams in, right side, each on its word."""
+    d = ImageDraw.Draw(cv, "RGBA"); size = 120; parts = [(fm["a"]["text"], fm["a"]["at"], T.WHITE), (fm["sign"], fm["b"]["at"] - 0.15, T.RED if fm["sign"] == "≠" else T.ORANGE), (fm["b"]["text"], fm["b"]["at"], T.RED if fm["sign"] == "≠" else GREEN)]
+    while True:      # the whole formula fits on one line: it shrinks before it runs off the frame
+        f = ctx.font(T.HEAD_FONT, size); ws = [D._text_w(d, p[0], f, ctx.px(2)) for p in parts]; gap = ctx.px(40)
+        if sum(ws) + 2 * gap <= ctx.W * 0.88 or size <= 56: break
+        size -= 8
+    x = (ctx.W - sum(ws) - 2 * gap) / 2; y = int(ctx.H * 0.40)
+    for (text, at, col), w in zip(parts, ws):
+        p = (t - at) / 0.4
+        if p > 0:
+            e = T.ease_back(min(1.0, p)); off = int((1 - e) * 50 * ctx.S); D.text_spaced(d, (x, y - off), text, f, col + (int(255 * min(1, p * 2)),), ctx.px(2))
+        x += w + gap
+
+def mechanism(cv: Image.Image, ctx: D.Ctx, mc: dict, t: float) -> None:
+    """Muscle -> tendon -> bone ("the muscle pulls on a tendon and the tendon pulls on the bone"): an anchor, a red muscle, a tendon, a bone. Each part is labelled on its word;
+    on "pull" the muscle shortens and glows, the tendon takes up its slack (stiff: at once; stretchy: wavy first) and the bone swings."""
+    d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.4); cy = int(ctx.H * 0.52); xw, xb = int(ctx.W * 0.16), int(ctx.W * 0.76)
+    pull = T.ease_in_out(max(0.0, (t - mc["pull_at"]) / 0.8)) if mc.get("pull_at") is not None else 0.0
+    m0, m1 = xw + ctx.px(30), int(ctx.W * 0.44) - int(ctx.px(60) * pull); mh = ctx.px(90) * (1 + 0.25 * pull)
+    d.rectangle((xw - ctx.px(14), cy - ctx.px(140), xw + ctx.px(14), cy + ctx.px(140)), fill=(70, 70, 74, int(255 * a)))
+    d.line((xw, cy, m0, cy), fill=(200, 200, 200, int(255 * a)), width=ctx.px(10))
+    glow = int(80 + 175 * pull); d.ellipse((m0, cy - mh, m1, cy + mh), fill=(min(255, 160 + glow // 3), 34, 30, int(255 * a)))
+    for k in range(1, 6): yy = cy - mh + 2 * mh * k / 6; d.arc((m0 + ctx.px(20), yy - ctx.px(30), m1 - ctx.px(20), yy + ctx.px(30)), 200, 340, fill=(120, 20, 20, int(200 * a)), width=ctx.px(2))
+    ang = math.radians(-14 * pull); bx = xb + int(ctx.px(30) * math.sin(-ang)); by0, by1 = cy - ctx.px(170), cy + ctx.px(170)
+    top = (bx + math.sin(ang) * ctx.px(170), by0); bot = (xb - math.sin(ang) * ctx.px(170), by1)
+    d.line((top, bot), fill=(232, 226, 210, int(255 * a)), width=ctx.px(34))
+    for (px_, py_) in (top, bot): d.ellipse((px_ - ctx.px(30), py_ - ctx.px(24), px_ + ctx.px(30), py_ + ctx.px(24)), fill=(232, 226, 210, int(255 * a)))
+    tx1 = (top[0] + bot[0]) / 2 - ctx.px(20); slack = (1 - pull) if mc.get("stretchy") else max(0.0, 1 - pull * 3)
+    pts = [(m1 + (tx1 - m1) * k / 40, cy + math.sin(k / 40 * math.pi * 5) * ctx.px(26) * slack) for k in range(41)]
+    d.line(pts, fill=(T.RED if pull > 0.6 else (225, 215, 190)) + (int(255 * a),), width=ctx.px(12))
+    for lab, x in (("muscle", (m0 + m1) / 2), ("tendon", (m1 + tx1) / 2), ("bone", xb)):
+        at = mc["labels"].get(lab)
+        if at is not None: _txt(d, ctx, (x, cy + ctx.px(210)), lab.upper(), 32, T.SOFT_WHITE, (t - at) / 0.4, head=False, centre=True)
+    if pull > 0.05: D.pill(cv, ctx, (m0 + m1) / 2 / ctx.S - 50, cy - mh - ctx.px(80), "PULLS", min(1.0, pull * 2))
+
+def promise(cv: Image.Image, ctx: D.Ctx, pr: dict, t: float) -> None:
+    """A payoff promised for later ("I'll show you what 8 out of 10 had in common"): M cells, N of them turn into red question marks on the number, then a lock closes over them."""
+    d = ImageDraw.Draw(cv, "RGBA"); n, m = pr["n"], pr["of"]; a = min(1.0, t / 0.35); cw = min(ctx.px(110), int(ctx.W * 0.78 / m) - ctx.px(14)); gap = ctx.px(14); x0 = (ctx.W - (m * cw + (m - 1) * gap)) / 2; y = int(ctx.H * 0.56)
+    q = (t - pr["at"]) / 0.9
+    for i in range(m):
+        box = (int(x0 + i * (cw + gap)), y, int(x0 + i * (cw + gap) + cw), y + int(cw * 0.7)); on = i < n and q * n > i
+        d.rounded_rectangle(box, radius=ctx.px(8), fill=((70, 16, 16) if on else (30, 30, 33)) + (int(255 * a),), outline=(T.RED if on else (60, 60, 64)) + (int(255 * a),), width=ctx.px(3))
+        cx_, cy_ = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+        if on: _txt(d, ctx, (cx_, box[1] + ctx.px(14)), "?", 40, (250, 196, 40), a, centre=True)
+        else: s_ = ctx.px(10); d.polygon([(cx_ - s_ * 0.7, cy_ - s_), (cx_ - s_ * 0.7, cy_ + s_), (cx_ + s_, cy_)], fill=T.GREY + (int(255 * a),))      # a play mark
+    if q > 0: _txt(d, ctx, (ctx.W / 2 - ctx.px(60), ctx.H * 0.28), f"{n} / {m}", 150, T.RED, min(1, q * 2), centre=True)
+    lk = (t - pr["at"] - 1.0) / 0.4
+    if lk > 0:
+        e = T.ease_back(min(1.0, lk)); x, yy, s = int(ctx.W / 2 + ctx.px(230)), int(ctx.H * 0.36), ctx.px(36) * e
+        d.arc((x - s * 0.7, yy - s * 1.4, x + s * 0.7, yy + s * 0.2), 180, 360, fill=T.RED + (255,), width=ctx.px(8)); d.rounded_rectangle((x - s, yy - s * 0.4, x + s, yy + s * 1.1), radius=ctx.px(6), fill=T.RED + (255,))
+    if pr.get("label"): _txt(d, ctx, (ctx.W / 2, y + int(cw * 0.7) + ctx.px(40)), pr["label"], 34, T.SOFT_WHITE, min(1, max(0.0, q)), head=False, centre=True)
+
+def stopwatch(cv: Image.Image, ctx: D.Ctx, sw: dict, t_abs: float) -> None:
+    """The viewer's timed hold: a stopwatch top right counting real seconds from its start word, frozen and red once the clock is stopped."""
+    if t_abs < sw["start"] or t_abs > sw["end"]: return
+    d = ImageDraw.Draw(cv, "RGBA"); stopped = sw.get("stop") is not None and t_abs >= sw["stop"]; secs = (min(t_abs, sw["stop"]) if stopped else t_abs) - sw["start"]
+    a = min(1.0, (t_abs - sw["start"]) / 0.3, (sw["end"] - t_abs) / 0.3); cx, cy, r = int(ctx.W * 0.92), int(ctx.H * 0.12), ctx.px(54); col = T.RED if stopped else T.WHITE
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(80, 80, 84, int(255 * a)), width=ctx.px(5)); d.rectangle((cx - ctx.px(9), cy - r - ctx.px(18), cx + ctx.px(9), cy - r - ctx.px(6)), fill=(160, 160, 164, int(255 * a)))
+    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (secs % 60) / 60, fill=(T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(7))
+    _txt(d, ctx, (cx, cy - ctx.px(20)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 34, col, a, centre=True)

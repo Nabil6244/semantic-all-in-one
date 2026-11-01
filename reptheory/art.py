@@ -15,6 +15,12 @@ CHARACTER = ("an original manga-style young man: lean, skinny beginner build, sh
              "plain charcoal-grey training shorts with an orange waistband, barefoot, sharp black-ink linework with soft grey cel shading")
 STYLE = ("Hand-drawn manga illustration, clean line art, restrained palette of greys and white with a single orange accent, solid pure black background (#000000), no text, no letters, "
          "no numbers, no logos, no watermark, no border, no other people, subject fully inside the frame with space around it")
+RIVAL = ("a big heavily muscled man with a buzz cut, huge arms and chest, wearing a plain grey tank top, drawn in the same manga ink style (the bigger, stronger-looking opponent)")
+SCENE_STYLE = ("Hand-drawn manga ink illustration, greyscale with white highlights, solid pure black background (#000000), no text, no letters, no numbers, no logos, no watermark, no border. "
+               "The only colours are the trainee's orange waistband and, when a muscle, tendon or body part is the point of the scene, that part painted glowing red over the ink. "
+               "Compose the subject in one side of the frame (about 60%) and leave the other side empty black for on-screen text")      # docs/rep_theory/STUDY_tendons_arm_wrestling.md section 2
+INK_ANATOMY = ("Manga ink anatomical sketch, greyscale, the muscles and tendons the sentence names painted glowing red, solid pure black background (#000000), no text, no letters, no numbers, "
+               "no logos, no watermark, the body part on one side of the frame with the other side empty black")
 REAL_STYLE = "Realistic detailed illustration with studio lighting, solid pure black background (#000000), no text, no letters, no numbers, no brand logos, no watermark, subject fully inside the frame"
 
 # id -> (kind, subject sentence, style)

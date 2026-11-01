@@ -9,15 +9,15 @@ import re
 from typing import Callable, Dict, List, Optional
 
 FIGURE = "rep_stand_v1"
-# part -> (words that name it, label, ellipses (cx, cy, w, h) as fractions of the standing-figure picture: front view, arms down)
+# part -> (words that name it, label, ellipses (cx, cy, w, h) as fractions of the FULL standing-figure picture: front view, arms down; scenes.py maps them onto the cut-out it draws)
 BODY: Dict[str, tuple] = {
     "neck": (r"neck", "NECK", ((0.500, 0.225, 0.030, 0.050),)),
     "shoulders": (r"shoulders?|delts?|deltoids?|traps?|trapezius", "SHOULDERS", ((0.442, 0.290, 0.050, 0.070), (0.558, 0.290, 0.050, 0.070))),
     "chest": (r"chest|pecs?|pectorals?", "CHEST", ((0.500, 0.335, 0.090, 0.075),)),
     "heart": (r"heart|blood pressure", "HEART", ((0.522, 0.330, 0.035, 0.050),)),
     "lungs": (r"lungs?|breath(?:e|ing)?", "LUNGS", ((0.475, 0.335, 0.035, 0.070), (0.525, 0.335, 0.035, 0.070))),
-    "arms": (r"arms?|biceps?|triceps?|elbows?", "ARMS", ((0.426, 0.400, 0.030, 0.105), (0.574, 0.400, 0.030, 0.105))),
-    "forearms": (r"forearms?|wrists?|grip", "FOREARMS", ((0.414, 0.525, 0.026, 0.100), (0.586, 0.525, 0.026, 0.100))),
+    "arms": (r"arms?|biceps?|triceps?|elbows?", "ARMS", ((0.438, 0.400, 0.024, 0.105), (0.566, 0.400, 0.024, 0.105))),
+    "forearms": (r"forearms?|wrists?|grip", "FOREARMS", ((0.428, 0.525, 0.020, 0.100), (0.572, 0.525, 0.020, 0.100))),
     "hands": (r"hands?|fingers?|thumbs?|palms?", "HANDS", ((0.409, 0.615, 0.030, 0.060), (0.591, 0.615, 0.030, 0.060))),
     "core": (r"core|abs|abdominals?|stomach|belly|waist|obliques?|six[- ]pack", "CORE", ((0.500, 0.420, 0.060, 0.090),)),
     "back": (r"back|lats?|latissimus|spine|spinal|shoulder blades?", "BACK", ((0.462, 0.370, 0.030, 0.090), (0.538, 0.370, 0.030, 0.090))),
@@ -30,7 +30,7 @@ BODY: Dict[str, tuple] = {
 }
 BODY_RX = {k: re.compile(rf"\b(?:{v[0]})\b", re.I) for k, v in BODY.items()}
 NOT_A_PART = re.compile(r"\b(?:back (?:to|down|up|in|out|off|on|into|and)|(?:come|go|get|bring|lie on your|on your) back|set ?back|back then|hands?[- ]on|hand dynamometer|arms? race|mind(?:set|ful))\b", re.I)
-DANGER_RX = re.compile(r"\b(?:mistakes?|wrong|danger\w*|risk\w*|injur\w*|pain\w*|hurts?|quit\w*|fail\w*|warning|stop|never|on fire|damage\w*|worse)\b", re.I)
+DANGER_RX = re.compile(r"\b(?:mistakes?|wrong|danger\w*|risk\w*|injur\w*|pain\w*|hurts?|quit\w*|fail\w*|warning|stop(?:\s+(?:if|when|immediately|right away|straight away|at once|before)\b|\s+(?:doing|training|the (?:exercise|set|movement))\b)|never|on fire|damage\w*|worse)\b", re.I)
 ICE_RX = re.compile(r"\b(?:relax\w*|rest(?:s|ing)?|cool\w*|calm\w*|loosen\w*|release[sd]?|switch(?:es|ed)? off|recover\w*)\b", re.I)
 FIRE_RX = re.compile(r"\b(?:burn\w*|on fire|fir(?:e|es|ing)|pump\w*|shak\w*|squeez\w*|work(?:s|ing)? hard|all out|max(?:imum)? effort)\b", re.I)
 SIGNAL_RX = re.compile(r"\b(?:signals?|tells?|sends?|fires?|commands?|wakes? up|switch(?:es)? on|recruits?)\b", re.I)
@@ -95,7 +95,7 @@ def apply(scenes: List[dict], art_ok: Callable[[str], bool], log: Callable[[str]
 
 # ---------------------------------------------------------------- cadence (Step 3)
 FILL_GAP_S, EDGE_S = 3.0, 0.6      # a scene never goes this long without something new; a new phrase never lands this close to the change before or after it
-PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
+PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
 
 def _clauses(ws: List[dict]) -> List[List[dict]]:
     out, cur = [], []
@@ -149,13 +149,39 @@ def stamps(scenes: List[dict]) -> int:
             sc["stamp"] = {"text": txt, "at": float(sent[0]["t0"]), "red": bool(DANGER_RX.search(txt))}; last = sc["stamp"]["at"]; n += 1; sc["decisions"].append(f"stamp: '{txt}'"); break
     return n
 
+CLOCK_START = re.compile(r"\b(?:hold (?:it|that|this|them) (?:there|still|as long as you can)|as long as you can|start (?:the|a|your) (?:clock|timer|stopwatch)|time (?:how long|yourself)|hold for (?:\w+ )?seconds)\b", re.I)
+CLOCK_STOP = re.compile(r"\bstop (?:the|your) (?:clock|timer|stopwatch)\b", re.I)
+CLOCK_MAX_S = 40.0      # a stopwatch with no "stop the clock" runs at most this long
+
+def _word_time(sc: dict, pos: int) -> float:
+    ws = sc.get("words") or []; i = len(sc.get("text", "")[:pos].split())
+    return float(ws[min(i, len(ws) - 1)]["t0"]) if ws else float(sc["start"])
+
+def stopwatch(scenes: List[dict]) -> int:
+    """A timed hold the viewer does ("hold it there ... the moment your knuckles drop, stop the clock"): a stopwatch top right from the start words, counting real seconds,
+    frozen red on "stop the clock" (the reference runs one through every test). Every scene in between carries it. Returns how many stopwatches were started."""
+    n = 0; i = 0
+    while i < len(scenes):
+        m = CLOCK_START.search(scenes[i].get("text", ""))
+        if not m: i += 1; continue
+        t0 = _word_time(scenes[i], m.start()); t1 = None
+        for sc in scenes[i:]:
+            if sc["start"] > t0 + CLOCK_MAX_S: break
+            ms = CLOCK_STOP.search(sc.get("text", ""))
+            if ms and _word_time(sc, ms.start()) > t0: t1 = _word_time(sc, ms.start()); break
+        end = (t1 + 1.6) if t1 else t0 + min(CLOCK_MAX_S, 12.0); k = i
+        while k < len(scenes) and scenes[k]["start"] < end: scenes[k]["stopwatch"] = {"start": t0, "stop": t1, "end": end}; k += 1
+        n += 1; i = k
+    return n
+
 def develop(scenes: List[dict]) -> int:
     """Run after the looks are chosen. Where a scene would hold more than FILL_GAP_S with nothing new, the clause said in that gap arrives as a new page
     (its own words, a phrase of the script: narrative.phrase rules) at its first word. Returns how many were added."""
     from . import cadence as C, narrative as N
-    stamps(scenes); added = 0
+    stamps(scenes); stopwatch(scenes); added = 0
     for i, sc in enumerate(scenes):
-        if sc["kind"] not in PAGE_KINDS or (not sc.get("pages") and sc["kind"] not in ("versus", "steps", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist")): continue
+        kind = "illus" if sc.get("look") == "flow" else sc["kind"]      # a scene the director gave a Flow picture shows its words beside that picture, whatever it was planned as
+        if kind not in PAGE_KINDS or (not sc.get("pages") and kind not in ("versus", "steps", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")): continue
         sc.setdefault("pages", [])
         ws = sc.get("words") or []; shown = {pg["headline"] for x in scenes[max(0, i - 2):i + 1] for pg in x.get("pages", [])}      # never a headline seen in this scene or the two before
         for _ in range(8):

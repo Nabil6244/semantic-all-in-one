@@ -86,10 +86,12 @@ class Direction(unittest.TestCase):
 
     def test_prompt_example_uses_the_columns(self):
         text = A.prompt_text(); csv_text = re.search(r"CSV:\n(.*?)\n\nSCRIPT", text, re.S).group(1).strip()
-        self.assertTrue(csv_text.startswith("text,chapter,look,prompt,muscle\n"))
+        self.assertTrue(csv_text.startswith("text,chapter,look,prompt,muscle,camera,on_screen\n"))
         with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8") as f: f.write(csv_text)
         rows = A.read_scenes_file(f.name)
-        self.assertEqual([DR._row_look(r) for r in rows], ["3d", "stat", "flow"])
+        self.assertEqual([DR._row_look(r) for r in rows], ["flow", "flow", "3d"])      # row 1 is the hook picture, row 2 re-frames it ("same"), then the 3D body
+        self.assertEqual([r["camera"] for r in rows], ["wide", "close red", ""])
+        self.assertTrue(all(DR.on_screen_ok(r["on_screen"], r["text"]) for r in rows))      # the example's on-screen words are its sentences' own
         self.assertEqual(DR.check_rows(rows), [])
 
 if __name__ == "__main__":

@@ -86,3 +86,23 @@ def cutout(ref: str, low: int = 5, high: int = 30):
     try: cache.parent.mkdir(parents=True, exist_ok=True); out.save(cache)
     except OSError: pass      # a read-only install still renders: the cut-out is just made again next time
     return out
+
+_crops: Dict[str, tuple] = {}
+
+def crop_frac(ref: str, low: int = 18, high: int = 60) -> tuple:
+    """Where cutout(ref) sits in its full picture, as fractions (x0, y0, x1, y1): body-region maps (states.BODY, poses.REGIONS) are measured on the full picture, the
+    figure is drawn from the cut-out. (0, 0, 1, 1) when the picture cannot be read."""
+    if ref not in _crops:
+        try:
+            import numpy as np
+            from PIL import Image
+            im = Image.open(find(ref)["path"]).convert("RGB"); a = np.asarray(im).max(axis=2).astype(np.float32); alpha = np.clip((a - low) / float(high - low), 0, 1)
+            bb = Image.fromarray((alpha * 255).astype("uint8")).point(lambda v: 255 if v > 24 else 0).getbbox(); W, H = im.size
+            _crops[ref] = (bb[0] / W, bb[1] / H, bb[2] / W, bb[3] / H) if bb else (0.0, 0.0, 1.0, 1.0)
+        except Exception: _crops[ref] = (0.0, 0.0, 1.0, 1.0)
+    return _crops[ref]
+
+def to_cutout(ref: str, regions) -> tuple:
+    """Ellipses (cx, cy, w, h) measured on the full picture, as fractions of the cut-out the figure is drawn from."""
+    x0, y0, x1, y1 = crop_frac(ref); sw, sh = max(1e-6, x1 - x0), max(1e-6, y1 - y0)
+    return tuple(((cx - x0) / sw, (cy - y0) / sh, w / sw, h / sh) for cx, cy, w, h in regions)

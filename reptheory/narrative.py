@@ -142,7 +142,7 @@ REL_RULES: List[Tuple[str, "re.Pattern"]] = [      # what the clause DOES in the
     ("comparison", re.compile(r"\b(?:while|whereas|compared (?:to|with)|versus|rather than|compare)\b", re.I)),
     ("negation", re.compile(r"\b(?:almost no|hardly any|barely any|no|not|never|without|cannot|can'?t|does not|do not|will not)\s+\w+", re.I)),
     ("limitation", re.compile(r"\b(?:the limit|limitation|the catch|downside|ceiling|is fixed|are fixed|does not make|cannot change)\b", re.I)),
-    ("warning", re.compile(r"\b(?:stop|avoid|hurts?|pain|injur\w*|unless|if (?:it|you) (?:hurts?|feel))\b", re.I)),
+    ("warning", re.compile(r"\b(?:stop(?:\s+(?:if|when|immediately|right away|straight away|at once|before)\b|\s+(?:doing|training|the (?:exercise|set|movement))\b)|avoid|hurts?|pain|injur\w*|unless|if (?:it|you) (?:hurts?|feel))\b", re.I)),      # "stop the clock" is an instruction, "stop if it hurts" a warning
     ("disclosure", re.compile(r"\b(?:synthetic|made[- ]up|fictional|invented|for testing|only to test)\b", re.I)),
     ("criteria", re.compile(r"\b(?:judge|rate|score|measure|compare|rank)\w*\s+(?:each|every|them|it)\b.{0,30}\b(?:on|by)\b|\bon (?:two|three|four|five) (?:things|criteria|factors)\b", re.I)),
     ("sequence", re.compile(r"^\s*(?:first|second|third|next|then|finally|step \w+|week \w+|day \w+)\b", re.I)),
@@ -178,7 +178,7 @@ def key_phrase(text: str, n: int = 3) -> Tuple[str, int]:
 # Every headline / chip is a phrase of the script: one clause (never across a comma or full stop), not cut out of a longer phrase, not starting on a conjunction, not ending on a verb
 # or a function word. Words carry the script's punctuation as `p` (planner.respell); without it the whole word list is one clause.
 DANGLING = STOP | set("""give gives gave beat beats feel feels lose loses eat eats burn burns help helps grow grows build builds work works change changes show shows find finds found
-add adds hold holds slightly really half twice lower upper front inner outer cant can't dont don't wont won't isnt isn't arent aren't doesnt doesn't didnt didn't shouldnt shouldn't""".split())
+add adds hold holds slightly really half twice lower upper front inner outer cant can't dont don't wont won't isnt isn't arent aren't doesnt doesn't didnt didn't shouldnt shouldn't tell tells told show shows showed mean means meant explain explains reveal reveals teach teaches""".split())
 LEAD = {"that", "and", "but", "so", "or", "then", "also", "plus"}      # a subordinate start ("while you sleep", "if it hurts") is a phrase; a coordinating one is not
 PHRASE_MAX = 6
 _nw = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())
@@ -208,6 +208,7 @@ def lead_phrase(ws: List[dict], max_words: int = PHRASE_MAX) -> str:
         e = min(b, a + max_words)
         while e > a and _nw(ws[e - 1]["w"]) in DANGLING: e -= 1
         while a < e and _nw(ws[a]["w"]) in LEAD: a += 1
+        if e < b and _nw(ws[e]["w"]) not in STOP: continue      # stopped before the clause's own next word ("THE GYM ISN'T A PLACE" | where): a fragment, not a phrase
         if e - a >= 2 and _content(ws, a, e) >= 1: return _shown(ws, a, e)
     return ""
 
@@ -232,6 +233,6 @@ def phrase(text: str, ws: List[dict], keep: frozenset = frozenset()) -> str:
     while a < b and nw[a] in LEAD: a += 1
     cut_verb = False
     while b < cb and b > a and nw[b - 1] in DANGLING: cut_verb = cut_verb or nw[b - 1] not in STOP; b -= 1      # a text that runs to its clause's end ("AS LONG AS YOU CAN.") was cut from nothing
-    cut_out = b < cb and b > a and nw[b] not in DANGLING and b - a >= 2
+    cut_out = b < cb and b > a and (nw[b] not in DANGLING or (nw[b] not in STOP and b - a >= 4)) and b - a >= 2      # a long subject stopped before its verb ("EVERY INCH YOUR HEAD MOVES FORWARD" | adds) is cut out too
     if cut_out or (cut_verb and b - a < 2) or b <= a or (b - a == 1 and nw[a] in DANGLING): return _shown(ws, ca, cb) if whole else ""
     return _shown(ws, a, b)

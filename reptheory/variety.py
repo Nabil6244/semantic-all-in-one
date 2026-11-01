@@ -2,8 +2,10 @@
 Looks: stock (the planner's own: library figure, callout), 3d (a muscle clip of the 3D body, clip3d.py), flow (a manga picture generated from the beat, beat_art.py) and four code-drawn cards that need no
 assets (cards.py): stat (a stated number in a ring), steps (a spoken sequence), versus (a stated comparison), takeaway (the key line, word by word).
 Rules, all measured by `metrics`: a look is only offered where the beat's own words support it (a number, a muscle, a comparison, a sequence, a key line); the same look never runs more than twice in a row;
-a look not used in the last scenes is preferred; 3D clips keep a minimum spacing and Flow pictures a budget (a 30-minute video must not cost 200 generations); a 3D scene is never followed by another.
-Grounded scenes (tier boards, equations, held props, anatomy) are never replaced. Chapter banners mark each new part of a long video."""
+a look not used in the last scenes is preferred; 3D clips keep a minimum spacing; a 3D scene is never followed by another.
+Flow pictures have no budget (docs/rep_theory/STUDY_tendons_arm_wrestling.md: the reference is ~41% drawn pictures and never shows a text-only screen): each one is a new picture, so runs of them are allowed.
+The opening scene is always a picture (the hook). Grounded scenes (tier boards, equations, held props) are never replaced; an anatomy plate is, once it has been on screen in the last PLATE_GAP_S.
+Chapter banners mark each new part of a long video."""
 from __future__ import annotations
 import re
 from typing import Dict, List, Optional
@@ -11,7 +13,7 @@ from typing import Dict, List, Optional
 from . import clip3d as C3, lexicon as LX, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
-FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist")      # cards that fill the frame; the narration's next phrase follows in a caption strip
+FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")      # cards that fill the frame; the narration's next phrase follows in a caption strip
 SIDE_CARDS = ("stat", "dial", "study", "graph", "bars")      # cards on the left, the beat's words as callouts on the right
 CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
@@ -256,6 +258,70 @@ def _question(sc: dict, text: str) -> Optional[dict]:
 
 LEAD_STOP = N.STOP - set(LX.NUMBER_WORDS)      # "one more rep" is an item; "while you eat" is not
 
+COUNT_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+SLOTS_RX = re.compile(r"\b(two|three|four|five|six|[2-6])\s+(?:key\s+|main\s+|big\s+|simple\s+|crucial\s+)?(moments|things|mistakes|moves|rules|steps|reasons|exercises|holds|parts|signs|phases|levels|tips|habits|ways|stages|pillars)\b", re.I)
+
+def _slots(sc: dict, text: str) -> Optional[dict]:
+    """A spoken count ("every match comes down to four moments. The go. The wrist...") as N slots that fill as each item is named; the short fragments that follow are the items."""
+    m = SLOTS_RX.search(text)
+    if not m: return None
+    n = COUNT_WORDS.get(m.group(1).lower()) or int(m.group(1)); noun = m.group(2).upper()
+    head = re.split(r"[.!?]", text[:m.start()])[-1]; kick = [w for w in re.findall(r"[A-Za-z0-9'%-]+", head)][-6:]
+    items, pos = [], m.end()
+    for frag in re.finditer(r"[^.!?]+[.!?]?", text[m.end():]):
+        ws = re.findall(r"[A-Za-z0-9][A-Za-z0-9'%-]*", frag.group(0))
+        while ws and ws[0].lower() in ("and", "then", "or"): ws.pop(0)
+        if 1 <= len(ws) <= 4 and len(items) < n: items.append({"text": " ".join(ws).upper(), "at": _at(sc, text, m.end() + frag.start() + frag.group(0).find(ws[0]))})
+        elif ws and items: break
+    at = _at(sc, text, m.start())
+    if len(items) < 2: items = []
+    while len(items) < n: items.append({"text": "", "at": at + 0.25 * len(items)})
+    return {"title": f"{m.group(1).upper() if not m.group(1).isdigit() else m.group(1)} {noun}".replace("FOUR", "4").replace("THREE", "3").replace("FIVE", "5").replace("TWO", "2").replace("SIX", "6"), "kicker": " ".join(kick).upper(), "noun": noun.rstrip("S"), "items": items, "at": at}
+
+FAST_RX = re.compile(r"\b(fast(?:er)?|first|quick(?:er|ly)?|early|sooner|instantly)\b", re.I); SLOW_RX = re.compile(r"\b(late|later|slow(?:er)?|behind|loses?)\b", re.I)
+OPPOSITE = {"stiff": "STRETCHY", "stiffer": "STRETCHIER", "strong": "WEAK", "stronger": "WEAKER", "trained": "UNTRAINED", "heavy": "LIGHT", "fast": "SLOW", "trained,": "UNTRAINED"}
+
+def _race(sc: dict, text: str) -> Optional[dict]:
+    """Fast against late in one scene ("stiff tendons get it there fast. In an arm wrestle, late loses"): a race to a finish line."""
+    f, sl = FAST_RX.search(text), SLOW_RX.search(text)
+    if not (f and sl) or not (re.search(r"\blate\b|\bslow", text, re.I)): return None
+    clause = re.split(r"[,.;:!?]", text[:f.start()])[-1]; ws = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", clause) if w.lower() not in N.STOP][:2]
+    if not ws: return None
+    fast = " ".join(ws).upper(); slow = OPPOSITE.get(ws[0].lower(), "SLOW") + ("" if len(ws) < 2 else " " + ws[1].upper())
+    return {"fast": {"text": fast, "at": _at(sc, text, f.start())}, "slow": {"text": slow, "at": _at(sc, text, sl.start())}, "at": _at(sc, text, max(0, f.start() - len(clause))), "title": "", "finish": ""}
+
+FORMULA_RX = ((re.compile(r"(?:^|[,.;:!?]\s*)(?:a |an |the |your )?([A-Za-z][A-Za-z' -]{2,30}?)\s+(?:is not|isn't|are not|aren't|doesn't mean|does not mean|never means)\s+(?:a |an |the )?([A-Za-z][A-Za-z' -]{2,28}?)(?=[,.;:!?]|$)", re.I), "≠"),
+              (re.compile(r"(?:^|[,.;:!?]\s*)(?:a |an |the |your )?([A-Za-z][A-Za-z' -]{2,30}?)\s+(?:means|equals|is like|is basically)\s+(?:a |an |the )?([A-Za-z][A-Za-z' -]{2,28}?)(?=[,.;:!?]|$)", re.I), "="))
+
+def _formula(sc: dict, text: str) -> Optional[dict]:
+    """A short "X is not Y" / "X means Y" / "X is like Y" as a big formula, both sides the sentence's own words (at most 3 each)."""
+    for rx, sign in FORMULA_RX:
+        m = rx.search(text)
+        if not m: continue
+        trim = lambda ws: ws[next((i for i, w in enumerate(ws) if w.lower() not in N.STOP), len(ws)):len(ws) - next((i for i, w in enumerate(reversed(ws)) if w.lower() not in N.STOP), len(ws))]      # function words only at the ends go
+        a, b = trim(m.group(1).split()), trim(m.group(2).split())
+        if 1 <= len(a) <= 3 and 1 <= len(b) <= 4 and a != b: return {"a": {"text": " ".join(a).upper(), "at": _at(sc, text, m.start(1))}, "b": {"text": " ".join(b).upper(), "at": _at(sc, text, m.start(2))}, "sign": sign}
+    return None
+
+MECH_PULL = re.compile(r"\b(pulls?|pulling|reaches|travels|transfers?|passes)\b", re.I)
+
+def _mechanism(sc: dict, text: str) -> Optional[dict]:
+    """Muscle -> tendon -> bone when the sentence names at least two of them and the pull between them."""
+    parts = {k: re.search(rf"\b{k}s?\b", text, re.I) for k in ("muscle", "tendon", "bone")}; pull = MECH_PULL.search(text)
+    if sum(1 for v in parts.values() if v) < 2 or not pull: return None
+    labels = {k: _at(sc, text, v.start()) for k, v in parts.items() if v}
+    return {"labels": labels, "pull_at": _at(sc, text, pull.start()), "at": min(labels.values()), "stretchy": bool(re.search(r"\b(stretchy|slack|loose|soft)\b", text, re.I))}
+
+PROMISE_RX = re.compile(r"\b(?:i'?ll|i will|we'?ll|we will)\s+(?:show|tell|reveal)\s+you\b[^.!?]*?\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:out of|in)\s+(\d+|ten|twenty|a hundred|100)\b([^.!?]*)", re.I)
+
+def _promise(sc: dict, text: str) -> Optional[dict]:
+    """A payoff promised for later with a share ("I'll show you what 8 out of 10 had in common"): N of M cells turn into question marks and lock."""
+    m = PROMISE_RX.search(text)
+    if not m: return None
+    n, of = int(_num_of(m.group(1)) or 0), int(_num_of(m.group(2)) or 0)
+    if not (0 < n <= of <= 20): return None
+    tail = re.findall(r"[A-Za-z0-9'%-]+", m.group(3)); return {"n": n, "of": of, "at": _at(sc, text, m.start(1)), "label": " ".join(tail).upper() if len(tail) <= 5 else ""}
+
 def _checklist(sc: dict, text: str) -> Optional[dict]:
     """A spoken list of three or more short items ("eat, sleep and recover") ticked off one by one as each is said."""
     m = LIST_RX.search(text)
@@ -280,6 +346,7 @@ def _takeaway(sc: dict, text: str, last: bool, role: str) -> Optional[dict]:
     if not (last or role in ("hook", "claim", "cta", "mistake")): return None
     return {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]}
 
+FLOW_BASE = 0.82      # a picture drawn for this sentence: a card with a real shape in the words (0.85-0.95) still wins, a bare headline never does
 POSE_BASE = 0.8      # a pose shows the sentence's action: as strong as a card, rotated with them by the director
 LATE_CARD_S = 3.0
 OPEN_AT_START = {"engage", "question"}      # the comment box / chat bubble is on screen (typing dots) from the scene's first frame
@@ -300,12 +367,12 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if g: ev["3d"] = (0.7 if by_ex else 0.9, None)
     for look, fn, base in (("timeline", lambda: _timeline(sc, text), 0.95), ("mistake", lambda: _mistake(sc, text), 0.9), ("slider", lambda: _slider(sc, text), 0.9),
                            ("dial", lambda: _dial(sc, text), 0.9), ("study", lambda: _study(sc, text), 0.88), ("result", lambda: _result(sc, text), 0.95), ("calendar", lambda: _calendar(sc, text), 0.9),
-                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
+                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("slots", lambda: _slots(sc, text), 0.93), ("race", lambda: _race(sc, text), 0.9), ("formula", lambda: _formula(sc, text), 0.86), ("mechanism", lambda: _mechanism(sc, text), 0.92), ("promise", lambda: _promise(sc, text), 0.94), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
         if got: ev[look] = (base - (0.6 if look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)      # a card whose first element comes late would sit empty on screen
     if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
     if "engage" in ev: ev.pop("takeaway", None)      # a call to action is shown as the screen it asks for, not as a key line
-    if N.key_phrase(text, 3)[0]: ev["flow"] = (0.5, None)
+    if N.key_phrase(text, 3)[0] or len(text.split()) >= 4: ev["flow"] = (FLOW_BASE, None)      # any sentence can be drawn
     if "takeaway" not in ev and not any(pg.get("headline") or pg.get("value") or pg.get("chips") for pg in sc.get("pages", [])):      # a scene with nothing written on it would be a bare figure: its own words, lit as they are spoken, are the fallback
         ws = sc.get("words") or []
         if 4 <= len(ws) <= 22 and sc["end"] - sc["start"] >= 3.0: ev["takeaway"] = (0.55, {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]})
@@ -331,6 +398,35 @@ def _cut(sc: dict, t: float) -> tuple:
     if not b["pages"]: b["pages"] = []
     return a, b
 
+def _names_part(text: str) -> bool:
+    from .states import BODY_RX
+    return any(rx.search(text) for rx in BODY_RX.values())
+
+LONG_S, LONG_PART_S = 6.0, 2.0      # the reference changes shot every ~3.6 s (one clause): a scene joining sentences past 6 s is cut at its sentence ends
+LONG_KINDS = {"callout", "trainee", "anatomy"}
+
+def split_long(scenes: List[dict]) -> int:
+    """A scene of the app's own (not a CSV row, not a board or equation) that joins sentences and runs past LONG_S is cut at the sentence end nearest its middle, again until
+    every part is under LONG_S or has no sentence end left with LONG_PART_S on each side. Each part then gets the look its own words support. Returns how many cuts were made."""
+    n = 0; i = 0
+    while i < len(scenes):
+        sc = scenes[i]; ws = sc.get("words") or []
+        if sc["kind"] not in LONG_KINDS or sc.get("directed_look") or sc["end"] - sc["start"] <= LONG_S or len(ws) < 6: i += 1; continue
+        tx = sc.get("text", "").split(); punct = [tok for tok in tx] if len(tx) == len(ws) else [w["w"] + w.get("p", "") for w in ws]
+        mid = (sc["start"] + sc["end"]) / 2; best = None
+        for k in range(1, len(ws)):
+            if not re.search(r"[.!?]$", punct[k - 1]): continue
+            t = float(ws[k]["t0"])
+            if t - sc["start"] >= LONG_PART_S and sc["end"] - t >= LONG_PART_S and (best is None or abs(t - mid) < abs(best - mid)): best = t
+        if best is None: i += 1; continue
+        a, b = _cut(sc, best); a["decisions"][-1] = b["decisions"][-1] = "variety: a long scene cut at a sentence end (one shot per clause)"
+        for part in (a, b):      # a part whose own words name no body part does not keep the plate or the lit figure: it is a plain text scene, free for any look
+            if part["kind"] == "anatomy" and not _names_part(part.get("text", "")) or part["kind"] == "trainee" and not part.get("glows"):
+                part["was_kind"] = part["kind"]; part["kind"] = "callout"; part["art"] = ""; part["glows"] = []; part.pop("glow", None)
+        scenes[i:i + 1] = [a, b]; n += 1
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
+
 def split_for_cards(scenes: List[dict]) -> int:
     """A text scene that joins several sentences, where a later sentence has a card of its own ("The most common mistake is ...") that would otherwise show late or not at all,
     is cut at that sentence's first word, so each part gets the picture its own words support. Returns how many cuts were made."""
@@ -352,18 +448,24 @@ def split_for_cards(scenes: List[dict]) -> int:
     for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
     return n
 
+PLATE_GAP_S = 30.0      # an anatomy plate shown in the last 30 s is not shown again as it was: the scene gets a new look (render 053: one forearm plate filled 36% of the video)
+TEXT_LOOKS = {"stock", "takeaway", "figure", "callout", "stat"}      # an opening shown as words or a ring: replaced by the hook picture
 RECENT_W = 0.25      # per recent video that had this look at this place in its opening (channel memory, Rule 3)
 JITTER = 0.5      # how far a script's own seed moves a look's score: enough to change close calls, never to pick a look the words do not support
 
 def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
-    split = split_for_cards(scenes)
-    total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow", max(2, int(total / 30)))
+    split = split_for_cards(scenes) + split_long(scenes)
+    total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow") or 10 ** 9      # no picture limit unless a caller sets one
+    plate_seen: Dict[str, float] = {}
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
     import zlib; seed = zlib.crc32(" ".join(sc.get("text", "") for sc in scenes).encode())      # each script its own mix (same script, same video)
     jit = lambda i, look: ((zlib.crc32(f"{seed}:{i}:{look}".encode()) % 1000) / 1000 - 0.5) * JITTER
     for i, sc in enumerate(scenes):
         k = sc["kind"]
+        if i == 0 and flow and not (sc.get("directed_look") and sc.get("look") in ("flow", "3d")) and k not in ("tier", "equation") and not SYNTH_RX.search(sc.get("text", "")):      # the opening is the hook picture, never words (a CSV text look on row 1 included)
+            if sc.get("directed_look"): sc["decisions"].append(f"opening: CSV look {sc.get('look')} replaced by the hook picture")
+            sc["directed_look"] = True; sc["look"] = "flow"; sc["hook"] = True; sc.pop("look_payload", None); flows += 1; hist.append("flow"); sc["decisions"].append("variety: the opening is the hook picture"); continue
         if sc.get("directed_look"):      # the scenes CSV chose this scene's look (reptheory/direction.py): it is used as asked and counts toward the spacing of the others
             look = sc["look"]; hist.append(look)
             if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]
@@ -372,13 +474,19 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
                 from .direction import build_card
                 build_card(sc)
             continue
-        free = k in UPGRADABLE and not (k == "trainee" and sc.get("art") not in ("", None, "rep_stand_v1")) and not SYNTH_RX.search(sc.get("text", ""))
+        stale = k == "anatomy" and sc.get("art") and sc["start"] - plate_seen.get(sc["art"], -1e9) < PLATE_GAP_S
+        if k == "anatomy" and sc.get("art") and not stale: plate_seen[sc["art"]] = sc["end"]
+        free = (k in UPGRADABLE or stale) and not (k == "trainee" and sc.get("art") not in ("", None, "rep_stand_v1")) and not SYNTH_RX.search(sc.get("text", ""))
         if not free: hist.append(k); sc["look"] = k; continue
         ev = evidence(sc, last=i == len(scenes) - 1, role=roles.get(i, ""))
         if not three_d or sc["start"] - last3 < gap3 or hist[-1:] == ["3d"]: ev.pop("3d", None)
-        if not flow or flows >= max_flow or hist[-2:] == ["flow", "flow"]: ev.pop("flow", None)
-        ev["stock"] = (0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []      # the figure with the named part lit already shows the words
+        if not flow or flows >= max_flow: ev.pop("flow", None)
+        elif "flow" in ev: ev.pop("takeaway", None)      # with pictures on, a sentence is never shown as words alone (the reference has no text-only screen)
+        ev["stock"] = (0.1 if stale else (0.45 if flow else 0.75) if k == "trainee" and sc.get("glows") else 0.3, None); scored = []      # the figure with the named part lit already shows the words; a plate just seen is the last resort
+        if stale: sc["decisions"].append(f"anatomy plate {sc['art']} was on screen in the last {PLATE_GAP_S:.0f} s: a new look")
         for look, (base, payload) in ev.items():
+            if look == "flow":      # every Flow scene is a new picture: a run of them is not the same look repeated, but a card still breaks up a long run
+                score = base + 0.35 - (0.25 if hist[-3:] == ["flow"] * 3 else 0.0) + jit(i, look); scored.append((score, -list(ev).index(look), look, payload)); continue
             if hist[-2:] == [look, look]: continue      # never a third in a row
             score = base + (0.5 if look not in hist[-3:] else 0.0) + (0.2 if look not in hist[-6:] else 0.0) - (0.8 if hist[-1:] == [look] else 0.0) + jit(i, look) - RECENT_W * sum(1 for op in (recent or []) if i < len(op) and op[i] == look); scored.append((score, -list(ev).index(look), look, payload))
         if not scored: scored = [(0, 0, "stock", None)]

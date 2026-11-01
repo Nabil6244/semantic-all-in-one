@@ -148,7 +148,8 @@ def never_empty(scenes: List[dict]) -> List[dict]:
     out: List[dict] = []
     for sc in scenes:
         if sc["kind"] == "callout" and (not sc["pages"] or _empty(sc)):
-            head = N.short_clause(sc.get("words") or [], min_content=0) or N.lead_phrase(sc.get("words") or [])
+            head = N.short_clause(sc.get("words") or [], min_content=0) or ("" if sc.get("look") == "flow" else N.lead_phrase(sc.get("words") or []))
+            if not head and sc.get("look") == "flow": out.append(sc); continue      # its own picture fills the frame: no words is better than a fragment
             if head:
                 pg = sc["pages"][0] if sc["pages"] else {"at": sc["start"], "value": "", "chips": [], "kicker": ""}; pg.update(headline=head, headline_at=sc["start"] + 0.2)
                 sc["pages"] = sc["pages"] or [pg]; sc["headline"] = head; sc["decisions"].append("nothing to show: its opening phrase is its headline")

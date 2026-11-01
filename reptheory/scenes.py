@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from PIL import Image, ImageDraw, ImageFilter
 
-from . import draw as D, theme as T, cards as K2
+from . import draw as D, theme as T, cards as K2, picture as PIC, library as L
 
 def _rel(sc: dict, t_abs: float) -> float: return t_abs - sc["start"]
 
@@ -18,23 +18,23 @@ ENTRANCE_S, LATE_MAX_S = 0.45, 0.9
 from .states import STAMP_HOLD_S
 from . import states as ST
 
-def _page_layer(ctx: D.Ctx, sc: dict, pg: dict, t: float, x: float, anchor_y: float) -> Image.Image:
+def _page_layer(ctx: D.Ctx, sc: dict, pg: dict, t: float, x: float, anchor_y: float, width: float = 0.0) -> Image.Image:
     """One callout page drawn on its own transparent layer (so it can fade out when the next page replaces it); times are relative to the scene.
     The page's main element (its headline, else its number) is on screen from the page's first frame; a short entrance only moves it into place. Further elements keep their word-synchronised time but
     never later than LATE_MAX_S after the page starts, so a page is never left showing a bare kicker or rule while the narration talks about it."""
     layer = Image.new("RGBA", (ctx.W, ctx.H), (0, 0, 0, 0)); pa = _rel(sc, pg["at"]); h_at = min(_rel(sc, pg["headline_at"]), pa + (0.0 if pg["headline"] else LATE_MAX_S)) if pg["headline"] else pa
     v_raw = _rel(sc, pg["value_at"]) if "value_at" in pg else h_at + 0.25; v_at = v_raw if pg["headline"] else pa      # a number that comes with a headline keeps the word it is said on; alone it is the main element
     chips = [(c["text"], (t - _rel(sc, c["at"])) / 0.5) for c in pg["chips"]]
-    D.callout_column(layer, ctx, pg["headline"], (t - h_at) / ENTRANCE_S, pg["value"], (t - v_at) / ENTRANCE_S, chips, x=x, anchor_y=anchor_y, kicker=pg.get("kicker", ""), k_p=(t - pa) / 0.5, floor=0.6)
+    D.callout_column(layer, ctx, pg["headline"], (t - h_at) / ENTRANCE_S, pg["value"], (t - v_at) / ENTRANCE_S, chips, x=x, anchor_y=anchor_y, kicker=pg.get("kicker", ""), k_p=(t - pa) / 0.5, floor=0.6, width=width)
     return layer
 
-def callouts(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float, x: float, anchor_y: float = 0.5) -> None:
+def callouts(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float, x: float, anchor_y: float = 0.5, width: float = 0.0) -> None:
     """The page the narration is on; when the next sentence's page arrives the old one fades out over 0.3 s as the new one slides in."""
     pages = sc["pages"]
     if not pages: return
     live = [i for i, p in enumerate(pages) if _rel(sc, p["at"]) <= t + 1e-6] or [0]; i = live[-1]
-    if i > 0 and t - _rel(sc, pages[i]["at"]) < 0.3: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y), 1 - (t - _rel(sc, pages[i]["at"])) / 0.3)
-    D.overlay_paste(cv, _page_layer(ctx, sc, pages[i], t, x, anchor_y))
+    if i > 0 and t - _rel(sc, pages[i]["at"]) < 0.3: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / 0.3)
+    D.overlay_paste(cv, _page_layer(ctx, sc, pages[i], t, x, anchor_y, width))
 
 def _label_ring(cv, ctx, box, ring, t, sc):
     if ring is None: return
@@ -69,9 +69,10 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
             if kind in ("trainee",): D.floor_line(cv, ctx, box[0] - ctx.px(120), box[2] + ctx.px(120), box[3] + ctx.px(6), t / 0.8)
             if kind in ("trainee", "pose") and sc.get("glows"):      # the part the narration is on now lights up (reptheory/states.py)
                 live = [g for g in sc["glows"] if _rel(sc, g["at"]) <= t + 1e-6]
-                if live: g = live[-1]; at = _rel(sc, g["at"]); D.anatomy_glow(cv, ctx, box, g["regions"], (t - at) / 0.5, t - at, ST.TONES.get(g.get("tone"), T.ORANGE))
+                if live: g = live[-1]; at = _rel(sc, g["at"]); D.anatomy_glow(cv, ctx, box, L.to_cutout(sc["art"], g["regions"]), (t - at) / 0.5, t - at, ST.TONES.get(g.get("tone"), T.ORANGE))      # the maps are measured on the full picture, the figure is its cut-out
                 if sc.get("beam"):      # a signal from the brain to the part it drives (states.apply)
-                    bm = sc["beam"]; w_, h_ = box[2] - box[0], box[3] - box[1]; D.beam(cv, ctx, (box[0] + bm["from"][0] * w_, box[1] + bm["from"][1] * h_), (box[0] + bm["to"][0] * w_, box[1] + bm["to"][1] * h_), t - _rel(sc, bm["at"]))
+                    bm = sc["beam"]; w_, h_ = box[2] - box[0], box[3] - box[1]; (fx_, fy_, _, _), (tx_, ty_, _, _) = L.to_cutout(sc["art"], (tuple(bm["from"][:2]) + (0, 0), tuple(bm["to"][:2]) + (0, 0)))
+                    D.beam(cv, ctx, (box[0] + fx_ * w_, box[1] + fy_ * h_), (box[0] + tx_ * w_, box[1] + ty_ * h_), t - _rel(sc, bm["at"]))
             ring = _live_ring(sc, t)
             if ring and kind == "prop": _label_ring(cv, ctx, box, ring, t, sc)
             if kind == "pose" and sc.get("grip_at") is not None:
@@ -104,9 +105,12 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind == "callout":      # no picture: the narration's own words, large, on the left; an orange rule draws down beside them
         d = ImageDraw.Draw(cv, "RGBA"); rp = T.ease_out(t / 0.9); d.rectangle((ctx.px(150), int(ctx.H * 0.5 - ctx.px(250) * rp), ctx.px(158), int(ctx.H * 0.5 + ctx.px(250) * rp)), fill=T.ORANGE + (230,))
         callouts(cv, ctx, sc, t, 230)
-    elif kind == "illus":      # a picture generated from this beat's narration (beat_art.py), callouts to its right
-        im = ctx.art(sc["art"]); frac = min(0.80, 0.52 * ctx.W / (im.width / im.height) / ctx.H); box = D.paste_art(cv, ctx, sc["art"], 0.29, 0.52, frac, zoom, 1.0, dx, dy)
-        callouts(cv, ctx, sc, t, max(760, (box[2] / ctx.S) + 90))
+    elif kind == "illus":      # a picture generated from this beat's narration (beat_art.py): full frame with its own camera (picture.py), else an inset with callouts to its right
+        full = PIC.render(cv, ctx, sc, t)
+        if full: callouts(cv, ctx, sc, t, full["x"], full.get("anchor_y", 0.5), width=full["width"])
+        else:
+            im = ctx.art(sc["art"]); frac = min(0.80, 0.52 * ctx.W / (im.width / im.height) / ctx.H); box = D.paste_art(cv, ctx, sc["art"], 0.29, 0.52, frac, zoom, 1.0, dx, dy)
+            callouts(cv, ctx, sc, t, max(760, (box[2] / ctx.S) + 90))
     elif kind == "clip3d":      # the 3D body (clip3d.py): the clip's frame for this moment in a panel on the left, callouts on the right
         c = sc["clip3d"]; fr = c["frames"]; i = max(0, int(t * c["fps"])); n = len(fr); i = i % (2 * n - 2) if n > 1 else 0; i = i if i < n else 2 * n - 2 - i; im = Image.open(fr[i]).convert("RGB"); pw = int(ctx.W * 0.60); ph = int(pw * im.height / im.width)
         im = im.resize((pw, ph), Image.LANCZOS); x0 = ctx.px(70); y0 = (ctx.H - ph) // 2; a = min(1.0, t / 0.4)
@@ -140,6 +144,13 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind in ("calendar", "result", "warning", "engage"):      # Step 4 cards that fill the frame, the narration's next phrase in a strip under them
         c = sc[kind]; key = {"calendar": "days", "result": "tiers", "warning": "rules"}.get(kind)
         c = dict(c, **{key: [dict(x, at=_rel(sc, x["at"])) for x in c[key]]}) if key else dict(c, at=_rel(sc, c["at"])); getattr(K2, kind)(cv, ctx, c, t); _caption_strip(cv, ctx, sc, t)
+    elif kind in ("slots", "race", "formula", "mechanism", "promise"):      # the study's cards (cards.py): each fills the frame, the narration's next phrase in a strip under it
+        c = sc[kind]; rel = lambda x: dict(x, at=_rel(sc, x["at"]))
+        if kind == "slots": c = dict(rel(c), items=[rel(i) for i in c["items"]])
+        elif kind in ("race", "formula"): c = dict(c, **{k: rel(c[k]) for k in (("fast", "slow") if kind == "race" else ("a", "b"))}, **({"at": _rel(sc, c["at"])} if "at" in c else {}))
+        elif kind == "mechanism": c = dict(c, labels={k: _rel(sc, v) for k, v in c["labels"].items()}, pull_at=_rel(sc, c["pull_at"]) if c.get("pull_at") is not None else None)
+        else: c = rel(c)
+        getattr(K2, kind)(cv, ctx, c, t); _caption_strip(cv, ctx, sc, t)
     elif kind == "takeaway":
         K2.takeaway(cv, ctx, {"words": [dict(w, t0=_rel(sc, w["t0"])) for w in sc["takeaway"]["words"]]}, t)
     elif kind == "sketch":      # a scene drawn in code from the beat's own words (see sketch.py), callouts on the right
@@ -153,8 +164,9 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     if sc.get("teaser"): K2.teaser(cv, ctx, sc["teaser"]["text"], t - _rel(sc, sc["teaser"]["at"]))      # Full Guide blueprint (blueprint.py)
     if sc.get("lock") and not (sc.get("teaser") and t >= _rel(sc, sc["teaser"]["at"])): K2.lock(cv, ctx, t - _rel(sc, sc["lock"]["at"]))
     if sc.get("safety"): K2.safety_chip(cv, ctx, sc["safety"], t)
+    if sc.get("stopwatch"): K2.stopwatch(cv, ctx, sc["stopwatch"], sc["start"] + t)      # a timed hold the viewer is doing (states.stopwatch)
     if sc.get("chapter_card"): K2.chapter(cv, ctx, sc["chapter_card"], t); K2.streak_wipe(cv, ctx, t)
-    cv = _push(cv, ctx, sc, t)
+    if not sc.get("cam"): cv = _push(cv, ctx, sc, t)      # a full-frame picture moves with its own camera (picture.py)
     if tag: D.section_tag(cv, ctx, sc["section"], t, prev_section, 0.0)
     return cv
 
