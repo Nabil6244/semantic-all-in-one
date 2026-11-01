@@ -161,6 +161,8 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         elif kind == "mechanism": c = dict(c, labels={k: _rel(sc, v) for k, v in c["labels"].items()}, pull_at=_rel(sc, c["pull_at"]) if c.get("pull_at") is not None else None)
         else: c = rel(c)
         getattr(K2, kind)(cv, ctx, c, t); _caption_strip(cv, ctx, sc, t)
+    elif kind in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"):      # the diagrams that explain why (diagrams.py), the narration's next phrase in a strip under them
+        from . import diagrams as DG; DG.draw(cv, ctx, kind, sc[kind], sc["start"] + t); _caption_strip(cv, ctx, sc, t)
     elif kind == "takeaway":
         K2.takeaway(cv, ctx, {"words": [dict(w, t0=_rel(sc, w["t0"])) for w in sc["takeaway"]["words"]]}, t)
     elif kind == "sketch":      # a scene drawn in code from the beat's own words (see sketch.py), callouts on the right

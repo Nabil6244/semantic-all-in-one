@@ -58,6 +58,16 @@ Diagrams that act out a sentence shape:
   warning = a sign of harm and what to do ("stop if it hurts", "if you feel pain in the elbow, ...").
   engage = the call to action as its screen (comment, like, subscribe).
   question = a question asked to the viewer ("So how heavy should you go?").
+Diagrams that explain why (code-drawn, full frame):
+  lever = load as two factors multiplied, or "the further ..., the heavier ...": "Load is weight times distance." Name an object in the sentence ("+10 kg backpack") and it is pinned on the end.
+  seesaw = balance and tipping: "Lean too far forward and you tip over." Say "between X and Y" to name the sides.
+  gap = one thing grows faster than another: "Your muscles get stronger faster than your tendons." The gap is shaded red.
+  split = one thing made of two ideas: "A planche is half strength, half balance."
+  panels = a change from one state to another: "Turn a weak lean into a solid hold." / "from beginner to advanced".
+  tearoff = two durations, or one and "never": "Some get it in a few months, others take two years, some never."
+  battery = training drains, rest recharges: "Training drains your tendons; rest rebuilds them. Rest 3 days a week."
+  clipboard = the plan said as a list: "Your plan: warm up, three leans, two frog stands, push-ups. 4 days a week, 15 minutes."
+  road = the journey to a goal: "This is the road to the planche: 8 weeks, 6 months."
   takeaway = the sentence itself as big words. Avoid it: use it only for the single final line, if at all.
 Things the app adds by itself (no column needed): a stopwatch that starts on "hold it there / as long as you can / start the clock" and stops on "stop the clock"; red tint on danger; stamps on short emphatic sentences; a NEXT teaser at the end of each unit; the safety chip.
 

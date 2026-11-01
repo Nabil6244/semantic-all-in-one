@@ -492,3 +492,6 @@ CARD_DONE = {
     "mistake": _panels_done, "myth": _panels_done,
     "question": lambda c: c["at"] + 1.0 + 0.03 * len(c.get("text") or ""),      # dots 0.45 s, typing, then the marker swipe
 }
+
+from . import diagrams as _DG      # the Phase 3 diagrams finish on their last mark
+CARD_DONE.update(_DG.DONE)

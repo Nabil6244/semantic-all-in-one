@@ -11,7 +11,7 @@ from typing import Dict, List
 PRIMARY_MAX_S, SECONDARY_MAX_S = 8.0, 3.5
 CONTINUOUS = {"tier": "the tier board builds row by row and places the item", "equation": "the equation lockup builds term by term"}
 
-DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
+DRAWS_PAGE_TEXT = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"}      # kinds whose callout column shows a page's headline / value; anatomy and equation scenes only show a page's chips (anatomy's label is its glow's)
 
 def _sig(sc: dict) -> tuple:
     sk = sc.get("sketch") or {}; return (sc["kind"], sk.get("move") or sc.get("art") or "", sk.get("variant") or sc.get("prop") or "")
@@ -57,6 +57,7 @@ def events(scenes: List[dict]) -> List[dict]:
             if w is not None: ev.append({"t": float(w["t0"]), "type": "secondary", "what": "red reveal", "scene": n, "meaningful": True})
         if sc.get("tokens") and sc["kind"] == "tokens": ev += [{"t": float(sc["tokens"]["at"]) + 0.3 + 0.25 * i, "type": "secondary", "what": "token fills", "scene": n, "meaningful": True} for i in range(sc["tokens"]["sets"])]
         if sc.get("share") and sc["kind"] == "share": ev += [{"t": float(x["at"]), "type": "secondary", "what": "share step", "scene": n, "meaningful": True} for x in sc["share"]["steps"]]
+        if sc["kind"] in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road") and sc.get(sc["kind"]): ev += [{"t": float(x), "type": "secondary", "what": f"{sc['kind']} part", "scene": n, "meaningful": True} for x in sc[sc["kind"]]["marks"]]      # diagrams.py
         if sc.get("meter"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "load meter", "scene": n, "meaningful": True} for x in sc["meter"]["steps"]]
         if sc.get("effort"): ev.append({"t": float(sc["effort"]["at"]), "type": "secondary", "what": "effort bar", "scene": n, "meaningful": True})
         if sc.get("chain"): ev.append({"t": float(sc["chain"]["at"]) + 0.1, "type": "secondary", "what": "chain", "scene": n, "meaningful": True})

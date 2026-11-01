@@ -28,7 +28,7 @@ SHIPPED = ROOT / "assets" / "reptheory"
 WPS = 2.6      # narration speed for the synthetic word timings (≈156 words a minute)
 STILL_S, OPENING_S = 4.0, 60.0
 IS_PICTURE = lambda l: l in PICTURE or l.startswith(("pose:", "flow:"))
-PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share"}
+PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"}
 TARGETS = {"bad_headlines": ("<=", 0), "empty_scenes": ("<=", 0), "repeat_headlines": ("<=", 0), "picture_share": (">=", 0.80), "fallback_share": ("<=", 0.10), "anatomy_unnamed": ("<=", 0), "still_share": ("<=", 0.05), "held_no_change": ("<=", 0), "opening_overlap_max": ("<=", 0.30)}
 BODY_RX = re.compile(r"\b(" + "|".join([      # named body parts, organs and tissues; "muscle" / "body" alone name nothing
     r"neck", r"shoulders?", r"delts?", r"deltoids?", r"traps?", r"trapezius", r"chest", r"pecs?", r"pectorals?", r"arms?", r"biceps?", r"triceps?", r"elbows?", r"forearms?", r"wrists?", r"hands?",

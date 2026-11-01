@@ -6,7 +6,9 @@ from __future__ import annotations
 import re
 from typing import Callable, Dict, List
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share")
+from .diagrams import KINDS as DIAGRAMS
+
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
            "list": "steps", "sequence": "steps", "key line": "takeaway", "quote": "takeaway",
@@ -14,8 +16,9 @@ ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "t
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
            "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
-           "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share"}
-CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share")
+           "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share",
+           "balance": "seesaw", "gap graph": "gap", "area graph": "gap", "split circle": "split", "two panels": "panels", "before after": "panels", "tear-off": "tearoff", "tear off": "tearoff", "pages": "tearoff", "rest battery": "battery", "plan": "clipboard", "journey": "road", "path": "road"}
+CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
@@ -25,7 +28,10 @@ NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)",
          "myth": "Myth: ... and the fact", "question": "a question to the viewer", "checklist": "a list of three short items", "slots": "a count of things (four moments, three moves)",
          "race": "fast against late (stiff X gets there fast, whoever ... first wins)", "formula": "X is not Y / X means Y / X is like Y", "mechanism": "two of muscle, tendon, bone and the pull between them",
          "tokens": "sets and their length (three holds of 15 seconds, 6 x 2 s)", "share": "a share of your weight (half your weight, two thirds, 66% of your body weight)",
-         "promise": "a payoff promised for later (I'll show you ... / at the end I'll tell you ...)"}      # what each card look needs, for the log
+         "promise": "a payoff promised for later (I'll show you ... / at the end I'll tell you ...)",
+         "lever": "X times Y / the further ..., the heavier ... / a lever", "seesaw": "balance / too far forward / tips back", "gap": "A grows faster than B / the gap between A and B",
+         "split": "half X, half Y / part X, part Y / both X and Y", "panels": "turn X into Y / from X to Y / X becomes Y", "tearoff": "two durations (a few months ... one to two years) or one and never",
+         "battery": "rest / recover with training or days", "clipboard": "the plan as a list of three or more items (your plan: ..., ..., ...)", "road": "the road / path / way to a goal"}      # what each card look needs, for the log
 
 def norm_look(v: str) -> str:
     v = re.sub(r"\s+", " ", str(v or "").strip().lower()); v = ALIASES.get(v, v)

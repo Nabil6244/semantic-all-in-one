@@ -10,10 +10,10 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from . import clip3d as C3, lexicon as LX, meters as M, narrative as N, planner as P
+from . import clip3d as C3, diagrams as DG, lexicon as LX, meters as M, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
-FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")      # cards that fill the frame; the narration's next phrase follows in a caption strip
+FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise") + DG.KINDS      # cards that fill the frame (DG: the Phase 3 diagrams, diagrams.py); the narration's next phrase follows in a caption strip
 SIDE_CARDS = ("stat", "dial", "study", "graph", "bars", "tokens", "share")      # cards on the left, the beat's words as callouts on the right
 CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
@@ -426,6 +426,8 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
                            ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("tokens", lambda: M.tokens(sc, text), 0.91), ("share", lambda: M.share(sc, text), 0.92), ("slots", lambda: _slots(sc, text), 0.93), ("race", lambda: _race(sc, text), 0.9), ("formula", lambda: _formula(sc, text), 0.86), ("mechanism", lambda: _mechanism(sc, text), 0.92), ("promise", lambda: _promise(sc, text), 0.94), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
         if got: ev[look] = (base - (0.6 if look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)      # a card whose first element comes late would sit empty on screen
+    for look, (base, got) in DG.evidence(sc, text).items():      # the diagrams that explain why (diagrams.py)
+        ev[look] = (base - (0.6 if _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)
     if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
     sk = _sketch(text)
     if sk and (not sc.get("pose_pick") or sk.get("variant") in SKETCH_VARIANTS): ev["sketch"] = (SKETCH_BASE, sk)      # the exercise drawn as a moving line figure: when no pose shows it, or the sentence names a variant only the line figure has (wall / incline / knee push-up)
@@ -590,10 +592,10 @@ WARN_PART_RX = re.compile(r"\b(warning|injur\w*|hurts?|pain|tendons? (?:can|get)
 PLAN_RX = re.compile(r"\b(plan|schedule|routine|days? a week|times a week|each session|every session|your week|program(?:me)?)\b", re.I)
 RESULT_RX = re.compile(r"\b(your (?:result|score|time|number)|if you (?:held|got|managed)|under \d+|start (?:at|on) (?:link|level|step|move))\b", re.I)
 SECTION_BOOST = {      # look -> score nudge per part of the video
-    "howto": {"pose": 0.15, "flow": 0.10, "stock": 0.10, "sketch": 0.10, "timeline": 0.05, "stat": 0.05},
-    "why": {"graph": 0.15, "bars": 0.15, "formula": 0.15, "mechanism": 0.15, "study": 0.10, "versus": 0.10, "race": 0.10, "equation": 0.10, "dial": 0.05, "flow": -0.10},
-    "warning": {"warning": 0.15, "mistake": 0.15, "3d": 0.10, "myth": 0.10, "flow": -0.05},
-    "plan": {"calendar": 0.15, "checklist": 0.15, "steps": 0.15, "stat": 0.10, "slots": 0.10},
+    "howto": {"seesaw": 0.05, "pose": 0.15, "flow": 0.10, "stock": 0.10, "sketch": 0.10, "timeline": 0.05, "stat": 0.05},
+    "why": {"lever": 0.15, "gap": 0.15, "seesaw": 0.10, "split": 0.10, "panels": 0.10, "graph": 0.15, "bars": 0.15, "formula": 0.15, "mechanism": 0.15, "study": 0.10, "versus": 0.10, "race": 0.10, "equation": 0.10, "dial": 0.05, "flow": -0.10},
+    "warning": {"gap": 0.10, "warning": 0.15, "mistake": 0.15, "3d": 0.10, "myth": 0.10, "flow": -0.05},
+    "plan": {"clipboard": 0.15, "battery": 0.10, "tearoff": 0.10, "road": 0.05, "calendar": 0.15, "checklist": 0.15, "steps": 0.15, "stat": 0.10, "slots": 0.10},
     "result": {"result": 0.15, "engage": 0.10, "stat": 0.10},
 }
 
