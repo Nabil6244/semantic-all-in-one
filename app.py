@@ -11542,6 +11542,8 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _doc_style_on(self) -> bool:
         """The app-wide "Doc Style" switch (Audio & Effects > Smart editing), saved in settings.json: graphics drawn in the News Doc look."""
+        if self._story_motion_picked():   # Story Motion owns its look: no News Doc graphics over the glued pictures
+            return False
         return bool(self._settings.get("doc_style"))
 
     def _set_doc_style(self, on: bool) -> None:
@@ -11551,6 +11553,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _normal_hybrid_style_on(self) -> bool:
         """The app-wide "Use Hybrid Map Graphics & Sound" switch (Audio & Effects > Smart editing, settings.json "normal_hybrid_style", off by
         default): a Normal Video drawn with Hybrid Map's graphics look and sound design. Not used by the Enoch Template or Modern Tech News."""
+        if self._story_motion_picked():   # Story Motion owns its joins and sound: no glitch cuts, template graphics or Hybrid sound design
+            return False
         return bool(self._settings.get("normal_hybrid_style", False)) and not self._modern_tech_on() and not _enoch_template_active(self)
 
     def _set_normal_hybrid_style(self, on: bool) -> None:
@@ -15562,6 +15566,9 @@ class VideoGeneratorApp(ctk.CTk):
                 editorial_plan, enabled=bool(smart_cfg.visual_transitions),
                 intensity=smart_cfg.transitions_intensity(),
             )
+            if self._story_motion_picked() and transition_map:   # the glued travel / push-through / torn wipe joins are the transitions: no fades or flashes on top
+                print(f"[STORY] {len(transition_map)} app transition(s) left out: Story Motion makes its own joins.")
+                transition_map = {}
             print(f"[EDITORIAL] Visual Transitions "
                   f"{smart_cfg.transitions_intensity() if smart_cfg.visual_transitions else 'OFF'}: "
                   f"{len(transition_map)} transition(s) kept.")

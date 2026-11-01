@@ -722,7 +722,7 @@ def build_story(project_dir: "str | Path", settings: Optional[dict] = None, log:
         mset = _motion_settings(settings)
         if fast:
             _project_grade(run, sd, settings, mset, log)
-        stamps = ("story_fast.runner", "story_fast.compose", "story_fast.direct") if fast else ("story_motion", "health_cinema.puppet.links", "health_cinema.puppet.motion")
+        stamps = ("story_fast.runner", "story_fast.compose", "story_fast.direct", "story_fast.glue") if fast else ("story_motion", "health_cinema.puppet.links", "health_cinema.puppet.motion")
         key = _sha([(s.get("shot_id"), s["start"], s["end"], s.get("motion_tier"), s.get("camera"), s.get("transition_in"), s.get("link_to_next"), s.get("treatment"),
                      s.get("tparams"), s.get("env")) for s in run.shots], sorted(run.images.items()), mset, dry_run, fast, _module_stamp(*stamps),
                     *(["ai-live", settings.get("story_ai_video_max"), settings.get("story_ai_video_live_max")] if settings.get("story_ai_video_live") else []))

@@ -44,4 +44,21 @@ with tempfile.TemporaryDirectory() as d:
     ok(not S.is_active(NS(_workspace=other, _story_motion_active=True)), "another project does not inherit the session flag")
     P.pick_variant(a, "Overscaled")
     ok(not ws.story_motion(), "picking another style clears it")
+
+# glued joins are the default look; Story Motion turns off the app's Doc Style, Hybrid graphics/sound and editorial transitions (app.py, read without Tk)
+ok(S.pipeline_settings(NS(_story_vars=None, _settings={}))["story_motion_strip"] == "glued", "glued joins by default")
+ok(S.pipeline_settings(NS(_story_vars=None, _settings={"story_motion_strip": "off"}))["story_motion_strip"] == "off", "settings.json can bring back the old look")
+import ast
+_src = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+_cls = next(n for n in ast.parse(_src).body if isinstance(n, ast.ClassDef) and any(isinstance(f, ast.FunctionDef) and f.name == "_doc_style_on" for f in n.body))
+_ns = {"_enoch_template_active": lambda self: False}
+for f in _cls.body:
+    if isinstance(f, ast.FunctionDef) and f.name in ("_doc_style_on", "_normal_hybrid_style_on"):
+        exec(compile(ast.Module(body=[f], type_ignores=[]), "app.py", "exec"), _ns)
+for picked in (True, False):
+    me = NS(_settings={"doc_style": True, "normal_hybrid_style": True}, _story_motion_picked=lambda p=picked: p, _modern_tech_on=lambda: False)
+    ok(_ns["_doc_style_on"](me) is (not picked), f"Doc Style {'off' if picked else 'kept'} when Story Motion is {'picked' if picked else 'not picked'}")
+    ok(_ns["_normal_hybrid_style_on"](me) is (not picked), f"Hybrid graphics & sound {'off' if picked else 'kept'} when Story Motion is {'picked' if picked else 'not picked'}")
+_i = _src.index("transition_map = apply_transition_settings(")
+ok("self._story_motion_picked() and transition_map" in _src[_i:_i + 900] and "transition_map = {}" in _src[_i:_i + 900], "app transitions left out in a Story Motion run")
 print("FAILED" if fails else "ALL OK"); raise SystemExit(1 if fails else 0)

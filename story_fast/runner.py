@@ -171,8 +171,19 @@ def _load_grade(st):
 def plan_clips(shots, images, settings=None) -> list:
     st = dict(settings or {}); size = tuple(st.get("size", (1920, 1080))); fps = int(st.get("fps", 30)); base = int(st.get("seed", 0))
     margin = float(st.get("margin", 0.3)); inten = st.get("intensity", "medium"); ms = _load_speed(); shots = _direct(list(shots), st); jobs = []
-    groups = strip_groups(shots, images, st)
+    glued = str(st.get("story_strip", st.get("strip", "off"))).lower() == "glued"
+    groups = {} if glued else strip_groups(shots, images, st)
     bnd = _bounds(shots, fps) if shots else [0]
+    segs = {}
+    if glued and shots:
+        # every picture change is a glued travel (right / up), a push-through or a torn wipe (glue.py); graphic / AI / picture-less shots stay cuts
+        try:
+            from story_fast import glue
+            stills = [_image(images, sh, i) for i, sh in enumerate(shots)]
+            ok = [sh.get("motion_tier") != "graphic" and bool(s) and os.path.isfile(str(s)) and not sh.get("ai_video") for sh, s in zip(shots, stills)]
+            segs, groups = glue.plan(shots, stills, ok, fps, size, base)
+        except Exception:
+            segs, groups = {}, {}
     usable = []
     for i, sh in enumerate(shots):
         stl = _image(images, sh, i)
@@ -206,6 +217,8 @@ def plan_clips(shots, images, settings=None) -> list:
             job["strip"] = groups[sid][0]; job["strip_index"] = groups[sid][1]; job["start"] = round(float(sh["start"]), 4); job["end"] = round(float(sh["end"]), 4)
             job["strip_walker"] = (st.get("story_strip_walker", st.get("strip_walker", "")) or None); job["strip_seam"] = st.get("story_strip_seam", st.get("strip_seam", "torn"))
             job["est_seconds"] = round(dur * 0.12 + 0.3, 3)
+            if groups[sid][0] in segs:
+                seg = segs[groups[sid][0]]; job["glue"] = seg; job["glue_offset"] = round((bnd[i] - seg["start_frame"]) / fps, 4); job["est_seconds"] = round(dur * 3.5, 3)
         jobs.append(job)
     return jobs
 
@@ -269,6 +282,13 @@ def _cut(src, out, offset, dur, fps, size):
 
 def _strip_key(grp):
     return hashlib.sha1(json.dumps([[j["still"], os.path.getsize(j["still"]) if os.path.isfile(j["still"]) else 0, j["start"], j["end"], list(j["size"]), j["fps"], j.get("strip_walker"), j.get("strip_seam"), j["seed"], "strip-2"] for j in grp], default=str).encode()).hexdigest()[:24]
+
+
+def _glue_key(seg):
+    try: code = hashlib.sha1((ROOT / "story_fast" / "glue.py").read_bytes()).hexdigest()[:8]
+    except OSError: code = "x"
+    pics = [[p["still"], os.path.getsize(p["still"]) if os.path.isfile(p["still"]) else 0] for p in seg["panels"]]
+    return hashlib.sha1(json.dumps([seg, pics, code, "glue-1"], sort_keys=True, default=str).encode()).hexdigest()[:24]
 
 
 def _ok_file(p):
@@ -367,7 +387,32 @@ def render_clips(jobs, out_dir, log=None, cancel=None, workers=1, puppet_rendere
         by = {}
         for j in todo:
             if j.get("strip"): by.setdefault(j["strip"], []).append(j)
+        def one_glue(gid, grp):
+            seg = grp[0]["glue"]; key = _glue_key(seg)
+            if all(_ok_file(state.get(j["shot_id"]).get("path")) and state.get(j["shot_id"]).get("status") == "done" and state.get(j["shot_id"]).get("key") == key for j in grp):
+                for j in grp: finish(j, state.get(j["shot_id"])["path"], 0.0, False)
+                return
+            if cancel and cancel(): raise Cancelled("clip render cancelled")
+            t = time.time()
+            try:
+                from story_fast import glue
+                os.makedirs(os.path.join(out_dir, "strips"), exist_ok=True)
+                src = glue.render_segment(seg, os.path.join(out_dir, "strips", f"{gid}_{key}.mp4"), cancel=cancel)
+                paths = {j["shot_id"]: _cut(src, os.path.join(out_dir, f"{j['shot_id']}.mp4"), j["glue_offset"], j["duration"], j["fps"], tuple(j["size"])) for j in grp}
+            except Exception as e:
+                if _is_cancel(e) or type(e).__name__ == "TravelCancelled": raise Cancelled("clip render cancelled")
+                log(f"glued strip {gid} failed ({type(e).__name__}: {e}); its shots use their own camera moves")
+                for j in grp: j.pop("strip", None); j.pop("glue", None)
+                return
+            dt = time.time() - t
+            for j in grp:
+                state.set(j["shot_id"], key=key, status="done", path=paths[j["shot_id"]], seconds=round(dt / len(grp), 3), error=None, attempts=1, treatment="glue")
+                finish(j, paths[j["shot_id"]], dt / len(grp), False)
+            lk = seg.get("link")
+            log(f"glued strip {gid}: {len(seg['panels'])} picture(s), travel {'/'.join(seg['dirs']) or '-'}" + (f", then {lk['kind']}" if lk else "") + f", {dt:.1f}s")
+
         def one_strip(gid, grp):
+            if grp[0].get("glue"): return one_glue(gid, grp)
             grp.sort(key=lambda j: j["strip_index"])
             if all(_ok_file(state.get(j["shot_id"]).get("path")) and state.get(j["shot_id"]).get("status") == "done" and state.get(j["shot_id"]).get("key") == _strip_key(grp) for j in grp):
                 for j in grp: finish(j, state.get(j["shot_id"])["path"], 0.0, False)

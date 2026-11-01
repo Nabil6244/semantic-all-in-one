@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
-MIN_WORDS, MAX_WORDS = 4, 16          # a row shows one picture for ~1.6-6.4 s of narration
+MIN_WORDS, MAX_WORDS = 4, 12          # a row shows one picture for ~1.6-4.8 s of narration (the CSV prompt asks for 6-10 words, a picture every 2.5-3.5 s)
 MIN_PROMPT_WORDS = 12
 
 def _words(t: str) -> List[str]:

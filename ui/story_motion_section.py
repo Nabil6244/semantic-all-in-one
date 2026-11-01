@@ -54,6 +54,9 @@ def pipeline_settings(app: Any) -> Dict[str, Any]:
                            "story_motion_intensity": STRENGTH.get(o["strength"], "medium"), "story_motion_parallax": bool(o["parallax"])}
     # the motion clips are CPU work and there are hundreds (492 shots for a 24-minute video): one at a time took about two hours; a setting of
     # story_workers in settings.json wins over this default (cores minus 2, at most 8)
+    # pictures glued with torn seams, the camera travelling right / up between them, push-throughs and torn wipes (story_fast/glue.py);
+    # settings.json story_motion_strip "off" / "auto" / "all" brings back the older looks
+    out["story_motion_strip"] = getattr(app, "_settings", {}).get("story_motion_strip") or "glued"
     out["story_workers"] = int(getattr(app, "_settings", {}).get("story_workers") or max(1, min(8, (os.cpu_count() or 2) - 2)))
     # real image-to-video is OFF unless settings.json says story_ai_video_live: true (default: shots are only recorded and counted)
     for k in ("story_ai_video_live", "story_ai_video_max", "story_ai_video_live_max", "story_ai_video_start_image"):
