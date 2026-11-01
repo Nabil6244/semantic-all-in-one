@@ -3,6 +3,7 @@ All sizes are laid out for 1920x1080 and scaled by `S = W / 1920`, so Preview (1
 from __future__ import annotations
 import functools
 import math
+import re
 from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -188,22 +189,54 @@ def pill(cv: Image.Image, ctx: Ctx, x: float, y: float, text: str, p: float, acc
 
 TYPE_CPS = 33      # headline letters a second as they type on
 
+NEG_WORDS = re.compile(r"\b(?:never|wrong|mistakes?|can'?t|don'?t|won'?t|isn'?t|not|no|stop|loses?|late|breaks?|weak(?:est)?|danger\w*|injur\w*|pain|quit)\b", re.I)
+POS_WORDS = re.compile(r"\b(?:right|correct(?:ly)?|safe(?:r)?|strong(?:er)?|better|best|wins?|fixe?s?|keep it)\b", re.I)
+NUM_KEY_RX = re.compile(r"\b(?:\d[\d.,]*|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:[- ]\w+){0,2}$", re.I)
+
+def split_headline(headline: str) -> Tuple[str, str]:
+    """(lead-in, key words) for a headline of 3+ words: the key is the number with its unit at the end ("ABOUT | FIVE KILOS"), else the last content word (two when the last is a verb:
+    "WHAT YOUR | TIME MEANS"). ("", headline) for short headlines, questions and formulas ("STIFF = FAST") - those stay whole and big."""
+    from . import narrative as N
+    ws = (headline or "").split()
+    if len(ws) < 3 or headline.rstrip().endswith("?") or any(c in headline for c in "=≠→+"): return "", headline
+    m = NUM_KEY_RX.search(headline); k = len(m.group(0).split()) if m and len(m.group(0).split()) <= 3 else 0
+    if not k:
+        k = 1; last = N._nw(ws[-1])
+        if last in N.STOP: return "", headline      # "HOLD IT THERE", "SAVE YOU": a phrase that ends on a small word has no key word to lift; it stays whole
+        if last in N.DANGLING or (len(ws) >= 2 and N._nw(ws[-2]) not in N.STOP and len(ws[-1]) <= 4): k = 2      # "TIME MEANS", "BIG BICEP": keep the pair
+    k = min(k, len(ws) - 1)
+    return " ".join(ws[:-k]), " ".join(ws[-k:])
+
+def key_colour(headline: str, kicker: str = "") -> tuple:
+    """Colour of the key words by what the line means: red for a mistake / warning / negative, green for the right way, orange otherwise."""
+    if (kicker or "").upper() in ("MISTAKE", "WARNING", "MYTH") or NEG_WORDS.search(headline or ""): return T.RED
+    if POS_WORDS.search(headline or ""): return (74, 222, 128)
+    return T.ORANGE
+
 def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0, width: float = 0.0):
     """Right-hand callout: bold headline, key value (orange), outlined chips. Each piece slides up and fades in as its own time arrives. Stack is centred on anchor_y."""
     d = ImageDraw.Draw(cv, "RGBA"); hf, vf = ctx.font(T.HEAD_FONT, 104), ctx.font(T.HEAD_FONT, 168); x = ctx.px(x)
     room = ctx.px(width) if width else ctx.W - x - ctx.px(80); size = 104      # width (1080p px): a column on the left of a full-frame picture stops before its subject
     while headline and size > 56 and max(_text_w(d, w, hf, ctx_sp(hf)) for w in headline.split()) > room: size -= 6; hf = ctx.font(T.HEAD_FONT, size)      # a single long word ("STRAIGHTEN") in a narrow column shrinks instead of running off the frame
-    lines = _wrap(d, headline, hf, room) if headline else []; hh = len(lines) * ctx.px(112); vh = ctx.px(180) if value else 0; ch = len(chips) * ctx.px(96)
-    kh = ctx.px(48) if kicker else 0; total = kh + hh + (ctx.px(14) if lines else 0) + vh + ch + (ctx.px(26) if chips and (lines or value) else 0); y = int(ctx.H * anchor_y - total / 2)
+    lead, key = split_headline(headline); col = key_colour(headline, kicker) if lead else T.WHITE      # a longer headline reads as a small lead-in + its key words, big and coloured by meaning
+    if lead:
+        size = 104; hf = ctx.font(T.HEAD_FONT, size)
+        while size > 56 and max(_text_w(d, w, hf, ctx_sp(hf)) for w in key.split()) > room: size -= 6; hf = ctx.font(T.HEAD_FONT, size)
+    lf = ctx.font(T.HEAD_FONT, 44); llines = _wrap(d, lead, lf, room) if lead else []; lh = len(llines) * ctx.px(54)
+    lines = _wrap(d, key if lead else headline, hf, room) if headline else []; hh = len(lines) * ctx.px(112); vh = ctx.px(180) if value else 0; ch = len(chips) * ctx.px(96)
+    kh = ctx.px(48) if kicker else 0; total = kh + lh + hh + (ctx.px(14) if lines else 0) + vh + ch + (ctx.px(26) if chips and (lines or value) else 0); y = int(ctx.H * anchor_y - total / 2)
     if kicker: text_spaced(d, (x, y + int((1 - T.ease_out(k_p)) * 16 * ctx.S)), kicker, ctx.font(T.BODY_FONT, 28), T.ORANGE + (int(255 * min(1, k_p * 1.6)),), ctx.px(4)); y += kh
-    typed = len(headline.split()[0]) + max(0, int(hl_p * TYPE_CPS * 0.45)) if headline else 0      # the headline types on (its first word is there from the first frame, the rest ~30 ms a letter)
+    for ln in llines:      # the lead-in is there from the page's first frame; the key words type on under it
+        text_spaced(d, (x, y + int((1 - T.ease_out(max(floor, hl_p))) * 20 * ctx.S)), ln, lf, T.SOFT_WHITE + (int(255 * min(1, max(floor, hl_p) * 1.6)),), ctx.px(3)); y += ctx.px(54)
+    shown_head = key if lead else headline
+    typed = len(shown_head.split()[0]) + max(0, int(hl_p * TYPE_CPS * 0.45)) if headline else 0      # the headline types on (its first word is there from the first frame, the rest ~30 ms a letter)
     hl_p, val_p = min(1.0, max(floor if headline else 0.0, hl_p)), min(1.0, max(floor if (value and not headline) else 0.0, val_p))      # the page's main element is legible from its first frame (floor), its entrance only moves it into place
     if lines and headline.rstrip().endswith("?") and hl_p > 0.3:      # a question: a marker swipes in behind it, left to right
         mp = T.ease_out((hl_p - 0.3) / 0.7); mw = max(_text_w(d, ln, hf, ctx.px(1)) for ln in lines) + ctx.px(36)
         d.rectangle((x - ctx.px(18), y + ctx.px(4), x - ctx.px(18) + int(mw * mp), y + len(lines) * ctx.px(112) - ctx.px(6)), fill=T.ORANGE_DEEP + (int(170 * mp),))
     for ln in lines:
         a = hl_p; off = int((1 - T.ease_out(a)) * 34 * ctx.S); shown = ln[:max(0, typed)]; typed -= len(ln) + 1
-        if shown: text_spaced(d, (x, y + off), shown, hf, T.WHITE + (int(255 * min(1, a * 1.6)),), ctx.px(1))
+        if shown: text_spaced(d, (x, y + off), shown, hf, col + (int(255 * min(1, a * 1.6)),), ctx.px(1))
         if 0 < len(shown) < len(ln): cx = x + _text_w(d, shown, hf, ctx.px(1)) + ctx.px(8); d.rectangle((cx, y + off + ctx.px(14), cx + ctx.px(9), y + off + ctx.px(96)), fill=T.ORANGE + (255,))      # the typing head
         y += ctx.px(112)
     if lines:      # the orange accent: a short bar that sweeps out under the headline

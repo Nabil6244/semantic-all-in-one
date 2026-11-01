@@ -147,6 +147,8 @@ def never_empty(scenes: List[dict]) -> List[dict]:
     """Run last, after every look is chosen: a text-only scene with nothing on it gets the opening phrase of its own words; with none it joins the scene before. Never an empty frame."""
     out: List[dict] = []
     for sc in scenes:
+        if sc["kind"] == "callout" and sc.get("pages") and not any(pg.get("headline") or pg.get("value") for pg in sc["pages"]) and any(pg.get("chips") for pg in sc["pages"]):      # only a small chip on an empty frame ("HOW HEAVY"): the chip becomes the headline
+            pg = next(pg for pg in sc["pages"] if pg.get("chips")); c = pg["chips"].pop(0); pg.update(headline=c["text"], headline_at=c["at"]); sc["decisions"].append("only a chip on an empty frame: it is the headline")
         if sc["kind"] == "callout" and (not sc["pages"] or _empty(sc)):
             head = N.short_clause(sc.get("words") or [], min_content=0) or ("" if sc.get("look") == "flow" else N.lead_phrase(sc.get("words") or []))
             if not head and sc.get("look") == "flow": out.append(sc); continue      # its own picture fills the frame: no words is better than a fragment

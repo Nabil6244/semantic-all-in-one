@@ -90,7 +90,7 @@ class Direction(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8") as f: f.write(csv_text)
         rows = A.read_scenes_file(f.name)
         self.assertEqual([DR._row_look(r) for r in rows], ["flow", "flow", "3d"])      # row 1 is the hook picture, row 2 re-frames it ("same"), then the 3D body
-        self.assertEqual([r["camera"] for r in rows], ["wide", "close red", ""])
+        self.assertEqual([r["camera"] for r in rows], ["wide", "medium red", ""])
         self.assertTrue(all(DR.on_screen_ok(r["on_screen"], r["text"]) for r in rows))      # the example's on-screen words are its sentences' own
         self.assertEqual(DR.check_rows(rows), [])
 

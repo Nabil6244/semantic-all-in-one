@@ -105,10 +105,93 @@ class Picture(unittest.TestCase):
         orig = L.find; L.find = lambda ref: {"path": f} if ref == "PIC" else orig(ref)
         try:
             scs = [dict(_sc("Rest your forearm on the table.", 1, 0.0), kind="illus", art="PIC"), dict(_sc("Palm up, hand off the edge.", 2, 3.0), kind="illus", art="PIC")]
-            self.assertEqual(PIC.plan(scs), 1); self.assertEqual(scs[0]["cam"]["mode"], "wide"); self.assertEqual(scs[1]["cam"]["mode"], "close")
+            self.assertEqual(PIC.plan(scs), 1); self.assertEqual(scs[0]["cam"]["mode"], "wide"); self.assertEqual(scs[1]["cam"]["mode"], "medium")      # a repeated picture is re-framed medium first, never straight to a close-up
             self.assertIsNotNone(scs[0]["cam"]["reveal_at"])      # the red part grows in on "forearm"
             ctx = D.Ctx(640, 360); a = S.frame(ctx, scs[0], 0.0, tag=False); b = S.frame(ctx, scs[0], 2.5, tag=False); self.assertNotEqual(a.tobytes(), b.tobytes())
         finally: L.find = orig
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Final2Fixes(unittest.TestCase):
+    """docs/rep_theory/AUDIT_2026-11-01_final2.md: too much zoom, and the older overlays dropped on picture scenes."""
+    def _pic(self, w=1376, h=768, top=150, red=True):
+        im = Image.new("RGB", (w, h), (0, 0, 0)); px = im.load()
+        for x in range(350, 1000):
+            for y in range(top, h - 40): px[x, y] = (230, 40, 30) if (red and 600 < x < 700 and 300 < y < 450) else (190, 190, 190)
+        import tempfile; f = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name; im.save(f); PIC._cache.pop(f, None); return f
+
+    def test_zoom_keeps_most_of_the_picture_and_the_head(self):
+        info = PIC.study(self._pic())
+        for mode, least in (("wide", 0.80), ("medium", 0.62), ("close", 0.45)):
+            for p in (0.0, 1.0):
+                x0, y0, x1, y1 = PIC._window(info, {"mode": mode, "focus": info["subject"]}, p, 1920, 1080)
+                self.assertGreaterEqual((x1 - x0) / info["size"][0], least, f"{mode} at {p}")
+                if mode != "close": self.assertLessEqual(y0, info["top"] * info["size"][1], f"{mode} cut the head")
+
+    def test_picture_is_framed_with_room_around_the_subject(self):
+        f = self._pic(); orig = L.find; L.find = lambda ref: {"path": f} if ref == "P2" else orig(ref)
+        try:
+            sc = dict(_sc("The trainee rests his forearm on the table.", 1, 0.0), kind="illus", art="P2"); PIC.plan([sc]); info = PIC.study(f)
+            for t in (0.0, sc["end"] - sc["start"]):
+                S.frame(D.Ctx(960, 540), sc, t, tag=False); (x0, y0, x1, y1), (rx0, ry0, rx1, ry1) = sc["_shown"]; iw, ih = info["size"]; bx0, by0, bx1, by1 = info["bbox"]
+                h = (by1 - by0) * ih * (ry1 - ry0) / (y1 - y0) / 540; top = ry0 + (by0 * ih - y0) * (ry1 - ry0) / (y1 - y0)
+                self.assertLessEqual(h, 0.80); self.assertGreater(top, 540 * 0.04)      # render final 3: the subject filled 97-100% of the height and touched the edge
+        finally: L.find = orig
+
+    def test_glow_label_and_tint_are_drawn_on_pictures(self):
+        f = self._pic(); orig = L.find; L.find = lambda ref: {"path": f} if ref == "P3" else orig(ref)
+        try:
+            base = dict(_sc("Rest your forearm on it.", 1, 0.0), kind="illus", art="P3"); PIC.plan([base])
+            lit = dict(base, glows=[{"at": 0.3, "regions": [], "label": "FOREARMS"}], tint={"at": 0.2}); ctx = D.Ctx(960, 540)
+            a = S.frame(ctx, dict(base), 1.4, tag=False); b = S.frame(ctx, lit, 1.4, tag=False)
+            self.assertNotEqual(a.tobytes(), b.tobytes()); self.assertGreater(PIC.overlays(b.copy(), ctx, lit, 1.4), 0)
+        finally: L.find = orig
+
+    def test_slot_names_come_from_the_short_rows_that_follow(self):
+        def sc(text, no, s0, s1): return dict(_sc(text, no, s0), end=s1)
+        scs = [sc("Training makes you strong.", 1, 0, 2), sc("Every match comes down to four moments.", 2, 2, 4.5), sc("The go.", 3, 4.5, 5.3), sc("The wrist.", 4, 5.3, 6.1), sc("The squeeze.", 5, 6.1, 7.0), sc("And the line.", 6, 7.0, 8.0), sc("You have seen it happen in a match.", 7, 8.0, 10)]
+        V.direct(scs, flow=True); s = next(x for x in scs if x["kind"] == "slots")
+        self.assertEqual([i["text"] for i in s["slots"]["items"]], ["THE GO", "THE WRIST", "THE SQUEEZE", "THE LINE"]); self.assertGreaterEqual(s["end"], 8.0)      # it may borrow time from the next scene to finish (variety.let_cards_finish)
+
+    def test_detectors_take_the_csv_sentences(self):
+        ev = lambda t: V.evidence(_sc(t))
+        self.assertIn("race", ev("Stiff tendons get it there fast.")); self.assertIn("race", ev("Whoever gets his force into the hand first takes the wrist."))
+        self.assertIn("study", ev("Researchers watched 74 of them.")); self.assertEqual(ev("Researchers watched 74 of them.")["study"][1]["noun"], "")      # no invented noun
+        self.assertIn("promise", ev("At the end, I'll tell you what your time means."))
+        self.assertIn("checklist", ev("Every hold, how heavy, how long.")); self.assertEqual(ev("It's called Tendon Theory, and it's linked below.")["engage"][1]["kind"], "link")
+        self.assertNotIn("race", ev("Sleep fast tonight.")); self.assertNotIn("study", ev("Researchers watched you."))
+
+    def test_aligner_matches_contractions_and_spelled_numbers(self):
+        from health_cinema import scenes_csv
+        rows = [{"text": "Researchers watched seventy-four of them."}, {"text": "I'll show you what eight out of ten had in common."}, {"text": "It's called the plan."}]
+        words = [(w, 0.4 * i, 0.4 * i + 0.3) for i, w in enumerate("researchers watched 74 of them ill show you what 8 out of 10 had in common it called the plan".split())]
+        out, frac = scenes_csv.align_to_words(rows, words, 12.0)
+        self.assertEqual([r["words"][0]["w"] for r in out], ["researchers", "ill", "it"]); self.assertGreater(frac, 0.95)
+
+    def test_csv_log_names_what_each_card_needs(self):
+        self.assertTrue(all(k in DR.NEEDS for k in DR.CARDS))
+
+    def test_chip_alone_becomes_the_headline(self):
+        from reptheory import planner as P
+        sc = _sc("Every hold, how heavy, how long."); sc["pages"] = [{"at": 0.1, "headline": "", "value": "", "chips": [{"text": "HOW HEAVY", "at": 0.6}], "kicker": ""}]
+        P.never_empty([sc]); self.assertEqual(sc["pages"][0]["headline"], "HOW HEAVY")
+
+
+class Final3Fixes(unittest.TestCase):
+    """docs/rep_theory/AUDIT_2026-11-01_final3.md, checked on my own preview render."""
+    def test_vague_line_reuses_the_neighbouring_picture(self):
+        def sc(t, no, s0, s1, **kw): return dict(_sc(t, no, s0), end=s1, section="TEST", **kw)
+        scs = [sc("Researchers watched 74 of them.", 1, 0, 3), sc("But first, a quick test.", 2, 3, 5), sc("Sit at a table.", 3, 5, 7, directed_look=True, look="flow", flow_prompt="the trainee seated at a table")]
+        V.direct(scs, flow=True); self.assertEqual(scs[1].get("flow_prompt"), "the trainee seated at a table")
+        own = [sc("Researchers watched 74 of them.", 1, 0, 3), sc("Grip the towel with both hands.", 2, 3, 5), sc("Sit at a table.", 3, 5, 7, directed_look=True, look="flow", flow_prompt="the trainee seated at a table")]
+        V.direct(own, flow=True); self.assertNotEqual(own[1].get("flow_prompt"), "the trainee seated at a table")      # a line with its own object gets its own picture
+
+    def test_no_stamp_on_a_card_that_spells_its_words(self):
+        for k in ("slots", "race", "checklist", "promise"): self.assertIn(k, ST.NO_STAMP)
+
+    def test_card_check_falls_back_to_the_transcript_words(self):
+        sc = _sc("and if you want every tendon trained we wrote it all into a 12 week plan."); sc["script_text"] = "And if you want every tendon trained, we wrote it all into a twelve-week plan."
+        rows = [{"text": sc["script_text"], "start": 0.0, "end": sc["end"], "look": "stat"}]; sc["words"] = sc["words"]
+        DR.apply([sc], rows); self.assertEqual(sc.get("look"), "stat")      # the CSV's "twelve-week" is not read as a number, the transcript's "12 week" is

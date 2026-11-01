@@ -28,12 +28,14 @@ def _page_layer(ctx: D.Ctx, sc: dict, pg: dict, t: float, x: float, anchor_y: fl
     D.callout_column(layer, ctx, pg["headline"], (t - h_at) / ENTRANCE_S, pg["value"], (t - v_at) / ENTRANCE_S, chips, x=x, anchor_y=anchor_y, kicker=pg.get("kicker", ""), k_p=(t - pa) / 0.5, floor=0.6, width=width)
     return layer
 
+PAGE_OUT_S = 0.12      # render final 3: a 0.3 s fade let the old headline sit under the new one while it typed ("BIGGER TH" over "TENDONS")
+
 def callouts(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float, x: float, anchor_y: float = 0.5, width: float = 0.0) -> None:
-    """The page the narration is on; when the next sentence's page arrives the old one fades out over 0.3 s as the new one slides in."""
+    """The page the narration is on; when the next sentence's page arrives the old one fades out over PAGE_OUT_S as the new one slides in."""
     pages = sc["pages"]
     if not pages: return
     live = [i for i, p in enumerate(pages) if _rel(sc, p["at"]) <= t + 1e-6] or [0]; i = live[-1]
-    if i > 0 and t - _rel(sc, pages[i]["at"]) < 0.3: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / 0.3)
+    if i > 0 and t - _rel(sc, pages[i]["at"]) < PAGE_OUT_S: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / PAGE_OUT_S)      # the old page is gone before the new one has typed a word over it
     D.overlay_paste(cv, _page_layer(ctx, sc, pages[i], t, x, anchor_y, width))
 
 def _label_ring(cv, ctx, box, ring, t, sc):
@@ -70,7 +72,7 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
             if kind in ("trainee", "pose") and sc.get("glows"):      # the part the narration is on now lights up (reptheory/states.py)
                 live = [g for g in sc["glows"] if _rel(sc, g["at"]) <= t + 1e-6]
                 if live: g = live[-1]; at = _rel(sc, g["at"]); D.anatomy_glow(cv, ctx, box, L.to_cutout(sc["art"], g["regions"]), (t - at) / 0.5, t - at, ST.TONES.get(g.get("tone"), T.ORANGE))      # the maps are measured on the full picture, the figure is its cut-out
-                if sc.get("beam"):      # a signal from the brain to the part it drives (states.apply)
+                if sc.get("beam") and kind == "trainee" and sc.get("art") == ST.FIGURE:      # a signal from the brain to the part it drives (states.apply); its points are the standing figure's
                     bm = sc["beam"]; w_, h_ = box[2] - box[0], box[3] - box[1]; (fx_, fy_, _, _), (tx_, ty_, _, _) = L.to_cutout(sc["art"], (tuple(bm["from"][:2]) + (0, 0), tuple(bm["to"][:2]) + (0, 0)))
                     D.beam(cv, ctx, (box[0] + fx_ * w_, box[1] + fy_ * h_), (box[0] + tx_ * w_, box[1] + ty_ * h_), t - _rel(sc, bm["at"]))
             ring = _live_ring(sc, t)
@@ -107,7 +109,10 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         callouts(cv, ctx, sc, t, 230)
     elif kind == "illus":      # a picture generated from this beat's narration (beat_art.py): full frame with its own camera (picture.py), else an inset with callouts to its right
         full = PIC.render(cv, ctx, sc, t)
-        if full: callouts(cv, ctx, sc, t, full["x"], full.get("anchor_y", 0.5), width=full["width"])
+        if full:
+            if sc.get("tint"): _tint(cv, ctx, (t - _rel(sc, sc["tint"]["at"])) / 0.7, strength=0.55)      # the warning tint over the picture, lighter (drawn under it, it was hidden)
+            PIC.overlays(cv, ctx, sc, t)      # the part named lights up on the picture, its label, the body change (picture.py)
+            callouts(cv, ctx, sc, t, full["x"], full.get("anchor_y", 0.5), width=full["width"])
         else:
             im = ctx.art(sc["art"]); frac = min(0.80, 0.52 * ctx.W / (im.width / im.height) / ctx.H); box = D.paste_art(cv, ctx, sc["art"], 0.29, 0.52, frac, zoom, 1.0, dx, dy)
             callouts(cv, ctx, sc, t, max(760, (box[2] / ctx.S) + 90))
@@ -177,14 +182,14 @@ def _caption_strip(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float) -> None:
     pg = live[-1]; d = ImageDraw.Draw(cv, "RGBA"); w = D._text_w(d, pg["headline"], ctx.font(T.BODY_FONT, 36), ctx.px(1.5)) + ctx.px(60)
     D.pill(cv, ctx, (ctx.W - w) / 2 / ctx.S * ctx.S, ctx.H * 0.82, pg["headline"], (t - _rel(sc, pg["at"])) / 0.5)
 
-def _tint(cv: Image.Image, ctx: D.Ctx, p: float) -> None:
+def _tint(cv: Image.Image, ctx: D.Ctx, p: float, strength: float = 1.0) -> None:
     """A warning, a mistake, pain: the dark background warms red from the edges in (eased in over p = 0..1), behind everything drawn after it."""
     if p <= 0: return
     if getattr(ctx, "_red", None) is None:
         import numpy as np
         xx, yy = np.meshgrid(np.linspace(-1, 1, ctx.W), np.linspace(-1, 1, ctx.H)); a = np.clip((xx ** 2 * 0.8 + yy ** 2) / 1.6, 0, 1) ** 0.8 * 0.55 + 0.12
         ctx._red = Image.fromarray(np.dstack([np.full_like(a, 150), np.full_like(a, 16), np.full_like(a, 12), a * 255]).astype("uint8"), "RGBA")
-    lay = ctx._red if p >= 1 else Image.merge("RGBA", (*ctx._red.split()[:3], ctx._red.getchannel("A").point(lambda v: int(v * T.ease_out(p)))))
+    k = T.ease_out(p) * strength; lay = ctx._red if k >= 1 else Image.merge("RGBA", (*ctx._red.split()[:3], ctx._red.getchannel("A").point(lambda v: int(v * k))))
     cv.paste(lay, (0, 0), lay)
 
 PUSH_RATE, PUSH_MAX, DRIFT = 0.012, 0.10, 0.012      # whole-frame push-in per second, its most over one scene, and the sideways drift (fractions of the frame)

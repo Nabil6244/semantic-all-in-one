@@ -29,11 +29,11 @@ BODY: Dict[str, tuple] = {
     "brain": (r"brain|nervous system|nerves?|mind", "BRAIN", ((0.500, 0.110, 0.050, 0.060),)),
 }
 BODY_RX = {k: re.compile(rf"\b(?:{v[0]})\b", re.I) for k, v in BODY.items()}
-NOT_A_PART = re.compile(r"\b(?:back (?:to|down|up|in|out|off|on|into|and)|(?:come|go|get|bring|lie on your|on your) back|set ?back|back then|hands?[- ]on|hand dynamometer|arms? race|mind(?:set|ful))\b", re.I)
+NOT_A_PART = re.compile(r"\b(?:back (?:to|down|up|in|out|off|on|into|and)|(?:come|go|get|bring|lie on your|on your) back|set ?back|back then|hands?[- ]on|hand dynamometer|arms? race|arm[- ]?wrestl\w*|mind(?:set|ful))\b", re.I)      # "arm wrestling" names a sport, not the arm (render 053: ARMS lit on every arm-wrestling line)
 DANGER_RX = re.compile(r"\b(?:mistakes?|wrong|danger\w*|risk\w*|injur\w*|pain\w*|hurts?|quit\w*|fail\w*|warning|stop(?:\s+(?:if|when|immediately|right away|straight away|at once|before)\b|\s+(?:doing|training|the (?:exercise|set|movement))\b)|never|on fire|damage\w*|worse)\b", re.I)
 ICE_RX = re.compile(r"\b(?:relax\w*|rest(?:s|ing)?|cool\w*|calm\w*|loosen\w*|release[sd]?|switch(?:es|ed)? off|recover\w*)\b", re.I)
 FIRE_RX = re.compile(r"\b(?:burn\w*|on fire|fir(?:e|es|ing)|pump\w*|shak\w*|squeez\w*|work(?:s|ing)? hard|all out|max(?:imum)? effort)\b", re.I)
-SIGNAL_RX = re.compile(r"\b(?:signals?|tells?|sends?|fires?|commands?|wakes? up|switch(?:es)? on|recruits?)\b", re.I)
+SIGNAL_RX = re.compile(r"\b(?:signals?|tells?|sends?|fires?|commands?|wakes? up|switch(?:es)? on|recruits?|drives?|reach(?:es)?|travels? (?:to|through|into|down)|gets? (?:it |the force )?(?:there|to|into)|passes? (?:to|through)|carr(?:y|ies) (?:it|the force) to)\b", re.I)      # a signal or a force going from one part to another (render 053: 0 beams in 14 scripts with the old list)
 GAIN_RX = re.compile(r"\b(?:gain(?:s|ed|ing)? (?:weight|muscle|size|mass|\w+ (?:of )?muscle)|bulk(?:s|ing|ed)?|put(?:s|ting)? on (?:weight|muscle|size)|get(?:s|ting)? bigger|grow(?:s|ing)? bigger|fill(?:s|ing)? out|build(?:s|ing)? muscle)\b", re.I)
 LEAN_RX = re.compile(r"\b(?:los(?:e|es|ing) (?:weight|fat|belly fat|\w+ of fat)|lean(?:s|ing)? out|burn(?:s|ing)? fat|slim(?:s|ming)? down|smaller waist|waist (?:looks? )?smaller)\b", re.I)
 GAIN_TO, LEAN_TO = 0.16, -0.10
@@ -43,16 +43,21 @@ GLOW_MAX = 3      # parts lit in one scene, in the order they are said
 
 def _norm(w: str) -> str: return re.sub(r"[^a-z0-9'-]", "", w.lower())
 
-def parts_named(words: List[dict], text: str) -> List[tuple]:
-    """[(part, time of its word)] in the order said; a phrase that only looks like a part ("come back", "hands-on") is ignored."""
+def parts_named_words(words: List[dict], text: str) -> List[tuple]:
+    """[(part, time of its word, the word as said, upper-case)] in the order said; a phrase that only looks like a part ("come back", "hands-on", "arm wrestling") is ignored."""
     clean = NOT_A_PART.sub(" ", text); out: List[tuple] = []; seen = set()
     for part, rx in BODY_RX.items():
-        if not rx.search(clean): continue
-        w = next((w for w in words if rx.fullmatch(_norm(w["w"]).strip("'-"))), None)
+        m = rx.search(clean)
+        if not m: continue
+        w = next((w for w in words if rx.fullmatch(_norm(w["w"]).strip("'-"))), None); said = _norm(w["w"]).strip("'-") if w is not None else ""
         if w is None and len(text.split()) == len(words):      # a part named in two words ("nervous system", "hip flexors"): the word its match starts on
-            m = rx.search(clean); w = words[min(len(words) - 1, len(text[:m.start()].split()))]
-        if w is not None and part not in seen: out.append((part, float(w["t0"]))); seen.add(part)
+            w = words[min(len(words) - 1, len(text[:m.start()].split()))]; said = m.group(0)
+        if w is not None and part not in seen: out.append((part, float(w["t0"]), (said or m.group(0)).upper())); seen.add(part)
     return sorted(out, key=lambda x: x[1])[:GLOW_MAX]
+
+def parts_named(words: List[dict], text: str) -> List[tuple]:
+    """[(part, time of its word)] in the order said (see parts_named_words)."""
+    return [(p, t) for p, t, _w in parts_named_words(words, text)]
 
 def _tone(text: str, t: float, ws: List[dict]) -> str:
     """The state a named part is in, from the clause it is named in: icy when it relaxes or rests, red when it burns or works hard."""
@@ -63,6 +68,15 @@ def _tone(text: str, t: float, ws: List[dict]) -> str:
     clause = " ".join(w["w"] for w in ws[a:b + 1]) if ws else text
     return "ice" if ICE_RX.search(clause) else "fire" if FIRE_RX.search(clause) else ""
 
+def _beam(ws: List[dict], text: str) -> Optional[dict]:
+    """A signal or force that travels between two parts the sentence names ("your brain tells your legs to stop", "their force reaches your fingers through tendons"): from the brain
+    when it is named, else from the first part named, to the next different part; on the later of the two words. None without a travel word or two parts."""
+    if not SIGNAL_RX.search(text): return None
+    named = parts_named(ws, text); src = next(((p, t) for p, t in named if p == "brain"), named[0] if named else None)
+    dst = next(((p, t) for p, t in named if src and p != src[0] and t >= src[1] - 1e-6), None) or next(((p, t) for p, t in named if src and p != src[0]), None)
+    if not (src and dst): return None
+    return {"from": BODY[src[0]][2][0][:2], "to": BODY[dst[0]][2][0][:2], "at": max(src[1], dst[1]), "parts": [src[0], dst[0]]}
+
 def apply(scenes: List[dict], art_ok: Callable[[str], bool], log: Callable[[str], None] = lambda m: None) -> Dict[str, int]:
     """Puts the state tracks on the scenes (in place). Returns counts."""
     n = {"body_glows": 0, "figure_added": 0, "tints": 0}
@@ -72,16 +86,16 @@ def apply(scenes: List[dict], art_ok: Callable[[str], bool], log: Callable[[str]
         pk = PZ.pick(text, art_ok) if sc["kind"] in ("trainee", "callout") and not sc.get("directed_look") and sc.get("art") in ("", None, FIGURE) and not GAIN_RX.search(text) and not LEAN_RX.search(text) else None
         if pk:      # the sentence names an action the pose library shows (Step 5): offered to the variety director as a look (variety.evidence "pose"), with the named part lit on that pose
             pid, pos = pk; n["poses"] = n.get("poses", 0) + 1; i = len(text[:pos].split())
-            lit = [(p, t) for p, t in parts_named(ws, text) if PZ.regions(pid, p)]
-            sc["pose_pick"] = {"art": pid, "at": float(ws[min(i, len(ws) - 1)]["t0"]) if ws else float(sc["start"]), "glows": [{"regions": PZ.regions(pid, p), "at": t, "label": BODY[p][1], "body": True, "tone": _tone(text, t, ws)} for p, t in lit]}
+            lit = [(p, t, w) for p, t, w in parts_named_words(ws, text) if PZ.regions(pid, p)]
+            sc["pose_pick"] = {"art": pid, "at": float(ws[min(i, len(ws) - 1)]["t0"]) if ws else float(sc["start"]), "glows": [{"regions": PZ.regions(pid, p), "at": t, "label": BODY[p][1], "word": w, "body": True, "tone": _tone(text, t, ws)} for p, t, w in lit]}
         if sc["kind"] in ("trainee", "callout") and not sc.get("directed_look") and art_ok(FIGURE) and (sc["kind"] == "callout" or sc.get("art") == FIGURE):
-            named = parts_named(ws, text)
+            named_w = parts_named_words(ws, text); named = [(p, t) for p, t, _w in named_w]
             if named:
                 if sc["kind"] == "callout": sc.update(kind="trainee", art=FIGURE); n["figure_added"] += 1; sc["decisions"].append("names a body part: the figure, with it lit")
-                sc["glows"] = [{"regions": BODY[p][2], "at": t, "label": BODY[p][1], "body": True, "tone": _tone(text, t, ws)} for p, t in named]; n["body_glows"] += len(named)
-                sig = SIGNAL_RX.search(text); src = next((t for p, t in named if p == "brain"), None); dst = next(((p, t) for p, t in named if p != "brain"), None)
-                if sig and src is not None and dst:      # "your brain tells your legs to stop": a beam from the brain to the part, on the later of the two words
-                    sc["beam"] = {"from": BODY["brain"][2][0][:2], "to": BODY[dst[0]][2][0][:2], "at": max(src, dst[1])}; n["beams"] = n.get("beams", 0) + 1
+                sc["glows"] = [{"regions": BODY[p][2], "at": t, "label": BODY[p][1], "word": w, "body": True, "tone": _tone(text, t, ws)} for p, t, w in named_w]; n["body_glows"] += len(named)      # word: the part as said (FOREARM, BICEP), shown on pictures
+
+        bm = _beam(ws, text)
+        if bm and sc["kind"] not in ("tier", "equation"): sc["beam"] = bm; n["beams"] = n.get("beams", 0) + 1      # on any scene: the figure draws it, a picture draws it between the parts it shows
         g = next((m for rx in (GAIN_RX, LEAN_RX) for m in rx.finditer(text) if not NEG_RX.search(re.split(r"[,.;:!?]", text[:m.start()])[-1])), None)      # "the gym isn't where you build muscle" changes nothing
         if g and not sc.get("directed_look") and art_ok(FIGURE) and (sc["kind"] == "callout" or (sc["kind"] == "trainee" and sc.get("art") == FIGURE)):      # the body changes on the word: the same figure gains or leans out
             if sc["kind"] == "callout": sc.update(kind="trainee", art=FIGURE); n["figure_added"] += 1
@@ -127,7 +141,7 @@ def _tail(cl: List[dict], n: int = 4) -> str:
     return N._shown(cl, a, len(cl)) if len(cl) - a >= 2 else ""
 
 STAMP_GAP_S, STAMP_HOLD_S = 20.0, 2.4      # the reference stamps about once a minute; never two within 20 s
-NO_STAMP = {"takeaway", "tier", "equation", "engage"}
+NO_STAMP = {"takeaway", "tier", "equation", "engage", "slots", "race", "formula", "mechanism", "promise", "checklist", "steps", "versus", "mistake", "myth", "question", "timeline", "calendar", "result", "warning"}      # a card that spells its own words out: a stamp on top would cover it (final 3: "THE WRIST" over the four moments)
 SIGNPOST = {"here", "heres", "here's", "let's", "lets", "first", "next", "now", "so", "then", "and", "but", "after", "before", "this", "that", "it", "its", "it's",
             "part", "step", "tip", "number", "week", "day", "phase", "level", "round", "second", "third", "fourth", "fifth", "last", "finally"}      # unit titles ("Part one, chin tucks.") are the chapter's job      # the words are already the picture, or the board is too busy
 
@@ -174,6 +188,30 @@ def stopwatch(scenes: List[dict]) -> int:
         n += 1; i = k
     return n
 
+IMPERATIVE = set("rest hold curl sit stand pull push squeeze keep lift drop grab grip loop place put lean press brace breathe face turn lower raise bend straighten tuck fill add try start stop count repeat do take walk run".split())
+KICK_RX = (("TEST", re.compile(r"\b(?:a (?:quick )?test|try (?:it|this)|test yourself|time yourself)\b", re.I)), ("MISTAKE", re.compile(r"\b(?:mistakes?|wrong)\b|^\W*(?:never|don'?t|do not)\b", re.I)),      # "Don't lock your elbows" is a mistake; "the muscles don't sit in your hand" is not
+           ("STUDY", re.compile(r"\b(?:study|studies|researchers?|scientists?|trial|review)\b", re.I)))
+
+def picture_text(scenes: List[dict]) -> Dict[str, int]:
+    """The words beside a picture say what kind of line it is: a small kicker from the sentence's shape when its pages have none (an instruction -> CUE, a try-it -> TEST,
+    a mistake / never / don't -> MISTAKE, research -> STUDY, a stated number -> KEY), and the number with its unit as the page's big value when the headline does not already
+    carry it and no number card shows it. Picture scenes only (kind illus or look flow); run after the pages are final. Returns counts."""
+    from . import narrative as N
+    n = {"kickers": 0, "values": 0}
+    for sc in scenes:
+        if not (sc["kind"] == "illus" or sc.get("look") == "flow") or not sc.get("pages"): continue
+        text = sc.get("script_text") or sc.get("text", ""); ws = text.split(); first = next((N._nw(w) for w in ws if N._nw(w) not in ("now", "then", "so", "and", "next", "just", "first")), "")
+        nums = N.entities(text)["numbers"] if sc["kind"] not in ("stat", "dial", "study", "bars") else []
+        kick = next((k for k, rx in KICK_RX if rx.search(text)), "") or ("CUE" if first in IMPERATIVE else "") or ("KEY" if nums else "")
+        for pg in sc["pages"]:
+            if kick and not pg.get("kicker") and (pg.get("headline") or pg.get("value")): pg["kicker"] = kick; n["kickers"] += 1      # never a kicker over nothing
+        if nums and not any(pg.get("value") for pg in sc["pages"]):
+            e = nums[0]; v = e["value"]; v = (f"{float(v):g}" if not isinstance(v, str) else v); val = f"{v}%" if e["unit"] == "%" else f"{v} {e['unit']}"
+            sw = sc.get("words") or []; i = len(text[:e["pos"]].split()); at = float(sw[min(i, len(sw) - 1)]["t0"]) if sw else float(sc["start"])
+            pg = ([p for p in sc["pages"] if float(p.get("at", sc["start"])) <= at + 1e-6] or sc["pages"])[-1]
+            if v not in (pg.get("headline") or "") and e["text"].upper() not in (pg.get("headline") or "").upper(): pg["value"] = val; pg["value_at"] = at; n["values"] += 1
+    return n
+
 def develop(scenes: List[dict]) -> int:
     """Run after the looks are chosen. Where a scene would hold more than FILL_GAP_S with nothing new, the clause said in that gap arrives as a new page
     (its own words, a phrase of the script: narrative.phrase rules) at its first word. Returns how many were added."""
@@ -202,4 +240,5 @@ def develop(scenes: List[dict]) -> int:
             _d, t0, head = pick; shown.add(head); added += 1
             sc["pages"].append({"at": t0, "headline": head, "headline_at": t0, "value": "", "chips": [], "kicker": "", "src": "cadence"}); sc["pages"].sort(key=lambda p: p["at"])
             sc["decisions"].append(f"held {FILL_GAP_S:.0f} s with nothing new: '{head}' arrives at its word")
+    picture_text(scenes)
     return added

@@ -95,7 +95,7 @@ def _word_t(ws: List[dict], token: str, default: float) -> float:
 
 _STOP_BEFORE = {"the", "a", "an", "is", "are", "for", "of", "and", "to", "by", "in", "on", "your", "it", "that", "this", "mistake", "hold", "do", "these", "then", "but", "with"}
 
-SK_RX = (("pushup", r"push[- ]?ups?"), ("pullup", r"pull[- ]?ups?|chin[- ]?ups?"), ("squat", r"squats?"), ("plank", r"planks?"), ("gym", r"\bgym\b"))
+SK_RX = (("pushup", r"push[- ]?ups?|press[- ]?ups?"), ("pullup", r"pull[- ]?ups?|chin[- ]?ups?|(?:inverted|australian|bodyweight) rows?"), ("squat", r"squats?|lunges?"), ("plank", r"planks?"), ("gym", r"\bgym\b"))      # the line figure has these moves; a lunge is drawn as its squat, an inverted row as its pull
 HI_PARTS = {"arms": {"arm", "shoulder", "chest", "hand", "finger", "forearm", "wrist", "elbow"}, "legs": {"leg", "knee", "calf", "glute", "hip", "ankle"}, "torso": {"core", "back", "spine", "lat", "scapula", "trapezius"}}
 
 def sketch_spec(b: dict) -> Optional[dict]:

@@ -104,3 +104,31 @@ def repair(scenes: List[dict], flow: bool) -> Dict:
 def summary(res: Dict) -> str:
     fmt = lambda ps: ", ".join(f"{p['check']} ({p['value']})" for p in ps) or "none"
     return f"problems before: {fmt(res.get('before', []))}; fixed {res.get('fixed', 0)} scene(s); problems after: {fmt(res.get('after', []))}" + (f"; gate error {res['error']}" if res.get("error") else "")
+
+THIN_MIN = 2      # developments a picture shot needs over its length (render final 3: 9 of 15 picture scenes were one headline and nothing else)
+
+def picture_developments(sc: dict) -> int:
+    """What happens on a picture shot after it opens: its headlines, chips and planned overlays (picture.plan_cues: labels, arrows, lines, badges, inset), glows, a stamp, a body change."""
+    from . import cadence as C
+    n = sum(1 for e in C.events([dict(sc, no=0)]) if e["meaningful"] and e["type"] == "secondary" and sc["start"] < e["t"] < sc["end"])
+    try:
+        from . import picture as PIC
+        n += len(PIC.plan_cues(dict(sc)) or []) if hasattr(PIC, "plan_cues") else 0
+    except Exception: pass
+    return n
+
+def thicken_pictures(scenes: List[dict]) -> int:
+    """Run after the phrases are developed: a picture shot with fewer than THIN_MIN developments gets its sentence's key phrase as a chip at its own word (a phrase of the script,
+    never a repeat of what is on screen). Plan-only, no render time. Returns how many shots were thickened."""
+    from . import narrative as N
+    n = 0
+    for sc in scenes:
+        if not (sc.get("look") == "flow" or sc["kind"] == "illus") or sc["end"] - sc["start"] < 2.0 or picture_developments(sc) >= THIN_MIN: continue
+        key, pos = N.key_phrase(sc.get("text", ""), 3); key = N.phrase(key, sc.get("words") or []) if key else ""; shown = {pg.get("headline") for pg in sc.get("pages", [])} | {c["text"] for pg in sc.get("pages", []) for c in pg.get("chips", [])}
+        if not key or key.upper() in shown: continue
+        ws = sc.get("words") or []; i = pos if isinstance(pos, int) else len(ws) // 2      # key_phrase gives the word index
+        at = float(ws[min(i, len(ws) - 1)]["t0"]) if ws else sc["start"] + 1.0
+        at = min(max(at, sc["start"] + 0.6), sc["end"] - 0.8)
+        if not sc.get("pages"): sc["pages"] = [{"at": sc["start"], "headline": "", "headline_at": sc["start"], "value": "", "chips": [], "kicker": ""}]
+        sc["pages"][-1].setdefault("chips", []).append({"text": key.upper(), "at": at}); sc["decisions"].append(f"quality gate: a picture shot with one thing on it gets its key phrase '{key.upper()}'"); n += 1
+    return n

@@ -18,6 +18,14 @@ ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "t
 CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
+NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
+         "timeline": "two time marks (10 seconds in ... 20 seconds ...)", "mistake": "a mistake (the most common mistake is ...)", "slider": "too hard? ... too easy?", "dial": "N out of 10 or N% effort",
+         "study": "a study with its count or year (a study of 16 men, researchers watched 74 ...)", "graph": "a change over time (rises, drops, levels off)", "bars": "two numbers of one unit or a share",
+         "calendar": "three named days or N days a week", "result": "two or more bands (under 20 ... 20 to 40 ...)", "warning": "a sign of harm and what to do", "engage": "a comment / like / subscribe / link below",
+         "myth": "Myth: ... and the fact", "question": "a question to the viewer", "checklist": "a list of three short items", "slots": "a count of things (four moments, three moves)",
+         "race": "fast against late (stiff X gets there fast, whoever ... first wins)", "formula": "X is not Y / X means Y / X is like Y", "mechanism": "two of muscle, tendon, bone and the pull between them",
+         "promise": "a payoff promised for later (I'll show you ... / at the end I'll tell you ...)"}      # what each card look needs, for the log
+
 def norm_look(v: str) -> str:
     v = re.sub(r"\s+", " ", str(v or "").strip().lower()); v = ALIASES.get(v, v)
     return v if v in LOOKS else ""
@@ -44,7 +52,7 @@ def on_screen_ok(v, text: str) -> str:
     v = re.sub(r"\s+", " ", str(v or "").strip())
     if not v: return ""
     said = set(re.findall(r"[a-z0-9%]+", text.lower().replace("'", "")))
-    toks = [w for w in v.split() if w.lower() not in SYMBOLS]
+    toks = [p for w in v.split() if w.lower() not in SYMBOLS for p in w.split("-")]      # "SEVENTY-FOUR", "TWELVE-WEEK": each part must be said
     words = [re.sub(r"[^a-z0-9%]", "", w.lower().replace("'", "")) for w in toks]
     if not words or len(words) > ON_SCREEN_MAX or any(w and w not in said for w in words): return ""
     return v.upper().replace("->", "→")
@@ -88,6 +96,11 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
                 P._absorb(scenes[k - 1], scenes[k], "joined: one scenes-CSV row is one scene"); del scenes[k]
     for n, sc in enumerate(scenes, 1): sc["no"] = n
     def scene_at(t0: float, t1: float) -> dict: return max(scenes, key=lambda x: (min(x["end"], t1) - max(x["start"], t0), -x["start"]))      # the scene that holds most of the row
+    per_scene: Dict[int, List[str]] = {}      # the CSV is the script: a scene one row covers keeps that row's own text, so a word the transcript dropped ("thirty percent") still counts
+    for s in ss: per_scene.setdefault(id(scene_at(float(s["start"]), float(s["end"]))), []).append(str(s.get("text") or ""))
+    for x in scenes:
+        rows_here = per_scene.get(id(x), [])
+        if len(rows_here) == 1 and rows_here[0].strip(): x["script_text"] = rows_here[0].strip()
     chap_at: List[tuple] = []
     for ri, s in enumerate(ss, 1):
         if str(s.get("chapter") or "").strip(): chapter = str(s["chapter"]).strip(); chap_at.append((float(s["start"]), chapter))
@@ -114,12 +127,15 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         if look == "3d" and not C3.groups_for(sc.get("muscle") or sc.get("text", ""))[0]:
             stat["not_buildable"] += 1; log(f"[REP THEORY CSV] row {ri}: look 3d but neither the muscle column nor the sentence names a muscle or exercise; the app chooses"); continue
         if look in CARDS:
-            ev = V.evidence(sc, last=True, role="claim") if look == "takeaway" else V.evidence(sc)
-            payload = (ev.get(look) or (None, None))[1]
+            payload = None
+            for txt in dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x):      # the row's own words first (the transcript may drop "percent"), then the transcript's ("twelve-week" -> "12 week")
+                sv = dict(sc, text=txt); ev = V.evidence(sv, last=True, role="claim") if look == "takeaway" else V.evidence(sv)
+                payload = (ev.get(look) or (None, None))[1]
+                if payload is not None: break
             if look == "takeaway" and payload is None and sc.get("words"):
                 payload = {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in sc["words"][:22]]}
             if payload is None:
-                stat["not_buildable"] += 1; log(f"[REP THEORY CSV] row {ri}: look {look} needs {'a number' if look == 'stat' else 'a comparison (A versus B, not A but B)' if look == 'versus' else 'two or more steps (first, then, finally)'} in the sentence; the app chooses"); continue
+                stat["not_buildable"] += 1; log(f"[REP THEORY CSV] row {ri}: look {look} needs {NEEDS.get(look, 'its shape')} in the sentence; the app chooses"); continue
             sc["look_payload"] = payload
         sc["look"] = "stock" if look == "figure" else look; sc["directed_look"] = True; sc["decisions"].append(f"CSV row {ri}: look {look}" + (" with its own picture prompt" if prompt else "") + (f", muscle {muscle}" if sc.get("muscle") else "")); stat["directed"] += 1
     if chap_at:      # the CSV's chapters are the sections (top label, chapter cards); the first rows before any chapter keep the video title

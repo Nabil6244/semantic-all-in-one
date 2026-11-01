@@ -24,8 +24,9 @@ def _red_part(text: str) -> str:
 def prompt_for(text: str, hook: bool = False) -> str:
     """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent)."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
-    if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):
-        return f"An anatomical illustration of exactly what this sentence of a fitness explainer is about: \"{text}\". Show the body part concerned and its muscles, tendons or bones. {A.INK_ANATOMY}."
+    if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
+        return (f"A clear anatomical illustration that shows what this sentence of a fitness explainer is about: \"{text}\". Show the relevant muscles, tendons or bones of the body part concerned, "
+                f"{A.REAL_STYLE}.")
     who = f"{A.CHARACTER}" + (f", facing {A.RIVAL}" if RIVAL_RX.search(text) else "")
     if hook: return (f"The opening image of a fitness explainer, one striking picture of this promise: \"{text}\". Show {who}, the contrast between them obvious at a glance, a dramatic "
                      f"moment caught mid-action.{_red_part(text)} {A.SCENE_STYLE}.")
@@ -35,7 +36,7 @@ def prompt_for(text: str, hook: bool = False) -> str:
 def own_prompt(text: str) -> str:
     """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
-    if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}."
+    if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
     cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "")
     return f"{text}.{cast} {A.SCENE_STYLE}."
 

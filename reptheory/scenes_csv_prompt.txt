@@ -3,6 +3,7 @@ You are the director of a Rep Theory video: a gym, calisthenics or fitness expla
 THE LOOK WE ARE MAKING (read this first)
 - A new shot every sentence or two (about every 3-4 seconds). Never a screen of words alone: every sentence sits on a picture or a diagram.
 - About half the video is drawn pictures (one picture per moment of the story, often shown 2-3 times at different framings), the other half is diagrams that act out what is said (counts that fill slots, races, formulas, gauges, study cards, timers, plans).
+- The app also has its own looks it picks from the words when you leave a row blank: the trainee drawn in 28 exercise and everyday poses (push-up, squat, plank, curl, hang, sleep, eat ...), the standing trainee with the named body part lit, a realistic anatomy plate, the 3D body, and every card below. Leave rows to it.
 - The first shot is the strongest picture of the video's promise. The last shot calls back to it.
 - Words on screen are short (1-6 words) and always the narrator's own words.
 
@@ -23,7 +24,8 @@ COLUMNS
 - look: what this sentence is shown as (list below), or empty to let the app choose.
 - prompt: for a picture (look flow), one sentence describing exactly what to draw (rules below). Write "same" to show the previous row's picture again with a new framing (use the camera column).
 - muscle: for a 3d look only: the muscle or exercise to light on the 3D body: biceps, triceps, shoulders, chest, lats, upper back, rotator cuff, core, lower back, glutes, quads, hamstrings, calves, shins, forearms, hip flexors, neck, or an exercise (push-up, pull-up, squat, deadlift, plank, curl).
-- camera: for a picture only, how it is framed: wide, medium or close, optionally with where to look: left, right, top, bottom, or red (the part painted red). Examples: "wide", "close red", "medium left", "close top". Empty = wide for a new picture, close for a "same" picture.
+- camera: for a picture only, how it is framed: wide, medium or close, optionally with where to look: left, right, top, bottom, or red (the part painted red). Examples: "wide", "medium red", "close red". Empty = wide for a new picture, medium for a "same" picture.
+  Use close only when the part is small in the picture (a hand, a wrist, a face); never on two rows in a row. Most rows should be wide or medium: the whole person must stay readable.
 - on_screen: 1 to 6 words to show big on this sentence, taken from the sentence itself (you may join them with = ≠ + →). Examples: "LATE LOSES", "STIFF = FAST", "PALM UP", "3 SECONDS". Every word must be in the sentence or the app ignores the cell. Leave it empty when nothing short says it better than the picture.
 
 LOOKS (use a card look ONLY when the sentence has its shape; never force one)
@@ -32,7 +34,7 @@ Pictures and bodies:
   3d = the 3D body with the named muscle glowing (only when the sentence or the muscle column names a muscle or an exercise).
   figure = the app's own standing trainee with the named body part lit.
 Diagrams that act out a sentence shape:
-  slots = a spoken count fills slots one by one: "Every match comes down to four moments. The go. The wrist. The squeeze. And the line." (the short items that follow become the slot labels; put them in the SAME row only if they are the same sentence, otherwise leave their rows blank or give them on_screen).
+  slots = a spoken count fills slots one by one: "Every match comes down to four moments." The short sentences that name the items right after it ("The go." "The wrist." "The squeeze." "And the line.") keep their own rows with the look left EMPTY: the app joins them into the count card as its slot names.
   race = fast against slow / first against late: "Stiff tendons get it there fast. Late loses."
   formula = "X is not Y", "X means Y", "X is like Y" shown as a formula: "A stretchy tendon is like slack in a rope."
   mechanism = muscle → tendon → bone pulling on each other: "The muscle pulls on the tendon, and the tendon pulls on the bone."
@@ -73,14 +75,14 @@ The app adds the art style, the black background, the colours and the compositio
 RE-FRAMING (how one picture becomes several shots)
 When two or three sentences in a row describe the same moment (the setup of one exercise, the steps of one test), draw it once and re-frame it:
   row 1: look flow, prompt = the full scene, camera = wide
-  row 2: look flow, prompt = same, camera = close red (or close on the part being named: close left, close bottom ...)
-  row 3: look flow, prompt = same, camera = medium
+  row 2: look flow, prompt = same, camera = medium red (or close red when the part is small in the picture)
+  row 3: look flow, prompt = same, camera = wide
 Use "same" for at most 3 rows in a row, then a diagram or a new picture.
 
 RHYTHM RULES
 1. Row 1 is always the hook picture: look flow, a prompt that shows the whole promise in one image (both sides of the contrast: the trainee facing the rival, the skinny guy beating the big guy, the person doing the thing). Never a card, a number or words on row 1.
-2. Direct EVERY row: give each one a look (and a prompt for flow). Blank looks are allowed only for sentences of 4 words or fewer that belong to the row before.
-3. About half the rows are pictures (flow, 3d, figure), half are diagrams. Never more than 4 diagram rows in a row; never more than 4 new pictures in a row without a diagram when the sentences have a shape for one.
+2. Direct the rows that matter, about half of them: the hook, each new exercise or muscle, every number, count, comparison, study, test step, call to action and the last line. Leave the other rows blank: the app picks a pose of the trainee doing the action, the trainee with the named part lit, the anatomy plate, the 3D body, a card from the sentence's shape, or a picture. Do not put flow on a row just to fill it.
+3. Mix the looks: pictures (flow), the app's trainee and poses (figure or blank), the 3D body (3d) and diagrams. Never more than 4 diagram rows in a row; never more than 3 flow rows in a row.
 4. Never the same card look on two rows in a row (slots → slots, stat → stat); "same" pictures re-framed are fine.
 5. 3d at most once in 6 rows, only when a muscle or exercise is named, and never two 3d rows in a row.
 6. Every spoken count ("three moves", "four moments") is a slots row; every promise of a later payoff is a promise row; every test the viewer does gets a picture of the test setup with its steps re-framed (the stopwatch comes by itself).
@@ -95,6 +97,7 @@ CHECK BEFORE YOU ANSWER
 - No card look on a sentence that lacks its shape (no number → no stat; no comparison → no versus).
 - Every on_screen word appears in its own sentence.
 - Every flow row has a prompt (or "same"); no prompt mentions text, numbers or logos.
+- About half the rows are blank (left to the app); no two close camera rows in a row.
 - 7 cells per row, commas inside cells are quoted.
 
 EXAMPLE
@@ -104,7 +107,7 @@ Your forearms decide how long you can hang. Squeeze the bar, hold for ten second
 CSV:
 text,chapter,look,prompt,muscle,camera,on_screen
 Your forearms decide how long you can hang.,Grip strength,flow,"the trainee hanging from a pull-up bar, front view, his forearm muscles painted glowing red",,wide,FOREARMS DECIDE
-"Squeeze the bar, hold for ten seconds, then rest.",,flow,same,,close red,SQUEEZE THE BAR
+"Squeeze the bar, hold for ten seconds, then rest.",,flow,same,,medium red,SQUEEZE THE BAR
 "Next, the dead hang.",The hang,3d,,forearms,,DEAD HANG
 
 SCRIPT

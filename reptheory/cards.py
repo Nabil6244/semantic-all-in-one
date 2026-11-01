@@ -18,19 +18,24 @@ def _ring(cv, ctx, cx, cy, r, frac, t, orbit=True):
         a = math.radians(-90 + 360 * ((t / 4.0) % 1.0)); ox, oy = c + rr * math.cos(a), c + rr * math.sin(a); q = int(ctx.px(9) * k); d.ellipse((ox - q, oy - q, ox + q, oy + q), fill=T.WHITE + (255,))
     lay = lay.resize((side // k, side // k), Image.LANCZOS); cv.paste(lay, (int(cx - side // (2 * k)), int(cy - side // (2 * k))), lay)
 
+def _roll(t: float, at: float) -> tuple:
+    """(progress 0..1, landing time) of a number that counts up from the scene's first frame and lands on its word: never an empty ring, never a number held before it is said."""
+    land_t = max(0.6, at + 0.2); return min(1.0, max(0.0, t / land_t)), land_t
+
 def stat(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
-    """The number the narration states, large inside a ring: seconds/minutes fill the ring like a timer, percents fill to that percent, counts (sets, reps, weeks, days) light one dot each."""
-    cx, cy, r = int(ctx.W * 0.30), int(ctx.H * 0.52), int(ctx.H * 0.22); p = max(0.0, (t - st["at"]) / 0.9); e = T.ease_out(p); v = st["value"]; mode = st["mode"]; d = ImageDraw.Draw(cv, "RGBA")
+    """The number the narration states, large inside a ring, counting up from the scene's start and landing on its word: seconds/minutes fill the ring like a timer, percents fill to
+    that percent, counts (sets, reps, weeks, days) light one dot each."""
+    cx, cy, r = int(ctx.W * 0.30), int(ctx.H * 0.52), int(ctx.H * 0.22); p, land_t = _roll(t, st["at"]); e = T.ease_in_out(p); v = st["value"]; mode = st["mode"]; d = ImageDraw.Draw(cv, "RGBA")
     if mode == "dots":
-        n = int(v); _ring(cv, ctx, cx, cy, r, 0.0, t, orbit=False)
-        for i in range(min(n, 12)):      # a dot per count, lit in turn
-            a = math.radians(-90 + 360 * i / max(1, min(n, 12))); lit = T.ease_back((t - st["at"] - 0.15 * i) / 0.4); q = int(ctx.px(17) * min(1.0, max(0.0, lit)))
+        n = int(v); _ring(cv, ctx, cx, cy, r, 0.0, t, orbit=False); k = min(n, 12)
+        for i in range(k):      # a dot per count, lit in turn up to the word
+            a = math.radians(-90 + 360 * i / max(1, k)); lit = T.ease_back((t - land_t * i / max(1, k)) / 0.3); q = int(ctx.px(17) * min(1.0, max(0.0, lit)))
             if q > 0: x, y = cx + r * math.cos(a), cy + r * math.sin(a); d.ellipse((x - q, y - q, x + q, y + q), fill=T.ORANGE + (255,))
     else: _ring(cv, ctx, cx, cy, r, (min(1.0, v / 100.0) if mode == "fill" else 1.0) * e, t)
     shown = v * e; txt = (f"{shown:.0f}" if abs(v - round(v)) < 1e-6 else f"{shown:.1f}"); f = ctx.font(T.HEAD_FONT, 190); w = D._text_w(d, txt, f, 0)
-    land = t - st["at"] - 0.9      # the number has reached what was said: it flips to orange and the ring throws a pulse
+    land = t - land_t      # the number has reached what was said: it flips to orange and the ring throws a pulse
     if 0 <= land < 0.7: q = T.ease_out(land / 0.7); rr = r * (1.0 + 0.35 * q); d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=T.ORANGE + (int(200 * (1 - q)),), width=ctx.px(6))
-    if t >= st["at"] - 0.1: D.text_spaced(d, (cx - w / 2, cy - ctx.px(122)), txt, f, (T.ORANGE if land >= 0 else T.WHITE) + (255,), 0)      # the number rolls in on its word, never a 0 the narrator did not say
+    D.text_spaced(d, (cx - w / 2, cy - ctx.px(122)), txt, f, (T.ORANGE if land >= 0 else T.WHITE) + (int(255 * min(1.0, t / 0.25)),), 0)
     u = ctx.font(T.BODY_FONT, 44); uw = D._text_w(d, st["unit"], u, ctx.px(4)); D.text_spaced(d, (cx - uw / 2, cy + ctx.px(76)), st["unit"], u, T.ORANGE + (255,), ctx.px(4))
 
 def steps(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ticks: bool = False) -> None:
@@ -173,21 +178,21 @@ def dial(cv: Image.Image, ctx: D.Ctx, dl: dict, t: float) -> None:
     for i in range(40):      # the scale: green to red
         f0 = i / 40; col = tuple(int(g + (rr - g) * f0) for g, rr in zip(GREEN, RED)); a0 = math.radians(180 + 180 * f0); a1 = math.radians(180 + 180 * (i + 0.8) / 40)
         d.arc((cx - r, cy - r, cx + r, cy + r), math.degrees(a0), math.degrees(a1), fill=col + (int(255 * a),), width=ctx.px(22))
-    p = T.ease_back(min(1.0, max(0.0, (t - dl["at"]) / 0.9))); v = dl["value"] * min(1.0, p); ang = math.radians(180 + 180 * v / dl["max"])
+    p, land_t = _roll(t, dl["at"]); v = dl["value"] * T.ease_in_out(p); ang = math.radians(180 + 180 * v / dl["max"])      # the needle swings up from the scene's start and lands on its word
     d.line((cx, cy, cx + (r - ctx.px(40)) * math.cos(ang), cy + (r - ctx.px(40)) * math.sin(ang)), fill=T.WHITE + (255,), width=ctx.px(8)); d.ellipse((cx - ctx.px(16), cy - ctx.px(16), cx + ctx.px(16), cy + ctx.px(16)), fill=T.WHITE + (255,))
-    land = t - dl["at"] - 0.9
+    land = t - land_t
     if 0 <= land < 0.7: q = T.ease_out(land / 0.7); rr = r * (1.0 + 0.15 * q); d.arc((cx - rr, cy - rr, cx + rr, cy + rr), 180, 360, fill=T.ORANGE + (int(200 * (1 - q)),), width=ctx.px(6))
-    _txt(d, ctx, (cx, cy + ctx.px(26)), f"{v:.0f}", 120, T.ORANGE if land >= 0 else T.WHITE, 1 if t >= dl["at"] - 0.1 else 0, centre=True); _txt(d, ctx, (cx, cy + ctx.px(160)), dl["label"], 34, T.GREY, a, head=False, centre=True)
+    _txt(d, ctx, (cx, cy + ctx.px(26)), f"{v:.0f}", 120, T.ORANGE if land >= 0 else T.WHITE, a, centre=True); _txt(d, ctx, (cx, cy + ctx.px(160)), dl["label"], 34, T.GREY, a, head=False, centre=True)
 
 def study(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     """The evidence: a stack of papers that fans in, its count rolling up to the stated number, what was studied under it."""
-    d = ImageDraw.Draw(cv, "RGBA"); cx, cy = int(ctx.W * 0.28), int(ctx.H * 0.52); w, h = int(ctx.H * 0.40), int(ctx.H * 0.52); p = (t - st["at"]) / 0.8
+    d = ImageDraw.Draw(cv, "RGBA"); cx, cy = int(ctx.W * 0.28), int(ctx.H * 0.52); w, h = int(ctx.H * 0.40), int(ctx.H * 0.52); p = t / 0.8; rp, _land = _roll(t, st["at"])      # papers fan in from the first frame, the count lands on its word
     for i in range(3, -1, -1):      # the papers fan in, back to front
         q = T.ease_out(min(1.0, max(0.0, p - 0.12 * i))); ang = (i - 1.5) * 4 * q; off = (i - 1.5) * ctx.px(26) * q
         card = Image.new("RGBA", (w, h), (0, 0, 0, 0)); dc = ImageDraw.Draw(card); dc.rounded_rectangle((0, 0, w - 1, h - 1), radius=ctx.px(16), fill=(236, 232, 224, int(255 * min(1, q * 2))))
         for k in range(3): dc.rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), fill=(170, 165, 158, int(255 * min(1, q * 2))))
         card = card.rotate(ang, resample=Image.BICUBIC, expand=True); cv.paste(card, (int(cx - card.width / 2 + off), int(cy - card.height / 2)), card)
-    d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_out(min(1.0, max(0.0, p))); v = st["value"] * e
+    d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_in_out(rp); v = st["value"] * e
     if st.get("year"): import datetime; y0 = datetime.date.today().year; v = y0 + (st["value"] - y0) * e      # a year rolls back from today to the one stated
     _txt(d, ctx, (cx, cy - h / 2 + ctx.px(24)), st["kind"], 32, T.ORANGE_DEEP, min(1, p * 2), head=False, centre=True)
     _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, (60, 60, 62), min(1, p * 2), head=False, centre=True)
@@ -279,14 +284,20 @@ def engage(cv: Image.Image, ctx: D.Ctx, en: dict, t: float) -> None:
         bw, bh = int(ctx.W * 0.62), ctx.px(230); x0, y0 = (ctx.W - bw) // 2, int(ctx.H * 0.36); e = T.ease_back(min(1.0, t / 0.5)); y0 += int((1 - e) * 40 * ctx.S)
         d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(22), fill=(28, 28, 31, int(255 * a)), outline=T.DIM + (int(255 * a),), width=ctx.px(3))
         r = ctx.px(40); d.ellipse((x0 + ctx.px(40), y0 + ctx.px(40), x0 + ctx.px(40) + 2 * r, y0 + ctx.px(40) + 2 * r), fill=T.ORANGE + (int(255 * a),)); _txt(d, ctx, (x0 + ctx.px(150), y0 + ctx.px(44)), "YOU", 30, T.GREY, a, head=False)
-        txt = en["text"]; k = int((t - at - 0.6) / 0.045)
-        if t < at + 0.6:      # typing dots before the words come
+        txt = en["text"]; k = int((t - at - 0.35) / 0.03)
+        if t < at + 0.35:      # typing dots before the words come
             for j in range(3): q = 0.5 + 0.5 * math.sin((t * 6) - j * 0.9); rr = ctx.px(9); cx, cy = x0 + ctx.px(170) + j * ctx.px(34), y0 + ctx.px(130); d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=T.SOFT_WHITE + (int(255 * a * q),))
         else:
             typed = txt[:max(0, min(len(txt), k))]; f = ctx.font(T.HEAD_FONT, 50); lines = _wrap_lines(d, typed, f, bw - ctx.px(200)); yy = y0 + ctx.px(96)
             for ln in lines[:2]: _txt(d, ctx, (x0 + ctx.px(150), yy), ln, 50, T.WHITE, 1); yy += ctx.px(60)
-            if len(typed) == len(txt) and txt: hp = T.ease_out((t - at - 0.6 - len(txt) * 0.045) / 0.4); d.rectangle((x0, y0 + bh - ctx.px(10), x0 + int(bw * hp), y0 + bh), fill=T.ORANGE + (255,))
+            if len(typed) == len(txt) and txt: hp = T.ease_out((t - at - 0.35 - len(txt) * 0.03) / 0.3); d.rectangle((x0, y0 + bh - ctx.px(10), x0 + int(bw * hp), y0 + bh), fill=T.ORANGE + (255,))
         _txt(d, ctx, (ctx.W / 2, y0 + bh + ctx.px(40)), "COMMENT BELOW", 34, T.ORANGE, a, head=False, centre=True)
+        return
+    if en["kind"] == "link":      # "it's linked below": the link button drops in with an arrow pointing down to the description
+        e = T.ease_back(min(1.0, max(0.0, (t - at) / 0.5))); f = ctx.font(T.HEAD_FONT, 60); label = "LINK IN DESCRIPTION"; w = D._text_w(d, label, f, ctx.px(1)) + ctx.px(120); h = ctx.px(120)
+        cx, cy = ctx.W / 2, ctx.H * 0.42 - (1 - e) * ctx.px(60); d.rounded_rectangle((cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2), radius=h // 2, fill=(28, 28, 31, int(255 * a)), outline=T.ORANGE + (int(255 * min(1.0, e)),), width=ctx.px(4))
+        _txt(d, ctx, (cx, cy - ctx.px(38)), label, 60, T.WHITE, a, centre=True); bob = math.sin(t * 5) * ctx.px(10); ay = cy + h / 2 + ctx.px(60) + bob; s_ = ctx.px(34)
+        if t >= at: d.polygon([(cx - s_, ay), (cx + s_, ay), (cx, ay + s_ * 1.2)], fill=T.ORANGE + (255,)); d.rectangle((cx - ctx.px(9), ay - ctx.px(60), cx + ctx.px(9), ay), fill=T.ORANGE + (255,))
         return
     on = t >= at + 0.25; press = 1.0 - 0.12 * math.sin(math.pi * min(1.0, max(0.0, (t - at) / 0.25))) if t >= at else 1.0
     label = ("LIKED" if on else "LIKE") if en["kind"] == "like" else ("SUBSCRIBED" if on else "SUBSCRIBE"); f = ctx.font(T.HEAD_FONT, 72); w = (D._text_w(d, label, f, ctx.px(1)) + ctx.px(140)) * press; h = ctx.px(140) * press
@@ -357,7 +368,7 @@ def slots(cv: Image.Image, ctx: D.Ctx, sl: dict, t: float) -> None:
     live = [i for i, it in enumerate(sl["items"]) if t >= it["at"]]
     for i, it in enumerate(sl["items"]):
         box = (int(x0 + i * (bw + gap)), y0, int(x0 + i * (bw + gap) + bw), y0 + bh); p = (t - it["at"]) / 0.45
-        if p <= 0: _dashed_box(d, box, T.DIM + (int(255 * a),), ctx.px(3), ctx.px(12)); continue
+        if p <= 0: _dashed_box(d, box, (118, 118, 124, int(255 * a)), ctx.px(3), ctx.px(12)); continue      # an empty slot waiting for its item: visible, not black on black
         e = T.ease_back(min(1.0, p)); cur = live and i == live[-1]; s = 0.85 + 0.15 * e; cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2; w2, h2 = bw * s / 2, bh * s / 2
         d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(14), fill=(24, 24, 27, 255), outline=(T.RED if cur else (70, 70, 74)) + (255,), width=ctx.px(5 if cur else 3))
         dim = 1.0 if cur else 0.55
@@ -378,12 +389,12 @@ def race(cv: Image.Image, ctx: D.Ctx, rc: dict, t: float) -> None:
     if st > 0: r = ctx.px(40) * T.ease_back(min(1.0, st)); cx, cy = xs - ctx.px(80), (ys[0] + ys[1]) / 2; d.regular_polygon((cx, cy, r), 12, fill=T.RED + (255,)); _txt(d, ctx, (cx, cy - ctx.px(20)), "GO", 34, T.WHITE, 1, centre=True)
     for k, (lane, y) in enumerate(zip((rc["fast"], rc["slow"]), ys)):
         d.rounded_rectangle((xs, y - h / 2, xf, y + h / 2), radius=h // 2, fill=(30, 30, 33, int(255 * a)))
-        reach = T.ease_in_out(max(0.0, (t - rc["at"]) / 0.9)) if k == 0 else 0.6 * T.ease_in_out(max(0.0, (t - rc["at"]) / 1.2)) + 0.4 * T.ease_in_out(max(0.0, (t - max(rc["at"] + 1.2, lane["at"])) / 1.5))      # the slow one is still on its way when the fast one has arrived
+        reach = T.ease_in_out(max(0.0, (t - rc["at"]) / 0.7)) if k == 0 else 0.6 * T.ease_in_out(max(0.0, (t - rc["at"]) / 0.9)) + 0.4 * T.ease_in_out(max(0.0, (t - max(rc["at"] + 0.9, lane["at"])) / 0.8))      # the slow one is still on its way when the fast one has arrived
         x = xs + (xf - xs) * min(1.0, reach)
         if x > xs + h: d.rounded_rectangle((xs, y - h / 2, x, y + h / 2), radius=h // 2, fill=(T.RED if k == 0 else (150, 150, 150)) + (255,))
         lw = D._text_w(d, lane["text"], ctx.font(T.HEAD_FONT, 28), ctx.px(1)); _txt(d, ctx, (max(xs + ctx.px(20), x - lw - ctx.px(24)), y - ctx.px(17)), lane["text"], 28, T.WHITE if k == 0 else (30, 30, 32), 1 if x > xs + lw + ctx.px(40) else 0, head=False)
-        if k == 0 and reach >= 1: p = min(1.0, (t - rc["at"] - 0.9) / 0.3); d.line((xf + ctx.px(26), y, xf + ctx.px(40), y + ctx.px(16) * p), fill=GREEN + (255,), width=ctx.px(7)); d.line((xf + ctx.px(40), y + ctx.px(16), xf + ctx.px(40) + ctx.px(26) * p, y - ctx.px(22) * p), fill=GREEN + (255,), width=ctx.px(7))
-        if k == 1 and t >= lane["at"] and reach < 1: D.pill(cv, ctx, xf / ctx.S - 150, y + ctx.px(40), "LATE", min(1.0, (t - lane["at"]) / 0.4))
+        if k == 0 and reach >= 1: p = min(1.0, (t - rc["at"] - 0.7) / 0.3); d.line((xf + ctx.px(26), y, xf + ctx.px(40), y + ctx.px(16) * p), fill=GREEN + (255,), width=ctx.px(7)); d.line((xf + ctx.px(40), y + ctx.px(16), xf + ctx.px(40) + ctx.px(26) * p, y - ctx.px(22) * p), fill=GREEN + (255,), width=ctx.px(7))
+        if k == 1 and t >= lane["at"]: D.pill(cv, ctx, xf - ctx.px(150), y + ctx.px(40), "LATE", min(1.0, (t - lane["at"]) / 0.4))      # from the slow word on, also after the lane arrives
 
 def formula(cv: Image.Image, ctx: D.Ctx, fm: dict, t: float) -> None:
     """A claim as a formula ("a big bicep can't save you" -> BIG BICEP ≠ SAFE... built only from the sentence's words): left side, the sign slams in, right side, each on its word."""
@@ -419,10 +430,22 @@ def mechanism(cv: Image.Image, ctx: D.Ctx, mc: dict, t: float) -> None:
     for lab, x in (("muscle", (m0 + m1) / 2), ("tendon", (m1 + tx1) / 2), ("bone", xb)):
         at = mc["labels"].get(lab)
         if at is not None: _txt(d, ctx, (x, cy + ctx.px(210)), lab.upper(), 32, T.SOFT_WHITE, (t - at) / 0.4, head=False, centre=True)
-    if pull > 0.05: D.pill(cv, ctx, (m0 + m1) / 2 / ctx.S - 50, cy - mh - ctx.px(80), "PULLS", min(1.0, pull * 2))
+    if pull > 0.05: D.pill(cv, ctx, (m0 + m1) / 2 - ctx.px(50), cy - mh - ctx.px(80), "PULLS", min(1.0, pull * 2))
 
 def promise(cv: Image.Image, ctx: D.Ctx, pr: dict, t: float) -> None:
     """A payoff promised for later ("I'll show you what 8 out of 10 had in common"): M cells, N of them turn into red question marks on the number, then a lock closes over them."""
+    if not pr["n"]:      # promised without a share: the board it will fill, blurred and locked, with what is promised under it
+        d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.35); bw, bh = int(ctx.W * 0.42), ctx.px(72); x0 = (ctx.W - bw) // 2; y0 = int(ctx.H * 0.30)
+        for k, col in enumerate(((232, 64, 52), (250, 160, 40), (250, 210, 60), (74, 222, 128))):
+            q = min(1.0, max(0.0, (t - pr["at"] - 0.12 * k) / 0.4)); d.rounded_rectangle((x0, y0 + k * (bh + ctx.px(16)), x0 + bw, y0 + k * (bh + ctx.px(16)) + bh), radius=ctx.px(12), fill=(30, 30, 33, int(230 * a)), outline=col + (int(150 * q),), width=ctx.px(3))
+            d.rectangle((x0 + ctx.px(24), y0 + k * (bh + ctx.px(16)) + ctx.px(26), x0 + int(bw * 0.45), y0 + k * (bh + ctx.px(16)) + ctx.px(44)), fill=col + (int(70 * q),))
+        lk = (t - pr["at"] - 0.6) / 0.4
+        if lk > 0:
+            e = T.ease_back(min(1.0, lk)); x, yy, s = ctx.W // 2, y0 + 2 * (bh + ctx.px(16)) - ctx.px(10), ctx.px(46) * e
+            d.arc((x - s * 0.7, yy - s * 1.4, x + s * 0.7, yy + s * 0.2), 180, 360, fill=T.RED + (255,), width=ctx.px(9)); d.rounded_rectangle((x - s, yy - s * 0.4, x + s, yy + s * 1.1), radius=ctx.px(6), fill=T.RED + (255,))
+        _txt(d, ctx, (ctx.W / 2, ctx.H * 0.20), "AT THE END", 34, T.ORANGE, a, head=False, centre=True)
+        if pr.get("label"): _txt(d, ctx, (ctx.W / 2, y0 + 4 * (bh + ctx.px(16)) + ctx.px(20)), pr["label"], 40, T.WHITE, min(1, max(0.0, (t - pr["at"]) / 0.4)), centre=True)
+        return
     d = ImageDraw.Draw(cv, "RGBA"); n, m = pr["n"], pr["of"]; a = min(1.0, t / 0.35); cw = min(ctx.px(110), int(ctx.W * 0.78 / m) - ctx.px(14)); gap = ctx.px(14); x0 = (ctx.W - (m * cw + (m - 1) * gap)) / 2; y = int(ctx.H * 0.56)
     q = (t - pr["at"]) / 0.9
     for i in range(m):
@@ -442,7 +465,27 @@ def stopwatch(cv: Image.Image, ctx: D.Ctx, sw: dict, t_abs: float) -> None:
     """The viewer's timed hold: a stopwatch top right counting real seconds from its start word, frozen and red once the clock is stopped."""
     if t_abs < sw["start"] or t_abs > sw["end"]: return
     d = ImageDraw.Draw(cv, "RGBA"); stopped = sw.get("stop") is not None and t_abs >= sw["stop"]; secs = (min(t_abs, sw["stop"]) if stopped else t_abs) - sw["start"]
-    a = min(1.0, (t_abs - sw["start"]) / 0.3, (sw["end"] - t_abs) / 0.3); cx, cy, r = int(ctx.W * 0.92), int(ctx.H * 0.12), ctx.px(54); col = T.RED if stopped else T.WHITE
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(80, 80, 84, int(255 * a)), width=ctx.px(5)); d.rectangle((cx - ctx.px(9), cy - r - ctx.px(18), cx + ctx.px(9), cy - r - ctx.px(6)), fill=(160, 160, 164, int(255 * a)))
-    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (secs % 60) / 60, fill=(T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(7))
-    _txt(d, ctx, (cx, cy - ctx.px(20)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 34, col, a, centre=True)
+    a = min(1.0, (t_abs - sw["start"]) / 0.3, (sw["end"] - t_abs) / 0.3); cx, cy, r = int(ctx.W * 0.91), int(ctx.H * 0.27), ctx.px(88); col = T.RED if stopped else T.WHITE      # below the NEXT teaser pill
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(14, 14, 16, int(200 * a)), outline=(80, 80, 84, int(255 * a)), width=ctx.px(7)); d.rectangle((cx - ctx.px(14), cy - r - ctx.px(26), cx + ctx.px(14), cy - r - ctx.px(8)), fill=(160, 160, 164, int(255 * a)))
+    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (secs % 60) / 60, fill=(T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(10))
+    _txt(d, ctx, (cx, cy - ctx.px(31)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 52, col, a, centre=True)
+
+def _panels_done(c) -> float:
+    ts = [x["at"] for x in (c.values() if isinstance(c, dict) else []) if isinstance(x, dict) and "at" in x]
+    return (max(ts) if ts else 0.0) + 0.5
+
+def _last(items) -> float: return max((i["at"] for i in items), default=0.0)
+
+CARD_DONE = {      # card look -> function(card payload with absolute times) -> absolute time its animation has finished (variety keeps the scene on screen until then + a short hold)
+    "race": lambda c: max(c["at"] + 0.9, c["slow"]["at"]) + 0.8,
+    "slots": lambda c: _last(c["items"]) + 0.45,
+    "engage": lambda c: c["at"] + 0.35 + 0.03 * len(c.get("text") or "") + 0.3 if c.get("kind") == "comment" else c["at"] + 0.6,
+    "promise": lambda c: c["at"] + (1.4 if c.get("n") else 1.0),
+    "study": lambda c: c["at"] + 0.2, "stat": lambda c: c["at"] + 0.3, "dial": lambda c: c["at"] + 0.3,
+    "checklist": lambda c: _last(c["items"]) + 0.5, "timeline": lambda c: _last(c["items"]) + 0.5,
+    "steps": lambda c: _last(c if isinstance(c, list) else c.get("items", [])) + 0.5,
+    "mechanism": lambda c: (c.get("pull_at") if c.get("pull_at") is not None else c["at"]) + 0.8,
+    "formula": lambda c: c["b"]["at"] + 0.4, "versus": lambda c: c["b"]["at"] + 0.5,
+    "mistake": _panels_done, "myth": _panels_done,
+    "question": lambda c: c["at"] + 1.0 + 0.03 * len(c.get("text") or ""),      # dots 0.45 s, typing, then the marker swipe
+}

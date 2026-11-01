@@ -64,6 +64,26 @@ def _tokens(t: str) -> List[str]:
     return _TOK.findall(t.lower())
 
 
+_ONES = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split())}
+_TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
+
+
+def _match_tokens(t: str) -> List[str]:
+    """Tokens as the aligner compares them: apostrophes dropped ("I'll" in the script, "ill" in a transcript), number words as digits ("seventy-four" = "74",
+    "twelve-week" = "12 week"), so a sentence that opens with a contraction or a spelled number no longer starts one word late (render 053: "I'll show you" lost "I'll")."""
+    toks = [re.sub(r"'s$", "", tk).replace("'", "") for tk in _tokens(t)]; out: List[str] = []; i = 0      # "it's" -> "it": transcripts often drop the 's
+    while i < len(toks):
+        tk = toks[i]
+        if tk in _TENS:
+            v = _TENS[tk]
+            if i + 1 < len(toks) and toks[i + 1] in _ONES and 0 < _ONES[toks[i + 1]] < 10: v += _ONES[toks[i + 1]]; i += 1
+            out.append(str(v))
+        elif tk in _ONES: out.append(str(_ONES[tk]))
+        elif tk: out.append(tk)
+        i += 1
+    return out
+
+
 def parse_time(raw: str, where: str) -> float:
     """'12.5', '1:02', '1:02.5' or '0:01:02.5' -> seconds."""
     s = (raw or "").strip()
@@ -333,12 +353,12 @@ def align_to_words(rows: Sequence[dict], words: Sequence[Any], total_s: float = 
         raise ValueError("the voiceover has no recognised words to align the scenes CSV to")
     wtok, widx = [], []                                   # transcript tokens -> index of the word they came from
     for i, w in enumerate(wl):
-        for tk in _tokens(w["w"]):
+        for tk in _match_tokens(w["w"]):
             wtok.append(tk)
             widx.append(i)
     stok, srow = [], []
     for r_i, r in enumerate(rows):
-        for tk in _tokens(r["text"]):
+        for tk in _match_tokens(r["text"]):
             stok.append(tk)
             srow.append(r_i)
     if not stok:

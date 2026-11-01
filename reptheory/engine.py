@@ -5,10 +5,13 @@ import json, os, subprocess, threading, time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from PIL import Image
+
 from . import cadence as C, draw as D, library as L, planner as P, scenes as S, theme as T
 
 class Cancelled(Exception): pass
 TRANSITION_S = 0.45
+CUT_S = 0.12      # render final 3: a 0.45 s blur on every cut left 13-28% of each 2-4 s scene out of focus; the reference cuts hard, with a sound
 NOT_IMPLEMENTED = ["tier list with more than one ranked item per video", "before/after comparison scene", "word-level timing from the transcript when the scenes file has none (words are spread by length inside each sentence)"]
 
 def _ff() -> str:
@@ -92,6 +95,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     log(f"[REP THEORY GATE] {G.summary(G.repair(scenes, flow=illustrate))}")      # plan-only quality check + repair (reptheory/gate.py): milliseconds, before anything is drawn
     scenes = P.never_empty(scenes)      # after every look is chosen: no scene renders with nothing on it
     log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
+    log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")      # plan-only (gate.py)
     from . import blueprint as BP
     log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
@@ -134,8 +138,10 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
                 if tc < TRANSITION_S: cv = S.transition(S.frame(ctx, sc, t, tag=False), cv, tc / TRANSITION_S, ctx)
                 proc.stdin.write(cv.tobytes()); continue
             img = S.frame(ctx, sc, t, tag=False)
-            if cur and t < TRANSITION_S:      # push transition into the next scene; the section tag is drawn once, over both
-                outgoing = S.frame(ctx, scenes[cur - 1], scenes[cur - 1]["end"] - scenes[cur - 1]["start"] + t, tag=False); img = S.transition(outgoing, img, t / TRANSITION_S, ctx)
+            dur_tr = TRANSITION_S if changed else CUT_S      # a new chapter gets the focus pull; every other scene change is a clean cut (a 3-frame dissolve) so each shot is sharp from its start
+            if cur and t < dur_tr:      # the section tag is drawn once, over both
+                outgoing = S.frame(ctx, scenes[cur - 1], scenes[cur - 1]["end"] - scenes[cur - 1]["start"] + t, tag=False)
+                img = S.transition(outgoing, img, t / dur_tr, ctx) if changed else Image.blend(outgoing, img, t / dur_tr)
             D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
             proc.stdin.write(img.tobytes())
             if f % 24 == 0: prog(f / n_frames, f"scene {sc['no']}/{len(scenes)}: {sc['kind']}")
