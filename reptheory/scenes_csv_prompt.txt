@@ -14,9 +14,9 @@ Never invent a number, a rep count, a study, a ranking or a name: the video show
 The other columns are your direction. A blank cell leaves that choice to the app.
 
 HEADER (exactly this, in this order)
-text,chapter,look,prompt,muscle,camera,on_screen
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
 
-Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas). Every row has exactly 7 cells.
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas). Every row has exactly 9 cells.
 
 COLUMNS
 - text: one script sentence, word for word, punctuation included.
@@ -26,6 +26,8 @@ COLUMNS
 - muscle: for a 3d look only: the muscle or exercise to light on the 3D body: biceps, triceps, shoulders, chest, lats, upper back, rotator cuff, core, lower back, glutes, quads, hamstrings, calves, shins, forearms, hip flexors, neck, or an exercise (push-up, pull-up, squat, deadlift, plank, curl).
 - camera: for a picture only, how it is framed: wide, medium or close, optionally with where to look: left, right, top, bottom, or red (the part painted red). Examples: "wide", "medium red", "close red". Empty = wide for a new picture, medium for a "same" picture.
   Use close only when the part is small in the picture (a hand, a wrist, a face); never on two rows in a row. Most rows should be wide or medium: the whole person must stay readable.
+- section: which part of the video the row is in, on the first row of each part (empty on the others is fine): hook, why (why it works, science, proof), unit (how to do a step / move / link), warning (safety, risk, the mistakes), plan (routine, how often, the week), result (the test's payoff, the close). The app picks the kind of graphic that suits each part: pictures of the trainee for units, diagrams for why, anatomy and warning cards for warnings, calendars and lists for the plan.
+- graphic: a graphic you spell out in one line. Today: the progression chain, on the row that announces the journey ("Seven links from the plank to the planche."): chain: <unit 1 name> <target> | <unit 2 name> <target> | WARNING <unit name> | ... e.g. "chain: plank 30s | lean 3x15s | frog stand 30s | WARNING tendons | lift-off 6x2s | tuck planche 10s | full planche". Use the script's own words for the names and only the targets the script states. The app shows the chain at the start of every unit (done ticked, the current one lit, later ones locked) and once more at the end. Leave it empty if the script has no numbered units.
 - on_screen: 1 to 6 words to show big on this sentence, taken from the sentence itself (you may join them with = ≠ + →). Examples: "LATE LOSES", "STIFF = FAST", "PALM UP", "3 SECONDS". Every word must be in the sentence or the app ignores the cell. Leave it empty when nothing short says it better than the picture.
 
 LOOKS (use a card look ONLY when the sentence has its shape; never force one)
@@ -98,17 +100,18 @@ CHECK BEFORE YOU ANSWER
 - Every on_screen word appears in its own sentence.
 - Every flow row has a prompt (or "same"); no prompt mentions text, numbers or logos.
 - About half the rows are blank (left to the app); no two close camera rows in a row.
-- 7 cells per row, commas inside cells are quoted.
+- 9 cells per row, commas inside cells are quoted.
+- If the script walks through numbered units (link / move / step / level 1, 2, 3 ...), each unit is a chapter, its first row has section unit, and the row that announces them has the chain in graphic.
 
 EXAMPLE
 Script:
 Your forearms decide how long you can hang. Squeeze the bar, hold for ten seconds, then rest. Next, the dead hang.
 
 CSV:
-text,chapter,look,prompt,muscle,camera,on_screen
-Your forearms decide how long you can hang.,Grip strength,flow,"the trainee hanging from a pull-up bar, front view, his forearm muscles painted glowing red",,wide,FOREARMS DECIDE
-"Squeeze the bar, hold for ten seconds, then rest.",,flow,same,,medium red,SQUEEZE THE BAR
-"Next, the dead hang.",The hang,3d,,forearms,,DEAD HANG
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+Your forearms decide how long you can hang.,Grip strength,flow,"the trainee hanging from a pull-up bar, front view, his forearm muscles painted glowing red",,wide,FOREARMS DECIDE,hook,
+"Squeeze the bar, hold for ten seconds, then rest.",,flow,same,,medium red,SQUEEZE THE BAR,unit,
+"Next, the dead hang.",The hang,3d,,forearms,,DEAD HANG,,
 
 SCRIPT
 <<<PASTE THE SCRIPT HERE>>>

@@ -95,8 +95,12 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     log(f"[REP THEORY GATE] {G.summary(G.repair(scenes, flow=illustrate))}")      # plan-only quality check + repair (reptheory/gate.py): milliseconds, before anything is drawn
     scenes = P.never_empty(scenes)      # after every look is chosen: no scene renders with nothing on it
     log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
-    log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")      # plan-only (gate.py)
+    log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")
+    from . import meters as MT
+    log(f"[REP THEORY METERS] {MT.plan(scenes)} load meter / effort bar overlay(s)")      # meters.py      # plan-only (gate.py)
     from . import blueprint as BP
+    from . import chain as CH
+    log(f"[REP THEORY CHAIN] {CH.plan(scenes)} chain moment(s) from the script's numbered units")      # the spine (chain.py)
     log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3
@@ -110,7 +114,9 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
         try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts, chosen=table, generate_missing=table is None)}")      # after Generate scenes, a missing picture is retried in the Visuals tab, never here
         except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
     from . import picture as PIC
-    log(f"[REP THEORY PICTURES] full-frame framing planned; {PIC.plan(scenes)} shot(s) re-frame the picture before them")      # camera, re-framing, red reveal (reptheory/picture.py)
+    log(f"[REP THEORY PICTURES] full-frame framing planned; {PIC.plan(scenes)} shot(s) re-frame the picture before them")
+    plain = [sc for sc in scenes if sc["kind"] in ("callout", "takeaway") or (sc["kind"] == "illus" and not PIC.cue_count(sc))]      # coverage report: what no graphic acted out
+    log(f"[REP THEORY COVERAGE] {len(scenes) - len(plain)}/{len(scenes)} scenes act their sentence out; plain: " + " | ".join(f"{sc['no']}: {sc.get('text', '')[:60]}" for sc in plain[:12]))      # camera, re-framing, red reveal (reptheory/picture.py)
     for sc in scenes: log(f"scene {sc['no']} {sc['start']:.1f}-{sc['end']:.1f}s {sc['kind']} ({sc['art'] or 'no art'}): {'; '.join(sc['decisions'][:2])}")
     end_s = scenes[-1]["end"] if not max_seconds else min(scenes[-1]["end"], max_seconds); n_narr = round(end_s * T.FPS); ctx = D.Ctx(W, H)
     card = None if max_seconds else end_card_config(end_card, title, log)      # optional: off (None / not enabled) keeps the ending exactly as it was

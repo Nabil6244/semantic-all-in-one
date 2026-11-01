@@ -10,11 +10,11 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from . import clip3d as C3, lexicon as LX, narrative as N, planner as P
+from . import clip3d as C3, lexicon as LX, meters as M, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
 FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")      # cards that fill the frame; the narration's next phrase follows in a caption strip
-SIDE_CARDS = ("stat", "dial", "study", "graph", "bars")      # cards on the left, the beat's words as callouts on the right
+SIDE_CARDS = ("stat", "dial", "study", "graph", "bars", "tokens", "share")      # cards on the left, the beat's words as callouts on the right
 CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
 TIME_UNITS = {"S", "SEC", "MIN", "H", "HR"}; COUNT_UNITS = {"SET", "REP", "WEEK", "DAY", "TIME", "ROUND", "X"}
@@ -423,7 +423,7 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if g: ev["3d"] = (0.7 if by_ex else 0.9, None)
     for look, fn, base in (("timeline", lambda: _timeline(sc, text), 0.95), ("mistake", lambda: _mistake(sc, text), 0.9), ("slider", lambda: _slider(sc, text), 0.9),
                            ("dial", lambda: _dial(sc, text), 0.9), ("study", lambda: _study(sc, text), 0.88), ("result", lambda: _result(sc, text), 0.95), ("calendar", lambda: _calendar(sc, text), 0.9),
-                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("slots", lambda: _slots(sc, text), 0.93), ("race", lambda: _race(sc, text), 0.9), ("formula", lambda: _formula(sc, text), 0.86), ("mechanism", lambda: _mechanism(sc, text), 0.92), ("promise", lambda: _promise(sc, text), 0.94), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
+                           ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("tokens", lambda: M.tokens(sc, text), 0.91), ("share", lambda: M.share(sc, text), 0.92), ("slots", lambda: _slots(sc, text), 0.93), ("race", lambda: _race(sc, text), 0.9), ("formula", lambda: _formula(sc, text), 0.86), ("mechanism", lambda: _mechanism(sc, text), 0.92), ("promise", lambda: _promise(sc, text), 0.94), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
         if got: ev[look] = (base - (0.6 if look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)      # a card whose first element comes late would sit empty on screen
     if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
@@ -584,6 +584,31 @@ def _neighbour_picture(scenes: List[dict], i: int) -> Optional[dict]:
         return nb
     return None
 
+UNIT_RX = re.compile(r"^(LINK|MOVE|MOMENT|STEP|LEVEL|HOLD|PHASE|STAGE|EXERCISE|DRILL)\s+(\d+|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\b", re.I)
+WHY_RX = re.compile(r"\b(because|the reason|that's why|which is why|physics|lever|researchers?|stud(?:y|ies)|in plain words|works like|it's like|means that|depends on)\b", re.I)
+WARN_PART_RX = re.compile(r"\b(warning|injur\w*|hurts?|pain|tendons? (?:can|get)|danger\w*|careful|too fast|too soon)\b", re.I)
+PLAN_RX = re.compile(r"\b(plan|schedule|routine|days? a week|times a week|each session|every session|your week|program(?:me)?)\b", re.I)
+RESULT_RX = re.compile(r"\b(your (?:result|score|time|number)|if you (?:held|got|managed)|under \d+|start (?:at|on) (?:link|level|step|move))\b", re.I)
+SECTION_BOOST = {      # look -> score nudge per part of the video
+    "howto": {"pose": 0.15, "flow": 0.10, "stock": 0.10, "sketch": 0.10, "timeline": 0.05, "stat": 0.05},
+    "why": {"graph": 0.15, "bars": 0.15, "formula": 0.15, "mechanism": 0.15, "study": 0.10, "versus": 0.10, "race": 0.10, "equation": 0.10, "dial": 0.05, "flow": -0.10},
+    "warning": {"warning": 0.15, "mistake": 0.15, "3d": 0.10, "myth": 0.10, "flow": -0.05},
+    "plan": {"calendar": 0.15, "checklist": 0.15, "steps": 0.15, "stat": 0.10, "slots": 0.10},
+    "result": {"result": 0.15, "engage": 0.10, "stat": 0.10},
+}
+
+def section_kind(sc: dict) -> str:
+    """Which part of the video a scene is in: a how-to unit (its section is a numbered link / move / step ...), else by what its sentence does: why it works,
+    a warning, the plan, the result; "" when it is none of them."""
+    if sc.get("section_csv") in SECTION_BOOST: return sc["section_csv"]      # the CSV said so
+    text = sc.get("script_text") or sc.get("text", ""); sec = (sc.get("section") or "").strip()
+    if WARN_PART_RX.search(text) or "WARNING" in sec.upper(): return "warning"
+    if RESULT_RX.search(text) or "RESULT" in sec.upper(): return "result"
+    if PLAN_RX.search(text) or re.search(r"\bPLAN\b|\bWEEK\b|SCHEDULE", sec, re.I): return "plan"
+    if WHY_RX.search(text): return "why"
+    if UNIT_RX.match(sec): return "howto"
+    return ""
+
 def split_for_cards(scenes: List[dict]) -> int:
     """A text scene that joins several sentences, where a later sentence has a card of its own ("The most common mistake is ...") that would otherwise show late or not at all,
     is cut at that sentence's first word, so each part gets the picture its own words support. Returns how many cuts were made."""
@@ -641,7 +666,12 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         if not flow or flows >= max_flow: ev.pop("flow", None)
         elif "flow" in ev and (i == 0 or roles.get(i, "") not in ("claim", "hook") or sc.get("section") in keyline_parts or not 3 <= len(sc.get("words") or []) <= 10 or sc["end"] - sc["start"] > 4.0):      # with pictures on, words alone
             ev.pop("takeaway", None)      # only as one short key line a chapter (never the opening, never long enough to sit still); without Flow the takeaway card stays as it was
-        ev["stock"] = (0.1 if stale else 0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []      # the figure with the named part lit already shows the words; a plate just seen is the last resort
+        ev["stock"] = (0.1 if stale else 0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []
+        part = section_kind(sc)
+        if part:      # the part of the video decides what kind of graphic suits it (docs/rep_theory/HOW_THE_CHANNEL_EDITS.md section 2): a small nudge, never a ban
+            for lk, b in SECTION_BOOST[part].items():
+                if lk in ev: ev[lk] = (ev[lk][0] + b, ev[lk][1])
+            sc["section_kind"] = part      # the figure with the named part lit already shows the words; a plate just seen is the last resort
         if stale: sc["decisions"].append(f"anatomy plate {sc['art']} was on screen in the last {PLATE_GAP_S:.0f} s: a new look")
         for look, (base, payload) in ev.items():
             if look == "flow":      # a new picture each time, so a run of them is allowed, but it is one look in the rotation: a pose for the action, the figure with the part lit,

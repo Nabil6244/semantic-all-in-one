@@ -109,7 +109,7 @@ def apply(scenes: List[dict], art_ok: Callable[[str], bool], log: Callable[[str]
 
 # ---------------------------------------------------------------- cadence (Step 3)
 FILL_GAP_S, EDGE_S = 3.0, 0.6      # a scene never goes this long without something new; a new phrase never lands this close to the change before or after it
-PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
+PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
 
 def _clauses(ws: List[dict]) -> List[List[dict]]:
     out, cur = [], []
@@ -165,6 +165,9 @@ def stamps(scenes: List[dict]) -> int:
 
 CLOCK_START = re.compile(r"\b(?:hold (?:it|that|this|them) (?:there|still|as long as you can)|as long as you can|start (?:the|a|your) (?:clock|timer|stopwatch)|time (?:how long|yourself)|hold for (?:\w+ )?seconds)\b", re.I)
 CLOCK_STOP = re.compile(r"\bstop (?:the|your) (?:clock|timer|stopwatch)\b", re.I)
+TARGET_RX = re.compile(r"\b(?:for|hold(?: it)?(?: for)?|aim for|reach|up to)\s+(\d+|ten|fifteen|twenty|thirty|forty|forty-five|sixty)\s*(?:seconds?|secs?|s)\b", re.I)
+_SECW = {"ten": 10, "fifteen": 15, "twenty": 20, "thirty": 30, "forty": 40, "forty-five": 45, "sixty": 60}
+def _secs(w: str) -> int: return int(w) if w.isdigit() else _SECW.get(w.lower(), 0)
 CLOCK_MAX_S = 40.0      # a stopwatch with no "stop the clock" runs at most this long
 
 def _word_time(sc: dict, pos: int) -> float:
@@ -184,7 +187,8 @@ def stopwatch(scenes: List[dict]) -> int:
             ms = CLOCK_STOP.search(sc.get("text", ""))
             if ms and _word_time(sc, ms.start()) > t0: t1 = _word_time(sc, ms.start()); break
         end = (t1 + 1.6) if t1 else t0 + min(CLOCK_MAX_S, 12.0); k = i
-        while k < len(scenes) and scenes[k]["start"] < end: scenes[k]["stopwatch"] = {"start": t0, "stop": t1, "end": end}; k += 1
+        tm = TARGET_RX.search(" ".join(x.get("text", "") for x in scenes[max(0, i - 1):i + 2])); target = _secs(tm.group(1)) if tm else 0      # the hold's stated target ("hold for 30 seconds")
+        while k < len(scenes) and scenes[k]["start"] < end: scenes[k]["stopwatch"] = {"start": t0, "stop": t1, "end": end, "target": target}; k += 1
         n += 1; i = k
     return n
 

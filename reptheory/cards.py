@@ -467,8 +467,10 @@ def stopwatch(cv: Image.Image, ctx: D.Ctx, sw: dict, t_abs: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); stopped = sw.get("stop") is not None and t_abs >= sw["stop"]; secs = (min(t_abs, sw["stop"]) if stopped else t_abs) - sw["start"]
     a = min(1.0, (t_abs - sw["start"]) / 0.3, (sw["end"] - t_abs) / 0.3); cx, cy, r = int(ctx.W * 0.91), int(ctx.H * 0.27), ctx.px(88); col = T.RED if stopped else T.WHITE      # below the NEXT teaser pill
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(14, 14, 16, int(200 * a)), outline=(80, 80, 84, int(255 * a)), width=ctx.px(7)); d.rectangle((cx - ctx.px(14), cy - r - ctx.px(26), cx + ctx.px(14), cy - r - ctx.px(8)), fill=(160, 160, 164, int(255 * a)))
-    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (secs % 60) / 60, fill=(T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(10))
-    _txt(d, ctx, (cx, cy - ctx.px(31)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 52, col, a, centre=True)
+    tg = sw.get("target") or 0; hit = tg and secs >= tg      # the stated target: the ring counts toward it, a tick mark on the rim, green once reached
+    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (min(secs, tg) / tg if tg else (secs % 60) / 60), fill=((74, 222, 128) if hit else T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(10))
+    if tg: _txt(d, ctx, (cx, cy + r + ctx.px(14)), f"TARGET {tg} S", 26, (74, 222, 128) if hit else T.SOFT_WHITE, a, head=False, centre=True)
+    _txt(d, ctx, (cx, cy - ctx.px(31)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 52, (74, 222, 128) if hit and not stopped else col, a, centre=True)
 
 def _panels_done(c) -> float:
     ts = [x["at"] for x in (c.values() if isinstance(c, dict) else []) if isinstance(x, dict) and "at" in x]
@@ -476,7 +478,8 @@ def _panels_done(c) -> float:
 
 def _last(items) -> float: return max((i["at"] for i in items), default=0.0)
 
-CARD_DONE = {      # card look -> function(card payload with absolute times) -> absolute time its animation has finished (variety keeps the scene on screen until then + a short hold)
+CARD_DONE = {
+    "tokens": lambda c: c["at"] + 0.3 + 0.25 * c["sets"] + 0.3, "share": lambda c: max(x["at"] for x in c["steps"]) + 0.6,      # card look -> function(card payload with absolute times) -> absolute time its animation has finished (variety keeps the scene on screen until then + a short hold)
     "race": lambda c: max(c["at"] + 0.9, c["slow"]["at"]) + 0.8,
     "slots": lambda c: _last(c["items"]) + 0.45,
     "engage": lambda c: c["at"] + 0.35 + 0.03 * len(c.get("text") or "") + 0.3 if c.get("kind") == "comment" else c["at"] + 0.6,

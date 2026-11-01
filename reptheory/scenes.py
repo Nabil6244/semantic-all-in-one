@@ -140,6 +140,11 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         elif kind == "mistake": K2.mistake(cv, ctx, {k: rel(c.get(k)) for k in ("wrong", "right")}, t)
         else: K2.slider(cv, ctx, {k: rel(c.get(k)) for k in ("easier", "harder")}, t)
         _caption_strip(cv, ctx, sc, t)
+    elif kind in ("tokens", "share"):      # sets x time / weight share (meters.py), the beat's words on the right
+        from . import meters as M; c = sc[kind]
+        if kind == "tokens": M.draw_tokens(cv, ctx, dict(c, at=_rel(sc, c["at"])), t)
+        else: M.draw_share(cv, ctx, dict(c, steps=[dict(x, at=_rel(sc, x["at"])) for x in c["steps"]]), t)
+        callouts(cv, ctx, sc, t, 1130)
     elif kind in ("dial", "study"):      # a number card on the left, the beat's words as callouts on the right
         c = sc[kind]; (K2.dial if kind == "dial" else K2.study)(cv, ctx, dict(c, at=_rel(sc, c["at"])), t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "graph":
@@ -169,9 +174,15 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     if sc.get("teaser"): K2.teaser(cv, ctx, sc["teaser"]["text"], t - _rel(sc, sc["teaser"]["at"]))      # Full Guide blueprint (blueprint.py)
     if sc.get("lock") and not (sc.get("teaser") and t >= _rel(sc, sc["teaser"]["at"])): K2.lock(cv, ctx, t - _rel(sc, sc["lock"]["at"]))
     if sc.get("safety"): K2.safety_chip(cv, ctx, sc["safety"], t)
-    if sc.get("stopwatch"): K2.stopwatch(cv, ctx, sc["stopwatch"], sc["start"] + t)      # a timed hold the viewer is doing (states.stopwatch)
+    if sc.get("stopwatch"): K2.stopwatch(cv, ctx, sc["stopwatch"], sc["start"] + t)
+    if sc.get("meter") or sc.get("effort"):      # load meter / effort bar overlays (meters.py)
+        from . import meters as M
+        if sc.get("meter"): M.draw_meter(cv, ctx, sc["meter"], sc["start"] + t, sc["start"])
+        if sc.get("effort"): M.draw_effort(cv, ctx, sc["effort"], sc["start"] + t)      # a timed hold the viewer is doing (states.stopwatch)
     if sc.get("chapter_card"): K2.chapter(cv, ctx, sc["chapter_card"], t); K2.streak_wipe(cv, ctx, t)
     if not sc.get("cam"): cv = _push(cv, ctx, sc, t)      # a full-frame picture moves with its own camera (picture.py)
+    if sc.get("chain"):      # the progression chain over the scene at a unit's start and at the end (chain.py), steady (after the push)
+        from . import chain as CH; CH.draw(cv, ctx, sc["chain"], sc["start"] + t)
     if tag: D.section_tag(cv, ctx, sc["section"], t, prev_section, 0.0)
     return cv
 

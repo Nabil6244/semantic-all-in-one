@@ -6,7 +6,7 @@ from __future__ import annotations
 import re
 from typing import Callable, Dict, List
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share")
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
            "list": "steps", "sequence": "steps", "key line": "takeaway", "quote": "takeaway",
@@ -14,8 +14,8 @@ ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "t
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
            "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
-           "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise"}
-CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise")
+           "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share"}
+CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share")
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
@@ -24,6 +24,7 @@ NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)",
          "calendar": "three named days or N days a week", "result": "two or more bands (under 20 ... 20 to 40 ...)", "warning": "a sign of harm and what to do", "engage": "a comment / like / subscribe / link below",
          "myth": "Myth: ... and the fact", "question": "a question to the viewer", "checklist": "a list of three short items", "slots": "a count of things (four moments, three moves)",
          "race": "fast against late (stiff X gets there fast, whoever ... first wins)", "formula": "X is not Y / X means Y / X is like Y", "mechanism": "two of muscle, tendon, bone and the pull between them",
+         "tokens": "sets and their length (three holds of 15 seconds, 6 x 2 s)", "share": "a share of your weight (half your weight, two thirds, 66% of your body weight)",
          "promise": "a payoff promised for later (I'll show you ... / at the end I'll tell you ...)"}      # what each card look needs, for the log
 
 def norm_look(v: str) -> str:
@@ -31,7 +32,7 @@ def norm_look(v: str) -> str:
     return v if v in LOOKS else ""
 
 def has_direction(sentences: List[dict]) -> bool:
-    return any(str(s.get(k) or "").strip() for s in sentences for k in ("look", "prompt", "muscle", "chapter", "camera", "on_screen"))
+    return any(str(s.get(k) or "").strip() for s in sentences for k in ("look", "prompt", "muscle", "chapter", "camera", "on_screen", "section", "graphic"))
 
 def check_rows(sentences: List[dict]) -> List[str]:
     """Problems a user can fix in the CSV, one line each (never fatal: the app's own choice is used for that row)."""
@@ -56,6 +57,26 @@ def on_screen_ok(v, text: str) -> str:
     words = [re.sub(r"[^a-z0-9%]", "", w.lower().replace("'", "")) for w in toks]
     if not words or len(words) > ON_SCREEN_MAX or any(w and w not in said for w in words): return ""
     return v.upper().replace("->", "→")
+
+SECTION_ALIASES = {"hook": "hook", "intro": "hook", "why": "why", "science": "why", "proof": "why", "unit": "howto", "how": "howto", "howto": "howto", "how-to": "howto", "step": "howto",
+                   "warning": "warning", "safety": "warning", "mistakes": "warning", "mistake": "warning", "plan": "plan", "routine": "plan", "frequency": "plan", "result": "result", "test": "result", "close": "result", "cta": "result"}
+GRAPHIC_KINDS = ("chain",)      # graphics the `graphic` column can spell out today; more come with docs/rep_theory/PLAN_NEXT_GRAPHICS.md
+
+def parse_graphic(v, script: str):
+    """The CSV's `graphic` cell, e.g. "chain: plank 30s | lean 3x15s | WARNING tendons | lift-off 6x2s": {kind, items: [{name, target, warn}]}; None when it is empty,
+    not a kind the app builds, or names words the script never says (nothing is invented)."""
+    v = str(v or "").strip()
+    if ":" not in v: return None
+    kind, rest = v.split(":", 1); kind = kind.strip().lower()
+    if kind not in GRAPHIC_KINDS: return None
+    said = set(re.findall(r"[a-z0-9%]+", script.lower().replace("'", ""))); items = []
+    for part in [p.strip() for p in rest.split("|") if p.strip()]:
+        warn = bool(re.match(r"(?i)warning\b", part)); part = re.sub(r"(?i)^warning\s*", "", part)
+        m = re.search(r"(\d+\s*[x×]\s*\d+\s*(?:s|sec|reps?)?|\d+\s*(?:s|sec|seconds|reps?|min))\s*$", part, re.I); target = m.group(1).upper().replace("X", " × ").replace("  ", " ") if m else ""
+        target = re.sub(r"(\d)\s*(S|SEC|SECONDS|REPS?|MIN)\b", r"\1 \2", target); name = (part[:m.start()] if m else part).strip(" -·:")
+        if not name or any(w not in said for w in re.findall(r"[a-z0-9%]+", name.lower().replace("'", ""))): return None
+        items.append({"name": name.upper(), "target": target.strip(), "warn": warn})
+    return {"kind": kind, "items": items} if len(items) >= 2 else None
 
 def _row_look(s: dict) -> str:
     look = norm_look(s.get("look"))
@@ -101,9 +122,16 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
     for x in scenes:
         rows_here = per_scene.get(id(x), [])
         if len(rows_here) == 1 and rows_here[0].strip(): x["script_text"] = rows_here[0].strip()
-    chap_at: List[tuple] = []
+    chap_at: List[tuple] = []; script = " ".join(str(x.get("text") or "") for x in ss)
     for ri, s in enumerate(ss, 1):
         if str(s.get("chapter") or "").strip(): chapter = str(s["chapter"]).strip(); chap_at.append((float(s["start"]), chapter))
+        part = SECTION_ALIASES.get(str(s.get("section") or "").strip().lower(), "")
+        if part:      # the CSV says which part of the video this row is in (variety.section_kind uses it first)
+            ps = scene_at(float(s["start"]), float(s["end"])); ps["section_csv"] = part
+        g = parse_graphic(s.get("graphic"), script)
+        if g:
+            gs = scene_at(float(s["start"]), float(s["end"])); gs["graphic_csv"] = g; log(f"[REP THEORY CSV] row {ri}: graphic {g['kind']} with {len(g.get('items', []))} item(s)")
+        elif str(s.get("graphic") or "").strip(): log(f"[REP THEORY CSV] row {ri}: graphic '{s.get('graphic')}' is not one the app builds yet (or uses words the script does not say); the app chooses")
         look = _row_look(s)
         shown = on_screen_ok(s.get("on_screen"), s.get("text", ""))
         if str(s.get("on_screen") or "").strip() and not shown: log(f"[REP THEORY CSV] row {ri}: on_screen '{s.get('on_screen')}' uses words the sentence does not say (or more than {ON_SCREEN_MAX} words); the app picks the words")
