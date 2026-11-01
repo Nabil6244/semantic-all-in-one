@@ -21,25 +21,40 @@ def pic(i, size=(640, 360)):
         im.save(p)
     return p
 
-def P(text, prompt=""): return {"text": text, "prompt": prompt}
+def P(text, prompt="", start=None): return {"text": text, "prompt": prompt, **({} if start is None else {"start": start})}
+def S6(*pics): return [dict(p, start=6.0 * i) for i, p in enumerate(pics)]      # 6 s apart: every change may be a big move
 
-# ---- choosing joins
-k = glue.choose_joins([P("Walt had a hit."), P("Oswald was popular."), P("Fans loved him."), P("But in 1928, Walt learned the truth.")])
+# ---- choosing joins (pictures 6 s apart, so the spacing rule allows each one)
+k = glue.choose_joins(S6(P("Walt had a hit."), P("Oswald was popular."), P("Fans loved him."), P("But in 1928, Walt learned the truth.")))
 ok("time jump -> torn wipe", k[-1] == "torn_wipe", k)
-ok("plain narration -> travel right", k[0] == "travel_right", k)
-k = glue.choose_joins([P("A small studio."), P("The company grew into an empire.")])
+ok("end of a sentence -> travel right", k[0] == "travel_right", k)
+k = glue.choose_joins(S6(P("A small studio."), P("The company grew into an empire.")))
 ok("rise words -> travel up", k == ["travel_up"], k)
-k = glue.choose_joins([P("a"), P("b"), P("c"), P("d"), P("e"), P("f")])
+k = glue.choose_joins(S6(P("a."), P("b."), P("c."), P("d."), P("e."), P("f.")))
 ok("3 sideways travels -> the next goes up", k[:4] == ["travel_right"] * 3 + ["travel_up"], k)
-k = glue.choose_joins([P("x", "a street with a cinema door"), P("Inside, the crowd waited.", "a packed cinema interior"), P("y"), P("z"), P("w")])
+k = glue.choose_joins(S6(P("x", "a street with a cinema door"), P("Inside, the crowd waited.", "a packed cinema interior"), P("y"), P("z"), P("w")))
 ok("portal in A + interior B -> push-through", k[0] == "push_through", k)
-k = glue.choose_joins([P("x", "an open window")] + [P("they went inside", "a room")] * 8)
+k = glue.choose_joins(S6(*([P("x", "an open window")] + [P("they went inside.", "a room")] * 8)))
 ok("push-throughs capped and spaced", k.count("push_through") <= max(1, int(glue.PUSH_MAX_SHARE * len(k))), k)
-ok("never two ups in a row", all(not (a == b == "travel_up") for a, b in zip(k, k[1:])), k)
-k = glue.choose_joins([P("In 1920 it began.")] + [P(f"But in {1921 + i} more.") for i in range(10)])
+ok("never two ups in a row", all(not (a == b == "travel_up") for a, b in zip([x for x in k if x != "cut"], [x for x in k if x != "cut"][1:])), k)
+k = glue.choose_joins(S6(*([P("In 1920 it began.")] + [P(f"But in {1921 + i} more.") for i in range(10)])))
 ok("torn wipes capped and spaced", k.count("torn_wipe") <= max(1, int(glue.TORN_MAX_SHARE * len(k))) and all(not (a == b == "torn_wipe") for a, b in zip(k, k[1:])), k)
 ok("empty / single picture", glue.choose_joins([]) == [] and glue.choose_joins([P("a")]) == [])
-ok("seats is not a portal or interior word", glue.choose_joins([P("x", "rows of seats"), P("y", "seated men"), P("a"), P("b"), P("c")])[0] != "push_through")
+ok("seats is not a portal or interior word", glue.choose_joins(S6(P("x", "rows of seats"), P("y", "seated men"), P("a"), P("b"), P("c")))[0] != "push_through")
+
+# ---- calm pacing: a picture every 2.5 s, but big moves spaced out (2026-11-01: a slide at every change tired the eye)
+dense = [P(f"Sentence number {i}.", "", 2.5 * i) for i in range(40)]
+k = glue.choose_joins(dense)
+bigs = [dense[i + 1]["start"] for i, x in enumerate(k) if x != "cut"]
+ok("most changes in a dense plan are cuts", k.count("cut") >= len(k) // 2, k)
+ok("big moves at least BIG_GAP_S apart", all(b - a >= glue.BIG_GAP_S - 1e-6 for a, b in zip(bigs, bigs[1:])), bigs)
+quiet = [P(f"and then {i}", "", 2.5 * i) for i in range(40)]           # no sentence ends, no cues
+k = glue.choose_joins(quiet)
+bigs = [0.0] + [quiet[i + 1]["start"] for i, x in enumerate(k) if x != "cut"]
+ok("never longer than MAX_QUIET_S without a big move", all(b - a <= glue.MAX_QUIET_S + 2.5 + 1e-6 for a, b in zip(bigs, bigs[1:])), bigs)
+state = {}
+glue.choose_joins([P("one.", "", 0.0), P("two.", "", 6.0)], state)
+ok("spacing carries across chains", glue.choose_joins([P("three.", "", 8.0), P("four.", "", 9.0)], state) == ["cut"], state)
 
 # ---- planning
 def mk(n, d=3.0, graphic=(), same=()):

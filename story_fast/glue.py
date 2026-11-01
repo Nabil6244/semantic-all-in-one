@@ -1,10 +1,13 @@
 """story_fast glue: the 'glued' Story Motion look (story_strip = "glued").
 
-Every picture change gets one of four joins, chosen from the narration and the prompts:
-    travel_right   pictures glued side by side with a torn seam, the camera travels on (the default)
+Every picture change gets one of five joins, chosen from the narration and the prompts:
+    cut            a clean cut, both pictures resting in their slow drift (the default: the eye re-reads a cut for free)
+    travel_right   pictures glued side by side with a torn seam, the camera travels on (a new sentence / idea)
     travel_up      the same, travelling upwards (rise / growth / empire words, and for variety after 3 sideways travels)
     push_through   the camera dives into a door / window / screen of A and comes out in B (B is an interior / a place entered)
     torn_wipe      A tears away like a sheet of paper (a jump in time or topic: "But ...", "In 1928 ...", a new year)
+The four big moves are spaced at least BIG_GAP_S apart and come at least every MAX_QUIET_S (2026-11-01: a full-frame slide at every one of
+52 picture changes kept the screen moving 39% of the time with ~1 s rests; the eye never settled).
 
     segs, groups = plan(shots, images, usable, fps)          groups {shot_id: (seg_id, panel index)}; segs {seg_id: segment dict}
     render_segment(seg, out_path, cancel=None)               one mp4 of exactly seg["frames"] frames: the travel, then the link to the next segment
@@ -23,9 +26,12 @@ import shutil
 import subprocess
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-KINDS = ("travel_right", "travel_up", "push_through", "torn_wipe")
+KINDS = ("cut", "travel_right", "travel_up", "push_through", "torn_wipe")
+BIG = ("travel_right", "travel_up", "push_through", "torn_wipe")
 LINKS = ("push_through", "torn_wipe")
-MAX_PANELS = 6                # pictures per glued strip; a longer run is split with a torn wipe
+MAX_PANELS = 6                # pictures per glued strip; a longer run is split with a cut
+BIG_GAP_S = 5.5              # at least this long between two big moves (travel / push-through / torn wipe)
+MAX_QUIET_S = 10.0           # ...and never longer than this without one
 TRAVEL_S = 1.6                # the calm travel the user picked (v2)
 MIN_TRAVEL_S = 1.3            # never faster: a short picture arrives a little late instead of rushing (travel.plan_schedule squeezed it to 0.7 x the gap)
 LATE_S = 0.45                 # how long after its first words a short picture may finish arriving
@@ -53,9 +59,14 @@ def _txt(p: dict, k: str) -> str:
     return str(p.get(k) or "").lower()
 
 
-def choose_joins(pictures: Sequence[dict]) -> List[str]:
-    """One join kind per picture change (len(pictures) - 1). pictures: [{text, prompt}] in order. Deterministic, never raises."""
+_SENT_END = re.compile(r"[.?!।॥][\"'”’)]*\s*$")
+
+
+def choose_joins(pictures: Sequence[dict], state: Optional[dict] = None) -> List[str]:
+    """One join kind per picture change (len(pictures) - 1). pictures: [{text, prompt, start (s), text_end}] in order; text_end = the picture's last words
+    (default text), start defaults to 3 s a picture. state {"last_big": seconds} carries the spacing across chains. Deterministic, never raises."""
     n = max(len(pictures) - 1, 0)
+    st = state if state is not None else {}
     if not n:
         return []
     cap_push = max(1, int(PUSH_MAX_SHARE * n)) if n >= 4 else 0
@@ -69,24 +80,31 @@ def choose_joins(pictures: Sequence[dict]) -> List[str]:
         ys = _YEAR.findall(_txt(pictures[i], "text"))
         years.append(ys[0] if ys else "")
     seen_year = years[0]
+    last_up = False
     for k in range(n):
         a, b = pictures[k], pictures[k + 1]
         bt, bp, ap = _txt(b, "text"), _txt(b, "prompt"), _txt(a, "prompt")
+        t = float(b.get("start", 3.0 * (k + 1)))
+        since = t - float(st.get("last_big", -1e9))
         new_year = bool(years[k + 1]) and years[k + 1] != seen_year
         if years[k + 1]:
             seen_year = years[k + 1]
-        kind = "travel_right"
-        if pushes < cap_push and k - last_push >= PUSH_GAP and _PORTAL.search(ap) and (_INTO.search(bt) or _INTERIOR.search(bp)):
-            kind = "push_through"
-        elif torns < cap_torn and k - last_torn >= TORN_GAP and (_SHIFT.search(bt) or new_year):
-            kind = "torn_wipe"
-        elif (out[-1:] != ["travel_up"]) and (_RISE.search(bt) or sideways >= SIDEWAYS_RUN):
-            kind = "travel_up"
+        kind = "cut"
+        if since >= BIG_GAP_S:
+            if pushes < cap_push and k - last_push >= PUSH_GAP and _PORTAL.search(ap) and (_INTO.search(bt) or _INTERIOR.search(bp)):
+                kind = "push_through"
+            elif torns < cap_torn and k - last_torn >= TORN_GAP and (_SHIFT.search(bt) or new_year):
+                kind = "torn_wipe"
+            elif _SENT_END.search(str(a.get("text_end", a.get("text")) or "")) or _RISE.search(bt) or since >= MAX_QUIET_S:
+                kind = "travel_up" if (not last_up and (_RISE.search(bt) or sideways >= SIDEWAYS_RUN)) else "travel_right"
         if kind == "push_through":
             pushes += 1; last_push = k
         elif kind == "torn_wipe":
             torns += 1; last_torn = k
-        sideways = sideways + 1 if kind == "travel_right" else 0
+        if kind in BIG:
+            st["last_big"] = t
+            sideways = sideways + 1 if kind == "travel_right" else 0
+            last_up = kind == "travel_up"
         out.append(kind)
     return out
 
@@ -116,25 +134,27 @@ def plan(shots: Sequence[dict], stills: Sequence[Optional[str]], usable: Sequenc
         if cur and abs(float(sh["start"]) - float(shots[cur[-1]["idx"][-1]]["end"])) >= GAP_S:
             chains.append(cur); cur = []
         if cur and cur[-1]["still"] == stills[i]:
-            cur[-1]["idx"].append(i)
+            cur[-1]["idx"].append(i); cur[-1]["text_end"] = str(sh.get("text") or "")
         else:
-            cur.append({"still": str(stills[i]), "idx": [i], "text": str(sh.get("text") or ""), "prompt": str(sh.get("prompt_en") or sh.get("prompt") or "")})
+            cur.append({"still": str(stills[i]), "idx": [i], "text": str(sh.get("text") or ""), "text_end": str(sh.get("text") or ""),
+                        "prompt": str(sh.get("prompt_en") or sh.get("prompt") or ""), "start": float(sh["start"])})
     if cur:
         chains.append(cur)
     segs: Dict[str, dict] = {}
     groups: Dict[str, Tuple[str, int]] = {}
     sid_n = 0
+    spacing: dict = {}
     for chain in chains:
-        kinds = choose_joins(chain)
+        kinds = choose_joins(chain, spacing)
         for k, kind in enumerate(kinds):
             if kind in LINKS and (bnd[chain[k]["idx"][-1] + 1] - bnd[chain[k]["idx"][0]]) < LINK_MIN_PICTURE_S * fps:
                 kinds[k] = "travel_right"          # too short to carry a calm link: travel on instead
-        # split into segments at links and at MAX_PANELS (the split becomes a torn wipe)
+        # split into segments at cuts, links and MAX_PANELS (that split is a cut)
         parts: List[Tuple[List[dict], List[str], Optional[str]]] = []
         pan, dirs = [chain[0]], []
         for k, kind in enumerate(kinds):
-            if kind in LINKS or len(pan) >= MAX_PANELS:
-                parts.append((pan, dirs, kind if kind in LINKS else "torn_wipe"))
+            if kind == "cut" or kind in LINKS or len(pan) >= MAX_PANELS:
+                parts.append((pan, dirs, kind if kind in LINKS else None))
                 pan, dirs = [chain[k + 1]], []
             else:
                 pan.append(chain[k + 1]); dirs.append("up" if kind == "travel_up" else "right")
@@ -164,7 +184,10 @@ def plan(shots: Sequence[dict], stills: Sequence[Optional[str]], usable: Sequenc
 def summary(segs: Dict[str, dict]) -> Dict[str, int]:
     """How many changes of each kind the plan has (for the log and the tests)."""
     c = {k: 0 for k in KINDS}
+    starts = {s["start_frame"] for s in segs.values()}
     for s in segs.values():
+        if not s.get("link") and s["end_frame"] in starts:
+            c["cut"] += 1
         for d in s["dirs"]:
             c["travel_up" if d == "up" else "travel_right"] += 1
         if s.get("link"):
