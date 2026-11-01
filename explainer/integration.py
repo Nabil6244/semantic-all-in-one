@@ -119,29 +119,30 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
         from .beats import overlay as OV
         boards = [((info or {})["board_overlay"]["mov"], float(info["board_overlay"]["start"])) for _bid, info in sorted((report.get("beat_details") or {}).items())
                   if (info or {}).get("board_overlay") and _P(info["board_overlay"]["mov"]).is_file()]
-        if boards:                                     # the narrator and the cards in front of each board beat's Flow picture
-            nxt = rr.parent / f"{cur.stem.split('__ov')[0]}__boards.mp4"
-            try:
-                if OV.composite_many(cur, boards, nxt) == 0 and nxt.is_file():
-                    cur = nxt
-                    log(f"[Explainer] {len(boards)} board(s) laid over their pictures")
-                else:
-                    log("[Explainer] the boards could not be laid over their pictures; the pictures are shown without them")
-            except Exception as exc:
-                log(f"[Explainer] the boards could not be laid over their pictures ({str(exc)[:100]})")
-        n = 0
+        maps = []                                      # the map overlays are drawn as small alpha clips first, then laid on with the boards in ONE re-encode of the video
         for bid, info in sorted((report.get("beat_details") or {}).items()):
             plan = (info or {}).get("overlay")
             if not plan or not plan.get("cues"):
                 continue
             try:
-                mov, nxt = rr.parent / f"{bid}_overlay.mov", rr.parent / f"{cur.stem.split('__ov')[0]}__ov{n}.mp4"
-                if OV.render_overlay(plan, mov)["returncode"] == 0 and OV.composite_over(cur, mov, nxt, start_s=float(plan["start"])) == 0 and nxt.is_file():
-                    cur, n = nxt, n + 1
+                mov = rr.parent / f"{bid}_overlay.mov"
+                if OV.render_overlay(plan, mov)["returncode"] == 0 and mov.is_file():
+                    maps.append((str(mov), float(plan["start"])))
             except Exception as exc:
-                log(f"[Explainer] the map overlay of {bid} could not be laid on ({str(exc)[:100]}); the map is used as it is")
-        if n:
-            log(f"[Explainer] {n} map overlay(s) laid on the video")
+                log(f"[Explainer] the map overlay of {bid} could not be drawn ({str(exc)[:100]}); the map is used as it is")
+        if boards or maps:
+            nxt = rr.parent / f"{cur.stem.split('__ov')[0].split('__boards')[0]}__boards.mp4"
+            try:
+                if OV.composite_many(cur, boards + maps, nxt) == 0 and nxt.is_file():
+                    cur = nxt
+                    if boards:
+                        log(f"[Explainer] {len(boards)} board(s) laid over their pictures")
+                    if maps:
+                        log(f"[Explainer] {len(maps)} map overlay(s) laid on the video")
+                else:
+                    log("[Explainer] the boards and map overlays could not be laid on; the video is used without them")
+            except Exception as exc:
+                log(f"[Explainer] the boards and map overlays could not be laid on ({str(exc)[:100]})")
         if cur != _P(video):
             out["video"] = cur
         if (report.get("options") or {}).get("sound") and voice_path:

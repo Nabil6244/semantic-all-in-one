@@ -50,7 +50,8 @@ class Plates(unittest.TestCase):
         st = {}
         ps = [PL.backdrop_prompt(self.beats, k, self.words, "Venice", st) for k in range(4)]
         self.assertEqual(ps[0], ps[1])
-        self.assertNotEqual(ps[1], ps[2])
+        self.assertEqual(ps[1], ps[2])                 # PLATE_RUN 3: one Flow picture serves three 3-4 s scenes
+        self.assertNotEqual(ps[2], ps[3])
         self.assertTrue(all("Venice" in p and "no people" in p for p in ps))
 
     def test_a_new_period_gets_a_new_plate(self):

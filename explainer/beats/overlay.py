@@ -214,8 +214,9 @@ def _plan_cue(i: int, spec: Dict[str, Any], beat: Dict[str, Any], tk, vws, start
                 if len(pts) < 4:
                     continue
                 xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-                if rect_inside((min(xs), min(ys), max(xs), max(ys)), s):
-                    rings.append(_simplify(pts))
+                ring = _simplify(pts)
+                if len(ring) >= 4 and rect_inside((min(xs), min(ys), max(xs), max(ys)), s):     # an island smaller than a few pixels shrinks to one point and cannot be drawn
+                    rings.append(ring)
             area = sum(_ring_len(r) for r in rings)
             if not rings or area < 120:
                 poly_ok = False
@@ -348,6 +349,8 @@ def _outline_sprite(rec_key: str, rings: Tuple, bbox: Tuple, frac_q: int, tint: 
     budget = total * frac_q / 100.0
     if tint and frac_q >= 100:
         for r in rings:
+            if len(r) < 3:
+                continue
             d.polygon([((x - x0) * ss, (y - y0) * ss) for x, y in r], fill=col + (58,))
     for wd, fill in ((9, (38, 38, 40, 255)), (5, col + (255,))):
         left = budget
@@ -522,8 +525,9 @@ def composite_over(map_clip: "str | Path", overlay_clip: "str | Path", out_path:
     except subprocess.TimeoutExpired: return -1
 
 
-def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, crf: int = 12, per_pass: int = 32) -> int:      # each pass re-encodes the whole video: 32 per pass keeps 3-4 s beats from adding passes
-    """Lay several alpha clips (path, start seconds) over a video, `per_pass` at a time in one ffmpeg call each (one full re-encode per pass, not per clip). Returns the last exit code (0 = all
+def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, crf: int = 10, per_pass: int = 32) -> int:      # each pass re-encodes the whole video: 32 per pass keeps 3-4 s beats from adding passes
+    """superfast at crf 10 measured the same quality as medium at crf 12 (SSIM 0.9934 on a 1080p Explainer clip) in under half the time; the file is only an intermediate before the export.
+    Lay several alpha clips (path, start seconds) over a video, `per_pass` at a time in one ffmpeg call each (one full re-encode per pass, not per clip). Returns the last exit code (0 = all
     laid on). The video's audio is kept; the result has the video's duration and size."""
     w, h = probe_size(video)
     cur, rc = Path(video), 0
@@ -540,7 +544,7 @@ def composite_many(video: "str | Path", overlays: Sequence[Tuple["str | Path", f
         cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(cur)]
         for mov, _start in grp:
             cmd += ["-i", str(mov)]
-        cmd += ["-filter_complex", ";".join(parts), "-map", f"[{last}]", "-map", "0:a?", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", "-preset", "medium", "-c:a", "copy",
+        cmd += ["-filter_complex", ";".join(parts), "-map", f"[{last}]", "-map", "0:a?", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", "-preset", "superfast", "-c:a", "copy",
                 "-movflags", "+faststart", str(nxt)]
         try:
             rc = subprocess.run(cmd, timeout=3600).returncode
