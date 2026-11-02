@@ -51,6 +51,8 @@ def _walk(root):
         stack.extend(w.winfo_children())
 
 
+@unittest.skipIf(sys.platform == "win32" and __import__("os").environ.get("CI"),
+                 "hangs at startup on the headless Windows CI runner (300 s, no output, every build through 2026-11-02); the macOS test job runs it")
 class SettingsWindowStress(unittest.TestCase):
     results: dict = {}
 

@@ -29,7 +29,7 @@ jobs:
             dmg_path: dist/Semantic-YT-Studio.dmg
             artifact_name: Semantic-YT-Studio.dmg
             file_arch_grep: arm64
-            run_tests: true
+            run_tests: false      # its tests run in the separate "macOS tests" entry, alongside the builds
 
           # Intel Macs (x86_64). Separate DMG so Silicon users keep the old name.
           - name: macOS Intel (.dmg)
@@ -46,6 +46,19 @@ jobs:
             # Same macOS test suite already runs on the Apple Silicon job;
             # skipping the duplicate run here saves ~6 min per build.
             run_tests: false
+
+          # The unit tests on their own runner, at the same time as the two builds (the builds no longer wait ~19 min for them).
+          # A failure still fails the workflow run.
+          - name: macOS tests (Apple Silicon)
+            runner: macos-latest
+            arch: arm64
+            ffmpeg_arch: arm64
+            ffmpeg_build: "1787073674_9.0.1"
+            ffmpeg_sha256: "393e4c395020a1cb7cbd77fbe00599ce69d1c6466fee0dbd59d13f86a81a1611"
+            ffprobe_sha256: "7abc49fb2bdf2204f018e76dc6e0a8ae7643313bae09a9fa43e7eb12442271bc"
+            node_arch: darwin-arm64
+            run_tests: true
+            only_tests: true
 
     steps:
       - name: Checkout
@@ -143,6 +156,7 @@ jobs:
           python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
+        if: ${{ !matrix.only_tests }}
         # Playwright Chromium is NOT bundled; app downloads it once on first Flow/AI use.
         env:
           NODE_ARCH: ${{ matrix.node_arch }}
@@ -157,6 +171,7 @@ jobs:
           ./bin/node --version
 
       - name: Verify bundled SFX + ambience
+        if: ${{ !matrix.only_tests }}
         run: |
           python - <<'PY'
           from sfx.seed import MIN_BUNDLED_WAVS, bundled_sfx_inventory
@@ -169,15 +184,18 @@ jobs:
           PY
 
       - name: Embed Supabase credentials
+        if: ${{ !matrix.only_tests }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python scripts/embed_supabase.py
 
       - name: Build with PyInstaller
+        if: ${{ !matrix.only_tests }}
         run: pyinstaller VideoGenerator.spec
 
       - name: Verify app architecture
+        if: ${{ !matrix.only_tests }}
         env:
           FILE_ARCH: ${{ matrix.file_arch_grep }}
         run: |
@@ -191,6 +209,7 @@ jobs:
           file bin/node | grep -q "$FILE_ARCH"
 
       - name: Packaged app startup check
+        if: ${{ !matrix.only_tests }}
         # The built app imports its lazily-imported modules, runs the bundled ffmpeg/ffprobe/Node, loads the graphics templates
         # and SFX and finds every render engine (startup_check.py), then exits without opening a window.
         timeout-minutes: 10
@@ -215,6 +234,7 @@ jobs:
       # No secret value is ever written to source control by these steps —
       # they exist only in GitHub's encrypted secret store for this repo.
       - name: Check for macOS signing secrets
+        if: ${{ !matrix.only_tests }}
         id: signing_check
         run: |
           if [ -n "${{ secrets.MACOS_CERTIFICATE }}" ] && \
@@ -231,7 +251,7 @@ jobs:
           fi
 
       - name: Import signing certificate
-        if: steps.signing_check.outputs.enabled == 'true'
+        if: ${{ !matrix.only_tests && steps.signing_check.outputs.enabled == 'true' }}
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
@@ -252,12 +272,13 @@ jobs:
           rm -f "$CERT_PATH"
 
       - name: Code-sign the app bundle
-        if: steps.signing_check.outputs.enabled == 'true'
+        if: ${{ !matrix.only_tests && steps.signing_check.outputs.enabled == 'true' }}
         env:
           MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
         run: ./scripts/codesign_macos_app.sh
 
       - name: Create DMG
+        if: ${{ !matrix.only_tests }}
         env:
           DMG_PATH: ${{ matrix.dmg_path }}
         run: |
@@ -265,7 +286,7 @@ jobs:
           ./scripts/make_dmg.sh
 
       - name: Notarize and staple DMG
-        if: steps.signing_check.outputs.enabled == 'true'
+        if: ${{ !matrix.only_tests && steps.signing_check.outputs.enabled == 'true' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -274,6 +295,7 @@ jobs:
         run: ./scripts/notarize_macos_dmg.sh
 
       - name: Upload macOS DMG
+        if: ${{ !matrix.only_tests }}
         uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.artifact_name }}
@@ -282,8 +304,17 @@ jobs:
           retention-days: 14
 
   build-windows:
-    name: Windows (Setup.exe)
+    name: ${{ matrix.name }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The unit tests (~35 min on this runner) run alongside the Setup.exe build instead of before it; a failure still fails the run.
+        include:
+          - name: Windows (Setup.exe)
+            mode: build
+          - name: Windows tests
+            mode: test
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -363,6 +394,7 @@ jobs:
           npm ci --omit=dev
 
       - name: Run unit tests
+        if: ${{ matrix.mode == 'test' }}
         shell: pwsh
         # A normal run takes ~10 min. Fail (with the log kept) instead of GitHub's 6-hour default if something hangs.
         timeout-minutes: 40
@@ -371,6 +403,7 @@ jobs:
           python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (Windows x64)
+        if: ${{ matrix.mode == 'build' }}
         shell: pwsh
         run: |
           $nodeVersion = "v24.19.0"
@@ -381,28 +414,34 @@ jobs:
           & "bin\node.exe" --version
 
       - name: Verify bundled SFX + ambience
+        if: ${{ matrix.mode == 'build' }}
         run: |
           python -c "from sfx.seed import MIN_BUNDLED_WAVS, bundled_sfx_inventory; inv = bundled_sfx_inventory(); print(inv); assert inv['ok'], inv; assert inv['wav_count'] >= MIN_BUNDLED_WAVS; assert inv['categories'].get('ambience', 0) > 0"
 
       - name: Embed Supabase credentials
+        if: ${{ matrix.mode == 'build' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: python scripts/embed_supabase.py
 
       - name: Build with PyInstaller
+        if: ${{ matrix.mode == 'build' }}
         run: pyinstaller VideoGenerator.spec
 
       - name: Packaged app startup check
+        if: ${{ matrix.mode == 'build' }}
         # Same check as on macOS: the built .exe imports, runs ffmpeg/ffprobe/Node, loads templates and SFX, finds the engines.
         timeout-minutes: 10
         run: python scripts/check_packaged_startup.py
 
       - name: Install Inno Setup
+        if: ${{ matrix.mode == 'build' }}
         shell: pwsh
         run: choco install innosetup -y --no-progress
 
       - name: Build Setup.exe
+        if: ${{ matrix.mode == 'build' }}
         shell: pwsh
         run: |
           $iscc = @(
@@ -416,6 +455,7 @@ jobs:
           }
 
       - name: Upload Windows Setup.exe
+        if: ${{ matrix.mode == 'build' }}
         uses: actions/upload-artifact@v5
         with:
           name: Semantic-YT-Studio-Setup.exe
