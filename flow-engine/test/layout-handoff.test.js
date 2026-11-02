@@ -92,3 +92,11 @@ test("pool: scenes an account hands back are made — layout on its own agent pa
   assert.ok(sixAgent, "the scenes Account 6 could not make one by one went through its agent panel");
   assert.deepEqual(res.unrun, []);
 });
+
+test("an account that handed a scene back for its page layout takes no more single scenes in this job", async () => {
+  const { exhaustsAccount, failMessageForPending } = await import("../lib/orchestrator.js");
+  assert.equal(exhaustsAccount("layout"), true);
+  assert.equal(exhaustsAccount("quota"), true);
+  assert.equal(exhaustsAccount("auth_expired"), false, "a signed-out account is handled by its own path");
+  assert.match(failMessageForPending({ reason: "layout" }), /settings control/);
+});

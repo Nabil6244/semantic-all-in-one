@@ -89,8 +89,19 @@ export function isSignedOutPrepareError(err) {
 }
 
 /** Honest failure text after rotation — do not blame rate limit/quota when accounts were signed out. */
+/**
+ * A hand-back that means this account can take no more single scenes in this job: quota, a restriction, or a page without its settings
+ * control (live 2026-11-02: Accounts 6 and 7 kept being given new scenes, each failing and reloading, 19 wasted tries in one job).
+ */
+export function exhaustsAccount(reason) {
+  return reason === "quota" || reason === "restricted" || reason === "layout";
+}
+
 export function failMessageForPending(item, selected = [], exhaustedAccounts = new Set()) {
   const reason = String(item?.reason || "");
+  if (reason === "layout") {
+    return "No Flow account could make this single picture (their Flow pages show no settings control). Nothing was generated; Retry it, or use Generate scenes so the agent makes it.";
+  }
   if (reason === "prepare_failed" || isSignedOutPrepareError(item)) {
     return "No signed-in Flow accounts could open for this scene. Open Accounts, sign in again, then Retry.";
   }
@@ -875,7 +886,7 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
         }
 
         for (const item of result?.reassign || []) {
-          if (item.reason === "quota" || item.reason === "restricted") exhaustedAccounts.add(a.id);
+          if (exhaustsAccount(item.reason)) exhaustedAccounts.add(a.id);
           reassign.push({ ...item, fromAccountId: a.id });
         }
       }),
