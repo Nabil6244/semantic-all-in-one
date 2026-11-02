@@ -714,7 +714,8 @@ def whatif_callouts(spec: Dict[str, Any], plan: Any) -> None:
         got = wi_plan(list(plan.words), script, float(spec["duration"]), flow_video=False).layers
     except Exception:
         return
-    mine = [L["start"] for L in spec["layers"] if L.get("type") in ("tm_metric", "big_number")]
+    # the CSV's own numbers count too: "≈8 AU" landed beside the CSV's "3 TO 5 AU" chip (video 56)
+    mine = [L["start"] for L in spec["layers"] if L.get("type") in ("tm_metric", "big_number", "stat_chip")]
     covered = _covered(spec)
     for L in got:
         if L.get("type") != "tm_metric" or not str(L.get("value", "")).strip() or str(L.get("value", "")).lstrip("≈ ").startswith("0"):
@@ -956,12 +957,30 @@ def variety(spec: Dict[str, Any], plan: Any, notes: List[str]) -> None:
     notes.append(f"Cinema variety: look '{name}'")
 
 
-def date_corner(spec: Dict[str, Any]) -> None:
-    """What If's date, top-right, from the universe date on screen, instead of StarMap's mission clock."""
+def date_corner(spec: Dict[str, Any], plan: Any = None, res: Any = None) -> None:
+    """What If's date, top-right, from the universe date on screen, instead of StarMap's mission clock -- only while a beat with a
+    date is on screen: its own date, or a mission's data. Video 56 (the scale of the Solar System, two dated beats) showed
+    23 DECEMBER 2024 from the first second and 25 AUGUST 2012 over the forming of the planets 4.6 billion years ago."""
     spec["layers"][:] = [L for L in spec["layers"] if L.get("type") != "mission_clock"]
     if any(L.get("type") == "tm_mission" for L in spec["layers"]):
         return                                        # the CSV's mission card holds the top-right corner (What If V4)
-    spec["layers"].append({"type": "tm_clock", "mode": "date", "from_clock": True, "start": 0.0, "end": float(spec["duration"]), "z": 5})
+    D = float(spec["duration"])
+    if plan is None or res is None:
+        spec["layers"].append({"type": "tm_clock", "mode": "date", "from_clock": True, "start": 0.0, "end": D, "z": 5})
+        return
+    runs: List[List[float]] = []
+    for b in plan.beats:
+        c = res.contexts.get(b.id)
+        dated = c is not None and bool(c.utc or c.datasets)
+        if c is None and runs and abs(runs[-1][1] - b.start) < 0.05:
+            runs[-1][1] = b.end                       # footage carries the run on (the map is hidden there)
+        elif dated and runs and abs(runs[-1][1] - b.start) < 0.05:
+            runs[-1][1] = b.end
+        elif dated:
+            runs.append([b.start, b.end])
+    for a, z in runs:
+        spec["layers"].append({"type": "tm_clock", "mode": "date", "from_clock": True, "start": round(a, 3), "end": round(min(z, D), 3),
+                               "fade_in": 0 if a <= 1e-6 else 0.3, "fade_out": 0.3, "z": 5})
 
 
 def bubbles(spec: Dict[str, Any], plan: Any, cat: Any) -> None:
@@ -1241,7 +1260,7 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
     titles(layers)
     fades(plan, layers, notes)
     headlines(spec, plan, cat)
-    date_corner(spec)
+    date_corner(spec, plan, res)
     light_clock(spec, plan, cat, res, clock)
     bubbles(spec, plan, cat)
     for L in layers:

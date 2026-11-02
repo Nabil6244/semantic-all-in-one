@@ -56,6 +56,7 @@ class BeatContext:
     source: str = ""
     as_of: Optional[str] = None
     lowered_by_csv: bool = False
+    era_status: Optional[str] = None              # the status before the CSV lowered it: what an undated next beat carries on
     refs: Dict[str, str] = field(default_factory=dict)          # "row:field:name" -> qualified id
 
     @property
@@ -300,7 +301,8 @@ def _temporal(b: Beat, ctx: List[str], cat: Catalog, res: Resolution, now: Optio
 
     if info is None and not b.date and prev is not None:
         # undated: time keeps running from the beat before, and so does its era
-        c.utc, c.status, c.precision, c.net, c.timeline = None, prev.status, prev.precision, prev.net, prev.timeline
+        # a status the CSV put on the beat before stays on that beat: one "hypothetical" row held the badge for 3 minutes (video 56)
+        c.utc, c.status, c.precision, c.net, c.timeline = None, prev.era_status, prev.precision, prev.net, prev.timeline
         c.met_zero, c.clock_prefix, c.source, c.as_of = prev.met_zero, prev.clock_prefix, prev.source, prev.as_of
         if c.datasets and not set(c.datasets) & set(prev.datasets):
             c.timeline = "+".join(c.datasets)
@@ -317,7 +319,7 @@ def _temporal(b: Beat, ctx: List[str], cat: Catalog, res: Resolution, now: Optio
         elif pds is not None:
             base = pds.status if pds.status != "current" else "historical"
     elif not b.date and prev is not None:
-        base = prev.status
+        base = prev.era_status
     uncertain = [cat.index.datasets[d].status for d in c.datasets if CERTAINTY[cat.index.datasets[d].status] > 0]
     uncertain += [t.status for _, t in shown if CERTAINTY[t.status] > 0]
     if c.datasets and base is None:
@@ -334,6 +336,7 @@ def _temporal(b: Beat, ctx: List[str], cat: Catalog, res: Resolution, now: Optio
         c.timeline = "+".join(c.datasets)
     if b.extra.get("timeline"):
         c.timeline = str(b.extra["timeline"])
+    c.era_status = c.status
     # the CSV may only make a beat LESS certain
     want = b.extra.get("status")
     if want:

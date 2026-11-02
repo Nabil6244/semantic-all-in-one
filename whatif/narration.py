@@ -218,8 +218,9 @@ def parse_number(words: List[Word], i: int) -> Optional[Tuple[float, int, str, f
                 elif t == "thousand" and j > i:
                     total += max(v, 1) * 1000
                     v = 0
-                elif t == "and" and j > i and j + 1 < n and (words[j + 1].norm in SMALL or words[j + 1].norm in TENS):
-                    pass
+                elif t == "and" and j > i and words[j - 1].norm in ("hundred", "thousand") and j + 1 < n and \
+                        (words[j + 1].norm in SMALL or words[j + 1].norm in TENS):
+                    pass                       # "two hundred and five"; "three and five AU" is two numbers, never 8
                 else:
                     break
                 j += 1

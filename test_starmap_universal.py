@@ -228,6 +228,18 @@ class Collisions(Base):
 
 
 class Temporal(Base):
+    def test_a_status_the_csv_puts_on_one_beat_stays_on_that_beat(self):
+        """Video 56: one beat marked hypothetical (the frost line) and every undated beat after it carried the badge, 3+ minutes."""
+        rows = [beat("b1", 0, "map", "sun", "solar", "2024-12-24"),
+                beat("b2", 10, "map", "sun", "solar", extra={"status": "hypothetical"}),
+                beat("b3", 20, "map", "sun", "solar"),
+                beat("b4", 30, "map", "sun", "solar")]
+        res = self.resolved(rows, now=NOW, duration=40.0)
+        self.assertEqual(res.errors, [])
+        self.assertEqual([res.contexts[b].status == "hypothetical" for b in ("b1", "b2", "b3", "b4")], [False, True, False, False])
+        badges = [L for L in self.compiled(rows, now=NOW, duration=40.0).spec["layers"] if L["type"] == "status_badge"]
+        self.assertEqual([(L["start"], L["end"]) for L in badges if L["text"].startswith("HYPOTHETICAL")], [(10.0, 20.0)])
+
     def test_the_mixed_documentary_keeps_every_beats_context(self):
         res = self.resolved(MIXED, now=None)
         self.assertEqual(res.errors, [])

@@ -227,3 +227,42 @@ class CinemaPhotosAndMissingClips(unittest.TestCase):
                 "footage": [{"id": "b3_1", "start": 10.0, "end": 20.0, "file": "x.mp4"}, {"id": "b3_2", "start": 20.0, "end": 30.0}]}
         self.assertEqual([tuple(x) for x in _covered(spec)], [(10.0, 30.0)], "the beat's clips will fill 10-30 s: no photo goes there")
 
+
+
+class DateCornerOnlyWhenDated(unittest.TestCase):
+    """Video 56: a story with two dated beats showed a date from the first second to the last."""
+
+    def test_the_date_shows_only_over_beats_with_a_date_or_a_missions_data(self):
+        from types import SimpleNamespace as NS
+
+        from starmap.cinema import date_corner
+
+        beats = [NS(id="b1", start=0.0, end=10.0), NS(id="b2", start=10.0, end=20.0), NS(id="f", start=20.0, end=25.0),
+                 NS(id="b3", start=25.0, end=35.0), NS(id="b4", start=35.0, end=50.0)]
+        ctx = {"b1": NS(utc=None, datasets=[]), "b2": NS(utc="2024-12-24T00:00:00Z", datasets=[]),
+               "b3": NS(utc=None, datasets=["voyager1"]), "b4": NS(utc=None, datasets=[])}
+        spec = {"duration": 50.0, "layers": []}
+        date_corner(spec, NS(beats=beats), NS(contexts=ctx))
+        self.assertEqual([(L["start"], L["end"]) for L in spec["layers"] if L["type"] == "tm_clock"], [(10.0, 35.0)])
+        spec = {"duration": 50.0, "layers": []}
+        date_corner(spec)
+        self.assertEqual([(L["start"], L["end"]) for L in spec["layers"]], [(0.0, 50.0)], "with no plan: the whole video, as before")
+
+    def test_a_narration_callout_never_doubles_a_csv_stat(self):
+        from types import SimpleNamespace as NS
+        from unittest import mock
+
+        from starmap import cinema
+
+        callout = {"type": "tm_metric", "value": "≈8", "unit": "AU", "start": 447.2, "end": 449.7}
+        spec = {"duration": 500.0, "camera": {"moves": []}, "layers": [{"type": "stat_chip", "value": 5.0, "unit": "AU", "start": 446.6, "end": 452.6}]}
+        with mock.patch("whatif.planner.plan", return_value=NS(layers=[callout])):
+            cinema.whatif_callouts(spec, NS(beats=[NS(text="x")], words=[]))
+        self.assertEqual([L["type"] for L in spec["layers"]], ["stat_chip"])
+
+    def test_three_and_five_is_two_numbers_not_eight(self):
+        from whatif import narration as nr
+
+        ws = lambda t: [nr.Word(x, x.lower(), i * 0.4, i * 0.4 + 0.3) for i, x in enumerate(t.split())]      # noqa: E731
+        self.assertEqual([m.shown for m in nr.extract_metrics(ws("somewhere between about three and five AU"))], ["5"])
+        self.assertEqual([m.shown for m in nr.extract_metrics(ws("two hundred and five kilometers"))], ["205"])
