@@ -19,7 +19,7 @@ KIND_SFX = {      # what each development sounds like (cadence.events "what")
 KIND_SFX.update({"slot fills": "marker_pop", "race part": "fast_whoosh", "formula part": "marker_clack", "muscle label": "ui_click", "tendon label": "ui_click", "bone label": "ui_click", "pull": "deep_thud", "promise cells": "counter_ticks", "promise lock": "marker_clack", "red reveal": "marker_pop", "stopwatch starts": "clock_ticking", "stopwatch stops": "marker_clack", "chain": "fast_whoosh", "token fills": "ui_click", "share step": "counter_ticks", "load meter": "marker_pop", "effort bar": "counter_ticks"})      # the study's cards (cards.py)
 MAJOR = ("deep_thud", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0      # What If's restraint: up to ~48 a minute, never stacked
-MUSIC_GAIN = 0.36
+MUSIC_GAIN = 0.27      # 2026-11-02 owner: the background music a bit lower under the voice (was 0.36, about -2.5 dB)
 
 def cues(scenes: List[dict]) -> List[dict]:
     """[{t, sfx, source}] for the plan's meaningful changes: a new composition gets a soft transition (a new part of the video a whoosh), every development
