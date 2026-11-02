@@ -31,8 +31,8 @@ class TestDirectedPlanning(unittest.TestCase):
         return planner.plan_directed(SENT, "medical_cinema", dscenes(), tpl_ok, allow_footage=footage)["scenes"]
     def test_graphics_follow_the_narration(self):
         kinds = [s.kind for s in self.plan()]
-        self.assertEqual(kinds[0], "counter_card"); self.assertIn("bar_card", kinds); self.assertIn("timeline_card", kinds)
-        sc = self.plan(); bar = next(s for s in sc if s.kind == "bar_card"); self.assertEqual(bar.visual["value"], 80.0); self.assertEqual(bar.visual["qualifier"], "Up to")
+        self.assertEqual(kinds[0], "counter_card"); self.assertIn("chart_card", kinds); self.assertIn("timeline_card", kinds)      # a share of something is a donut chart since 98c5da7 (was bar_card)
+        sc = self.plan(); pt = next(s for s in sc if s.kind == "chart_card").visual["chart"]["points"][0]; self.assertEqual(pt["value"], 80.0); self.assertEqual(pt["qualifier"], "Up to"); self.assertTrue(pt["label"].startswith("Up to 80%"))
         ctr = sc[0]; self.assertEqual(ctr.visual["interval"], 40); self.assertEqual(ctr.visual["unit"], "seconds")
     def test_numbers_and_events_come_only_from_the_script(self):
         tl = next(s for s in self.plan() if s.kind == "timeline_card"); text = " ".join(x["text"] for x in SENT).lower()

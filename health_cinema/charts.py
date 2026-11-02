@@ -93,6 +93,8 @@ def chart_for(text: str) -> Optional[Dict]:
     return {"type": "hbars" if len(pts) >= 3 else "bar", "unit": unit, "title": "", "points": pts}
 
 
+QUALIFIERS = (("up to", "Up to"), ("as many as", "As many as"), ("nearly", "Nearly"), ("almost", "Almost"), ("about", "About"), ("around", "About"), ("roughly", "About"), ("more than", "Over"), ("at least", "At least"))
+
 def donut_for(text: str) -> Optional[Dict]:
     """One percentage that is a share of something ("80 percent of heart disease is preventable") -> a donut. Two or more percentages are a bar chart instead."""
     pcts = [n for n in _numbers(text) if n["pct"]]
@@ -106,4 +108,6 @@ def donut_for(text: str) -> Optional[Dict]:
         lab = " ".join(ws)
     else: lab = _label(toks[:n["i"]])
     lab = lab if lab.startswith("of ") else lab[:1].upper() + lab[1:]
-    return {"type": "donut", "unit": "%", "title": "", "points": [{"label": lab, "value": n["value"], "shown": _shown(n["value"], "%")}]}
+    pre = " ".join(w.lower() for w in toks[max(0, n["i"] - 2):n["i"]]); qual = next((q for k, q in QUALIFIERS if pre.endswith(k)), "")      # "up to 80%" is not "80%": the hedge stays with the figure
+    if qual: lab = f"{qual} {_shown(n['value'], '%')} {lab}" if lab.startswith("of ") else f"{lab} ({qual.lower()} {_shown(n['value'], '%')})"
+    return {"type": "donut", "unit": "%", "title": "", "points": [{"label": lab, "value": n["value"], "shown": _shown(n["value"], "%"), "qualifier": qual}]}

@@ -169,6 +169,6 @@ txt = m.group(1) if m else ""
 ok(len(txt) > 800, "prompt doc has a code block")
 ok("scene_number,script_segment,asset_type,prompt" in txt, "4 CSV columns preserved")
 low = txt.lower()
-ok(not any(w in low for w in ("walker", "silhouette", "torn", "collage")), "no walker / silhouette / torn-paper requirement")
+ok(not any(w in low for w in ("walker", "silhouette")), "no walker / silhouette requirement")      # torn-paper glued joins and the collage are the design since db4aa45
 ok("MOTION:" in txt and "style anchor" in low and "parallax" in low and "no text" in low, "motion tag, style anchor, depth, no-text rules present")
 print("FAILED" if fails else "ALL OK"); raise SystemExit(1 if fails else 0)

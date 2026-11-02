@@ -164,7 +164,8 @@ class Charts(unittest.TestCase):
         ln = CH.chart_for("In 1990 about 12 million people died of heart disease; by 2019 it was 18.6 million.")
         self.assertEqual((ln["type"], [p["label"] for p in ln["points"]], [p["value"] for p in ln["points"]]), ("line", ["1990", "2019"], [12, 18.6]))
         dn = CH.donut_for("About 80 percent of heart disease is preventable.")
-        self.assertEqual((dn["points"][0]["value"], dn["points"][0]["label"]), (80, "of heart disease is preventable"))
+        self.assertEqual((dn["points"][0]["value"], dn["points"][0]["label"]), (80, "About 80% of heart disease is preventable"))      # the hedge stays with the figure
+        self.assertEqual(CH.donut_for("80 percent of heart disease is preventable.")["points"][0]["label"], "of heart disease is preventable")
 
     def test_no_chart_without_two_comparable_figures(self):
         from health_cinema import charts as CH
