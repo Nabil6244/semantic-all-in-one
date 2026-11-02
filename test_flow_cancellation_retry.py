@@ -1105,3 +1105,21 @@ class TestOnlyAnExplicitRetryConfirmsResubmission(unittest.TestCase):
             mgr.retry_flow_batch([SceneRow(scene_number="1", script_segment="x", prompt="p")])
             self.assertTrue(seen and all(seen), "every call made by the manual Retry carries the explicit request")
             self.assertFalse(flow.confirm_resubmit)
+
+
+class TestRetryReusesIdenticalPrompt(unittest.TestCase):      # 2026-11-02: a retried scene with another scene's exact prompt waited on Flow for 20 minutes
+    def test_failed_scene_takes_the_finished_twin_without_a_flow_call(self):
+        with TemporaryDirectory() as tmp:
+            images = Path(tmp)
+            flow = FakeProvider(AssetSource.FLOW_IMAGE, {})
+            mgr = AssetManager(images, flow_image_provider=flow, log=lambda *_: None)
+            twin = SceneRow(scene_number="15", script_segment="b", prompt="a big engine motor tied to a hand by rubber bands")
+            self.assertTrue(mgr.retry_flow_batch([twin])["15"].ok)
+            calls = len(flow.calls)
+            failed = SceneRow(scene_number="14", script_segment="a", prompt="a big engine motor tied to a hand by rubber bands")
+            mgr.manifest.set("14", {"scene_number": "14", "status": "failed", "source": "flow_image", "prompt": failed.prompt, "error": "x"})
+            done = []
+            res = mgr.retry_flow_batch([failed], on_scene_complete=lambda s, r: done.append(s.scene_number))
+            self.assertTrue(res["14"].ok)
+            self.assertEqual(len(flow.calls), calls, "no Flow call: the finished twin's picture is reused")
+            self.assertEqual(done, ["14"], "the row is told at once, never left on PROCESSING")

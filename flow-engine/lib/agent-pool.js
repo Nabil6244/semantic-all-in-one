@@ -219,16 +219,42 @@ export async function runAgentPool({
     } else {
       const shares = helpers.map(() => []);
       leftover.forEach((it, k) => shares[k % helpers.length].push(it));
+      const handed = [];   // scenes an account gave back (page without a settings control, quota, signed out): never dropped
       await Promise.all(helpers.map(async (a, k) => {
         if (!shares[k].length) return;
         try {
           const page = await pageFor(a);
           accountsUsed.add(a.id);
-          await runStandard({ account: a, page, items: shares[k] });
+          const res = await runStandard({ account: a, page, items: shares[k] });
+          for (const r of res?.reassign || []) handed.push({ from: a, item: { index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, noConfirm: true }, reason: r.reason });
         } catch (e) {
           for (const it of shares[k]) unrun.push({ item: it, reason: "no_account" });
         }
       }));
+      // Handed back on a page that cannot make single pictures: that same account makes them through its agent panel (which works
+      // on that layout); anything else goes to another account's standard path. One more pass only, so nothing can loop.
+      if (handed.length && !isStopped()) {
+        const byAccount = new Map();
+        for (const h of handed) {
+          const others = helpers.filter((x) => x.id !== h.from.id && usable(x) && !cooling(x));
+          const to = h.reason === "layout" ? h.from : (others[0] || null);
+          if (!to) { unrun.push({ item: h.item, reason: "no_account" }); continue; }
+          if (!byAccount.has(to.id)) byAccount.set(to.id, { account: to, agent: [], standard: [] });
+          byAccount.get(to.id)[h.reason === "layout" ? "agent" : "standard"].push(h.item);
+        }
+        await Promise.all([...byAccount.values()].map(async ({ account, agent, standard }) => {
+          try {
+            const page = await pageFor(account);
+            if (agent.length) {
+              const res = await runSlice({ account, page, items: agent });
+              for (const r of res?.fallback || []) unrun.push({ item: { index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null }, reason: "layout" });
+            }
+            if (standard.length) await runStandard({ account, page, items: standard });
+          } catch (e) {
+            for (const it of [...agent, ...standard]) unrun.push({ item: it, reason: "no_account" });
+          }
+        }));
+      }
     }
   } else if (leftover.length) {
     for (const it of leftover) unrun.push({ item: it, reason: "stopped" });

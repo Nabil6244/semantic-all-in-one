@@ -85,6 +85,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
         if not variety:      # without the variety director, the asked card looks and 3D clips are set here
             for sc in scenes:
                 if sc.get("directed_look"): DR.build_card(sc); sc["want3d"] = sc.get("look") == "3d"
+    prog(0.01, "planning the scenes")      # every phase moves the Export bar (it sat on Idle for the first minutes, 2026-11-02)
     if variety:      # which look each scene gets, so a long video keeps changing (reptheory/variety.py); 3D clips and Flow pictures below then only fill the scenes it chose
         from . import variety as V
         try:
@@ -108,10 +109,12 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     from . import assets as AS
     log(f"[REP THEORY ASSETS] {AS.plan(scenes)} picture scene(s) use a library asset (made once through Flow, reused)")      # assets.py
     log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
+    prog(0.03, "3D body clips")
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3
         try: log(f"[REP THEORY 3D] body clips: {C3.prepare(scenes, log=log, mix=illustrate, directed=variety)}")
         except Exception as ex: log(f"[REP THEORY 3D] body clips unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
+    prog(0.06, "pictures")
     if illustrate:      # a picture per beat from the narration, generated once through Flow and cached (reptheory/beat_art.py)
         from . import beat_art as BA
         if media_only:      # Generate scenes: the pictures this script wants are listed for the Visuals tab (made there through the app's Flow); Render uses what the tab holds
@@ -127,16 +130,17 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     end_s = scenes[-1]["end"] if not max_seconds else min(scenes[-1]["end"], max_seconds); n_narr = round(end_s * T.FPS); ctx = D.Ctx(W, H)
     card = None if max_seconds else end_card_config(end_card, title, log)      # optional: off (None / not enabled) keeps the ending exactly as it was
     n_frames = n_narr + (round(D.END_CARD_S * T.FPS) if card else 0)
-    out_path = Path(out_path); out_path.parent.mkdir(parents=True, exist_ok=True); tmp = out_path.with_name(out_path.name + ".rendering.mp4")
+    out_path = Path(out_path); out_path.parent.mkdir(parents=True, exist_ok=True); tmp = out_path.with_name(out_path.name + ".part")      # not *.mp4: the Export page listed the half-written file as the last output
     cmd = [_ff(), "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(T.FPS), "-i", "-"]
     audio = voiceover_path; audio_dir = None
+    prog(0.09, "sound mix")
     if voiceover_path and sound:      # event sounds + music bed under the voice, mastered to -14 LUFS (reptheory/sound.py); any failure keeps the narration alone
         from . import sound as SND
         import tempfile; audio_dir = tempfile.mkdtemp(prefix="rt_audio_")      # removed when the render ends, finished or not
         audio, notes = SND.mix(scenes, voiceover_path, Path(audio_dir), end_s, title=title, ffmpeg=_ff(), log=log)
         for n in notes: log(f"[REP THEORY SOUND] {n}")
     if voiceover_path: cmd += ["-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-t", f"{n_frames / T.FPS:.3f}"]
-    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(tmp)]
+    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-f", "mp4", str(tmp)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE); err: List[bytes] = []
     th = threading.Thread(target=lambda: err.append(proc.stderr.read()), daemon=True); th.start()
     starts = [round(sc["start"] * T.FPS) for sc in scenes] + [n_frames]; cur = 0; counts = {}
@@ -156,8 +160,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
                 img = S.transition(outgoing, img, t / dur_tr, ctx) if changed else Image.blend(outgoing, img, t / dur_tr)
             D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
             proc.stdin.write(img.tobytes())
-            if f % 24 == 0: prog(f / n_frames, f"scene {sc['no']}/{len(scenes)}: {sc['kind']}")
-        proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()
+            if f % 24 == 0: prog(0.10 + 0.88 * f / n_frames, f"drawing scene {sc['no']}/{len(scenes)} ({sc['kind']})")
+        prog(0.98, "finishing the video file"); proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()
         if rc != 0: raise RuntimeError("ffmpeg failed: " + (err[0].decode(errors="replace")[-400:] if err else str(rc)))
         os.replace(tmp, out_path)
     except BaseException:

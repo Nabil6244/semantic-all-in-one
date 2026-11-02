@@ -55,3 +55,11 @@ def quantity(text: str):
 HOLD_RX = re.compile(r"\b(hold|holding|pinch|pinching|squeez\w*|grip|slip|switch)\b", re.I)      # the bottle is being used, not just shown
 HOLD_HEAD = (("pinch", "PINCH GRIP"), ("squeez", "SQUEEZE"), ("hold", "HOLD"))
 SQUEEZE_RX = r"^(pinch|squeez\w*)$"
+
+
+NEG_RX = re.compile(r"\b(?:not|no|never|don'?t|doesn'?t|didn'?t|aren'?t|isn'?t|won'?t|can'?t|zero|without|instead of)\s+(?:[A-Za-z][\w'-]*\s+){0,2}?[A-Za-z][\w'-]*", re.I)
+
+def affirmed(text: str) -> str:
+    """The text without what it denies: "they don't drink protein shakes" says nothing about drinking, "that's not muscle" nothing about muscle (render 054 showed a
+    man drinking and the muscle plate on exactly those lines). Used before a picture, pose, plate or 3D clip is chosen from the words."""
+    return NEG_RX.sub(" ", text or "")

@@ -42,6 +42,9 @@ function uiFailure(kind, diag) {
   );
   err.generateClicked = clicked;
   err.pageMayShowLateResult = clicked;
+  // The page offered no settings control (Flow's agent-panel layout, or right after an agent batch): this account cannot make a
+  // single picture now, and nothing was sent. batch-runner hands the scene to another account instead of looping here.
+  err.layoutUnsupported = !clicked && diag.outcome === "no_visible_settings_control";
   return tagSubmission(err, clicked ? Submission.UNKNOWN : Submission.NOT_SUBMITTED);
 }
 

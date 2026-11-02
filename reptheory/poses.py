@@ -80,7 +80,8 @@ REGIONS: Dict[str, Dict[str, tuple]] = {pose: {part: _ellipses(pose, part, pts) 
 
 def pick(text: str, art_ok: Callable[[str], bool]) -> Optional[tuple]:
     """(pose id, char position of the words that call for it) for the earliest action in the text whose picture is in the library, else None."""
-    best = None
+    from .lexicon import affirmed
+    text = affirmed(text); best = None      # "they don't drink protein shakes" is not the drinking pose
     for pid, rx in POSE_RX.items():
         m = rx.search(text)
         if m and art_ok(pid) and (best is None or m.start() < best[1]): best = (pid, m.start())

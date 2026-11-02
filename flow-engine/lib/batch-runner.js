@@ -59,6 +59,9 @@ function pad(n) {
   return String(n).padStart(3, "0");
 }
 
+/** Failed tries of one scene on one account (page reloads, model steps) before it is reported failed instead of retried. */
+export const MAX_RETRY_ATTEMPTS = Number(timing.maxRetryAttemptsPerScene) > 0 ? Number(timing.maxRetryAttemptsPerScene) : 6;
+
 function nextModel(current) {
   const i = MODEL_FALLBACK.indexOf(current);
   return i >= 0 && i < MODEL_FALLBACK.length - 1 ? MODEL_FALLBACK[i + 1] : null;
@@ -427,6 +430,8 @@ export async function runBatchSlice({
     let done = false;
     let rateAttempt = 0;
     let sessAttempt = 0;
+    let layoutFails = 0;
+    let retryAttempts = 0;
     let anySubmitted = false;
     /** Slots already finished for this prompt: never generated again when another slot is retried. */
     const slotResults = [];
@@ -628,6 +633,30 @@ export async function runBatchSlice({
           emit("PROMPT_RESULT", { index: abs, prompt, status: "rate_limited", error: activeErr.message, reassign: true });
           emit("BATCH_PROGRESS", { index: abs, total: totalAbsolute, status: "waiting", message: "Account signed out — rotating to another account…", completed, failed });
           break;
+        }
+
+        // The page has no settings control (agent-panel layout, live 2026-11-02 on Accounts 6 and 7): one reload, then the scene
+        // and the rest of this slice go to another account. Never a model switch: that would change the picture, not the page.
+        if (activeErr?.layoutUnsupported) {
+          layoutFails++;
+          if (layoutFails === 1) {
+            try { await waitThenRefresh(sessRetries[0] || 5, "Flow page without its settings control — reloading in"); continue; } catch { /* hand it on below */ }
+          }
+          done = true;
+          stopBatch = true;
+          reassign.push({ index: abs, prompt, promptKey, reason: "layout" });
+          for (let j = i + 1; j < prompts.length; j++) {
+            reassign.push({ index: promptIndices[j], prompt: prompts[j], promptKey: promptKeys?.[j] ?? null, reason: "layout" });
+          }
+          emit("PROMPT_RESULT", { index: abs, prompt, status: "rate_limited", error: activeErr.message, reassign: true, layout: true });
+          emit("BATCH_PROGRESS", { index: abs, total: totalAbsolute, status: "waiting", message: "This Flow page cannot make single pictures now — handing the scene to another account…", completed, failed });
+          break;
+        }
+        // Never loop on one scene: after MAX_RETRY_ATTEMPTS failed tries it fails with its reason (the app's Retry takes over).
+        if (++retryAttempts > MAX_RETRY_ATTEMPTS) {
+          done = true;
+          failPrompt(abs, prompt, `Gave up after ${MAX_RETRY_ATTEMPTS} tries on this account: ${activeErr?.message || activeErr}`);
+          continue;
         }
 
         // A refused or unsent request with no media id: check page health, at most one controlled reload per prompt.

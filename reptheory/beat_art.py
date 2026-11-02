@@ -17,6 +17,8 @@ TISSUE_RX = re.compile(r"\b(muscle|muscles|tendon|tendons|bone|bones|fibre|fibre
 RIVAL_RX = re.compile(r"\b(big(?:ger)? guys?|bigger than you|opponent|rival|the other guy|giant|huge guy|heavier|stronger than (?:you|him)|against (?:guys|a guy|someone)|arm[- ]?wrestl\w*|versus him|his hand|he has you)\b", re.I)
 FOCUS_RX = re.compile(r"\b(tendons?|forearms?|wrists?|fingers?|hands?|biceps?|triceps?|shoulders?|chest|core|abs|glutes?|quads?|thighs?|hamstrings?|calf|calves|knees?|elbows?|neck|spine|hips?|lower back|grip)\b", re.I)
 
+WORKER_RX = re.compile(r"\b(?:mechanics?|bricklayers?|farmers?|carpenters?|tradesm[ae]n|plumbers?|builders?|labou?rers?|welders?|blue[- ]collar workers?|construction workers?|movers?)\b", re.I)
+
 def _red_part(text: str) -> str:
     m = FOCUS_RX.search(text)
     return f" Paint his {m.group(1).lower()} glowing red over the ink." if m else ""
@@ -27,7 +29,8 @@ def prompt_for(text: str, hook: bool = False) -> str:
     if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
         return (f"A clear anatomical illustration that shows what this sentence of a fitness explainer is about: \"{text}\". Show the relevant muscles, tendons or bones of the body part concerned, "
                 f"{A.REAL_STYLE}.")
-    who = f"{A.CHARACTER}" + (f", facing {A.RIVAL}" if RIVAL_RX.search(text) else "")
+    who = (f"{A.TRADESMAN}" + (f", with {A.CHARACTER} as the person he meets" if re.search(r"\b(?:you|your)\b", text, re.I) else "")) if WORKER_RX.search(text) and not RIVAL_RX.search(re.sub(r"\bbigger than\b", "", text)) \
+        else f"{A.CHARACTER}" + (f", facing {A.RIVAL}" if RIVAL_RX.search(text) else "")      # the workers the line is about, not our trainee or the bodybuilder
     if hook: return (f"The opening image of a fitness explainer, one striking picture of this promise: \"{text}\". Show {who}, the contrast between them obvious at a glance, a dramatic "
                      f"moment caught mid-action.{_red_part(text)} {A.SCENE_STYLE}.")
     return (f"A single scene from a fitness explainer video, illustrating exactly this narration: \"{text}\". Show {who}, doing or demonstrating what is described, with any named object or "
@@ -37,7 +40,8 @@ def own_prompt(text: str) -> str:
     """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
-    cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "")
+    cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "") + \
+           (f" The tradesman is {A.TRADESMAN}." if re.search(r"\btradesm[ae]n\b|\bworker\b", text, re.I) else "")
     return f"{text}.{cast} {A.SCENE_STYLE}."
 
 # A prompt Flow refused ("This generation might violate our policies") is tried once more in a safer wording. Only the retry changes: every
@@ -72,7 +76,7 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`).
     collect (Generate scenes): nothing is generated; each scene that wants a picture is appended as {no, text, prompt, cached} for the Visuals tab.
     chosen (Render): {scene no: the Visuals tab's finished file record}; that file is the scene's picture, whatever made it."""
-    todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0, "chosen": 0}
+    todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0, "chosen": 0}; prev_fp, prev_text = "", None
     prev = None
     for sc in scenes:
         asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
@@ -83,7 +87,14 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         if sc.get("asset"):      # a library asset (assets.py): one fixed prompt and id, made once and reused by every video
             from . import assets as AS
             p = AS.prompt(sc["asset"]); i = AS.art_id(sc["asset"])
-        else: p = own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else prompt_for(sc["text"], hook=bool(sc.get("hook"))); i = art_id(p)
+        else:
+            fp = sc.get("flow_prompt") or ""
+            if fp and not sc.get("same_picture") and _same(fp, prev_fp) and not _same(sc.get("text"), prev_text):      # the same picture for a different line (render 054: "steel cables" got the "rubber bands" picture)
+                sc["decisions"].append("CSV picture repeats the previous row's for a different line: drawn from its own narration"); fp = ""
+            elif fp and WORKER_RX.search(sc.get("text", "")) and not WORKER_RX.search(fp) and not re.search(r"\btradesm[ae]n\b|\bworker\b", fp, re.I):      # the line is about mechanics / farmers, the CSV drew our cast
+                sc["decisions"].append("the line is about the workers it names; the CSV picture shows the trainee or the rival: drawn from the narration"); fp = ""
+            prev_fp, prev_text = sc.get("flow_prompt") or "", sc.get("text")
+            p = own_prompt(fp) if fp else prompt_for(sc["text"], hook=bool(sc.get("hook"))); i = art_id(p)
         sc["_illus"] = (i, p)
         if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path")}); continue
         pick = (chosen or {}).get(sc["no"])

@@ -39,7 +39,8 @@ def apply(scenes: List[dict]) -> Dict[str, int]:
         if any(PAYOFF_RX.search(x.get("text", "")) or x["kind"] == "result" for x in scenes[i + 1:] if x["start"] > sc["end"] + 30): sc["lock"] = {"at": _word_at(sc, m.start())}; n["locks"] += 1; sc["decisions"].append("blueprint: test locked until its payoff"); break
     warn = next((sc for sc in scenes if sc["kind"] == "warning"), None)
     if warn and us:
-        rule = warn["warning"]["rules"][0]["text"]; inside = {id(x) for u in us for x in u}
+        from .chain import STEP_RX
+        rule = warn["warning"]["rules"][0]["text"]; inside = {id(x) for u in us if STEP_RX.match(u[0].get("section") or "") for x in u}      # the exercise units only (render 054 had it on the hook and the close)
         for sc in scenes:
             if id(sc) in inside and sc is not warn and sc["start"] >= us[0][0]["start"] and sc["kind"] not in ("takeaway", "engage"): sc["safety"] = rule; n["safety_chips"] += 1
     return n

@@ -946,7 +946,9 @@ async function runGenerate({ prompts, settings, accountIds, promptKeys = null })
       for (const { item, reason } of res.unrun) {
         emitFinalFail(item.index, item.prompt, reason === "stopped"
           ? "Stopped before it was sent to Flow — nothing was generated."
-          : "No healthy Flow account was left for this scene — nothing was generated. Use Retry.");
+          : reason === "layout"
+            ? "Flow's page could not make this picture (no settings control, and its agent made none) — nothing was generated. Use Retry."
+            : "No healthy Flow account was left for this scene — nothing was generated. Use Retry.");
       }
       broadcast({ type: "status", message: `Agent job: ${res.batchesRun} request(s) on ${res.accountsUsed.size} account(s), up to ${res.maxConcurrent} at once` });
       return res.batchesRun;

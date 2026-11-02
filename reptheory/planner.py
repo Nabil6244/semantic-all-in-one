@@ -14,11 +14,17 @@ BOTTLE = "prop_bottle_2l_v1"
 def respell(text: str, words: List[dict]) -> List[dict]:
     """The transcript's words with the script's own spelling ("can't", "spot-reduce" where the voice matched them) and the script's punctuation after each word as `p`: what is shown
     comes from the script, the timing from the voice. Words the script does not have keep the transcript's spelling; the number and times of words never change."""
-    ws = [dict(w) for w in words]; st = text.split(); norm = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())
-    for blk in difflib.SequenceMatcher(None, [norm(t) for t in st], [norm(w["w"]) for w in ws], autojunk=False).get_matching_blocks():
-        for k in range(blk.size):
-            tok, w = st[blk.a + k], ws[blk.b + k]; m = re.match(r"^([^\w%]*)(.*?)([^\w%]*)$", tok); core = m.group(2) or tok
-            w["w"] = core.lower() if w["w"] == w["w"].lower() else core; w["p"] = m.group(3)
+    ws = [dict(w) for w in words]; st = text.split()
+    norm = lambda t: re.sub(r"[^a-z0-9]", "", re.sub(r"['’]s\b", "", t.lower()))      # transcripts store "that's" as "that" and "57%" as "57" (render 054 showed "that not muscle", "jumped 57")
+    a_, b_ = [norm(t) for t in st], [norm(w["w"]) for w in ws]; pairs = []
+    sm = difflib.SequenceMatcher(None, a_, b_, autojunk=False)
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == "equal": pairs += [(i1 + k, j1 + k) for k in range(i2 - i1)]
+        elif op == "replace" and i2 - i1 == j2 - j1:      # same number of words, spelled differently ("Wolff's" / "wolf"): one for one when they are close
+            pairs += [(i1 + k, j1 + k) for k in range(i2 - i1) if a_[i1 + k] and b_[j1 + k] and difflib.SequenceMatcher(None, a_[i1 + k], b_[j1 + k]).ratio() >= 0.75]
+    for si, wi in pairs:
+        tok, w = st[si], ws[wi]; m = re.match(r"^([^\w%]*)(.*?)([^\w%]*)$", tok); core = m.group(2) or tok
+        w["w"] = core.lower() if w["w"] == w["w"].lower() else core; w["p"] = re.sub(r"[\"“”'‘’()\[\]]", "", m.group(3))      # a closing quote or bracket is not punctuation to show
     return ws
 
 def words_of(s: dict) -> List[dict]:
@@ -69,7 +75,7 @@ def _scene_of(s: dict, art_ok) -> dict:
     text, ws = s["text"], words_of(s); t0 = float(s["start"]); d: List[str] = []
     sc = {"start": t0, "end": float(s["end"]), "text": text, "sentences": [s["text"]], "kind": "trainee", "art": "rep_stand_v1", "prop": "", "pages": [], "equations": [], "rings": [], "glow": None, "tier": None,
           "decisions": d, "words": ws, "tier_marks": [], "squeezes": [], "flip_at": None, "grip_at": None}
-    cons = LX.concepts_in(text); tier = LX.TIER_RX.search(text); eqs = list(LX.EQ_RX.finditer(text)); label = ""
+    cons = LX.concepts_in(LX.affirmed(text)); tier = LX.TIER_RX.search(text); eqs = list(LX.EQ_RX.finditer(text)); label = ""      # what the line denies ("that's not muscle") is not shown
     sc["tier_marks"] = [{"letter": w["w"].strip(".,;:!?"), "at": w["t0"]} for w, nx in zip(ws, ws[1:]) if re.fullmatch(r"[SABCDF]", w["w"].strip(".,;:!?")) and re.fullmatch(r"tier", nx["w"].strip(".,;:!?"), re.I)]   # "from S tier ... down to F tier": the rows light up as they are named
     if tier:
         letter = (tier.group(1) or tier.group(2)).upper(); subj = re.split(r"\b(?:is|are|lands?|goes|ranks?|sits?|needs?|asks?|requires?|takes?|has|have|comes?)\b", text, maxsplit=1, flags=re.I)[0]; item = s.get("item") or LX._clip(re.sub(r"[^\w\s-]", "", subj), 4)
@@ -177,6 +183,9 @@ def _finish(scenes: List[dict], title: str, art_ok, keep: frozenset = LABELS) ->
         if sc.pop("_drop", False) and out: _absorb(out[-1], sc, "nothing new to show: previous scene continues")
         else: out.append(sc)
     scenes = out
+    for i, sc in enumerate(scenes):      # an empty tier board is only worth showing when an item is placed on it soon after (render 054: 11.9 s of an empty board, its only mark after the video ended)
+        if sc["kind"] == "tier" and sc.get("tier") and not sc["tier"].get("letter") and not sc.get("tier_marks") and not any(x["kind"] == "tier" and (x.get("tier") or {}).get("letter") for x in scenes[i + 1:i + 7]):
+            sc.update(kind="trainee", art="rep_stand_v1", tier=None); sc["decisions"].append("no item is placed on this tier board: the board is not shown")
     for i, sc in enumerate(scenes):
         if sc["kind"] == "equation" and not sc["art"]: sc["art"] = next((p["art"] or p["prop"] for p in reversed(scenes[:i]) if p["kind"] in ("prop", "hold") and (p["art"] or p["prop"])), "")
         if sc["kind"] == "equation" and sc["art"] == "rep_stand_v1": sc["art"] = BOTTLE if art_ok(BOTTLE) else ""

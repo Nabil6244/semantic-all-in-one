@@ -16,6 +16,8 @@ CHARACTER = ("an original manga-style young man: lean, skinny beginner build, sh
 STYLE = ("Hand-drawn manga illustration, clean line art, restrained palette of greys and white with a single orange accent, solid pure black background (#000000), no text, no letters, "
          "no numbers, no logos, no watermark, no border, no other people, subject fully inside the frame with space around it")
 RIVAL = ("a big heavily muscled man with a buzz cut, huge arms and chest, wearing a plain grey tank top, drawn in the same manga ink style (the bigger, stronger-looking opponent)")
+TRADESMAN = ("a weathered tradesman in his fifties: stocky and wiry rather than muscular, thick calloused hands and forearms, short grey stubble, plain work shirt with "
+             "rolled-up sleeves and work trousers, drawn in the same manga ink style")      # the mechanic / farmer / bricklayer the narration talks about (render 054 drew the trainee or the bodybuilder)
 SCENE_STYLE = ("Hand-drawn manga ink illustration, greyscale with white highlights, solid pure black background (#000000), no text, no letters, no numbers, no logos, no watermark, no border. "
                "The only colours are the trainee's orange waistband and, when a muscle, tendon or body part is the point of the scene, that part painted glowing red over the ink. "
                "Compose the subject in one side of the frame (about 60%) and leave the other side empty black for on-screen text")      # docs/rep_theory/STUDY_tendons_arm_wrestling.md section 2

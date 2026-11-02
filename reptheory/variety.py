@@ -159,7 +159,7 @@ DOTS_RX = (re.compile(rf"\b{LX.NUM}\s+(?:in|out of)\s+(?:every\s+)?{LX.NUM}\s+({
 DAY_NAMES = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 DAYS_RX = re.compile(r"\b(" + "|".join(DAY_NAMES) + r")s?\b", re.I); PER_WEEK_RX = re.compile(rf"\b{LX.NUM}\s+(days?|times|sessions?|workouts?|runs?)\s+(?:a|per|each|every)\s+week\b", re.I)
 SPREAD = {2: (0, 3), 3: (0, 2, 4), 4: (0, 1, 3, 4), 5: (0, 1, 2, 3, 4), 6: (0, 1, 2, 3, 4, 5), 7: (0, 1, 2, 3, 4, 5, 6)}      # n sessions in a week, rest days between them
-TIER_RX = re.compile(rf"\b(?:(?P<lo>under|less than|below|fewer than)\s+{LX.NUM}|{LX.NUM}\s*(?:to|-)\s*{LX.NUM}|(?P<hi>over|more than|above|beyond)\s+{LX.NUM}|{LX.NUM}\s*(?:or more|\+|and up|and over))\s*(seconds?|secs?|minutes?|mins?|reps?|kg|%|percent)?\s*,", re.I)
+TIER_RX = re.compile(rf"\b(?:(?P<lo>under|less than|below|fewer than)\s+{LX.NUM}|{LX.NUM}\s*(?:to|-)\s*{LX.NUM}|(?P<hi>over|more than|above|beyond)\s+{LX.NUM}|{LX.NUM}\s*(?:or more|\+|and up|and over))\s*(seconds?|secs?|minutes?|mins?|reps?|kg|%|percent)?\s*[,:]", re.I)      # "under 25 seconds:" as well as "under 25 seconds,"
 HURT_RX = re.compile(r"\b(?:hurts?|pain\w*|sharp|dizzy|dizziness|injur\w*|numb\w*|tingl\w*|doctor|physio\w*|swell\w*|swollen|unsafe|safely|faint)\b", re.I)
 RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ask|ease off|back off|skip)\b[^,.;!?]*)", re.I)
 CTA_RX = (("link", re.compile(r"\b(?:link(?:ed)? (?:is )?(?:below|in the description)|in the description|link below)\b", re.I)), ("comment", re.compile(r"\b(comment|let me know|tell me)\b", re.I)), ("like", re.compile(r"\b(?:tap|hit|smash|press|leave|give (?:it|this|the video))\s+(?:the\s+|a\s+)?like\b", re.I)), ("subscribe", re.compile(r"\bsubscribe\b", re.I)))
@@ -213,6 +213,10 @@ def _calendar(sc: dict, text: str) -> Optional[dict]:
 
 def _result(sc: dict, text: str) -> Optional[dict]:
     """A result board: the bands the sentence states ("under 20 seconds, ... 20 to 40, ... over 40, ..."), each revealed with what it means as it is said."""
+    tiers = _tiers(sc, text)
+    return {"tiers": tiers[:4]} if len(tiers) >= 2 else None
+
+def _tiers(sc: dict, text: str) -> list:
     tiers = []
     for m in TIER_RX.finditer(text):
         g = [x for x in m.groups() if x]; nums = [f"{_num_of(x):g}" for x in g if re.match(LX.NUM + "$", x, re.I)]; unit = (m.groups()[-1] or "").lower()
@@ -220,7 +224,36 @@ def _result(sc: dict, text: str) -> Optional[dict]:
         mark = (f"UNDER {nums[0]}{u}" if m.group("lo") else f"{nums[0]}{u}+" if m.group("hi") or len(nums) == 1 else f"{nums[0]}-{nums[1]}{u}")
         meaning = _words_after(text, m.end(), 4)
         if meaning: tiers.append({"mark": mark, "text": meaning, "at": _at(sc, text, m.start())})
-    return {"tiers": tiers[:4]} if len(tiers) >= 2 else None
+    return tiers
+
+BAND_FOLLOW_S = 40.0
+
+def bands_across(scenes: List[dict]) -> int:
+    """Result bands said one per sentence ("Under 25 seconds: ... 25 to 45 seconds: ... Over 75 seconds: ..."), which no single scene holds two of: the first band's scene gets
+    the whole result board (every band, in turn), each later band's scene a chip with its band lit (render 054 showed a ring, a calendar, slots and an empty tier board instead).
+    Returns how many band scenes were found."""
+    found = []
+    for i, sc in enumerate(scenes):
+        text = sc.get("script_text") or sc.get("text", "")
+        m = TIER_RX.search(text)
+        if m and m.start() <= 3:
+            ts = _tiers(sc, text)
+            if ts: found.append((i, dict(ts[0], at=float(sc["start"]) + 0.2)))
+    runs, cur = [], []
+    for i, tr in found:
+        if cur and (i - cur[-1][0] > 3 or scenes[i]["start"] - scenes[cur[-1][0]]["end"] > BAND_FOLLOW_S): runs.append(cur); cur = []
+        cur.append((i, tr))
+    if cur: runs.append(cur)
+    n = 0
+    for run in runs:
+        if len(run) < 2: continue
+        first = scenes[run[0][0]]; t0 = float(first["start"])
+        tiers = [dict(tr, at=t0 + 0.3 + 0.35 * k) for k, (_i, tr) in enumerate(run)][:4]
+        first["band_card"] = {"tiers": tiers}; first["decisions"].append(f"result bands said one per sentence: the board with all {len(tiers)} bands")
+        for k, (i, tr) in enumerate(run[1:], 1):
+            scenes[i]["band"] = {"text": f"YOUR RESULT · {tr['mark']}", "at": float(scenes[i]["start"]) + 0.15}; scenes[i]["decisions"].append(f"result band {tr['mark']}: chip")
+        n += len(run)
+    return n
 
 def _warning(sc: dict, text: str) -> Optional[dict]:
     """Safety rules stacked as warning cards: each sentence that names a sign of harm (pain, dizziness, an injury) and says what to do about it."""
@@ -234,11 +267,18 @@ def _warning(sc: dict, text: str) -> Optional[dict]:
         pos += len(s) + 1
     return {"rules": rules[:3]} if rules else None
 
+LATE_FULL_PENALTY, LIB_BOOST = 0.9, 0.0
+ENGAGE_LATE_S, ENGAGE_LONG_S = 1.5, 5.0      # a line that is mostly about something else, asking at its end
+
 def _engage(sc: dict, text: str) -> Optional[dict]:
     """The call to action as the screen it asks for: the comment being typed in, the like button pressed, the subscribe button and its bell."""
     for kind, rx in CTA_RX:
         m = rx.search(text)
-        if m: return {"kind": kind, "text": _words_after(text, m.start(), 5, lead=False) if kind == "comment" else "", "at": _at(sc, text, m.start())}
+        if not m: continue
+        at = _at(sc, text, m.start())
+        dur = float(sc.get("end", at)) - float(sc["start"])
+        if kind != "comment" and dur > ENGAGE_LONG_S and at - float(sc["start"]) > max(ENGAGE_LATE_S, 0.4 * dur): return None      # render 054: a LIKE button alone after 7 s of an empty screen; tricks.py puts a chip on the picture instead
+        return {"kind": kind, "text": _words_after(text, m.start(), 5, lead=False) if kind == "comment" else "", "at": at}
     return None
 
 MYTH_RX = re.compile(r"\bmyth(?:\s+(?:number\s+)?\w+)?\s*:\s*([^.!?]+)[.!?]?\s*([^.!?]*)", re.I)
@@ -334,7 +374,9 @@ def _promise(sc: dict, text: str) -> Optional[dict]:
         m2 = re.search(r"\b(?:at the end|later|in a (?:minute|moment)|before we finish)\b[^.!?]{0,20}\b(?:i'?ll|i will|we'?ll|we will)\s+(?:show|tell|reveal|explain)\s+(?:you\s+)?([^,.!?]{3,60})", text, re.I) or \
              re.search(r"\b(?:i'?ll|i will|we'?ll|we will)\s+(?:show|tell|reveal|explain)\s+(?:you\s+)?([^,.!?]{3,60}?)\s+(?:at the end|later|in a (?:minute|moment))\b", text, re.I)
         if not m2: return None
-        tail = re.findall(r"[A-Za-z0-9'%-]+", m2.group(1))[:6]; return {"n": 0, "of": 0, "at": _at(sc, text, m2.start()), "label": " ".join(tail).upper()}
+        tail = re.findall(r"[A-Za-z0-9'%-]+", m2.group(1))[:6]
+        while tail and tail[-1].lower() in N.DANGLING | {"what", "which", "your", "my", "our", "how"}: tail.pop()      # render 054: "THE EXACT SCORECARD FOR WHAT YOUR"
+        return {"n": 0, "of": 0, "at": _at(sc, text, m2.start()), "label": " ".join(tail).upper()}
     n, of = int(_num_of(m.group(1)) or 0), int(_num_of(m.group(2)) or 0)
     if not (0 < n <= of <= 20): return None
     tail = re.findall(r"[A-Za-z0-9'%-]+", m.group(3)); return {"n": n, "of": of, "at": _at(sc, text, m.start(1)), "label": " ".join(tail).upper() if len(tail) <= 5 else ""}
@@ -415,26 +457,33 @@ def _equation(sc: dict, text: str) -> Optional[list]:
     if not lhs or not rhs or lhs == rhs or len(lhs) + len(rhs) > EQ_MAX_CHARS: return None
     return [{"lhs": lhs, "rhs": rhs, "at_l": _at(sc, text, m.start(1)), "at_r": max(_at(sc, text, m.start(3)), _at(sc, text, m.start(1)) + 0.4)}]
 
+BONE_RX = re.compile(r"\b(?:bones?|bone density|cortical|skeleton|x-?ray|marrow)\b", re.I)
+
 def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     """look -> (support 0..1, payload) for what this scene's own words can honestly show."""
     text = sc.get("text", ""); ev: Dict[str, tuple] = {}
     if not text.strip() or SYNTH_RX.search(text): return ev
-    g, by_ex = C3.groups_for(text)
-    if g: ev["3d"] = (0.7 if by_ex else 0.9, None)
+    g, by_ex = C3.groups_for(LX.affirmed(text))      # "there is zero muscle belly" is not a muscle clip
+    if g and not BONE_RX.search(text): ev["3d"] = (0.7 if by_ex else 0.9, None)      # the 3D body is muscles: a line about bone or an x-ray gets a picture (render 054: x-ray bone shown as a muscle clip)
+    from . import assets as AS
+    lib = AS.match(text)
     for look, fn, base in (("timeline", lambda: _timeline(sc, text), 0.95), ("mistake", lambda: _mistake(sc, text), 0.9), ("slider", lambda: _slider(sc, text), 0.9),
                            ("dial", lambda: _dial(sc, text), 0.9), ("study", lambda: _study(sc, text), 0.88), ("result", lambda: _result(sc, text), 0.95), ("calendar", lambda: _calendar(sc, text), 0.9),
                            ("warning", lambda: _warning(sc, text), 0.85), ("bars", lambda: _bars(sc, text), 0.86), ("graph", lambda: _graph(sc, text), 0.82), ("engage", lambda: _engage(sc, text), 0.8), ("myth", lambda: _myth(sc, text), 0.92), ("question", lambda: _question(sc, text), 0.78), ("tokens", lambda: M.tokens(sc, text), 0.91), ("share", lambda: M.share(sc, text), 0.92), ("slots", lambda: _slots(sc, text), 0.93), ("race", lambda: _race(sc, text), 0.9), ("formula", lambda: _formula(sc, text), 0.86), ("mechanism", lambda: _mechanism(sc, text), 0.92), ("promise", lambda: _promise(sc, text), 0.94), ("checklist", lambda: _checklist(sc, text), 0.8), ("stat", lambda: _stat(sc, text), 0.85), ("versus", lambda: _versus(sc, text), 0.8), ("steps", lambda: _steps(sc, text), 0.8), ("takeaway", lambda: _takeaway(sc, text, last, role), 0.9 if last else 0.6)):
         got = fn()
-        if got: ev[look] = (base - (0.6 if look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)      # a card whose first element comes late would sit empty on screen
+        if got:
+            late = look not in OPEN_AT_START and _first_at(got) - float(sc["start"]) > LATE_CARD_S
+            ev[look] = (base - ((LATE_FULL_PENALTY if look in FULL_CARDS else 0.6) if late else 0.0), got)      # render 054: a warning card empty for 6 s of 8: a full-frame card that would sit empty is the last resort      # a side card whose first element comes late keeps the scene's words beside it, at a lower score
     for look, (base, got) in DG.evidence(sc, text).items():      # the diagrams that explain why (diagrams.py)
         ev[look] = (base - (0.6 if _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)
+    if sc.get("band_card"): ev["result"] = (0.99, sc["band_card"])      # the bands said across sentences (bands_across)
     if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
     sk = _sketch(text)
     if sk and (not sc.get("pose_pick") or sk.get("variant") in SKETCH_VARIANTS): ev["sketch"] = (SKETCH_BASE, sk)      # the exercise drawn as a moving line figure: when no pose shows it, or the sentence names a variant only the line figure has (wall / incline / knee push-up)
     eq = _equation(sc, text)
     if eq: ev["equation"] = (0.88, eq)
     if "engage" in ev: ev.pop("takeaway", None)      # a call to action is shown as the screen it asks for, not as a key line
-    if N.key_phrase(text, 3)[0] or len(text.split()) >= 4: ev["flow"] = (FLOW_BASE, None)      # any sentence can be drawn
+    if N.key_phrase(text, 3)[0] or len(text.split()) >= 4: ev["flow"] = (FLOW_BASE + (LIB_BOOST if lib else 0.0), None)      # any sentence can be drawn; one naming a library asset (nervous system, shoulder blades, x-ray) is drawn as it (render 054 showed the plain figure)
     if "takeaway" not in ev and not any(pg.get("headline") or pg.get("value") or pg.get("chips") for pg in sc.get("pages", [])):      # a scene with nothing written on it would be a bare figure: its own words, lit as they are spoken, are the fallback
         ws = sc.get("words") or []
         if 4 <= len(ws) <= 22 and sc["end"] - sc["start"] >= 3.0: ev["takeaway"] = (0.55, {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]})
@@ -490,6 +539,33 @@ def split_long(scenes: List[dict]) -> int:
     for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
     return n
 
+PIC_LONG_S, PIC_PART_S = 8.0, 3.0      # a picture held longer than this is cut at a clause; each part at least this long
+
+def reframe_long(scenes: List[dict]) -> int:
+    """A picture scene held past PIC_LONG_S (render 054: one picture for 16.5 s, the reference changes shot every ~3.8 s) is cut at the sentence end or comma nearest its
+    middle. A CSV row's picture is shown again, re-framed (same picture, another camera: nothing new to generate); the app's own picture scenes get a picture of their own
+    half. Returns how many cuts were made."""
+    n = 0; i = 0
+    while i < len(scenes):
+        sc = scenes[i]; ws = sc.get("words") or []
+        if sc.get("look") != "flow" or sc.get("hook") or sc["end"] - sc["start"] <= PIC_LONG_S or len(ws) < 6: i += 1; continue
+        punct = _punct(sc); mid = (sc["start"] + sc["end"]) / 2; best = None
+        for strong in (True, False):
+            for k in range(1, len(ws)):
+                if not re.search(r"[.!?]$" if strong else r"[,;:]$", punct[k - 1]): continue
+                t = float(ws[k]["t0"])
+                if t - sc["start"] >= PIC_PART_S and sc["end"] - t >= PIC_PART_S and (best is None or abs(t - mid) < abs(best - mid)): best = t
+            if best is not None: break
+        if best is None: i += 1; continue
+        a, b = _cut(sc, best)
+        if sc.get("flow_prompt") or sc.get("asset"):
+            b["same_picture"] = True; b["camera"] = "wide" if str(a.get("camera") or "").lower().startswith("close") else "close"
+            a["decisions"][-1] = b["decisions"][-1] = "variety: a long picture cut at a clause, the second part the same picture re-framed"
+        else: a["decisions"][-1] = b["decisions"][-1] = "variety: a long picture cut at a clause, each part its own picture"
+        scenes[i:i + 1] = [a, b]; n += 1
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
+
 SLOT_FOLLOW_S = 10.0      # how far after a count the short rows that name its items may come
 
 def fill_slots(scenes: List[dict]) -> int:
@@ -508,6 +584,16 @@ def fill_slots(scenes: List[dict]) -> int:
             k = next(x for x, it in enumerate(sl["items"]) if not it["text"]); sl["items"][k] = {"text": " ".join(ws).upper(), "at": float(nx["start"])}
             sc["end"] = nx["end"]; sc["words"] = (sc.get("words") or []) + (nx.get("words") or []); sc["text"] = (sc.get("text", "") + " " + nx.get("text", "")).strip()
             sc["decisions"].append(f"slot {k + 1} named by the short sentence that follows: {sl['items'][k]['text']}"); del scenes[j]; n += 1
+        if any(not it["text"] for it in sl["items"]):      # "these four holds build ...": the units the script announced give the names (render 054 showed four blank slots)
+            from .chain import STEP_RX
+            names = []
+            for x in scenes:
+                mm = STEP_RX.match(x.get("section") or "")
+                if mm and mm.group(1).upper().startswith(sl["noun"].upper().rstrip("S")[:4]) and mm.group(3).strip() and mm.group(3).strip().upper() not in names: names.append(mm.group(3).strip().upper())
+            if len(names) == len(sl["items"]):
+                for x, it in enumerate(sl["items"]):
+                    if not it["text"]: it["text"] = names[x]
+                sc["decisions"].append("slots named after the units they count: " + ", ".join(names))
         for x, it in enumerate(sl["items"]):      # slots still unnamed stay numbered, appearing in turn after the named ones
             if not it["text"]: it["at"] = max(it["at"], max((y["at"] for y in sl["items"] if y["text"]), default=it["at"]) + 0.25 * (x + 1))
         i += 1
@@ -612,6 +698,24 @@ def section_kind(sc: dict) -> str:
     return ""
 
 JOIN_MAX_S = 8.0
+SHORT_S = 1.6
+SHORT_RX = re.compile(r":\s*$|\b(?:that'?s|it'?s|this is|that is|it is)\s+not\b", re.I)
+
+def join_short(scenes: List[dict]) -> int:
+    """A scene too short to read (under SHORT_S) that only labels what follows ("the towel ring hold:") or denies what the next line answers ("that's not muscle." / "it's their
+    tendons") joins the next scene, which keeps its own look (render 054 had 1.0-1.2 s shots). Short emphatic lines ("you're right.") stay: they are stamped. Returns the joins."""
+    n = 0; i = 1
+    while i < len(scenes) - 1:
+        a, b = scenes[i], scenes[i + 1]
+        if a["end"] - a["start"] >= SHORT_S or not SHORT_RX.search(a.get("text", "")) or a.get("section") != b.get("section") or a["kind"] in ("tier", "equation"): i += 1; continue
+        m = dict(b, start=a["start"], words=(a.get("words") or []) + (b.get("words") or []), text=a["text"].rstrip() + " " + b["text"].lstrip())
+        if a.get("script_text") or b.get("script_text"): m["script_text"] = ((a.get("script_text") or a["text"]) + " " + (b.get("script_text") or b["text"])).strip()
+        for k, v in a.items():
+            if isinstance(v, list) and k != "words" and isinstance(b.get(k), list): m[k] = v + b[k]
+        m["decisions"] = list(b["decisions"]) + [f"joined the {a['end'] - a['start']:.1f} s line before it: '{a['text'][:40]}'"]
+        scenes[i:i + 2] = [m]; n += 1
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
 
 def join_for_diagrams(scenes: List[dict]) -> int:
     """Two text scenes that are one sentence cut at a comma ("Some people get it in a few months, | others take one to two years, some never.") are joined back when the
@@ -660,7 +764,7 @@ JITTER = 0.5      # how far a script's own seed moves a look's score: enough to 
 
 def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
-    join_for_diagrams(scenes); split = split_for_cards(scenes) + split_long(scenes); absorb_slot_items(scenes)
+    join_for_diagrams(scenes); join_short(scenes); bands_across(scenes); split = split_for_cards(scenes) + split_long(scenes); absorb_slot_items(scenes)
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow") or 10 ** 9      # no picture limit unless a caller sets one
     plate_seen: Dict[str, float] = {}; keyline_parts: set = set()      # chapters that already had their one key-line card
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
@@ -721,7 +825,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
             if look in FULL_CARDS: sc["pages"] = []      # the card fills the frame (a caption strip follows the narration: states.develop)
             if look == "takeaway": keyline_parts.add(sc.get("section"))
         else: sc["decisions"].append("variety: stock look kept")
-    fill_slots(scenes); let_cards_finish(scenes)
+    fill_slots(scenes); let_cards_finish(scenes); reframe_long(scenes)
     chap = lambda sc: sc["section"] if sc.get("section") and sc["section"] != sc.get("topic") and not sc["section"].startswith("TIER LIST") else ""      # a part of the video = a unit the narration announced (Part one, Week two ...)
     chapters: List[str] = []
     for sc in scenes:

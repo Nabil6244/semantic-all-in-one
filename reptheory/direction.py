@@ -158,7 +158,7 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         muscle = str(s.get("muscle") or "").strip()
         if muscle and C3.groups_for(muscle)[0]: sc["muscle"] = muscle
         prompt = str(s.get("prompt") or "").strip()
-        if prompt.lower() in ("same", "same picture", "previous", "same as above") and prev_prompt: prompt = prev_prompt      # the row before's picture again, re-framed (camera column)
+        if prompt.lower() in ("same", "same picture", "previous", "same as above") and prev_prompt: prompt = prev_prompt; sc["same_picture"] = True      # the row before's picture again, re-framed (camera column)
         if prompt: sc["flow_prompt"] = prompt; prev_prompt = prompt
         cam = str(s.get("camera") or "").strip()
         if cam: sc["camera"] = cam

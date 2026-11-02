@@ -7,7 +7,6 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from . import art as A
 
 VERSION = "v1"
 REUSE_GAP_S = 30.0
@@ -55,8 +54,10 @@ def prompt(name: str) -> str:
 
 def plan(scenes: List[dict]) -> int:
     """Gives each picture scene that names an asset's subject (or whose CSV row asked for one) its library asset. Returns how many scenes got one."""
-    seen: Dict[str, float] = {}; n = 0
+    seen: Dict[str, float] = {}; n = 0; prev = None
     for sc in scenes:
+        if sc.get("same_picture") and prev is not None and prev.get("asset") and sc.get("look") == "flow": sc["asset"] = prev["asset"]; prev = sc; continue      # a long asset shot cut in two: the same asset, re-framed
+        prev = sc
         if sc.get("look") != "flow" or sc.get("hook"): continue
         g = sc.get("graphic_csv") or {}
         name = norm(g.get("name", "")) if g.get("kind") == "asset" else ""

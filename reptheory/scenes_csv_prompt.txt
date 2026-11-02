@@ -80,7 +80,7 @@ Things the app adds by itself (no column needed): a stopwatch that starts on "ho
 
 WRITING A PICTURE PROMPT (the prompt column)
 The app adds the art style, the black background, the colours and the composition (subject on one side, empty space for words). You describe only WHAT is in the picture:
-1. Who: "the trainee" (the video's lean main character, always the same) and, when there is an opponent or a bigger, stronger-looking person, "the rival" (a big muscular man in a grey tank top). Never describe their looks, clothes or hair: the app does.
+1. Who: draw WHO THE SENTENCE IS ABOUT. "the trainee" (the video's lean main character) when the sentence is about you / the viewer doing something; "the rival" (a big muscular man in a grey tank top) ONLY when there is an opponent or a bigger, stronger-looking person; "the tradesman" (a weathered older worker) when the sentence talks about mechanics, farmers, bricklayers, carpenters, climbers or other workers ("an old tradesman crushing the trainee's hand in a handshake, the trainee wincing"). Never put the trainee or the rival in a sentence about other people. Never describe their looks, clothes or hair: the app does.
 2. Doing what, exactly: the pose and the action at this moment ("seated at a table, forearm resting on it palm up, hand hanging off the edge, holding a backpack by its strap").
 3. With what: every object the sentence names, drawn clearly (table, towel, hammer, bucket, backpack, bar, bench, dumbbell, kettlebell).
 4. Seen from where: side view, front view, three-quarter view, from above, close-up on the hands, close-up on the face, over the shoulder.
@@ -90,7 +90,10 @@ The app adds the art style, the black background, the colours and the compositio
 8. Before / after: for a turn in the story, give two rows two prompts of the same scene ("the trainee and the rival arm wrestling, even" → "the same arm wrestle, the rival's arm folding down, the trainee winning, speed lines").
 9. Analogies are drawn literally ("a rope hanging slack between two hands", "a hammer held at the very end of its handle").
 10. Keep it real and safe: correct exercise form, normal gym or home objects, no injuries shown, no gore.
-11. Words Flow refuses (the picture then fails): the trainee and the rival are always adults, never "boy", "kid", "teen" or "young guy". Never draw an injury: no "torn", "snapped",
+11. Never draw what the sentence denies: "they don't drink protein shakes" is NOT a man drinking (draw the worker at his workbench instead); "that's not muscle" is NOT a muscle picture (draw what it IS: the tendons).
+12. Two sentences that contrast ("gym bros build a motor with rubber bands" / "mechanics build steel cables") get two DIFFERENT prompts that show the difference. Never copy a prompt to the next row; write "same" only when you want the very same picture again.
+13. Keep each row to one clause of at most ~6 seconds of speech. A long sentence becomes two or three rows, each with its own picture or "same" with a new camera; a list of people ("a mechanic, a bricklayer or a farmer") becomes one row per person.
+14. Words Flow refuses (the picture then fails): the trainee and the rival are always adults, never "boy", "kid", "teen" or "young guy". Never draw an injury: no "torn", "snapped",
     "bleeding", "broken", "wound", "pain on his face"; show the stressed part "highlighted in red under load" instead (the narration may still say "tear"). An arm wrestle or an
     opponent is "a friendly match at a table", never "fight", "attack", "crush" or "smash". Anatomy is "a clean anatomical sketch" or "an x-ray style drawing", never exposed bone
     or blood. Keep the prompt to the action, the objects, the view and the red part: short, calm descriptions pass, long dramatic ones get refused.

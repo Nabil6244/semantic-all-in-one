@@ -2172,6 +2172,27 @@ class AssetManager:
         if not scenes:
             return {}
         self.reset_cancel()
+        out: Dict[str, AssetResult] = {}
+        # A scene asking for exactly what another finished scene already has (same source, same prompt) takes that file, as a
+        # normal run does, instead of a Flow job (2026-11-02: a retried scene with scene 15's prompt was filled from scene 15
+        # while its Flow job kept the row on PROCESSING for 20 minutes).
+        was_done = {scene_key(sc.scene_number) for sc in scenes if (self.manifest.get(sc.scene_number) or {}).get("status") == "complete"}
+        self._reuse_by_content(scenes)
+        waiting: List[SceneRow] = []
+        for scene in scenes:
+            source = self.classify(self._apply_requested_provider(scene))
+            filled_now = scene_key(scene.scene_number) not in was_done and (self.manifest.get(scene.scene_number) or {}).get("status") == "complete"
+            hit = self._cache_hit(scene, source) if filled_now and source in (AssetSource.FLOW_IMAGE, AssetSource.FLOW_VIDEO) else None
+            if hit is not None and getattr(hit, "ok", False):      # only a scene just filled from ANOTHER scene: a deliberate Retry of a done scene still makes a new one
+                out[scene.scene_number] = hit
+                if on_scene_complete is not None:
+                    try: on_scene_complete(scene, hit)
+                    except Exception: pass
+            else:
+                waiting.append(scene)
+        scenes = waiting
+        if not scenes:
+            return out
         by_source: Dict[AssetSource, List[SceneRow]] = {}
         for scene in scenes:
             self._cancelled_scenes.discard(scene_key(scene.scene_number))
@@ -2183,7 +2204,6 @@ class AssetManager:
                 source = AssetSource.FLOW_IMAGE
             by_source.setdefault(source, []).append(scene)
 
-        out: Dict[str, AssetResult] = {}
         for source, group in by_source.items():
             provider = self._provider_for(source)
             results: Dict[str, AssetResult] = {}

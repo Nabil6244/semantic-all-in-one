@@ -15,10 +15,11 @@ from PIL import Image, ImageDraw
 from . import draw as D, meters as M, narrative as N, theme as T
 
 PICTURE_KINDS = {"illus", "pose", "trainee", "callout", "prop", "hold", "sketch", "anatomy"}
-OVERLAYS = ("strike", "bubble", "aside", "measure", "hazard")
+OVERLAYS = ("strike", "bubble", "aside", "measure", "hazard", "cta", "band")
 HAND_FONT = "ChalkboardSE.ttc"
 YELLOW = (255, 214, 64)
 
+DENY_RX = re.compile(r"\b(?:that'?s|it'?s|this is|that is)\s+not\s+(?:just\s+|really\s+)?([A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*)?)\s*[.!;]\s*(?:it'?s|it is|they'?re|that'?s)\b", re.I)      # "that's not muscle. It's their tendons."
 NOT_RX = re.compile(r"\b(?:isn'?t|is\s+not|it'?s\s+not|aren'?t|are\s+not)\s+(?:just\s+|really\s+|actually\s+|only\s+)?(?:a\s+|an\s+|about\s+)([A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,2})", re.I)
 TURN_RX = re.compile(r"\b(it'?s|it\s+is|they'?re|but|instead|rather)\b", re.I)
 SAY_RX = re.compile(r"\b(?:says?|said|tells?\s+you|yells?|shouts?|screams?|whispers?|begs?(?:\s+for)?)\b\s*[:,]?\s*[\"“']?([A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,2})", re.I)
@@ -35,7 +36,7 @@ def _upper(s: str, n: int = 3) -> str:
     return " ".join(ws).upper()
 
 def strike(sc: dict, text: str) -> Optional[dict]:
-    m = NOT_RX.search(text)
+    m = NOT_RX.search(text) or DENY_RX.search(text)
     if not m: return None
     raw = m.group(1).lower().split()
     if any(w in ("where", "that", "which", "who", "when", "you", "to", "for", "of") for w in raw[1:]): return None      # "isn't a place where you ..." is a clause, not a claim to strike
@@ -89,11 +90,17 @@ def plan(scenes: List[dict]) -> Dict[str, int]:
                 break
         ms = measure(sc, text)
         if ms: sc["measure"] = ms; n["measure"] += 1
+    for sc in scenes:      # a like / subscribe / link asked inside a longer line: a chip on the scene's own picture at the word (variety offers no near-empty card for it)
+        if sc["kind"] == "engage" or sc.get("cta"): continue
+        from .variety import CTA_RX
+        for kind, rx in CTA_RX:
+            m = rx.search(sc.get("text", ""))
+            if m: sc["cta"] = {"kind": kind, "at": M._at(sc, m.start())}; n["cta"] += 1; break
     return n
 
 def marks(sc: dict) -> List[float]:
     """When something new lands from the tricks on this scene (cadence)."""
-    out = []
+    out = [sc[k]["at"] for k in ("cta", "band") if sc.get(k)]
     if sc.get("strike"): out += [sc["strike"]["at"], sc["strike"]["strike_at"]]
     for k in ("bubble", "aside", "hazard"):
         if sc.get(k): out.append(sc[k]["at"])
@@ -168,7 +175,25 @@ def draw_hazard(cv, ctx, c, t):
     band = band.rotate(-2.5, expand=True, resample=Image.BICUBIC); x = int(-band.width + (band.width - ctx.px(100)) * e)
     cv.paste(band, (x, int(y0)), band)
 
-DRAW = {"strike": draw_strike, "bubble": draw_bubble, "aside": draw_aside, "measure": draw_measure, "hazard": draw_hazard}
+CTA_LABEL = {"like": "LIKE THIS VIDEO", "subscribe": "SUBSCRIBE", "comment": "COMMENT BELOW", "link": "LINK IN DESCRIPTION"}
+
+def draw_cta(cv, ctx, c, t):
+    """A small chip bottom right that pops on the word asking for it, stays for 3 s, then goes."""
+    u = t - c["at"]
+    if u < 0 or u > 3.4: return
+    a = min(T.ease_back(min(1.0, u / 0.35)), max(0.0, (3.4 - u) / 0.4)); lab = CTA_LABEL.get(c["kind"], "SUBSCRIBE")
+    d = ImageDraw.Draw(cv, "RGBA"); f = ctx.font(T.HEAD_FONT, 34); w = D._text_w(d, lab, f, ctx.px(2)) + ctx.px(60); x1, y1 = ctx.W - ctx.px(60), ctx.H * 0.86
+    d.rounded_rectangle((x1 - w * a, y1, x1, y1 + ctx.px(64)), radius=ctx.px(32), fill=((222, 38, 38) if c["kind"] in ("subscribe", "like") else T.ORANGE) + (int(255 * min(1, a)),))
+    if a > 0.6: D.text_spaced(d, (x1 - w + ctx.px(30), y1 + ctx.px(12)), lab, f, T.WHITE + (255,), ctx.px(2))
+
+def draw_band(cv, ctx, c, t):
+    a = _p(t, c["at"], 0.35)
+    if a <= 0: return
+    d = ImageDraw.Draw(cv, "RGBA"); f = ctx.font(T.HEAD_FONT, 34); w = D._text_w(d, c["text"], f, ctx.px(2)) + ctx.px(56); x0, y0 = (ctx.W - w) / 2, ctx.H * 0.07
+    d.rounded_rectangle((x0, y0, x0 + w, y0 + ctx.px(62)), radius=ctx.px(31), fill=(20, 20, 22, int(225 * a)), outline=T.ORANGE + (int(255 * a),), width=ctx.px(3))
+    D.text_spaced(d, (x0 + ctx.px(28), y0 + ctx.px(11)), c["text"], f, T.ORANGE + (int(255 * a),), ctx.px(2))
+
+DRAW = {"cta": draw_cta, "band": draw_band, "strike": draw_strike, "bubble": draw_bubble, "aside": draw_aside, "measure": draw_measure, "hazard": draw_hazard}
 
 def draw(cv: Image.Image, ctx: D.Ctx, sc: dict, t_abs: float) -> None:
     for k in OVERLAYS:
