@@ -486,3 +486,40 @@ class CachedMediaStaysChecked(unittest.TestCase):
         # found again later for the same row: it is on the list, so it is failed again, never reused
         AssetManifest(d).set("4", {"source": "nasa_video", "status": "complete", "provider_asset_id": "ksc_012805_touchdown"})
         self.assertEqual(recheck_cached_media(self._rows(), d, log=lambda m: None, get=get), ["4"])
+
+
+class OffTopicPicturesStayOut(unittest.TestCase):
+    """Video 56 (StarMap Cinema): a butterfly for Neptune, tree rings for a protoplanetary disk, a person with a bag on the head
+    for "a grapefruit held in a hand", a James Webb photo for Mars, a cargo plane for Parker Solar Probe, a rocket for MAVEN."""
+
+    def stock(self, url):
+        return {"source": "stock_image", "provider": "pixabay", "status": "complete", "source_url": url}
+
+    def test_a_stock_picture_must_say_it_shows_the_space_subject_asked_for(self):
+        from starmap.media import stock_mismatch as sm
+
+        neptune = "Neptune blue planet from Voyager 2 with Great Dark Spot"
+        self.assertIn("space", sm("nasa_image", neptune, self.stock("https://pixabay.com/photos/butterfly-nature-insect-wings-10071841/")))
+        self.assertIn("space", sm("nasa_image", "Protoplanetary disk around a young star ALMA image with rings and gaps",
+                                  self.stock("https://pixabay.com/photos/annual-rings-tree-wood-texture-3212803/")))
+        self.assertIn("mars", sm("stock_image", "Mars global view from Hubble Space Telescope",
+                                 self.stock("https://pixabay.com/photos/james-webb-telescope-spacecraft-6931997/")))
+        self.assertIsNone(sm("nasa_image", "Mercury Venus Earth and Mars terrestrial planets",
+                             self.stock("https://pixabay.com/photos/planets-planetary-system-mercury-11059/")))
+        self.assertIsNone(sm("stock_image", "Single grain of rice macro photo", self.stock("https://www.pexels.com/photo/grains-of-rice-18328392/")))
+
+    def test_a_person_never_stands_in_for_a_row_that_asks_for_no_one(self):
+        from starmap.media import stock_mismatch as sm
+
+        bag = self.stock("https://www.pexels.com/photo/person-covered-with-plastic-bag-on-head-while-holding-sliced-blood-orange-3317038/")
+        self.assertIn("person", sm("stock_image", "Large grapefruit held in a hand on a plain background", bag))
+        self.assertIsNone(sm("stock_image", "A person holding a grapefruit", bag))
+        self.assertIsNone(sm("stock_image", "Large grapefruit", dict(bag, user_override=True)), "the user's own pick is never second-guessed")
+
+    def test_a_nasa_picture_of_the_craft_on_the_ground_or_of_another_craft_is_rejected(self):
+        c = nasa_images.contradicts
+        self.assertIn("ground", c("Parker Solar Probe spacecraft approaching the Sun artist concept",
+                                  "Parker Solar Probe Spacecraft Arrival, Offload and Transport", ""))
+        self.assertIn("MAVEN", c("MAVEN spacecraft orbiting Mars artist concept", "Rocket to Mars (Artist's Concept)", ""))
+        self.assertIsNone(c("MAVEN spacecraft orbiting Mars artist concept", "MAVEN in orbit around Mars", "Artist concept of MAVEN orbiting Mars"))
+        self.assertIsNone(c("Voyager 2 spacecraft launch Titan Centaur rocket 1977", "Voyager 2 Launch", "A Titan Centaur rocket lifts off with Voyager 2 in 1977"))

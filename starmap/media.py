@@ -211,6 +211,41 @@ _OWN_SOURCES = ("manual", "local")              # the user's own file: never sec
 _NASA = ("nasa_image", "nasa_video")
 
 
+SPACE_WORDS = re.compile(r"\b(space|planet\w*|star|stars|starry|stellar|galax\w*|nebula\w*|cosmos|cosmic|universe|astronom\w*|astro\w*|solar|sun|"
+                         r"moon|lunar|orbit\w*|asteroid\w*|comet\w*|meteor\w*|milky|telescope|nasa|spacecraft|satellite|rocket|eclipse|aurora|"
+                         r"mercury|venus|earth|mars|jupiter|saturn|uranus|neptune|pluto|protoplanet\w*|exoplanet\w*|black hole|supernova|night sky)\b", re.I)
+BODY_NAMES = re.compile(r"\b(sun|moon|mercury|venus|earth|mars|jupiter|saturn|uranus|neptune|pluto|ceres|vesta|titan|europa|io|ganymede|callisto|"
+                        r"enceladus|triton|charon|phobos|deimos)\b", re.I)
+PEOPLE_WORDS = re.compile(r"\b(person|people|man|men|woman|women|girl|boy|child|children|kid|face|portrait|selfie|model|guy|lady|couple|family|"
+                          r"businessman|student|crowd)\b", re.I)
+
+
+def stock_mismatch(source: str, prompt: str, rec: Dict[str, Any]) -> Optional[str]:
+    """Why a stock picture is not what the row asked for (None when it may be), from what the provider says it shows (title,
+    description, tags, the page's slug): no vision, no AI call. A NASA row whose search came back empty went to the stock
+    search, and "Neptune blue planet from Voyager 2" took a blue butterfly, "a disk around a young star with rings and gaps"
+    took tree rings; "a large grapefruit held in a hand" took a person with a plastic bag over the head.
+      * a space subject (a NASA row, or a prompt about space) needs a picture that says it is of space, and of the world it names;
+      * a picture of people needs a prompt that asks for people."""
+    if str(rec.get("source") or "") in _NASA or rec.get("user_override") or str(rec.get("source") or "") in _OWN_SOURCES:
+        return None
+    if str(rec.get("source") or "").startswith("flow") or not str(rec.get("provider") or ""):
+        return None
+    slug = re.sub(r"[-_/.]+", " ", str(rec.get("source_url") or "").split("://")[-1].split("/", 1)[-1])
+    says = " ".join(str(rec.get(k) or "") for k in ("title", "description", "tags", "alt")) + " " + slug
+    if not says.strip():
+        return None
+    if (source in _NASA or SPACE_WORDS.search(prompt or "")) and not SPACE_WORDS.search(says):
+        return "a stock picture of something else (nothing in it says space) stands in for a space picture"
+    asked = {w.lower() for w in BODY_NAMES.findall(prompt or "")}
+    if asked and not asked & {w.lower() for w in BODY_NAMES.findall(says)}:
+        # the MARS card ("Mars global view from Hubble") took a James Webb telescope photo: space, but not the world asked for
+        return f"a stock picture that never names {' / '.join(sorted(asked))}"
+    if PEOPLE_WORDS.search(says) and not PEOPLE_WORDS.search(prompt or ""):
+        return "a stock picture of a person, for a row that asks for no one"
+    return None
+
+
 def rejected_ids(images_dir: Path) -> Dict[str, List[str]]:
     try:
         return json.loads((Path(images_dir) / REJECTED_FILE).read_text(encoding="utf-8"))
@@ -293,6 +328,10 @@ def recheck_cached_media(rows_info: Sequence[Any], images_dir: Path, *, manifest
             continue
         if (str(int(n)), nid) in vqa:
             fail(n, rec, vqa[(str(int(n)), nid)])
+            continue
+        why = stock_mismatch(m.source, m.prompt, rec)
+        if why:
+            fail(n, rec, why)
             continue
         if m.source not in _NASA or not nid or rec.get("relevance"):
             continue
@@ -421,6 +460,14 @@ def fetch_media(plan: Plan, images_dir: Path, *, scene_rows: Optional[Sequence[A
             out.media[f"row:{m.row}"] = {"file": ""}             # rejected before for this row: left out, never back
             out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}): the search found {rec.get('provider_asset_id')} "
                              f"again, which was rejected for this row before, so it is left out")
+            continue
+        why = stock_mismatch(m.source, m.prompt, rec)
+        if why:                                                 # left out, never an unrelated picture; never picked again for this row
+            _reject(Path(images_dir), str(int(n)), str(rec.get("provider_asset_id") or ""))
+            out.media[f"row:{m.row}"] = {"file": ""}
+            out.notes.append(f"Visual Plan scene {n} ({m.kind} in beat {m.beat}, CSV row {m.row}: {m.source}:{m.prompt}): {why} "
+                             f"({rec.get('source_url') or rec.get('provider_asset_id')}), so it is left out. Retry or Change source in the Visual Plan.")
+            log(f"[StarMap] scene {n}: {why}; left out")
             continue
         credit = rec.get("credit") or _credit_from(rec)
         # only NASA material is credited on screen; stock (Pexels and the like) is credited in the credits file alone

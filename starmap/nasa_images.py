@@ -87,7 +87,9 @@ def contradicts(query: str, title: str, description: str, date: str = "") -> Opt
     if first and not re.search(rf"\b{re.escape(first[0])}", text, flags=re.I):
         return f"it never mentions {first[0]}"
     words = re.findall(r"[A-Za-z][A-Za-z0-9'-]*", query)
-    named = [w for i, w in enumerate(words) if i > 0 and w[0].isupper() and w.lower() not in STOP and w != "NASA"]
+    # the first word is capitalised anyway, so it counts only as an acronym: "MAVEN spacecraft orbiting Mars" took "Rocket to Mars"
+    named = [w for i, w in enumerate(words) if (i > 0 and w[0].isupper() or (w.isupper() and len(w) >= 3))
+             and w.lower() not in STOP and w != "NASA"]
     have = {_stem(w) for w in _words(low)}
     found = [w for w in named if _stem(w.lower()) in have or w.lower() in low]
     if named and len(found) * 3 < len(named) * 2:
@@ -98,6 +100,10 @@ def contradicts(query: str, title: str, description: str, date: str = "") -> Opt
     # what the item says it shows: its title, or its first sentence when the title is only the mission or a catalogue number
     # a photo of people at an event, unless people are what is asked for: "Suzanne Dodd ... holds a replica of the golden record ... at a
     # news conference" stood in for "Voyager 1 interstellar space 2013"
+    # the craft asked for in space, the picture of it on the ground: "Parker Solar Probe approaching the Sun" took "Parker Solar
+    # Probe Spacecraft Arrival, Offload and Transport" (a cargo plane on a runway)
+    if _IN_SPACE_ASKED.search(query) and not _GROUND_ASKED.search(query) and _GROUND_TITLE.search(title or ""):
+        return "it shows the craft on the ground (launch, transport or processing), not in space as asked"
     opening = _first_sentence(description)
     if _EVENT.search(opening) and not _PEOPLE_ASKED.search(query):
         return "it is a photo of people at an event (a news conference or briefing), not of what is asked for"
@@ -127,6 +133,13 @@ _EVENT = re.compile(r"\b(news conference|press conference|briefing|press event|m
                     r"is interviewed|ceremony|award|honou?red|poses|posing|panel discussion)\b", re.I)
 _PEOPLE_ASKED = re.compile(r"\b(team|engineers?|scientists?|people|person|crew|astronauts?|press|conference|briefing|portrait|manager|staff|"
                            r"control room|mission control|ceremony|celebrat\w*|react\w*)\b", re.I)
+
+_IN_SPACE_ASKED = re.compile(r"\b(orbit\w*|approach\w*|flying|flies|flyby|fly-by|in space|artist'?s? concept|illustration|cruis\w*|near the sun|"
+                             r"passing|passes|leaving|beyond)\b", re.I)
+_GROUND_ASKED = re.compile(r"\b(launch\w*|lift-?off|rocket|launch pad|clean ?room|processing|transport\w*|assembl\w*|test\w*|built|building|"
+                           r"prepar\w*|shipped|arrives at (?:the )?(?:kennedy|cape|airfield|base))\b", re.I)
+_GROUND_TITLE = re.compile(r"\b(arrival|offload\w*|transport\w*|clean ?room|processing|encapsulat\w*|fairing|crate|hangar|mating|stacking|"
+                           r"thermal vacuum|vibration test|rollout|launch\w*|lift-?off|rocket|on the pad|launch pad)\b", re.I)
 
 _GENERIC_SUBJECT = {"space", "deep", "outer", "view", "image", "imag", "picture", "photo", "photograph", "shot", "footage", "video", "agency",
                     "mission", "program", "scene", "nasa", "spacecraft", "probe", "craft", "close", "far", "new", "first", "last"}
