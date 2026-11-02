@@ -1292,9 +1292,16 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
         fixed = sum(c.dur for c in b.clips if c.dur)
         untimed = [c for c in b.clips if not c.dur]
         share = (span - fixed) / len(untimed) if untimed else 0
+        durs = [c.dur if c.dur else (share if share >= 1.0 else 3.0) for c in b.clips]
+        if sum(durs) > span + 0.05:
+            # the CSV's durations run past the beat: they shrink evenly to end with it. A 6 s clip in a 5 s beat ran into the next
+            # beat's clip and the renderer stopped on the overlap (project #001, b29/b30)
+            asked = sum(durs)
+            durs = [d * span / asked for d in durs]
+            notes.append(f"row {b.row}: beat {b.id}'s clips asked for {asked:.1f}s of its {span:.1f}s; each is shortened to fit")
         t = b.start
         for k, c in enumerate(b.clips):
-            d = c.dur if c.dur else share
+            d = durs[k]
             m = find_media(c.row, c.asset)
             f = (m or {}).get("file", "")
             entry: Dict[str, Any] = {"id": f"{b.id}_{k + 1}", "start": round(t, 3), "end": round(t + d, 3)}

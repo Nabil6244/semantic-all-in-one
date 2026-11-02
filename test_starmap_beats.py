@@ -328,6 +328,25 @@ class TheOpening(unittest.TestCase):
         self.assertTrue(any("inner planets" in n for n in c.notes))
 
 
+class ClipsFitTheirBeat(unittest.TestCase):
+    def test_clip_durations_longer_than_the_beat_shrink_to_end_with_it(self):
+        """Project #001: b29 was 5 s, its clip asked for 6 s, ran 1 s into b30's clip and the render stopped on the overlap."""
+        said = "the medium here is thinner than a vacuum chamber a few wandering atoms some dust and faint stars no planets at all here"
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate(said.split())]
+        text = csv_of({"beat": "b1", "row": "beat", "vo_anchor": "the medium here", "mode": "footage"},
+                      {"beat": "b1", "row": "clip", "asset": "file:a.jpg", "dur": "6"},
+                      {"beat": "b2", "row": "beat", "vo_anchor": "a few wandering", "mode": "footage"},
+                      {"beat": "b2", "row": "clip", "asset": "file:b.jpg", "dur": "4"},
+                      {"beat": "b2", "row": "clip", "asset": "file:c.jpg"})
+        c = compile_plan(read_plan(text, words), Catalog())
+        f = sorted(c.spec["footage"], key=lambda x: x["start"])
+        for a, b in zip(f, f[1:]):
+            self.assertLessEqual(a["end"], b["start"] + 1e-6, (a, b))
+        b1, b2 = [x for x in f if x["id"].startswith("b1_")], [x for x in f if x["id"].startswith("b2_")]
+        self.assertAlmostEqual(b1[-1]["end"], b2[0]["start"], places=2)        # ends with its beat, where the next one starts
+        self.assertTrue(any("shortened to fit" in n for n in c.notes))
+
+
 class LinesRingsAndTheUniverse(unittest.TestCase):
     """Lines that show a number's meaning, scale rings, pointers, the universe frame and the galaxy landmarks."""
 
