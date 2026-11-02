@@ -8,6 +8,7 @@ audit says the beat got better, and tries again -- a few passes, a second or so 
 
     empty, nothing in frame   frame wider (scale 2.5) / an action shows a longer stretch of its path (stretch 6)
     empty, a speck            frame closer (scale 0.45) / an action shows a shorter stretch about its middle (stretch 0.35)
+    empty, while gliding in   the beat cuts in instead (cut): two subjects light-years apart leave seconds of black between them
     offframe                  frame wider (scale 1.6) / an action's path framed wider (fit 1.5)
     cut                       frame wider (scale 1.5) / an action's path framed wider (fit 1.45), so the planet is whole
     flat                      the beat in the middle of a long stretch with no pattern interrupt is cut into shots (cuts 3)
@@ -59,6 +60,25 @@ def run_audit(spec: Dict[str, Any], node: str = "node") -> Dict[str, Any]:
         return json.loads(out.stdout)
 
 
+def _issues(spec: Dict[str, Any], node: str) -> List[Dict[str, Any]]:
+    """The audit's findings, each empty one marked in_glide when it lies in the camera's glide into a new subject at its beat's start."""
+    issues = run_audit(strip_private(spec), node)["issues"]
+    moves = sorted((spec.get("camera") or {}).get("moves") or [], key=lambda m: m["t"])
+    beats = {b["id"]: b for b in (spec.get("starmap") or {}).get("beat_times") or []}
+    for i in issues:
+        b = beats.get(i.get("beat"))
+        if i.get("kind") != "empty" or b is None:
+            continue
+        into = next((k for k, m in enumerate(moves) if abs(m["t"] - b["start"]) < 0.05 and m.get("dur", 0) > 0.5), None)
+        if into is None:
+            continue
+        m = moves[into]
+        before = moves[into - 1]["to"] if into else (spec.get("camera") or {}).get("start") or {}
+        if str(before.get("target")) != str(m["to"].get("target")) and i["t0"] < m["t"] + m["dur"]:
+            i["in_glide"] = True
+    return issues
+
+
 def _totals(issues: List[Dict[str, Any]]) -> Dict[str, float]:
     return {k: sum(i["t1"] - i["t0"] for i in issues if i["kind"] == k) for k in WEIGHT}
 
@@ -74,6 +94,9 @@ def _remedies(issue: Dict[str, Any], is_action: bool) -> List[Dict[str, Any]]:
     if k == "empty":
         if is_action:
             return [{"stretch": 6.0}, {"fit": 2.0}] if nothing else [{"stretch": 0.35}, {"stretch": 0.15}, {"fit": 0.75}]
+        if nothing and issue.get("in_glide"):
+            # empty while the camera travels into the beat (two subjects light-years apart): the beat cuts in instead of gliding
+            return [{"cut": True}, {"scale": 2.5}, {"scale": 0.45}]
         return [{"scale": 2.5}, {"scale": 0.45}] if nothing else [{"scale": 0.45}, {"scale": 0.25}, {"scale": 0.02, "creep": 1.25, "spin": 3.0}, {"scale": 0.001, "creep": 1.3, "spin": 3.5}]
     if k == "flat":
         return [] if is_action else [{"cuts": 3}, {"cuts": 2}]
@@ -91,7 +114,7 @@ def compile_checked(plan, cat, *, node: str = "node", log: Callable[[str], None]
     rep = RepairReport()
     comp = compile_plan(plan, cat, **kw)
     try:
-        issues = run_audit(strip_private(comp.spec), node)["issues"]
+        issues = _issues(comp.spec, node)
     except Exception as exc:                                        # no node, an engine error: never block a render on the check
         rep.error = str(exc)
         return comp, rep
@@ -118,7 +141,7 @@ def compile_checked(plan, cat, *, node: str = "node", log: Callable[[str], None]
             break
         cand = compile_plan(plan, cat, repairs=trial, **kw)
         try:
-            new = run_audit(strip_private(cand.spec), node)["issues"]
+            new = _issues(cand.spec, node)
         except Exception as exc:
             rep.error = str(exc)
             break
@@ -130,7 +153,7 @@ def compile_checked(plan, cat, *, node: str = "node", log: Callable[[str], None]
             continue
         repairs.update(kept)
         comp = compile_plan(plan, cat, repairs=repairs, **kw) if kept != attempt else cand
-        final = run_audit(strip_private(comp.spec), node)["issues"] if kept != attempt else new
+        final = _issues(comp.spec, node) if kept != attempt else new
         if _score(final) <= _score(issues):
             issues = final
         else:

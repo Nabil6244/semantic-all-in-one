@@ -478,6 +478,9 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             if "el_deg" not in b.extra:
                 shot["el_deg"] = JOURNEY_EL[run % len(JOURNEY_EL)]
         fix = (repairs or {}).get(b.id, {})
+        if fix.get("cut"):
+            # the screen check found the glide into this beat empty (Wolf 359 to the Sun: 7.9 light-years of black for 4 s): a cut
+            cut_in.add(b.id)
         if fix.get("scale"):
             shot = _scaled(shot, fix["scale"])
             if "_km" in shot:
@@ -1367,6 +1370,10 @@ def compile_plan(plan: Plan, cat: Catalog, *, media: Optional[Dict[str, Any]] = 
             if L.get("_cinema_row"):
                 notes.append(f"row {L.get('_row')}: a {L['_cinema_row']} row ({L['type']}) is shown only with Cinema on (StarMap tab, Cinema)")
         spec["layers"] = kept
+    # the finished plan's rules (every second, whatever the passes above did): plan arithmetic only, before any frame is drawn
+    from .timeline_check import enforce as _enforce_timeline
+
+    _enforce_timeline(spec, notes)
     spec["starmap"]["actions"] = {bid: {"action": a.action, "craft": a.craft, "strategy": a.strategy, "span": list(a.span) if a.span else None}
                                   for bid, a in actions.items()}
     return Compiled(spec=spec, notes=notes, needs_media=needs, resolution=res, actions=actions, warnings=act_warnings)
@@ -1402,9 +1409,12 @@ def _big_numbers(layers: List[Dict[str, Any]], beats: List[Beat], duration: floa
         layers.append({"type": "big_number", "value": L["value"], "unit": L.get("unit", ""), "label": L.get("label", ""),
                        "decimals": L.get("decimals", 0), "start": round(t0, 3), "end": round(t0 + BIG_NUMBER_S, 3),
                        "fade_in": 0.35, "fade_out": 0.5, "_row": L.get("_row")})
-        # the chip takes over in its corner once the moment has passed (no second count-up)
+        # the chip takes over in its corner once the moment has passed (no second count-up) -- unless too little is left to read:
+        # a 0.5 s chip after the big number was a flash of the same figure (timeline_check.FLASH_S)
         L["start"] = round(min(L["end"] - 0.5, t0 + BIG_NUMBER_S - 0.3), 3)
         L.pop("count_up", None)
+        if L["end"] - L["start"] < 1.0:
+            layers.remove(L)
 
 
 def _clock_utc(clock: Dict[str, Any], t: float) -> Optional[str]:
