@@ -187,6 +187,10 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     if not sc.get("cam"): cv = _push(cv, ctx, sc, t)      # a full-frame picture moves with its own camera (picture.py)
     if sc.get("chain"):      # the progression chain over the scene at a unit's start and at the end (chain.py), steady (after the push)
         from . import chain as CH; CH.draw(cv, ctx, sc["chain"], sc["start"] + t)
+    if sc.get("qlist") or sc.get("qtrack"):      # viewer questions: the list full screen, the Q tracker in the corner (qa.py), steady (after the push)
+        from . import qa as QA
+        if sc.get("qtrack"): QA.draw_track(cv, ctx, sc["qtrack"], sc["start"] + t)
+        if sc.get("qlist"): QA.draw_list(cv, ctx, sc["qlist"], sc["start"] + t)
     if tag: D.section_tag(cv, ctx, sc["section"], t, prev_section, 0.0)
     return cv
 

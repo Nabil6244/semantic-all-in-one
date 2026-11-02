@@ -20,7 +20,7 @@ import itertools, json, re, sys
 from pathlib import Path
 from typing import Dict, List
 
-from . import chain as CH, meters as MT, tricks as TR, gate as G, beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
+from . import assets as AS, qa as QA, chain as CH, meters as MT, tricks as TR, gate as G, beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
 
 ROOT = Path(__file__).resolve().parent.parent
 TOPICS = ROOT / "test_fixtures" / "rep_theory_topics"; BASELINE = TOPICS / "baseline.json"
@@ -97,7 +97,7 @@ def look_of(sc: dict) -> str:
 
 def plan(text: str) -> tuple:
     title, ss = sentences(text); res = B.plan(transcript_words(ss), title=title, art_ok=art_ok); scenes = res["scenes"]
-    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); G.repair(scenes, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); G.thicken_pictures(scenes); MT.plan(scenes); TR.plan(scenes); CH.plan(scenes); BP.apply(scenes)      # the engine's order
+    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); G.repair(scenes, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); G.thicken_pictures(scenes); MT.plan(scenes); TR.plan(scenes); CH.plan(scenes); QA.plan(scenes); AS.plan(scenes); BP.apply(scenes)      # the engine's order
     return title, ss, res, scenes
 
 def measure(text: str) -> dict:

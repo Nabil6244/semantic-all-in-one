@@ -60,7 +60,11 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         sig = (sc["kind"], sc.get("art"), sc.get("prop")); repeat = sc["kind"] in REPEAT_KINDS and prev == sig; prev = sig
         if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not (directed or asked): stat["skipped"] += 1; continue
         if not eligible(sc): stat["skipped"] += 1; continue
-        p = own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else prompt_for(sc["text"], hook=bool(sc.get("hook"))); i = art_id(p); sc["_illus"] = (i, p)
+        if sc.get("asset"):      # a library asset (assets.py): one fixed prompt and id, made once and reused by every video
+            from . import assets as AS
+            p = AS.prompt(sc["asset"]); i = AS.art_id(sc["asset"])
+        else: p = own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else prompt_for(sc["text"], hook=bool(sc.get("hook"))); i = art_id(p)
+        sc["_illus"] = (i, p)
         if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path")}); continue
         pick = (chosen or {}).get(sc["no"])
         if pick and pick.get("ok") and _same(pick.get("narration"), sc["text"]):

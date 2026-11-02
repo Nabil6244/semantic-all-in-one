@@ -11,7 +11,7 @@ from typing import Dict
 from . import topic_eval as E
 
 BASELINE = E.TOPICS / "features_baseline.json"
-OVERLAYS = ("glows", "tint", "stamp", "morph", "beam", "teaser", "chapter_card", "stopwatch", "lock", "safety", "equations", "sketch", "flow_prompt", "chain", "meter", "effort", "strike", "bubble", "aside", "measure", "hazard")
+OVERLAYS = ("glows", "tint", "stamp", "morph", "beam", "teaser", "chapter_card", "stopwatch", "lock", "safety", "equations", "sketch", "flow_prompt", "chain", "meter", "effort", "strike", "bubble", "aside", "measure", "hazard", "asset", "qlist", "qtrack")
 
 def count(scenes) -> Counter:
     """Feature -> count for one planned video: each scene's look (cards, pictures, 3D, poses, figure, plate, text), each overlay it carries, each picture cue kind,

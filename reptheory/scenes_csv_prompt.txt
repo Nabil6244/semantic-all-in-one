@@ -33,6 +33,8 @@ COLUMNS
 ON-PICTURE TOUCHES (automatic on pictures; write the sentence so they fire):
   "A planche isn't a strength trick. It's a lever." -> "STRENGTH TRICK?" struck out on "It's".   "Your body says stop." -> a speech bubble STOP!
   "(stupid easy)" or "trust me" -> a handwritten note with an arrow.   "167 cm, 65 kg" -> a height bracket and a weight tag.   Warnings get hazard tape.
+  Viewer questions: "Question one: how often should I train?" / "You asked: do I need weights?" -> a list of the questions with avatars and a Q tracker in the corner (two or more).
+  Library pictures: a sentence about the forearm tendons, the shoulder blades, the brain and nerves, a backpack, a bathroom scale ... gets a stored art asset (made once through Flow). The graphic column can ask for one: "asset: xray forearm", "asset: back shoulder blades", "asset: obj backpack".
 
 LOOKS (use a card look ONLY when the sentence has its shape; never force one)
 Pictures and bodies:

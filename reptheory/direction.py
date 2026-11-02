@@ -66,7 +66,7 @@ def on_screen_ok(v, text: str) -> str:
 
 SECTION_ALIASES = {"hook": "hook", "intro": "hook", "why": "why", "science": "why", "proof": "why", "unit": "howto", "how": "howto", "howto": "howto", "how-to": "howto", "step": "howto",
                    "warning": "warning", "safety": "warning", "mistakes": "warning", "mistake": "warning", "plan": "plan", "routine": "plan", "frequency": "plan", "result": "result", "test": "result", "close": "result", "cta": "result"}
-GRAPHIC_KINDS = ("chain",)      # graphics the `graphic` column can spell out today; more come with docs/rep_theory/PLAN_NEXT_GRAPHICS.md
+GRAPHIC_KINDS = ("chain", "asset")      # graphics the `graphic` column can spell out today; more come with docs/rep_theory/PLAN_NEXT_GRAPHICS.md
 
 def parse_graphic(v, script: str):
     """The CSV's `graphic` cell, e.g. "chain: plank 30s | lean 3x15s | WARNING tendons | lift-off 6x2s": {kind, items: [{name, target, warn}]}; None when it is empty,
@@ -75,6 +75,9 @@ def parse_graphic(v, script: str):
     if ":" not in v: return None
     kind, rest = v.split(":", 1); kind = kind.strip().lower()
     if kind not in GRAPHIC_KINDS: return None
+    if kind == "asset":      # "asset: xray forearm": a library picture by name (assets.py)
+        from .assets import norm
+        name = norm(rest); return {"kind": "asset", "name": name} if name else None
     said = set(re.findall(r"[a-z0-9%]+", script.lower().replace("'", ""))); items = []
     for part in [p.strip() for p in rest.split("|") if p.strip()]:
         warn = bool(re.match(r"(?i)warning\b", part)); part = re.sub(r"(?i)^warning\s*", "", part)
@@ -137,6 +140,7 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         g = parse_graphic(s.get("graphic"), script)
         if g:
             gs = scene_at(float(s["start"]), float(s["end"])); gs["graphic_csv"] = g; log(f"[REP THEORY CSV] row {ri}: graphic {g['kind']} with {len(g.get('items', []))} item(s)")
+            if g["kind"] == "asset" and not gs.get("directed_look"): gs["look"] = "flow"; gs["directed_look"] = True      # a library asset is shown as the scene's picture
         elif str(s.get("graphic") or "").strip(): log(f"[REP THEORY CSV] row {ri}: graphic '{s.get('graphic')}' is not one the app builds yet (or uses words the script does not say); the app chooses")
         look = _row_look(s)
         shown = on_screen_ok(s.get("on_screen"), s.get("text", ""))

@@ -62,6 +62,8 @@ def events(scenes: List[dict]) -> List[dict]:
         ev += [{"t": float(x), "type": "secondary", "what": "picture trick", "scene": n, "meaningful": True} for x in _tricks(sc)]      # tricks.py
         if sc.get("meter"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "load meter", "scene": n, "meaningful": True} for x in sc["meter"]["steps"]]
         if sc.get("effort"): ev.append({"t": float(sc["effort"]["at"]), "type": "secondary", "what": "effort bar", "scene": n, "meaningful": True})
+        if sc.get("qlist"): ev += [{"t": float(sc["qlist"]["at"]) + 0.25 + 0.22 * i, "type": "secondary", "what": "question listed", "scene": n, "meaningful": True} for i in range(min(6, len(sc["qlist"]["items"])))]
+        if (sc.get("qtrack") or {}).get("new"): ev.append({"t": float(sc["qtrack"]["at"]), "type": "secondary", "what": "next question", "scene": n, "meaningful": True})      # qa.py
         if sc.get("chain"): ev.append({"t": float(sc["chain"]["at"]) + 0.1, "type": "secondary", "what": "chain", "scene": n, "meaningful": True})
         sw = sc.get("stopwatch")
         if sw and sc["start"] <= sw["start"] < sc["end"]: ev.append({"t": float(sw["start"]), "type": "secondary", "what": "stopwatch starts", "scene": n, "meaningful": True})

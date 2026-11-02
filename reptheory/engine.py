@@ -103,6 +103,10 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     from . import blueprint as BP
     from . import chain as CH
     log(f"[REP THEORY CHAIN] {CH.plan(scenes)} chain moment(s) from the script's numbered units")      # the spine (chain.py)
+    from . import qa as QA
+    log(f"[REP THEORY QUESTIONS] {QA.plan(scenes)} question list / Q tracker overlay(s)")      # qa.py, plan-only
+    from . import assets as AS
+    log(f"[REP THEORY ASSETS] {AS.plan(scenes)} picture scene(s) use a library asset (made once through Flow, reused)")      # assets.py
     log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3
