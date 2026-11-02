@@ -109,7 +109,7 @@ def apply(scenes: List[dict], art_ok: Callable[[str], bool], log: Callable[[str]
 
 # ---------------------------------------------------------------- cadence (Step 3)
 FILL_GAP_S, EDGE_S = 3.0, 0.6      # a scene never goes this long without something new; a new phrase never lands this close to the change before or after it
-PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
+PAGE_KINDS = {"callout", "trainee", "pose", "prop", "hold", "sketch", "illus", "stat", "clip3d", "versus", "steps", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"}      # versus / steps show a page as a caption strip under the card      # kinds whose callout column shows a page's headline
 
 def _clauses(ws: List[dict]) -> List[List[dict]]:
     out, cur = [], []

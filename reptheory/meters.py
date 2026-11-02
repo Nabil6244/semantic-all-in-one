@@ -55,7 +55,7 @@ def plan(scenes: List[dict]) -> int:
     Never on full cards that fill the frame. Returns how many overlays were placed."""
     level = 0.45; n = 0
     for sc in scenes:
-        if sc["kind"] in ("slots", "race", "formula", "mechanism", "promise", "checklist", "steps", "versus", "mistake", "myth", "question", "timeline", "calendar", "result", "warning", "takeaway", "tier", "engage", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"): continue
+        if sc["kind"] in ("slots", "race", "formula", "mechanism", "promise", "checklist", "steps", "versus", "mistake", "myth", "question", "timeline", "calendar", "result", "warning", "takeaway", "tier", "engage", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"): continue
         st = meter_steps(sc)
         if st:
             lv = []

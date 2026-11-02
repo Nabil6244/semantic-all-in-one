@@ -21,6 +21,7 @@ CASES = {
     "battery": "Training drains your tendons; rest rebuilds them.",
     "clipboard": "Your plan: warm up, three leans, two frog stands, push-ups.",
     "road": "This is the road to the planche.",
+    "silrow": "Start with a plank, then a push-up, then a squat.",
 }
 
 

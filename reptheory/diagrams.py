@@ -7,6 +7,7 @@
   tearoff    two durations or one and "never" ("a few months ... one to two years, some never") -> calendar pads whose top page tears away on each duration
   battery    rest / recover with training ("training drains it, rest rebuilds it", "rest 2 days a week") -> a battery draining and charging on the words, a week strip under it
   clipboard  the plan said as a list ("Your plan: warm up, two holds, push-ups") -> a clipboard built row by row, ticked, with "N DAYS A WEEK ≈ M MIN" under it
+  silrow     three or more poses named in order ("plank, frog stand, tuck planche") -> a row of grey silhouettes from the pose library, each lit orange on its word (Phase 4)
   road       "the road to the planche", "the path to your first pull-up" -> a road in perspective with signs along it and the goal flag at the horizon
 All fill the frame (the narration's next phrase follows in a caption strip, scenes._caption_strip). Every payload carries `marks`: the absolute times something new lands
 (cadence and cards.CARD_DONE read them). Drawing takes the absolute time."""
@@ -18,7 +19,7 @@ from PIL import Image, ImageDraw
 
 from . import draw as D, meters as M, narrative as N, theme as T
 
-KINDS = ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road")
+KINDS = ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow")
 GREEN = (74, 222, 128)
 W_ = r"[A-Za-z][A-Za-z'-]*"
 
@@ -175,8 +176,23 @@ def road(sc: dict, text: str) -> Optional[dict]:
     goal_at = max(M._at(sc, m.start(1)), signs[-1]["at"] + 0.3)
     return {"goal": goal, "signs": signs, "at": at, "goal_at": goal_at, "marks": [s["at"] for s in signs] + [goal_at]}
 
-DETECT: Dict[str, Callable] = {"lever": lever, "seesaw": seesaw, "gap": gap, "split": split, "panels": panels, "tearoff": tearoff, "battery": battery, "clipboard": clipboard, "road": road}
-BASE = {"lever": 0.9, "seesaw": 0.84, "gap": 0.92, "split": 0.88, "panels": 0.8, "tearoff": 0.9, "battery": 0.84, "clipboard": 0.93, "road": 0.88}      # support in variety.evidence (cards sit 0.78-0.95)
+def silrow(sc: dict, text: str) -> Optional[dict]:
+    from . import library as L
+    from .poses import POSE_RX, POSES
+    seen, items = set(), []
+    for pid, rx in POSE_RX.items():
+        m = rx.search(text); lab = POSES[pid][1]
+        if not m or lab in seen: continue
+        try: ok = L.find(pid) is not None
+        except Exception: ok = False
+        if ok: seen.add(lab); items.append({"art": pid, "label": lab, "pos": m.start()})
+    if len(items) < 3: return None
+    items = sorted(items, key=lambda x: x["pos"])[:5]
+    for i, it in enumerate(items): it["at"] = max(M._at(sc, it.pop("pos")), items[i - 1]["at"] + 0.3 if i else 0.0)
+    return {"items": items, "at": items[0]["at"], "marks": [i["at"] for i in items]}
+
+DETECT: Dict[str, Callable] = {"lever": lever, "seesaw": seesaw, "gap": gap, "split": split, "panels": panels, "tearoff": tearoff, "battery": battery, "clipboard": clipboard, "road": road, "silrow": silrow}
+BASE = {"lever": 0.9, "seesaw": 0.84, "gap": 0.92, "split": 0.88, "panels": 0.8, "tearoff": 0.9, "battery": 0.84, "clipboard": 0.93, "road": 0.88, "silrow": 0.9}      # support in variety.evidence (cards sit 0.78-0.95)
 DONE = {k: _done for k in KINDS}
 
 def evidence(sc: dict, text: str) -> Dict[str, tuple]:
@@ -357,7 +373,21 @@ def draw_road(cv, ctx, c, t):
         d.polygon([(fx, fy - ctx.px(150) * q), (fx + ctx.px(70) * q, fy - ctx.px(125) * q), (fx, fy - ctx.px(100) * q)], fill=T.RED + (255,))
         _label(d, ctx, (fx + ctx.px(20), fy - ctx.px(230) * q), c["goal"], 64, T.ORANGE, q, centre=False)
 
-DRAW = {"lever": draw_lever, "seesaw": draw_seesaw, "gap": draw_gap, "split": draw_split, "panels": draw_panels, "tearoff": draw_tearoff, "battery": draw_battery, "clipboard": draw_clipboard, "road": draw_road}
+def draw_silrow(cv, ctx, c, t):
+    W, H = ctx.W, ctx.H; n = len(c["items"]); bw = W * 0.84 / n; bh = H * 0.46; x0 = W * 0.08; y1 = H * 0.66; d = ImageDraw.Draw(cv, "RGBA")
+    cur = max([i for i, it in enumerate(c["items"]) if t >= it["at"]], default=-1)
+    for i, it in enumerate(c["items"]):
+        q = _p(t, it["at"] - 0.15, 0.35)
+        if q <= 0: continue
+        try: im = ctx.art(it["art"])
+        except Exception: continue
+        k = min((bw - ctx.px(30)) / im.width, bh / im.height); im = im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.LANCZOS)
+        col = T.ORANGE if i == cur else (120, 120, 128); sil = Image.new("RGBA", im.size, tuple(col) + (255,)); sil.putalpha(im.getchannel("A").point(lambda v, q=q: int(v * q)))
+        cx = x0 + bw * (i + 0.5); cv.paste(sil, (int(cx - im.width / 2), int(y1 - im.height + (1 - T.ease_out(q)) * ctx.px(30))), sil); d = ImageDraw.Draw(cv, "RGBA")
+        _label(d, ctx, (cx, y1 + ctx.px(20)), it["label"], 32 if len(it["label"]) < 12 else 24, T.WHITE if i == cur else T.GREY, q)
+        if i: _arrow(d, (cx - bw * 0.62, y1 - bh * 0.4), (cx - bw * 0.42, y1 - bh * 0.4), T.GREY + (int(220 * q),), ctx.px(4), ctx.px(16))
+
+DRAW = {"silrow": draw_silrow, "lever": draw_lever, "seesaw": draw_seesaw, "gap": draw_gap, "split": draw_split, "panels": draw_panels, "tearoff": draw_tearoff, "battery": draw_battery, "clipboard": draw_clipboard, "road": draw_road}
 
 def draw(cv: Image.Image, ctx: D.Ctx, kind: str, c: dict, t_abs: float) -> None:
     DRAW[kind](cv, ctx, c, t_abs)

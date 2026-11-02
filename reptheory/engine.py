@@ -98,6 +98,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")
     from . import meters as MT
     log(f"[REP THEORY METERS] {MT.plan(scenes)} load meter / effort bar overlay(s)")      # meters.py      # plan-only (gate.py)
+    from . import tricks as TR
+    log(f"[REP THEORY TRICKS] {TR.plan(scenes)} on-picture strike-outs, bubbles, asides, measurements, hazard tape")      # tricks.py, plan-only
     from . import blueprint as BP
     from . import chain as CH
     log(f"[REP THEORY CHAIN] {CH.plan(scenes)} chain moment(s) from the script's numbered units")      # the spine (chain.py)

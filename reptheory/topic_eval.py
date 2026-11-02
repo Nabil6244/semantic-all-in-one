@@ -20,7 +20,7 @@ import itertools, json, re, sys
 from pathlib import Path
 from typing import Dict, List
 
-from . import chain as CH, meters as MT, gate as G, beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
+from . import chain as CH, meters as MT, tricks as TR, gate as G, beats as B, blueprint as BP, cadence as C, clip3d as C3, planner as P, states as ST, variety as V
 
 ROOT = Path(__file__).resolve().parent.parent
 TOPICS = ROOT / "test_fixtures" / "rep_theory_topics"; BASELINE = TOPICS / "baseline.json"
@@ -28,7 +28,7 @@ SHIPPED = ROOT / "assets" / "reptheory"
 WPS = 2.6      # narration speed for the synthetic word timings (≈156 words a minute)
 STILL_S, OPENING_S = 4.0, 60.0
 IS_PICTURE = lambda l: l in PICTURE or l.startswith(("pose:", "flow:"))
-PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"}
+PICTURE = {"anatomy", "prop", "hold", "pose", "tier", "equation", "3d", "flow", "stat", "versus", "steps", "sketch", "illus", "clip3d", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"}
 TARGETS = {"bad_headlines": ("<=", 0), "empty_scenes": ("<=", 0), "repeat_headlines": ("<=", 0), "picture_share": (">=", 0.80), "fallback_share": ("<=", 0.10), "anatomy_unnamed": ("<=", 0), "still_share": ("<=", 0.05), "held_no_change": ("<=", 0), "opening_overlap_max": ("<=", 0.30)}
 BODY_RX = re.compile(r"\b(" + "|".join([      # named body parts, organs and tissues; "muscle" / "body" alone name nothing
     r"neck", r"shoulders?", r"delts?", r"deltoids?", r"traps?", r"trapezius", r"chest", r"pecs?", r"pectorals?", r"arms?", r"biceps?", r"triceps?", r"elbows?", r"forearms?", r"wrists?", r"hands?",
@@ -97,7 +97,7 @@ def look_of(sc: dict) -> str:
 
 def plan(text: str) -> tuple:
     title, ss = sentences(text); res = B.plan(transcript_words(ss), title=title, art_ok=art_ok); scenes = res["scenes"]
-    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); G.repair(scenes, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); G.thicken_pictures(scenes); MT.plan(scenes); CH.plan(scenes); BP.apply(scenes)      # the engine's order
+    ST.apply(scenes, art_ok); V.direct(scenes, total_s=scenes[-1]["end"], three_d=True, flow=True); G.repair(scenes, flow=True); scenes = P.never_empty(scenes); ST.develop(scenes); G.thicken_pictures(scenes); MT.plan(scenes); TR.plan(scenes); CH.plan(scenes); BP.apply(scenes)      # the engine's order
     return title, ss, res, scenes
 
 def measure(text: str) -> dict:

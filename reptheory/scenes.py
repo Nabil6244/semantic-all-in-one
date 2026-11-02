@@ -161,7 +161,7 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         elif kind == "mechanism": c = dict(c, labels={k: _rel(sc, v) for k, v in c["labels"].items()}, pull_at=_rel(sc, c["pull_at"]) if c.get("pull_at") is not None else None)
         else: c = rel(c)
         getattr(K2, kind)(cv, ctx, c, t); _caption_strip(cv, ctx, sc, t)
-    elif kind in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road"):      # the diagrams that explain why (diagrams.py), the narration's next phrase in a strip under them
+    elif kind in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"):      # the diagrams that explain why (diagrams.py), the narration's next phrase in a strip under them
         from . import diagrams as DG; DG.draw(cv, ctx, kind, sc[kind], sc["start"] + t); _caption_strip(cv, ctx, sc, t)
     elif kind == "takeaway":
         K2.takeaway(cv, ctx, {"words": [dict(w, t0=_rel(sc, w["t0"])) for w in sc["takeaway"]["words"]]}, t)
@@ -181,6 +181,8 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         from . import meters as M
         if sc.get("meter"): M.draw_meter(cv, ctx, sc["meter"], sc["start"] + t, sc["start"])
         if sc.get("effort"): M.draw_effort(cv, ctx, sc["effort"], sc["start"] + t)      # a timed hold the viewer is doing (states.stopwatch)
+    if any(sc.get(k) for k in ("strike", "bubble", "aside", "measure", "hazard")):      # on-picture tricks (tricks.py)
+        from . import tricks as TR; TR.draw(cv, ctx, sc, sc["start"] + t)
     if sc.get("chapter_card"): K2.chapter(cv, ctx, sc["chapter_card"], t); K2.streak_wipe(cv, ctx, t)
     if not sc.get("cam"): cv = _push(cv, ctx, sc, t)      # a full-frame picture moves with its own camera (picture.py)
     if sc.get("chain"):      # the progression chain over the scene at a unit's start and at the end (chain.py), steady (after the push)
