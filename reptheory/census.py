@@ -44,9 +44,9 @@ def check(now: Dict[str, int], base: Dict[str, int]) -> list:
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv; now = measure()
     for k, v in now.items(): print(f"{k:34s} {v}")
-    if "--write-baseline" in argv: BASELINE.write_text(json.dumps(now, indent=1)); print(f"baseline written: {BASELINE}"); return 0
+    if "--write-baseline" in argv: BASELINE.write_text(json.dumps(now, indent=1), encoding="utf-8"); print(f"baseline written: {BASELINE}"); return 0
     if BASELINE.is_file():
-        lost = check(now, json.loads(BASELINE.read_text())); print("lost or halved:", lost or "none"); return 1 if lost else 0
+        lost = check(now, json.loads(BASELINE.read_text(encoding="utf-8"))); print("lost or halved:", lost or "none"); return 1 if lost else 0
     return 0
 
 if __name__ == "__main__":

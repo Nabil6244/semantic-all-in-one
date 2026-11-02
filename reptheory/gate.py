@@ -38,7 +38,7 @@ def bad_3d_groups() -> set:
         _bad_groups = set()
         try:
             from . import clip3d as C3
-            A = json.loads(C3.ANCHORS.read_text())["anchors"] if C3.ANCHORS else {}
+            A = json.loads(C3.ANCHORS.read_text(encoding="utf-8"))["anchors"] if C3.ANCHORS else {}
             for g, limb in LIMB.items():
                 m = A.get(f"m_{g}_r") or A.get(f"m_{g}"); bones = [v for k, v in A.items() if k.startswith(limb) and "min" in v]
                 if not m or not bones: continue

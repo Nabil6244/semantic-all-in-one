@@ -64,7 +64,7 @@ def build_voiceover(workdir: Path, rate: int = 145, voice: str = "Daniel", scrip
             ws, share = align_words(text, wav, t, model); sent["align_match"] = round(share, 2)
             if ws and share >= 0.7: sent["words"] = ws
         sents.append(sent); t += d + gap; parts += [wav, sil]
-    lst = workdir / "list.txt"; lst.write_text("".join(f"file '{p}'\n" for p in parts)); out = workdir / "voiceover.wav"
+    lst = workdir / "list.txt"; lst.write_text("".join(f"file '{p}'\n" for p in parts), encoding="utf-8"); out = workdir / "voiceover.wav"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out)], check=True, timeout=900)
     return out, sents
 
@@ -74,7 +74,7 @@ def main(argv=None) -> int:
     ap.add_argument("--end-card", action="store_true"); ap.add_argument("--end-title", default=""); ap.add_argument("--end-url", default=""); ap.add_argument("--end-image", default=""); a = ap.parse_args(argv)
     from . import engine
     out_dir = Path(a.out); out_dir.mkdir(parents=True, exist_ok=True); work = Path(tempfile.mkdtemp(prefix="rt_spike_"))
-    script = [ln.strip() for ln in Path(a.script).read_text().splitlines() if ln.strip() and not ln.startswith("#")] if a.script else None
+    script = [ln.strip() for ln in Path(a.script).read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")] if a.script else None
     vo, sents = build_voiceover(work, a.rate, script=script, align=a.align); (out_dir / "voiceover.wav").write_bytes(vo.read_bytes()); (out_dir / "sentences.json").write_text(__import__("json").dumps(sents, indent=1))
     if a.plan_only:      # plan report only (no render): the beat plan, or the legacy plan measured the same way
         from . import beats as B, cadence as C, planner as P

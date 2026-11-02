@@ -46,13 +46,13 @@ def _history_path(project_dir) -> Path: return Path(project_dir).resolve().paren
 
 def recent_openings(project_dir) -> List[List[str]]:
     """The first-minute look sequences of the last HISTORY_N rendered videos (newest last); [] when there are none or the file is unreadable."""
-    try: return [list(x["looks"]) for x in json.loads(_history_path(project_dir).read_text())[-HISTORY_N:]]
+    try: return [list(x["looks"]) for x in json.loads(_history_path(project_dir).read_text(encoding="utf-8"))[-HISTORY_N:]]
     except Exception: return []
 
 def remember_opening(project_dir, scenes: List[dict], title: str = "") -> None:
     """After a finished render: this video's opening looks go into the channel memory (never fails the render)."""
     try:
-        p = _history_path(project_dir); old = json.loads(p.read_text()) if p.is_file() else []
+        p = _history_path(project_dir); old = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else []
         looks = [sc.get("look") if sc.get("look") not in (None, "stock") else sc["kind"] for sc in scenes if sc["start"] < OPENING_S]
         p.write_text(json.dumps((old + [{"title": title, "looks": looks, "at": time.strftime("%Y-%m-%d %H:%M")}])[-HISTORY_N:], indent=1))
     except Exception: pass

@@ -46,7 +46,7 @@ NO_APOSTROPHE = {"cant", "dont", "wont", "isnt", "arent", "doesnt", "didnt", "th
 REFERENCE_ONLY = ("supernatural", "isometric", "26 studies", "oranchuk", "l-sit", "hollow body", "split squat")      # words of the studied reference video: never constants in reptheory/
 
 def scripts() -> Dict[str, str]:
-    return {p.stem: p.read_text() for p in sorted(TOPICS.glob("*.txt"))}
+    return {p.stem: p.read_text(encoding="utf-8") for p in sorted(TOPICS.glob("*.txt"))}
 
 def sentences(text: str) -> tuple:
     """(title, [{text, start, end, words}]) with even word timings at WPS; the first line `Title: …` is the title, not narration."""
@@ -127,7 +127,7 @@ def reference_strings() -> List[str]:
     hits = []
     for p in sorted((ROOT / "reptheory").glob("*")):
         if p.suffix not in (".py", ".txt") or p.name == "topic_eval.py": continue
-        low = p.read_text().lower(); hits += [f"{p.name}: {w}" for w in REFERENCE_ONLY if w in low]
+        low = p.read_text(encoding="utf-8").lower(); hits += [f"{p.name}: {w}" for w in REFERENCE_ONLY if w in low]
     return hits
 
 def run() -> dict:
@@ -159,5 +159,5 @@ def table(r: dict) -> str:
 
 if __name__ == "__main__":
     r = run(); print(table(r))
-    if "--write-baseline" in sys.argv: BASELINE.write_text(json.dumps(r["aggregate"], indent=1) + "\n"); print(f"baseline written: {BASELINE}")
+    if "--write-baseline" in sys.argv: BASELINE.write_text(json.dumps(r["aggregate"], indent=1) + "\n", encoding="utf-8"); print(f"baseline written: {BASELINE}")
     if "--json" in sys.argv: print(json.dumps(r, indent=1))

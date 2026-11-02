@@ -7,7 +7,7 @@ from reptheory import census
 
 class FeatureCount(unittest.TestCase):
     def test_nothing_we_have_is_lost(self):
-        base = json.loads(census.BASELINE.read_text()); now = census.measure()
+        base = json.loads(census.BASELINE.read_text(encoding="utf-8")); now = census.measure()
         self.assertEqual(census.check(now, base), [])
 
     def test_the_check_catches_a_lost_feature(self):

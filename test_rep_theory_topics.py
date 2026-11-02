@@ -12,7 +12,7 @@ LOWER = ("fallback_share_mean", "fallback_share_max", "anatomy_unnamed_total", "
 
 class NewTopics(unittest.TestCase):
     @classmethod
-    def setUpClass(cls): cls.r = T.run(); cls.base = json.loads(T.BASELINE.read_text())
+    def setUpClass(cls): cls.r = T.run(); cls.base = json.loads(T.BASELINE.read_text(encoding="utf-8"))
 
     def test_the_set_covers_many_topics(self):
         per = self.r["per_script"]; self.assertGreaterEqual(len(per), 13)
