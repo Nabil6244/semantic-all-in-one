@@ -22,6 +22,8 @@ SUBJECT_H = 0.72      # the subject's height on screen at the start of a wide sh
 AREA = 0.60      # the picture's share of the frame width; the words have the rest
 HEAD_ROOM = 0.06      # the top of the subject never comes closer than this to the top of the frame (fraction of the frame height), except on close shots
 RED_MIN = 0.002      # share of the picture painted red before a reveal is drawn
+RED_POINT_PX = 120      # fewer red pixels than a reveal needs still say where the named part is (a small glow on a wrist)
+MOVING_PARTS = {"hands", "wrists", "fingers", "forearms", "arms", "feet", "elbows", "knees", "thumb", "thumbs", "grip"}      # where these are depends on the pose
 REVEAL_S = 0.9
 _cache: Dict[str, dict] = {}
 
@@ -47,7 +49,8 @@ def study(path: str) -> Optional[dict]:
     rows = np.nonzero(ink.mean(axis=1) > 0.02)[0]; top = float(rows[0]) / H if len(rows) else 0.0      # where the subject starts (its head, usually)
     cols = np.nonzero(ink.mean(axis=0) > 0.02)[0]; bottom = float(rows[-1] + 1) / H if len(rows) else 1.0
     bbox = (float(cols[0]) / W, top, float(cols[-1] + 1) / W, bottom) if len(cols) and len(rows) else (0.0, 0.0, 1.0, 1.0)      # the drawn subject, without the black around it
-    info = {"img": im, "size": (W, H), "wide": W / H >= WIDE_ASPECT, "subject": subj, "top": top, "bbox": bbox, "free": "right" if halves[0] >= halves[1] else "left", "red": None, "red_c": subj, "red_axis": None}
+    info = {"img": im, "size": (W, H), "wide": W / H >= WIDE_ASPECT, "subject": subj, "top": top, "bbox": bbox, "free": "right" if halves[0] >= halves[1] else "left", "red": None, "red_c": subj, "red_axis": None,
+            "red_pt": _centroid(red) if float(red.sum()) >= RED_POINT_PX else None}      # 2026-11-02: a small red wrist glow, below RED_MIN, left the ring guessing a standing pose (it circled the waistband)
     if share >= RED_MIN:
         ys, xs = np.nonzero(red); info["red"] = red; info["red_c"] = _centroid(red)
         if xs.max() - xs.min() >= ys.max() - ys.min(): i0, i1 = xs.argmin(), xs.argmax()      # the reveal runs along the red region's long side, from the end nearer the picture's centre outwards
@@ -251,6 +254,8 @@ def _part_point(info: dict, cue: dict, k: int) -> tuple:
     if info["red"] is not None:
         if k == 0 and cue.get("part") not in EXTREMITY: ys, xs = _main_red(info); return float(xs.mean()) / info["size"][0], float(ys.mean()) / info["size"][1]
         near, far = _red_ends(info); return far if cue.get("part") in EXTREMITY else near
+    if info.get("red_pt"): return info["red_pt"]      # a small red patch still marks the part
+    if cue.get("part") in MOVING_PARTS: return None      # no red to go by and the part moves with the pose: no ring rather than a ring in the wrong place
     return ((bx0 + bx1) / 2, by0 + PART_Y.get(cue.get("part"), 0.4) * (by1 - by0))
 
 def _arrow(d, a, b, col, w, head):
@@ -271,7 +276,9 @@ def _draw_cues(cv: Image.Image, ctx, sc: dict, t: float, info: dict) -> int:
         if tr < 0: continue
         q = T.ease_out(min(1.0, tr / 0.45)); d = ImageDraw.Draw(cv, "RGBA")
         if c["kind"] == "part":
-            k = parts.index(c); fx, fy = _part_point(info, c, k); pt = to_screen(sc, fx, fy, info)
+            k = parts.index(c); fp = _part_point(info, c, k)
+            if fp is None: continue
+            fx, fy = fp; pt = to_screen(sc, fx, fy, info)
             if not pt: continue
             last_pt = pt; col = ST.TONES.get(c.get("tone"), T.ORANGE)
             r = ctx.px(46) * (0.6 + 0.4 * q); d.ellipse((pt[0] - r, pt[1] - r, pt[0] + r, pt[1] + r), outline=col + (int(235 * q),), width=ctx.px(5))
@@ -337,7 +344,7 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
     n = 0; live = [g for g in sc.get("glows") or [] if g["at"] - sc["start"] <= t + 1e-6]
     if any(c["kind"] == "part" for c in sc.get("pic_cues") or []): live = []      # every part said gets its own ring and label below (_draw_cues), not only the latest
     if live:
-        g = live[-1]; at = g["at"] - sc["start"]; col = ST.TONES.get(g.get("tone"), T.ORANGE); label = "" if sc.get("_label_off") else (g.get("word") or g.get("label") or ""); fx, fy = info["red_c"] if info["red"] is not None else (info["subject"][0], max(info["top"] + 0.12, info["subject"][1] - 0.1))
+        g = live[-1]; at = g["at"] - sc["start"]; col = ST.TONES.get(g.get("tone"), T.ORANGE); label = "" if sc.get("_label_off") else (g.get("word") or g.get("label") or ""); fx, fy = info["red_c"] if info["red"] is not None else info.get("red_pt") or (info["subject"][0], max(info["top"] + 0.12, info["subject"][1] - 0.1))
         pt = to_screen(sc, fx, fy, info)
         if pt:
             lay = Image.new("RGBA", cv.size, (0, 0, 0, 0)); d = __import__("PIL.ImageDraw", fromlist=["ImageDraw"]).Draw(lay); q = T.ease_out((t - at) / 0.5); pulse = 0.85 + 0.15 * np.sin((t - at) * 4.0)

@@ -110,6 +110,10 @@ def _split_at(scenes: List[dict], t: float) -> None:
     if a.get("pages"): a["pages"] = pa or a["pages"][:1]
     if b.get("pages"): b["pages"] = pb or [dict(b["pages"][-1] if not pa else pa[-1], at=t)]
     b["decisions"] = list(b.get("decisions") or []) + ["split so a scenes-CSV row has its own scene"]; b.pop("chapter_card", None)
+    from .variety import _names_part
+    for part in (a, b):      # a part whose own words name no body part does not keep the plate or the lit figure (2026-11-02: "or a farmer" kept the forearm plate of "shaken hands")
+        if part["kind"] == "anatomy" and not _names_part(part.get("text", "")) or part["kind"] == "trainee" and part.get("glows") and not _names_part(part.get("text", "")):
+            part["was_kind"] = part["kind"]; part["kind"] = "callout"; part["art"] = ""; part["glows"] = []; part.pop("glow", None)
     scenes.insert(i + 1, b)
 
 def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] = lambda m: None) -> Dict[str, int]:

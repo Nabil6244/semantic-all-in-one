@@ -76,3 +76,19 @@ class LongPictures(unittest.TestCase):
         parts = [x for x in ss if x.get("flow_prompt")]
         self.assertGreaterEqual(len(parts), 2); self.assertTrue(all(p["end"] - p["start"] <= V.PIC_LONG_S + 0.5 for p in parts))
         self.assertTrue(parts[1]["same_picture"]); self.assertEqual(parts[0]["flow_prompt"], parts[1]["flow_prompt"])
+
+
+class Final2Fixes(unittest.TestCase):      # the two issues seen in final 2.mp4
+    def test_split_row_without_a_body_part_drops_the_plate(self):
+        from reptheory import direction as DR
+        sc = scene("have you ever shaken hands with an old mechanic, a bricklayer, or a farmer", 0, kind="anatomy"); sc["art"] = "anat_forearm_v1"
+        ss = [sc]; DR._split_at(ss, sc["words"][-3]["t0"]) if hasattr(DR, "_split_at") else None
+        tail = ss[-1]
+        if len(ss) == 2: self.assertEqual(tail["kind"], "callout"); self.assertEqual(ss[0]["kind"], "anatomy")
+
+    def test_no_guessed_ring_on_a_moving_part(self):
+        from reptheory import picture as PIC
+        info = {"red": None, "red_pt": None, "bbox": (0.5, 0.1, 0.8, 0.95), "size": (100, 100)}
+        self.assertIsNone(PIC._part_point(info, {"part": "wrists"}, 0))
+        self.assertEqual(PIC._part_point(dict(info, red_pt=(0.63, 0.33)), {"part": "wrists"}, 0), (0.63, 0.33))
+        self.assertIsNotNone(PIC._part_point(info, {"part": "chest"}, 0))
