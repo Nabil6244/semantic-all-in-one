@@ -99,6 +99,27 @@ def restore_settings(app) -> bool:
     finally: app._rt_restoring = False
     return True
 
+DEFAULTS = {"scenes": "", "title": "", "preview": False, "smart": True, "3d": True, "flow": False, "variety": True, "end": False, "end_title": "", "end_url": "", "end_image": ""}
+
+def on_workspace(app) -> None:
+    """A project was opened (or the page shown): its saved choices on the page, or the defaults for a project that has none, so one project's CSV never carries over
+    into another (2026-11-02: the project's choices were saved but only restored when the style was switched, so reopening the app showed an empty page)."""
+    ws = getattr(app, "_workspace", None)
+    if ws is None or not hasattr(app, "_rt_scenes_var"): return
+    if not restore_settings(app):
+        app._rt_restoring = True
+        try:
+            for k, a in SETTINGS.items():
+                if hasattr(app, a): getattr(app, a).set(DEFAULTS[k])
+            app._rt_ready_key = None
+        finally: app._rt_restoring = False
+    app._rt_restored_for = str(getattr(ws, "root", ""))
+
+def on_workspace_safe(app) -> None:
+    """on_workspace for app.py's project switch: a failure here never stops a project from opening."""
+    try: on_workspace(app)
+    except Exception: pass
+
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
     app._rt_scenes_var = ctk.StringVar(value=""); app._rt_status_var = ctk.StringVar(value=""); app._rt_title_var = ctk.StringVar(value=""); app._rt_preview_var = ctk.BooleanVar(value=False)
@@ -152,7 +173,7 @@ def end_card_settings(app) -> dict:
 def activate(app) -> None:
     if getattr(app, "_rt_running", False): return
     app._rt_block.grid(); app._rt_status_var.set("")
-    restore_settings(app)      # this project's own choices (scenes CSV, Flow pictures ...), as they were when it was last used
+    on_workspace(app)      # this project's own choices (scenes CSV, Flow pictures ...), as they were when it was last used
     import visual_bridge
     visual_bridge.restore(app, OWNER)      # the pictures of the last Generate scenes, back in the Visuals tab
 
@@ -209,6 +230,7 @@ def on_render_click(app) -> None:
         from . import clip3d
         if not clip3d.available(): app._append_log(f"{TAG} 3D body model or renderer not found on this machine: scenes about body parts keep their usual look (see docs/rep_theory).\n")
     import visual_bridge
+    if getattr(app, "_rt_restored_for", None) != str(getattr(ws, "root", "")): on_workspace(app)      # never Generate / Render with another project's (or empty) choices
     media_only = needs_scenes(app); folder = visual_bridge.folder(OWNER, ws); inputs = _inputs_key(app)
     held = visual_bridge.rows(app, OWNER)
     if not media_only and held and not app._rt_scenes_var.get().strip():      # the Visuals tab holds a CSV's pictures but no CSV is chosen: the render would plan different scenes and use none of them

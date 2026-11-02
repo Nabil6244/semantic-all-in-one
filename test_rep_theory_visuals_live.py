@@ -77,3 +77,27 @@ class SettingsKeptWithProject(unittest.TestCase):      # 2026-11-02: after a res
         for k, a in A.SETTINGS.items(): setattr(fresh, a, Var(False if k in ("preview", "smart", "3d", "flow", "variety", "end") else ""))
         self.assertTrue(A.restore_settings(fresh))
         self.assertEqual((fresh._rt_scenes_var.get(), fresh._rt_flow_var.get(), fresh._rt_ready_key), ("/x/scenes.csv", True, app._rt_ready_key))
+
+
+class SettingsOnProjectOpen(unittest.TestCase):      # 2026-11-02: saved choices were only restored on a style switch; reopening the app showed an empty page
+    def _app(self, meta):
+        class Var:
+            def __init__(self, v): self.v = v
+            def get(self): return self.v
+            def set(self, v): self.v = v
+        class WS:
+            root = "/p/1"
+            def __init__(self): self.meta = dict(meta)
+            def read_meta(self): return dict(self.meta)
+            def _write_meta(self, d): self.meta = dict(d)
+        class App: pass
+        app = App(); app._workspace = WS()
+        for k, a in A.SETTINGS.items(): setattr(app, a, Var("leftover" if k == "scenes" else A.DEFAULTS[k]))
+        return app
+
+    def test_open_restores_saved_choices(self):
+        app = self._app({A.SETTINGS_KEY: {"scenes": "/x/scenes.csv", "flow": True}})
+        A.on_workspace(app); self.assertEqual((app._rt_scenes_var.get(), app._rt_flow_var.get()), ("/x/scenes.csv", True))
+
+    def test_a_project_without_choices_gets_the_defaults_not_the_last_projects(self):
+        app = self._app({}); A.on_workspace(app); self.assertEqual(app._rt_scenes_var.get(), "")

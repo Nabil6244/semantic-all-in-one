@@ -8317,6 +8317,7 @@ class VideoGeneratorApp(ctk.CTk):
         # Non-critical FS scan — don't block project switch / first paint.
         self._refresh_cleanup_button(defer=True)
         self._load_smart_editing_settings_from_project(ws)
+        __import__("reptheory.app_section", fromlist=["on_workspace"]).on_workspace_safe(self)   # the Rep Theory page shows this project's own choices (never raises)
         try:
             self._refresh_cache_status()
         except Exception:
