@@ -343,6 +343,13 @@ export async function runAgentSlice(params) {
           return;
         }
         const images = uiResult?.images || [];
+        if (!images.length && uiResult?.diag?.outcome === "refused") {
+          // Flow refused the whole paste (its policy filter, often over one prompt): nothing was made, so it is safe to send
+          // again. Each scene goes through the standard path with its own prompt; only a prompt Flow refuses on its own fails.
+          for (const it of batch) it.refused = true;
+          emit("status", { message: `Flow agent refused this request of ${batch.length} scene(s): making each one on its own instead` });
+          return notCreated(batch, LedgerState.REJECTED, "Flow agent refused the request (might violate its policies); nothing was made");
+        }
         if (!images.length) {
           // Click happened (or we would have thrown NOT_SUBMITTED): outcome unknown — do not auto-resend.
           for (const it of batch) {
@@ -578,7 +585,7 @@ export async function runAgentSlice(params) {
     emit("BATCH_DONE", { completed, failed, total: totalAbsolute, sliceTotal: prompts.length, folder: outDir, reassign });
     return {
       completed, failed, folder: outDir, reassign, authExpired: false, restricted, coolDown,
-      fallback: back.map((it) => ({ index: it.abs, prompt: it.prompt, promptKey: it.promptKey })),
+      fallback: back.map((it) => ({ index: it.abs, prompt: it.prompt, promptKey: it.promptKey, refused: !!it.refused })),
     };
   }
   if (fallback.length && !shouldStop?.() && !restricted && standardSettings.agentFallback !== false) {

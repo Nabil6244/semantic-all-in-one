@@ -113,7 +113,10 @@ export async function runAgentPool({
         shared.push(it);   // owner gone or unknown: runAgentSlice's ledger check blocks or regenerates it safely
       }
     }
-    const queue = planPoolBatches(shared, { maxBatch, maxChars, ui });
+    // Every account that can work gets a share: 54 scenes in requests of 24 kept 3 accounts busy and the rest idle (2026-11-02).
+    const workers = Math.max(1, accounts.filter((a) => usable(a) && !cooling(a)).length);
+    const share = Math.min(maxBatch, Math.max(minScenes, Math.ceil(shared.length / workers)));
+    const queue = planPoolBatches(shared, { maxBatch: share, maxChars, ui });
     const ownQueues = new Map([...byOwner].map(([id, its]) => [id, chunk(its, maxBatch)]));
     const fallback = [];
 
@@ -186,7 +189,7 @@ export async function runAgentPool({
           const back = result.reassign.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, noConfirm: !!r.noConfirm }));
           for (const b of planPoolBatches(back, { maxBatch, maxChars, ui })) queue.push(b);
         }
-        if (result?.fallback?.length) fallback.push(...result.fallback.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null })));
+        if (result?.fallback?.length) fallback.push(...result.fallback.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, refused: !!r.refused })));
       }
     }
 
@@ -200,9 +203,13 @@ export async function runAgentPool({
   }
 
   let leftover = await runRound(items);
+  const refused = leftover.filter((it) => it.refused);      // the agent refused their request: another agent round would be refused again
+  leftover = leftover.filter((it) => !it.refused);
   for (let round = 2; round <= maxRounds && leftover.length >= minScenes && !isStopped(); round++) {
-    leftover = await runRound(leftover);   // five or more the agent did not make: one more agent round
+    const back = await runRound(leftover);   // five or more the agent did not make: one more agent round
+    refused.push(...back.filter((it) => it.refused)); leftover = back.filter((it) => !it.refused);
   }
+  leftover = [...leftover, ...refused];
   if (leftover.length && !isStopped()) {
     // Fewer than five (or still left after the extra round): the standard path, shared across the healthy accounts.
     const ready = accounts.filter((x) => usable(x) && !cooling(x));

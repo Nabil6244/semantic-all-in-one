@@ -264,3 +264,15 @@ test("agent mode is found in both Flow layouts: the Agent toggle, and the always
   assert.equal((await ensureAgentMode(layoutPage({ toggle: false, panel: false }), { timeoutMs: 200 })).ok, false);
   assert.ok(Date.now() - started < 2000);
 });
+
+// 2026-11-02: Flow's agent refused a whole paste ("might violate our policies"); the scenes were left "unknown" and blocked.
+test("a paste the agent refused: nothing made, each scene made on the standard path with its own prompt, none left unknown", async () => {
+  const { out, ledger } = setup();
+  const prompts = PROMPTS(9);
+  const flow = fakeFlow(() => ({ clicked: true, images: [], diag: { outcome: "refused", refused: true } }));
+  const results = await run({ flow, ledger, out, prompts });
+  assert.equal(flow.calls.ui.length, 1, "the agent is asked once");
+  assert.deepEqual(flow.calls.standard.sort((a, b) => a - b), prompts.map((_, i) => i), "every scene goes through the standard path");
+  assert.equal(results.filter((r) => r.status === "done").length, 9);
+  assert.ok(!results.some((r) => /may already be making/i.test(r.error || "")), "no scene is blocked as unknown");
+});

@@ -349,6 +349,20 @@ async function mediaInventory(page) {
     }), PAGE_CALL_TIMEOUT_MS, null);
 }
 
+/**
+ * Flow's agent refuses a whole request in its chat ("This generation might violate our policies. Please try a different
+ * prompt ...", live 2026-11-02): no image is made for any scene of that paste. Counted before and after the click, so an old
+ * refusal still in the chat is not taken for this one.
+ */
+export const REFUSAL_PATTERNS = [/might violate our polic/gi, /violates? (?:our|google'?s) (?:usage )?polic/gi, /try a different prompt/gi, /can(?:'|no)t (?:help with|generate|create) (?:that|this)/gi, /unable to (?:generate|create) (?:that|this|an image)/gi];
+export function countRefusals(text) {
+  const t = String(text || "");
+  return REFUSAL_PATTERNS.reduce((n, rx) => n + (t.match(new RegExp(rx.source, "gi")) || []).length, 0);
+}
+async function agentRefusals(page) {
+  return countRefusals(await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, ""));
+}
+
 async function agentStillBusy(page) {
   // Timeout → still busy (not idle). A laggy but live tab used to fall back to
   // false, then the wait loop could stop early after 12s of no new tiles.
@@ -527,6 +541,7 @@ export async function generateAgentBatchViaUI(page, {
     }
 
     diag.stage = "clicking_generate";
+    const refusalsBefore = await agentRefusals(page);
     diag.generationClickedAt = Date.now();
     await genBtn.click();
 
@@ -548,6 +563,10 @@ export async function generateAgentBatchViaUI(page, {
       const busy = await agentStillBusy(page);
       diag.agentBusy = busy;
       if (ordered.length >= n && !busy) break;
+      if (!busy && ordered.length < n && (await agentRefusals(page)) > refusalsBefore) {      // refused: stop now, not after the whole timeout
+        diag.refused = true;
+        if (!ordered.length || Date.now() - lastNewAt > 8000) break;
+      }
       if (ordered.length >= n && Date.now() - lastNewAt > 8000) break;
       // Some stills but not all: the agent paints in bursts and its busy text is not reliable, so allow a long quiet gap.
       if (ordered.length > 0 && ordered.length < n && !busy && Date.now() - lastNewAt > PARTIAL_QUIET_MS) break;
@@ -574,9 +593,11 @@ export async function generateAgentBatchViaUI(page, {
         ? "success"
         : images.length > 0
           ? "partial"
-          : shouldStop?.()
-            ? "stopped"
-            : "timeout_no_media";
+          : diag.refused
+            ? "refused"
+            : shouldStop?.()
+              ? "stopped"
+              : "timeout_no_media";
 
     return { clicked: true, images, diag };
   } catch (e) {

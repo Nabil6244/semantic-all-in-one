@@ -102,7 +102,7 @@ test("an account that breaks mid-request hands its batch on without the Retry pe
     if (calls === 1) throw new Error("Target page, context or browser has been closed");
     return h.runSlice(args);
   };
-  const res = await runAgentPool({ items: items(10), accounts: accounts(2), prepare: h.prepare, runSlice,
+  const res = await runAgentPool({ items: items(5), accounts: accounts(2), prepare: h.prepare, runSlice,      // one request (5 is the smallest share)
     runStandard: h.runStandard, sleep: h.sleep, now: h.now, batchGapMs: 0 });
   assert.equal(seen.length, 2);
   assert.notEqual(seen[1].account.id, seen[0].account.id);
@@ -200,4 +200,33 @@ test("scenes still inside an agent request are held back, whatever the path", ()
   assert.equal(r.busy[0].by.accountLabel, "Account 4");
   assert.equal(r.poolItems.length, 5);
   assert.equal(r.fresh, 5);
+});
+
+
+// 2026-11-02: 54 scenes went as requests of 24 (3 accounts busy, the rest idle), and one refused prompt left a whole request
+// "unknown" for 20 scenes.
+test("54 scenes on 6 accounts: six requests of 9, every account working at once", async () => {
+  const h = harness();
+  const res = await runAgentPool({ items: items(54), accounts: accounts(6), prepare: h.prepare, runSlice: h.runSlice,
+    runStandard: h.runStandard, sleep: h.sleep, now: h.now, batchGapMs: 0 });
+  assert.equal(res.batchesRun, 6);
+  assert.equal(res.maxConcurrent, 6);
+  assert.ok(h.log.every((x) => x.size === 9));
+  assert.equal(h.log.reduce((n, x) => n + x.size, 0), 54);
+});
+
+test("a request the agent refused is not sent to the agent again: each scene goes through the standard path, shared out", async () => {
+  const h = harness({
+    plan: ({ items: its, call }) => (call === 1
+      ? { completed: 0, fallback: its.map((x) => ({ index: x.index, prompt: x.prompt, promptKey: x.promptKey, refused: true })) }
+      : {}),
+  });
+  const res = await runAgentPool({ items: items(12), accounts: accounts(2), prepare: h.prepare, runSlice: h.runSlice,
+    runStandard: h.runStandard, sleep: h.sleep, now: h.now, batchGapMs: 0 });
+  const agentCalls = h.log.filter((x) => !x.standard);
+  const standard = h.log.filter((x) => x.standard);
+  assert.equal(agentCalls.length, 2, "the two first requests only; no extra agent round for the refused one");
+  assert.equal(standard.reduce((n, x) => n + x.size, 0), 6, "the refused request's six scenes, one by one on the standard path");
+  assert.equal(standard.length, 2, "shared across both accounts");
+  assert.deepEqual(res.unrun, []);
 });
