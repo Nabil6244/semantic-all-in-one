@@ -19,7 +19,25 @@ KIND_SFX = {      # what each development sounds like (cadence.events "what")
 KIND_SFX.update({"slot fills": "marker_pop", "race part": "fast_whoosh", "formula part": "marker_clack", "muscle label": "ui_click", "tendon label": "ui_click", "bone label": "ui_click", "pull": "deep_thud", "promise cells": "counter_ticks", "promise lock": "marker_clack", "red reveal": "marker_pop", "stopwatch starts": "clock_ticking", "stopwatch stops": "marker_clack", "chain": "fast_whoosh", "token fills": "ui_click", "share step": "counter_ticks", "load meter": "marker_pop", "effort bar": "counter_ticks"})      # the study's cards (cards.py)
 MAJOR = ("deep_thud", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0      # What If's restraint: up to ~48 a minute, never stacked
-MUSIC_GAIN = 0.27      # 2026-11-02 owner: the background music a bit lower under the voice (was 0.36, about -2.5 dB)
+MUSIC_GAIN = 0.27      # the first try only: the bed is then set from the voice's own loudness (music_gain)
+MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 18.0, (0.02, 0.6)      # the music bed, at its loudest (in the voice's pauses), this far under the narration
+
+def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str, ffmpeg: str = "ffmpeg", log: Callable[[str], None] = lambda m: None):
+    """The music volume that puts the bed MUSIC_UNDER_VOICE_LU under this voiceover (2026-11-02: a fixed volume left the music as loud as a quiet voice in every
+    pause, and the final loudness pass turned both up). The bed is made once over silence (nothing ducks it: its level in the pauses), both are measured, and the
+    volume is scaled to the gap. Returns (gain, voice LUFS, bed LUFS at the first try) or None when it cannot be measured."""
+    import subprocess
+    from starmap.music import add_music
+    from whatif.sound import measure_loudness
+    voice = measure_loudness(voiceover, ffmpeg)["lufs"]
+    quiet = Path(work) / "rt_silence.wav"
+    subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{duration:.3f}", str(quiet)], check=True, capture_output=True)
+    bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN)
+    if not bed_only: return None
+    bed = measure_loudness(str(bed_only), ffmpeg)["lufs"]
+    if not (voice > -70 and bed > -70): return None
+    g = MUSIC_GAIN * 10 ** ((voice - MUSIC_UNDER_VOICE_LU - bed) / 20)
+    return max(MUSIC_GAIN_RANGE[0], min(MUSIC_GAIN_RANGE[1], g)), voice, bed
 
 def cues(scenes: List[dict]) -> List[dict]:
     """[{t, sfx, source}] for the plan's meaningful changes: a new composition gets a soft transition (a new part of the video a whoosh), every development
@@ -51,7 +69,12 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
     try:
         from starmap.music import add_music
         text = " ".join(sc.get("text", "") for sc in scenes)
-        with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN)
+        gain = MUSIC_GAIN
+        try:
+            got = music_gain(voiceover, work, duration, text, title or text[:60], ffmpeg, log)
+            if got: gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU:.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
+        except Exception as ex: notes.append(f"music level kept at its default ({type(ex).__name__}: {ex})")
+        with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=gain)
         if with_music: path = str(with_music); notes += [f"music: {c}" for c in credits]
     except Exception as ex: notes.append(f"music skipped ({type(ex).__name__}: {ex})")
     try:
