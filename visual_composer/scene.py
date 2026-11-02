@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # real worlds: only DEFAULT looks (a sentence's own colour/property words override them)
 KNOWN = {
@@ -69,6 +69,32 @@ def _palette(tp: str, words: str, base: Optional[list]) -> list:
         return base or []
     c = cols[0]
     return [_mix(c, "#000000", 0.25), c, _mix(c, "#ffffff", 0.5), _mix(c, "#ffffff", 0.2)]
+
+
+def subject_words(spec: Dict[str, Any], text: str) -> List[str]:
+    """The words in the text that made scene_for draw what it drew (the craft, the named world, the world-type word)."""
+    low = (text or "").lower()
+    rxs = []
+    kind = (spec.get("craft") or {}).get("kind")
+    if kind:
+        kinds = ("capsule", "probe") if kind == "capsule" else (kind,)     # a probe on a parachute is drawn as a capsule
+        rxs += [rx for k, rx in CRAFTS + WEAK_CRAFTS if k in kinds]
+    if spec.get("world"):
+        rxs += [rf"\b{n}\b" for n in KNOWN] + [rx for t, rx in TYPE_WORDS if t == spec["world"].get("type")]
+    return [m.group(0) for rx in rxs for m in re.finditer(rx, low)]
+
+
+def is_subject(spec: Dict[str, Any], text: str) -> bool:
+    """A scene is drawn only for what the text is about: its subject named in the first sentence, or named more than once.
+    "These are the worlds we know best. They are where we live, where our spacecraft go first ..." is about the planets;
+    one passing "spacecraft" drew a generic probe over the picture of them."""
+    found = subject_words(spec, text)
+    if len(found) >= 2:
+        return True
+    if not found:
+        return False
+    first = re.split(r"(?<=[.!?])\s+", (text or "").strip(), maxsplit=1)[0].lower()
+    return re.search(rf"\b{re.escape(found[0])}\b", first) is not None
 
 
 def scene_for(text: str) -> Optional[Tuple[Dict[str, Any], float]]:

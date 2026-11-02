@@ -303,6 +303,30 @@ class CinemaScenes(unittest.TestCase):
         self.assertEqual(got[0]["scene_spec"]["world"]["type"], "ice")
         self.assertTrue(got[1]["scene_spec"]["world"].get("cutaway"))
 
+    def test_a_passing_craft_word_is_not_a_scene_and_a_csv_picture_is_never_covered(self):
+        """Video 56 b2: "These are the worlds we know best. ... where our spacecraft go first ..." drew a generic probe over the
+        NASA picture of the four inner planets the CSV asked for (the picture was on screen for half a second)."""
+        from types import SimpleNamespace as NS
+        from unittest import mock
+
+        from visual_composer import cinema as vcc, scene
+
+        passing = "These are the worlds we know best. They are where we live, where our spacecraft go first, and where most of the space story happened."
+        got = scene.scene_for(passing)
+        self.assertTrue(got and "craft" in got[0])
+        self.assertFalse(scene.is_subject(got[0], passing))
+        about = "The spacecraft fired its engine for twenty minutes over Jupiter."
+        self.assertTrue(scene.is_subject(scene.scene_for(about)[0], about))
+
+        drawable = "A frozen world of cracked ice drifted in silence under a thin blue atmosphere."
+        beats = [NS(id="b2", text=drawable, start=0.0, end=8.0, mode="footage", place=None, clips=[NS(asset="nasa_image:inner planets")]),
+                 NS(id="b3", text=drawable, start=12.0, end=20.0, mode="footage", place=None, clips=[])]
+        plan = NS(beats=beats, words=timed(drawable + " " + drawable), title="x")
+        spec = {"duration": 20.0, "footage": [{"id": "b2_1", "start": 0.0, "end": 8.0}, {"id": "cinema_photo_0", "start": 12.0, "end": 20.0}], "layers": []}
+        with mock.patch.object(vcc, "engine_supports_scene", return_value=True):
+            self.assertEqual(vcc.scenes(spec, plan, []), 1)
+        self.assertEqual([L["start"] for L in spec["layers"]], [12.0], "only Cinema's own photo gets the scene; the CSV's picture stays")
+
     def test_a_narration_triggered_template_lands_on_a_cinema_spec_with_a_slate_and_respects_the_gap(self):
         from types import SimpleNamespace as NS
 

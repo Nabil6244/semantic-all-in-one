@@ -296,6 +296,38 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class TheOpening(unittest.TestCase):
+    """Video 56: the title sat over the map for the whole 14 s first beat, and the camera held at 45 AU while the narration named
+    Mercury, Venus, Earth and Mars (one unlabelled dot)."""
+
+    def compiled(self, title_hold=""):
+        said = ("draw a map of the solar system out to neptune and four planets pile up mercury venus earth and mars "
+                "all sit inside the innermost part of the distance to neptune orbit these are the worlds")
+        words = [(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate(said.split())]
+        text = csv_of({"beat": "b1", "row": "beat", "vo_anchor": "draw a map", "mode": "map", "place": "sun", "frame": "solar"},
+                      {"beat": "b1", "row": "layer", "vo_anchor": "draw a map", "type": "title", "label": "THE CROWDED SOLAR SYSTEM", "hold": title_hold},
+                      {"beat": "b2", "row": "beat", "vo_anchor": "these are the", "mode": "footage"},
+                      {"beat": "b2", "row": "clip", "asset": "file:x.jpg"})
+        return compile_plan(read_plan(text, words), Catalog())
+
+    def test_a_title_with_no_hold_leaves_after_four_seconds(self):
+        titles = [L for L in self.compiled().spec["layers"] if L["type"] == "title"]
+        self.assertEqual((titles[0]["start"], titles[0]["end"]), (0.0, 4.0))
+        titles = [L for L in self.compiled(title_hold="8").spec["layers"] if L["type"] == "title"]
+        self.assertEqual(titles[0]["end"], 8.0)
+
+    def test_a_wide_view_pushes_in_on_the_inner_planets_while_they_are_named(self):
+        c = self.compiled()
+        moves = c.spec["camera"]["moves"]
+        named_at, last_said = 15 * 0.5, 19 * 0.5 + 0.4            # "mercury" ... "mars"
+        inner = [m for m in moves if m["to"].get("target") == "sun" and m["to"]["distance"].get("au", 99) <= 3.2]
+        self.assertTrue(inner, moves)
+        self.assertLessEqual(inner[0]["t"], named_at)
+        self.assertGreaterEqual(inner[-1]["t"] + inner[-1]["dur"], last_said)
+        self.assertGreater(moves[-1]["to"]["distance"]["au"], 10, "the beat pulls back out to the wide view after the names")
+        self.assertTrue(any("inner planets" in n for n in c.notes))
+
+
 class LinesRingsAndTheUniverse(unittest.TestCase):
     """Lines that show a number's meaning, scale rings, pointers, the universe frame and the galaxy landmarks."""
 

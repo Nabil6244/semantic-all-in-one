@@ -704,6 +704,8 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
             elif not creep:
                 notes.append(f"row {b.row}: beat {b.id} is too short to {b.move.replace('_', ' ')}; the camera holds")
         prev_key, prev_km, prev_end = key, km, b.end
+    if start is not None:
+        moves = _push_to_named_planets(start, moves, plan, notes)
     if start is None:
         start = {"target": "earth", "fill": 0.5, "light": "side", "el_deg": 20}
     for sh in [start] + [m["to"] for m in moves]:
@@ -713,6 +715,52 @@ def build_camera(cat: Catalog, plan: Plan, notes: List[str], res: Optional[Resol
     return {"drift_deg_per_s": DRIFT_DEG_PER_S, "start": start, "moves": moves}
 
 
+
+
+INNER_PLANETS = ("mercury", "venus", "earth", "mars")
+INNER_VIEW_AU = 3.2                       # the "inner" frame's distance (shot_for): Mercury to Mars, labelled
+WIDE_VIEW_AU = 15.0                       # a Sun-centred view at least this far out shows the inner planets as one dot
+
+
+def _push_to_named_planets(start: Dict[str, Any], moves: List[Dict[str, Any]], plan: Plan, notes: List[str]) -> List[Dict[str, Any]]:
+    """A wide Sun-centred map beat that names two or more inner planets pushes in on them while they are named, then pulls back out
+    to the wide view if the beat goes on. At 45 AU Mercury, Venus, Earth and Mars are one unlabelled dot: b1 named all four over a
+    14 s hold and the viewer never saw them."""
+    for b in plan.beats:
+        if b.mode != "map" or not plan.words:
+            continue
+        said = [(str(w[0]).lower().strip(".,;:!?'\"()"), float(w[1]), float(w[2])) for w in plan.words if b.start <= float(w[1]) < b.end]
+        named = [w for w in said if w[0] in INNER_PLANETS]
+        if len({w[0] for w in named}) < 2:
+            continue
+        t_in = round(max(b.start + 0.5, named[0][1] - 0.6), 3)
+        t_held = round(named[-1][2] + 0.8, 3)
+        if t_held - t_in < 2.5 or t_in > b.end - 2.5:
+            continue
+        ordered = sorted(moves, key=lambda m: m["t"])
+        wide = next((m["to"] for m in reversed(ordered) if m["t"] <= t_in), start)
+        au = (wide.get("distance") or {}).get("au")
+        if wide.get("target") != "sun" or not au or au < WIDE_VIEW_AU or "path" in wide or "follow" in wide:
+            continue
+        kept = []
+        for m in ordered:
+            if t_in <= m["t"] < b.end:
+                continue                                     # the beat's own later shots give way to the push-in
+            if m["t"] < t_in < m["t"] + m["dur"]:
+                m = dict(m, dur=round(max(0.3, t_in - m["t"]), 3))
+            kept.append(m)
+        inner = {k: v for k, v in wide.items() if k in ("target", "az_deg", "spin")}
+        inner.update({"distance": {"au": INNER_VIEW_AU}, "el_deg": 40})
+        push = min(2.0, max(1.0, 0.4 * (t_held - t_in)))
+        t_end = min(t_held, b.end - 0.3)
+        kept.append({"t": t_in, "dur": round(push, 3), "to": inner})
+        if t_end - (t_in + push) >= 0.5:
+            kept.append({"t": round(t_in + push, 3), "dur": round(t_end - t_in - push, 3), "to": _scaled(inner, 0.9)})
+        if b.end - 0.3 - t_end >= 2.5:
+            kept.append({"t": round(t_end, 3), "dur": round(min(3.0, b.end - 0.3 - t_end), 3), "to": copy.deepcopy(wide)})
+        moves = sorted(kept, key=lambda m: m["t"])
+        notes.append(f"row {b.row}: beat {b.id} names {len({w[0] for w in named})} inner planets at a wide view: the camera pushes in on them while they are named")
+    return moves
 
 
 # ---- clock ------------------------------------------------------------------------------------------------------------

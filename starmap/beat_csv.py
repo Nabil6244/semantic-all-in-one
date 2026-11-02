@@ -43,7 +43,7 @@ LAYER_TYPES = ("title", "marker", "zone", "path", "craft", "orbit", "stat", "cap
                "plate", "instrument", "template")   # plate / instrument / template: the Cinema option's What If graphics (cinema.py);
 #                                                         a template row is any of What If's templates by id (whatif-engine/templates)
 CARD_ANCHORS = ("tr", "mr", "ml", "bl")
-DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "card": 6.0}
+DEFAULT_HOLD = {"stat": 4.5, "caption": 4.0, "card": 6.0, "title": 4.0}   # a title with no hold leaves after 4 s, not at the beat end (b1: 14 s over the map)
 # where a picture or clip comes from: the app's Visual Plan sources, NASA's image library, or file:<name> (a file of your own)
 ASSET_SOURCES = ("nasa_image", "nasa_video", "stock_image", "stock_video", "flow_image", "flow_video", "youtube_video", "archive_video",
                  "commons_image", "commons_video", "file")

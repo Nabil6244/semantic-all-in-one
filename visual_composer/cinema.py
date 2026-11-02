@@ -60,6 +60,13 @@ def _scene_layer(a: float, z: float, scene_spec: Dict[str, Any]) -> Dict[str, An
     return {"type": "cinema_scene", "scene_spec": scene_spec, "start": round(a, 3), "end": round(z, 3), "fade_in": 0.2, "fade_out": 0.25, "over_footage": True, "z": 2}
 
 
+def _asked_for(plan: Any, f: Dict[str, Any]) -> bool:
+    """The footage shot is one of the CSV's own clip rows with an asset (compile names them <beat>_<n>; Cinema's added photos are cinema_photo_<n>)."""
+    bid, _, n = str(f.get("id", "")).rpartition("_")
+    b = next((x for x in getattr(plan, "beats", []) if x.id == bid), None) if n.isdigit() else None
+    return b is not None and any(getattr(c, "asset", "") for c in getattr(b, "clips", []) or [])
+
+
 def scenes(spec: Dict[str, Any], plan: Any, notes: List[str], *, author: Any = None) -> int:
     """A footage beat whose sentence describes something drawable (a world, a craft, the air around it, an interior, a field) is drawn as a 3D scene
     generated for it (what If's scene composer), over the footage. Not next to another 3D shot, not over a "photo" claim, at most SCENE_SHARE_MAX of the footage."""
@@ -84,11 +91,13 @@ def scenes(spec: Dict[str, Any], plan: Any, notes: List[str], *, author: Any = N
             break
         if wp._craft(text) or wp._world(text):                   # a NASA craft model or a real world texture covers it (Cinema's own 3D pass, variety)
             continue
+        if _asked_for(plan, f):
+            continue                                             # a picture the CSV asked for is shown, never covered by a generated scene
         got = scene_mod.scene_for(text)
         if (not got or got[1] < SCENE_MIN_CONF) and author is not None and asked < MAX_AI_CALLS and len(content_words(text)) >= 5:
             asked += 1
             got = scene_mod.author(text, author) or got
-        if not got or got[1] < SCENE_MIN_CONF:
+        if not got or got[1] < SCENE_MIN_CONF or not scene_mod.is_subject(got[0], text):
             continue
         layers.append(_scene_layer(a, z, got[0]))
         made += 1
