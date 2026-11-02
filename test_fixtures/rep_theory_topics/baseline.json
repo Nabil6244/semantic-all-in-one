@@ -7,11 +7,11 @@
  "anatomy_unnamed_total": 0,
  "still_share_mean": 0.04,
  "held_no_change_total": 0,
- "looks_mean": 20.6,
+ "looks_mean": 20.533,
  "bad_headlines_total": 0,
  "empty_scenes_total": 0,
  "repeat_headlines_total": 0,
  "opening_overlap_max": 0.154,
- "opening_overlap_mean": 0.019,
+ "opening_overlap_mean": 0.02,
  "reference_strings": []
 }

@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from . import clip3d as C3, diagrams as DG, lexicon as LX, meters as M, narrative as N, planner as P
+from . import clip3d as C3, diagrams as DG, qa as QA, lexicon as LX, meters as M, narrative as N, planner as P
 from .beat_art import SYNTH_RX
 
 FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise") + DG.KINDS      # cards that fill the frame (DG: the Phase 3 diagrams, diagrams.py); the narration's next phrase follows in a caption strip
@@ -441,7 +441,7 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if "equation" in ev: ev.pop("stat", None); ev.pop("bars", None)      # the lockup already shows both numbers: one of them alone in a ring would say less
     return ev
 
-SPLIT_MIN_S, SPLIT_CARD = 2.5, 0.85      # each half of a split scene lasts at least this long; only a strong card shape is worth a cut
+SPLIT_MIN_S, SPLIT_CARD, Q_SPLIT_MIN_S = 2.5, 0.85, 1.5      # each half of a split scene lasts at least this long; only a strong card shape is worth a cut
 SPLIT_LOOKS = set(CARD_LOOKS) - {"takeaway", "stat"}
 
 def _t(x: dict) -> float:
@@ -611,6 +611,26 @@ def section_kind(sc: dict) -> str:
     if UNIT_RX.match(sec): return "howto"
     return ""
 
+JOIN_MAX_S = 8.0
+
+def join_for_diagrams(scenes: List[dict]) -> int:
+    """Two text scenes that are one sentence cut at a comma ("Some people get it in a few months, | others take one to two years, some never.") are joined back when the
+    whole sentence gives a diagram more parts than either half (first render: the tear-off pages lost "FEW MONTHS"). Returns how many joins were made."""
+    n = 0; i = 0
+    while i < len(scenes) - 1:
+        a, b = scenes[i], scenes[i + 1]
+        if any(x["kind"] != "callout" or x.get("directed_look") or x.get("art") for x in (a, b)) or not a.get("text", "").rstrip().endswith(",") or b["end"] - a["start"] > JOIN_MAX_S: i += 1; continue
+        m = dict(a, end=b["end"], words=(a.get("words") or []) + (b.get("words") or []), text=a["text"].rstrip() + " " + b["text"].lstrip())
+        parts = lambda sc: {k: len(v[1]["marks"]) for k, v in DG.evidence(sc, sc["text"]).items()}
+        whole, pa, pb = parts(m), parts(a), parts(b); gain = [k for k, v in whole.items() if v > max(pa.get(k, 0), pb.get(k, 0))]
+        if not gain: i += 1; continue
+        for k, v in b.items():
+            if isinstance(v, list) and k != "words" and isinstance(a.get(k), list): m[k] = a[k] + v
+        m["decisions"] = list(a["decisions"]) + [f"variety: joined with the next clause so the {gain[0]} diagram shows the whole sentence"]
+        scenes[i:i + 2] = [m]; n += 1
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
+
 def split_for_cards(scenes: List[dict]) -> int:
     """A text scene that joins several sentences, where a later sentence has a card of its own ("The most common mistake is ...") that would otherwise show late or not at all,
     is cut at that sentence's first word, so each part gets the picture its own words support. Returns how many cuts were made."""
@@ -621,8 +641,9 @@ def split_for_cards(scenes: List[dict]) -> int:
         cut = None
         for k in range(1, len(ws)):
             if not re.search(r"[.!?]", ws[k - 1].get("p", "")): continue
-            t = float(ws[k]["t0"])
-            if t - sc["start"] < SPLIT_MIN_S or sc["end"] - t < SPLIT_MIN_S: continue
+            t = float(ws[k]["t0"]); is_q = bool(QA.MARK_RX.match(" ".join(w["w"] for w in ws[k:k + 6])))      # a viewer question starts its own scene (first render: "Question one" was joined into the road scene)
+            if min(t - sc["start"], sc["end"] - t) < (Q_SPLIT_MIN_S if is_q else SPLIT_MIN_S): continue
+            if is_q: cut = t; break
             head = {"start": sc["start"], "words": ws[:k]}; tail = {"start": t, "words": ws[k:]}; tx = sc["text"].split(); text_h, text_t = (" ".join(tx[:k]), " ".join(tx[k:])) if len(tx) == len(ws) else (" ".join(w["w"] + w.get("p", "") for w in ws[:k]), " ".join(w["w"] + w.get("p", "") for w in ws[k:]))
             ev_t = {l: v for l, v in evidence(dict(sc, **tail, text=text_t, pages=[])).items() if l in SPLIT_LOOKS and v[0] >= SPLIT_CARD}
             ev_h = {l for l, v in evidence(dict(sc, **head, text=text_h, end=t)).items() if l in SPLIT_LOOKS and v[0] >= SPLIT_CARD}
@@ -639,7 +660,7 @@ JITTER = 0.5      # how far a script's own seed moves a look's score: enough to 
 
 def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
-    split = split_for_cards(scenes) + split_long(scenes); absorb_slot_items(scenes)
+    join_for_diagrams(scenes); split = split_for_cards(scenes) + split_long(scenes); absorb_slot_items(scenes)
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow") or 10 ** 9      # no picture limit unless a caller sets one
     plate_seen: Dict[str, float] = {}; keyline_parts: set = set()      # chapters that already had their one key-line card
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
@@ -669,6 +690,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         elif "flow" in ev and (i == 0 or roles.get(i, "") not in ("claim", "hook") or sc.get("section") in keyline_parts or not 3 <= len(sc.get("words") or []) <= 10 or sc["end"] - sc["start"] > 4.0):      # with pictures on, words alone
             ev.pop("takeaway", None)      # only as one short key line a chapter (never the opening, never long enough to sit still); without Flow the takeaway card stays as it was
         ev["stock"] = (0.1 if stale else 0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []
+        if any(lk in DG.KINDS and len((v[1] or {}).get("marks", [])) >= 3 for lk, v in ev.items()): ev.pop("stock", None)      # a sentence that acts out a whole diagram (3+ parts) never shows the plain figure instead (1-minute render: the plan clipboard lost to the figure with "wrist" lit)
         part = section_kind(sc)
         if part:      # the part of the video decides what kind of graphic suits it (docs/rep_theory/HOW_THE_CHANNEL_EDITS.md section 2): a small nudge, never a ban
             for lk, b in SECTION_BOOST[part].items():

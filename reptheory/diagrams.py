@@ -164,12 +164,12 @@ def clipboard(sc: dict, text: str) -> Optional[dict]:
     for i in range(1, len(items)): items[i]["at"] = max(items[i]["at"], items[i - 1]["at"] + 0.35)
     return {"items": items, "foot": foot, "at": M._at(sc, m.start()), "marks": [i["at"] for i in items]}
 
-ROAD_RX = re.compile(r"\b(?:the\s+|your\s+|a\s+)?(?:road|path|journey|way)\s+to\s+(?:a\s+|an\s+|the\s+|your\s+)?([A-Za-z][\w'-]*(?:\s[A-Za-z][\w'-]*)?)", re.I)
+ROAD_RX = re.compile(r"\b(?:the\s+|your\s+|a\s+)?(?:road|path|journey|way)\s+to\s+(?:a\s+|an\s+|the\s+|your\s+)?([A-Za-z][\w'-]*(?:\s[A-Za-z][\w'-]*){0,2})", re.I)
 
 def road(sc: dict, text: str) -> Optional[dict]:
     m = ROAD_RX.search(text)
     if not m: return None
-    goal = _words(m.group(1), 2)
+    goal = _words(m.group(1), 2, last=True)      # "your first free handstand" -> FREE HANDSTAND (the thing, not its first adjectives)
     if not goal: return None
     at = M._at(sc, m.start()); signs = [{"text": d.group(0).upper(), "at": M._at(sc, d.start())} for d in DUR_RX.finditer(text)][:3]
     if not signs: signs = [{"text": "DAY 1", "at": at + 0.3}, {"text": "YOU", "at": at + 0.7}]
@@ -199,11 +199,13 @@ def evidence(sc: dict, text: str) -> Dict[str, tuple]:
     out = {}
     for k, fn in DETECT.items():
         got = fn(sc, text)
-        if got: out[k] = (BASE[k], got)
+        if got: got["open"] = float(sc["start"]); out[k] = (BASE[k], got)      # the diagram's frame is up from the scene's first frame, its parts land on their words
     return out
 
 # ------------------------------------------------------------------ drawing (absolute time)
 def _p(t: float, at: float, dur: float = 0.4) -> float: return min(1.0, max(0.0, (t - at) / dur))
+
+def _open(c: dict) -> float: return min(c.get("open", c["at"]), c["at"] - 0.2)      # first render: a split circle waited 1.4 s on a blank screen for its first word
 
 def _label(d, ctx, xy, text, size, col, a, centre=True, head=True):
     if a <= 0 or not text: return
@@ -215,7 +217,7 @@ def _arrow(d, a, b, col, width, head):
     d.polygon([b, (b[0] - head * math.cos(ang - 0.45), b[1] - head * math.sin(ang - 0.45)), (b[0] - head * math.cos(ang + 0.45), b[1] - head * math.sin(ang + 0.45))], fill=col)
 
 def draw_lever(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.2, 0.35); px, py = W * 0.18, H * 0.56
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); px, py = W * 0.18, H * 0.56
     load = 0.6 + (0.4 * _p(t, c["obj_at"], 0.6) if c.get("obj_at") else 0.0); tilt = math.radians(2 + 5 * load * T.ease_out(_p(t, c["at"] + 0.5, 0.8)))
     L = W * 0.42 * T.ease_out(_p(t, c["at"], 0.5))
     ex, ey = px + L * math.cos(tilt), py + L * math.sin(tilt)
@@ -244,7 +246,7 @@ def draw_lever(cv, ctx, c, t):
         _label(d, ctx, (cx, y0 + ctx.px(170)), f"{c['a']} × {c['b']}", 38 if len(c["a"] + c["b"]) < 16 else 28, T.ORANGE, _p(t, c["at"] + 1.8, 0.3))
 
 def draw_seesaw(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.2, 0.35); cx, cy = W * 0.5, H * 0.52; tilt = 0.0; last = None
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); cx, cy = W * 0.5, H * 0.52; tilt = 0.0; last = None
     for s in c["steps"]:
         if t >= s["at"]: tilt = tilt + (s["tilt"] - tilt) * T.ease_back(_p(t, s["at"], 0.6)); last = s
     ang = math.radians(10 * tilt); L = W * 0.30; dx, dy = L * math.cos(ang), L * math.sin(ang)
@@ -258,7 +260,7 @@ def draw_seesaw(cv, ctx, c, t):
         _label(d, ctx, (cx, cy + s * 1.7 + ctx.px(30)), "BALANCED" if bal else f"TIPS {c['right'] if tilt > 0 else c['left']}", 56, GREEN if bal else T.RED, q)
 
 def draw_gap(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.2, 0.35); x0, x1, y0, y1 = W * 0.14, W * 0.80, H * 0.16, H * 0.70
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); x0, x1, y0, y1 = W * 0.14, W * 0.80, H * 0.16, H * 0.70
     d.line((x0, y0, x0, y1, x1, y1), fill=T.GREY + (int(255 * a),), width=ctx.px(4)); _label(d, ctx, (x1, y1 + ctx.px(16)), c["unit"], 28, T.GREY, a, head=False); _label(d, ctx, (x0 - ctx.px(10), y0 - ctx.px(46)), "STRENGTH", 26, T.GREY, a, centre=False, head=False)
     p = T.ease_in_out(_p(t, c["at"], 1.4)); n = 48
     fa = lambda u: 1 - math.exp(-3.2 * u); fb = lambda u: 0.55 * u ** 1.4
@@ -274,20 +276,23 @@ def draw_gap(cv, ctx, c, t):
             ex, ey = ps[-1]; _label(d, ctx, (ex + ctx.px(18), ey - ctx.px(26)), lab, 40, col, a, centre=False)
 
 def draw_split(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.2, 0.35); cx, cy, r = W * 0.5, H * 0.46, H * 0.30
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); cx, cy, r = W * 0.5, H * 0.46, H * 0.30
     d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(90, 90, 96, int(255 * a)), width=ctx.px(5))
     for k, (key, col, a0) in enumerate((("a", T.ORANGE, 90), ("b", (96, 140, 220), 270))):
         q = T.ease_out(_p(t, c[key + "_at"], 0.5))
         if q > 0:
             rr = r - ctx.px(10); d.pieslice((cx - rr, cy - rr, cx + rr, cy + rr), a0, a0 + 180 * q, fill=tuple(col) + (230,))
             _label(d, ctx, (cx + (-1 if k == 0 else 1) * r * 0.5, cy - ctx.px(30)), c[key], 52 if len(c[key]) < 9 else 38, T.WHITE, q)
-    q = _p(t, c["at"], 0.5); d.line((cx, cy - r * q, cx, cy + r * q), fill=T.WHITE + (int(255 * a),), width=ctx.px(6))
+    q = _p(t, _open(c), 0.5); d.line((cx, cy - r * q, cx, cy + r * q), fill=T.WHITE + (int(255 * a),), width=ctx.px(6))
 
 def draw_panels(cv, ctx, c, t):
     d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; pw, ph, y0 = W * 0.30, H * 0.36, H * 0.32
     for key, x0, col in (("a", W * 0.12, (110, 110, 118)), ("b", W * 0.58, T.ORANGE)):
         q = T.ease_back(_p(t, c[key + "_at"], 0.45))
-        if q <= 0: continue
+        if q <= 0:      # an empty slot waits for its word
+            e = _p(t, _open(c), 0.35)
+            if e > 0: d.rounded_rectangle((x0, y0, x0 + pw, y0 + ph), radius=ctx.px(24), outline=(70, 70, 76, int(200 * e)), width=ctx.px(3))
+            continue
         off = (1 - q) * ctx.px(40); d.rounded_rectangle((x0, y0 + off, x0 + pw, y0 + ph + off), radius=ctx.px(24), fill=(28, 28, 32, int(235 * min(1, q))), outline=tuple(col) + (int(255 * min(1, q)),), width=ctx.px(5))
         _label(d, ctx, (x0 + pw / 2, y0 + ph / 2 - ctx.px(34) + off), c[key], 60 if len(c[key]) < 10 else 42, col if key == "b" else T.WHITE, q)
     p = _p(t, c["a_at"] + 0.3, max(0.4, c["b_at"] - c["a_at"]))      # the dashed arc from the first panel to the second
@@ -301,7 +306,7 @@ def draw_panels(cv, ctx, c, t):
 def draw_tearoff(cv, ctx, c, t):
     d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; n = len(c["pages"]); pw, ph = W * 0.22, H * 0.42; gap = W * 0.05; x0 = (W - n * pw - (n - 1) * gap) / 2; y0 = H * 0.22
     for i, pg in enumerate(c["pages"]):
-        a = _p(t, c["at"] - 0.2 + 0.1 * i, 0.35); x = x0 + i * (pw + gap)
+        a = _p(t, _open(c) + 0.1 * i, 0.35); x = x0 + i * (pw + gap)
         d.rounded_rectangle((x, y0, x + pw, y0 + ph), radius=ctx.px(14), fill=(236, 233, 226, int(255 * a)))
         d.rectangle((x, y0, x + pw, y0 + ctx.px(46)), fill=T.RED + (int(255 * a),))
         for k in range(4): rx = x + pw * (0.2 + 0.2 * k); d.ellipse((rx - ctx.px(8), y0 - ctx.px(12), rx + ctx.px(8), y0 + ctx.px(12)), fill=(40, 40, 44, int(255 * a)))
@@ -315,7 +320,7 @@ def draw_tearoff(cv, ctx, c, t):
             cv.paste(pg_im, (int(x + ctx.px(30) * tp), int(y0 + ctx.px(46) + H * 0.25 * tp * tp)), pg_im); d = ImageDraw.Draw(cv, "RGBA")
 
 def draw_battery(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.3, 0.35); bw, bh = W * 0.40, H * 0.26; x0, y0 = (W - bw) / 2, H * 0.16 if c.get("week") else H * 0.28
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); bw, bh = W * 0.40, H * 0.26; x0, y0 = (W - bw) / 2, H * 0.16 if c.get("week") else H * 0.28
     lv, charging = c["start"], False
     for s in c["steps"]:
         if t >= s["at"]: lv = lv + (s["level"] - lv) * T.ease_in_out(_p(t, s["at"], 0.8)); charging = s["charge"] and t < s["at"] + 1.2
@@ -334,7 +339,7 @@ def draw_battery(cv, ctx, c, t):
             _label(d, ctx, (x + cw / 2, y + cw - ctx.px(40)), "TRAIN" if tr else "REST", 20, T.WHITE if tr else GREEN, q, head=False)
 
 def draw_clipboard(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.2, 0.35); bw, bh = W * 0.40, H * 0.72; x0, y0 = (W - bw) / 2, H * 0.06 + (1 - T.ease_out(a)) * ctx.px(60)
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); bw, bh = W * 0.40, H * 0.72; x0, y0 = (W - bw) / 2, H * 0.06 + (1 - T.ease_out(a)) * ctx.px(60)
     d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(22), fill=(120, 84, 52, int(255 * a)))
     m = ctx.px(28); d.rounded_rectangle((x0 + m, y0 + m * 2, x0 + bw - m, y0 + bh - m), radius=ctx.px(10), fill=(240, 237, 230, int(255 * a)))
     d.rounded_rectangle((x0 + bw * 0.33, y0 - ctx.px(14), x0 + bw * 0.67, y0 + m * 2 + ctx.px(10)), radius=ctx.px(12), fill=(150, 150, 158, int(255 * a)))
@@ -351,7 +356,7 @@ def draw_clipboard(cv, ctx, c, t):
         q = T.ease_back(_p(t, c["marks"][-1] + 0.4, 0.4)); _label(d, ctx, (x0 + bw / 2, y0 + bh - m - ctx.px(80)), c["foot"], 36, T.ORANGE_DEEP, q)
 
 def draw_road(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, c["at"] - 0.3, 0.4); hy = H * 0.30; cx = W * 0.5
+    d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); hy = H * 0.30; cx = W * 0.5
     d.polygon([(cx - W * 0.02, hy), (cx + W * 0.02, hy), (cx + W * 0.42, H), (cx - W * 0.42, H)], fill=(44, 44, 48, int(255 * a)))
     for e in (-1, 1): d.line((cx + e * W * 0.02, hy, cx + e * W * 0.42, H), fill=T.SOFT_WHITE + (int(200 * a),), width=ctx.px(4))
     off = (t * 0.6) % 1.0      # the centre dashes keep moving toward the viewer

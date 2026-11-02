@@ -139,8 +139,18 @@ def text_spaced(d: ImageDraw.ImageDraw, xy, text: str, font, fill, spacing: floa
     x, y = xy; w = _text_w(d, text, font, spacing)
     if anchor_x == "c": x -= w / 2
     elif anchor_x == "r": x -= w
-    if not spacing: d.text((x, y), text, font=font, fill=fill); return w
-    for ch in text: d.text((x, y), ch, font=font, fill=fill); x += d.textlength(ch, font=font) + spacing
+    alpha = fill[3] if len(fill) == 4 else 255
+    if alpha <= 0 or not text: return w
+    if alpha >= 255:
+        if not spacing: d.text((x, y), text, font=font, fill=fill); return w
+        for ch in text: d.text((x, y), ch, font=font, fill=fill); x += d.textlength(ch, font=font) + spacing
+        return w
+    # Pillow draws text at full strength whatever its alpha (found 2026-11-02: fades never faded and a tracker showed before its word), so a faded text is drawn as a mask
+    pad = int(font.size * 0.6) + 2; mask = Image.new("L", (int(w) + 2 * pad, int(font.size * 1.6) + 2 * pad), 0); md = ImageDraw.Draw(mask); mx = pad
+    if not spacing: md.text((pad, pad), text, font=font, fill=255)
+    else:
+        for ch in text: md.text((mx, pad), ch, font=font, fill=255); mx += md.textlength(ch, font=font) + spacing
+    d._image.paste(tuple(fill[:3]), (int(round(x)) - pad, int(round(y)) - pad), mask.point(lambda v: v * alpha // 255))
     return w
 
 def overlay_paste(cv: Image.Image, layer: Image.Image, alpha: float = 1.0, xy=(0, 0)):

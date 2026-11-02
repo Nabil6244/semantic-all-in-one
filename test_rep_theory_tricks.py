@@ -41,3 +41,19 @@ class Tricks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FirstRenderFixes(unittest.TestCase):      # found in the first 1-minute render, 2026-11-02
+    def test_strike_headline_not_repeated_and_bubble_on_verb(self):
+        sc = scene("A planche isn't a strength trick."); sc["pages"] = [{"headline": "STRENGTH TRICK", "at": 10.5}]; TR.plan([sc]); self.assertEqual(sc["pages"][0]["headline"], "")
+        sc = scene("When the wrists hurt, your body says stop."); TR.plan([sc]); self.assertLess(sc["bubble"]["at"], sc["words"][-1]["t0"])
+
+    def test_question_is_not_a_warning(self):
+        sc = scene("You asked: will it hurt my wrists?"); TR.plan([sc]); self.assertNotIn("hazard", sc)
+
+    def test_faded_text_is_faded(self):
+        from PIL import ImageDraw
+        ctx = D.Ctx(400, 100)
+        for a, want in ((0, 0), (128, 128), (255, 255)):
+            cv = Image.new("RGB", (400, 100)); D.text_spaced(ImageDraw.Draw(cv, "RGBA"), (10, 10), "Q1", ctx.font("Manrope-ExtraBold.ttf", 60), (255, 255, 255, a), 2)
+            self.assertEqual(max(cv.convert("L").get_flattened_data()), want)

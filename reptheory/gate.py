@@ -52,11 +52,11 @@ def check(scenes: List[dict]) -> List[Dict]:
     if not scenes: return []
     total = max(1e-6, scenes[-1]["end"] - scenes[0]["start"]); out: List[Dict] = []; dur = lambda sc: sc["end"] - sc["start"]
     if _is_text(scenes[0]) or (not _is_picture(scenes[0]) and _look(scenes[0]) not in ("tier", "equation")): out.append({"check": "opening_text", "scenes": [scenes[0]["no"]], "value": _look(scenes[0])})
-    share: Dict[str, float] = {}
+    share: Dict[str, float] = {}; shows = lambda sc: sc["kind"] in LIBRARY_KINDS and sc.get("art") and _look(sc) not in ("flow", "3d") and sc["kind"] not in ("callout",)      # the scene really shows the picture
     for sc in scenes:
-        if sc["kind"] in LIBRARY_KINDS and sc.get("art") and _look(sc) not in ("flow", "3d") and sc["kind"] not in ("callout",): share[sc["art"]] = share.get(sc["art"], 0.0) + dur(sc)
-    for art, s in share.items():
-        if s / total > ONE_PICTURE_MAX: out.append({"check": "one_picture", "scenes": [sc["no"] for sc in scenes if sc.get("art") == art and _look(sc) not in ("flow", "3d")], "value": round(s / total, 3), "art": art})
+        if shows(sc): share[sc["art"]] = share.get(sc["art"], 0.0) + dur(sc)
+    for art, s in share.items():      # only the scenes that show it are re-pictured: a card keeps the figure's art name but shows a card (1-minute render: the plan clipboard was replaced)
+        if s / total > ONE_PICTURE_MAX: out.append({"check": "one_picture", "scenes": [sc["no"] for sc in scenes if sc.get("art") == art and shows(sc)], "value": round(s / total, 3), "art": art})
     pic = sum(dur(sc) for sc in scenes if _is_picture(sc)) / total
     if pic < PICTURE_MIN: out.append({"check": "pictures", "scenes": [sc["no"] for sc in scenes if not _is_picture(sc)], "value": round(pic, 3)})
     txt = sum(dur(sc) for sc in scenes if _is_text(sc)) / total

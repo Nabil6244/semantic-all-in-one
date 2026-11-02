@@ -51,7 +51,7 @@ def bubble(sc: dict, text: str) -> Optional[dict]:
     if first in N.STOP or first in ("to", "that", "it"): return None      # reported speech ("tells you to eat more") is not a line said
     w = _upper(m.group(1), 3)
     if not w or w.lower() in N.STOP or w.lower() in ("that", "this", "it", "so"): return None
-    return {"text": w.rstrip("!?.") + "!", "at": M._at(sc, m.start(1))}
+    return {"text": w.rstrip("!?.") + "!", "at": M._at(sc, m.start(1) if m.re is QUOTE_RX else m.start())}      # on the verb ("says"): the word said is often the scene's last
 
 def aside(sc: dict, text: str) -> Optional[dict]:
     m = ASIDE_RX.search(text)
@@ -75,13 +75,18 @@ def plan(scenes: List[dict]) -> Dict[str, int]:
         text = sc.get("text", "")
         if not text.strip(): continue
         pic = sc["kind"] in PICTURE_KINDS or sc.get("look") == "flow"
-        warn = sc.get("section_kind") == "warning" or WARN_RX.search(text)
+        warn = sc.get("section_kind") == "warning" or WARN_RX.search(re.sub(r"[^.!?]*\?", "", text))      # "will it hurt my wrists?" asks, it does not warn
         if warn and pic and float(sc["start"]) - last_hazard >= HAZARD_GAP_S:
             sc["hazard"] = {"at": float(sc["start"]) + 0.15}; last_hazard = float(sc["start"]); n["hazard"] += 1
         if not pic: continue
         for k, fn in (("strike", strike), ("bubble", bubble), ("aside", aside)):
             got = fn(sc, text)
-            if got and got["at"] < float(sc["end"]) - 0.6: sc[k] = got; n[k] += 1; break
+            if got and got["at"] < float(sc["end"]) - 0.6:
+                sc[k] = got; n[k] += 1
+                if k == "strike":      # the struck phrase is on screen already: a headline saying the same words would repeat it (first render)
+                    for pg in sc.get("pages", []):
+                        if re.sub(r"\W", "", str(pg.get("headline", "")).upper()) in (re.sub(r"\W", "", got["text"]), ""): pg["headline"] = ""
+                break
         ms = measure(sc, text)
         if ms: sc["measure"] = ms; n["measure"] += 1
     return n
@@ -124,10 +129,10 @@ def draw_bubble(cv, ctx, c, t):
 def draw_aside(cv, ctx, c, t):
     a = _p(t, c["at"], 0.3)
     if a <= 0: return
-    f = ctx.font(HAND_FONT, 54); x, y = ctx.W * 0.40, ctx.H * 0.10; _rot_text(cv, ctx, (x, y), c["text"], f, YELLOW + (int(255 * a),), 6)
+    f = ctx.font(HAND_FONT, 54); x, y = ctx.W * 0.42, ctx.H * 0.22; _rot_text(cv, ctx, (x, y), c["text"], f, YELLOW + (int(255 * a),), 6)      # clear of the title tag at the top
     p = T.ease_out(_p(t, c["at"] + 0.15, 0.5))      # the arrow draws itself from the note down toward the subject
     if p > 0:
-        d = ImageDraw.Draw(cv, "RGBA"); x0, y0, x1, y1 = x + ctx.px(40), y + ctx.px(50), x + ctx.px(110), ctx.H * 0.30; pts = []
+        d = ImageDraw.Draw(cv, "RGBA"); x0, y0, x1, y1 = x + ctx.px(40), y + ctx.px(50), x + ctx.px(110), ctx.H * 0.40; pts = []
         for i in range(int(20 * p) + 1):
             u = i / 20; pts.append((x0 + (x1 - x0) * u + ctx.px(60) * math.sin(math.pi * u), y0 + (y1 - y0) * u))
         if len(pts) > 1: d.line(pts, fill=YELLOW + (255,), width=ctx.px(6), joint="curve")

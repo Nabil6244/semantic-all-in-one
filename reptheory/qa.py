@@ -11,7 +11,7 @@ from PIL import ImageDraw, Image
 
 from . import draw as D, theme as T
 
-MIN_Q, LIST_S, MAX_CHARS = 2, 2.6, 58
+MIN_Q, LIST_S, LIST_MIN_S, MAX_CHARS = 2, 2.6, 1.8, 58
 NUM = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|next|last|final)"
 MARK_RX = re.compile(rf"\b(?:question\s+(?:number\s+)?{NUM}|(?:the\s+)?{NUM}\s+question|q\s*\d+|you\s+asked|(?:a\s+lot\s+of\s+)?(?:you|people)\s+(?:ask|asked|keep\s+asking)|someone\s+asked|the\s+most\s+common\s+question(?:\s+is)?)\b\s*[:,.-]?\s*", re.I)
 ANNOUNCE_RX = re.compile(r"\b(?:\d+|two|three|four|five|six|seven|eight|nine|ten|your|top|common|biggest)\s+(?:most\s+)?(?:asked\s+)?questions\b", re.I)
@@ -40,9 +40,9 @@ def plan(scenes: List[dict]) -> int:
     items = [{"text": x["text"]} for x in qs]; n = 0
     host = next((i for i, sc in enumerate(scenes[:qs[0]["i"]]) if ANNOUNCE_RX.search(sc.get("text", ""))), qs[0]["i"])
     hs = scenes[host]
-    if hs["end"] - hs["start"] >= LIST_S + 0.6 and not hs.get("chain"):
-        at = float(hs["start"]) + 0.2 if host != qs[0]["i"] else max(float(hs["start"]), qs[0]["at"] - 0.2)
-        hs["qlist"] = {"items": items, "at": at, "dur": min(LIST_S, float(hs["end"]) - at - 0.3)}; hs["decisions"].append(f"questions: the {len(items)} questions listed"); n += 1
+    at = float(hs["start"]) + 0.2 if host != qs[0]["i"] else max(float(hs["start"]), qs[0]["at"] - 0.2); dur = min(LIST_S, float(hs["end"]) - at - 0.3)
+    if dur >= LIST_MIN_S and not hs.get("chain"):      # a short question scene still lists them, for less time
+        hs["qlist"] = {"items": items, "at": at, "dur": dur}; hs["decisions"].append(f"questions: the {len(items)} questions listed"); n += 1
     for k, x in enumerate(qs):
         stop = qs[k + 1]["i"] if k + 1 < len(qs) else len(scenes)
         for sc in scenes[x["i"]:stop]:
@@ -73,7 +73,9 @@ def draw_list(cv: Image.Image, ctx: D.Ctx, c: dict, t: float) -> None:
 
 def draw_track(cv: Image.Image, ctx: D.Ctx, c: dict, t: float) -> None:
     """Top right: "Q2 / 5" and one dot per question (done green with a tick, current orange, later grey); a new question pops in with its text under it for a moment."""
-    a = _p(t, c["at"] - 0.1); d = ImageDraw.Draw(cv, "RGBA"); W = ctx.W; r = ctx.px(13); gap = ctx.px(12); n = c["of"]
+    a = _p(t, c["at"] - 0.1)
+    if a <= 0: return      # text drawn at alpha 0 still showed (first render: "Q1 / 2" 2 s before the question)
+    d = ImageDraw.Draw(cv, "RGBA"); W = ctx.W; r = ctx.px(13); gap = ctx.px(12); n = c["of"]
     x1, y = W - ctx.px(60), ctx.px(64); x0 = x1 - n * (2 * r) - (n - 1) * gap
     lab = f"Q{c['n']} / {n}"; f = ctx.font(T.HEAD_FONT, 34); lw = D._text_w(d, lab, f, ctx.px(1))
     d.rounded_rectangle((x0 - lw - ctx.px(46), y - ctx.px(30), x1 + ctx.px(20), y + ctx.px(30)), radius=ctx.px(30), fill=(14, 14, 16, int(210 * a)))
