@@ -209,7 +209,15 @@ def on_render_click(app) -> None:
                 log(f"{len(sentences)} sentences read from the narration")
             result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card, planner="beats" if smart else "legacy", per_beat=smart, illustrate=wantflow, clips3d=want3d, variety=mixlooks and smart,
                                           flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table)
-            if media_only: result = dict(result, rows=fetch_pictures(manager, folder, result.get("requests") or [], app._rt_cancel.is_set, log))
+            if media_only:
+                def listed(rows) -> None:      # shown at once, each row's state then follows the manifest (as Health Cinema does)
+                    app.after(0, lambda: (visual_bridge.fill(app, OWNER, rows), app._rt_status_var.set(f"Scenes listed in the Visuals tab; making their pictures through Flow...")))
+                def one_done(*_a, **_k) -> None:      # each finished picture appears in the tab as it lands
+                    def refresh():
+                        try: app._hydrate_overscaled_assets_from_manifest(folder); app._render_scene_rows(); app._refresh_assets_cta()
+                        except Exception: pass
+                    app.after(0, refresh)
+                result = dict(result, rows=fetch_pictures(manager, folder, result.get("requests") or [], app._rt_cancel.is_set, log, on_listed=listed, on_done=one_done))
         except engine.Cancelled: error = "Stopped."
         except Exception as exc: error = f"{type(exc).__name__}: {exc}"      # shown to the user, never a silent failure
         def finish() -> None:
@@ -234,7 +242,7 @@ def on_render_click(app) -> None:
         app.after(0, finish)
     threading.Thread(target=worker, name="rep-theory-render", daemon=True).start()
 
-def fetch_pictures(manager, folder: Path, requests: list, cancelled, log) -> list:
+def fetch_pictures(manager, folder: Path, requests: list, cancelled, log, on_listed=None, on_done=None) -> list:
     """Generate scenes: one Visuals-tab row per picture. A picture already in the Rep Theory library is filed as done (nothing is generated twice);
     the rest are made through the app's AssetManager (its Flow provider, settings and accounts), into this style's own folder."""
     import shutil
@@ -251,5 +259,14 @@ def fetch_pictures(manager, folder: Path, requests: list, cancelled, log) -> lis
             man.set(row.scene_number, {"scene_number": row.scene_number, "status": "complete", "source": "flow_image", "type": "image", "local_path": str(dst), "prompt": row.prompt, "provider": "flow"})
     todo = [row for row in rows if (man.get(row.scene_number) or {}).get("status") != "complete"]
     log(f"{len(rows) - len(todo)} picture(s) already in the library; {len(todo)} to make through Flow")
-    if todo and not cancelled(): manager.resolve_all(rows)
+    if on_listed: on_listed(rows)      # the scenes are in the Visuals tab now, before Flow makes the pictures (54 pictures took minutes with an empty tab)
+    if todo and not cancelled(): manager.resolve_all(rows, on_scene_complete=on_done) if on_done else manager.resolve_all(rows)
+    failed = [row for row in rows if (man.get(row.scene_number) or {}).get("status") != "complete" and "cancel" not in str((man.get(row.scene_number) or {}).get("error", "")).lower()]
+    if failed and not cancelled():      # refused by Flow (or failed): once more in a safer wording; pictures already made are never redone
+        from .beat_art import safe_prompt
+        log(f"{len(failed)} picture(s) refused or failed; trying each once more in a safer wording (scenes {', '.join(r.scene_number for r in failed)})")
+        for row in failed: row.prompt = safe_prompt(row.prompt)
+        manager.resolve_all(failed, on_scene_complete=on_done) if on_done else manager.resolve_all(failed)
+        still = [r.scene_number for r in failed if (man.get(r.scene_number) or {}).get("status") != "complete"]
+        if still: log(f"refused again: scenes {', '.join(still)} keep their card or text (or use Change source / Use local clip in the Visuals tab)")
     return rows

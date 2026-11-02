@@ -90,6 +90,10 @@ The app adds the art style, the black background, the colours and the compositio
 8. Before / after: for a turn in the story, give two rows two prompts of the same scene ("the trainee and the rival arm wrestling, even" → "the same arm wrestle, the rival's arm folding down, the trainee winning, speed lines").
 9. Analogies are drawn literally ("a rope hanging slack between two hands", "a hammer held at the very end of its handle").
 10. Keep it real and safe: correct exercise form, normal gym or home objects, no injuries shown, no gore.
+11. Words Flow refuses (the picture then fails): the trainee and the rival are always adults, never "boy", "kid", "teen" or "young guy". Never draw an injury: no "torn", "snapped",
+    "bleeding", "broken", "wound", "pain on his face"; show the stressed part "highlighted in red under load" instead (the narration may still say "tear"). An arm wrestle or an
+    opponent is "a friendly match at a table", never "fight", "attack", "crush" or "smash". Anatomy is "a clean anatomical sketch" or "an x-ray style drawing", never exposed bone
+    or blood. Keep the prompt to the action, the objects, the view and the red part: short, calm descriptions pass, long dramatic ones get refused.
 
 RE-FRAMING (how one picture becomes several shots)
 When two or three sentences in a row describe the same moment (the setup of one exercise, the steps of one test), draw it once and re-frame it:

@@ -40,6 +40,26 @@ def own_prompt(text: str) -> str:
     cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "")
     return f"{text}.{cast} {A.SCENE_STYLE}."
 
+# A prompt Flow refused ("This generation might violate our policies") is tried once more in a safer wording. Only the retry changes: every
+# picture that was drawn keeps its prompt and its id, so nothing already made is drawn again. The trainee's look stays exactly the same.
+SAFE_SUBS = (
+    (re.compile(r"\byoung man\b", re.I), "adult man in his late twenties"), (re.compile(r"\bskinny\b", re.I), "slim"),
+    (re.compile(r"\b(?:boys?|kids?|child(?:ren)?|teen(?:ager)?s?)\b", re.I), "adults"),
+    (re.compile(r"\bpainted glowing red\b|\bglowing red\b", re.I), "highlighted in red"), (re.compile(r"\bPaint (his|the) ", re.I), r"Highlight \1 "),
+    (re.compile(r"\b(?:tear(?:s|ing)?|torn|ruptur(?:e|es|ed|ing)|snap(?:s|ped|ping)?|broken|bleed(?:s|ing)?|blood(?:y)?|wound(?:s|ed)?|injur(?:y|ies|ed)|strain(?:s|ed)?|sprain(?:s|ed)?|"
+                r"pain(?:ful)?|hurts?|hurting|agony|damaged?)\b", re.I), "under load"),
+    (re.compile(r"\b(?:fight(?:s|ing)?|attack(?:s|ing)?|punch(?:es|ing)?|crush(?:es|ing)?|smash(?:es|ing)?|destroy(?:s|ing)?|kill(?:s|ing)?|slam(?:s|med|ming)?)\b", re.I), "compete with"),
+    (re.compile(r"\bthe bigger, stronger-looking opponent\b", re.I), "his friendly training partner"),
+)
+SAID_RX = re.compile(r'(illustrating exactly this narration|one striking picture of this promise|what this sentence of a fitness explainer is about): "([^"]*)"')
+
+def safe_prompt(prompt: str) -> str:
+    """The retry wording for a refused prompt: an adult, no injury or fight words, the red part 'highlighted', the narration quoted in it cut to its first
+    clause (the action and the body part)."""
+    p = SAID_RX.sub(lambda m: f'{m.group(1)}: "{re.split(r"[,;:.!?]", m.group(2))[0].strip()}"', prompt)
+    for rx, rep in SAFE_SUBS: p = rx.sub(rep, p)
+    return p + " A calm, friendly fitness illustration for a general audience."
+
 def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:12]
 
 def eligible(sc: dict) -> bool:
@@ -82,11 +102,19 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         prov = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=fs); ids = list(todo)
         rows = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=todo[i]) for n, i in enumerate(ids)]
         log(f"[REP THEORY ART] requesting {len(rows)} Flow image(s) for this script (mode {mode})")
-        res = prov.resolve_batch(rows, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log)
+        res = prov.resolve_batch(rows, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log); retry = []
         for n, i in enumerate(ids):
             r = res.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
             if path and Path(path).is_file(): L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=todo[i], source="flow", notes=f"flow {mode} {time.strftime('%Y-%m-%d')}"); stat["generated"] += 1
-            else: stat["failed"] += 1; log(f"[REP THEORY ART] {i}: no image returned ({getattr(r, 'error', None)}); that scene keeps its text treatment")
+            else: retry.append((n, i))
+        if retry:      # refused or failed: once more in the safer wording, saved under the scene's own id
+            log(f"[REP THEORY ART] {len(retry)} picture(s) refused or failed; trying each once more in a safer wording")
+            rows2 = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=safe_prompt(todo[i])) for n, i in retry]
+            res2 = prov.resolve_batch(rows2, Path(tempfile.mkdtemp(prefix="rt_beat_retry_")), log=log)
+            for (n, i), row in zip(retry, rows2):
+                r = res2.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
+                if path and Path(path).is_file(): L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=row.prompt, source="flow", notes=f"flow {mode} safer retry {time.strftime('%Y-%m-%d')}"); stat["generated"] += 1; stat["retried"] = stat.get("retried", 0) + 1
+                else: stat["failed"] += 1; log(f"[REP THEORY ART] {i}: refused again ({getattr(r, 'error', None)}); that scene keeps its card or text. Prompt: {row.prompt[:160]}")
     for sc in scenes:
         got = sc.pop("_illus", None)
         if got and L.find(got[0]): sc["decisions"].append(f"picture from the narration: {sc['kind']} -> illus"); sc["was_kind"] = sc["kind"]; sc["kind"] = "illus"; sc["art"] = got[0]; sc["prop"] = ""
