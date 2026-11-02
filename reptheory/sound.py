@@ -31,7 +31,7 @@ def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str
     from whatif.sound import measure_loudness
     voice = measure_loudness(voiceover, ffmpeg)["lufs"]
     quiet = Path(work) / "rt_silence.wav"
-    subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{duration:.3f}", str(quiet)], check=True, capture_output=True)
+    subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{duration:.3f}", str(quiet)], check=True, capture_output=True, timeout=300)
     bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN)
     if not bed_only: return None
     bed = measure_loudness(str(bed_only), ffmpeg)["lufs"]
