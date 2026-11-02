@@ -10,6 +10,9 @@ from unittest import mock
 
 
 def _can_render() -> bool:
+    import sys
+    if sys.platform == "darwin" and os.environ.get("CI"):      # GitHub's Apple Silicon runner stalls headless Chromium renders (360 s module cut-off, twice on 2026-11-02); Windows CI and local runs cover these
+        return False
     try:
         from providers.flow.engine_manager import _find_flow_engine_dir
         from providers.playwright_chromium import is_playwright_chromium_installed, system_chrome_available
