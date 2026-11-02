@@ -20,7 +20,7 @@ KIND_SFX.update({"slot fills": "marker_pop", "race part": "fast_whoosh", "formul
 MAJOR = ("deep_thud", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0      # What If's restraint: up to ~48 a minute, never stacked
 MUSIC_GAIN = 0.27      # the first try only: the bed is then set from the voice's own loudness (music_gain)
-MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 18.0, (0.02, 0.6)      # the music bed, at its loudest (in the voice's pauses), this far under the narration
+MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 12.0, (0.02, 0.6)      # 18 was too quiet (owner, 2026-11-02); explainer beds sit ~10-14 LU under      # the music bed, at its loudest (in the voice's pauses), this far under the narration
 
 def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str, ffmpeg: str = "ffmpeg", log: Callable[[str], None] = lambda m: None):
     """The music volume that puts the bed MUSIC_UNDER_VOICE_LU under this voiceover (2026-11-02: a fixed volume left the music as loud as a quiet voice in every
