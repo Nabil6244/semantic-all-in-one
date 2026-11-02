@@ -66,11 +66,45 @@ def copy_script_prompt(app) -> None:
     app.clipboard_clear(); app.clipboard_append(text)
     app._rt_status_var.set("Full Guide script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.")
 
+SETTINGS_KEY = "reptheory_settings"
+SETTINGS = {"scenes": "_rt_scenes_var", "title": "_rt_title_var", "preview": "_rt_preview_var", "smart": "_rt_smart_var", "3d": "_rt_3d_var", "flow": "_rt_flow_var",
+            "variety": "_rt_variety_var", "end": "_rt_end_var", "end_title": "_rt_end_title", "end_url": "_rt_end_url", "end_image": "_rt_end_image"}
+
+def save_settings(app) -> None:
+    """The page's choices (scenes CSV, Flow pictures, 3D, smart planner, end card ...) and what the last Generate scenes was made from, saved in the project, so
+    reopening the app shows the same page (2026-11-02: after a restart the CSV and the Flow switch were reset, and Render made 4 scenes with no pictures)."""
+    ws = getattr(app, "_workspace", None)
+    if ws is None or getattr(app, "_rt_restoring", False): return
+    try:
+        vals = {k: getattr(app, a).get() for k, a in SETTINGS.items() if hasattr(app, a)}
+        rk = getattr(app, "_rt_ready_key", None); vals["ready_key"] = list(rk) if rk else None
+        data = ws.read_meta()
+        if data.get(SETTINGS_KEY) != vals: data[SETTINGS_KEY] = vals; ws._write_meta(data)
+    except Exception: pass
+
+def restore_settings(app) -> bool:
+    """The project's saved choices back on the page. False when the project has none yet (a new project keeps the defaults)."""
+    ws = getattr(app, "_workspace", None)
+    if ws is None: return False
+    try: vals = ws.read_meta().get(SETTINGS_KEY)
+    except Exception: return False
+    if not isinstance(vals, dict): return False
+    app._rt_restoring = True
+    try:
+        for k, a in SETTINGS.items():
+            if k in vals and hasattr(app, a):
+                try: getattr(app, a).set(vals[k])
+                except Exception: pass
+        rk = vals.get("ready_key"); app._rt_ready_key = tuple(rk) if rk else None
+    finally: app._rt_restoring = False
+    return True
+
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
     app._rt_scenes_var = ctk.StringVar(value=""); app._rt_status_var = ctk.StringVar(value=""); app._rt_title_var = ctk.StringVar(value=""); app._rt_preview_var = ctk.BooleanVar(value=False)
     app._rt_smart_var = ctk.BooleanVar(value=True); app._rt_3d_var = ctk.BooleanVar(value=True); app._rt_flow_var = ctk.BooleanVar(value=False); app._rt_variety_var = ctk.BooleanVar(value=True)
     app._rt_end_var = ctk.BooleanVar(value=False); app._rt_end_title = ctk.StringVar(value=""); app._rt_end_url = ctk.StringVar(value=""); app._rt_end_image = ctk.StringVar(value="")
+    for attr in SETTINGS.values(): getattr(app, attr).trace_add("write", lambda *_a: save_settings(app))      # every choice on this page is kept with the project
     app._rt_cancel = threading.Event(); app._rt_running = getattr(app, "_rt_running", False)
     block = ctk.CTkFrame(parent, fg_color=M._CARD, corner_radius=10, border_width=1, border_color=M._BORDER); block.grid(row=row, column=0, sticky="ew", pady=(0, 12)); block.grid_columnconfigure(0, weight=1)
     app._rt_block = block
@@ -118,6 +152,7 @@ def end_card_settings(app) -> dict:
 def activate(app) -> None:
     if getattr(app, "_rt_running", False): return
     app._rt_block.grid(); app._rt_status_var.set("")
+    restore_settings(app)      # this project's own choices (scenes CSV, Flow pictures ...), as they were when it was last used
     import visual_bridge
     visual_bridge.restore(app, OWNER)      # the pictures of the last Generate scenes, back in the Visuals tab
 
@@ -175,6 +210,9 @@ def on_render_click(app) -> None:
         if not clip3d.available(): app._append_log(f"{TAG} 3D body model or renderer not found on this machine: scenes about body parts keep their usual look (see docs/rep_theory).\n")
     import visual_bridge
     media_only = needs_scenes(app); folder = visual_bridge.folder(OWNER, ws); inputs = _inputs_key(app)
+    held = visual_bridge.rows(app, OWNER)
+    if not media_only and held and not app._rt_scenes_var.get().strip():      # the Visuals tab holds a CSV's pictures but no CSV is chosen: the render would plan different scenes and use none of them
+        M.messagebox.showerror("Choose the scenes file", f"The Visuals tab holds {len(held)} pictures made from a scenes CSV, but no scenes file is chosen.\n\nChoose the same scenes CSV, then Render."); return
     table = visual_bridge.records(folder, visual_bridge.rows(app, OWNER)) if (wantflow and not media_only) else None
     manager = None
     if media_only:
@@ -228,7 +266,7 @@ def on_render_click(app) -> None:
                 app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed", message=error)
             if error: app._rt_status_var.set(error); app._append_log(f"{TAG} {error}\n")
             elif result and result.get("media_only"):
-                rows = result.get("rows") or []; visual_bridge.fill(app, OWNER, rows); app._rt_ready_key = inputs
+                rows = result.get("rows") or []; visual_bridge.fill(app, OWNER, rows); app._rt_ready_key = inputs; save_settings(app)
                 ok = len(visual_bridge.records(folder, rows))
                 msg = f"Scenes ready: {ok} of {len(rows)} Flow pictures made. Check them in the Visuals tab, then click Render Rep Theory." if rows else "Scenes ready (no scene wants a Flow picture). Click Render Rep Theory."
                 app._rt_status_var.set(msg); app._append_log(f"{TAG} {msg}\n")

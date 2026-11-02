@@ -56,3 +56,24 @@ class SaferRetry(unittest.TestCase):      # some Flow pictures were refused ("mi
         with tempfile.TemporaryDirectory() as d:
             A.fetch_pictures(M(Path(d)), Path(d), reqs, lambda: False, lambda m: None)
         self.assertEqual(len(calls), 2); self.assertEqual([n for n, _ in calls[1]], ["2"]); self.assertNotIn("young", calls[1][0][1]); self.assertNotIn("tear", calls[1][0][1])
+
+
+class SettingsKeptWithProject(unittest.TestCase):      # 2026-11-02: after a restart the scenes CSV and the Flow switch were reset; Render made 4 scenes, no pictures
+    def test_page_choices_saved_and_restored(self):
+        class Var:
+            def __init__(self, v): self.v = v
+            def get(self): return self.v
+            def set(self, v): self.v = v
+        class WS:
+            meta = {}
+            def read_meta(self): return dict(self.meta)
+            def _write_meta(self, d): WS.meta = dict(d)
+        class App: pass
+        app = App(); app._workspace = WS()
+        for k, a in A.SETTINGS.items(): setattr(app, a, Var(False if k in ("preview", "smart", "3d", "flow", "variety", "end") else ""))
+        app._rt_scenes_var.set("/x/scenes.csv"); app._rt_flow_var.set(True); app._rt_ready_key = ("/x/scenes.csv", "vo.mp3", True, True, True, "")
+        A.save_settings(app)
+        fresh = App(); fresh._workspace = app._workspace
+        for k, a in A.SETTINGS.items(): setattr(fresh, a, Var(False if k in ("preview", "smart", "3d", "flow", "variety", "end") else ""))
+        self.assertTrue(A.restore_settings(fresh))
+        self.assertEqual((fresh._rt_scenes_var.get(), fresh._rt_flow_var.get(), fresh._rt_ready_key), ("/x/scenes.csv", True, app._rt_ready_key))
