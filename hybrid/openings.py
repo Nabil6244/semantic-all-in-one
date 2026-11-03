@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import re
 import time
 from pathlib import Path
@@ -58,8 +59,8 @@ def history_path() -> Optional[Path]:
     env = os.environ.get("HYBRID_OPENING_HISTORY")
     if env:
         return Path(env).expanduser()
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return None  # tests never read or change the real history
+    if "PYTEST_CURRENT_TEST" in os.environ or getattr(getattr(sys.modules.get("__main__"), "__spec__", None), "name", "") == "unittest.__main__":
+        return None  # tests (pytest, or python -m unittest as CI runs them) never read or change the real history
     return Path.home() / ".semantic_yt_studio" / "hybrid" / "openings.json"
 
 

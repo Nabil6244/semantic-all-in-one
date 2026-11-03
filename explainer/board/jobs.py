@@ -88,7 +88,7 @@ def run(words, jobs, log: Callable[[str], None] = lambda m: None, max_workers: i
                     futs = {ex.submit(_draw, j): j for j in todo}
                     for fu in as_completed(futs):
                         try:
-                            done.add(fu.result())
+                            done.add(fu.result(timeout=3600))
                         except Exception as exc:       # one bad board does not stop the rest; it is retried alone below
                             log(f"[Explainer] a board clip failed in parallel ({str(exc)[:120]}); retrying it alone")
             except Exception as exc:                   # no process pool here: draw them one after another
