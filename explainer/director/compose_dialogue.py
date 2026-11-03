@@ -16,6 +16,7 @@ from ..board import styles as ST
 from ..board.cues import Cue
 from ..board.dry import dry_build
 from ..motion import bubbles as BU
+from .onscreen import stands_alone
 from .segment import norm
 
 SPEECH_VERBS = frozenset("said says asked asks replied replies shouted shouts whispered whispers cried yelled declared answered exclaimed told warned insisted muttered screamed".split())
@@ -110,6 +111,8 @@ def _echo(sents: Sequence[Any], words, pos: Dict[int, int]) -> List[Dict[str, An
             toks = [norm(words[g][0]) for g in run]
             if toks[0] in LX.STOP or toks[-1] in LX.STOP or any(not t for t in toks):
                 continue
+            if "of" in toks or any(re.search(r"\d", t) for t in toks):      # "headlines of lithium", "bottom of the pit", "40 million": a description or a figure, not a line anyone says
+                continue
             content = sum(1 for t in toks if t not in LX.STOP)
             ends = any(run[-1] == s.widx[-1] for s in sents if s.widx)
             score = content * 10 + sum(len(t) for t in toks) - (3 if toks[0] in LX.WEAK else 0) + (8 if ends else 0) - (9 if toks[-1].endswith("ed") or toks[0].endswith("ed") else 0)
@@ -145,7 +148,7 @@ def candidates(sents: Sequence[Any], words, pos: Dict[int, int]) -> List[Dict[st
             if matched:
                 out.append({"kind": "cry", "g": matched[0], "run": [(t, None) for t in toks], "text": " ".join(toks), "shout": True})
         for g in s.widx:
-            if g in pos and norm(words[g][0]) in CRY and not any(c["g"] == g for c in out):
+            if g in pos and norm(words[g][0]) in CRY and stands_alone(words, g, s.widx[-1]) and not any(c["g"] == g for c in out):
                 inside = any(c["kind"] == "quote" and g in {x for _t, x in c["run"] if x is not None} for c in out)
                 if not inside and not (out and out[-1]["kind"] == "cry" and out[-1]["g"] == s.widx[0] and len(toks) <= 3):
                     out.append({"kind": "cry", "g": g, "run": [(re.sub(r"[^\w'-]", "", words[g][0]), g)], "text": re.sub(r"[^\w'-]", "", words[g][0]), "shout": True})

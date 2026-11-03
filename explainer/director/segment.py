@@ -116,6 +116,26 @@ def casing(script: Optional[str]) -> Dict[str, str]:
     return out
 
 
+def spelling(words: Sequence[Word], script: Optional[str]) -> Dict[str, str]:
+    """norm(token) -> the script's word, for a transcript word the speech-to-text misheard ("antimonyde" -> "antimonide", "deuterine" never guessed without a script):
+    a word of 6+ letters that the script never writes, whose closest script word starts with the same two letters and is nearly the same spelling."""
+    if not script:
+        return {}
+    import difflib
+    vocab: Dict[str, str] = {}
+    for t in re.findall(r"[A-Za-z][A-Za-z\-]{5,}", script):
+        if norm(t) not in vocab or t.islower():         # a sentence-start capital is not the word's own spelling
+            vocab[norm(t)] = t
+    out: Dict[str, str] = {}
+    for tok in {norm(w[0]) for w in words}:
+        if len(tok) < 6 or tok in vocab or tok in LX.STOP or tok.rstrip("s") in vocab or tok + "s" in vocab:      # a plural is not a misspelling
+            continue
+        near = difflib.get_close_matches(tok, [v for v in vocab if v[:2] == tok[:2]], 1, 0.84)
+        if near:
+            out[tok] = vocab[near[0]]
+    return out
+
+
 _TITLES = frozenset("king queen lord lady prince princess emperor bishop".split())
 
 

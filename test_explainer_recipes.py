@@ -314,7 +314,7 @@ class Geometry(unittest.TestCase):
         r, *_ = author("Britain produced 50 million tons of coal while France produced 20 million tons of iron.", "quantitative")
         self.assertEqual([b.params["label"].lower() for b in visuals(r, "bars")], ["britain", "france"])
         r, *_ = author("It sold 50 million tons of coal and sold 20 million tons of iron.", "quantitative")
-        for b in visuals(r, "bars"):
+        for b in (visuals(r, "bars") if r is not None else []):       # no subject for each bar: no chart at all
             self.assertNotIn(b.params["label"].lower(), ("sold", "produced", "made"))
 
     def test_pictogram_uses_the_character_for_the_noun(self):

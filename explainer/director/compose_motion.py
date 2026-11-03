@@ -16,6 +16,7 @@ from ..board.dry import dry_build
 from ..motion import presets as P
 from ..motion import sprites as MS
 from . import lexicon as LX
+from .onscreen import stands_alone
 from .segment import norm
 
 VERDICT = frozenset("""caught surrounded worthless banned forbidden failed failure collapsed destroyed doomed trapped defeated impossible cancelled canceled stopped abandoned betrayed
@@ -143,6 +144,8 @@ def motion_pass(br, beat_id: str, start: float, end: float, sents: Sequence[Any]
                 continue
             tok = norm(words[g][0])
             if tok not in VERDICT and tok not in VERDICT_GREEN:
+                continue
+            if not stands_alone(words, g, s.widx[-1]):          # "lies a canyon", "trapped beneath": the word is not a verdict here
                 continue
             t = float(words[g][1])
             if state["stamps"] and t - state["stamps"][-1] < MIN_STAMP_GAP_S:

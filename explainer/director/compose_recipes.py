@@ -597,11 +597,20 @@ def _verbish(c: _Ctx, g: int) -> bool:
     return t in VERBISH or (len(t) > 4 and t.endswith("ed") and t not in c.cased)
 
 
+def counts_people(tok: str) -> bool:
+    """the counted noun is people ("40 workers", "300 miners"): only then is the number drawn as a row of figures, never for dollars, years or miles"""
+    from . import lexicon_v2 as LV
+    t = (tok or "").lower()
+    return any(x in LX.PEOPLE_WORDS or x in LV.CHARACTER_OF for x in (t, t + "s", t[:-1] if t.endswith("s") else t))
+
+
 def _pictogram(c: _Ctx) -> bool:
     nums = _numbers(c)
     if len(nums) != 1 or nums[0]["v"] < 2:
         return False
     nm = nums[0]
+    if nm["noun"] is None or not counts_people(c.tok[nm["noun"]]):
+        return False
     n = int(min(12, round(nm["v"]))) if nm["v"] <= 12 else 12
     rows = -(-n // 6)
     sizes = [n // rows + (1 if r < n % rows else 0) for r in range(rows)]
@@ -655,26 +664,33 @@ def _bar_chart(c: _Ctx) -> bool:
     bw_ = min(380, (c.w - (n - 1) * gap) // n)
     x0 = c.cx - (n * bw_ + (n - 1) * gap) // 2
     nouns = [x["noun"] for x in nums]
-    same = len({c.tok[g] for g in nouns if g is not None}) < n or any(g is None for g in nouns)      # "tons", "tons": the subject before each number says more
-    for k, nm in enumerate(nums):
-        label = None if same else nm["noun"]
-        if label is None:
-            run: List[int] = []
-            for j in range(nm["g"] - 1, max(nm["g"] - 6, -1), -1):          # the words just before the number ("Britain produced"): the subject is a name or the farthest noun of the run
-                if j not in c.pos or c.sent_of.get(j) is not c.sent_of.get(nm["g"]) or NUM_RE.fullmatch(c.tok[j]):
+    units = {c.tok[g].rstrip("s") for g in nouns if g is not None}
+    if any(g is None for g in nouns) or len(units) != 1:      # bars compare one quantity: "1 national" beside "100 tons", "4 Stibnites" beside "8 million ounces" is not a chart
+        return False
+    labs: List[str] = []
+    for nm in nums:                                           # "tons", "tons": the subject before each number says which bar is which
+        run: List[int] = []
+        for j in range(nm["g"] - 1, max(nm["g"] - 6, -1), -1):          # the words just before the number ("Britain produced"): the subject is a name or the farthest noun of the run
+            if j not in c.pos or c.sent_of.get(j) is not c.sent_of.get(nm["g"]) or NUM_RE.fullmatch(c.tok[j]):
+                break
+            if not c.content(j) or _verbish(c, j):
+                if run and not _verbish(c, j):
                     break
-                if not c.content(j) or _verbish(c, j):
-                    if run and not _verbish(c, j):
-                        break
-                    continue
-                run.append(j)
-            label = next((j for j in run if c.tok[j] in c.cased), run[-1] if run else None)
-            if label is None and nm["noun"] is not None and not _verbish(c, nm["noun"]):
-                label = nm["noun"]
-        lab = _disp(c.tok[label], c.cased) if label is not None else ""
+                continue
+            run.append(j)
+        label = next((j for j in run if c.tok[j] in c.cased), run[-1] if run else None)
+        if label is None or c.tok[label] in BAR_NOT_LABEL or (c.tok[label].endswith(("ive", "ous", "al")) and c.tok[label] not in c.cased):
+            return False                                      # a bar called "impressive", "first" or "national" says nothing about what it measures
+        labs.append(_disp(c.tok[label], c.cased))
+    if len(set(labs)) != len(labs):
+        return False
+    for k, (nm, lab) in enumerate(zip(nums, labs)):
         c.add("visual", nm["g"], nm["text"], (x0 + k * (bw_ + gap), 110), ("blue", "gold", "green", "red")[k], "bars",
               params={"ratio": nm["v"] / vmax, "label": lab, "box_w": bw_, "box_h": 690, "bar_w": min(240, bw_ - 40), "px": 64}, first=nm["g"], last=nm["last"])
     return True
+
+
+BAR_NOT_LABEL = frozenset("left first last next other more less most least total only same new old".split())
 
 
 # --------------------------------------------------------------------------------------------- 5. pyramid

@@ -25,14 +25,16 @@ def is_scene_csv(text: str) -> bool:
 
 def read(text: str, words: Sequence, duration: float) -> Dict[str, Any]:
     """-> {"scene_notes": [{"start", "end", "text"}], "places": [...], "cast": {id: look}, "problems": [...], "notes": [...]}. Never raises on a bad row."""
-    from anchor_clock import AnchorClock
+    from anchor_clock import AnchorClock, join_number_words
+    from whatif.shot_csv import spoken_numbers
 
     rows = list(csv.DictReader(io.StringIO((text or "").lstrip("﻿"))))
     problems: List[str] = []
     notes: List[str] = []
     cast: Dict[str, str] = {}
     scenes: List[Dict[str, Any]] = []
-    clock = AnchorClock(words, notes)
+    # a scene CSV has no narration text between its rows: each anchor is searched over the rest of the narration (open_reach), in one number spelling
+    clock = AnchorClock(join_number_words(words), notes, normalize=spoken_numbers, unit="scene", open_reach=True)
     for n, r in enumerate(rows, start=2):
         r = {k: (v or "").strip() for k, v in r.items() if k}
         kind = r.get("row", "").lower()
@@ -50,12 +52,13 @@ def read(text: str, words: Sequence, duration: float) -> Dict[str, Any]:
             except Exception as exc:
                 problems.append(f"row {n}: the words {r['vo_anchor']!r} were not found in the narration ({str(exc)[:80]})")
                 continue
-            if t is None:
-                problems.append(f"row {n}: the words {r['vo_anchor']!r} were not found in the narration")
-                continue
-            scenes.append({"row": n, "start": 0.0 if not scenes else float(t), "anchor": r["vo_anchor"], "r": r})
+            if t is None and scenes:            # not heard: placed between the scenes around it that are heard, never stacked a second after the last one
+                notes.append(f"row {n}: the words {r['vo_anchor']!r} were not heard in the narration; the scene starts halfway between its neighbours")
+            scenes.append({"row": n, "start": 0.0 if not scenes else (None if t is None else float(t)), "anchor": r["vo_anchor"], "r": r})
         elif kind:
             problems.append(f"row {n}: unknown row kind {kind!r} (cast or scene)")
+    _fill_unheard(scenes, float(duration))
+    _check_spans(scenes, float(duration), notes)
     out: List[Dict[str, Any]] = []
     places: List[str] = []
     prev_key = None
@@ -80,3 +83,32 @@ def read(text: str, words: Sequence, duration: float) -> Dict[str, Any]:
             problems.append(f"row {sc['row']}: the same place, backdrop and people as the scene before; give it a different place or backdrop, or set continues to yes")
         prev_key = key
     return {"scene_notes": out, "places": places, "cast": cast, "problems": problems, "notes": notes}
+
+
+def _fill_unheard(scenes: List[Dict[str, Any]], duration: float) -> None:
+    """Scenes whose anchor was not heard share the time between the heard scenes around them evenly."""
+    k = 0
+    while k < len(scenes):
+        if scenes[k]["start"] is not None:
+            k += 1
+            continue
+        j = k
+        while j < len(scenes) and scenes[j]["start"] is None:
+            j += 1
+        lo = scenes[k - 1]["start"]
+        hi = scenes[j]["start"] if j < len(scenes) else duration
+        step = (hi - lo) / (j - k + 1)
+        for i in range(k, j):
+            scenes[i]["start"] = round(lo + step * (i - k + 1), 3)
+        k = j
+
+
+def _check_spans(scenes: List[Dict[str, Any]], duration: float, notes: List[str]) -> None:
+    """A scene that covers far more of the narration than the others usually means its neighbours' anchors landed wrong: said, never silent."""
+    if len(scenes) < 4 or duration <= 0:
+        return
+    spans = [(scenes[k + 1]["start"] if k + 1 < len(scenes) else duration) - sc["start"] for k, sc in enumerate(scenes)]
+    median = sorted(spans)[len(spans) // 2]
+    for sc, d in zip(scenes, spans):
+        if d > 0.4 * duration or (median > 0 and d > 4 * median and d > 120):
+            notes.append(f"row {sc['row']}: this scene covers {d:.0f}s of {duration:.0f}s; check the vo_anchor of the scene after it")

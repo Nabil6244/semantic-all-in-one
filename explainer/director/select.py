@@ -174,6 +174,44 @@ def _known_place_keys() -> frozenset:
     return _KNOWN["keys"]
 
 
+def home_places(words, opt: DirectorOptions) -> List[str]:
+    """Where the story lives, most likely first: the CSV's places by how many scenes name them, then the one-word places the narration says, most said first."""
+    notes = " ".join(str(n.get("text", "")) for n in (opt.scene_notes or [])).lower()
+    csv_ = sorted(opt.places or [], key=lambda p: -notes.count(str(p).lower()))
+    said: Dict[str, int] = {}
+    for w in words:
+        t = re.sub(r"[^a-z]", "", str(w[0]).lower())
+        said[t] = said.get(t, 0) + 1
+    spoken = sorted(place_words(words), key=lambda p: -said.get(p.lower(), 0))
+    return [p for p in csv_ if notes.count(str(p).lower()) > 1] + spoken + list(csv_)
+
+
+def place_words(words) -> List[str]:
+    """One-word place names in a lowercase transcript, title-cased for display ("america" -> "America", "idaho" -> "Idaho", "american" -> "American"), from the offline index only
+    (no lookups). Everyday words that are also a town somewhere ("reading", "mobile"), ambiguous countries ("turkey") and words like "state" never count."""
+    try:
+        keys = _known_place_keys()
+    except Exception:
+        return []
+    out: List[str] = []
+    said: Dict[str, int] = {}
+    for w in words:
+        t_ = re.sub(r"[^a-z]", "", str(w[0]).lower())
+        said[t_] = said.get(t_, 0) + 1
+    keys = keys | {"america", "europe", "africa", "antarctica"}
+    for tok in sorted(said):
+        if tok in AMBIGUOUS_COUNTRIES and said[tok] >= 2:       # "china" spoken again and again is the country
+            out.append(tok.capitalize())
+            continue
+        base = tok[:-1] if tok.endswith("ns") else tok[:-1] if tok.endswith("n") else ""
+        hit = tok if tok in keys else base if base and base in keys and len(base) > 4 else ""
+        if (len(tok) < 4 or not hit or tok in LX.STOP or tok in NOT_PLACES or tok in EVERYDAY_PLACE_WORDS or tok in AMBIGUOUS_COUNTRIES or tok in LX.DIRECTION_WORDS
+                or hit in EVERYDAY_PLACE_WORDS or hit in AMBIGUOUS_COUNTRIES):
+            continue
+        out.append(tok.capitalize())
+    return out
+
+
 def transcript_places(words, limit: int = 60) -> Tuple[List[str], List[str]]:
     """(place names, notes) found in narration that has no capitals to go by. A word group (three words, then two, then one) counts when the lookup knows it as a country, region, sea, state
     or large city. One word that is a function word, a direction, an everyday word or a common noun never counts; one word that is only a state or a city ("venice", "crete") counts when a
@@ -539,12 +577,14 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
     if not any(b.kind == "map" for b in beats):
         first = beats[0]
         fp = None
-        try:
-            from hybrid import geo
-            r = geo.resolve(opt.fallback_place)
-            fp = PlaceHit(opt.fallback_place, str(r.kind), bool(r.is_area), {})
-        except Exception:
-            pass
+        for name in home_places(words, opt) + [opt.fallback_place]:      # the story's own home (the CSV's most used region, else the place the narration names most), Europe only as a last resort
+            try:
+                from hybrid import geo
+                r = geo.resolve(name)
+                fp = PlaceHit(name, str(r.kind), bool(r.is_area), {})
+                break
+            except Exception:
+                continue
         if fp is None:
             info["warnings"].append(f"no place is spoken and the fallback place {opt.fallback_place!r} cannot be found: the plan cannot have the map beat Hybrid requires")
         else:

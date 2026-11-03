@@ -66,7 +66,7 @@ class Plates(unittest.TestCase):
         self.assertIn("longships beached", p)
         self.assertIn("East Anglia", p)
         self.assertNotIn("Venice", p)
-        self.assertIn("the right third is open calm ground", p)
+        self.assertIn("open calm ground in the near foreground toward the right", p)
 
     def test_a_topic_with_no_setting_keeps_paper(self):
         words = timed("prices rose because demand was strong .")

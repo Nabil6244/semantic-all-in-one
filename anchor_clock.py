@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import difflib
 import re
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 DEFAULT_WORDS = 40          # a beat with no text: about this many words are assumed spoken before the next one
 SLACK = 60                  # extra words a partly heard phrase may be found past its expected place
@@ -22,10 +22,11 @@ class AnchorClock:
     """Beat rows (advance=True) move the search on; a beat's own rows are searched from the beat's first words and never move it.
     normalize puts the transcript and the CSV's words in one spelling (StarMap's number forms); unit = "beat" or "row" in messages."""
 
-    def __init__(self, words: Sequence, notes: List[str], normalize: Callable[[str], str] = lambda s: s, unit: str = "beat"):
+    def __init__(self, words: Sequence, notes: List[str], normalize: Callable[[str], str] = lambda s: s, unit: str = "beat", open_reach: bool = False):
         from pakmap.anchor import Transcript     # the shared word matcher (read-only)
 
         self.norm, self.unit, self.notes = normalize, unit, notes
+        self.open_reach = open_reach  # rows with no text between them (a scene CSV): an anchor is searched over the rest of the narration, not near a word count
         self.tr = Transcript([(normalize(str(w)), s, e) for w, s, e in words]) if words else None
         self.cursor = 0             # token where the last heard beat starts
         self.skipped = 0            # words counted past the cursor for beats placed by estimate
@@ -42,7 +43,7 @@ class AnchorClock:
         return hit_first(self.tr, m)
 
     def _near(self, hit, reach: int) -> bool:
-        return hit is not None and not hit[0].out_of_order and self._first(hit[0]) - self.cursor <= reach
+        return hit is not None and not hit[0].out_of_order and (self.open_reach or self._first(hit[0]) - self.cursor <= reach)
 
     def _find(self, words: str, reach: int):
         exact = self.tr.find(words, self.cursor)
@@ -88,6 +89,8 @@ class AnchorClock:
             self.estimated = False
         hit = self._find(words, reach)
         if hit is None or hit[0].out_of_order:
+            if advance and self.open_reach:
+                return None                     # no word count to estimate from: the caller places it between its heard neighbours
             if advance:
                 return self._estimate(words, n)
             if hit is None:
@@ -146,4 +149,21 @@ def keep_in_order(starts: List[float], movable: Dict[int, bool], end: Optional[f
             out[k] = round(lo + step * (k - i + 1), 3)
             notes.append(f"{names[k]}: its words are heard out of order in the narration, so it starts at {out[k]:.1f}s, between the beats around it")
         i = j
+    return out
+
+
+def join_number_words(words: Sequence) -> List[Tuple[str, float, float]]:
+    """Whisper writes a spoken thousands number as two words: 6,500 as "6" "500" and 300,000 as "300" "0". Each such pair becomes one word
+    (6500, 300000) over both words' time, so an anchor or a graphic reads the number as said, not "6 feet ... 500 feet" or "300 0"."""
+    w = [(str(x[0]), float(x[1]), float(x[2])) for x in words]
+    out: List[Tuple[str, float, float]] = []
+    i = 0
+    while i < len(w):
+        nxt = w[i + 1][0] if i + 1 < len(w) else ""
+        if re.fullmatch(r"\d{1,3}", w[i][0]) and (nxt == "0" or re.fullmatch(r"\d{3}", nxt)) and w[i + 1][1] - w[i][2] < 0.35:
+            out.append((f"{w[i][0]}000" if nxt == "0" else w[i][0] + nxt, w[i][1], w[i + 1][2]))
+            i += 2
+            continue
+        out.append(w[i])
+        i += 1
     return out

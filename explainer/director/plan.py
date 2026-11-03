@@ -264,6 +264,10 @@ SCENE_SHOTS = ("wide establishing view", "street-level view among the people", "
                "evening view with lamplight", "crowd in motion")      # the same place and period seen again is seen another way; past the last one the beat stays a board
 
 
+SEEN_AGAIN = ("in early morning light", "in flat overcast midday light", "in low late-afternoon sun", "at blue hour just after sunset", "under a clearing sky after a storm",
+              "seen from a little higher up", "seen from further back")
+
+
 def _uniq(items) -> List[str]:
     out: List[str] = []
     for x in items:
@@ -292,6 +296,11 @@ def beat_place(beats, k: int) -> str:
 
 PLATE_RUN = 3                  # one background plate is kept for at most this many board beats in a row (same place and period); then the camera "moves" to another framing. 3 since beats became 3-4 s, so a plate still lasts ~10 s and the Flow picture count does not grow
 PAPER_EVERY = 3                # Flow backdrops: every third board beat stays on the plain board background (grey, paper...) so the look keeps its own surface between pictures
+
+
+def bare_board(cues) -> bool:
+    """Nothing on the board but the presenter (and clears): on plain paper that is an empty screen."""
+    return not any(c.kind not in ("narrator", "clear") and (c.text or c.asset or (c.params or {}).get("style")) for c in cues)
 
 
 def keeps_paper(n_board: int) -> bool:
@@ -328,8 +337,8 @@ def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
 def plate_stage(side: str) -> str:
     """The part of a background plate the narrator and the board stand in front of: open calm ground on the narrator's side, a quiet uncluttered area for the words on the other."""
     other = "right" if side == "left" else "left"
-    return (f"the {side} third is open calm ground in the near foreground with nothing on it, where a presenter will stand; the {other} side is quiet and uncluttered for words; "
-            "any people stay small in the middle distance; no text")
+    return (f"one single continuous picture with no panels, borders or split frames; open calm ground in the near foreground toward the {side} with nothing on it, where a presenter "
+            f"will stand; quiet uncluttered sky or ground toward the {other} for words; any people stay small in the middle distance; no text")
 
 
 def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], notes: Sequence[Dict[str, Any]] = (), side: str = "left") -> str:
@@ -364,8 +373,8 @@ def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], note
         spec.background = ", ".join(x for x in (spec.background if n == 0 else "", SCENE_SHOTS[n % len(SCENE_SHOTS)]) if x)
     spec.atmosphere = ", ".join(x for x in (spec.atmosphere, plate_stage(side)) if x)
     prompt = SI.flow_prompt(spec)
-    if n >= len(SCENE_SHOTS):                       # every framing used: the subject is seen again at another hour, never the same request twice
-        prompt = prompt.replace(". flat 2D", f", variation {n // len(SCENE_SHOTS) + 1}. flat 2D", 1)
+    if n >= len(SCENE_SHOTS):                       # every framing used: the subject is seen again at another hour, never the same request twice ("variation 4" made Flow draw several side by side)
+        prompt = prompt.replace(". flat 2D", f", {SEEN_AGAIN[(n // len(SCENE_SHOTS) - 1) % len(SEEN_AGAIN)]}. flat 2D", 1)
     state.update(key=key, run=1, prompt=prompt)
     return prompt
 
@@ -466,7 +475,8 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
 
 
 def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> DirectorResult:
-    words = [(str(w[0]), float(w[1]), float(w[2])) for w in words]
+    from anchor_clock import join_number_words
+    words = join_number_words(words)            # Whisper's "6" "500" / "300" "0" are one spoken number: every card, chart and badge reads 6500 / 300000
     res = DirectorResult(None)
     if not words:
         res.problems.append("no narration words")
@@ -489,8 +499,11 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     SG.label_sentences(sents, words, script)
     SG.compute_breaks(sents, words)
     cased = SG.casing(script)
+    for k_, v_ in SG.spelling(words, script).items():      # a misheard word is shown as the script writes it
+        cased.setdefault(k_, v_)
     if SL.lowercase_text(script, words):           # speech-to-text writes "mercia", "viking": the names the CSV gives (its places and scene notes) are written as the CSV writes them
-        for k_, v_ in SG.vocab_casing(words, list(opt.places) + [n.get("text", "") for n in opt.scene_notes]).items():
+        heard = SL.place_words(words)                # and the countries and states the narration names ("america", "idaho"), CSV or not
+        for k_, v_ in SG.vocab_casing(words, list(opt.places) + [n.get("text", "") for n in opt.scene_notes] + list(heard)).items():
             cased.setdefault(k_, v_)
     table = {**LX.ICONS, **{k.lower(): v for k, v in opt.metaphors.items()}}
     if opt.scenes2:
@@ -820,15 +833,6 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if opt.variety and opt.look == "reference" and b.kind != "cartoon":
             from .compose_variety import variety_pass
             br, beat_bg, variety_rec[b.id] = variety_pass(br, b, k, words, cased, opt, table, roles, modes[k], carry, sig_hist, dossier_hist)
-        plate = ""
-        if opt.flow_backdrops and b.kind == "board" and saved_pic is None:      # the narrator and the cards stand in front of a picture of the story's place and period, not on paper
-            n_board += 1
-            side_ = next((c.params.get("side") for c in br.cues if c.kind == "narrator" and (c.params or {}).get("side")), "left")
-            plate = "" if keeps_paper(n_board - 1) else backdrop_prompt(beats, k, words, plate_main, plate_state, opt.scene_notes, side_)
-            if plate:
-                beat_bg = "alpha"
-        elif b.kind == "cartoon" and b.plate:
-            plate, beat_bg = b.plate, "alpha"
         resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         if b.kind == "cartoon":                 # a cartoon beat has no repair: its elements arrive on spread-out words; the gaps are measured and reported
             ev_s, ev_a = CP.change_events(resolved, b.start, b.end, strict=True), CP.change_events(resolved, b.start, b.end)
@@ -874,6 +878,25 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             animate_rec[b.id] = animate_pass(br, b.id, b.start, b.end, b.sents, words, opt, variant=k, kind="cartoon" if b.kind == "cartoon" else "board", continuity=continuity_rec.get(b.id),
                                              prev_cast=(_hist[-2]["cast"] if b.kind == "cartoon" and len(_hist) > 1 else None))
             resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
+        from .onscreen import drop_icons_out_of_sense, finish_texts
+        n_fin = finish_texts(br.cues)            # whichever composer wrote a phrase, it ends as a finished thought ("buried on the" -> "buried")
+        n_off = drop_icons_out_of_sense(br.cues, words, b.start, b.end)      # "crushed ore" gets no battle swords, "the United States" no castle
+        if n_fin:
+            info.setdefault("texts_finished", []).append(b.id)
+        if n_off:
+            info.setdefault("icons_out_of_sense", []).append(b.id)
+        if n_fin or n_off:
+            resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
+        plate = ""
+        if opt.flow_backdrops and b.kind == "board" and saved_pic is None:      # the narrator and the cards stand in front of a picture of the story's place and period, not on paper
+            n_board += 1
+            side_ = next((c.params.get("side") for c in br.cues if c.kind == "narrator" and (c.params or {}).get("side")), "left")
+            paper = keeps_paper(n_board - 1) and not bare_board(br.cues)      # paper only carries a board that shows something; a presenter alone stands in front of a picture
+            plate = "" if paper else backdrop_prompt(beats, k, words, plate_main, plate_state, opt.scene_notes, side_)
+            if plate:
+                beat_bg = "alpha"
+        elif b.kind == "cartoon" and b.plate:
+            plate, beat_bg = b.plate, "alpha"
         carry = br.last_pose
         if creg is not None and b.kind != "cartoon":
             creg.note_board(b.id, b.start, b.end, sorted({p_["as"] for p_ in br.phrases}))

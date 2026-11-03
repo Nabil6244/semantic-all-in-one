@@ -391,6 +391,13 @@ def generate_pakmap_video(
             narration_for_export = _fin["audio"]
     except Exception:
         pass
+    try:   # the finished sound at YouTube's loudness (-14 LUFS, as the What If styles): a quiet mix (-23 LUFS) plays far softer than the videos around it
+        from whatif.sound import normalize_loudness
+
+        if narration_for_export and Path(narration_for_export).is_file():
+            narration_for_export = str(normalize_loudness(narration_for_export, work / "pakmap_audio_lufs.wav"))
+    except Exception:
+        pass
     _report(progress_cb, "Adding the narration…", 0.92)
     try:
         from scene_graph.app_integration import _export_via_existing_renderer
