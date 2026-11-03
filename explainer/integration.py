@@ -154,15 +154,24 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
                     maps.append((str(mov), float(plan["start"])))
             except Exception as exc:
                 log(f"[Explainer] the map overlay of {bid} could not be drawn ({str(exc)[:100]}); the map is used as it is")
-        if boards or maps:
+        presenter = None
+        try:
+            from .beats import map_narrator as MN
+            presenter = MN.presenter_overlay(rr.parent, rr.parent)
+            (rr.parent / MN.PENDING).unlink(missing_ok=True)
+        except Exception as exc:
+            log(f"[Explainer] the presenter could not be prepared ({str(exc)[:100]}); the map is used as it is")
+        if boards or maps or presenter:
             nxt = rr.parent / f"{cur.stem.split('__ov')[0].split('__boards')[0]}__boards.mp4"
             try:
-                if OV.composite_many(cur, boards + maps, nxt) == 0 and nxt.is_file():
+                if OV.composite_chunked(cur, boards + maps, nxt, presenter=presenter, log=log) == 0 and nxt.is_file():
                     cur = nxt
                     if boards:
                         log(f"[Explainer] {len(boards)} board(s) laid over their pictures")
                     if maps:
                         log(f"[Explainer] {len(maps)} map overlay(s) laid on the video")
+                    if presenter:
+                        log(f"[Explainer] the presenter stands over the map for {sum(b - a for a, b in presenter['windows']):.0f} s")
                 else:
                     log("[Explainer] the boards and map overlays could not be laid on; the video is used without them")
             except Exception as exc:

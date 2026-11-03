@@ -25,8 +25,19 @@ def queue(out_dir: "str | Path", words: Sequence, jobs: List[Dict]) -> None:
     tmp.replace(f)
 
 
-def _init(words) -> None:
+def _init(words, cast_v2: bool = False) -> None:
     _WORDS[:] = [words]
+    if cast_v2:                                 # the app's process installed the v2 cast over the kit (cartoon/characters.install); a worker process starts without it
+        from ..cartoon import characters
+        characters.install()
+
+
+def _cast_v2() -> bool:
+    try:
+        from ..cartoon import characters
+        return bool(characters._INSTALLED)
+    except Exception:
+        return False
 
 
 def _draw(job: Dict) -> str:
@@ -73,7 +84,7 @@ def run(words, jobs, log: Callable[[str], None] = lambda m: None, max_workers: i
         if n > 1 and len(todo) > 1:
             try:
                 from concurrent.futures import ProcessPoolExecutor, as_completed
-                with ProcessPoolExecutor(max_workers=n, initializer=_init, initargs=(words,)) as ex:
+                with ProcessPoolExecutor(max_workers=n, initializer=_init, initargs=(words, _cast_v2())) as ex:
                     futs = {ex.submit(_draw, j): j for j in todo}
                     for fu in as_completed(futs):
                         try:

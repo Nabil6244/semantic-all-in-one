@@ -88,6 +88,20 @@ def apply(video_in: "str | Path", video_out: "str | Path", windows: Sequence[Tup
     return subprocess.run(cmd, timeout=7200).returncode
 
 
+PENDING = "presenter_pending.json"      # the presenter windows for post_render, written beside the marker
+
+
+def presenter_overlay(folder: "str | Path", work: "str | Path") -> Optional[Dict[str, Any]]:
+    """The pending presenter as composite_chunked wants it ({"mov", "x", "y", "windows"}), or None. Builds the looping clip once."""
+    f = Path(folder) / PENDING
+    if not f.is_file():
+        return None
+    d = json.loads(f.read_text(encoding="utf-8"))
+    loop = Path(work) / f"map_narrator_{d.get('style', 'serious')}.mov"
+    w, h = build_loop(d.get("style", "serious"), loop)
+    return {"mov": str(loop), "x": 1920 - w - MARGIN_X, "y": 1080 - h - MARGIN_BOTTOM, "windows": [tuple(x) for x in d.get("windows", [])]}
+
+
 def apply_if_marked(video: "str | Path", spec: Dict[str, Any], work: "str | Path", log=lambda m: None) -> Optional[Path]:
     """Looks for the director's marker beside `work` (the Hybrid work folder) or in it. Returns the new video's path, or None (nothing marked, no map stretch, or a failure)."""
     try:
@@ -99,12 +113,10 @@ def apply_if_marked(video: "str | Path", spec: Dict[str, Any], work: "str | Path
         wins = map_windows(spec)
         if not wins:
             return None
-        out = Path(video).with_name(Path(video).stem + "_presenter.mp4")
-        if apply(video, out, wins, style, work) != 0 or not out.exists():
-            log("[Explainer] the presenter could not be laid over the map; the map is used as it is")
-            return None
-        log(f"[Explainer] the presenter stands over the map for {sum(b - a for a, b in wins):.0f} s")
-        return out
+        # no encode here: the presenter is laid on in the same one-pass, parallel step as the boards (integration.post_render -> overlay.composite_chunked)
+        (mk.parent / PENDING).write_text(json.dumps({"style": style, "windows": [[float(a), float(b)] for a, b in wins]}), encoding="utf-8")
+        log(f"[Explainer] the presenter will stand over the map for {sum(b - a for a, b in wins):.0f} s (laid on with the boards)")
+        return None
     except Exception as exc:
         log(f"[Explainer] the presenter could not be laid over the map ({str(exc)[:100]}); the map is used as it is")
         return None

@@ -568,3 +568,93 @@ def probe_size(path: "str | Path") -> Tuple[int, int]:
         raise RuntimeError(f"ffprobe timed out on {path}")
     a, b = [v for v in r.stdout.strip().splitlines()[0].split("x") if v.strip()][:2]      # some ffprobe builds end the line with an extra "x" (1920x1080x)
     return int(a), int(b)
+
+
+def _probe(path: "str | Path", entries: str) -> str:
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", entries, "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=120)
+    return r.stdout.strip().splitlines()[0].strip().rstrip(",") if r.stdout.strip() else ""
+
+
+def _duration(path: "str | Path") -> float:
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=120)
+    return float(r.stdout.strip() or 0.0)
+
+
+def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, presenter: Optional[Dict[str, Any]] = None,
+                      crf: int = 10, workers: int = 0, max_per_chunk: int = 24, log=lambda m: None) -> int:
+    """composite_many in ONE pass: the video is cut into time chunks drawn at the same time on several cores, each chunk laying on only the alpha clips (and the presenter
+    windows) that fall inside it, then the chunks are joined without another encode and the video's own audio is put back. A 16.7 min video with 259 boards took ~9 full
+    re-encodes one after another before. `presenter` = {"mov": looping RGBA clip, "x": .., "y": .., "windows": [(start, end), ...]}. Returns 0 when the result is written."""
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    video, out_path = Path(video), Path(out_path)
+    w, h = probe_size(video)
+    num, _, den = _probe(video, "stream=r_frame_rate").partition("/")
+    fps = float(num) / float(den or 1)
+    total = round(_duration(video) * fps)
+    with ThreadPoolExecutor(8) as ex:
+        lens = list(ex.map(lambda o: _duration(o[0]), overlays))
+    items = [(str(m), float(s), float(s) + d) for (m, s), d in zip(overlays, lens) if d > 0]
+    cores = os.cpu_count() or 4
+    workers = workers or max(1, min(8, cores - 1))
+    n_chunks = max(workers, math.ceil(len(items) / max(1, max_per_chunk)) + 1, 1)
+    n_chunks = min(n_chunks, max(1, total // max(1, int(fps * 4))))      # never a chunk shorter than ~4 s
+    bounds = [round(total * k / n_chunks) for k in range(n_chunks + 1)]
+    parts_dir = out_path.with_name(out_path.stem + "__chunks")
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    threads = max(1, cores // workers)
+
+    def chunk(k: int) -> int:
+        f0, f1 = bounds[k], bounds[k + 1]
+        t0, t1 = f0 / fps, f1 / fps
+        mine = [it for it in items if it[1] < t1 and it[2] > t0]
+        cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{t0:.6f}", "-i", str(video)]
+        graph, last, n_in = [], "0:v", 0
+        for mov, s, _e in mine:
+            n_in += 1
+            lead = round((s - t0) * fps)                 # whole frames, so a clip starts and ends on the same frames as in one long pass
+            cmd += (["-ss", f"{-lead / fps:.6f}"] if lead < 0 else []) + ["-i", mov]
+            graph.append(f"[{n_in}:v]format=rgba,setpts=PTS-STARTPTS+{max(0, lead)}/({fps:.6f}*TB),scale={w}:{h}[o{n_in}]")
+            graph.append(f"[{last}][o{n_in}]overlay=0:0:format=auto:eof_action=pass[v{n_in}]")
+            last = f"v{n_in}"
+        if presenter:
+            wins = [(max(a, t0) - t0, min(b, t1) - t0) for a, b in presenter.get("windows", ()) if a < t1 and b > t0]
+            if wins:
+                n_in += 1
+                cmd += ["-stream_loop", "-1", "-i", str(presenter["mov"])]
+                when = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in wins)
+                graph.append(f"[{n_in}:v]format=rgba[np]")
+                graph.append(f"[{last}][np]overlay={int(presenter['x'])}:{int(presenter['y'])}:enable='{when}':eof_action=repeat:format=auto[vp]")
+                last = "vp"
+        if graph:
+            cmd += ["-filter_complex", ";".join(graph), "-map", f"[{last}]"]
+        else:
+            cmd += ["-map", "0:v"]
+        cmd += ["-frames:v", str(f1 - f0), "-an", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", "-preset", "superfast", "-r", f"{fps:.6f}", "-threads", str(threads),
+                "-video_track_timescale", str(round(fps * 1000)), "-avoid_negative_ts", "make_zero", str(parts_dir / f"c{k:03d}.mp4")]      # exact frame ticks: the joins stay on the frame grid
+        try:
+            return subprocess.run(cmd, timeout=7200).returncode
+        except subprocess.TimeoutExpired:
+            return -1
+
+    log(f"[Explainer] laying {len(items)} clip(s){' and the presenter' if presenter else ''} on in {n_chunks} chunk(s), {workers} at a time")
+    with ThreadPoolExecutor(workers) as ex:
+        rcs = list(ex.map(chunk, range(n_chunks)))
+    try:
+        if any(rcs):
+            return next(r for r in rcs if r) or -1
+        lst = parts_dir / "list.txt"
+        lst.write_text("".join(f"file '{(parts_dir / f'c{k:03d}.mp4').as_posix()}'\n" for k in range(n_chunks)), encoding="utf-8")
+        cmd = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(video), "-map", "0:v", "-map", "1:a?", "-c", "copy", "-movflags", "+faststart", str(out_path)]
+        rc = subprocess.run(cmd, timeout=3600).returncode
+        return rc if rc == 0 and out_path.is_file() else (rc or -1)
+    finally:
+        for p in parts_dir.glob("*"):
+            try:
+                p.unlink()
+            except OSError:
+                pass
+        try:
+            parts_dir.rmdir()
+        except OSError:
+            pass
